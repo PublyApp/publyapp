@@ -28,7 +28,7 @@
  * constrained viewport — is the captain's Playwright suite, not this file.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { cleanup, render, screen } from '@testing-library/react';
@@ -159,47 +159,51 @@ import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/p
 const noop = () => undefined;
 
 const FRONT_ROOT = path.resolve(import.meta.dirname, '../../..');
-const DRAWER_SOURCE_PATH = path.join(
+const DRAWER_SOURCE_GLOB = path.join(FRONT_ROOT, 'src/**/*.tsx');
+const TEMPORARY_CALL_SITE_SOURCE_FILE =
+	'src/components/ui/_drawer-form-inventory-fixture.tsx';
+const TEMPORARY_CALL_SITE_PATH = path.join(
 	FRONT_ROOT,
-	'src/components/ui/drawer.tsx',
+	TEMPORARY_CALL_SITE_SOURCE_FILE,
 );
+const TEMPORARY_CALL_SITE_SOURCE = `import { DrawerForm } from '~/components/ui/drawer-form';
+
+export const DrawerFormInventoryFixture = () => {
+	return (
+		<DrawerForm onSubmit={() => undefined}>
+			<span>probe</span>
+		</DrawerForm>
+	);
+};
+`;
 
 const findDrawerFormCallSites = (): string[] => {
 	const project = new Project({
 		tsConfigFilePath: path.join(FRONT_ROOT, 'tsconfig.json'),
-		skipAddingFilesFromTsConfig: false,
+		skipAddingFilesFromTsConfig: true,
 	});
 	const sourceFiles: string[] = [];
 
-	for (const sourceFile of project.getSourceFiles(
-		path.join(FRONT_ROOT, 'src/**/*.tsx'),
-	)) {
+	for (const sourceFile of project.addSourceFilesAtPaths(DRAWER_SOURCE_GLOB)) {
+		if (/\.(?:spec|test)\.tsx$/.test(sourceFile.getBaseName())) {
+			continue;
+		}
+
 		const drawerFormNodes = [
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
 		];
+		const hasDrawerForm = drawerFormNodes.some((node) => {
+			return node.getTagNameNode().getText() === 'DrawerForm';
+		});
 
-		for (const node of drawerFormNodes) {
-			const tagName = node.getTagNameNode();
-			let symbol = tagName.getSymbol();
-			if (symbol?.isAlias()) {
-				symbol = symbol.getAliasedSymbol();
-			}
-
-			const isDrawerForm = symbol?.getDeclarations().some((declaration) => {
-				return (
-					symbol?.getName() === 'DrawerForm' &&
-					declaration.getSourceFile().getFilePath() === DRAWER_SOURCE_PATH
-				);
-			});
-			if (isDrawerForm) {
-				sourceFiles.push(
-					path
-						.relative(FRONT_ROOT, sourceFile.getFilePath())
-						.split(path.sep)
-						.join('/'),
-				);
-			}
+		if (hasDrawerForm) {
+			sourceFiles.push(
+				path
+					.relative(FRONT_ROOT, sourceFile.getFilePath())
+					.split(path.sep)
+					.join('/'),
+			);
 		}
 	}
 
@@ -280,6 +284,18 @@ const expectDrawerFormChain = (testId: string): void => {
 afterEach(cleanup);
 
 describe('DrawerForm flex chain at the real call sites', () => {
+	test('the scanner discovers a newly added DrawerForm JSX call site on disk', () => {
+		writeFileSync(TEMPORARY_CALL_SITE_PATH, TEMPORARY_CALL_SITE_SOURCE);
+
+		try {
+			expect(findDrawerFormCallSites()).toContain(
+				TEMPORARY_CALL_SITE_SOURCE_FILE,
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CALL_SITE_PATH);
+		}
+	});
+
 	test('the inventory contains every real DrawerForm JSX call site', () => {
 		const inventoriedSourceFiles = DRAWER_FORM_CALL_SITES.map(
 			(callSite) => callSite.sourceFile,
