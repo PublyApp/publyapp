@@ -6,6 +6,7 @@ import {
 	type TestInfo,
 } from '@playwright/test';
 
+import { DRAWER_DESCRIPTION_CONSUMERS } from '../src/styles/drawer-description-inventory';
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
@@ -17,6 +18,17 @@ import { loginAsStaffAdmin } from './helpers/login';
  * cascade. This spec opens every real DrawerDescription consumer against the
  * docker-compose stack and measures the live elements after Chromium has
  * resolved utilities, specificity, opacity, and the overlay paint stack.
+ *
+ * The drawer cases are derived from the shared inventory
+ * (src/styles/drawer-description-inventory.ts) — the SAME constant the source
+ * guard enumerates against (round 5 I4) — so a drawer added to the app has to
+ * be added to exactly one place to gain both guards.
+ *
+ * Round 5 B1: unlike the source guard, this spec measures every distinct
+ * computed colour actually painting inside the description — the description's
+ * own text AND every descendant text node's parent element (a `<strong>`, a
+ * count, an emphasised fragment, a linked policy version). A colour override
+ * one DOM node inward cannot hide here.
  */
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
@@ -30,14 +42,22 @@ type BackgroundLayer = {
 	color: string;
 	element: string;
 };
+/** One distinct colour that actually paints inside the description, with the
+ * element that carries it (for error messages) and its own opacity. */
+type ForegroundSample = {
+	color: string;
+	opacity: number;
+	source: string;
+};
 type BrowserComputedColors = {
 	backgroundLayers: BackgroundLayer[];
-	foreground: string;
+	foregrounds: ForegroundSample[];
 };
 type ContrastMeasurement = {
 	background: Rgba;
 	foreground: Rgba;
 	ratio: number;
+	source: string;
 };
 
 const isApiPath = (url: string, path: string): boolean => {
@@ -373,7 +393,7 @@ const contrastRatio = (foreground: Rgba, background: Rgba): number => {
 const readBrowserComputedColors = async (
 	text: Locator,
 ): Promise<BrowserComputedColors> =>
-	text.evaluate((element) => {
+	text.evaluate((root) => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 1;
 		canvas.height = 1;
@@ -390,12 +410,49 @@ const readBrowserComputedColors = async (
 			return `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;
 		};
 
-		const computedForeground = toSrgb(getComputedStyle(element).color);
-		const rect = element.getBoundingClientRect();
+		const elementLabel = (element: Element): string =>
+			element.getAttribute('data-slot') ??
+			element.getAttribute('data-testid') ??
+			element.tagName.toLowerCase();
+
+		// Round 5 B1: every distinct colour that actually PAINTS is a text
+		// node's parent computed colour — the description's own text and every
+		// descendant (a child `<span className="text-primary">` included). Each
+		// sample also carries the carrying element's opacity (round 5 fourth
+		// door: `opacity-*` on the text paints it translucent without changing
+		// `color`, collapsing the effective contrast).
+		const foregrounds = new Map<string, ForegroundSample>();
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+		let node: Node | null;
+		while ((node = walker.nextNode()) !== null) {
+			if (!node.textContent || node.textContent.trim().length === 0) {
+				continue;
+			}
+			const parent = node.parentElement;
+			if (!parent) {
+				continue;
+			}
+			const style = getComputedStyle(parent);
+			const color = toSrgb(style.color);
+			const opacity = Number(style.opacity);
+			if (!Number.isFinite(opacity)) {
+				continue;
+			}
+			const key = `${color}@${opacity}`;
+			if (!foregrounds.has(key)) {
+				foregrounds.set(key, {
+					color,
+					opacity,
+					source: elementLabel(parent),
+				});
+			}
+		}
+
+		const rect = root.getBoundingClientRect();
 		const x = rect.left + rect.width / 2;
 		const y = rect.top + rect.height / 2;
 		const hitStack = document.elementsFromPoint(x, y);
-		const targetIndex = hitStack.indexOf(element);
+		const targetIndex = hitStack.indexOf(root);
 		if (targetIndex === -1) {
 			throw new Error('Description is absent from its own painted hit stack');
 		}
@@ -418,20 +475,19 @@ const readBrowserComputedColors = async (
 
 			backgroundLayers.push({
 				color,
-				element:
-					layer.getAttribute('data-slot') ??
-					layer.getAttribute('data-testid') ??
-					layer.tagName.toLowerCase(),
+				element: elementLabel(layer),
 			});
 			if (alpha === 1) {
 				break;
 			}
 		}
 
-		return { backgroundLayers, foreground: computedForeground };
+		return { backgroundLayers, foregrounds: [...foregrounds.values()] };
 	});
 
-const measureContrast = async (text: Locator): Promise<ContrastMeasurement> => {
+const measureContrast = async (
+	text: Locator,
+): Promise<ContrastMeasurement[]> => {
 	const computed = await readBrowserComputedColors(text);
 	if (computed.backgroundLayers.length === 0) {
 		throw new Error('No painted background layer found behind description');
@@ -445,17 +501,23 @@ const measureContrast = async (text: Locator): Promise<ContrastMeasurement> => {
 		background = alphaComposite(layers[index], background);
 	}
 
-	const rawForeground = parseComputedColor(computed.foreground);
-	const foreground =
-		rawForeground.a === 1
-			? rawForeground
-			: alphaComposite(rawForeground, background);
+	return computed.foregrounds.map(({ color, opacity, source }) => {
+		const rawForeground = parseComputedColor(color);
+		const foreground =
+			rawForeground.a === 1 && opacity === 1
+				? rawForeground
+				: alphaComposite(
+						{ ...rawForeground, a: rawForeground.a * opacity },
+						background,
+					);
 
-	return {
-		background,
-		foreground,
-		ratio: contrastRatio(foreground, background),
-	};
+		return {
+			background,
+			foreground,
+			ratio: contrastRatio(foreground, background),
+			source,
+		};
+	});
 };
 
 const setTheme = async (page: Page, theme: Theme): Promise<void> => {
@@ -486,27 +548,17 @@ const assertTextContrast = async ({
 
 	for (const theme of ['light', 'dark'] as const) {
 		await setTheme(page, theme);
-		for (const state of ['default', 'hover', 'active'] as const) {
-			if (state === 'hover' || state === 'active') {
-				await text.hover();
-			} else {
-				await page.mouse.move(0, 0);
-			}
 
-			if (state === 'active') {
-				await page.mouse.down();
-			}
-
-			let measurement: ContrastMeasurement;
-			try {
-				measurement = await measureContrast(text);
-			} finally {
-				if (state === 'active') {
-					await page.mouse.up();
-				}
-			}
-
-			const description = `${label} ${theme} ${state}: ${measurement.ratio.toFixed(2)}:1`;
+		// Round 5 M10: hover/active measurements were 100% redundant (the
+		// reviewer's 48-measurement run showed 32 exact duplicates) — no
+		// description or row ancestor paints a hover/active colour today, so
+		// they are dropped in favour of the child-element walk (B1) and the
+		// narrow-viewport run (I7), which actually catch something.
+		const measurements = await measureContrast(text);
+		for (const measurement of measurements) {
+			const description =
+				`${label} ${theme} ${measurement.source}: ` +
+				`${measurement.ratio.toFixed(2)}:1`;
 			testInfo.annotations.push({ type: 'contrast', description });
 			expect(measurement.ratio, description).toBeGreaterThanOrEqual(
 				SMALL_TEXT_CONTRAST_FLOOR,
@@ -530,40 +582,58 @@ const assertDrawerDescriptionContrast = async (
 	});
 };
 
-const DRAWER_CASES = [
-	{
+// Round 5 I4: the drawer cases are DRIVEN by the shared inventory constant,
+// keyed by testId. A new consumer in the inventory with no opener fails the
+// linkage test below (and `DRAWER_OPENERS[testId]` being undefined would throw
+// at module load). The source guard asserts the same inventory files are
+// exactly its enumerated call sites, so one edit extends both guards.
+const DRAWER_OPENERS: Record<
+	string,
+	{ name: string; open: (page: Page) => Promise<void> }
+> = {
+	'cookie-prefs-drawer': {
 		name: 'cookie preferences',
-		testId: 'cookie-prefs-drawer',
 		open: openCookiePrefsDrawer,
 	},
-	{
+	'change-staff-user-email-dialog': {
 		name: 'change email',
-		testId: 'change-staff-user-email-dialog',
 		open: openChangeEmailDrawer,
 	},
-	{
+	'invite-tenant-user-drawer': {
 		name: 'invite user',
-		testId: 'invite-tenant-user-drawer',
 		open: openInviteUserDrawer,
 	},
-	{
+	'assign-members-drawer': {
 		name: 'assign members',
-		testId: 'assign-members-drawer',
 		open: openAssignMembersDrawer,
 	},
-	{
+	'profile-form-drawer': {
 		name: 'create profile',
-		testId: 'profile-form-drawer',
 		open: openProfileCreateDrawer,
 	},
-	{
+	'profile-edit-details-drawer': {
 		name: 'edit profile',
-		testId: 'profile-edit-details-drawer',
 		open: openProfileEditDrawer,
 	},
-] as const;
+};
+
+const DRAWER_CASES = DRAWER_DESCRIPTION_CONSUMERS.map((consumer) => ({
+	name: DRAWER_OPENERS[consumer.testId].name,
+	testId: consumer.testId,
+	open: DRAWER_OPENERS[consumer.testId].open,
+}));
 
 test.describe('live description text contrast (#1043 / PR #1061)', () => {
+	test('every inventory consumer has a live browser case', () => {
+		expect(DRAWER_CASES.length).toBe(DRAWER_DESCRIPTION_CONSUMERS.length);
+		for (const consumer of DRAWER_DESCRIPTION_CONSUMERS) {
+			expect(
+				DRAWER_OPENERS[consumer.testId],
+				`no browser drawer opener for ${consumer.file} (${consumer.testId})`,
+			).toBeDefined();
+		}
+	});
+
 	for (const drawerCase of DRAWER_CASES) {
 		test(`${drawerCase.name} drawer clears 4.5:1 in both themes`, async ({
 			page,
@@ -594,6 +664,27 @@ test.describe('live description text contrast (#1043 / PR #1061)', () => {
 			page,
 			testInfo,
 			text: page.locator('.publy-field-switch-description'),
+		});
+	});
+
+	// Round 5 I7: the source model deliberately drops `@media`-nested rules
+	// (documented in css-cascade-test-support.ts) and defers to a real-browser
+	// assertion — but every project runs at Desktop Chrome 1280×720, so the
+	// deferral had nowhere to land. One narrow-viewport run of the cookie
+	// drawer closes it: a mobile-only override on `.publy-drawer-description`
+	// is caught here and nowhere else.
+	test.describe('mobile viewport', () => {
+		test.use({ viewport: { width: 375, height: 667 } });
+
+		test('cookie preferences drawer clears 4.5:1 in both themes at the narrow viewport', async ({
+			page,
+		}, testInfo) => {
+			await openCookiePrefsDrawer(page);
+			await assertDrawerDescriptionContrast(
+				page,
+				testInfo,
+				'cookie-prefs-drawer',
+			);
 		});
 	});
 });
