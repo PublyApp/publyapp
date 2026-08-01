@@ -8,8 +8,10 @@ import {
 	isBindingElement,
 	isBinaryExpression,
 	isCallExpression,
+	isClassDeclaration,
 	isElementAccessExpression,
 	isExportAssignment,
+	isFunctionDeclaration,
 	isIdentifier,
 	isInterfaceDeclaration,
 	isNonNullExpression,
@@ -437,8 +439,17 @@ const declarationBinding = (checker, node) => {
 	}
 
 	if (isBindingElement(node)) {
-		const bindingPattern = node.parent;
-		const declaration = bindingPattern?.parent;
+		let bindingPattern = node.parent;
+		let declaration = bindingPattern?.parent;
+		// Nested patterns: `const { inner: { Ctx: NestedCtx } } = make()`
+		// wraps the binding element in further patterns and binding elements
+		// before the variable declaration. Walk up so the mint is attributed
+		// to the declaration whose initializer calls the factory.
+		while (isBindingElement(declaration)) {
+			bindingPattern = declaration.parent;
+			declaration = bindingPattern?.parent;
+		}
+
 		if (
 			!isVariableDeclaration(declaration) ||
 			!declaration.initializer ||
@@ -463,10 +474,12 @@ const declarationBinding = (checker, node) => {
 	return undefined;
 };
 
-// Transparent expression wrappers (parens, `as`, `!`, `satisfies`) keep the
-// wrapped call as the holder's value, so the holder-position check walks
-// through them: `{ probe: createStrictContext(null) as StrictContext<null> }`
-// is still a holder-position mint.
+// Transparent expression wrappers (parens, `as`, `!`, `satisfies`) and comma
+// chains keep the wrapped call as the holder's value, so the holder-position
+// check walks through them: `{ probe: createStrictContext(null) as
+// StrictContext<null> }` and `{ probe: (0, createStrictContext(null)) }` are
+// still holder-position mints. Walking the comma keeps the wrapped call
+// discoverable and attributed whichever way a bundler rewrites the value.
 const holderPositionOfCall = (node) => {
 	let current = node;
 	for (;;) {
@@ -476,7 +489,9 @@ const holderPositionOfCall = (node) => {
 			isAsExpression(parent) ||
 			isTypeAssertion(parent) ||
 			isNonNullExpression(parent) ||
-			isSatisfiesExpression(parent)
+			isSatisfiesExpression(parent) ||
+			(isBinaryExpression(parent) &&
+				parent.operatorToken.kind === SyntaxKind.CommaToken)
 		) {
 			current = parent;
 			continue;
@@ -518,6 +533,106 @@ const calleeNameOf = (expression) => {
 	}
 
 	return undefined;
+};
+
+const declaredExportNameOf = (checker, symbol) => {
+	if (symbol.name !== 'default') {
+		return symbol.name;
+	}
+
+	// A default export binds the value's own name: tsgo resolves an
+	// `export default identifier` import straight to the value symbol, but an
+	// `export default function/class Name` import resolves to a symbol named
+	// 'default' whose declaration carries the real declared name — the name
+	// the bundler emits.
+	for (const declaration of symbol.declarations ?? []) {
+		const resolvedDeclaration = declaration.resolve();
+		if (!resolvedDeclaration) {
+			continue;
+		}
+
+		if (
+			(isFunctionDeclaration(resolvedDeclaration) ||
+				isClassDeclaration(resolvedDeclaration)) &&
+			resolvedDeclaration.name
+		) {
+			return resolvedDeclaration.name.text;
+		}
+
+		if (isExportAssignment(resolvedDeclaration)) {
+			const expressionSymbol = checker.getSymbolAtLocation(
+				resolvedDeclaration.expression,
+			);
+			if (expressionSymbol) {
+				return expressionSymbol.name;
+			}
+		}
+	}
+
+	return undefined;
+};
+
+// The callee identities of a minting call: the syntactic name plus the
+// declared export names the callee's symbol resolves to. A bundler resolves
+// imports to the exporting module's declared name, so `import {
+// createStrictContext as mk }`, `import mkDefault from …`, and barrel
+// re-exports all render as `createStrictContext` — the local spelling is
+// exactly what the bundler is free to rewrite. The module-local spelling is
+// kept for callees declared in the same module, whose rendered name is the
+// binding name. Identity is by declared name, not by module: two factories
+// with the same export name both mint contexts, so either attribution is
+// correct for the holder gate.
+//
+// An unnameable callee (an IIFE wrapper: `{ p: (() => mk(null))() }`) has no
+// name of its own, but the call it executes does — the wrapper's value is
+// that call's result — so when no direct identity exists, the callee
+// expression is searched for the calls it runs.
+const mintingCalleeNames = (checker, expression) => {
+	const names = new Set();
+	const localName = calleeNameOf(expression);
+	if (localName !== undefined) {
+		names.add(localName);
+	}
+
+	const seenSymbolIds = new Set();
+	let resolvedSymbol = isElementAccessExpression(expression)
+		? checker.getSymbolAtLocation(expression.argumentExpression)
+		: checker.getSymbolAtLocation(expression);
+	while (
+		resolvedSymbol &&
+		resolvedSymbol.flags & SymbolFlags.Alias &&
+		!seenSymbolIds.has(resolvedSymbol.id)
+	) {
+		seenSymbolIds.add(resolvedSymbol.id);
+		resolvedSymbol = checker.getAliasedSymbol(resolvedSymbol);
+	}
+
+	if (resolvedSymbol && !seenSymbolIds.has(resolvedSymbol.id)) {
+		const declaredName = declaredExportNameOf(checker, resolvedSymbol);
+		if (declaredName) {
+			names.add(declaredName);
+		}
+	}
+
+	if (names.size === 0) {
+		const visit = (node) => {
+			if (names.size > 0) {
+				return;
+			}
+
+			if (isCallExpression(node)) {
+				for (const name of mintingCalleeNames(checker, node.expression)) {
+					names.add(name);
+				}
+				return;
+			}
+
+			node.forEachChild(visit);
+		};
+		visit(expression);
+	}
+
+	return [...names];
 };
 
 // Rolldown currently collapses most aliases to these property-access forms
@@ -618,26 +733,82 @@ const normalizeRenderedBindingName = (name) => name.replace(/\$\d+$/, '');
 // names count: `const { probe: ProbeContext } = makeContexts(null)` binds
 // ProbeContext, and if that name is expected the rendered copy is treated the
 // same way an unrecognized identifier binding is — it cannot be proven not to
-// mint.
+// mint. Nested patterns (`const { inner: { probe: ProbeContext } } = …`)
+// recurse; elided array elements have no name and are skipped.
 const bindingPatternBoundExpectedName = (pattern, expectedContextNames) => {
 	if (!isObjectBindingPattern(pattern) && !isArrayBindingPattern(pattern)) {
 		return undefined;
 	}
 
 	for (const element of pattern.elements) {
-		if (
-			isBindingElement(element) &&
-			element.name &&
-			isIdentifier(element.name)
-		) {
-			const normalizedName = normalizeRenderedBindingName(element.name.text);
+		if (!isBindingElement(element)) {
+			continue;
+		}
+
+		const name = element.name;
+		if (isIdentifier(name)) {
+			const normalizedName = normalizeRenderedBindingName(name.text);
 			if (expectedContextNames.has(normalizedName)) {
 				return normalizedName;
+			}
+		} else if (name) {
+			const nestedName = bindingPatternBoundExpectedName(
+				name,
+				expectedContextNames,
+			);
+			if (nestedName) {
+				return nestedName;
 			}
 		}
 	}
 
 	return undefined;
+};
+
+// A rendered holder-position call mints when its callee matches an
+// attributed minting callee. An unnameable callee (an IIFE: `{ p: (() =>
+// createStrictContext(null))() }`) has no direct name, but the call it
+// executes determines the holder value, so the callee expression is searched
+// for a nested call to an attributed minting callee. The search is bounded to
+// unnameable callees so an argument-position mint inside a nameable outer
+// call (`wrap(createStrictContext(null))`) is not mistaken for the holder
+// value.
+const renderedHolderCallMints = (expression, holderMintingCallees) => {
+	if (!holderMintingCallees || holderMintingCallees.size === 0) {
+		return false;
+	}
+
+	const directName = normalizeRenderedBindingName(
+		calleeNameOf(expression) ?? '',
+	);
+	if (holderMintingCallees.has(directName)) {
+		return true;
+	}
+
+	if (calleeNameOf(expression) !== undefined) {
+		return false;
+	}
+
+	let containsMintingCall = false;
+	const visit = (node) => {
+		if (containsMintingCall) {
+			return;
+		}
+
+		if (isCallExpression(node)) {
+			const name = normalizeRenderedBindingName(
+				calleeNameOf(node.expression) ?? '',
+			);
+			if (holderMintingCallees.has(name)) {
+				containsMintingCall = true;
+				return;
+			}
+		}
+
+		node.forEachChild(visit);
+	};
+	visit(expression);
+	return containsMintingCall;
 };
 
 const analyzeRenderedContextModule = (
@@ -687,9 +858,7 @@ const analyzeRenderedContextModule = (
 					(isPropertyAssignment(declaration) ||
 						isArrayLiteralExpression(declaration) ||
 						isExportAssignment(declaration)) &&
-					holderMintingCallees?.has(
-						normalizeRenderedBindingName(calleeNameOf(node.expression) ?? ''),
-					)
+					renderedHolderCallMints(node.expression, holderMintingCallees)
 				) {
 					// A factory-minted holder position (object property, array
 					// element, export default) whose callee is one the source
@@ -896,8 +1065,9 @@ export const findReactContextDeclarations = (
 							contexts.push({
 								name: '<anonymous context>',
 								sourceFile: normalizeModuleId(sourceFile.fileName),
-								mintingCallees: [calleeNameOf(node.expression)].filter(
-									(callee) => callee !== undefined,
+								mintingCallees: mintingCalleeNames(
+									project.checker,
+									node.expression,
 								),
 							});
 						} else {
@@ -915,8 +1085,9 @@ export const findReactContextDeclarations = (
 								contexts.push({
 									name: contextNameForCall(node),
 									sourceFile: normalizeModuleId(sourceFile.fileName),
-									mintingCallees: [calleeNameOf(node.expression)].filter(
-										(callee) => callee !== undefined,
+									mintingCallees: mintingCalleeNames(
+										project.checker,
+										node.expression,
 									),
 								});
 							}
@@ -1023,6 +1194,7 @@ export const findContextChunkIsolationViolations = (
 
 	return contexts.flatMap((context) => {
 		const chunkNames = new Set();
+		const sourceChunkNames = new Set();
 		let contextCreatingModuleCount = 0;
 		const hasRenderedContextAnalysis = analyzedSourceFiles.has(
 			context.sourceFile,
@@ -1043,6 +1215,7 @@ export const findContextChunkIsolationViolations = (
 				(isSourceModule ||
 					TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId));
 			for (const { chunkName, renderedModule } of moduleChunks) {
+				sourceChunkNames.add(chunkName);
 				if (
 					inspectRenderedContext &&
 					!renderedModuleCreatesContext(renderedModule, context.name)
@@ -1057,6 +1230,12 @@ export const findContextChunkIsolationViolations = (
 
 		const sourcePath = path.relative(projectDirectory, context.sourceFile);
 		if (contextCreatingModuleCount === 0) {
+			if (sourceChunkNames.size >= 2) {
+				throw new Error(
+					`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: its module is present in ${sourceChunkNames.size} client chunks (${[...sourceChunkNames].join(', ')}) and no rendered copy is attributed a mint.`,
+				);
+			}
+
 			if (
 				hasRenderedContextAnalysis &&
 				chunksForSource.has(context.sourceFile)

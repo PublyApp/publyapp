@@ -525,6 +525,8 @@ void test('discovers contexts destructured out of a cross-file factory call', as
 			export const makeContexts = <T,>(fallback: T) => ({ probe: createContext(fallback) });
 			export const makeTuple = <T,>(fallback: T) => [createContext(fallback)];
 			export const makePair = <T,>(fallback: T) => [null, createContext(fallback)] as const;
+			export const makeNested = <T,>(fallback: T) => ({ inner: { probe: createContext(fallback) } });
+			export const makeNestedTuple = <T,>(fallback: T) => [[createContext(fallback)]];
 		`,
 		'src/c1-object-destructure-call.ts': `
 			import { makeContexts } from './make';
@@ -541,6 +543,14 @@ void test('discovers contexts destructured out of a cross-file factory call', as
 		'src/c5-elided-destructure-call.ts': `
 			import { makePair } from './make';
 			export const [, ElidedContext] = makePair<null>(null);
+		`,
+		'src/c6-nested-object-destructure-call.ts': `
+			import { makeNested } from './make';
+			export const { inner: { probe: NestedContext } } = makeNested<null>(null);
+		`,
+		'src/c7-nested-array-destructure-call.ts': `
+			import { makeNestedTuple } from './make';
+			export const [[NestedTupleContext]] = makeNestedTuple<null>(null);
 		`,
 		'src/c4-inline-holder-destructure.ts': `
 			import { createContext } from 'react';
@@ -564,6 +574,8 @@ void test('discovers contexts destructured out of a cross-file factory call', as
 			['RenamedContext', 'src/c2-renamed-destructure-call.ts'],
 			['TupleContext', 'src/c3-array-destructure-call.ts'],
 			['ElidedContext', 'src/c5-elided-destructure-call.ts'],
+			['NestedContext', 'src/c6-nested-object-destructure-call.ts'],
+			['NestedTupleContext', 'src/c7-nested-array-destructure-call.ts'],
 		]) {
 			assert.equal(nameInSourceFile(name, relativeSourceFile), true, name);
 		}
@@ -1575,6 +1587,69 @@ void test('fails closed when a context initializer callee remains unrecognized',
 	);
 });
 
+void test('fails closed when a rendered array-pattern binding binds an expected context name', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const arrayPatternCode = 'const [RouteContext] = makeTuple(null);';
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: arrayPatternCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: arrayPatternCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot prove how RouteContext is created/i,
+	);
+});
+
+void test('fails closed when a rendered nested-pattern binding binds an expected context name', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const nestedPatternCode =
+		'const { inner: { probe: RouteContext } } = makeNested(null);';
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: nestedPatternCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: nestedPatternCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot prove how RouteContext is created/i,
+	);
+});
+
 void test('counts a rendered factory mint held in an array element as a creator', () => {
 	const sourceFile = path.join(
 		frontDirectory,
@@ -1653,7 +1728,47 @@ void test('counts a rendered factory mint held in an export default as a creator
 	);
 });
 
-void test('does not count a rendered holder-position call whose callee was not attributed as a creator', () => {
+void test('fails closed when no rendered copy of a holder-mint module is attributed a mint', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const routeShimCode = `
+		var $$splitComponentImporter = () => import("./probe-!~{001}~.js");
+		var Route = createFileRoute("/probe")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+	`;
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintingCallees: ['createStrictContext'],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: routeShimCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: routeShimCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
+	);
+});
+
+void test('passes an un-attributable holder-position call when the module is in a single chunk', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -1677,11 +1792,45 @@ void test('does not count a rendered holder-position call whose callee was not a
 					fileName: 'assets/route.js',
 					modules: { [sourceFile]: { code: routeShimCode } },
 				},
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
+void test('passes when one rendered copy of a split module mints while the other only holds the route shim', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const routeShimCode = `
+		var $$splitComponentImporter = () => import("./probe-!~{001}~.js");
+		var Route = createFileRoute("/probe")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+	`;
+	const holderMintCode = `
+		var contexts = { probe: createStrictContext(null) };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: routeShimCode } },
+				},
 				{
 					fileName: 'assets/route-component.js',
 					modules: {
 						[`${sourceFile}?tsr-split=component`]: {
-							code: routeShimCode,
+							code: holderMintCode,
 						},
 					},
 				},
@@ -1689,6 +1838,185 @@ void test('does not count a rendered holder-position call whose callee was not a
 			frontDirectory,
 		),
 		[],
+	);
+});
+
+void test('attributes a rendered holder mint through the callee declared export name', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const holderMintCode = `
+		var contexts = { probe: createStrictContext(null) };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['mk', 'createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: holderMintCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: holderMintCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('attributes a rendered IIFE holder mint through the call it executes', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const iifeMintCode = `
+		var contexts = { probe: (() => createStrictContext(null))() };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: iifeMintCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: iifeMintCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('does not attribute an unnameable rendered holder call that runs no minting callee', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const unrelatedIifeCode = `
+		var contexts = { probe: (() => otherHelper(null))() };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: unrelatedIifeCode } },
+				},
+			],
+			frontDirectory,
+		),
+		[],
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintingCallees: ['createStrictContext'],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: unrelatedIifeCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: unrelatedIifeCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
+	);
+});
+
+void test('attributes a comma-chain-wrapped rendered holder mint', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const commaMintCode = `
+		var contexts = { probe: (0, createStrictContext(null)) };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: commaMintCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: commaMintCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
 	);
 });
 
@@ -1817,10 +2145,34 @@ void test('fails closed when relevant rendered code cannot be parsed', () => {
 	);
 });
 
-void test('ignores a TanStack route virtual-module sibling after it no longer contains a context', () => {
+void test('fails closed when a TanStack route sibling no longer contains the context and no copy mints', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: {
+							[sourceFile]: { code: 'const route = {};' },
+						},
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: 'const SplitComponent = () => null;',
+							},
+						},
+					},
+				],
+			),
+		/cannot classify how RouteContext .* is created/i,
 	);
 
 	assert.deepEqual(
@@ -1831,15 +2183,6 @@ void test('ignores a TanStack route virtual-module sibling after it no longer co
 					fileName: 'assets/route.js',
 					modules: {
 						[sourceFile]: { code: 'const route = {};' },
-					},
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: 'const SplitComponent = () => null;',
-							renderedLength: 34,
-						},
 					},
 				},
 			],
@@ -2442,6 +2785,270 @@ void test(
 
 		try {
 			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+const holderFactoryFixture = (probeBody) => ({
+	'src/make-context.ts': `
+		import { createContext } from 'react';
+		import type { Context } from 'react';
+		export interface StrictContext<T> extends Context<T> { readonly strict: true; }
+		export const createStrictContext = <T,>(fallback: T): StrictContext<T> =>
+			Object.assign(createContext(fallback), { strict: true as const });
+		export default createStrictContext;
+	`,
+	'src/routes/probe.tsx': `
+		import { createFileRoute } from '@tanstack/react-router';
+		import { useContext } from 'react';
+		${probeBody}
+	`,
+});
+
+const holderInventory = [
+	{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+	{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+	{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+	{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+	{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+];
+
+void test(
+	'fails a real TanStack route build when a holder mint is imported under a renamed name',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext as mk } from '../make-context';
+				const contexts = { probe: mk<null>(null) };
+				export const useProbe = () => useContext(contexts.probe);
+				const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a holder mint is imported as a default import',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import mkDefault from '../make-context';
+				const contexts = { probe: mkDefault<null>(null) };
+				export const useProbe = () => useContext(contexts.probe);
+				const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a holder mint is wrapped in an IIFE',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const contexts = { probe: (() => createStrictContext(null))() };
+				export const useProbe = () => useContext(contexts.probe);
+				const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a holder mint is wrapped in a comma chain',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const contexts = { probe: (0, createStrictContext(null)) };
+				export const useProbe = () => useContext(contexts.probe);
+				const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when a renamed-imported holder mint survives only in the split copy',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext as mk } from '../make-context';
+				const contexts = { probe: mk<null>(null) };
+				const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when a default-imported holder mint survives only in the split copy',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import mkDefault from '../make-context';
+				const contexts = { probe: mkDefault<null>(null) };
+				const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when an IIFE-wrapped holder mint survives only in the split copy',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const contexts = { probe: (() => createStrictContext(null))() };
+				const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when a comma-chain holder mint survives only in the split copy',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const contexts = { probe: (0, createStrictContext(null)) };
+				const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a context is destructured through a nested pattern',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const makeNested = <T,>(fallback: T) => ({ inner: { probe: createContext(fallback) } });
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { makeNested } from '../make-context';
+					const { inner: { probe: ProbeContext } } = makeNested<null>(null);
+					export const useProbe = () => useContext(ProbeContext);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(result.output, /cannot prove how ProbeContext is created/i);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}

@@ -23,8 +23,10 @@ object, and a provider in one chunk no longer matches a consumer in another.
   and `const Ctx = createStrictContext(null)` are tracked; `const Ctx = RealContext` is an alias
   of a context that is tracked in the file that minted it, so the alias file demands nothing.
 - The same call gate applies to destructured bindings: `const { probe: Ctx } =
-makeContexts()` is a mint in the consuming file and is inventoried under `Ctx`; a destructure
+  makeContexts()` is a mint in the consuming file and is inventoried under `Ctx`; a destructure
   whose initializer has no call (`const { RealContext } = holder`) is an alias and is not.
+  Nested patterns (`const { inner: { probe: Ctx } } = makeNested()`) are discovered the same
+  way.
 - A context minted into an unbound position — an `export default`, an object property value, or
   an array element — is inventoried under the literal name `<anonymous context>`, whether it is
   minted directly or through a factory.
@@ -63,11 +65,20 @@ The guard deliberately throws instead of passing when it cannot classify rendere
   name with a `$1` suffix (`ProbeContext$1`), and when the binding is a destructuring pattern
   (`const { probe: ProbeContext } = makeContexts(null)`).
 - A rendered factory call in a holder position (object property value, array element, export
-  default) that survives with an unrecognized callee in a file owning an `<anonymous context>`
-  entry — but only when the callee is one the source scan attributed to that file's holder
-  mint. Holder-position calls whose callee was not attributed (TanStack's own
-  `component: lazyRouteComponent(…)` split shim, for example) are calls whose value is not
-  known to be a context, and are not counted as mints.
+  default) that survives with a recognized callee in a file owning an `<anonymous context>`
+  entry is counted as a mint. Attribution is keyed on the callee's **declared export name**,
+  not its local spelling: the source scan records the resolved identity of each minting
+  callee (so `import { createStrictContext as mk }`, `import mkDefault from …`, and barrel
+  re-exports all attribute to `createStrictContext`, which is the name the bundler emits),
+  and the rendered copy is a mint when its callee — or, for an IIFE wrapper, the call the
+  wrapper executes — matches that identity. Holder-position calls whose callee is not a
+  known minting callee (TanStack's own `component: lazyRouteComponent(…)` split shim, for
+  example) are calls whose value is not known to be a context, and are not counted as mints.
+- **Unattributed presence fails closed.** When a source file owns an inventory entry and
+  appears in **two or more chunks** while no rendered copy is attributed a mint, the guard
+  cannot tell whether the context is minted once (safe) or in every copy (the bug class), so
+  it throws. A single chunk with no attributed mint stays green — with only one copy there
+  is nothing to duplicate.
 - An unrecognized query-module family derived from a context source file (new TanStack sibling
   transforms must be added to the curated allowlist first).
 - Rendered code it cannot parse or inspect.
@@ -98,18 +109,25 @@ closed by design.
 - A context whose declared type is a fully structural annotation (an object type shaped like
   `Context<…>` but not naming it or extending it) is invisible to the type scan; a direct
   `createContext` initializer is still caught by the callee fallback.
-- A context minted into a comma-chain holder value (`{ p: (0, factory()) }`), a holder whose
-  callee expression has no name (an IIFE factory: `{ p: (() => factory())() }`), or minted
-  inside a function body or return position (`loader: () => factory()`) is invisible to the
-  rendered analysis — the source scan still discovers the mint and demands its inventory
-  entry, but the rendered copies cannot be attributed. A factory call in an argument position
-  is discovered when its result is bound or held (the enclosing binding or holder is typed),
+- A context minted inside a function body or return position (`loader: () => factory()`,
+  `function build() { return factory(); }`) is invisible to the source scan — no inventory
+  entry is demanded, so nothing is checked. A factory call in an argument position is
+  discovered when its result is bound or held (the enclosing binding or holder is typed),
   and when the result is discarded nothing can consume the duplicate, so neither form is a
-  real coverage gap.
+  real coverage gap. A comma-chain or IIFE-wrapped holder value (`{ p: (0, factory()) }`,
+  `{ p: (() => factory())() }`) is discovered, inventoried, and attributed through the call
+  the wrapper executes — the residual here is only a wrapper the bundler rewrites so the
+  minting callee disappears, and that case fails closed on unattributed presence instead of
+  passing.
+- A factory returning a *record* of contexts, bound to a plain identifier
+  (`const contexts = makeContexts()`), is invisible: the type scan keys on the binding's own
+  type, and an object whose *property* is a context is not itself a context. The destructured
+  form (`const { probe: Ctx } = makeContexts()`) is covered; the record-holding form demands
+  no inventory entry and is not checked.
 - A context that is tree-shaken out of a particular build configuration (for example one behind
   a feature flag that the e2e image disables) fails the build with `is not present in a client
-chunk`. No current context is flag-gated; if one ever is, the e2e/release build asymmetry must
-  be resolved before the gate will pass both.
+  chunk`. No current context is flag-gated; if one ever is, the e2e/release build asymmetry
+  must be resolved before the gate will pass both.
 - The guard runs once per client build. The isolated TypeScript scan takes roughly 2–4 seconds
   on a development machine (measured median ~1.9 s on the reference machine, 1.8–1.9 s across
   six runs; earlier rounds measured 3–6 s under load before the factory-value walk was removed).
