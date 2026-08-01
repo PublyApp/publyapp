@@ -237,7 +237,7 @@ importers:
         specifier: 29.1.1
         version: 29.1.1
       postcss:
-        specifier: ^8.5.18
+        specifier: ^8.5.25
         version: 8.5.25
       shadcn:
         specifier: 4.1.2

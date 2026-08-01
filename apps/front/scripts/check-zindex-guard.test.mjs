@@ -302,12 +302,13 @@ const STICKY_HEADER_SELECTOR =
 	".publy-data-table thead [data-slot='table-column'], " +
 	".publy-data-table thead [data-slot='table-sortable-column-header'], " +
 	".publy-data-table thead [data-slot='table-selection-cell']";
+const inComponentsLayer = (css) => `@layer components { ${css} }`;
 
-test('compiled-CSS gate: allowlist is bound to the exact selector list and occurrence count', () => {
+test('compiled-CSS gate: allowlist is bound to ancestry, selector, and occurrence count', () => {
 	// the one real rule is permitted
 	assert.equal(
 		checkCompiledCssZIndex(
-			`${STICKY_HEADER_SELECTOR} { z-index: 5; }`,
+			inComponentsLayer(`${STICKY_HEADER_SELECTOR} { z-index: 5; }`),
 			KNOWN_RAW_Z_INDEX_DECLARATIONS,
 		).length,
 		0,
@@ -336,15 +337,19 @@ test('compiled-CSS gate: allowlist is bound to the exact selector list and occur
 		1,
 	);
 	// a duplicate of the bound rule exceeds the expected occurrence count
-	const twice = `${STICKY_HEADER_SELECTOR} { z-index: 5; }\n${STICKY_HEADER_SELECTOR} { z-index: 5; }`;
+	const twice = inComponentsLayer(
+		`${STICKY_HEADER_SELECTOR} { z-index: 5; }\n${STICKY_HEADER_SELECTOR} { z-index: 5; }`,
+	);
 	assert.equal(
 		checkCompiledCssZIndex(twice, KNOWN_RAW_Z_INDEX_DECLARATIONS).length,
 		1,
 	);
 	// no allowlist at all still reds the real rule
 	assert.equal(
-		checkCompiledCssZIndex(`${STICKY_HEADER_SELECTOR} { z-index: 5; }`, [])
-			.length,
+		checkCompiledCssZIndex(
+			inComponentsLayer(`${STICKY_HEADER_SELECTOR} { z-index: 5; }`),
+			[],
+		).length,
 		1,
 	);
 });
@@ -357,7 +362,7 @@ test('compiled-CSS gate: property names are canonicalised (case and escapes)', (
 	// the allowlisted rule is case-insensitive too
 	assert.equal(
 		checkCompiledCssZIndex(
-			`${STICKY_HEADER_SELECTOR} { Z-INDEX: 5; }`,
+			inComponentsLayer(`${STICKY_HEADER_SELECTOR} { Z-INDEX: 5; }`),
 			KNOWN_RAW_Z_INDEX_DECLARATIONS,
 		).length,
 		0,
@@ -446,6 +451,79 @@ test('e2e (blocker 3): both !important spellings of a scale utility stay green',
 		violations,
 		[],
 		`scale utilities with !important must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
+const assertAncestryMutationIsRed = async (mutation) => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		`${mutation}\n`,
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['z-index: 5'],
+		`expected the changed ancestry to red: ${JSON.stringify(violations)}`,
+	);
+
+	const cleanRule = `${STICKY_HEADER_SELECTOR} { z-index: 5; }`;
+	const { violations: cleanViolations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		`@layer components { ${cleanRule} }\n`,
+	);
+	assert.deepEqual(
+		cleanViolations,
+		[],
+		`expected only the real @layer ancestry to stay green: ${JSON.stringify(cleanViolations)}`,
+	);
+};
+
+test('e2e (round 3 blocker 1): an outer rule changes the allowlisted ancestry', async () => {
+	const cleanRule = `${STICKY_HEADER_SELECTOR} { z-index: 5; }`;
+	await assertAncestryMutationIsRed(
+		`@layer components { .evil { ${cleanRule} } }`,
+	);
+});
+
+test('e2e (round 3 blocker 1): @media changes the allowlisted ancestry', async () => {
+	const cleanRule = `${STICKY_HEADER_SELECTOR} { z-index: 5; }`;
+	await assertAncestryMutationIsRed(
+		`@layer components { @media (min-width: 1px) { ${cleanRule} } }`,
+	);
+});
+
+test('e2e (round 3 blocker 1): @supports changes the allowlisted ancestry', async () => {
+	const cleanRule = `${STICKY_HEADER_SELECTOR} { z-index: 5; }`;
+	await assertAncestryMutationIsRed(
+		`@layer components { @supports (display: grid) { ${cleanRule} } }`,
+	);
+});
+
+test('e2e (round 3 blocker 1): the allowance requires the expected @layer', async () => {
+	const cleanRule = `${STICKY_HEADER_SELECTOR} { z-index: 5; }`;
+	await assertAncestryMutationIsRed(`@layer utilities { ${cleanRule} }`);
+});
+
+test('e2e (round 3 blocker 2): CSS // custom-property value cannot hide the next declaration', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		'.probe { --marker: //; z-index: 50; }\n',
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['z-index: 50'],
+		`expected exactly one compiled violation: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 3 important 1): braces in a custom-property value stay clean', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		'.probe { --payload: { z-index: 50; }; }\n',
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`custom-property payload is not a z-index declaration: ${JSON.stringify(violations)}`,
 	);
 });
 

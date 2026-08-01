@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
+import postcss from 'postcss';
 import { ts } from 'ts-morph';
 
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
@@ -56,9 +57,9 @@ const SCRIPT_EXTENSIONS = new Set([
 //   - raw `z-index:` declarations in app.css that are NOT Tailwind utilities.
 //     The single existing one (`.publy-data-table thead` sticky header,
 //     `z-index: 5`) is allowlisted in KNOWN_RAW_Z_INDEX_DECLARATIONS below,
-//     bound to its exact selector list AND an expected occurrence count — a
-//     raw `z-index: 5` on any other selector, or a duplicate of this rule,
-//     reds the guard.
+//     bound to its exact ancestor chain, selector list, AND an expected
+//     occurrence count — a raw `z-index: 5` in any other context, on any
+//     other selector, or in a duplicate of this rule reds the guard.
 //   - inline `style={{ zIndex: … }}` objects (initials-avatar overlapping
 //     avatars is the only user today; toaster.tsx already uses the token).
 //   - z-index assembled at runtime from values that never appear literally
@@ -599,8 +600,8 @@ export const scanZIndexFile = ({
 // raw declaration. Declarations are *parsed*, not regex-matched: the property
 // name is canonicalised (CSS is ASCII-case-insensitive and may carry escapes,
 // so `Z-INDEX: 50` and `z-\69ndex: 50` are the same declaration), the optional
-// `!important` is normalised, and each declaration is attributed to the rule
-// selector it lives under so the allowlist can bind to one exact selector.
+// `!important` is normalised, and each declaration is attributed to its full
+// rule/at-rule ancestry so the allowlist can bind to one exact CSS context.
 // ---------------------------------------------------------------------------
 // The one raw `z-index:` declaration in app.css is deliberate: the sticky
 // table header. `.publy-table-card`'s `overflow: hidden` does NOT establish a
@@ -617,6 +618,7 @@ export const scanZIndexFile = ({
 // reasoned about, not silently ignored.
 export const KNOWN_RAW_Z_INDEX_DECLARATIONS = [
 	{
+		ancestors: [{ type: 'at-rule', name: 'layer', params: 'components' }],
 		selector:
 			".publy-data-table thead [data-slot='table-column'], " +
 			".publy-data-table thead [data-slot='table-sortable-column-header'], " +
@@ -626,8 +628,9 @@ export const KNOWN_RAW_Z_INDEX_DECLARATIONS = [
 		reason:
 			'.publy-data-table thead sticky cells: lifted above the scrolled body rows ' +
 			'inside the table scroll container, deliberately below --publy-z-raised: 10 ' +
-			'(the card does not create a stacking context). Bound to this exact selector ' +
-			'list and expected occurrence count, so a raw z-index: 5 anywhere else reds.',
+			'(the card does not create a stacking context). Bound to this exact @layer ' +
+			'ancestry, selector list, and expected occurrence count, so a raw z-index: 5 ' +
+			'anywhere else reds.',
 	},
 ];
 
@@ -636,55 +639,53 @@ const normalizeWhitespace = (text) => text.replace(/[\t\n\f\r ]+/g, ' ').trim();
 const stripImportant = (value) =>
 	value.replace(/\s*!\s*important\s*$/i, '').trim();
 
-// Walk the (comment-free) compiled CSS tracking the innermost rule selector
-// and return every declaration as `{ selector, property, value, offset }`.
-// Property names are canonicalised; values stay verbatim so `!important` can
-// be normalised afterwards.
+const describeCssContainer = (node) => {
+	if (node.type === 'rule') {
+		return {
+			type: 'rule',
+			selector: normalizeWhitespace(node.selector),
+		};
+	}
+	return {
+		type: 'at-rule',
+		name: canonicaliseCssProperty(node.name),
+		params: normalizeWhitespace(node.params),
+	};
+};
+
+const cssAncestorsFor = (declaration) => {
+	const ancestors = [];
+	let node =
+		declaration.parent?.type === 'rule'
+			? declaration.parent.parent
+			: declaration.parent;
+	while (node != null && node.type !== 'root') {
+		ancestors.unshift(describeCssContainer(node));
+		node = node.parent;
+	}
+	return ancestors;
+};
+
+const cssAncestorsEqual = (left, right) =>
+	JSON.stringify(left) === JSON.stringify(right);
+
+// Parse the compiled stylesheet with a CSS grammar and return each real
+// declaration. PostCSS keeps comment syntax, nested rules, at-rules, and
+// component-value braces distinct, so declaration ownership comes from the
+// AST instead of delimiter counting.
 const scanCssDeclarations = (css) => {
 	const declarations = [];
-	const selectorStack = [];
-	let segmentStart = 0;
-	let quote = null;
-	const flush = (end) => {
-		const chunk = css.slice(segmentStart, end);
-		const colon = findTopLevelColon(chunk);
-		if (colon !== -1) {
-			declarations.push({
-				selector: selectorStack.length
-					? selectorStack[selectorStack.length - 1]
-					: '',
-				property: canonicaliseCssProperty(chunk.slice(0, colon).trim()),
-				value: chunk.slice(colon + 1).trim(),
-				offset: segmentStart,
-			});
-		}
-	};
-	for (let i = 0; i < css.length; i += 1) {
-		const character = css[i];
-		if (quote) {
-			if (character === '\\') {
-				i += 1;
-			} else if (character === quote) {
-				quote = null;
-			}
-			continue;
-		}
-		if (character === '"' || character === "'") {
-			quote = character;
-			continue;
-		}
-		if (character === '{') {
-			selectorStack.push(css.slice(segmentStart, i).trim());
-			segmentStart = i + 1;
-		} else if (character === '}') {
-			flush(i);
-			selectorStack.pop();
-			segmentStart = i + 1;
-		} else if (character === ';') {
-			flush(i);
-			segmentStart = i + 1;
-		}
-	}
+	const root = postcss.parse(css, { from: undefined });
+	root.walkDecls((declaration) => {
+		const rule = declaration.parent;
+		declarations.push({
+			ancestors: cssAncestorsFor(declaration),
+			selector: rule?.type === 'rule' ? normalizeWhitespace(rule.selector) : '',
+			property: canonicaliseCssProperty(declaration.prop),
+			value: declaration.value.trim(),
+			line: declaration.source?.start?.line ?? 1,
+		});
+	});
 	return declarations;
 };
 
@@ -693,9 +694,8 @@ export const checkCompiledCssZIndex = (
 	allowlisted = KNOWN_RAW_Z_INDEX_DECLARATIONS,
 ) => {
 	const violations = [];
-	const deCommented = stripComments(compiledCss);
 	const seenCounts = new Map();
-	for (const declaration of scanCssDeclarations(deCommented)) {
+	for (const declaration of scanCssDeclarations(compiledCss)) {
 		if (declaration.property !== 'z-index') {
 			continue;
 		}
@@ -711,10 +711,15 @@ export const checkCompiledCssZIndex = (
 		const allowance = allowlisted.find(
 			(entry) =>
 				entry.declaration === shipped &&
+				cssAncestorsEqual(entry.ancestors ?? [], declaration.ancestors) &&
 				normalizeWhitespace(entry.selector) === selector,
 		);
 		if (allowance != null) {
-			const key = `${allowance.selector}\u0000${allowance.declaration}`;
+			const key = JSON.stringify([
+				allowance.ancestors ?? [],
+				allowance.selector,
+				allowance.declaration,
+			]);
 			const count = (seenCounts.get(key) ?? 0) + 1;
 			seenCounts.set(key, count);
 			if (count <= allowance.count) {
@@ -728,7 +733,7 @@ export const checkCompiledCssZIndex = (
 				'resolve through var(--publy-z-…) — every z-index in the built ' +
 				'stylesheet must route through the scale.',
 			file: 'compiled stylesheet',
-			line: lineForOffset(deCommented, declaration.offset),
+			line: declaration.line,
 			source: shipped,
 		});
 	}
