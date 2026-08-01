@@ -438,6 +438,12 @@ const expressionContainsCreateContextName = (expression) => {
 	return containsCreateContextName;
 };
 
+// Rolldown deconflicts duplicate bindings of the same source module by
+// suffixing one copy's names ($1, $2, ...), observed as `ProbeContext$1` in
+// the two-creators-share-one-chunk fixture. Matching must ignore that
+// suffix, or a renamed copy slips past the name-keyed fail-closed checks.
+const normalizeRenderedBindingName = (name) => name.replace(/\$\d+$/, '');
+
 const analyzeRenderedContextModule = (
 	sourceFile,
 	expectedContextNames,
@@ -457,9 +463,13 @@ const analyzeRenderedContextModule = (
 					isVariableDeclaration(declaration) &&
 					declaration.initializer === node &&
 					isIdentifier(declaration.name) &&
-					expectedContextNames.has(declaration.name.text)
+					expectedContextNames.has(
+						normalizeRenderedBindingName(declaration.name.text),
+					)
 				) {
-					recognizedContextNames.add(declaration.name.text);
+					recognizedContextNames.add(
+						normalizeRenderedBindingName(declaration.name.text),
+					);
 				} else {
 					hasUnattributedCreateContextCall = true;
 				}
@@ -473,7 +483,9 @@ const analyzeRenderedContextModule = (
 					isVariableDeclaration(declaration) &&
 					declaration.initializer === node &&
 					isIdentifier(declaration.name) &&
-					expectedContextNames.has(declaration.name.text)
+					expectedContextNames.has(
+						normalizeRenderedBindingName(declaration.name.text),
+					)
 				) {
 					throw new Error(
 						`Context chunk isolation guard cannot prove how ${declaration.name.text} is created in ${moduleLabel}.`,

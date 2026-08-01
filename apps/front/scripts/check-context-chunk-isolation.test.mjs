@@ -489,13 +489,23 @@ void test('reports each React context whose source module is in multiple client 
 		{ name: 'FirstContext', sourceFile },
 		{ name: 'SecondContext', sourceFile },
 	];
+	const renderedCode = `
+		const FirstContext = createContext(null);
+		const SecondContext = createContext(null);
+	`;
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
 			contexts,
 			[
-				{ fileName: 'assets/first.js', modules: { [sourceFile]: {} } },
-				{ fileName: 'assets/second.js', modules: { [sourceFile]: {} } },
+				{
+					fileName: 'assets/first.js',
+					modules: { [sourceFile]: { code: renderedCode } },
+				},
+				{
+					fileName: 'assets/second.js',
+					modules: { [sourceFile]: { code: renderedCode } },
+				},
 			],
 			frontDirectory,
 		),
@@ -721,6 +731,40 @@ void test('counts a context duplicated across TanStack virtual-module siblings',
 		[
 			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route-component.js, assets/route-loader.js.',
 		],
+	);
+});
+
+void test('fails closed for a deconflicted-renamed context binding with an unrecognized initializer callee', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const unrecognizedCode = `
+		const makeContext = getContextFactory();
+		const RouteContext$1 = makeContext(null);
+	`;
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: unrecognizedCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: unrecognizedCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot prove how RouteContext\$1 is created/i,
 	);
 });
 
@@ -1107,10 +1151,18 @@ void test('fails the plugin for a bundled first-party module outside front src t
 				'assets/app.js': {
 					fileName: 'assets/app.js',
 					modules: {
-						[path.join(fixtureDirectory, 'src/first.ts')]: {},
-						[path.join(fixtureDirectory, 'src/second.ts')]: {},
-						[path.join(fixtureDirectory, 'src/third.ts')]: {},
-						[path.join(fixtureDirectory, 'src/fourth.ts')]: {},
+						[path.join(fixtureDirectory, 'src/first.ts')]: {
+							code: 'const FirstContext = createContext(null);',
+						},
+						[path.join(fixtureDirectory, 'src/second.ts')]: {
+							code: 'const SecondContext = createContext(null);',
+						},
+						[path.join(fixtureDirectory, 'src/third.ts')]: {
+							code: 'const ThirdContext = createContext(null);',
+						},
+						[path.join(fixtureDirectory, 'src/fourth.ts')]: {
+							code: 'const FourthContext = createContext(null);',
+						},
 						[path.join(fixtureDirectory, 'packages/outside.ts')]: {},
 					},
 					type: 'chunk',
