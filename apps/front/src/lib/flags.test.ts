@@ -1,17 +1,22 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-const marketingFlagKeys = [
-	'VITE_FEATURE_MARKETING_CUSTOMER_LOGOS',
-	'VITE_FEATURE_MARKETING_SOCIAL_PROOF',
-] as const;
+import { FEATURES as sourceFeatures } from './flags';
+
+type MarketingFlags = typeof sourceFeatures.marketing;
+
+const toMarketingEnvKey = (flagKey: string): string => {
+	return `VITE_FEATURE_MARKETING_${flagKey
+		.replace(/[A-Z]/g, (letter) => `_${letter}`)
+		.toUpperCase()}`;
+};
 
 const importMarketingFlags = async (
 	rawValue: string | undefined,
-): Promise<{ customerLogos: boolean; socialProof: boolean }> => {
+): Promise<MarketingFlags> => {
 	vi.resetModules();
 	vi.unstubAllEnvs();
-	for (const key of marketingFlagKeys) {
-		vi.stubEnv(key, rawValue);
+	for (const flagKey of Object.keys(sourceFeatures.marketing)) {
+		vi.stubEnv(toMarketingEnvKey(flagKey), rawValue);
 	}
 
 	const { FEATURES } = await import('./flags');
@@ -32,15 +37,17 @@ describe('marketing feature flags', () => {
 		async (_label, rawValue) => {
 			const marketing = await importMarketingFlags(rawValue);
 
-			expect(marketing.customerLogos).toBe(false);
-			expect(marketing.socialProof).toBe(false);
+			for (const value of Object.values(marketing)) {
+				expect(value).toBe(false);
+			}
 		},
 	);
 
 	test('turns on both flags only for the literal true value', async () => {
 		const marketing = await importMarketingFlags('true');
 
-		expect(marketing.customerLogos).toBe(true);
-		expect(marketing.socialProof).toBe(true);
+		for (const value of Object.values(marketing)) {
+			expect(value).toBe(true);
+		}
 	});
 });

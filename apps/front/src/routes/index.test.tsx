@@ -28,11 +28,22 @@ const marketingFlags = vi.hoisted(() => ({
 	socialProof: false,
 }));
 
-vi.mock('~/lib/flags', () => ({
-	get FEATURES() {
-		return { marketing: marketingFlags };
-	},
-}));
+vi.mock('~/lib/flags', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('~/lib/flags')>();
+
+	return {
+		...actual,
+		FEATURES: {
+			...actual.FEATURES,
+			get marketing() {
+				return {
+					...actual.FEATURES.marketing,
+					...marketingFlags,
+				};
+			},
+		},
+	};
+});
 
 import { IndexRoute } from './index';
 
