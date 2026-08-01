@@ -276,6 +276,12 @@ const asciiLowerCase = (text) =>
 		String.fromCharCode(character.charCodeAt(0) + 32),
 	);
 
+// PostCSS failures on arbitrary static payloads carry a terse `reason`; the
+// diagnostics name it so a developer can find the offending syntax without a
+// stack trace into PostCSS internals.
+const cssParseFailureReason = (error) =>
+	error?.reason ?? error?.message ?? String(error);
+
 // ---------------------------------------------------------------------------
 // CSS identifier canonicalisation. CSS property names are ASCII-case-
 // insensitive and may carry escapes (`z-\69ndex` is `z-index`), so property
@@ -1072,22 +1078,39 @@ export const scanZIndexFile = ({
 			// Static-HTML payloads can embed a `<style>` element (declaration
 			// walk over its text) or a `<link rel="stylesheet">` (opaque, same
 			// as the JSX link rule). Only literal attribute values are read, so
-			// runtime-assembled HTML stays in the declared runtime bucket.
+			// runtime-assembled HTML stays in the declared runtime bucket. A
+			// payload the declaration walk cannot parse is reported as opaque —
+			// never a crash, never a silent pass.
 			const escapes = [];
 			const stylePattern = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
 			let match;
 			while ((match = stylePattern.exec(html))) {
 				const css = match[1];
-				if (checkCompiledCssZIndex(css).length > 0) {
-					escapes.push({
+				let escape;
+				try {
+					if (checkCompiledCssZIndex(css).length === 0) {
+						continue;
+					}
+					escape = {
 						ruleId: 'z-index-style-element-shipped',
 						message:
 							'static HTML payload ships a <style> element whose CSS never ' +
 							'becomes an emitted asset — route every z-index through ' +
 							'the scale or import the stylesheet through the build graph.',
 						source: match[0],
-					});
+					};
+				} catch (error) {
+					escape = {
+						ruleId: 'z-index-unparseable-static-css',
+						message:
+							'static HTML <style> payload cannot be parsed as CSS ' +
+							`(${cssParseFailureReason(error)}) — the guard cannot ` +
+							'inspect what ships; fix the payload or import the ' +
+							'stylesheet through the build graph.',
+						source: match[0],
+					};
 				}
+				escapes.push(escape);
 			}
 			const linkPattern = /<link\b[^>]*>/gi;
 			while ((match = linkPattern.exec(html))) {
@@ -1118,18 +1141,41 @@ export const scanZIndexFile = ({
 		};
 		const visitStaticStyleEscapes = (node) => {
 			const styleCss = staticStyleElementCss(node);
-			if (styleCss != null && checkCompiledCssZIndex(styleCss).length > 0) {
-				violations.push({
-					ruleId: 'z-index-style-element-shipped',
-					message:
-						'static <style> element ships CSS that never becomes an emitted ' +
-						'asset, so the emitted gate cannot inspect it — route every ' +
-						'z-index through the scale or import the stylesheet through the ' +
-						'build graph.',
+			if (styleCss != null) {
+				const base = {
 					file: relativePath,
 					line: lineForOffset(content, node.getStart(sourceFile)),
 					source: node.getText(sourceFile),
-				});
+				};
+				let cssViolations;
+				try {
+					cssViolations = checkCompiledCssZIndex(styleCss).map((violation) => ({
+						ruleId: 'z-index-style-element-shipped',
+						message:
+							'static <style> element ships CSS that never becomes an ' +
+							'emitted asset — ' +
+							`\`${violation.source}\` does not resolve through ` +
+							'var(--publy-z-…); route every z-index through the ' +
+							'scale or import the stylesheet through the build ' +
+							'graph.',
+					}));
+				} catch (error) {
+					// A payload the walk cannot parse is a violation, not a
+					// crash and not a silent pass — the CSS ships unread.
+					cssViolations = [
+						{
+							ruleId: 'z-index-unparseable-static-css',
+							message:
+								'static <style> payload cannot be parsed as CSS ' +
+								`(${cssParseFailureReason(error)}) — the guard cannot ` +
+								'inspect what ships; fix the payload or import the ' +
+								'stylesheet through the build graph.',
+						},
+					];
+				}
+				for (const violation of cssViolations) {
+					violations.push({ ...violation, ...base });
+				}
 			}
 			const dangerousHtml = staticDangerousHtml(node);
 			if (dangerousHtml != null) {
@@ -1515,7 +1561,26 @@ export const checkAuthoredCssScaleDefinitions = ({
 	relativePath,
 	isCanonicalAppCss,
 }) => {
-	const root = postcss.parse(css, { from: undefined });
+	let root;
+	try {
+		root = postcss.parse(css, { from: undefined });
+	} catch (error) {
+		// An authored CSS file the build ships but the guard cannot parse is
+		// reported as opaque — never a crash, never a silent pass.
+		return [
+			{
+				ruleId: 'z-index-unparseable-static-css',
+				message:
+					`authored CSS in ${relativePath} cannot be parsed as CSS ` +
+					`(${cssParseFailureReason(error)}) — the guard cannot inspect ` +
+					'what ships; fix the payload or import the stylesheet through ' +
+					'the build graph.',
+				file: relativePath,
+				line: 1,
+				source: css.slice(0, 120),
+			},
+		];
+	}
 	const violations = findReservedScaleTokenRegistrations(root, relativePath);
 	const seenCanonicalTokens = new Set();
 	root.walkDecls((declaration) => {
@@ -1733,7 +1798,15 @@ const collectReachableAuthoredCssPaths = async (baseDir, entryPaths) => {
 	for (let index = 0; index < queuedPaths.length; index += 1) {
 		const cssPath = queuedPaths[index];
 		const css = await readFile(cssPath, 'utf8');
-		const root = postcss.parse(css, { from: undefined });
+		let root;
+		try {
+			root = postcss.parse(css, { from: undefined });
+		} catch {
+			// The authored file itself is still checked by
+			// `checkAuthoredCssScaleDefinitions`; only its (unreadable) import
+			// chain is skipped here.
+			continue;
+		}
 		root.walkAtRules((atRule) => {
 			if (canonicaliseCssProperty(atRule.name) !== 'import') {
 				return;
@@ -1872,16 +1945,35 @@ export const runZIndexGuard = async ({
 			.sort((left, right) => left.localeCompare(right));
 		for (const cssPath of inlineCssPaths) {
 			const content = await readFile(cssPath, 'utf8');
+			const relativePath = path.relative(baseDir, cssPath);
 			// `?inline` / `?raw` CSS ships as JS text, invisible to the emitted
 			// gate — the declaration gate runs on the authored file itself,
-			// including inline imports from outside the project root.
-			violations.push(
-				...checkCompiledCssZIndex(
+			// including inline imports from outside the project root. CSS text
+			// that cannot be parsed is reported, never skipped: it ships and
+			// the guard cannot inspect it.
+			let inlineViolations;
+			try {
+				inlineViolations = checkCompiledCssZIndex(
 					content,
 					KNOWN_RAW_Z_INDEX_DECLARATIONS,
-					path.relative(baseDir, cssPath),
-				),
-			);
+					relativePath,
+				);
+			} catch (error) {
+				inlineViolations = [
+					{
+						ruleId: 'z-index-unparseable-static-css',
+						message:
+							`inline-imported CSS in ${relativePath} cannot be parsed as ` +
+							`CSS (${cssParseFailureReason(error)}) — the guard cannot ` +
+							'inspect what ships as JS; fix the payload or import the ' +
+							'stylesheet through the build graph.',
+						file: relativePath,
+						line: 1,
+						source: content.slice(0, 120),
+					},
+				];
+			}
+			violations.push(...inlineViolations);
 		}
 		const rawTextPaths = (buildResult.rawTextPaths ?? [])
 			.map((filePath) => path.resolve(filePath))

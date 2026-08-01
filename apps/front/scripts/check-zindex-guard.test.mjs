@@ -1394,6 +1394,69 @@ test('e2e (round 7 I1): self-closing <style> with scale-routed CSS stays green',
 	assert.deepEqual(violations, []);
 });
 
+test('e2e (round 7 M1): unparseable static <style> payload is a named diagnostic, not a crash', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = <style>{`{{ brandColor }}`}</style>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map(({ ruleId, file }) => ({ ruleId, file })),
+		[{ ruleId: 'z-index-unparseable-static-css', file: 'src/probe.tsx' }],
+	);
+	assert.match(
+		violations[0].message,
+		/cannot be parsed as CSS \(Unknown word brandColor\)/,
+	);
+});
+
+test('e2e (round 7 M1): unparseable static HTML <style> payload is a named diagnostic', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = <div',
+				'  dangerouslySetInnerHTML={{',
+				"    __html: '<style>{{ brandColor }}</style>',",
+				'  }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map(({ ruleId, file }) => ({ ruleId, file })),
+		[{ ruleId: 'z-index-unparseable-static-css', file: 'src/probe.tsx' }],
+	);
+	assert.match(violations[0].message, /cannot be parsed as CSS \(Unknown word/);
+});
+
+test('e2e (round 7 M1): ?raw CSS that cannot be parsed is a named diagnostic', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.css?raw';`,
+				`export const probe = <style>{rawCss}</style>;`,
+			].join('\n'),
+			'overlay.css': '{{ brandColor }}',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-unparseable-static-css' &&
+				violation.file === 'src/overlay.css',
+		),
+		`unparseable raw-shipped CSS must be a named diagnostic: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (round 5 audit): build-reachable static script escapes are red', async () => {
 	const { violations } = await runFixtureGuard(
 		{
