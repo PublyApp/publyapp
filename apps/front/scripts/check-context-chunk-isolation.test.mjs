@@ -460,6 +460,49 @@ void test('ignores React contexts declared in test source files', async () => {
 	}
 });
 
+void test('discovers contexts through callee adapters and object holders even when the binding is any-typed', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/bound-any.ts': `
+			import * as React from 'react';
+			const makeBoundContext = React.createContext.bind(React);
+			export const AnyBoundContext: any = makeBoundContext(null);
+		`,
+		'src/shorthand-holder.ts': `
+			import { createContext } from 'react';
+			export const reactApi = { createContext };
+			export const AnyShorthandContext: any = reactApi.createContext(null);
+		`,
+		'src/explicit-holder.ts': `
+			import * as React from 'react';
+			export const explicitReactApi = { createContext: React.createContext };
+			export const AnyExplicitContext: any = explicitReactApi.createContext(null);
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		const namesBySource = new Map(
+			contexts.map((context) => [
+				path.relative(fixtureDirectory, context.sourceFile),
+				context.name,
+			]),
+		);
+		assert.equal(namesBySource.get('src/bound-any.ts'), 'AnyBoundContext');
+		assert.equal(
+			namesBySource.get('src/shorthand-holder.ts'),
+			'AnyShorthandContext',
+		);
+		assert.equal(
+			namesBySource.get('src/explicit-holder.ts'),
+			'AnyExplicitContext',
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('does not report a local or unrelated createContext symbol', async () => {
 	const fixtureDirectory = await createFixture({
 		'node_modules/not-react/index.d.ts': `
