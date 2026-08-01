@@ -317,6 +317,10 @@ test('evasion: script cannot register a reserved scale token', () => {
 		"globalThis.CSS.registerProperty({ name: '--publy-z-raised' as const, inherits: false, initialValue: '2147483647' });",
 		"window.CSS.registerProperty({ name: '--publy-z-raised', inherits: false, initialValue: '2147483647' });",
 		"self.CSS.registerProperty({ name: '--publy-z-raised', inherits: false, initialValue: '2147483647' });",
+		"(CSS).registerProperty({ name: '--publy-z-raised', inherits: false });",
+		"(CSS.registerProperty)({ name: '--publy-z-raised', inherits: false });",
+		"CSS['registerProperty']({ name: '--publy-z-raised', inherits: false });",
+		"globalThis['CSS']['registerProperty']({ name: '--publy-z-raised', inherits: false });",
 	]) {
 		assert.deepEqual(
 			violationsFor('fixture.ts', content).map((violation) => violation.ruleId),
@@ -352,6 +356,16 @@ test('innocent: JSX links without a literal stylesheet destination stay clean', 
 		[
 			"const name = '--publy-z-raised';",
 			'const register = (name) => CSS.registerProperty({ name });',
+		].join('\n'),
+		[
+			"const rel = 'stylesheet';",
+			"const href = 'https://cdn.example/theme.css';",
+			"function descriptor() { if (condition) { var rel = 'preload'; } return { rel, href }; }",
+		].join('\n'),
+		[
+			"const rel = 'stylesheet';",
+			"const href = 'https://cdn.example/theme.css';",
+			"switch (kind) { case 'preload': const rel = 'preload'; use({ rel, href }); }",
 		].join('\n'),
 	]) {
 		assertClean('fixture.tsx', content);

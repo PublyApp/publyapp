@@ -746,6 +746,32 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		const hoistedVarBinding = (scope, name) => {
+			let binding = null;
+			const visit = (node) => {
+				if (
+					binding != null ||
+					(node !== scope.body &&
+						(ts.isFunctionLike(node) || ts.isClassLike(node)))
+				) {
+					return;
+				}
+				if (
+					ts.isVariableDeclarationList(node) &&
+					(node.flags & ts.NodeFlags.BlockScoped) === 0
+				) {
+					binding = variableBindingIn(node, name);
+					if (binding != null) {
+						return;
+					}
+				}
+				node.forEachChild(visit);
+			};
+			if (scope.body != null) {
+				visit(scope.body);
+			}
+			return binding;
+		};
 		const bindingInScope = (scope, name) => {
 			if (
 				ts.isSourceFile(scope) ||
@@ -770,6 +796,20 @@ export const scanZIndexFile = ({
 					scope.name?.text === name
 				) {
 					return scope;
+				}
+				const varBinding = hoistedVarBinding(scope, name);
+				if (varBinding != null) {
+					return varBinding;
+				}
+			}
+			if (ts.isCaseBlock(scope)) {
+				for (const clause of scope.clauses) {
+					for (const statement of clause.statements) {
+						const binding = statementBinding(statement, name);
+						if (binding != null) {
+							return binding;
+						}
+					}
 				}
 			}
 			if (
@@ -862,25 +902,41 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const isDirectGlobalCss = (expression) => {
+		const staticMember = (expression) => {
+			const member = unwrapTransparentExpression(expression);
+			if (member != null && ts.isPropertyAccessExpression(member)) {
+				return { owner: member.expression, name: member.name.text };
+			}
+			if (member != null && ts.isElementAccessExpression(member)) {
+				return {
+					owner: member.expression,
+					name: staticString(member.argumentExpression),
+				};
+			}
+			return null;
+		};
+		const isDirectGlobalCss = (candidate) => {
+			const expression = unwrapTransparentExpression(candidate);
+			if (expression == null) {
+				return false;
+			}
 			if (ts.isIdentifier(expression)) {
 				return (
 					expression.text === 'CSS' &&
 					nearestBinding(expression, expression.text) == null
 				);
 			}
+			const member = staticMember(expression);
+			const owner = unwrapTransparentExpression(member?.owner);
 			if (
-				!ts.isPropertyAccessExpression(expression) ||
-				expression.name.text !== 'CSS' ||
-				!ts.isIdentifier(expression.expression) ||
-				!['globalThis', 'window', 'self'].includes(expression.expression.text)
+				member?.name !== 'CSS' ||
+				owner == null ||
+				!ts.isIdentifier(owner) ||
+				!['globalThis', 'window', 'self'].includes(owner.text)
 			) {
 				return false;
 			}
-			return (
-				nearestBinding(expression.expression, expression.expression.text) ==
-				null
-			);
+			return nearestBinding(owner, owner.text) == null;
 		};
 		const visitStaticStyleEscapes = (node) => {
 			let rel = null;
@@ -915,11 +971,13 @@ export const scanZIndexFile = ({
 					source: node.getText(sourceFile),
 				});
 			}
+			const registrationMember = ts.isCallExpression(node)
+				? staticMember(node.expression)
+				: null;
 			if (
 				ts.isCallExpression(node) &&
-				ts.isPropertyAccessExpression(node.expression) &&
-				isDirectGlobalCss(node.expression.expression) &&
-				node.expression.name.text === 'registerProperty' &&
+				registrationMember?.name === 'registerProperty' &&
+				isDirectGlobalCss(registrationMember.owner) &&
 				ts.isObjectLiteralExpression(node.arguments[0])
 			) {
 				const property = staticObjectProperty(node.arguments[0], 'name');

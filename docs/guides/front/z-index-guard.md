@@ -109,7 +109,8 @@ Five components:
    build-reachable project scripts, direct `CSS.registerProperty()` calls with a static reserved
    `name` are rejected for the same reason, including the explicit browser-global forms
    `globalThis.CSS`, `window.CSS`, and `self.CSS`. Lexically shadowed identifiers are not confused
-   with those browser globals. Other at-rule parameters may reference a custom property, or reuse
+   with those browser globals; transparent parentheses and static bracket/property access spellings
+   are equivalent. Other at-rule parameters may reference a custom property, or reuse
    the same spelling in an unrelated namespace such as a keyframe name, but cannot register or replace
    its computed value.
    Tailwind's generated selector shape is intentionally exact and fails closed if an upgrade changes
