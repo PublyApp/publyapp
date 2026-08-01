@@ -260,7 +260,7 @@ export const NewDrawerFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => (
 	<DrawerForm methods={methods}>
-		<DrawerBody>probe</DrawerBody>
+		<DrawerBody />
 		<DrawerFooter />
 	</DrawerForm>
 );
@@ -283,7 +283,7 @@ export const AliasedDrawerFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => (
 	<Form methods={methods}>
-		<DrawerBody>probe</DrawerBody>
+		<DrawerBody />
 		<DrawerFooter />
 	</Form>
 );
@@ -311,7 +311,7 @@ export const BarrelDrawerFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => (
 	<DrawerForm methods={methods}>
-		<DrawerBody>probe</DrawerBody>
+		<DrawerBody />
 		<DrawerFooter />
 	</DrawerForm>
 );
@@ -333,7 +333,7 @@ export const NamespaceDrawerFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => (
 	<Drawer.DrawerForm methods={methods}>
-		<Drawer.DrawerBody>probe</Drawer.DrawerBody>
+		<Drawer.DrawerBody />
 		<Drawer.DrawerFooter />
 	</Drawer.DrawerForm>
 );
@@ -366,12 +366,12 @@ export const RegressedDrawerFixture = ({
 	<Drawer open>
 		<DrawerContent data-testid="r6-regressed-drawer">
 			<DrawerHeader>
-				<DrawerTitle>Regressed</DrawerTitle>
+				<DrawerTitle />
 			</DrawerHeader>
 			<Form methods={methods}>
-				<DrawerBody>content</DrawerBody>
+				<DrawerBody />
 				<DrawerFooter>
-					<button type="submit">Save</button>
+					<button type="submit" />
 				</DrawerFooter>
 			</Form>
 		</DrawerContent>
@@ -409,12 +409,12 @@ export const AliasedPartsRegressedDrawerFixture = ({
 	<Drawer open>
 		<DrawerContent data-testid="r8-aliased-parts">
 			<DrawerHeader>
-				<DrawerTitle>Regressed</DrawerTitle>
+				<DrawerTitle />
 			</DrawerHeader>
 			<Form methods={methods}>
-				<Body>content</Body>
+				<Body />
 				<Footer>
-					<button type="submit">Save</button>
+					<button type="submit" />
 				</Footer>
 			</Form>
 		</DrawerContent>
@@ -453,12 +453,12 @@ export const AliasedBarrelPartsDrawerFixture = ({
 }) => (
 	<DrawerContent data-testid="r8-aliased-barrel-parts">
 		<DrawerHeader>
-			<DrawerTitle>Regressed</DrawerTitle>
+			<DrawerTitle />
 		</DrawerHeader>
 		<Form methods={methods}>
-			<Body>content</Body>
+			<Body />
 			<Footer>
-				<button type="submit">Save</button>
+				<button type="submit" />
 			</Footer>
 		</Form>
 	</DrawerContent>
@@ -484,7 +484,7 @@ export const LocalShadowDrawerFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => (
 	<Form methods={methods}>
-		<DrawerBody>probe</DrawerBody>
+		<DrawerBody />
 		<DrawerFooter />
 	</Form>
 );
@@ -507,7 +507,7 @@ export const UnresolvedDrawerFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => (
 	<Form methods={methods}>
-		<DrawerBody>probe</DrawerBody>
+		<DrawerBody />
 		<DrawerFooter />
 	</Form>
 );
@@ -530,7 +530,7 @@ export const BareWrapperDrawerFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => (
 	<DrawerForm methods={methods}>
-		<DrawerBody>probe</DrawerBody>
+		<DrawerBody />
 		<DrawerFooter />
 	</DrawerForm>
 );
@@ -556,7 +556,7 @@ export const ConditionalDrawerFixture = ({
 	isEmpty: boolean;
 }) => (
 	<DrawerForm methods={methods}>
-		{isEmpty ? <DrawerBody>empty</DrawerBody> : <DrawerBody>full</DrawerBody>}
+		{isEmpty ? <DrawerBody /> : <DrawerBody />}
 		<DrawerFooter />
 	</DrawerForm>
 );
@@ -584,11 +584,11 @@ export const NodelessWrappersDrawerFixture = ({
 }) => (
 	<DrawerForm methods={methods}>
 		<Suspense fallback={null}>
-			<DrawerBody>content</DrawerBody>
+			<DrawerBody />
 		</Suspense>
 		<Fragment>
 			<DrawerFooter>
-				<button type="submit">Save</button>
+				<button type="submit" />
 			</DrawerFooter>
 		</Fragment>
 	</DrawerForm>
@@ -636,10 +636,10 @@ export const DivWrappedPartsDrawerFixture = ({
 }) => (
 	<DrawerForm methods={methods}>
 		<div className="p-4">
-			<DrawerBody>content</DrawerBody>
+			<DrawerBody />
 		</div>
 		<DrawerFooter>
-			<button type="submit">Save</button>
+			<button type="submit" />
 		</DrawerFooter>
 	</DrawerForm>
 );
@@ -675,13 +675,13 @@ export const DivAboveFormDrawerFixture = ({
 	<Drawer open>
 		<DrawerContent data-testid="r8-div-above-form">
 			<DrawerHeader>
-				<DrawerTitle>Broken above the form</DrawerTitle>
+				<DrawerTitle />
 			</DrawerHeader>
 			<div className="p-4">
 				<DrawerForm methods={methods}>
-					<DrawerBody>content</DrawerBody>
+					<DrawerBody />
 					<DrawerFooter>
-						<button type="submit">Save</button>
+						<button type="submit" />
 					</DrawerFooter>
 				</DrawerForm>
 			</div>
@@ -705,7 +705,7 @@ const TEMPORARY_FOOTER_ONLY_DRAWER_SOURCE = `import { DrawerContent, DrawerFoote
 
 export const FooterOnlyDrawerFixture = () => (
 	<DrawerContent data-testid="r8-footer-only">
-		<DrawerFooter>footer</DrawerFooter>
+		<DrawerFooter />
 	</DrawerContent>
 );
 `;
