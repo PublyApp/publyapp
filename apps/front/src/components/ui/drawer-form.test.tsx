@@ -792,6 +792,43 @@ export const FakeSuspenseDrawerFixture = ({
 );
 `;
 
+// Round 9's MINOR 3: a member-expression part tag whose base is a NAMED
+// binding rather than a namespace import — `export * as Drawer from './drawer'`
+// in a barrel, reached as `import { Drawer }`, then `<Drawer.DrawerBody />`.
+// The base binding must be followed like any named import, and the barrel's
+// `export * as` hop must forward the member lookup to the drawer module.
+const TEMPORARY_NS_BARREL_FILE =
+	'src/components/ui/_drawer-ns-barrel-fixture.ts';
+const TEMPORARY_NS_BARREL_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_NS_BARREL_FILE,
+);
+const TEMPORARY_NS_BARREL_SOURCE = `export * as Drawer from './drawer';
+`;
+const TEMPORARY_NS_BARREL_CALL_SITE_FILE =
+	'src/components/ui/_drawer-surface-ns-barrel-parts-fixture.tsx';
+const TEMPORARY_NS_BARREL_CALL_SITE_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_NS_BARREL_CALL_SITE_FILE,
+);
+const TEMPORARY_NS_BARREL_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Form } from '~/components/field';
+import { Drawer } from '~/components/ui/_drawer-ns-barrel-fixture';
+
+export const NsBarrelPartsDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Form methods={methods}>
+		<Drawer.DrawerBody />
+		<Drawer.DrawerFooter>
+			<button type="submit" />
+		</Drawer.DrawerFooter>
+	</Form>
+);
+`;
+
 // Round 7's MINOR 4: the `DrawerFooter` half of the discovery predicate was
 // the one branch whose deletion was fail-open — a footer-only drawer became
 // invisible with a fully green suite (app-shell.tsx pins the `DrawerBody`
@@ -941,6 +978,28 @@ const resolveDrawerSymbol = (
 				}
 				continue;
 			}
+			const namespaceExport = exportDeclaration.getNamespaceExport();
+			if (namespaceExport) {
+				// `export * as X from '...'` — the namespace re-exports every
+				// member of the target module under X, so a member lookup
+				// through a base binding that resolves to this barrel
+				// forwards to the target module regardless of the namespace
+				// name X (round 9's MINOR 3).
+				const result = resolveDrawerSymbol(
+					resolved,
+					reExportSpecifier,
+					exportName,
+					moduleResolution,
+					project,
+					visited,
+					depth + 1,
+					moduleCache,
+				);
+				if (result) {
+					return result;
+				}
+				continue;
+			}
 			for (const specifier of namedExports) {
 				if (
 					(specifier.getAliasNode()?.getText() ?? specifier.getName()) !==
@@ -1054,11 +1113,12 @@ const isLocallyDeclared = (
  * under, or null when the tag is NOT the drawer module's symbol — through
  * the same chain every wrapper goes through: direct import, alias
  * (`DrawerBody as Body`), namespace member (`Drawer.DrawerBody` where the
- * base is a namespace import), and re-export barrels including aliased
- * re-exports. A same-named local declaration shadows every import; an
- * import that cannot be resolved is null (fail-closed). Discovery uses the
- * same machinery as the wrapper check, so there is no import spelling that
- * the scan can miss while the wrapper check accepts.
+ * base is a namespace import or a named binding of a namespace re-export),
+ * and re-export barrels including aliased re-exports. A same-named local
+ * declaration shadows every import; an import that cannot be resolved is
+ * null (fail-closed). Discovery uses the same machinery as the wrapper
+ * check, so there is no import spelling that the scan can miss while the
+ * wrapper check accepts.
  */
 const resolveDrawerTagName = (
 	sourceFile: SourceFile,
@@ -1072,12 +1132,36 @@ const resolveDrawerTagName = (
 		/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/,
 	);
 	if (namespaceMatch) {
-		const namespaceSpecifier = resolveNamespaceImport(
+		// A same-named local declaration shadows every import, including a
+		// member-expression base: `const Drawer = { DrawerBody: ... }` in
+		// this file is THIS file's object, never the drawer module.
+		if (isLocallyDeclared(sourceFile, namespaceMatch[1], declaredNamesByFile)) {
+			return null;
+		}
+		let namespaceSpecifier = resolveNamespaceImport(
 			sourceFile,
 			namespaceMatch[1],
 		);
 		if (!namespaceSpecifier) {
-			return null;
+			// A member-expression base that is a NAMED binding (round 9's
+			// MINOR 3): `import { Drawer } from '...'` where the barrel
+			// re-exports the drawer module as a namespace
+			// (`export * as Drawer from './drawer'`). Follow the binding
+			// like any named import; the chain resolver forwards the member
+			// through the barrel's namespace re-export.
+			for (const declaration of sourceFile.getImportDeclarations()) {
+				for (const namedImport of declaration.getNamedImports()) {
+					const localName =
+						namedImport.getAliasNode()?.getText() ?? namedImport.getName();
+					if (localName !== namespaceMatch[1]) {
+						continue;
+					}
+					namespaceSpecifier = declaration.getModuleSpecifierValue();
+				}
+			}
+			if (!namespaceSpecifier) {
+				return null;
+			}
 		}
 		return resolveDrawerSymbol(
 			sourceFile.getFilePath(),
@@ -1801,6 +1885,23 @@ describe('drawer surface flex chain guard (#990)', () => {
 			expect(scan.violations).toContain(TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE);
 		} finally {
 			unlinkSync(TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH);
+		}
+	});
+
+	test('a member-expression part tag whose base is a named binding through an export * as barrel is discovered and rejected', () => {
+		writeFileSync(TEMPORARY_NS_BARREL_PATH, TEMPORARY_NS_BARREL_SOURCE);
+		writeFileSync(
+			TEMPORARY_NS_BARREL_CALL_SITE_PATH,
+			TEMPORARY_NS_BARREL_CALL_SITE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(TEMPORARY_NS_BARREL_CALL_SITE_FILE);
+			expect(scan.violations).toContain(TEMPORARY_NS_BARREL_CALL_SITE_FILE);
+		} finally {
+			unlinkSync(TEMPORARY_NS_BARREL_CALL_SITE_PATH);
+			unlinkSync(TEMPORARY_NS_BARREL_PATH);
 		}
 	});
 
