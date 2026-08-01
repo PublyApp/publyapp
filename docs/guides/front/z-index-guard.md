@@ -111,7 +111,11 @@ Five components:
    native JSX stylesheet links when the `rel` token list and `href` are static, including values
    resolved through those module-scope constants. This prevents an inline style from shadowing a
    legitimate tier after the emitted gate has accepted its reference, and prevents declarative CSS
-   payloads from bypassing that gate as JavaScript bundle text.
+   payloads from bypassing that gate as JavaScript bundle text. Build provenance identifies the
+   reachable authored files but does not map a minified emitted declaration back to one exact source
+   declaration. The guard therefore retains both authored and emitted scale-integrity diagnostics;
+   it never suppresses a shipped defect merely because another file contains identical declaration
+   text.
 
 ## Out of scope — stated, not silent
 

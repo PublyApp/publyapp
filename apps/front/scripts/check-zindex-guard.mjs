@@ -1275,14 +1275,6 @@ export const runZIndexGuard = async ({
 				}),
 			);
 		}
-		const authoredScaleViolationKeys = new Set(
-			violations
-				.filter((violation) =>
-					violation.ruleId.startsWith('z-index-scale-token-'),
-				)
-				.map((violation) => `${violation.ruleId}\u0000${violation.source}`),
-		);
-
 		const emittedCssRoot = path.resolve(buildResult.emittedCssRoot);
 		const emittedCssPaths = await collectCssPaths(emittedCssRoot);
 		if (emittedCssPaths.length === 0) {
@@ -1301,21 +1293,17 @@ export const runZIndexGuard = async ({
 				cssPath,
 			);
 			emittedCssAssets.push({ path: relativePath, content });
-			const emittedViolations = checkCompiledCssZIndex(
-				content,
-				KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS,
-				relativePath,
-				{
-					emitted: true,
-					scaleDefinitionCounts: emittedScaleDefinitionCounts,
-				},
+			violations.push(
+				...checkCompiledCssZIndex(
+					content,
+					KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS,
+					relativePath,
+					{
+						emitted: true,
+						scaleDefinitionCounts: emittedScaleDefinitionCounts,
+					},
+				),
 			);
-			for (const violation of emittedViolations) {
-				const key = `${violation.ruleId}\u0000${violation.source}`;
-				if (!authoredScaleViolationKeys.has(key)) {
-					violations.push(violation);
-				}
-			}
 		}
 
 		return {

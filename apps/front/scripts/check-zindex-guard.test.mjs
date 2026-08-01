@@ -712,6 +712,26 @@ test('e2e (round 5 policy): a build-reachable second scale stylesheet stays red'
 	);
 });
 
+test('e2e (round 5 minor 2): identical authored text cannot hide a distinct shipped violation', async () => {
+	const source = '--publy-z-suppression: 999';
+	const { violations } = await runFixtureGuard(
+		{ 'probe.ts': `export const probe = 'probe';` },
+		`.authored-probe { ${source}; }\n`,
+		[],
+		`.dependency-probe { ${source}; z-index: var(--publy-z-suppression); }`,
+	);
+	assert.deepEqual(
+		violations.map(({ file, source: violationSource }) => ({
+			file,
+			source: violationSource,
+		})),
+		[
+			{ file: 'app.css', source },
+			{ file: 'dist/fixture.css', source },
+		],
+	);
+});
+
 test('e2e (blocker 1): @source inline("z-5") + \'z-\' + 5 concatenation is red via the compiled gate', async () => {
 	const { violations } = await runFixtureGuard(
 		{ 'concat.tsx': `export const view = <div className={'z-' + 5} />;` },
@@ -898,7 +918,12 @@ test('e2e (round 3 audit): local scale-token definitions cannot smuggle raw stac
 	);
 	assert.deepEqual(
 		violations.map((violation) => violation.source),
-		['--publy-z-raised: 999', '--publy-z-rogue: 998'],
+		[
+			'--publy-z-raised: 999',
+			'--publy-z-rogue: 998',
+			'--publy-z-raised: 999',
+			'--publy-z-rogue: 998',
+		],
 		`local scale-token definitions must red: ${JSON.stringify(violations)}`,
 	);
 });
