@@ -153,7 +153,7 @@ export const MarketingMobileNav = ({
 							'w-full no-underline',
 						)}
 					>
-						{t('marketing-start-free-trial')}
+						{t('marketing-signup-cta')}
 					</Link>
 				</DrawerFooter>
 			</DrawerContent>

@@ -382,7 +382,7 @@ export const MarketingHeader = ({
 								'whitespace-nowrap no-underline',
 							)}
 						>
-							{t('marketing-start-free-trial')}
+							{t('marketing-signup-cta')}
 						</Link>
 					</div>
 					<Link
@@ -392,7 +392,7 @@ export const MarketingHeader = ({
 							'whitespace-nowrap no-underline lg:hidden',
 						)}
 					>
-						{t('marketing-start-free-trial')}
+						{t('marketing-signup-cta')}
 					</Link>
 					<Button
 						variant="outline"

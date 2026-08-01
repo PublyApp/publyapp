@@ -48,7 +48,7 @@ export const MarketingCtaBand = () => {
 								'no-underline',
 							)}
 						>
-							{t('marketing-start-free-trial')}
+							{t('marketing-signup-cta')}
 						</Link>
 						<Link
 							to="/login"

@@ -130,19 +130,19 @@ const BENTO_TILES: readonly BentoCard[] = [
 
 const TRIAL_STEPS: readonly TrialStep[] = [
 	{
-		titleKey: 'landing-trial-today-title',
-		labelKey: 'landing-trial-today-label',
-		descriptionKey: 'landing-trial-today-description',
+		titleKey: 'landing-timeline-step-1-title',
+		labelKey: 'landing-timeline-step-1-label',
+		descriptionKey: 'landing-timeline-step-1-description',
 	},
 	{
-		titleKey: 'landing-trial-day-3-title',
-		labelKey: 'landing-trial-day-3-label',
-		descriptionKey: 'landing-trial-day-3-description',
+		titleKey: 'landing-timeline-step-2-title',
+		labelKey: 'landing-timeline-step-2-label',
+		descriptionKey: 'landing-timeline-step-2-description',
 	},
 	{
-		titleKey: 'landing-trial-day-10-title',
-		labelKey: 'landing-trial-day-10-label',
-		descriptionKey: 'landing-trial-day-10-description',
+		titleKey: 'landing-timeline-step-3-title',
+		labelKey: 'landing-timeline-step-3-label',
+		descriptionKey: 'landing-timeline-step-3-description',
 	},
 ];
 
