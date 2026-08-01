@@ -258,8 +258,9 @@ describe('ChangeStaffUserEmailDialog', () => {
 		);
 
 		await waitFor(() =>
-			expect(mocks.updateEmailMutation).not.toHaveBeenCalled(),
+			expect(screen.getByText('Invalid email address')).toBeTruthy(),
 		);
+		expect(mocks.updateEmailMutation).not.toHaveBeenCalled();
 	});
 
 	test('maps a server email field error onto the email field via getFailureMessage, never the raw server string', async () => {
