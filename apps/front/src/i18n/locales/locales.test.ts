@@ -56,4 +56,63 @@ describe('front locale manifests', () => {
 			}
 		}
 	});
+
+	test('frames the landing trial as planned while beta signup remains current', () => {
+		const localeCases = [
+			{
+				common: en.common as Record<string, string>,
+				signupCta: /^Sign up free$/i,
+				currentContext: /\btoday\b/i,
+				trial: /\bfree trial\b/i,
+				planned: /planned before general availability/i,
+				beta: /free while in beta/i,
+				dayCount: /\bday\s+\d+\b/i,
+			},
+			{
+				common: fr.common as Record<string, string>,
+				signupCta: /^S'inscrire gratuitement$/i,
+				currentContext: /aujourd'hui/i,
+				trial: /\bessai gratuit\b/i,
+				planned: /prévu avant l'ouverture au public/i,
+				beta: /gratuit pendant la bêta/i,
+				dayCount: /\bjour\s+\d+\b/i,
+			},
+		] as const;
+
+		for (const localeCase of localeCases) {
+			const { common } = localeCase;
+			expect(common['landing-closing-primary-cta']).toMatch(
+				localeCase.signupCta,
+			);
+
+			const faqAnswer = common['landing-faq-3-answer'];
+			expect(faqAnswer).toMatch(localeCase.currentContext);
+			expect(faqAnswer).toMatch(localeCase.trial);
+			expect(faqAnswer).toMatch(localeCase.planned);
+
+			const timelineHeading = common['landing-timeline-eyebrow'];
+			expect(timelineHeading).toMatch(localeCase.trial);
+			expect(timelineHeading).toMatch(/planned|prévu/i);
+
+			const timelineNote = common['landing-trial-plan-note'];
+			expect(timelineNote).toMatch(localeCase.currentContext);
+			expect(timelineNote).toMatch(localeCase.trial);
+			expect(timelineNote).toMatch(localeCase.planned);
+			expect(timelineNote).toMatch(localeCase.beta);
+
+			const closingDescription = common['landing-closing-description'];
+			expect(closingDescription).toMatch(localeCase.currentContext);
+			expect(closingDescription).toMatch(localeCase.trial);
+			expect(closingDescription).toMatch(localeCase.planned);
+			expect(closingDescription).toMatch(localeCase.beta);
+
+			for (const key of [
+				'landing-trial-today-title',
+				'landing-trial-day-3-title',
+				'landing-trial-day-10-title',
+			]) {
+				expect(common[key]).not.toMatch(localeCase.dayCount);
+			}
+		}
+	});
 });
