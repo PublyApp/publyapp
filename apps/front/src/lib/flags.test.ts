@@ -13,6 +13,7 @@ const toMarketingEnvKey = (flagKey: string): string => {
 const importMarketingFlags = async (
 	rawValue: string | undefined,
 	isProduction = false,
+	isServer = false,
 ): Promise<MarketingFlags> => {
 	vi.resetModules();
 	vi.unstubAllEnvs();
@@ -25,7 +26,7 @@ const importMarketingFlags = async (
 	vi.stubEnv('MODE', isProduction ? 'production' : 'test');
 	vi.stubEnv('PROD', isProduction);
 	vi.stubEnv('DEV', !isProduction);
-	vi.stubEnv('SSR', false);
+	vi.stubEnv('SSR', isServer);
 	for (const flagKey of Object.keys(sourceFeatures.marketing)) {
 		vi.stubEnv(toMarketingEnvKey(flagKey), rawValue);
 	}
@@ -33,7 +34,7 @@ const importMarketingFlags = async (
 	const { FEATURES } = await import('./flags');
 	// Guards the three `for...of Object.values(marketing)` loops below: an
 	// empty registry would make every one of them pass vacuously.
-	expect(Object.keys(FEATURES.marketing).length).toBeGreaterThan(0);
+	expect(Object.keys(FEATURES.marketing).length).toBe(2);
 	return FEATURES.marketing;
 };
 
@@ -60,13 +61,25 @@ describe('marketing feature flags', () => {
 		},
 	);
 
-	test('stays off when production mode has no environment values', async () => {
-		const marketing = await importMarketingFlags(undefined, true);
+	test.each([
+		[false, false],
+		[false, true],
+		[true, false],
+		[true, true],
+	] as const)(
+		'stays off with no environment values when production=%s and SSR=%s',
+		async (isProduction, isServer) => {
+			const marketing = await importMarketingFlags(
+				undefined,
+				isProduction,
+				isServer,
+			);
 
-		for (const value of Object.values(marketing)) {
-			expect(value).toBe(false);
-		}
-	});
+			for (const value of Object.values(marketing)) {
+				expect(value).toBe(false);
+			}
+		},
+	);
 
 	test('turns on both flags only for the literal true value', async () => {
 		const marketing = await importMarketingFlags('true');
