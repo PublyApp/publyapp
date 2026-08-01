@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Jobs.Entities;
 
 public sealed class JobDeadLetterConfiguration : IEntityTypeConfiguration<JobDeadLetter> {
 	public void Configure(EntityTypeBuilder<JobDeadLetter> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Explicit snake_case PK constraint name (design §4.2).
 		builder.HasKey(entity => entity.Id).HasName("pk_job_dead_letter");
 		builder.Property(entity => entity.Id).HasDefaultValueSql("uuidv7()");

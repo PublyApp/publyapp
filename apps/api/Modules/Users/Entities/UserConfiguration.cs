@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Users.Entities;
 
 public sealed class UserConfiguration : IEntityTypeConfiguration<User> {
 	public void Configure(EntityTypeBuilder<User> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		builder.ToTable(table => {
 			table.HasCheckConstraint("CK_User_Email_Lowercase", "email = LOWER(email)");
 			// User onboarding is invitation-first; persisted identity states are active or suspended.

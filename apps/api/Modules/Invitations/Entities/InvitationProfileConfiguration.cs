@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Invitations.Entities;
 
 public sealed class InvitationProfileConfiguration : IEntityTypeConfiguration<InvitationProfile> {
 	public void Configure(EntityTypeBuilder<InvitationProfile> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Configure InvitationProfile junction table
 		builder.HasKey(entity => new { entity.InvitationId, entity.ProfileId });
 

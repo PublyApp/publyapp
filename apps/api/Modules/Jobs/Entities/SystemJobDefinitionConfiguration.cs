@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Jobs.Entities;
 
 public sealed class SystemJobDefinitionConfiguration : IEntityTypeConfiguration<SystemJobDefinition> {
 	public void Configure(EntityTypeBuilder<SystemJobDefinition> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Dashboard-configurable recurring system jobs (design §4.3). A BaseAttributes
 		// entity — the uuidv7 id + soft-delete columns come from the generic loop below;
 		// this block adds the explicit snake_case PK name and the job_key uniqueness

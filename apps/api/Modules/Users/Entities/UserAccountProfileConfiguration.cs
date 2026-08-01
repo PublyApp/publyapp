@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Users.Entities;
 
 public sealed class UserAccountProfileConfiguration : IEntityTypeConfiguration<UserAccountProfile> {
 	public void Configure(EntityTypeBuilder<UserAccountProfile> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// UserAccountProfile mirrors the same active-state design. User/profile assignment
 		// history is tracked via audit logs, while this table stores current membership only.
 		builder.HasKey(entity => new { entity.UserAccountId, entity.ProfileId });

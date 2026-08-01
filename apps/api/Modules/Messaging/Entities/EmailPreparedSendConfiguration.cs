@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Messaging.Entities;
 
 public sealed class EmailPreparedSendConfiguration : IEntityTypeConfiguration<EmailPreparedSend> {
 	public void Configure(EntityTypeBuilder<EmailPreparedSend> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Send-once envelope scratch (design §4.5, F7). Keyed by job_id (no surrogate id);
 		// inserted once, hard-deleted at the terminal outcome or by the Phase-3 sweep.
 		builder.HasKey(entity => entity.JobId).HasName("pk_email_prepared_sends");

@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Jobs.Entities;
 
 public sealed class JobQueueItemConfiguration : IEntityTypeConfiguration<JobQueueItem> {
 	public void Configure(EntityTypeBuilder<JobQueueItem> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Generic job queue (Infrastructure/Jobs). Not a BaseAttributes entity by
 		// design (§4.0): success is a hard delete and every engine transition runs
 		// through raw SQL, so the uuidv7 id is configured explicitly here rather than

@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Jobs.Entities;
 
 public sealed class SystemJobOccurrenceConfiguration : IEntityTypeConfiguration<SystemJobOccurrence> {
 	public void Configure(EntityTypeBuilder<SystemJobOccurrence> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Durable occurrence identity (§4.3): the composite PK is the cross-leader
 		// dedup constraint. This is not a BaseAttributes entity and has no surrogate id.
 		builder

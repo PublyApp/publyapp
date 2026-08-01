@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Users.Entities;
 
 public sealed class UserAccountConfiguration : IEntityTypeConfiguration<UserAccount> {
 	public void Configure(EntityTypeBuilder<UserAccount> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Database-level account type constraints
 		builder.ToTable(table => table.HasCheckConstraint(
 			"CK_UserAccount_Staff_Constraints",

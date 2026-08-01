@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Invitations.Entities;
 
 public sealed class InvitationConfiguration : IEntityTypeConfiguration<Invitation> {
 	public void Configure(EntityTypeBuilder<Invitation> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Database-level invitation scope constraints
 		builder.ToTable(table => table.HasCheckConstraint(
 			"CK_Invitation_Staff_Constraints",

@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Profiles.Entities;
 
 public sealed class ProfileConfiguration : IEntityTypeConfiguration<Profile> {
 	public void Configure(EntityTypeBuilder<Profile> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Database-level profile type constraints
 		builder.ToTable(table => table.HasCheckConstraint(
 			"CK_Profile_Staff_Constraints",

@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Messaging.Entities;
 
 public sealed class EmailLogConfiguration : IEntityTypeConfiguration<EmailLog> {
 	public void Configure(EntityTypeBuilder<EmailLog> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Append-only email delivery record (design §4.4, F20). Not a BaseAttributes
 		// entity — written once at a terminal outcome and never mutated/soft-deleted; the
 		// uuidv7 id + now() timestamps are configured explicitly here. Indexes serve the

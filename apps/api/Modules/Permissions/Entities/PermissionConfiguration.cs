@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
-
 namespace PublyApp.Api.Modules.Permissions.Entities;
 
 public sealed class PermissionConfiguration : IEntityTypeConfiguration<Permission> {
 	public void Configure(EntityTypeBuilder<Permission> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Database-level permission key prefix constraints
 		builder.ToTable(table => table.HasCheckConstraint(
 			"CK_Permission_Staff_Key_Prefix",

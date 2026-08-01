@@ -1,15 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 
 namespace PublyApp.Api.Modules.Tenants.Entities;
 
 public sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant> {
 	public void Configure(EntityTypeBuilder<Tenant> builder) {
-		EntityConfigurationMarker.Mark(builder);
-
 		// Access AppEnvironment for default values used in database schema configuration
 		var env = AppEnvironment.Instance;
 
