@@ -756,6 +756,42 @@ export const HelperHiddenDivAboveFormDrawerFixture = ({
 );
 `;
 
+// Round 9's MINOR 2: a LOCAL component named `Suspense` that renders a real
+// layout box must NOT be treated as React's nodeless wrapper — the walk must
+// find the `<div>` it renders and judge it. The nodeless transparency is
+// conditioned on the name actually being imported from `react`; this fixture
+// pins that verification (deleting it is fail-open: the div disappears and
+// the wrapped body looks like a direct form child).
+const TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-fake-suspense-fixture.tsx';
+const TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE,
+);
+const TEMPORARY_FAKE_SUSPENSE_DRAWER_SOURCE = `import type { ReactNode } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const Suspense = ({ children }: { children: ReactNode }) => (
+	<div className="p-4">{children}</div>
+);
+
+export const FakeSuspenseDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<Suspense>
+			<DrawerBody />
+		</Suspense>
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
 // Round 7's MINOR 4: the `DrawerFooter` half of the discovery predicate was
 // the one branch whose deletion was fail-open — a footer-only drawer became
 // invisible with a fully green suite (app-shell.tsx pins the `DrawerBody`
@@ -1750,6 +1786,21 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_PATH);
+		}
+	});
+
+	test('a locally-declared Suspense that renders a layout box is a structural violation, not a nodeless wrapper', () => {
+		writeFileSync(
+			TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH,
+			TEMPORARY_FAKE_SUSPENSE_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE);
+			expect(scan.violations).toContain(TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE);
+		} finally {
+			unlinkSync(TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH);
 		}
 	});
 
