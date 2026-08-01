@@ -16,6 +16,16 @@ const forbiddenPricingPatterns = [
 	/(sans|pas de|aucune?) (carte|engagement)/i,
 ];
 
+const cancelAnytimePatterns = [
+	/\b(?:cancel|leave)[\p{L}]*\b[^.!?;·]{0,60}\b(?:any\s?time|whenever)\b/iu,
+	/\b(?:annul|résili|quitt)[\p{L}]*\b[^.!?;·]{0,60}(?:à tout moment|\bquand\b[^.!?;·]{0,40}\b(?:voulez|souhait[\p{L}]*|convient)\b)/iu,
+];
+
+const landingTrialClaimPatterns = [
+	...forbiddenPricingPatterns,
+	...cancelAnytimePatterns,
+];
+
 describe('front locale manifests', () => {
 	test('publish every registered namespace in registry order', () => {
 		expect(Object.keys(en)).toEqual([...I18N_NAMESPACES]);
@@ -98,15 +108,16 @@ describe('front locale manifests', () => {
 
 			expect(landingKeys.length).toBeGreaterThan(0);
 
-			// Natural language is not fully decidable with regexes. Conservatively,
-			// every punctuation-delimited clause that matches the shared pricing
-			// vocabulary must carry a recognized future marker.
+			// The trigger set covers explicit trial words, day-count offers, card or
+			// engagement disclaimers reused from the pricing guard, and cancel-anytime
+			// wording. It cannot infer euphemisms outside this regex vocabulary or let
+			// a future marker in a separate punctuation-delimited clause hedge a claim.
 			for (const key of landingPageKeys) {
 				const value = localeCase.common[key];
 				const trialClauses = value
 					.split(/[.!?;·]+/)
 					.filter((clause) =>
-						forbiddenPricingPatterns.some((pattern) => pattern.test(clause)),
+						landingTrialClaimPatterns.some((pattern) => pattern.test(clause)),
 					);
 
 				for (const clause of trialClauses) {
