@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	readdir,
+	rm,
+	writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +16,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { build as viteBuild } from 'vite';
 
 import {
+	buildProductionApp,
 	classifyZUtility,
 	checkAuthoredCssScaleDefinitions,
 	checkCompiledCssZIndex,
@@ -283,6 +291,8 @@ test('evasion: literal stylesheet links cannot ship opaque CSS', () => {
 			"const href = 'https://cdn.example/theme.css';",
 			'const head = { links: [{ rel, href }] };',
 		].join('\n'),
+		"<link rel={'stylesheet' as const} href={('https://cdn.example/theme.css')} />",
+		"const head = { links: [{ rel: ('stylesheet' satisfies string), href: 'https://cdn.example/theme.css' as const }] };",
 	]) {
 		const violations = violationsFor('fixture.tsx', content);
 		assert.deepEqual(
@@ -304,6 +314,9 @@ test('evasion: script cannot register a reserved scale token', () => {
 			"const name = '--publy-z-raised';",
 			"CSS.registerProperty({ name, inherits: false, initialValue: '2147483647' });",
 		].join('\n'),
+		"globalThis.CSS.registerProperty({ name: '--publy-z-raised' as const, inherits: false, initialValue: '2147483647' });",
+		"window.CSS.registerProperty({ name: '--publy-z-raised', inherits: false, initialValue: '2147483647' });",
+		"self.CSS.registerProperty({ name: '--publy-z-raised', inherits: false, initialValue: '2147483647' });",
 	]) {
 		assert.deepEqual(
 			violationsFor('fixture.ts', content).map((violation) => violation.ruleId),
@@ -311,6 +324,13 @@ test('evasion: script cannot register a reserved scale token', () => {
 			content,
 		);
 	}
+	assert.deepEqual(
+		violationsFor(
+			'fixture.mts',
+			"CSS.registerProperty({ name: '--publy-z-raised', inherits: false });",
+		).map((violation) => violation.ruleId),
+		['z-index-scale-token-registered'],
+	);
 });
 
 test('innocent: JSX links without a literal stylesheet destination stay clean', () => {
@@ -320,9 +340,36 @@ test('innocent: JSX links without a literal stylesheet destination stay clean', 
 		'<link rel="stylesheet" href={stylesheetHref} />',
 		'<Link rel="stylesheet" href="/route" />',
 		"const head = { links: [{ rel: 'stylesheet', href: appCss }] };",
+		[
+			'const CSS = { registerProperty() {} };',
+			"CSS.registerProperty({ name: '--publy-z-raised', inherits: false });",
+		].join('\n'),
+		[
+			"const rel = 'stylesheet';",
+			"const href = 'https://cdn.example/theme.css';",
+			'const descriptor = (rel) => ({ rel, href });',
+		].join('\n'),
+		[
+			"const name = '--publy-z-raised';",
+			'const register = (name) => CSS.registerProperty({ name });',
+		].join('\n'),
 	]) {
 		assertClean('fixture.tsx', content);
 	}
+	assertClean(
+		'fixture.jsx',
+		'<link rel="preload" as="style" href="/theme.css" />',
+	);
+});
+
+test('evasion: JSX extensions use a JSX parser', () => {
+	assert.deepEqual(
+		violationsFor(
+			'fixture.jsx',
+			'<link rel="stylesheet" href="https://cdn.example/theme.css" />',
+		).map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+	);
 });
 
 test('innocent: custom class with -z- mid-token is not a z-index assembly', () => {
@@ -550,6 +597,23 @@ test('compiled-CSS gate: only Tailwind exact generated scale selector is accepte
 	}
 });
 
+test('compiled-CSS gate: emitted tiers must belong to the canonical app.css scale', () => {
+	const css =
+		'@layer theme { :root,:host { --publy-z-dependency-owned: 2147483647; } }';
+	assert.deepEqual(
+		checkCompiledCssZIndex(css, KNOWN_RAW_Z_INDEX_DECLARATIONS, 'fixture.css', {
+			emitted: true,
+			canonicalScaleTokens: new Set(['--publy-z-raised', '--publy-z-menu']),
+		}).map(({ ruleId, source }) => ({ ruleId, source })),
+		[
+			{
+				ruleId: 'z-index-scale-token-unowned',
+				source: '--publy-z-dependency-owned: 2147483647',
+			},
+		],
+	);
+});
+
 test('CSS gates: @property cannot register a reserved scale token', () => {
 	const registration = [
 		'@property --publy-z-raised {',
@@ -680,6 +744,30 @@ test('e2e (round 4 blocker 2): resolved local relative imports stay clean', asyn
 	);
 });
 
+test('e2e (round 5 provenance): nested CSS imports retain authored filenames', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'component.ts': `import './parent.css';\nexport const component = 'probe';`,
+			'parent.css': `@import './child.css';\n.parent { color: red; }`,
+			'child.css':
+				'.shadow { --publy-z-raised: 999; z-index: var(--publy-z-raised); }',
+		},
+		'',
+		[
+			`import { component } from './component';`,
+			`document.body.dataset.fixture = component;`,
+		],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.file === 'src/child.css' &&
+				violation.source === '--publy-z-raised: 999',
+		),
+		`nested authored provenance must red: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (round 5 blocker 2): scans the fresh build result instead of stale dist', async () => {
 	const { violations, emittedCssAssets } = await runFixtureGuard(
 		{ 'probe.ts': `export const probe = 'probe';` },
@@ -717,6 +805,68 @@ test('e2e (round 5 blocker 2): scans the fresh build result instead of stale dis
 	);
 });
 
+test('e2e (round 5 blocker 2): guard-owned output overrides configured Vite outDir', async () => {
+	const root = await mkdtemp(path.join(scriptsDir, 'zindex-outdir-'));
+	let buildResult;
+	try {
+		await writeFile(
+			path.join(root, 'index.html'),
+			'<script type="module" src="/main.js"></script>',
+		);
+		await writeFile(path.join(root, 'main.js'), "import './probe.css';");
+		await writeFile(
+			path.join(root, 'probe.css'),
+			'.probe { z-index: 987654321; }',
+		);
+		await writeFile(
+			path.join(root, 'vite.config.mjs'),
+			"export default { build: { outDir: 'dist-r5-configured' } };",
+		);
+
+		buildResult = await buildProductionApp(root);
+		assert.ok(
+			!buildResult.emittedCssRoot.startsWith(root),
+			`output must be guard-owned: ${buildResult.emittedCssRoot}`,
+		);
+		assert.ok(
+			!(await readdir(root)).includes('dist-r5-configured'),
+			'configured output directory must not receive this build',
+		);
+		const emittedFiles = await readdir(buildResult.emittedCssRoot, {
+			recursive: true,
+		});
+		const cssFile = emittedFiles.find((file) => file.endsWith('.css'));
+		assert.ok(cssFile != null, 'controlled build must emit CSS');
+		const emittedCss = await readFile(
+			path.join(buildResult.emittedCssRoot, cssFile),
+			'utf8',
+		);
+		assert.match(emittedCss, /z-index:987654321/);
+	} finally {
+		await buildResult?.cleanup?.();
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('production-build contract failures still run supplied cleanup', async () => {
+	let cleaned = false;
+	await assert.rejects(
+		runFixtureGuard(
+			{ 'probe.ts': `export const probe = 'probe';` },
+			'',
+			[],
+			null,
+			async () => ({
+				cleanup: async () => {
+					cleaned = true;
+				},
+			}),
+		),
+		/productionBuild must return the exact emittedCssRoot/,
+	);
+	assert.equal(cleaned, true);
+});
+
 test('e2e (round 5 important 2): unimported CSS samples stay green', async () => {
 	const { violations, emittedCssAssets } = await runFixtureGuard({
 		'probe.ts': `export const probe = 'probe';`,
@@ -737,9 +887,28 @@ test('e2e (round 5 audit): unimported script link samples stay green', async () 
 		'unshipped-link-sample.tsx': [
 			"export const sample = { links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
 			"CSS.registerProperty({ name: '--publy-z-raised', inherits: false, initialValue: '99' });",
+			"const style = { '--publy-z-raised': 998 };",
+			"element.style.setProperty('--publy-z-menu', '997');",
 		].join('\n'),
 	});
 	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 5 audit): build-reachable static script escapes are red', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'../shared/escape.ts': [
+				"export const head = { links: [{ rel: 'stylesheet' as const, href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
+				"globalThis.CSS.registerProperty({ name: '--publy-z-raised' as const, inherits: false, initialValue: '99' });",
+			].join('\n'),
+		},
+		'',
+		["import '../shared/escape';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link', 'z-index-scale-token-registered'],
+	);
 });
 
 test('e2e (round 5 policy): a build-reachable second scale stylesheet stays red', async () => {
@@ -990,10 +1159,14 @@ test('e2e (round 3 audit): adding a tier in the global scale stays clean', async
 });
 
 test('e2e (round 3 audit): script code cannot shadow a scale token', async () => {
-	const { violations } = await runFixtureGuard({
-		'probe.tsx':
-			'export const probe = <div className="z-(--publy-z-raised)" style={{ "--publy-z-raised": 999 }} />;\nelement.style.setProperty("--publy-z-menu", "997");',
-	});
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx':
+				'export const probe = <div className="z-(--publy-z-raised)" style={{ "--publy-z-raised": 999 }} />;\nelement.style.setProperty("--publy-z-menu", "997");',
+		},
+		'',
+		["import './probe';"],
+	);
 	assert.deepEqual(
 		violations.map((violation) => violation.source),
 		['--publy-z-raised', '--publy-z-menu'],
@@ -1002,13 +1175,17 @@ test('e2e (round 3 audit): script code cannot shadow a scale token', async () =>
 });
 
 test('e2e (round 4 blocker 3): module const setProperty key cannot shadow a scale token', async () => {
-	const { violations } = await runFixtureGuard({
-		'probe.tsx': [
-			`const TOKEN = '--publy-z-raised';`,
-			`export const probe = <div className="z-(--publy-z-raised)" />;`,
-			`element.style.setProperty(TOKEN, '990');`,
-		].join('\n'),
-	});
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`const TOKEN = '--publy-z-raised';`,
+				`export const probe = <div className="z-(--publy-z-raised)" />;`,
+				`element.style.setProperty(TOKEN, '990');`,
+			].join('\n'),
+		},
+		'',
+		["import './probe';"],
+	);
 	assert.deepEqual(
 		violations.map((violation) => violation.source),
 		['--publy-z-raised'],

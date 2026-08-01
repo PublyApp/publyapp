@@ -101,21 +101,29 @@ Five components:
    pass preserves provenance that a bundled asset cannot. Separately, the emitted pass recognises
    Tailwind's exact generated
    `@layer theme { :root, :host { … } }` form, rejects changed selector/ancestor shapes, and enforces
-   uniqueness across all emitted assets. Both CSS passes also reject every
+   uniqueness across all emitted assets. An emitted tier must also belong to the canonical token set
+   parsed from the top-level `:root` in `app.css`; a dependency cannot introduce a new reserved token
+   merely by using Tailwind's accepted generated selector. Both CSS passes also reject every
    `@property --publy-z-*` registration: registration with `inherits: false` can replace the
    canonical inherited tier with its `initial-value` on descendants without declaring the token. In
-   build-reachable scripts, direct `CSS.registerProperty()` calls with a static reserved `name` are
-   rejected for the same reason. Other at-rule parameters may reference a custom property, or reuse
+   build-reachable project scripts, direct `CSS.registerProperty()` calls with a static reserved
+   `name` are rejected for the same reason, including the explicit browser-global forms
+   `globalThis.CSS`, `window.CSS`, and `self.CSS`. Lexically shadowed identifiers are not confused
+   with those browser globals. Other at-rule parameters may reference a custom property, or reuse
    the same spelling in an unrelated namespace such as a keyframe name, but cannot register or replace
    its computed value.
    Tailwind's generated selector shape is intentionally exact and fails closed if an upgrade changes
    it; the guard and this policy must then be reviewed together.
-   Local CSS declarations are reported even when the consuming `z-index` uses `var(...)`. The script
-   AST pass also reports literal `--publy-z-*` object properties and `setProperty()` calls, plus
-   direct keys resolved through a module-scope `const` bound to a string literal. In build-reachable
-   script modules it also rejects native JSX stylesheet links and static link-descriptor objects when
-   the `rel` token list and `href` are static, including values resolved through those module-scope
-   constants. The latter closes framework head APIs as well as direct JSX while leaving the existing
+   Local CSS declarations are reported even when the consuming `z-index` uses `var(...)`. In every
+   build-reachable project script recorded by Vite—including a project module outside Tailwind's
+   source root—the script AST pass also reports literal `--publy-z-*` object properties and
+   `setProperty()` calls, plus direct keys resolved through an unshadowed module-scope `const` bound
+   to a string literal. Unimported script samples are not runtime code and stay green. The same pass
+   rejects native JSX stylesheet links and static link-descriptor objects when the `rel` token list
+   and `href` are static, including `.jsx`, `.tsx`, `.mts`, and `.cts` modules and values wrapped in
+   transparent TypeScript syntax such as `as const`, `satisfies`, non-null, or parentheses. Static
+   identifier resolution respects lexical shadowing. The latter closes framework head APIs as well
+   as direct JSX while leaving the existing
    `{ rel: 'stylesheet', href: appCss }` Vite-asset descriptor valid because `href` is an imported
    build asset, not a literal. This prevents an inline style from shadowing a legitimate tier after
    the emitted gate has accepted its reference, and prevents declarative CSS payloads from bypassing

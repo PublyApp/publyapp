@@ -20,7 +20,19 @@ const SCRIPT_EXTENSIONS = new Set([
 	'.jsx',
 	'.mjs',
 	'.cjs',
+	'.mts',
+	'.cts',
 ]);
+
+const scriptKindForPath = (filePath) => {
+	if (filePath.endsWith('.tsx')) {
+		return ts.ScriptKind.TSX;
+	}
+	if (filePath.endsWith('.jsx')) {
+		return ts.ScriptKind.JSX;
+	}
+	return ts.ScriptKind.TS;
+};
 
 // ---------------------------------------------------------------------------
 // #987 — z-index scale guard.
@@ -433,7 +445,7 @@ const collectScriptSuppressionRanges = (relativePath, source) => {
 		source,
 		ts.ScriptTarget.Latest,
 		true,
-		relativePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+		scriptKindForPath(relativePath),
 	);
 
 	const addLiteralRange = (node) => {
@@ -525,7 +537,8 @@ export const scanZIndexFile = ({
 	// disk-mode for CSS files, so when the set is provided a candidate is only
 	// reported if production would actually recognise it.
 	productionCandidates = null,
-	checkOpaqueStylesheetLinks = true,
+	checkBuildReachableScript = true,
+	checkClassDelivery = true,
 }) => {
 	const violations = [];
 	const extension = path.extname(relativePath);
@@ -542,7 +555,9 @@ export const scanZIndexFile = ({
 		content: deCommented,
 		extension: extension.replace(/^\./, ''),
 	});
-	for (const { candidate, position } of withPositions) {
+	for (const { candidate, position } of checkClassDelivery
+		? withPositions
+		: []) {
 		if (classifyZUtility(candidate) !== 'raw') {
 			continue;
 		}
@@ -564,7 +579,7 @@ export const scanZIndexFile = ({
 		});
 	}
 
-	if (extension === '.css') {
+	if (extension === '.css' && checkClassDelivery) {
 		// Component 2 — the extractor drops the `;`-terminated last token of an
 		// `@apply` directive, so the directive text is scanned directly.
 		const applyPattern = /@apply\b([^;]*)/g;
@@ -600,7 +615,7 @@ export const scanZIndexFile = ({
 			content,
 			ts.ScriptTarget.Latest,
 			true,
-			relativePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+			scriptKindForPath(relativePath),
 		);
 		const visitTemplates = (node) => {
 			if (ts.isTemplateExpression(node)) {
@@ -630,17 +645,34 @@ export const scanZIndexFile = ({
 			}
 			node.forEachChild(visitTemplates);
 		};
-		visitTemplates(sourceFile);
+		if (checkClassDelivery) {
+			visitTemplates(sourceFile);
+		}
 
+		const unwrapTransparentExpression = (node) => {
+			let expression = node;
+			while (
+				expression != null &&
+				(ts.isParenthesizedExpression(expression) ||
+					ts.isAsExpression(expression) ||
+					ts.isTypeAssertionExpression(expression) ||
+					ts.isNonNullExpression(expression) ||
+					ts.isSatisfiesExpression(expression))
+			) {
+				expression = expression.expression;
+			}
+			return expression;
+		};
 		const literalText = (node) => {
-			if (node == null) {
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
 				return null;
 			}
 			if (
-				ts.isStringLiteral(node) ||
-				ts.isNoSubstitutionTemplateLiteral(node)
+				ts.isStringLiteral(expression) ||
+				ts.isNoSubstitutionTemplateLiteral(expression)
 			) {
-				return node.text;
+				return expression.text;
 			}
 			return null;
 		};
@@ -658,17 +690,132 @@ export const scanZIndexFile = ({
 				}
 				const value = literalText(declaration.initializer);
 				if (value != null) {
-					moduleConstStrings.set(declaration.name.text, value);
+					moduleConstStrings.set(declaration.name.text, {
+						declaration,
+						value,
+					});
 				}
 			}
 		}
+		const bindingNameIncludes = (bindingName, name) => {
+			if (ts.isIdentifier(bindingName)) {
+				return bindingName.text === name;
+			}
+			for (const element of bindingName.elements) {
+				if (
+					ts.isBindingElement(element) &&
+					bindingNameIncludes(element.name, name)
+				) {
+					return true;
+				}
+			}
+			return false;
+		};
+		const variableBindingIn = (declarationList, name) =>
+			declarationList.declarations.find((declaration) =>
+				bindingNameIncludes(declaration.name, name),
+			) ?? null;
+		const statementBinding = (statement, name) => {
+			if (ts.isVariableStatement(statement)) {
+				return variableBindingIn(statement.declarationList, name);
+			}
+			if (
+				(ts.isFunctionDeclaration(statement) ||
+					ts.isClassDeclaration(statement) ||
+					ts.isEnumDeclaration(statement)) &&
+				statement.name?.text === name
+			) {
+				return statement;
+			}
+			if (!ts.isImportDeclaration(statement)) {
+				return null;
+			}
+			const importClause = statement.importClause;
+			if (importClause?.name?.text === name) {
+				return importClause;
+			}
+			const bindings = importClause?.namedBindings;
+			if (bindings != null && ts.isNamespaceImport(bindings)) {
+				return bindings.name.text === name ? bindings : null;
+			}
+			if (bindings != null && ts.isNamedImports(bindings)) {
+				return (
+					bindings.elements.find((element) => element.name.text === name) ??
+					null
+				);
+			}
+			return null;
+		};
+		const bindingInScope = (scope, name) => {
+			if (
+				ts.isSourceFile(scope) ||
+				ts.isBlock(scope) ||
+				ts.isModuleBlock(scope)
+			) {
+				for (const statement of scope.statements) {
+					const binding = statementBinding(statement, name);
+					if (binding != null) {
+						return binding;
+					}
+				}
+			}
+			if (ts.isFunctionLike(scope)) {
+				for (const parameter of scope.parameters) {
+					if (bindingNameIncludes(parameter.name, name)) {
+						return parameter;
+					}
+				}
+				if (
+					(ts.isFunctionExpression(scope) || ts.isFunctionDeclaration(scope)) &&
+					scope.name?.text === name
+				) {
+					return scope;
+				}
+			}
+			if (
+				ts.isCatchClause(scope) &&
+				scope.variableDeclaration != null &&
+				bindingNameIncludes(scope.variableDeclaration.name, name)
+			) {
+				return scope.variableDeclaration;
+			}
+			if (
+				(ts.isForStatement(scope) ||
+					ts.isForInStatement(scope) ||
+					ts.isForOfStatement(scope)) &&
+				scope.initializer != null &&
+				ts.isVariableDeclarationList(scope.initializer)
+			) {
+				return variableBindingIn(scope.initializer, name);
+			}
+			return null;
+		};
+		const nearestBinding = (node, name) => {
+			let scope = node.parent;
+			while (scope != null) {
+				const binding = bindingInScope(scope, name);
+				if (binding != null) {
+					return binding;
+				}
+				scope = scope.parent;
+			}
+			return null;
+		};
 		const staticString = (node) => {
-			const direct = literalText(node);
+			const expression = unwrapTransparentExpression(node);
+			const direct = literalText(expression);
 			if (direct != null) {
 				return direct;
 			}
-			if (node != null && ts.isIdentifier(node)) {
-				return moduleConstStrings.get(node.text) ?? null;
+			if (expression != null && ts.isIdentifier(expression)) {
+				const moduleConstant = moduleConstStrings.get(expression.text);
+				if (
+					moduleConstant != null &&
+					nearestBinding(expression, expression.text) ===
+						moduleConstant.declaration
+				) {
+					return moduleConstant.value;
+				}
 			}
 			return null;
 		};
@@ -715,6 +862,26 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		const isDirectGlobalCss = (expression) => {
+			if (ts.isIdentifier(expression)) {
+				return (
+					expression.text === 'CSS' &&
+					nearestBinding(expression, expression.text) == null
+				);
+			}
+			if (
+				!ts.isPropertyAccessExpression(expression) ||
+				expression.name.text !== 'CSS' ||
+				!ts.isIdentifier(expression.expression) ||
+				!['globalThis', 'window', 'self'].includes(expression.expression.text)
+			) {
+				return false;
+			}
+			return (
+				nearestBinding(expression.expression, expression.expression.text) ==
+				null
+			);
+		};
 		const visitStaticStyleEscapes = (node) => {
 			let rel = null;
 			let href = null;
@@ -751,8 +918,7 @@ export const scanZIndexFile = ({
 			if (
 				ts.isCallExpression(node) &&
 				ts.isPropertyAccessExpression(node.expression) &&
-				ts.isIdentifier(node.expression.expression) &&
-				node.expression.expression.text === 'CSS' &&
+				isDirectGlobalCss(node.expression.expression) &&
 				node.expression.name.text === 'registerProperty' &&
 				ts.isObjectLiteralExpression(node.arguments[0])
 			) {
@@ -772,7 +938,7 @@ export const scanZIndexFile = ({
 			}
 			node.forEachChild(visitStaticStyleEscapes);
 		};
-		if (checkOpaqueStylesheetLinks) {
+		if (checkBuildReachableScript) {
 			visitStaticStyleEscapes(sourceFile);
 		}
 		const recordScaleTokenDefinition = (name, node) => {
@@ -801,7 +967,9 @@ export const scanZIndexFile = ({
 			}
 			node.forEachChild(visitScaleTokenDefinitions);
 		};
-		visitScaleTokenDefinitions(sourceFile);
+		if (checkBuildReachableScript) {
+			visitScaleTokenDefinitions(sourceFile);
+		}
 	}
 
 	return violations;
@@ -964,7 +1132,11 @@ export const checkCompiledCssZIndex = (
 	compiledCss,
 	allowlisted = KNOWN_RAW_Z_INDEX_DECLARATIONS,
 	sourceName = 'compiled stylesheet',
-	{ emitted = false, scaleDefinitionCounts = new Map() } = {},
+	{
+		emitted = false,
+		scaleDefinitionCounts = new Map(),
+		canonicalScaleTokens = null,
+	} = {},
 ) => {
 	const root = postcss.parse(compiledCss, { from: undefined });
 	const violations = findReservedScaleTokenRegistrations(root, sourceName);
@@ -993,6 +1165,22 @@ export const checkCompiledCssZIndex = (
 					message:
 						`shipped \`${source}\` outside the global scale — define ` +
 						'z-index tiers once in :root in src/styles/app.css.',
+					file: sourceName,
+					line: declaration.line,
+					source,
+				});
+				continue;
+			}
+			if (
+				canonicalScaleTokens != null &&
+				!canonicalScaleTokens.has(declaration.decodedProperty)
+			) {
+				violations.push({
+					ruleId: 'z-index-scale-token-unowned',
+					message:
+						`shipped scale tier \`${source}\` has no canonical definition in ` +
+						'src/styles/app.css — dependencies and generated CSS cannot add to ' +
+						'the reserved --publy-z-* namespace.',
 					file: sourceName,
 					line: declaration.line,
 					source,
@@ -1110,6 +1298,26 @@ export const checkAuthoredCssScaleDefinitions = ({
 	return violations;
 };
 
+const findCanonicalScaleTokens = (css) => {
+	const root = postcss.parse(css, { from: undefined });
+	const tokens = new Set();
+	root.walkDecls((declaration) => {
+		const property = decodeCssIdentifier(declaration.prop);
+		const selector =
+			declaration.parent?.type === 'rule'
+				? normalizeWhitespace(declaration.parent.selector)
+				: '';
+		if (
+			property.startsWith('--publy-z-') &&
+			selector === ':root' &&
+			cssAncestorsFor(declaration).length === 0
+		) {
+			tokens.add(property);
+		}
+	});
+	return tokens;
+};
+
 const collectCssPaths = async (
 	directory,
 	excludedDirectoryNames = new Set(),
@@ -1140,7 +1348,7 @@ const collectCssPaths = async (
 	return cssPaths.sort((left, right) => left.localeCompare(right));
 };
 
-const buildProductionApp = async (baseDir) => {
+export const buildProductionApp = async (baseDir) => {
 	const emittedCssRoot = await mkdtemp(
 		path.join(tmpdir(), 'publy-zindex-guard-'),
 	);
@@ -1285,23 +1493,20 @@ export const runZIndexGuard = async ({
 	}
 
 	const buildResult = await productionBuild();
-	if (
-		buildResult?.emittedCssRoot == null ||
-		!Array.isArray(buildResult.authoredCssPaths) ||
-		!Array.isArray(buildResult.authoredScriptPaths)
-	) {
-		throw new Error(
-			'z-index guard productionBuild must return the exact emittedCssRoot and ' +
-				'authored CSS/script paths from this build invocation.',
-		);
-	}
-	const cleanup = buildResult.cleanup ?? (async () => {});
+	const cleanup = buildResult?.cleanup ?? (async () => {});
 	try {
+		if (
+			buildResult?.emittedCssRoot == null ||
+			!Array.isArray(buildResult.authoredCssPaths) ||
+			!Array.isArray(buildResult.authoredScriptPaths)
+		) {
+			throw new Error(
+				'z-index guard productionBuild must return the exact emittedCssRoot and ' +
+					'authored CSS/script paths from this build invocation.',
+			);
+		}
 		const violations = [];
 		const productionCandidates = new Set(allCandidates);
-		const authoredScriptPaths = new Set(
-			buildResult.authoredScriptPaths.map((filePath) => path.resolve(filePath)),
-		);
 		for (const file of scanner.files) {
 			const content = await readFile(file, 'utf8');
 			const relativePath = path.relative(baseDir, file);
@@ -1311,9 +1516,31 @@ export const runZIndexGuard = async ({
 					relativePath,
 					content,
 					productionCandidates,
-					checkOpaqueStylesheetLinks: authoredScriptPaths.has(
-						path.resolve(file),
-					),
+					checkBuildReachableScript: false,
+				}),
+			);
+		}
+		const authoredScriptPaths = buildResult.authoredScriptPaths
+			.map((filePath) => path.resolve(filePath))
+			.filter(
+				(filePath) =>
+					isPathInside(baseDir, filePath) &&
+					!path
+						.relative(baseDir, filePath)
+						.split(path.sep)
+						.includes('node_modules'),
+			)
+			.sort((left, right) => left.localeCompare(right));
+		for (const scriptPath of authoredScriptPaths) {
+			const content = await readFile(scriptPath, 'utf8');
+			violations.push(
+				...scanZIndexFile({
+					scanner,
+					relativePath: path.relative(baseDir, scriptPath),
+					content,
+					productionCandidates,
+					checkBuildReachableScript: true,
+					checkClassDelivery: false,
 				}),
 			);
 		}
@@ -1348,6 +1575,7 @@ export const runZIndexGuard = async ({
 		}
 		const emittedCssAssets = [];
 		const emittedScaleDefinitionCounts = new Map();
+		const canonicalScaleTokens = findCanonicalScaleTokens(css);
 		for (const cssPath of emittedCssPaths) {
 			const content = await readFile(cssPath, 'utf8');
 			const relativePath = buildAssetDisplayPath(
@@ -1364,6 +1592,7 @@ export const runZIndexGuard = async ({
 					{
 						emitted: true,
 						scaleDefinitionCounts: emittedScaleDefinitionCounts,
+						canonicalScaleTokens,
 					},
 				),
 			);
