@@ -412,7 +412,12 @@ describe('front locale manifests', () => {
 					key.startsWith('landing-timeline-'),
 			);
 
-			expect(timelineKeys.length).toBeGreaterThan(0); // TEMP
+			// There are twelve timeline keys today (eleven landing-timeline-*
+			// plus landing-trial-plan-note). Without the pin, shrinking the
+			// filter below the timeline would leave keys uninspected — and
+			// "Day 3" could come back green in the exact copy #1064 asked
+			// to remove.
+			expect(timelineKeys.length).toBeGreaterThanOrEqual(12);
 
 			for (const key of timelineKeys) {
 				expect(localeCase.common[key]).not.toMatch(localeCase.dayCount);
