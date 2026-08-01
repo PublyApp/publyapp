@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { SyntaxKind } from 'typescript/unstable/ast';
 import {
+	isArrayBindingPattern,
 	isArrayLiteralExpression,
 	isAsExpression,
 	isBindingElement,
@@ -9,9 +10,7 @@ import {
 	isCallExpression,
 	isElementAccessExpression,
 	isExportAssignment,
-	isExportSpecifier,
 	isIdentifier,
-	isImportSpecifier,
 	isInterfaceDeclaration,
 	isNonNullExpression,
 	isObjectBindingPattern,
@@ -73,48 +72,6 @@ const isContextFactoryAdapterCall = (expression) =>
 	isCallExpression(expression) &&
 	isPropertyAccessExpression(expression.expression) &&
 	['apply', 'bind', 'call'].includes(expression.expression.name.getText());
-
-const isReactContextFactoryValue = (checker, node, reactCreateContext) => {
-	assertStaticReactElementAccess(checker, node, reactCreateContext);
-
-	if (
-		(!isElementAccessExpression(node) &&
-			!isIdentifier(node) &&
-			!isPropertyAccessExpression(node)) ||
-		isExportSpecifier(node.parent) ||
-		isImportSpecifier(node.parent) ||
-		(isPropertyAccessExpression(node.parent) && node.parent.name === node) ||
-		(isCallExpression(node.parent) && node.parent.expression === node)
-	) {
-		return false;
-	}
-
-	return resolvesToReactCreateContext(
-		checker,
-		symbolForExpression(checker, node),
-		reactCreateContext,
-	);
-};
-
-// The factory-value signal only matters where a createContext reference is
-// actually bound: a declaration initializer, an object property value, an
-// export default, or a shorthand property. Running the per-identifier symbol
-// walk on every visited node was measured at roughly half the scan's cost,
-// so the walk is restricted to these value positions.
-const isFactoryValuePosition = (node) => {
-	const parent = node.parent;
-	if (!parent) {
-		return false;
-	}
-
-	return (
-		(isVariableDeclaration(parent) && parent.initializer === node) ||
-		(isPropertyDeclaration(parent) && parent.initializer === node) ||
-		(isPropertyAssignment(parent) && parent.initializer === node) ||
-		(isExportAssignment(parent) && parent.expression === node) ||
-		isShorthandPropertyAssignment(parent)
-	);
-};
 
 const isReactNamespace = (checker, expression, reactCreateContext) => {
 	const type = checker.getTypeAtLocation(expression);
@@ -181,7 +138,6 @@ const findReactContextSymbols = (program, checker) => {
 
 	return {
 		contextType,
-		contextTypeDeclared: checker.getDeclaredTypeOfSymbol(contextType),
 		createContext,
 		reactModule,
 	};
@@ -197,7 +153,6 @@ const typeContainsReactContext = (
 	checker,
 	type,
 	reactContextType,
-	reactContextTypeDeclared,
 	seenSymbolIds = new Set(),
 ) => {
 	if (!type) {
@@ -212,7 +167,6 @@ const typeContainsReactContext = (
 					checker,
 					member,
 					reactContextType,
-					reactContextTypeDeclared,
 					seenSymbolIds,
 				),
 			);
@@ -222,7 +176,6 @@ const typeContainsReactContext = (
 		checker,
 		type.getSymbol(),
 		reactContextType,
-		reactContextTypeDeclared,
 		seenSymbolIds,
 	);
 };
@@ -230,15 +183,21 @@ const typeContainsReactContext = (
 // Assignability by declared shape, not symbol identity: a type is React's
 // Context when its own symbol is React's Context, when it is a type alias of
 // one, or when its interface heritage chain reaches React's Context through
-// any import/namespace spelling. The checker cannot always resolve the
-// heritage expression's symbol (a bare ambient-global `Context` identifier
-// yields none), so an unresolvable heritage reference falls back to generic
-// assignability against the declared Context<T> type.
+// any import/namespace spelling.
+//
+// There is deliberately no structural-assignability fallback for heritage
+// references whose symbol does not resolve: an unresolvable reference types
+// as `any`, and `isTypeAssignableTo(any, X)` is true for every X, so a
+// fallback would classify every interface with an unresolved base as a React
+// context. In tsgo's relational checker `isTypeAssignableTo` also answers
+// false for every genuinely resolved Context-shaped type (verified against
+// `Context<T>`, `Context<null>`, and branded chains), so such a fallback
+// could never have detected a real context anyway; the resolved heritage
+// walk below is the mechanism.
 const symbolContainsReactContext = (
 	checker,
 	symbol,
 	reactContextType,
-	reactContextTypeDeclared,
 	seenSymbolIds,
 ) => {
 	if (!symbol || seenSymbolIds.has(symbol.id)) {
@@ -255,51 +214,50 @@ const symbolContainsReactContext = (
 			checker,
 			checker.getAliasedSymbol(symbol),
 			reactContextType,
-			reactContextTypeDeclared,
 			seenSymbolIds,
 		);
 	}
 
-	const declaration = symbol.declarations?.[0]?.resolve();
-	if (!declaration) {
-		return false;
-	}
+	// An interface can be declared across multiple declarations (interface
+	// merging); the heritage clause may sit on any of them, so every
+	// declaration is walked, not just the first.
+	for (const declaration of symbol.declarations ?? []) {
+		const resolvedDeclaration = declaration.resolve();
+		if (!resolvedDeclaration) {
+			continue;
+		}
 
-	if (isTypeAliasDeclaration(declaration)) {
-		return typeContainsReactContext(
-			checker,
-			checker.getTypeAtLocation(declaration.type),
-			reactContextType,
-			reactContextTypeDeclared,
-			seenSymbolIds,
-		);
-	}
+		if (isTypeAliasDeclaration(resolvedDeclaration)) {
+			if (
+				typeContainsReactContext(
+					checker,
+					checker.getTypeAtLocation(resolvedDeclaration.type),
+					reactContextType,
+					seenSymbolIds,
+				)
+			) {
+				return true;
+			}
+			continue;
+		}
 
-	if (isInterfaceDeclaration(declaration)) {
-		for (const clause of declaration.heritageClauses ?? []) {
-			for (const typeReference of clause.types) {
-				const heritageSymbol = checker.getSymbolAtLocation(
-					typeReference.expression,
-				);
-				if (heritageSymbol) {
+		if (isInterfaceDeclaration(resolvedDeclaration)) {
+			for (const clause of resolvedDeclaration.heritageClauses ?? []) {
+				for (const typeReference of clause.types) {
+					const heritageSymbol = checker.getSymbolAtLocation(
+						typeReference.expression,
+					);
 					if (
+						heritageSymbol &&
 						symbolContainsReactContext(
 							checker,
 							heritageSymbol,
 							reactContextType,
-							reactContextTypeDeclared,
 							seenSymbolIds,
 						)
 					) {
 						return true;
 					}
-				} else if (
-					checker.isTypeAssignableTo(
-						checker.getTypeAtLocation(typeReference),
-						reactContextTypeDeclared,
-					)
-				) {
-					return true;
 				}
 			}
 		}
@@ -458,10 +416,14 @@ const contextNameForCall = (callExpression) => {
 };
 
 // A context-bearing declaration is a variable or a class field with an
-// identifier name. Destructured binding elements are deliberately absent:
-// a destructured value never mints in its own file (the mint is tracked in
-// the file that built the holder), so discovering them would only demand
-// inventory entries for consumer files.
+// identifier name, or a binding element of a variable declaration whose
+// initializer binds the context through a call
+// (`const { probe: Ctx } = makeContexts()`). A destructured value only mints
+// when its initializer contains a call; a destructure out of an existing
+// holder (`const { RealContext } = holder`) never mints and produces no
+// entry, and a destructure whose initializer is itself an object or array
+// literal is the holder-position mint (`<anonymous context>`) discovered
+// separately, not a distinct binding.
 const declarationBinding = (checker, node) => {
 	if (isVariableDeclaration(node) || isPropertyDeclaration(node)) {
 		if (!isIdentifier(node.name)) {
@@ -469,7 +431,33 @@ const declarationBinding = (checker, node) => {
 		}
 
 		const symbol = checker.getSymbolAtLocation(node.name);
-		return symbol ? { symbol, name: node.name.text } : undefined;
+		return symbol
+			? { symbol, name: node.name.text, initializer: node.initializer }
+			: undefined;
+	}
+
+	if (isBindingElement(node)) {
+		const bindingPattern = node.parent;
+		const declaration = bindingPattern?.parent;
+		if (
+			!isVariableDeclaration(declaration) ||
+			!declaration.initializer ||
+			!node.name ||
+			!isIdentifier(node.name) ||
+			isObjectLiteralExpression(declaration.initializer) ||
+			isArrayLiteralExpression(declaration.initializer)
+		) {
+			return undefined;
+		}
+
+		const symbol = checker.getSymbolAtLocation(node.name);
+		return symbol
+			? {
+					symbol,
+					name: node.name.text,
+					initializer: declaration.initializer,
+				}
+			: undefined;
 	}
 
 	return undefined;
@@ -498,40 +486,49 @@ const holderPositionOfCall = (node) => {
 	}
 };
 
+// The bare callee name after bundler transforms: identifier text, property
+// access member name, string-literal element access, or the right side of a
+// comma chain. Used to match a rendered minting call against the callee the
+// source scan recorded for the file's holder positions.
+const calleeNameOf = (expression) => {
+	if (isIdentifier(expression)) {
+		return expression.text;
+	}
+
+	if (isPropertyAccessExpression(expression)) {
+		return expression.name.text;
+	}
+
+	if (
+		isElementAccessExpression(expression) &&
+		isStringLiteral(expression.argumentExpression)
+	) {
+		return expression.argumentExpression.text;
+	}
+
+	if (isParenthesizedExpression(expression)) {
+		return calleeNameOf(expression.expression);
+	}
+
+	if (
+		isBinaryExpression(expression) &&
+		expression.operatorToken.kind === SyntaxKind.CommaToken
+	) {
+		return calleeNameOf(expression.right);
+	}
+
+	return undefined;
+};
+
 // Rolldown currently collapses most aliases to these property-access forms
 // before this parser runs. That is observed bundler behavior, not a guaranteed
 // contract, so module-local aliases are resolved below and other context
 // initializer callees must fail closed.
 const isRenderedCreateContextCallee = (expression, createContextAliases) => {
-	if (isIdentifier(expression)) {
-		return (
-			expression.text === 'createContext' ||
-			createContextAliases.has(expression.text)
-		);
-	}
-
-	if (isPropertyAccessExpression(expression)) {
-		return expression.name.text === 'createContext';
-	}
-
-	if (isElementAccessExpression(expression)) {
-		return (
-			isStringLiteral(expression.argumentExpression) &&
-			expression.argumentExpression.text === 'createContext'
-		);
-	}
-
-	if (isParenthesizedExpression(expression)) {
-		return isRenderedCreateContextCallee(
-			expression.expression,
-			createContextAliases,
-		);
-	}
-
+	const name = calleeNameOf(expression);
 	return (
-		isBinaryExpression(expression) &&
-		expression.operatorToken.kind === SyntaxKind.CommaToken &&
-		isRenderedCreateContextCallee(expression.right, createContextAliases)
+		name === 'createContext' ||
+		(name !== undefined && createContextAliases.has(name))
 	);
 };
 
@@ -616,13 +613,48 @@ const expressionContainsCall = (expression) => {
 // suffix, or a renamed copy slips past the name-keyed fail-closed checks.
 const normalizeRenderedBindingName = (name) => name.replace(/\$\d+$/, '');
 
+// A rendered binding pattern that binds an expected context name through an
+// unrecognized callee cannot be attributed. Only the pattern's own bound
+// names count: `const { probe: ProbeContext } = makeContexts(null)` binds
+// ProbeContext, and if that name is expected the rendered copy is treated the
+// same way an unrecognized identifier binding is — it cannot be proven not to
+// mint.
+const bindingPatternBoundExpectedName = (pattern, expectedContextNames) => {
+	if (!isObjectBindingPattern(pattern) && !isArrayBindingPattern(pattern)) {
+		return undefined;
+	}
+
+	for (const element of pattern.elements) {
+		if (
+			isBindingElement(element) &&
+			element.name &&
+			isIdentifier(element.name)
+		) {
+			const normalizedName = normalizeRenderedBindingName(element.name.text);
+			if (expectedContextNames.has(normalizedName)) {
+				return normalizedName;
+			}
+		}
+	}
+
+	return undefined;
+};
+
 const analyzeRenderedContextModule = (
 	sourceFile,
-	expectedContextNames,
+	expectedContexts,
 	moduleLabel,
 ) => {
 	const recognizedContextNames = new Set();
 	const createContextAliases = findRenderedCreateContextAliases(sourceFile);
+	const expectedContextNames = new Set(expectedContexts.keys());
+	// The only holder-position calls a rendered copy can be proven to mint
+	// through are the callees the source scan attributed to the file's
+	// `<anonymous context>` entries. Anything else in a holder position —
+	// TanStack's own `component: lazyRouteComponent(…)` split shim among them —
+	// is a call whose value is not known to be a context, and must not be
+	// counted as one.
+	const holderMintingCallees = expectedContexts.get('<anonymous context>');
 	let hasUnattributedCreateContextCall = false;
 
 	const visit = (node) => {
@@ -655,12 +687,15 @@ const analyzeRenderedContextModule = (
 					(isPropertyAssignment(declaration) ||
 						isArrayLiteralExpression(declaration) ||
 						isExportAssignment(declaration)) &&
-					expectedContextNames.has('<anonymous context>')
+					holderMintingCallees?.has(
+						normalizeRenderedBindingName(calleeNameOf(node.expression) ?? ''),
+					)
 				) {
 					// A factory-minted holder position (object property, array
-					// element, export default) whose callee survived the
-					// bundle unrecognized: fail closed, the same way an
-					// unattributed createContext call does.
+					// element, export default) whose callee is one the source
+					// scan attributed to the file's anonymous context: fail
+					// closed, the same way an unattributed createContext call
+					// does.
 					hasUnattributedCreateContextCall = true;
 				} else if (
 					isVariableDeclaration(declaration) &&
@@ -673,6 +708,20 @@ const analyzeRenderedContextModule = (
 					throw new Error(
 						`Context chunk isolation guard cannot prove how ${declaration.name.text} is created in ${moduleLabel}.`,
 					);
+				} else if (
+					isVariableDeclaration(declaration) &&
+					declaration.initializer === node &&
+					!isIdentifier(declaration.name)
+				) {
+					const boundName = bindingPatternBoundExpectedName(
+						declaration.name,
+						expectedContextNames,
+					);
+					if (boundName) {
+						throw new Error(
+							`Context chunk isolation guard cannot prove how ${boundName} is created in ${moduleLabel}.`,
+						);
+					}
 				}
 			}
 		}
@@ -736,7 +785,7 @@ const analyzeRenderedContextModules = (entries) => {
 				entry.renderedModule,
 				analyzeRenderedContextModule(
 					sourceFile,
-					entry.expectedContextNames,
+					entry.expectedContexts,
 					`${entry.moduleId} in ${entry.chunkName}`,
 				),
 			);
@@ -763,11 +812,8 @@ export const findReactContextDeclarations = (
 			);
 		}
 
-		const {
-			contextType: reactContextType,
-			contextTypeDeclared: reactContextTypeDeclared,
-			createContext: reactCreateContext,
-		} = findReactContextSymbols(project.program, project.checker);
+		const { contextType: reactContextType, createContext: reactCreateContext } =
+			findReactContextSymbols(project.program, project.checker);
 		onProgramSourceFiles(
 			new Set(
 				project.program
@@ -793,29 +839,17 @@ export const findReactContextDeclarations = (
 					reactCreateContext,
 				);
 
-				if (
-					isFactoryValuePosition(node) &&
-					isReactContextFactoryValue(project.checker, node, reactCreateContext)
-				) {
-					contexts.push({
-						isFactoryValue: true,
-						name: '<React.createContext factory value>',
-						sourceFile: normalizeModuleId(sourceFile.fileName),
-					});
-				}
-
 				const binding = declarationBinding(project.checker, node);
 				if (
 					binding &&
-					node.initializer &&
-					expressionContainsCall(node.initializer)
+					binding.initializer &&
+					expressionContainsCall(binding.initializer)
 				) {
 					if (
 						typeContainsReactContext(
 							project.checker,
 							project.checker.getTypeOfSymbolAtLocation(binding.symbol, node),
 							reactContextType,
-							reactContextTypeDeclared,
 						)
 					) {
 						contexts.push({
@@ -823,10 +857,13 @@ export const findReactContextDeclarations = (
 							sourceFile: normalizeModuleId(sourceFile.fileName),
 						});
 					} else if (
-						isCallExpression(node.initializer) &&
+						isCallExpression(binding.initializer) &&
 						resolvesToReactCreateContext(
 							project.checker,
-							symbolForExpression(project.checker, node.initializer.expression),
+							symbolForExpression(
+								project.checker,
+								binding.initializer.expression,
+							),
 							reactCreateContext,
 						)
 					) {
@@ -854,12 +891,14 @@ export const findReactContextDeclarations = (
 								project.checker,
 								project.checker.getTypeAtLocation(node),
 								reactContextType,
-								reactContextTypeDeclared,
 							)
 						) {
 							contexts.push({
 								name: '<anonymous context>',
 								sourceFile: normalizeModuleId(sourceFile.fileName),
+								mintingCallees: [calleeNameOf(node.expression)].filter(
+									(callee) => callee !== undefined,
+								),
 							});
 						} else {
 							const calleeSymbol = symbolForExpression(
@@ -876,6 +915,9 @@ export const findReactContextDeclarations = (
 								contexts.push({
 									name: contextNameForCall(node),
 									sourceFile: normalizeModuleId(sourceFile.fileName),
+									mintingCallees: [calleeNameOf(node.expression)].filter(
+										(callee) => callee !== undefined,
+									),
 								});
 							}
 						}
@@ -914,17 +956,25 @@ export const findContextChunkIsolationViolations = (
 		}
 	}
 
-	const contextNamesBySource = new Map();
+	// Per source file, the expected contexts map to the callee names the
+	// source scan attributed to their holder-position mints; the rendered
+	// holder fail-closed only fires for those callees.
+	const contextsBySource = new Map();
 	for (const context of contexts) {
-		const contextNames =
-			contextNamesBySource.get(context.sourceFile) ?? new Set();
-		contextNames.add(context.name);
-		contextNamesBySource.set(context.sourceFile, contextNames);
+		const contextCallees =
+			contextsBySource.get(context.sourceFile) ?? new Map();
+		const mintingCallees = contextCallees.get(context.name) ?? new Set();
+		for (const callee of context.mintingCallees ?? []) {
+			mintingCallees.add(callee);
+		}
+
+		contextCallees.set(context.name, mintingCallees);
+		contextsBySource.set(context.sourceFile, contextCallees);
 	}
 
 	const analyzedSourceFiles = new Set();
 	const renderedModulesToAnalyze = [];
-	for (const [sourceFile, expectedContextNames] of contextNamesBySource) {
+	for (const [sourceFile, expectedContexts] of contextsBySource) {
 		const virtualModuleChunks = [];
 		for (const [moduleId, moduleChunks] of chunksForSource) {
 			if (!moduleId.startsWith(`${sourceFile}?`)) {
@@ -949,7 +999,7 @@ export const findContextChunkIsolationViolations = (
 		for (const moduleChunk of [...sourceModuleChunks, ...virtualModuleChunks]) {
 			renderedModulesToAnalyze.push({
 				...moduleChunk,
-				expectedContextNames,
+				expectedContexts,
 			});
 		}
 	}
@@ -1006,7 +1056,7 @@ export const findContextChunkIsolationViolations = (
 		}
 
 		const sourcePath = path.relative(projectDirectory, context.sourceFile);
-		if (contextCreatingModuleCount === 0 && !context.isFactoryValue) {
+		if (contextCreatingModuleCount === 0) {
 			if (
 				hasRenderedContextAnalysis &&
 				chunksForSource.has(context.sourceFile)

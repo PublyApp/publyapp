@@ -3,6 +3,8 @@ import type { Plugin } from 'vite';
 export type ContextDeclaration = {
 	name: string;
 	sourceFile: string;
+	/** Callee names the source scan attributed to a holder-position mint. */
+	mintingCallees?: string[];
 };
 
 export type ClientChunk = {
