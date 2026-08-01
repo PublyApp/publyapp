@@ -281,3 +281,24 @@ void test('reports each React context whose source module is in multiple client 
 		],
 	);
 });
+
+void test('does not treat TanStack route virtual-module siblings as duplicate source modules', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{ fileName: 'assets/route.js', modules: { [sourceFile]: {} } },
+				{
+					fileName: 'assets/route-component.js',
+					modules: { [`${sourceFile}?tsr-split=component`]: {} },
+				},
+			],
+		),
+		[],
+	);
+});

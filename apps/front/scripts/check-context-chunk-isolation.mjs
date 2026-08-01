@@ -16,9 +16,10 @@ import {
 import { API, SymbolFlags } from 'typescript/unstable/sync';
 
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
+const TANSTACK_ROUTE_VIRTUAL_MODULE = /[?&]tsr-(?:shared|split)=/;
 
 const normalizeModuleId = (moduleId) =>
-	path.normalize(moduleId.split('?')[0]).replaceAll('\\', '/');
+	path.normalize(moduleId).replaceAll('\\', '/');
 
 const symbolForExpression = (checker, expression) =>
 	isElementAccessExpression(expression)
@@ -280,20 +281,34 @@ export const findContextChunkIsolationViolations = (contexts, chunks) => {
 	for (const chunk of chunks) {
 		for (const moduleId of Object.keys(chunk.modules)) {
 			const normalizedModuleId = normalizeModuleId(moduleId);
-			const chunkNames = chunksForSource.get(normalizedModuleId) ?? [];
-			chunkNames.push(chunk.fileName);
+			const chunkNames = chunksForSource.get(normalizedModuleId) ?? new Set();
+			chunkNames.add(chunk.fileName);
 			chunksForSource.set(normalizedModuleId, chunkNames);
 		}
 	}
 
 	return contexts.flatMap((context) => {
-		const chunkNames = chunksForSource.get(context.sourceFile) ?? [];
-		if (chunkNames.length < 2) {
+		const chunkNames = new Set();
+		for (const [moduleId, names] of chunksForSource) {
+			if (
+				moduleId !== context.sourceFile &&
+				(!moduleId.startsWith(`${context.sourceFile}?`) ||
+					TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId))
+			) {
+				continue;
+			}
+
+			for (const chunkName of names) {
+				chunkNames.add(chunkName);
+			}
+		}
+
+		if (chunkNames.size < 2) {
 			return [];
 		}
 
 		return [
-			`${context.name} in ${path.relative(process.cwd(), context.sourceFile)} is present in multiple client chunks: ${chunkNames.join(', ')}.`,
+			`${context.name} in ${path.relative(process.cwd(), context.sourceFile)} is present in multiple client chunks: ${[...chunkNames].join(', ')}.`,
 		];
 	});
 };
