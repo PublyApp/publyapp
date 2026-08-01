@@ -21,9 +21,40 @@ const cancelAnytimePatterns = [
 	/\b(?:annul|résili|quitt)[\p{L}]*\b[^.!?;·]{0,60}(?:à tout moment|\bquand\b[^.!?;·]{0,40}\b(?:voulez|souhait[\p{L}]*|convient)\b)/iu,
 ];
 
+// A bounded free period is a trial offer even when the word never appears:
+// "free for your first two weeks", "deux semaines gratuites". The pricing
+// patterns above already cover digit day counts; these add spelled-out
+// numbers and the week/month units, in either word order.
+const englishDuration = String.raw`(?:\d+|an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s*-?\s*(?:days?|weeks?|months?)`;
+const frenchDuration = String.raw`(?:\d+|une?|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze)\s*-?\s*(?:jours?|semaines?|mois)`;
+
+const boundedFreePeriodPatterns = [
+	new RegExp(String.raw`\bfree\b[^.!?;·]{0,60}\b${englishDuration}\b`, 'i'),
+	new RegExp(String.raw`\b${englishDuration}\b[^.!?;·]{0,60}\bfree\b`, 'i'),
+	new RegExp(
+		String.raw`\bgratuit\p{L}*\b[^.!?;·]{0,60}\b${frenchDuration}\b`,
+		'iu',
+	),
+	new RegExp(
+		String.raw`\b${frenchDuration}\b[^.!?;·]{0,60}\bgratuit\p{L}*\b`,
+		'iu',
+	),
+];
+
+// "Pay nothing until you decide to stay" promises the same thing without
+// naming a price, a duration, or a trial.
+const deferredPaymentPatterns = [
+	/\bpay(?:ing)?\s+nothing\b/i,
+	/\bnothing\s+to\s+pay\b/i,
+	/\bne\s+pay\p{L}*\s+rien\b/iu,
+	/\brien\s+à\s+payer\b/iu,
+];
+
 const landingTrialClaimPatterns = [
 	...forbiddenPricingPatterns,
 	...cancelAnytimePatterns,
+	...boundedFreePeriodPatterns,
+	...deferredPaymentPatterns,
 ];
 
 describe('front locale manifests', () => {
@@ -109,9 +140,11 @@ describe('front locale manifests', () => {
 			expect(landingKeys.length).toBeGreaterThan(0);
 
 			// The trigger set covers explicit trial words, day-count offers, card or
-			// engagement disclaimers reused from the pricing guard, and cancel-anytime
-			// wording. It cannot infer euphemisms outside this regex vocabulary or let
-			// a future marker in a separate punctuation-delimited clause hedge a claim.
+			// engagement disclaimers reused from the pricing guard, cancel-anytime
+			// wording, a bounded free period written in digits or words, and
+			// deferred-payment promises. It is still a keyword sweep: it cannot infer
+			// euphemisms outside this vocabulary, and it deliberately will not let a
+			// future marker in a separate punctuation-delimited clause hedge a claim.
 			for (const key of landingPageKeys) {
 				const value = localeCase.common[key];
 				const trialClauses = value
