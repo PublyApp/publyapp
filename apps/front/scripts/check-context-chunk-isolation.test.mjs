@@ -150,6 +150,28 @@ void test('does not report a local or unrelated createContext symbol', async () 
 	}
 });
 
+void test('fails closed for a dynamic React element access', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/dynamic-element-access.ts': `
+			import * as React from 'react';
+			const contextFactory = 'create' + 'Context';
+			export const DynamicContext = React[contextFactory](null);
+		`,
+	});
+
+	try {
+		assert.throws(
+			() =>
+				findReactContextDeclarations(
+					path.join(fixtureDirectory, 'tsconfig.json'),
+				),
+			/cannot prove a dynamic React element access/i,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('reports each React context whose source module is in multiple client chunks', () => {
 	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
 	const contexts = [

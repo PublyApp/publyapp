@@ -7,6 +7,7 @@ import {
 	isIdentifier,
 	isImportSpecifier,
 	isPropertyAccessExpression,
+	isStringLiteral,
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
@@ -44,6 +45,15 @@ const isReactContextFactoryValue = (checker, node, reactCreateContext) => {
 		symbolForExpression(checker, node),
 		reactCreateContext,
 	);
+};
+
+const isReactNamespace = (checker, expression, reactCreateContext) => {
+	const type = checker.getTypeAtLocation(expression);
+	return type
+		? checker
+				.getPropertiesOfType(type)
+				.some((property) => property.id === reactCreateContext.id)
+		: false;
 };
 
 const findReactCreateContextSymbol = (program, checker) => {
@@ -168,6 +178,20 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 				}
 
 				if (isCallExpression(node)) {
+					if (
+						isElementAccessExpression(node.expression) &&
+						!isStringLiteral(node.expression.argumentExpression) &&
+						isReactNamespace(
+							project.checker,
+							node.expression.expression,
+							reactCreateContext,
+						)
+					) {
+						throw new Error(
+							'Context chunk isolation guard cannot prove a dynamic React element access is not createContext.',
+						);
+					}
+
 					const calleeSymbol = symbolForExpression(
 						project.checker,
 						node.expression,
