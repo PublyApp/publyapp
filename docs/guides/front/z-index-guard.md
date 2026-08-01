@@ -45,6 +45,10 @@ and in the compiled CSS), any dynamic assembly (`z-${…}` across a template sub
 redefinition of a reserved `--publy-z-*` token, and a native JSX `<link rel="stylesheet">` or static
 link-descriptor object whose `rel` and `href` resolve to literals or module-scope string constants.
 The descriptor rule covers framework head APIs that render a link later through `<HeadContent>`.
+The same "declarative payload that never becomes an emitted asset" logic covers a native JSX
+`<style>` element whose children are static text (the declaration walk runs over the payload, so a
+raw `z-index:` inside it reds) and CSS files imported with `?inline`/`?raw` (their authored file is
+walked directly, so they cannot smuggle a raw declaration past the emitted gate).
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -73,12 +77,16 @@ Five components:
    (`@apply block z-50;` yields no `z-50` candidate), so directive text is scanned directly.
 3. **Substitution-boundary scan.** `z-${level}` has no candidate at extractor time; a class-delivery
    template literal whose static parts carry a z-index fragment across a `${…}` boundary is reported.
-4. **Emitted-CSS gate.** The guard runs the real Vite production build into a unique guard-owned
-   temporary output directory, recursively parses every CSS asset from that exact invocation with
-   PostCSS, and removes the directory afterward. The inline `outDir` override wins over a configured
-   Vite `build.outDir`, so a changed config cannot redirect the build while leaving the guard on stale
-   `dist` assets. Every residual `@import` fails closed because its contents are opaque to the
-   declaration walk; resolved local relative imports are already inlined and stay clean. Every
+4. **Emitted-CSS gate.** The guard runs the real Vite production build through
+   Vite's multi-environment builder API — both the client **and** the SSR
+   bundle, exactly as `vite build` ships — into a unique guard-owned
+   temporary output directory, recursively parses every CSS asset from that
+   exact invocation with PostCSS, and removes the directory afterward. The
+   inline `outDir` override wins over a configured Vite `build.outDir`, so a
+   changed config cannot redirect the build while leaving the guard on stale
+   `dist` assets. Every residual `@import` fails closed because its contents
+   are opaque to the declaration walk; resolved local relative imports are
+   already inlined and stay clean. Every
    `z-index:` declaration that does not resolve through `var(--publy-z-…)` is reported. The parser
    canonicalises property names
    (`Z-INDEX: 50` and
@@ -92,7 +100,9 @@ Five components:
    reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
    scanner watches.
 5. **Scale-definition integrity.** A Vite pre-transform hook records project CSS and script modules
-   reached by the real build, and the authored pass extends the CSS set through local relative CSS
+   reached by the real build — from **both** the client and the SSR environment, so an SSR-only module
+   (`src/server.ts` and friends) is exactly as build-reachable as a client module — and the authored
+   pass extends the CSS set through local relative CSS
    `@import`s. It does not scan unimported samples or fixtures merely because they have a relevant
    extension; importing one puts it in the build graph and therefore back in scope. A
    `--publy-z-*` declaration is accepted only
@@ -126,7 +136,12 @@ Five components:
    identifier resolution respects lexical shadowing. The latter closes framework head APIs as well
    as direct JSX while leaving the existing
    `{ rel: 'stylesheet', href: appCss }` Vite-asset descriptor valid because `href` is an imported
-   build asset, not a literal. This prevents an inline style from shadowing a legitimate tier after
+   build asset, not a literal. The same pass runs the declaration walk over the static payload of a
+   native JSX `<style>` element (including the `dangerouslySetInnerHTML` spelling), because such CSS
+   ships as SSR HTML or client JS rather than an emitted asset, and CSS files imported with the
+   `?inline`/`?raw` query forms are walked on the authored file for the same reason — their text
+   leaves the build as JS, never as an asset the emitted gate can see. This prevents an inline style
+   from shadowing a legitimate tier after
    the emitted gate has accepted its reference, and prevents declarative CSS payloads from bypassing
    that gate as JavaScript bundle text. Build provenance identifies the
    reachable authored files but does not map a minified emitted declaration back to one exact source
@@ -151,8 +166,11 @@ gaps, each with its current evidence:
   competes in the page-level stacking context — which is why the value must sit below every scale tier
   (`--publy-z-raised` is 10). The header needs _some_ z-index because the sticky cells are earlier in
   DOM order than the body rows they scroll over; the value just needs to be above those rows and below
-  every tier. Inventing a scale tier for a single internal rule would widen the scale for no
-  architectural gain.
+   every tier. Inventing a scale tier for a single internal rule would widen the scale for no
+   architectural gain. If a *dependency* ever ships a raw `z-index` that reds the emitted gate, the
+   violation message names `KNOWN_RAW_Z_INDEX_DECLARATIONS` in the script — the only remediation is a
+   review that ends in either moving the declaration onto the scale or (rarely) an explicit, bound
+   allowlist entry with a reason. Never delete the guard to silence a dependency.
 - **Inline `style={{ zIndex }}` objects.** `toaster.tsx` already uses `var(--publy-z-toast)`;
   `initials-avatar.tsx` stacks overlapping avatars with `visible.length - index`, which has no scale
   meaning. Component 1 ignores these because inline styles are not extractor candidates, and
@@ -163,12 +181,23 @@ gaps, each with its current evidence:
   `CSSStyleSheet.replaceSync()`, `insertRule()`, assigned to a `<style>` element's `textContent`, or
   produced by an equivalent CSSOM path is shipped as JavaScript rather than as an emitted CSS asset.
   A stylesheet `<link>` whose `rel` or `href` is assembled at runtime has the same boundary; literal
-  native JSX links and static descriptor objects are rejected. The guard does not reinterpret
+  native JSX links, static descriptor objects, and static JSX `<style>` payloads are rejected. The
+  guard does not reinterpret
   arbitrary script strings or perform interprocedural runtime-value tracing. The remaining dynamic
   routes are not considered
   safe—they are explicitly policed by the code standard—but closing them requires a separate
   CSSOM/data-flow mechanism. The common declarative literal route does not need that mechanism and is
   therefore closed here rather than silently grouped with runtime injection.
+- **A `<style>` element whose children assemble the CSS across a template substitution.**
+  `<style>{`z-index: ${MAX}`}</style>` with a module-scope constant is a static *element* whose
+  *payload* arrives through a substitution, so the payload is not a static string the declaration
+  walk can read. This is the same boundary as the runtime-injection bullet: the raw value is supplied
+  by data flow, not by a literal the guard sees. It is declared rather than silently grouped.
+- **Static files under `public/`.** They are copied verbatim by the shipped build but are not part of
+  the guard's emitted or authored sets. A `public/evil.css` would ship unread — however, every way to
+  reference it from shipped code (a static `<link rel="stylesheet" href="/evil.css">`, a link written
+  by `src/server.ts`, a residual CSS `@import`) trips an existing rule, so the file itself is not a
+  working green bypass. Declared for completeness, not because a live route exists.
 - **Helper-mediated reserved-token writes, registrations, and helper/import-produced spreads.** The
   script pass follows direct module-scope string constants, but it does not perform interprocedural
   data flow. A helper whose `setProperty(name, value)` key or `CSS.registerProperty({ name })` value

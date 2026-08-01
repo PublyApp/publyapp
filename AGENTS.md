@@ -316,7 +316,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 
 - Compose UI from the local `apps/front/src/components/ui/*` wrappers over Base UI primitives; style with Tailwind utility classes through `cn()` (`apps/front/src/lib/utils.ts`). Do not reach into Base UI protected/internal APIs.
 - Design-token discipline is machine-checked — `pnpm --filter front check:design-system` runs in `just ci-front` and in `pnpm --filter front test`.
-- Every z-index utility in `apps/front/src` must route through the `--publy-z-*` scale — machine-checked by `pnpm --filter front check:zindex` (runs in `just ci-front` and `pnpm --filter front test`). See [`docs/guides/front/z-index-guard.md`](docs/guides/front/z-index-guard.md) for the invariant, the mechanism, and the explicitly stated out-of-scope gaps.
+- Every z-index utility in `apps/front/src` must route through the `--publy-z-*` scale — machine-checked by the z-index guard's fixture-suite live-tree scan (runs inside `pnpm --filter front test`) and by the standalone `pnpm --filter front check:zindex` CLI, both wired into `just ci-front`. See [`docs/guides/front/z-index-guard.md`](docs/guides/front/z-index-guard.md) for the invariant, the mechanism, and the explicitly stated out-of-scope gaps.
 - No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy` (enforced by `publy/no-array-reduce`).
 - Never import dayjs directly in components (enforced by `publy/no-direct-dayjs-in-components`).
 - React Hook Form + Zod for form validation; go through the front form/field wrappers rather than wiring `register()` onto raw inputs.

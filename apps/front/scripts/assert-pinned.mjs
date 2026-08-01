@@ -43,4 +43,34 @@ if (bad.length) {
 	process.exit(1);
 }
 
+// The z-index guard's extractor is `@tailwindcss/{node,oxide}` while the build
+// compiler is `@tailwindcss/vite`, with `tailwindcss` resolving
+// `@import 'tailwindcss'` from the guard's fixture tree. If those four drift
+// apart, the guard's candidate set could silently stop matching the shipped
+// compiler, quietly falsifying the guard's central soundness claim. They must
+// stay in version lockstep.
+const TAILWIND_LOCKSTEP = [
+	'tailwindcss',
+	'@tailwindcss/node',
+	'@tailwindcss/oxide',
+	'@tailwindcss/vite',
+];
+const lockstepVersions = new Set(
+	TAILWIND_LOCKSTEP.map((name) => pkg.devDependencies?.[name]),
+);
+if (lockstepVersions.size !== 1) {
+	console.error(
+		'Tailwind packages must stay in version lockstep:',
+		TAILWIND_LOCKSTEP.map((name) => {
+			const version = pkg.devDependencies?.[name];
+			return version == null ? `${name} (missing)` : `${name}@${version}`;
+		}).join(', '),
+	);
+	process.exit(1);
+}
+
+// Note: the exact `postcss` pin below does not bind the effective version — the
+// root `pnpm.overrides` rewrites it to a range (`^8.5.25` in the lockfile
+// importer). That is intentional and pre-existing; do not \"fix\" the lockfile.
 console.log('All deps exact-pinned [OK]');
+console.log('Tailwind packages in version lockstep [OK]');
