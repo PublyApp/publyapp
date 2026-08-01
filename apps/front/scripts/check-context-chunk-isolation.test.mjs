@@ -245,7 +245,6 @@ void test('resolves React createContext through every supported import and type 
 			'ReExportedAliasContext',
 			'SecondContext',
 			'ValueAliasContext',
-			'<React.createContext factory value>',
 		]) {
 			assert.equal(contextNames.has(expectedName), true, expectedName);
 		}
@@ -360,6 +359,7 @@ void test('discovers contexts minted through a factory whose return type is a br
 	const fixtureDirectory = await createFixture({
 		'src/make-context.ts': `
 			import { createContext } from 'react';
+			import type { Context } from 'react';
 			export interface StrictContext<T> extends Context<T> { readonly strict: true; }
 			export const createStrictContext = <T,>(fallback: T): StrictContext<T> =>
 				Object.assign(createContext(fallback), { strict: true as const });
@@ -404,6 +404,184 @@ void test('discovers contexts minted through a factory whose return type is a br
 		assert.equal(
 			nameInSourceFile('AliasedStrict', 'src/alias-consumer.tsx'),
 			true,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('does not inventory an interface whose heritage reference does not resolve', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/nonsense.ts': `
+			export interface HttpClient extends UndeclaredBaseClient { readonly get: (u: string) => Promise<string> }
+			declare const makeClient: () => HttpClient;
+			export const NotAContext = makeClient();
+		`,
+		'src/unresolved-generic.ts': `
+			export interface NotAContext<T> extends ThisNameDoesNotExistAnywhere<T> { readonly x: true; }
+			declare const makeNotAContext: <T,>() => NotAContext<T>;
+			export const NotAContextValue = makeNotAContext<null>();
+		`,
+		'src/react-ref.ts': `
+			import { createElement } from 'react';
+			void createElement;
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		assert.deepEqual(contexts, []);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('discovers a context whose interface heritage clause sits on a later merged declaration', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/make.ts': `
+			import { createContext } from 'react';
+			export const mk = <T,>(value: T) => createContext(value);
+		`,
+		'src/merged-second.ts': `
+			import { mk } from './make';
+			import type { Context } from 'react';
+			interface Merged<T> { readonly tag: 'merged' }
+			interface Merged<T> extends Context<T> {}
+			export const M1 = mk<null>(null) as unknown as Merged<null>;
+		`,
+		'src/merged-first.ts': `
+			import { mk } from './make';
+			import type { Context } from 'react';
+			interface Merged2<T> extends Context<T> {}
+			interface Merged2<T> { readonly tag: 'merged' }
+			export const M2 = mk<null>(null) as unknown as Merged2<null>;
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		for (const [name, relativeSourceFile] of [
+			['M1', 'src/merged-second.ts'],
+			['M2', 'src/merged-first.ts'],
+		]) {
+			assert.equal(
+				contexts.some(
+					(context) =>
+						context.name === name &&
+						context.sourceFile ===
+							path.join(fixtureDirectory, relativeSourceFile),
+				),
+				true,
+				name,
+			);
+		}
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('discovers a context whose interface heritage is a generic type alias of Context', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/make.ts': `
+			import { createContext } from 'react';
+			import type { Context } from 'react';
+			export type CtxAlias<T> = Context<T>;
+			export const mk = <T,>(value: T) => createContext(value);
+		`,
+		'src/alias-branded.ts': `
+			import { mk, type CtxAlias } from './make';
+			interface AliasBranded<T> extends CtxAlias<T> { readonly ab: true }
+			declare const brand: <T,>() => AliasBranded<T>;
+			export const N4 = brand<null>();
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		assert.equal(
+			contexts.some(
+				(context) =>
+					context.name === 'N4' &&
+					context.sourceFile ===
+						path.join(fixtureDirectory, 'src/alias-branded.ts'),
+			),
+			true,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('discovers contexts destructured out of a cross-file factory call', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/make.ts': `
+			import { createContext } from 'react';
+			export const makeContexts = <T,>(fallback: T) => ({ probe: createContext(fallback) });
+			export const makeTuple = <T,>(fallback: T) => [createContext(fallback)];
+			export const makePair = <T,>(fallback: T) => [null, createContext(fallback)] as const;
+		`,
+		'src/c1-object-destructure-call.ts': `
+			import { makeContexts } from './make';
+			export const { probe: ProbeContext } = makeContexts<null>(null);
+		`,
+		'src/c2-renamed-destructure-call.ts': `
+			import { makeContexts } from './make';
+			export const { probe: RenamedContext } = makeContexts<null>(null);
+		`,
+		'src/c3-array-destructure-call.ts': `
+			import { makeTuple } from './make';
+			export const [TupleContext] = makeTuple<null>(null);
+		`,
+		'src/c5-elided-destructure-call.ts': `
+			import { makePair } from './make';
+			export const [, ElidedContext] = makePair<null>(null);
+		`,
+		'src/c4-inline-holder-destructure.ts': `
+			import { createContext } from 'react';
+			export const { Ctx } = { Ctx: createContext<null>(null) };
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		const nameInSourceFile = (name, relativeSourceFile) =>
+			contexts.some(
+				(context) =>
+					context.name === name &&
+					context.sourceFile ===
+						path.join(fixtureDirectory, relativeSourceFile),
+			);
+		for (const [name, relativeSourceFile] of [
+			['ProbeContext', 'src/c1-object-destructure-call.ts'],
+			['RenamedContext', 'src/c2-renamed-destructure-call.ts'],
+			['TupleContext', 'src/c3-array-destructure-call.ts'],
+			['ElidedContext', 'src/c5-elided-destructure-call.ts'],
+		]) {
+			assert.equal(nameInSourceFile(name, relativeSourceFile), true, name);
+		}
+
+		// An inline holder mint in the same statement is tracked as the
+		// holder-position `<anonymous context>`, not as the binding.
+		assert.equal(
+			nameInSourceFile('Ctx', 'src/c4-inline-holder-destructure.ts'),
+			false,
+			'Ctx',
+		);
+		assert.equal(
+			nameInSourceFile(
+				'<anonymous context>',
+				'src/c4-inline-holder-destructure.ts',
+			),
+			true,
+			'<anonymous context>',
 		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
@@ -1397,6 +1575,123 @@ void test('fails closed when a context initializer callee remains unrecognized',
 	);
 });
 
+void test('counts a rendered factory mint held in an array element as a creator', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const arrayHolderCode = `
+		const contexts = [createStrictContext(null)];
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: arrayHolderCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: arrayHolderCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('counts a rendered factory mint held in an export default as a creator', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const exportDefaultCode = 'export default createStrictContext(null);';
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: exportDefaultCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: exportDefaultCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('does not count a rendered holder-position call whose callee was not attributed as a creator', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const routeShimCode = `
+		var $$splitComponentImporter = () => import("./probe-!~{001}~.js");
+		var Route = createFileRoute("/probe")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingCallees: ['createStrictContext'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: routeShimCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: routeShimCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
 void test('fails closed for an unrecognized rendered createContext callee shape', () => {
 	const sourceFile = path.join(
 		frontDirectory,
@@ -1548,25 +1843,6 @@ void test('ignores a TanStack route virtual-module sibling after it no longer co
 					},
 				},
 			],
-		),
-		[],
-	);
-});
-
-void test('does not require a client chunk for an unbundled factory-value mention', () => {
-	const sourceFile = path.join(frontDirectory, 'scripts/vitest.setup.ts');
-
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					isFactoryValue: true,
-					name: '<React.createContext factory value>',
-					sourceFile,
-				},
-			],
-			[],
-			frontDirectory,
 		),
 		[],
 	);
@@ -1843,6 +2119,7 @@ void test(
 			files: {
 				'src/make-context.ts': `
 					import { createContext } from 'react';
+					import type { Context } from 'react';
 					export interface StrictContext<T> extends Context<T> { readonly strict: true; }
 					export const createStrictContext = <T,>(fallback: T): StrictContext<T> =>
 						Object.assign(createContext(fallback), { strict: true as const });
@@ -1885,6 +2162,7 @@ void test(
 			files: {
 				'src/make-context.ts': `
 					import { createContext } from 'react';
+					import type { Context } from 'react';
 					export interface StrictContext<T> extends Context<T> { readonly strict: true; }
 					export const createStrictContext = <T,>(fallback: T): StrictContext<T> =>
 						Object.assign(createContext(fallback), { strict: true as const });
@@ -1926,6 +2204,46 @@ void test(
 				result.output,
 				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
 			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a context is destructured out of a cross-file factory call',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const makeContexts = <T,>(fallback: T) => ({ probe: createContext(fallback) });
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { makeContexts } from '../make-context';
+					const { probe: ProbeContext } = makeContexts<null>(null);
+					export const useProbe = () => useContext(ProbeContext);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(result.output, /cannot prove how ProbeContext is created/i);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -2118,6 +2436,37 @@ void test(
 				const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
 				export const Route = createFileRoute('/probe')({ component: Probe });
 			`,
+			},
+			inventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when a split route owns an anonymous context used only by the split component',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { createContext, useContext } from 'react';
+					const contexts = { probe: createContext<null>(null) };
+					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
 			},
 			inventory,
 		});
