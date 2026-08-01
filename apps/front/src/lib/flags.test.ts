@@ -12,9 +12,12 @@ const toMarketingEnvKey = (flagKey: string): string => {
 
 const importMarketingFlags = async (
 	rawValue: string | undefined,
+	isProduction = false,
 ): Promise<MarketingFlags> => {
 	vi.resetModules();
 	vi.unstubAllEnvs();
+	vi.stubEnv('MODE', isProduction ? 'production' : 'test');
+	vi.stubEnv('PROD', isProduction);
 	for (const flagKey of Object.keys(sourceFeatures.marketing)) {
 		vi.stubEnv(toMarketingEnvKey(flagKey), rawValue);
 	}
@@ -42,6 +45,14 @@ describe('marketing feature flags', () => {
 			}
 		},
 	);
+
+	test('stays off when production mode has no environment values', async () => {
+		const marketing = await importMarketingFlags(undefined, true);
+
+		for (const value of Object.values(marketing)) {
+			expect(value).toBe(false);
+		}
+	});
 
 	test('turns on both flags only for the literal true value', async () => {
 		const marketing = await importMarketingFlags('true');
