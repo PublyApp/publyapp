@@ -1137,6 +1137,90 @@ test('e2e (round 6 I1): ?inline CSS ships as JS and is red via the authored inli
 	);
 });
 
+test('e2e (round 7 I2): ?inline on every Vite CSS language extension is red', async () => {
+	// The provenance gate uses Vite's own CSS-language set (`isCSSRequest`),
+	// so `.pcss` and `.postcss` — first-class CSS with no preprocessor
+	// dependency — cannot smuggle an inline payload past the walk.
+	for (const extension of ['pcss', 'postcss']) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					`import overlayCss from './overlay.${extension}?inline';`,
+					`export const probe = <style>{overlayCss}</style>;`,
+				].join('\n'),
+				[`overlay.${extension}`]: '.overlay { z-index: 2147483646; }',
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.ok(
+			violations.some(
+				(violation) =>
+					violation.ruleId === 'z-index-declaration-not-on-scale' &&
+					violation.file === `src/overlay.${extension}`,
+			),
+			`${extension}?inline must red at its authored file: ${JSON.stringify(violations)}`,
+		);
+	}
+	// `.sss` is in Vite's CSS-language set but its preprocessor (`sugarss`) is
+	// not installed here, so the import fails the build — fail-closed, and the
+	// `isCSSRequest` recording already covers the language if it ever ships.
+	await assert.rejects(
+		runFixtureGuard(
+			{
+				'probe.tsx': [
+					`import overlayCss from './overlay.sss?inline';`,
+					`export const probe = <style>{overlayCss}</style>;`,
+				].join('\n'),
+				'overlay.sss': '.overlay { z-index: 2147483646; }',
+			},
+			'',
+			["import { probe } from './probe';"],
+		),
+		/Preprocessor dependency "sugarss" not found/,
+	);
+});
+test('e2e (round 7 I2): ?raw on a non-CSS file holding CSS text is red', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				`export const probe = <style>{rawCss}</style>;`,
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483645; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-declaration-not-on-scale' &&
+				violation.file === 'src/overlay.txt',
+		),
+		`raw-shipped CSS text must red at its authored file: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 7 I2): ?raw on plain non-CSS text stays green', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import prose from './notes.txt?raw';`,
+				`export const probe = <p>{prose}</p>;`,
+			].join('\n'),
+			'notes.txt': 'plain prose that is not CSS',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`non-CSS raw text must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (round 6 M2): scanner over an empty source root fails closed', async () => {
 	await assert.rejects(
 		runFixtureGuard(
