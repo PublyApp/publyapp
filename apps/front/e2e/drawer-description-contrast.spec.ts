@@ -6,7 +6,10 @@ import {
 	type TestInfo,
 } from '@playwright/test';
 
-import { DRAWER_DESCRIPTION_CONSUMERS } from '../src/styles/drawer-description-inventory';
+import {
+	DESCRIPTION_SELECTORS,
+	DRAWER_DESCRIPTION_CONSUMERS,
+} from '../src/styles/drawer-description-inventory';
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
@@ -46,6 +49,18 @@ const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 const PROFILE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
 const STAFF_USER_ID = '0197b8f0-5555-7ccc-8ccc-cccccccccccc';
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
+
+// Round 7 M5: the selectors this spec actually measures — every drawer case
+// measures `[data-slot="drawer-description"]`, which carries
+// `.publy-drawer-description`, plus one explicit live case per non-drawer
+// description class. The linkage test below fails until this list covers
+// every selector in the source guard's DESCRIPTION_SELECTORS, so a fourth
+// description class cannot gain source coverage and never browser coverage.
+const BROWSER_COVERED_SELECTORS = [
+	'.publy-drawer-description',
+	'.publy-danger-zone-row-description',
+	'.publy-field-switch-description',
+];
 
 type Theme = 'light' | 'dark';
 type Rgba = { r: number; g: number; b: number; a: number };
@@ -666,6 +681,17 @@ test.describe('live description text contrast (#1043 / PR #1061)', () => {
 				`no browser drawer opener for ${consumer.file} (${consumer.testId})`,
 			).toBeDefined();
 		}
+	});
+
+	// Round 7 M5: the source guard's DESCRIPTION_SELECTORS is its own list,
+	// and this spec's explicit description cases used to be hardcoded with
+	// nothing relating the two — a fourth description class gained source
+	// coverage automatically and browser coverage never. This fails the e2e
+	// until a live case exists, mirroring the inventory linkage above.
+	test('every source-guarded description selector has a live browser case', () => {
+		expect([...BROWSER_COVERED_SELECTORS].sort()).toEqual(
+			[...DESCRIPTION_SELECTORS].sort(),
+		);
 	});
 
 	for (const drawerCase of DRAWER_CASES) {

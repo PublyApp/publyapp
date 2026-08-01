@@ -7,6 +7,7 @@ import { describe, expect, test } from 'vitest';
 
 import { resolveEffectiveDeclarations } from './css-cascade-test-support';
 import {
+	DESCRIPTION_SELECTORS,
 	DRAWER_DESCRIPTION_CONSUMERS,
 	type DrawerDescriptionConsumer,
 } from './drawer-description-inventory';
@@ -29,16 +30,8 @@ const CONSUMERS: readonly DrawerDescriptionConsumer[] =
 
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
 
-// Every `*-description` primitive whose text must stay legible on the three
-// surfaces drawer-style description lines actually sit on (#1043). The list
-// is the source of truth: a new failing description class should be added
-// here, not worked around per-surface.
-const DESCRIPTION_SELECTORS = [
-	'.publy-drawer-description',
-	'.publy-field-switch-description',
-	'.publy-danger-zone-row-description',
-];
-
+// Shared with the browser spec via the inventory module (round 7 M5): every
+// selector below must have a live browser measurement case there.
 const SURFACE_TOKENS = [
 	'--publy-surface',
 	'--publy-surface-muted',

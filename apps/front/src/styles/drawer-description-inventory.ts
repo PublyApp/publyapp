@@ -28,6 +28,20 @@ export type DrawerDescriptionConsumer = {
 	testId: string;
 };
 
+/**
+ * Every `*-description` primitive whose text must stay legible on the three
+ * surfaces drawer-style description lines actually sit on (#1043). The list
+ * is the source of truth for the source guard's surface sweep (round 7 M5):
+ * the browser spec asserts that every selector here has a live measurement
+ * case, so a fourth description class cannot gain source coverage and never
+ * browser coverage — the round-5 I4 defect, one list over.
+ */
+export const DESCRIPTION_SELECTORS = [
+	'.publy-drawer-description',
+	'.publy-field-switch-description',
+	'.publy-danger-zone-row-description',
+] as const;
+
 export const DRAWER_DESCRIPTION_CONSUMERS = [
 	{
 		file: 'src/components/marketing/cookie-prefs-drawer.tsx',
