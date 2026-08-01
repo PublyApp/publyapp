@@ -70,6 +70,14 @@
  * the part in a real element IS discovered and judged — the walk then finds
  * that element and it is a violation.
  *
+ * Definition-site parts do NOT exempt the rest of the file: a file whose
+ * part tags all sit behind chain-preserving helpers is still a drawer call
+ * site when it renders the form at a call site — it is discovered,
+ * inventoried as form-bearing, and its surface-to-form link is judged. The
+ * definition-site rule cancels only the part-wrapper judgement, nothing
+ * else (round 10: the parts hiding inside helpers must not hide the
+ * `DrawerContent -> DrawerForm` break one level up).
+ *
  * Deliberate friction: every file the scanner discovers must appear in the
  * inventory (the `DRAWER_FORM_CALL_SITES` union below, or
  * `FORM_LESS_DRAWER_SURFACE_FILES`), so a new drawer is visible to this suite
@@ -82,11 +90,16 @@
  * — filing a form-bearing drawer there used to be the silent escape.
  *
  * The scan additionally asserts the `DrawerContent → DrawerForm` link for
- * every discovered surface: the form must be a direct child of the
- * `.publy-drawer` surface. A `<div>` between the surface and the form is
- * the #990 break one level up — the div owns the unconstrained height and
- * the body's scrolling is inert — and it reddens the structural test even
- * though every part tag has a legal wrapper.
+ * every file with a call-site `DrawerForm` tag: the form must be a direct
+ * child of the `.publy-drawer` surface. A `<div>` between the surface and
+ * the form is the #990 break one level up — the div owns the unconstrained
+ * height and the body's scrolling is inert — and it reddens the structural
+ * test even when every part tag has a legal wrapper, and even when every
+ * part tag sits behind a chain-preserving helper or in a `render={}`
+ * attribute: a file with a call-site form is a drawer call site regardless
+ * of where its parts are declared, so the definition-site rule cannot
+ * silence the form-link verdict or hide the file from discovery (round 9's
+ * IMPORTANT 1).
  */
 
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -690,6 +703,59 @@ export const DivAboveFormDrawerFixture = ({
 );
 `;
 
+// Round 9's IMPORTANT 1: the SAME break one level up, with the parts
+// factored into chain-preserving one-line helpers (each renders its part
+// directly, no element between). The rendered DOM is byte-identical to
+// DivAboveFormDrawerFixture above, but every part tag in this file resolves
+// to a null wrapper — the helpers are definition sites. The file is still a
+// drawer call site (it renders the form at a call site), so it must still be
+// discovered, inventoried as form-bearing, and rejected on the broken
+// surface-to-form link.
+const TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-helper-hidden-div-above-form-fixture.tsx';
+const TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+);
+const TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const BodySection = () => <DrawerBody />;
+const FooterSection = () => (
+	<DrawerFooter>
+		<button type="submit" />
+	</DrawerFooter>
+);
+
+export const HelperHiddenDivAboveFormDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r10-helper-hidden-div-above-form">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<DrawerForm methods={methods}>
+					<BodySection />
+					<FooterSection />
+				</DrawerForm>
+			</div>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
 // Round 7's MINOR 4: the `DrawerFooter` half of the discovery predicate was
 // the one branch whose deletion was fail-open — a footer-only drawer became
 // invisible with a fully green suite (app-shell.tsx pins the `DrawerBody`
@@ -1234,43 +1300,18 @@ const scanDrawerSurfaces = (): {
 			continue;
 		}
 
-		// A part tag with NO enclosing element sits inside a component
-		// DEFINITION (a composition helper that renders the part), not at a
-		// drawer call site: the DOM position of such a part is decided by the
-		// helper's call site, which lives in another file. A definition site
-		// has no drawer to break, so it is neither discovered nor a violation
-		// (a helper that wraps the part in an element IS discovered and
-		// judged here, since the wrapper walk then finds that element).
-		const callSitePartNodes = partNodes.filter(
-			(node) => wrapperOf(node) !== null,
-		);
-		if (callSitePartNodes.length === 0) {
-			continue;
-		}
-
-		discovered.push(toPortableSourcePath(sourceFile.getFilePath()));
-
-		const isRejected = callSitePartNodes.some((node) => {
-			const wrapper = wrapperOf(node);
-			if (!wrapper) {
-				return true;
-			}
-			const binding = resolveTagBinding(
-				sourceFile,
-				wrapper.getTagNameNode().getText(),
-				moduleResolution,
-				project,
-				moduleCache,
-				declaredNamesByFile,
-			);
-			return binding !== 'drawer-form' && binding !== 'drawer-content';
-		});
-
-		// The DrawerContent -> DrawerForm link, asserted for every discovered
-		// surface: the form must itself be a direct child of the `.publy-drawer`
-		// surface, or an intermediate block (the #990 break one level up)
-		// re-owns the unconstrained height and the body's scrolling is inert.
-		// Definition-site forms get the same pass as definition-site parts.
+		// The DrawerContent -> DrawerForm link and the formBearing inventory
+		// classification run BEFORE the definition-site skip below: a file
+		// with a call-site DrawerForm tag is a drawer call site regardless of
+		// where its part tags are declared, so a file whose parts all sit
+		// behind chain-preserving helpers (or in `render={}` attributes) must
+		// still answer the two questions this guard added — a `<div>` between
+		// the surface and the form is the #990 break one level up, and it
+		// must not hide behind the definition-site rule (round 9's I1). The
+		// partNodes early exit above stays: a file with a DrawerForm tag but
+		// NO part tags at all is not a drawer surface under this guard's
+		// part-tag discovery contract, so nothing downstream needs to run for
+		// it either.
 		const formNodes = jsxTags.filter(
 			(node) =>
 				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
@@ -1297,6 +1338,41 @@ const scanDrawerSurfaces = (): {
 					declaredNamesByFile,
 				) !== 'drawer-content'
 			);
+		});
+
+		// A part tag with NO enclosing element sits inside a component
+		// DEFINITION (a composition helper that renders the part), not at a
+		// drawer call site: the DOM position of such a part is decided by the
+		// helper's call site, which lives in another file. A definition site
+		// has no drawer to break, so its part-wrapper judgement is skipped (a
+		// helper that wraps the part in an element IS discovered and judged
+		// here, since the wrapper walk then finds that element). The skip is
+		// scoped to the part-wrapper judgement: a file that still renders the
+		// form at a call site is a drawer call site, so it is discovered and
+		// the form-link verdict above still applies to it.
+		const callSitePartNodes = partNodes.filter(
+			(node) => wrapperOf(node) !== null,
+		);
+		if (callSitePartNodes.length === 0 && callSiteFormNodes.length === 0) {
+			continue;
+		}
+
+		discovered.push(toPortableSourcePath(sourceFile.getFilePath()));
+
+		const isRejected = callSitePartNodes.some((node) => {
+			const wrapper = wrapperOf(node);
+			if (!wrapper) {
+				return true;
+			}
+			const binding = resolveTagBinding(
+				sourceFile,
+				wrapper.getTagNameNode().getText(),
+				moduleResolution,
+				project,
+				moduleCache,
+				declaredNamesByFile,
+			);
+			return binding !== 'drawer-form' && binding !== 'drawer-content';
 		});
 
 		if (isRejected || formLinkBroken) {
@@ -1652,6 +1728,28 @@ describe('drawer surface flex chain guard (#990)', () => {
 			expect(scan.violations).toContain(TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE);
 		} finally {
 			unlinkSync(TEMPORARY_DIV_ABOVE_FORM_DRAWER_PATH);
+		}
+	});
+
+	test('definition-site parts do not hide a broken surface-to-form link: a div above the form still reddens when every part tag sits behind a chain-preserving helper', () => {
+		writeFileSync(
+			TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_PATH,
+			TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+			);
+			expect(scan.formBearing).toContain(
+				TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+			);
+			expect(scan.violations).toContain(
+				TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+			);
+		} finally {
+			unlinkSync(TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_PATH);
 		}
 	});
 
