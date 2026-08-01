@@ -7,6 +7,7 @@ import {
 	isExportSpecifier,
 	isIdentifier,
 	isImportSpecifier,
+	isObjectLiteralExpression,
 	isObjectBindingPattern,
 	isPropertyAssignment,
 	isPropertyAccessExpression,
@@ -97,7 +98,12 @@ const assertStaticReactElementAccess = (
 	if (
 		isElementAccessExpression(expression) &&
 		!isStringLiteral(expression.argumentExpression) &&
-		isReactNamespace(checker, expression.expression, reactCreateContext)
+		(isReactNamespace(checker, expression.expression, reactCreateContext) ||
+			dynamicObjectMayContainReactContextFactory(
+				checker,
+				expression.expression,
+				reactCreateContext,
+			))
 	) {
 		throw new Error(
 			'Context chunk isolation guard cannot prove a dynamic React element access is not createContext.',
@@ -204,6 +210,64 @@ const resolvesToReactCreateContext = (
 	);
 };
 
+const dynamicObjectMayContainReactContextFactory = (
+	checker,
+	expression,
+	reactCreateContext,
+	seenSymbolIds = new Set(),
+) => {
+	const symbol = checker.getSymbolAtLocation(expression);
+	if (!symbol || seenSymbolIds.has(symbol.id)) {
+		return false;
+	}
+
+	seenSymbolIds.add(symbol.id);
+	const resolvedSymbol =
+		symbol.flags & SymbolFlags.Alias
+			? checker.getAliasedSymbol(symbol)
+			: symbol;
+	const declaration = resolvedSymbol.valueDeclaration?.resolve();
+	if (!isVariableDeclaration(declaration) || !declaration.initializer) {
+		return false;
+	}
+
+	const initializer = declaration.initializer;
+	if (!isObjectLiteralExpression(initializer)) {
+		return dynamicObjectMayContainReactContextFactory(
+			checker,
+			initializer,
+			reactCreateContext,
+			seenSymbolIds,
+		);
+	}
+
+	for (const property of initializer.properties) {
+		if (
+			isShorthandPropertyAssignment(property) &&
+			resolvesToReactCreateContext(
+				checker,
+				checker.getShorthandAssignmentValueSymbol(property),
+				reactCreateContext,
+			)
+		) {
+			return true;
+		}
+
+		if (
+			isPropertyAssignment(property) &&
+			resolvesToReactCreateContext(
+				checker,
+				symbolForExpression(checker, property.initializer),
+				reactCreateContext,
+			)
+		) {
+			return true;
+		}
+	}
+
+	return false;
+};
+
 const contextNameForCall = (callExpression) => {
 	const declaration = callExpression.parent;
 	if (
@@ -215,6 +279,10 @@ const contextNameForCall = (callExpression) => {
 
 	return '<anonymous context>';
 };
+
+const containsReactCreateContextCall = (renderedModule) =>
+	typeof renderedModule.code === 'string' &&
+	/\bcreateContext\s*\(/.test(renderedModule.code);
 
 export const findReactContextDeclarations = (
 	tsconfigPath,
@@ -264,6 +332,7 @@ export const findReactContextDeclarations = (
 					isReactContextFactoryValue(project.checker, node, reactCreateContext)
 				) {
 					contexts.push({
+						isFactoryValue: true,
 						name: '<React.createContext factory value>',
 						sourceFile: normalizeModuleId(sourceFile.fileName),
 					});
@@ -308,32 +377,35 @@ export const findContextChunkIsolationViolations = (
 	const chunksForSource = new Map();
 
 	for (const chunk of chunks) {
-		for (const moduleId of Object.keys(chunk.modules)) {
+		for (const [moduleId, renderedModule] of Object.entries(chunk.modules)) {
 			const normalizedModuleId = normalizeModuleId(moduleId);
-			const chunkNames = chunksForSource.get(normalizedModuleId) ?? new Set();
-			chunkNames.add(chunk.fileName);
-			chunksForSource.set(normalizedModuleId, chunkNames);
+			const moduleChunks = chunksForSource.get(normalizedModuleId) ?? [];
+			moduleChunks.push({ chunkName: chunk.fileName, renderedModule });
+			chunksForSource.set(normalizedModuleId, moduleChunks);
 		}
 	}
 
 	return contexts.flatMap((context) => {
 		const chunkNames = new Set();
-		for (const [moduleId, names] of chunksForSource) {
+		for (const [moduleId, moduleChunks] of chunksForSource) {
 			if (
 				moduleId !== context.sourceFile &&
 				(!moduleId.startsWith(`${context.sourceFile}?`) ||
-					TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId))
+					(TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId) &&
+						!moduleChunks.some(({ renderedModule }) =>
+							containsReactCreateContextCall(renderedModule),
+						)))
 			) {
 				continue;
 			}
 
-			for (const chunkName of names) {
+			for (const { chunkName } of moduleChunks) {
 				chunkNames.add(chunkName);
 			}
 		}
 
 		const sourcePath = path.relative(projectDirectory, context.sourceFile);
-		if (chunkNames.size === 0) {
+		if (chunkNames.size === 0 && !context.isFactoryValue) {
 			return [
 				`${context.name} in ${sourcePath} is not present in a client chunk.`,
 			];

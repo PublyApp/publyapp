@@ -273,6 +273,33 @@ void test('fails closed when a dynamic React element access is hoisted before th
 	}
 });
 
+void test('fails closed when a dynamic object-holder access could be React createContext', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/react-api.ts': `
+			import { createContext } from 'react';
+			export const reactApi: any = { createContext };
+		`,
+		'src/dynamic-object-holder.ts': `
+			import { reactApi } from './react-api';
+			const key: any = 'create' + 'Context';
+			const make = reactApi[key];
+			export const DynamicContext = make(null);
+		`,
+	});
+
+	try {
+		assert.throws(
+			() =>
+				findReactContextDeclarations(
+					path.join(fixtureDirectory, 'tsconfig.json'),
+				),
+			/cannot prove a dynamic React element access/i,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('reports each React context whose source module is in multiple client chunks', () => {
 	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
 	const contexts = [
@@ -296,7 +323,7 @@ void test('reports each React context whose source module is in multiple client 
 	);
 });
 
-void test('does not treat TanStack route virtual-module siblings as duplicate source modules', () => {
+void test('counts a TanStack route virtual-module sibling that still creates the context', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -309,9 +336,62 @@ void test('does not treat TanStack route virtual-module siblings as duplicate so
 				{ fileName: 'assets/route.js', modules: { [sourceFile]: {} } },
 				{
 					fileName: 'assets/route-component.js',
-					modules: { [`${sourceFile}?tsr-split=component`]: {} },
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: 'const RouteContext = createContext(null);',
+							renderedLength: 49,
+						},
+					},
 				},
 			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('ignores a TanStack route virtual-module sibling after it no longer contains a context', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{ fileName: 'assets/route.js', modules: { [sourceFile]: {} } },
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: 'const SplitComponent = () => null;',
+							renderedLength: 34,
+						},
+					},
+				},
+			],
+		),
+		[],
+	);
+});
+
+void test('does not require a client chunk for an unbundled factory-value mention', () => {
+	const sourceFile = path.join(frontDirectory, 'scripts/vitest.setup.ts');
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					isFactoryValue: true,
+					name: '<React.createContext factory value>',
+					sourceFile,
+				},
+			],
+			[],
+			frontDirectory,
 		),
 		[],
 	);
