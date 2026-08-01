@@ -432,6 +432,20 @@ void test('discovers factory-minted contexts in unbound holder positions', async
 			import { createStrictContext } from './make-context';
 			export default createStrictContext<null>(null);
 		`,
+		'src/as-wrapped-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			import type { StrictContext } from './make-context';
+			export const contexts = { probe: createStrictContext<null>(null) as StrictContext<null> };
+		`,
+		'src/paren-wrapped-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			export const contexts = { probe: (createStrictContext<null>(null)) };
+		`,
+		'src/export-default-as.tsx': `
+			import { createStrictContext } from './make-context';
+			import type { StrictContext } from './make-context';
+			export default createStrictContext<null>(null) as StrictContext<null>;
+		`,
 	});
 
 	try {
@@ -443,6 +457,9 @@ void test('discovers factory-minted contexts in unbound holder positions', async
 			'src/array-holder.tsx',
 			'src/array-destructure.tsx',
 			'src/export-default.tsx',
+			'src/as-wrapped-holder.tsx',
+			'src/paren-wrapped-holder.tsx',
+			'src/export-default-as.tsx',
 		]) {
 			assert.equal(
 				contexts.some(

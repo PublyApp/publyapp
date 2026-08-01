@@ -3,6 +3,7 @@ import path from 'node:path';
 import { SyntaxKind } from 'typescript/unstable/ast';
 import {
 	isArrayLiteralExpression,
+	isAsExpression,
 	isBindingElement,
 	isBinaryExpression,
 	isCallExpression,
@@ -12,15 +13,18 @@ import {
 	isIdentifier,
 	isImportSpecifier,
 	isInterfaceDeclaration,
+	isNonNullExpression,
 	isObjectBindingPattern,
 	isObjectLiteralExpression,
 	isParenthesizedExpression,
 	isPropertyAssignment,
 	isPropertyAccessExpression,
 	isPropertyDeclaration,
+	isSatisfiesExpression,
 	isShorthandPropertyAssignment,
 	isStringLiteral,
 	isTypeAliasDeclaration,
+	isTypeAssertion,
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
 import { createVirtualFileSystem } from 'typescript/unstable/fs';
@@ -471,6 +475,29 @@ const declarationBinding = (checker, node) => {
 	return undefined;
 };
 
+// Transparent expression wrappers (parens, `as`, `!`, `satisfies`) keep the
+// wrapped call as the holder's value, so the holder-position check walks
+// through them: `{ probe: createStrictContext(null) as StrictContext<null> }`
+// is still a holder-position mint.
+const holderPositionOfCall = (node) => {
+	let current = node;
+	for (;;) {
+		const parent = current.parent;
+		if (
+			isParenthesizedExpression(parent) ||
+			isAsExpression(parent) ||
+			isTypeAssertion(parent) ||
+			isNonNullExpression(parent) ||
+			isSatisfiesExpression(parent)
+		) {
+			current = parent;
+			continue;
+		}
+
+		return parent;
+	}
+};
+
 // Rolldown currently collapses most aliases to these property-access forms
 // before this parser runs. That is observed bundler behavior, not a guaranteed
 // contract, so module-local aliases are resolved below and other context
@@ -623,7 +650,7 @@ const analyzeRenderedContextModule = (
 					`Context chunk isolation guard cannot prove an unrecognized rendered createContext callee in ${moduleLabel}.`,
 				);
 			} else {
-				const declaration = node.parent;
+				const declaration = holderPositionOfCall(node);
 				if (
 					(isPropertyAssignment(declaration) ||
 						isArrayLiteralExpression(declaration) ||
@@ -811,16 +838,16 @@ export const findReactContextDeclarations = (
 				}
 
 				if (isCallExpression(node)) {
-					const declaration = node.parent;
+					const position = holderPositionOfCall(node);
 					const isDeclarationInitializer =
-						(isVariableDeclaration(declaration) ||
-							isPropertyDeclaration(declaration)) &&
-						declaration.initializer === node;
+						(isVariableDeclaration(position) ||
+							isPropertyDeclaration(position)) &&
+						position.initializer === node;
 					if (!isDeclarationInitializer) {
 						const isHolderPosition =
-							isPropertyAssignment(declaration) ||
-							isArrayLiteralExpression(declaration) ||
-							isExportAssignment(declaration);
+							isPropertyAssignment(position) ||
+							isArrayLiteralExpression(position) ||
+							isExportAssignment(position);
 						if (
 							isHolderPosition &&
 							typeContainsReactContext(
