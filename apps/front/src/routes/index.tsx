@@ -15,6 +15,7 @@ import {
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { type KeyboardEvent, type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FEATURES } from '~/lib/flags';
 
 type TabId = 'calendar' | 'composer' | 'approvals' | 'profiles' | 'dashboards';
 
@@ -162,6 +163,55 @@ const FAQ_ITEMS: readonly FaqItem[] = [
 		questionKey: 'landing-faq-3-question',
 		answerKey: 'landing-faq-3-answer',
 	},
+] as const;
+
+type PricingTier = {
+	id: 'studio' | 'agency' | 'network';
+	nameKey: string;
+	priceKey: string;
+	descriptionKey: string;
+	ctaKey: string;
+	badgeKey?: string;
+};
+
+const PRICING_TIERS: readonly PricingTier[] = [
+	{
+		id: 'studio',
+		nameKey: 'landing-pricing-studio-name',
+		priceKey: 'landing-pricing-studio-price',
+		descriptionKey: 'landing-pricing-studio-description',
+		ctaKey: 'landing-pricing-studio-cta',
+	},
+	{
+		id: 'agency',
+		nameKey: 'landing-pricing-agency-name',
+		priceKey: 'landing-pricing-agency-price',
+		descriptionKey: 'landing-pricing-agency-description',
+		ctaKey: 'landing-pricing-agency-cta',
+		badgeKey: 'landing-pricing-agency-badge',
+	},
+	{
+		id: 'network',
+		nameKey: 'landing-pricing-network-name',
+		priceKey: 'landing-pricing-network-price',
+		descriptionKey: 'landing-pricing-network-description',
+		ctaKey: 'landing-pricing-network-cta',
+	},
+];
+
+const CUSTOMER_LOGO_KEYS = [
+	'landing-customer-logo-northbeam',
+	'landing-customer-logo-halcyon',
+	'landing-customer-logo-fieldnote',
+	'landing-customer-logo-studio-mera',
+	'landing-customer-logo-orrery',
+	'landing-customer-logo-caldera',
+] as const;
+
+const SOCIAL_PROOF_KEYS = [
+	'landing-social-proof-rating',
+	'landing-social-proof-brands',
+	'landing-social-proof-setup',
 ] as const;
 
 export const IndexRoute = () => {
@@ -443,6 +493,97 @@ export const IndexRoute = () => {
 					))}
 				</div>
 			</section>
+
+			<section
+				data-testid="landing-pricing"
+				className="pt-[clamp(74px,10.5cqw,156px)]"
+			>
+				<div className="mx-auto max-w-[760px] text-center">
+					<h2 className="text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
+						{t('landing-pricing-title')}
+					</h2>
+					<p className="mx-auto mt-4 max-w-[58ch] text-[16px] leading-[1.68] text-(--publy-foreground-secondary)">
+						{t('landing-pricing-subtitle')}
+					</p>
+				</div>
+				<div className="mt-8 grid gap-4 md:grid-cols-3">
+					{PRICING_TIERS.map((tier) => (
+						<article
+							key={tier.id}
+							data-testid={`landing-pricing-${tier.id}`}
+							className="flex flex-col rounded-[var(--publy-radius-control)] border border-(--publy-border) bg-(--publy-surface-raised) p-6"
+						>
+							{tier.badgeKey ? (
+								<span className="self-start rounded-[var(--publy-radius-small-control)] border border-(--publy-border) px-2.5 py-1 text-xs font-semibold text-(--publy-foreground-secondary)">
+									{t(tier.badgeKey)}
+								</span>
+							) : null}
+							<h3 className="mt-4 text-[22px] font-semibold tracking-[-0.03em] text-(--publy-foreground)">
+								{t(tier.nameKey)}
+							</h3>
+							<div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+								<span className="text-[34px] font-semibold tracking-[-0.04em] text-(--publy-foreground)">
+									<del>{t(tier.priceKey)}</del>
+								</span>
+								<span className="text-sm text-(--publy-foreground-secondary)">
+									{t('landing-pricing-per-month')}
+								</span>
+								<span className="text-xs text-(--publy-foreground-secondary)">
+									{t('landing-pricing-beta-note')}
+								</span>
+							</div>
+							<p className="mt-4 min-h-[78px] text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
+								{t(tier.descriptionKey)}
+							</p>
+							<Link
+								to="/signup"
+								className="mt-7 inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] bg-(--publy-foreground) px-5 text-sm font-semibold text-(--publy-background)"
+							>
+								{t(tier.ctaKey)}
+							</Link>
+						</article>
+					))}
+				</div>
+			</section>
+
+			{FEATURES.marketing.customerLogos ? (
+				<section
+					data-testid="landing-customer-logos"
+					className="pt-[clamp(52px,7cqw,96px)]"
+				>
+					<h2 className="mx-auto max-w-[58ch] text-center text-[clamp(22px,2.8cqw,34px)] leading-[1.15] tracking-[-0.03em]">
+						{t('landing-customer-logos-title')}
+					</h2>
+					<div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
+						{CUSTOMER_LOGO_KEYS.map((logoKey) => (
+							<div
+								key={logoKey}
+								className="flex min-h-16 items-center justify-center rounded-[var(--publy-radius-small-control)] border border-(--publy-border) bg-(--publy-background) px-4 text-center text-sm font-semibold tracking-[0.02em] text-(--publy-foreground-secondary)"
+							>
+								{t(logoKey)}
+							</div>
+						))}
+					</div>
+				</section>
+			) : null}
+
+			{FEATURES.marketing.socialProof ? (
+				<section
+					data-testid="landing-social-proof"
+					className="pt-[clamp(52px,7cqw,96px)]"
+				>
+					<div className="grid grid-cols-1 divide-y divide-(--publy-border) border-y border-(--publy-border) sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+						{SOCIAL_PROOF_KEYS.map((proofKey) => (
+							<p
+								key={proofKey}
+								className="px-6 py-5 text-center text-[15px] font-semibold leading-[1.4] text-(--publy-foreground-secondary)"
+							>
+								{t(proofKey)}
+							</p>
+						))}
+					</div>
+				</section>
+			) : null}
 
 			<section className="pt-[clamp(74px,10.5cqw,156px)]" id="faq">
 				<div className="mx-auto max-w-[760px] text-center">

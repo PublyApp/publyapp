@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
@@ -23,6 +23,28 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+const marketingFlags = vi.hoisted(() => ({
+	customerLogos: false,
+	socialProof: false,
+}));
+
+vi.mock('~/lib/flags', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('~/lib/flags')>();
+
+	return {
+		...actual,
+		FEATURES: {
+			...actual.FEATURES,
+			get marketing() {
+				return {
+					...actual.FEATURES.marketing,
+					...marketingFlags,
+				};
+			},
+		},
+	};
+});
+
 import { IndexRoute } from './index';
 
 const TOUR_TAB_IDS = [
@@ -33,11 +55,18 @@ const TOUR_TAB_IDS = [
 	'dashboards',
 ] as const;
 
+const ALWAYS_VISIBLE_MARKETING_SECTION_COUNT = 9;
+
 const getTourPanel = (container: HTMLElement, tabId: string) => {
 	return container.querySelector(`#tour-panel-${tabId}`) as HTMLDivElement;
 };
 
 describe('marketing landing route', () => {
+	beforeEach(() => {
+		marketingFlags.customerLogos = false;
+		marketingFlags.socialProof = false;
+	});
+
 	afterEach(() => {
 		cleanup();
 	});
@@ -50,6 +79,94 @@ describe('marketing landing route', () => {
 		expect(screen.getByText('landing-bento-title')).not.toBeNull();
 		expect(screen.getByText('landing-timeline-title')).not.toBeNull();
 		expect(screen.getByText('landing-faq-title')).not.toBeNull();
+	});
+
+	test('renders all beta pricing tiers with struck-through prices and signup CTAs', () => {
+		const { container } = render(<IndexRoute />);
+
+		expect(screen.getByTestId('landing-pricing')).not.toBeNull();
+		expect(
+			screen.getByRole('heading', { name: 'landing-pricing-title' }),
+		).not.toBeNull();
+
+		for (const tier of ['studio', 'agency', 'network']) {
+			expect(screen.getByTestId(`landing-pricing-${tier}`)).not.toBeNull();
+			expect(
+				screen
+					.getByRole('link', {
+						name: `landing-pricing-${tier}-cta`,
+					})
+					.getAttribute('href'),
+			).toBe('/signup');
+		}
+
+		for (const priceKey of [
+			'landing-pricing-studio-price',
+			'landing-pricing-agency-price',
+			'landing-pricing-network-price',
+		]) {
+			expect(screen.getByText(priceKey)).toHaveProperty('tagName', 'DEL');
+		}
+
+		expect(screen.getAllByText('landing-pricing-beta-note')).toHaveLength(3);
+		expect(container.querySelectorAll('del')).toHaveLength(3);
+	});
+
+	test('keeps optional marketing bands behind feature flags', () => {
+		const { container } = render(<IndexRoute />);
+
+		expect(container.querySelectorAll('section')).toHaveLength(
+			ALWAYS_VISIBLE_MARKETING_SECTION_COUNT,
+		);
+	});
+
+	test('does not render customer logos when the flag is off', () => {
+		marketingFlags.customerLogos = false;
+		render(<IndexRoute />);
+
+		expect(screen.queryByTestId('landing-customer-logos')).toBeNull();
+	});
+
+	test('renders all supplied customer logos when the flag is on', () => {
+		marketingFlags.customerLogos = true;
+		render(<IndexRoute />);
+
+		expect(screen.getByTestId('landing-customer-logos')).not.toBeNull();
+		expect(
+			screen.getByRole('heading', { name: 'landing-customer-logos-title' }),
+		).not.toBeNull();
+
+		for (const key of [
+			'landing-customer-logo-northbeam',
+			'landing-customer-logo-halcyon',
+			'landing-customer-logo-fieldnote',
+			'landing-customer-logo-studio-mera',
+			'landing-customer-logo-orrery',
+			'landing-customer-logo-caldera',
+		]) {
+			expect(screen.getByText(key)).not.toBeNull();
+		}
+	});
+
+	test('does not render social proof when the flag is off', () => {
+		marketingFlags.socialProof = false;
+		render(<IndexRoute />);
+
+		expect(screen.queryByTestId('landing-social-proof')).toBeNull();
+	});
+
+	test('renders all social-proof stats when the flag is on', () => {
+		marketingFlags.socialProof = true;
+		render(<IndexRoute />);
+
+		expect(screen.getByTestId('landing-social-proof')).not.toBeNull();
+		for (const key of [
+			'landing-social-proof-rating',
+			'landing-social-proof-brands',
+			'landing-social-proof-setup',
+		]) {
+			expect(screen.getByText(key)).not.toBeNull();
+		}
 	});
 
 	test('keeps the required navigation targets', () => {
