@@ -2,9 +2,10 @@
 
 Normative. Defends the invariant that every z-index utility in `apps/front/src` routes through the
 `--publy-z-*` scale declared in `src/styles/app.css`. The guard is
-`apps/front/scripts/check-zindex-guard.mjs` (run by `pnpm --filter front check:zindex`, wired into
-`pnpm --filter front test` and therefore `just ci-front`); its fixture suite is
-`apps/front/scripts/check-zindex-guard.test.mjs`.
+`apps/front/scripts/check-zindex-guard.mjs`; its fixture suite is
+`apps/front/scripts/check-zindex-guard.test.mjs`. The guard runs during `pnpm --filter front test`
+(inside the fixture suite's live-tree check — exactly one full scan per run) and via the standalone
+`pnpm --filter front check:zindex` CLI, and is therefore wired into `just ci-front`.
 
 ## The invariant
 
@@ -26,14 +27,18 @@ Every z-index utility (a Tailwind `z-*` class) in `apps/front/src` must route th
 Allowed spellings:
 
 - `z-(--publy-z-…)` and `z-[var(--publy-z-…)]` / `z-[--publy-z-…]`, with variants and `!`
-  (e.g. `md:z-(--publy-z-menu)`, `!z-(--publy-z-raised)`).
+  (e.g. `md:z-(--publy-z-menu)`, `!z-(--publy-z-raised)`, `z-(--publy-z-raised)!` — both
+  `!`-placement spellings are accepted, and the compiled gate normalises the emitted
+  `!important`).
+- Arbitrary-property shims whose value is a pure scale reference: `[z-index:var(--publy-z-…)]`.
 - `z-auto` and the other non-numeric CSS-wide keywords (`inherit`, `initial`, `unset`, `revert`,
   `revert-layer`) — these cannot participate in stacking, so no tier is needed.
 - `z-index: var(--publy-z-…)` in inline `style` objects and `@apply`.
 
 Anything else is a violation: `z-10`, `z-50`, `z-[60]`, `-z-10`, `!z-50`, `z-[var(--publy-z-menu,50)]`
-(a scale reference with a raw fallback is still a raw value when the token is unset), and any
-dynamic assembly (`z-${…}` across a template substitution).
+(a scale reference with a raw fallback is still a raw value when the token is unset), a raw
+arbitrary-property shim such as `[z-index:5]` (it ships `z-index: 5` and is reported both at source
+and in the compiled CSS), and any dynamic assembly (`z-${…}` across a template substitution).
 
 ## Mechanism
 
@@ -50,38 +55,71 @@ Four components:
    aware, position-preserving), then these positions are suppressed: literal/template-literal types,
    non-`className`/`class` JSX attributes, comparison operands, and every quoted string in CSS. Every
    other occurrence — including a plain variable initializer in one module that is consumed as a
-   class in another — is a delivery position and is reported.
+   class in another — is a delivery position and is reported. Arbitrary-property shims
+   (`[z-index:5]`) are classified here too: the property name is canonicalised (CSS property names
+   are ASCII-case-insensitive and may carry escapes, so `[Z-INDEX:5]` is the same shim), and only a
+   pure scale reference or a non-stacking keyword value is allowed.
 2. **`@apply` scan.** The extractor drops the token that ends an `@apply` directive right before `;`
    (`@apply block z-50;` yields no `z-50` candidate), so directive text is scanned directly.
 3. **Substitution-boundary scan.** `z-${level}` has no candidate at extractor time; a class-delivery
    template literal whose static parts carry a z-index fragment across a `${…}` boundary is reported.
-4. **Compiled-CSS gate.** The production-equivalent build output is scanned for `z-index:`
-   declarations that do not resolve through `var(--publy-z-…)`. This proves what actually ships —
-   the exact failure that killed the previous attempt, whose own fixture literals reached the shipped
-   stylesheet. It is the reason fixtures live in `scripts/`, outside any path the scanner watches.
+4. **Compiled-CSS gate.** The production-equivalent build output is parsed (not regex-matched) and
+   every `z-index:` declaration that does not resolve through `var(--publy-z-…)` is reported. The
+   parser canonicalises property names (`Z-INDEX: 50` and `z-\69ndex: 50` are the same declaration),
+   normalises an optional trailing `!important`, and attributes each declaration to the rule selector
+   it lives under — which is what lets the one raw exception be bound to its exact selector. This
+   proves what actually ships — the exact failure that killed the previous attempt, whose own fixture
+   literals reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any
+   path the scanner watches.
 
 ## Out of scope — stated, not silent
 
 A guard that silently does not cover something invites the belief that it does. These are declared
 gaps, each with its current evidence:
 
-- **Raw `z-index:` declarations in `app.css`.** Not Tailwind utilities. The single existing one,
-  `.publy-data-table thead`'s sticky header (`z-index: 5`), is allowlisted in
-  `KNOWN_RAW_Z_INDEX_DECLARATIONS` in the script with its reason: it sits inside the table card's
-  own stacking context, deliberately below `--publy-z-raised: 10`.
+- **Raw `z-index:` declarations in `app.css`.** Not Tailwind utilities. The single existing one is
+  the sticky `.publy-data-table thead` header (`z-index: 5`), allowlisted in
+  `KNOWN_RAW_Z_INDEX_DECLARATIONS` in the script — but the allowance is **bound to the exact selector
+  list and an expected occurrence count**, not to the value `5`. A raw `z-index: 5` on any other
+  selector (including a `.z-5` rule generated by `@source inline("z-5")` and the `[z-index:5]` shim),
+  or a duplicate of the bound rule, reds the guard. The rationale: `.publy-table-card`'s
+  `overflow: hidden` clips but does **not** establish a stacking context, so the header's `z-index: 5`
+  competes in the page-level stacking context — which is why the value must sit below every scale tier
+  (`--publy-z-raised` is 10). The header needs *some* z-index because the sticky cells are earlier in
+  DOM order than the body rows they scroll over; the value just needs to be above those rows and below
+  every tier. Inventing a scale tier for a single internal rule would widen the scale for no
+  architectural gain.
 - **Inline `style={{ zIndex }}` objects.** `toaster.tsx` already uses `var(--publy-z-toast)`;
   `initials-avatar.tsx` stacks overlapping avatars with `visible.length - index`, which has no scale
   meaning. Component 1 ignores these because inline styles are not extractor candidates, and
-  component 4 cannot see inline styles either.
+  component 4 cannot see inline styles either. **This is the only remaining green route to a working
+  raw z-index** (a runtime `style={{ zIndex: 5 }}`), and it is deliberately left open — see below.
 - **z-index assembled at runtime from values that never appear literally in `src`** (e.g. from an
   API response). No static guard can see this.
+- **A class assembled by `+` string concatenation (`'z-' + 5`).** It produces no extractor candidate,
+  so on its own it ships no rule and paints at `auto` — it is dead text. It becomes load-bearing only
+  **in combination with** a route that generates a rule for that class (`@source inline("z-5")`,
+  `@utility z-5`, a raw app.css rule, a `z-5` literal elsewhere). Any such route emits `z-index: 5`
+  into the compiled CSS, and the compiled gate reports exactly that rule — because the allowlist is
+  selector-bound, the generated rule is **not** exempted. So the combination is red, not a green
+  bypass: a `+`-concatenated class can ship a working raw z-index only when a rule ships, and shipping
+  that rule is itself a violation.
+
+### The one truly green raw z-index, and why it stays
+
+Inline `style={{ zIndex: … }}` is the single route that ships a working raw z-index while the guard is
+green — it is invisible to the extractor (component 1) and to the compiled stylesheet (component 4),
+so the guard cannot see it without an AST-level style-object scanner, which is a different mechanism.
+It is left open on purpose and policed by the code-standard: every inline z-index must reference the
+scale (the only current consumers already do).
 
 One deliberate interaction to understand: an innocent-looking string that *literally contains* a
 z-index utility (a `data-*` attribute value, a type literal, a test comment) still makes the
 extractor emit that utility into the built stylesheet when it sits under `src/`, because the
-production scanner is blind to context. Component 4 therefore turns red on it. That red is a true
-positive — the shipped CSS is polluted — not a false positive on the source construct; component 1
-stays green on all of the innocent constructs in the fixture suite. If you need such a literal under
-`src/`, break the utility token so the scanner cannot see it (e.g. `z-[60]` → `z-\\[60\\]`, or spell
-it "a numeric stacking value"). The cleanest place for fixtures is `scripts/`, which the scanner
-never watches.
+production scanner is blind to context. Component 4 therefore turns red on it — the fixture suite
+proves this end to end through the production scanner, and also proves the emitted rule is **not**
+silently exempted by the allowlist (it is reported, not swallowed). That red is a true positive — the
+shipped CSS is polluted — not a false positive on the source construct; component 1 stays green on all
+of the innocent constructs in the fixture suite. If you need such a literal under `src/`, break the
+utility token so the scanner cannot see it (e.g. `z-[60]` → `z-\\[60\\]`, or spell it "a numeric
+stacking value"). The cleanest place for fixtures is `scripts/`, which the scanner never watches.
