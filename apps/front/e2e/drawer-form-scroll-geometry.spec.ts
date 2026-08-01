@@ -1,0 +1,474 @@
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
+
+import { API_BASE_URL } from './helpers/api';
+import { loginAsStaffAdmin } from './helpers/login';
+
+/**
+ * #990 / PR #1054 browser-side guard. Earlier source-level checks could prove
+ * the authored parent chain and rule order, but not the effective cascade:
+ * higher specificity or Tailwind utilities could still turn the real form or
+ * body back into an unconstrained block and clip the footer.
+ *
+ * This spec follows profile-icon-picker-pin-geometry.spec.ts's live-route
+ * pattern. It opens all four REAL DrawerForm call sites against the real
+ * docker-compose `front` container, then measures their actual DOM and
+ * computed CSS in the ordinary `chromium` project. It never mirrors the
+ * drawer with `page.setContent()` and never reads a possibly stale `dist/`
+ * stylesheet. The small mock below is deliberately local: each e2e spec owns
+ * the exact network contract needed by its real routes.
+ */
+
+const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
+const PROFILE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
+const STAFF_USER_ID = '0197b8f0-5555-7ccc-8ccc-cccccccccccc';
+const FORCED_CONTENT_HEIGHT = 1_200;
+const GEOMETRY_EPSILON = 0.5;
+
+type Rect = {
+	bottom: number;
+	height: number;
+	left: number;
+	right: number;
+	top: number;
+	width: number;
+};
+
+type FlexChainItem = {
+	element: string;
+	minHeight: string;
+	parentDisplay: string;
+};
+
+type DrawerMeasurements = {
+	bodyClientHeight: number;
+	bodyOverflowY: string;
+	bodyScrollHeight: number;
+	bodyScrollTopAfter: number;
+	bodyScrollTopBefore: number;
+	drawerDisplay: string;
+	flexChain: FlexChainItem[];
+	footerAfterScroll: Rect;
+	footerBeforeScroll: Rect;
+	formClientHeight: number;
+	formDisplay: string;
+	formFlexDirection: string;
+	formMinHeight: string;
+	viewportHeight: number;
+	viewportWidth: number;
+};
+
+const isApiPath = (url: string, path: string): boolean => {
+	const parsed = new URL(url);
+	return parsed.origin === API_BASE_URL && parsed.pathname === path;
+};
+
+const mockDrawerDependencies = async (page: Page): Promise<void> => {
+	// A trailing single star cannot cross a path separator. `**` is required
+	// so this handler owns both the tenant resource and its real sub-paths.
+	await page.route('**/staff/tenants/**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					tenantId: TENANT_ID,
+					name: 'Acme Corporation',
+					code: 'ACME',
+					status: 'Active',
+					usersCount: 12,
+					maxUsers: 50,
+					ownersCount: 2,
+					pendingInvitationsCount: 0,
+					expiringSoonInvitationsCount: 0,
+					profilesCount: 0,
+					logoUrl: null,
+					legalName: 'Acme Corporation, Inc.',
+					websiteUrl: 'https://www.acme.example/',
+					lastActivityAt: '2020-06-01T09:00:00Z',
+					createdAt: '2026-07-01T09:00:00Z',
+					updatedAt: '2026-07-02T10:00:00Z',
+				}),
+			});
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/profiles`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					data: [
+						{
+							id: PROFILE_ID,
+							name: 'Publishing',
+							description: 'Can publish tenant content.',
+							icon: null,
+							tone: null,
+							isDefault: false,
+							userAccountCount: 3,
+							permissionsCount: 4,
+						},
+					],
+					nextCursor: null,
+				}),
+			});
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenants/${TENANT_ID}/users`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ data: [], nextCursor: null }),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
+
+	await page.route('**/staff/permissions/**', async (route) => {
+		const request = route.request();
+
+		if (
+			request.method() !== 'GET' ||
+			!isApiPath(request.url(), '/staff/permissions/scopes/tenant')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({}),
+		});
+	});
+
+	await page.route('**/staff/users/**', async (route) => {
+		const request = route.request();
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		if (isApiPath(request.url(), `/staff/users/${STAFF_USER_ID}`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					id: STAFF_USER_ID,
+					email: 'alex@example.com',
+					firstName: 'Alex',
+					lastName: 'User',
+					avatarUrl: null,
+					accountLevel: 'Admin',
+					status: 'Active',
+					createdAt: '2026-07-01T09:00:00Z',
+					updatedAt: '2026-07-02T10:00:00Z',
+				}),
+			});
+			return;
+		}
+
+		if (isApiPath(request.url(), `/staff/users/${STAFF_USER_ID}/profiles`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ assignedProfiles: [], maxProfilesPerUser: 25 }),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
+
+	await page.route('**/staff/profiles**', async (route) => {
+		const request = route.request();
+		if (
+			request.method() !== 'GET' ||
+			!isApiPath(request.url(), '/staff/profiles')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ data: [], nextCursor: null }),
+		});
+	});
+};
+
+const openProfileCreateDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockDrawerDependencies(page);
+	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?new=1`);
+	await expect(page.getByTestId('profile-form-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
+const openInviteUserDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockDrawerDependencies(page);
+	await page.goto(`/staff/tenants/${TENANT_ID}/users?invite=1`);
+	await expect(page.getByTestId('invite-tenant-user-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
+const openProfileEditDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockDrawerDependencies(page);
+	await page.goto(`/staff/tenants/${TENANT_ID}/profiles?edit=${PROFILE_ID}`);
+	await expect(page.getByTestId('profile-edit-details-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
+const openChangeEmailDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockDrawerDependencies(page);
+	await page.goto(`/staff/staff-users/${STAFF_USER_ID}/edit`);
+	await page.getByRole('button', { name: 'Change email' }).click();
+	await expect(page.getByTestId('change-staff-user-email-dialog')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
+const measureDrawer = async (
+	page: Page,
+	drawerTestId: string,
+): Promise<DrawerMeasurements> => {
+	const drawer = page.getByTestId(drawerTestId);
+	await expect(drawer).toHaveCSS('transform', 'none');
+
+	return drawer.evaluate(
+		async (surface, forcedContentHeight): Promise<DrawerMeasurements> => {
+			const drawerElement = surface as HTMLElement;
+			const form = drawerElement.querySelector('form.publy-drawer-form');
+			const body = drawerElement.querySelector('[data-slot="drawer-body"]');
+			const footer = drawerElement.querySelector('[data-slot="drawer-footer"]');
+
+			if (
+				!(form instanceof HTMLFormElement) ||
+				!(body instanceof HTMLElement) ||
+				!(footer instanceof HTMLElement) ||
+				!drawerElement.classList.contains('publy-drawer')
+			) {
+				throw new Error(
+					'Missing the real drawer form, body, footer, or surface',
+				);
+			}
+
+			const spacer = document.createElement('div');
+			spacer.dataset.drawerScrollTestSpacer = '';
+			spacer.setAttribute('aria-hidden', 'true');
+			spacer.style.flex = `0 0 ${forcedContentHeight}px`;
+			spacer.style.height = `${forcedContentHeight}px`;
+			spacer.style.minHeight = `${forcedContentHeight}px`;
+			body.append(spacer);
+
+			await new Promise<void>((resolve) => {
+				requestAnimationFrame(() => resolve());
+			});
+
+			const rectOf = (element: Element): Rect => {
+				const rect = element.getBoundingClientRect();
+				return {
+					bottom: rect.bottom,
+					height: rect.height,
+					left: rect.left,
+					right: rect.right,
+					top: rect.top,
+					width: rect.width,
+				};
+			};
+
+			const flexChain: FlexChainItem[] = [];
+			let current: HTMLElement = body;
+			while (current !== drawerElement) {
+				const parent = current.parentElement;
+				if (!(parent instanceof HTMLElement)) {
+					throw new Error(
+						'Drawer body ancestor chain did not reach the surface',
+					);
+				}
+
+				const style = getComputedStyle(current);
+				flexChain.push({
+					element:
+						current.getAttribute('data-slot') ?? current.tagName.toLowerCase(),
+					minHeight: style.minHeight,
+					parentDisplay: getComputedStyle(parent).display,
+				});
+				current = parent;
+			}
+
+			const formStyle = getComputedStyle(form);
+			const bodyStyle = getComputedStyle(body);
+			const footerBeforeScroll = rectOf(footer);
+			const bodyScrollTopBefore = body.scrollTop;
+			body.scrollTop = body.scrollHeight;
+
+			await new Promise<void>((resolve) => {
+				requestAnimationFrame(() => resolve());
+			});
+
+			return {
+				bodyClientHeight: body.clientHeight,
+				bodyOverflowY: bodyStyle.overflowY,
+				bodyScrollHeight: body.scrollHeight,
+				bodyScrollTopAfter: body.scrollTop,
+				bodyScrollTopBefore,
+				drawerDisplay: getComputedStyle(drawerElement).display,
+				flexChain,
+				footerAfterScroll: rectOf(footer),
+				footerBeforeScroll,
+				formClientHeight: form.clientHeight,
+				formDisplay: formStyle.display,
+				formFlexDirection: formStyle.flexDirection,
+				formMinHeight: formStyle.minHeight,
+				viewportHeight: window.innerHeight,
+				viewportWidth: window.innerWidth,
+			};
+		},
+		FORCED_CONTENT_HEIGHT,
+	);
+};
+
+const assertDrawerScrollGeometry = async (
+	page: Page,
+	testInfo: TestInfo,
+	drawerTestId: string,
+): Promise<void> => {
+	const measurements = await measureDrawer(page, drawerTestId);
+
+	await testInfo.attach(`${drawerTestId}-geometry`, {
+		body: JSON.stringify(measurements, null, 2),
+		contentType: 'application/json',
+	});
+	testInfo.annotations.push({
+		type: 'drawer-geometry',
+		description: JSON.stringify(measurements),
+	});
+
+	// 1. The real form is both the shrinking flex item and the column that
+	// distributes its body/footer children.
+	expect(measurements.formDisplay, 'form computed display').toBe('flex');
+	expect(measurements.formFlexDirection, 'form computed flex direction').toBe(
+		'column',
+	);
+	expect(measurements.formMinHeight, 'form computed min-height').toBe('0px');
+
+	// 2. Overflow belongs to the body and the forced content genuinely makes
+	// that exact element overflow vertically.
+	expect(['auto', 'scroll'], 'body computed overflow-y').toContain(
+		measurements.bodyOverflowY,
+	);
+	expect(
+		measurements.bodyScrollHeight,
+		'body scrollHeight should exceed clientHeight',
+	).toBeGreaterThan(measurements.bodyClientHeight);
+
+	// 3. Chromium accepted the scroll and the footer did not travel with the
+	// body contents.
+	expect(
+		measurements.bodyScrollTopAfter,
+		'body scrollTop should change',
+	).toBeGreaterThan(measurements.bodyScrollTopBefore);
+	expect(
+		Math.abs(
+			measurements.footerAfterScroll.top - measurements.footerBeforeScroll.top,
+		),
+		'footer top should stay fixed while the body scrolls',
+	).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+	expect(
+		Math.abs(
+			measurements.footerAfterScroll.bottom -
+				measurements.footerBeforeScroll.bottom,
+		),
+		'footer bottom should stay fixed while the body scrolls',
+	).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+
+	// 4. The whole non-zero footer is vertically inside the viewport. This is
+	// the user-visible regression boundary from #990: the actions must not be
+	// clipped below the short viewport.
+	expect(measurements.footerAfterScroll.height).toBeGreaterThan(0);
+	expect(measurements.footerAfterScroll.top).toBeGreaterThanOrEqual(0);
+	expect(measurements.footerAfterScroll.bottom).toBeLessThanOrEqual(
+		measurements.viewportHeight,
+	);
+
+	// 5. Starting at the body and stopping at the drawer surface, every node
+	// must be a flex item whose automatic minimum cannot own unconstrained
+	// height. This catches an intermediate block wrapper through computed
+	// geometry rather than direct-parent identity.
+	expect(measurements.drawerDisplay, 'drawer surface computed display').toBe(
+		'flex',
+	);
+	expect(measurements.flexChain.length).toBeGreaterThanOrEqual(2);
+	for (const item of measurements.flexChain) {
+		expect(
+			['flex', 'inline-flex'],
+			`${item.element} should be a flex item`,
+		).toContain(item.parentDisplay);
+		expect(item.minHeight, `${item.element} computed min-height`).toBe('0px');
+	}
+};
+
+test.describe('form-bearing drawer scroll geometry (#990 / PR #1054)', () => {
+	test.beforeEach(async ({ page }) => {
+		await page.setViewportSize({ width: 900, height: 600 });
+	});
+
+	test('the real create-profile drawer scrolls its body and keeps its footer reachable', async ({
+		page,
+	}, testInfo) => {
+		await openProfileCreateDrawer(page);
+		await assertDrawerScrollGeometry(page, testInfo, 'profile-form-drawer');
+	});
+
+	test('the real invite-user drawer scrolls its body and keeps its footer reachable', async ({
+		page,
+	}, testInfo) => {
+		await openInviteUserDrawer(page);
+		await assertDrawerScrollGeometry(
+			page,
+			testInfo,
+			'invite-tenant-user-drawer',
+		);
+	});
+
+	test('the real edit-profile drawer scrolls its body and keeps its footer reachable', async ({
+		page,
+	}, testInfo) => {
+		await openProfileEditDrawer(page);
+		await assertDrawerScrollGeometry(
+			page,
+			testInfo,
+			'profile-edit-details-drawer',
+		);
+	});
+
+	test('the real change-email drawer scrolls its body and keeps its footer reachable', async ({
+		page,
+	}, testInfo) => {
+		await openChangeEmailDrawer(page);
+		await assertDrawerScrollGeometry(
+			page,
+			testInfo,
+			'change-staff-user-email-dialog',
+		);
+	});
+});
