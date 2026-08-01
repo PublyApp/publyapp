@@ -38,6 +38,16 @@ import {
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 
+// Fixture trees must live under `scripts/` so `@import 'tailwindcss'` resolves
+// from `apps/front/node_modules`; a hard kill during the suite could otherwise
+// leave `scripts/zindex-guard-*` directories in the working tree. Sweep any
+// stale fixture directories up front so the suite always starts clean.
+for (const entry of await readdir(scriptsDir)) {
+	if (/^zindex-(guard|outdir)-/.test(entry)) {
+		await rm(path.join(scriptsDir, entry), { recursive: true, force: true });
+	}
+}
+
 const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 :root {
   --publy-z-raised: 10;
