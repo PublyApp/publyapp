@@ -227,6 +227,15 @@ describe('displayLocalMutationFailure', () => {
 });
 
 describe('toastLocalMutationResult', () => {
+	test('forwards optional descriptions through the presentation adapter', async () => {
+		adapter.toastLocalMutationResult.success('Created', 'The record is ready');
+		await flushToast();
+
+		expect(mocks.toast.success).toHaveBeenCalledWith('Created', {
+			description: 'The record is ready',
+		});
+	});
+
 	test('forwards localized domain messages to matching Sonner methods', async () => {
 		adapter.toastLocalMutationResult.success('Created');
 		adapter.toastLocalMutationResult.error('Failed');

@@ -28,13 +28,8 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-vi.mock('sonner', () => ({
-	toast: Object.assign(toastMocks.default, {
-		error: toastMocks.error,
-		info: toastMocks.info,
-		success: toastMocks.success,
-		warning: toastMocks.warning,
-	}),
+vi.mock('~/lib/mutation-toast', () => ({
+	toastLocalMutationResult: toastMocks,
 }));
 
 import { Route } from './field-validation';
@@ -50,19 +45,11 @@ describe('field-validation route', () => {
 
 		for (const variant of ['success', 'error', 'warning', 'info'] as const) {
 			fireEvent.click(screen.getByTestId(`toast-contrast-${variant}`));
-			expect(toastMocks[variant]).toHaveBeenCalledWith(
-				`${variant} contrast message`,
-				{ description: `${variant} contrast description` },
-			);
+			expect(toastMocks[variant]).toHaveBeenCalledWith('active', 'description');
 		}
 
 		fireEvent.click(screen.getByTestId('toast-contrast-default'));
-		expect(toastMocks.default).toHaveBeenCalledWith(
-			'default contrast message',
-			{
-				description: 'default contrast description',
-			},
-		);
+		expect(toastMocks.default).toHaveBeenCalledWith('active', 'description');
 	});
 
 	test('authors inert compiled-style probes for focus and invalid focus', () => {
