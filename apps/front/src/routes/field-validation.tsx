@@ -22,6 +22,7 @@ import { FEATURES } from '~/lib/flags';
 
 type FieldValidationValues = {
 	email: string;
+	statusEnabled: boolean;
 };
 
 const FieldValidationRoute = () => {
@@ -29,6 +30,7 @@ const FieldValidationRoute = () => {
 	const resolver = zodResolver(
 		z.object({
 			email: z.string().email(),
+			statusEnabled: z.boolean(),
 		}),
 	);
 
@@ -36,6 +38,7 @@ const FieldValidationRoute = () => {
 		resolver,
 		defaultValues: {
 			email: '',
+			statusEnabled: true,
 		},
 	});
 	const [status, setStatus] = useState('');
@@ -59,6 +62,11 @@ const FieldValidationRoute = () => {
 						label={t('email')}
 						placeholder={t('email-placeholder')}
 						required
+					/>
+					<Field.Switch
+						name="statusEnabled"
+						label={t('status')}
+						description={t('description')}
 					/>
 					<Button
 						type="submit"
