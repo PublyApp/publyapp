@@ -771,9 +771,8 @@ const cssAncestorsEqual = (left, right) =>
 // declaration. PostCSS keeps comment syntax, nested rules, at-rules, and
 // component-value braces distinct, so declaration ownership comes from the
 // AST instead of delimiter counting.
-const scanCssDeclarations = (css) => {
+const scanCssDeclarations = (root) => {
 	const declarations = [];
-	const root = postcss.parse(css, { from: undefined });
 	root.walkDecls((declaration) => {
 		const rule = declaration.parent;
 		declarations.push({
@@ -809,7 +808,23 @@ export const checkCompiledCssZIndex = (
 ) => {
 	const violations = [];
 	const seenCounts = new Map();
-	for (const declaration of scanCssDeclarations(compiledCss)) {
+	const root = postcss.parse(compiledCss, { from: undefined });
+	root.walkAtRules((atRule) => {
+		if (canonicaliseCssProperty(atRule.name) !== 'import') {
+			return;
+		}
+		const source = `@import ${atRule.params};`;
+		violations.push({
+			ruleId: 'z-index-residual-css-import',
+			message:
+				`shipped residual \`${source}\` cannot be inspected by the z-index ` +
+				'guard — every CSS import must resolve into the emitted asset.',
+			file: sourceName,
+			line: atRule.source?.start?.line ?? 1,
+			source,
+		});
+	});
+	for (const declaration of scanCssDeclarations(root)) {
 		if (
 			declaration.decodedProperty.startsWith('--publy-z-') &&
 			!isGlobalScaleDefinition(declaration, emitted)

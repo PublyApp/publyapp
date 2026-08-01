@@ -48,7 +48,12 @@ const buildViteFixture = async (root) => {
 	});
 };
 
-const runFixtureGuard = async (files, appCssExtra = '', entryImports = []) => {
+const runFixtureGuard = async (
+	files,
+	appCssExtra = '',
+	entryImports = [],
+	emittedCssOverride = null,
+) => {
 	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
 	try {
 		await mkdir(path.join(root, 'src'), { recursive: true });
@@ -66,11 +71,21 @@ const runFixtureGuard = async (files, appCssExtra = '', entryImports = []) => {
 			path.join(root, 'src/main.ts'),
 			[`import '../app.css';`, ...entryImports].join('\n'),
 		);
+		const productionBuild =
+			emittedCssOverride == null
+				? () => buildViteFixture(root)
+				: async () => {
+						await mkdir(path.join(root, 'dist'), { recursive: true });
+						await writeFile(
+							path.join(root, 'dist/fixture.css'),
+							emittedCssOverride,
+						);
+					};
 		const result = await runZIndexGuard({
 			baseDir: root,
 			appCssPath: path.join(root, 'app.css'),
 			emittedCssRoot: path.join(root, 'dist'),
-			productionBuild: () => buildViteFixture(root),
+			productionBuild,
 		});
 		return result;
 	} finally {
@@ -421,6 +436,53 @@ test('e2e (round 4 blocker 1): component-imported raw CSS is red in the emitted 
 		violations.map((violation) => violation.source),
 		['z-index: 993'],
 		`component-imported CSS must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 4 blocker 2): residual data-URL imports fail closed', async () => {
+	const dataImport =
+		'@import url("data:text/css,.evil%7Bposition%3Arelative%3Bz-index%3A997%7D");';
+	const { violations, emittedCssAssets } = await runFixtureGuard(
+		{ 'probe.ts': `export const probe = 'probe';` },
+		'',
+		[],
+		dataImport,
+	);
+	assert.ok(
+		emittedCssAssets.some((asset) => asset.content.includes('data:text/css')),
+		`fixture must retain the opaque import: ${JSON.stringify(emittedCssAssets)}`,
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		[dataImport],
+		`residual imports must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 4 blocker 2): resolved local relative imports stay clean', async () => {
+	const { violations, emittedCssAssets } = await runFixtureGuard(
+		{
+			'component.ts': `import './parent.css';\nexport const component = 'probe';`,
+			'parent.css': `@import './child.css';\n.parent { color: red; }`,
+			'child.css': `.child { color: blue; }`,
+		},
+		'',
+		[
+			`import { component } from './component';`,
+			`document.body.dataset.fixture = component;`,
+		],
+	);
+	assert.ok(
+		emittedCssAssets.some(
+			(asset) =>
+				asset.content.includes('.parent') && asset.content.includes('.child'),
+		),
+		`fixture must inline both local files: ${JSON.stringify(emittedCssAssets)}`,
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`resolved local imports must stay clean: ${JSON.stringify(violations)}`,
 	);
 });
 
