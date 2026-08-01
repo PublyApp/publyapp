@@ -29,6 +29,17 @@ import { loginAsStaffAdmin } from './helpers/login';
  * own text AND every descendant text node's parent element (a `<strong>`, a
  * count, an emphasised fragment, a linked policy version). A colour override
  * one DOM node inward cannot hide here.
+ *
+ * Round 7 M7 declared limits: ancestor `opacity` and `filter` are genuinely
+ * out of scope (neither is sampled), as is `text-shadow`-only text (no
+ * colour to measure) and pseudo-element generated text (`::before`/`::after`
+ * content is not a text node — today used only for decoration, never text).
+ * A gradient/background-image drawer surface is NOT "unreachable": the
+ * pattern is already live on `.publy-toast`, which paints a translucent tint
+ * over a flat surface. The background sampler reads `backgroundColor` only,
+ * so such a surface would be under-read silently the day a drawer adopts it.
+ * There is no drawer surface doing this today — but that is "unused", not a
+ * contract.
  */
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
@@ -433,7 +444,18 @@ const readBrowserComputedColors = async (
 				continue;
 			}
 			const style = getComputedStyle(parent);
-			const color = toSrgb(style.color);
+			// Round 7 M7: `-webkit-text-fill-color` paints the text in
+			// WebKit/Blink instead of `color` when both are set; reading only
+			// `color` would measure the wrong paint. Its computed value
+			// resolves to `color` when unset (Chromium) or to `currentcolor`
+			// in engines that leave it unresolved — both mean "the color
+			// value", so only a resolvable fill colour is used.
+			const webkitFill = style.webkitTextFillColor;
+			const color = toSrgb(
+				webkitFill !== '' && webkitFill !== 'currentcolor'
+					? webkitFill
+					: style.color,
+			);
 			const opacity = Number(style.opacity);
 			if (!Number.isFinite(opacity)) {
 				continue;

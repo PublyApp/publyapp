@@ -469,8 +469,13 @@ const findDrawerDescriptionCallSites = (): CallSite[] => {
 // `text-*` namespace is overloaded (colour, font size, alignment, wrapping,
 // ...), so generated CSS is still the authoritative way to distinguish a
 // colour override from typography. A candidate that generates no rule at all
-// fails closed by name instead of being silently replaced with the primitive's
-// compliant default colour.
+// fails closed by name; a candidate whose rule declares a colour resolves
+// THAT colour. The primitive's compliant default is only ever measured for a
+// class candidate that genuinely declares no colour (typography, animation) —
+// never as a substitute for one the guard cannot read (round 7 I1: the walker
+// used to answer "no colour" for every app component class in the first
+// `@layer components` block and the call-site test then measured the default
+// under the class's name).
 // Locates the node_modules package root for a (possibly scoped) package by
 // walking up from the app directory, mirroring Node's resolution. Used both to
 // resolve app.css's `@import`s and to read package metadata (round 5 I6).
@@ -541,6 +546,9 @@ const escapeClassName = (utility: string): string =>
 type CompiledUtilityStyle = {
 	/** Last `color:` declaration emitted by the utility's own rules, if any. */
 	color: string | null;
+	/** Last `-webkit-text-fill-color:` declaration, if any — the property that
+	 * actually paints text in WebKit/Blink when both are set (round 7 M7). */
+	textFillColor: string | null;
 	/** Last `opacity:` declaration emitted by the utility's own rules, if any. */
 	opacity: string | null;
 };
@@ -548,42 +556,57 @@ type CompiledUtilityStyle = {
 // Extracts the declarations of every rule in the compiled CSS whose selector
 // targets the utility's class. Scoped to those rules (not the whole output) so
 // a base rule like `.publy-drawer-description { color: ... }` cannot leak its
-// colour into a typography utility's verdict. At-rules (`@media`, `@supports`,
-// `@layer`) are entered rather than consumed, so a variant utility's rule
-// nested inside one is still found.
+// colour into a typography utility's verdict. Container at-rules (`@layer`,
+// `@media`, `@supports`) are ENTERED so a variant utility's rule nested inside
+// one is still found, but their bodies are walked recursively and the scan
+// resumes after the at-rule's own closing brace — a sibling rule's header can
+// never absorb a `}` that belongs to an at-rule. Declaration-only at-rules
+// (`@property`, `@font-face`, `@theme` — bodies with no nested rule braces)
+// are skipped whole: re-entering one would make the walker treat its body text
+// as the next rule's header and desynchronize the scan (round 7 I1).
 const declarationsFromUtilityRules = (
 	compiledCss: string,
 	utility: string,
 ): string[] => {
 	const needle = `.${escapeClassName(utility)}`;
 	const bodies: string[] = [];
-	let index = 0;
-	const length = compiledCss.length;
-	while (index < length) {
-		const open = compiledCss.indexOf('{', index);
-		if (open === -1) {
-			break;
-		}
-		const header = compiledCss.slice(index, open).trim();
-		let depth = 1;
-		let cursor = open + 1;
-		while (cursor < length && depth > 0) {
-			if (compiledCss[cursor] === '{') {
-				depth += 1;
-			} else if (compiledCss[cursor] === '}') {
-				depth -= 1;
+
+	const scan = (segment: string): void => {
+		let index = 0;
+		const length = segment.length;
+		while (index < length) {
+			const open = segment.indexOf('{', index);
+			if (open === -1) {
+				return;
 			}
-			cursor += 1;
+			const header = segment.slice(index, open).trim();
+			let depth = 1;
+			let cursor = open + 1;
+			let nested = false;
+			while (cursor < length && depth > 0) {
+				if (segment[cursor] === '{') {
+					depth += 1;
+					nested = true;
+				} else if (segment[cursor] === '}') {
+					depth -= 1;
+				}
+				cursor += 1;
+			}
+			if (header.startsWith('@')) {
+				if (nested) {
+					scan(segment.slice(open + 1, cursor - 1));
+				}
+				index = cursor;
+				continue;
+			}
+			if (header.includes(needle)) {
+				bodies.push(segment.slice(open + 1, cursor - 1));
+			}
+			index = cursor;
 		}
-		if (header.startsWith('@')) {
-			index = open + 1;
-			continue;
-		}
-		if (header.includes(needle)) {
-			bodies.push(compiledCss.slice(open + 1, cursor - 1));
-		}
-		index = cursor;
-	}
+	};
+
+	scan(compiledCss);
 	return bodies;
 };
 
@@ -634,8 +657,20 @@ const compiledStyleFromUtility = (
 			cssWithoutBanner,
 			utility,
 		);
-		const style: CompiledUtilityStyle = { color: null, opacity: null };
-		const declarationPattern = /(?:^|[{;])\s*([\w-]+)\s*:\s*([^;{}]+);/g;
+		const style: CompiledUtilityStyle = {
+			color: null,
+			textFillColor: null,
+			opacity: null,
+		};
+		// The terminating `;` is a LOOKAHEAD, not part of the match: consuming
+		// it would let the next match anchor only on the *following*
+		// declaration's `;` and silently skip every other declaration — a
+		// `color` at an even position (e.g. `.publy-drawer-description`'s
+		// `font-size` then `color`) was never extracted (round 7 I1). The `{`
+		// anchor still matches the `{` that opens a nested at-rule block, so a
+		// `color` inside one (e.g. `text-primary/50`'s nested `@supports`
+		// color-mix) still resolves last and fails closed by name.
+		const declarationPattern = /(?:^|[;{])\s*([\w-]+)\s*:\s*([^;{}]+)(?=;)/g;
 		for (const body of declarations) {
 			for (const match of body.matchAll(declarationPattern)) {
 				const value = match[2].trim();
@@ -643,6 +678,8 @@ const compiledStyleFromUtility = (
 					style.color = value;
 				} else if (match[1] === 'opacity') {
 					style.opacity = value;
+				} else if (match[1] === '-webkit-text-fill-color') {
+					style.textFillColor = value;
 				}
 			}
 		}
@@ -652,10 +689,19 @@ const compiledStyleFromUtility = (
 	return compiled;
 };
 
-const colorFromClassName = async (
+type ResolvedClassName = {
+	/** The colour a colour utility declares, or null when the className
+	 * declares none (typography utilities, app component classes without a
+	 * colour declaration, ...). */
+	color: Rgba | null;
+	/** The alpha factor an `opacity-*` utility declares, or null. */
+	opacity: number | null;
+};
+
+const resolveClassName = async (
 	className: string,
 	theme: 'light' | 'dark',
-): Promise<Rgba | null> => {
+): Promise<ResolvedClassName> => {
 	let resolved: Rgba | null = null;
 	let opacity: number | null = null;
 	for (const utility of className.split(/\s+/)) {
@@ -677,32 +723,41 @@ const colorFromClassName = async (
 			}
 			opacity = parsedOpacity;
 		}
-		if (compiledStyle.color === null) {
+
+		// `-webkit-text-fill-color` paints the text in WebKit/Blink instead of
+		// `color` when both are set (round 7 M7). `currentcolor` is its
+		// default: an explicit no-op override, not a blind spot.
+		const overrideDeclaration =
+			compiledStyle.textFillColor ?? compiledStyle.color;
+		if (
+			overrideDeclaration === null ||
+			overrideDeclaration === 'currentcolor'
+		) {
 			continue;
 		}
 
-		const variableMatch = /^var\((--[\w-]+)\)$/.exec(compiledStyle.color);
+		const variableMatch = /^var\((--[\w-]+)\)$/.exec(overrideDeclaration);
 		try {
 			resolved = variableMatch
 				? resolveColor(variableMatch[1], theme)
-				: parseColorValue(compiledStyle.color, utility);
+				: parseColorValue(overrideDeclaration, utility);
 		} catch (error) {
 			throw new Error(
-				`Unresolvable generated colour for ${utility}: ${compiledStyle.color}`,
+				`Unresolvable generated colour for ${utility}: ${overrideDeclaration}`,
 				{ cause: error },
 			);
 		}
 	}
-
-	// Round 5 "fourth door": an `opacity-*` utility does not change `color`,
-	// but it paints the text at that alpha over the surface, collapsing the
-	// effective contrast. Fold it into the resolved foreground's alpha so a
-	// `text-primary opacity-50` description cannot sail past both guards.
-	if (resolved !== null && opacity !== null && opacity < 1) {
-		return { ...resolved, a: resolved.a * opacity };
-	}
-	return resolved;
+	return { color: resolved, opacity };
 };
+
+// Round 5 "fourth door": an `opacity-*` utility does not change `color`, but
+// it paints the text at that alpha over the surface, collapsing the effective
+// contrast. Fold it into the foreground's alpha — whether that foreground is
+// the resolved utility colour or, for a BARE `opacity-*` (which softens the
+// existing colour), the primitive's default (round 7 I2).
+const withOpacity = (color: Rgba, opacity: number | null): Rgba =>
+	opacity !== null && opacity < 1 ? { ...color, a: color.a * opacity } : color;
 
 // The effective painted colour of a (possibly translucent) foreground over the
 // given background, which is what the contrast ratio must be computed against.
@@ -715,21 +770,23 @@ describe('drawer description text contrast (#1043)', () => {
 	test.each(['light', 'dark'] as const)(
 		'resolves every semantic text colour through the real Tailwind theme in %s mode',
 		async (theme) => {
-			expect(await colorFromClassName('text-primary text-sm', theme)).toEqual(
-				resolveColor('--primary', theme),
-			);
+			const resolution = await resolveClassName('text-primary text-sm', theme);
+			expect(resolution.color).toEqual(resolveColor('--primary', theme));
 		},
 	);
 
 	test('ignores generated typography utilities without mistaking them for colours', async () => {
-		expect(
-			await colorFromClassName('text-sm text-center text-balance', 'light'),
-		).toBeNull();
+		const resolution = await resolveClassName(
+			'text-sm text-center text-balance',
+			'light',
+		);
+		expect(resolution.color).toBeNull();
+		expect(resolution.opacity).toBeNull();
 	});
 
 	test('fails closed when Tailwind cannot resolve a className utility', async () => {
 		await expect(async () =>
-			colorFromClassName('text-unrecognised-colour', 'light'),
+			resolveClassName('text-unrecognised-colour', 'light'),
 		).rejects.toThrow(
 			'Unresolvable utility on a DrawerDescription: text-unrecognised-colour',
 		);
@@ -739,30 +796,61 @@ describe('drawer description text contrast (#1043)', () => {
 		const unresolvedToken = '--publy-' + 'not-declared';
 		const unresolvedUtility = `text-(${unresolvedToken})`;
 		await expect(async () =>
-			colorFromClassName(unresolvedUtility, 'light'),
+			resolveClassName(unresolvedUtility, 'light'),
 		).rejects.toThrow(
 			`Unresolvable generated colour for ${unresolvedUtility}: ` +
 				`var(${unresolvedToken})`,
 		);
 	});
 
-	// Round 5 I5: the guard must resolve the app's real classes, not fail on
-	// them — otherwise the "fix" for a legitimate case is editing the guard,
-	// which is how round 3's hole got in.
-	test.each(['publy-type-helper', 'animate-in', 'fade-in'] as const)(
-		'resolves the real app/tw-animate class %s as a non-colour utility',
+	// Round 7 I1: the round-6 "non-colour utility" test pinned the walker's
+	// blindness — it asserted that app component classes in the first
+	// `@layer components` block resolve NO colour, when each of them declares
+	// one in app.css. The table below asserts every such class resolves the
+	// colour it actually declares. `animate-in`/`fade-in` (tw-animate
+	// utilities with genuinely no colour declaration) stay colourless — the
+	// inverse direction, asserted together so neither can regress.
+	test.each([
+		['publy-type-helper', '--publy-foreground-subtle'],
+		['publy-field-helper', '--publy-foreground-subtle'],
+		['publy-type-eyebrow', '--publy-foreground-subtle'],
+		['publy-field-error', '--publy-danger'],
+		['publy-toast-description', '--publy-foreground-secondary'],
+		['publy-drawer-description', '--publy-foreground-secondary'],
+		['publy-danger-zone-row-description', '--publy-foreground-secondary'],
+		['publy-marketing-eyebrow', '--publy-foreground-muted'],
+	] as const)(
+		'resolves the real colour %s declares in app.css',
+		async (utility, token) => {
+			const resolution = await resolveClassName(utility, 'light');
+			expect(resolution.color).toEqual(resolveColor(token, 'light'));
+			expect(resolution.opacity).toBeNull();
+		},
+	);
+
+	test.each(['animate-in', 'fade-in'] as const)(
+		'resolves the real tw-animate class %s as genuinely non-colour',
 		async (utility) => {
-			expect(await colorFromClassName(utility, 'light')).toBeNull();
+			const resolution = await resolveClassName(utility, 'light');
+			expect(resolution.color).toBeNull();
+			expect(resolution.opacity).toBeNull();
 		},
 	);
 
 	test('resolves a Tailwind built-in palette colour without weakening fail-closed', async () => {
-		expect(await colorFromClassName('text-red-500', 'light')).toEqual(
-			resolveColor('--color-red-500', 'light'),
-		);
+		// Pinned against an INDEPENDENT source of truth (round 7 M3): a real
+		// Chromium paints oklch(63.7% 0.237 25.331) — Tailwind v4's default
+		// red-500 — as rgb(251, 44, 54) (#fb2c36), matching Tailwind's docs
+		// value. The conversion must match the browser, not merely itself.
+		expect((await resolveClassName('text-red-500', 'light')).color).toEqual({
+			r: 251,
+			g: 44,
+			b: 54,
+			a: 1,
+		});
 		// A genuinely unknown utility still throws by name.
 		await expect(async () =>
-			colorFromClassName('text-quantum-42', 'light'),
+			resolveClassName('text-quantum-42', 'light'),
 		).rejects.toThrow(
 			'Unresolvable utility on a DrawerDescription: text-quantum-42',
 		);
@@ -772,12 +860,60 @@ describe('drawer description text contrast (#1043)', () => {
 	// changing `color`, collapsing the effective contrast. The guard must fold
 	// it in, not report the opaque colour.
 	test('folds an opacity utility into the measured foreground', async () => {
-		const foreground = await colorFromClassName(
+		const resolution = await resolveClassName(
 			'text-primary opacity-50',
 			'light',
 		);
-		expect(foreground).not.toBeNull();
-		expect(foreground?.a).toBeCloseTo(0.5, 5);
+		const color = resolution.color;
+		expect(color).not.toBeNull();
+		if (color !== null) {
+			expect(withOpacity(color, resolution.opacity).a).toBeCloseTo(0.5, 5);
+		}
+	});
+
+	// Round 7 I2: a BARE `opacity-*` — the class an author writes to soften
+	// the existing colour — declares no colour utility at all, so the fold
+	// must apply to the primitive's default. Otherwise the call-site guard
+	// reports the opaque default and the text paints at ~2.6:1.
+	test('folds a bare opacity utility into the primitive default', async () => {
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
+		);
+		for (const theme of ['light', 'dark'] as const) {
+			const resolution = await resolveClassName('opacity-50', theme);
+			expect(resolution.color).toBeNull();
+			expect(resolution.opacity).toBeCloseTo(0.5, 5);
+			const background = compositedDrawerBackground(theme);
+			const foreground = withOpacity(
+				resolveColor(primitiveToken, theme),
+				resolution.opacity,
+			);
+			expect(
+				contrastRatio(effectiveForeground(foreground, background), background),
+				`bare opacity-50 on the primitive default in ${theme} theme`,
+			).toBeLessThan(SMALL_TEXT_CONTRAST_FLOOR);
+		}
+	});
+
+	// Round 7 M7: `-webkit-text-fill-color` paints the text in WebKit/Blink
+	// instead of `color` — reachable through an arbitrary-property utility. It
+	// must win over a coexisting colour utility exactly as it would in the
+	// browser, while `currentcolor` (its default) stays a no-op rather than
+	// reddening a class that merely wrote the default explicitly.
+	test('-webkit-text-fill-color overrides a colour utility in the measured foreground', async () => {
+		const resolution = await resolveClassName(
+			'text-primary [-webkit-text-fill-color:#' + 'ff0000]',
+			'light',
+		);
+		expect(resolution.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+	});
+
+	test('-webkit-text-fill-color:currentcolor is a no-op override', async () => {
+		const resolution = await resolveClassName(
+			'text-primary [-webkit-text-fill-color:' + 'currentcolor]',
+			'light',
+		);
+		expect(resolution.color).toEqual(resolveColor('--primary', 'light'));
 	});
 
 	// Pins the round-4 utility-resolution behaviours so the real app.css
@@ -792,28 +928,28 @@ describe('drawer description text contrast (#1043)', () => {
 	const rawNamedUtility = '[' + 'color' + ':' + 'red]';
 
 	test('keeps the round-4 resolution behaviours intact', async () => {
-		expect(await colorFromClassName('text-foreground', 'light')).toEqual(
+		expect((await resolveClassName('text-foreground', 'light')).color).toEqual(
 			resolveColor('--foreground', 'light'),
 		);
-		expect(await colorFromClassName('text-muted-foreground', 'light')).toEqual(
-			resolveColor('--muted-foreground', 'light'),
-		);
-		expect(await colorFromClassName(rawHexUtility, 'light')).toEqual({
+		expect(
+			(await resolveClassName('text-muted-foreground', 'light')).color,
+		).toEqual(resolveColor('--muted-foreground', 'light'));
+		expect((await resolveClassName(rawHexUtility, 'light')).color).toEqual({
 			r: 0x77,
 			g: 0x77,
 			b: 0x77,
 			a: 1,
 		});
-		expect(await colorFromClassName('dark:text-primary', 'light')).toEqual(
-			resolveColor('--primary', 'light'),
-		);
+		expect(
+			(await resolveClassName('dark:text-primary', 'light')).color,
+		).toEqual(resolveColor('--primary', 'light'));
 		for (const utility of [
 			'text-primary/50',
 			'text-primary!',
 			rawNamedUtility,
 		]) {
 			await expect(async () =>
-				colorFromClassName(utility, 'light'),
+				resolveClassName(utility, 'light'),
 			).rejects.toThrow('Unresolvable generated colour');
 		}
 	});
@@ -925,11 +1061,26 @@ describe('drawer description text contrast (#1043)', () => {
 
 			for (const theme of ['light', 'dark'] as const) {
 				const defaultForeground = resolveColor(primitiveToken, theme);
-				const foreground =
+				const resolution =
 					callSite.className === null
+						? null
+						: await resolveClassName(callSite.className, theme);
+				// A className that resolves NO colour override (typography
+				// utilities, animation classes, ...) keeps the primitive's
+				// default — a resolution, not a silent substitution (round 7
+				// I1): a class that DOES declare a colour now resolves that
+				// colour, so the fallback is only reachable when the className
+				// genuinely declares none. A bare `opacity-*` (round 7 I2)
+				// declares no colour but softens whichever colour paints —
+				// folded in below.
+				const baseForeground =
+					resolution === null || resolution.color === null
 						? defaultForeground
-						: ((await colorFromClassName(callSite.className, theme)) ??
-							defaultForeground);
+						: resolution.color;
+				const foreground = withOpacity(
+					baseForeground,
+					resolution === null ? null : resolution.opacity,
+				);
 				const background = compositedDrawerBackground(theme);
 				expect(
 					contrastRatio(
