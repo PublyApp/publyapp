@@ -18,6 +18,7 @@ import {
 	SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
+import { toastVariantClassNames } from '~/components/ui/toast-variants';
 import { FEATURES } from '~/lib/flags';
 import { toastLocalMutationResult } from '~/lib/mutation-toast';
 
@@ -25,13 +26,15 @@ type FieldValidationValues = {
 	email: string;
 };
 
-const toastContrastFixtures = [
-	'success',
-	'error',
-	'warning',
-	'info',
-	'default',
-] as const;
+/** Every toast the product can raise except the loading spinner, whose
+ * message-bearing siblings the contrast fixture already covers. Derived from
+ * the product's variant class names so a new variant appears here the moment
+ * it appears in `toast-variants.ts`. */
+const toastContrastFixtures = (
+	Object.keys(toastVariantClassNames) as Array<
+		keyof typeof toastVariantClassNames
+	>
+).filter((type) => type !== 'loading');
 
 const FieldValidationRoute = () => {
 	const { t } = useTranslation('common');

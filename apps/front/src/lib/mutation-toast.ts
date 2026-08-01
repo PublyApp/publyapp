@@ -162,6 +162,13 @@ export const displayLocalMutationFailure = async (
 	);
 };
 
+/**
+ * Local, message-only toasts for inline mutation feedback. The optional
+ * `description` parameter and the `default` variant are the toast-contrast
+ * fixture's way of raising a described neutral toast through the real
+ * product API (routes/field-validation.tsx) — that fixture is their only
+ * consumer today; every product call site passes a single message string.
+ */
 export const toastLocalMutationResult = {
 	default(message: string, description?: string): void {
 		void displayToast('default', message, description);
