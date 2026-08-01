@@ -14,8 +14,6 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { Scanner } from '@tailwindcss/oxide';
-import tailwindcss from '@tailwindcss/vite';
-import { build as viteBuild } from 'vite';
 
 import {
 	buildProductionApp,
@@ -59,44 +57,13 @@ const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 // `scripts/` so `@import 'tailwindcss'` resolves from `apps/front/node_modules`
 // (it would not resolve from the OS tmpdir) while staying invisible to the real
 // guard, whose scanner only watches `src/**`.
-const buildViteFixture = async (root) => {
-	const authoredCssPaths = new Set();
-	const authoredScriptPaths = new Set();
-	const inlineCssPaths = new Set();
-	await viteBuild({
-		root,
-		configFile: false,
-		logLevel: 'silent',
-		plugins: [
-			{
-				name: 'zindex-fixture-css-provenance',
-				enforce: 'pre',
-				transform(_code, id) {
-					const [filePath, query] = id.split('?');
-					if (filePath.endsWith('.css')) {
-						authoredCssPaths.add(path.resolve(filePath));
-						const queryTokens = query == null ? [] : query.split('&');
-						if (queryTokens.includes('inline') || queryTokens.includes('raw')) {
-							inlineCssPaths.add(path.resolve(filePath));
-						}
-					} else if (/\.[cm]?[jt]sx?$/.test(filePath)) {
-						authoredScriptPaths.add(path.resolve(filePath));
-					}
-					return null;
-				},
-			},
-			tailwindcss(),
-		],
-		build: { outDir: 'dist' },
-	});
-	return {
-		emittedCssRoot: path.join(root, 'dist'),
-		authoredCssPaths: [...authoredCssPaths],
-		authoredScriptPaths: [...authoredScriptPaths],
-		inlineCssPaths: [...inlineCssPaths],
-		cleanup: async () => {},
-	};
-};
+//
+// The fixture build IS the production build path (`buildProductionApp`): the
+// provenance recording every fixture exercises is the same pre-transform hook
+// the shipped CLI runs, not a test-file copy of it. A regression in the real
+// plugin's extension test, query parsing, or path recording reds these tests
+// instead of sailing past a stand-in.
+const buildViteFixture = async (root) => buildProductionApp(root);
 
 const runFixtureGuard = async (
 	files,
@@ -125,6 +92,14 @@ const runFixtureGuard = async (
 		await writeFile(
 			path.join(root, 'index.html'),
 			'<div id="app"></div><script type="module" src="/src/main.ts"></script>',
+		);
+		// The fixture build is the real `buildProductionApp`, so the fixture
+		// root needs its own Vite config: `@import 'tailwindcss'` in app.css
+		// must compile the way the production build compiles it.
+		await writeFile(
+			path.join(root, 'vite.config.mjs'),
+			"import tailwindcss from '@tailwindcss/vite';\n" +
+				'export default { plugins: [tailwindcss()] };\n',
 		);
 		await writeFile(
 			path.join(root, 'src/main.ts'),
@@ -184,8 +159,13 @@ const assertClean = (relativePath, content) => {
 	);
 };
 
+// Compiled-gate violations come from the emitted assets of the real build
+// (`emitted/<relative>` display paths, since the guard-owned output directory
+// lives in the OS temp root) or from an override fixture under `dist/`.
 const isCompiledCssFile = (file) =>
-	file === 'compiled stylesheet' || file.startsWith('dist/');
+	file === 'compiled stylesheet' ||
+	file.startsWith('dist/') ||
+	file.startsWith('emitted/');
 
 // ---------------------------------------------------------------------------
 // Classifier
