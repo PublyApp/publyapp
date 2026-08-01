@@ -20,7 +20,6 @@ import { API, SymbolFlags } from 'typescript/unstable/sync';
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
 const TANSTACK_ROUTE_VIRTUAL_MODULE = /[?&]tsr-(?:shared|split)=/;
 const SOURCE_MODULE_EXTENSION = /\.[cm]?[jt]sx?$/;
-const MINIMUM_CONTEXT_COUNT = 4;
 
 const normalizeModuleId = (moduleId) =>
 	path.normalize(moduleId).replaceAll('\\', '/');
@@ -193,7 +192,11 @@ const resolvesToReactCreateContext = (
 		);
 	}
 
-	if (!isVariableDeclaration(declaration) || !declaration.initializer) {
+	if (
+		!declaration ||
+		!isVariableDeclaration(declaration) ||
+		!declaration.initializer
+	) {
 		return false;
 	}
 
@@ -227,7 +230,11 @@ const dynamicObjectMayContainReactContextFactory = (
 			? checker.getAliasedSymbol(symbol)
 			: symbol;
 	const declaration = resolvedSymbol.valueDeclaration?.resolve();
-	if (!isVariableDeclaration(declaration) || !declaration.initializer) {
+	if (
+		!declaration ||
+		!isVariableDeclaration(declaration) ||
+		!declaration.initializer
+	) {
 		return false;
 	}
 
@@ -421,19 +428,57 @@ export const findContextChunkIsolationViolations = (
 	});
 };
 
+export const findContextInventoryViolations = (
+	contexts,
+	contextInventory,
+	projectDirectory,
+) => {
+	const discoveredContexts = new Set(
+		contexts.map(
+			(context) =>
+				`${context.name} in ${path.relative(projectDirectory, context.sourceFile)}`,
+		),
+	);
+	const expectedContexts = new Set(
+		contextInventory.map(
+			(context) => `${context.name} in ${context.sourceFile}`,
+		),
+	);
+	const violations = [];
+
+	for (const expectedContext of expectedContexts) {
+		if (!discoveredContexts.has(expectedContext)) {
+			violations.push(
+				`Expected context inventory entry ${expectedContext} is missing from the TypeScript program.`,
+			);
+		}
+	}
+
+	for (const discoveredContext of discoveredContexts) {
+		if (!expectedContexts.has(discoveredContext)) {
+			violations.push(
+				`Discovered React context ${discoveredContext} is missing from the checked-in inventory.`,
+			);
+		}
+	}
+
+	return violations;
+};
+
 const findTypeScriptProgramCoverageViolations = (
 	programSourceFiles,
 	chunks,
-	sourceDirectory,
+	workspaceDirectory,
 ) => {
-	const sourceDirectoryPrefix = `${normalizeModuleId(sourceDirectory)}/`;
+	const workspaceDirectoryPrefix = `${normalizeModuleId(workspaceDirectory)}/`;
 	const missingSourceFiles = new Set();
 
 	for (const chunk of chunks) {
 		for (const moduleId of Object.keys(chunk.modules)) {
 			const sourceFile = sourceFileForModuleId(moduleId);
 			if (
-				!sourceFile.startsWith(sourceDirectoryPrefix) ||
+				!sourceFile.startsWith(workspaceDirectoryPrefix) ||
+				sourceFile.includes('/node_modules/') ||
 				!SOURCE_MODULE_EXTENSION.test(sourceFile) ||
 				programSourceFiles.has(sourceFile)
 			) {
@@ -446,11 +491,15 @@ const findTypeScriptProgramCoverageViolations = (
 
 	return [...missingSourceFiles].map(
 		(sourceFile) =>
-			`Vite source module ${path.relative(sourceDirectory, sourceFile)} is not present in the TypeScript program.`,
+			`Vite source module ${path.relative(workspaceDirectory, sourceFile)} is not present in the TypeScript program.`,
 	);
 };
 
-export const contextChunkIsolationPlugin = ({ tsconfigPath }) => {
+export const contextChunkIsolationPlugin = ({
+	contextInventory,
+	tsconfigPath,
+	workspaceDirectory = path.dirname(tsconfigPath),
+}) => {
 	let contexts = [];
 	let programSourceFiles = new Set();
 
@@ -462,9 +511,16 @@ export const contextChunkIsolationPlugin = ({ tsconfigPath }) => {
 			contexts = findReactContextDeclarations(tsconfigPath, (sourceFiles) => {
 				programSourceFiles = sourceFiles;
 			});
-			if (contexts.length < MINIMUM_CONTEXT_COUNT) {
+			const inventoryViolations = findContextInventoryViolations(
+				contexts,
+				contextInventory,
+				path.dirname(tsconfigPath),
+			);
+			if (inventoryViolations.length > 0) {
 				throw new Error(
-					`Context chunk isolation guard expected at least ${MINIMUM_CONTEXT_COUNT} React contexts but found ${contexts.length}.`,
+					`React context inventory failed:\n${inventoryViolations
+						.map((violation) => `- ${violation}`)
+						.join('\n')}`,
 				);
 			}
 		},
@@ -482,7 +538,7 @@ export const contextChunkIsolationPlugin = ({ tsconfigPath }) => {
 				...findTypeScriptProgramCoverageViolations(
 					programSourceFiles,
 					chunks,
-					path.join(projectDirectory, 'src'),
+					workspaceDirectory,
 				),
 			];
 			if (violations.length > 0) {

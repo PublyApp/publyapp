@@ -407,12 +407,53 @@ void test('fails the plugin when no React contexts are discovered', async () => 
 
 	try {
 		const plugin = contextChunkIsolationPlugin({
+			contextInventory: [{ name: 'FirstContext', sourceFile: 'src/first.ts' }],
 			tsconfigPath: path.join(fixtureDirectory, 'tsconfig.json'),
 		});
 
 		assert.throws(
 			() => plugin.buildStart(),
-			/expected at least 4 React contexts but found 0/i,
+			/expected context inventory entry FirstContext in src\/first\.ts is missing/i,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('fails the plugin when its checked-in context inventory loses a discovered context', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/first.ts': `
+			import { createContext } from 'react';
+			export const FirstContext = createContext(null);
+		`,
+		'src/second.ts': `
+			import { createContext } from 'react';
+			export const SecondContext = createContext(null);
+		`,
+		'src/third.ts': `
+			import { createContext } from 'react';
+			export const ThirdContext = createContext(null);
+		`,
+		'src/fourth.ts': `
+			import { createContext } from 'react';
+			export const FourthContext = createContext(null);
+		`,
+	});
+
+	try {
+		const plugin = contextChunkIsolationPlugin({
+			contextInventory: [
+				{ name: 'FirstContext', sourceFile: 'src/first.ts' },
+				{ name: 'SecondContext', sourceFile: 'src/second.ts' },
+				{ name: 'ThirdContext', sourceFile: 'src/third.ts' },
+				{ name: 'MissingContext', sourceFile: 'src/fourth.ts' },
+			],
+			tsconfigPath: path.join(fixtureDirectory, 'tsconfig.json'),
+		});
+
+		assert.throws(
+			() => plugin.buildStart(),
+			/expected context inventory entry MissingContext in src\/fourth\.ts is missing/i,
 		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
@@ -445,6 +486,12 @@ void test('runs only for client builds and fails the plugin for unmapped or unty
 
 	try {
 		const plugin = contextChunkIsolationPlugin({
+			contextInventory: [
+				{ name: 'FirstContext', sourceFile: 'src/first.ts' },
+				{ name: 'SecondContext', sourceFile: 'src/second.ts' },
+				{ name: 'ThirdContext', sourceFile: 'src/third.ts' },
+				{ name: 'FourthContext', sourceFile: 'src/fourth.ts' },
+			],
 			tsconfigPath: path.join(fixtureDirectory, 'tsconfig.json'),
 		});
 		assert.equal(plugin.apply, 'build');
@@ -473,6 +520,69 @@ void test('runs only for client builds and fails the plugin for unmapped or unty
 
 		assert.match(errorMessage, /FirstContext.*not present in a client chunk/i);
 		assert.match(errorMessage, /untyped-context\.jsx.*TypeScript program/i);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('fails the plugin for a bundled first-party module outside front src that is absent from the TypeScript program', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/first.ts': `
+			import { createContext } from 'react';
+			export const FirstContext = createContext(null);
+		`,
+		'src/second.ts': `
+			import { createContext } from 'react';
+			export const SecondContext = createContext(null);
+		`,
+		'src/third.ts': `
+			import { createContext } from 'react';
+			export const ThirdContext = createContext(null);
+		`,
+		'src/fourth.ts': `
+			import { createContext } from 'react';
+			export const FourthContext = createContext(null);
+		`,
+		'packages/outside.ts': 'export const bundledOutsideSource = true;',
+	});
+
+	try {
+		const plugin = contextChunkIsolationPlugin({
+			contextInventory: [
+				{ name: 'FirstContext', sourceFile: 'src/first.ts' },
+				{ name: 'SecondContext', sourceFile: 'src/second.ts' },
+				{ name: 'ThirdContext', sourceFile: 'src/third.ts' },
+				{ name: 'FourthContext', sourceFile: 'src/fourth.ts' },
+			],
+			tsconfigPath: path.join(fixtureDirectory, 'tsconfig.json'),
+			workspaceDirectory: fixtureDirectory,
+		});
+		plugin.buildStart();
+
+		let errorMessage;
+		plugin.generateBundle.call(
+			{
+				error(message) {
+					errorMessage = message;
+				},
+			},
+			{},
+			{
+				'assets/app.js': {
+					fileName: 'assets/app.js',
+					modules: {
+						[path.join(fixtureDirectory, 'src/first.ts')]: {},
+						[path.join(fixtureDirectory, 'src/second.ts')]: {},
+						[path.join(fixtureDirectory, 'src/third.ts')]: {},
+						[path.join(fixtureDirectory, 'src/fourth.ts')]: {},
+						[path.join(fixtureDirectory, 'packages/outside.ts')]: {},
+					},
+					type: 'chunk',
+				},
+			},
+		);
+
+		assert.match(errorMessage, /packages\/outside\.ts.*TypeScript program/i);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
