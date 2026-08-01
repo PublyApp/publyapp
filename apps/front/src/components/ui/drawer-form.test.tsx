@@ -32,8 +32,12 @@
  * `DrawerBody` or `DrawerFooter` tag — the exact set issue #990 names. A new
  * drawer that wraps the parts in the plain `Form` contains no `DrawerForm`
  * tag, so a `DrawerForm`-import-based scan never visits it; a body/footer
- * scan cannot miss it. Each discovered file is then required to put every
- * body/footer tag directly inside one of exactly two wrappers:
+ * scan cannot miss it — discovery resolves each part tag through the SAME
+ * binding machinery as the wrapper check below (direct import, alias
+ * (`DrawerBody as Body`), namespace member, re-export barrel including
+ * aliased re-exports), so the part cannot hide in an import spelling the
+ * wrapper side would accept. Each discovered file is then required to put
+ * every body/footer tag directly inside one of exactly two wrappers:
  *
  *   - `DrawerForm` — the drawer-owned `<form>` that carries the flex
  *     geometry (`form.publy-drawer-form`); or
@@ -341,6 +345,92 @@ export const RegressedDrawerFixture = ({
 );
 `;
 
+// The #990 shape with ALIASED part imports — `DrawerBody as Body` /
+// `DrawerFooter as Footer` inside the plain field `Form`. Round 7's I1: the
+// parts were discovered by literal tag text, so this spelling shipped
+// 17/17 green. Discovery now resolves part tags through the same binding
+// machinery as the wrapper check.
+const TEMPORARY_ALIASED_PARTS_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-aliased-parts-fixture.tsx';
+const TEMPORARY_ALIASED_PARTS_DRAWER_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_ALIASED_PARTS_DRAWER_FILE,
+);
+const TEMPORARY_ALIASED_PARTS_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Form } from '~/components/field';
+import {
+	Drawer,
+	DrawerBody as Body,
+	DrawerContent,
+	DrawerFooter as Footer,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+export const AliasedPartsRegressedDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r8-aliased-parts">
+			<DrawerHeader>
+				<DrawerTitle>Regressed</DrawerTitle>
+			</DrawerHeader>
+			<Form methods={methods}>
+				<Body>content</Body>
+				<Footer>
+					<button type="submit">Save</button>
+				</Footer>
+			</Form>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// The same #990 shape one hop deeper: the parts come ALIASED through a
+// re-export barrel (`export { DrawerBody as Body }`), which is also how an
+// author would share a part under a shorter name. The chain resolver must
+// match the alias at the barrel and follow the ORIGINAL name to the drawer
+// module.
+const TEMPORARY_ALIASED_BARREL_PARTS_FILE =
+	'src/components/ui/_drawer-parts-aliased-barrel-fixture.ts';
+const TEMPORARY_ALIASED_BARREL_PARTS_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_ALIASED_BARREL_PARTS_FILE,
+);
+const TEMPORARY_ALIASED_BARREL_PARTS_SOURCE = `export { DrawerBody as Body, DrawerFooter as Footer } from './drawer';
+`;
+const TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE =
+	'src/components/ui/_drawer-surface-aliased-barrel-parts-fixture.tsx';
+const TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE,
+);
+const TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Form } from '~/components/field';
+import { DrawerContent, DrawerHeader, DrawerTitle } from '~/components/ui/drawer';
+import { Body, Footer } from '~/components/ui/_drawer-parts-aliased-barrel-fixture';
+
+export const AliasedBarrelPartsDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r8-aliased-barrel-parts">
+		<DrawerHeader>
+			<DrawerTitle>Regressed</DrawerTitle>
+		</DrawerHeader>
+		<Form methods={methods}>
+			<Body>content</Body>
+			<Footer>
+				<button type="submit">Save</button>
+			</Footer>
+		</Form>
+	</DrawerContent>
+);
+`;
+
 const TEMPORARY_LOCAL_SHADOW_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-local-shadow-fixture.tsx';
 const TEMPORARY_LOCAL_SHADOW_DRAWER_PATH = path.join(
@@ -458,13 +548,41 @@ const toPortableSourcePath = (filePath: string): string =>
 	path.relative(FRONT_ROOT, filePath).split(path.sep).join('/');
 
 /**
- * True when `moduleSpecifier` (imported from `fromFilePath`) resolves — across
- * at most RE_EXPORT_CHAIN_DEPTH_LIMIT hops of re-export barrels — to the
- * drawer module's `exportName`. Resolution is bounded and memoized per
- * (module, export) pair in `visited`, so a barrel cycle terminates. A hop
- * that cannot be resolved is not the drawer module.
+ * True when the drawer module (src/components/ui/drawer.tsx) exports
+ * `exportName` through a specifier-less `export { ... }` declaration. The
+ * module's export list is a plain named list today; if that ever changes
+ * (e.g. `export * from`), resolution reddens everywhere, so the guard learns.
  */
-const moduleExportsDrawerSymbol = (
+const drawerModuleExports = (project: Project, exportName: string): boolean =>
+	project
+		.getSourceFile(DRAWER_MODULE_PATH)
+		?.getExportDeclarations()
+		.filter(
+			(declaration) => declaration.getModuleSpecifierValue() === undefined,
+		)
+		.some((declaration) =>
+			declaration
+				.getNamedExports()
+				.some((specifier) => specifier.getName() === exportName),
+		) ?? false;
+
+/**
+ * Follows `exportName` from `moduleSpecifier` (imported from `fromFilePath`)
+ * through at most RE_EXPORT_CHAIN_DEPTH_LIMIT hops of re-export barrels and
+ * returns the name under which the drawer module itself exports the symbol —
+ * the ORIGINAL name once every alias hop has been undone. Returns null when
+ * the chain does not terminate at the drawer module (including hops that
+ * cannot be resolved: a hop that cannot be resolved is not the drawer
+ * module, so this fails closed). Resolution is bounded and memoized per
+ * (module, export) pair in `visited`, so a barrel cycle terminates.
+ *
+ * A hop matches by the name the barrel's consumers see
+ * (`getAliasNode() ?? getName()`), and recurses with the name the next
+ * module must export — so `export { DrawerBody as Body } from './drawer'`
+ * followed as `Body` continues as `DrawerBody`, and only a chain that ends
+ * at the drawer module actually exporting `DrawerBody` counts.
+ */
+const resolveDrawerSymbol = (
 	fromFilePath: string,
 	moduleSpecifier: string,
 	exportName: string,
@@ -472,27 +590,44 @@ const moduleExportsDrawerSymbol = (
 	project: Project,
 	visited: Set<string> = new Set(),
 	depth = 0,
-): boolean => {
+	moduleCache: Map<string, string | null> = new Map(),
+): string | null => {
 	if (depth >= RE_EXPORT_CHAIN_DEPTH_LIMIT) {
-		return false;
+		return null;
 	}
 
-	const resolved = ts.resolveModuleName(
-		moduleSpecifier,
-		fromFilePath,
-		moduleResolution.compilerOptions,
-		moduleResolution.host,
-	).resolvedModule?.resolvedFileName;
+	// `ts.resolveModuleName` is filesystem work; the resolution of a
+	// (file, specifier) pair is the same for every export name, so it is
+	// memoized for the whole scan.
+	const cacheKey = `${fromFilePath}|${moduleSpecifier}`;
+	let resolved = moduleCache.get(cacheKey);
+	if (resolved === undefined) {
+		resolved =
+			ts.resolveModuleName(
+				moduleSpecifier,
+				fromFilePath,
+				moduleResolution.compilerOptions,
+				moduleResolution.host,
+			).resolvedModule?.resolvedFileName ?? null;
+		moduleCache.set(cacheKey, resolved);
+	}
 	if (!resolved) {
-		return false;
+		return null;
 	}
 	if (path.resolve(resolved) === DRAWER_MODULE_PATH) {
-		return true;
+		return drawerModuleExports(project, exportName) ? exportName : null;
+	}
+	// A drawer re-export barrel is a repo-local file — a node_modules module
+	// can never re-export the drawer module's symbols, so it is not the
+	// drawer and the chain ends here. Skipping the parse is what keeps this
+	// resolution cheap enough to run for every tag name in every file.
+	if (resolved.includes(`${path.sep}node_modules${path.sep}`)) {
+		return null;
 	}
 
 	const visitedKey = `${resolved}:${exportName}`;
 	if (visited.has(visitedKey)) {
-		return false;
+		return null;
 	}
 	visited.add(visitedKey);
 
@@ -502,16 +637,12 @@ const moduleExportsDrawerSymbol = (
 		const namedExports = exportDeclaration.getNamedExports();
 
 		if (reExportSpecifier) {
-			const reExportsSymbol =
-				namedExports.length === 0 && !exportDeclaration.getNamespaceExport()
-					? // `export * from '...'`
-						true
-					: namedExports.some(
-							(specifier) => specifier.getName() === exportName,
-						);
 			if (
-				reExportsSymbol &&
-				moduleExportsDrawerSymbol(
+				namedExports.length === 0 &&
+				!exportDeclaration.getNamespaceExport()
+			) {
+				// `export * from '...'` — forwards every named export unchanged.
+				const result = resolveDrawerSymbol(
 					resolved,
 					reExportSpecifier,
 					exportName,
@@ -519,28 +650,56 @@ const moduleExportsDrawerSymbol = (
 					project,
 					visited,
 					depth + 1,
-				)
-			) {
-				return true;
+					moduleCache,
+				);
+				if (result) {
+					return result;
+				}
+				continue;
 			}
-			continue;
-		}
-
-		// `export { DrawerForm }` without a specifier re-exports a symbol
-		// imported in this file — follow that import instead.
-		if (!namedExports.some((specifier) => specifier.getName() === exportName)) {
-			continue;
-		}
-		for (const declaration of reExportingFile.getImportDeclarations()) {
-			for (const namedImport of declaration.getNamedImports()) {
+			for (const specifier of namedExports) {
 				if (
-					(namedImport.getAliasNode()?.getText() ?? namedImport.getName()) !==
+					(specifier.getAliasNode()?.getText() ?? specifier.getName()) !==
 					exportName
 				) {
 					continue;
 				}
-				if (
-					moduleExportsDrawerSymbol(
+				const result = resolveDrawerSymbol(
+					resolved,
+					reExportSpecifier,
+					specifier.getName(),
+					moduleResolution,
+					project,
+					visited,
+					depth + 1,
+					moduleCache,
+				);
+				if (result) {
+					return result;
+				}
+			}
+			continue;
+		}
+
+		// `export { X as Y }` without a specifier re-exports a symbol bound in
+		// this file (usually imported) — follow that binding's import instead.
+		for (const specifier of namedExports) {
+			if (
+				(specifier.getAliasNode()?.getText() ?? specifier.getName()) !==
+				exportName
+			) {
+				continue;
+			}
+			const originalName = specifier.getName();
+			for (const declaration of reExportingFile.getImportDeclarations()) {
+				for (const namedImport of declaration.getNamedImports()) {
+					if (
+						(namedImport.getAliasNode()?.getText() ?? namedImport.getName()) !==
+						originalName
+					) {
+						continue;
+					}
+					const result = resolveDrawerSymbol(
 						resolved,
 						declaration.getModuleSpecifierValue(),
 						namedImport.getName(),
@@ -548,41 +707,130 @@ const moduleExportsDrawerSymbol = (
 						project,
 						visited,
 						depth + 1,
-					)
-				) {
-					return true;
+						moduleCache,
+					);
+					if (result) {
+						return result;
+					}
 				}
 			}
 		}
 	}
 
-	return false;
+	return null;
 };
 
-const isDrawerBodyOrFooterTag = (
-	node: JsxOpeningElement | JsxSelfClosingElement,
+const resolveNamespaceImport = (
 	sourceFile: SourceFile,
+	baseName: string,
+): string | null => {
+	const namespaceImport = sourceFile
+		.getImportDeclarations()
+		.find(
+			(declaration) => declaration.getNamespaceImport()?.getText() === baseName,
+		);
+	if (!namespaceImport) {
+		return null;
+	}
+	return namespaceImport.getModuleSpecifierValue();
+};
+
+const isLocallyDeclared = (
+	sourceFile: SourceFile,
+	name: string,
+	declaredNamesByFile: Map<string, Set<string>>,
 ): boolean => {
-	const tagText = node.getTagNameNode().getText();
-	if (tagText === 'DrawerBody' || tagText === 'DrawerFooter') {
-		return true;
+	// The descendant walks are memoized per file — one walk per declaration
+	// kind instead of one per tag name.
+	let declared = declaredNamesByFile.get(sourceFile.getFilePath());
+	if (!declared) {
+		declared = new Set<string>();
+		for (const declaration of sourceFile.getDescendantsOfKind(
+			SyntaxKind.VariableDeclaration,
+		)) {
+			declared.add(declaration.getName());
+		}
+		for (const declaration of sourceFile.getDescendantsOfKind(
+			SyntaxKind.FunctionDeclaration,
+		)) {
+			declared.add(declaration.getName() ?? '');
+		}
+		for (const declaration of sourceFile.getDescendantsOfKind(
+			SyntaxKind.ClassDeclaration,
+		)) {
+			declared.add(declaration.getName() ?? '');
+		}
+		declaredNamesByFile.set(sourceFile.getFilePath(), declared);
+	}
+	return declared.has(name);
+};
+
+/**
+ * Resolves a JSX tag's local name to the name the drawer module exports it
+ * under, or null when the tag is NOT the drawer module's symbol — through
+ * the same chain every wrapper goes through: direct import, alias
+ * (`DrawerBody as Body`), namespace member (`Drawer.DrawerBody` where the
+ * base is a namespace import), and re-export barrels including aliased
+ * re-exports. A same-named local declaration shadows every import; an
+ * import that cannot be resolved is null (fail-closed). Discovery uses the
+ * same machinery as the wrapper check, so there is no import spelling that
+ * the scan can miss while the wrapper check accepts.
+ */
+const resolveDrawerTagName = (
+	sourceFile: SourceFile,
+	tagText: string,
+	moduleResolution: ModuleResolution,
+	project: Project,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
+): string | null => {
+	const namespaceMatch = tagText.match(
+		/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/,
+	);
+	if (namespaceMatch) {
+		const namespaceSpecifier = resolveNamespaceImport(
+			sourceFile,
+			namespaceMatch[1],
+		);
+		if (!namespaceSpecifier) {
+			return null;
+		}
+		return resolveDrawerSymbol(
+			sourceFile.getFilePath(),
+			namespaceSpecifier,
+			namespaceMatch[2],
+			moduleResolution,
+			project,
+			undefined,
+			0,
+			moduleCache,
+		);
 	}
 
-	// Namespace member access — `<Drawer.DrawerBody>` — counts only when the
-	// base is actually a namespace import, so a member of a local object
-	// cannot be misread as a drawer part.
-	const namespaceMatch = tagText.match(
-		/^([A-Za-z_$][\w$]*)\.(DrawerBody|DrawerFooter)$/,
-	);
-	if (!namespaceMatch) {
-		return false;
+	// A same-named local declaration shadows every import — `const Body = ...`
+	// in this file is THIS file's component, never the drawer module's part.
+	if (isLocallyDeclared(sourceFile, tagText, declaredNamesByFile)) {
+		return null;
 	}
-	return sourceFile
-		.getImportDeclarations()
-		.some(
-			(declaration) =>
-				declaration.getNamespaceImport()?.getText() === namespaceMatch[1],
-		);
+
+	for (const declaration of sourceFile.getImportDeclarations()) {
+		for (const namedImport of declaration.getNamedImports()) {
+			const localName =
+				namedImport.getAliasNode()?.getText() ?? namedImport.getName();
+			if (localName !== tagText) {
+				continue;
+			}
+			return resolveDrawerSymbol(
+				sourceFile.getFilePath(),
+				declaration.getModuleSpecifierValue(),
+				namedImport.getName(),
+				moduleResolution,
+				project,
+			);
+		}
+	}
+
+	return null;
 };
 
 const isTransparentExpression = (node: Node): boolean => {
@@ -610,8 +858,13 @@ const isTransparentExpression = (node: Node): boolean => {
 
 /**
  * The nearest element that actually contains the body/footer tag in the DOM
- * sense: fragments and JSX expressions create no node, so they are skipped;
- * any other kind of ancestor means the tag is not inside an element at all.
+ * sense: fragments, JSX expressions and the other kinds below create no
+ * node, so they are skipped — and so are the nodeless React wrappers. Any
+ * other kind of ancestor means the tag is not directly inside an element,
+ * which the caller treats as a structural violation. A null result means no
+ * enclosing element exists at all in the file, i.e. the tag sits inside a
+ * component DEFINITION (a composition helper) rather than at a drawer call
+ * site.
  */
 const findWrapperOpeningElement = (
 	node: JsxOpeningElement | JsxSelfClosingElement,
@@ -649,82 +902,23 @@ const resolveTagBinding = (
 	tagText: string,
 	moduleResolution: ModuleResolution,
 	project: Project,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
 ): 'drawer-form' | 'drawer-content' | 'other' => {
-	const namespaceMatch = tagText.match(
-		/^([A-Za-z_$][\w$]*)\.(DrawerForm|DrawerContent)$/,
+	const name = resolveDrawerTagName(
+		sourceFile,
+		tagText,
+		moduleResolution,
+		project,
+		moduleCache,
+		declaredNamesByFile,
 	);
-	if (namespaceMatch) {
-		const namespaceImport = sourceFile
-			.getImportDeclarations()
-			.find(
-				(declaration) =>
-					declaration.getNamespaceImport()?.getText() === namespaceMatch[1],
-			);
-		if (!namespaceImport) {
-			return 'other';
-		}
-		const isDrawerMember = moduleExportsDrawerSymbol(
-			sourceFile.getFilePath(),
-			namespaceImport.getModuleSpecifierValue(),
-			namespaceMatch[2],
-			moduleResolution,
-			project,
-		);
-		if (!isDrawerMember) {
-			return 'other';
-		}
-		return namespaceMatch[2] === 'DrawerForm'
-			? 'drawer-form'
-			: 'drawer-content';
+	if (name === 'DrawerForm') {
+		return 'drawer-form';
 	}
-
-	// A same-named local declaration shadows every import — `const Form = ...`
-	// in this file is THIS file's component, never the drawer module's export.
-	const locallyDeclared =
-		sourceFile
-			.getDescendantsOfKind(SyntaxKind.VariableDeclaration)
-			.some((declaration) => declaration.getName() === tagText) ||
-		sourceFile
-			.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)
-			.some((declaration) => declaration.getName() === tagText) ||
-		sourceFile
-			.getDescendantsOfKind(SyntaxKind.ClassDeclaration)
-			.some((declaration) => declaration.getName() === tagText);
-	if (locallyDeclared) {
-		return 'other';
+	if (name === 'DrawerContent') {
+		return 'drawer-content';
 	}
-
-	for (const declaration of sourceFile.getImportDeclarations()) {
-		for (const namedImport of declaration.getNamedImports()) {
-			const localName =
-				namedImport.getAliasNode()?.getText() ?? namedImport.getName();
-			if (localName !== tagText) {
-				continue;
-			}
-			if (
-				namedImport.getName() !== 'DrawerForm' &&
-				namedImport.getName() !== 'DrawerContent'
-			) {
-				return 'other';
-			}
-			const isDrawerExport = moduleExportsDrawerSymbol(
-				sourceFile.getFilePath(),
-				declaration.getModuleSpecifierValue(),
-				namedImport.getName(),
-				moduleResolution,
-				project,
-			);
-			if (!isDrawerExport) {
-				return 'other';
-			}
-			return namedImport.getName() === 'DrawerForm'
-				? 'drawer-form'
-				: 'drawer-content';
-		}
-	}
-
-	// Unresolved — neither imported nor declared: cannot be the drawer
-	// module's export, so a body/footer under it is rejected (fail-closed).
 	return 'other';
 };
 
@@ -741,6 +935,38 @@ const scanDrawerSurfaces = (): {
 		host: project.getModuleResolutionHost(),
 	};
 
+	// Per-file memo of tag text -> drawer export name, so the 6-hop chain
+	// resolution runs once per distinct name instead of once per tag, and a
+	// scan-wide memo of resolved (file, specifier) pairs for the module
+	// resolution inside the chain.
+	const resolvedTagNames = new Map<string, Map<string, string | null>>();
+	const moduleCache = new Map<string, string | null>();
+	const declaredNamesByFile = new Map<string, Set<string>>();
+	const drawerTagName = (
+		sourceFile: SourceFile,
+		tagText: string,
+	): string | null => {
+		let byName = resolvedTagNames.get(sourceFile.getFilePath());
+		if (!byName) {
+			byName = new Map<string, string | null>();
+			resolvedTagNames.set(sourceFile.getFilePath(), byName);
+		}
+		if (!byName.has(tagText)) {
+			byName.set(
+				tagText,
+				resolveDrawerTagName(
+					sourceFile,
+					tagText,
+					moduleResolution,
+					project,
+					moduleCache,
+					declaredNamesByFile,
+				),
+			);
+		}
+		return byName.get(tagText) ?? null;
+	};
+
 	const discovered: string[] = [];
 	const violations: string[] = [];
 
@@ -749,18 +975,38 @@ const scanDrawerSurfaces = (): {
 			continue;
 		}
 
-		const drawerPartNodes = [
+		const jsxTags = [
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
-		].filter((node) => isDrawerBodyOrFooterTag(node, sourceFile));
-		if (drawerPartNodes.length === 0) {
+		];
+
+		const wrapperOf = (node: JsxOpeningElement | JsxSelfClosingElement) =>
+			findWrapperOpeningElement(node);
+
+		const partNodes = jsxTags.filter((node) => {
+			const tagText = node.getTagNameNode().getText();
+			const name = drawerTagName(sourceFile, tagText);
+			if (name === 'DrawerBody' || name === 'DrawerFooter') {
+				return true;
+			}
+			// Fail-closed fallback for UNBOUND part names: a tag whose literal
+			// text is `DrawerBody`/`DrawerFooter` and whose binding does NOT
+			// resolve to the drawer module is still a part (round 6: the parts
+			// are discovered by their tags, and the wrapper rule then judges
+			// the file — e.g. a bare-name drawer is discovered and rejected).
+			// The alias case is resolved above; this fallback only catches the
+			// unimported/unresolvable spellings, which cannot hide the #990
+			// shape because the wrapper check still runs on them.
+			return tagText === 'DrawerBody' || tagText === 'DrawerFooter';
+		});
+		if (partNodes.length === 0) {
 			continue;
 		}
 
 		discovered.push(toPortableSourcePath(sourceFile.getFilePath()));
 
-		const isRejected = drawerPartNodes.some((node) => {
-			const wrapper = findWrapperOpeningElement(node);
+		const isRejected = partNodes.some((node) => {
+			const wrapper = wrapperOf(node);
 			if (!wrapper) {
 				return true;
 			}
@@ -769,9 +1015,12 @@ const scanDrawerSurfaces = (): {
 				wrapper.getTagNameNode().getText(),
 				moduleResolution,
 				project,
+				moduleCache,
+				declaredNamesByFile,
 			);
 			return binding !== 'drawer-form' && binding !== 'drawer-content';
 		});
+
 		if (isRejected) {
 			violations.push(toPortableSourcePath(sourceFile.getFilePath()));
 		}
@@ -942,6 +1191,45 @@ describe('drawer surface flex chain guard (#990)', () => {
 			expect(scan.violations).toContain(TEMPORARY_REGRESSED_DRAWER_FILE);
 		} finally {
 			unlinkSync(TEMPORARY_REGRESSED_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer wrapping ALIASED DrawerBody + DrawerFooter in the plain Form is discovered and rejected', () => {
+		writeFileSync(
+			TEMPORARY_ALIASED_PARTS_DRAWER_PATH,
+			TEMPORARY_ALIASED_PARTS_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(TEMPORARY_ALIASED_PARTS_DRAWER_FILE);
+			expect(scan.violations).toContain(TEMPORARY_ALIASED_PARTS_DRAWER_FILE);
+		} finally {
+			unlinkSync(TEMPORARY_ALIASED_PARTS_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer wrapping DrawerBody + DrawerFooter re-exported under aliases through a barrel is discovered and rejected', () => {
+		writeFileSync(
+			TEMPORARY_ALIASED_BARREL_PARTS_PATH,
+			TEMPORARY_ALIASED_BARREL_PARTS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_PATH,
+			TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE,
+			);
+			expect(scan.violations).toContain(
+				TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE,
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_PATH);
+			unlinkSync(TEMPORARY_ALIASED_BARREL_PARTS_PATH);
 		}
 	});
 
