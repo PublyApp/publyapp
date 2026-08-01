@@ -14,6 +14,18 @@ import fr from './fr';
 const forbiddenPricingPatterns = [
 	/\btrial/i,
 	/\bessai/i,
+	// The bare day count came from the pricing sweep, where it was scoped to
+	// the seventeen landing-pricing-* keys and unambiguous. Widened to every
+	// landing-*/marketing-* key, it deliberately reddens calendar-feature
+	// copy that promises nothing ("Plan the next 30 days of content", "a
+	// 7-day view"): the sweep cannot tell a feature name from a duration
+	// offer. A feature that already exists cannot be hedged, so the response
+	// is prescribed — a bare day count anywhere in landing-*/marketing-*
+	// must be reworded, never hedged and never narrowed away ("7-day view" →
+	// "weekly view"). Narrowing this pattern would lose the duration offers
+	// that carry no free/trial/card word ("Your first 14 days are on us");
+	// this PR already set the precedent by rewording "Day 3"/"Day 10" into
+	// sequence language instead of narrowing the timeline regex.
 	/\b\d+\s*-?\s*(day|days|jour|jours)\b/i,
 	/no (credit )?card/i,
 	/(sans|pas de|aucune?) (carte|engagement)/i,
@@ -216,13 +228,19 @@ describe('front locale manifests', () => {
 	//   - threat: samples are promises, not hedges — none may carry a future
 	//     marker, or the pairing would pass while documenting a non-threat;
 	//   - non-collapse: every pattern faces three deliberately varied
-	//     phrasings, so a regex narrowed to exactly one of them — the fix a
-	//     developer reaches for to clear a false positive — fails the others.
-	//     This proves a pattern is not collapsible to a single phrase; it
-	//     still does not prove the pattern is complete. A regex unioning the
-	//     pinned samples would pass the samples while staying just as narrow
-	//     — the sample count recorded here makes that visible to review, but
-	//     no finite sample set can outrun a union of itself.
+	//     phrasings, so a regex narrowed to exactly one of them fails the
+	//     others. That rules out surface narrowing — collapsing a pattern to
+	//     a single phrasing. It does not rule out context narrowing — adding
+	//     a contextual requirement that all of a pattern's canonical samples
+	//     happen to share — which passes every rail while the regex stays
+	//     visibly general (all three of the day-count pattern's samples
+	//     contain "free", so a free-word requirement around the day count
+	//     gets through). This proves a pattern is not collapsible to a
+	//     single phrase; it still does not prove the pattern is complete. A
+	//     regex unioning the pinned samples would pass the samples while
+	//     staying just as narrow — the sample count recorded here makes that
+	//     visible to review, but no finite sample set can outrun a union of
+	//     itself.
 	// A suite can only survive a gutted trigger set by deleting a pattern,
 	// its samples, and the pinned counts in the same edit — a coordinated act
 	// the counts recorded here make visible to review, not the partial
@@ -394,7 +412,7 @@ describe('front locale manifests', () => {
 					key.startsWith('landing-timeline-'),
 			);
 
-			expect(timelineKeys.length).toBeGreaterThan(0);
+			expect(timelineKeys.length).toBeGreaterThan(0); // TEMP
 
 			for (const key of timelineKeys) {
 				expect(localeCase.common[key]).not.toMatch(localeCase.dayCount);
