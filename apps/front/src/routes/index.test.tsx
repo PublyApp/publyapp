@@ -127,6 +127,27 @@ describe('marketing landing route', () => {
 		}
 	});
 
+	test('does not render social proof when the flag is off', () => {
+		marketingFlags.socialProof = false;
+		render(<IndexRoute />);
+
+		expect(screen.queryByTestId('landing-social-proof')).toBeNull();
+	});
+
+	test('renders all social-proof stats when the flag is on', () => {
+		marketingFlags.socialProof = true;
+		render(<IndexRoute />);
+
+		expect(screen.getByTestId('landing-social-proof')).not.toBeNull();
+		for (const key of [
+			'landing-social-proof-rating',
+			'landing-social-proof-brands',
+			'landing-social-proof-setup',
+		]) {
+			expect(screen.getByText(key)).not.toBeNull();
+		}
+	});
+
 	test('keeps the required navigation targets', () => {
 		render(<IndexRoute />);
 

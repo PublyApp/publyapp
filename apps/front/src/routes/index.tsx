@@ -208,6 +208,12 @@ const CUSTOMER_LOGO_KEYS = [
 	'landing-customer-logo-caldera',
 ] as const;
 
+const SOCIAL_PROOF_KEYS = [
+	'landing-social-proof-rating',
+	'landing-social-proof-brands',
+	'landing-social-proof-setup',
+] as const;
+
 export const IndexRoute = () => {
 	const { t } = useTranslation('common');
 	const [activeTab, setActiveTab] = useState<TabId>('calendar');
@@ -556,6 +562,24 @@ export const IndexRoute = () => {
 							>
 								{t(logoKey)}
 							</div>
+						))}
+					</div>
+				</section>
+			) : null}
+
+			{FEATURES.marketing.socialProof ? (
+				<section
+					data-testid="landing-social-proof"
+					className="pt-[clamp(52px,7cqw,96px)]"
+				>
+					<div className="grid grid-cols-1 divide-y divide-(--publy-border) border-y border-(--publy-border) sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+						{SOCIAL_PROOF_KEYS.map((proofKey) => (
+							<p
+								key={proofKey}
+								className="px-6 py-5 text-center text-[15px] font-semibold leading-[1.4] text-(--publy-foreground-secondary)"
+							>
+								{t(proofKey)}
+							</p>
 						))}
 					</div>
 				</section>

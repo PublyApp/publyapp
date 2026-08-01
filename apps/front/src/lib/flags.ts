@@ -29,5 +29,7 @@ export const FEATURES = {
 	marketing: {
 		/** Invented customer names stay hidden until real customer proof exists. */
 		customerLogos: readFlag('VITE_FEATURE_MARKETING_CUSTOMER_LOGOS', false),
+		/** The rating and setup claim stay hidden until user evidence exists. */
+		socialProof: readFlag('VITE_FEATURE_MARKETING_SOCIAL_PROOF', false),
 	},
 } as const;
