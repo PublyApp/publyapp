@@ -41,7 +41,10 @@ Allowed spellings:
 Anything else is a violation: `z-10`, `z-50`, `z-[60]`, `-z-10`, `!z-50`, `z-[var(--publy-z-menu,50)]`
 (a scale reference with a raw fallback is still a raw value when the token is unset), a raw
 arbitrary-property shim such as `[z-index:5]` (it ships `z-index: 5` and is reported both at source
-and in the compiled CSS), and any dynamic assembly (`z-${…}` across a template substitution).
+and in the compiled CSS), any dynamic assembly (`z-${…}` across a template substitution), and any
+local redefinition of a reserved `--publy-z-*` token. New tiers belong in the global `:root` scale;
+otherwise a local `--publy-z-raised: 999` could make an apparently scale-routed declaration compute
+to an arbitrary value.
 
 ## Mechanism
 
@@ -77,6 +80,11 @@ Four components:
    actually ships — the exact failure that killed the previous attempt, whose own fixture literals
    reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
    scanner watches.
+5. **Scale-definition integrity.** A `--publy-z-*` declaration is accepted only in the global `:root`
+   scale (including Tailwind's equivalent `@layer theme { :root, :host { … } }` output). Local CSS
+   declarations are reported even when the consuming `z-index` uses `var(...)`. The script AST pass
+   also reports literal `--publy-z-*` object properties and `setProperty()` calls, preventing an
+   inline style from shadowing a legitimate tier after the compiled gate has accepted its reference.
 
 ## Out of scope — stated, not silent
 

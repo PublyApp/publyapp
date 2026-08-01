@@ -554,6 +554,61 @@ test('e2e (round 3 important 3): escaped important is decoded before comparison'
 	);
 });
 
+test('e2e (round 3 audit): local scale-token definitions cannot smuggle raw stacking values', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		[
+			'.shadow { --publy-z-raised: 999; z-index: var(--publy-z-raised); }',
+			'.rogue { --publy-z-rogue: 998; z-index: var(--publy-z-rogue); }',
+		].join('\n'),
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['--publy-z-raised: 999', '--publy-z-rogue: 998'],
+		`local scale-token definitions must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 3 audit): adding a tier in the global scale stays clean', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		':root { --publy-z-new-tier: 130; }\n.probe { z-index: var(--publy-z-new-tier); }\n',
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`a global scale tier must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 3 audit): script code cannot shadow a scale token', async () => {
+	const { violations } = await runFixtureGuard({
+		'probe.tsx':
+			'export const probe = <div className="z-(--publy-z-raised)" style={{ "--publy-z-raised": 999 }} />;\nelement.style.setProperty("--publy-z-menu", "997");',
+	});
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['--publy-z-raised', '--publy-z-menu'],
+		`script scale-token definitions must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 3 audit): escaped and spaced safe values stay clean', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.tsx': 'export const probe = <div />;' },
+		[
+			'.escaped-keyword { z-index: \\61uto; }',
+			'.spaced-var { z-index: VAR( --publy-z-raised ); }',
+			'.escaped-var { z-index: v\\61r(--publy-z-r\\61ised); }',
+		].join('\n'),
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`CSS-equivalent safe values must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (innocent): innocent constructs through the production scanner', async () => {
 	const innocentFiles = {
 		'type-literal.d.ts': `export type Layer = 'z-50';`,

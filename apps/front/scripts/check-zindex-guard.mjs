@@ -35,7 +35,7 @@ const SCRIPT_EXTENSIONS = new Set([
 // `compile()`). Re-implementing class extraction from source is exactly what
 // failed twice before, so the guard does not do that.
 //
-// Four components, in order of increasing distance from the source:
+// Five components, in order of increasing distance from the source:
 //   1. Candidate scan — every extractor candidate that is a raw z-index
 //      utility is reported, unless it sits in a position that can never
 //      become a delivered class (type literals, non-class JSX attributes,
@@ -51,6 +51,9 @@ const SCRIPT_EXTENSIONS = new Set([
 //      `var(--publy-z-…)`. This proves what actually ships, which is the
 //      exact failure that killed the previous attempt (its own fixture
 //      literals reached the shipped stylesheet).
+//   5. Scale-definition integrity — reserved `--publy-z-*` tokens may only be
+//      defined in the global scale. Literal script-object and setProperty()
+//      overrides are rejected before they can shadow an accepted reference.
 //
 // Out of scope (documented, not silently absent — see
 // docs/guides/front/z-index-guard.md):
@@ -214,9 +217,6 @@ const asciiLowerCase = (text) =>
 		String.fromCharCode(character.charCodeAt(0) + 32),
 	);
 
-const isNonStackingKeyword = (value) =>
-	NON_STACKING_KEYWORDS.has(asciiLowerCase(value));
-
 // ---------------------------------------------------------------------------
 // CSS identifier canonicalisation. CSS property names are ASCII-case-
 // insensitive and may carry escapes (`z-\69ndex` is `z-index`), so property
@@ -225,7 +225,7 @@ const isNonStackingKeyword = (value) =>
 const CSS_WHITESPACE = /[\t\n\f\r ]/;
 const HEX_ESCAPE = /[0-9a-fA-F]/;
 
-const canonicaliseCssProperty = (raw) => {
+const decodeCssIdentifier = (raw) => {
 	let out = '';
 	for (let i = 0; i < raw.length; ) {
 		const character = raw[i];
@@ -259,17 +259,27 @@ const canonicaliseCssProperty = (raw) => {
 			i += 1;
 		}
 	}
-	return asciiLowerCase(out);
+	return out;
 };
 
+const canonicaliseCssProperty = (raw) =>
+	asciiLowerCase(decodeCssIdentifier(raw));
+
+const isNonStackingKeyword = (value) =>
+	NON_STACKING_KEYWORDS.has(canonicaliseCssProperty(value.trim()));
+
 const isScaleVarReference = (value) => {
-	const openParen = value.indexOf('(');
-	if (openParen <= 0 || !value.endsWith(')')) {
+	const trimmed = value.trim();
+	const openParen = trimmed.indexOf('(');
+	if (openParen <= 0 || !trimmed.endsWith(')')) {
 		return false;
 	}
+	const propertyName = decodeCssIdentifier(
+		trimmed.slice(openParen + 1, -1).trim(),
+	);
 	return (
-		canonicaliseCssProperty(value.slice(0, openParen)) === 'var' &&
-		/^--publy-z-[\w-]+$/.test(value.slice(openParen + 1, -1))
+		canonicaliseCssProperty(trimmed.slice(0, openParen)) === 'var' &&
+		/^--publy-z-[\w-]+$/.test(propertyName)
 	);
 };
 
@@ -608,6 +618,52 @@ export const scanZIndexFile = ({
 			node.forEachChild(visitTemplates);
 		};
 		visitTemplates(sourceFile);
+
+		const literalText = (node) => {
+			if (node == null) {
+				return null;
+			}
+			if (
+				ts.isStringLiteral(node) ||
+				ts.isNoSubstitutionTemplateLiteral(node)
+			) {
+				return node.text;
+			}
+			return null;
+		};
+		const propertyName = (name) => {
+			if (ts.isComputedPropertyName(name)) {
+				return literalText(name.expression);
+			}
+			return literalText(name);
+		};
+		const recordScaleTokenDefinition = (name, node) => {
+			if (name == null || !name.startsWith('--publy-z-')) {
+				return;
+			}
+			violations.push({
+				ruleId: 'z-index-scale-token-redefined',
+				message:
+					`script code redefines the reserved scale token \`${name}\` — ` +
+					'define z-index tiers once in :root in src/styles/app.css.',
+				file: relativePath,
+				line: lineForOffset(content, node.getStart(sourceFile)),
+				source: name,
+			});
+		};
+		const visitScaleTokenDefinitions = (node) => {
+			if (ts.isPropertyAssignment(node)) {
+				recordScaleTokenDefinition(propertyName(node.name), node);
+			} else if (
+				ts.isCallExpression(node) &&
+				ts.isPropertyAccessExpression(node.expression) &&
+				node.expression.name.text === 'setProperty'
+			) {
+				recordScaleTokenDefinition(literalText(node.arguments[0]), node);
+			}
+			node.forEachChild(visitScaleTokenDefinitions);
+		};
+		visitScaleTokenDefinitions(sourceFile);
 	}
 
 	return violations;
@@ -709,6 +765,7 @@ const scanCssDeclarations = (css) => {
 		const rule = declaration.parent;
 		declarations.push({
 			ancestors: cssAncestorsFor(declaration),
+			decodedProperty: decodeCssIdentifier(declaration.prop),
 			selector: rule?.type === 'rule' ? normalizeWhitespace(rule.selector) : '',
 			property: canonicaliseCssProperty(declaration.prop),
 			value: declaration.value.trim(),
@@ -718,6 +775,18 @@ const scanCssDeclarations = (css) => {
 	return declarations;
 };
 
+const isGlobalScaleDefinition = (declaration) => {
+	if (declaration.selector === ':root' && declaration.ancestors.length === 0) {
+		return true;
+	}
+	return (
+		declaration.selector === ':root, :host' &&
+		cssAncestorsEqual(declaration.ancestors, [
+			{ type: 'at-rule', name: 'layer', params: 'theme' },
+		])
+	);
+};
+
 export const checkCompiledCssZIndex = (
 	compiledCss,
 	allowlisted = KNOWN_RAW_Z_INDEX_DECLARATIONS,
@@ -725,6 +794,22 @@ export const checkCompiledCssZIndex = (
 	const violations = [];
 	const seenCounts = new Map();
 	for (const declaration of scanCssDeclarations(compiledCss)) {
+		if (
+			declaration.decodedProperty.startsWith('--publy-z-') &&
+			!isGlobalScaleDefinition(declaration)
+		) {
+			const source = `${declaration.decodedProperty}: ${declaration.value}`;
+			violations.push({
+				ruleId: 'z-index-scale-token-redefined',
+				message:
+					`shipped \`${source}\` outside the global scale — define z-index ` +
+					'tiers once in :root in src/styles/app.css.',
+				file: 'compiled stylesheet',
+				line: declaration.line,
+				source,
+			});
+			continue;
+		}
 		if (declaration.property !== 'z-index') {
 			continue;
 		}
