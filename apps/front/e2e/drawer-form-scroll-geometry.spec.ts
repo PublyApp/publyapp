@@ -34,6 +34,14 @@ const DRAWER_VIEWPORTS = [
 	// below the review mutation's 599px ceiling while retaining enough room for
 	// a meaningful header/body/footer layout instead of a near-degenerate case.
 	{ name: 'short', width: 900, height: 560 },
+	// A second width closes the width blind spot: all the other samples share
+	// one finite width, so a later author rule scoped to a narrow breakpoint
+	// could override the form geometry, stay inactive in every measurement,
+	// and still escape the CSS source assertion (which only models rule order).
+	// 600px sits below the app's `sm` breakpoint (app.css uses
+	// `@media (max-width: 639px)`), so any such narrow-breakpoint rule is live
+	// here and the computed-style assertions below would see it.
+	{ name: 'narrow', width: 600, height: 560 },
 ] as const;
 
 type Rect = {
