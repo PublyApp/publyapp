@@ -892,17 +892,26 @@ describe('staff tenants route', () => {
 
 	describe('bulk actions', () => {
 		const chooseBulkAction = async (
-			actionName: 'Suspend selected' | 'Delete selected',
+			actionName:
+				| 'Suspend selected'
+				| 'Delete selected'
+				| 'Reactivate selected',
 		) => {
 			const trigger = await screen.findByRole('button', {
 				name: 'More actions',
 				expanded: false,
 			});
 
-			// Wait for Base UI's trigger contract before dispatching the synchronous
-			// keyboard-open event. The button can be visible before these props settle.
-			fireEvent.keyDown(trigger, { key: 'ArrowDown' });
-			expect(trigger.getAttribute('aria-expanded')).toBe('true');
+			// The floating trigger renders before Base UI wires its pointer props;
+			// a click dispatched into that window is swallowed. Gating on the settled
+			// closed state, then on the open state after the click, closes the race.
+			fireEvent.click(trigger);
+			await waitFor(() =>
+				expect(
+					trigger.getAttribute('aria-expanded'),
+					`bulk menu did not open for ${actionName}`,
+				).toBe('true'),
+			);
 			fireEvent.click(screen.getByRole('menuitem', { name: actionName }));
 		};
 		const mixedStatusTenants = [
