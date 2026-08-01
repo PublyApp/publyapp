@@ -1,6 +1,8 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+import { compile } from 'tailwindcss';
 import { describe, expect, test } from 'vitest';
 
 import { resolveEffectiveDeclarations } from './css-cascade-test-support';
@@ -33,7 +35,9 @@ const SURFACE_TOKENS = [
 
 type Rgba = { r: number; g: number; b: number; a: number };
 
-const extractBlock = (header: ':root' | 'html.dark'): string => {
+const extractBlock = (
+	header: '@theme inline' | ':root' | 'html.dark',
+): string => {
 	const start = appCssSource.indexOf(`${header} {`);
 	if (start === -1) {
 		throw new Error(`Missing ${header} theme block`);
@@ -296,50 +300,75 @@ const findDrawerDescriptionCallSites = (): CallSite[] => {
 	return callSites;
 };
 
-// Tailwind v4 CSS-variable shorthand `text-(--x)` is always a colour
-// reference; the bracketed form `text-[...]` can also be typography
-// (`text-[11px]`), so an unresolvable bracket is ignored while an
-// unresolvable paren form fails loudly.
-const colorFromClassName = (
-	className: string,
-	theme: 'light' | 'dark',
-): Rgba | null => {
-	let resolved: Rgba | null = null;
-	for (const utility of className.split(/\s+/)) {
-		const parenMatch = /^text-\((--[\w-]+|#[0-9a-fA-F]{3,8})\)$/.exec(utility);
-		if (parenMatch) {
-			const inner = parenMatch[1];
-			resolved = inner.startsWith('--')
-				? resolveColor(inner, theme)
-				: parseColorValue(inner, utility);
-			continue;
-		}
-		if (utility.startsWith('text-(')) {
+// Compile each literal class candidate against Tailwind's real default theme
+// plus this app's `@theme inline` overrides. The `text-*` namespace is
+// overloaded (colour, font size, alignment, wrapping, ...), so generated CSS
+// is the authoritative way to distinguish a colour override from typography.
+// A candidate Tailwind cannot generate fails closed instead of being silently
+// replaced with the primitive's compliant default colour.
+const tailwindThemePath = fileURLToPath(
+	import.meta.resolve('tailwindcss/theme.css'),
+);
+const tailwindCompilerInput = `${readFileSync(tailwindThemePath, 'utf8')}\n${extractBlock('@theme inline')}\n@tailwind utilities;`;
+const compiledUtilityColorCache = new Map<string, Promise<string | null>>();
+
+const compiledColorFromUtility = (utility: string): Promise<string | null> => {
+	const cached = compiledUtilityColorCache.get(utility);
+	if (cached) {
+		return cached;
+	}
+
+	const compiled = (async (): Promise<string | null> => {
+		const compiler = await compile(tailwindCompilerInput);
+		const generatedCss = compiler.build([utility]);
+		const cssWithoutBanner = generatedCss.replace(/^\/\*![\s\S]*?\*\/\s*/, '');
+		if (cssWithoutBanner.trim() === '') {
 			throw new Error(
-				`Unresolvable text arbitrary value on a DrawerDescription: ${utility}`,
+				`Unresolvable utility on a DrawerDescription: ${utility}`,
 			);
 		}
 
-		const bracketMatch = /^text-\[(var\(--[\w-]+\)|#[0-9a-fA-F]{3,8})\]$/.exec(
-			utility,
-		);
-		if (bracketMatch) {
-			const inner = bracketMatch[1];
-			resolved = inner.startsWith('var(')
-				? resolveColor(inner.slice(4, -1), theme)
-				: parseColorValue(inner, utility);
+		const colorDeclarations: string[] = [];
+		const declarationPattern = /(?:^|[{;])\s*([\w-]+)\s*:\s*([^;{}]+);/gm;
+		for (const match of cssWithoutBanner.matchAll(declarationPattern)) {
+			if (match[1] === 'color') {
+				colorDeclarations.push(match[2].trim());
+			}
+		}
+
+		return colorDeclarations.at(-1) ?? null;
+	})();
+	compiledUtilityColorCache.set(utility, compiled);
+	return compiled;
+};
+
+const colorFromClassName = async (
+	className: string,
+	theme: 'light' | 'dark',
+): Promise<Rgba | null> => {
+	let resolved: Rgba | null = null;
+	for (const utility of className.split(/\s+/)) {
+		if (utility === '') {
 			continue;
 		}
 
-		// Bare `text-*` semantic colours (from the `--foreground`-style theme
-		// aliases in app.css). Unknown bare utilities are treated as
-		// typography (`text-sm`, `text-center`, ...) and ignored.
-		if (utility === 'text-foreground') {
-			resolved = resolveColor('--foreground', theme);
-		} else if (utility === 'text-muted-foreground') {
-			resolved = resolveColor('--muted-foreground', theme);
-		} else if (utility === 'text-secondary-foreground') {
-			resolved = resolveColor('--secondary-foreground', theme);
+		const compiledColor = await compiledColorFromUtility(utility);
+		if (compiledColor === null) {
+			continue;
+		}
+
+		const variableMatch = /^var\((--[\w-]+)\)$/.exec(compiledColor);
+		if (variableMatch) {
+			resolved = resolveColor(variableMatch[1], theme);
+			continue;
+		}
+		try {
+			resolved = parseColorValue(compiledColor, utility);
+		} catch (error) {
+			throw new Error(
+				`Unresolvable generated colour for ${utility}: ${compiledColor}`,
+				{ cause: error },
+			);
 		}
 	}
 	return resolved;
@@ -359,6 +388,29 @@ const EXPECTED_CONSUMER_FILES = [
 ];
 
 describe('drawer description text contrast (#1043)', () => {
+	test.each(['light', 'dark'] as const)(
+		'resolves every semantic text colour through the real Tailwind theme in %s mode',
+		async (theme) => {
+			expect(await colorFromClassName('text-primary text-sm', theme)).toEqual(
+				resolveColor('--primary', theme),
+			);
+		},
+	);
+
+	test('ignores generated typography utilities without mistaking them for colours', async () => {
+		expect(
+			await colorFromClassName('text-sm text-center text-balance', 'light'),
+		).toBeNull();
+	});
+
+	test('fails closed when Tailwind cannot resolve a className utility', async () => {
+		await expect(async () =>
+			colorFromClassName('text-unrecognised-colour', 'light'),
+		).rejects.toThrow(
+			'Unresolvable utility on a DrawerDescription: text-unrecognised-colour',
+		);
+	});
+
 	test.each(DESCRIPTION_SELECTORS)(
 		'%s clears the 4.5:1 small-text floor on every opaque surface and the composited drawer surface in both themes',
 		(selector) => {
@@ -397,7 +449,7 @@ describe('drawer description text contrast (#1043)', () => {
 		),
 	)(
 		'every DrawerDescription call site keeps 4.5:1 on the composited drawer surface (site #%i: %s:%s)',
-		(_index, _file, _line, callSite) => {
+		async (_index, _file, _line, callSite) => {
 			const primitiveToken = tokenFromColorDeclaration(
 				'.publy-drawer-description',
 			);
@@ -407,7 +459,7 @@ describe('drawer description text contrast (#1043)', () => {
 				const foreground =
 					callSite.className === null
 						? defaultForeground
-						: (colorFromClassName(callSite.className, theme) ??
+						: ((await colorFromClassName(callSite.className, theme)) ??
 							defaultForeground);
 				expect(
 					contrastRatio(foreground, compositedDrawerBackground(theme)),
