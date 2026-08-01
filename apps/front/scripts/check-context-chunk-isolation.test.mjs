@@ -240,6 +240,29 @@ void test('fails closed for a dynamic React element access', async () => {
 	}
 });
 
+void test('fails closed when a dynamic React element access is hoisted before the call', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/hoisted-dynamic-element-access.ts': `
+			import * as React from 'react';
+			const key: any = 'create' + 'Context';
+			const contextFactory = React[key];
+			export const DynamicContext = contextFactory(null);
+		`,
+	});
+
+	try {
+		assert.throws(
+			() =>
+				findReactContextDeclarations(
+					path.join(fixtureDirectory, 'tsconfig.json'),
+				),
+			/cannot prove a dynamic React element access/i,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('reports each React context whose source module is in multiple client chunks', () => {
 	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
 	const contexts = [

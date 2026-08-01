@@ -52,6 +52,8 @@ const isContextFactoryAdapterCall = (expression) =>
 	['apply', 'bind', 'call'].includes(expression.expression.name.getText());
 
 const isReactContextFactoryValue = (checker, node, reactCreateContext) => {
+	assertStaticReactElementAccess(checker, node, reactCreateContext);
+
 	if (
 		(!isElementAccessExpression(node) &&
 			!isIdentifier(node) &&
@@ -78,6 +80,22 @@ const isReactNamespace = (checker, expression, reactCreateContext) => {
 				.getPropertiesOfType(type)
 				.some((property) => property.id === reactCreateContext.id)
 		: false;
+};
+
+const assertStaticReactElementAccess = (
+	checker,
+	expression,
+	reactCreateContext,
+) => {
+	if (
+		isElementAccessExpression(expression) &&
+		!isStringLiteral(expression.argumentExpression) &&
+		isReactNamespace(checker, expression.expression, reactCreateContext)
+	) {
+		throw new Error(
+			'Context chunk isolation guard cannot prove a dynamic React element access is not createContext.',
+		);
+	}
 };
 
 const findReactCreateContextSymbol = (program, checker) => {
@@ -210,6 +228,12 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 
 			const sourceFile = project.program.getSourceFile(sourceFileName);
 			const visit = (node) => {
+				assertStaticReactElementAccess(
+					project.checker,
+					node,
+					reactCreateContext,
+				);
+
 				if (
 					isReactContextFactoryValue(project.checker, node, reactCreateContext)
 				) {
@@ -220,20 +244,6 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 				}
 
 				if (isCallExpression(node)) {
-					if (
-						isElementAccessExpression(node.expression) &&
-						!isStringLiteral(node.expression.argumentExpression) &&
-						isReactNamespace(
-							project.checker,
-							node.expression.expression,
-							reactCreateContext,
-						)
-					) {
-						throw new Error(
-							'Context chunk isolation guard cannot prove a dynamic React element access is not createContext.',
-						);
-					}
-
 					const calleeSymbol = symbolForExpression(
 						project.checker,
 						node.expression,
