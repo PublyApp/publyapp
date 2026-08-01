@@ -28,7 +28,7 @@ import {
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 
 const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
-@theme inline {
+:root {
   --publy-z-raised: 10;
   --publy-z-menu: 100;
 }
@@ -412,6 +412,20 @@ test('compiled-CSS gate: property names are canonicalised (case and escapes)', (
 	);
 });
 
+test('compiled-CSS gate: only Tailwind exact generated scale selector is accepted', () => {
+	const generated = '@layer theme { :root, :host { --publy-z-raised: 10; } }';
+	assert.deepEqual(checkCompiledCssZIndex(generated), []);
+	for (const selector of [':host, :root', ':root,:host']) {
+		assert.equal(
+			checkCompiledCssZIndex(
+				`@layer theme { ${selector} { --publy-z-raised: 10; } }`,
+			).length,
+			1,
+			selector,
+		);
+	}
+});
+
 // ---------------------------------------------------------------------------
 // End-to-end through the production scanner — isolated fixture trees whose
 // throwaway `src/` is compiled exactly as production compiles `apps/front/src`.
@@ -713,6 +727,43 @@ test('e2e (round 4 blocker 3): module const setProperty key cannot shadow a scal
 		violations.map((violation) => violation.source),
 		['--publy-z-raised'],
 		`module const token writes must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 4 important 1): imported root token override is rejected by provenance', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'component.ts': `import './override.css';\nexport const component = 'probe';`,
+			'override.css': ':root { --publy-z-raised: 998; }',
+		},
+		'',
+		[
+			`import { component } from './component';`,
+			`document.body.dataset.fixture = component;`,
+		],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.file === 'src/override.css' &&
+				violation.source === '--publy-z-raised: 998',
+		),
+		`imported token definitions must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 4 important 1): duplicate canonical tiers are rejected', async () => {
+	const { violations } = await runFixtureGuard(
+		{ 'probe.ts': `export const probe = 'probe';` },
+		':root { --publy-z-raised: 998; }\n',
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-scale-token-duplicate' &&
+				violation.source === '--publy-z-raised: 998',
+		),
+		`duplicate tiers must red: ${JSON.stringify(violations)}`,
 	);
 });
 

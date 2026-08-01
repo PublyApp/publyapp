@@ -54,9 +54,11 @@ const SCRIPT_EXTENSIONS = new Set([
 //      `var(--publy-z-…)`. This proves what actually ships, which is the
 //      exact failure that killed the previous attempt (its own fixture
 //      literals reached the shipped stylesheet).
-//   5. Scale-definition integrity — reserved `--publy-z-*` tokens may only be
-//      defined in the global scale. Literal script-object and setProperty()
-//      overrides are rejected before they can shadow an accepted reference.
+//   5. Scale-definition integrity — authored reserved `--publy-z-*` tokens may
+//      only be defined once in a top-level :root in src/styles/app.css.
+//      Tailwind's generated emitted form is recognised separately. Literal
+//      script-object and setProperty() overrides are rejected before they can
+//      shadow an accepted reference.
 //
 // Out of scope (documented, not silently absent — see
 // docs/guides/front/z-index-guard.md):
@@ -70,6 +72,8 @@ const SCRIPT_EXTENSIONS = new Set([
 //     avatars is the only user today; toaster.tsx already uses the token).
 //   - z-index assembled at runtime from values that never appear literally
 //     anywhere in `src` (e.g. from an API response).
+//   - stylesheets injected at runtime through CSSStyleSheet, insertRule(), or
+//     a <style> element. They never become production-build CSS assets.
 //   - reserved-token writes mediated by helper parameters, or object spreads
 //     whose token-bearing source is produced by a helper/import rather than a
 //     literal in the scanned module.
@@ -835,7 +839,7 @@ export const checkCompiledCssZIndex = (
 	compiledCss,
 	allowlisted = KNOWN_RAW_Z_INDEX_DECLARATIONS,
 	sourceName = 'compiled stylesheet',
-	{ emitted = false } = {},
+	{ emitted = false, scaleDefinitionCounts = new Map() } = {},
 ) => {
 	const violations = [];
 	const seenCounts = new Map();
@@ -856,20 +860,34 @@ export const checkCompiledCssZIndex = (
 		});
 	});
 	for (const declaration of scanCssDeclarations(root)) {
-		if (
-			declaration.decodedProperty.startsWith('--publy-z-') &&
-			!isGlobalScaleDefinition(declaration, emitted)
-		) {
+		if (declaration.decodedProperty.startsWith('--publy-z-')) {
 			const source = `${declaration.decodedProperty}: ${declaration.value}`;
-			violations.push({
-				ruleId: 'z-index-scale-token-redefined',
-				message:
-					`shipped \`${source}\` outside the global scale — define z-index ` +
-					'tiers once in :root in src/styles/app.css.',
-				file: sourceName,
-				line: declaration.line,
-				source,
-			});
+			if (!isGlobalScaleDefinition(declaration, emitted)) {
+				violations.push({
+					ruleId: 'z-index-scale-token-redefined',
+					message:
+						`shipped \`${source}\` outside the global scale — define ` +
+						'z-index tiers once in :root in src/styles/app.css.',
+					file: sourceName,
+					line: declaration.line,
+					source,
+				});
+				continue;
+			}
+			const count =
+				(scaleDefinitionCounts.get(declaration.decodedProperty) ?? 0) + 1;
+			scaleDefinitionCounts.set(declaration.decodedProperty, count);
+			if (count > 1) {
+				violations.push({
+					ruleId: 'z-index-scale-token-duplicate',
+					message:
+						`shipped duplicate scale tier \`${source}\` — each reserved ` +
+						'token must be defined exactly once.',
+					file: sourceName,
+					line: declaration.line,
+					source,
+				});
+			}
 			continue;
 		}
 		if (declaration.property !== 'z-index') {
@@ -916,13 +934,70 @@ export const checkCompiledCssZIndex = (
 	return violations;
 };
 
-const collectCssAssetPaths = async (directory) => {
+export const checkAuthoredCssScaleDefinitions = ({
+	css,
+	relativePath,
+	isCanonicalAppCss,
+}) => {
+	const violations = [];
+	const seenCanonicalTokens = new Set();
+	const root = postcss.parse(css, { from: undefined });
+	root.walkDecls((declaration) => {
+		const property = decodeCssIdentifier(declaration.prop);
+		if (!property.startsWith('--publy-z-')) {
+			return;
+		}
+		const source = `${property}: ${declaration.value.trim()}`;
+		const selector =
+			declaration.parent?.type === 'rule'
+				? normalizeWhitespace(declaration.parent.selector)
+				: '';
+		const isCanonicalDefinition =
+			isCanonicalAppCss &&
+			selector === ':root' &&
+			cssAncestorsFor(declaration).length === 0;
+		if (!isCanonicalDefinition) {
+			violations.push({
+				ruleId: 'z-index-scale-token-redefined',
+				message:
+					`authored \`${source}\` does not originate in a top-level ` +
+					'`:root` in src/styles/app.css.',
+				file: relativePath,
+				line: declaration.source?.start?.line ?? 1,
+				source,
+			});
+			return;
+		}
+		if (seenCanonicalTokens.has(property)) {
+			violations.push({
+				ruleId: 'z-index-scale-token-duplicate',
+				message:
+					`authored duplicate scale tier \`${source}\` — each reserved ` +
+					'token must be defined exactly once in src/styles/app.css.',
+				file: relativePath,
+				line: declaration.source?.start?.line ?? 1,
+				source,
+			});
+			return;
+		}
+		seenCanonicalTokens.add(property);
+	});
+	return violations;
+};
+
+const collectCssPaths = async (
+	directory,
+	excludedDirectoryNames = new Set(),
+) => {
 	const cssPaths = [];
 	const visit = async (currentDirectory) => {
 		const entries = await readdir(currentDirectory, { withFileTypes: true });
 		for (const entry of entries) {
 			const entryPath = path.join(currentDirectory, entry.name);
 			if (entry.isDirectory()) {
+				if (excludedDirectoryNames.has(entry.name)) {
+					continue;
+				}
 				await visit(entryPath);
 			} else if (entry.isFile() && entry.name.endsWith('.css')) {
 				cssPaths.push(entryPath);
@@ -939,6 +1014,14 @@ const collectCssAssetPaths = async (directory) => {
 	}
 	return cssPaths.sort((left, right) => left.localeCompare(right));
 };
+
+const AUTHORED_CSS_EXCLUDED_DIRECTORIES = new Set([
+	'.git',
+	'.output',
+	'coverage',
+	'dist',
+	'node_modules',
+]);
 
 const buildProductionApp = async (baseDir) => {
 	await execFileAsync('pnpm', ['exec', 'vite', 'build'], {
@@ -993,9 +1076,31 @@ export const runZIndexGuard = async ({
 			}),
 		);
 	}
+	const canonicalAppCssPath = path.resolve(configuredAppCssPath);
+	const authoredCssPaths = await collectCssPaths(
+		baseDir,
+		AUTHORED_CSS_EXCLUDED_DIRECTORIES,
+	);
+	for (const cssPath of authoredCssPaths) {
+		const content = await readFile(cssPath, 'utf8');
+		violations.push(
+			...checkAuthoredCssScaleDefinitions({
+				css: content,
+				relativePath: path.relative(baseDir, cssPath),
+				isCanonicalAppCss: path.resolve(cssPath) === canonicalAppCssPath,
+			}),
+		);
+	}
+	const authoredScaleViolationKeys = new Set(
+		violations
+			.filter((violation) =>
+				violation.ruleId.startsWith('z-index-scale-token-'),
+			)
+			.map((violation) => `${violation.ruleId}\u0000${violation.source}`),
+	);
 
 	await productionBuild();
-	const emittedCssPaths = await collectCssAssetPaths(emittedCssRoot);
+	const emittedCssPaths = await collectCssPaths(emittedCssRoot);
 	if (emittedCssPaths.length === 0) {
 		throw new Error(
 			'z-index guard found 0 emitted CSS assets after the production build — ' +
@@ -1003,18 +1108,27 @@ export const runZIndexGuard = async ({
 		);
 	}
 	const emittedCssAssets = [];
+	const emittedScaleDefinitionCounts = new Map();
 	for (const cssPath of emittedCssPaths) {
 		const content = await readFile(cssPath, 'utf8');
 		const relativePath = path.relative(baseDir, cssPath);
 		emittedCssAssets.push({ path: relativePath, content });
-		violations.push(
-			...checkCompiledCssZIndex(
-				content,
-				KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS,
-				relativePath,
-				{ emitted: true },
-			),
+		const emittedViolations = checkCompiledCssZIndex(
+			content,
+			KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS,
+			relativePath,
+			{
+				emitted: true,
+				scaleDefinitionCounts: emittedScaleDefinitionCounts,
+			},
 		);
+		for (const violation of emittedViolations) {
+			const key = `${violation.ruleId}\u0000${violation.source}`;
+			if (authoredScaleViolationKeys.has(key)) {
+				continue;
+			}
+			violations.push(violation);
+		}
 	}
 
 	return {

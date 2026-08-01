@@ -54,7 +54,7 @@ from a TypeScript AST is what failed twice before (#987). The scanner's sources 
 `@import 'tailwindcss' source('../')` in `app.css` via `@tailwindcss/node`'s `compile()`, exactly the
 way `@tailwindcss/vite` builds them, so the scanned file set is the production file set.
 
-Four components:
+Five components:
 
 1. **Candidate scan.** Every extractor candidate that is a raw z-index utility is reported unless it
    sits in a position that can never become a delivered class. Comments are stripped first (string-
@@ -84,12 +84,16 @@ Four components:
    `app.css`. This is the exact failure that killed the previous attempt, whose own fixture literals
    reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
    scanner watches.
-5. **Scale-definition integrity.** A `--publy-z-*` declaration is accepted only in the global `:root`
-   scale (including Tailwind's equivalent `@layer theme { :root, :host { … } }` output). Local CSS
-   declarations are reported even when the consuming `z-index` uses `var(...)`. The script AST pass
-   also reports literal `--publy-z-*` object properties and `setProperty()` calls, plus direct keys
-   resolved through a module-scope `const` bound to a string literal. This prevents an inline style
-   from shadowing a legitimate tier after the emitted gate has accepted its reference.
+5. **Scale-definition integrity.** The authored-CSS pass scans every project stylesheet and accepts a
+   `--publy-z-*` declaration only when it originates in a top-level `:root` in
+   `src/styles/app.css`; a repeated tier is rejected. This source pass preserves provenance that a
+   bundled asset cannot. Separately, the emitted pass recognises Tailwind's exact generated
+   `@layer theme { :root, :host { … } }` form, rejects changed selector/ancestor shapes, and enforces
+   uniqueness across all emitted assets. Local CSS declarations are reported even when the consuming
+   `z-index` uses `var(...)`. The script AST pass also reports literal `--publy-z-*` object properties
+   and `setProperty()` calls, plus direct keys resolved through a module-scope `const` bound to a
+   string literal. This prevents an inline style from shadowing a legitimate tier after the emitted
+   gate has accepted its reference.
 
 ## Out of scope — stated, not silent
 
@@ -113,10 +117,14 @@ gaps, each with its current evidence:
 - **Inline `style={{ zIndex }}` objects.** `toaster.tsx` already uses `var(--publy-z-toast)`;
   `initials-avatar.tsx` stacks overlapping avatars with `visible.length - index`, which has no scale
   meaning. Component 1 ignores these because inline styles are not extractor candidates, and
-  component 4 cannot see inline styles either. **This is the only remaining green route to a working
-  raw z-index** (a runtime `style={{ zIndex: 5 }}`), and it is deliberately left open — see below.
+  component 4 cannot see inline styles either. It is deliberately left open — see below.
 - **z-index assembled at runtime from values that never appear literally in `src`** (e.g. from an
   API response). No static guard can see this.
+- **Stylesheets injected at runtime.** A literal CSS rule passed to `CSSStyleSheet.replaceSync()`,
+  `insertRule()`, assigned to a `<style>` element's `textContent`, or produced by an equivalent CSSOM
+  path is shipped as JavaScript rather than as an emitted CSS asset. The guard does not reinterpret
+  arbitrary script strings as CSS, so this is a working raw-z-index route outside the current static
+  boundary.
 - **Helper-mediated reserved-token writes and helper/import-produced spreads.** The script pass follows
   direct module-scope string constants, but it does not perform interprocedural data flow. A helper
   whose `setProperty(name, value)` key arrives through a parameter, or a spread/Object.assign payload
@@ -132,13 +140,13 @@ gaps, each with its current evidence:
   bypass: a `+`-concatenated class can ship a working raw z-index only when a rule ships, and shipping
   that rule is itself a violation.
 
-### The one truly green raw z-index, and why it stays
+### The deliberately green raw z-index routes
 
-Inline `style={{ zIndex: … }}` is the single route that ships a working raw z-index while the guard is
-green — it is invisible to the extractor (component 1) and to the compiled stylesheet (component 4),
-so the guard cannot see it without an AST-level style-object scanner, which is a different mechanism.
-It is left open on purpose and policed by the code-standard: every inline z-index must reference the
-scale (the only current consumers already do).
+Inline `style={{ zIndex: … }}` is invisible to the extractor (component 1) and to the emitted
+stylesheet (component 4); runtime stylesheet injection is likewise absent from emitted CSS. Covering
+them would require AST-level style-object and CSSOM-flow scanners, different mechanisms from this
+guard. They are left open and policed by the code standard: every runtime z-index must reference the
+scale (the current inline consumers already do).
 
 One deliberate interaction to understand: an innocent-looking string that _literally contains_ a
 z-index utility (a `data-*` attribute value, a type literal, a test comment) still makes the
