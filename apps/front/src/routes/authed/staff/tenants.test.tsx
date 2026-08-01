@@ -904,6 +904,22 @@ describe('staff tenants route', () => {
 			expect(trigger.getAttribute('aria-expanded')).toBe('true');
 			fireEvent.click(screen.getByRole('menuitem', { name: actionName }));
 		};
+		const mixedStatusTenants = [
+			{
+				id: 'tenant-1',
+				name: 'Acme Corporation',
+				status: 'Active',
+				usersCount: 12,
+				maxUsers: 50,
+			},
+			{
+				id: 'tenant-2',
+				name: 'Globex Corporation',
+				status: 'Suspended',
+				usersCount: 3,
+				maxUsers: 10,
+			},
+		];
 
 		test('renders a selection checkbox and hashed logo fallback for each tenant row', () => {
 			const { container } = renderPage();
@@ -1014,6 +1030,12 @@ describe('staff tenants route', () => {
 		});
 
 		test('bulk-suspends only the eligible selected tenants and reports success', async () => {
+			mocks.toStaffTenantRows.mockReturnValue(mixedStatusTenants);
+			mocks.useStaffTenantsQuery.mockReturnValue(
+				buildQueryResult({
+					data: { data: mixedStatusTenants, nextCursor: null },
+				}),
+			);
 			mocks.bulkSuspendTenantsMutation.mockResolvedValue({
 				succeededCount: 1,
 				failedCount: 0,
@@ -1023,6 +1045,9 @@ describe('staff tenants route', () => {
 
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
+			);
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
 			await chooseBulkAction('Suspend selected');
 
@@ -1143,23 +1168,6 @@ describe('staff tenants route', () => {
 			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 			expect(mocks.toastError).not.toHaveBeenCalled();
 		});
-
-		const mixedStatusTenants = [
-			{
-				id: 'tenant-1',
-				name: 'Acme Corporation',
-				status: 'Active',
-				usersCount: 12,
-				maxUsers: 50,
-			},
-			{
-				id: 'tenant-2',
-				name: 'Globex Corporation',
-				status: 'Suspended',
-				usersCount: 3,
-				maxUsers: 10,
-			},
-		];
 
 		const allSuspendedTenants = mixedStatusTenants.map((tenant) => ({
 			...tenant,
