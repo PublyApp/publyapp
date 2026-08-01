@@ -16,13 +16,24 @@ const importMarketingFlags = async (
 ): Promise<MarketingFlags> => {
 	vi.resetModules();
 	vi.unstubAllEnvs();
+	// Vitest's `import.meta.env` is a proxy that coerces DEV/PROD/SSR from
+	// `process.env`, and `stubEnv` writes only the key it is handed — so
+	// stubbing PROD alone leaves DEV true, a state no real build produces
+	// (vite resolves `DEV: !isProduction` and inlines it). A default reading
+	// any un-stubbed build-time constant would then evaluate one way here and
+	// the opposite in the shipped bundle. Stub the whole set together.
 	vi.stubEnv('MODE', isProduction ? 'production' : 'test');
 	vi.stubEnv('PROD', isProduction);
+	vi.stubEnv('DEV', !isProduction);
+	vi.stubEnv('SSR', false);
 	for (const flagKey of Object.keys(sourceFeatures.marketing)) {
 		vi.stubEnv(toMarketingEnvKey(flagKey), rawValue);
 	}
 
 	const { FEATURES } = await import('./flags');
+	// Guards the three `for...of Object.values(marketing)` loops below: an
+	// empty registry would make every one of them pass vacuously.
+	expect(Object.keys(FEATURES.marketing).length).toBeGreaterThan(0);
 	return FEATURES.marketing;
 };
 

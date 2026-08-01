@@ -11,8 +11,12 @@ const readFlag = (envKey: string, defaultValue: boolean): boolean => {
 
 /**
  * Static feature-flag registry (front equivalent of apps/old-front's
- * lib/features/flags.ts). Read at module load; flip via VITE_FEATURE_* env
- * vars without a redeploy of source.
+ * lib/features/flags.ts). Read at module load, so `import.meta.env` inlines
+ * each value at BUILD time: flipping a flag means rebuilding and redeploying
+ * the image, not changing a running container's environment. A flag also needs
+ * an ARG/ENV pair in apps/front/Dockerfile to be settable at image-build time
+ * at all — the marketing flags deliberately have none, so they are false in
+ * every released image and cannot be turned on without a Dockerfile change.
  */
 export const FEATURES = {
 	auth: {
