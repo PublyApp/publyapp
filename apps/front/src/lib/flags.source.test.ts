@@ -18,7 +18,9 @@ const visitSourceNodes = (
 	visit(sourceFile);
 };
 
-const isImportMetaEnv = (node: ts.Node): boolean => {
+const isImportMetaEnv = (
+	node: ts.Node,
+): node is ts.PropertyAccessExpression => {
 	return (
 		ts.isPropertyAccessExpression(node) &&
 		node.name.text === 'env' &&
@@ -28,7 +30,7 @@ const isImportMetaEnv = (node: ts.Node): boolean => {
 	);
 };
 
-const isProcessEnv = (node: ts.Node): boolean => {
+const isProcessEnv = (node: ts.Node): node is ts.PropertyAccessExpression => {
 	return (
 		ts.isPropertyAccessExpression(node) &&
 		node.name.text === 'env' &&
