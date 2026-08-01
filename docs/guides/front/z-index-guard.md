@@ -103,9 +103,11 @@ Five components:
    `@layer theme { :root, :host { … } }` form, rejects changed selector/ancestor shapes, and enforces
    uniqueness across all emitted assets. Both CSS passes also reject every
    `@property --publy-z-*` registration: registration with `inherits: false` can replace the
-   canonical inherited tier with its `initial-value` on descendants without declaring the token.
-   Other at-rule parameters may reference a custom property, or reuse the same spelling in an
-   unrelated namespace such as a keyframe name, but cannot register or replace its computed value.
+   canonical inherited tier with its `initial-value` on descendants without declaring the token. In
+   build-reachable scripts, direct `CSS.registerProperty()` calls with a static reserved `name` are
+   rejected for the same reason. Other at-rule parameters may reference a custom property, or reuse
+   the same spelling in an unrelated namespace such as a keyframe name, but cannot register or replace
+   its computed value.
    Tailwind's generated selector shape is intentionally exact and fails closed if an upgrade changes
    it; the guard and this policy must then be reviewed together.
    Local CSS declarations are reported even when the consuming `z-index` uses `var(...)`. The script
@@ -158,10 +160,12 @@ gaps, each with its current evidence:
   safe—they are explicitly policed by the code standard—but closing them requires a separate
   CSSOM/data-flow mechanism. The common declarative literal route does not need that mechanism and is
   therefore closed here rather than silently grouped with runtime injection.
-- **Helper-mediated reserved-token writes and helper/import-produced spreads.** The script pass follows
-  direct module-scope string constants, but it does not perform interprocedural data flow. A helper
-  whose `setProperty(name, value)` key arrives through a parameter, or a spread/Object.assign payload
-  whose token-bearing object is produced by a helper or unscanned import, remains outside the static
+- **Helper-mediated reserved-token writes, registrations, and helper/import-produced spreads.** The
+  script pass follows direct module-scope string constants, but it does not perform interprocedural
+  data flow. A helper whose `setProperty(name, value)` key or `CSS.registerProperty({ name })` value
+  arrives through a parameter, or a spread/Object.assign payload whose token-bearing object is
+  produced by a helper or unscanned import, remains outside the static boundary. Assigning a complete
+  style string through `cssText`, `setAttribute('style', ...)`, or raw HTML has the same runtime-data
   boundary. Literal object properties in scanned source remain red even when that object is later
   spread.
 - **A class assembled by `+` string concatenation (`'z-' + 5`).** It produces no extractor candidate,

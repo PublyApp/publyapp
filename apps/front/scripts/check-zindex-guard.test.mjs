@@ -288,6 +288,22 @@ test('evasion: literal stylesheet links cannot ship opaque CSS', () => {
 	}
 });
 
+test('evasion: script cannot register a reserved scale token', () => {
+	for (const content of [
+		"CSS.registerProperty({ name: '--publy-z-raised', syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
+		[
+			"const TOKEN = '--publy-z-raised';",
+			"CSS.registerProperty({ name: TOKEN, syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
+		].join('\n'),
+	]) {
+		assert.deepEqual(
+			violationsFor('fixture.ts', content).map((violation) => violation.ruleId),
+			['z-index-scale-token-registered'],
+			content,
+		);
+	}
+});
+
 test('innocent: JSX links without a literal stylesheet destination stay clean', () => {
 	for (const content of [
 		'<link rel="preload" as="style" href="/theme.css" />',
@@ -709,8 +725,10 @@ test('e2e (round 5 important 2): unimported CSS samples stay green', async () =>
 test('e2e (round 5 audit): unimported script link samples stay green', async () => {
 	const { violations } = await runFixtureGuard({
 		'probe.ts': `export const probe = 'probe';`,
-		'unshipped-link-sample.tsx':
+		'unshipped-link-sample.tsx': [
 			"export const sample = { links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
+			"CSS.registerProperty({ name: '--publy-z-raised', inherits: false, initialValue: '99' });",
+		].join('\n'),
 	});
 	assert.deepEqual(violations, []);
 });

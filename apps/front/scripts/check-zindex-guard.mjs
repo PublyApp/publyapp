@@ -709,7 +709,7 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const visitOpaqueStylesheetLinks = (node) => {
+		const visitStaticStyleEscapes = (node) => {
 			let rel = null;
 			let href = null;
 			if (
@@ -742,10 +742,32 @@ export const scanZIndexFile = ({
 					source: node.getText(sourceFile),
 				});
 			}
-			node.forEachChild(visitOpaqueStylesheetLinks);
+			if (
+				ts.isCallExpression(node) &&
+				ts.isPropertyAccessExpression(node.expression) &&
+				ts.isIdentifier(node.expression.expression) &&
+				node.expression.expression.text === 'CSS' &&
+				node.expression.name.text === 'registerProperty' &&
+				ts.isObjectLiteralExpression(node.arguments[0])
+			) {
+				const property = staticObjectProperty(node.arguments[0], 'name');
+				if (property?.startsWith('--publy-z-')) {
+					violations.push({
+						ruleId: 'z-index-scale-token-registered',
+						message:
+							`script registration of reserved scale token \`${property}\` can ` +
+							'replace its inherited tier value — the --publy-z-* namespace ' +
+							'must not be registered with CSS.registerProperty().',
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+						source: `CSS.registerProperty(${property})`,
+					});
+				}
+			}
+			node.forEachChild(visitStaticStyleEscapes);
 		};
 		if (checkOpaqueStylesheetLinks) {
-			visitOpaqueStylesheetLinks(sourceFile);
+			visitStaticStyleEscapes(sourceFile);
 		}
 		const recordScaleTokenDefinition = (name, node) => {
 			if (name == null || !name.startsWith('--publy-z-')) {
