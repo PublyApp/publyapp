@@ -634,6 +634,78 @@ test('compiled-CSS gate: emitted tiers must belong to the canonical app.css scal
 	);
 });
 
+test('compiled-CSS gate: emitted duplicate scale tier is rejected (cross-asset global counter)', () => {
+	// The emitted duplicate branch (`count > 1`) is the sole detector when a
+	// dependency re-declares an already-canonical tier in Tailwind's accepted
+	// generated form: `canonicalScaleTokens.has()` passes, `isGlobalScaleDefinition`
+	// passes, so only the counter reds it. The counter is shared across emitted
+	// assets, so a second asset redeclaring the tier must red.
+	const canonical = new Set(['--publy-z-raised', '--publy-z-menu']);
+	const counts = new Map();
+	const first = checkCompiledCssZIndex(
+		'@layer theme {:root,:host{--publy-z-raised:10}}',
+		KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		'dist/first.css',
+		{
+			emitted: true,
+			scaleDefinitionCounts: counts,
+			canonicalScaleTokens: canonical,
+		},
+	);
+	assert.deepEqual(first, []);
+	const second = checkCompiledCssZIndex(
+		'@layer theme {:root,:host{--publy-z-raised:2147483647}}',
+		KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		'dist/second.css',
+		{
+			emitted: true,
+			scaleDefinitionCounts: counts,
+			canonicalScaleTokens: canonical,
+		},
+	);
+	assert.deepEqual(
+		second.map(({ ruleId, source }) => ({ ruleId, source })),
+		[
+			{
+				ruleId: 'z-index-scale-token-duplicate',
+				source: '--publy-z-raised: 2147483647',
+			},
+		],
+	);
+	// two distinct tiers in one asset are fine
+	assert.deepEqual(
+		checkCompiledCssZIndex(
+			'@layer theme {:root,:host{--publy-z-raised:10}}\n' +
+				'@layer theme {:root,:host{--publy-z-menu:100}}',
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+			'dist/third.css',
+			{ emitted: true, canonicalScaleTokens: canonical },
+		),
+		[],
+	);
+});
+
+test('compiled-CSS gate: escaped important identifier is decoded before comparison', () => {
+	// PostCSS strips a plain `!important` into `decl.important`, so the guard's
+	// `stripImportant` only fires on spellings the parser leaves in the value —
+	// the escaped `!\69mportant` form. Green when the value is a scale route,
+	// red when the underlying value is raw.
+	assert.equal(
+		checkCompiledCssZIndex(
+			'.a { z-index: var(--publy-z-raised) !\\69mportant; }',
+		).length,
+		0,
+	);
+	assert.equal(
+		checkCompiledCssZIndex('.b { z-index: 50 !\\69mportant; }').length,
+		1,
+	);
+	assert.equal(
+		checkCompiledCssZIndex('.c { z-index: 50 !\\69MPORTANT; }').length,
+		1,
+	);
+});
+
 test('CSS gates: @property cannot register a reserved scale token', () => {
 	const registration = [
 		'@property --publy-z-raised {',
