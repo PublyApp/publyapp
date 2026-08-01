@@ -581,6 +581,41 @@ void test('counts a sequence-wrapped createContext call in a TanStack route virt
 	);
 });
 
+void test('counts a rendered-module-local createContext callee alias', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const aliasedCode = `
+		const mk = import_react.createContext;
+		const RouteContext = mk(null);
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: aliasedCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: aliasedCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
 void test('counts a context duplicated across TanStack virtual-module siblings', () => {
 	const sourceFile = path.join(
 		frontDirectory,
@@ -619,6 +654,40 @@ void test('counts a context duplicated across TanStack virtual-module siblings',
 		[
 			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route-component.js, assets/route-loader.js.',
 		],
+	);
+});
+
+void test('fails closed when a context initializer callee remains unrecognized', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const unrecognizedCode = `
+		const makeContext = getContextFactory();
+		const RouteContext = makeContext(null);
+	`;
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: unrecognizedCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: unrecognizedCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot prove how RouteContext is created/i,
 	);
 });
 

@@ -294,9 +294,16 @@ const contextNameForCall = (callExpression) => {
 	return '<anonymous context>';
 };
 
-const isRenderedCreateContextCallee = (expression) => {
+// Rolldown currently collapses most aliases to these property-access forms
+// before this parser runs. That is observed bundler behavior, not a guaranteed
+// contract, so module-local aliases are resolved below and other context
+// initializer callees must fail closed.
+const isRenderedCreateContextCallee = (expression, createContextAliases) => {
 	if (isIdentifier(expression)) {
-		return expression.text === 'createContext';
+		return (
+			expression.text === 'createContext' ||
+			createContextAliases.has(expression.text)
+		);
 	}
 
 	if (isPropertyAccessExpression(expression)) {
@@ -311,14 +318,49 @@ const isRenderedCreateContextCallee = (expression) => {
 	}
 
 	if (isParenthesizedExpression(expression)) {
-		return isRenderedCreateContextCallee(expression.expression);
+		return isRenderedCreateContextCallee(
+			expression.expression,
+			createContextAliases,
+		);
 	}
 
 	return (
 		isBinaryExpression(expression) &&
 		expression.operatorToken.kind === SyntaxKind.CommaToken &&
-		isRenderedCreateContextCallee(expression.right)
+		isRenderedCreateContextCallee(expression.right, createContextAliases)
 	);
+};
+
+const findRenderedCreateContextAliases = (sourceFile) => {
+	const aliases = new Set();
+	const declarations = [];
+	const visit = (node) => {
+		if (
+			isVariableDeclaration(node) &&
+			isIdentifier(node.name) &&
+			node.initializer
+		) {
+			declarations.push(node);
+		}
+
+		node.forEachChild(visit);
+	};
+
+	visit(sourceFile);
+	let previousAliasCount = -1;
+	while (previousAliasCount !== aliases.size) {
+		previousAliasCount = aliases.size;
+		for (const declaration of declarations) {
+			if (
+				!aliases.has(declaration.name.text) &&
+				isRenderedCreateContextCallee(declaration.initializer, aliases)
+			) {
+				aliases.add(declaration.name.text);
+			}
+		}
+	}
+
+	return aliases;
 };
 
 const expressionContainsCreateContextName = (expression) => {
@@ -347,11 +389,14 @@ const analyzeRenderedContextModule = (
 	moduleLabel,
 ) => {
 	const recognizedContextNames = new Set();
+	const createContextAliases = findRenderedCreateContextAliases(sourceFile);
 	let hasUnattributedCreateContextCall = false;
 
 	const visit = (node) => {
 		if (isCallExpression(node)) {
-			if (isRenderedCreateContextCallee(node.expression)) {
+			if (
+				isRenderedCreateContextCallee(node.expression, createContextAliases)
+			) {
 				const declaration = node.parent;
 				if (
 					isVariableDeclaration(declaration) &&
@@ -367,6 +412,18 @@ const analyzeRenderedContextModule = (
 				throw new Error(
 					`Context chunk isolation guard cannot prove an unrecognized rendered createContext callee in ${moduleLabel}.`,
 				);
+			} else {
+				const declaration = node.parent;
+				if (
+					isVariableDeclaration(declaration) &&
+					declaration.initializer === node &&
+					isIdentifier(declaration.name) &&
+					expectedContextNames.has(declaration.name.text)
+				) {
+					throw new Error(
+						`Context chunk isolation guard cannot prove how ${declaration.name.text} is created in ${moduleLabel}.`,
+					);
+				}
 			}
 		}
 
