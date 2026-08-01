@@ -333,7 +333,7 @@ const parseCmapTable = (tableData) => {
 	}
 	for (const offset of records) {
 		if (offset >= tableData.length) continue;
-		const subtable = tableData.slice(offset);
+		const subtable = tableData.subarray(offset);
 		for (const cp of parseCmapSubtable(subtable)) {
 			codepoints.add(cp);
 		}
