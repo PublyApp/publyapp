@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 import { describe, expect, test } from 'vitest';
@@ -31,7 +31,7 @@ const SURFACE_TOKENS = [
 	'--publy-surface-raised',
 ] as const;
 
-type Rgb = { r: number; g: number; b: number };
+type Rgba = { r: number; g: number; b: number; a: number };
 
 const extractBlock = (header: ':root' | 'html.dark'): string => {
 	const start = appCssSource.indexOf(`${header} {`);
@@ -54,36 +54,149 @@ const extractBlock = (header: ':root' | 'html.dark'): string => {
 	throw new Error(`Unclosed ${header} theme block`);
 };
 
-const readTokens = (header: ':root' | 'html.dark'): Map<string, string> => {
-	const tokens = new Map<string, string>();
-	const pattern = /(--publy-[\w-]+):\s*(#[0-9a-fA-F]{6});/g;
+// Every `--custom-property: value;` declaration in a theme block — hex and
+// rgba() colours, `var(--publy-*)` aliases, and everything else — so the
+// guard can read the real overlay surface and the backdrop it composites
+// over, not only the opaque surface tokens.
+const readDeclarations = (
+	header: ':root' | 'html.dark',
+): Map<string, string> => {
+	const declarations = new Map<string, string>();
+	const pattern = /(--[\w-]+)\s*:\s*([^;]+);/g;
 	for (const match of extractBlock(header).matchAll(pattern)) {
-		tokens.set(match[1], match[2]);
+		declarations.set(match[1], match[2].trim());
 	}
-	return tokens;
+	return declarations;
 };
 
-const LIGHT_TOKENS = readTokens(':root');
-const DARK_TOKENS = readTokens('html.dark');
+const LIGHT_DECLARATIONS = readDeclarations(':root');
+const DARK_DECLARATIONS = readDeclarations('html.dark');
 
-const resolveToken = (name: string, theme: 'light' | 'dark'): string => {
-	const value =
-		theme === 'dark'
-			? (DARK_TOKENS.get(name) ?? LIGHT_TOKENS.get(name))
-			: LIGHT_TOKENS.get(name);
-	if (value === undefined) {
-		throw new Error(`Token ${name} is not declared as a hex value in app.css`);
+const parseColorValue = (raw: string, name: string): Rgba => {
+	const trimmed = raw.trim();
+
+	const hexMatch =
+		/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.exec(
+			trimmed,
+		);
+	if (hexMatch) {
+		const hex = hexMatch[1];
+		if (hex.length === 3 || hex.length === 4) {
+			const expanded = [...hex].map((digit) => digit + digit).join('');
+			return {
+				r: Number.parseInt(expanded.slice(0, 2), 16),
+				g: Number.parseInt(expanded.slice(2, 4), 16),
+				b: Number.parseInt(expanded.slice(4, 6), 16),
+				a:
+					hex.length === 4
+						? Number.parseInt(expanded.slice(6, 8), 16) / 255
+						: 1,
+			};
+		}
+		return {
+			r: Number.parseInt(hex.slice(0, 2), 16),
+			g: Number.parseInt(hex.slice(2, 4), 16),
+			b: Number.parseInt(hex.slice(4, 6), 16),
+			a: hex.length === 8 ? Number.parseInt(hex.slice(6, 8), 16) / 255 : 1,
+		};
 	}
-	return value;
+
+	// Comma-separated functional colour syntax with an optional alpha.
+	const commaMatch =
+		/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(
+			trimmed,
+		);
+	if (commaMatch) {
+		return {
+			r: Number(commaMatch[1]),
+			g: Number(commaMatch[2]),
+			b: Number(commaMatch[3]),
+			a: commaMatch[4] === undefined ? 1 : Number(commaMatch[4]),
+		};
+	}
+
+	// Space-separated functional colour syntax with an optional alpha.
+	const spaceMatch =
+		/^rgba?\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/.exec(
+			trimmed,
+		);
+	if (spaceMatch) {
+		return {
+			r: Number(spaceMatch[1]),
+			g: Number(spaceMatch[2]),
+			b: Number(spaceMatch[3]),
+			a: spaceMatch[4] === undefined ? 1 : Number(spaceMatch[4]),
+		};
+	}
+
+	throw new Error(`Unparseable colour value for ${name}: ${raw}`);
 };
 
-const parseHex = (hex: string): Rgb => ({
-	r: Number.parseInt(hex.slice(1, 3), 16),
-	g: Number.parseInt(hex.slice(3, 5), 16),
-	b: Number.parseInt(hex.slice(5, 7), 16),
-});
+const resolveColor = (name: string, theme: 'light' | 'dark'): Rgba => {
+	const visited = new Set<string>();
+	const resolve = (tokenName: string): Rgba => {
+		if (visited.has(tokenName)) {
+			throw new Error(`Circular custom-property reference at ${tokenName}`);
+		}
+		visited.add(tokenName);
 
-const relativeLuminance = ({ r, g, b }: Rgb): number => {
+		const raw =
+			theme === 'dark'
+				? (DARK_DECLARATIONS.get(tokenName) ??
+					LIGHT_DECLARATIONS.get(tokenName))
+				: LIGHT_DECLARATIONS.get(tokenName);
+		if (raw === undefined) {
+			throw new Error(`Token ${tokenName} is not declared in app.css`);
+		}
+
+		const aliasMatch = /^var\((--[\w-]+)\)$/.exec(raw);
+		if (aliasMatch) {
+			return resolve(aliasMatch[1]);
+		}
+		return parseColorValue(raw, tokenName);
+	};
+	return resolve(name);
+};
+
+// Standard alpha compositing: `over` painted on top of `under`.
+const alphaComposite = (over: Rgba, under: Rgba): Rgba => {
+	const resultAlpha = over.a + under.a * (1 - over.a);
+	if (resultAlpha === 0) {
+		return { r: 0, g: 0, b: 0, a: 0 };
+	}
+	const compositeChannel = (
+		overChannel: number,
+		underChannel: number,
+	): number =>
+		(overChannel * over.a + underChannel * under.a * (1 - over.a)) /
+		resultAlpha;
+	return {
+		r: compositeChannel(over.r, under.r),
+		g: compositeChannel(over.g, under.g),
+		b: compositeChannel(over.b, under.b),
+		a: resultAlpha,
+	};
+};
+
+// The opaque colour the drawer description text actually sits on. The drawer
+// panel (`.publy-drawer`) paints `--publy-overlay-surface` at alpha 0.97,
+// above the fixed scrim (`.publy-overlay-backdrop` paints `--publy-backdrop`)
+// which sits on the app canvas (`--publy-background`, the `html`/shell
+// background). Compositing in paint order reads the translucent overlay as
+// the colour a real description sees instead of treating the declared rgba
+// value as an opaque backdrop.
+const compositedDrawerBackground = (theme: 'light' | 'dark'): Rgba => {
+	const scrimOverCanvas = alphaComposite(
+		resolveColor('--publy-backdrop', theme),
+		resolveColor('--publy-background', theme),
+	);
+	return alphaComposite(
+		resolveColor('--publy-overlay-surface', theme),
+		scrimOverCanvas,
+	);
+};
+
+const relativeLuminance = ({ r, g, b }: Rgba): number => {
 	const linearize = (channel: number): number => {
 		const value = channel / 255;
 		return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
@@ -92,9 +205,9 @@ const relativeLuminance = ({ r, g, b }: Rgb): number => {
 	return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
 };
 
-const contrastRatio = (foreground: string, background: string): number => {
-	const foregroundLuminance = relativeLuminance(parseHex(foreground));
-	const backgroundLuminance = relativeLuminance(parseHex(background));
+const contrastRatio = (foreground: Rgba, background: Rgba): number => {
+	const foregroundLuminance = relativeLuminance(foreground);
+	const backgroundLuminance = relativeLuminance(background);
 	const lighter = Math.max(foregroundLuminance, backgroundLuminance);
 	const darker = Math.min(foregroundLuminance, backgroundLuminance);
 
@@ -116,31 +229,190 @@ const tokenFromColorDeclaration = (selector: string): string => {
 	return match[1];
 };
 
+// ---- Call-site enumeration -------------------------------------------------
+//
+// `DrawerDescription` deliberately merges the caller's `className` onto the
+// description element (drawer.tsx), so a token-only guard cannot see a
+// consumer re-colouring the text with a utility class. This guard reads every
+// `<DrawerDescription>` usage in the repository and verifies its *effective*
+// colour (default primitive token, or the resolved utility override) still
+// clears the floor on the composited drawer surface.
+
+const walkTsxFiles = (dir: string): string[] => {
+	const entries = readdirSync(dir, { withFileTypes: true });
+	const files: string[] = [];
+	for (const entry of entries) {
+		const fullPath = path.join(dir, entry.name);
+		if (entry.isDirectory()) {
+			files.push(...walkTsxFiles(fullPath));
+		} else if (entry.name.endsWith('.tsx')) {
+			files.push(fullPath);
+		}
+	}
+	return files;
+};
+
+const extractClassName = (
+	attributes: string,
+	file: string,
+	line: number,
+): string | null => {
+	const literalMatch = /className\s*=\s*("([^"]*)"|'([^']*)')/.exec(attributes);
+	if (literalMatch) {
+		return literalMatch[2] ?? literalMatch[3];
+	}
+	if (/className\s*=/.test(attributes)) {
+		throw new Error(
+			`DrawerDescription at ${file}:${line} passes a non-literal className that ` +
+				'the contrast guard cannot resolve — inline a string literal so an ' +
+				'override can be verified against the 4.5:1 floor.',
+		);
+	}
+	return null;
+};
+
+type CallSite = {
+	file: string;
+	line: number;
+	className: string | null;
+};
+
+const findDrawerDescriptionCallSites = (): CallSite[] => {
+	const srcRoot = path.resolve(process.cwd(), 'src');
+	const callSites: CallSite[] = [];
+	const tagPattern = /<DrawerDescription\b([^>]*)(\/?)>/g;
+	for (const file of walkTsxFiles(srcRoot)) {
+		const source = readFileSync(file, 'utf8');
+		for (const match of source.matchAll(tagPattern)) {
+			const attributes = match[1];
+			const line = source.slice(0, match.index).split('\n').length;
+			callSites.push({
+				file,
+				line,
+				className: extractClassName(attributes, file, line),
+			});
+		}
+	}
+	return callSites;
+};
+
+// Tailwind v4 CSS-variable shorthand `text-(--x)` is always a colour
+// reference; the bracketed form `text-[...]` can also be typography
+// (`text-[11px]`), so an unresolvable bracket is ignored while an
+// unresolvable paren form fails loudly.
+const colorFromClassName = (
+	className: string,
+	theme: 'light' | 'dark',
+): Rgba | null => {
+	let resolved: Rgba | null = null;
+	for (const utility of className.split(/\s+/)) {
+		const parenMatch = /^text-\((--[\w-]+|#[0-9a-fA-F]{3,8})\)$/.exec(utility);
+		if (parenMatch) {
+			const inner = parenMatch[1];
+			resolved = inner.startsWith('--')
+				? resolveColor(inner, theme)
+				: parseColorValue(inner, utility);
+			continue;
+		}
+		if (utility.startsWith('text-(')) {
+			throw new Error(
+				`Unresolvable text arbitrary value on a DrawerDescription: ${utility}`,
+			);
+		}
+
+		const bracketMatch = /^text-\[(var\(--[\w-]+\)|#[0-9a-fA-F]{3,8})\]$/.exec(
+			utility,
+		);
+		if (bracketMatch) {
+			const inner = bracketMatch[1];
+			resolved = inner.startsWith('var(')
+				? resolveColor(inner.slice(4, -1), theme)
+				: parseColorValue(inner, utility);
+			continue;
+		}
+
+		// Bare `text-*` semantic colours (from the `--foreground`-style theme
+		// aliases in app.css). Unknown bare utilities are treated as
+		// typography (`text-sm`, `text-center`, ...) and ignored.
+		if (utility === 'text-foreground') {
+			resolved = resolveColor('--foreground', theme);
+		} else if (utility === 'text-muted-foreground') {
+			resolved = resolveColor('--muted-foreground', theme);
+		} else if (utility === 'text-secondary-foreground') {
+			resolved = resolveColor('--secondary-foreground', theme);
+		}
+	}
+	return resolved;
+};
+
+const CALL_SITES = findDrawerDescriptionCallSites();
+
+// Every real (non-test) consumer must be found by the enumeration, so a glob
+// or parse regression can never silently empty the call-site guard.
+const EXPECTED_CONSUMER_FILES = [
+	'src/components/marketing/cookie-prefs-drawer.tsx',
+	'src/routes/authed/staff/staff-users/_change-email-dialog.tsx',
+	'src/routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx',
+	'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx',
+	'src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx',
+	'src/routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer.tsx',
+];
+
 describe('drawer description text contrast (#1043)', () => {
 	test.each(DESCRIPTION_SELECTORS)(
-		'%s resolves its color from a declared --publy-* token',
+		'%s clears the 4.5:1 small-text floor on every opaque surface and the composited drawer surface in both themes',
 		(selector) => {
 			const token = tokenFromColorDeclaration(selector);
+
 			for (const theme of ['light', 'dark'] as const) {
-				expect(() => resolveToken(token, theme)).not.toThrow();
+				const foreground = resolveColor(token, theme);
+				for (const surfaceToken of SURFACE_TOKENS) {
+					expect(
+						contrastRatio(foreground, resolveColor(surfaceToken, theme)),
+						`${selector} on ${surfaceToken} in ${theme} theme`,
+					).toBeGreaterThanOrEqual(SMALL_TEXT_CONTRAST_FLOOR);
+				}
+				expect(
+					contrastRatio(foreground, compositedDrawerBackground(theme)),
+					`${selector} on the composited drawer surface in ${theme} theme`,
+				).toBeGreaterThanOrEqual(SMALL_TEXT_CONTRAST_FLOOR);
 			}
 		},
 	);
 
-	test.each(DESCRIPTION_SELECTORS)(
-		'%s clears the 4.5:1 small-text floor on every surface in both themes',
-		(selector) => {
-			const token = tokenFromColorDeclaration(selector);
+	test('enumerates every DrawerDescription call site in the repository', () => {
+		expect(CALL_SITES.length).toBeGreaterThanOrEqual(6);
+		for (const consumerFile of EXPECTED_CONSUMER_FILES) {
+			expect(
+				CALL_SITES.some((callSite) => callSite.file.endsWith(consumerFile)),
+				`expected a DrawerDescription usage in ${consumerFile}`,
+			).toBe(true);
+		}
+	});
+
+	test.each(
+		CALL_SITES.map(
+			(callSite, index) =>
+				[index, callSite.file, callSite.line, callSite] as const,
+		),
+	)(
+		'every DrawerDescription call site keeps 4.5:1 on the composited drawer surface (site #%i: %s:%s)',
+		(_index, _file, _line, callSite) => {
+			const primitiveToken = tokenFromColorDeclaration(
+				'.publy-drawer-description',
+			);
 
 			for (const theme of ['light', 'dark'] as const) {
-				const foreground = resolveToken(token, theme);
-				for (const surfaceToken of SURFACE_TOKENS) {
-					const background = resolveToken(surfaceToken, theme);
-					expect(
-						contrastRatio(foreground, background),
-						`${selector} on ${surfaceToken} in ${theme} theme`,
-					).toBeGreaterThanOrEqual(SMALL_TEXT_CONTRAST_FLOOR);
-				}
+				const defaultForeground = resolveColor(primitiveToken, theme);
+				const foreground =
+					callSite.className === null
+						? defaultForeground
+						: (colorFromClassName(callSite.className, theme) ??
+							defaultForeground);
+				expect(
+					contrastRatio(foreground, compositedDrawerBackground(theme)),
+					`${callSite.file}:${callSite.line} (className: ${callSite.className}) in ${theme} theme`,
+				).toBeGreaterThanOrEqual(SMALL_TEXT_CONTRAST_FLOOR);
 			}
 		},
 	);
