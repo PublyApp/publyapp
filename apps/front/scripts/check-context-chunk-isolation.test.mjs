@@ -483,6 +483,32 @@ void test('fails closed when a dynamic object-holder access could be React creat
 	}
 });
 
+void test('does not flag a chunk copy that references a context without minting it', () => {
+	const sourceFile = path.join(frontDirectory, 'src/lib/shared-context.tsx');
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'Ctx', sourceFile }],
+			[
+				{
+					fileName: 'assets/a.js',
+					modules: {
+						[sourceFile]: { code: 'const Ctx = createContext(null);' },
+					},
+				},
+				{
+					fileName: 'assets/b.js',
+					modules: {
+						[sourceFile]: { code: 'const value = useContext(Ctx);' },
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
 void test('reports each React context whose source module is in multiple client chunks', () => {
 	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
 	const contexts = [
@@ -765,6 +791,69 @@ void test('fails closed for a deconflicted-renamed context binding with an unrec
 				frontDirectory,
 			),
 		/cannot prove how RouteContext\$1 is created/i,
+	);
+});
+
+void test('attributes a deconflicted-renamed context mint to its own binding, not every context in the file', () => {
+	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
+	const renamedFirstContextCode = `
+		const FirstContext$1 = (0, import_react.createContext)(null);
+	`;
+	const secondContextCode = `
+		const SecondContext = createContext(null);
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{ name: 'FirstContext', sourceFile },
+				{ name: 'SecondContext', sourceFile },
+			],
+			[
+				{
+					fileName: 'assets/first.js',
+					modules: { [sourceFile]: { code: renamedFirstContextCode } },
+				},
+				{
+					fileName: 'assets/second.js',
+					modules: { [sourceFile]: { code: secondContextCode } },
+				},
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
+void test('counts a rendered createContext call bound to an unexpected name as a creator', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const unattributedCode = 'const Unrelated = createContext(null);';
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: unattributedCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: unattributedCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
 	);
 });
 

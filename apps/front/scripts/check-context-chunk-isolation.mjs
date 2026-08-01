@@ -730,15 +730,13 @@ export const findContextChunkIsolationViolations = (
 			virtualModuleChunks.push(...moduleChunks);
 		}
 
-		if (virtualModuleChunks.length === 0) {
+		const sourceModuleChunks = chunksForSource.get(sourceFile) ?? [];
+		if (sourceModuleChunks.length === 0 && virtualModuleChunks.length === 0) {
 			continue;
 		}
 
 		analyzedSourceFiles.add(sourceFile);
-		for (const moduleChunk of [
-			...(chunksForSource.get(sourceFile) ?? []),
-			...virtualModuleChunks,
-		]) {
+		for (const moduleChunk of [...sourceModuleChunks, ...virtualModuleChunks]) {
 			renderedModulesToAnalyze.push({
 				...moduleChunk,
 				expectedContextNames,
