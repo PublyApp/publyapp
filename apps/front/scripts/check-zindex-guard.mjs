@@ -684,12 +684,18 @@ export const scanZIndexFile = ({
 		const staticObjectProperty = (object, name) => {
 			const property = object.properties.find(
 				(candidate) =>
-					ts.isPropertyAssignment(candidate) &&
-					propertyName(candidate.name) === name,
+					(ts.isPropertyAssignment(candidate) &&
+						propertyName(candidate.name) === name) ||
+					(ts.isShorthandPropertyAssignment(candidate) &&
+						candidate.name.text === name),
 			);
-			return property != null && ts.isPropertyAssignment(property)
-				? staticString(property.initializer)
-				: null;
+			if (property != null && ts.isPropertyAssignment(property)) {
+				return staticString(property.initializer);
+			}
+			if (property != null && ts.isShorthandPropertyAssignment(property)) {
+				return staticString(property.name);
+			}
+			return null;
 		};
 		const staticJsxAttribute = (attributes, attributeName) => {
 			const attribute = attributes.properties.find(

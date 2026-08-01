@@ -278,6 +278,11 @@ test('evasion: literal stylesheet links cannot ship opaque CSS', () => {
 			"const HREF = 'https://cdn.example/theme.css';",
 			'const head = { links: [{ rel: REL, href: HREF }] };',
 		].join('\n'),
+		[
+			"const rel = 'stylesheet';",
+			"const href = 'https://cdn.example/theme.css';",
+			'const head = { links: [{ rel, href }] };',
+		].join('\n'),
 	]) {
 		const violations = violationsFor('fixture.tsx', content);
 		assert.deepEqual(
@@ -294,6 +299,10 @@ test('evasion: script cannot register a reserved scale token', () => {
 		[
 			"const TOKEN = '--publy-z-raised';",
 			"CSS.registerProperty({ name: TOKEN, syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
+		].join('\n'),
+		[
+			"const name = '--publy-z-raised';",
+			"CSS.registerProperty({ name, inherits: false, initialValue: '2147483647' });",
 		].join('\n'),
 	]) {
 		assert.deepEqual(
