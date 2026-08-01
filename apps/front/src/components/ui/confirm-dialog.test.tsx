@@ -48,7 +48,8 @@ describe('ConfirmDialog', () => {
 		).not.toBeNull();
 	});
 
-	// F1: consumes the shared z-index tokens instead of hardcoded z-[70]/z-[71].
+	// F1: consumes the shared z-index tokens instead of hardcoded numeric
+	// stacking values.
 	test('the popup and backdrop use the shared z-index tokens, not hardcoded magic numbers', () => {
 		render(<ConfirmDialog {...baseProps} isOpen />);
 

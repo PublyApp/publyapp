@@ -328,7 +328,7 @@ function LandingPage() {
 										</p>
 									))}
 								</div>
-							</section>
+								</section>
 						) : null}
 					</div>
 				</LandingDay>
