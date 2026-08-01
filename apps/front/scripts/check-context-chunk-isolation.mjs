@@ -3,6 +3,9 @@ import path from 'node:path';
 import {
 	isCallExpression,
 	isElementAccessExpression,
+	isExportSpecifier,
+	isIdentifier,
+	isImportSpecifier,
 	isPropertyAccessExpression,
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
@@ -22,6 +25,26 @@ const isContextFactoryAdapterCall = (expression) =>
 	isCallExpression(expression) &&
 	isPropertyAccessExpression(expression.expression) &&
 	['apply', 'bind', 'call'].includes(expression.expression.name.getText());
+
+const isReactContextFactoryValue = (checker, node, reactCreateContext) => {
+	if (
+		(!isElementAccessExpression(node) &&
+			!isIdentifier(node) &&
+			!isPropertyAccessExpression(node)) ||
+		isExportSpecifier(node.parent) ||
+		isImportSpecifier(node.parent) ||
+		(isPropertyAccessExpression(node.parent) && node.parent.name === node) ||
+		(isCallExpression(node.parent) && node.parent.expression === node)
+	) {
+		return false;
+	}
+
+	return resolvesToReactCreateContext(
+		checker,
+		symbolForExpression(checker, node),
+		reactCreateContext,
+	);
+};
 
 const findReactCreateContextSymbol = (program, checker) => {
 	const reactDeclaration = program
@@ -126,12 +149,24 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 		const contexts = [];
 
 		for (const sourceFileName of project.program.getSourceFileNames()) {
-			if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(sourceFileName)) {
+			if (
+				sourceFileName.includes('/node_modules/') ||
+				/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(sourceFileName)
+			) {
 				continue;
 			}
 
 			const sourceFile = project.program.getSourceFile(sourceFileName);
 			const visit = (node) => {
+				if (
+					isReactContextFactoryValue(project.checker, node, reactCreateContext)
+				) {
+					contexts.push({
+						name: '<React.createContext factory value>',
+						sourceFile: normalizeModuleId(sourceFile.fileName),
+					});
+				}
+
 				if (isCallExpression(node)) {
 					const calleeSymbol = symbolForExpression(
 						project.checker,

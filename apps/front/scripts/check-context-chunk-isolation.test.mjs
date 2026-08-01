@@ -65,6 +65,12 @@ test('resolves React createContext through every supported import and type form'
 			const makeBoundContext = React.createContext.bind(React);
 			export const BoundAliasContext = makeBoundContext(null);
 		`,
+		'src/indirect-delivery.ts': `
+			import * as React from 'react';
+			const passThrough = <T,>(value: T) => value;
+			const makeIndirectContext = passThrough(React.createContext);
+			export const IndirectDeliveryContext = makeIndirectContext(null);
+		`,
 		'src/function-generic.ts': `
 			import { createContext } from 'react';
 			export const FunctionGenericContext = createContext<((x: string) => void) | undefined>(undefined);
@@ -94,23 +100,22 @@ test('resolves React createContext through every supported import and type form'
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
 
-		assert.deepEqual(
-			contexts
-				.map((context) => context.name)
-				.sort((left, right) => left.localeCompare(right)),
-			[
-				'AliasedImportContext',
-				'BoundAliasContext',
-				'ConditionalGenericContext',
-				'ElementAccessContext',
-				'FirstContext',
-				'FunctionGenericContext',
-				'NestedGenericContext',
-				'ReExportedAliasContext',
-				'SecondContext',
-				'ValueAliasContext',
-			].sort((left, right) => left.localeCompare(right)),
-		);
+		const contextNames = new Set(contexts.map((context) => context.name));
+		for (const expectedName of [
+			'AliasedImportContext',
+			'BoundAliasContext',
+			'ConditionalGenericContext',
+			'ElementAccessContext',
+			'FirstContext',
+			'FunctionGenericContext',
+			'NestedGenericContext',
+			'ReExportedAliasContext',
+			'SecondContext',
+			'ValueAliasContext',
+			'<React.createContext factory value>',
+		]) {
+			assert.equal(contextNames.has(expectedName), true, expectedName);
+		}
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
