@@ -6,6 +6,8 @@ import {
 	type TestInfo,
 } from '@playwright/test';
 
+import { toastVariantClassNames } from '../src/components/ui/toast-variants';
+
 /**
  * #998 browser-side toast contrast guard.
  *
@@ -13,18 +15,33 @@ import {
  * resolved the cascade. Sonner's un-layered stylesheet can beat app.css's
  * layered rules, so a source parser cannot know what the toast actually paints.
  *
- * Browser measurements: computed foreground paint, the hit-tested background
- * stack at each target's midpoint, flat computed gradients, and the close
- * button's actual offset parent/geometry. Modelled operations: alpha-compositing
- * those browser-reported sRGB layers and the WCAG 2 contrast formula. The model
- * never reads or resolves a source token.
+ * Browser measurements: the computed foreground colour of the target and of
+ * every visible text-bearing descendant, the hit-tested background stack at
+ * each target's midpoint, flat computed gradients, resolved pseudo-element
+ * styles, compositing properties on the whole ancestor chain, and the close
+ * button's actual offset parent/geometry. Modelled operations:
+ * alpha-compositing those browser-reported sRGB layers and the WCAG 2
+ * contrast formula. The model never reads or resolves a source token.
  *
- * Known boundary: elementsFromPoint cannot report pseudo-elements. The guard
- * therefore cannot detect a future positioned pseudo-element painted across
- * only the sampled midpoint. Real element overlays fail closed, as do
- * unsupported images, non-flat gradients, opacity, filters, blend modes, or
- * inset shadows. Closing the pseudo-element boundary requires screenshot pixel
- * sampling with a deterministic way to remove the foreground glyph/text.
+ * The guard fails loudly, by element name, when it cannot determine the
+ * painted result: opacity, filter, backdrop-filter or mix-blend-mode other
+ * than the neutral values anywhere on the ancestor chain; inset shadows that
+ * can reach the sampled point; text shadows; background images that are not
+ * a flat linear gradient; and pseudo-elements that paint a background.
+ *
+ * What still escapes — declared, so the boundary is not mistaken for a
+ * guarantee:
+ * - The sampled point is each target's box midpoint. Paint that provably
+ *   cannot reach it (an inset highlight at a box edge, say) is accepted, and
+ *   a defect elsewhere in the box is not sampled.
+ * - Pseudo-elements are resolved for background paint only; one that paints
+ *   only glyphs or text without a background is not detected.
+ * - `elementsFromPoint` cannot report pseudo-element boxes, so pseudo paint
+ *   is read from resolved styles instead of hit tests.
+ * - Only mounted, opaque toasts are measured; enter/exit and hover
+ *   intermediate states are out of scope.
+ * - Text painted with `background-clip: text` resolves to a transparent
+ *   computed fill and fails loudly rather than being measured.
  */
 
 const TEXT_CONTRAST_FLOOR = 4.5;
@@ -32,9 +49,14 @@ const GLYPH_CONTRAST_FLOOR = 3;
 
 const THEMES = ['light', 'dark'] as const;
 const VARIANTS = ['success', 'error', 'warning', 'info'] as const;
+const VIEWPORTS = [
+	{ height: 720, name: 'desktop', width: 1280 },
+	{ height: 844, name: 'phone', width: 390 },
+] as const;
 
 type Theme = (typeof THEMES)[number];
 type Variant = (typeof VARIANTS)[number];
+type ViewportPreset = (typeof VIEWPORTS)[number];
 type TargetKind = 'glyph' | 'text';
 type Rgba = { r: number; g: number; b: number; a: number };
 type BackgroundLayer = { color: string; element: string; source: string };
@@ -47,6 +69,20 @@ type ContrastMeasurement = {
 	foreground: Rgba;
 	ratio: number;
 };
+
+/**
+ * The measured set must cover every semantic toast the product can raise —
+ * including the neutral `default` — so adding a variant to
+ * `toastVariantClassNames` without covering it here fails the suite. The
+ * `loading` variant paints no message or glyph the contrast floors apply to.
+ */
+test('every product toast variant is contrast-measured', () => {
+	const measuredVariants = [...VARIANTS, 'default'].sort();
+	const productVariants = Object.keys(toastVariantClassNames)
+		.filter((name) => name !== 'loading')
+		.sort();
+	expect(measuredVariants).toEqual(productVariants);
+});
 
 const parseComputedColor = (value: string): Rgba => {
 	const match =
@@ -181,21 +217,20 @@ const readBrowserPaint = async (
 			}
 
 			const inner = image.slice('linear-gradient('.length, -1);
-			const parts = splitTopLevel(inner);
 			const colors: string[] = [];
-			for (const part of parts) {
+			for (const part of splitTopLevel(inner)) {
 				const candidate = colorFromStop(part);
 				if (CSS.supports('color', candidate)) {
 					colors.push(toSrgb(candidate, `${source} gradient stop`));
 				}
 			}
 
-			if (colors.length !== 2) {
+			if (colors.length < 2) {
 				throw new Error(
-					`${source} gradient must have exactly two parseable colour stops: ${image}`,
+					`${source} gradient must have at least two parseable colour stops: ${image}`,
 				);
 			}
-			if (colors[0] !== colors[1]) {
+			if (colors.some((color) => color !== colors[0])) {
 				throw new Error(
 					`${source} gradient is not a flat painted tint: ${image}`,
 				);
@@ -204,14 +239,106 @@ const readBrowserPaint = async (
 			return colors[0];
 		};
 
-		const elementName = (layer: Element): string =>
-			layer.getAttribute('data-slot') ??
-			layer.getAttribute('data-testid') ??
-			layer.getAttribute('data-sonner-toast') ??
-			layer.tagName.toLowerCase();
+		/** Each comma-separated computed background-image layer, in paint order. */
+		const backgroundImageLayers = (image: string, source: string): string[] =>
+			image === 'none'
+				? []
+				: splitTopLevel(image).map((layer) => flatGradientColor(layer, source));
+
+		const elementName = (layer: Element): string => {
+			for (const [attribute, fallback] of [
+				['data-slot', ''],
+				['data-testid', ''],
+				['data-type', ''],
+				['data-sonner-toast', 'toast'],
+				['data-title', 'title'],
+				['data-description', 'description'],
+				['data-content', 'content'],
+				['data-icon', 'icon'],
+				['data-close-button', 'close button'],
+				['data-button', 'button'],
+			] as const) {
+				if (layer.hasAttribute(attribute)) {
+					return layer.getAttribute(attribute) || fallback;
+				}
+			}
+			return layer.tagName.toLowerCase();
+		};
+
+		/**
+		 * Distance from a point to a rectangle, or to the rectangle's
+		 * boundary when the point is inside it. Used to decide whether an
+		 * inset shadow's band can reach the sampled point.
+		 */
+		const distanceToRect = (
+			pointX: number,
+			pointY: number,
+			rect: { bottom: number; left: number; right: number; top: number },
+		): number => {
+			const horizontal = Math.max(rect.left - pointX, pointX - rect.right);
+			const vertical = Math.max(rect.top - pointY, pointY - rect.bottom);
+			if (horizontal > 0 || vertical > 0) {
+				return Math.hypot(horizontal, vertical);
+			}
+			return Math.min(
+				pointX - rect.left,
+				rect.right - pointX,
+				pointY - rect.top,
+				rect.bottom - pointY,
+			);
+		};
+
+		/**
+		 * An inset shadow paints a band inside the box; it is rejected only
+		 * when the band could reach the sampled point. The shadow's
+		 * un-shadowed interior is the border box translated by the shadow's
+		 * offset and inset by its spread; the band extends blur beyond that
+		 * interior's boundary. Anything else — the ordinary menu shadow, an
+		 * outset shadow, an edge highlight far from the sample — is paint the
+		 * midpoint provably does not see.
+		 */
+		const assertInsetShadowsAvoidPoint = (
+			style: CSSStyleDeclaration,
+			rect: DOMRect,
+			x: number,
+			y: number,
+			source: string,
+		): void => {
+			if (style.boxShadow === 'none') {
+				return;
+			}
+			for (const shadow of splitTopLevel(style.boxShadow)) {
+				if (!/\binset\b/u.test(shadow)) {
+					continue;
+				}
+				const lengths = [...shadow.matchAll(/-?\d+(?:\.\d+)?px/gu)].map(
+					(match) => Number(match[0].slice(0, -2)),
+				);
+				if (lengths.length < 4) {
+					throw new Error(
+						`${source} has an unparseable inset shadow ${shadow}`,
+					);
+				}
+				const [offsetX, offsetY, blur, spread] = lengths;
+				const interior = {
+					left: rect.left + offsetX + spread,
+					right: rect.right + offsetX - spread,
+					top: rect.top + offsetY + spread,
+					bottom: rect.bottom + offsetY - spread,
+				};
+				if (distanceToRect(x, y, interior) < blur) {
+					throw new Error(
+						`${source} has an inset shadow that can reach the sampled point: ${shadow}`,
+					);
+				}
+			}
+		};
 
 		const assertSupportedPaint = (
 			style: CSSStyleDeclaration,
+			rect: DOMRect,
+			x: number,
+			y: number,
 			source: string,
 		): void => {
 			if (style.opacity !== '1') {
@@ -227,10 +354,34 @@ const readBrowserPaint = async (
 					`${source} has unsupported mix-blend-mode ${style.mixBlendMode}`,
 				);
 			}
-			if (/\binset\b/u.test(style.boxShadow)) {
-				throw new Error(
-					`${source} has unsupported inset shadow ${style.boxShadow}`,
-				);
+			assertInsetShadowsAvoidPoint(style, rect, x, y, source);
+		};
+
+		/**
+		 * Pseudo-element paint is invisible to elementsFromPoint, so read the
+		 * resolved pseudo styles directly. A pseudo-element that paints a
+		 * background over the sampled point would wash out the measured text;
+		 * the shipped float (`::before` on the title) and sonner's own
+		 * transparent hit-area pseudos pass, having no paint.
+		 */
+		const assertNoPseudoOverlay = (layer: Element, source: string): void => {
+			for (const pseudo of ['::before', '::after'] as const) {
+				const style = getComputedStyle(layer, pseudo);
+				if (style.content === 'none') {
+					continue;
+				}
+				const image = style.backgroundImage;
+				if (image !== 'none') {
+					throw new Error(
+						`${source}${pseudo} paints a background over the sampled point: ${image}`,
+					);
+				}
+				const channels = style.backgroundColor.match(/[\d.]+/gu);
+				if (Number(channels?.[3] ?? 1) !== 0) {
+					throw new Error(
+						`${source}${pseudo} paints a background over the sampled point: ${style.backgroundColor}`,
+					);
+				}
 			}
 		};
 
@@ -248,16 +399,43 @@ const readBrowserPaint = async (
 			);
 		}
 		for (const paintedAbove of hitStack.slice(0, targetIndex)) {
-			if (!element.contains(paintedAbove)) {
-				throw new Error(
-					`${elementName(paintedAbove)} unexpectedly paints above contrast target`,
-				);
+			const aboveName = elementName(paintedAbove);
+			assertNoPseudoOverlay(paintedAbove, aboveName);
+			if (element.contains(paintedAbove)) {
+				const aboveStyle = getComputedStyle(paintedAbove);
+				if (aboveStyle.backgroundImage !== 'none') {
+					throw new Error(
+						`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundImage}`,
+					);
+				}
+				const channels = aboveStyle.backgroundColor.match(/[\d.]+/gu);
+				if (Number(channels?.[3] ?? 1) !== 0) {
+					throw new Error(
+						`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundColor}`,
+					);
+				}
+				continue;
 			}
+			throw new Error(`${aboveName} unexpectedly paints above contrast target`);
 		}
 
 		const backgroundLayers: BackgroundLayer[] = [];
 		const seen = new Set<Element>();
 		let foundOpaqueLayer = false;
+
+		const pushBackgroundPaint = (
+			color: string,
+			layerName: string,
+			source: string,
+		): void => {
+			backgroundLayers.push({ color, element: layerName, source });
+			const channels = color.match(/[\d.]+/gu);
+			const alpha = Number(channels?.[3] ?? 1);
+			if (alpha === 1) {
+				foundOpaqueLayer = true;
+			}
+		};
+
 		for (const layer of hitStack.slice(targetIndex)) {
 			if (seen.has(layer)) {
 				continue;
@@ -266,14 +444,14 @@ const readBrowserPaint = async (
 
 			const name = elementName(layer);
 			const style = getComputedStyle(layer);
-			assertSupportedPaint(style, name);
+			assertSupportedPaint(style, layer.getBoundingClientRect(), x, y, name);
+			assertNoPseudoOverlay(layer, name);
 
-			if (style.backgroundImage !== 'none') {
-				backgroundLayers.push({
-					color: flatGradientColor(style.backgroundImage, name),
-					element: name,
-					source: 'background-image',
-				});
+			for (const layerColor of backgroundImageLayers(
+				style.backgroundImage,
+				name,
+			)) {
+				pushBackgroundPaint(layerColor, name, 'background-image');
 			}
 
 			const backgroundColor = toSrgb(
@@ -283,14 +461,9 @@ const readBrowserPaint = async (
 			const channels = backgroundColor.match(/[\d.]+/gu);
 			const alpha = Number(channels?.[3] ?? 1);
 			if (alpha !== 0) {
-				backgroundLayers.push({
-					color: backgroundColor,
-					element: name,
-					source: 'background-color',
-				});
+				pushBackgroundPaint(backgroundColor, name, 'background-color');
 			}
-			if (alpha === 1) {
-				foundOpaqueLayer = true;
+			if (foundOpaqueLayer) {
 				break;
 			}
 		}
@@ -301,28 +474,89 @@ const readBrowserPaint = async (
 			);
 		}
 
+		// Group compositing above the first opaque layer is invisible to the
+		// paint stack below it, so walk the whole ancestor chain and assert
+		// the properties that would composite the group over the page.
+		for (
+			let layer = element.parentElement;
+			layer !== null;
+			layer = layer.parentElement
+		) {
+			const name = elementName(layer);
+			assertSupportedPaint(
+				getComputedStyle(layer),
+				layer.getBoundingClientRect(),
+				x,
+				y,
+				name,
+			);
+			assertNoPseudoOverlay(layer, name);
+		}
+
 		const foregrounds: string[] = [];
 		if (targetKind === 'text') {
-			const style = getComputedStyle(element);
-			assertSupportedPaint(style, elementName(element));
-			if (style.textShadow !== 'none') {
-				throw new Error(
-					`${elementName(element)} has unsupported text shadow ${style.textShadow}`,
+			const hasTextContent = (candidate: Element): boolean =>
+				Array.from(candidate.childNodes).some(
+					(node) =>
+						node.nodeType === Node.TEXT_NODE &&
+						(node.textContent ?? '').trim() !== '',
 				);
+
+			// The container's computed colour is not necessarily the colour
+			// the text paints: a descendant may carry its own colour (a
+			// `<Trans>` span, say), and it both paints over the sampled point
+			// and is invisible to the hit-stack reading. Take the worst
+			// colour among the target and every visible text-bearing
+			// descendant.
+			const textPainters: Element[] = [element];
+			for (const descendant of element.querySelectorAll('*')) {
+				if (hasTextContent(descendant)) {
+					textPainters.push(descendant);
+				}
 			}
-			foregrounds.push(
-				toSrgb(
-					style.webkitTextFillColor || style.color,
-					`${elementName(element)} text fill colour`,
-				),
-			);
+
+			for (const painter of textPainters) {
+				const painterStyle = getComputedStyle(painter);
+				const painterName = elementName(painter);
+				if (
+					painterStyle.display === 'none' ||
+					painterStyle.visibility === 'hidden'
+				) {
+					continue;
+				}
+				assertSupportedPaint(
+					painterStyle,
+					painter.getBoundingClientRect(),
+					x,
+					y,
+					painterName,
+				);
+				if (painterStyle.textShadow !== 'none') {
+					throw new Error(
+						`${painterName} has unsupported text shadow ${painterStyle.textShadow}`,
+					);
+				}
+				const color = toSrgb(
+					painterStyle.webkitTextFillColor || painterStyle.color,
+					`${painterName} text fill colour`,
+				);
+				if (!foregrounds.includes(color)) {
+					foregrounds.push(color);
+				}
+			}
 		} else {
 			const shapes = element.querySelectorAll(
 				'path, circle, ellipse, line, polyline, polygon, rect',
 			);
 			for (const shape of shapes) {
 				const style = getComputedStyle(shape);
-				assertSupportedPaint(style, `${elementName(element)} ${shape.tagName}`);
+				assertSupportedPaint(
+					style,
+					shape.getBoundingClientRect(),
+					x,
+					y,
+					`${elementName(element)} ${shape.tagName}`,
+				);
 				for (const property of ['fill', 'stroke'] as const) {
 					const paint = style[property];
 					if (paint === 'none') {
@@ -395,15 +629,35 @@ const measureContrast = async (
 };
 
 const setTheme = async (page: Page, theme: Theme): Promise<void> => {
-	await page.evaluate((nextTheme) => {
-		document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+	const palette = await page.evaluate(async (nextTheme) => {
+		const root = document.documentElement;
+		root.classList.toggle('dark', nextTheme !== 'dark');
+		await new Promise<void>((resolve) => {
+			requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+		});
+		const opposite =
+			getComputedStyle(root).getPropertyValue('--publy-background');
+		root.classList.toggle('dark', nextTheme === 'dark');
+		await new Promise<void>((resolve) => {
+			requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+		});
+		return {
+			hasDarkClass: root.classList.contains('dark'),
+			painted: getComputedStyle(root).getPropertyValue('--publy-background'),
+			opposite,
+		};
 	}, theme);
-	await page.evaluate(
-		() =>
-			new Promise<void>((resolve) => {
-				requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-			}),
-	);
+	expect(
+		palette.hasDarkClass,
+		`${theme} theme class must be the active state`,
+	).toBe(theme === 'dark');
+	// Self-check that the palette actually responded to the class; without it
+	// a broken dark-variant selector would measure the light palette twice
+	// and pass silently.
+	expect(
+		palette.painted,
+		`${theme} palette must respond to the theme class`,
+	).not.toBe(palette.opposite);
 };
 
 const rgbaLabel = ({ r, g, b, a }: Rgba): string =>
@@ -436,6 +690,7 @@ const measureToastTarget = async ({
 const assertCloseButtonContainingBlock = async (
 	toast: Locator,
 	theme: Theme,
+	viewport: ViewportPreset,
 ): Promise<void> => {
 	const positioning = await toast.evaluate((toastElement) => {
 		const closeButton = toastElement.querySelector<HTMLElement>(
@@ -462,26 +717,35 @@ const assertCloseButtonContainingBlock = async (
 		};
 	});
 
-	expect(positioning.closePosition, `${theme} close button positioning`).toBe(
+	const where = `${theme} ${viewport.name}`;
+	expect(positioning.closePosition, `${where} close button positioning`).toBe(
 		'absolute',
 	);
-	expect(positioning.toastPosition, `${theme} toast positioning`).toBe(
+	expect(positioning.toastPosition, `${where} toast positioning`).toBe(
 		'absolute',
 	);
-	expect(positioning.toastTransform, `${theme} toast transform`).not.toBe(
+	expect(positioning.toastTransform, `${where} toast transform`).not.toBe(
 		'none',
 	);
 	expect(
 		positioning.offsetParentIsToast,
-		`${theme} toast must be the close button's containing block`,
+		`${where} toast must be the close button's containing block`,
 	).toBe(true);
 	expect(
 		positioning.withinToast,
-		`${theme} close button must remain inside the painted toast`,
+		`${where} close button must remain inside the painted toast`,
 	).toBe(true);
 };
 
-const openToastFixture = async (page: Page, theme: Theme): Promise<void> => {
+const openToastFixture = async (
+	page: Page,
+	theme: Theme,
+	viewport: ViewportPreset,
+): Promise<void> => {
+	await page.setViewportSize({
+		width: viewport.width,
+		height: viewport.height,
+	});
 	await page.goto('/field-validation');
 	await expect(page.getByTestId('toast-contrast-fixture')).toBeVisible();
 	await setTheme(page, theme);
@@ -508,74 +772,104 @@ const dismissToast = async (toast: Locator): Promise<void> => {
 	await expect(toast).toHaveCount(0);
 };
 
+const TEXT_TARGETS = [
+	{
+		name: 'message',
+		locatorFor: (toast: Locator) => toast.locator('.publy-toast-title'),
+		kind: 'text',
+		floor: TEXT_CONTRAST_FLOOR,
+	},
+	{
+		name: 'description',
+		locatorFor: (toast: Locator) => toast.locator('.publy-toast-description'),
+		kind: 'text',
+		floor: TEXT_CONTRAST_FLOOR,
+	},
+] as const;
+
 for (const theme of THEMES) {
-	test(`${theme} toast variants clear contrast and retain close positioning`, async ({
-		page,
-	}, testInfo) => {
-		await openToastFixture(page, theme);
+	for (const viewport of VIEWPORTS) {
+		test(`${theme} ${viewport.name} toast variants clear contrast and retain close positioning`, async ({
+			page,
+		}, testInfo) => {
+			await openToastFixture(page, theme, viewport);
+			const where = `${theme} ${viewport.name}`;
 
-		const neutralToast = await renderToast(page, 'default');
-		const neutralSurface = await measureContrast(
-			neutralToast.locator('.publy-toast-title'),
-			'text',
-		);
-		await dismissToast(neutralToast);
-
-		for (const variant of VARIANTS) {
-			const toast = await renderToast(page, variant);
-			await assertCloseButtonContainingBlock(toast, theme);
-
-			const targets = [
-				{
-					name: 'message',
-					locator: toast.locator('.publy-toast-title'),
-					kind: 'text',
-					floor: TEXT_CONTRAST_FLOOR,
-				},
-				{
-					name: 'description',
-					locator: toast.locator('.publy-toast-description'),
-					kind: 'text',
-					floor: TEXT_CONTRAST_FLOOR,
-				},
-				{
-					name: 'semantic glyph',
-					locator: toast.locator('.publy-toast-icon svg'),
-					kind: 'glyph',
-					floor: GLYPH_CONTRAST_FLOOR,
-				},
+			const neutralToast = await renderToast(page, 'default');
+			const neutralSurface = (
+				await measureToastTarget({
+					floor: TEXT_TARGETS[0].floor,
+					kind: TEXT_TARGETS[0].kind,
+					label: `${where} default ${TEXT_TARGETS[0].name}`,
+					target: TEXT_TARGETS[0].locatorFor(neutralToast),
+					testInfo,
+				})
+			).background;
+			for (const target of [
+				TEXT_TARGETS[1],
 				{
 					name: 'close glyph',
-					locator: toast.locator('.publy-toast-close-button svg'),
+					locatorFor: (toast: Locator) =>
+						toast.locator('.publy-toast-close-button svg'),
 					kind: 'glyph',
 					floor: GLYPH_CONTRAST_FLOOR,
 				},
-			] as const;
-
-			let variantSurface: Rgba | undefined;
-			for (const target of targets) {
-				const measurement = await measureToastTarget({
+			] as const) {
+				await measureToastTarget({
 					floor: target.floor,
 					kind: target.kind,
-					label: `${theme} ${variant} ${target.name}`,
-					target: target.locator,
+					label: `${where} default ${target.name}`,
+					target: target.locatorFor(neutralToast),
 					testInfo,
 				});
-				variantSurface ??= measurement.background;
 			}
+			await dismissToast(neutralToast);
 
-			const semanticSurface = rgbaLabel(
-				variantSurface ?? neutralSurface.background,
-			);
-			const neutralSurfaceLabel = rgbaLabel(neutralSurface.background);
-			expect
-				.soft(
-					semanticSurface,
-					`${theme} ${variant} painted surface must not collapse to the neutral toast surface`,
-				)
-				.not.toBe(neutralSurfaceLabel);
+			for (const variant of VARIANTS) {
+				const toast = await renderToast(page, variant);
+				await assertCloseButtonContainingBlock(toast, theme, viewport);
 
-			await dismissToast(toast);
-		}
-	});
+				const targets = [
+					...TEXT_TARGETS,
+					{
+						name: 'semantic glyph',
+						locatorFor: (toast: Locator) =>
+							toast.locator('.publy-toast-icon svg'),
+						kind: 'glyph',
+						floor: GLYPH_CONTRAST_FLOOR,
+					},
+					{
+						name: 'close glyph',
+						locatorFor: (toast: Locator) =>
+							toast.locator('.publy-toast-close-button svg'),
+						kind: 'glyph',
+						floor: GLYPH_CONTRAST_FLOOR,
+					},
+				] as const;
+
+				let variantSurface: Rgba | undefined;
+				for (const target of targets) {
+					const measurement = await measureToastTarget({
+						floor: target.floor,
+						kind: target.kind,
+						label: `${where} ${variant} ${target.name}`,
+						target: target.locatorFor(toast),
+						testInfo,
+					});
+					variantSurface ??= measurement.background;
+				}
+
+				const semanticSurface = rgbaLabel(variantSurface ?? neutralSurface);
+				const neutralSurfaceLabel = rgbaLabel(neutralSurface);
+				expect
+					.soft(
+						semanticSurface,
+						`${where} ${variant} painted surface must not collapse to the neutral toast surface`,
+					)
+					.not.toBe(neutralSurfaceLabel);
+
+				await dismissToast(toast);
+			}
+		});
+	}
 }
