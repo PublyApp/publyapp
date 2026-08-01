@@ -891,6 +891,20 @@ describe('staff tenants route', () => {
 	});
 
 	describe('bulk actions', () => {
+		const chooseBulkAction = async (
+			actionName: 'Suspend selected' | 'Delete selected',
+		) => {
+			const trigger = await screen.findByRole('button', {
+				name: 'More actions',
+			});
+
+			// Base UI's keyboard-open contract settles synchronously in jsdom;
+			// pointer/click opening can strand the portal between tests under load.
+			fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+			expect(trigger.getAttribute('aria-expanded')).toBe('true');
+			fireEvent.click(screen.getByRole('menuitem', { name: actionName }));
+		};
+
 		test('renders a selection checkbox and hashed logo fallback for each tenant row', () => {
 			const { container } = renderPage();
 
@@ -984,12 +998,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
+			await chooseBulkAction('Suspend selected');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Select at least one active tenant to suspend.',
@@ -1015,12 +1024,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
+			await chooseBulkAction('Suspend selected');
 
 			await waitFor(() =>
 				expect(
@@ -1068,12 +1072,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
+			await chooseBulkAction('Suspend selected');
 			await waitFor(() =>
 				expect(
 					screen.getByRole('heading', { name: 'Suspend selected' }),
@@ -1107,12 +1106,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
+			await chooseBulkAction('Suspend selected');
 			const dialog = await screen.findByRole('alertdialog');
 			fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
 
@@ -1141,12 +1135,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
+			await chooseBulkAction('Suspend selected');
 			await waitFor(() =>
 				expect(
 					screen.getByRole('heading', { name: 'Suspend selected' }),
@@ -1201,12 +1190,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Delete selected' }),
-			);
+			await chooseBulkAction('Delete selected');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
@@ -1238,12 +1222,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Delete selected' }),
-			);
+			await chooseBulkAction('Delete selected');
 
 			await waitFor(() =>
 				expect(
