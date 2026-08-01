@@ -199,22 +199,32 @@ describe('front locale manifests', () => {
 	// design, because the page today promises no cancel-anytime deal, no
 	// bounded free period, and no deferred payment. Counting clauses can never
 	// cover a group the copy never exercises. So every trigger also has to
-	// prove itself against a canonical unhedged promise it must match, one
-	// sample per pattern, in order. Five rails keep this check honest, and any
-	// single edit that guts a group breaks at least one of them:
+	// prove itself against canonical unhedged promises it must match, in
+	// order. Six rails keep this check honest, and any single edit that guts a
+	// group breaks at least one of them:
 	//   - hard counts: each group's pattern count and the spread total are
-	//     pinned, so deleting a pattern — even together with its sample —
+	//     pinned, so deleting a pattern — even together with its samples —
 	//     reddens;
-	//   - pairing: one sample per pattern, so deleting a sample also reddens;
-	//   - match: each pattern must match its own sample, so a corrupted regex
-	//     (dropped flag, broken alternation, lost word boundary) reddens;
+	//   - pairing: one sample list per pattern, so deleting a whole pattern's
+	//     witness set also reddens;
+	//   - match: each pattern must match every one of its samples, so a
+	//     corrupted regex (dropped flag, broken alternation, lost word
+	//     boundary) reddens;
 	//   - reachability: every sample must be caught by the assembled spread,
 	//     so removing a group's spread from landingTrialClaimPatterns reddens
 	//     even while the group itself survives;
 	//   - threat: samples are promises, not hedges — none may carry a future
-	//     marker, or the pairing would pass while documenting a non-threat.
+	//     marker, or the pairing would pass while documenting a non-threat;
+	//   - non-collapse: every pattern faces three deliberately varied
+	//     phrasings, so a regex narrowed to exactly one of them — the fix a
+	//     developer reaches for to clear a false positive — fails the others.
+	//     This proves a pattern is not collapsible to a single phrase; it
+	//     still does not prove the pattern is complete. A regex unioning the
+	//     pinned samples would pass the samples while staying just as narrow
+	//     — the sample count recorded here makes that visible to review, but
+	//     no finite sample set can outrun a union of itself.
 	// A suite can only survive a gutted trigger set by deleting a pattern,
-	// its sample, and the pinned counts in the same edit — a coordinated act
+	// its samples, and the pinned counts in the same edit — a coordinated act
 	// the counts recorded here make visible to review, not the partial
 	// deletion this test exists to catch. Bump the counts when the trigger
 	// set legitimately grows; never lower them to clear a dead pattern.
@@ -223,72 +233,144 @@ describe('front locale manifests', () => {
 			label: 'forbiddenPricingPatterns',
 			group: forbiddenPricingPatterns,
 			samples: [
-				{ locale: 'en', text: 'Start your free trial today' },
-				{ locale: 'fr', text: 'Commencez votre essai gratuit' },
-				{ locale: 'en', text: 'Get 14 days free' },
-				{ locale: 'en', text: 'No credit card required' },
-				{ locale: 'fr', text: 'Aucun engagement, aucune carte' },
+				[
+					{ locale: 'en', text: 'Start your free trial today' },
+					{ locale: 'en', text: 'Get trial access now' },
+					{ locale: 'en', text: 'Trial available on every plan' },
+				],
+				[
+					{ locale: 'fr', text: 'Commencez votre essai gratuit' },
+					{ locale: 'fr', text: "Période d'essai offerte" },
+					{ locale: 'fr', text: "L'essai est gratuit" },
+				],
+				[
+					{ locale: 'en', text: 'Get 14 days free' },
+					{ locale: 'en', text: 'Free for 30 days' },
+					{ locale: 'en', text: 'Your 90-day free access' },
+				],
+				[
+					{ locale: 'en', text: 'No credit card required' },
+					{ locale: 'en', text: 'No card needed to sign up' },
+					{ locale: 'en', text: 'No card, no commitment' },
+				],
+				[
+					{ locale: 'fr', text: 'Aucun engagement, aucune carte' },
+					{ locale: 'fr', text: 'Sans engagement, sans carte' },
+					{ locale: 'fr', text: 'Pas de carte requise' },
+				],
 			],
 		},
 		{
 			label: 'cancelAnytimePatterns',
 			group: cancelAnytimePatterns,
 			samples: [
-				{ locale: 'en', text: 'You can cancel any time' },
-				{ locale: 'fr', text: 'Vous pouvez annuler à tout moment' },
+				[
+					{ locale: 'en', text: 'You can cancel any time' },
+					{ locale: 'en', text: 'Leave whenever you like' },
+					{ locale: 'en', text: 'cancel at any time' },
+				],
+				[
+					{ locale: 'fr', text: 'Vous pouvez annuler à tout moment' },
+					{ locale: 'fr', text: 'Quittez quand vous voulez' },
+					{
+						locale: 'fr',
+						text: 'Résiliez votre abonnement quand vous souhaitez',
+					},
+				],
 			],
 		},
 		{
 			label: 'boundedFreePeriodPatterns',
 			group: boundedFreePeriodPatterns,
 			samples: [
-				{ locale: 'en', text: 'Free for your first two weeks' },
-				{ locale: 'en', text: 'Two weeks free' },
-				{ locale: 'fr', text: 'Gratuit pendant deux semaines' },
-				{ locale: 'fr', text: 'Deux semaines gratuites' },
+				[
+					{ locale: 'en', text: 'Free for your first two weeks' },
+					{ locale: 'en', text: 'Free access for three months' },
+					{ locale: 'en', text: 'Free for your first 8 weeks' },
+				],
+				[
+					{ locale: 'en', text: 'Two weeks free' },
+					{ locale: 'en', text: 'Six months free' },
+					{ locale: 'en', text: 'Three days free access' },
+				],
+				[
+					{ locale: 'fr', text: 'Gratuit pendant deux semaines' },
+					{ locale: 'fr', text: 'Gratuit pour trois mois' },
+					{ locale: 'fr', text: 'Accès gratuit pendant six semaines' },
+				],
+				[
+					{ locale: 'fr', text: 'Deux semaines gratuites' },
+					{ locale: 'fr', text: 'Trois mois gratuits' },
+					{ locale: 'fr', text: 'Cinq jours gratuits' },
+				],
 			],
 		},
 		{
 			label: 'deferredPaymentPatterns',
 			group: deferredPaymentPatterns,
 			samples: [
-				{ locale: 'en', text: 'Pay nothing until you decide to stay' },
-				{ locale: 'en', text: 'There is nothing to pay' },
-				{ locale: 'fr', text: 'Vous ne payez rien' },
-				{ locale: 'fr', text: "Il n'y a rien à payer" },
+				[
+					{ locale: 'en', text: 'Pay nothing until you decide to stay' },
+					{ locale: 'en', text: 'Paying nothing upfront' },
+					{ locale: 'en', text: 'Pay nothing to get started' },
+				],
+				[
+					{ locale: 'en', text: 'There is nothing to pay' },
+					{ locale: 'en', text: 'You have nothing to pay' },
+					{ locale: 'en', text: 'Nothing to pay at checkout' },
+				],
+				[
+					{ locale: 'fr', text: 'Vous ne payez rien' },
+					{ locale: 'fr', text: 'Nous ne payons rien' },
+					{ locale: 'fr', text: 'Je ne paye rien' },
+				],
+				[
+					{ locale: 'fr', text: "Il n'y a rien à payer" },
+					{ locale: 'fr', text: 'Rien à payer du tout' },
+					{ locale: 'fr', text: "Vous n'avez rien à payer" },
+				],
 			],
 		},
 	];
 
-	test('keeps every trial-claim trigger alive against a canonical promise', () => {
+	test('keeps every trial-claim trigger alive against canonical promises', () => {
 		expect(forbiddenPricingPatterns.length).toBe(5);
 		expect(cancelAnytimePatterns.length).toBe(2);
 		expect(boundedFreePeriodPatterns.length).toBe(4);
 		expect(deferredPaymentPatterns.length).toBe(4);
 		expect(landingTrialClaimPatterns.length).toBe(15);
+		expect(
+			triggerLiveness.flatMap(({ samples }) => samples.flat()).length,
+			'forty-five canonical promises across the trigger set',
+		).toBe(45);
 
 		for (const { label, group, samples } of triggerLiveness) {
-			expect(group.length, `${label}: one canonical sample per pattern`).toBe(
+			expect(group.length, `${label}: one sample list per pattern`).toBe(
 				samples.length,
 			);
-			group.forEach((pattern, index) => {
-				const sample = samples[index];
-				const markers =
-					sample.locale === 'en' ? enFutureMarkers : frFutureMarkers;
+			samples.forEach((patternSamples, index) => {
 				expect(
-					pattern.test(sample.text),
-					`${label}[${index}] must match its canonical promise`,
-				).toBe(true);
-				expect(
-					landingTrialClaimPatterns.some((spreadPattern) =>
-						spreadPattern.test(sample.text),
-					),
-					`${label}[${index}] must be reachable through the spread`,
-				).toBe(true);
-				expect(
-					markers.some((marker) => marker.test(sample.text)),
-					`${label}[${index}] must be an unhedged promise`,
-				).toBe(false);
+					patternSamples.length,
+					`${label}[${index}] must face at least two varied phrasings`,
+				).toBeGreaterThanOrEqual(2);
+				for (const sample of patternSamples) {
+					const markers =
+						sample.locale === 'en' ? enFutureMarkers : frFutureMarkers;
+					expect(
+						group[index].test(sample.text),
+						`${label}[${index}] must match its canonical promise "${sample.text}"`,
+					).toBe(true);
+					expect(
+						landingTrialClaimPatterns.some((spreadPattern) =>
+							spreadPattern.test(sample.text),
+						),
+						`${label}[${index}] "${sample.text}" must be reachable through the spread`,
+					).toBe(true);
+					expect(
+						markers.some((marker) => marker.test(sample.text)),
+						`${label}[${index}] "${sample.text}" must be an unhedged promise`,
+					).toBe(false);
+				}
 			});
 		}
 	});
