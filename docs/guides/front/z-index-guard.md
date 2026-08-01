@@ -32,7 +32,10 @@ Allowed spellings:
   `!important`).
 - Arbitrary-property shims whose value is a pure scale reference: `[z-index:var(--publy-z-…)]`.
 - `z-auto` and the other non-numeric CSS-wide keywords (`inherit`, `initial`, `unset`, `revert`,
-  `revert-layer`) — these cannot participate in stacking, so no tier is needed.
+  `revert-layer`) — these cannot participate in stacking, so no tier is needed. CSS keywords and
+  function names are ASCII-case-insensitive, so arbitrary forms such as `z-[AUTO]`, `z-[InHeRiT]`,
+  and `z-[VAR(--publy-z-raised)]` are equivalent and are also allowed; custom-property names remain
+  case-sensitive.
 - `z-index: var(--publy-z-…)` in inline `style` objects and `@apply`.
 
 Anything else is a violation: `z-10`, `z-50`, `z-[60]`, `-z-10`, `!z-50`, `z-[var(--publy-z-menu,50)]`

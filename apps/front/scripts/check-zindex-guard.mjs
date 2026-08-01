@@ -209,9 +209,13 @@ const NON_STACKING_KEYWORDS = new Set([
 	'revert-layer',
 ]);
 
-const NON_STACKING_KEYWORD_ARBITRARY_PATTERN = new RegExp(
-	`^z-\\[(${[...NON_STACKING_KEYWORDS].join('|')})\\]$`,
-);
+const asciiLowerCase = (text) =>
+	text.replace(/[A-Z]/g, (character) =>
+		String.fromCharCode(character.charCodeAt(0) + 32),
+	);
+
+const isNonStackingKeyword = (value) =>
+	NON_STACKING_KEYWORDS.has(asciiLowerCase(value));
 
 // ---------------------------------------------------------------------------
 // CSS identifier canonicalisation. CSS property names are ASCII-case-
@@ -255,7 +259,18 @@ const canonicaliseCssProperty = (raw) => {
 			i += 1;
 		}
 	}
-	return out.toLowerCase();
+	return asciiLowerCase(out);
+};
+
+const isScaleVarReference = (value) => {
+	const openParen = value.indexOf('(');
+	if (openParen <= 0 || !value.endsWith(')')) {
+		return false;
+	}
+	return (
+		canonicaliseCssProperty(value.slice(0, openParen)) === 'var' &&
+		/^--publy-z-[\w-]+$/.test(value.slice(openParen + 1, -1))
+	);
 };
 
 // First top-level `:` — the property/value separator. `:` inside parentheses,
@@ -321,14 +336,15 @@ const isAllowedZIndexUtility = (utility) => {
 		// keyword may ship through an arbitrary-property shim. A bare custom
 		// property (`[z-index:--publy-z-menu]`) emits invalid CSS and stays raw.
 		const value = arbitraryPropertyValue(utility);
-		return (
-			NON_STACKING_KEYWORDS.has(value) ||
-			/^var\(--publy-z-[\w-]+\)$/.test(value)
-		);
+		return isNonStackingKeyword(value) || isScaleVarReference(value);
+	}
+	if (utility === 'z-auto') {
+		return true;
 	}
 	if (
-		utility === 'z-auto' ||
-		NON_STACKING_KEYWORD_ARBITRARY_PATTERN.test(utility)
+		utility.startsWith('z-[') &&
+		utility.endsWith(']') &&
+		isNonStackingKeyword(utility.slice(3, -1))
 	) {
 		return true;
 	}
@@ -342,7 +358,11 @@ const isAllowedZIndexUtility = (utility) => {
 	if (/^z-\[--publy-z-[\w-]+\]$/.test(utility)) {
 		return true;
 	}
-	if (/^z-\[var\(--publy-z-[\w-]+\)\]$/.test(utility)) {
+	if (
+		utility.startsWith('z-[') &&
+		utility.endsWith(']') &&
+		isScaleVarReference(utility.slice(3, -1))
+	) {
 		return true;
 	}
 	return false;
@@ -701,10 +721,10 @@ export const checkCompiledCssZIndex = (
 		}
 		const value = stripImportant(declaration.value);
 		const shipped = `z-index: ${value}`;
-		if (/^var\(--publy-z-[\w-]+\)$/.test(value)) {
+		if (isScaleVarReference(value)) {
 			continue;
 		}
-		if (NON_STACKING_KEYWORDS.has(value)) {
+		if (isNonStackingKeyword(value)) {
 			continue;
 		}
 		const selector = normalizeWhitespace(declaration.selector);

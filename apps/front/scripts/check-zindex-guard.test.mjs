@@ -116,6 +116,9 @@ test('classifier: scale-routed and inert utilities are allowed', () => {
 		'!z-(--publy-z-raised)',
 		'z-(--publy-z-raised)!',
 		'z-[inherit]',
+		'z-[AUTO]',
+		'z-[InHeRiT]',
+		'z-[VAR(--publy-z-raised)]',
 		'z-[initial]',
 		'z-[unset]',
 		'z-[revert]',
@@ -524,6 +527,18 @@ test('e2e (round 3 important 1): braces in a custom-property value stay clean', 
 		violations,
 		[],
 		`custom-property payload is not a z-index declaration: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 3 important 2): CSS keywords and function names are ASCII-case-insensitive', async () => {
+	const { violations } = await runFixtureGuard({
+		'probe.tsx':
+			'export const probe = <div className="z-[AUTO] z-[InHeRiT] z-[VAR(--publy-z-raised)]" />;',
+	});
+	assert.deepEqual(
+		violations,
+		[],
+		`case variants must stay green: ${JSON.stringify(violations)}`,
 	);
 });
 
