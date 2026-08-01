@@ -476,6 +476,12 @@ export const IndexRoute = () => {
 					<h2 className="mt-3 text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
 						{t('landing-timeline-title')}
 					</h2>
+					<p
+						data-testid="landing-trial-plan-note"
+						className="mx-auto mt-3 max-w-[58ch] text-xs leading-[1.6] text-(--publy-foreground-secondary)"
+					>
+						{t('landing-trial-plan-note')}
+					</p>
 				</div>
 				<div className="publy-marketing-hairline-grid mt-8 grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
 					{TRIAL_STEPS.map((step) => (

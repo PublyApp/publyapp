@@ -112,6 +112,15 @@ describe('marketing landing route', () => {
 		expect(container.querySelectorAll('del')).toHaveLength(3);
 	});
 
+	test('renders a visible planning note with the trial timeline', () => {
+		render(<IndexRoute />);
+
+		const note = screen.getByTestId('landing-trial-plan-note');
+		expect(note.textContent).toBe('landing-trial-plan-note');
+		expect(note.className).toContain('text-xs');
+		expect(note.className).toContain('text-(--publy-foreground-secondary)');
+	});
+
 	test('keeps optional marketing bands behind feature flags', () => {
 		const { container } = render(<IndexRoute />);
 

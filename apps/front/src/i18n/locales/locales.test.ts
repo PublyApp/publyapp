@@ -22,7 +22,7 @@ describe('front locale manifests', () => {
 	// hold these two strings". Pinning literals covered only the tiers that
 	// happened to be wrong, left other pricing copy free to regress, and would
 	// break on any
-	// legitimate rewording. There is no trial or billing system; a CTA that
+	// legitimate rewording. There is no current trial or billing system; a CTA that
 	// offers one is a claim the product cannot honour.
 	test('no pricing surface promises a trial, in either locale', () => {
 		// The imported bundles are typed as exact object literals, so they cannot
@@ -81,14 +81,24 @@ describe('front locale manifests', () => {
 
 		for (const localeCase of localeCases) {
 			const { common } = localeCase;
-			expect(common['landing-closing-primary-cta']).toMatch(
-				localeCase.signupCta,
-			);
+			for (const key of [
+				'marketing-start-free-trial',
+				'landing-hero-primary-cta',
+				'landing-closing-primary-cta',
+			]) {
+				expect(common[key]).toMatch(localeCase.signupCta);
+			}
+
+			const marketingFootnote = common['marketing-cta-footnote'];
+			expect(marketingFootnote).toMatch(localeCase.trial);
+			expect(marketingFootnote).toMatch(localeCase.planned);
+			expect(marketingFootnote).toMatch(localeCase.beta);
 
 			const faqAnswer = common['landing-faq-3-answer'];
 			expect(faqAnswer).toMatch(localeCase.currentContext);
 			expect(faqAnswer).toMatch(localeCase.trial);
 			expect(faqAnswer).toMatch(localeCase.planned);
+			expect(faqAnswer).toMatch(localeCase.beta);
 
 			const timelineHeading = common['landing-timeline-eyebrow'];
 			expect(timelineHeading).toMatch(localeCase.trial);
