@@ -896,10 +896,11 @@ describe('staff tenants route', () => {
 		) => {
 			const trigger = await screen.findByRole('button', {
 				name: 'More actions',
+				expanded: false,
 			});
 
-			// Base UI's keyboard-open contract settles synchronously in jsdom;
-			// pointer/click opening can strand the portal between tests under load.
+			// Wait for Base UI's trigger contract before dispatching the synchronous
+			// keyboard-open event. The button can be visible before these props settle.
 			fireEvent.keyDown(trigger, { key: 'ArrowDown' });
 			expect(trigger.getAttribute('aria-expanded')).toBe('true');
 			fireEvent.click(screen.getByRole('menuitem', { name: actionName }));
