@@ -455,6 +455,19 @@ describe('ChangeStaffUserEmailDialog', () => {
 
 	// users-auth-r1-F4: every Drawer close route must preserve a typed
 	// replacement email until the user explicitly confirms discarding it.
+	//
+	// What these three cases do and do not establish, since this file exists to
+	// stop tests overstating themselves. Cancel reaches `requestClose` through
+	// its own onClick; Escape and backdrop reach it through the Drawer's
+	// `onOpenChange`, which the previous mock dropped entirely — so a dialog
+	// that guarded only the Cancel button used to pass. Two distinct production
+	// paths are now covered, and Escape and backdrop are the same one twice.
+	//
+	// That Escape and an outside press actually reach `onOpenChange` is Base UI
+	// `Dialog.Root` default behaviour, which the mock reproduces rather than
+	// proves; `Drawer` is a bare passthrough and this dialog passes no
+	// `dismissible={false}`. Confirming the real primitive dismisses on those
+	// gestures needs the browser, and belongs with the e2e work in #1059.
 	test.each([
 		[
 			'Escape',
