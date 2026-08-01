@@ -29,10 +29,13 @@
  *
  * Discovery is import-aware: a JSX tag counts as a DrawerForm call site when
  * its local name is bound to the shared component's export, so
- * `import { DrawerForm as Form }` + `<Form />` is caught. The round-4
- * fallback is preserved: a JSX tag written literally as `DrawerForm` still
- * counts when it is not bound to a resolved import of the shared component,
- * which is what keeps an unresolvable-import call site discoverable.
+ * `import { DrawerForm as Form }` + `<Form />` is caught, and when it is a
+ * namespace member of the drawer module (`import * as Drawer` +
+ * `<Drawer.DrawerForm />`). The unresolved-import fallback (round 4) is kept:
+ * a `DrawerForm` import whose module cannot be resolved still counts, and so
+ * does a bare `DrawerForm` reference that is not declared anywhere in the
+ * file. A same-named local component — `const DrawerForm = () => <div />` —
+ * is NOT the shared component and does not count.
  */
 
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -207,9 +210,23 @@ export const DrawerFormAliasedFixture = ({
 	methods: UseFormReturn<FieldValues>;
 }) => <Form methods={methods} />;
 `;
+const TEMPORARY_LOCAL_DECLARATION_FILE =
+	'src/components/ui/_drawer-form-local-declaration-fixture.tsx';
+const TEMPORARY_LOCAL_DECLARATION_PATH = path.join(
+	FRONT_ROOT,
+	TEMPORARY_LOCAL_DECLARATION_FILE,
+);
+const TEMPORARY_LOCAL_DECLARATION_SOURCE = `const DrawerForm = () => <div />;
+
+export const LocalDrawerFormFixture = () => <DrawerForm />;
+`;
 
 type DrawerFormImportBindings = {
 	drawerFormLocalNames: ReadonlySet<string>;
+	drawerModuleNamespaces: ReadonlySet<string>;
+	unresolvedDrawerFormImports: ReadonlySet<string>;
+	otherModuleDrawerFormImports: ReadonlySet<string>;
+	localDrawerFormDeclared: boolean;
 };
 
 type ModuleResolution = {
@@ -223,13 +240,17 @@ const collectDrawerFormImportBindings = (
 ): DrawerFormImportBindings => {
 	const drawerModulePath = path.join(FRONT_ROOT, DRAWER_MODULE_RELATIVE_PATH);
 	const drawerFormLocalNames = new Set<string>();
+	const drawerModuleNamespaces = new Set<string>();
+	const unresolvedDrawerFormImports = new Set<string>();
+	const otherModuleDrawerFormImports = new Set<string>();
 
 	for (const declaration of sourceFile.getImportDeclarations()) {
+		const namespaceImport = declaration.getNamespaceImport();
 		const importsDrawerForm = declaration
 			.getNamedImports()
 			.some((namedImport) => namedImport.getName() === 'DrawerForm');
 
-		if (!importsDrawerForm) {
+		if (!namespaceImport && !importsDrawerForm) {
 			continue;
 		}
 
@@ -239,8 +260,12 @@ const collectDrawerFormImportBindings = (
 			moduleResolution.compilerOptions,
 			moduleResolution.host,
 		).resolvedModule?.resolvedFileName;
+		const isDrawerModule = resolvedModule === drawerModulePath;
 
-		if (resolvedModule !== drawerModulePath) {
+		if (namespaceImport) {
+			if (isDrawerModule) {
+				drawerModuleNamespaces.add(namespaceImport.getText());
+			}
 			continue;
 		}
 
@@ -249,13 +274,36 @@ const collectDrawerFormImportBindings = (
 				continue;
 			}
 
-			drawerFormLocalNames.add(
-				namedImport.getAliasNode()?.getText() ?? namedImport.getName(),
-			);
+			const localName =
+				namedImport.getAliasNode()?.getText() ?? namedImport.getName();
+			if (isDrawerModule) {
+				drawerFormLocalNames.add(localName);
+			} else if (resolvedModule) {
+				otherModuleDrawerFormImports.add(localName);
+			} else {
+				unresolvedDrawerFormImports.add(localName);
+			}
 		}
 	}
 
-	return { drawerFormLocalNames };
+	const localDrawerFormDeclared =
+		sourceFile
+			.getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+			.some((declaration) => declaration.getName() === 'DrawerForm') ||
+		sourceFile
+			.getDescendantsOfKind(SyntaxKind.FunctionDeclaration)
+			.some((declaration) => declaration.getName() === 'DrawerForm') ||
+		sourceFile
+			.getDescendantsOfKind(SyntaxKind.ClassDeclaration)
+			.some((declaration) => declaration.getName() === 'DrawerForm');
+
+	return {
+		drawerFormLocalNames,
+		drawerModuleNamespaces,
+		unresolvedDrawerFormImports,
+		otherModuleDrawerFormImports,
+		localDrawerFormDeclared,
+	};
 };
 
 const isDrawerFormCallSite = (
@@ -268,7 +316,32 @@ const isDrawerFormCallSite = (
 		return true;
 	}
 
-	return tagText === 'DrawerForm';
+	if (bindings.unresolvedDrawerFormImports.has(tagText)) {
+		return true;
+	}
+
+	if (bindings.otherModuleDrawerFormImports.has(tagText)) {
+		return false;
+	}
+
+	const namespaceMemberAccess = tagText.match(/^(.+)\.DrawerForm$/);
+	if (
+		namespaceMemberAccess &&
+		bindings.drawerModuleNamespaces.has(namespaceMemberAccess[1])
+	) {
+		return true;
+	}
+
+	// Conservative fallback for a bare `DrawerForm` reference that is neither
+	// imported nor declared anywhere in the file — round 4's fail-open. A
+	// same-named local component (or an import of a different module's
+	// DrawerForm) cannot fake this, which is what separates a real call site
+	// from the finding-4 false positive.
+	if (tagText === 'DrawerForm' && !bindings.localDrawerFormDeclared) {
+		return true;
+	}
+
+	return false;
 };
 
 const findDrawerFormCallSites = (): string[] => {
@@ -410,6 +483,21 @@ describe('DrawerForm flex chain at the real call sites', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_ALIASED_CALL_SITE_PATH);
+		}
+	});
+
+	test('the scanner ignores a same-named local component that is not the shared DrawerForm', () => {
+		writeFileSync(
+			TEMPORARY_LOCAL_DECLARATION_PATH,
+			TEMPORARY_LOCAL_DECLARATION_SOURCE,
+		);
+
+		try {
+			expect(findDrawerFormCallSites()).not.toContain(
+				TEMPORARY_LOCAL_DECLARATION_FILE,
+			);
+		} finally {
+			unlinkSync(TEMPORARY_LOCAL_DECLARATION_PATH);
 		}
 	});
 
