@@ -57,71 +57,94 @@ describe('front locale manifests', () => {
 		}
 	});
 
-	test('frames the landing trial as planned while beta signup remains current', () => {
+	test('frames every landing-page trial mention as future-facing', () => {
 		const localeCases = [
 			{
 				common: en.common as Record<string, string>,
-				signupCta: /^Sign up free$/i,
-				currentContext: /\btoday\b/i,
-				trial: /\bfree trial\b/i,
-				planned: /planned before general availability/i,
-				beta: /free while in beta/i,
-				dayCount: /\bday\s+\d+\b/i,
+				trialMention: /\btrials?\b/i,
+				futureMarkers: [
+					/\bplan(?:ned|s|ning)?\b/i,
+					/\b(?:upcoming|forthcoming|future)\b/i,
+					/\b(?:will|later|eventually)\b/i,
+					/\bto come\b/i,
+					/\b(?:no|not)\b[^.!?;·]{0,80}\byet\b/i,
+					/\b(?:isn't|is not)\b[^.!?;·]{0,40}\b(?:yet|currently)\b/i,
+				],
 			},
 			{
 				common: fr.common as Record<string, string>,
-				signupCta: /^S'inscrire gratuitement$/i,
-				currentContext: /aujourd'hui/i,
-				trial: /\bessai gratuit\b/i,
-				planned: /prévu avant l'ouverture au public/i,
-				beta: /gratuit pendant la bêta/i,
-				dayCount: /\bjour\s+\d+\b/i,
+				trialMention: /\bessais?\b/i,
+				futureMarkers: [
+					/\bprévu(?:e|es|s)?\b/i,
+					/\b(?:futur(?:e|es|s)?|prochain(?:e|es|s)?)\b/i,
+					/à venir/i,
+					/\b(?:sera|seront)\b/i,
+					/plus tard/i,
+					/\bn['’](?:est|existe|a)\b[^.!?;·]{0,40}\bencore\b/i,
+					/\b(?:pas|aucun(?:e|s)?)\b[^.!?;·]{0,80}\bencore\b/i,
+				],
 			},
 		] as const;
 
 		for (const localeCase of localeCases) {
-			const { common } = localeCase;
-			for (const key of [
+			const landingKeys = Object.keys(localeCase.common).filter((key) =>
+				key.startsWith('landing-'),
+			);
+			// These two marketing-shell strings also render on the landing page.
+			const landingPageKeys = [
+				...landingKeys,
 				'marketing-start-free-trial',
-				'landing-hero-primary-cta',
-				'landing-closing-primary-cta',
-			]) {
-				expect(common[key]).toMatch(localeCase.signupCta);
+				'marketing-cta-footnote',
+			];
+
+			expect(landingKeys.length).toBeGreaterThan(0);
+
+			// Natural language is not fully decidable with regexes. Conservatively,
+			// every punctuation-delimited clause that names a trial must carry a
+			// recognized future marker. Legitimate new wording must either use one of
+			// the markers above or deliberately extend that locale's vocabulary.
+			for (const key of landingPageKeys) {
+				const value = localeCase.common[key];
+				const trialClauses = value
+					.split(/[.!?;·]+/)
+					.filter((clause) => localeCase.trialMention.test(clause));
+
+				for (const clause of trialClauses) {
+					const hasFutureMarker = localeCase.futureMarkers.some((pattern) =>
+						pattern.test(clause),
+					);
+					expect(
+						hasFutureMarker,
+						`${key} must frame every trial-bearing clause as future-facing`,
+					).toBe(true);
+				}
 			}
+		}
+	});
 
-			const marketingFootnote = common['marketing-cta-footnote'];
-			expect(marketingFootnote).toMatch(localeCase.trial);
-			expect(marketingFootnote).toMatch(localeCase.planned);
-			expect(marketingFootnote).toMatch(localeCase.beta);
+	test('keeps the trial timeline free of invented day counts', () => {
+		const localeCases = [
+			{
+				common: en.common as Record<string, string>,
+				dayCount: /\b(?:day\s+\d+|\d+\s*-?\s*days?)\b/i,
+			},
+			{
+				common: fr.common as Record<string, string>,
+				dayCount: /\b(?:jour\s+\d+|\d+\s*-?\s*jours?)\b/i,
+			},
+		] as const;
 
-			const faqAnswer = common['landing-faq-3-answer'];
-			expect(faqAnswer).toMatch(localeCase.currentContext);
-			expect(faqAnswer).toMatch(localeCase.trial);
-			expect(faqAnswer).toMatch(localeCase.planned);
-			expect(faqAnswer).toMatch(localeCase.beta);
+		for (const localeCase of localeCases) {
+			const timelineKeys = Object.keys(localeCase.common).filter(
+				(key) =>
+					key.startsWith('landing-trial-') ||
+					key.startsWith('landing-timeline-'),
+			);
 
-			const timelineHeading = common['landing-timeline-eyebrow'];
-			expect(timelineHeading).toMatch(localeCase.trial);
-			expect(timelineHeading).toMatch(/planned|prévu/i);
+			expect(timelineKeys.length).toBeGreaterThan(0);
 
-			const timelineNote = common['landing-trial-plan-note'];
-			expect(timelineNote).toMatch(localeCase.currentContext);
-			expect(timelineNote).toMatch(localeCase.trial);
-			expect(timelineNote).toMatch(localeCase.planned);
-			expect(timelineNote).toMatch(localeCase.beta);
-
-			const closingDescription = common['landing-closing-description'];
-			expect(closingDescription).toMatch(localeCase.currentContext);
-			expect(closingDescription).toMatch(localeCase.trial);
-			expect(closingDescription).toMatch(localeCase.planned);
-			expect(closingDescription).toMatch(localeCase.beta);
-
-			for (const key of [
-				'landing-trial-today-title',
-				'landing-trial-day-3-title',
-				'landing-trial-day-10-title',
-			]) {
-				expect(common[key]).not.toMatch(localeCase.dayCount);
+			for (const key of timelineKeys) {
+				expect(localeCase.common[key]).not.toMatch(localeCase.dayCount);
 			}
 		}
 	});
