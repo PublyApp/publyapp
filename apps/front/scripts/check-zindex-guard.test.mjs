@@ -746,6 +746,33 @@ test('compiled-CSS gate: escaped important identifier is decoded before comparis
 	);
 });
 
+test('compiled-CSS gate: allowlist occurrence count is global across assets', () => {
+	const shared = new Map();
+	const sticky = inComponentsLayer(`${STICKY_HEADER_SELECTOR} { z-index: 5; }`);
+	assert.equal(
+		checkCompiledCssZIndex(
+			sticky,
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+			'dist/a.css',
+			{
+				allowlistCounts: shared,
+			},
+		).length,
+		0,
+	);
+	// the same bound rule in a *second* asset exceeds the global count of 1
+	const second = checkCompiledCssZIndex(
+		sticky,
+		KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		'dist/b.css',
+		{ allowlistCounts: shared },
+	);
+	assert.deepEqual(
+		second.map((violation) => violation.ruleId),
+		['z-index-declaration-not-on-scale'],
+	);
+});
+
 test('CSS gates: @property cannot register a reserved scale token', () => {
 	const registration = [
 		'@property --publy-z-raised {',

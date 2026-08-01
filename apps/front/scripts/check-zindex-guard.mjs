@@ -1295,11 +1295,11 @@ export const checkCompiledCssZIndex = (
 		emitted = false,
 		scaleDefinitionCounts = new Map(),
 		canonicalScaleTokens = null,
+		allowlistCounts = new Map(),
 	} = {},
 ) => {
 	const root = postcss.parse(compiledCss, { from: undefined });
 	const violations = findReservedScaleTokenRegistrations(root, sourceName);
-	const seenCounts = new Map();
 	root.walkAtRules((atRule) => {
 		if (canonicaliseCssProperty(atRule.name) !== 'import') {
 			return;
@@ -1386,8 +1386,8 @@ export const checkCompiledCssZIndex = (
 				allowance.selector,
 				allowance.declaration,
 			]);
-			const count = (seenCounts.get(key) ?? 0) + 1;
-			seenCounts.set(key, count);
+			const count = (allowlistCounts.get(key) ?? 0) + 1;
+			allowlistCounts.set(key, count);
 			if (count <= allowance.count) {
 				continue;
 			}
@@ -1397,7 +1397,9 @@ export const checkCompiledCssZIndex = (
 			message:
 				`shipped \`${shipped}\`${selector ? ` in \`${selector}\`` : ''} does not ` +
 				'resolve through var(--publy-z-…) — every z-index in the built ' +
-				'stylesheet must route through the scale.',
+				'stylesheet must route through the scale. If a dependency owns ' +
+				'this declaration, extend KNOWN_RAW_Z_INDEX_DECLARATIONS in ' +
+				'apps/front/scripts/check-zindex-guard.mjs only after review.',
 			file: sourceName,
 			line: declaration.line,
 			source: shipped,
@@ -1491,7 +1493,10 @@ const collectCssPaths = async (
 					continue;
 				}
 				await visit(entryPath);
-			} else if (entry.isFile() && entry.name.endsWith('.css')) {
+			} else if (
+				entry.isFile() &&
+				asciiLowerCase(entry.name).endsWith('.css')
+			) {
 				cssPaths.push(entryPath);
 			}
 		}
@@ -1772,6 +1777,7 @@ export const runZIndexGuard = async ({
 		}
 		const emittedCssAssets = [];
 		const emittedScaleDefinitionCounts = new Map();
+		const emittedAllowlistCounts = new Map();
 		const canonicalScaleTokens = findCanonicalScaleTokens(css);
 		for (const cssPath of emittedCssPaths) {
 			const content = await readFile(cssPath, 'utf8');
@@ -1790,6 +1796,7 @@ export const runZIndexGuard = async ({
 						emitted: true,
 						scaleDefinitionCounts: emittedScaleDefinitionCounts,
 						canonicalScaleTokens,
+						allowlistCounts: emittedAllowlistCounts,
 					},
 				),
 			);
