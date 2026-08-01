@@ -1,7 +1,9 @@
-import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
 import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
@@ -10,6 +12,7 @@ import { ts } from 'ts-morph';
 
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const appCssPath = path.join(rootDir, 'src/styles/app.css');
+const execFileAsync = promisify(execFile);
 
 const SCRIPT_EXTENSIONS = new Set([
 	'.ts',
@@ -710,6 +713,16 @@ export const KNOWN_RAW_Z_INDEX_DECLARATIONS = [
 	},
 ];
 
+const KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS = [
+	{
+		...KNOWN_RAW_Z_INDEX_DECLARATIONS[0],
+		selector:
+			'.publy-data-table thead [data-slot=table-column],' +
+			'.publy-data-table thead [data-slot=table-sortable-column-header],' +
+			'.publy-data-table thead [data-slot=table-selection-cell]',
+	},
+];
+
 const normalizeWhitespace = (text) => text.replace(/[\t\n\f\r ]+/g, ' ').trim();
 
 const stripImportant = (value) => {
@@ -775,12 +788,13 @@ const scanCssDeclarations = (css) => {
 	return declarations;
 };
 
-const isGlobalScaleDefinition = (declaration) => {
+const isGlobalScaleDefinition = (declaration, emitted) => {
 	if (declaration.selector === ':root' && declaration.ancestors.length === 0) {
 		return true;
 	}
 	return (
-		declaration.selector === ':root, :host' &&
+		(declaration.selector === ':root, :host' ||
+			(emitted && declaration.selector === ':root,:host')) &&
 		cssAncestorsEqual(declaration.ancestors, [
 			{ type: 'at-rule', name: 'layer', params: 'theme' },
 		])
@@ -790,13 +804,15 @@ const isGlobalScaleDefinition = (declaration) => {
 export const checkCompiledCssZIndex = (
 	compiledCss,
 	allowlisted = KNOWN_RAW_Z_INDEX_DECLARATIONS,
+	sourceName = 'compiled stylesheet',
+	{ emitted = false } = {},
 ) => {
 	const violations = [];
 	const seenCounts = new Map();
 	for (const declaration of scanCssDeclarations(compiledCss)) {
 		if (
 			declaration.decodedProperty.startsWith('--publy-z-') &&
-			!isGlobalScaleDefinition(declaration)
+			!isGlobalScaleDefinition(declaration, emitted)
 		) {
 			const source = `${declaration.decodedProperty}: ${declaration.value}`;
 			violations.push({
@@ -804,7 +820,7 @@ export const checkCompiledCssZIndex = (
 				message:
 					`shipped \`${source}\` outside the global scale — define z-index ` +
 					'tiers once in :root in src/styles/app.css.',
-				file: 'compiled stylesheet',
+				file: sourceName,
 				line: declaration.line,
 				source,
 			});
@@ -846,12 +862,43 @@ export const checkCompiledCssZIndex = (
 				`shipped \`${shipped}\`${selector ? ` in \`${selector}\`` : ''} does not ` +
 				'resolve through var(--publy-z-…) — every z-index in the built ' +
 				'stylesheet must route through the scale.',
-			file: 'compiled stylesheet',
+			file: sourceName,
 			line: declaration.line,
 			source: shipped,
 		});
 	}
 	return violations;
+};
+
+const collectCssAssetPaths = async (directory) => {
+	const cssPaths = [];
+	const visit = async (currentDirectory) => {
+		const entries = await readdir(currentDirectory, { withFileTypes: true });
+		for (const entry of entries) {
+			const entryPath = path.join(currentDirectory, entry.name);
+			if (entry.isDirectory()) {
+				await visit(entryPath);
+			} else if (entry.isFile() && entry.name.endsWith('.css')) {
+				cssPaths.push(entryPath);
+			}
+		}
+	};
+	try {
+		await visit(directory);
+	} catch (error) {
+		if (error?.code === 'ENOENT') {
+			return [];
+		}
+		throw error;
+	}
+	return cssPaths.sort((left, right) => left.localeCompare(right));
+};
+
+const buildProductionApp = async (baseDir) => {
+	await execFileAsync('pnpm', ['exec', 'vite', 'build'], {
+		cwd: baseDir,
+		maxBuffer: 20 * 1024 * 1024,
+	});
 };
 
 // ---------------------------------------------------------------------------
@@ -861,6 +908,8 @@ export const checkCompiledCssZIndex = (
 export const runZIndexGuard = async ({
 	baseDir = rootDir,
 	appCssPath: configuredAppCssPath = appCssPath,
+	emittedCssRoot = path.join(baseDir, 'dist'),
+	productionBuild = () => buildProductionApp(baseDir),
 } = {}) => {
 	const css = await readFile(configuredAppCssPath, 'utf8');
 	const cssDir = path.dirname(configuredAppCssPath);
@@ -899,12 +948,33 @@ export const runZIndexGuard = async ({
 		);
 	}
 
-	const compiled = compiler.build(allCandidates);
-	violations.push(...checkCompiledCssZIndex(compiled));
+	await productionBuild();
+	const emittedCssPaths = await collectCssAssetPaths(emittedCssRoot);
+	if (emittedCssPaths.length === 0) {
+		throw new Error(
+			'z-index guard found 0 emitted CSS assets after the production build — ' +
+				'a pass would be vacuous. Check the Vite output directory.',
+		);
+	}
+	const emittedCssAssets = [];
+	for (const cssPath of emittedCssPaths) {
+		const content = await readFile(cssPath, 'utf8');
+		const relativePath = path.relative(baseDir, cssPath);
+		emittedCssAssets.push({ path: relativePath, content });
+		violations.push(
+			...checkCompiledCssZIndex(
+				content,
+				KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS,
+				relativePath,
+				{ emitted: true },
+			),
+		);
+	}
 
 	return {
 		violations,
-		compiled,
+		compiled: emittedCssAssets.map((asset) => asset.content).join('\n'),
+		emittedCssAssets,
 		candidateCount: allCandidates.length,
 		fileCount: scanner.files.length,
 	};

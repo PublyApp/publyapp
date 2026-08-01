@@ -5,6 +5,8 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { Scanner } from '@tailwindcss/oxide';
+import tailwindcss from '@tailwindcss/vite';
+import { build as viteBuild } from 'vite';
 
 import {
 	classifyZUtility,
@@ -36,7 +38,17 @@ const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 // `scripts/` so `@import 'tailwindcss'` resolves from `apps/front/node_modules`
 // (it would not resolve from the OS tmpdir) while staying invisible to the real
 // guard, whose scanner only watches `src/**`.
-const runFixtureGuard = async (files, appCssExtra = '') => {
+const buildViteFixture = async (root) => {
+	await viteBuild({
+		root,
+		configFile: false,
+		logLevel: 'silent',
+		plugins: [tailwindcss()],
+		build: { outDir: 'dist' },
+	});
+};
+
+const runFixtureGuard = async (files, appCssExtra = '', entryImports = []) => {
 	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
 	try {
 		await mkdir(path.join(root, 'src'), { recursive: true });
@@ -46,9 +58,19 @@ const runFixtureGuard = async (files, appCssExtra = '') => {
 			await mkdir(path.dirname(absolutePath), { recursive: true });
 			await writeFile(absolutePath, content);
 		}
+		await writeFile(
+			path.join(root, 'index.html'),
+			'<div id="app"></div><script type="module" src="/src/main.ts"></script>',
+		);
+		await writeFile(
+			path.join(root, 'src/main.ts'),
+			[`import '../app.css';`, ...entryImports].join('\n'),
+		);
 		const result = await runZIndexGuard({
 			baseDir: root,
 			appCssPath: path.join(root, 'app.css'),
+			emittedCssRoot: path.join(root, 'dist'),
+			productionBuild: () => buildViteFixture(root),
 		});
 		return result;
 	} finally {
@@ -78,6 +100,9 @@ const assertClean = (relativePath, content) => {
 		`expected no violations for ${relativePath}: ${JSON.stringify(content)}`,
 	);
 };
+
+const isCompiledCssFile = (file) =>
+	file === 'compiled stylesheet' || file.startsWith('dist/');
 
 // ---------------------------------------------------------------------------
 // Classifier
@@ -376,6 +401,29 @@ test('compiled-CSS gate: property names are canonicalised (case and escapes)', (
 // End-to-end through the production scanner — isolated fixture trees whose
 // throwaway `src/` is compiled exactly as production compiles `apps/front/src`.
 // ---------------------------------------------------------------------------
+test('e2e (round 4 blocker 1): component-imported raw CSS is red in the emitted asset', async () => {
+	const { violations, emittedCssAssets } = await runFixtureGuard(
+		{
+			'component.ts': `import './evil.css';\nexport const component = 'probe';`,
+			'evil.css': '.evil { z-index: 993; }',
+		},
+		'',
+		[
+			`import { component } from './component';`,
+			`document.body.dataset.fixture = component;`,
+		],
+	);
+	assert.ok(
+		emittedCssAssets.some((asset) => asset.content.includes('z-index:993')),
+		`fixture must emit the raw declaration: ${JSON.stringify(emittedCssAssets)}`,
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['z-index: 993'],
+		`component-imported CSS must red: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (blocker 1): @source inline("z-5") + \'z-\' + 5 concatenation is red via the compiled gate', async () => {
 	const { violations } = await runFixtureGuard(
 		{ 'concat.tsx': `export const view = <div className={'z-' + 5} />;` },
@@ -386,7 +434,7 @@ test('e2e (blocker 1): @source inline("z-5") + \'z-\' + 5 concatenation is red v
 	// red is the shipped `.z-5 { z-index: 5 }` rule, which the selector-bound
 	// allowlist no longer exempts.
 	assert.ok(
-		violations.every((violation) => violation.file === 'compiled stylesheet'),
+		violations.every((violation) => isCompiledCssFile(violation.file)),
 		`unexpected source violations: ${JSON.stringify(violations)}`,
 	);
 	assert.deepEqual(
@@ -402,8 +450,8 @@ test('e2e (blocker 1): [z-index:5] arbitrary property is red at source and in th
 	const sourceViolations = violations.filter((violation) =>
 		violation.file.includes('arbitrary.tsx'),
 	);
-	const compiledViolations = violations.filter(
-		(violation) => violation.file === 'compiled stylesheet',
+	const compiledViolations = violations.filter((violation) =>
+		isCompiledCssFile(violation.file),
 	);
 	assert.ok(
 		sourceViolations.some((violation) => violation.source === '[z-index:5]'),
@@ -423,8 +471,7 @@ test('e2e (blocker 2): uppercase Z-INDEX property in an @utility is red', async 
 	assert.ok(
 		violations.some(
 			(violation) =>
-				violation.file === 'compiled stylesheet' &&
-				violation.source === 'z-index: 50',
+				isCompiledCssFile(violation.file) && violation.source === 'z-index: 50',
 		),
 		`expected the uppercase property to red: ${JSON.stringify(violations)}`,
 	);
@@ -438,8 +485,7 @@ test('e2e (blocker 2): escaped z-\\69ndex property in an @utility is red', async
 	assert.ok(
 		violations.some(
 			(violation) =>
-				violation.file === 'compiled stylesheet' &&
-				violation.source === 'z-index: 50',
+				isCompiledCssFile(violation.file) && violation.source === 'z-index: 50',
 		),
 		`expected the escaped property to red: ${JSON.stringify(violations)}`,
 	);
@@ -624,7 +670,7 @@ test('e2e (innocent): innocent constructs through the production scanner', async
 	// component 1 stays green on every innocent construct — every violation is
 	// a compiled-gate emission, none names a fixture file.
 	assert.ok(
-		violations.every((violation) => violation.file === 'compiled stylesheet'),
+		violations.every((violation) => isCompiledCssFile(violation.file)),
 		`innocent construct produced a source violation: ${JSON.stringify(violations)}`,
 	);
 	// the three z-50 literals collapse into one shipped `.z-50` rule, which the
