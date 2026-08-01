@@ -2,130 +2,274 @@
  * @vitest-environment jsdom
  *
  * Guard for fix/990 — a drawer whose `DrawerBody` + `DrawerFooter` are wrapped
- * in a plain `Form`/`<form>` breaks `.publy-drawer`'s flex column: the form is
- * a block flex item with `min-height: auto`, so it refuses to shrink, the
- * body's `min-h-0 flex-1 overflow-y-auto` is inert, and the footer is clipped
- * below the viewport edge with no scrollbar.
+ * in a plain `Form`/`<form>` breaks `.publy-drawer`'s flex column, and so does
+ * any intermediate block (a `<div>`) between `DrawerForm` and the body/footer:
+ * the intermediate block owns the unconstrained height with `min-height: auto`,
+ * the body's `min-h-0 flex-1 overflow-y-auto` is inert, and the footer is
+ * clipped below the viewport edge with no scrollbar.
  *
  * jsdom has no layout engine, so no computed-height or scrolling assertion can
- * work. Instead this guards the real artifacts of the chain:
+ * work here. The four call-site drawers' own suites mock `~/components/ui/drawer`
+ * wholesale — a model, not the artifact — so this guard instead renders the
+ * four REAL call-site components against the REAL drawer components and asserts
+ * the parent chain the geometry depends on:
  *
- *  1. the actual SOURCE of the four form-bearing drawer call sites — their
- *     body+footer must sit inside `DrawerForm`, the drawer-owned form wrapper
- *     that applies the flex geometry;
- *  2. the actual rendered DOM of the real drawer components — the `<form>`
- *     emitted by `DrawerForm` carries `.publy-drawer-form`, sits directly in
- *     the `.publy-drawer` flex column, and has the body and footer as direct
- *     flex children;
- *  3. the actual `.publy-drawer-form` rule in app.css carrying the geometry.
+ *  1. `DrawerForm`'s `<form>` carries `.publy-drawer-form` and is a direct
+ *     child of the `.publy-drawer` surface;
+ *  2. `DrawerBody` and `DrawerFooter` are DIRECT children of that `<form>`
+ *     (`parentElement === form`) — a `<div>` (or any other wrapper) inserted
+ *     between them fails this and reintroduces the original bug;
+ *  3. the `.publy-drawer-form` rule in app.css is parsed with postcss (so a
+ *     commented-out rule produces no rule node and cannot pass) and is the
+ *     LAST rule whose selector matches — a later winning rule that deletes the
+ *     geometry is caught instead of silently winning the cascade.
+ *
+ * The browser-side proof — computed flex geometry and real scrolling at a
+ * constrained viewport — is the captain's Playwright suite, not this file.
  */
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { cleanup, render, screen } from '@testing-library/react';
-import { useForm } from 'react-hook-form';
+import postcss from 'postcss';
+import type { AtRule, Rule } from 'postcss';
+import { createElement, type ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import {
-	Drawer,
-	DrawerBody,
-	DrawerContent,
-	DrawerDescription,
-	DrawerFooter,
-	DrawerForm,
-	DrawerHeader,
-	DrawerTitle,
-} from './drawer';
-
 vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
+	useTranslation: () => ({
+		t: (key: string) => key,
+		i18n: { language: 'en' },
+	}),
 }));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({}),
+}));
+
+vi.mock('~/components/ui/button', () => ({
+	Button: ({
+		children,
+		type,
+		onClick,
+		disabled,
+		...props
+	}: {
+		children: ReactNode;
+		type?: 'button' | 'submit' | 'reset';
+		onClick?: () => void;
+		disabled?: boolean;
+	}) =>
+		createElement(
+			'button',
+			{ type: type ?? 'button', onClick, disabled, ...props },
+			children,
+		),
+}));
+
+vi.mock('~/components/field', () => ({
+	Field: {
+		Text: () => null,
+		Textarea: () => null,
+		Select: () => null,
+		Email: () => null,
+	},
+}));
+
+vi.mock('~/components/ui/icon-color-picker', () => ({
+	IconColorPicker: () => null,
+}));
+
+vi.mock('~/components/ui/confirm-dialog', () => ({
+	ConfirmDialog: () => null,
+}));
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: () => Promise.resolve(),
+	toastLocalMutationResult: { success: () => undefined },
+}));
+
+vi.mock('~/lib/should-logout-for-failure', () => ({
+	shouldLogoutForFailure: () => false,
+}));
+
+vi.mock('~/lib/query/staff-tenants', () => ({
+	invalidateAllStaffTenantScopes: () => Promise.resolve(),
+}));
+
+vi.mock('~/lib/query/staff-tenant-profiles', async () => {
+	const actual = await vi.importActual<
+		typeof import('~/lib/query/staff-tenant-profiles')
+	>('~/lib/query/staff-tenant-profiles');
+
+	return {
+		...actual,
+		useStaffTenantPermissionCatalogQuery: () => ({
+			data: { additionalData: {} },
+			isPending: false,
+			isError: false,
+			error: null,
+		}),
+		useCreateStaffTenantProfileMutation: () => ({
+			mutateAsync: () => Promise.resolve({ profile: { id: 'profile-1' } }),
+			isPending: false,
+		}),
+		useUpdateStaffTenantProfileMutation: () => ({
+			mutateAsync: () => Promise.resolve(undefined),
+			isPending: false,
+		}),
+	};
+});
+
+vi.mock('~/lib/query/staff-tenant-users', () => ({
+	useBulkInviteTenantUsersMutation: () => ({
+		mutateAsync: () => Promise.resolve(undefined),
+		isPending: false,
+	}),
+	toStaffTenantInvitationBulkCreateSummary: (result: unknown) => result,
+}));
+
+vi.mock('~/lib/query/staff-users', () => ({
+	useUpdateStaffUserEmailMutation: () => ({
+		mutateAsync: () => Promise.resolve(undefined),
+		isPending: false,
+	}),
+	invalidateStaffUsers: () => Promise.resolve(),
+}));
+
+vi.mock(
+	'../../routes/authed/staff/tenants/$tenantId/_invite-profile-select',
+	() => ({
+		InviteProfileSelect: () => null,
+	}),
+);
+
+import { ChangeStaffUserEmailDialog } from '../../routes/authed/staff/staff-users/_change-email-dialog';
+import { InviteTenantUserDrawer } from '../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer';
+import { ProfileEditDetailsDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer';
+import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer';
 
 const noop = () => undefined;
 
-const FORM_DRAWER_CALL_SITES = [
-	'../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer.tsx',
-	'../../routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx',
-	'../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx',
-	'../../routes/authed/staff/staff-users/_change-email-dialog.tsx',
-];
+const expectDrawerFormChain = (testId: string): void => {
+	const surface = screen.getByTestId(testId);
+	expect(surface.className).toContain('publy-drawer');
+
+	const form = surface.querySelector('form.publy-drawer-form');
+	expect(form).not.toBeNull();
+	expect(form?.parentElement).toBe(surface);
+
+	const body = surface.querySelector('[data-slot="drawer-body"]');
+	const footer = surface.querySelector('[data-slot="drawer-footer"]');
+	expect(body).not.toBeNull();
+	expect(footer).not.toBeNull();
+	expect(body?.parentElement).toBe(form);
+	expect(footer?.parentElement).toBe(form);
+};
 
 afterEach(cleanup);
 
-describe('DrawerForm flex chain', () => {
-	test.each(FORM_DRAWER_CALL_SITES)(
-		'%s keeps DrawerBody + DrawerFooter inside the drawer-owned DrawerForm',
-		(relativePath) => {
-			const source = readFileSync(
-				path.resolve(import.meta.dirname, relativePath),
-				'utf8',
-			);
-
-			const formOpen = source.indexOf('<DrawerForm');
-			const bodyOpen = source.indexOf('<DrawerBody');
-			const footerClose = source.lastIndexOf('</DrawerFooter>');
-			const formClose = source.lastIndexOf('</DrawerForm>');
-
-			expect(formOpen).toBeGreaterThanOrEqual(0);
-			expect(bodyOpen).toBeGreaterThan(formOpen);
-			expect(footerClose).toBeGreaterThan(bodyOpen);
-			expect(formClose).toBeGreaterThan(footerClose);
-		},
-	);
-
-	const DrawerFormChain = () => {
-		const methods = useForm<{ name: string }>({
-			defaultValues: { name: '' },
-		});
-
-		return (
-			<Drawer open={true} onOpenChange={noop}>
-				<DrawerContent>
-					<DrawerHeader>
-						<DrawerTitle>Invite members</DrawerTitle>
-						<DrawerDescription>
-							Send invitations to teammates.
-						</DrawerDescription>
-					</DrawerHeader>
-					<DrawerForm methods={methods} onSubmit={noop}>
-						<DrawerBody>
-							<p>Drawer body content</p>
-						</DrawerBody>
-						<DrawerFooter>
-							<button type="submit">Send invites</button>
-						</DrawerFooter>
-					</DrawerForm>
-				</DrawerContent>
-			</Drawer>
+describe('DrawerForm flex chain at the real call sites', () => {
+	test('ProfileFormDrawer keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
+		render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={noop}
+				onSaved={noop}
+				onSessionExpired={noop}
+			/>,
 		);
-	};
 
-	test('renders body + footer as direct flex children of a drawer-geometry form inside the drawer', () => {
-		render(<DrawerFormChain />);
-
-		const drawer = screen.getByRole('dialog');
-		expect(drawer.className).toContain('publy-drawer');
-
-		const form = drawer.querySelector('form');
-		expect(form).not.toBeNull();
-		expect(form?.className).toContain('publy-drawer-form');
-		expect(form?.parentElement).toBe(drawer);
-
-		const body = form?.querySelector('[data-slot="drawer-body"]');
-		const footer = form?.querySelector('[data-slot="drawer-footer"]');
-		expect(body?.parentElement).toBe(form);
-		expect(footer?.parentElement).toBe(form);
+		expectDrawerFormChain('profile-form-drawer');
 	});
 
-	test('app.css gives .publy-drawer-form the flex geometry that makes the body shrink and scroll', () => {
+	test('ProfileEditDetailsDrawer keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={noop}
+				onSaved={noop}
+				onSessionExpired={noop}
+			/>,
+		);
+
+		expectDrawerFormChain('profile-edit-details-drawer');
+	});
+
+	test('InviteTenantUserDrawer keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={noop}
+				onInvited={noop}
+				onSessionExpired={noop}
+			/>,
+		);
+
+		expectDrawerFormChain('invite-tenant-user-drawer');
+	});
+
+	test('ChangeStaffUserEmailDialog keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={noop}
+				onUpdated={noop}
+				onSessionExpired={noop}
+			/>,
+		);
+
+		expectDrawerFormChain('change-staff-user-email-dialog');
+	});
+
+	test('app.css gives .publy-drawer-form the flex geometry as the last matching rule', () => {
 		const appCssSource = readFileSync(
 			path.resolve(import.meta.dirname, '../../styles/app.css'),
 			'utf8',
 		);
 
-		expect(appCssSource).toMatch(
-			/\.publy-drawer-form\s*\{\s*@apply flex min-h-0 flex-1 flex-col;/,
-		);
+		const root = postcss.parse(appCssSource);
+
+		const matchingRules: Rule[] = [];
+		root.walkRules((rule) => {
+			if (
+				rule.selectors?.some((selector) =>
+					selector.includes('.publy-drawer-form'),
+				)
+			) {
+				matchingRules.push(rule);
+			}
+		});
+
+		expect(matchingRules.length).toBeGreaterThan(0);
+
+		// The rule the browser applies is the last one whose selector matches —
+		// any later `.publy-drawer-form` rule would win in the cascade and could
+		// delete the geometry. A commented-out rule never becomes a rule node,
+		// so it cannot satisfy this either.
+		const geometryRule = matchingRules[matchingRules.length - 1];
+		expect(geometryRule.selectors).toEqual(['.publy-drawer-form']);
+
+		const applyParams = geometryRule.nodes
+			.filter(
+				(node): node is AtRule =>
+					node.type === 'atrule' && node.name === 'apply',
+			)
+			.map((node) => node.params.trim().split(/\s+/).join(' '));
+
+		expect(applyParams).toContain('flex min-h-0 flex-1 flex-col');
 	});
 });
