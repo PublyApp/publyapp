@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { z } from 'zod';
 import { View404 } from '~/components/error-views/View404';
 import { Form, Field } from '~/components/field';
@@ -23,6 +24,44 @@ import { FEATURES } from '~/lib/flags';
 type FieldValidationValues = {
 	email: string;
 };
+
+const toastContrastFixtures = [
+	{
+		type: 'success',
+		show: () =>
+			toast.success('success contrast message', {
+				description: 'success contrast description',
+			}),
+	},
+	{
+		type: 'error',
+		show: () =>
+			toast.error('error contrast message', {
+				description: 'error contrast description',
+			}),
+	},
+	{
+		type: 'warning',
+		show: () =>
+			toast.warning('warning contrast message', {
+				description: 'warning contrast description',
+			}),
+	},
+	{
+		type: 'info',
+		show: () =>
+			toast.info('info contrast message', {
+				description: 'info contrast description',
+			}),
+	},
+	{
+		type: 'default',
+		show: () =>
+			toast('default contrast message', {
+				description: 'default contrast description',
+			}),
+	},
+] as const;
 
 const FieldValidationRoute = () => {
 	const { t } = useTranslation('common');
@@ -52,6 +91,22 @@ const FieldValidationRoute = () => {
 			>
 				{t('field-validation-demo')}
 			</h1>
+			<Card className="space-y-3 p-4" data-testid="toast-contrast-fixture">
+				<p className="text-sm font-medium">Toast contrast fixtures</p>
+				<div className="flex flex-wrap gap-2">
+					{toastContrastFixtures.map((fixture) => (
+						<Button
+							key={fixture.type}
+							type="button"
+							variant="outline"
+							data-testid={`toast-contrast-${fixture.type}`}
+							onClick={fixture.show}
+						>
+							{fixture.type}
+						</Button>
+					))}
+				</div>
+			</Card>
 			<Card className="space-y-4 p-4">
 				<Form methods={methods} onSubmit={methods.handleSubmit(onSubmit)}>
 					<Field.Email

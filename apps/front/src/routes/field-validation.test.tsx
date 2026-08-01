@@ -1,9 +1,17 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+
+const toastMocks = vi.hoisted(() => ({
+	default: vi.fn(),
+	error: vi.fn(),
+	info: vi.fn(),
+	success: vi.fn(),
+	warning: vi.fn(),
+}));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
@@ -20,11 +28,43 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+vi.mock('sonner', () => ({
+	toast: Object.assign(toastMocks.default, {
+		error: toastMocks.error,
+		info: toastMocks.info,
+		success: toastMocks.success,
+		warning: toastMocks.warning,
+	}),
+}));
+
 import { Route } from './field-validation';
 
 afterEach(cleanup);
 
 describe('field-validation route', () => {
+	test('renders real Sonner toast fixtures with messages and descriptions', () => {
+		const Component = (
+			Route as unknown as { component: () => ReturnType<typeof createElement> }
+		).component;
+		render(createElement(Component));
+
+		for (const variant of ['success', 'error', 'warning', 'info'] as const) {
+			fireEvent.click(screen.getByTestId(`toast-contrast-${variant}`));
+			expect(toastMocks[variant]).toHaveBeenCalledWith(
+				`${variant} contrast message`,
+				{ description: `${variant} contrast description` },
+			);
+		}
+
+		fireEvent.click(screen.getByTestId('toast-contrast-default'));
+		expect(toastMocks.default).toHaveBeenCalledWith(
+			'default contrast message',
+			{
+				description: 'default contrast description',
+			},
+		);
+	});
+
 	test('authors inert compiled-style probes for focus and invalid focus', () => {
 		const Component = (
 			Route as unknown as { component: () => ReturnType<typeof createElement> }
