@@ -232,6 +232,9 @@ front is organized.
 [`docs/guides/front/conventions.md`](docs/guides/front/conventions.md) — rendering strategy,
 server-function boundary, URL state, error views/logout, mutation feedback ownership, route-local
 file naming, and the owner-ratified product UI design preferences.
+[`docs/guides/front/context-chunk-isolation-guard.md`](docs/guides/front/context-chunk-isolation-guard.md)
+— the context chunk isolation build gate: how it detects contexts, and the hand-maintained
+inventory that adding, renaming, moving, or deleting a React context must update.
 
 **Routing:** routes are declared in the virtual route config `apps/front/src/routes.ts` (not
 file-based discovery); `routeTree.gen.ts` is generated. A route-local file that must not become a
