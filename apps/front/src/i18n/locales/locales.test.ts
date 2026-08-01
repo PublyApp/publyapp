@@ -62,6 +62,30 @@ const landingTrialClaimPatterns = [
 	...deferredPaymentPatterns,
 ];
 
+// Only constructions that can be a hedge and nothing else. A bare "plan"/
+// "planning" or the plain future tense "will" is ordinary product and sales
+// vocabulary on this page, so a present-tense regression needs no exotic
+// euphemism to slip past them.
+const enFutureMarkers = [
+	/\bplanned\b/i,
+	/\b(?:upcoming|forthcoming|future)\b/i,
+	/\bto be introduced\b/i,
+	/\bto come\b/i,
+	/\b(?:no|not)\b[^.!?;·]{0,80}\byet\b/i,
+	/\b(?:isn't|is not)\b[^.!?;·]{0,40}\b(?:yet|currently)\b/i,
+];
+
+const frFutureMarkers = [
+	/\bprévu(?:e|es|s)?\b/i,
+	/\b(?:futur(?:e|es|s)?|prochain(?:e|es|s)?)\b/i,
+	/à venir/i,
+	// "sera"/"seront" and "plus tard" are ordinary future-tense French and
+	// incidental filler; drop them so they cannot hedge a live promise. The
+	// shipped hedges all use prévu, à venir, or …pas encore.
+	/\bn['’](?:est|existe|a)\b[^.!?;·]{0,40}\bencore\b/i,
+	/\b(?:pas|aucun(?:e|s)?)\b[^.!?;·]{0,80}\bencore\b/i,
+];
+
 describe('front locale manifests', () => {
 	test('publish every registered namespace in registry order', () => {
 		expect(Object.keys(en)).toEqual([...I18N_NAMESPACES]);
@@ -108,33 +132,11 @@ describe('front locale manifests', () => {
 		const localeCases = [
 			{
 				common: en.common as Record<string, string>,
-				futureMarkers: [
-					// Only constructions that can be a hedge and nothing else. A
-					// bare "plan"/"planning" or the plain future tense "will" is
-					// ordinary product and sales vocabulary on this page, so a
-					// present-tense regression needs no exotic euphemism to slip
-					// past them.
-					/\bplanned\b/i,
-					/\b(?:upcoming|forthcoming|future)\b/i,
-					/\bto be introduced\b/i,
-					/\bto come\b/i,
-					/\b(?:no|not)\b[^.!?;·]{0,80}\byet\b/i,
-					/\b(?:isn't|is not)\b[^.!?;·]{0,40}\b(?:yet|currently)\b/i,
-				],
+				futureMarkers: enFutureMarkers,
 			},
 			{
 				common: fr.common as Record<string, string>,
-				futureMarkers: [
-					/\bprévu(?:e|es|s)?\b/i,
-					/\b(?:futur(?:e|es|s)?|prochain(?:e|es|s)?)\b/i,
-					/à venir/i,
-					// "sera"/"seront" and "plus tard" are ordinary future-tense
-					// French and incidental filler; drop them so they cannot
-					// hedge a live promise. The shipped hedges all use prévu,
-					// à venir, or …pas encore.
-					/\bn['’](?:est|existe|a)\b[^.!?;·]{0,40}\bencore\b/i,
-					/\b(?:pas|aucun(?:e|s)?)\b[^.!?;·]{0,80}\bencore\b/i,
-				],
+				futureMarkers: frFutureMarkers,
 			},
 		] as const;
 
@@ -190,6 +192,105 @@ describe('front locale manifests', () => {
 		}
 
 		expect(inspectedClauseCount).toBeGreaterThanOrEqual(14);
+	});
+
+	// The total canary above cannot witness the groups that match nothing in
+	// the committed copy — and three of the four match nothing there by
+	// design, because the page today promises no cancel-anytime deal, no
+	// bounded free period, and no deferred payment. Counting clauses can never
+	// cover a group the copy never exercises. So every trigger also has to
+	// prove itself against a canonical unhedged promise it must match, one
+	// sample per pattern, in order. Five rails keep this check honest, and any
+	// single edit that guts a group breaks at least one of them:
+	//   - hard counts: each group's pattern count and the spread total are
+	//     pinned, so deleting a pattern — even together with its sample —
+	//     reddens;
+	//   - pairing: one sample per pattern, so deleting a sample also reddens;
+	//   - match: each pattern must match its own sample, so a corrupted regex
+	//     (dropped flag, broken alternation, lost word boundary) reddens;
+	//   - reachability: every sample must be caught by the assembled spread,
+	//     so removing a group's spread from landingTrialClaimPatterns reddens
+	//     even while the group itself survives;
+	//   - threat: samples are promises, not hedges — none may carry a future
+	//     marker, or the pairing would pass while documenting a non-threat.
+	// A suite can only survive a gutted trigger set by deleting a pattern,
+	// its sample, and the pinned counts in the same edit — a coordinated act
+	// the counts recorded here make visible to review, not the partial
+	// deletion this test exists to catch. Bump the counts when the trigger
+	// set legitimately grows; never lower them to clear a dead pattern.
+	const triggerLiveness = [
+		{
+			label: 'forbiddenPricingPatterns',
+			group: forbiddenPricingPatterns,
+			samples: [
+				{ locale: 'en', text: 'Start your free trial today' },
+				{ locale: 'fr', text: 'Commencez votre essai gratuit' },
+				{ locale: 'en', text: 'Get 14 days free' },
+				{ locale: 'en', text: 'No credit card required' },
+				{ locale: 'fr', text: 'Aucun engagement, aucune carte' },
+			],
+		},
+		{
+			label: 'cancelAnytimePatterns',
+			group: cancelAnytimePatterns,
+			samples: [
+				{ locale: 'en', text: 'You can cancel any time' },
+				{ locale: 'fr', text: 'Vous pouvez annuler à tout moment' },
+			],
+		},
+		{
+			label: 'boundedFreePeriodPatterns',
+			group: boundedFreePeriodPatterns,
+			samples: [
+				{ locale: 'en', text: 'Free for your first two weeks' },
+				{ locale: 'en', text: 'Two weeks free' },
+				{ locale: 'fr', text: 'Gratuit pendant deux semaines' },
+				{ locale: 'fr', text: 'Deux semaines gratuites' },
+			],
+		},
+		{
+			label: 'deferredPaymentPatterns',
+			group: deferredPaymentPatterns,
+			samples: [
+				{ locale: 'en', text: 'Pay nothing until you decide to stay' },
+				{ locale: 'en', text: 'There is nothing to pay' },
+				{ locale: 'fr', text: 'Vous ne payez rien' },
+				{ locale: 'fr', text: "Il n'y a rien à payer" },
+			],
+		},
+	];
+
+	test('keeps every trial-claim trigger alive against a canonical promise', () => {
+		expect(forbiddenPricingPatterns.length).toBe(5);
+		expect(cancelAnytimePatterns.length).toBe(2);
+		expect(boundedFreePeriodPatterns.length).toBe(4);
+		expect(deferredPaymentPatterns.length).toBe(4);
+		expect(landingTrialClaimPatterns.length).toBe(15);
+
+		for (const { label, group, samples } of triggerLiveness) {
+			expect(group.length, `${label}: one canonical sample per pattern`).toBe(
+				samples.length,
+			);
+			group.forEach((pattern, index) => {
+				const sample = samples[index];
+				const markers =
+					sample.locale === 'en' ? enFutureMarkers : frFutureMarkers;
+				expect(
+					pattern.test(sample.text),
+					`${label}[${index}] must match its canonical promise`,
+				).toBe(true);
+				expect(
+					landingTrialClaimPatterns.some((spreadPattern) =>
+						spreadPattern.test(sample.text),
+					),
+					`${label}[${index}] must be reachable through the spread`,
+				).toBe(true);
+				expect(
+					markers.some((marker) => marker.test(sample.text)),
+					`${label}[${index}] must be an unhedged promise`,
+				).toBe(false);
+			});
+		}
 	});
 
 	test('keeps the trial timeline free of invented day counts', () => {
