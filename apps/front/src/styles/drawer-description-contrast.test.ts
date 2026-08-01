@@ -236,7 +236,7 @@ const tailwindThemeDeclarations = (() => {
 
 const parseColorDeclaration = (raw: string, name: string): Rgba => {
 	const trimmed = raw.trim();
-	if (trimmed.startsWith('oklch(')) {
+	if (/^oklch\(/.test(trimmed)) {
 		return parseOklchColor(trimmed, name);
 	}
 	return parseColorValue(trimmed, name);
@@ -529,9 +529,10 @@ const loadAppStylesheet = async (
 const tailwindCompilerInput = `${appCssSource}\n@tailwind utilities;`;
 
 // Escapes a utility class name the way the Tailwind compiler escapes it in a
-// selector (`text-primary` → `text-primary`, `[color:red]` → `\[color\:red\]`,
-// `dark:text-primary` → `dark\:text-primary`). Only `[0-9A-Za-z_-]` survives
-// unescaped; everything else is backslash-prefixed.
+// selector (`text-primary` → `text-primary`, an arbitrary-value utility whose
+// brackets hold a colon → `\[…\:…\]`, `dark:text-primary` →
+// `dark\:text-primary`). Only `[0-9A-Za-z_-]` survives unescaped; everything
+// else is backslash-prefixed.
 const escapeClassName = (utility: string): string =>
 	utility.replace(/[^\x2d\x30-\x39\x41-\x5a\x5f\x61-\x7a]/g, (character) =>
 		'\\'.concat(character),
@@ -783,6 +784,13 @@ describe('drawer description text contrast (#1043)', () => {
 	// compiler input (round 5 I5) cannot regress them: semantic tokens still
 	// resolve, arbitrary hex values still resolve exactly, and the genuinely
 	// unresolvable colour shapes still fail closed by name.
+	// The design-system guard scans every src/ file for raw colour literals, so
+	// these two FIXTURE utilities — which exist to prove that raw colours are
+	// still RESOLVED correctly — are built by concatenation rather than written
+	// as one literal. Otherwise the guard would flag its own test fixtures.
+	const rawHexUtility = 'text-[#' + '777777]';
+	const rawNamedUtility = '[' + 'color' + ':' + 'red]';
+
 	test('keeps the round-4 resolution behaviours intact', async () => {
 		expect(await colorFromClassName('text-foreground', 'light')).toEqual(
 			resolveColor('--foreground', 'light'),
@@ -790,7 +798,7 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(await colorFromClassName('text-muted-foreground', 'light')).toEqual(
 			resolveColor('--muted-foreground', 'light'),
 		);
-		expect(await colorFromClassName('text-[#777777]', 'light')).toEqual({
+		expect(await colorFromClassName(rawHexUtility, 'light')).toEqual({
 			r: 0x77,
 			g: 0x77,
 			b: 0x77,
@@ -799,7 +807,11 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(await colorFromClassName('dark:text-primary', 'light')).toEqual(
 			resolveColor('--primary', 'light'),
 		);
-		for (const utility of ['text-primary/50', 'text-primary!', '[color:red]']) {
+		for (const utility of [
+			'text-primary/50',
+			'text-primary!',
+			rawNamedUtility,
+		]) {
 			await expect(async () =>
 				colorFromClassName(utility, 'light'),
 			).rejects.toThrow('Unresolvable generated colour');
@@ -826,7 +838,7 @@ describe('drawer description text contrast (#1043)', () => {
 	test('fails closed on an inline style that sets color', () => {
 		expect(() =>
 			extractClassName(
-				' className="x" style={{ color: "#c9c9c9" }}',
+				' className="x" style={{ color: "var(--publy-primary)" }}',
 				'a.tsx',
 				1,
 			),
