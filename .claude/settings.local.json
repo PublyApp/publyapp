@@ -50,13 +50,6 @@
       "Bash(gh pr list:*)",
       "Bash(make generate-client:*)",
       "Bash(ping:*)",
-      "mcp__voicetree__list_agents",
-      "mcp__voicetree__spawn_agent",
-      "mcp__voicetree__wait_for_agents",
-      "mcp__voicetree__get_unseen_nodes_nearby",
-      "mcp__voicetree__read_terminal_output",
-      "mcp__voicetree__send_message",
-      "mcp__voicetree__close_agent",
       "Bash(dotnet test:*)",
       "Bash(dotnet msbuild:*)",
       "Bash(cd:*)",
@@ -66,8 +59,5 @@
       "Bash(node:*)"
     ]
   },
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "voicetree"
-  ]
+  "enableAllProjectMcpServers": true
 }
