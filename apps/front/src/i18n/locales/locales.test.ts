@@ -23,5 +23,9 @@ describe('front locale manifests', () => {
 		expect(fr.common['landing-pricing-agency-cta']).toBe(
 			'Commencer gratuitement',
 		);
+		expect(en.common['landing-pricing-network-cta']).toBe('Start free');
+		expect(fr.common['landing-pricing-network-cta']).toBe(
+			'Commencer gratuitement',
+		);
 	});
 });
