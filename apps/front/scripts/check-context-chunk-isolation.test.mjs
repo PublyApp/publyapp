@@ -382,6 +382,84 @@ void test('fails closed when a local or unrelated createContext symbol is import
 	}
 });
 
+void test('counts a rendered element-access createContext callee in a TanStack route virtual-module sibling', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const elementAccessCode =
+		"const RouteContext = React['createContext'](null);";
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: elementAccessCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: elementAccessCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('does not treat the member-name of a React namespace access as a factory value', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/namespace-call.ts': `
+			import * as React from 'react';
+			export const NamespaceContext = React.createContext(null);
+		`,
+	});
+
+	try {
+		assert.deepEqual(
+			findReactContextDeclarations(
+				path.join(fixtureDirectory, 'tsconfig.json'),
+			),
+			[
+				{
+					name: 'NamespaceContext',
+					sourceFile: path.join(fixtureDirectory, 'src/namespace-call.ts'),
+				},
+			],
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('ignores React contexts declared in test source files', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/context.test.tsx': `
+			import { createContext } from 'react';
+			export const TestContext = createContext(null);
+		`,
+	});
+
+	try {
+		assert.deepEqual(
+			findReactContextDeclarations(
+				path.join(fixtureDirectory, 'tsconfig.json'),
+			),
+			[],
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('does not report a local or unrelated createContext symbol', async () => {
 	const fixtureDirectory = await createFixture({
 		'node_modules/not-react/index.d.ts': `
