@@ -1488,6 +1488,78 @@ test('e2e (round 7 I1): self-closing <style> with scale-routed CSS stays green',
 	assert.deepEqual(violations, []);
 });
 
+test('e2e (round 7 audit): a static literal spread cannot smuggle a style payload', async () => {
+	// `{...{dangerouslySetInnerHTML: {__html: …}}}` is the same static
+	// payload spelled through a spread attribute; a static object literal is
+	// transparent through the spread, exactly as the object-literal
+	// descriptor rules already treat non-spread members.
+	for (const element of [
+		[
+			'<style',
+			'  {...{ dangerouslySetInnerHTML: { __html:',
+			"    '.probe { z-index: 2147483640; }',",
+			'  } }}',
+			'/>;',
+		],
+		[
+			'<div',
+			'  {...{ dangerouslySetInnerHTML: { __html:',
+			"    '<style>.probe { z-index: 2147483639; }</style>',",
+			'  } }}',
+			'/>;',
+		],
+	]) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': ['export const probe = ', ...element].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`spread-spelled style payload must red: ${JSON.stringify(violations)}`,
+		);
+	}
+	const { violations: descriptorViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = { links: [{',
+				"  ...{ rel: 'stylesheet' },",
+				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
+				'}] };',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		descriptorViolations.map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		`spread-spelled descriptor rel must red: ${JSON.stringify(descriptorViolations)}`,
+	);
+});
+
+test('e2e (round 7 audit): a spread whose source is not a static literal stays in the runtime bucket', async () => {
+	// `{...props}` with a module-scope object is the declared data-flow
+	// boundary (the guard does not trace object identifiers), so it stays
+	// green — matching the helper/import-produced spread exemption.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'const props = { dangerouslySetInnerHTML: { __html:',
+				"  '.probe { z-index: 2147483638; }',",
+				'} };',
+				'export const probe = <style {...props} />;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(violations, []);
+});
+
 test('e2e (round 7 M1): unparseable static <style> payload is a named diagnostic, not a crash', async () => {
 	const { violations } = await runFixtureGuard(
 		{

@@ -210,10 +210,14 @@ gaps, each with its current evidence:
   by `src/server.ts`, a residual CSS `@import`) trips an existing rule, so the file itself is not a
   working green bypass. Declared for completeness, not because a live route exists.
 - **Helper-mediated reserved-token writes, registrations, and helper/import-produced spreads.** The
-  script pass follows direct module-scope string constants, but it does not perform interprocedural
-  data flow. A helper whose `setProperty(name, value)` key or `CSS.registerProperty({ name })` value
+  script pass follows direct module-scope string constants, and a static object-literal spread is
+  transparent to it (`{...{rel: 'stylesheet'}}` and
+  `{...{dangerouslySetInnerHTML: {__html: …}}}` resolve exactly like the non-spread spelling), but
+  it does not perform interprocedural data flow. A helper whose `setProperty(name, value)` key or
+  `CSS.registerProperty({ name })` value
   arrives through a parameter, or a spread/Object.assign payload whose token-bearing object is
-  produced by a helper or unscanned import, remains outside the static boundary. Assigning a complete
+  produced by a helper or unscanned import (an identifier spread such as `{...props}`), remains
+  outside the static boundary. Assigning a complete
   style string through `cssText`, `setAttribute('style', ...)`, or raw HTML at **runtime** has the
   same data-flow boundary; a **static literal** `dangerouslySetInnerHTML` payload is closed instead —
   the script pass scans its `<style>`/`<link rel="stylesheet">` fragments exactly like the JSX routes.

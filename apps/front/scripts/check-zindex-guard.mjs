@@ -916,21 +916,46 @@ export const scanZIndexFile = ({
 			}
 			return literalText(name);
 		};
+		const staticObjectMemberNode = (object, name) => {
+			// Order-aware member resolution mirroring real object semantics:
+			// the last member with the name wins, and a static object-literal
+			// spread is transparent (its member is hoisted in place). A
+			// non-literal spread (`{...props}`) is the declared data-flow
+			// boundary and contributes nothing.
+			let foundNode = null;
+			for (const candidate of object.properties) {
+				let valueNode = null;
+				if (ts.isPropertyAssignment(candidate)) {
+					if (propertyName(candidate.name) === name) {
+						valueNode = candidate.initializer;
+					}
+				} else if (ts.isShorthandPropertyAssignment(candidate)) {
+					if (candidate.name.text === name) {
+						valueNode = candidate.name;
+					}
+				} else if (ts.isSpreadAssignment(candidate)) {
+					const spreadObject = unwrapTransparentExpression(
+						candidate.expression,
+					);
+					if (
+						spreadObject != null &&
+						ts.isObjectLiteralExpression(spreadObject)
+					) {
+						const nested = staticObjectMemberNode(spreadObject, name);
+						if (nested != null) {
+							valueNode = nested;
+						}
+					}
+				}
+				if (valueNode != null) {
+					foundNode = valueNode;
+				}
+			}
+			return foundNode;
+		};
 		const staticObjectProperty = (object, name) => {
-			const property = object.properties.find(
-				(candidate) =>
-					(ts.isPropertyAssignment(candidate) &&
-						propertyName(candidate.name) === name) ||
-					(ts.isShorthandPropertyAssignment(candidate) &&
-						candidate.name.text === name),
-			);
-			if (property != null && ts.isPropertyAssignment(property)) {
-				return staticString(property.initializer);
-			}
-			if (property != null && ts.isShorthandPropertyAssignment(property)) {
-				return staticString(property.name);
-			}
-			return null;
+			const member = staticObjectMemberNode(object, name);
+			return member == null ? null : staticString(member);
 		};
 		const staticJsxAttribute = (attributes, attributeName) => {
 			const attribute = attributes.properties.find(
@@ -949,6 +974,60 @@ export const scanZIndexFile = ({
 				return staticString(attribute.initializer.expression);
 			}
 			return null;
+		};
+		const staticDangerousHtmlPayload = (attributes) => {
+			// Resolves the `dangerouslySetInnerHTML={{ __html: … }}` payload of
+			// a JSX attributes list with real JSX semantics: the last
+			// occurrence wins, whether it is an explicit attribute or a static
+			// object-literal spread (`{...{dangerouslySetInnerHTML: …}}` is the
+			// same static payload, and a non-static occurrence shadows earlier
+			// static ones exactly as a later attribute override would).
+			let found = false;
+			let payload = null;
+			for (const property of attributes.properties) {
+				let payloadObject = null;
+				if (ts.isJsxAttribute(property)) {
+					if (
+						property.name.kind !== ts.SyntaxKind.Identifier ||
+						property.name.text !== 'dangerouslySetInnerHTML'
+					) {
+						continue;
+					}
+					found = true;
+					payload = null;
+					if (ts.isJsxExpression(property.initializer)) {
+						const object = unwrapTransparentExpression(
+							property.initializer.expression,
+						);
+						if (object != null && ts.isObjectLiteralExpression(object)) {
+							payloadObject = object;
+						}
+					}
+				} else if (ts.isJsxSpreadAttribute(property)) {
+					const spreadObject = unwrapTransparentExpression(property.expression);
+					if (
+						spreadObject == null ||
+						!ts.isObjectLiteralExpression(spreadObject)
+					) {
+						continue;
+					}
+					const member = staticObjectMemberNode(
+						spreadObject,
+						'dangerouslySetInnerHTML',
+					);
+					if (member != null) {
+						found = true;
+						payload = null;
+						if (ts.isObjectLiteralExpression(member)) {
+							payloadObject = member;
+						}
+					}
+				}
+				if (payloadObject != null) {
+					payload = staticObjectProperty(payloadObject, '__html');
+				}
+			}
+			return found ? payload : null;
 		};
 		const staticMember = (expression) => {
 			const member = unwrapTransparentExpression(expression);
@@ -1003,25 +1082,13 @@ export const scanZIndexFile = ({
 				return null;
 			}
 			// A `dangerouslySetInnerHTML` payload on a `<style>` element is the
-			// same static CSS text, just spelled through the attribute.
-			for (const attribute of attributes.properties) {
-				if (
-					!ts.isJsxAttribute(attribute) ||
-					attribute.name.kind !== ts.SyntaxKind.Identifier ||
-					attribute.name.text !== 'dangerouslySetInnerHTML'
-				) {
-					continue;
-				}
-				if (!ts.isJsxExpression(attribute.initializer)) {
-					return null;
-				}
-				const object = unwrapTransparentExpression(
-					attribute.initializer.expression,
-				);
-				if (!ts.isObjectLiteralExpression(object)) {
-					return null;
-				}
-				return staticObjectProperty(object, '__html');
+			// same static CSS text, just spelled through the attribute. When
+			// the attribute is present but not static, the element's shipped
+			// CSS is the declared runtime bucket (React ignores children in
+			// that case, so there is nothing static to inspect).
+			const dangerousHtml = staticDangerousHtmlPayload(attributes);
+			if (dangerousHtml != null) {
+				return dangerousHtml;
 			}
 			if (selfClosing) {
 				return null;
@@ -1053,26 +1120,7 @@ export const scanZIndexFile = ({
 			const attributes = ts.isJsxElement(node)
 				? node.openingElement.attributes
 				: node.attributes;
-			for (const attribute of attributes.properties) {
-				if (
-					!ts.isJsxAttribute(attribute) ||
-					attribute.name.kind !== ts.SyntaxKind.Identifier ||
-					attribute.name.text !== 'dangerouslySetInnerHTML'
-				) {
-					continue;
-				}
-				if (!ts.isJsxExpression(attribute.initializer)) {
-					return null;
-				}
-				const object = unwrapTransparentExpression(
-					attribute.initializer.expression,
-				);
-				if (!ts.isObjectLiteralExpression(object)) {
-					return null;
-				}
-				return staticObjectProperty(object, '__html');
-			}
-			return null;
+			return staticDangerousHtmlPayload(attributes);
 		};
 		const scanHtmlStyleEscapes = (html) => {
 			// Static-HTML payloads can embed a `<style>` element (declaration
