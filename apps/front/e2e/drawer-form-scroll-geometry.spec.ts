@@ -251,7 +251,7 @@ const measureDrawer = async (
 	drawerTestId: string,
 ): Promise<DrawerMeasurements> => {
 	const drawer = page.getByTestId(drawerTestId);
-	await expect(drawer).toHaveCSS('transform', 'none');
+	await expect(drawer).toHaveCSS('translate', 'none');
 
 	return drawer.evaluate(
 		async (surface, forcedContentHeight): Promise<DrawerMeasurements> => {
@@ -381,25 +381,29 @@ const assertDrawerScrollGeometry = async (
 		'body scrollHeight should exceed clientHeight',
 	).toBeGreaterThan(measurements.bodyClientHeight);
 
-	// 3. Chromium accepted the scroll and the footer did not travel with the
-	// body contents.
+	// 3. Chromium accepted the scroll and no edge or dimension of the footer
+	// travelled with the body contents.
 	expect(
 		measurements.bodyScrollTopAfter,
 		'body scrollTop should change',
 	).toBeGreaterThan(measurements.bodyScrollTopBefore);
-	expect(
-		Math.abs(
-			measurements.footerAfterScroll.top - measurements.footerBeforeScroll.top,
-		),
-		'footer top should stay fixed while the body scrolls',
-	).toBeLessThanOrEqual(GEOMETRY_EPSILON);
-	expect(
-		Math.abs(
-			measurements.footerAfterScroll.bottom -
-				measurements.footerBeforeScroll.bottom,
-		),
-		'footer bottom should stay fixed while the body scrolls',
-	).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+	const rectKeys = [
+		'bottom',
+		'height',
+		'left',
+		'right',
+		'top',
+		'width',
+	] as const;
+	for (const key of rectKeys) {
+		expect(
+			Math.abs(
+				measurements.footerAfterScroll[key] -
+					measurements.footerBeforeScroll[key],
+			),
+			`footer ${key} should stay fixed while the body scrolls`,
+		).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+	}
 
 	// 4. The whole non-zero footer is vertically inside the viewport. This is
 	// the user-visible regression boundary from #990: the actions must not be
