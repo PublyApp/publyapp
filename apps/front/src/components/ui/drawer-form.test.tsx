@@ -616,12 +616,12 @@ const isTransparentExpression = (node: Node): boolean => {
 const findWrapperOpeningElement = (
 	node: JsxOpeningElement | JsxSelfClosingElement,
 ): JsxOpeningElement | null => {
-	let current: Node = node.getParent();
+	let current: Node | undefined = node.getParent();
 	// An opening tag's parent is the JsxElement of its OWN element — step past
 	// it before looking for the wrapper that contains the whole body/footer.
 	if (
 		node.getKind() === SyntaxKind.JsxOpeningElement &&
-		current.getKind() === SyntaxKind.JsxElement
+		current?.getKind() === SyntaxKind.JsxElement
 	) {
 		current = current.getParent();
 	}
@@ -861,7 +861,7 @@ const SpacingReferenceForm = () => {
 	return (
 		<Form
 			methods={methods}
-			slotProps={{ form: { 'data-testid': 'general-form-spacing-reference' } }}
+			slotProps={{ form: { className: 'spacing-reference' } }}
 		>
 			probe
 		</Form>
@@ -1027,13 +1027,20 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 	test('the drawer form wrapper preserves the general form inter-child spacing', () => {
 		renderDrawerByCallSiteId['profile-create']();
-		render(<SpacingReferenceForm />);
+		render(
+			<div data-testid="general-form-spacing-reference">
+				<SpacingReferenceForm />
+			</div>,
+		);
 
 		const drawerForm = screen
 			.getByTestId('profile-form-drawer')
 			.querySelector('form.publy-drawer-form');
-		const generalForm = screen.getByTestId('general-form-spacing-reference');
+		const generalForm = screen
+			.getByTestId('general-form-spacing-reference')
+			.querySelector('form');
 		expect(drawerForm).not.toBeNull();
+		expect(generalForm).not.toBeNull();
 
 		const spacingClasses = (className: string): string[] =>
 			className
@@ -1041,7 +1048,7 @@ describe('drawer surface flex chain guard (#990)', () => {
 				.filter((token) => token.startsWith('space-y-'))
 				.sort();
 		expect(spacingClasses(drawerForm?.className ?? '')).toEqual(
-			spacingClasses(generalForm.className),
+			spacingClasses(generalForm?.className ?? ''),
 		);
 	});
 
