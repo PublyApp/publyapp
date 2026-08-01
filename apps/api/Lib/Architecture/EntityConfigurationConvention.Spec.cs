@@ -44,13 +44,22 @@ public sealed class EntityConfigurationConventionSpec {
 	/// (table, columns, indexes) and by the shared <c>BaseAttributes</c>/tenant-filter
 	/// loops in <see cref="AppDbContext.OnModelCreating"/>. They legitimately have no
 	/// <c>IEntityTypeConfiguration&lt;T&gt;</c> class, so the coverage guard in
-	/// <see cref="ItShouldCoverEveryDbSetEntityExactlyOnce"/> exempts them. Each entry is a
-	/// typed reference, not a string, and is self-checked to carry mapping annotations.
+	/// <see cref="ItShouldCoverEveryDbSetEntityExactlyOnce"/> exempts them.
+	///
+	/// Each entry declares the table name its annotations must produce, and
+	/// <see cref="ItShouldApplyDistinctiveConfigurationMetadataToEveryEntity"/> asserts that
+	/// expectation against the built model — so every exemption is cross-checked, not just
+	/// the ones hand-listed there. Adding an entry here without an explicit table name is a
+	/// compile error; declaring a table the annotations do not produce is a test failure.
+	/// The <see cref="HasMappingAnnotations"/> guard in the coverage test remains as a
+	/// necessary-condition check that an exempted entity at least declares its mapping via
+	/// annotations (never a convention-only entity), but it is not the assurance: the model
+	/// cross-check is.
 	/// </summary>
-	private static readonly HashSet<Type> AnnotationMappedEntities = new() {
-		typeof(AuditLog),
-		typeof(InvitationEmailOutbox),
-		typeof(SystemNotice)
+	private static readonly Dictionary<Type, string> AnnotationMappedEntities = new() {
+		[typeof(AuditLog)] = "audit_logs",
+		[typeof(InvitationEmailOutbox)] = "invitation_email_outbox",
+		[typeof(SystemNotice)] = "system_notices"
 	};
 
 	[Fact]
@@ -93,7 +102,25 @@ public sealed class EntityConfigurationConventionSpec {
 			.SelectMany(type => type.GetInterfaces()
 				.Where(IsEntityConfigurationInterface)
 				.Select(configurationInterface => configurationInterface.GenericTypeArguments[0]))
-			.ToHashSet();
+			.ToList();
+
+		// The name promises "exactly once", and the model depends on it: EF Core 10 applies
+		// multiple configurations for one entity (it does not error), in alphabetical
+		// FullName order, so a second configuration is a silent override rather than a
+		// build failure. A HashSet here would collapse the duplicates and blind this guard.
+		var duplicateConfigurations = configuredEntityTypes
+			.GroupBy(entityType => entityType)
+			.Where(group => group.Count() != 1)
+			.Select(group => $"{group.Key.Name} ({group.Count()} configurations)")
+			.OrderBy(description => description, StringComparer.Ordinal)
+			.ToList();
+		_ = duplicateConfigurations.Should().BeEmpty(
+			"each DbSet entity must be covered by exactly one IEntityTypeConfiguration<T>; "
+			+ "a second configuration is applied by EF in alphabetical FullName order and "
+			+ "silently overrides the first:\n" + string.Join("\n", duplicateConfigurations)
+		);
+
+		var configuredEntityTypeSet = configuredEntityTypes.ToHashSet();
 
 		var dbSetEntityTypes = typeof(AppDbContext)
 			.GetProperties(BindingFlags.Public | BindingFlags.Instance)
@@ -108,7 +135,7 @@ public sealed class EntityConfigurationConventionSpec {
 
 		// The annotation-mapped exemption must only ever cover entities that genuinely
 		// declare their mapping via data annotations, never a convention-only entity.
-		var notAnnotated = AnnotationMappedEntities
+		var notAnnotated = AnnotationMappedEntities.Keys
 			.Where(entityType => !HasMappingAnnotations(entityType))
 			.Select(entityType => entityType.Name)
 			.OrderBy(name => name, StringComparer.Ordinal)
@@ -120,7 +147,7 @@ public sealed class EntityConfigurationConventionSpec {
 		);
 
 		// No orphaned configuration: every configured entity type must be a DbSet entity.
-		var orphanedConfigurations = configuredEntityTypes
+		var orphanedConfigurations = configuredEntityTypeSet
 			.Except(dbSetEntityTypes)
 			.Select(entityType => entityType.Name)
 			.OrderBy(name => name, StringComparer.Ordinal)
@@ -135,10 +162,10 @@ public sealed class EntityConfigurationConventionSpec {
 		// uncovered entities must be a subset of that exemption set — a superset would
 		// mean an entity with no configuration and no justification for the exception.
 		var uncoveredDbSetEntities = dbSetEntityTypes
-			.Except(configuredEntityTypes)
+			.Except(configuredEntityTypeSet)
 			.ToHashSet();
 		_ = uncoveredDbSetEntities.Should().BeSubsetOf(
-			AnnotationMappedEntities,
+			AnnotationMappedEntities.Keys,
 			"every DbSet entity on AppDbContext must be covered by an "
 			+ "IEntityTypeConfiguration<T>, or be one of the explicitly annotation-mapped "
 			+ "entities that need none. Uncovered entities: "
@@ -196,9 +223,11 @@ public sealed class EntityConfigurationConventionSpec {
 
 		AssertPropertyDefaultSql(model, typeof(Session), "Id", "uuidv7()", failures);
 
-		AssertTableName(model, typeof(AuditLog), "audit_logs", failures);
-		AssertTableName(model, typeof(InvitationEmailOutbox), "invitation_email_outbox", failures);
-		AssertTableName(model, typeof(SystemNotice), "system_notices", failures);
+		// Drive the annotation-mapped assertions from the same dictionary the coverage
+		// guard exempts with, so a new exemption entry is never silently uncovered here.
+		foreach (var (entityType, expectedTableName) in AnnotationMappedEntities) {
+			AssertTableName(model, entityType, expectedTableName, failures);
+		}
 
 		_ = failures.Should().BeEmpty(
 			"the built EF model must carry each entity's configured metadata; "
