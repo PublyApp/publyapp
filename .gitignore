@@ -55,13 +55,18 @@ packages/*/dist
 nul
 tmpclaude*
 
+# voicetree
+voicetree*/
+
 .tmp-audit-*
 .tmp-watch-*
 
+.voicetree/
 .superpowers/
 .worktrees/
 
 .tmp/
+.aidesigner/*
 
 apps/*/.artifacts/
 packages/*/.artifacts/
