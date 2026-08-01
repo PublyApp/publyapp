@@ -41,10 +41,12 @@ Allowed spellings:
 Anything else is a violation: `z-10`, `z-50`, `z-[60]`, `-z-10`, `!z-50`, `z-[var(--publy-z-menu,50)]`
 (a scale reference with a raw fallback is still a raw value when the token is unset), a raw
 arbitrary-property shim such as `[z-index:5]` (it ships `z-index: 5` and is reported both at source
-and in the compiled CSS), any dynamic assembly (`z-${…}` across a template substitution), and any
-local redefinition of a reserved `--publy-z-*` token. New tiers belong in the global `:root` scale;
-otherwise a local `--publy-z-raised: 999` could make an apparently scale-routed declaration compute
-to an arbitrary value.
+and in the compiled CSS), any dynamic assembly (`z-${…}` across a template substitution), any local
+redefinition of a reserved `--publy-z-*` token, and a native JSX `<link rel="stylesheet">` whose
+`rel` and `href` resolve to literals or module-scope string constants. New tiers belong in the global
+`:root` scale; otherwise a local `--publy-z-raised: 999` could make an apparently scale-routed
+declaration compute to an arbitrary value. Stylesheets belong in the Vite import graph so the emitted
+gate can inspect them; data, remote, and local literal stylesheet links are all opaque and rejected.
 
 ## Mechanism
 
@@ -105,8 +107,11 @@ Five components:
    it; the guard and this policy must then be reviewed together.
    Local CSS declarations are reported even when the consuming `z-index` uses `var(...)`. The script
    AST pass also reports literal `--publy-z-*` object properties and `setProperty()` calls, plus
-   direct keys resolved through a module-scope `const` bound to a string literal. This prevents an
-   inline style from shadowing a legitimate tier after the emitted gate has accepted its reference.
+   direct keys resolved through a module-scope `const` bound to a string literal. It also rejects
+   native JSX stylesheet links when the `rel` token list and `href` are static, including values
+   resolved through those module-scope constants. This prevents an inline style from shadowing a
+   legitimate tier after the emitted gate has accepted its reference, and prevents declarative CSS
+   payloads from bypassing that gate as JavaScript bundle text.
 
 ## Out of scope — stated, not silent
 
@@ -133,11 +138,15 @@ gaps, each with its current evidence:
   component 4 cannot see inline styles either. It is deliberately left open — see below.
 - **z-index assembled at runtime from values that never appear literally in `src`** (e.g. from an
   API response). No static guard can see this.
-- **Stylesheets injected at runtime.** A literal CSS rule passed to `CSSStyleSheet.replaceSync()`,
-  `insertRule()`, assigned to a `<style>` element's `textContent`, or produced by an equivalent CSSOM
-  path is shipped as JavaScript rather than as an emitted CSS asset. The guard does not reinterpret
-  arbitrary script strings as CSS, so this is a working raw-z-index route outside the current static
-  boundary.
+- **Stylesheets injected or selected at runtime.** A literal CSS rule passed to
+  `CSSStyleSheet.replaceSync()`, `insertRule()`, assigned to a `<style>` element's `textContent`, or
+  produced by an equivalent CSSOM path is shipped as JavaScript rather than as an emitted CSS asset.
+  A stylesheet `<link>` whose `rel` or `href` is assembled at runtime has the same boundary; literal
+  native JSX stylesheet links are rejected. The guard does not reinterpret arbitrary script strings
+  or perform interprocedural runtime-value tracing. The remaining dynamic routes are not considered
+  safe—they are explicitly policed by the code standard—but closing them requires a separate
+  CSSOM/data-flow mechanism. The common declarative literal route does not need that mechanism and is
+  therefore closed here rather than silently grouped with runtime injection.
 - **Helper-mediated reserved-token writes and helper/import-produced spreads.** The script pass follows
   direct module-scope string constants, but it does not perform interprocedural data flow. A helper
   whose `setProperty(name, value)` key arrives through a parameter, or a spread/Object.assign payload

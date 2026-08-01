@@ -257,6 +257,37 @@ test('evasion: utility spanning a substitution boundary has no candidate', () =>
 	);
 });
 
+test('evasion: literal JSX stylesheet links cannot ship opaque CSS', () => {
+	for (const content of [
+		'<link rel="stylesheet" href="data:text/css,.x%7Bz-index%3A99%7D" />',
+		"<link href={'https://cdn.example/theme.css'} rel={'StyleSheet'} />",
+		'<link rel="alternate stylesheet" href="/theme.css" />',
+		[
+			"const REL = 'stylesheet';",
+			"const HREF = 'data:text/css,.x%7Bz-index%3A99%7D';",
+			'<link rel={REL} href={HREF} />;',
+		].join('\n'),
+	]) {
+		const violations = violationsFor('fixture.tsx', content);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-opaque-stylesheet-link'],
+			content,
+		);
+	}
+});
+
+test('innocent: JSX links without a literal stylesheet destination stay clean', () => {
+	for (const content of [
+		'<link rel="preload" as="style" href="/theme.css" />',
+		'<link rel="canonical" href="/" />',
+		'<link rel="stylesheet" href={stylesheetHref} />',
+		'<Link rel="stylesheet" href="/route" />',
+	]) {
+		assertClean('fixture.tsx', content);
+	}
+});
+
 test('innocent: custom class with -z- mid-token is not a z-index assembly', () => {
 	assertClean(
 		'fixture.tsx',

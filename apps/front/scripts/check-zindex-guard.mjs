@@ -72,8 +72,10 @@ const SCRIPT_EXTENSIONS = new Set([
 //     avatars is the only user today; toaster.tsx already uses the token).
 //   - z-index assembled at runtime from values that never appear literally
 //     anywhere in `src` (e.g. from an API response).
-//   - stylesheets injected at runtime through CSSStyleSheet, insertRule(), or
-//     a <style> element. They never become production-build CSS assets.
+//   - stylesheets injected at runtime through CSSStyleSheet, insertRule(), a
+//     <style> element, or a dynamically assembled stylesheet <link>. They
+//     never become production-build CSS assets. Literal JSX stylesheet links
+//     are rejected by the script AST pass above.
 //   - reserved-token writes mediated by helper parameters, or object spreads
 //     whose token-bearing source is produced by a helper/import rather than a
 //     literal in the scanned module.
@@ -669,6 +671,55 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		const staticJsxAttribute = (attributes, attributeName) => {
+			const attribute = attributes.properties.find(
+				(property) =>
+					ts.isJsxAttribute(property) &&
+					property.name.kind === ts.SyntaxKind.Identifier &&
+					property.name.text === attributeName,
+			);
+			if (attribute == null || !ts.isJsxAttribute(attribute)) {
+				return null;
+			}
+			if (ts.isStringLiteral(attribute.initializer)) {
+				return attribute.initializer.text;
+			}
+			if (ts.isJsxExpression(attribute.initializer)) {
+				return staticString(attribute.initializer.expression);
+			}
+			return null;
+		};
+		const visitOpaqueStylesheetLinks = (node) => {
+			if (
+				(ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+				ts.isIdentifier(node.tagName) &&
+				node.tagName.text === 'link'
+			) {
+				const rel = staticJsxAttribute(node.attributes, 'rel');
+				const href = staticJsxAttribute(node.attributes, 'href');
+				const relTokens =
+					rel == null
+						? []
+						: rel
+								.split(/[\t\n\f\r ]+/)
+								.filter(Boolean)
+								.map(asciiLowerCase);
+				if (href != null && relTokens.includes('stylesheet')) {
+					violations.push({
+						ruleId: 'z-index-opaque-stylesheet-link',
+						message:
+							'literal `<link rel="stylesheet">` CSS is shipped as an ' +
+							'opaque browser request instead of an emitted asset — import ' +
+							'the stylesheet through the build graph.',
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+						source: node.getText(sourceFile),
+					});
+				}
+			}
+			node.forEachChild(visitOpaqueStylesheetLinks);
+		};
+		visitOpaqueStylesheetLinks(sourceFile);
 		const propertyName = (name) => {
 			if (ts.isComputedPropertyName(name)) {
 				return staticString(name.expression);
