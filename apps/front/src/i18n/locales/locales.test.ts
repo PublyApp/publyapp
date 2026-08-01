@@ -127,17 +127,16 @@ describe('front locale manifests', () => {
 		] as const;
 
 		for (const localeCase of localeCases) {
-			const landingKeys = Object.keys(localeCase.common).filter((key) =>
-				key.startsWith('landing-'),
+			// The landing page renders strings from the `landing-*` prefix and the
+			// marketing shell's `marketing-*` prefix: the shell's header, mobile
+			// nav, social-proof caption and closing CTA band all appear on every
+			// marketing page. A hand-picked key list missed the CTA headline and
+			// body, so scan both prefixes instead.
+			const landingPageKeys = Object.keys(localeCase.common).filter(
+				(key) => key.startsWith('landing-') || key.startsWith('marketing-'),
 			);
-			// These two marketing-shell strings also render on the landing page.
-			const landingPageKeys = [
-				...landingKeys,
-				'marketing-start-free-trial',
-				'marketing-cta-footnote',
-			];
 
-			expect(landingKeys.length).toBeGreaterThan(0);
+			expect(landingPageKeys.length).toBeGreaterThan(0);
 
 			// The trigger set covers explicit trial words, day-count offers, card or
 			// engagement disclaimers reused from the pricing guard, cancel-anytime
