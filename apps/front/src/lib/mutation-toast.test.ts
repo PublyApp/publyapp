@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
 	loggerError: vi.fn(),
 	sonnerImportCount: 0,
 	rejectSonnerImport: false,
+	toastDefault: vi.fn(),
 	toast: {
 		error: vi.fn(),
 		info: vi.fn(),
@@ -39,9 +40,9 @@ const makeI18n = () =>
 
 const flushToast = async (): Promise<void> => {
 	await vi.waitFor(() => {
-		const calls = Object.values(mocks.toast).some(
-			(method) => method.mock.calls.length > 0,
-		);
+		const calls =
+			mocks.toastDefault.mock.calls.length > 0 ||
+			Object.values(mocks.toast).some((method) => method.mock.calls.length > 0);
 		expect(calls).toBe(true);
 	});
 };
@@ -51,6 +52,7 @@ beforeEach(async () => {
 	mocks.loggerError.mockClear();
 	mocks.sonnerImportCount = 0;
 	mocks.rejectSonnerImport = false;
+	mocks.toastDefault.mockClear();
 	Object.values(mocks.toast).forEach((method) => method.mockClear());
 	vi.doMock('sonner', async () => {
 		mocks.sonnerImportCount += 1;
@@ -58,7 +60,7 @@ beforeEach(async () => {
 			throw new Error('sonner import failed');
 		}
 
-		return { toast: mocks.toast };
+		return { toast: Object.assign(mocks.toastDefault, mocks.toast) };
 	});
 	adapter = await import('./mutation-toast');
 	adapter.registerMutationToastI18n(makeI18n());
@@ -227,6 +229,15 @@ describe('displayLocalMutationFailure', () => {
 });
 
 describe('toastLocalMutationResult', () => {
+	test('forwards a described neutral toast through the callable Sonner API', async () => {
+		adapter.toastLocalMutationResult.default('Notice', 'Neutral description');
+		await flushToast();
+
+		expect(mocks.toastDefault).toHaveBeenCalledWith('Notice', {
+			description: 'Neutral description',
+		});
+	});
+
 	test('forwards optional descriptions through the presentation adapter', async () => {
 		adapter.toastLocalMutationResult.success('Created', 'The record is ready');
 		await flushToast();
