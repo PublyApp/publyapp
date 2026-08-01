@@ -41,6 +41,7 @@ const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 // guard, whose scanner only watches `src/**`.
 const buildViteFixture = async (root) => {
 	const authoredCssPaths = new Set();
+	const authoredScriptPaths = new Set();
 	await viteBuild({
 		root,
 		configFile: false,
@@ -53,6 +54,8 @@ const buildViteFixture = async (root) => {
 					const [filePath] = id.split('?');
 					if (filePath.endsWith('.css')) {
 						authoredCssPaths.add(path.resolve(filePath));
+					} else if (/\.[cm]?[jt]sx?$/.test(filePath)) {
+						authoredScriptPaths.add(path.resolve(filePath));
 					}
 					return null;
 				},
@@ -64,6 +67,7 @@ const buildViteFixture = async (root) => {
 	return {
 		emittedCssRoot: path.join(root, 'dist'),
 		authoredCssPaths: [...authoredCssPaths],
+		authoredScriptPaths: [...authoredScriptPaths],
 		cleanup: async () => {},
 	};
 };
@@ -107,6 +111,7 @@ const runFixtureGuard = async (
 				return {
 					emittedCssRoot: path.join(root, 'dist'),
 					authoredCssPaths: [path.join(root, 'app.css')],
+					authoredScriptPaths: [path.join(root, 'src/main.ts')],
 					cleanup: async () => {},
 				};
 			};
@@ -257,7 +262,7 @@ test('evasion: utility spanning a substitution boundary has no candidate', () =>
 	);
 });
 
-test('evasion: literal JSX stylesheet links cannot ship opaque CSS', () => {
+test('evasion: literal stylesheet links cannot ship opaque CSS', () => {
 	for (const content of [
 		'<link rel="stylesheet" href="data:text/css,.x%7Bz-index%3A99%7D" />',
 		"<link href={'https://cdn.example/theme.css'} rel={'StyleSheet'} />",
@@ -266,6 +271,12 @@ test('evasion: literal JSX stylesheet links cannot ship opaque CSS', () => {
 			"const REL = 'stylesheet';",
 			"const HREF = 'data:text/css,.x%7Bz-index%3A99%7D';",
 			'<link rel={REL} href={HREF} />;',
+		].join('\n'),
+		"const head = { links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
+		[
+			"const REL = 'stylesheet';",
+			"const HREF = 'https://cdn.example/theme.css';",
+			'const head = { links: [{ rel: REL, href: HREF }] };',
 		].join('\n'),
 	]) {
 		const violations = violationsFor('fixture.tsx', content);
@@ -283,6 +294,7 @@ test('innocent: JSX links without a literal stylesheet destination stay clean', 
 		'<link rel="canonical" href="/" />',
 		'<link rel="stylesheet" href={stylesheetHref} />',
 		'<Link rel="stylesheet" href="/route" />',
+		"const head = { links: [{ rel: 'stylesheet', href: appCss }] };",
 	]) {
 		assertClean('fixture.tsx', content);
 	}
@@ -665,6 +677,7 @@ test('e2e (round 5 blocker 2): scans the fresh build result instead of stale dis
 			return {
 				emittedCssRoot: freshRoot,
 				authoredCssPaths: [path.join(root, 'app.css')],
+				authoredScriptPaths: [path.join(root, 'src/main.ts')],
 				cleanup: async () => {},
 			};
 		},
@@ -690,6 +703,15 @@ test('e2e (round 5 important 2): unimported CSS samples stay green', async () =>
 		),
 		`sample must not ship: ${JSON.stringify(emittedCssAssets)}`,
 	);
+	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 5 audit): unimported script link samples stay green', async () => {
+	const { violations } = await runFixtureGuard({
+		'probe.ts': `export const probe = 'probe';`,
+		'unshipped-link-sample.tsx':
+			"export const sample = { links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
+	});
 	assert.deepEqual(violations, []);
 });
 

@@ -42,11 +42,13 @@ Anything else is a violation: `z-10`, `z-50`, `z-[60]`, `-z-10`, `!z-50`, `z-[va
 (a scale reference with a raw fallback is still a raw value when the token is unset), a raw
 arbitrary-property shim such as `[z-index:5]` (it ships `z-index: 5` and is reported both at source
 and in the compiled CSS), any dynamic assembly (`z-${…}` across a template substitution), any local
-redefinition of a reserved `--publy-z-*` token, and a native JSX `<link rel="stylesheet">` whose
-`rel` and `href` resolve to literals or module-scope string constants. New tiers belong in the global
-`:root` scale; otherwise a local `--publy-z-raised: 999` could make an apparently scale-routed
-declaration compute to an arbitrary value. Stylesheets belong in the Vite import graph so the emitted
-gate can inspect them; data, remote, and local literal stylesheet links are all opaque and rejected.
+redefinition of a reserved `--publy-z-*` token, and a native JSX `<link rel="stylesheet">` or static
+link-descriptor object whose `rel` and `href` resolve to literals or module-scope string constants.
+The descriptor rule covers framework head APIs that render a link later through `<HeadContent>`.
+New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
+apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
+import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
+are all opaque and rejected.
 
 ## Mechanism
 
@@ -89,10 +91,11 @@ Five components:
    `app.css`. This is the exact failure that killed the previous attempt, whose own fixture literals
    reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
    scanner watches.
-5. **Scale-definition integrity.** A Vite pre-transform hook records project CSS modules reached by
-   the real build, and the authored pass extends that set through local relative CSS `@import`s. It
-   does not scan unimported samples or fixtures merely because they end in `.css`; importing one puts
-   it in the build graph and therefore back in scope. A `--publy-z-*` declaration is accepted only
+5. **Scale-definition integrity.** A Vite pre-transform hook records project CSS and script modules
+   reached by the real build, and the authored pass extends the CSS set through local relative CSS
+   `@import`s. It does not scan unimported samples or fixtures merely because they have a relevant
+   extension; importing one puts it in the build graph and therefore back in scope. A
+   `--publy-z-*` declaration is accepted only
    when it originates in a top-level `:root` in `src/styles/app.css`, and a repeated tier is rejected.
    Splitting the canonical scale into a second reachable stylesheet remains forbidden. This source
    pass preserves provenance that a bundled asset cannot. Separately, the emitted pass recognises
@@ -107,11 +110,14 @@ Five components:
    it; the guard and this policy must then be reviewed together.
    Local CSS declarations are reported even when the consuming `z-index` uses `var(...)`. The script
    AST pass also reports literal `--publy-z-*` object properties and `setProperty()` calls, plus
-   direct keys resolved through a module-scope `const` bound to a string literal. It also rejects
-   native JSX stylesheet links when the `rel` token list and `href` are static, including values
-   resolved through those module-scope constants. This prevents an inline style from shadowing a
-   legitimate tier after the emitted gate has accepted its reference, and prevents declarative CSS
-   payloads from bypassing that gate as JavaScript bundle text. Build provenance identifies the
+   direct keys resolved through a module-scope `const` bound to a string literal. In build-reachable
+   script modules it also rejects native JSX stylesheet links and static link-descriptor objects when
+   the `rel` token list and `href` are static, including values resolved through those module-scope
+   constants. The latter closes framework head APIs as well as direct JSX while leaving the existing
+   `{ rel: 'stylesheet', href: appCss }` Vite-asset descriptor valid because `href` is an imported
+   build asset, not a literal. This prevents an inline style from shadowing a legitimate tier after
+   the emitted gate has accepted its reference, and prevents declarative CSS payloads from bypassing
+   that gate as JavaScript bundle text. Build provenance identifies the
    reachable authored files but does not map a minified emitted declaration back to one exact source
    declaration. The guard therefore retains both authored and emitted scale-integrity diagnostics;
    it never suppresses a shipped defect merely because another file contains identical declaration
@@ -146,8 +152,9 @@ gaps, each with its current evidence:
   `CSSStyleSheet.replaceSync()`, `insertRule()`, assigned to a `<style>` element's `textContent`, or
   produced by an equivalent CSSOM path is shipped as JavaScript rather than as an emitted CSS asset.
   A stylesheet `<link>` whose `rel` or `href` is assembled at runtime has the same boundary; literal
-  native JSX stylesheet links are rejected. The guard does not reinterpret arbitrary script strings
-  or perform interprocedural runtime-value tracing. The remaining dynamic routes are not considered
+  native JSX links and static descriptor objects are rejected. The guard does not reinterpret
+  arbitrary script strings or perform interprocedural runtime-value tracing. The remaining dynamic
+  routes are not considered
   safe—they are explicitly policed by the code standard—but closing them requires a separate
   CSSOM/data-flow mechanism. The common declarative literal route does not need that mechanism and is
   therefore closed here rather than silently grouped with runtime injection.

@@ -75,7 +75,7 @@ const SCRIPT_EXTENSIONS = new Set([
 //   - stylesheets injected at runtime through CSSStyleSheet, insertRule(), a
 //     <style> element, or a dynamically assembled stylesheet <link>. They
 //     never become production-build CSS assets. Literal JSX stylesheet links
-//     are rejected by the script AST pass above.
+//     and static link-descriptor objects are rejected by the script AST pass.
 //   - reserved-token writes mediated by helper parameters, or object spreads
 //     whose token-bearing source is produced by a helper/import rather than a
 //     literal in the scanned module.
@@ -525,6 +525,7 @@ export const scanZIndexFile = ({
 	// disk-mode for CSS files, so when the set is provided a candidate is only
 	// reported if production would actually recognise it.
 	productionCandidates = null,
+	checkOpaqueStylesheetLinks = true,
 }) => {
 	const violations = [];
 	const extension = path.extname(relativePath);
@@ -671,6 +672,25 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		const propertyName = (name) => {
+			if (ts.isComputedPropertyName(name)) {
+				return staticString(name.expression);
+			}
+			if (ts.isIdentifier(name)) {
+				return name.text;
+			}
+			return literalText(name);
+		};
+		const staticObjectProperty = (object, name) => {
+			const property = object.properties.find(
+				(candidate) =>
+					ts.isPropertyAssignment(candidate) &&
+					propertyName(candidate.name) === name,
+			);
+			return property != null && ts.isPropertyAssignment(property)
+				? staticString(property.initializer)
+				: null;
+		};
 		const staticJsxAttribute = (attributes, attributeName) => {
 			const attribute = attributes.properties.find(
 				(property) =>
@@ -690,42 +710,43 @@ export const scanZIndexFile = ({
 			return null;
 		};
 		const visitOpaqueStylesheetLinks = (node) => {
+			let rel = null;
+			let href = null;
 			if (
 				(ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
 				ts.isIdentifier(node.tagName) &&
 				node.tagName.text === 'link'
 			) {
-				const rel = staticJsxAttribute(node.attributes, 'rel');
-				const href = staticJsxAttribute(node.attributes, 'href');
-				const relTokens =
-					rel == null
-						? []
-						: rel
-								.split(/[\t\n\f\r ]+/)
-								.filter(Boolean)
-								.map(asciiLowerCase);
-				if (href != null && relTokens.includes('stylesheet')) {
-					violations.push({
-						ruleId: 'z-index-opaque-stylesheet-link',
-						message:
-							'literal `<link rel="stylesheet">` CSS is shipped as an ' +
-							'opaque browser request instead of an emitted asset — import ' +
-							'the stylesheet through the build graph.',
-						file: relativePath,
-						line: lineForOffset(content, node.getStart(sourceFile)),
-						source: node.getText(sourceFile),
-					});
-				}
+				rel = staticJsxAttribute(node.attributes, 'rel');
+				href = staticJsxAttribute(node.attributes, 'href');
+			} else if (ts.isObjectLiteralExpression(node)) {
+				rel = staticObjectProperty(node, 'rel');
+				href = staticObjectProperty(node, 'href');
+			}
+			const relTokens =
+				rel == null
+					? []
+					: rel
+							.split(/[\t\n\f\r ]+/)
+							.filter(Boolean)
+							.map(asciiLowerCase);
+			if (href != null && relTokens.includes('stylesheet')) {
+				violations.push({
+					ruleId: 'z-index-opaque-stylesheet-link',
+					message:
+						'literal stylesheet-link CSS is shipped as an opaque browser ' +
+						'request instead of an emitted asset — import the stylesheet ' +
+						'through the build graph.',
+					file: relativePath,
+					line: lineForOffset(content, node.getStart(sourceFile)),
+					source: node.getText(sourceFile),
+				});
 			}
 			node.forEachChild(visitOpaqueStylesheetLinks);
 		};
-		visitOpaqueStylesheetLinks(sourceFile);
-		const propertyName = (name) => {
-			if (ts.isComputedPropertyName(name)) {
-				return staticString(name.expression);
-			}
-			return literalText(name);
-		};
+		if (checkOpaqueStylesheetLinks) {
+			visitOpaqueStylesheetLinks(sourceFile);
+		}
 		const recordScaleTokenDefinition = (name, node) => {
 			if (name == null || !name.startsWith('--publy-z-')) {
 				return;
@@ -1096,6 +1117,7 @@ const buildProductionApp = async (baseDir) => {
 		path.join(tmpdir(), 'publy-zindex-guard-'),
 	);
 	const authoredCssPaths = new Set();
+	const authoredScriptPaths = new Set();
 	const provenancePlugin = {
 		name: 'publy-zindex-css-provenance',
 		enforce: 'pre',
@@ -1103,6 +1125,11 @@ const buildProductionApp = async (baseDir) => {
 			const [filePath] = id.split('?');
 			if (filePath.endsWith('.css')) {
 				authoredCssPaths.add(path.resolve(filePath));
+			} else if (
+				path.isAbsolute(filePath) &&
+				SCRIPT_EXTENSIONS.has(path.extname(filePath))
+			) {
+				authoredScriptPaths.add(path.resolve(filePath));
 			}
 			return null;
 		},
@@ -1124,6 +1151,7 @@ const buildProductionApp = async (baseDir) => {
 	return {
 		emittedCssRoot,
 		authoredCssPaths: [...authoredCssPaths],
+		authoredScriptPaths: [...authoredScriptPaths],
 		cleanup: () => rm(emittedCssRoot, { recursive: true, force: true }),
 	};
 };
@@ -1228,32 +1256,39 @@ export const runZIndexGuard = async ({
 		);
 	}
 
-	const violations = [];
-	const productionCandidates = new Set(allCandidates);
-	for (const file of scanner.files) {
-		const content = await readFile(file, 'utf8');
-		const relativePath = path.relative(baseDir, file);
-		violations.push(
-			...scanZIndexFile({
-				scanner,
-				relativePath,
-				content,
-				productionCandidates,
-			}),
-		);
-	}
 	const buildResult = await productionBuild();
 	if (
 		buildResult?.emittedCssRoot == null ||
-		!Array.isArray(buildResult.authoredCssPaths)
+		!Array.isArray(buildResult.authoredCssPaths) ||
+		!Array.isArray(buildResult.authoredScriptPaths)
 	) {
 		throw new Error(
 			'z-index guard productionBuild must return the exact emittedCssRoot and ' +
-				'authoredCssPaths from this build invocation.',
+				'authored CSS/script paths from this build invocation.',
 		);
 	}
 	const cleanup = buildResult.cleanup ?? (async () => {});
 	try {
+		const violations = [];
+		const productionCandidates = new Set(allCandidates);
+		const authoredScriptPaths = new Set(
+			buildResult.authoredScriptPaths.map((filePath) => path.resolve(filePath)),
+		);
+		for (const file of scanner.files) {
+			const content = await readFile(file, 'utf8');
+			const relativePath = path.relative(baseDir, file);
+			violations.push(
+				...scanZIndexFile({
+					scanner,
+					relativePath,
+					content,
+					productionCandidates,
+					checkOpaqueStylesheetLinks: authoredScriptPaths.has(
+						path.resolve(file),
+					),
+				}),
+			);
+		}
 		const canonicalAppCssPath = path.resolve(configuredAppCssPath);
 		const authoredCssPaths = await collectReachableAuthoredCssPaths(
 			baseDir,
