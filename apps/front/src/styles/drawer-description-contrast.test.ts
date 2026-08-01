@@ -358,12 +358,10 @@ const colorFromClassName = async (
 		}
 
 		const variableMatch = /^var\((--[\w-]+)\)$/.exec(compiledColor);
-		if (variableMatch) {
-			resolved = resolveColor(variableMatch[1], theme);
-			continue;
-		}
 		try {
-			resolved = parseColorValue(compiledColor, utility);
+			resolved = variableMatch
+				? resolveColor(variableMatch[1], theme)
+				: parseColorValue(compiledColor, utility);
 		} catch (error) {
 			throw new Error(
 				`Unresolvable generated colour for ${utility}: ${compiledColor}`,
@@ -408,6 +406,16 @@ describe('drawer description text contrast (#1043)', () => {
 			colorFromClassName('text-unrecognised-colour', 'light'),
 		).rejects.toThrow(
 			'Unresolvable utility on a DrawerDescription: text-unrecognised-colour',
+		);
+	});
+
+	test('names a generated utility whose colour token cannot be resolved', async () => {
+		const unresolvedUtility = 'text-(--publy-' + 'not-declared)';
+		await expect(async () =>
+			colorFromClassName(unresolvedUtility, 'light'),
+		).rejects.toThrow(
+			`Unresolvable generated colour for ${unresolvedUtility}: ` +
+				'var(--publy-not-declared)',
 		);
 	});
 
