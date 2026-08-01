@@ -12,11 +12,13 @@ export type ClientChunk = {
 
 export declare const findReactContextDeclarations: (
 	tsconfigPath: string,
+	onProgramSourceFiles?: (sourceFiles: Set<string>) => void,
 ) => ContextDeclaration[];
 
 export declare const findContextChunkIsolationViolations: (
 	contexts: ContextDeclaration[],
 	chunks: ClientChunk[],
+	projectDirectory?: string,
 ) => string[];
 
 export declare const contextChunkIsolationPlugin: (options: {

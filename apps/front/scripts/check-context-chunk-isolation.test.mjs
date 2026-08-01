@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import {
+	contextChunkIsolationPlugin,
 	findContextChunkIsolationViolations,
 	findReactContextDeclarations,
 } from './check-context-chunk-isolation.mjs';
@@ -163,6 +164,14 @@ void test('discovers React contexts from shorthand destructuring and shorthand o
 			import { reactApi } from './react-api';
 			export const ObjectHopContext = reactApi.createContext(null);
 		`,
+		'src/explicit-react-api.ts': `
+			import * as React from 'react';
+			export const explicitReactApi = { createContext: React.createContext };
+		`,
+		'src/explicit-object-hop.ts': `
+			import { explicitReactApi } from './explicit-react-api';
+			export const ExplicitObjectHopContext = explicitReactApi.createContext(null);
+		`,
 	});
 
 	try {
@@ -174,6 +183,7 @@ void test('discovers React contexts from shorthand destructuring and shorthand o
 			'src/dynamic-import-destructured.ts',
 			'src/nested-destructured.ts',
 			'src/object-hop.ts',
+			'src/explicit-object-hop.ts',
 		]) {
 			assert.equal(
 				contexts.some(
@@ -271,13 +281,17 @@ void test('reports each React context whose source module is in multiple client 
 	];
 
 	assert.deepEqual(
-		findContextChunkIsolationViolations(contexts, [
-			{ fileName: 'assets/first.js', modules: { [sourceFile]: {} } },
-			{ fileName: 'assets/second.js', modules: { [sourceFile]: {} } },
-		]),
+		findContextChunkIsolationViolations(
+			contexts,
+			[
+				{ fileName: 'assets/first.js', modules: { [sourceFile]: {} } },
+				{ fileName: 'assets/second.js', modules: { [sourceFile]: {} } },
+			],
+			frontDirectory,
+		),
 		[
-			'FirstContext in apps/front/src/two-contexts.ts is present in multiple client chunks: assets/first.js, assets/second.js.',
-			'SecondContext in apps/front/src/two-contexts.ts is present in multiple client chunks: assets/first.js, assets/second.js.',
+			'FirstContext in src/two-contexts.ts is present in multiple client chunks: assets/first.js, assets/second.js.',
+			'SecondContext in src/two-contexts.ts is present in multiple client chunks: assets/first.js, assets/second.js.',
 		],
 	);
 });
@@ -301,4 +315,85 @@ void test('does not treat TanStack route virtual-module siblings as duplicate so
 		),
 		[],
 	);
+});
+
+void test('fails the plugin when no React contexts are discovered', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/no-context.ts': `
+			import { createElement } from 'react';
+			void createElement;
+		`,
+	});
+
+	try {
+		const plugin = contextChunkIsolationPlugin({
+			tsconfigPath: path.join(fixtureDirectory, 'tsconfig.json'),
+		});
+
+		assert.throws(
+			() => plugin.buildStart(),
+			/expected at least 4 React contexts but found 0/i,
+		);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('runs only for client builds and fails the plugin for unmapped or untyped source modules', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/first.ts': `
+			import { createContext } from 'react';
+			export const FirstContext = createContext(null);
+		`,
+		'src/second.ts': `
+			import { createContext } from 'react';
+			export const SecondContext = createContext(null);
+		`,
+		'src/third.ts': `
+			import { createContext } from 'react';
+			export const ThirdContext = createContext(null);
+		`,
+		'src/fourth.ts': `
+			import { createContext } from 'react';
+			export const FourthContext = createContext(null);
+		`,
+		'src/untyped-context.jsx': `
+			import { createContext } from 'react';
+			export const UntypedContext = createContext(null);
+		`,
+	});
+
+	try {
+		const plugin = contextChunkIsolationPlugin({
+			tsconfigPath: path.join(fixtureDirectory, 'tsconfig.json'),
+		});
+		assert.equal(plugin.apply, 'build');
+		assert.equal(plugin.applyToEnvironment({ name: 'client' }), true);
+		assert.equal(plugin.applyToEnvironment({ name: 'ssr' }), false);
+		plugin.buildStart();
+
+		let errorMessage;
+		plugin.generateBundle.call(
+			{
+				error(message) {
+					errorMessage = message;
+				},
+			},
+			{},
+			{
+				'assets/app.js': {
+					fileName: 'assets/app.js',
+					modules: {
+						[path.join(fixtureDirectory, 'src/untyped-context.jsx')]: {},
+					},
+					type: 'chunk',
+				},
+			},
+		);
+
+		assert.match(errorMessage, /FirstContext.*not present in a client chunk/i);
+		assert.match(errorMessage, /untyped-context\.jsx.*TypeScript program/i);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
 });

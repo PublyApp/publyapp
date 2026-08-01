@@ -8,6 +8,7 @@ import {
 	isIdentifier,
 	isImportSpecifier,
 	isObjectBindingPattern,
+	isPropertyAssignment,
 	isPropertyAccessExpression,
 	isShorthandPropertyAssignment,
 	isStringLiteral,
@@ -17,9 +18,14 @@ import { API, SymbolFlags } from 'typescript/unstable/sync';
 
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
 const TANSTACK_ROUTE_VIRTUAL_MODULE = /[?&]tsr-(?:shared|split)=/;
+const SOURCE_MODULE_EXTENSION = /\.[cm]?[jt]sx?$/;
+const MINIMUM_CONTEXT_COUNT = 4;
 
 const normalizeModuleId = (moduleId) =>
 	path.normalize(moduleId).replaceAll('\\', '/');
+
+const sourceFileForModuleId = (moduleId) =>
+	normalizeModuleId(moduleId.split('?')[0]);
 
 const symbolForExpression = (checker, expression) =>
 	isElementAccessExpression(expression)
@@ -172,6 +178,15 @@ const resolvesToReactCreateContext = (
 		);
 	}
 
+	if (isPropertyAssignment(declaration)) {
+		return resolvesToReactCreateContext(
+			checker,
+			symbolForExpression(checker, declaration.initializer),
+			reactCreateContext,
+			seenSymbolIds,
+		);
+	}
+
 	if (!isVariableDeclaration(declaration) || !declaration.initializer) {
 		return false;
 	}
@@ -201,7 +216,10 @@ const contextNameForCall = (callExpression) => {
 	return '<anonymous context>';
 };
 
-export const findReactContextDeclarations = (tsconfigPath) => {
+export const findReactContextDeclarations = (
+	tsconfigPath,
+	onProgramSourceFiles = () => {},
+) => {
 	const api = new API();
 
 	try {
@@ -216,6 +234,13 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 		const { createContext: reactCreateContext } = findReactCreateContextSymbol(
 			project.program,
 			project.checker,
+		);
+		onProgramSourceFiles(
+			new Set(
+				project.program
+					.getSourceFileNames()
+					.map((sourceFileName) => normalizeModuleId(sourceFileName)),
+			),
 		);
 		const contexts = [];
 
@@ -275,7 +300,11 @@ export const findReactContextDeclarations = (tsconfigPath) => {
 	}
 };
 
-export const findContextChunkIsolationViolations = (contexts, chunks) => {
+export const findContextChunkIsolationViolations = (
+	contexts,
+	chunks,
+	projectDirectory = process.cwd(),
+) => {
 	const chunksForSource = new Map();
 
 	for (const chunk of chunks) {
@@ -303,31 +332,87 @@ export const findContextChunkIsolationViolations = (contexts, chunks) => {
 			}
 		}
 
+		const sourcePath = path.relative(projectDirectory, context.sourceFile);
+		if (chunkNames.size === 0) {
+			return [
+				`${context.name} in ${sourcePath} is not present in a client chunk.`,
+			];
+		}
+
 		if (chunkNames.size < 2) {
 			return [];
 		}
 
 		return [
-			`${context.name} in ${path.relative(process.cwd(), context.sourceFile)} is present in multiple client chunks: ${[...chunkNames].join(', ')}.`,
+			`${context.name} in ${sourcePath} is present in multiple client chunks: ${[...chunkNames].join(', ')}.`,
 		];
 	});
 };
 
+const findTypeScriptProgramCoverageViolations = (
+	programSourceFiles,
+	chunks,
+	sourceDirectory,
+) => {
+	const sourceDirectoryPrefix = `${normalizeModuleId(sourceDirectory)}/`;
+	const missingSourceFiles = new Set();
+
+	for (const chunk of chunks) {
+		for (const moduleId of Object.keys(chunk.modules)) {
+			const sourceFile = sourceFileForModuleId(moduleId);
+			if (
+				!sourceFile.startsWith(sourceDirectoryPrefix) ||
+				!SOURCE_MODULE_EXTENSION.test(sourceFile) ||
+				programSourceFiles.has(sourceFile)
+			) {
+				continue;
+			}
+
+			missingSourceFiles.add(sourceFile);
+		}
+	}
+
+	return [...missingSourceFiles].map(
+		(sourceFile) =>
+			`Vite source module ${path.relative(sourceDirectory, sourceFile)} is not present in the TypeScript program.`,
+	);
+};
+
 export const contextChunkIsolationPlugin = ({ tsconfigPath }) => {
 	let contexts = [];
+	let programSourceFiles = new Set();
 
 	return {
 		name: 'publy:context-chunk-isolation',
 		apply: 'build',
 		applyToEnvironment: (environment) => environment.name === 'client',
 		buildStart() {
-			contexts = findReactContextDeclarations(tsconfigPath);
+			contexts = findReactContextDeclarations(tsconfigPath, (sourceFiles) => {
+				programSourceFiles = sourceFiles;
+			});
+			if (contexts.length < MINIMUM_CONTEXT_COUNT) {
+				throw new Error(
+					`Context chunk isolation guard expected at least ${MINIMUM_CONTEXT_COUNT} React contexts but found ${contexts.length}.`,
+				);
+			}
 		},
 		generateBundle(_outputOptions, bundle) {
 			const chunks = Object.values(bundle).filter(
 				(output) => output.type === 'chunk',
 			);
-			const violations = findContextChunkIsolationViolations(contexts, chunks);
+			const projectDirectory = path.dirname(tsconfigPath);
+			const violations = [
+				...findContextChunkIsolationViolations(
+					contexts,
+					chunks,
+					projectDirectory,
+				),
+				...findTypeScriptProgramCoverageViolations(
+					programSourceFiles,
+					chunks,
+					path.join(projectDirectory, 'src'),
+				),
+			];
 			if (violations.length > 0) {
 				this.error(
 					`React context chunk isolation failed:\n${violations
