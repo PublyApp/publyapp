@@ -438,20 +438,65 @@ type CallSite = {
 	className: string | null;
 };
 
+// Round 7 M4: the local JSX tag names that refer to `DrawerDescription` in a
+// file — the plain named import plus every alias (`DrawerDescription as
+// Description`) and the namespace of `import * as Drawer` (used as
+// `<Drawer.DrawerDescription>`). Before this, an aliased import escaped the
+// enumeration entirely: no source coverage, no inventory entry, no browser
+// case — which is what turned the I1/I2 source-guard gaps into full escapes
+// instead of browser-bounded ones.
+const drawerDescriptionTagNames = (source: string): string[] => {
+	const tagNames = new Set<string>();
+	const drawerModule = /\/components\/ui\/drawer$/;
+
+	for (const match of source.matchAll(
+		/import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g,
+	)) {
+		const modulePath = match[2];
+		if (!drawerModule.test(modulePath)) {
+			continue;
+		}
+		for (const specifier of match[1].split(',')) {
+			const imported = specifier.trim().replace(/^type\s+/, '');
+			const aliasMatch = /^DrawerDescription\s+as\s+([A-Za-z_$][\w$]*)$/.exec(
+				imported,
+			);
+			if (aliasMatch) {
+				tagNames.add(aliasMatch[1]);
+			} else if (/^DrawerDescription$/.test(imported)) {
+				tagNames.add('DrawerDescription');
+			}
+		}
+	}
+
+	for (const match of source.matchAll(
+		/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*['"]([^'"]+)['"]/g,
+	)) {
+		if (drawerModule.test(match[2])) {
+			tagNames.add(`${match[1]}.DrawerDescription`);
+		}
+	}
+
+	return [...tagNames];
+};
+
 const findDrawerDescriptionCallSites = (): CallSite[] => {
 	const srcRoot = path.resolve(process.cwd(), 'src');
 	const callSites: CallSite[] = [];
-	const tagPattern = /<DrawerDescription\b([^>]*)(\/?)>/g;
 	for (const file of walkTsxFiles(srcRoot)) {
 		const source = readFileSync(file, 'utf8');
-		for (const match of source.matchAll(tagPattern)) {
-			const attributes = match[1];
-			const line = source.slice(0, match.index).split('\n').length;
-			callSites.push({
-				file,
-				line,
-				className: extractClassName(attributes, file, line),
-			});
+		for (const tagName of drawerDescriptionTagNames(source)) {
+			const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const tagPattern = new RegExp(`<${escapedTagName}\\b([^>]*)(\\/?)>`, 'g');
+			for (const match of source.matchAll(tagPattern)) {
+				const attributes = match[1];
+				const line = source.slice(0, match.index).split('\n').length;
+				callSites.push({
+					file,
+					line,
+					className: extractClassName(attributes, file, line),
+				});
+			}
 		}
 	}
 	return callSites;
@@ -1032,16 +1077,37 @@ describe('drawer description text contrast (#1043)', () => {
 		// The enumeration must find every real consumer AND nothing extra, so a
 		// glob/parse regression can never silently empty the call-site guard and
 		// a new drawer cannot be forgotten in the shared inventory (round 5 I4).
-		const enumeratedFiles = CALL_SITES.map((callSite) => {
+		// Files are compared as a set, then each file's OCCURRENCE COUNT is
+		// checked against the inventory (round 7 M6): a second, compliant
+		// description in an existing file — a nested confirm dialog — fails
+		// with a message naming the file and the remedy instead of a confusing
+		// list diff.
+		const enumerated = new Map<string, number>();
+		for (const callSite of CALL_SITES) {
 			const relative = callSite.file.replace(
 				path.resolve(process.cwd()) + path.sep,
 				'',
 			);
-			return relative;
-		}).sort();
+			enumerated.set(relative, (enumerated.get(relative) ?? 0) + 1);
+		}
 
-		const inventoryFiles = CONSUMERS.map((consumer) => consumer.file).sort();
-		expect(enumeratedFiles).toEqual(inventoryFiles);
+		const inventory = new Map<string, number>();
+		for (const consumer of CONSUMERS) {
+			inventory.set(consumer.file, (inventory.get(consumer.file) ?? 0) + 1);
+		}
+
+		expect([...enumerated.keys()].sort()).toEqual([...inventory.keys()].sort());
+
+		for (const [file, expectedCount] of inventory) {
+			const foundCount = enumerated.get(file) ?? 0;
+			expect(
+				foundCount,
+				`${file} has ${foundCount} DrawerDescription call site(s) but the ` +
+					`browser inventory lists ${expectedCount} — add one inventory ` +
+					'entry (distinct testId) per call site and one e2e drawer opener ' +
+					'for each',
+			).toBe(expectedCount);
+		}
 
 		const testIds = CONSUMERS.map((consumer) => consumer.testId);
 		expect(new Set(testIds).size).toBe(testIds.length);
