@@ -89,11 +89,15 @@ Five components:
    `src/styles/app.css`; a repeated tier is rejected. This source pass preserves provenance that a
    bundled asset cannot. Separately, the emitted pass recognises Tailwind's exact generated
    `@layer theme { :root, :host { … } }` form, rejects changed selector/ancestor shapes, and enforces
-   uniqueness across all emitted assets. Local CSS declarations are reported even when the consuming
-   `z-index` uses `var(...)`. The script AST pass also reports literal `--publy-z-*` object properties
-   and `setProperty()` calls, plus direct keys resolved through a module-scope `const` bound to a
-   string literal. This prevents an inline style from shadowing a legitimate tier after the emitted
-   gate has accepted its reference.
+   uniqueness across all emitted assets. Both CSS passes also reject every
+   `@property --publy-z-*` registration: registration with `inherits: false` can replace the
+   canonical inherited tier with its `initial-value` on descendants without declaring the token.
+   Other at-rule parameters may reference a custom property, or reuse the same spelling in an
+   unrelated namespace such as a keyframe name, but cannot register or replace its computed value.
+   Local CSS declarations are reported even when the consuming `z-index` uses `var(...)`. The script
+   AST pass also reports literal `--publy-z-*` object properties and `setProperty()` calls, plus
+   direct keys resolved through a module-scope `const` bound to a string literal. This prevents an
+   inline style from shadowing a legitimate tier after the emitted gate has accepted its reference.
 
 ## Out of scope — stated, not silent
 

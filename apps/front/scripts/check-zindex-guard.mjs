@@ -835,15 +835,40 @@ const isGlobalScaleDefinition = (declaration, emitted) => {
 	);
 };
 
+const findReservedScaleTokenRegistrations = (root, sourceName) => {
+	const violations = [];
+	root.walkAtRules((atRule) => {
+		if (canonicaliseCssProperty(atRule.name) !== 'property') {
+			return;
+		}
+		const property = decodeCssIdentifier(atRule.params.trim());
+		if (!property.startsWith('--publy-z-')) {
+			return;
+		}
+		const source = `@property ${property}`;
+		violations.push({
+			ruleId: 'z-index-scale-token-registered',
+			message:
+				`reserved scale token registration \`${source}\` can replace its ` +
+				'inherited tier value — the --publy-z-* namespace must not be ' +
+				'registered with @property.',
+			file: sourceName,
+			line: atRule.source?.start?.line ?? 1,
+			source,
+		});
+	});
+	return violations;
+};
+
 export const checkCompiledCssZIndex = (
 	compiledCss,
 	allowlisted = KNOWN_RAW_Z_INDEX_DECLARATIONS,
 	sourceName = 'compiled stylesheet',
 	{ emitted = false, scaleDefinitionCounts = new Map() } = {},
 ) => {
-	const violations = [];
-	const seenCounts = new Map();
 	const root = postcss.parse(compiledCss, { from: undefined });
+	const violations = findReservedScaleTokenRegistrations(root, sourceName);
+	const seenCounts = new Map();
 	root.walkAtRules((atRule) => {
 		if (canonicaliseCssProperty(atRule.name) !== 'import') {
 			return;
@@ -939,9 +964,9 @@ export const checkAuthoredCssScaleDefinitions = ({
 	relativePath,
 	isCanonicalAppCss,
 }) => {
-	const violations = [];
-	const seenCanonicalTokens = new Set();
 	const root = postcss.parse(css, { from: undefined });
+	const violations = findReservedScaleTokenRegistrations(root, relativePath);
+	const seenCanonicalTokens = new Set();
 	root.walkDecls((declaration) => {
 		const property = decodeCssIdentifier(declaration.prop);
 		if (!property.startsWith('--publy-z-')) {

@@ -10,6 +10,7 @@ import { build as viteBuild } from 'vite';
 
 import {
 	classifyZUtility,
+	checkAuthoredCssScaleDefinitions,
 	checkCompiledCssZIndex,
 	KNOWN_RAW_Z_INDEX_DECLARATIONS,
 	runZIndexGuard,
@@ -424,6 +425,62 @@ test('compiled-CSS gate: only Tailwind exact generated scale selector is accepte
 			selector,
 		);
 	}
+});
+
+test('CSS gates: @property cannot register a reserved scale token', () => {
+	const registration = [
+		'@property --publy-z-raised {',
+		"  syntax: '<integer>';",
+		'  inherits: false;',
+		'  initial-value: 2147483647;',
+		'}',
+	].join('\n');
+	const expected = [
+		{
+			ruleId: 'z-index-scale-token-registered',
+			source: '@property --publy-z-raised',
+		},
+	];
+	for (const emitted of [false, true]) {
+		assert.deepEqual(
+			checkCompiledCssZIndex(
+				registration,
+				KNOWN_RAW_Z_INDEX_DECLARATIONS,
+				'fixture.css',
+				{ emitted },
+			).map(({ ruleId, source }) => ({ ruleId, source })),
+			expected,
+		);
+	}
+	assert.deepEqual(
+		checkAuthoredCssScaleDefinitions({
+			css: registration,
+			relativePath: 'src/fixture.css',
+			isCanonicalAppCss: false,
+		}).map(({ ruleId, source }) => ({ ruleId, source })),
+		expected,
+	);
+});
+
+test('CSS gates: non-registering at-rule params may reference the scale', () => {
+	const references = [
+		'@supports (z-index: var(--publy-z-raised)) {',
+		'  .supports-probe { z-index: var(--publy-z-raised); }',
+		'}',
+		'@container style(--publy-z-raised: 10) {',
+		'  .container-probe { z-index: var(--publy-z-raised); }',
+		'}',
+		'@keyframes --publy-z-raised { from { opacity: 0; } to { opacity: 1; } }',
+	].join('\n');
+	assert.deepEqual(checkCompiledCssZIndex(references), []);
+	assert.deepEqual(
+		checkAuthoredCssScaleDefinitions({
+			css: references,
+			relativePath: 'src/fixture.css',
+			isCanonicalAppCss: false,
+		}),
+		[],
+	);
 });
 
 // ---------------------------------------------------------------------------
