@@ -92,11 +92,19 @@ const runFixtureGuard = async (
 	entryImports = [],
 	emittedCssOverride = null,
 	productionBuildOverride = null,
+	appCssOverride = null,
+	extraDirectories = [],
 ) => {
 	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
 	try {
 		await mkdir(path.join(root, 'src'), { recursive: true });
-		await writeFile(path.join(root, 'app.css'), FIXTURE_APP_CSS + appCssExtra);
+		for (const directory of extraDirectories) {
+			await mkdir(path.join(root, directory), { recursive: true });
+		}
+		await writeFile(
+			path.join(root, 'app.css'),
+			appCssOverride == null ? FIXTURE_APP_CSS + appCssExtra : appCssOverride,
+		);
 		for (const [relativePath, content] of Object.entries(files)) {
 			const absolutePath = path.join(root, 'src', relativePath);
 			await mkdir(path.dirname(absolutePath), { recursive: true });
@@ -441,6 +449,36 @@ test('innocent (source level): z-auto is a legitimate non-stacking reset', () =>
 
 test('innocent (source level): z-fragment template outside a delivery position', () => {
 	assertClean('fixture.tsx', 'const x = <div data-tip={`z-${level}`} />;');
+});
+
+test('innocent (source level): production-candidate membership suppresses non-production candidates', () => {
+	// `getCandidatesWithPositions` (content mode) is a superset of the disk-mode
+	// `scanner.scan()` set the production compiler recognises. The membership
+	// filter is a false-positive suppressor — removing it makes the guard
+	// stricter, never greener — and this pins its mechanism.
+	const content = 'export const view = <div className="z-50" />;';
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-utility-not-on-scale'],
+	);
+	assert.deepEqual(
+		scanZIndexFile({
+			scanner,
+			relativePath: 'fixture.tsx',
+			content,
+			productionCandidates: new Set([]),
+		}),
+		[],
+	);
+	assert.deepEqual(
+		scanZIndexFile({
+			scanner,
+			relativePath: 'fixture.tsx',
+			content,
+			productionCandidates: new Set(['z-50']),
+		}).map((violation) => violation.ruleId),
+		['z-index-utility-not-on-scale'],
+	);
 });
 
 test('innocent (source level): class templates without a z fragment', () => {
@@ -1033,6 +1071,68 @@ test('e2e (round 6 I1): ?inline CSS ships as JS and is red via the authored inli
 				violation.file === 'src/overlay.css',
 		),
 		`inline-shipped CSS must red at its authored file: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 6 M2): scanner over an empty source root fails closed', async () => {
+	await assert.rejects(
+		runFixtureGuard(
+			{ 'probe.ts': `export const probe = 'probe';` },
+			'',
+			[],
+			null,
+			null,
+			`@import 'tailwindcss' source('./empty');`,
+			['empty'],
+		),
+		/z-index guard scanned 0 files/,
+	);
+});
+
+test('e2e (round 6 M2): no emitted CSS assets fails closed', async () => {
+	await assert.rejects(
+		runFixtureGuard(
+			{ 'probe.ts': `export const probe = 'probe';` },
+			'',
+			[],
+			null,
+			async (root) => {
+				await mkdir(path.join(root, 'dist'), { recursive: true });
+				await writeFile(path.join(root, 'dist/not-css.txt'), 'x');
+				return {
+					emittedCssRoot: path.join(root, 'dist'),
+					authoredCssPaths: [path.join(root, 'app.css')],
+					authoredScriptPaths: [path.join(root, 'src/main.ts')],
+					cleanup: async () => {},
+				};
+			},
+		),
+		/z-index guard found 0 emitted CSS assets/,
+	);
+});
+
+test('e2e (round 6 M2): app.css missing from build provenance fails closed', async () => {
+	await assert.rejects(
+		runFixtureGuard(
+			{ 'probe.ts': `export const probe = 'probe';` },
+			'',
+			[],
+			null,
+			async (root) => {
+				await mkdir(path.join(root, 'dist'), { recursive: true });
+				await writeFile(
+					path.join(root, 'dist/fixture.css'),
+					':root { --publy-z-raised: 10; }',
+				);
+				return {
+					emittedCssRoot: path.join(root, 'dist'),
+					authoredCssPaths: [],
+					authoredScriptPaths: [path.join(root, 'src/main.ts')],
+					cleanup: async () => {},
+				};
+			},
+		),
+		/build provenance did not include/,
 	);
 });
 

@@ -561,6 +561,13 @@ export const scanZIndexFile = ({
 		if (classifyZUtility(candidate) !== 'raw') {
 			continue;
 		}
+		// Content-mode extraction (`getCandidatesWithPositions`) is a superset
+		// of the disk-mode `scanner.scan()` result the production compiler
+		// actually recognises. The membership filter drops candidates the
+		// production build would never emit, so the pass reports only real
+		// shipped rules. Removing it only makes the guard *stricter* (more
+		// false positives), never green on a shipped raw value — it exists to
+		// keep the guard honest, not to widen the door.
 		if (productionCandidates != null && !productionCandidates.has(candidate)) {
 			continue;
 		}
