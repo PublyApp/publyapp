@@ -33,10 +33,16 @@ describe('front locale manifests', () => {
 		const pricingKeys = Object.keys(enCommon).filter((key) =>
 			key.startsWith('landing-pricing-'),
 		);
+		// A keyword sweep cannot be complete — a trial can always be promised in
+		// words none of these match. These cover the phrasings a rewrite is most
+		// likely to reach for. The hyphen in the duration pattern matters:
+		// "14 days free" and "14-day free" are the same promise.
 		const forbiddenPricingPatterns = [
 			/trial/i,
 			/essai/i,
-			/\b\d+\s*(day|days|jour|jours)\b/i,
+			/\b\d+\s*-?\s*(day|days|jour|jours)\b/i,
+			/no credit card/i,
+			/sans (engagement|carte)/i,
 		];
 
 		// Without this the loop below passes vacuously if the key shape ever

@@ -54,6 +54,7 @@ describe('feature flag source contract', () => {
 		const memberEnvAccesses: ts.PropertyAccessExpression[] = [];
 		const processEnvReferences: ts.PropertyAccessExpression[] = [];
 		const readFlagCalls: ts.CallExpression[] = [];
+		const flagProperties: ts.PropertyAssignment[] = [];
 		let readFlag: ts.ArrowFunction | undefined;
 
 		visitSourceNodes(sourceFile, (node) => {
@@ -96,6 +97,35 @@ describe('feature flag source contract', () => {
 			) {
 				readFlagCalls.push(node);
 			}
+
+			// Every leaf of the FEATURES registry, collected independently of how
+			// it is initialized — so a flag whose value comes from anywhere other
+			// than a direct `readFlag(...)` call is still counted here and fails
+			// the equality below. Counting only `readFlag` callees would let an
+			// aliased `const rf = readFlag; rf(...)` shrink both sides at once.
+			if (
+				ts.isVariableDeclaration(node) &&
+				ts.isIdentifier(node.name) &&
+				node.name.text === 'FEATURES'
+			) {
+				const registry = ts.isAsExpression(node.initializer ?? node)
+					? (node.initializer as ts.AsExpression).expression
+					: node.initializer;
+				if (registry !== undefined && ts.isObjectLiteralExpression(registry)) {
+					for (const band of registry.properties) {
+						if (
+							ts.isPropertyAssignment(band) &&
+							ts.isObjectLiteralExpression(band.initializer)
+						) {
+							for (const flag of band.initializer.properties) {
+								if (ts.isPropertyAssignment(flag)) {
+									flagProperties.push(flag);
+								}
+							}
+						}
+					}
+				}
+			}
 		});
 
 		expect(importMetaEnvAccesses).toHaveLength(1);
@@ -103,7 +133,17 @@ describe('feature flag source contract', () => {
 		expect(memberEnvAccesses).toHaveLength(0);
 		expect(processEnvReferences).toHaveLength(0);
 		expect(readFlag).toBeDefined();
-		expect(readFlagCalls.length).toBeGreaterThan(0);
+		expect(flagProperties.length).toBeGreaterThan(0);
+		// Pins the two together: one direct `readFlag(...)` call per registry
+		// leaf, so no flag can be given a value by any other route.
+		expect(readFlagCalls).toHaveLength(flagProperties.length);
+		for (const flag of flagProperties) {
+			expect(
+				ts.isCallExpression(flag.initializer) &&
+					ts.isIdentifier(flag.initializer.expression) &&
+					flag.initializer.expression.text === 'readFlag',
+			).toBe(true);
+		}
 
 		if (readFlag === undefined) {
 			return;
