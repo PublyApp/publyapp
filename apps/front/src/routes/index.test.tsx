@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
@@ -23,6 +23,17 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+const marketingFlags = vi.hoisted(() => ({
+	customerLogos: false,
+	socialProof: false,
+}));
+
+vi.mock('~/lib/flags', () => ({
+	get FEATURES() {
+		return { marketing: marketingFlags };
+	},
+}));
+
 import { IndexRoute } from './index';
 
 const TOUR_TAB_IDS = [
@@ -38,6 +49,11 @@ const getTourPanel = (container: HTMLElement, tabId: string) => {
 };
 
 describe('marketing landing route', () => {
+	beforeEach(() => {
+		marketingFlags.customerLogos = false;
+		marketingFlags.socialProof = false;
+	});
+
 	afterEach(() => {
 		cleanup();
 	});
@@ -81,6 +97,34 @@ describe('marketing landing route', () => {
 
 		expect(screen.getAllByText('landing-pricing-beta-note')).toHaveLength(3);
 		expect(container.querySelectorAll('del')).toHaveLength(3);
+	});
+
+	test('does not render customer logos when the flag is off', () => {
+		marketingFlags.customerLogos = false;
+		render(<IndexRoute />);
+
+		expect(screen.queryByTestId('landing-customer-logos')).toBeNull();
+	});
+
+	test('renders all supplied customer logos when the flag is on', () => {
+		marketingFlags.customerLogos = true;
+		render(<IndexRoute />);
+
+		expect(screen.getByTestId('landing-customer-logos')).not.toBeNull();
+		expect(
+			screen.getByRole('heading', { name: 'landing-customer-logos-title' }),
+		).not.toBeNull();
+
+		for (const key of [
+			'landing-customer-logo-northbeam',
+			'landing-customer-logo-halcyon',
+			'landing-customer-logo-fieldnote',
+			'landing-customer-logo-studio-mera',
+			'landing-customer-logo-orrery',
+			'landing-customer-logo-caldera',
+		]) {
+			expect(screen.getByText(key)).not.toBeNull();
+		}
 	});
 
 	test('keeps the required navigation targets', () => {

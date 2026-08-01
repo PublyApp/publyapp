@@ -26,4 +26,8 @@ export const FEATURES = {
 			false,
 		),
 	},
+	marketing: {
+		/** Invented customer names stay hidden until real customer proof exists. */
+		customerLogos: readFlag('VITE_FEATURE_MARKETING_CUSTOMER_LOGOS', false),
+	},
 } as const;

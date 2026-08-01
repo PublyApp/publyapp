@@ -15,6 +15,7 @@ import {
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { type KeyboardEvent, type ReactElement, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FEATURES } from '~/lib/flags';
 
 type TabId = 'calendar' | 'composer' | 'approvals' | 'profiles' | 'dashboards';
 
@@ -197,6 +198,15 @@ const PRICING_TIERS: readonly PricingTier[] = [
 		ctaKey: 'landing-pricing-network-cta',
 	},
 ];
+
+const CUSTOMER_LOGO_KEYS = [
+	'landing-customer-logo-northbeam',
+	'landing-customer-logo-halcyon',
+	'landing-customer-logo-fieldnote',
+	'landing-customer-logo-studio-mera',
+	'landing-customer-logo-orrery',
+	'landing-customer-logo-caldera',
+] as const;
 
 export const IndexRoute = () => {
 	const { t } = useTranslation('common');
@@ -529,6 +539,27 @@ export const IndexRoute = () => {
 					))}
 				</div>
 			</section>
+
+			{FEATURES.marketing.customerLogos ? (
+				<section
+					data-testid="landing-customer-logos"
+					className="pt-[clamp(52px,7cqw,96px)]"
+				>
+					<h2 className="mx-auto max-w-[58ch] text-center text-[clamp(22px,2.8cqw,34px)] leading-[1.15] tracking-[-0.03em]">
+						{t('landing-customer-logos-title')}
+					</h2>
+					<div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
+						{CUSTOMER_LOGO_KEYS.map((logoKey) => (
+							<div
+								key={logoKey}
+								className="flex min-h-16 items-center justify-center rounded-[var(--publy-radius-small-control)] border border-(--publy-border) bg-(--publy-background) px-4 text-center text-sm font-semibold tracking-[0.02em] text-(--publy-foreground-secondary)"
+							>
+								{t(logoKey)}
+							</div>
+						))}
+					</div>
+				</section>
+			) : null}
 
 			<section className="pt-[clamp(74px,10.5cqw,156px)]" id="faq">
 				<div className="mx-auto max-w-[760px] text-center">

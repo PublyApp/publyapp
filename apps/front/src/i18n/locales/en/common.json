@@ -1340,5 +1340,12 @@
 	"landing-pricing-network-description": "Unlimited profiles, priority support, custom retention.",
 	"landing-pricing-network-cta": "Talk to us",
 	"landing-pricing-per-month": "/ month",
-	"landing-pricing-beta-note": "free while in beta"
+	"landing-pricing-beta-note": "free while in beta",
+	"landing-customer-logos-title": "Trusted by agencies and in-house teams publishing across hundreds of profiles",
+	"landing-customer-logo-northbeam": "Northbeam",
+	"landing-customer-logo-halcyon": "Halcyon",
+	"landing-customer-logo-fieldnote": "Fieldnote",
+	"landing-customer-logo-studio-mera": "Studio Mera",
+	"landing-customer-logo-orrery": "Orrery",
+	"landing-customer-logo-caldera": "Caldera"
 }
