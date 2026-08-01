@@ -61,6 +61,7 @@ const createFixture = async (files) => {
 
 const buildRouteFixture = async ({
 	files,
+	groupProbeModules = false,
 	inventory,
 	rootImportsProbe = false,
 }) => {
@@ -77,7 +78,13 @@ const buildRouteFixture = async ({
 
 			const rootDirectory = import.meta.dirname;
 			export default defineConfig({
+				${
+					groupProbeModules
+						? "build: { rolldownOptions: { output: { advancedChunks: { groups: [{ name: 'probe-pair', test: /src[\\/]routes[\\/]probe\\.tsx/ }] } } } },"
+						: ''
+				}
 				plugins: [
+					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(Object.values(bundle).filter((output) => output.type === 'chunk').map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); } },
 					contextChunkIsolationPlugin({
 						contextInventory: ${JSON.stringify(inventory)},
 						tsconfigPath: path.join(rootDirectory, 'tsconfig.json'),
@@ -88,7 +95,6 @@ const buildRouteFixture = async ({
 						router: { virtualRouteConfig: './src/routes.ts' },
 					}),
 					viteReact(),
-					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(Object.values(bundle).filter((output) => output.type === 'chunk').map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); } },
 				],
 			});
 		`,
@@ -951,6 +957,66 @@ void test(
 				/ProbeContext in src\/routes\/probe\.tsx is present in multiple client chunks/i,
 			);
 			assert.match(result.output, /probe.*probe/i);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when two context creators share one chunk',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { createContext, useContext } from 'react';
+					const ProbeContext = createContext(null);
+					ProbeContext.displayName = 'ProbeContext';
+					export const useProbe = () => useContext(ProbeContext);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			groupProbeModules: true,
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			const creatorLocations = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						code.includes('createContext')
+					) {
+						creatorLocations.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(creatorLocations.length, 2);
+			assert.equal(
+				new Set(creatorLocations.map((location) => location.split(' :: ')[0]))
+					.size,
+				1,
+			);
+			assert.notEqual(
+				result.status,
+				0,
+				`CREATORS ${JSON.stringify(creatorLocations, null, 2)}`,
+			);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is created by multiple client modules in chunk: assets\/probe-pair/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}

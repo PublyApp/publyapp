@@ -599,6 +599,7 @@ export const findContextChunkIsolationViolations = (
 
 	return contexts.flatMap((context) => {
 		const chunkNames = new Set();
+		let contextCreatingModuleCount = 0;
 		const hasRenderedContextAnalysis = analyzedSourceFiles.has(
 			context.sourceFile,
 		);
@@ -623,12 +624,13 @@ export const findContextChunkIsolationViolations = (
 					continue;
 				}
 
+				contextCreatingModuleCount += 1;
 				chunkNames.add(chunkName);
 			}
 		}
 
 		const sourcePath = path.relative(projectDirectory, context.sourceFile);
-		if (chunkNames.size === 0 && !context.isFactoryValue) {
+		if (contextCreatingModuleCount === 0 && !context.isFactoryValue) {
 			if (
 				hasRenderedContextAnalysis &&
 				chunksForSource.has(context.sourceFile)
@@ -641,8 +643,14 @@ export const findContextChunkIsolationViolations = (
 			];
 		}
 
-		if (chunkNames.size < 2) {
+		if (contextCreatingModuleCount < 2) {
 			return [];
+		}
+
+		if (chunkNames.size === 1) {
+			return [
+				`${context.name} in ${sourcePath} is created by multiple client modules in chunk: ${[...chunkNames].join(', ')}.`,
+			];
 		}
 
 		return [
