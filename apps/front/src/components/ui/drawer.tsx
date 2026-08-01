@@ -138,7 +138,9 @@ type DrawerFormProps<TFieldValues extends FieldValues = FieldValues> = {
  * (components/field) but applies `.publy-drawer-form` so the body becomes
  * the single scrolling region and the footer stays pinned — a plain `Form`
  * here is a block element in the drawer's flex column and clips the footer
- * below the viewport (fix/990).
+ * below the viewport (fix/990). It keeps `Form`'s `space-y-4` inter-child
+ * spacing: the fixed-footer geometry is the point of the change, the
+ * ordinary-height spacing is not.
  */
 function DrawerForm<TFieldValues extends FieldValues = FieldValues>({
 	children,
@@ -153,7 +155,10 @@ function DrawerForm<TFieldValues extends FieldValues = FieldValues>({
 				onSubmit={onSubmit}
 				noValidate
 				autoComplete="off"
-				className={cn('publy-drawer-form', slotProps?.form?.className)}
+				className={cn(
+					'space-y-4 publy-drawer-form',
+					slotProps?.form?.className,
+				)}
 			>
 				{children}
 			</form>

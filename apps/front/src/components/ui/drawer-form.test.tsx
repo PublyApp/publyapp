@@ -447,6 +447,7 @@ const expectDrawerFormChain = (testId: string): void => {
 	const form = surface.querySelector('form.publy-drawer-form');
 	expect(form).not.toBeNull();
 	expect(form?.parentElement).toBe(surface);
+	expect(form?.className).toContain('space-y-4');
 
 	const body = surface.querySelector('[data-slot="drawer-body"]');
 	const footer = surface.querySelector('[data-slot="drawer-footer"]');
@@ -515,6 +516,16 @@ describe('DrawerForm flex chain at the real call sites', () => {
 			expectDrawerFormChain(callSite.drawerTestId);
 		});
 	}
+
+	test('the drawer form wrapper preserves the general form inter-child spacing', () => {
+		renderDrawerByCallSiteId['profile-create']();
+
+		const form = screen
+			.getByTestId('profile-form-drawer')
+			.querySelector('form.publy-drawer-form');
+		expect(form).not.toBeNull();
+		expect(form?.className).toContain('space-y-4');
+	});
 
 	test('app.css gives .publy-drawer-form the flex geometry as the last matching rule', () => {
 		const appCssSource = readFileSync(
