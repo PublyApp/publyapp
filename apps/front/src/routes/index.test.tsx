@@ -55,6 +55,8 @@ const TOUR_TAB_IDS = [
 	'dashboards',
 ] as const;
 
+const ALWAYS_VISIBLE_MARKETING_SECTION_COUNT = 9;
+
 const getTourPanel = (container: HTMLElement, tabId: string) => {
 	return container.querySelector(`#tour-panel-${tabId}`) as HTMLDivElement;
 };
@@ -108,6 +110,14 @@ describe('marketing landing route', () => {
 
 		expect(screen.getAllByText('landing-pricing-beta-note')).toHaveLength(3);
 		expect(container.querySelectorAll('del')).toHaveLength(3);
+	});
+
+	test('keeps optional marketing bands behind feature flags', () => {
+		const { container } = render(<IndexRoute />);
+
+		expect(container.querySelectorAll('section')).toHaveLength(
+			ALWAYS_VISIBLE_MARKETING_SECTION_COUNT,
+		);
 	});
 
 	test('does not render customer logos when the flag is off', () => {
