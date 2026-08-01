@@ -1,6 +1,10 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
 import { API_BASE_URL } from './helpers/api';
+import {
+	DRAWER_FORM_CALL_SITES,
+	type DrawerFormCallSiteId,
+} from './helpers/drawer-form-call-sites';
 import { loginAsStaffAdmin } from './helpers/login';
 
 /**
@@ -10,12 +14,13 @@ import { loginAsStaffAdmin } from './helpers/login';
  * body back into an unconstrained block and clip the footer.
  *
  * This spec follows profile-icon-picker-pin-geometry.spec.ts's live-route
- * pattern. It opens all four REAL DrawerForm call sites against the real
- * docker-compose `front` container, then measures their actual DOM and
- * computed CSS in the ordinary `chromium` project. It never mirrors the
- * drawer with `page.setContent()` and never reads a possibly stale `dist/`
- * stylesheet. The small mock below is deliberately local: each e2e spec owns
- * the exact network contract needed by its real routes.
+ * pattern. It opens every inventoried REAL DrawerForm call site against the
+ * real docker-compose `front` container at both baseline and short viewports,
+ * then measures their actual DOM and computed CSS in the ordinary `chromium`
+ * project. It never mirrors the drawer with `page.setContent()` and never
+ * reads a possibly stale `dist/` stylesheet. The small mock below is
+ * deliberately local: each e2e spec owns the exact network contract needed by
+ * its real routes.
  */
 
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
@@ -23,6 +28,13 @@ const PROFILE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
 const STAFF_USER_ID = '0197b8f0-5555-7ccc-8ccc-cccccccccccc';
 const FORCED_CONTENT_HEIGHT = 1_200;
 const GEOMETRY_EPSILON = 0.5;
+const DRAWER_VIEWPORTS = [
+	{ name: 'baseline', width: 900, height: 600 },
+	// Keep width fixed to isolate height-dependent cascade defects. 560px is
+	// below the review mutation's 599px ceiling while retaining enough room for
+	// a meaningful header/body/footer layout instead of a near-degenerate case.
+	{ name: 'short', width: 900, height: 560 },
+] as const;
 
 type Rect = {
 	bottom: number;
@@ -405,14 +417,32 @@ const assertDrawerScrollGeometry = async (
 		).toBeLessThanOrEqual(GEOMETRY_EPSILON);
 	}
 
-	// 4. The whole non-zero footer is vertically inside the viewport. This is
+	// 4. The whole non-zero footer is inside the viewport on both axes. This is
 	// the user-visible regression boundary from #990: the actions must not be
-	// clipped below the short viewport.
+	// clipped below the short viewport or translated beyond a horizontal edge.
 	expect(measurements.footerAfterScroll.height).toBeGreaterThan(0);
+	expect(measurements.footerAfterScroll.width).toBeGreaterThan(0);
 	expect(measurements.footerAfterScroll.top).toBeGreaterThanOrEqual(0);
 	expect(measurements.footerAfterScroll.bottom).toBeLessThanOrEqual(
 		measurements.viewportHeight,
 	);
+	expect(measurements.footerAfterScroll.left).toBeGreaterThanOrEqual(0);
+	expect(measurements.footerAfterScroll.right).toBeLessThanOrEqual(
+		measurements.viewportWidth,
+	);
+
+	// A rect can be on-screen while an overlay, disabled state, or pointer-event
+	// rule still makes its action unreachable. Trial click runs Playwright's
+	// full actionability checks without submitting the form.
+	const primaryAction = page
+		.getByTestId(drawerTestId)
+		.locator('[data-slot="drawer-footer"] button[type="submit"]');
+	await expect(primaryAction, 'one primary footer action').toHaveCount(1);
+	await expect(
+		primaryAction,
+		'primary footer action should begin fully inside the viewport',
+	).toBeInViewport({ ratio: 1 });
+	await primaryAction.click({ trial: true });
 
 	// 5. Starting at the body and stopping at the drawer surface, every node
 	// must be a flex item whose automatic minimum cannot own unconstrained
@@ -431,48 +461,38 @@ const assertDrawerScrollGeometry = async (
 	}
 };
 
+const openDrawerByCallSiteId: Record<
+	DrawerFormCallSiteId,
+	(page: Page) => Promise<void>
+> = {
+	'profile-create': openProfileCreateDrawer,
+	'profile-edit': openProfileEditDrawer,
+	'tenant-user-invite': openInviteUserDrawer,
+	'staff-user-email-change': openChangeEmailDrawer,
+};
+
 test.describe('form-bearing drawer scroll geometry (#990 / PR #1054)', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.setViewportSize({ width: 900, height: 600 });
-	});
+	for (const viewport of DRAWER_VIEWPORTS) {
+		test.describe(`${viewport.name} ${viewport.width}x${viewport.height} viewport`, () => {
+			test.beforeEach(async ({ page }) => {
+				await page.setViewportSize({
+					width: viewport.width,
+					height: viewport.height,
+				});
+			});
 
-	test('the real create-profile drawer scrolls its body and keeps its footer reachable', async ({
-		page,
-	}, testInfo) => {
-		await openProfileCreateDrawer(page);
-		await assertDrawerScrollGeometry(page, testInfo, 'profile-form-drawer');
-	});
-
-	test('the real invite-user drawer scrolls its body and keeps its footer reachable', async ({
-		page,
-	}, testInfo) => {
-		await openInviteUserDrawer(page);
-		await assertDrawerScrollGeometry(
-			page,
-			testInfo,
-			'invite-tenant-user-drawer',
-		);
-	});
-
-	test('the real edit-profile drawer scrolls its body and keeps its footer reachable', async ({
-		page,
-	}, testInfo) => {
-		await openProfileEditDrawer(page);
-		await assertDrawerScrollGeometry(
-			page,
-			testInfo,
-			'profile-edit-details-drawer',
-		);
-	});
-
-	test('the real change-email drawer scrolls its body and keeps its footer reachable', async ({
-		page,
-	}, testInfo) => {
-		await openChangeEmailDrawer(page);
-		await assertDrawerScrollGeometry(
-			page,
-			testInfo,
-			'change-staff-user-email-dialog',
-		);
-	});
+			for (const callSite of DRAWER_FORM_CALL_SITES) {
+				test(`the real ${callSite.name} drawer scrolls its body and keeps its footer reachable`, async ({
+					page,
+				}, testInfo) => {
+					await openDrawerByCallSiteId[callSite.id](page);
+					await assertDrawerScrollGeometry(
+						page,
+						testInfo,
+						callSite.drawerTestId,
+					);
+				});
+			}
+		});
+	}
 });
