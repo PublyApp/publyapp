@@ -556,12 +556,17 @@ export const findContextChunkIsolationViolations = (
 	for (const [sourceFile, expectedContextNames] of contextNamesBySource) {
 		const virtualModuleChunks = [];
 		for (const [moduleId, moduleChunks] of chunksForSource) {
-			if (
-				moduleId.startsWith(`${sourceFile}?`) &&
-				TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId)
-			) {
-				virtualModuleChunks.push(...moduleChunks);
+			if (!moduleId.startsWith(`${sourceFile}?`)) {
+				continue;
 			}
+
+			if (!TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId)) {
+				throw new Error(
+					`Context chunk isolation guard cannot prove an unrecognized source-derived query module ${moduleId}.`,
+				);
+			}
+
+			virtualModuleChunks.push(...moduleChunks);
 		}
 
 		if (virtualModuleChunks.length === 0) {

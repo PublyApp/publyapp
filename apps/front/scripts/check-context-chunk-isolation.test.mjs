@@ -619,6 +619,35 @@ void test('fails closed for an unrecognized rendered createContext callee shape'
 	);
 });
 
+void test('fails closed for an unrecognized query derived from a context source module', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: {
+							[sourceFile]: {
+								code: 'const RouteContext = createContext(null);',
+							},
+							[`${sourceFile}?unexpected=context-copy`]: {
+								code: 'const RouteContext = createContext(null);',
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot prove an unrecognized source-derived query module/i,
+	);
+});
+
 void test('fails closed when a relevant rendered module has no code', () => {
 	const sourceFile = path.join(
 		frontDirectory,
