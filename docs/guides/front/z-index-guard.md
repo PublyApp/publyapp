@@ -69,11 +69,14 @@ Five components:
    (`@apply block z-50;` yields no `z-50` candidate), so directive text is scanned directly.
 3. **Substitution-boundary scan.** `z-${level}` has no candidate at extractor time; a class-delivery
    template literal whose static parts carry a z-index fragment across a `${…}` boundary is reported.
-4. **Emitted-CSS gate.** The guard runs the real Vite production build and recursively parses every
-   emitted CSS asset with PostCSS (not regex matching or delimiter counting). Every residual
-   `@import` fails closed because its contents are opaque to the declaration walk; resolved local
-   relative imports are already inlined and stay clean. Every `z-index:` declaration that does not
-   resolve through `var(--publy-z-…)` is reported. The parser canonicalises property names
+4. **Emitted-CSS gate.** The guard runs the real Vite production build into a unique guard-owned
+   temporary output directory, recursively parses every CSS asset from that exact invocation with
+   PostCSS, and removes the directory afterward. The inline `outDir` override wins over a configured
+   Vite `build.outDir`, so a changed config cannot redirect the build while leaving the guard on stale
+   `dist` assets. Every residual `@import` fails closed because its contents are opaque to the
+   declaration walk; resolved local relative imports are already inlined and stay clean. Every
+   `z-index:` declaration that does not resolve through `var(--publy-z-…)` is reported. The parser
+   canonicalises property names
    (`Z-INDEX: 50` and
    `z-\69ndex: 50` are the same declaration), decodes and normalises an optional trailing
    `!important` identifier (including escaped forms such as `!\69mportant`), and attributes each
@@ -84,16 +87,22 @@ Five components:
    `app.css`. This is the exact failure that killed the previous attempt, whose own fixture literals
    reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
    scanner watches.
-5. **Scale-definition integrity.** The authored-CSS pass scans every project stylesheet and accepts a
-   `--publy-z-*` declaration only when it originates in a top-level `:root` in
-   `src/styles/app.css`; a repeated tier is rejected. This source pass preserves provenance that a
-   bundled asset cannot. Separately, the emitted pass recognises Tailwind's exact generated
+5. **Scale-definition integrity.** A Vite pre-transform hook records project CSS modules reached by
+   the real build, and the authored pass extends that set through local relative CSS `@import`s. It
+   does not scan unimported samples or fixtures merely because they end in `.css`; importing one puts
+   it in the build graph and therefore back in scope. A `--publy-z-*` declaration is accepted only
+   when it originates in a top-level `:root` in `src/styles/app.css`, and a repeated tier is rejected.
+   Splitting the canonical scale into a second reachable stylesheet remains forbidden. This source
+   pass preserves provenance that a bundled asset cannot. Separately, the emitted pass recognises
+   Tailwind's exact generated
    `@layer theme { :root, :host { … } }` form, rejects changed selector/ancestor shapes, and enforces
    uniqueness across all emitted assets. Both CSS passes also reject every
    `@property --publy-z-*` registration: registration with `inherits: false` can replace the
    canonical inherited tier with its `initial-value` on descendants without declaring the token.
    Other at-rule parameters may reference a custom property, or reuse the same spelling in an
    unrelated namespace such as a keyframe name, but cannot register or replace its computed value.
+   Tailwind's generated selector shape is intentionally exact and fails closed if an upgrade changes
+   it; the guard and this policy must then be reviewed together.
    Local CSS declarations are reported even when the consuming `z-index` uses `var(...)`. The script
    AST pass also reports literal `--publy-z-*` object properties and `setProperty()` calls, plus
    direct keys resolved through a module-scope `const` bound to a string literal. This prevents an

@@ -40,13 +40,32 @@ const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 // (it would not resolve from the OS tmpdir) while staying invisible to the real
 // guard, whose scanner only watches `src/**`.
 const buildViteFixture = async (root) => {
+	const authoredCssPaths = new Set();
 	await viteBuild({
 		root,
 		configFile: false,
 		logLevel: 'silent',
-		plugins: [tailwindcss()],
+		plugins: [
+			{
+				name: 'zindex-fixture-css-provenance',
+				enforce: 'pre',
+				transform(_code, id) {
+					const [filePath] = id.split('?');
+					if (filePath.endsWith('.css')) {
+						authoredCssPaths.add(path.resolve(filePath));
+					}
+					return null;
+				},
+			},
+			tailwindcss(),
+		],
 		build: { outDir: 'dist' },
 	});
+	return {
+		emittedCssRoot: path.join(root, 'dist'),
+		authoredCssPaths: [...authoredCssPaths],
+		cleanup: async () => {},
+	};
 };
 
 const runFixtureGuard = async (
@@ -54,6 +73,7 @@ const runFixtureGuard = async (
 	appCssExtra = '',
 	entryImports = [],
 	emittedCssOverride = null,
+	productionBuildOverride = null,
 ) => {
 	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
 	try {
@@ -72,20 +92,28 @@ const runFixtureGuard = async (
 			path.join(root, 'src/main.ts'),
 			[`import '../app.css';`, ...entryImports].join('\n'),
 		);
-		const productionBuild =
-			emittedCssOverride == null
-				? () => buildViteFixture(root)
-				: async () => {
-						await mkdir(path.join(root, 'dist'), { recursive: true });
-						await writeFile(
-							path.join(root, 'dist/fixture.css'),
-							emittedCssOverride,
-						);
-					};
+		let productionBuild;
+		if (productionBuildOverride != null) {
+			productionBuild = () => productionBuildOverride(root);
+		} else if (emittedCssOverride == null) {
+			productionBuild = () => buildViteFixture(root);
+		} else {
+			productionBuild = async () => {
+				await mkdir(path.join(root, 'dist'), { recursive: true });
+				await writeFile(
+					path.join(root, 'dist/fixture.css'),
+					emittedCssOverride,
+				);
+				return {
+					emittedCssRoot: path.join(root, 'dist'),
+					authoredCssPaths: [path.join(root, 'app.css')],
+					cleanup: async () => {},
+				};
+			};
+		}
 		const result = await runZIndexGuard({
 			baseDir: root,
 			appCssPath: path.join(root, 'app.css'),
-			emittedCssRoot: path.join(root, 'dist'),
 			productionBuild,
 		});
 		return result;
@@ -554,6 +582,75 @@ test('e2e (round 4 blocker 2): resolved local relative imports stay clean', asyn
 		violations,
 		[],
 		`resolved local imports must stay clean: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 5 blocker 2): scans the fresh build result instead of stale dist', async () => {
+	const { violations, emittedCssAssets } = await runFixtureGuard(
+		{ 'probe.ts': `export const probe = 'probe';` },
+		'',
+		[],
+		null,
+		async (root) => {
+			const staleRoot = path.join(root, 'dist');
+			const freshRoot = path.join(root, 'dist-r5-other');
+			await mkdir(staleRoot, { recursive: true });
+			await mkdir(freshRoot, { recursive: true });
+			await writeFile(
+				path.join(staleRoot, 'stale.css'),
+				'.stale { z-index: var(--publy-z-raised); }',
+			);
+			await writeFile(
+				path.join(freshRoot, 'fresh.css'),
+				'.fresh { z-index: 987654321; }',
+			);
+			return {
+				emittedCssRoot: freshRoot,
+				authoredCssPaths: [path.join(root, 'app.css')],
+				cleanup: async () => {},
+			};
+		},
+	);
+	assert.ok(
+		emittedCssAssets.some((asset) => asset.path.includes('dist-r5-other')),
+		`must inspect this invocation's output: ${JSON.stringify(emittedCssAssets)}`,
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.source),
+		['z-index: 987654321'],
+	);
+});
+
+test('e2e (round 5 important 2): unimported CSS samples stay green', async () => {
+	const { violations, emittedCssAssets } = await runFixtureGuard({
+		'probe.ts': `export const probe = 'probe';`,
+		'unshipped-sample.css': '.sample { --publy-z-sample-only: 999; }',
+	});
+	assert.ok(
+		emittedCssAssets.every(
+			(asset) => !asset.content.includes('--publy-z-sample-only'),
+		),
+		`sample must not ship: ${JSON.stringify(emittedCssAssets)}`,
+	);
+	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 5 policy): a build-reachable second scale stylesheet stays red', async () => {
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.ts': `export const probe = 'probe';`,
+			'second-scale.css': ':root { --publy-z-second-sheet: 130; }',
+		},
+		'',
+		[`import './second-scale.css';`],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.file === 'src/second-scale.css' &&
+				violation.source === '--publy-z-second-sheet: 130',
+		),
+		`reachable split scale must red: ${JSON.stringify(violations)}`,
 	);
 });
 

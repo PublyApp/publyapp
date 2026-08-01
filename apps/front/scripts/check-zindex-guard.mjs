@@ -1,18 +1,17 @@
-import { execFile } from 'node:child_process';
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 
 import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
 import postcss from 'postcss';
 import { ts } from 'ts-morph';
+import { build as viteBuild } from 'vite';
 
 const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const appCssPath = path.join(rootDir, 'src/styles/app.css');
-const execFileAsync = promisify(execFile);
 
 const SCRIPT_EXTENSIONS = new Set([
 	'.ts',
@@ -49,16 +48,17 @@ const SCRIPT_EXTENSIONS = new Set([
 //   3. Substitution-boundary scan — `z-${level}` has no candidate at
 //      extractor time; a class-delivery template literal whose static parts
 //      carry a z-index fragment across a `${…}` boundary is reported.
-//   4. Compiled-CSS gate — the production-equivalent build output is scanned
-//      for `z-index:` declarations that do not resolve through
-//      `var(--publy-z-…)`. This proves what actually ships, which is the
-//      exact failure that killed the previous attempt (its own fixture
-//      literals reached the shipped stylesheet).
-//   5. Scale-definition integrity — authored reserved `--publy-z-*` tokens may
-//      only be defined once in a top-level :root in src/styles/app.css.
-//      Tailwind's generated emitted form is recognised separately. Literal
-//      script-object and setProperty() overrides are rejected before they can
-//      shadow an accepted reference.
+//   4. Compiled-CSS gate — a real Vite build writes into a unique guard-owned
+//      directory, and that exact output is scanned for `z-index:` declarations
+//      that do not resolve through `var(--publy-z-…)`. This proves what this
+//      invocation actually ships, which is the exact failure that killed the
+//      previous attempt (its own fixture literals reached the stylesheet).
+//   5. Scale-definition integrity — build-transformed project stylesheets and
+//      their local CSS imports are the authored provenance set. Reserved
+//      `--publy-z-*` tokens may only be defined once in a top-level :root in
+//      src/styles/app.css. Tailwind's generated emitted form is recognised
+//      separately. Literal script-object and setProperty() overrides are
+//      rejected before they can shadow an accepted reference.
 //
 // Out of scope (documented, not silently absent — see
 // docs/guides/front/z-index-guard.md):
@@ -1040,19 +1040,110 @@ const collectCssPaths = async (
 	return cssPaths.sort((left, right) => left.localeCompare(right));
 };
 
-const AUTHORED_CSS_EXCLUDED_DIRECTORIES = new Set([
-	'.git',
-	'.output',
-	'coverage',
-	'dist',
-	'node_modules',
-]);
-
 const buildProductionApp = async (baseDir) => {
-	await execFileAsync('pnpm', ['exec', 'vite', 'build'], {
-		cwd: baseDir,
-		maxBuffer: 20 * 1024 * 1024,
-	});
+	const emittedCssRoot = await mkdtemp(
+		path.join(tmpdir(), 'publy-zindex-guard-'),
+	);
+	const authoredCssPaths = new Set();
+	const provenancePlugin = {
+		name: 'publy-zindex-css-provenance',
+		enforce: 'pre',
+		transform(_code, id) {
+			const [filePath] = id.split('?');
+			if (filePath.endsWith('.css')) {
+				authoredCssPaths.add(path.resolve(filePath));
+			}
+			return null;
+		},
+	};
+	try {
+		await viteBuild({
+			root: baseDir,
+			logLevel: 'silent',
+			plugins: [provenancePlugin],
+			build: {
+				emptyOutDir: true,
+				outDir: emittedCssRoot,
+			},
+		});
+	} catch (error) {
+		await rm(emittedCssRoot, { recursive: true, force: true });
+		throw error;
+	}
+	return {
+		emittedCssRoot,
+		authoredCssPaths: [...authoredCssPaths],
+		cleanup: () => rm(emittedCssRoot, { recursive: true, force: true }),
+	};
+};
+
+const isPathInside = (directory, filePath) => {
+	const relativePath = path.relative(directory, filePath);
+	return (
+		relativePath !== '' &&
+		!relativePath.startsWith(`..${path.sep}`) &&
+		!path.isAbsolute(relativePath)
+	);
+};
+
+const cssImportSpecifier = (params) => {
+	const trimmed = params.trim();
+	const quoted = trimmed.match(/^(?:"([^"]+)"|'([^']+)')/);
+	if (quoted != null) {
+		return quoted[1] ?? quoted[2];
+	}
+	const url = trimmed.match(/^url\(\s*(?:"([^"]+)"|'([^']+)'|([^\s)]+))\s*\)/i);
+	return url == null ? null : (url[1] ?? url[2] ?? url[3]);
+};
+
+const collectReachableAuthoredCssPaths = async (baseDir, entryPaths) => {
+	const queuedPaths = [];
+	const reachablePaths = new Set();
+	const addPath = (filePath) => {
+		const absolutePath = path.resolve(filePath);
+		if (
+			reachablePaths.has(absolutePath) ||
+			!isPathInside(baseDir, absolutePath) ||
+			path
+				.relative(baseDir, absolutePath)
+				.split(path.sep)
+				.includes('node_modules')
+		) {
+			return;
+		}
+		reachablePaths.add(absolutePath);
+		queuedPaths.push(absolutePath);
+	};
+	for (const entryPath of entryPaths) {
+		addPath(entryPath);
+	}
+	for (let index = 0; index < queuedPaths.length; index += 1) {
+		const cssPath = queuedPaths[index];
+		const css = await readFile(cssPath, 'utf8');
+		const root = postcss.parse(css, { from: undefined });
+		root.walkAtRules((atRule) => {
+			if (canonicaliseCssProperty(atRule.name) !== 'import') {
+				return;
+			}
+			const specifier = cssImportSpecifier(atRule.params);
+			if (specifier == null || !specifier.startsWith('.')) {
+				return;
+			}
+			const [withoutQuery] = specifier.split(/[?#]/);
+			if (!withoutQuery.endsWith('.css')) {
+				return;
+			}
+			addPath(path.resolve(path.dirname(cssPath), withoutQuery));
+		});
+	}
+	return [...reachablePaths].sort((left, right) => left.localeCompare(right));
+};
+
+const buildAssetDisplayPath = (baseDir, emittedCssRoot, cssPath) => {
+	if (isPathInside(baseDir, cssPath)) {
+		return path.relative(baseDir, cssPath);
+	}
+	return path.join('emitted', path.relative(emittedCssRoot, cssPath));
 };
 
 // ---------------------------------------------------------------------------
@@ -1062,7 +1153,6 @@ const buildProductionApp = async (baseDir) => {
 export const runZIndexGuard = async ({
 	baseDir = rootDir,
 	appCssPath: configuredAppCssPath = appCssPath,
-	emittedCssRoot = path.join(baseDir, 'dist'),
 	productionBuild = () => buildProductionApp(baseDir),
 } = {}) => {
 	const css = await readFile(configuredAppCssPath, 'utf8');
@@ -1101,68 +1191,92 @@ export const runZIndexGuard = async ({
 			}),
 		);
 	}
-	const canonicalAppCssPath = path.resolve(configuredAppCssPath);
-	const authoredCssPaths = await collectCssPaths(
-		baseDir,
-		AUTHORED_CSS_EXCLUDED_DIRECTORIES,
-	);
-	for (const cssPath of authoredCssPaths) {
-		const content = await readFile(cssPath, 'utf8');
-		violations.push(
-			...checkAuthoredCssScaleDefinitions({
-				css: content,
-				relativePath: path.relative(baseDir, cssPath),
-				isCanonicalAppCss: path.resolve(cssPath) === canonicalAppCssPath,
-			}),
-		);
-	}
-	const authoredScaleViolationKeys = new Set(
-		violations
-			.filter((violation) =>
-				violation.ruleId.startsWith('z-index-scale-token-'),
-			)
-			.map((violation) => `${violation.ruleId}\u0000${violation.source}`),
-	);
-
-	await productionBuild();
-	const emittedCssPaths = await collectCssPaths(emittedCssRoot);
-	if (emittedCssPaths.length === 0) {
+	const buildResult = await productionBuild();
+	if (
+		buildResult?.emittedCssRoot == null ||
+		!Array.isArray(buildResult.authoredCssPaths)
+	) {
 		throw new Error(
-			'z-index guard found 0 emitted CSS assets after the production build — ' +
-				'a pass would be vacuous. Check the Vite output directory.',
+			'z-index guard productionBuild must return the exact emittedCssRoot and ' +
+				'authoredCssPaths from this build invocation.',
 		);
 	}
-	const emittedCssAssets = [];
-	const emittedScaleDefinitionCounts = new Map();
-	for (const cssPath of emittedCssPaths) {
-		const content = await readFile(cssPath, 'utf8');
-		const relativePath = path.relative(baseDir, cssPath);
-		emittedCssAssets.push({ path: relativePath, content });
-		const emittedViolations = checkCompiledCssZIndex(
-			content,
-			KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS,
-			relativePath,
-			{
-				emitted: true,
-				scaleDefinitionCounts: emittedScaleDefinitionCounts,
-			},
+	const cleanup = buildResult.cleanup ?? (async () => {});
+	try {
+		const canonicalAppCssPath = path.resolve(configuredAppCssPath);
+		const authoredCssPaths = await collectReachableAuthoredCssPaths(
+			baseDir,
+			buildResult.authoredCssPaths,
 		);
-		for (const violation of emittedViolations) {
-			const key = `${violation.ruleId}\u0000${violation.source}`;
-			if (authoredScaleViolationKeys.has(key)) {
-				continue;
-			}
-			violations.push(violation);
+		if (!authoredCssPaths.includes(canonicalAppCssPath)) {
+			throw new Error(
+				'z-index guard build provenance did not include src/styles/app.css — ' +
+					'the canonical scale is not reachable from the production build.',
+			);
 		}
-	}
+		for (const cssPath of authoredCssPaths) {
+			const content = await readFile(cssPath, 'utf8');
+			violations.push(
+				...checkAuthoredCssScaleDefinitions({
+					css: content,
+					relativePath: path.relative(baseDir, cssPath),
+					isCanonicalAppCss: cssPath === canonicalAppCssPath,
+				}),
+			);
+		}
+		const authoredScaleViolationKeys = new Set(
+			violations
+				.filter((violation) =>
+					violation.ruleId.startsWith('z-index-scale-token-'),
+				)
+				.map((violation) => `${violation.ruleId}\u0000${violation.source}`),
+		);
 
-	return {
-		violations,
-		compiled: emittedCssAssets.map((asset) => asset.content).join('\n'),
-		emittedCssAssets,
-		candidateCount: allCandidates.length,
-		fileCount: scanner.files.length,
-	};
+		const emittedCssRoot = path.resolve(buildResult.emittedCssRoot);
+		const emittedCssPaths = await collectCssPaths(emittedCssRoot);
+		if (emittedCssPaths.length === 0) {
+			throw new Error(
+				'z-index guard found 0 emitted CSS assets after the production build — ' +
+					'a pass would be vacuous. Check the Vite output directory.',
+			);
+		}
+		const emittedCssAssets = [];
+		const emittedScaleDefinitionCounts = new Map();
+		for (const cssPath of emittedCssPaths) {
+			const content = await readFile(cssPath, 'utf8');
+			const relativePath = buildAssetDisplayPath(
+				baseDir,
+				emittedCssRoot,
+				cssPath,
+			);
+			emittedCssAssets.push({ path: relativePath, content });
+			const emittedViolations = checkCompiledCssZIndex(
+				content,
+				KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS,
+				relativePath,
+				{
+					emitted: true,
+					scaleDefinitionCounts: emittedScaleDefinitionCounts,
+				},
+			);
+			for (const violation of emittedViolations) {
+				const key = `${violation.ruleId}\u0000${violation.source}`;
+				if (!authoredScaleViolationKeys.has(key)) {
+					violations.push(violation);
+				}
+			}
+		}
+
+		return {
+			violations,
+			compiled: emittedCssAssets.map((asset) => asset.content).join('\n'),
+			emittedCssAssets,
+			candidateCount: allCandidates.length,
+			fileCount: scanner.files.length,
+		};
+	} finally {
+		await cleanup();
+	}
 };
 
 const isCli =
