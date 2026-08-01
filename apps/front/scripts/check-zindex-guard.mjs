@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -33,6 +34,40 @@ const scriptKindForPath = (filePath) => {
 	}
 	return ts.ScriptKind.TS;
 };
+
+// The `finally` cleanup cannot run when the process is killed, so an
+// interrupted guard run would otherwise leak its private build directory into
+// the OS temp root. On SIGINT/SIGTERM the build is still mid-write, so instead
+// of racing the `rm` against the running build, the handler exits the process
+// immediately (which stops the build) and hands the directory to a detached
+// child that sweeps it without the parent holding its lifecycle. A SIGKILL
+// (kill -9) bypasses both — that residual is bounded to a stale
+// `publy-zindex-guard-*` temp dir in the OS temp root, never the working tree.
+const activeBuildDirectories = new Set();
+const sweepBuildDirectories = (directories) => {
+	if (directories.length === 0) {
+		return;
+	}
+	const payload = `
+		const { rm } = require('node:fs/promises');
+		(async () => {
+			for (const dir of ${JSON.stringify(directories)}) {
+				await rm(dir, { recursive: true, force: true });
+			}
+		})().catch(() => process.exit(1));
+	`;
+	const child = spawn(process.execPath, ['-e', payload], {
+		stdio: 'ignore',
+		detached: true,
+	});
+	child.unref();
+};
+for (const signal of ['SIGINT', 'SIGTERM']) {
+	process.once(signal, () => {
+		sweepBuildDirectories([...activeBuildDirectories]);
+		process.exit(signal === 'SIGINT' ? 130 : 143);
+	});
+}
 
 // ---------------------------------------------------------------------------
 // #987 — z-index scale guard.
@@ -1476,6 +1511,7 @@ export const buildProductionApp = async (baseDir) => {
 	const emittedCssRoot = await mkdtemp(
 		path.join(tmpdir(), 'publy-zindex-guard-'),
 	);
+	activeBuildDirectories.add(emittedCssRoot);
 	const authoredCssPaths = new Set();
 	const authoredScriptPaths = new Set();
 	const inlineCssPaths = new Set();
@@ -1520,6 +1556,7 @@ export const buildProductionApp = async (baseDir) => {
 		await builder.buildApp();
 	} catch (error) {
 		await rm(emittedCssRoot, { recursive: true, force: true });
+		activeBuildDirectories.delete(emittedCssRoot);
 		throw error;
 	}
 	return {
@@ -1527,7 +1564,10 @@ export const buildProductionApp = async (baseDir) => {
 		authoredCssPaths: [...authoredCssPaths],
 		authoredScriptPaths: [...authoredScriptPaths],
 		inlineCssPaths: [...inlineCssPaths],
-		cleanup: () => rm(emittedCssRoot, { recursive: true, force: true }),
+		cleanup: () => {
+			activeBuildDirectories.delete(emittedCssRoot);
+			return rm(emittedCssRoot, { recursive: true, force: true });
+		},
 	};
 };
 

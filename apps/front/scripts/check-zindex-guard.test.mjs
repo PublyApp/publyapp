@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import {
 	mkdir,
 	mkdtemp,
@@ -7,6 +8,7 @@ import {
 	rm,
 	writeFile,
 } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -995,6 +997,50 @@ test('production-build contract failures still run supplied cleanup', async () =
 		/productionBuild must return the exact emittedCssRoot/,
 	);
 	assert.equal(cleaned, true);
+});
+
+test('round 6 M3: an interrupted guard run removes the private build directory', async () => {
+	// The `finally` cleanup cannot run when the process is killed, so the CLI
+	// installs SIGINT/SIGTERM handlers that remove the live temp dir before
+	// exiting. Spawn the real CLI, wait for its private build dir to appear,
+	// interrupt it, and assert the dir is gone. Sweep stale dirs first so a
+	// previous interrupted run cannot be mistaken for this one.
+	for (const stale of (await readdir(tmpdir())).filter((name) =>
+		name.startsWith('publy-zindex-guard-'),
+	)) {
+		await rm(path.join(tmpdir(), stale), { recursive: true, force: true });
+	}
+	const scriptPath = path.join(scriptsDir, 'check-zindex-guard.mjs');
+	const child = spawn(process.execPath, [scriptPath], {
+		cwd: path.join(scriptsDir, '..'),
+		stdio: 'ignore',
+	});
+	let created = [];
+	const startedAt = Date.now();
+	while (Date.now() - startedAt < 20000) {
+		created = (await readdir(tmpdir())).filter((name) =>
+			name.startsWith('publy-zindex-guard-'),
+		);
+		if (created.length > 0) {
+			break;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	}
+	assert.ok(
+		created.length > 0,
+		'expected the guard to create a private build dir',
+	);
+	child.kill('SIGINT');
+	await new Promise((resolve) => child.once('exit', resolve));
+	let remaining = created;
+	const sweptAt = Date.now();
+	while (remaining.length > 0 && Date.now() - sweptAt < 10000) {
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		remaining = (await readdir(tmpdir())).filter((name) =>
+			name.startsWith('publy-zindex-guard-'),
+		);
+	}
+	assert.deepEqual(remaining, []);
 });
 
 test('e2e (round 5 important 2): unimported CSS samples stay green', async () => {
