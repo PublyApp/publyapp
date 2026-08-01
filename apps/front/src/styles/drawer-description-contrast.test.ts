@@ -410,12 +410,13 @@ describe('drawer description text contrast (#1043)', () => {
 	});
 
 	test('names a generated utility whose colour token cannot be resolved', async () => {
-		const unresolvedUtility = 'text-(--publy-' + 'not-declared)';
+		const unresolvedToken = '--publy-' + 'not-declared';
+		const unresolvedUtility = `text-(${unresolvedToken})`;
 		await expect(async () =>
 			colorFromClassName(unresolvedUtility, 'light'),
 		).rejects.toThrow(
 			`Unresolvable generated colour for ${unresolvedUtility}: ` +
-				'var(--publy-not-declared)',
+				`var(${unresolvedToken})`,
 		);
 	});
 
