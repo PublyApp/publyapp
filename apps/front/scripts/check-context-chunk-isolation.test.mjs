@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { promisify } from 'node:util';
 
 import {
 	contextChunkIsolationPlugin,
@@ -11,6 +14,7 @@ import {
 } from './check-context-chunk-isolation.mjs';
 
 const frontDirectory = path.resolve(import.meta.dirname, '..');
+const execFileAsync = promisify(execFile);
 
 const createFixture = async (files) => {
 	const fixtureDirectory = await mkdtemp(
@@ -53,6 +57,112 @@ const createFixture = async (files) => {
 	}
 
 	return fixtureDirectory;
+};
+
+const buildRouteFixture = async ({
+	files,
+	inventory,
+	rootImportsProbe = false,
+}) => {
+	const fixtureDirectory = await createFixture({
+		'vite.config.mjs': `
+			import path from 'node:path';
+			import { writeFileSync } from 'node:fs';
+			import { defineConfig } from 'vite';
+			import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+			import viteReact from '@vitejs/plugin-react';
+			import { contextChunkIsolationPlugin } from ${JSON.stringify(
+				path.join(frontDirectory, 'scripts/check-context-chunk-isolation.mjs'),
+			)};
+
+			const rootDirectory = import.meta.dirname;
+			export default defineConfig({
+				plugins: [
+					contextChunkIsolationPlugin({
+						contextInventory: ${JSON.stringify(inventory)},
+						tsconfigPath: path.join(rootDirectory, 'tsconfig.json'),
+						workspaceDirectory: rootDirectory,
+					}),
+					tanstackStart({
+						srcDirectory: 'src',
+						router: { virtualRouteConfig: './src/routes.ts' },
+					}),
+					viteReact(),
+					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(Object.values(bundle).filter((output) => output.type === 'chunk').map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); } },
+				],
+			});
+		`,
+		'src/routes.ts': `
+			import { rootRoute, route } from '@tanstack/virtual-file-routes';
+			export const routes = rootRoute('__root.tsx', [route('/probe', 'probe.tsx')]);
+		`,
+		'src/routes/__root.tsx': rootImportsProbe
+			? `
+				import { Outlet, createRootRoute } from '@tanstack/react-router';
+				import { useProbe } from './probe';
+				import { FourthContext, SecondContext, ThirdContext } from '../contexts';
+				const Root = () => <SecondContext.Provider value={null}><ThirdContext.Provider value={null}><FourthContext.Provider value={null}><Outlet /><span>{String(useProbe)}</span></FourthContext.Provider></ThirdContext.Provider></SecondContext.Provider>;
+				export const Route = createRootRoute({ component: Root });
+			`
+			: `
+				import { Outlet, createRootRoute } from '@tanstack/react-router';
+				import { FourthContext, SecondContext, ThirdContext } from '../contexts';
+				const Root = () => <SecondContext.Provider value={null}><ThirdContext.Provider value={null}><FourthContext.Provider value={null}><Outlet /></FourthContext.Provider></ThirdContext.Provider></SecondContext.Provider>;
+				export const Route = createRootRoute({ component: Root });
+			`,
+		'src/contexts.tsx': `
+			import { createContext } from 'react';
+			export const SecondContext = createContext(null);
+			export const ThirdContext = createContext(null);
+			export const FourthContext = createContext(null);
+		`,
+		'src/router.tsx': `
+			import { createRouter } from '@tanstack/react-router';
+			import { routeTree } from './routeTree.gen';
+			export const getRouter = () => createRouter({ routeTree });
+		`,
+		'src/client.tsx': `
+			import { RouterProvider } from '@tanstack/react-router';
+			import { hydrateStart } from '@tanstack/react-start/client';
+			import { hydrateRoot } from 'react-dom/client';
+			void hydrateStart().then((router) => hydrateRoot(document, <RouterProvider router={router} />));
+		`,
+		...files,
+	});
+
+	for (const packageName of ['@tanstack', '@vitejs', 'react-dom', 'vite']) {
+		const sourcePath = path.join(frontDirectory, 'node_modules', packageName);
+		const targetPath = path.join(fixtureDirectory, 'node_modules', packageName);
+		await rm(targetPath, { force: true, recursive: true });
+		await symlink(sourcePath, targetPath, 'dir');
+	}
+
+	try {
+		await execFileAsync(
+			process.execPath,
+			[path.join(frontDirectory, 'node_modules/vite/bin/vite.js'), 'build'],
+			{ cwd: fixtureDirectory },
+		);
+		return {
+			fixtureDirectory,
+			output: '',
+			status: 0,
+			trace: await readFile(
+				path.join(fixtureDirectory, 'bundle-map.json'),
+				'utf8',
+			),
+		};
+	} catch (error) {
+		return {
+			fixtureDirectory,
+			output: `${error.stdout ?? ''}${error.stderr ?? ''}`,
+			status: error.code ?? 1,
+			trace: await readFile(
+				path.join(fixtureDirectory, 'bundle-map.json'),
+				'utf8',
+			).catch(() => ''),
+		};
+	}
 };
 
 void test('resolves React createContext through every supported import and type form', async () => {
@@ -333,7 +443,15 @@ void test('counts a TanStack route virtual-module sibling that still creates the
 		findContextChunkIsolationViolations(
 			[{ name: 'RouteContext', sourceFile }],
 			[
-				{ fileName: 'assets/route.js', modules: { [sourceFile]: {} } },
+				{
+					fileName: 'assets/route.js',
+					modules: {
+						[sourceFile]: {
+							code: 'const RouteContext = createContext(null);',
+							renderedLength: 49,
+						},
+					},
+				},
 				{
 					fileName: 'assets/route-component.js',
 					modules: {
@@ -352,6 +470,172 @@ void test('counts a TanStack route virtual-module sibling that still creates the
 	);
 });
 
+void test('counts a namespace createContext call in a TanStack route virtual-module sibling', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: {
+						[sourceFile]: {
+							code: 'const RouteContext = React.createContext(null);',
+						},
+					},
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: 'const RouteContext = React.createContext(null);',
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('counts a sequence-wrapped createContext call in a TanStack route virtual-module sibling', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[{ name: 'RouteContext', sourceFile }],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: {
+						[sourceFile]: {
+							code: 'const RouteContext = (0, import_react.createContext)(null);',
+						},
+					},
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: 'const RouteContext = (0, import_react.createContext)(null);',
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('fails closed for an unrecognized rendered createContext callee shape', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const unrecognizedCode =
+		'const RouteContext = (enabled ? React.createContext : fallback)(null);';
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: unrecognizedCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: unrecognizedCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot prove an unrecognized rendered createContext callee/i,
+	);
+});
+
+void test('fails closed when a relevant rendered module has no code', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: {} },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: 'const RouteContext = React.createContext(null);',
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot inspect rendered code/i,
+	);
+});
+
+void test('fails closed when relevant rendered code cannot be parsed', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: {
+							[sourceFile]: {
+								code: 'const RouteContext = createContext(',
+							},
+						},
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: 'const RouteContext = createContext(null);',
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot parse rendered code/i,
+	);
+});
+
 void test('ignores a TanStack route virtual-module sibling after it no longer contains a context', () => {
 	const sourceFile = path.join(
 		frontDirectory,
@@ -362,7 +646,12 @@ void test('ignores a TanStack route virtual-module sibling after it no longer co
 		findContextChunkIsolationViolations(
 			[{ name: 'RouteContext', sourceFile }],
 			[
-				{ fileName: 'assets/route.js', modules: { [sourceFile]: {} } },
+				{
+					fileName: 'assets/route.js',
+					modules: {
+						[sourceFile]: { code: 'const route = {};' },
+					},
+				},
 				{
 					fileName: 'assets/route-component.js',
 					modules: {
@@ -587,3 +876,73 @@ void test('fails the plugin for a bundled first-party module outside front src t
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
 });
+
+void test(
+	'fails a real TanStack route build when a context survives in its reference and split modules',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/routes/probe.tsx': `
+				import { createFileRoute } from '@tanstack/react-router';
+				import { createContext, useContext } from 'react';
+				const ProbeContext = createContext(null);
+				ProbeContext.displayName = 'ProbeContext';
+				export const useProbe = () => useContext(ProbeContext);
+				const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+			assert.match(result.output, /probe.*probe/i);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when its context is used only by the split component',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/routes/probe.tsx': `
+				import { createFileRoute } from '@tanstack/react-router';
+				import { createContext } from 'react';
+				const ProbeContext = createContext(null);
+				const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`,
+			},
+			inventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);

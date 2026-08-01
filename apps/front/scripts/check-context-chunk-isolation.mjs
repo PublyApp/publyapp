@@ -1,7 +1,9 @@
 import path from 'node:path';
 
+import { SyntaxKind } from 'typescript/unstable/ast';
 import {
 	isBindingElement,
+	isBinaryExpression,
 	isCallExpression,
 	isElementAccessExpression,
 	isExportSpecifier,
@@ -9,12 +11,14 @@ import {
 	isImportSpecifier,
 	isObjectLiteralExpression,
 	isObjectBindingPattern,
+	isParenthesizedExpression,
 	isPropertyAssignment,
 	isPropertyAccessExpression,
 	isShorthandPropertyAssignment,
 	isStringLiteral,
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
+import { createVirtualFileSystem } from 'typescript/unstable/fs';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
 
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
@@ -287,9 +291,168 @@ const contextNameForCall = (callExpression) => {
 	return '<anonymous context>';
 };
 
-const containsReactCreateContextCall = (renderedModule) =>
-	typeof renderedModule.code === 'string' &&
-	/\bcreateContext\s*\(/.test(renderedModule.code);
+const isRenderedCreateContextCallee = (expression) => {
+	if (isIdentifier(expression)) {
+		return expression.text === 'createContext';
+	}
+
+	if (isPropertyAccessExpression(expression)) {
+		return expression.name.text === 'createContext';
+	}
+
+	if (isElementAccessExpression(expression)) {
+		return (
+			isStringLiteral(expression.argumentExpression) &&
+			expression.argumentExpression.text === 'createContext'
+		);
+	}
+
+	if (isParenthesizedExpression(expression)) {
+		return isRenderedCreateContextCallee(expression.expression);
+	}
+
+	return (
+		isBinaryExpression(expression) &&
+		expression.operatorToken.kind === SyntaxKind.CommaToken &&
+		isRenderedCreateContextCallee(expression.right)
+	);
+};
+
+const expressionContainsCreateContextName = (expression) => {
+	let containsCreateContextName = false;
+	const visit = (node) => {
+		if (
+			(isIdentifier(node) && node.text === 'createContext') ||
+			(isStringLiteral(node) && node.text === 'createContext')
+		) {
+			containsCreateContextName = true;
+			return;
+		}
+
+		if (!containsCreateContextName) {
+			node.forEachChild(visit);
+		}
+	};
+
+	visit(expression);
+	return containsCreateContextName;
+};
+
+const analyzeRenderedContextModule = (
+	sourceFile,
+	expectedContextNames,
+	moduleLabel,
+) => {
+	const recognizedContextNames = new Set();
+	const seenContextNames = new Set();
+	let hasUnattributedCreateContextCall = false;
+
+	const visit = (node) => {
+		if (isIdentifier(node) && expectedContextNames.has(node.text)) {
+			seenContextNames.add(node.text);
+		}
+
+		if (isCallExpression(node)) {
+			if (isRenderedCreateContextCallee(node.expression)) {
+				const declaration = node.parent;
+				if (
+					isVariableDeclaration(declaration) &&
+					declaration.initializer === node &&
+					isIdentifier(declaration.name) &&
+					expectedContextNames.has(declaration.name.text)
+				) {
+					recognizedContextNames.add(declaration.name.text);
+				} else {
+					hasUnattributedCreateContextCall = true;
+				}
+			} else if (expressionContainsCreateContextName(node.expression)) {
+				throw new Error(
+					`Context chunk isolation guard cannot prove an unrecognized rendered createContext callee in ${moduleLabel}.`,
+				);
+			}
+		}
+
+		node.forEachChild(visit);
+	};
+
+	visit(sourceFile);
+	for (const contextName of seenContextNames) {
+		if (
+			!recognizedContextNames.has(contextName) &&
+			!hasUnattributedCreateContextCall
+		) {
+			throw new Error(
+				`Context chunk isolation guard cannot prove how ${contextName} is created in ${moduleLabel}.`,
+			);
+		}
+	}
+
+	return { hasUnattributedCreateContextCall, recognizedContextNames };
+};
+
+const analyzeRenderedContextModules = (entries) => {
+	const analyses = new Map();
+	if (entries.length === 0) {
+		return analyses;
+	}
+
+	const virtualRoot = '/publy-context-chunk-isolation';
+	const configPath = `${virtualRoot}/tsconfig.json`;
+	const files = {};
+	const sourceFiles = [];
+
+	for (const [index, entry] of entries.entries()) {
+		if (typeof entry.renderedModule.code !== 'string') {
+			throw new Error(
+				`Context chunk isolation guard cannot inspect rendered code for ${entry.moduleId} in ${entry.chunkName}.`,
+			);
+		}
+
+		const fileName = `module-${index}.js`;
+		const filePath = `${virtualRoot}/${fileName}`;
+		files[filePath] = entry.renderedModule.code;
+		sourceFiles.push({ entry, fileName, filePath });
+	}
+
+	files[configPath] = JSON.stringify({
+		compilerOptions: { allowJs: true, checkJs: false, noEmit: true },
+		files: sourceFiles.map(({ fileName }) => fileName),
+	});
+
+	const api = new API({ cwd: '/', fs: createVirtualFileSystem(files) });
+	try {
+		const snapshot = api.updateSnapshot({ openProjects: [configPath] });
+		const project = snapshot.getProject(configPath);
+		if (!project) {
+			throw new Error(
+				'Context chunk isolation guard could not parse rendered client modules.',
+			);
+		}
+
+		for (const { entry, filePath } of sourceFiles) {
+			const diagnostics = project.program.getSyntacticDiagnostics(filePath);
+			const sourceFile = project.program.getSourceFile(filePath);
+			if (!sourceFile || diagnostics.length > 0) {
+				throw new Error(
+					`Context chunk isolation guard cannot parse rendered code for ${entry.moduleId} in ${entry.chunkName}.`,
+				);
+			}
+
+			analyses.set(
+				entry.renderedModule,
+				analyzeRenderedContextModule(
+					sourceFile,
+					entry.expectedContextNames,
+					`${entry.moduleId} in ${entry.chunkName}`,
+				),
+			);
+		}
+	} finally {
+		api.close();
+	}
+
+	return analyses;
+};
 
 export const findReactContextDeclarations = (
 	tsconfigPath,
@@ -387,21 +550,83 @@ export const findContextChunkIsolationViolations = (
 		for (const [moduleId, renderedModule] of Object.entries(chunk.modules)) {
 			const normalizedModuleId = normalizeModuleId(moduleId);
 			const moduleChunks = chunksForSource.get(normalizedModuleId) ?? [];
-			moduleChunks.push({ chunkName: chunk.fileName, renderedModule });
+			moduleChunks.push({
+				chunkName: chunk.fileName,
+				moduleId: normalizedModuleId,
+				renderedModule,
+			});
 			chunksForSource.set(normalizedModuleId, moduleChunks);
 		}
 	}
 
+	const contextNamesBySource = new Map();
+	for (const context of contexts) {
+		const contextNames =
+			contextNamesBySource.get(context.sourceFile) ?? new Set();
+		contextNames.add(context.name);
+		contextNamesBySource.set(context.sourceFile, contextNames);
+	}
+
+	const renderedModulesToAnalyze = [];
+	for (const [sourceFile, expectedContextNames] of contextNamesBySource) {
+		const virtualModuleChunks = [];
+		for (const [moduleId, moduleChunks] of chunksForSource) {
+			if (
+				moduleId.startsWith(`${sourceFile}?`) &&
+				TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId)
+			) {
+				virtualModuleChunks.push(...moduleChunks);
+			}
+		}
+
+		if (virtualModuleChunks.length === 0) {
+			continue;
+		}
+
+		for (const moduleChunk of [
+			...(chunksForSource.get(sourceFile) ?? []),
+			...virtualModuleChunks,
+		]) {
+			renderedModulesToAnalyze.push({
+				...moduleChunk,
+				expectedContextNames,
+			});
+		}
+	}
+
+	const renderedContextAnalyses = analyzeRenderedContextModules(
+		renderedModulesToAnalyze,
+	);
+	const renderedModuleCreatesContext = (renderedModule, contextName) => {
+		const analysis = renderedContextAnalyses.get(renderedModule);
+		if (!analysis) {
+			throw new Error(
+				'Context chunk isolation guard did not analyze a relevant rendered module.',
+			);
+		}
+
+		return (
+			analysis.hasUnattributedCreateContextCall ||
+			analysis.recognizedContextNames.has(contextName)
+		);
+	};
+
 	return contexts.flatMap((context) => {
 		const chunkNames = new Set();
+		const sourceModuleStillCreatesContext = renderedModulesToAnalyze.some(
+			({ moduleId, renderedModule }) =>
+				moduleId === context.sourceFile &&
+				renderedModuleCreatesContext(renderedModule, context.name),
+		);
 		for (const [moduleId, moduleChunks] of chunksForSource) {
 			if (
 				moduleId !== context.sourceFile &&
 				(!moduleId.startsWith(`${context.sourceFile}?`) ||
 					(TANSTACK_ROUTE_VIRTUAL_MODULE.test(moduleId) &&
-						!moduleChunks.some(({ renderedModule }) =>
-							containsReactCreateContextCall(renderedModule),
-						)))
+						(!sourceModuleStillCreatesContext ||
+							!moduleChunks.some(({ renderedModule }) =>
+								renderedModuleCreatesContext(renderedModule, context.name),
+							))))
 			) {
 				continue;
 			}
