@@ -41,8 +41,8 @@ describe('front locale manifests', () => {
 			/trial/i,
 			/essai/i,
 			/\b\d+\s*-?\s*(day|days|jour|jours)\b/i,
-			/no credit card/i,
-			/sans (engagement|carte)/i,
+			/no (credit )?card/i,
+			/(sans|pas de|aucune?) (carte|engagement)/i,
 		];
 
 		// Without this the loop below passes vacuously if the key shape ever

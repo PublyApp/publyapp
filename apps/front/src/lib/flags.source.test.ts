@@ -55,6 +55,7 @@ describe('feature flag source contract', () => {
 		const processEnvReferences: ts.PropertyAccessExpression[] = [];
 		const readFlagCalls: ts.CallExpression[] = [];
 		const flagProperties: ts.PropertyAssignment[] = [];
+		const unrecognisedRegistryMembers: ts.ObjectLiteralElementLike[] = [];
 		let readFlag: ts.ArrowFunction | undefined;
 
 		visitSourceNodes(sourceFile, (node) => {
@@ -103,10 +104,18 @@ describe('feature flag source contract', () => {
 			// than a direct `readFlag(...)` call is still counted here and fails
 			// the equality below. Counting only `readFlag` callees would let an
 			// aliased `const rf = readFlag; rf(...)` shrink both sides at once.
+			//
+			// Every member is walked unconditionally and anything that is not a
+			// plain `key: value` property is recorded as unrecognised rather than
+			// skipped. Skipping shrinks the leaf count and the call count together,
+			// which is the same escape one level down: `...{ socialProof: rf(k, X) }`
+			// is not a PropertyAssignment, so an earlier version of this walk let it
+			// through with both sides equal.
 			if (
 				ts.isVariableDeclaration(node) &&
 				ts.isIdentifier(node.name) &&
-				node.name.text === 'FEATURES'
+				node.name.text === 'FEATURES' &&
+				(ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Export) !== 0
 			) {
 				const registry = ts.isAsExpression(node.initializer ?? node)
 					? (node.initializer as ts.AsExpression).expression
@@ -114,14 +123,20 @@ describe('feature flag source contract', () => {
 				if (registry !== undefined && ts.isObjectLiteralExpression(registry)) {
 					for (const band of registry.properties) {
 						if (
-							ts.isPropertyAssignment(band) &&
-							ts.isObjectLiteralExpression(band.initializer)
+							!ts.isPropertyAssignment(band) ||
+							!ts.isObjectLiteralExpression(band.initializer)
 						) {
-							for (const flag of band.initializer.properties) {
-								if (ts.isPropertyAssignment(flag)) {
-									flagProperties.push(flag);
-								}
+							unrecognisedRegistryMembers.push(band);
+							continue;
+						}
+
+						for (const flag of band.initializer.properties) {
+							if (!ts.isPropertyAssignment(flag)) {
+								unrecognisedRegistryMembers.push(flag);
+								continue;
 							}
+
+							flagProperties.push(flag);
 						}
 					}
 				}
@@ -134,6 +149,12 @@ describe('feature flag source contract', () => {
 		expect(processEnvReferences).toHaveLength(0);
 		expect(readFlag).toBeDefined();
 		expect(flagProperties.length).toBeGreaterThan(0);
+		// A spread, shorthand, getter or method in the registry is not something
+		// this walk can count, and staying silent about it would shrink both
+		// sides of the equality below in step.
+		expect(
+			unrecognisedRegistryMembers.map((member) => member.getText()),
+		).toEqual([]);
 		// Pins the two together: one direct `readFlag(...)` call per registry
 		// leaf, so no flag can be given a value by any other route.
 		expect(readFlagCalls).toHaveLength(flagProperties.length);
