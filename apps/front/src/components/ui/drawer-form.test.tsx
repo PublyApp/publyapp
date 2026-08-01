@@ -9,10 +9,10 @@
  * clipped below the viewport edge with no scrollbar.
  *
  * jsdom has no layout engine, so no computed-height or scrolling assertion can
- * work here. The four call-site drawers' own suites mock `~/components/ui/drawer`
- * wholesale — a model, not the artifact — so this guard instead renders the
- * four REAL call-site components against the REAL drawer components and asserts
- * the parent chain the geometry depends on:
+ * work here. The call-site drawers' own suites mock `~/components/ui/drawer`
+ * wholesale — a model, not the artifact — so this guard instead renders every
+ * inventoried REAL call-site component against the REAL drawer components and
+ * asserts the parent chain the geometry depends on:
  *
  *  1. `DrawerForm`'s `<form>` carries `.publy-drawer-form` and is a direct
  *     child of the `.publy-drawer` surface;
@@ -35,7 +35,13 @@ import { cleanup, render, screen } from '@testing-library/react';
 import postcss from 'postcss';
 import type { AtRule, Rule } from 'postcss';
 import { createElement, type ReactNode } from 'react';
+import { Project, SyntaxKind } from 'ts-morph';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+
+import {
+	DRAWER_FORM_CALL_SITES,
+	type DrawerFormCallSiteId,
+} from '../../../e2e/helpers/drawer-form-call-sites';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
@@ -152,6 +158,109 @@ import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/p
 
 const noop = () => undefined;
 
+const FRONT_ROOT = path.resolve(import.meta.dirname, '../../..');
+const DRAWER_SOURCE_PATH = path.join(
+	FRONT_ROOT,
+	'src/components/ui/drawer.tsx',
+);
+
+const findDrawerFormCallSites = (): string[] => {
+	const project = new Project({
+		tsConfigFilePath: path.join(FRONT_ROOT, 'tsconfig.json'),
+		skipAddingFilesFromTsConfig: false,
+	});
+	const sourceFiles: string[] = [];
+
+	for (const sourceFile of project.getSourceFiles(
+		path.join(FRONT_ROOT, 'src/**/*.tsx'),
+	)) {
+		const drawerFormNodes = [
+			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+		];
+
+		for (const node of drawerFormNodes) {
+			const tagName = node.getTagNameNode();
+			let symbol = tagName.getSymbol();
+			if (symbol?.isAlias()) {
+				symbol = symbol.getAliasedSymbol();
+			}
+
+			const isDrawerForm = symbol?.getDeclarations().some((declaration) => {
+				return (
+					symbol?.getName() === 'DrawerForm' &&
+					declaration.getSourceFile().getFilePath() === DRAWER_SOURCE_PATH
+				);
+			});
+			if (isDrawerForm) {
+				sourceFiles.push(
+					path
+						.relative(FRONT_ROOT, sourceFile.getFilePath())
+						.split(path.sep)
+						.join('/'),
+				);
+			}
+		}
+	}
+
+	return sourceFiles.sort();
+};
+
+const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
+	'profile-create': () => {
+		render(
+			<ProfileFormDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={noop}
+				onSaved={noop}
+				onSessionExpired={noop}
+			/>,
+		);
+	},
+	'profile-edit': () => {
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={noop}
+				onSaved={noop}
+				onSessionExpired={noop}
+			/>,
+		);
+	},
+	'tenant-user-invite': () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={noop}
+				onInvited={noop}
+				onSessionExpired={noop}
+			/>,
+		);
+	},
+	'staff-user-email-change': () => {
+		render(
+			<ChangeStaffUserEmailDialog
+				userId="user-1"
+				currentEmail="rui@latticecloud.com"
+				isOpen
+				onOpenChange={noop}
+				onUpdated={noop}
+				onSessionExpired={noop}
+			/>,
+		);
+	},
+};
+
 const expectDrawerFormChain = (testId: string): void => {
 	const surface = screen.getByTestId(testId);
 	expect(surface.className).toContain('publy-drawer');
@@ -171,69 +280,20 @@ const expectDrawerFormChain = (testId: string): void => {
 afterEach(cleanup);
 
 describe('DrawerForm flex chain at the real call sites', () => {
-	test('ProfileFormDrawer keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={noop}
-				onSaved={noop}
-				onSessionExpired={noop}
-			/>,
-		);
+	test('the inventory contains every real DrawerForm JSX call site', () => {
+		const inventoriedSourceFiles = DRAWER_FORM_CALL_SITES.map(
+			(callSite) => callSite.sourceFile,
+		).sort();
 
-		expectDrawerFormChain('profile-form-drawer');
+		expect(findDrawerFormCallSites()).toEqual(inventoriedSourceFiles);
 	});
 
-	test('ProfileEditDetailsDrawer keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
-		render(
-			<ProfileEditDetailsDrawer
-				tenantId="tenant-1"
-				isOpen
-				profile={{
-					id: 'profile-1',
-					name: 'Author',
-					description: 'Draft posts',
-					icon: null,
-					tone: null,
-				}}
-				onOpenChange={noop}
-				onSaved={noop}
-				onSessionExpired={noop}
-			/>,
-		);
-
-		expectDrawerFormChain('profile-edit-details-drawer');
-	});
-
-	test('InviteTenantUserDrawer keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
-		render(
-			<InviteTenantUserDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={noop}
-				onInvited={noop}
-				onSessionExpired={noop}
-			/>,
-		);
-
-		expectDrawerFormChain('invite-tenant-user-drawer');
-	});
-
-	test('ChangeStaffUserEmailDialog keeps DrawerBody + DrawerFooter as direct children of the drawer form', () => {
-		render(
-			<ChangeStaffUserEmailDialog
-				userId="user-1"
-				currentEmail="rui@latticecloud.com"
-				isOpen
-				onOpenChange={noop}
-				onUpdated={noop}
-				onSessionExpired={noop}
-			/>,
-		);
-
-		expectDrawerFormChain('change-staff-user-email-dialog');
-	});
+	for (const callSite of DRAWER_FORM_CALL_SITES) {
+		test(`${callSite.name} keeps DrawerBody + DrawerFooter as direct children of the drawer form`, () => {
+			renderDrawerByCallSiteId[callSite.id]();
+			expectDrawerFormChain(callSite.drawerTestId);
+		});
+	}
 
 	test('app.css gives .publy-drawer-form the flex geometry as the last matching rule', () => {
 		const appCssSource = readFileSync(
