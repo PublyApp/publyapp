@@ -133,7 +133,6 @@
 import { spawn } from 'node:child_process';
 import {
 	existsSync,
-	mkdtempSync,
 	readFileSync,
 	readdirSync,
 	rmSync,
@@ -142,7 +141,6 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { cleanup, render, screen } from '@testing-library/react';
@@ -161,11 +159,6 @@ import {
 	type CaseClause,
 	type CatchClause,
 	type ConditionalExpression,
-	type DoStatement,
-	type FinallyClause,
-	type ForInStatement,
-	type ForOfStatement,
-	type ForStatement,
 	type FunctionDeclaration,
 	type IfStatement,
 	type JsxElement,
@@ -183,7 +176,6 @@ import {
 	type SwitchStatement,
 	type TryStatement,
 	type VariableDeclaration,
-	type WhileStatement,
 } from 'ts-morph';
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
 import { Form } from '~/components/field/form';
@@ -1929,6 +1921,51 @@ export const EarlyReturnCleanDrawerFixture = ({
 );
 `;
 
+// The literal-condition precision control: the executing branch is clean
+// and the branch behind `if (true)` is DEAD — but it is still a violation
+// in the source. Only the literal evaluation keeps the union from
+// reddening the call site with a return that can never execute.
+const TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_FILE =
+	'src/components/ui/_drawer-literal-dead-branch-parts-fixture.tsx';
+const TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_PATH = fixturePath(
+	TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_FILE,
+);
+const TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_SOURCE = `import { DrawerBody } from '~/components/ui/drawer';
+
+export const BranchBody = () => {
+	if (true) {
+		return <DrawerBody />;
+	}
+	return (
+		<div className="p-4">
+			<DrawerBody />
+		</div>
+	);
+};
+`;
+const TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-literal-dead-branch-fixture.tsx';
+const TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_PATH = fixturePath(
+	TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_FILE,
+);
+const TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { BranchBody } from './_drawer-literal-dead-branch-parts-fixture';
+
+export const LiteralDeadBranchDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<BranchBody />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
 // IMPORTANT 3 — the div lives INSIDE the helper file. The call site has a
 // clean surface-to-form link, so ONLY the expansion can see the break.
 const TEMPORARY_CROSSFILE_DIV_IN_HELPER_FILE =
@@ -2530,7 +2567,9 @@ const isReassigned = (
 			SyntaxKind.BinaryExpression,
 		)) {
 			const binaryExpression = binary as BinaryExpression;
-			if (binaryExpression.getOperatorToken() === SyntaxKind.EqualsToken) {
+			if (
+				binaryExpression.getOperatorToken().getKind() === SyntaxKind.EqualsToken
+			) {
 				const left = binaryExpression.getLeft();
 				if (left.getKind() === SyntaxKind.Identifier) {
 					reassigned.add(left.getText());
@@ -2579,6 +2618,7 @@ const resolveMemberAccessName = (
 	declaredNamesByFile: Map<string, Set<string>>,
 	reassignedNamesByFile: Map<string, Set<string>>,
 ): DrawerTagNameResult => {
+	let resolvedBaseName = baseName;
 	if (isLocallyDeclared(sourceFile, baseName, declaredNamesByFile)) {
 		const terminal = resolveLocalBaseChainTerminal(
 			sourceFile,
@@ -2592,9 +2632,9 @@ const resolveMemberAccessName = (
 		if (terminal === UNVERIFIABLE_TAG) {
 			return UNVERIFIABLE_TAG;
 		}
-		baseName = terminal;
+		resolvedBaseName = terminal;
 	}
-	let namespaceSpecifier = resolveNamespaceImport(sourceFile, baseName);
+	let namespaceSpecifier = resolveNamespaceImport(sourceFile, resolvedBaseName);
 	if (!namespaceSpecifier) {
 		// A member-expression base that is a NAMED binding (round 9's
 		// MINOR 3): `import { Drawer } from '...'` where the barrel
@@ -2606,7 +2646,7 @@ const resolveMemberAccessName = (
 			for (const namedImport of declaration.getNamedImports()) {
 				const localName =
 					namedImport.getAliasNode()?.getText() ?? namedImport.getName();
-				if (localName !== baseName) {
+				if (localName !== resolvedBaseName) {
 					continue;
 				}
 				namespaceSpecifier = declaration.getModuleSpecifierValue();
@@ -3417,7 +3457,9 @@ const collectStatementReturns = (
 			const finallyBlock = tryStatement.getFinallyBlock();
 			if (finallyBlock) {
 				const finallyCollected = collectStatementReturns(
-					(finallyBlock as FinallyClause).getBlock().getStatements(),
+					(finallyBlock as unknown as { getBlock(): Block })
+						.getBlock()
+						.getStatements(),
 				);
 				if (finallyCollected === null) {
 					return null;
@@ -3440,7 +3482,7 @@ const collectStatementReturns = (
 			kind === SyntaxKind.DoStatement
 		) {
 			const loopBody = (
-				statement as Node & { getStatement(): Statement }
+				statement as unknown as { getStatement(): Statement }
 			).getStatement();
 			const loopCollected = collectStatementReturns(asStatementList(loopBody));
 			if (loopCollected === null) {
@@ -5698,6 +5740,34 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_NS_BASE_ALIAS_DRAWER_PATH);
+		}
+	});
+
+	test('a return behind a literal-true branch that can never execute does not redden the call site', () => {
+		// The literal-condition precision: the executing branch is clean and
+		// the div-wrapped branch is dead code — the union without the
+		// literal evaluation would redden the call site with a return that
+		// can never execute.
+		writeFileSync(
+			TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_PATH,
+			TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_PATH,
+			TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_PATH);
+			unlinkSync(TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_PATH);
 		}
 	});
 
