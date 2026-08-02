@@ -68,14 +68,22 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
 
 const TEXT_CONTRAST_FLOOR = 4.5;
 const GLYPH_CONTRAST_FLOOR = 3;
-// Per-channel distance between the modelled painted surface and a
-// composited pixel for the pixel cross-check: the model composites
-// browser-reported sRGB values, so the browser's own composited pixel
-// differs by at most a rounding step. And how many pixels INSIDE the glyph
-// area (the text's line boxes, or the painted-glyph region) must show that
-// surface.
+// Ink-level pixel cross-check bounds. The check screenshots the target's
+// box and classifies every pixel INSIDE the glyph area (the text's own line
+// boxes, or the painted-glyph region) against the modelled paint: the
+// modelled surface, the modelled foreground, or a blend of the two (the
+// per-channel interval between them, widened by the antialiasing fuzz the
+// browser's own text edges produce — measured at ±6 on the shipped
+// fixture). Anything else is FOREIGN paint an overlay put there, and a
+// single such pixel fails the guard by name. Bounds, measured on the
+// pristine production fixture across all four theme/viewport legs (text
+// ~31-33% explained, icon ~52%, close glyph ~27%):
 const PIXEL_MATCH_TOLERANCE = 3;
-const PIXEL_MATCH_MIN_COUNT = 16;
+const BLEND_MARGIN = 6;
+const TEXT_EXPLAINED_MAX = 0.4;
+const TEXT_INK_MIN = 0.06;
+const GLYPH_EXPLAINED_MAX = 0.7;
+const GLYPH_INK_MIN = 0.05;
 
 const THEMES = ['light', 'dark'] as const;
 const VARIANTS = ['success', 'error', 'warning', 'info'] as const;
@@ -491,11 +499,21 @@ const readBrowserPaint = async (
 				top: number;
 			};
 			if (style.position === 'absolute') {
+				// An absolutely positioned pseudo's containing block is its
+				// originating element's padding box when that element is
+				// itself positioned, and only otherwise the nearest
+				// positioned ancestor (the offset parent). Round 6 resolved
+				// against the offset parent unconditionally, so a positioned
+				// origin's band painted somewhere else entirely than the
+				// resolved box said.
+				const originPosition = getComputedStyle(layer).position;
 				const offsetParent = (layer as HTMLElement).offsetParent;
 				containing =
-					offsetParent === null
-						? { left: 0, right: innerWidth, top: 0, bottom: innerHeight }
-						: offsetParent.getBoundingClientRect();
+					originPosition !== 'static'
+						? layer.getBoundingClientRect()
+						: offsetParent === null
+							? { left: 0, right: innerWidth, top: 0, bottom: innerHeight }
+							: offsetParent.getBoundingClientRect();
 			} else if (style.position === 'fixed') {
 				containing = {
 					left: 0,
@@ -646,10 +664,22 @@ const readBrowserPaint = async (
 		 * The root record of every chain participates in the root context,
 		 * so two chains can be walked from the outside in; at the first
 		 * divergent record the step decides, then the z-index, then the DOM
-		 * position. A chain that runs out first belongs to the element whose
-		 * own box is the root of the remaining records' context, so the
-		 * remaining paint is above that box's background unless it is
-		 * negative-z.
+		 * position.
+		 *
+		 * When one chain is a proper prefix of the other (all of its records
+		 * matched), the remaining records are all inside the DOM subtree of
+		 * the element whose record just matched. Per the CSS painting
+		 * algorithm a stacking context paints its element's own background
+		 * first and everything else — including negative-z children — after
+		 * it, so the verdict depends on which side holds the deeper records:
+		 * - The overlay's chain still has records: the overlay paints inside
+		 *   the opaque element's own stacking context (or a descendant of
+		 *   it), hence over the surface's background — even at a negative
+		 *   z-index, which the algorithm places between the background and
+		 *   the in-flow content, exactly where it destroys text contrast.
+		 * - The opaque element's chain still has records: the overlay is
+		 *   itself a stacking-context ancestor of the surface, so its
+		 *   background paints below the surface's own background.
 		 */
 		type PaintStep = 'negative' | 'in-flow' | 'positioned-auto' | 'positive';
 		type PaintRecord = {
@@ -817,17 +847,71 @@ const readBrowserPaint = async (
 				return false;
 			}
 			if (aIndex >= 0) {
-				return a[aIndex].step !== 'negative';
+				return true;
 			}
-			return b[bIndex].step === 'negative';
+			return false;
 		};
 
 		const rect = element.getBoundingClientRect();
 		if (rect.width === 0 || rect.height === 0) {
 			throw new Error('Contrast target has no painted box');
 		}
-		const x = rect.left + rect.width / 2;
-		const y = rect.top + rect.height / 2;
+
+		// The area the glyphs actually occupy: the text's own line boxes
+		// (Range rects of every non-empty text node), or the painted shapes'
+		// boxes. The model samples at ITS midpoint — a box midpoint can sit
+		// 100+ px away from where the text is, which is where every paint
+		// that matters would have to reach (round-7 B1), and the click-through
+		// scan and the pixel cross-check intersect the same area.
+		const glyphArea = ((): {
+			bottom: number;
+			left: number;
+			right: number;
+			top: number;
+		} => {
+			const rects: DOMRect[] = [];
+			if (targetKind === 'text') {
+				const textNodes: Node[] = [];
+				const collect = (candidate: Element): void => {
+					for (const node of candidate.childNodes) {
+						if (node.nodeType === Node.TEXT_NODE) {
+							textNodes.push(node);
+						}
+					}
+				};
+				collect(element);
+				for (const descendant of element.querySelectorAll('*')) {
+					collect(descendant);
+				}
+				for (const node of textNodes) {
+					if ((node.textContent ?? '').trim() === '') {
+						continue;
+					}
+					const range = document.createRange();
+					range.selectNodeContents(node);
+					for (const textRect of range.getClientRects()) {
+						rects.push(textRect);
+					}
+				}
+			} else {
+				for (const shape of element.querySelectorAll(
+					'path, circle, ellipse, line, polyline, polygon, rect',
+				)) {
+					rects.push(shape.getBoundingClientRect());
+				}
+			}
+			if (rects.length === 0) {
+				throw new Error(`${elementName(element)} has no resolvable glyph area`);
+			}
+			return {
+				left: Math.min(...rects.map((textRect) => textRect.left)),
+				right: Math.max(...rects.map((textRect) => textRect.right)),
+				top: Math.min(...rects.map((textRect) => textRect.top)),
+				bottom: Math.max(...rects.map((textRect) => textRect.bottom)),
+			};
+		})();
+		const x = glyphArea.left + (glyphArea.right - glyphArea.left) / 2;
+		const y = glyphArea.top + (glyphArea.bottom - glyphArea.top) / 2;
 		const hitStack = document.elementsFromPoint(x, y);
 		const targetIndex = hitStack.indexOf(element);
 		if (targetIndex === -1) {
@@ -1042,59 +1126,8 @@ const readBrowserPaint = async (
 		// other element. Walk the whole DOM unconditionally — not only when
 		// another reading failed — for a click-through element that paints a
 		// background, is stacked at or above the opaque surface and
-		// intersects the area the glyphs actually occupy (the text's line
-		// boxes, or the painted shapes' boxes). Such an element is an
+		// intersects the glyph area computed above. Such an element is an
 		// occlusion the model cannot enumerate; it fails loud by name.
-		const glyphArea = ((): {
-			bottom: number;
-			left: number;
-			right: number;
-			top: number;
-		} => {
-			const rects: DOMRect[] = [];
-			if (targetKind === 'text') {
-				const textNodes: Node[] = [];
-				const collect = (candidate: Element): void => {
-					for (const node of candidate.childNodes) {
-						if (node.nodeType === Node.TEXT_NODE) {
-							textNodes.push(node);
-						}
-					}
-				};
-				collect(element);
-				for (const descendant of element.querySelectorAll('*')) {
-					collect(descendant);
-				}
-				for (const node of textNodes) {
-					if ((node.textContent ?? '').trim() === '') {
-						continue;
-					}
-					const range = document.createRange();
-					range.selectNodeContents(node);
-					for (const rect of range.getClientRects()) {
-						rects.push(rect);
-					}
-				}
-			} else {
-				for (const shape of element.querySelectorAll(
-					'path, circle, ellipse, line, polyline, polygon, rect',
-				)) {
-					rects.push(shape.getBoundingClientRect());
-				}
-			}
-			if (rects.length === 0) {
-				throw new Error(
-					`${elementName(element)} has no resolvable glyph area for the click-through scan`,
-				);
-			}
-			return {
-				left: Math.min(...rects.map((rect) => rect.left)),
-				right: Math.max(...rects.map((rect) => rect.right)),
-				top: Math.min(...rects.map((rect) => rect.top)),
-				bottom: Math.max(...rects.map((rect) => rect.bottom)),
-			};
-		})();
-
 		for (const candidate of document.querySelectorAll('body *')) {
 			const style = getComputedStyle(candidate);
 			if (style.pointerEvents !== 'none') {
@@ -1225,23 +1258,29 @@ const rgbaLabel = ({ r, g, b, a }: Rgba): string =>
  */
 /**
  * The one reading in the guard that does not model the paint: screenshot the
- * target's box, decode it in the page, and require the modelled painted
- * surface to actually be present among the pixels the glyphs occupy — the
- * text's own line boxes (text targets) or the painted-glyph region (glyph
- * targets) — not merely somewhere in the box. A threshold satisfiable by
- * background pixels the text does not touch is not a measurement of
- * contrast. This catches paint that the model cannot see at all — an
- * overlay with `pointer-events: none` is invisible to `elementsFromPoint`
- * by definition, yet paints over the target like any other element — and
- * independently cross-checks the alpha parsing and the inset-shadow
- * geometry. Tolerance is per-channel against the browser-composited pixel;
- * the model's surface and the painted pixel differ by at most a rounding
- * step.
+ * target's box, decode it in the page, and measure the glyphs THEMSELVES —
+ * the pixels inside the text's own line boxes (text targets) or the painted
+ * shapes' boxes (glyph targets). Every pixel in that area must be explained
+ * by the model: the modelled surface, the modelled foreground, or a blend of
+ * the two (the per-channel interval between them, widened by the
+ * antialiasing fuzz the browser's own text edges produce). A pixel that is
+ * none of those is paint an overlay put there, and it fails the guard by
+ * name. Two bounds keep the reading honest at the ends: the explained paint
+ * must not swallow the glyph area (a solid block of any explained colour
+ * would otherwise pass while occluding every glyph — round-7 B1), and it
+ * must not vanish (a block of the surface colour would erase the ink). The
+ * check therefore also cross-checks the alpha parsing and the inset-shadow
+ * geometry, and catches paint the model cannot see at all — an overlay with
+ * `pointer-events: none` is invisible to `elementsFromPoint` by definition,
+ * yet paints over the target like any other element. Tolerance is per-channel
+ * against the browser-composited pixel; the model's surface and the painted
+ * pixel differ by at most a rounding step.
  */
 const assertPaintedSurfaceVisible = async (
 	target: Locator,
 	kind: TargetKind,
 	background: Rgba,
+	foreground: Rgba,
 	label: string,
 ): Promise<void> => {
 	const box = await target.boundingBox();
@@ -1250,7 +1289,19 @@ const assertPaintedSurfaceVisible = async (
 	}
 	const screenshot = await target.screenshot();
 	const report = await target.evaluate(
-		async (element, { background, box, dataUrl, kind, label, tolerance }) => {
+		async (
+			element,
+			{
+				background,
+				blendMargin,
+				box,
+				dataUrl,
+				foreground,
+				kind,
+				label,
+				tolerance,
+			},
+		) => {
 			const base64 = dataUrl.slice('data:image/png;base64,'.length);
 			const binary = atob(base64);
 			const bytes = new Uint8Array(binary.length);
@@ -1269,6 +1320,57 @@ const assertPaintedSurfaceVisible = async (
 			}
 			context.drawImage(bitmap, 0, 0);
 			const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+
+			const glyphArea = ((): {
+				bottom: number;
+				left: number;
+				right: number;
+				top: number;
+			} => {
+				const rects: DOMRect[] = [];
+				if (kind === 'text') {
+					const textNodes: Node[] = [];
+					const collect = (candidate: Element): void => {
+						for (const node of candidate.childNodes) {
+							if (node.nodeType === Node.TEXT_NODE) {
+								textNodes.push(node);
+							}
+						}
+					};
+					collect(element);
+					for (const descendant of element.querySelectorAll('*')) {
+						collect(descendant);
+					}
+					for (const node of textNodes) {
+						if ((node.textContent ?? '').trim() === '') {
+							continue;
+						}
+						const range = document.createRange();
+						range.selectNodeContents(node);
+						for (const textRect of range.getClientRects()) {
+							rects.push(textRect);
+						}
+					}
+				} else {
+					for (const shape of element.querySelectorAll(
+						'path, circle, ellipse, line, polyline, polygon, rect',
+					)) {
+						rects.push(shape.getBoundingClientRect());
+					}
+				}
+				if (rects.length === 0) {
+					throw new Error(
+						`${label} has no text nodes or shapes to delimit its glyph area`,
+					);
+				}
+				return {
+					left: Math.min(...rects.map((textRect) => textRect.left)) - box.x,
+					right: Math.max(...rects.map((textRect) => textRect.right)) - box.x,
+					top: Math.min(...rects.map((textRect) => textRect.top)) - box.y,
+					bottom: Math.max(...rects.map((textRect) => textRect.bottom)) - box.y,
+				};
+			})();
+
 			const isSurface = (x: number, y: number): boolean => {
 				const index = (y * canvas.width + x) * 4;
 				return (
@@ -1277,137 +1379,121 @@ const assertPaintedSurfaceVisible = async (
 					Math.abs(data[index + 2] - background[2]) <= tolerance
 				);
 			};
-			let nearestDistance = Number.POSITIVE_INFINITY;
-			let nearest: [number, number, number] = [0, 0, 0];
-			let minX = Number.POSITIVE_INFINITY;
-			let minY = Number.POSITIVE_INFINITY;
-			let maxX = -1;
-			let maxY = -1;
-			for (let y = 0; y < canvas.height; y += 1) {
-				for (let x = 0; x < canvas.width; x += 1) {
-					const index = (y * canvas.width + x) * 4;
-					const distance = Math.max(
-						Math.abs(data[index] - background[0]),
-						Math.abs(data[index + 1] - background[1]),
-						Math.abs(data[index + 2] - background[2]),
-					);
-					if (distance < nearestDistance) {
-						nearestDistance = distance;
-						nearest = [data[index], data[index + 1], data[index + 2]];
-					}
-					if (distance <= tolerance) {
-						continue;
-					}
-					if (x < minX) {
-						minX = x;
-					}
-					if (x > maxX) {
-						maxX = x;
-					}
-					if (y < minY) {
-						minY = y;
-					}
-					if (y > maxY) {
-						maxY = y;
-					}
-				}
-			}
-			const paintedRegionEmpty = minX === Number.POSITIVE_INFINITY;
-			let glyphArea: {
-				bottom: number;
-				left: number;
-				right: number;
-				top: number;
-			} | null = null;
-			if (kind === 'text') {
-				const textNodes: Node[] = [];
-				const collect = (candidate: Element): void => {
-					for (const node of candidate.childNodes) {
-						if (node.nodeType === Node.TEXT_NODE) {
-							textNodes.push(node);
-						}
-					}
-				};
-				collect(element);
-				for (const descendant of element.querySelectorAll('*')) {
-					collect(descendant);
-				}
-				const rects: DOMRect[] = [];
-				for (const node of textNodes) {
-					if ((node.textContent ?? '').trim() === '') {
-						continue;
-					}
-					const range = document.createRange();
-					range.selectNodeContents(node);
-					for (const rect of range.getClientRects()) {
-						rects.push(rect);
-					}
-				}
-				if (rects.length === 0) {
-					throw new Error(
-						`${label} has no text nodes to delimit its glyph area`,
-					);
-				}
-				glyphArea = {
-					left: Math.min(...rects.map((rect) => rect.left)) - box.x,
-					right: Math.max(...rects.map((rect) => rect.right)) - box.x,
-					top: Math.min(...rects.map((rect) => rect.top)) - box.y,
-					bottom: Math.max(...rects.map((rect) => rect.bottom)) - box.y,
-				};
-			} else if (!paintedRegionEmpty) {
-				glyphArea = { left: minX, right: maxX, top: minY, bottom: maxY };
-			}
-			let surfaceInGlyphArea = 0;
-			let glyphAreaPixels = 0;
-			if (glyphArea) {
+			const isInk = (x: number, y: number): boolean => {
+				const index = (y * canvas.width + x) * 4;
+				return (
+					Math.abs(data[index] - foreground[0]) <= tolerance &&
+					Math.abs(data[index + 1] - foreground[1]) <= tolerance &&
+					Math.abs(data[index + 2] - foreground[2]) <= tolerance
+				);
+			};
+			const isBlend = (x: number, y: number): boolean => {
+				const index = (y * canvas.width + x) * 4;
+				const between = (channel: number, low: number, high: number): boolean =>
+					low - blendMargin <= channel && channel <= high + blendMargin;
+				return (
+					between(
+						data[index],
+						Math.min(foreground[0], background[0]),
+						Math.max(foreground[0], background[0]),
+					) &&
+					between(
+						data[index + 1],
+						Math.min(foreground[1], background[1]),
+						Math.max(foreground[1], background[1]),
+					) &&
+					between(
+						data[index + 2],
+						Math.min(foreground[2], background[2]),
+						Math.max(foreground[2], background[2]),
+					)
+				);
+			};
+
+			let surfacePixels = 0;
+			let inkPixels = 0;
+			let blendPixels = 0;
+			let foreignPixels = 0;
+			let total = 0;
+			let firstForeign: [number, number, number] | undefined;
+			for (
+				let y = Math.floor(glyphArea.top);
+				y <= Math.ceil(glyphArea.bottom);
+				y += 1
+			) {
 				for (
-					let y = Math.floor(glyphArea.top);
-					y <= Math.ceil(glyphArea.bottom);
-					y += 1
+					let x = Math.floor(glyphArea.left);
+					x <= Math.ceil(glyphArea.right);
+					x += 1
 				) {
-					for (
-						let x = Math.floor(glyphArea.left);
-						x <= Math.ceil(glyphArea.right);
-						x += 1
-					) {
-						if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
-							continue;
-						}
-						glyphAreaPixels += 1;
-						if (isSurface(x, y)) {
-							surfaceInGlyphArea += 1;
-						}
+					if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+						continue;
+					}
+					total += 1;
+					const index = (y * canvas.width + x) * 4;
+					if (isSurface(x, y)) {
+						surfacePixels += 1;
+					} else if (isInk(x, y)) {
+						inkPixels += 1;
+					} else if (isBlend(x, y)) {
+						blendPixels += 1;
+					} else {
+						foreignPixels += 1;
+						firstForeign ??= [data[index], data[index + 1], data[index + 2]];
 					}
 				}
 			}
 			return {
-				glyphAreaPixels,
-				nearest,
-				nearestDistance,
-				paintedRegionEmpty,
-				surfaceInGlyphArea,
+				blendPixels,
+				foreignPixels,
+				firstForeign,
+				glyphArea,
+				inkPixels,
+				surfacePixels,
+				total,
 			};
 		},
 		{
 			background: [background.r, background.g, background.b],
+			blendMargin: BLEND_MARGIN,
 			box: { x: box.x, y: box.y },
 			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			foreground: [foreground.r, foreground.g, foreground.b],
 			kind,
 			label,
 			tolerance: PIXEL_MATCH_TOLERANCE,
 		},
 	);
-	if (report.paintedRegionEmpty) {
+	if (report.total === 0) {
+		throw new Error(`${label}: the glyph area contains no pixels to measure`);
+	}
+	if (report.foreignPixels > 0) {
 		throw new Error(
-			`${label}: no painted glyphs found in the box — the modelled surface ${rgbaLabel(background)} fills every pixel`,
+			`${label}: the glyph area contains ${report.foreignPixels} pixel(s) of paint ` +
+				`the model did not produce — neither the modelled surface ${rgbaLabel(background)} ` +
+				`nor the modelled text colour ${rgbaLabel(foreground)} nor a blend of the two ` +
+				`(nearest foreign colour rgb(${report.firstForeign?.join(', ') ?? '?'}))`,
 		);
 	}
-	if (report.surfaceInGlyphArea < PIXEL_MATCH_MIN_COUNT) {
+	const explainedFraction =
+		(report.inkPixels + report.blendPixels) / report.total;
+	const maxFraction =
+		kind === 'text' ? TEXT_EXPLAINED_MAX : GLYPH_EXPLAINED_MAX;
+	const minFraction = kind === 'text' ? TEXT_INK_MIN : GLYPH_INK_MIN;
+	if (explainedFraction < minFraction) {
 		throw new Error(
-			`${label}: modelled painted surface ${rgbaLabel(background)} is absent from the glyph area ` +
-				`(nearest painted colour rgb(${report.nearest.join(', ')}), channel distance ` +
-				`${report.nearestDistance}, ${report.surfaceInGlyphArea}/${report.glyphAreaPixels} ` +
-				`surface pixels inside the glyph area)`,
+			`${label}: no legible glyph ink in the glyph area — only ` +
+				`${explainedFraction.toFixed(3)} of ${report.total} glyph-area pixels are ` +
+				`explained paint (surface ${report.surfacePixels}, ink ${report.inkPixels}, ` +
+				`blends ${report.blendPixels}) — the text may be painted over by the surface colour`,
+		);
+	}
+	if (explainedFraction > maxFraction) {
+		throw new Error(
+			`${label}: ${explainedFraction.toFixed(3)} of ${report.total} glyph-area pixels ` +
+				`are explained paint — a solid block of an explained colour (surface, text ` +
+				`colour or a blend) is covering the glyphs (ink ${report.inkPixels}, blends ` +
+				`${report.blendPixels}, surface ${report.surfacePixels})`,
 		);
 	}
 };
@@ -1431,6 +1517,7 @@ const measureToastTarget = async ({
 		target,
 		kind,
 		measurement.background,
+		measurement.foreground,
 		label,
 	);
 	const description =
@@ -1715,6 +1802,30 @@ test('a pseudo-element painted behind the toast stays measured', async ({
 	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
 });
 
+/**
+ * The paired red side of the paint-order rule (round-7 B2): a `z-index: -1`
+ * pseudo on a DESCENDANT of the opaque surface — the title's own `::before`
+ * here — paints over that surface's background, because the CSS painting
+ * algorithm stacks negative-z children after the context element's own
+ * background. The round-6 rule classified that paint as "behind" and
+ * skipped it, so a red decoration over the toast's own text measured the
+ * un-painted surface at 15.64:1. The green side is the test above, whose
+ * negative-z decoration sits on an ANCESTOR of the surface.
+ */
+test('a negative-z pseudo-element over the toast text fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			".publy-toast-title { position: relative; } .publy-toast-title::before { content: ''; position: absolute; left: 0; top: 5px; width: 46px; height: 11px; background: rgb(255 0 0); pointer-events: none; z-index: -1; }",
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+	).rejects.toThrow(/paints a background over the sampled point/);
+});
+
 test('an edge accent stripe on the toast stays measured', async ({ page }) => {
 	await openToastFixture(page, 'light', VIEWPORTS[0]);
 	await page.addStyleTag({
@@ -1760,6 +1871,49 @@ test('a click-through overlay painted behind the toast stays measured', async ({
 	await page.addStyleTag({
 		content:
 			"[data-testid='field-validation-title'] { position: fixed; top: 31px; right: 117px; width: 220px; height: 40px; background: var(--publy-foreground); color: transparent; pointer-events: none; z-index: -1; }",
+	});
+	const toast = await renderToast(page, 'success');
+	const measurement = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+	);
+	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
+});
+
+/**
+ * Paired proof for the glyph-area sampling and the ink-level pixel check
+ * (round-7 B1): the exact round-7 occlusion — the fixture's own real h1,
+ * hit-testable (so the click-through scan skips it), painted in the
+ * foreground colour, covering the title's ink rows but not the box
+ * midpoint — must fail the guard. It reds by name: the model samples at
+ * the ink, where the text actually is, so the overlay sits in the hit
+ * stack of the measured point. The pair's green side places the same
+ * overlay over the box's right half — exactly where the old
+ * box-midpoint sample used to sit — and the title still measures.
+ */
+test('a hit-testable overlay over the glyphs fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			"@media (min-width: 1000px) { [data-testid='field-validation-title'] { position: fixed; top: 35px; left: 943px; width: 46px; height: 12px; overflow: hidden; background: var(--publy-foreground); color: transparent; z-index: 2147483647; } }",
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+	).rejects.toThrow(
+		/field-validation-title unexpectedly paints above contrast target/,
+	);
+});
+
+test('a hit-testable overlay away from the glyphs stays measured', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			"[data-testid='field-validation-title'] { position: fixed; top: 31px; left: 1096px; width: 153px; height: 20px; overflow: hidden; background: var(--publy-foreground); color: transparent; z-index: 2147483647; }",
 	});
 	const toast = await renderToast(page, 'success');
 	const measurement = await measureContrast(
