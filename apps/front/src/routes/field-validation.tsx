@@ -20,6 +20,7 @@ import {
 import { Textarea } from '~/components/ui/textarea';
 import { toastVariantClassNames } from '~/components/ui/toast-variants';
 import { FEATURES } from '~/lib/flags';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { toastLocalMutationResult } from '~/lib/mutation-toast';
 
 type FieldValidationValues = {
@@ -38,6 +39,7 @@ const toastContrastFixtures = (
 
 const FieldValidationRoute = () => {
 	const { t } = useTranslation('common');
+	const isHydrated = useHydrated();
 	const resolver = zodResolver(
 		z.object({
 			email: z.string().email(),
@@ -69,7 +71,11 @@ const FieldValidationRoute = () => {
 			>
 				{t('field-validation-demo')}
 			</h1>
-			<Card className="space-y-3 p-4" data-testid="toast-contrast-fixture">
+			<Card
+				className="space-y-3 p-4"
+				data-testid="toast-contrast-fixture"
+				data-hydrated={isHydrated || undefined}
+			>
 				<p className="text-sm font-medium">{t('field-validation-demo')}</p>
 				<div className="flex flex-wrap gap-2">
 					{toastContrastFixtures.map((type) => (

@@ -1502,7 +1502,15 @@ const openToastFixture = async (
 		height: viewport.height,
 	});
 	await page.goto('/field-validation');
-	await expect(page.getByTestId('toast-contrast-fixture')).toBeVisible();
+	// The fixture renders server-side, so `toast-contrast-fixture` is visible
+	// before React has attached the raise handlers — a click in that window
+	// raises no toast at all, which reds the first `renderToast` of every
+	// leg for reasons unrelated to contrast (round-7 IMPORTANT I1). Wait on
+	// the fixture's own `data-hydrated` attribute, which the page sets in a
+	// post-hydration effect, before the first click.
+	const fixture = page.getByTestId('toast-contrast-fixture');
+	await expect(fixture).toBeVisible();
+	await expect(fixture).toHaveAttribute('data-hydrated', 'true');
 	await setTheme(page, theme);
 };
 
