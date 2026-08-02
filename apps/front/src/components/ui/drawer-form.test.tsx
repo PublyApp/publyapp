@@ -2740,6 +2740,224 @@ export const DestructuredDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 20 fixtures.
+//
+// Round 19's review (`.dump/review-r19.md`) filed two BLOCKERs against the
+// round-18 resolution — the fail-closed terminal is only as closed as the
+// paths that reach it:
+//
+//  - BLOCKER 1: the intrinsic-element cut read `/^[a-z]/` against the WHOLE
+//    tag text, so a lowercase-leading DOTTED tag — `<kit.Surface>` — was
+//    read as an intrinsic DOM element ("definitely not a drawer") even
+//    though a dotted tag is a value expression regardless of case. The
+//    repo already writes the shape: `icon-color-picker.tsx` renders
+//    `<option.Icon />` and `<activeIconOption.Icon />`.
+//  - BLOCKER 2: the checker resolves the member of a TYPE-ANNOTATED object
+//    literal to the type's PropertySignature — never to the literal's
+//    PropertyAssignment — and that kind sat in the definite-non-drawer
+//    allowlist, so `const KIT: DrawerKit = {...}` resolved every marker to
+//    null with the exact #990 break green. A type-side member is followed
+//    to its value side (the annotated object literal's own property); a
+//    value side the scan cannot read is UNVERIFIABLE.
+//
+// Each shape gets a broken fixture (the exact #990 div) and a clean
+// control, plus the paired-proof fixture that keeps the shipped
+// `option.Icon` shape from becoming a false positive.
+// ---------------------------------------------------------------------------
+
+// BLOCKER 1 (review-r19), verbatim spelling: an UNANNOTATED lowercase
+// component map. The dotted tags are value expressions; only the
+// intrinsic cut read them as DOM elements. Without the round-20 fix every
+// marker resolves null and the file is never even discovered — the #990
+// div between the surface and the form ships green.
+const TEMPORARY_DOTTED_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r20-dotted-kit-fixture.tsx';
+const TEMPORARY_DOTTED_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_DOTTED_KIT_DRAWER_FILE,
+);
+const TEMPORARY_DOTTED_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const kit = {
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+};
+
+export const DottedKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<kit.Surface data-testid="r20-dotted-kit">
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer>
+					<button type="submit" />
+				</kit.Footer>
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r20-dotted-kit-clean-fixture.tsx';
+const TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const kit = {
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+};
+
+export const DottedKitCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<kit.Surface data-testid="r20-dotted-kit-clean">
+		<kit.Form methods={methods}>
+			<kit.Body />
+			<kit.Footer>
+				<button type="submit" />
+			</kit.Footer>
+		</kit.Form>
+	</kit.Surface>
+);
+`;
+
+// BLOCKER 2 (review-r19), verbatim: a TYPE-ANNOTATED component map whose
+// markers are local aliases of `KIT.Surface`-style members. The checker
+// resolves the member to the type's PropertySignature; only the value-side
+// walk reaches the annotated object literal and then the drawer module.
+const TEMPORARY_PROPSIG_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r20-propsig-fixture.tsx';
+const TEMPORARY_PROPSIG_DRAWER_PATH = fixturePath(
+	TEMPORARY_PROPSIG_DRAWER_FILE,
+);
+const TEMPORARY_PROPSIG_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const KIT: DrawerKit = {
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+};
+
+const Surface = KIT.Surface;
+const Form = KIT.Form;
+const Body = KIT.Body;
+const Footer = KIT.Footer;
+
+export const PropSigDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Surface data-testid="r20-propsig">
+		<div className="p-4">
+			<Form methods={methods}>
+				<Body />
+				<Footer>
+					<button type="submit" />
+				</Footer>
+			</Form>
+		</div>
+	</Surface>
+);
+`;
+
+const TEMPORARY_PROPSIG_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r20-propsig-clean-fixture.tsx';
+const TEMPORARY_PROPSIG_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_PROPSIG_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_PROPSIG_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const KIT: DrawerKit = {
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+};
+
+const Surface = KIT.Surface;
+const Form = KIT.Form;
+const Body = KIT.Body;
+const Footer = KIT.Footer;
+
+export const PropSigCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Surface data-testid="r20-propsig-clean">
+		<Form methods={methods}>
+			<Body />
+			<Footer>
+				<button type="submit" />
+			</Footer>
+		</Form>
+	</Surface>
+);
+`;
+
+// The paired proof (BLOCKER 1's note): `<option.Icon />`-shaped tags —
+// a member of a TYPED `.map` callback parameter — must not false-positive
+// a shipped file. The member resolves to the parameter type's
+// PropertySignature; the base `option` is a definite local value (a
+// parameter — round 19's BLOCKER 1 paired proof), so the member is a
+// definite non-drawer. The shipped `app-shell.tsx` renders the harder
+// variant — `const Icon = item.Icon` with `item` a typed prop, inside a
+// file that imports the drawer module — and the shipped-file checks
+// below pin it end to end.
+const TEMPORARY_MEMBER_OF_PARAMETER_FILE =
+	'src/components/ui/_drawer-surface-r20-member-of-parameter-fixture.tsx';
+const TEMPORARY_MEMBER_OF_PARAMETER_PATH = fixturePath(
+	TEMPORARY_MEMBER_OF_PARAMETER_FILE,
+);
+const TEMPORARY_MEMBER_OF_PARAMETER_SOURCE = `import type { ComponentType } from 'react';
+
+const IconOne = () => <svg aria-hidden="true" />;
+
+type IconOption = { Icon: ComponentType };
+
+const options: IconOption[] = [{ Icon: IconOne }];
+
+export const MemberOfParameterFixture = () => (
+	<div>
+		{options.map((option) => (
+			<option.Icon aria-hidden="true" />
+		))}
+	</div>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -3014,6 +3232,26 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_DESTRUCTURED_DRAWER_FILE,
 		source: TEMPORARY_DESTRUCTURED_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_DOTTED_KIT_DRAWER_FILE,
+		source: TEMPORARY_DOTTED_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_PROPSIG_DRAWER_FILE,
+		source: TEMPORARY_PROPSIG_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_PROPSIG_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_PROPSIG_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_MEMBER_OF_PARAMETER_FILE,
+		source: TEMPORARY_MEMBER_OF_PARAMETER_SOURCE,
 	},
 ];
 
@@ -6658,13 +6896,48 @@ describe('drawer surface flex chain guard (#990)', () => {
 		// carries the declaration, so the member value must come from the
 		// checker's shorthand value symbol. Without that branch the four
 		// members resolve null and the #990 div between the surface and the
-		// form ships green.
+		// form ships green. The scan-level assertions alone would stay green
+		// through the UNVERIFIABLE terminal (round 19's MINOR 3: the named
+		// branch never forced the red), so the resolved marker NAMES are
+		// asserted directly — the test dies exactly when the shorthand
+		// branch dies.
 		writeFileSync(
 			TEMPORARY_SHORTHAND_MAP_DRAWER_PATH,
 			TEMPORARY_SHORTHAND_MAP_DRAWER_SOURCE,
 		);
 
 		try {
+			const project = getScanProject();
+			const sourceFile = project.getSourceFile(
+				fixturePath(TEMPORARY_SHORTHAND_MAP_DRAWER_FILE),
+			);
+			if (!sourceFile) {
+				throw new Error(
+					`shorthand fixture not loaded: ${TEMPORARY_SHORTHAND_MAP_DRAWER_FILE}`,
+				);
+			}
+			const reassignedNamesByFile = new Map<string, Set<string>>();
+			const resolvedByTagText = new Map<string, DrawerTagNameResult>();
+			for (const node of [
+				...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+				...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+			]) {
+				resolvedByTagText.set(
+					node.getTagNameNode().getText(),
+					resolveDrawerTagName(
+						node.getTagNameNode(),
+						project,
+						reassignedNamesByFile,
+					),
+				);
+			}
+			expect(resolvedByTagText.get('Parts.DrawerContent')).toBe(
+				'DrawerContent',
+			);
+			expect(resolvedByTagText.get('Parts.DrawerForm')).toBe('DrawerForm');
+			expect(resolvedByTagText.get('Parts.DrawerBody')).toBe('DrawerBody');
+			expect(resolvedByTagText.get('Parts.DrawerFooter')).toBe('DrawerFooter');
+
 			const scan = scanDrawerSurfaces();
 			expect(scan.discovered).toContain(
 				fixtureRel(TEMPORARY_SHORTHAND_MAP_DRAWER_FILE),
@@ -6804,6 +7077,136 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_DESTRUCTURED_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose parts resolve through a LOWERCASE dotted component map is discovered and rejected', () => {
+		// Round 19's BLOCKER 1, verbatim: `const kit = { Surface:
+		// DrawerContent, ... }` + `<kit.Surface>` — the intrinsic-element
+		// cut read `/^[a-z]/` against the whole dotted text, so every
+		// marker resolved to a definite null and the file was never even
+		// discovered: the #990 div between the surface and the form ships
+		// green. The fixture is UNANNOTATED so only the dotted-tag
+		// resolution can discover it — the type-annotation escape is
+		// round 19's BLOCKER 2's own fixture below.
+		writeFileSync(
+			TEMPORARY_DOTTED_KIT_DRAWER_PATH,
+			TEMPORARY_DOTTED_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_DOTTED_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_DOTTED_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_DOTTED_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('the same lowercase dotted component map with a clean surface-to-form link stays green', () => {
+		// The control for the dotted-kit shape: resolution must make the
+		// file ANCHORED, and the clean arrangement must survive the walk —
+		// the branch exists so the default red is not the only possible
+		// red (killing the dotted-tag resolution makes every marker
+		// unverifiable and this perfect drawer reddens).
+		writeFileSync(
+			TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_PATH,
+			TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_DOTTED_KIT_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose parts resolve through a TYPE-ANNOTATED component map is discovered and rejected', () => {
+		// Round 19's BLOCKER 2, verbatim: `const KIT: DrawerKit = {...}`
+		// with the markers aliased through `const Surface = KIT.Surface;`.
+		// The checker resolves the member to the TYPE's PropertySignature —
+		// a kind round 18's allowlist read as "definitely not a drawer" —
+		// so the initializer recursion never ran and the #990 div between
+		// the surface and the form shipped green. The value-side walk must
+		// reach the annotated object literal's own property.
+		writeFileSync(
+			TEMPORARY_PROPSIG_DRAWER_PATH,
+			TEMPORARY_PROPSIG_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_PROPSIG_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_PROPSIG_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_PROPSIG_DRAWER_PATH);
+		}
+	});
+
+	test('the same type-annotated component map with a clean surface-to-form link stays green', () => {
+		// The control for the value-side walk: only the walk's resolution
+		// keeps this perfect drawer green. Restore the round-19 allowlist
+		// (type-side member means null) and the file loses its anchors; cut
+		// the walk but keep the fail-closed terminal (type-side member
+		// means UNVERIFIABLE) and the unverifiable markers redden it —
+		// either way this exact file dies.
+		writeFileSync(
+			TEMPORARY_PROPSIG_CLEAN_DRAWER_PATH,
+			TEMPORARY_PROPSIG_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_PROPSIG_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_PROPSIG_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_PROPSIG_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a member-expression tag on a typed callback parameter is not a drawer signal', () => {
+		// Round 19's BLOCKER 1 paired proof, verbatim shape: `<option.Icon
+		// />` — a member of a TYPED `.map` callback parameter. Its member
+		// symbol is the parameter type's PropertySignature; the base
+		// `option` is a definite local value, so the member is a definite
+		// non-drawer — deleting that classification makes it unverifiable,
+		// and in a file that imports the drawer module (the shipped
+		// `app-shell.tsx` — `const Icon = item.Icon` with `item` a typed
+		// prop — is exactly this shape) that reddens the shipped-file
+		// checks below.
+		writeFileSync(
+			TEMPORARY_MEMBER_OF_PARAMETER_PATH,
+			TEMPORARY_MEMBER_OF_PARAMETER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_MEMBER_OF_PARAMETER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_MEMBER_OF_PARAMETER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_MEMBER_OF_PARAMETER_PATH);
 		}
 	});
 
