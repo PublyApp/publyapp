@@ -102,7 +102,16 @@
  * IMPORTANT 1).
  */
 
-import { readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	unlinkSync,
+	writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { cleanup, render, screen } from '@testing-library/react';
@@ -120,7 +129,7 @@ import {
 	type Node,
 	type SourceFile,
 } from 'ts-morph';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
 import { Form } from '~/components/field/form';
 
 import {
@@ -248,6 +257,30 @@ const DRAWER_MODULE_RELATIVE_PATH = 'src/components/ui/drawer.tsx';
 const DRAWER_MODULE_PATH = path.join(FRONT_ROOT, DRAWER_MODULE_RELATIVE_PATH);
 const RE_EXPORT_CHAIN_DEPTH_LIMIT = 6;
 
+// Round 11's IMPORTANT 3: the fixture files must NOT live under
+// `apps/front/src`. The guard writes and deletes them mid-suite, and a
+// parallel src-wide scanner (i18n-key-coverage.test.ts) lists src files and
+// then reads each one — a fixture deleted between the list and the read is
+// an ENOENT that reddens an innocent suite (reproduced at HEAD in round 11:
+// five i18n tests red). They live in a per-run temp directory instead,
+// created once here and removed on every exit path: the afterAll below, plus
+// a synchronous process 'exit' net so a crashed or failed run still cleans
+// up (a sibling guard leaked 60,000 /tmp directories once; this directory
+// must never do the same).
+const FIXTURE_TMP_DIR = mkdtempSync(path.join(tmpdir(), 'publy-drawer-guard-'));
+process.on('exit', () => {
+	rmSync(FIXTURE_TMP_DIR, { recursive: true, force: true });
+});
+
+// Maps a fixture's logical `src/components/ui/...` name (used in the SOURCE
+// constants below) to its actual temp-directory path, and to the portable
+// FRONT_ROOT-relative path the scan reports — the assertions compare against
+// `fixtureRel(...)`, never against the logical name.
+const fixturePath = (logicalFile: string): string =>
+	path.join(FIXTURE_TMP_DIR, path.basename(logicalFile));
+const fixtureRel = (logicalFile: string): string =>
+	toPortableSourcePath(fixturePath(logicalFile));
+
 // React wrappers that render no DOM node of their own; the wrapper walk
 // treats them as transparent (see isNodelessReactWrapper).
 const NODELESS_REACT_WRAPPER_NAMES = new Set([
@@ -258,10 +291,7 @@ const NODELESS_REACT_WRAPPER_NAMES = new Set([
 
 const TEMPORARY_NEW_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-new-fixture.tsx';
-const TEMPORARY_NEW_DRAWER_PATH = path.join(
-	FRONT_ROOT,
-	TEMPORARY_NEW_DRAWER_FILE,
-);
+const TEMPORARY_NEW_DRAWER_PATH = fixturePath(TEMPORARY_NEW_DRAWER_FILE);
 const TEMPORARY_NEW_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
 
 import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
@@ -280,8 +310,7 @@ export const NewDrawerFixture = ({
 
 const TEMPORARY_ALIASED_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-aliased-fixture.tsx';
-const TEMPORARY_ALIASED_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_ALIASED_DRAWER_PATH = fixturePath(
 	TEMPORARY_ALIASED_DRAWER_FILE,
 );
 const TEMPORARY_ALIASED_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -303,19 +332,18 @@ export const AliasedDrawerFixture = ({
 
 const TEMPORARY_BARREL_FILE =
 	'src/components/ui/_drawer-form-barrel-fixture.ts';
-const TEMPORARY_BARREL_PATH = path.join(FRONT_ROOT, TEMPORARY_BARREL_FILE);
-const TEMPORARY_BARREL_SOURCE = `export { DrawerForm } from './drawer';
+const TEMPORARY_BARREL_PATH = fixturePath(TEMPORARY_BARREL_FILE);
+const TEMPORARY_BARREL_SOURCE = `export { DrawerForm } from '~/components/ui/drawer';
 `;
 const TEMPORARY_BARREL_CALL_SITE_FILE =
 	'src/components/ui/_drawer-surface-barrel-fixture.tsx';
-const TEMPORARY_BARREL_CALL_SITE_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_BARREL_CALL_SITE_PATH = fixturePath(
 	TEMPORARY_BARREL_CALL_SITE_FILE,
 );
 const TEMPORARY_BARREL_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
 
 import { DrawerBody, DrawerFooter } from '~/components/ui/drawer';
-import { DrawerForm } from '~/components/ui/_drawer-form-barrel-fixture';
+import { DrawerForm } from './_drawer-form-barrel-fixture';
 
 export const BarrelDrawerFixture = ({
 	methods,
@@ -331,8 +359,7 @@ export const BarrelDrawerFixture = ({
 
 const TEMPORARY_NAMESPACE_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-namespace-fixture.tsx';
-const TEMPORARY_NAMESPACE_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_NAMESPACE_DRAWER_PATH = fixturePath(
 	TEMPORARY_NAMESPACE_DRAWER_FILE,
 );
 const TEMPORARY_NAMESPACE_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -353,8 +380,7 @@ export const NamespaceDrawerFixture = ({
 
 const TEMPORARY_REGRESSED_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-regressed-fixture.tsx';
-const TEMPORARY_REGRESSED_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_REGRESSED_DRAWER_PATH = fixturePath(
 	TEMPORARY_REGRESSED_DRAWER_FILE,
 );
 // Reproduces the exact #990 shape: DrawerBody + DrawerFooter wrapped in the
@@ -398,8 +424,7 @@ export const RegressedDrawerFixture = ({
 // machinery as the wrapper check.
 const TEMPORARY_ALIASED_PARTS_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-aliased-parts-fixture.tsx';
-const TEMPORARY_ALIASED_PARTS_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_ALIASED_PARTS_DRAWER_PATH = fixturePath(
 	TEMPORARY_ALIASED_PARTS_DRAWER_FILE,
 );
 const TEMPORARY_ALIASED_PARTS_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -441,22 +466,20 @@ export const AliasedPartsRegressedDrawerFixture = ({
 // module.
 const TEMPORARY_ALIASED_BARREL_PARTS_FILE =
 	'src/components/ui/_drawer-parts-aliased-barrel-fixture.ts';
-const TEMPORARY_ALIASED_BARREL_PARTS_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_ALIASED_BARREL_PARTS_PATH = fixturePath(
 	TEMPORARY_ALIASED_BARREL_PARTS_FILE,
 );
-const TEMPORARY_ALIASED_BARREL_PARTS_SOURCE = `export { DrawerBody as Body, DrawerFooter as Footer } from './drawer';
+const TEMPORARY_ALIASED_BARREL_PARTS_SOURCE = `export { DrawerBody as Body, DrawerFooter as Footer } from '~/components/ui/drawer';
 `;
 const TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE =
 	'src/components/ui/_drawer-surface-aliased-barrel-parts-fixture.tsx';
-const TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_PATH = fixturePath(
 	TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE,
 );
 const TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { Form } from '~/components/field';
 import { DrawerContent, DrawerHeader, DrawerTitle } from '~/components/ui/drawer';
-import { Body, Footer } from '~/components/ui/_drawer-parts-aliased-barrel-fixture';
+import { Body, Footer } from './_drawer-parts-aliased-barrel-fixture';
 
 export const AliasedBarrelPartsDrawerFixture = ({
 	methods,
@@ -479,8 +502,7 @@ export const AliasedBarrelPartsDrawerFixture = ({
 
 const TEMPORARY_LOCAL_SHADOW_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-local-shadow-fixture.tsx';
-const TEMPORARY_LOCAL_SHADOW_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_LOCAL_SHADOW_DRAWER_PATH = fixturePath(
 	TEMPORARY_LOCAL_SHADOW_DRAWER_FILE,
 );
 const TEMPORARY_LOCAL_SHADOW_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -504,8 +526,7 @@ export const LocalShadowDrawerFixture = ({
 
 const TEMPORARY_UNRESOLVED_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-unresolved-fixture.tsx';
-const TEMPORARY_UNRESOLVED_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_UNRESOLVED_DRAWER_PATH = fixturePath(
 	TEMPORARY_UNRESOLVED_DRAWER_FILE,
 );
 const TEMPORARY_UNRESOLVED_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -527,8 +548,7 @@ export const UnresolvedDrawerFixture = ({
 
 const TEMPORARY_BARE_WRAPPER_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-bare-fixture.tsx';
-const TEMPORARY_BARE_WRAPPER_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_BARE_WRAPPER_DRAWER_PATH = fixturePath(
 	TEMPORARY_BARE_WRAPPER_DRAWER_FILE,
 );
 // A wrapper that is neither imported nor declared anywhere in the file is
@@ -550,8 +570,7 @@ export const BareWrapperDrawerFixture = ({
 
 const TEMPORARY_CONDITIONAL_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-conditional-fixture.tsx';
-const TEMPORARY_CONDITIONAL_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_CONDITIONAL_DRAWER_PATH = fixturePath(
 	TEMPORARY_CONDITIONAL_DRAWER_FILE,
 );
 // A conditional body is still a DIRECT child of the form in the DOM — the
@@ -581,8 +600,7 @@ export const ConditionalDrawerFixture = ({
 // the same class.
 const TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-nodeless-wrappers-fixture.tsx';
-const TEMPORARY_NODELESS_WRAPPERS_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_NODELESS_WRAPPERS_DRAWER_PATH = fixturePath(
 	TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE,
 );
 const TEMPORARY_NODELESS_WRAPPERS_DRAWER_SOURCE = `import { Fragment, Suspense } from 'react';
@@ -616,8 +634,7 @@ export const NodelessWrappersDrawerFixture = ({
 // judged — the walk then finds that element).
 const TEMPORARY_DEFINITION_HELPER_FILE =
 	'src/components/ui/_drawer-section-body-fixture.tsx';
-const TEMPORARY_DEFINITION_HELPER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_DEFINITION_HELPER_PATH = fixturePath(
 	TEMPORARY_DEFINITION_HELPER_FILE,
 );
 const TEMPORARY_DEFINITION_HELPER_SOURCE = `import type { ReactNode } from 'react';
@@ -634,8 +651,7 @@ export const DrawerSectionBody = ({ children }: { children: ReactNode }) => (
 // element wrappers are not.
 const TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-div-wrapped-parts-fixture.tsx';
-const TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_PATH = fixturePath(
 	TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE,
 );
 const TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -664,8 +680,7 @@ export const DivWrappedPartsDrawerFixture = ({
 // every part tag has a legal wrapper.
 const TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-div-above-form-fixture.tsx';
-const TEMPORARY_DIV_ABOVE_FORM_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_DIV_ABOVE_FORM_DRAWER_PATH = fixturePath(
 	TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE,
 );
 const TEMPORARY_DIV_ABOVE_FORM_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -712,8 +727,7 @@ export const DivAboveFormDrawerFixture = ({
 // surface-to-form link.
 const TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-helper-hidden-div-above-form-fixture.tsx';
-const TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_PATH = fixturePath(
 	TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
 );
 const TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
@@ -763,8 +777,7 @@ export const HelperHiddenDivAboveFormDrawerFixture = ({
 // the wrapped body looks like a direct form child).
 const TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-fake-suspense-fixture.tsx';
-const TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH = fixturePath(
 	TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE,
 );
 const TEMPORARY_FAKE_SUSPENSE_DRAWER_SOURCE = `import type { ReactNode } from 'react';
@@ -798,21 +811,17 @@ export const FakeSuspenseDrawerFixture = ({
 // `export * as` hop must forward the member lookup to the drawer module.
 const TEMPORARY_NS_BARREL_FILE =
 	'src/components/ui/_drawer-ns-barrel-fixture.ts';
-const TEMPORARY_NS_BARREL_PATH = path.join(
-	FRONT_ROOT,
-	TEMPORARY_NS_BARREL_FILE,
-);
-const TEMPORARY_NS_BARREL_SOURCE = `export * as Drawer from './drawer';
+const TEMPORARY_NS_BARREL_PATH = fixturePath(TEMPORARY_NS_BARREL_FILE);
+const TEMPORARY_NS_BARREL_SOURCE = `export * as Drawer from '~/components/ui/drawer';
 `;
 const TEMPORARY_NS_BARREL_CALL_SITE_FILE =
 	'src/components/ui/_drawer-surface-ns-barrel-parts-fixture.tsx';
-const TEMPORARY_NS_BARREL_CALL_SITE_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_NS_BARREL_CALL_SITE_PATH = fixturePath(
 	TEMPORARY_NS_BARREL_CALL_SITE_FILE,
 );
 const TEMPORARY_NS_BARREL_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
 import { Form } from '~/components/field';
-import { Drawer } from '~/components/ui/_drawer-ns-barrel-fixture';
+import { Drawer } from './_drawer-ns-barrel-fixture';
 
 export const NsBarrelPartsDrawerFixture = ({
 	methods,
@@ -835,8 +844,7 @@ export const NsBarrelPartsDrawerFixture = ({
 // inventory). This fixture pins the footer half the same way.
 const TEMPORARY_FOOTER_ONLY_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-footer-only-fixture.tsx';
-const TEMPORARY_FOOTER_ONLY_DRAWER_PATH = path.join(
-	FRONT_ROOT,
+const TEMPORARY_FOOTER_ONLY_DRAWER_PATH = fixturePath(
 	TEMPORARY_FOOTER_ONLY_DRAWER_FILE,
 );
 const TEMPORARY_FOOTER_ONLY_DRAWER_SOURCE = `import { DrawerContent, DrawerFooter } from '~/components/ui/drawer';
@@ -899,6 +907,10 @@ const walkSrcTsxFiles = (): string[] => {
 		}
 	};
 	walk(path.join(FRONT_ROOT, 'src'));
+	// Fixtures live in a per-run temp directory outside src (round 11's
+	// IMPORTANT 3 — see FIXTURE_TMP_DIR), so the scan reconciles that
+	// directory alongside the real tree.
+	walk(FIXTURE_TMP_DIR);
 	return results;
 };
 
@@ -1638,14 +1650,24 @@ const SpacingReferenceForm = () => {
 
 afterEach(cleanup);
 
+// Round 11's IMPORTANT 3 — the fixture directory must be gone when the suite
+// is done, on every exit path. The assertion proves the afterAll cleanup
+// actually ran; the process 'exit' net above covers crashes and aborts.
+afterAll(() => {
+	rmSync(FIXTURE_TMP_DIR, { recursive: true, force: true });
+	expect(existsSync(FIXTURE_TMP_DIR)).toBe(false);
+});
+
 describe('drawer surface flex chain guard (#990)', () => {
 	test('the scanner discovers a new drawer on disk by its DrawerBody + DrawerFooter tags', () => {
 		writeFileSync(TEMPORARY_NEW_DRAWER_PATH, TEMPORARY_NEW_DRAWER_SOURCE);
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_NEW_DRAWER_FILE);
-			expect(scan.violations).not.toContain(TEMPORARY_NEW_DRAWER_FILE);
+			expect(scan.discovered).toContain(fixtureRel(TEMPORARY_NEW_DRAWER_FILE));
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_NEW_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_NEW_DRAWER_PATH);
 		}
@@ -1659,8 +1681,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_ALIASED_DRAWER_FILE);
-			expect(scan.violations).not.toContain(TEMPORARY_ALIASED_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ALIASED_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_ALIASED_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_ALIASED_DRAWER_PATH);
 		}
@@ -1675,8 +1701,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_BARREL_CALL_SITE_FILE);
-			expect(scan.violations).not.toContain(TEMPORARY_BARREL_CALL_SITE_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_BARREL_CALL_SITE_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_BARREL_CALL_SITE_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_BARREL_CALL_SITE_PATH);
 			unlinkSync(TEMPORARY_BARREL_PATH);
@@ -1691,8 +1721,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_NAMESPACE_DRAWER_FILE);
-			expect(scan.violations).not.toContain(TEMPORARY_NAMESPACE_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_NAMESPACE_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_NAMESPACE_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_NAMESPACE_DRAWER_PATH);
 		}
@@ -1706,8 +1740,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_REGRESSED_DRAWER_FILE);
-			expect(scan.violations).toContain(TEMPORARY_REGRESSED_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_REGRESSED_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_REGRESSED_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_REGRESSED_DRAWER_PATH);
 		}
@@ -1721,8 +1759,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_ALIASED_PARTS_DRAWER_FILE);
-			expect(scan.violations).toContain(TEMPORARY_ALIASED_PARTS_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ALIASED_PARTS_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_ALIASED_PARTS_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_ALIASED_PARTS_DRAWER_PATH);
 		}
@@ -1741,10 +1783,10 @@ describe('drawer surface flex chain guard (#990)', () => {
 		try {
 			const scan = scanDrawerSurfaces();
 			expect(scan.discovered).toContain(
-				TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE,
+				fixtureRel(TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE),
 			);
 			expect(scan.violations).toContain(
-				TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE,
+				fixtureRel(TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE),
 			);
 		} finally {
 			unlinkSync(TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_PATH);
@@ -1760,8 +1802,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_LOCAL_SHADOW_DRAWER_FILE);
-			expect(scan.violations).toContain(TEMPORARY_LOCAL_SHADOW_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_LOCAL_SHADOW_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_LOCAL_SHADOW_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_LOCAL_SHADOW_DRAWER_PATH);
 		}
@@ -1775,8 +1821,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_UNRESOLVED_DRAWER_FILE);
-			expect(scan.violations).toContain(TEMPORARY_UNRESOLVED_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_UNRESOLVED_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_UNRESOLVED_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_UNRESOLVED_DRAWER_PATH);
 		}
@@ -1790,8 +1840,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_BARE_WRAPPER_DRAWER_FILE);
-			expect(scan.violations).toContain(TEMPORARY_BARE_WRAPPER_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_BARE_WRAPPER_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_BARE_WRAPPER_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_BARE_WRAPPER_DRAWER_PATH);
 		}
@@ -1805,8 +1859,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_CONDITIONAL_DRAWER_FILE);
-			expect(scan.violations).not.toContain(TEMPORARY_CONDITIONAL_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_CONDITIONAL_DRAWER_PATH);
 		}
@@ -1821,10 +1879,10 @@ describe('drawer surface flex chain guard (#990)', () => {
 		try {
 			const scan = scanDrawerSurfaces();
 			expect(scan.discovered).toContain(
-				TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE,
+				fixtureRel(TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE),
 			);
 			expect(scan.violations).not.toContain(
-				TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE,
+				fixtureRel(TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE),
 			);
 		} finally {
 			unlinkSync(TEMPORARY_NODELESS_WRAPPERS_DRAWER_PATH);
@@ -1839,8 +1897,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).not.toContain(TEMPORARY_DEFINITION_HELPER_FILE);
-			expect(scan.violations).not.toContain(TEMPORARY_DEFINITION_HELPER_FILE);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_DEFINITION_HELPER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_DEFINITION_HELPER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_DEFINITION_HELPER_PATH);
 		}
@@ -1855,10 +1917,10 @@ describe('drawer surface flex chain guard (#990)', () => {
 		try {
 			const scan = scanDrawerSurfaces();
 			expect(scan.discovered).toContain(
-				TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE,
+				fixtureRel(TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE),
 			);
 			expect(scan.violations).toContain(
-				TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE,
+				fixtureRel(TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE),
 			);
 		} finally {
 			unlinkSync(TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_PATH);
@@ -1873,8 +1935,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_FOOTER_ONLY_DRAWER_FILE);
-			expect(scan.violations).not.toContain(TEMPORARY_FOOTER_ONLY_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_FOOTER_ONLY_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_FOOTER_ONLY_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_FOOTER_ONLY_DRAWER_PATH);
 		}
@@ -1888,8 +1954,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE);
-			expect(scan.violations).toContain(TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_DIV_ABOVE_FORM_DRAWER_PATH);
 		}
@@ -1904,13 +1974,13 @@ describe('drawer surface flex chain guard (#990)', () => {
 		try {
 			const scan = scanDrawerSurfaces();
 			expect(scan.discovered).toContain(
-				TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+				fixtureRel(TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE),
 			);
 			expect(scan.formBearing).toContain(
-				TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+				fixtureRel(TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE),
 			);
 			expect(scan.violations).toContain(
-				TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+				fixtureRel(TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE),
 			);
 		} finally {
 			unlinkSync(TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_PATH);
@@ -1925,8 +1995,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE);
-			expect(scan.violations).toContain(TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH);
 		}
@@ -1976,8 +2050,12 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).toContain(TEMPORARY_NS_BARREL_CALL_SITE_FILE);
-			expect(scan.violations).toContain(TEMPORARY_NS_BARREL_CALL_SITE_FILE);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_NS_BARREL_CALL_SITE_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_NS_BARREL_CALL_SITE_FILE),
+			);
 		} finally {
 			unlinkSync(TEMPORARY_NS_BARREL_CALL_SITE_PATH);
 			unlinkSync(TEMPORARY_NS_BARREL_PATH);
