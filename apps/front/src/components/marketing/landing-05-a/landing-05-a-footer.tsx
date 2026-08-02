@@ -16,9 +16,14 @@ import { MarketingBrand } from '../marketing-brand';
  *    below it — one hairline rule separates it, never a filled band, the same
  *    "a rule instead of a seam" discipline the ruled column uses throughout.
  *
- * 2. TWO-TONE HIERARCHY, inverted (todesktop-34). The group titles are the
- *    faintest rank on the page and the links are full-strength foreground,
- *    because in a footer you are looking for a destination, not a category.
+ * 2. TWO-TONE HIERARCHY, inverted (todesktop-34). The links are
+ *    full-strength foreground and the group titles are quieter, because in a
+ *    footer you are looking for a destination, not a category. The hierarchy
+ *    is carried by REGISTER — 13px uppercase for a category, 15px sentence
+ *    case for a destination — rather than by luminance alone: the obvious
+ *    faint-grey title (`--publy-foreground-subtle`) measures ~2.6:1 against
+ *    the dusk and fails AA, and "quiet" is never a licence to be unreadable.
+ *    The copyright line moves off `.publy-type-helper` for the same reason.
  *
  * 3. NO CTA. The closing band immediately above ends on a primary button; a
  *    second one 100px later is not a second chance, it is a repeat. The
@@ -49,7 +54,7 @@ export const Landing05AFooter = () => {
 			<div className="publy-l05a-ruled-column px-4 py-12 sm:px-6 sm:py-16">
 				<div className="grid gap-12 md:grid-cols-12 md:gap-8">
 					<div className="md:col-span-5">
-						<MarketingBrand size="lg" />
+						<MarketingBrand />
 						<p className="publy-type-sky-body mt-4 max-w-[36ch] text-pretty text-(--publy-foreground-secondary)">
 							{t('landing-footer-line')}
 						</p>
@@ -59,7 +64,7 @@ export const Landing05AFooter = () => {
 						className="grid grid-cols-2 gap-8 md:col-span-6 md:col-start-7"
 					>
 						<div className="flex flex-col gap-3">
-							<p className="publy-type-sky-label text-(--publy-foreground-subtle)">
+							<p className="publy-marketing-eyebrow mb-1 text-(--publy-foreground-secondary)">
 								{t('landing-footer-group-page')}
 							</p>
 							<a href="#product-window" className={FOOTER_LINK_CLASS}>
@@ -73,7 +78,7 @@ export const Landing05AFooter = () => {
 							</a>
 						</div>
 						<div className="flex flex-col gap-3">
-							<p className="publy-type-sky-label text-(--publy-foreground-subtle)">
+							<p className="publy-marketing-eyebrow mb-1 text-(--publy-foreground-secondary)">
 								{t('landing-footer-group-account')}
 							</p>
 							<Link to="/login" className={FOOTER_LINK_CLASS}>
@@ -85,7 +90,7 @@ export const Landing05AFooter = () => {
 						</div>
 					</nav>
 				</div>
-				<p className="publy-type-helper mt-12 border-t border-(--publy-border) pt-8">
+				<p className="publy-type-sky-body mt-12 border-t border-(--publy-border) pt-8 text-(--publy-foreground-muted)">
 					{t('landing-footer-copyright', { year })}
 				</p>
 			</div>

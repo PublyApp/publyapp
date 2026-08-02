@@ -41,6 +41,12 @@ type Landing05ASectionProps = {
 	ruled?: boolean;
 	/** In-page anchor target: clears the sticky header on jump. */
 	anchor?: boolean;
+	/**
+	 * Opt into the below-the-fold reveal (`use-l05a-reveal.ts`). Off for the
+	 * hero and the product window, which carry their own entrance and are
+	 * above the fold by construction.
+	 */
+	reveal?: boolean;
 	id?: string;
 	testId?: string;
 	className?: string;
@@ -52,6 +58,7 @@ export const Landing05ASection = ({
 	variant = 'standard',
 	ruled = false,
 	anchor = false,
+	reveal = false,
 	id,
 	testId,
 	className,
@@ -60,6 +67,7 @@ export const Landing05ASection = ({
 	<section
 		id={id}
 		data-testid={testId}
+		data-l05a-reveal-target={reveal ? '' : undefined}
 		aria-labelledby={labelledBy}
 		className={cn(
 			VARIANT_CLASS[variant],

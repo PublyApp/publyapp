@@ -61,10 +61,22 @@ export const Landing05ATour = () => {
 
 	return (
 		<div>
+			{/* The window's heading is DEMOTED to display-3, and deliberately.
+			    The hero has to be the best thing on the page, and it was not:
+			    a 68px centred H1 followed 230px later by a 48px centred H2 —
+			    40px and 48px at 768, where the second heading was actually the
+			    larger of the two — restating the same claim in different
+			    words. The direction already holds that the hero and the window
+			    are ONE statement sharing one unruled stretch of field; a
+			    section that is SHOWN does not also need to be announced at
+			    display-2. So the hero keeps the page's only display-2-and-up
+			    moment, and this heading labels the aperture instead of
+			    competing with it. Capped at 26ch so it never runs the full
+			    column. */}
 			<div className="text-center">
 				<h2
 					id="landing-05-a-tour-heading"
-					className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+					className="publy-type-sky-display-3 mx-auto max-w-[40ch] text-balance text-(--publy-foreground)"
 				>
 					{t('landing-tour-title')}
 				</h2>
@@ -146,7 +158,7 @@ export const Landing05ATour = () => {
 								<IconChevronDown
 									aria-hidden="true"
 									className={cn(
-										'size-5 shrink-0 text-(--publy-foreground-secondary) transition-transform duration-300 ease-in-out',
+										'publy-l05a-chevron size-5 shrink-0 text-(--publy-foreground-secondary)',
 										isOpen && 'rotate-180',
 									)}
 								/>
@@ -185,11 +197,20 @@ export const Landing05ATour = () => {
 			<div className="relative mt-6 md:mt-0">
 				<div
 					aria-hidden="true"
-					className="publy-l05a-radius-band pointer-events-none absolute inset-0 -inset-x-1.5 -bottom-1.5 border-x border-b border-(--publy-border) md:-inset-x-2.5 md:-bottom-2.5"
+					className="publy-l05a-radius-band pointer-events-none absolute inset-0 -inset-x-1.5 -bottom-1.5 border-x border-b border-(--publy-border) md:-inset-x-3 md:-bottom-3"
 				/>
+				{/* NO BACKGROUND. This is the direction's whole thesis and the
+				    transposed page contradicted it: `bg-(--publy-surface)` here
+				    painted the aperture opaque, so the page's centrepiece was a
+				    1104x690 blank white rectangle — the grey plate the imagery
+				    ruling forbids, in white. A window has no `background` and
+				    no `background-color`, ever; the field shows through, and
+				    because the sky is a vertical ramp what you see through it
+				    is the bloom, not a colour. The rail below is the only
+				    filled part of the window. */}
 				<div
 					className={cn(
-						'publy-l05a-ring publy-l05a-shadow-window publy-sky-a-focus-in relative isolate overflow-hidden rounded-[var(--publy-radius-medium-control)] bg-(--publy-surface)',
+						'publy-l05a-ring publy-l05a-shadow-window publy-sky-a-focus-in relative isolate overflow-hidden rounded-[var(--publy-radius-medium-control)]',
 						ringPulsing && 'publy-l05a-ring-strong',
 					)}
 				>
@@ -237,7 +258,7 @@ export const Landing05ATour = () => {
 						hidden={index !== activeIndex}
 						aria-hidden={index !== activeIndex}
 					>
-						<h3 className="publy-type-sky-display-3 text-balance text-(--publy-foreground)">
+						<h3 className="publy-type-sky-display-4 text-balance text-(--publy-foreground)">
 							{t(tab.titleKey)}
 						</h3>
 						<p className="publy-type-sky-lead mx-auto mt-3 max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">

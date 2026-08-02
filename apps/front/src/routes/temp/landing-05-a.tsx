@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CookiePrefsDrawer } from '~/components/marketing/cookie-prefs-drawer';
 import { Landing05AAudience } from '~/components/marketing/landing-05-a/landing-05-a-audience';
@@ -15,6 +15,7 @@ import { Landing05ASectionHeader } from '~/components/marketing/landing-05-a/lan
 import { Landing05ASky } from '~/components/marketing/landing-05-a/landing-05-a-sky';
 import { Landing05ATour } from '~/components/marketing/landing-05-a/landing-05-a-tour';
 import { Landing05ATrial } from '~/components/marketing/landing-05-a/landing-05-a-trial';
+import { useL05aReveal } from '~/components/marketing/landing-05-a/use-l05a-reveal';
 import { buttonVariants } from '~/components/ui/button';
 import { FEATURES } from '~/lib/flags';
 import { cn } from '~/lib/utils';
@@ -56,6 +57,11 @@ export const Route = createFileRoute('/temp/landing-05-a')({
 function LandingExploration05A() {
 	const { t } = useTranslation('landing-05-a');
 	const [isCookiePrefsOpen, setIsCookiePrefsOpen] = useState(false);
+	const mainRef = useRef<HTMLElement>(null);
+
+	// Below-the-fold reveal. Enhancement only: the server render is complete
+	// and visible, and under reduced motion this attributes nothing at all.
+	useL05aReveal(mainRef);
 
 	return (
 		<div
@@ -82,6 +88,7 @@ function LandingExploration05A() {
 			</a>
 			<Landing05AHeader />
 			<main
+				ref={mainRef}
 				id="landing-05-a-main"
 				// -1: not in the tab order, but programmatically focusable so
 				// the skip link above actually moves focus here rather than
@@ -145,7 +152,11 @@ function LandingExploration05A() {
 					</Landing05ASection>
 
 					{/* §3 — Three claims (attio-29 stat blocks). */}
-					<Landing05ASection ruled labelledBy="landing-05-a-claim-heading">
+					<Landing05ASection
+						reveal
+						ruled
+						labelledBy="landing-05-a-claim-heading"
+					>
 						<Landing05ASectionHeader
 							headingId="landing-05-a-claim-heading"
 							eyebrowKey="landing-claim-eyebrow"
@@ -156,7 +167,11 @@ function LandingExploration05A() {
 					</Landing05ASection>
 
 					{/* §4 — What ships today: the six-fact strip (todesktop-31). */}
-					<Landing05ASection ruled labelledBy="landing-05-a-capability-heading">
+					<Landing05ASection
+						reveal
+						ruled
+						labelledBy="landing-05-a-capability-heading"
+					>
 						<Landing05ASectionHeader
 							headingId="landing-05-a-capability-heading"
 							eyebrowKey="landing-capability-eyebrow"
@@ -167,7 +182,11 @@ function LandingExploration05A() {
 					</Landing05ASection>
 
 					{/* §5 — Who it is for (attio-15 hairline grid + one side-pane slot). */}
-					<Landing05ASection ruled labelledBy="landing-05-a-audience-heading">
+					<Landing05ASection
+						reveal
+						ruled
+						labelledBy="landing-05-a-audience-heading"
+					>
 						<Landing05ASectionHeader
 							headingId="landing-05-a-audience-heading"
 							eyebrowKey="landing-bento-eyebrow"
@@ -178,7 +197,11 @@ function LandingExploration05A() {
 					</Landing05ASection>
 
 					{/* §6 — The planned trial: claim-gated, three steps. */}
-					<Landing05ASection ruled labelledBy="landing-05-a-timeline-heading">
+					<Landing05ASection
+						reveal
+						ruled
+						labelledBy="landing-05-a-timeline-heading"
+					>
 						<Landing05ASectionHeader
 							headingId="landing-05-a-timeline-heading"
 							eyebrowKey="landing-timeline-eyebrow"
@@ -191,6 +214,7 @@ function LandingExploration05A() {
 
 					{/* §7 — Pricing: struck through, beta-noted, todesktop-23 framed. */}
 					<Landing05ASection
+						reveal
 						ruled
 						id="pricing"
 						anchor
@@ -208,6 +232,7 @@ function LandingExploration05A() {
 
 					{/* §8 — FAQ (todesktop-33, two columns). */}
 					<Landing05ASection
+						reveal
 						ruled
 						id="faq"
 						anchor
@@ -239,6 +264,7 @@ function LandingExploration05A() {
 					    Dockerfile ARG exists). */}
 					{FEATURES.marketing.customerLogos ? (
 						<Landing05ASection
+							reveal
 							ruled
 							testId="landing-customer-logos"
 							labelledBy="landing-05-a-logos-heading"
@@ -283,7 +309,11 @@ function LandingExploration05A() {
 
 					{/* §10 — Closing: the night slice (todesktop-15) — one boxed slice
 					    of the same sky, rotated 7° off vertical, theme-invariant. */}
-					<Landing05ASection ruled labelledBy="landing-05-a-closing-heading">
+					<Landing05ASection
+						reveal
+						ruled
+						labelledBy="landing-05-a-closing-heading"
+					>
 						<div className="publy-marketing-night publy-l05a-radius-band relative isolate overflow-hidden px-6 py-14 text-center sm:px-12 md:py-16 lg:py-20">
 							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip-night mx-auto w-fit">
 								{t('landing-closing-eyebrow')}

@@ -10,6 +10,20 @@ import { cn } from '~/lib/utils';
  * Prices ship struck through with a beta note beside them; there is no
  * billing system and no monthly/yearly toggle, because there is nothing to
  * toggle.
+ *
+ * THE BADGE ROW IS RESERVED IN EVERY CARD, filled in one. Rendering the badge
+ * only on Agency pushed that card's tier name, price row and CTA ~28px below
+ * its neighbours', so three cards standing side by side had three different
+ * internal rhythms — the box-alignment-instead-of-baseline-alignment failure,
+ * at the one place on the page where the eye is explicitly comparing rows
+ * across columns. An empty `aria-hidden` row of the badge's exact height
+ * costs nothing and puts every name, every price and every CTA on one line.
+ *
+ * The price row is three registers, not one: the struck figure at display-3
+ * in the muted step (it is the thing being withdrawn), the unit at body in
+ * the same muted step (it belongs to the figure), and the beta note at the
+ * label weight in full foreground — because the note, not the price, is the
+ * true statement in that row.
  */
 const PRICING_TIERS = [
 	{ id: 'studio', featured: false },
@@ -34,11 +48,20 @@ export const Landing05APricing = () => {
 					)}
 				>
 					<div className="rounded-[var(--publy-radius-small-control)] bg-(--publy-surface) p-6">
-						{tier.id === 'agency' ? (
-							<span className="rounded-[var(--publy-radius-small-control)] border border-(--publy-border) px-2.5 py-1 text-xs font-semibold text-(--publy-foreground-secondary)">
-								{t('landing-pricing-agency-badge')}
-							</span>
-						) : null}
+						{/* A BLOCK of the badge's exact height, in every card,
+						    filled in one. An inline spacer is not enough: an
+						    empty inline-level box takes its baseline from its
+						    bottom margin edge rather than from its content, so
+						    the featured card still sat 7px off its neighbours.
+						    A fixed-height block has no baseline to disagree
+						    about. */}
+						<div className="h-7">
+							{tier.id === 'agency' ? (
+								<span className="publy-l05a-ring-chip publy-type-sky-micro inline-flex h-7 items-center rounded-[var(--publy-radius-small-control)] px-2.5 text-(--publy-foreground-secondary)">
+									{t('landing-pricing-agency-badge')}
+								</span>
+							) : null}
+						</div>
 						<h3 className="publy-type-sky-display-3 mt-4 text-(--publy-foreground)">
 							{t(`landing-pricing-${tier.id}-name`)}
 						</h3>
@@ -46,18 +69,18 @@ export const Landing05APricing = () => {
 							<del className="publy-type-sky-display-3 publy-l05a-tabular text-(--publy-foreground-muted)">
 								{t(`landing-pricing-${tier.id}-price`)}
 							</del>
-							<span className="publy-type-sky-body text-(--publy-foreground-secondary)">
+							<span className="publy-type-sky-body text-(--publy-foreground-muted)">
 								{t('landing-pricing-per-month')}
 							</span>
-							<span className="publy-type-sky-body text-(--publy-foreground-secondary)">
+							<span className="publy-type-sky-label text-(--publy-foreground)">
 								{t('landing-pricing-beta-note')}
 							</span>
 						</div>
-						<p className="publy-type-sky-body mt-4 min-h-[72px] max-w-[46ch] text-(--publy-foreground-secondary)">
+						<p className="publy-type-sky-body mt-4 min-h-[72px] max-w-[46ch] text-pretty text-(--publy-foreground-secondary)">
 							{t(`landing-pricing-${tier.id}-description`)}
 						</p>
 					</div>
-					<div className="px-6 pt-6 pb-6">
+					<div className="p-6">
 						<Link
 							to="/signup"
 							className={cn(
