@@ -2364,6 +2364,107 @@ test('e2e (round 15 M2): an uncapped Cartesian product is a named diagnostic, no
 	);
 });
 
+test('e2e (round 17 B2): overflow is monotone through every expression-family combinator', async () => {
+	// Round-16 B2: the Cartesian cap is loud only at the top level — an
+	// overflowing candidate set nested in one branch of a conditional was
+	// replaced by the other branch's compliant value, so loud became quiet
+	// by a path the hard rule was written to prevent. Overflow must now
+	// propagate through every combinator: a nested conditional, a template
+	// substitution, a `+` operand, an object-member read, and a const alias
+	// each keep the enclosing result overflowing, and both style sinks
+	// (`<style>` children and a dangerouslySetInnerHTML payload) surface the
+	// named diagnostic. Every case pairs the overflowing branch with a
+	// harmless compliant sibling — the exact shape that used to go quiet.
+	const buildFlags = (count, prefix) => {
+		const flags = [];
+		for (let index = 0; index < count; index += 1) {
+			flags.push(`${prefix}${index}: boolean`);
+		}
+		return flags;
+	};
+	const buildSubstitutions = (count, prefix) => {
+		const substitutions = [];
+		for (let index = 0; index < count; index += 1) {
+			substitutions.push(`\${${prefix}${index} ? 'a' : 'b'}`);
+		}
+		return substitutions;
+	};
+	// 17 independent binary choices: 2^17 = 131072 candidates, past every
+	// Cartesian bound the guard has shipped (4096 and the round-17 bound).
+	const substitutionCount = 17;
+	const flags = buildFlags(substitutionCount, 'f');
+	const subs = buildSubstitutions(substitutionCount, 'f');
+	const bigPayload = `\`x${subs.join('')}y\``;
+	const safeLiteral = "'.r17-safe { color: red; }'";
+	// The member-read proof needs module-scope consts (the alias resolver
+	// follows module-scope bindings only), so its substitutions use their own
+	// module-scope boolean constants.
+	const moduleFlagDecls = [];
+	for (let index = 0; index < substitutionCount; index += 1) {
+		moduleFlagDecls.push(`const g${index} = true;`);
+	}
+	const bigMemberPayload = `\`x${buildSubstitutions(substitutionCount, 'g').join('')}y\``;
+	const cases = [
+		[
+			'nested conditional',
+			[
+				`export const probe = (cond: boolean, ${flags.join(', ')}) => <style>{cond ? ${bigPayload} : ${safeLiteral}}</style>;`,
+			],
+		],
+		[
+			'template substitution',
+			[
+				`export const probe = (cond: boolean, ${flags.join(', ')}) => <style>{\`p\${cond ? ${bigPayload} : ${safeLiteral}}q\`}</style>;`,
+			],
+		],
+		[
+			'binary operand',
+			[
+				`export const probe = (cond: boolean, ${flags.join(', ')}) => <style>{${bigPayload} + 'suffix'}</style>;`,
+			],
+		],
+		[
+			'object-member read',
+			[
+				...moduleFlagDecls,
+				`const o = { css: ${bigMemberPayload} };`,
+				'export const probe = <style>{o.css}</style>;',
+			],
+		],
+		[
+			'const alias chain',
+			[
+				...moduleFlagDecls,
+				`const first = (0 === 1 ? ${bigMemberPayload} : ${safeLiteral});`,
+				'const alias = first;',
+				'export const probe = <style>{alias}</style>;',
+			],
+		],
+		[
+			'dangerouslySetInnerHTML payload',
+			[
+				`export const probe = (cond: boolean, ${flags.join(', ')}) => <style`,
+				`  dangerouslySetInnerHTML={{ __html: cond ? ${bigPayload} : ${safeLiteral} }}`,
+				'/>;',
+			],
+		],
+	];
+	for (const [name, lines] of cases) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': lines.join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-static-candidate-overflow'],
+			`an overflowing branch nested in a ${name} must stay loud: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
 test('e2e (round 13 B2): conditional rel/href and reserved-token keys are candidate-aware', async () => {
 	// The same family at the remaining string sites: a conditional `rel` can
 	// provably evaluate to `stylesheet`, a conditional setProperty key or

@@ -1082,6 +1082,14 @@ export const scanZIndexFile = ({
 				if (whenTrue == null && whenFalse == null) {
 					return null;
 				}
+				// Overflow is monotone through every combinator (round-16 B2):
+				// an overflowing branch makes the whole conditional
+				// unenumerable — the sibling's compliant value must never
+				// replace the overflowing branch as the complete answer, so
+				// the caller fails loud by name instead.
+				if (whenTrue?.overflow || whenFalse?.overflow) {
+					return { values: null, partial: false, overflow: true };
+				}
 				return {
 					values: new Set([
 						...(whenTrue?.values ?? []),
@@ -1104,6 +1112,9 @@ export const scanZIndexFile = ({
 					);
 					if (substitution == null) {
 						return null;
+					}
+					if (substitution.overflow) {
+						return { values: null, partial: false, overflow: true };
 					}
 					sets.push(substitution.values);
 					partial = partial || substitution.partial;
@@ -1133,6 +1144,11 @@ export const scanZIndexFile = ({
 			) {
 				const left = staticStringValues(expression.left, visitedConsts);
 				const right = staticStringValues(expression.right, visitedConsts);
+				// Overflow is monotone through the `+` combinator too: an
+				// overflowing operand makes the concatenation unenumerable.
+				if (left?.overflow || right?.overflow) {
+					return { values: null, partial: false, overflow: true };
+				}
 				if (left != null && right != null) {
 					const joined = cartesianStringJoin([left.values, right.values]);
 					if (joined == null) {
@@ -2068,7 +2084,11 @@ export const scanZIndexFile = ({
 			const styleCssCandidates = styleResult == null ? null : styleResult.css;
 			const staticParts = styleResult?.staticParts ?? null;
 			const childrenSuppressed = styleResult?.childrenSuppressed ?? false;
-			if (styleResult?.overflow) {
+			// A dangerouslySetInnerHTML payload overflow is reported by the
+			// payload branch below with its own named message; the generic
+			// `<style>`-payload diagnostic would only duplicate it
+			// (round-17 B2 proof).
+			if (styleResult?.overflow && !childrenSuppressed) {
 				// The payload is provably static text with too many candidates
 				// to enumerate — the guard cannot inspect what ships, exactly
 				// like an unparseable payload, and a hang would be a worse
