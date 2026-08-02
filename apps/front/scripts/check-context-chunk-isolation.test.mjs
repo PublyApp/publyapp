@@ -195,11 +195,14 @@ const buildRouteFixture = async ({
 	customSourcemapFileNames = false,
 	coarsenSplitMap = false,
 }) => {
-	const buildOptions = groupProbeModules
-		? "build: { rolldownOptions: { output: { advancedChunks: { groups: [{ name: 'probe-pair', test: /src[\\/]routes[\\/]probe\\.tsx/ }] } } } },"
-		: customSourcemapFileNames
-			? "build: { rolldownOptions: { output: { sourcemapFileNames: 'maps/[name]-[hash].map' } } },"
-			: '';
+	let buildOptions = '';
+	if (groupProbeModules) {
+		buildOptions =
+			"build: { rolldownOptions: { output: { advancedChunks: { groups: [{ name: 'probe-pair', test: /src[\\/]routes[\\/]probe\\.tsx/ }] } } } },";
+	} else if (customSourcemapFileNames) {
+		buildOptions =
+			"build: { rolldownOptions: { output: { sourcemapFileNames: 'maps/[name]-[hash].map' } } },";
+	}
 	const fixtureDirectory = await createFixture({
 		'vite.config.mjs': `
 			import path from 'node:path';
