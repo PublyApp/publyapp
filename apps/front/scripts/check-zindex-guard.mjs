@@ -1453,8 +1453,19 @@ export const scanZIndexFile = ({
 					partSets.push(new Set([child.text]));
 				} else if (ts.isJsxExpression(child)) {
 					const values = staticStringValues(child.expression);
-					if (values == null) {
+					// A child that also reaches a recorded raw binding is not
+					// fully static: `cond ? rawCss : ''` ships the raw bytes
+					// in one branch, and the raw walk must still run. The
+					// static branches still ship, so their candidates are
+					// kept for the individual-part scan.
+					if (
+						values == null ||
+						expressionContainsRawBinding(child.expression)
+					) {
 						fullyStatic = false;
+						if (values != null) {
+							partSets.push(values);
+						}
 						continue;
 					}
 					partSets.push(values);
@@ -1616,51 +1627,221 @@ export const scanZIndexFile = ({
 				}
 				return null;
 			}
-			if (
-				ts.isPropertyAccessExpression(unwrapped) &&
-				unwrapped.name.text === 'default'
-			) {
-				const owner = unwrapTransparentExpression(unwrapped.expression);
-				if (owner != null) {
-					const ownerEntry = rawImportEntryForExpression(owner, visitedConsts);
-					if (ownerEntry != null && ownerEntry.namespace) {
-						return { ...ownerEntry, namespace: false };
-					}
-				}
-				return null;
-			}
 			return null;
+		};
+		// Scans an expression subtree for identifiers that resolve (through
+		// const alias chains, with the shadowing check at every hop) to a
+		// recorded `?raw` import binding. Used to decide whether an
+		// expression the guard cannot statically evaluate still carries raw
+		// bytes into a style sink — the fail-loud condition for the resolver
+		// family (round-12 B2).
+		const expressionContainsRawBinding = (node, visitedConsts = new Set()) => {
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
+				return false;
+			}
+			if (ts.isIdentifier(expression)) {
+				const entry = rawImportBindings.get(expression.text);
+				if (
+					entry != null &&
+					nearestBinding(expression, expression.text) === entry.declaration
+				) {
+					return true;
+				}
+				const alias = moduleConstInitializers.get(expression.text);
+				if (
+					alias != null &&
+					!visitedConsts.has(expression.text) &&
+					nearestBinding(expression, expression.text) === alias.declaration
+				) {
+					const next = new Set(visitedConsts);
+					next.add(expression.text);
+					return expressionContainsRawBinding(alias.initializer, next);
+				}
+				return false;
+			}
+			if (ts.isPropertyAccessExpression(expression)) {
+				return expressionContainsRawBinding(
+					expression.expression,
+					visitedConsts,
+				);
+			}
+			if (ts.isElementAccessExpression(expression)) {
+				return (
+					expressionContainsRawBinding(expression.expression, visitedConsts) ||
+					expressionContainsRawBinding(
+						expression.argumentExpression,
+						visitedConsts,
+					)
+				);
+			}
+			if (ts.isConditionalExpression(expression)) {
+				// The condition is evaluated as a boolean, never shipped.
+				return (
+					expressionContainsRawBinding(expression.whenTrue, visitedConsts) ||
+					expressionContainsRawBinding(expression.whenFalse, visitedConsts)
+				);
+			}
+			if (ts.isCallExpression(expression)) {
+				// The callee's identity never ships; only the arguments do.
+				return expression.arguments.some((argument) =>
+					expressionContainsRawBinding(argument, visitedConsts),
+				);
+			}
+			let found = false;
+			expression.forEachChild((child) => {
+				if (!found) {
+					found = expressionContainsRawBinding(child, visitedConsts);
+				}
+			});
+			return found;
+		};
+		// Resolves a member read (`owner.name`) whose owner reaches a
+		// recorded raw binding: a namespace import only through `.default`
+		// (any other member of raw text is undefined and ships nothing);
+		// otherwise the owner is resolved to a module-scope const object
+		// literal chain and the member value is resolved recursively. An
+		// owner that cannot be resolved still fails loud when a recorded raw
+		// binding occurs inside it — the bytes may ship under that member.
+		const rawSpecifiersForNamedMemberAccess = (owner, name, visitedConsts) => {
+			const ownerEntry = rawImportEntryForExpression(owner, visitedConsts);
+			if (ownerEntry != null) {
+				return ownerEntry.namespace && name === 'default'
+					? { specifiers: [ownerEntry.specifier], unresolved: false }
+					: { specifiers: [], unresolved: false };
+			}
+			const ownerChain = resolveMemberChain(owner, visitedConsts);
+			if (ownerChain != null && ts.isObjectLiteralExpression(ownerChain)) {
+				const member = staticObjectMemberNode(ownerChain, name);
+				if (member.node != null) {
+					return rawBindingSpecifiersForExpression(member.node, visitedConsts);
+				}
+				if (member.unresolved || member.opaqueOnly) {
+					return {
+						specifiers: [],
+						unresolved: expressionContainsRawBinding(ownerChain, visitedConsts),
+					};
+				}
+				return { specifiers: [], unresolved: false };
+			}
+			return {
+				specifiers: [],
+				unresolved: expressionContainsRawBinding(owner, visitedConsts),
+			};
 		};
 		const rawBindingSpecifiersForExpression = (
 			node,
 			visitedConsts = new Set(),
 		) => {
-			// Every `?raw` specifier whose bytes reach the expression: the
-			// import binding directly (or through module-scope const aliases
-			// and `.default`), and every substitution of a template literal
-			// (`<style>{`${rawCss}`}</style>` ships the same bytes as the
-			// bare binding).
+			// Every `?raw` specifier whose bytes reach the expression, over
+			// the statically transparent expression family: the import
+			// binding directly (or through module-scope const alias chains,
+			// followed to a cycle-guarded fixpoint), every substitution of a
+			// template literal, both branches of a conditional, the argument
+			// of `String(...)`, and object-member reads through const object
+			// literals (`<style>{obj.css}</style>` ships the member's bytes)
+			// — nested arbitrarily. When a recorded raw binding occurs inside
+			// an expression node the family cannot evaluate, `unresolved` is
+			// true and the caller fails loud by name: the raw bytes may ship
+			// as CSS the guard cannot read (round-12 B2's property,
+			// conditional, and String spellings are exactly this family).
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
-				return [];
+				return { specifiers: [], unresolved: false };
 			}
 			if (ts.isTemplateExpression(expression)) {
 				const specifiers = [];
+				let unresolved = false;
 				for (const span of expression.templateSpans) {
-					specifiers.push(
-						...rawBindingSpecifiersForExpression(
-							span.expression,
-							visitedConsts,
-						),
+					const result = rawBindingSpecifiersForExpression(
+						span.expression,
+						visitedConsts,
+					);
+					specifiers.push(...result.specifiers);
+					unresolved = unresolved || result.unresolved;
+				}
+				return { specifiers, unresolved };
+			}
+			if (ts.isConditionalExpression(expression)) {
+				const whenTrue = rawBindingSpecifiersForExpression(
+					expression.whenTrue,
+					visitedConsts,
+				);
+				const whenFalse = rawBindingSpecifiersForExpression(
+					expression.whenFalse,
+					visitedConsts,
+				);
+				return {
+					specifiers: [...whenTrue.specifiers, ...whenFalse.specifiers],
+					unresolved: whenTrue.unresolved || whenFalse.unresolved,
+				};
+			}
+			if (isStringCoercion(expression)) {
+				return rawBindingSpecifiersForExpression(
+					expression.arguments[0],
+					visitedConsts,
+				);
+			}
+			if (ts.isPropertyAccessExpression(expression)) {
+				if (expression.name.text === 'default') {
+					const ownerEntry = rawImportEntryForExpression(
+						expression.expression,
+						visitedConsts,
+					);
+					if (ownerEntry != null && ownerEntry.namespace) {
+						return { specifiers: [ownerEntry.specifier], unresolved: false };
+					}
+				}
+				return rawSpecifiersForNamedMemberAccess(
+					expression.expression,
+					expression.name.text,
+					visitedConsts,
+				);
+			}
+			if (ts.isElementAccessExpression(expression)) {
+				const key = staticString(expression.argumentExpression);
+				if (key != null) {
+					return rawSpecifiersForNamedMemberAccess(
+						expression.expression,
+						key,
+						visitedConsts,
 					);
 				}
-				return specifiers;
+				return {
+					specifiers: [],
+					unresolved: expressionContainsRawBinding(expression, visitedConsts),
+				};
 			}
-			const entry = rawImportEntryForExpression(expression, visitedConsts);
-			if (entry == null || entry.namespace) {
-				return [];
+			if (ts.isIdentifier(expression)) {
+				// The direct binding, or a module-scope const alias chain that
+				// descends into the whole family — `const cond = flag ? rawCss
+				// : ''` ships the raw bytes through the conditional, so the
+				// identifier spelling must reach the same resolution.
+				const entry = rawImportBindings.get(expression.text);
+				if (
+					entry != null &&
+					nearestBinding(expression, expression.text) === entry.declaration
+				) {
+					return entry.namespace
+						? { specifiers: [], unresolved: false }
+						: { specifiers: [entry.specifier], unresolved: false };
+				}
+				const alias = moduleConstInitializers.get(expression.text);
+				if (
+					alias != null &&
+					!visitedConsts.has(expression.text) &&
+					nearestBinding(expression, expression.text) === alias.declaration
+				) {
+					const next = new Set(visitedConsts);
+					next.add(expression.text);
+					return rawBindingSpecifiersForExpression(alias.initializer, next);
+				}
+				return { specifiers: [], unresolved: false };
 			}
-			return [entry.specifier];
+			return {
+				specifiers: [],
+				unresolved: expressionContainsRawBinding(expression, visitedConsts),
+			};
 		};
 		const reportRawImportSink = (specifier, kind, sinkNode) => {
 			// A `?raw` import whose binding reaches a style-capable sink is
@@ -1747,6 +1928,33 @@ export const scanZIndexFile = ({
 						'the guard cannot inspect what ships; fix the payload or ' +
 						'import the stylesheet through the build graph.',
 					...base,
+				});
+			}
+		};
+		const reportRawSinkExpression = (expression, kind, sinkNode) => {
+			// Walks a style-sink expression over the raw resolver family:
+			// every specifier whose bytes provably reach the sink is walked as
+			// shipped CSS/HTML, and an expression the family cannot evaluate
+			// that still contains a recorded raw binding fails loud by name —
+			// the raw bytes may ship unread (round-12 B2's object-property,
+			// conditional, and String spellings resolve here; a call like
+			// `fn(rawCss)` or a binary like `rawCss + x` cannot).
+			const result = rawBindingSpecifiersForExpression(expression);
+			for (const specifier of result.specifiers) {
+				reportRawImportSink(specifier, kind, sinkNode);
+			}
+			if (result.unresolved) {
+				violations.push({
+					ruleId: 'z-index-unresolved-raw-expression',
+					message:
+						'a recorded ?raw import binding occurs inside a style-sink ' +
+						'expression the guard cannot statically evaluate — the raw ' +
+						'bytes may ship as CSS the guard cannot inspect; move the ' +
+						'raw import out of the expression or import the stylesheet ' +
+						'through the build graph.',
+					file: relativePath,
+					line: lineForOffset(content, sinkNode.getStart(sourceFile)),
+					source: expression.getText(sourceFile),
 				});
 			}
 		};
@@ -1866,11 +2074,7 @@ export const scanZIndexFile = ({
 				// is the same class of defect as a one-hop resolver.
 				for (const child of node.children) {
 					if (ts.isJsxExpression(child) && child.expression != null) {
-						for (const specifier of rawBindingSpecifiersForExpression(
-							child.expression,
-						)) {
-							reportRawImportSink(specifier, 'style', child);
-						}
+						reportRawSinkExpression(child.expression, 'style', child);
 					}
 				}
 			}
@@ -1901,19 +2105,17 @@ export const scanZIndexFile = ({
 								});
 							}
 						}
-					} else {
-						// The payload is not a static string — when `__html` is a
-						// `?raw` import binding it still ships the file's bytes,
-						// as CSS on a `<style>` host or as HTML elsewhere.
-						for (const specifier of rawBindingSpecifiersForExpression(
+					}
+					// The raw walk owns recorded bindings even when another
+					// branch is static — `cond ? rawHtml : '<style>…'` ships
+					// the raw bytes in one branch and the static HTML in the
+					// other, so both must be inspected.
+					if (htmlValues == null || expressionContainsRawBinding(member.node)) {
+						reportRawSinkExpression(
 							member.node,
-						)) {
-							reportRawImportSink(
-								specifier,
-								isStyleElement ? 'style' : 'html',
-								node,
-							);
-						}
+							isStyleElement ? 'style' : 'html',
+							node,
+						);
 					}
 				}
 			}

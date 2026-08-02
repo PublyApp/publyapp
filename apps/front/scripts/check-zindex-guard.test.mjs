@@ -1502,6 +1502,187 @@ test('e2e (round 11 B2): an alias of a raw binding displayed in a text node stay
 	);
 });
 
+test('e2e (round 13 B2): the raw resolver evaluates the transparent expression family', async () => {
+	// Round 12 B2: the resolver followed identifiers and template
+	// substitutions but silently returned no specifier for an object
+	// property, a conditional, or String(rawCss) — all four payloads
+	// shipped in the real client and SSR bundles while the guard reported
+	// OK. The family now resolves object-member reads through const object
+	// literals (nested at any depth), both branches of a conditional,
+	// String(...), element-access spellings, and alias chains to a fixpoint
+	// — "one step further" is not a spelling anymore because there is no
+	// bound to step past.
+	const cases = [
+		[
+			'object property',
+			[
+				'const o = { css: rawCss };',
+				'export const probe = <style>{o.css}</style>;',
+			],
+		],
+		[
+			'nested object property',
+			[
+				'const o = { a: { css: rawCss } };',
+				'export const probe = <style>{o.a.css}</style>;',
+			],
+		],
+		[
+			'element access',
+			[
+				'const o = { css: rawCss };',
+				"export const probe = <style>{o['css']}</style>;",
+			],
+		],
+		[
+			'const conditional',
+			[
+				"const cond = true ? rawCss : '';",
+				'export const probe = <style>{cond}</style>;',
+			],
+		],
+		[
+			'inline conditional',
+			["export const probe = <style>{flag ? rawCss : ''}</style>;"],
+		],
+		[
+			'String coercion',
+			['const s = String(rawCss);', 'export const probe = <style>{s}</style>;'],
+		],
+		[
+			'nested String of conditional',
+			[
+				"const s = String(flag ? rawCss : '');",
+				'export const probe = <style>{s}</style>;',
+			],
+		],
+		[
+			'deep alias chain',
+			[
+				'const first = rawCss;',
+				'const second = first;',
+				'const third = second;',
+				'export const probe = <style>{third}</style>;',
+			],
+		],
+	];
+	for (const [name, lines] of cases) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [`import rawCss from './overlay.txt?raw';`, ...lines].join(
+					'\n',
+				),
+				'overlay.txt': '.overlay { z-index: 2147483611; }',
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.ok(
+			violations.some(
+				(violation) =>
+					violation.ruleId === 'z-index-declaration-not-on-scale' &&
+					violation.file === 'src/overlay.txt',
+			),
+			`${name} style sink must red at the raw file: ${JSON.stringify(violations)}`,
+		);
+	}
+	const { violations: bothBranches } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				`import otherRaw from './other.txt?raw';`,
+				'export const probe = <style>{flag ? rawCss : otherRaw}</style>;',
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483610; }',
+			'other.txt': '.other { z-index: 2147483609; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		bothBranches
+			.filter(
+				(violation) => violation.ruleId === 'z-index-declaration-not-on-scale',
+			)
+			.map((violation) => violation.file)
+			.sort(),
+		['src/other.txt', 'src/overlay.txt'],
+		`both conditional branches must be walked: ${JSON.stringify(bothBranches)}`,
+	);
+});
+
+test('e2e (round 13 B2): a raw binding inside an unhandled style-sink expression is a named diagnostic', async () => {
+	// The fail-loud half of the family: a recorded raw binding inside an
+	// expression node the resolver cannot evaluate (a call, a binary) may
+	// ship its bytes as CSS unread — that is a named
+	// `z-index-unresolved-raw-expression` diagnostic, never the silent green
+	// a resolver miss produced. The paired `<pre>` proof keeps the round-8
+	// I3 boundary: the same bytes displayed as text are not a stylesheet.
+	for (const [name, sink] of [
+		['call', '<style>{wrap(rawCss)}</style>'],
+		['binary', "<style>{rawCss + 'x'}</style>"],
+		['member of call result', '<style>{makeCss(rawCss).text}</style>'],
+	]) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					`import rawCss from './overlay.txt?raw';`,
+					`const wrap = (value: string) => value;`,
+					`const makeCss = (value: string) => ({ text: value });`,
+					`export const probe = ${sink};`,
+				].join('\n'),
+				'overlay.txt': '.overlay { z-index: 2147483608; }',
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-unresolved-raw-expression'],
+			`${name} must fail loud by name: ${JSON.stringify(violations)}`,
+		);
+	}
+	const { violations: displayed } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				'const wrap = (value: string) => value;',
+				'export const probe = <pre>{wrap(rawCss)}</pre>;',
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483607; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		displayed,
+		[],
+		`the same unhandled expression as displayed text must stay green: ${JSON.stringify(displayed)}`,
+	);
+});
+
+test('e2e (round 13 B2): a style sink with no raw binding stays in the runtime bucket', async () => {
+	// The resolver family must not turn ordinary runtime payloads red: a
+	// plain runtime identifier or a member of a runtime owner contains no
+	// recorded raw binding, so the guard reports nothing — the declared
+	// runtime bucket for `z-index` assembled from data.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = (cssFromProps: string) => <style>{cssFromProps}</style>;',
+				'export const memberProbe = (obj: { css: string }) => <style>{obj.css}</style>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe, memberProbe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`runtime style payloads must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
 test("raw sinks: the import binding's sink, never the bytes, decides the walk", () => {
 	// Unit-level pair over `scanZIndexFile`'s sink walk: the same bytes red
 	// through a <style> sink, stay green through a <pre> sink, and red as a
