@@ -1,9 +1,393 @@
-/* Landing exploration 07 — scoped stylesheet.
+/* Landing exploration 07 — "THE LEDGER". Scoped stylesheet, imported from
+   app.css (do not add an @import for this file elsewhere).
 
-   Owned exclusively by the /temp/landing-07 implementation. Every selector in
-   this file MUST be nested under `.publy-landing-07` so nothing here can reach
-   the product or the other explorations. Imported from app.css.
+   Every selector below is nested under `.publy-landing-07` so nothing here
+   can reach the product or the other /temp explorations. Component class
+   names use an `ld07-` prefix (not `publy-*`) to make ownership obvious at a
+   glance — only actual design tokens (custom properties) use the repo's
+   `--publy-*` convention, per the brand block's naming rule.
 
-   Tokens: reuse `--publy-*`. If this direction genuinely needs a value the
-   system lacks, define it here on `.publy-landing-07` in the `--publy-*`
-   convention with light and dark values, and say why in a comment. */
+   Direction: the page as a ruled instrument. 1px hairlines carry the
+   elevation, structure and grid work normally done by borders, cards and
+   shadows. See .dump/PROMPT.md for the full spec this file implements.
+
+   KNOWN GAP (flagged in .dump/report-t1.md): apps/front/scripts/
+   check-design-system.mjs's `no-raw-visual-color` and `token-must-be-declared`
+   rules only recognise src/styles/app.css as a token-declaration layer. The
+   new colour tokens declared below (light values only — see each token's
+   comment) will not yet pass `pnpm --filter front test`'s design-system
+   guard, which this task does not run (see task brief). Follow-up needed:
+   either extend the guard to recognise per-exploration token files, or move
+   these tokens once a direction is chosen. */
+
+@layer components {
+	.publy-landing-07 {
+		/* — Full-bleed breakout. This route still renders inside the shared
+		     MarketingShell (marketing-shell.tsx, off-limits to this task),
+		     whose <main> wraps children in a `max-w-(--publy-container-reading)`
+		     centered, padded container. The ledger frame needs its own 1280px
+		     column with edge-to-edge chrome (header/footer), so this escapes
+		     the ancestor's width and padding via viewport-relative margins
+		     regardless of how deep it is nested. Safe as long as no ancestor
+		     sets `overflow-x: hidden` — verified none does. */
+		position: relative;
+		width: 100vw;
+		margin-right: calc(50% - 50vw);
+		margin-left: calc(50% - 50vw);
+		background-color: var(--publy-background);
+
+		/* — The structural rule (§2.1, §2.4). A real gap: --publy-border is
+		     tuned for component edges and at rgba(255,255,255,0.1) in dark it
+		     is too faint to carry a page whose entire structure is 1px lines.
+		     Light values are deliberately identical to the existing
+		     --publy-border / --publy-border-strong — only dark is louder. */
+		--publy-rule: #e4e4e7;
+		--publy-rule-strong: #d4d4d8;
+
+		/* — The display ramp (§2.2). No heading in the product exceeds 24px,
+		     so this is a genuinely new scale step. Mobile values here; md/xl
+		     overrides below tighten line-height as size grows (1.11 → 1.03 on
+		     display-1), matching the measured law rather than one flat ratio. */
+		--publy-display-1: 36px;
+		--publy-display-1-lh: 40px;
+		--publy-display-2: 28px;
+		--publy-display-2-lh: 32px;
+		--publy-display-3: 22px;
+		--publy-display-3-lh: 28px;
+
+		/* — The tracking law (§2.2), three constants. The repo's own eyebrow
+		     rung (0.06em) already covers the uppercase-label case, so no
+		     fourth tracking value is introduced for that. */
+		--publy-tracking-display: -0.015em;
+		--publy-tracking-text: -0.01em;
+
+		/* — The one shadow on the page, on the one primary CTA (§2.5). Built
+		     from `color-mix()` against existing tokens rather than the raw
+		     rgba() the spec states literally: --publy-primary-foreground
+		     (#733e0a) IS the warm brown the spec's rgba(115,62,10,*) values
+		     already resolve to, and --publy-background (white in light) is
+		     the spec's white inset rim — expressing both as references keeps
+		     every operand theme-aware without a second, unpaired literal. */
+		--publy-shadow-cta:
+			0 8px 8px -3px
+				color-mix(in oklab, var(--publy-primary-foreground) 10%, transparent),
+			0 3px 3px -1.5px
+				color-mix(in oklab, var(--publy-primary-foreground) 8%, transparent),
+			0 1px 1px -0.5px
+				color-mix(in oklab, var(--publy-primary-foreground) 8%, transparent),
+			0 0 0 1px
+				color-mix(in oklab, var(--publy-primary-foreground) 12%, transparent),
+			0 1px 2px -0.5px
+				color-mix(in oklab, var(--publy-background) 26%, transparent) inset;
+
+		/* — Motion (§6). The house curve (var(--publy-motion-ease), from
+		     app.css) is reused everywhere except the accordion, whose curve is
+		     measured and distinct — a length/timing value, not a colour, so it
+		     needs no dark counterpart. */
+		--publy-motion-ease-accordion: cubic-bezier(0.04, 0.62, 0.23, 0.98);
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-07 {
+			--publy-display-1: 48px;
+			--publy-display-1-lh: 52px;
+			--publy-display-2: 34px;
+			--publy-display-2-lh: 38px;
+			--publy-display-3: 24px;
+			--publy-display-3-lh: 30px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-07 {
+			--publy-display-1: 60px;
+			--publy-display-1-lh: 62px;
+			--publy-display-2: 40px;
+			--publy-display-2-lh: 44px;
+			--publy-display-3: 26px;
+			--publy-display-3-lh: 32px;
+		}
+	}
+
+	html.dark .publy-landing-07 {
+		--publy-rule: color-mix(in oklab, var(--publy-foreground) 14%, transparent);
+		--publy-rule-strong: color-mix(
+			in oklab,
+			var(--publy-foreground) 22%,
+			transparent
+		);
+		--publy-shadow-cta:
+			0 8px 8px -3px
+				color-mix(in oklab, var(--publy-background) 36%, transparent),
+			0 3px 3px -1.5px
+				color-mix(in oklab, var(--publy-background) 28%, transparent),
+			0 1px 1px -0.5px
+				color-mix(in oklab, var(--publy-background) 28%, transparent),
+			0 0 0 1px color-mix(in oklab, var(--publy-background) 40%, transparent),
+			0 1px 2px -0.5px
+				color-mix(in oklab, var(--publy-foreground) 18%, transparent) inset;
+	}
+
+	/* Scroll-behaviour is a `<html>` concern and app.css is off-limits, so this
+	   gates on the page's own root class instead of touching the element
+	   globally (§4 Row 00). Only takes effect while this route is mounted. */
+	html:has(.publy-landing-07) {
+		scroll-behavior: smooth;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		html:has(.publy-landing-07) {
+			scroll-behavior: auto;
+		}
+	}
+
+	/* ————————————————————— Type ramp ————————————————————— */
+
+	.publy-landing-07 .ld07-display-1 {
+		font-size: var(--publy-display-1);
+		line-height: var(--publy-display-1-lh);
+		font-weight: 600;
+		letter-spacing: var(--publy-tracking-display);
+	}
+
+	.publy-landing-07 .ld07-display-2 {
+		font-size: var(--publy-display-2);
+		line-height: var(--publy-display-2-lh);
+		font-weight: 600;
+		letter-spacing: var(--publy-tracking-display);
+	}
+
+	.publy-landing-07 .ld07-display-3 {
+		font-size: var(--publy-display-3);
+		line-height: var(--publy-display-3-lh);
+		font-weight: 600;
+		letter-spacing: var(--publy-tracking-text);
+	}
+
+	/* Row 03's flat 24px statement type (§4 Row 03) — held at one size across
+	   every breakpoint, unlike the responsive display ramp above. */
+	.publy-landing-07 .ld07-statement-text {
+		font-size: 24px;
+		line-height: 37px;
+		font-weight: 400;
+	}
+
+	.publy-landing-07 .ld07-lede {
+		font-size: 18px;
+		line-height: 28px;
+		font-weight: 400;
+		letter-spacing: var(--publy-tracking-text);
+	}
+
+	.publy-landing-07 .ld07-body {
+		font-size: 16px;
+		line-height: 26px;
+		font-weight: 400;
+	}
+
+	.publy-landing-07 .ld07-body-label {
+		font-size: 16px;
+		line-height: 26px;
+		font-weight: 500;
+		letter-spacing: var(--publy-tracking-text);
+	}
+
+	.publy-landing-07 .ld07-body-small {
+		font-size: 14px;
+		line-height: 22px;
+		font-weight: 400;
+	}
+
+	.publy-landing-07 .ld07-body-label-small {
+		font-size: 14px;
+		line-height: 22px;
+		font-weight: 500;
+		letter-spacing: var(--publy-tracking-text);
+	}
+
+	.publy-landing-07 .ld07-caption {
+		font-size: 12px;
+		line-height: 18px;
+		font-weight: 400;
+	}
+
+	/* Row numbers: mono, tabular, the label tracking rung. `aria-hidden`
+	   everywhere except the index row (§3.5, §8). */
+	.publy-landing-07 .ld07-row-number {
+		font-family: var(--publy-font-mono);
+		font-size: 12px;
+		line-height: 16px;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	/* ————————————————————— Vertical rhythm (§3.4) ————————————————————— */
+
+	.publy-landing-07 .ld07-row {
+		border-bottom: 1px solid var(--publy-rule-strong);
+		/* Doubled header height: this route stacks its own sticky header
+		   below the shared shell's (see ledger-header.tsx) rather than
+		   replacing it, so an in-page jump has two bars to clear, not one. */
+		scroll-margin-top: calc(var(--publy-header-height) * 2 + 24px);
+		padding-top: 72px;
+		padding-bottom: 40px;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-07 .ld07-row {
+			padding-top: 96px;
+			padding-bottom: 56px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-07 .ld07-row {
+			padding-top: 128px;
+			padding-bottom: 72px;
+		}
+	}
+
+	/* Row 01 (hero): sits directly under the header, so it doesn't need to
+	   clear a previous row's content — shorter top padding only. */
+	.publy-landing-07 .ld07-row[data-row='01'] {
+		padding-top: 56px;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-07 .ld07-row[data-row='01'] {
+			padding-top: 80px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-07 .ld07-row[data-row='01'] {
+			padding-top: 112px;
+		}
+	}
+
+	/* Row 12 (closing): taller bottom padding so the page doesn't end
+	   abruptly on the footer seam. */
+	.publy-landing-07 .ld07-row[data-row='12'] {
+		padding-bottom: 72px;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-07 .ld07-row[data-row='12'] {
+			padding-bottom: 96px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-07 .ld07-row[data-row='12'] {
+			padding-bottom: 128px;
+		}
+	}
+
+	/* Ground alternation (§3.4): rows 02/05/08/11 only, a 3-row cadence. */
+	.publy-landing-07 .ld07-row-raised {
+		background-color: var(--publy-surface-raised);
+	}
+
+	/* ————————————————————— Rules & ornaments (§2.4) ————————————————————— */
+
+	/* No borders on hover; an outline with negative offset never reflows a
+	   grid sibling (§2.4). Applied to interactive ledger cells. */
+	.publy-landing-07 .ld07-cell:hover {
+		outline: 1px solid var(--publy-rule-strong);
+		outline-offset: -1px;
+	}
+
+	/* The 2px accent rule (§2.4): active tab bar, fact-strip left stub. */
+	.publy-landing-07 .ld07-accent-rule {
+		background-color: var(--publy-primary);
+	}
+
+	/* Dashed list rule (§2.4): marks "a list of similar items", never used at
+	   an image slot's edge (that would misread as a placeholder outline). */
+	.publy-landing-07 .ld07-dashed-rule {
+		border-top: 1px dashed var(--publy-rule);
+	}
+
+	/* Floating hairline (§2.4, §4 Row 05): shorter than its cell so it reads
+	   as a hairline rather than closing the grid into a box. Positioning
+	   (left offset, breakpoint gating) is applied by the caller. */
+	.publy-landing-07 .ld07-floating-hairline {
+		position: absolute;
+		top: 50%;
+		width: 1px;
+		height: 168px;
+		transform: translateY(-50%);
+		background-color: var(--publy-rule);
+	}
+
+	/* ————————————————————— Focus (§8) ————————————————————— */
+
+	.publy-landing-07 :where(a, button, [role='tab'], summary):focus-visible {
+		outline: 2px solid var(--publy-focus-ring);
+		outline-offset: 2px;
+		border-radius: var(--publy-radius-chip);
+	}
+
+	/* ————————————————————— Header chrome (§4 Row 00) ————————————————————— */
+
+	.publy-landing-07 .ld07-header {
+		background-color: transparent;
+		border-bottom-color: transparent;
+		transition:
+			background-color 300ms var(--publy-motion-ease),
+			border-color 300ms var(--publy-motion-ease);
+	}
+
+	.publy-landing-07 .ld07-header-scrolled {
+		border-bottom-color: var(--publy-rule);
+		background-color: color-mix(
+			in oklab,
+			var(--publy-background) 86%,
+			transparent
+		);
+		backdrop-filter: blur(12px);
+	}
+
+	/* ————————————————————— Motion: reveal (§6.3–6.4) ————————————————————— */
+
+	.publy-landing-07 [data-reveal] {
+		opacity: 0;
+		filter: blur(1.5px);
+		transform: translateY(6px);
+		will-change: opacity, filter, transform;
+	}
+
+	.publy-landing-07 [data-reveal][data-revealed='true'] {
+		opacity: 1;
+		filter: blur(0);
+		transform: translateY(0);
+		transition:
+			opacity 360ms var(--publy-motion-ease),
+			filter 360ms var(--publy-motion-ease),
+			transform 360ms var(--publy-motion-ease);
+		transition-delay: calc(var(--publy-reveal-index, 0) * 60ms);
+	}
+
+	/* Restores the END state, not the initial one — the mistake the prompt
+	   names explicitly (§6.4). Without this, reduced-motion users would see
+	   nothing rather than the content, unrevealed. */
+	@media (prefers-reduced-motion: reduce) {
+		.publy-landing-07 [data-reveal] {
+			opacity: 1;
+			filter: none;
+			transform: none;
+			transition: none;
+		}
+	}
+
+	/* SSR safety net: no observer runs without JavaScript, so the hidden
+	   initial state must not ship to a no-JS reader either (§6.3). */
+	@media (scripting: none) {
+		.publy-landing-07 [data-reveal] {
+			opacity: 1;
+			filter: none;
+			transform: none;
+		}
+	}
+}
