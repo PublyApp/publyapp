@@ -117,6 +117,14 @@ const chunkWithMap = (fileName, modules, segments) => {
 	};
 };
 
+// A hand-fed chunk that also carries the emitted code the map's generated
+// positions refer to — the shape a real build hands the guard, where the
+// emitted-call tie is enforced.
+const chunkWithCode = (fileName, code, modules, segments) => ({
+	...chunkWithMap(fileName, modules, segments),
+	code,
+});
+
 const mintSpanOfText = (sourceText, needle) => {
 	const index = sourceText.indexOf(needle);
 	assert.notEqual(index, -1, `mint span needle ${needle} not found in source`);
@@ -194,6 +202,7 @@ const buildRouteFixture = async ({
 	rootImportsProbe = false,
 	customSourcemapFileNames = false,
 	coarsenSplitMap = false,
+	forgeSplitMap = false,
 }) => {
 	let buildOptions = '';
 	if (groupProbeModules) {
@@ -218,6 +227,26 @@ const buildRouteFixture = async ({
 			export default defineConfig({
 				${buildOptions}
 				plugins: [
+					${
+						forgeSplitMap
+							? `{
+							name: 'r22-forge-split-map',
+							applyToEnvironment: (environment) => environment.name === 'client',
+							generateBundle(_options, bundle) {
+								for (const chunk of Object.values(bundle)) {
+									if (chunk.type !== 'chunk' || !chunk.map) {
+										continue;
+									}
+									const splitModuleId = Object.keys(chunk.modules).find((id) => id.includes('?tsr-split=component'));
+									if (!splitModuleId) {
+										continue;
+									}
+									chunk.map = { version: 3, sources: [splitModuleId], mappings: 'AAAA,AACA' };
+								}
+							},
+						},`
+							: ''
+					}
 					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { const chunks = Object.values(bundle).filter((output) => output.type === 'chunk'); writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(chunks.map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); mkdirSync(path.join(rootDirectory, 'chunk-maps'), { recursive: true }); for (const chunk of chunks) { if (chunk.map) writeFileSync(path.join(rootDirectory, 'chunk-maps', \`\${chunk.fileName.replaceAll('/', '_')}.json\`), JSON.stringify({ fileName: chunk.fileName, map: chunk.map }, null, 2)); } } },
 					contextChunkIsolationPlugin({
 						contextInventory: ${JSON.stringify(inventory)},
@@ -3227,6 +3256,209 @@ void test('fails with a named diagnostic when a source map segment references an
 	);
 });
 
+void test('does not count a generated-only segment as an original position', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+
+	// The split copy's map carries one *genuine* mapped segment and one
+	// one-field (generated-only) segment. Round 21 forged a second precise
+	// position exactly this way: the generated-only segment inherited the
+	// previous origin, satisfied the two-position bar, and made the minting
+	// copy look non-minting. A one-field segment has no original source by
+	// specification, so it must never contribute a position — the copy then
+	// resolves to a single position and cannot be trusted as non-minting.
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
+					},
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
+						{
+							[sourceFile]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
+						},
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[splitModule]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
+						},
+						map: encodeSourceMap({
+							sources: [splitModule],
+							segments: [
+								// A one-field VLQ segment: generated-only, no
+								// original source, must not inherit one.
+								{ genLine: 0, genCol: 0 },
+								{
+									genLine: 0,
+									genCol: 4,
+									sourceIndex: 0,
+									origLine: 5,
+									origCol: 17,
+								},
+							],
+						}),
+					},
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
+	);
+});
+
+void test('fails closed when a map places no position inside a call the copy emits', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+	// The split copy genuinely emits the mint — its rendered code carries the
+	// call — but its final map points at two positions (generated 0:0 and
+	// 0:1) that lie outside every call the code emits. Round 21's exact
+	// forgery: the map resolves the copy to two distinct original positions,
+	// so the old cardinality bar called it attributable and non-minting. The
+	// map does not describe this copy — it never touches the call the copy
+	// actually emits — so the copy must be un-attributable and fail closed.
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
+					},
+				],
+				[
+					chunkWithCode(
+						'assets/route.js',
+						'var contexts={probe:createStrictContext(null)};',
+						{
+							[sourceFile]: {
+								code: 'var contexts={probe:createStrictContext(null)};',
+							},
+						},
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 42,
+							},
+						],
+					),
+					{
+						fileName: 'assets/route-component.js',
+						code: 'var contexts={probe:createStrictContext(null)};',
+						modules: {
+							[splitModule]: {
+								code: 'var contexts={probe:createStrictContext(null)};',
+							},
+						},
+						map: {
+							version: 3,
+							sources: [splitModule],
+							mappings: 'AAAA,AACA',
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
+	);
+});
+
+void test('keeps a non-minting copy attributable when its map covers the call it emits', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+
+	// The split copy emits an unrelated call (`otherHelper(null)` at
+	// generated columns 28-34) and its map attributes that call's argument
+	// extent to a position outside the mint span. The map ties its positions
+	// to a call the copy actually emits, so the copy is attributable as
+	// non-minting and the build with a single minting copy stays green.
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintSpans: [mintSpan],
+				},
+			],
+			[
+				chunkWithCode(
+					'assets/route.js',
+					'var contexts={probe:createStrictContext(null)};',
+					{
+						[sourceFile]: {
+							code: 'var contexts={probe:createStrictContext(null)};',
+						},
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 17,
+							genLine: 0,
+							genCol: 42,
+						},
+					],
+				),
+				chunkWithCode(
+					'assets/route-component.js',
+					'var other={probe:otherHelper(null)};',
+					{
+						[splitModule]: {
+							code: 'var other={probe:otherHelper(null)};',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 40,
+							genLine: 0,
+							genCol: 31,
+						},
+					],
+				),
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
 void test('type-checks the hand-written declaration file against the current runtime API', async () => {
 	// The .d.mts is hand-maintained and can drift from the runtime API; the
 	// probe below uses the current API (mintSpans, chunk maps, the output
@@ -4720,6 +4952,60 @@ void test(
 			// The post-transform coarse map (every generated line at original
 			// 0:0 for the split copy) must not produce a silent green: the
 			// split copy cannot answer, so the verdict fails closed.
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/cannot classify how <anonymous context> .* is created/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build closed when the final split map forges two wrong positions',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const contexts = { probe: createStrictContext<null>(null) };
+				export const useProbe = () => useContext(contexts.probe);
+				const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+			rootImportsProbe: true,
+			forgeSplitMap: true,
+		});
+
+		try {
+			// The real split copy genuinely mints — prove the duplicated mint
+			// shipped before asserting the guard's verdict. The final split
+			// map was forged to two valid mapped positions (0:0 and 0:1) for
+			// the split module, exactly round 21's probe: two distinct
+			// positions satisfied the old cardinality bar, so the minting
+			// copy looked non-minting and the build shipped green with two
+			// copies of the mint. The map never touches a call the copy
+			// emits, so the copy must fail closed instead.
+			const mintingCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						/createStrictContext\s*\(/.test(code)
+					) {
+						mintingCopies.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(
+				new Set(mintingCopies.map((location) => location.split(' :: ')[0]))
+					.size,
+				2,
+				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
+			);
 			assert.notEqual(result.status, 0, result.trace);
 			assert.match(
 				result.output,

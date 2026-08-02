@@ -20,6 +20,10 @@ export type ContextDeclaration = {
 export type ClientChunk = {
 	fileName: string;
 	modules: Record<string, unknown>;
+	/** The emitted code of the chunk, when the bundle carries it; the guard
+	 *  ties the map's generated positions to the calls it parses in this
+	 *  code before it trusts a map for a copy. */
+	code?: string;
 	/** The source map the build emitted for this chunk. */
 	map?: {
 		version: number;

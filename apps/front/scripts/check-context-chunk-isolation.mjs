@@ -30,6 +30,13 @@ import {
 } from 'typescript/unstable/ast/is';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
 
+import {
+	classifyCopyAttribution,
+	decodeSourceMapSegments,
+	findEmittedCallExtents,
+	resolveRenderedMapSource,
+} from './context-source-map.mjs';
+
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
 // Curated from TanStack's source-derived sibling transforms. Add new families
 // explicitly so unknown query modules keep failing closed.
@@ -876,149 +883,6 @@ export const findReactContextDeclarations = (
 	}
 };
 
-// Decoding of the chunk source map produced by the build. The map is the
-// bundler's own record of which emitted call originated at which source
-// position, so attribution through it survives every renaming, alias
-// elimination, inlining and chunk merge the bundler performs — a call that
-// did not originate at a recorded mint span can never map back to it.
-//
-// The mappings string is standard VLQ: per generated line, comma-separated
-// segments of (generatedColumn, sourceIndex, originalLine, originalColumn[,
-// nameIndex]) as zig-zag-encoded signed deltas, with original positions in
-// the standard 0-based line and column coordinates. The rendered copy of a
-// call therefore carries the same coordinates the TypeScript scan records —
-// no conversion is needed, and the regression suite pins the convention
-// against real builds.
-
-const SOURCE_MAP_BASE64 =
-	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-// The decode is bounded: every character must be in the base64 alphabet, every
-// field must terminate (continuation bit cleared) before the input ends, and
-// no field may exceed the 31-bit value range of the standard encoding.
-// Malformed input throws a named guard error — it never hangs and never
-// silently mis-reads.
-const readSourceMapVlq = (encoded, state, chunkFileName) => {
-	let value = 0;
-	let shift = 0;
-	for (;;) {
-		const character = encoded[state.index];
-		const digit =
-			character === undefined ? -1 : SOURCE_MAP_BASE64.indexOf(character);
-		if (digit === -1) {
-			throw new Error(
-				`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: invalid VLQ character ${JSON.stringify(character)}.`,
-			);
-		}
-		state.index++;
-		value += (digit & 31) << shift;
-		if ((digit & 32) === 0) {
-			break;
-		}
-		shift += 5;
-		if (shift > 30) {
-			throw new Error(
-				`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: VLQ field exceeds the supported 31-bit value range.`,
-			);
-		}
-	}
-	const sign = value & 1;
-	return sign ? -(value >> 1) : value >> 1;
-};
-
-// Returns every mapping's original source position, keyed by nothing but the
-// position itself: consumers attribute a segment to a module copy by matching
-// the resolved source id and test the position against recorded mint spans.
-// Per line, segments are comma-separated and each segment carries 1
-// (generated column only), 4 or 5 (with names index) zig-zag VLQ fields; any
-// other arity is malformed input.
-const decodeSourceMapSegments = (map, chunkFileName) => {
-	const segments = [];
-	let sourceIndex = 0;
-	let origLine = 0;
-	let origCol = 0;
-	for (const encodedLine of map.mappings.split(';')) {
-		let genCol = 0;
-		for (const rawSegment of encodedLine.split(',')) {
-			if (rawSegment === '') {
-				continue;
-			}
-
-			const fields = [];
-			const state = { index: 0 };
-			while (state.index < rawSegment.length) {
-				fields.push(readSourceMapVlq(rawSegment, state, chunkFileName));
-			}
-
-			if (![1, 4, 5].includes(fields.length)) {
-				throw new Error(
-					`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: segment carries ${fields.length} VLQ fields.`,
-				);
-			}
-
-			const [
-				genColDelta,
-				sourceIndexDelta = 0,
-				origLineDelta = 0,
-				origColDelta = 0,
-			] = fields;
-			genCol += genColDelta;
-			sourceIndex += sourceIndexDelta;
-			origLine += origLineDelta;
-			origCol += origColDelta;
-			if (sourceIndex < 0 || origLine < 0 || origCol < 0) {
-				throw new Error(
-					`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: segment resolves to a negative original position.`,
-				);
-			}
-			segments.push({ genCol, origCol, origLine, sourceIndex });
-		}
-	}
-	return segments;
-};
-
-// Resolves a chunk map's relative source id (relative to the chunk's own
-// directory in the output tree) to the absolute module id used by
-// chunk.modules. Internal Rolldown virtual ids are prefixed with a NUL byte
-// and are not real modules; they yield no segment.
-const resolveRenderedMapSource = (mapSource, chunkDirectory) => {
-	if (
-		typeof mapSource !== 'string' ||
-		mapSource === '' ||
-		mapSource.startsWith('\0')
-	) {
-		return undefined;
-	}
-
-	const resolved = path.isAbsolute(mapSource)
-		? mapSource
-		: path.resolve(chunkDirectory, mapSource);
-	return normalizeModuleId(resolved);
-};
-
-// A rendered segment matches a mint only when the bundler's own map places
-// an emitted token strictly inside the recorded extent of the minting call,
-// in the standard 0-based coordinates both the scan and the map use. The
-// call's first token — the callee at the span start — is excluded: bundlers
-// map an emitted callee identifier to its import position, and a callee
-// *reference* emitted without the call would occupy the same in-span start
-// position as the call itself. Only the argument-list extent (the open
-// paren, arguments, close paren) can be emitted by the call and by nothing
-// else, so a segment there is an emitted call, not a token that happens to
-// map into the span.
-const renderedSegmentMatchesCallEmission = (segment, span) => {
-	if (segment.origLine < span.startLine || segment.origLine > span.endLine) {
-		return false;
-	}
-	if (segment.origLine === span.startLine && segment.origCol <= span.startCol) {
-		return false;
-	}
-	if (segment.origLine === span.endLine && segment.origCol >= span.endCol) {
-		return false;
-	}
-	return true;
-};
-
 export const findContextChunkIsolationViolations = (
 	contexts,
 	chunks,
@@ -1072,6 +936,11 @@ export const findContextChunkIsolationViolations = (
 		);
 		const segments = [];
 		for (const segment of decodeSourceMapSegments(map, chunk.fileName)) {
+			// A one-field VLQ segment is generated-only: it has no original
+			// source and never contributes a position.
+			if (!segment.mapped) {
+				continue;
+			}
 			if (segment.sourceIndex >= map.sources.length) {
 				throw new Error(
 					`Context chunk isolation guard could not use the source map the build emitted for chunk ${chunk.fileName}: segment references source index ${segment.sourceIndex} beyond the ${map.sources.length} listed sources.`,
@@ -1085,12 +954,26 @@ export const findContextChunkIsolationViolations = (
 				continue;
 			}
 			segments.push({
+				genCol: segment.genCol,
+				genLine: segment.genLine,
 				origCol: segment.origCol,
 				origLine: segment.origLine,
 				source,
 			});
 		}
-		chunkAnalyses.set(chunk, { hasMap: true, segments });
+		// The generated positions of the map's segments refer to the chunk's
+		// own emitted code, so the guard parses that code once for the call
+		// extents it must tie attribution to. A chunk that carries no code
+		// (hand-fed fixtures) skips the emitted-call tie entirely.
+		const emittedCallExtents =
+			typeof chunk.code === 'string' && chunk.code.length > 0
+				? findEmittedCallExtents(chunk.code)
+				: undefined;
+		chunkAnalyses.set(chunk, {
+			emittedCallExtents,
+			hasMap: true,
+			segments,
+		});
 	}
 
 	return contexts.flatMap((context) => {
@@ -1121,38 +1004,27 @@ export const findContextChunkIsolationViolations = (
 					);
 				}
 
-				// A copy can answer the minting question only when its
-				// chunk's map resolves positions for this exact copy: at
-				// least two distinct original positions must be attributed
-				// to the copy's module id. A map that collapses a copy's
-				// content onto a single anchor (every generated line at
-				// original 0:0, or everything composed onto one position)
-				// cannot distinguish an emitted mint from an absent one, so
-				// the copy is un-attributable and takes the fail-closed
+				// A copy can answer the minting question only when the map
+				// demonstrates that it describes this exact copy. The map must
+				// resolve the copy's module id to distinct original positions
+				// (a map that collapses the copy onto a single anchor cannot
+				// distinguish an emitted mint from an absent one) and, when
+				// the chunk's emitted code is available, it must tie at least
+				// one of those positions to a call the copy actually emits —
+				// an emitted mint call whose tokens the map never touches is
+				// a map that does not describe this copy. A copy failing
+				// either test is un-attributable and takes the fail-closed
 				// branch below instead of a silent non-mint verdict.
 				const copySegments = chunkAnalysis.hasMap
 					? chunkAnalysis.segments.filter(
 							(segment) => segment.source === moduleChunk.moduleId,
 						)
 					: [];
-				const copyPositions = new Set(
-					copySegments.map(
-						(segment) => `${segment.origLine}:${segment.origCol}`,
-					),
+				const { attributable, minted } = classifyCopyAttribution(
+					copySegments,
+					mintSpans,
+					chunkAnalysis.emittedCallExtents,
 				);
-				const attributable = chunkAnalysis.hasMap && copyPositions.size >= 2;
-				// A copy mints the context when the bundler's map attributes
-				// an emitted call to a recorded mint call start in this
-				// exact module copy (the map's resolved source id matches the
-				// copy's module id — a sibling copy in the same chunk is a
-				// different source id, so per-copy attribution stays exact).
-				const minted =
-					attributable &&
-					copySegments.some((segment) =>
-						mintSpans.some((span) =>
-							renderedSegmentMatchesCallEmission(segment, span),
-						),
-					);
 				familyCopies.push({
 					attributable,
 					chunkName: moduleChunk.chunkName,
@@ -1171,11 +1043,11 @@ export const findContextChunkIsolationViolations = (
 		const mintingCopies = familyCopies.filter((copy) => copy.minted);
 		const copyCount = familyCopies.length;
 		// A delivered copy whose chunk emits no source map — or whose map
-		// does not resolve precise original positions for the copy — cannot
-		// be checked: it may mint the context like any other copy, so
-		// attribution is incomplete and the verdict fails closed whenever
-		// more than one copy exists. A single copy needs no attribution at
-		// all.
+		// does not resolve the copy to precise positions tied to the calls
+		// it emits — cannot be checked: it may mint the context like any
+		// other copy, so attribution is incomplete and the verdict fails
+		// closed whenever more than one copy exists. A single copy needs no
+		// attribution at all.
 		if (copyCount >= 2 && familyCopies.some((copy) => !copy.attributable)) {
 			throw new Error(
 				`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it.`,
