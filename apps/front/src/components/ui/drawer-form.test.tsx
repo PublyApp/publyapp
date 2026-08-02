@@ -59,24 +59,38 @@
  * everything that creates no node — JSX expressions, conditionals, `&&`
  * chains, calls, parentheses, the `<>` shorthand, and the nodeless React
  * wrappers `Fragment`/`Suspense`/`StrictMode` (only when actually imported
- * from `react`). A part whose walk finds NO enclosing element at all sits
- * inside a component DEFINITION (a composition helper that renders the
- * part), not at a drawer call site: its DOM position is decided by the
- * helper's call site, a definition site has no drawer to break, and the
- * walk's null result is therefore accepted, not a violation. This is a
- * deliberate, documented decision: the guard cannot see the chain through a
- * helper, and it says so in the "what the suite cannot see" section of the
- * round-8 report rather than rejecting correct code. A helper that wraps
- * the part in a real element IS discovered and judged — the walk then finds
- * that element and it is a violation.
+ * from `react`, in a named or namespace-member spelling). A part whose walk
+ * finds NO enclosing element at all sits inside a component DEFINITION (a
+ * composition helper that renders the part), not at a drawer call site: its
+ * DOM position is decided by the helper's call site, and a definition site
+ * has no drawer to break. A helper that wraps the part in a real element IS
+ * discovered and judged — the walk then finds that element and it is a
+ * violation.
  *
- * Definition-site parts do NOT exempt the rest of the file: a file whose
- * part tags all sit behind chain-preserving helpers is still a drawer call
- * site when it renders the form at a call site — it is discovered,
- * inventoried as form-bearing, and its surface-to-form link is judged. The
- * definition-site rule cancels only the part-wrapper judgement, nothing
- * else (round 10: the parts hiding inside helpers must not hide the
- * `DrawerContent -> DrawerForm` break one level up).
+ * Definition-site parts do NOT exempt the rest of the file — and this is
+ * where round 12 (the drawer-section resolution block below) closes the two
+ * escapes round 11 filed against the definition-site rule:
+ *
+ *  - a same-file sub-component that renders the `DrawerForm` used to make
+ *    the file legally "formless": 28/28 green with `.publy-drawer > div >
+ *    form.publy-drawer-form`, and the CORRECT inventory filing was the one
+ *    that reddened (round 11's IMPORTANT 1);
+ *  - parts extracted into a helper FILE left the call site with zero part
+ *    tags, so discovery never visited it at all (round 11's IMPORTANT 2).
+ *
+ * The round-12 rule is therefore not a third marker to enumerate: from
+ * every `DrawerContent`/`DrawerForm` tag the file renders — at a call site
+ * or as a definition-root component (the drawer module itself excluded,
+ * since its composition is the render half's and the Playwright spec's
+ * business) — the scan RESOLVES WHAT THE DRAWER RENDERS: it follows
+ * same-file sub-components and cross-file helpers through their definitions
+ * to the parts and forms they ultimately produce, and judges those
+ * occurrences by the element chain around them (a part or form behind a
+ * `<div>`, anywhere in the chain, is a violation; directly under the
+ * surface/form, clean). The resolution boundary is stated in the
+ * drawer-section block below: everything the scan cannot resolve statically
+ * is UNVERIFIABLE and reddens the file, so a drawer whose geometry cannot
+ * be verified is never silently green.
  *
  * Deliberate friction: every file the scanner discovers must appear in the
  * inventory (the `DRAWER_FORM_CALL_SITES` union below, or
@@ -84,22 +98,23 @@
  * before it is reviewed. Form-bearing drawers additionally land in the e2e
  * helper and its exhaustive openers, which is where the author must supply a
  * real route, a drawer test id and a Playwright opener. The two lists are
- * NOT interchangeable: a discovered file whose JSX contains a `DrawerForm`
- * tag must be in `DRAWER_FORM_CALL_SITES` (the scan reports every such file
- * as `formBearing`), because the formless list carries no render obligation
- * — filing a form-bearing drawer there used to be the silent escape.
+ * NOT interchangeable: a discovered file that renders a resolved `DrawerForm`
+ * tag — directly, inside a same-file sub-component, or behind a cross-file
+ * helper (the scan reports every such file as `formBearing`) — must be in
+ * `DRAWER_FORM_CALL_SITES`, because the formless list carries no render
+ * obligation — filing a form-bearing drawer there used to be the silent
+ * escape, and round 11 proved the correct filing used to be the one that
+ * reddened.
  *
  * The scan additionally asserts the `DrawerContent → DrawerForm` link for
- * every file with a call-site `DrawerForm` tag: the form must be a direct
- * child of the `.publy-drawer` surface. A `<div>` between the surface and
- * the form is the #990 break one level up — the div owns the unconstrained
- * height and the body's scrolling is inert — and it reddens the structural
- * test even when every part tag has a legal wrapper, and even when every
- * part tag sits behind a chain-preserving helper or in a `render={}`
- * attribute: a file with a call-site form is a drawer call site regardless
- * of where its parts are declared, so the definition-site rule cannot
- * silence the form-link verdict or hide the file from discovery (round 9's
- * IMPORTANT 1).
+ * every form the anchored walks find: the form must be a direct child of
+ * the `.publy-drawer` surface. A `<div>` between the surface and the form is
+ * the #990 break one level up — the div owns the unconstrained height and
+ * the body's scrolling is inert — and it reddens the structural test even
+ * when every part tag has a legal wrapper, and even when the form itself
+ * sits behind a same-file sub-component or a cross-file helper (round 9's
+ * IMPORTANT 1 + round 11's IMPORTANT 1 + 2: the definition-site rule cannot
+ * silence the form-link verdict or hide the file from discovery).
  */
 
 import {
@@ -124,11 +139,20 @@ import {
 	Project,
 	SyntaxKind,
 	ts,
+	type ArrowFunction,
+	type Block,
+	type CallExpression,
+	type ConditionalExpression,
+	type FunctionDeclaration,
 	type JsxElement,
+	type JsxExpression,
+	type JsxFragment,
 	type JsxOpeningElement,
 	type JsxSelfClosingElement,
 	type Node,
+	type ReturnStatement,
 	type SourceFile,
+	type VariableDeclaration,
 } from 'ts-morph';
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
 import { Form } from '~/components/field/form';
@@ -857,6 +881,511 @@ export const FooterOnlyDrawerFixture = () => (
 );
 `;
 
+// Round 11's IMPORTANT 1: the SAME break one level up (a `<div>` between the
+// surface and the form), with the form extracted into a SAME-FILE
+// sub-component. The file still renders a drawer form at a call site — the
+// walk must resolve what `<InnerForm />` renders, judge the form occurrence
+// with the div on its chain (formLinkBroken), and report the file as
+// form-bearing so the correct inventory filing is the passing one.
+const TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-inner-form-div-above-fixture.tsx';
+const TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_PATH = fixturePath(
+	TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_FILE,
+);
+const TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const InnerForm = ({ methods }: { methods: UseFormReturn<FieldValues> }) => (
+	<DrawerForm methods={methods}>
+		<DrawerBody />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+
+export const InnerFormDivAboveDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r12-inner-form-div-above">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<InnerForm methods={methods} />
+			</div>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// The CORRECT same-file sub-component arrangement: the sub-component renders
+// the form directly under the surface, no intermediate element. The
+// round-13 standard — a mutation that keeps this green while restoring the
+// #990 break must not exist — starts with the correct arrangement staying
+// green.
+const TEMPORARY_INNER_FORM_DIRECT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-inner-form-direct-fixture.tsx';
+const TEMPORARY_INNER_FORM_DIRECT_DRAWER_PATH = fixturePath(
+	TEMPORARY_INNER_FORM_DIRECT_DRAWER_FILE,
+);
+const TEMPORARY_INNER_FORM_DIRECT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const InnerForm = ({ methods }: { methods: UseFormReturn<FieldValues> }) => (
+	<DrawerForm methods={methods}>
+		<DrawerBody />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+
+export const InnerFormDirectDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r12-inner-form-direct">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<InnerForm methods={methods} />
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// Round 11's IMPORTANT 2: the parts extracted into a CROSS-FILE helper. The
+// call site has no part tags of its own — discovery used to never visit it.
+// The helper file is a definition site and stays out of the inventory; the
+// call site is judged through the walk, and this variant carries the #990
+// break one level up (the div between the surface and the form).
+const TEMPORARY_CROSSFILE_PARTS_FILE =
+	'src/components/ui/_drawer-crossfile-parts-fixture.tsx';
+const TEMPORARY_CROSSFILE_PARTS_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_PARTS_FILE,
+);
+const TEMPORARY_CROSSFILE_PARTS_SOURCE = `import { DrawerBody, DrawerFooter } from '~/components/ui/drawer';
+
+export const BodySection = () => <DrawerBody />;
+export const FooterSection = () => (
+	<DrawerFooter>
+		<button type="submit" />
+	</DrawerFooter>
+);
+`;
+const TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_FILE =
+	'src/components/ui/_drawer-surface-crossfile-div-above-form-fixture.tsx';
+const TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_FILE,
+);
+const TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerContent,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+import { BodySection, FooterSection } from './_drawer-crossfile-parts-fixture';
+
+export const CrossFileDivAboveFormDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r12-crossfile-div-above-form">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<DrawerForm methods={methods}>
+					<BodySection />
+					<FooterSection />
+				</DrawerForm>
+			</div>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// The CORRECT cross-file arrangement: the same helpers, the form directly
+// under the surface. The parts the helpers produce must resolve with an
+// empty chain — this must stay green.
+const TEMPORARY_CROSSFILE_DIRECT_FORM_FILE =
+	'src/components/ui/_drawer-surface-crossfile-direct-form-fixture.tsx';
+const TEMPORARY_CROSSFILE_DIRECT_FORM_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DIRECT_FORM_FILE,
+);
+const TEMPORARY_CROSSFILE_DIRECT_FORM_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerContent,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+import { BodySection, FooterSection } from './_drawer-crossfile-parts-fixture';
+
+export const CrossFileDirectFormDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r12-crossfile-direct-form">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<DrawerForm methods={methods}>
+				<BodySection />
+				<FooterSection />
+			</DrawerForm>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// Round 11's MINOR 4: a `Suspense` imported from a NON-react module must not
+// be treated as React's nodeless wrapper — it renders a real layout box, so
+// the box's div is an element between the form and the part. These pin the
+// two `isNodelessReactWrapper` conditions round 11 showed were still
+// fail-open: the named-import module check (`getModuleSpecifierValue() ===
+// 'react'`) and the member-expression branch (`resolveNamespaceImport(...)
+// === 'react'`). The positive control — a REAL `React.Suspense` reached as
+// `<React.Suspense>` — stays transparent.
+const TEMPORARY_NONREACT_SUSPENSE_MODULE_FILE =
+	'src/components/ui/_r12-nonreact-suspense-box-fixture.tsx';
+const TEMPORARY_NONREACT_SUSPENSE_MODULE_PATH = fixturePath(
+	TEMPORARY_NONREACT_SUSPENSE_MODULE_FILE,
+);
+const TEMPORARY_NONREACT_SUSPENSE_MODULE_SOURCE = `import type { ReactNode } from 'react';
+
+export const Suspense = ({ children }: { children: ReactNode }) => (
+	<div className="p-4">{children}</div>
+);
+`;
+const TEMPORARY_NAMED_NONREACT_SUSPENSE_FILE =
+	'src/components/ui/_drawer-surface-named-nonreact-suspense-fixture.tsx';
+const TEMPORARY_NAMED_NONREACT_SUSPENSE_PATH = fixturePath(
+	TEMPORARY_NAMED_NONREACT_SUSPENSE_FILE,
+);
+const TEMPORARY_NAMED_NONREACT_SUSPENSE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { Suspense } from './_r12-nonreact-suspense-box-fixture';
+
+export const NamedNonReactSuspenseDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<Suspense>
+			<DrawerBody />
+		</Suspense>
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+const TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_FILE =
+	'src/components/ui/_drawer-surface-ns-member-nonreact-suspense-fixture.tsx';
+const TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_PATH = fixturePath(
+	TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_FILE,
+);
+const TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import * as Layout from './_r12-nonreact-suspense-box-fixture';
+
+export const NsMemberNonReactSuspenseDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<Layout.Suspense>
+			<DrawerBody />
+		</Layout.Suspense>
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+const TEMPORARY_REACT_NS_SUSPENSE_FILE =
+	'src/components/ui/_drawer-surface-react-ns-suspense-fixture.tsx';
+const TEMPORARY_REACT_NS_SUSPENSE_PATH = fixturePath(
+	TEMPORARY_REACT_NS_SUSPENSE_FILE,
+);
+const TEMPORARY_REACT_NS_SUSPENSE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import * as React from 'react';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ReactNsSuspenseDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<React.Suspense fallback={null}>
+			<DrawerBody />
+		</React.Suspense>
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
+// The FORM extracted into a CROSS-FILE helper (round 11's I1 one hop
+// further): the call site has no `DrawerForm` tag of its own, so
+// formBearing must come from the walk, and the div above the helper must
+// redden through the expansion — the same #990 break, one file away.
+const TEMPORARY_CROSSFILE_FORM_HELPER_FILE =
+	'src/components/ui/_drawer-crossfile-form-helper-fixture.tsx';
+const TEMPORARY_CROSSFILE_FORM_HELPER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_FORM_HELPER_FILE,
+);
+const TEMPORARY_CROSSFILE_FORM_HELPER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const FormSection = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<DrawerBody />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+const TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_FILE =
+	'src/components/ui/_drawer-surface-crossfile-form-div-above-fixture.tsx';
+const TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_FILE,
+);
+const TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '~/components/ui/drawer';
+import { FormSection } from './_drawer-crossfile-form-helper-fixture';
+
+export const CrossFileFormDivAboveDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r12-crossfile-form-div-above">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<FormSection methods={methods} />
+			</div>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+const TEMPORARY_CROSSFILE_FORM_DIRECT_FILE =
+	'src/components/ui/_drawer-surface-crossfile-form-direct-fixture.tsx';
+const TEMPORARY_CROSSFILE_FORM_DIRECT_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_FORM_DIRECT_FILE,
+);
+const TEMPORARY_CROSSFILE_FORM_DIRECT_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '~/components/ui/drawer';
+import { FormSection } from './_drawer-crossfile-form-helper-fixture';
+
+export const CrossFileFormDirectDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r12-crossfile-form-direct">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<FormSection methods={methods} />
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// A helper whose OWN body wraps the part in an element: the div sits inside
+// the definition, so only the expansion can see it — the chain must carry it
+// and redden (the round-8 "a helper that wraps the part in a real element IS
+// discovered and judged" contract, enforced across the file boundary).
+const TEMPORARY_HELPER_DIV_WRAPPED_PART_FILE =
+	'src/components/ui/_drawer-surface-helper-div-wrapped-part-fixture.tsx';
+const TEMPORARY_HELPER_DIV_WRAPPED_PART_PATH = fixturePath(
+	TEMPORARY_HELPER_DIV_WRAPPED_PART_FILE,
+);
+const TEMPORARY_HELPER_DIV_WRAPPED_PART_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const BodySection = () => (
+	<div className="p-4">
+		<DrawerBody />
+	</div>
+);
+
+export const HelperDivWrappedPartDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<BodySection />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
+// A div-passthrough helper: `<Box>{children}</Box>`. Parts passed INTO the
+// helper land behind the div at runtime — the `{children}` marker must hand
+// the reference's own JSX children to the walk with the div on their chain.
+const TEMPORARY_DIV_PASSTHROUGH_HELPER_FILE =
+	'src/components/ui/_drawer-surface-div-passthrough-helper-fixture.tsx';
+const TEMPORARY_DIV_PASSTHROUGH_HELPER_PATH = fixturePath(
+	TEMPORARY_DIV_PASSTHROUGH_HELPER_FILE,
+);
+const TEMPORARY_DIV_PASSTHROUGH_HELPER_SOURCE = `import type { ReactNode } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const Box = ({ children }: { children: ReactNode }) => (
+	<div className="p-4">{children}</div>
+);
+
+export const DivPassthroughHelperDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<Box>
+			<DrawerBody />
+		</Box>
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
+// The positive control: a FRAGMENT passthrough helper is transparent — parts
+// passed into it stay direct children of the form.
+const TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_FILE =
+	'src/components/ui/_drawer-surface-fragment-passthrough-helper-fixture.tsx';
+const TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_PATH = fixturePath(
+	TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_FILE,
+);
+const TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_SOURCE = `import type { ReactNode } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const Wrap = ({ children }: { children: ReactNode }) => <>{children}</>;
+
+export const FragmentPassthroughHelperDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<Wrap>
+			<DrawerBody />
+		</Wrap>
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
+// A `{children}` passthrough as a DIRECT child of the surface or the form is
+// unverifiable: the parts would arrive at runtime from the caller, and the
+// scan has no way to check their geometry — fail loud, per the round-12
+// boundary. Same for a passthrough inside an element of the anchored
+// subtree (the parts would land inside that element).
+const TEMPORARY_CHILDREN_IN_FORM_FILE =
+	'src/components/ui/_drawer-surface-children-in-form-fixture.tsx';
+const TEMPORARY_CHILDREN_IN_FORM_PATH = fixturePath(
+	TEMPORARY_CHILDREN_IN_FORM_FILE,
+);
+const TEMPORARY_CHILDREN_IN_FORM_SOURCE = `import type { ReactNode } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerForm } from '~/components/ui/drawer';
+
+export const ChildrenInFormDrawerFixture = ({
+	methods,
+	children,
+}: {
+	methods: UseFormReturn<FieldValues>;
+	children: ReactNode;
+}) => <DrawerForm methods={methods}>{children}</DrawerForm>;
+`;
+const TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_FILE =
+	'src/components/ui/_drawer-surface-children-in-surface-element-fixture.tsx';
+const TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_PATH = fixturePath(
+	TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_FILE,
+);
+const TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_SOURCE = `import type { ReactNode } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerContent,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+export const ChildrenInSurfaceElementDrawerFixture = ({
+	methods,
+	children,
+}: {
+	methods: UseFormReturn<FieldValues>;
+	children: ReactNode;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r12-children-in-surface-element">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<DrawerForm methods={methods}>
+				<div className="p-4">{children}</div>
+			</DrawerForm>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
 // Formless drawers that put DrawerBody + DrawerFooter straight into the
 // `.publy-drawer` surface instead of into the drawer-owned form. They are
 // deliberately not in DRAWER_FORM_CALL_SITES: the e2e spec and the render map
@@ -1420,6 +1949,895 @@ const resolveTagBinding = (
 	return 'other';
 };
 
+// ---------------------------------------------------------------------------
+// Round 12: drawer-section resolution.
+//
+// Round 11's IMPORTANT 1 + 2: discovery keyed on a syntactic marker AT THE
+// CALL SITE (first `DrawerForm`, then the part tags), and any refactor that
+// moved the marker elsewhere while preserving the runtime structure walked
+// straight through — 28/28 green with the exact #990 break in the tree, in
+// two idiomatic shapes: a same-file sub-component rendering the form, and
+// parts produced by a cross-file helper. The round-12 rule is therefore not
+// a third marker: the walk below RESOLVES WHAT THE DRAWER RENDERS. From
+// every call-site `DrawerContent`/`DrawerForm` it expands component
+// references — same-file sub-components and cross-file helpers alike —
+// through their definitions to the parts and forms they ultimately produce,
+// and judges those occurrences by the element chain around them.
+//
+// The expansion boundary is stated here, plainly:
+//
+//  - A reference is resolvable when its binding is a local declaration or
+//    an in-repo module export whose body is statically a JSX tree (through
+//    arrows, function blocks, memo/forwardRef wrapping, conditionals and
+//    parentheses — see extractComponentBody). Re-export barrels, aliases and
+//    namespace spellings follow the same machinery as the wrapper check.
+//  - A `{children}` passthrough inside a definition hands the reference's
+//    OWN JSX children to that position, so fragment/div passthrough helpers
+//    resolve exactly (a div passthrough puts the parts behind a `<div>` and
+//    reddens; a fragment passthrough is transparent and stays green).
+//  - Everything else — an unresolvable import, a node_modules component, a
+//    non-JSX definition body, a local object member, a bare expression as a
+//    direct child of the surface or the form, a children passthrough in the
+//    anchored subtree, or a reference chain deeper than the depth limit —
+//    is UNVERIFIABLE, and unverifiable must not be green: the file becomes a
+//    violation so a reviewer looks at it. Drawer-module elements
+//    (DrawerHeader, DrawerTitle, ...) are NOT expanded — their internal
+//    composition is the artifact under test, pinned by the render half and
+//    the Playwright spec — but a part nested inside one still reddens via
+//    the chain.
+// ---------------------------------------------------------------------------
+
+const EXPANSION_DEPTH_LIMIT = 8;
+
+type DrawerSectionDefinition = {
+	body: Node[];
+	file: SourceFile;
+};
+
+type PendingRefChildren = {
+	nodes: readonly Node[];
+	file: SourceFile;
+};
+
+type WalkedOccurrence = {
+	node: JsxOpeningElement | JsxSelfClosingElement;
+	chain: Array<JsxOpeningElement | JsxSelfClosingElement>;
+};
+
+type WalkState = {
+	parts: WalkedOccurrence[];
+	forms: WalkedOccurrence[];
+	unverifiable: boolean;
+};
+
+type WalkContext = {
+	moduleResolution: ModuleResolution;
+	project: Project;
+	moduleCache: Map<string, string | null>;
+	declaredNamesByFile: Map<string, Set<string>>;
+	drawerTagName: (sourceFile: SourceFile, tagText: string) => string | null;
+	definitionCache: Map<string, Map<string, DrawerSectionDefinition | null>>;
+};
+
+const isNodeModulesFilePath = (filePath: string): boolean =>
+	filePath.includes(`${path.sep}node_modules${path.sep}`);
+
+const resolveModuleFilePath = (
+	fromFilePath: string,
+	moduleSpecifier: string,
+	moduleResolution: ModuleResolution,
+	moduleCache: Map<string, string | null>,
+): string | null => {
+	const cacheKey = `${fromFilePath}|${moduleSpecifier}`;
+	let resolved = moduleCache.get(cacheKey);
+	if (resolved === undefined) {
+		resolved =
+			ts.resolveModuleName(
+				moduleSpecifier,
+				fromFilePath,
+				moduleResolution.compilerOptions,
+				moduleResolution.host,
+			).resolvedModule?.resolvedFileName ?? null;
+		moduleCache.set(cacheKey, resolved);
+	}
+	return resolved;
+};
+
+/**
+ * The JSX a component definition ultimately renders — the walk roots for a
+ * resolved reference. Unwraps the forms a static scan can see through: the
+ * JSX itself, arrow/function bodies (expression or a block whose top-level
+ * returns), memo/forwardRef wrapping, parentheses and conditionals. A body
+ * that renders a literal nothing (null, undefined, a string) is an EMPTY
+ * body, not an unresolvable one. Anything else (an identifier, a call to a
+ * non-memo helper, ...) is null — the walk then fails loud, because the
+ * geometry behind that reference is not statically decidable.
+ */
+const extractComponentBody = (node: Node): Node[] | null => {
+	const kind = node.getKind();
+	if (
+		kind === SyntaxKind.JsxElement ||
+		kind === SyntaxKind.JsxSelfClosingElement ||
+		kind === SyntaxKind.JsxFragment
+	) {
+		return [node];
+	}
+	if (kind === SyntaxKind.ParenthesizedExpression) {
+		const expression = (
+			node as Node & { getExpression(): Node }
+		).getExpression();
+		return extractComponentBody(expression);
+	}
+	if (kind === SyntaxKind.ConditionalExpression) {
+		const conditional = node as ConditionalExpression;
+		const whenTrue = extractComponentBody(conditional.getWhenTrue());
+		const whenFalse = extractComponentBody(conditional.getWhenFalse());
+		if (!whenTrue || !whenFalse) {
+			return null;
+		}
+		return [...whenTrue, ...whenFalse];
+	}
+	if (kind === SyntaxKind.ArrowFunction) {
+		const body = (node as ArrowFunction).getBody();
+		if (body.getKind() === SyntaxKind.Block) {
+			return extractBlockReturns(body as Block);
+		}
+		return extractComponentBody(body);
+	}
+	if (
+		kind === SyntaxKind.FunctionDeclaration ||
+		kind === SyntaxKind.FunctionExpression
+	) {
+		const body = (node as FunctionDeclaration | FunctionExpression).getBody();
+		return body ? extractBlockReturns(body) : [];
+	}
+	if (kind === SyntaxKind.CallExpression) {
+		const call = node as CallExpression;
+		const calleeText = call.getExpression().getText();
+		if (
+			calleeText === 'memo' ||
+			calleeText === 'forwardRef' ||
+			calleeText.endsWith('.memo') ||
+			calleeText.endsWith('.forwardRef')
+		) {
+			const firstArg = call.getArguments()[0];
+			return firstArg ? extractComponentBody(firstArg) : [];
+		}
+		return null;
+	}
+	if (kind === SyntaxKind.VariableDeclaration) {
+		const initializer = (node as VariableDeclaration).getInitializer();
+		return initializer ? extractComponentBody(initializer) : null;
+	}
+	if (
+		kind === SyntaxKind.NullKeyword ||
+		kind === SyntaxKind.UndefinedKeyword ||
+		kind === SyntaxKind.StringLiteral ||
+		kind === SyntaxKind.NumericLiteral ||
+		kind === SyntaxKind.TrueKeyword ||
+		kind === SyntaxKind.FalseKeyword
+	) {
+		return [];
+	}
+	return null;
+};
+
+const extractBlockReturns = (block: Block): Node[] | null => {
+	const bodies: Node[] = [];
+	for (const statement of block.getStatements()) {
+		if (statement.getKind() !== SyntaxKind.ReturnStatement) {
+			continue;
+		}
+		const expression = (statement as ReturnStatement).getExpression();
+		if (!expression) {
+			continue;
+		}
+		const extracted = extractComponentBody(expression);
+		if (!extracted) {
+			return null;
+		}
+		bodies.push(...extracted);
+	}
+	return bodies;
+};
+
+const findLocalComponentDeclaration = (
+	sourceFile: SourceFile,
+	name: string,
+): Node | null => {
+	for (const declaration of sourceFile.getFunctions()) {
+		if (declaration.getName() === name) {
+			return declaration;
+		}
+	}
+	for (const declaration of sourceFile.getClasses()) {
+		if (declaration.getName() === name) {
+			return declaration;
+		}
+	}
+	for (const declaration of sourceFile.getVariableDeclarations()) {
+		if (declaration.getName() === name) {
+			return declaration;
+		}
+	}
+	return null;
+};
+
+const findLocalExportInModule = (
+	file: SourceFile,
+	name: string,
+): Node | null => {
+	if (name === 'default') {
+		const exportAssignment = file.getExportAssignments()[0];
+		if (exportAssignment) {
+			return exportAssignment.getExpression();
+		}
+		for (const declaration of file.getFunctions()) {
+			if (declaration.isDefaultExport()) {
+				return declaration;
+			}
+		}
+		for (const declaration of file.getClasses()) {
+			if (declaration.isDefaultExport()) {
+				return declaration;
+			}
+		}
+		return null;
+	}
+	for (const declaration of file.getFunctions()) {
+		if (declaration.getName() === name && declaration.isExported()) {
+			return declaration;
+		}
+	}
+	for (const declaration of file.getClasses()) {
+		if (declaration.getName() === name && declaration.isExported()) {
+			return declaration;
+		}
+	}
+	for (const declaration of file.getVariableDeclarations()) {
+		if (
+			declaration.getName() === name &&
+			declaration.getVariableStatement()?.isExported()
+		) {
+			return declaration;
+		}
+	}
+	return null;
+};
+
+/**
+ * Resolves `exportName` inside `moduleFilePath` to the node that defines it,
+ * following re-export barrels (`export * from`, aliased `export { X as Y }`,
+ * specifier-less `export { X }` bound by an import) like the wrapper-chain
+ * machinery does — but terminating at ANY module, not just the drawer
+ * module. Depth- and cycle-limited. Null means unresolvable.
+ */
+const resolveNamedExport = (
+	moduleFilePath: string,
+	exportName: string,
+	moduleResolution: ModuleResolution,
+	project: Project,
+	moduleCache: Map<string, string | null>,
+	visited: Set<string>,
+	depth: number,
+): { file: SourceFile; node: Node } | null => {
+	if (depth >= EXPANSION_DEPTH_LIMIT) {
+		return null;
+	}
+	const file = project.addSourceFileAtPath(moduleFilePath);
+	const direct = findLocalExportInModule(file, exportName);
+	if (direct) {
+		return { file, node: direct };
+	}
+	const visitedKey = `${moduleFilePath}|${exportName}`;
+	if (visited.has(visitedKey)) {
+		return null;
+	}
+	visited.add(visitedKey);
+	for (const declaration of file.getExportDeclarations()) {
+		const moduleSpecifier = declaration.getModuleSpecifierValue();
+		const namedExports = declaration.getNamedExports();
+		if (moduleSpecifier) {
+			if (namedExports.length === 0 && !declaration.getNamespaceExport()) {
+				// `export * from '...'` — forwards every named export unchanged.
+				const target = resolveModuleFilePath(
+					moduleFilePath,
+					moduleSpecifier,
+					moduleResolution,
+					moduleCache,
+				);
+				if (!target || isNodeModulesFilePath(target)) {
+					continue;
+				}
+				const result = resolveNamedExport(
+					target,
+					exportName,
+					moduleResolution,
+					project,
+					moduleCache,
+					visited,
+					depth + 1,
+				);
+				if (result) {
+					return result;
+				}
+				continue;
+			}
+			// A namespace re-export (`export * as X`) forwards member
+			// lookups, not the names themselves — the member path resolves
+			// those.
+			if (declaration.getNamespaceExport()) {
+				continue;
+			}
+			for (const specifier of namedExports) {
+				if (
+					(specifier.getAliasNode()?.getText() ?? specifier.getName()) !==
+					exportName
+				) {
+					continue;
+				}
+				const target = resolveModuleFilePath(
+					moduleFilePath,
+					moduleSpecifier,
+					moduleResolution,
+					moduleCache,
+				);
+				if (!target || isNodeModulesFilePath(target)) {
+					continue;
+				}
+				const result = resolveNamedExport(
+					target,
+					specifier.getName(),
+					moduleResolution,
+					project,
+					moduleCache,
+					visited,
+					depth + 1,
+				);
+				if (result) {
+					return result;
+				}
+			}
+			continue;
+		}
+		// `export { X as Y }` without a specifier — bound in this file,
+		// usually imported; follow the binding, falling back to a local
+		// declaration.
+		for (const specifier of namedExports) {
+			if (
+				(specifier.getAliasNode()?.getText() ?? specifier.getName()) !==
+				exportName
+			) {
+				continue;
+			}
+			const originalName = specifier.getName();
+			for (const importDeclaration of file.getImportDeclarations()) {
+				for (const namedImport of importDeclaration.getNamedImports()) {
+					if (
+						(namedImport.getAliasNode()?.getText() ?? namedImport.getName()) !==
+						originalName
+					) {
+						continue;
+					}
+					const target = resolveModuleFilePath(
+						moduleFilePath,
+						importDeclaration.getModuleSpecifierValue(),
+						moduleResolution,
+						moduleCache,
+					);
+					if (!target || isNodeModulesFilePath(target)) {
+						continue;
+					}
+					const result = resolveNamedExport(
+						target,
+						namedImport.getName(),
+						moduleResolution,
+						project,
+						moduleCache,
+						visited,
+						depth + 1,
+					);
+					if (result) {
+						return result;
+					}
+				}
+			}
+			const local = findLocalComponentDeclaration(file, originalName);
+			if (local) {
+				return { file, node: local };
+			}
+		}
+	}
+	return null;
+};
+
+/**
+ * Resolves a component reference tag to the definition that renders it, or
+ * null when the reference cannot be resolved to a statically walkable body —
+ * the walk treats null as unverifiable (fail loud). Same local-name/import
+ * precedence as the drawer machinery: a same-named local declaration
+ * shadows every import, and a member-expression base that is locally
+ * declared is a boundary (its member is not statically decidable).
+ */
+const resolveComponentDefinition = (
+	sourceFile: SourceFile,
+	tagText: string,
+	moduleResolution: ModuleResolution,
+	project: Project,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
+): DrawerSectionDefinition | null => {
+	const namespaceMatch = tagText.match(
+		/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/,
+	);
+	if (namespaceMatch) {
+		const baseName = namespaceMatch[1];
+		const memberName = namespaceMatch[2];
+		if (isLocallyDeclared(sourceFile, baseName, declaredNamesByFile)) {
+			return null;
+		}
+		let moduleSpecifier = resolveNamespaceImport(sourceFile, baseName);
+		if (!moduleSpecifier) {
+			// A member-expression base that is a NAMED binding: the base is a
+			// namespace re-export of some module (`export * as Sections from
+			// './sections'` in a barrel, `import { Sections }` here).
+			for (const declaration of sourceFile.getImportDeclarations()) {
+				for (const namedImport of declaration.getNamedImports()) {
+					const localName =
+						namedImport.getAliasNode()?.getText() ?? namedImport.getName();
+					if (localName !== baseName) {
+						continue;
+					}
+					moduleSpecifier = declaration.getModuleSpecifierValue();
+				}
+			}
+			if (!moduleSpecifier) {
+				return null;
+			}
+			const barrelPath = resolveModuleFilePath(
+				sourceFile.getFilePath(),
+				moduleSpecifier,
+				moduleResolution,
+				moduleCache,
+			);
+			if (!barrelPath || isNodeModulesFilePath(barrelPath)) {
+				return null;
+			}
+			const barrelFile = project.addSourceFileAtPath(barrelPath);
+			for (const exportDeclaration of barrelFile.getExportDeclarations()) {
+				const namespaceExport = exportDeclaration.getNamespaceExport();
+				const specifierValue = exportDeclaration.getModuleSpecifierValue();
+				if (namespaceExport?.getText() === baseName && specifierValue) {
+					const target = resolveModuleFilePath(
+						barrelPath,
+						specifierValue,
+						moduleResolution,
+						moduleCache,
+					);
+					if (!target || isNodeModulesFilePath(target)) {
+						return null;
+					}
+					const result = resolveNamedExport(
+						target,
+						memberName,
+						moduleResolution,
+						project,
+						moduleCache,
+						new Set(),
+						0,
+					);
+					if (!result) {
+						return null;
+					}
+					const body = extractComponentBody(result.node);
+					return body ? { body, file: result.file } : null;
+				}
+			}
+			return null;
+		}
+		const modulePath = resolveModuleFilePath(
+			sourceFile.getFilePath(),
+			moduleSpecifier,
+			moduleResolution,
+			moduleCache,
+		);
+		if (!modulePath || isNodeModulesFilePath(modulePath)) {
+			return null;
+		}
+		const result = resolveNamedExport(
+			modulePath,
+			memberName,
+			moduleResolution,
+			project,
+			moduleCache,
+			new Set(),
+			0,
+		);
+		if (!result) {
+			return null;
+		}
+		const body = extractComponentBody(result.node);
+		return body ? { body, file: result.file } : null;
+	}
+
+	if (isLocallyDeclared(sourceFile, tagText, declaredNamesByFile)) {
+		const declaration = findLocalComponentDeclaration(sourceFile, tagText);
+		if (!declaration) {
+			return null;
+		}
+		const body = extractComponentBody(declaration);
+		return body ? { body, file: sourceFile } : null;
+	}
+	for (const declaration of sourceFile.getImportDeclarations()) {
+		for (const namedImport of declaration.getNamedImports()) {
+			const localName =
+				namedImport.getAliasNode()?.getText() ?? namedImport.getName();
+			if (localName !== tagText) {
+				continue;
+			}
+			const modulePath = resolveModuleFilePath(
+				sourceFile.getFilePath(),
+				declaration.getModuleSpecifierValue(),
+				moduleResolution,
+				moduleCache,
+			);
+			if (!modulePath || isNodeModulesFilePath(modulePath)) {
+				return null;
+			}
+			const result = resolveNamedExport(
+				modulePath,
+				namedImport.getName(),
+				moduleResolution,
+				project,
+				moduleCache,
+				new Set(),
+				0,
+			);
+			if (!result) {
+				return null;
+			}
+			const body = extractComponentBody(result.node);
+			return body ? { body, file: result.file } : null;
+		}
+	}
+	return null;
+};
+
+const resolveComponentDefinitionCached = (
+	sourceFile: SourceFile,
+	tagText: string,
+	context: WalkContext,
+): DrawerSectionDefinition | null => {
+	const filePath = sourceFile.getFilePath();
+	let byName = context.definitionCache.get(filePath);
+	if (!byName) {
+		byName = new Map<string, DrawerSectionDefinition | null>();
+		context.definitionCache.set(filePath, byName);
+	}
+	if (!byName.has(tagText)) {
+		byName.set(
+			tagText,
+			resolveComponentDefinition(
+				sourceFile,
+				tagText,
+				context.moduleResolution,
+				context.project,
+				context.moduleCache,
+				context.declaredNamesByFile,
+			),
+		);
+	}
+	return byName.get(tagText) ?? null;
+};
+
+const isBareChildrenMarker = (node: Node): boolean => {
+	if (node.getKind() !== SyntaxKind.JsxExpression) {
+		return false;
+	}
+	const expression = (node as JsxExpression).getExpression();
+	if (!expression) {
+		return false;
+	}
+	const text = expression.getText().trim();
+	return (
+		text === 'children' ||
+		text === 'props.children' ||
+		text === 'this.props.children' ||
+		/^[A-Za-z_$][\w$]*\.children$/.test(text)
+	);
+};
+
+const expressionContainsJsx = (node: Node): boolean =>
+	node.getDescendantsOfKind(SyntaxKind.JsxOpeningElement).length > 0 ||
+	node.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement).length > 0;
+
+const walkBareExpression = (
+	node: Node,
+	chain: Array<JsxOpeningElement | JsxSelfClosingElement>,
+	inDefinition: boolean,
+	insideDrawerModuleElement: boolean,
+	refChildren: PendingRefChildren | null,
+	sourceFile: SourceFile,
+	context: WalkContext,
+	state: WalkState,
+): void => {
+	// A children passthrough inside a DEFINITION hands the reference's own
+	// JSX children to this position — the walk continues with them at the
+	// chain accumulated so far. A div passthrough reddens the parts; a
+	// fragment passthrough is transparent.
+	if (inDefinition) {
+		if (isBareChildrenMarker(node) && refChildren) {
+			for (const child of refChildren.nodes) {
+				walkNode(
+					child,
+					chain,
+					false,
+					false,
+					null,
+					refChildren.file,
+					context,
+					state,
+				);
+			}
+		}
+		return;
+	}
+	// Anchored (real call-site) subtree.
+	if (insideDrawerModuleElement) {
+		// The drawer module's own elements own their children placement; the
+		// render half pins their composition.
+		return;
+	}
+	if (chain.length === 0 || isBareChildrenMarker(node)) {
+		// A direct child of the surface or the form that is not statically
+		// decidable — or a children passthrough anywhere in the anchored
+		// subtree — cannot be verified, and unverifiable must not be green.
+		state.unverifiable = true;
+		return;
+	}
+	// A benign bare expression inside an element: it cannot itself produce a
+	// drawer part.
+};
+
+const walkNode = (
+	node: Node,
+	chain: Array<JsxOpeningElement | JsxSelfClosingElement>,
+	inDefinition: boolean,
+	insideDrawerModuleElement: boolean,
+	refChildren: PendingRefChildren | null,
+	sourceFile: SourceFile,
+	context: WalkContext,
+	state: WalkState,
+): void => {
+	const kind = node.getKind();
+	if (kind === SyntaxKind.JsxElement) {
+		const element = node as JsxElement;
+		walkTag(
+			element.getOpeningElement(),
+			element.getJsxChildren(),
+			chain,
+			inDefinition,
+			insideDrawerModuleElement,
+			refChildren,
+			sourceFile,
+			context,
+			state,
+		);
+		return;
+	}
+	if (kind === SyntaxKind.JsxSelfClosingElement) {
+		walkTag(
+			node as JsxSelfClosingElement,
+			null,
+			chain,
+			inDefinition,
+			insideDrawerModuleElement,
+			refChildren,
+			sourceFile,
+			context,
+			state,
+		);
+		return;
+	}
+	if (kind === SyntaxKind.JsxFragment) {
+		for (const child of (node as JsxFragment).getJsxChildren()) {
+			walkNode(
+				child,
+				chain,
+				inDefinition,
+				insideDrawerModuleElement,
+				refChildren,
+				sourceFile,
+				context,
+				state,
+			);
+		}
+		return;
+	}
+	if (kind === SyntaxKind.JsxExpression) {
+		const expression = (node as JsxExpression).getExpression();
+		if (!expression) {
+			return;
+		}
+		const expressionKind = expression.getKind();
+		if (
+			expressionKind === SyntaxKind.JsxElement ||
+			expressionKind === SyntaxKind.JsxSelfClosingElement ||
+			expressionKind === SyntaxKind.JsxFragment
+		) {
+			walkNode(
+				expression,
+				chain,
+				inDefinition,
+				insideDrawerModuleElement,
+				refChildren,
+				sourceFile,
+				context,
+				state,
+			);
+			return;
+		}
+		if (!expressionContainsJsx(expression)) {
+			walkBareExpression(
+				node,
+				chain,
+				inDefinition,
+				insideDrawerModuleElement,
+				refChildren,
+				sourceFile,
+				context,
+				state,
+			);
+			return;
+		}
+		for (const child of expression.getChildren()) {
+			walkNode(
+				child,
+				chain,
+				inDefinition,
+				insideDrawerModuleElement,
+				refChildren,
+				sourceFile,
+				context,
+				state,
+			);
+		}
+		return;
+	}
+	if (isTransparentExpression(node)) {
+		for (const child of node.getChildren()) {
+			walkNode(
+				child,
+				chain,
+				inDefinition,
+				insideDrawerModuleElement,
+				refChildren,
+				sourceFile,
+				context,
+				state,
+			);
+		}
+	}
+};
+
+const walkTag = (
+	opening: JsxOpeningElement | JsxSelfClosingElement,
+	jsxChildren: readonly Node[] | null,
+	chain: Array<JsxOpeningElement | JsxSelfClosingElement>,
+	inDefinition: boolean,
+	insideDrawerModuleElement: boolean,
+	refChildren: PendingRefChildren | null,
+	sourceFile: SourceFile,
+	context: WalkContext,
+	state: WalkState,
+): void => {
+	const tagText = opening.getTagNameNode().getText();
+	const drawerName = context.drawerTagName(sourceFile, tagText);
+
+	if (drawerName === 'DrawerBody' || drawerName === 'DrawerFooter') {
+		state.parts.push({ node: opening, chain });
+		return;
+	}
+	if (drawerName === 'DrawerForm') {
+		state.forms.push({ node: opening, chain });
+		return;
+	}
+	if (drawerName === 'DrawerContent') {
+		// A nested surface — its own anchor walk judges it, and parts inside
+		// it belong to that surface, not to this one.
+		return;
+	}
+	if (drawerName !== null) {
+		// Another drawer-module export (Drawer, DrawerHeader, DrawerTitle,
+		// ...) — a real element. A part nested inside one is a violation, so
+		// descend with it on the chain; bare expressions inside it are the
+		// drawer module's own composition, pinned by the render half.
+		if (jsxChildren) {
+			for (const child of jsxChildren) {
+				walkNode(
+					child,
+					[...chain, opening],
+					inDefinition,
+					true,
+					refChildren,
+					sourceFile,
+					context,
+					state,
+				);
+			}
+		}
+		return;
+	}
+	if (isNodelessReactWrapper(opening, sourceFile)) {
+		// Fragment/Suspense/StrictMode imported from react — no DOM node, so
+		// the walk passes through without a chain element.
+		if (jsxChildren) {
+			for (const child of jsxChildren) {
+				walkNode(
+					child,
+					chain,
+					inDefinition,
+					insideDrawerModuleElement,
+					refChildren,
+					sourceFile,
+					context,
+					state,
+				);
+			}
+		}
+		return;
+	}
+	if (/^[a-z]/.test(tagText)) {
+		// An intrinsic element — a real node; descend with it on the chain.
+		if (jsxChildren) {
+			for (const child of jsxChildren) {
+				walkNode(
+					child,
+					[...chain, opening],
+					inDefinition,
+					false,
+					refChildren,
+					sourceFile,
+					context,
+					state,
+				);
+			}
+		}
+		return;
+	}
+
+	// A component reference — follow the definition chain to the parts and
+	// forms it ultimately produces (round 11's IMPORTANT 1 + 2). The
+	// reference itself creates no node: the definition's roots continue the
+	// current chain, and the reference's own JSX children are handed to its
+	// `{children}` passthrough positions.
+	const definition = resolveComponentDefinitionCached(
+		sourceFile,
+		tagText,
+		context,
+	);
+	if (!definition) {
+		state.unverifiable = true;
+		return;
+	}
+	const pendingChildren: PendingRefChildren | null =
+		jsxChildren && jsxChildren.length > 0
+			? { nodes: jsxChildren, file: sourceFile }
+			: null;
+	for (const root of definition.body) {
+		walkNode(
+			root,
+			chain,
+			true,
+			false,
+			pendingChildren,
+			definition.file,
+			context,
+			state,
+		);
+	}
+};
+
 const scanDrawerSurfaces = (): {
 	discovered: string[];
 	violations: string[];
@@ -1504,31 +2922,99 @@ const scanDrawerSurfaces = (): {
 			// shape because the wrapper check still runs on them.
 			return tagText === 'DrawerBody' || tagText === 'DrawerFooter';
 		});
-		if (partNodes.length === 0) {
-			continue;
-		}
-
-		// The DrawerContent -> DrawerForm link and the formBearing inventory
-		// classification run BEFORE the definition-site skip below: a file
-		// with a call-site DrawerForm tag is a drawer call site regardless of
-		// where its part tags are declared, so a file whose parts all sit
-		// behind chain-preserving helpers (or in `render={}` attributes) must
-		// still answer the two questions this guard added — a `<div>` between
-		// the surface and the form is the #990 break one level up, and it
-		// must not hide behind the definition-site rule (round 9's I1). The
-		// partNodes early exit above stays: a file with a DrawerForm tag but
-		// NO part tags at all is not a drawer surface under this guard's
-		// part-tag discovery contract, so nothing downstream needs to run for
-		// it either.
 		const formNodes = jsxTags.filter(
 			(node) =>
 				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
 				'DrawerForm',
 		);
-		const callSiteFormNodes = formNodes.filter(
-			(node) => wrapperOf(node) !== null,
+		const surfaceNodes = jsxTags.filter(
+			(node) =>
+				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
+				'DrawerContent',
 		);
-		if (callSiteFormNodes.length > 0) {
+
+		// Round 12 — the anchored walk: every form/surface subtree this file
+		// renders is resolved to what it actually renders (see the
+		// drawer-section resolution block above). A definition-root
+		// form/surface (the component's own root element) is a drawer call
+		// site in the DOM sense — its children are the drawer geometry — so
+		// it is anchored too; only the drawer module itself is excluded,
+		// because its internal composition is the artifact the render half
+		// and the Playwright spec pin. An opening tag's parent is its
+		// JsxElement, which carries the children the walk starts from.
+		const anchorElements: JsxElement[] = [];
+		if (sourceFile.getFilePath() !== DRAWER_MODULE_PATH) {
+			for (const node of [...formNodes, ...surfaceNodes]) {
+				if (node.getKind() === SyntaxKind.JsxOpeningElement) {
+					const element = node.getParent();
+					if (element?.getKind() === SyntaxKind.JsxElement) {
+						anchorElements.push(element as JsxElement);
+					}
+				}
+			}
+		}
+		const walkState: WalkState = {
+			parts: [],
+			forms: [],
+			unverifiable: false,
+		};
+		if (anchorElements.length > 0) {
+			const walkContext: WalkContext = {
+				moduleResolution,
+				project,
+				moduleCache,
+				declaredNamesByFile,
+				drawerTagName,
+				definitionCache: new Map(),
+			};
+			for (const anchor of anchorElements) {
+				for (const child of anchor.getJsxChildren()) {
+					walkNode(
+						child,
+						[],
+						false,
+						false,
+						null,
+						sourceFile,
+						walkContext,
+						walkState,
+					);
+				}
+			}
+		}
+
+		// The walk is authoritative inside anchored subtrees (it sees through
+		// the same DOM-faithful transparency as the wrapper walk AND through
+		// component references, which the in-file walk cannot); the legacy
+		// call-site judgment below applies only to parts/forms OUTSIDE them —
+		// a bare/unresolvable wrapper (no anchors), or a definition-root
+		// surface whose own children the in-file wrapper walk already judges.
+		const anchorOpeningTags = new Set(
+			anchorElements.map((element) => element.getOpeningElement()),
+		);
+		const isInsideAnchoredSubtree = (
+			node: JsxOpeningElement | JsxSelfClosingElement,
+		): boolean => {
+			let current = node.getParent();
+			while (current) {
+				if (current.getKind() === SyntaxKind.JsxElement) {
+					if (
+						anchorOpeningTags.has((current as JsxElement).getOpeningElement())
+					) {
+						return true;
+					}
+				}
+				current = current.getParent();
+			}
+			return false;
+		};
+		const callSiteFormNodes = formNodes.filter(
+			(node) => wrapperOf(node) !== null && !isInsideAnchoredSubtree(node),
+		);
+		// formBearing is what the header has always claimed: a file that
+		// renders a resolved `DrawerForm` tag anywhere, or whose anchored walk
+		// found a form behind a component reference (round 11's IMPORTANT 1).
+		if (formNodes.length > 0 || walkState.forms.length > 0) {
 			formBearing.push(toPortableSourcePath(sourceFile.getFilePath()));
 		}
 		const formLinkBroken = callSiteFormNodes.some((node) => {
@@ -1547,21 +3033,22 @@ const scanDrawerSurfaces = (): {
 				) !== 'drawer-content'
 			);
 		});
-
-		// A part tag with NO enclosing element sits inside a component
-		// DEFINITION (a composition helper that renders the part), not at a
-		// drawer call site: the DOM position of such a part is decided by the
-		// helper's call site, which lives in another file. A definition site
-		// has no drawer to break, so its part-wrapper judgement is skipped (a
-		// helper that wraps the part in an element IS discovered and judged
-		// here, since the wrapper walk then finds that element). The skip is
-		// scoped to the part-wrapper judgement: a file that still renders the
-		// form at a call site is a drawer call site, so it is discovered and
-		// the form-link verdict above still applies to it.
 		const callSitePartNodes = partNodes.filter(
-			(node) => wrapperOf(node) !== null,
+			(node) => wrapperOf(node) !== null && !isInsideAnchoredSubtree(node),
 		);
-		if (callSitePartNodes.length === 0 && callSiteFormNodes.length === 0) {
+
+		const walkPartBroken = walkState.parts.some(
+			(occurrence) => occurrence.chain.length > 0,
+		);
+		const walkFormBroken = walkState.forms.some(
+			(occurrence) => occurrence.chain.length > 0,
+		);
+
+		if (
+			anchorElements.length === 0 &&
+			callSitePartNodes.length === 0 &&
+			callSiteFormNodes.length === 0
+		) {
 			continue;
 		}
 
@@ -1583,7 +3070,13 @@ const scanDrawerSurfaces = (): {
 			return binding !== 'drawer-form' && binding !== 'drawer-content';
 		});
 
-		if (isRejected || formLinkBroken) {
+		if (
+			isRejected ||
+			formLinkBroken ||
+			walkState.unverifiable ||
+			walkPartBroken ||
+			walkFormBroken
+		) {
 			violations.push(toPortableSourcePath(sourceFile.getFilePath()));
 		}
 	}
@@ -2048,6 +3541,298 @@ describe('drawer surface flex chain guard (#990)', () => {
 		}
 	});
 
+	test('a same-file sub-component rendering the form under an intermediate element is a violation and form-bearing', () => {
+		// Round 11's IMPORTANT 1: the form behind a same-file sub-component
+		// used to make the file legally "formless" — 28/28 green with the
+		// #990 break, and the CORRECT inventory filing was the one that
+		// reddened. The walk must resolve what `<InnerForm />` renders: the
+		// form occurrence carries the div on its chain (formLinkBroken), and
+		// the file is form-bearing either way, so filing it in the formless
+		// list reddens the inventory equality.
+		writeFileSync(
+			TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_PATH,
+			TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_FILE),
+			);
+			expect(scan.formBearing).toContain(
+				fixtureRel(TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_PATH);
+		}
+	});
+
+	test('a same-file sub-component rendering the form directly under the surface is clean', () => {
+		// The correct arrangement — the form behind a same-file sub-component
+		// with NO intermediate element — must stay green: the walk resolves
+		// the form occurrence with an empty chain, and the parts inside the
+		// sub-component keep their direct-children verdict.
+		writeFileSync(
+			TEMPORARY_INNER_FORM_DIRECT_DRAWER_PATH,
+			TEMPORARY_INNER_FORM_DIRECT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_INNER_FORM_DIRECT_DRAWER_FILE),
+			);
+			expect(scan.formBearing).toContain(
+				fixtureRel(TEMPORARY_INNER_FORM_DIRECT_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_INNER_FORM_DIRECT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_INNER_FORM_DIRECT_DRAWER_PATH);
+		}
+	});
+
+	test('drawer parts produced by a cross-file helper are judged at the call site', () => {
+		// Round 11's IMPORTANT 2: parts extracted into a helper FILE used to
+		// leave the call site with zero part tags, so it was never
+		// discovered. The call site's anchored walk now expands the helpers
+		// and reddens the #990 break one level up (the div above the form);
+		// the helper file itself is a definition site and stays out of both
+		// the inventory and the violations.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_PARTS_PATH,
+			TEMPORARY_CROSSFILE_PARTS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_PATH,
+			TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_FILE),
+			);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_PARTS_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_PARTS_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_PARTS_PATH);
+		}
+	});
+
+	test('drawer parts produced by a cross-file helper directly under the form are clean', () => {
+		// The correct cross-file arrangement — the same helpers, no
+		// intermediate element — must stay green: the expanded parts resolve
+		// with an empty chain.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_PARTS_PATH,
+			TEMPORARY_CROSSFILE_PARTS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DIRECT_FORM_PATH,
+			TEMPORARY_CROSSFILE_DIRECT_FORM_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DIRECT_FORM_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DIRECT_FORM_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_DIRECT_FORM_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_PARTS_PATH);
+		}
+	});
+
+	test('a cross-file helper rendering the drawer form is judged at the call site and makes it form-bearing', () => {
+		// The form one hop further: rendered by a helper FILE. The call site
+		// has no `DrawerForm` tag of its own — formBearing must come from the
+		// walk's form occurrence, and the div above the helper reddens
+		// through the expansion. The helper file is a definition site and
+		// stays out of the violations.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORM_HELPER_PATH,
+			TEMPORARY_CROSSFILE_FORM_HELPER_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_PATH,
+			TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_FILE),
+			);
+			expect(scan.formBearing).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORM_HELPER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_FORM_HELPER_PATH);
+		}
+	});
+
+	test('a cross-file helper rendering the drawer form directly under the surface is clean', () => {
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORM_HELPER_PATH,
+			TEMPORARY_CROSSFILE_FORM_HELPER_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORM_DIRECT_PATH,
+			TEMPORARY_CROSSFILE_FORM_DIRECT_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORM_DIRECT_FILE),
+			);
+			expect(scan.formBearing).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORM_DIRECT_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORM_DIRECT_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_FORM_DIRECT_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_FORM_HELPER_PATH);
+		}
+	});
+
+	test('a helper whose own body wraps the part in an element reddens through the expansion', () => {
+		// The div is inside the DEFINITION, so only the expansion can see it:
+		// the part's chain must carry the div and redden. This pins the
+		// part-occurrence chain recording (dropping it would leave the #990
+		// break green in the helper-inside-div shape).
+		writeFileSync(
+			TEMPORARY_HELPER_DIV_WRAPPED_PART_PATH,
+			TEMPORARY_HELPER_DIV_WRAPPED_PART_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_HELPER_DIV_WRAPPED_PART_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_HELPER_DIV_WRAPPED_PART_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_HELPER_DIV_WRAPPED_PART_PATH);
+		}
+	});
+
+	test('parts passed into a div-passthrough helper land behind the div and redden', () => {
+		// `{children}` inside a definition hands the reference's own JSX
+		// children to that position — the walk must continue with them and
+		// the div already on the chain. Dropping the marker continuation
+		// would make this exact shape green again.
+		writeFileSync(
+			TEMPORARY_DIV_PASSTHROUGH_HELPER_PATH,
+			TEMPORARY_DIV_PASSTHROUGH_HELPER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_DIV_PASSTHROUGH_HELPER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_DIV_PASSTHROUGH_HELPER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_DIV_PASSTHROUGH_HELPER_PATH);
+		}
+	});
+
+	test('parts passed into a fragment-passthrough helper stay direct children of the form', () => {
+		// The positive control for the marker: a fragment passthrough is
+		// transparent, so the parts land directly in the form and the file
+		// must stay green.
+		writeFileSync(
+			TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_PATH,
+			TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_PATH);
+		}
+	});
+
+	test('a children passthrough as a direct child of the form is unverifiable and reddens', () => {
+		// The round-12 fail-loud boundary: parts arriving at runtime through
+		// `{children}` cannot be checked, so the file must not be green. This
+		// pins the direct-child bare-expression verdict (dropping it would
+		// wave a children-fed drawer through unverified).
+		writeFileSync(
+			TEMPORARY_CHILDREN_IN_FORM_PATH,
+			TEMPORARY_CHILDREN_IN_FORM_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CHILDREN_IN_FORM_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CHILDREN_IN_FORM_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CHILDREN_IN_FORM_PATH);
+		}
+	});
+
+	test('a children passthrough inside an element of the anchored subtree is unverifiable and reddens', () => {
+		// Same boundary one level down: the parts would land inside the div
+		// at runtime, behind an element — unverifiable, not green.
+		writeFileSync(
+			TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_PATH,
+			TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_PATH);
+		}
+	});
+
 	test('a locally-declared Suspense that renders a layout box is a structural violation, not a nodeless wrapper', () => {
 		writeFileSync(
 			TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH,
@@ -2064,6 +3849,86 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_FAKE_SUSPENSE_DRAWER_PATH);
+		}
+	});
+
+	test('a Suspense imported from a non-react module is a structural violation, not a nodeless wrapper', () => {
+		// Round 11's MINOR 4: `getModuleSpecifierValue() === 'react'` was
+		// unpinned and fail-open — a Suspense imported from ANY module passed
+		// as nodeless, waving the layout box through. The walk additionally
+		// resolves the imported Suspense and finds the box's div on the
+		// part's chain, so the verdict holds even if the nodeless check is
+		// deleted.
+		writeFileSync(
+			TEMPORARY_NONREACT_SUSPENSE_MODULE_PATH,
+			TEMPORARY_NONREACT_SUSPENSE_MODULE_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_NAMED_NONREACT_SUSPENSE_PATH,
+			TEMPORARY_NAMED_NONREACT_SUSPENSE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_NAMED_NONREACT_SUSPENSE_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_NAMED_NONREACT_SUSPENSE_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_NAMED_NONREACT_SUSPENSE_PATH);
+			unlinkSync(TEMPORARY_NONREACT_SUSPENSE_MODULE_PATH);
+		}
+	});
+
+	test('a Suspense reached as a member of a non-react namespace import is a structural violation', () => {
+		// Round 11's MINOR 4, member half: the `<Layout.Suspense>` branch
+		// (`resolveNamespaceImport(...) === 'react'`) was unpinned and
+		// fail-open too.
+		writeFileSync(
+			TEMPORARY_NONREACT_SUSPENSE_MODULE_PATH,
+			TEMPORARY_NONREACT_SUSPENSE_MODULE_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_PATH,
+			TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_PATH);
+			unlinkSync(TEMPORARY_NONREACT_SUSPENSE_MODULE_PATH);
+		}
+	});
+
+	test('a Suspense reached as a member of the react namespace stays transparent', () => {
+		// The positive control for the member branch: `<React.Suspense>` IS
+		// React's nodeless wrapper and must stay green — the round-11
+		// mutations that waved EVERY member through are what these three
+		// fixtures together pin.
+		writeFileSync(
+			TEMPORARY_REACT_NS_SUSPENSE_PATH,
+			TEMPORARY_REACT_NS_SUSPENSE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_REACT_NS_SUSPENSE_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_REACT_NS_SUSPENSE_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_REACT_NS_SUSPENSE_PATH);
 		}
 	});
 
