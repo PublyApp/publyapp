@@ -1321,53 +1321,22 @@ export const scanZIndexFile = ({
 				opaqueSpreadNode: member.opaqueSpreadNode,
 			};
 		};
-		const staticJsxAttributeValues = (attributes, attributeName) => {
-			// The candidate set of a JSX attribute value over the transparent
-			// expression family — a conditional `rel` can provably evaluate to
-			// `stylesheet`, so the link rule must see it. Source-order
-			// last-write-wins like every other attribute reader: React's props
-			// object keeps the last duplicate attribute, so the first
-			// occurrence must not decide the rule (round-15 M1).
-			let attribute = null;
-			for (const property of attributes.properties) {
-				if (
-					ts.isJsxAttribute(property) &&
-					property.name.kind === ts.SyntaxKind.Identifier &&
-					property.name.text === attributeName
-				) {
-					attribute = property;
-				}
-			}
-			if (attribute == null) {
-				return null;
-			}
-			if (ts.isStringLiteral(attribute.initializer)) {
-				return new Set([attribute.initializer.text]);
-			}
-			if (ts.isJsxExpression(attribute.initializer)) {
-				const result = staticStringValues(attribute.initializer.expression);
-				return result == null ? null : result.values;
-			}
-			return null;
-		};
-		const dangerousHtmlPayloadObject = (attributes) => {
-			// Resolves the `dangerouslySetInnerHTML={{ __html: … }}` payload
-			// object of a JSX attributes list with real JSX semantics: the
-			// last occurrence wins, whether it is an explicit attribute or a
-			// static object-literal spread (`{...{dangerouslySetInnerHTML: …}}`
-			// is the same static payload, and the spread source may be a
-			// module-scope const bound to an object literal). A genuinely
-			// opaque spread may carry the attribute, so it shadows earlier
-			// static occurrences exactly as a later attribute override would —
-			// source-order last-write-wins — and a later explicit occurrence
-			// establishes the payload again. `unresolved` says whether an
-			// opaque spread sits after the last establishing occurrence, in
-			// which case the final payload is not provable and the caller must
-			// fail loud by name. Transparent parentheses/assertions around the
-			// payload object or around a spread's member are equivalent
-			// spellings.
-			let found = false;
-			let payloadObject = null;
+		// The shared source-ordered reader for a JSX attribute list: the last
+		// occurrence wins — an explicit attribute, a static object-literal
+		// spread (`{...{rel: 'stylesheet'}}`, whose source may be a
+		// module-scope const object literal through any alias chain), or a
+		// later explicit re-establishment. A genuinely opaque spread may
+		// carry the attribute, so it shadows static facts established before
+		// it exactly as a later override would (round-16 I1): `unresolved`
+		// says an opaque spread sits after the last establishing occurrence,
+		// in which case the final value is not provable and the caller must
+		// fail loud by name; `opaqueOnly` says an opaque spread exists with
+		// no establishing occurrence at all, which the reader reports and the
+		// caller dismisses only when the position is not provably
+		// style-capable. Every JSX attribute reader goes through this one
+		// walker, so the readers cannot disagree about spreads.
+		const lastJsxAttributeValueNode = (attributes, attributeName) => {
+			let valueNode = null;
 			let lastOccurrenceIndex = -1;
 			let lastOpaqueSpreadIndex = -1;
 			let opaqueSpreadNode = null;
@@ -1376,45 +1345,31 @@ export const scanZIndexFile = ({
 				if (ts.isJsxAttribute(property)) {
 					if (
 						property.name.kind !== ts.SyntaxKind.Identifier ||
-						property.name.text !== 'dangerouslySetInnerHTML'
+						property.name.text !== attributeName
 					) {
 						continue;
 					}
-					found = true;
-					payloadObject = null;
+					// A bare attribute (`rel` with no initializer) is React's
+					// `rel={true}`: an establishing occurrence that carries no
+					// string, so the value stays unprovable either way.
+					valueNode =
+						property.initializer == null
+							? null
+							: ts.isJsxExpression(property.initializer)
+								? property.initializer.expression
+								: property.initializer;
 					lastOccurrenceIndex = index;
-					if (ts.isJsxExpression(property.initializer)) {
-						const object = unwrapTransparentExpression(
-							property.initializer.expression,
-						);
-						if (object != null && ts.isObjectLiteralExpression(object)) {
-							payloadObject = object;
-						}
-					}
 				} else if (ts.isJsxSpreadAttribute(property)) {
 					const spreadObject = spreadSourceObjectLiteral(property.expression);
 					if (spreadObject == null) {
-						found = false;
-						payloadObject = null;
 						lastOpaqueSpreadIndex = index;
 						opaqueSpreadNode = property;
 						continue;
 					}
-					const member = staticObjectMemberNode(
-						spreadObject,
-						'dangerouslySetInnerHTML',
-					);
+					const member = staticObjectMemberNode(spreadObject, attributeName);
 					if (member.node != null) {
-						found = true;
-						payloadObject = null;
+						valueNode = member.node;
 						lastOccurrenceIndex = index;
-						const memberObject = unwrapTransparentExpression(member.node);
-						if (
-							memberObject != null &&
-							ts.isObjectLiteralExpression(memberObject)
-						) {
-							payloadObject = memberObject;
-						}
 					}
 					if (member.unresolved || member.opaqueOnly) {
 						lastOpaqueSpreadIndex = index;
@@ -1427,11 +1382,70 @@ export const scanZIndexFile = ({
 				lastOccurrenceIndex >= 0 &&
 				lastOpaqueSpreadIndex >= lastOccurrenceIndex;
 			return {
-				payloadObject,
-				found: found && !unresolved,
+				valueNode,
+				// A bare attribute (`rel` with no initializer) is React's
+				// `rel={true}`: an establishing occurrence that carries no
+				// string — `established` distinguishes it from no occurrence
+				// at all for readers that care about presence.
+				established: lastOccurrenceIndex >= 0,
 				unresolved,
 				opaqueOnly: lastOpaqueSpreadIndex >= 0 && lastOccurrenceIndex < 0,
 				opaqueSpreadNode,
+			};
+		};
+		const staticJsxAttributeValues = (attributes, attributeName) => {
+			// The candidate set of a JSX attribute value over the transparent
+			// expression family — a conditional `rel` can provably evaluate to
+			// `stylesheet`, so the link rule must see it. Source-order
+			// last-write-wins through the shared walker: the last occurrence
+			// decides, whether it is an explicit attribute (round-15 M1), a
+			// static object-literal spread, or a later explicit
+			// re-establishment, and an opaque spread after the last static
+			// fact makes the final value unprovable (round-16 I1).
+			const occurrence = lastJsxAttributeValueNode(attributes, attributeName);
+			const result =
+				occurrence.valueNode == null
+					? null
+					: staticStringValues(occurrence.valueNode);
+			return {
+				values: occurrence.unresolved || result == null ? null : result.values,
+				unresolved: occurrence.unresolved,
+				opaqueOnly: occurrence.opaqueOnly,
+				opaqueSpreadNode: occurrence.opaqueSpreadNode,
+			};
+		};
+		const dangerousHtmlPayloadObject = (attributes) => {
+			// Resolves the `dangerouslySetInnerHTML={{ __html: … }}` payload
+			// object of a JSX attributes list with real JSX semantics through
+			// the shared source-ordered walker: the last occurrence wins,
+			// whether it is an explicit attribute or a static object-literal
+			// spread, and a genuinely opaque spread may carry the attribute,
+			// so it shadows earlier static occurrences exactly as a later
+			// attribute override would — source-order last-write-wins — and a
+			// later explicit occurrence establishes the payload again.
+			// `unresolved` says whether an opaque spread sits after the last
+			// establishing occurrence, in which case the final payload is not
+			// provable and the caller must fail loud by name. Transparent
+			// parentheses/assertions around the payload object or around a
+			// spread's member are equivalent spellings.
+			const occurrence = lastJsxAttributeValueNode(
+				attributes,
+				'dangerouslySetInnerHTML',
+			);
+			const memberObject = unwrapTransparentExpression(occurrence.valueNode);
+			return {
+				payloadObject:
+					occurrence.unresolved ||
+					memberObject == null ||
+					!ts.isObjectLiteralExpression(memberObject)
+						? null
+						: memberObject,
+				found:
+					(occurrence.valueNode != null || occurrence.established) &&
+					!occurrence.unresolved,
+				unresolved: occurrence.unresolved,
+				opaqueOnly: occurrence.opaqueOnly,
+				opaqueSpreadNode: occurrence.opaqueSpreadNode,
 			};
 		};
 		const staticMember = (expression) => {
@@ -2264,8 +2278,30 @@ export const scanZIndexFile = ({
 				ts.isIdentifier(node.tagName) &&
 				node.tagName.text === 'link'
 			) {
-				relValues = staticJsxAttributeValues(node.attributes, 'rel');
-				hrefValues = staticJsxAttributeValues(node.attributes, 'href');
+				const relResult = staticJsxAttributeValues(node.attributes, 'rel');
+				const hrefResult = staticJsxAttributeValues(node.attributes, 'href');
+				// The shared source-ordered reader gives link attributes the
+				// same explicit/static-spread/opaque-spread model as every
+				// other JSX reader (round-16 I1): a later static spread can
+				// override an earlier explicit `rel` and vice versa, and an
+				// opaque spread after the last static fact makes the value
+				// unprovable — the named diagnostic fires, and the literal
+				// rule must not fire on an unprovable member.
+				relValues =
+					relResult.unresolved || relResult.values == null
+						? null
+						: relResult.values;
+				hrefValues =
+					hrefResult.unresolved || hrefResult.values == null
+						? null
+						: hrefResult.values;
+				if (relResult.unresolved || hrefResult.unresolved) {
+					unresolvedSpreadViolation(
+						node,
+						relResult.opaqueSpreadNode ?? hrefResult.opaqueSpreadNode,
+						'a <link> element',
+					);
+				}
 			} else if (ts.isObjectLiteralExpression(node)) {
 				const relResult = staticObjectProperty(node, 'rel');
 				const hrefResult = staticObjectProperty(node, 'href');

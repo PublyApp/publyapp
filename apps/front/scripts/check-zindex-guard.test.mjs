@@ -14,6 +14,8 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { Scanner } from '@tailwindcss/oxide';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { ts } from 'ts-morph';
 
 import {
@@ -332,6 +334,86 @@ test('raw sinks: duplicate JSX link attributes obey source-order last-write-wins
 	assertClean(
 		'fixture.tsx',
 		'<link rel="stylesheet" rel="preload" href="data:text/css,.x%7Bz-index%3A99%7D" />',
+	);
+});
+
+test('raw sinks (round 17 I1): JSX link attributes follow the source-ordered spread model', () => {
+	// Round-16 I1: staticJsxAttributeValues selected the last explicit JSX
+	// attribute but ignored every JsxSpreadAttribute, while
+	// dangerousHtmlPayloadObject resolved static spreads — the readers
+	// disagreed in both directions. A static spread after an explicit `rel`
+	// reinstalled the false negative; the reverse order reinstalled the
+	// false positive. Link attributes now read through the same shared
+	// walker as every other JSX attribute: the last occurrence wins across
+	// explicit attributes AND static object-literal spreads, and an opaque
+	// spread after the last static fact fails loud by name. Every guard
+	// verdict is paired with the artifact React actually renders.
+	const href = 'data:text/css,.x%7Bz-index%3A2147483573%7D';
+	const render = (rel, spread) =>
+		renderToStaticMarkup(
+			React.createElement('link', { rel, ...(spread ?? {}), href }),
+		);
+	// False negative direction: the shipped artifact is a stylesheet, the
+	// guard must red it — the spread is a later write.
+	const fn =
+		'<link rel="preload" {...{ rel: "stylesheet" }} href="data:text/css,.x%7Bz-index%3A2147483573%7D" />';
+	assertRaw('fixture.tsx', fn);
+	assert.match(
+		render('preload', { rel: 'stylesheet' }),
+		/rel="stylesheet"/,
+		'the shipped artifact must be a stylesheet link',
+	);
+	// False positive direction: the shipped artifact is a preload, the guard
+	// must stay green — the spread is an earlier write, the explicit
+	// attribute overrides it.
+	const fp =
+		'<link rel="stylesheet" {...{ rel: "preload" }} href="data:text/css,.x%7Bz-index%3A2147483573%7D" />';
+	assertClean('fixture.tsx', fp);
+	assert.match(
+		render('stylesheet', { rel: 'preload' }),
+		/rel="preload"/,
+		'the shipped artifact must be a preload link',
+	);
+	// A later explicit attribute re-establishes the stylesheet fact after a
+	// static spread, in both JSX spellings.
+	assertRaw(
+		'fixture.tsx',
+		'<link {...{ rel: "preload" }} rel="stylesheet" href="data:text/css,.x%7Bz-index%3A2147483573%7D" />',
+	);
+	assertRaw(
+		'fixture.tsx',
+		'<link rel="preload" {...{ rel: "stylesheet", as: "style" }} href="data:text/css,.x%7Bz-index%3A2147483573%7D" />',
+	);
+	// A spread const object literal is the same static payload as the
+	// literal spelling.
+	assertRaw(
+		'fixture.tsx',
+		[
+			"const LINK_REL = { rel: 'stylesheet' };",
+			'<link rel="preload" {...LINK_REL} href="data:text/css,.x%7Bz-index%3A2147483573%7D" />',
+		].join('\n'),
+	);
+	// An opaque spread after a static `rel` may carry the final value — the
+	// named diagnostic fires and the literal rule must not.
+	const opaque = [
+		'const probe = (props: Record<string, string>) => <link',
+		'  rel="stylesheet"',
+		'  {...props}',
+		'  href="data:text/css,.x%7Bz-index%3A2147483573%7D"',
+		'/>;',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', opaque).map((violation) => violation.ruleId),
+		['z-index-unresolved-spread-shadow'],
+		'an opaque spread shadowing the stylesheet rel must fail loud by name',
+	);
+	// An opaque-only spread on a link element is not provably a stylesheet
+	// link — the same runtime bucket as `{...props}` on a div.
+	assertClean(
+		'fixture.tsx',
+		[
+			'const probe = (props: Record<string, string>) => <link {...props} />;',
+		].join('\n'),
 	);
 });
 
