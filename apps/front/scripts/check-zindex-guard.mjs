@@ -1285,14 +1285,21 @@ export const scanZIndexFile = ({
 		const staticJsxAttributeValues = (attributes, attributeName) => {
 			// The candidate set of a JSX attribute value over the transparent
 			// expression family — a conditional `rel` can provably evaluate to
-			// `stylesheet`, so the link rule must see it.
-			const attribute = attributes.properties.find(
-				(property) =>
+			// `stylesheet`, so the link rule must see it. Source-order
+			// last-write-wins like every other attribute reader: React's props
+			// object keeps the last duplicate attribute, so the first
+			// occurrence must not decide the rule (round-15 M1).
+			let attribute = null;
+			for (const property of attributes.properties) {
+				if (
 					ts.isJsxAttribute(property) &&
 					property.name.kind === ts.SyntaxKind.Identifier &&
-					property.name.text === attributeName,
-			);
-			if (attribute == null || !ts.isJsxAttribute(attribute)) {
+					property.name.text === attributeName
+				) {
+					attribute = property;
+				}
+			}
+			if (attribute == null) {
 				return null;
 			}
 			if (ts.isStringLiteral(attribute.initializer)) {

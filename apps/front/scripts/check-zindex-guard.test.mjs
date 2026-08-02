@@ -317,6 +317,21 @@ test('evasion: literal stylesheet links cannot ship opaque CSS', () => {
 	}
 });
 
+test('raw sinks: duplicate JSX link attributes obey source-order last-write-wins', () => {
+	// Every other attribute reader in the guard mirrors React's props
+	// object, where the last duplicate attribute wins;
+	// staticJsxAttributeValues was the only find-first reader (round-15 M1).
+	// The last occurrence decides the link rule in both directions.
+	assertRaw(
+		'fixture.tsx',
+		'<link rel="preload" rel="stylesheet" href="data:text/css,.x%7Bz-index%3A99%7D" />',
+	);
+	assertClean(
+		'fixture.tsx',
+		'<link rel="stylesheet" rel="preload" href="data:text/css,.x%7Bz-index%3A99%7D" />',
+	);
+});
+
 test('evasion: script cannot register a reserved scale token', () => {
 	for (const content of [
 		"CSS.registerProperty({ name: '--publy-z-raised', syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
