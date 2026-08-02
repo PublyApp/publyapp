@@ -566,4 +566,127 @@
 			transform: none;
 		}
 	}
+
+	/* ---- §1 hero: the announcement pill (attio-19, de-pilled). A window,
+	   not a panel — no background, a hairline ring only. */
+	.publy-landing-05 .publy-l05-hero-badge {
+		display: inline-flex;
+		align-items: center;
+		border-radius: var(--publy-radius-chip);
+		border: 1px solid var(--publy-border);
+		padding-block: 5px;
+		padding-inline-start: 11px;
+		padding-inline-end: 7px;
+		font-size: 13px;
+		line-height: 18px;
+		font-weight: 500;
+		color: var(--publy-foreground-secondary);
+	}
+
+	/* ---- §2 product window: the static progress rail (padyna-10's spring
+	   underline, without the spring — see §7's rejection of auto-advance).
+	   Five fixed tab ids, five fixed steps: a translateX lookup keyed by
+	   `data-active-tab` on the rail track keeps the geometry out of JSX
+	   inline styles entirely. */
+	.publy-landing-05 .publy-l05-tour-rail-indicator {
+		transition: transform var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.publy-landing-05
+		[data-active-tab='calendar']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(0%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='composer']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(100%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='approvals']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(200%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='profiles']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(300%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='dashboards']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(400%);
+	}
+
+	/* ---- §2 mobile accordion (padyna-11): a `grid-template-rows: 0fr → 1fr`
+	   transition animates to an unknown content height without measuring it
+	   in JS, which is what lets the 400ms height step, the 250ms opacity
+	   step (started 100ms late, so it reads as focusing rather than
+	   growing) and the 300ms chevron rotate (in the component) run as three
+	   independent, correctly-timed signals. */
+	.publy-landing-05 .publy-l05-accordion-panel {
+		display: grid;
+		grid-template-rows: 0fr;
+		overflow: hidden;
+		transition: grid-template-rows 400ms cubic-bezier(0.04, 0.62, 0.23, 0.98);
+	}
+
+	.publy-landing-05 .publy-l05-accordion-panel-open {
+		grid-template-rows: 1fr;
+	}
+
+	.publy-landing-05 .publy-l05-accordion-panel-inner {
+		min-height: 0;
+		opacity: 0;
+		transition: opacity 250ms var(--publy-motion-ease);
+	}
+
+	.publy-landing-05
+		.publy-l05-accordion-panel-open
+		.publy-l05-accordion-panel-inner {
+		opacity: 1;
+		transition-delay: 100ms;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.publy-landing-05 .publy-l05-accordion-panel,
+		.publy-landing-05 .publy-l05-accordion-panel-inner,
+		.publy-landing-05
+			.publy-l05-accordion-panel-open
+			.publy-l05-accordion-panel-inner {
+			transition: none;
+		}
+	}
+
+	/* ---- §4 the six-fact strip (todesktop-31): positioned rules, not
+	   borders — a `border-top` per cell with the current breakpoint's first
+	   row exempted, so the divider only ever falls BETWEEN rows and never
+	   opens the grid into boxes. */
+	.publy-landing-05 .publy-l05-fact-cell {
+		border-block-start: 1px solid var(--publy-border);
+	}
+
+	.publy-landing-05 .publy-l05-fact-grid > .publy-l05-fact-cell:first-child {
+		border-block-start: none;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05
+			.publy-l05-fact-grid
+			> .publy-l05-fact-cell:nth-child(-n + 2) {
+			border-block-start: none;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-landing-05
+			.publy-l05-fact-grid
+			> .publy-l05-fact-cell:nth-child(-n + 3) {
+			border-block-start: none;
+		}
+	}
 }

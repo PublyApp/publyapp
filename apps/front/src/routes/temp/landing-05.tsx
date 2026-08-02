@@ -1,8 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Landing05Capabilities } from '~/components/marketing/landing-05/landing-05-capabilities';
+import { Landing05Claims } from '~/components/marketing/landing-05/landing-05-claims';
 import { Landing05Section } from '~/components/marketing/landing-05/landing-05-section';
 import { Landing05Sky } from '~/components/marketing/landing-05/landing-05-sky';
+import { Landing05Tour } from '~/components/marketing/landing-05/landing-05-tour';
+import { buttonVariants } from '~/components/ui/button';
 import { FEATURES } from '~/lib/flags';
+import { cn } from '~/lib/utils';
 
 export const Route = createFileRoute('/temp/landing-05')({
 	component: LandingExploration05,
@@ -44,6 +49,9 @@ function LandingExploration05() {
 						labelledBy="landing-05-hero-heading"
 						className="text-center"
 					>
+						<p className="publy-l05-hero-badge mx-auto mb-9">
+							{t('landing-hero-badge')}
+						</p>
 						<h1
 							id="landing-05-hero-heading"
 							data-testid="landing-hero-title"
@@ -51,6 +59,29 @@ function LandingExploration05() {
 						>
 							{t('landing-hero-title')}
 						</h1>
+						<p className="publy-type-sky-lead mx-auto mt-4 max-w-[58ch] text-pretty text-(--publy-foreground-secondary)">
+							{t('landing-hero-description')}
+						</p>
+						<div className="mt-8 flex flex-wrap justify-center gap-3">
+							<Link
+								to="/signup"
+								className={cn(
+									buttonVariants({ variant: 'default', size: 'lg' }),
+									'publy-l05-pressable',
+								)}
+							>
+								{t('landing-hero-primary-cta')}
+							</Link>
+							<a
+								href="#product-window"
+								className={cn(
+									buttonVariants({ variant: 'outline', size: 'lg' }),
+									'publy-l05-pressable',
+								)}
+							>
+								{t('landing-hero-secondary-cta')}
+							</a>
+						</div>
 					</Landing05Section>
 
 					{/* §2 — The product window: one aperture over the bloom, and the
@@ -62,32 +93,35 @@ function LandingExploration05() {
 						anchor
 						labelledBy="landing-05-tour-heading"
 					>
-						<h2
-							id="landing-05-tour-heading"
-							className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
-						>
-							{t('landing-tour-title')}
-						</h2>
+						<Landing05Tour />
 					</Landing05Section>
 
 					{/* §3 — Three claims (attio-29 stat blocks). */}
 					<Landing05Section ruled labelledBy="landing-05-claim-heading">
+						<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip">
+							{t('landing-claim-eyebrow')}
+						</p>
 						<h2
 							id="landing-05-claim-heading"
-							className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+							className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
 						>
 							{t('landing-claim-title')}
 						</h2>
+						<Landing05Claims />
 					</Landing05Section>
 
 					{/* §4 — What ships today: the six-fact strip (todesktop-31). */}
 					<Landing05Section ruled labelledBy="landing-05-capability-heading">
+						<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip">
+							{t('landing-capability-eyebrow')}
+						</p>
 						<h2
 							id="landing-05-capability-heading"
-							className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+							className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
 						>
 							{t('landing-capability-title')}
 						</h2>
+						<Landing05Capabilities />
 					</Landing05Section>
 
 					{/* §5 — Who it is for (attio-15 hairline grid + one side-pane slot). */}
