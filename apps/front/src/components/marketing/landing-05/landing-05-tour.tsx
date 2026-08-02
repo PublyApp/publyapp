@@ -95,7 +95,7 @@ export const Landing05Tour = () => {
 								onClick={() => setActiveTab(tab.id)}
 								onKeyDown={handleTourKeyDown}
 								className={cn(
-									'publy-l05-pressable flex flex-1 items-center justify-center gap-2 border-b px-6 py-4',
+									'publy-l05-pressable publy-l05-focus-ring flex flex-1 items-center justify-center gap-2 border-b px-6 py-4',
 									isActive
 										? 'border-b-transparent bg-(--publy-surface) text-(--publy-foreground)'
 										: 'border-(--publy-border) text-(--publy-foreground-secondary)',
@@ -132,7 +132,7 @@ export const Landing05Tour = () => {
 								aria-expanded={isOpen}
 								aria-controls={`tour-accordion-panel-${tab.id}`}
 								onClick={() => setActiveTab(tab.id)}
-								className="publy-l05-pressable flex w-full items-center justify-between gap-3 px-4 py-4 text-start"
+								className="publy-l05-pressable publy-l05-focus-ring flex w-full items-center justify-between gap-3 px-4 py-4 text-start"
 							>
 								<span className="flex items-center gap-2">
 									<tab.Icon
@@ -166,7 +166,7 @@ export const Landing05Tour = () => {
 									</p>
 									<Link
 										to="/signup"
-										className="publy-l05-pressable mt-3 inline-flex items-center gap-1.5 text-[15px] font-medium text-(--publy-foreground)"
+										className="publy-l05-pressable publy-l05-focus-ring mt-3 inline-flex items-center gap-1.5 text-[15px] font-medium text-(--publy-foreground)"
 									>
 										{t('landing-tour-learn-more')}
 										<IconArrowRight className="size-3.5" aria-hidden="true" />
@@ -245,7 +245,7 @@ export const Landing05Tour = () => {
 						</p>
 						<Link
 							to="/signup"
-							className="publy-l05-pressable mt-4 inline-flex items-center gap-1.5 text-[15px] font-medium text-(--publy-foreground)"
+							className="publy-l05-pressable publy-l05-focus-ring mt-4 inline-flex items-center gap-1.5 text-[15px] font-medium text-(--publy-foreground)"
 						>
 							{t('landing-tour-learn-more')}
 							<IconArrowRight className="size-3.5" aria-hidden="true" />

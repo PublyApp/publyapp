@@ -262,7 +262,7 @@ function LandingExploration05() {
 					{/* §10 — Closing: the night slice (todesktop-15) — one boxed slice
 					    of the same sky, rotated 7° off vertical, theme-invariant. */}
 					<Landing05Section ruled labelledBy="landing-05-closing-heading">
-						<div className="publy-marketing-night publy-l05-radius-band relative isolate overflow-hidden px-6 py-14 text-center sm:px-12 lg:py-20">
+						<div className="publy-marketing-night publy-l05-radius-band relative isolate overflow-hidden px-6 py-14 text-center sm:px-12 md:py-16 lg:py-20">
 							<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip-night mx-auto w-fit">
 								{t('landing-closing-eyebrow')}
 							</p>

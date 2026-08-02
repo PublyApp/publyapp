@@ -38,7 +38,7 @@ export const Landing05Faq = () => {
 							aria-expanded={isOpen}
 							aria-controls={`faq-panel-${item}`}
 							onClick={() => setOpenItem(isOpen ? null : item)}
-							className="publy-l05-pressable flex w-full items-center justify-between gap-3 py-6 pr-4 pl-6 text-start"
+							className="publy-l05-pressable publy-l05-focus-ring flex w-full items-center justify-between gap-3 py-6 pr-4 pl-6 text-start"
 						>
 							<span className="publy-type-sky-display-4 text-(--publy-foreground)">
 								{t(`landing-faq-${item}-question`)}

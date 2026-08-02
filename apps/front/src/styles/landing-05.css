@@ -504,6 +504,33 @@
 		border-radius: 20px;
 	}
 
+	/* ---- Focus (prompt §7): `Button`/`buttonVariants` elements already ship
+	   their own focus-visible ring (`--ring` resolves to `--publy-focus-ring`),
+	   but this page also hand-builds interactive controls — the tab strip, the
+	   mobile accordion triggers, the FAQ triggers, the inline "Learn more"
+	   links — that are plain buttons/links with no ring of their own. A real
+	   `outline`, not a box-shadow ring, so it survives forced-colors mode
+	   (todesktop-45/sendr-29's own measured failure was zero visible focus at
+	   all; this page ships one everywhere instead). */
+	.publy-landing-05 .publy-l05-focus-ring {
+		outline: none;
+	}
+
+	.publy-landing-05 .publy-l05-focus-ring:focus-visible {
+		outline: 2px solid var(--publy-focus-ring);
+		outline-offset: 2px;
+	}
+
+	/* The night band is deliberately theme-invariant (§2.2), but
+	   --publy-focus-ring is not — its light-mode value (#a16207) measures only
+	   3.00:1 against the derived night background, a pass with zero margin.
+	   --publy-primary is warm yellow in both themes and clears ~8.5–9.4:1 on
+	   the same background, the same family the prompt's own dark-mode pin
+	   (#facc15, 11.19:1) is reaching for. Scoped override, not a new token. */
+	.publy-landing-05 .publy-marketing-night {
+		--publy-focus-ring: var(--publy-primary);
+	}
+
 	/* ---- The eyebrow chip (todesktop-06 form, attio-31 chip, repo colour):
 	   brand yellow at every section boundary without dominating any, and it
 	   keeps the eyebrow off the failing muted-on-bloom pair at the same
