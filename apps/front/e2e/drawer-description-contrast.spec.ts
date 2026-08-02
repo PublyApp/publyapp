@@ -68,10 +68,13 @@ const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
 const DRAWER_DESCRIPTION_SELECTOR = '.publy-drawer-description';
 
 type DescriptionLiveCase = {
+	// Round 10 M5: the case's `selector` IS the locator — the live test finds
+	// the element with `page.locator(liveCase.selector)` and nothing else, so
+	// a case can never claim a selector it does not measure (a fabricated
+	// selector resolves to zero elements and `toBeVisible` fails).
 	selector: string;
 	name: string;
 	open: (page: Page) => Promise<void>;
-	locate: (page: Page) => Locator;
 };
 
 type Theme = 'light' | 'dark';
@@ -369,23 +372,22 @@ const openFieldValidationFixture = async (page: Page): Promise<void> => {
 };
 
 // Round 8 M4: the selectors this spec measures, as live case DEFINITIONS —
-// each carries a real opener and a real locator, and the live tests below
-// are driven from this exact list (so is the linkage test). A selector added
-// to the source guard's DESCRIPTION_SELECTORS fails the linkage until a real
-// measurement case exists here; typing the string into a second list is no
-// longer a remedy, because there is no second list.
+// each carries a real opener, and the live tests below are driven from this
+// exact list (so is the linkage test). A selector added to the source guard's
+// DESCRIPTION_SELECTORS fails the linkage until a real measurement case
+// exists here; typing the string into a second list is no longer a remedy,
+// because there is no second list. Round 10 M5: the selector itself is the
+// locator, so the case measures exactly what it claims.
 const DESCRIPTION_LIVE_CASES: readonly DescriptionLiveCase[] = [
 	{
 		selector: '.publy-danger-zone-row-description',
 		name: 'danger-zone description',
 		open: openProfileOverview,
-		locate: (page) => page.locator('.publy-danger-zone-row-description'),
 	},
 	{
 		selector: '.publy-field-switch-description',
 		name: 'Field.Switch description',
 		open: openFieldValidationFixture,
-		locate: (page) => page.locator('.publy-field-switch-description'),
 	},
 ];
 
@@ -759,7 +761,9 @@ test.describe('live description text contrast (#1043 / PR #1061)', () => {
 				label: liveCase.name,
 				page,
 				testInfo,
-				text: liveCase.locate(page),
+				// Round 10 M5: the selector is the locator — nothing else may
+				// stand in for what a case claims to measure.
+				text: page.locator(liveCase.selector),
 			});
 		});
 	}
