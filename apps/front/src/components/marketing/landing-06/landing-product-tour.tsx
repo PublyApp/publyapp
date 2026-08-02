@@ -14,7 +14,7 @@ import { cn } from '~/lib/utils';
 import { useTourRailActiveIndex } from './use-tour-rail-active-index';
 
 // Keep in sync with `--publy-landing-06-rail-item-h` in landing-06.css — the
-// indicator's `translateY` is `index * this`, not a measured offset.
+// the indicator translateY is index times this, not a measured offset.
 const RAIL_ITEM_HEIGHT_PX = 40;
 
 const SCENES: readonly {

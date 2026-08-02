@@ -635,6 +635,76 @@
 		}
 	}
 
+	/* The remaining two ratios (§7.2's who-* / pricing-context / closing
+	   -wordmark slots) sit in FLUID-width containers — a grid cell whose width
+	   depends on the viewport, or a `max-w-[…]` wrapper narrower than the tier
+	   column — rather than the single wide column the 16/10 slots above
+	   occupy. A fixed-height-derives-width rule would either overflow a narrow
+	   grid cell (4/3) or fight the register's own inconsistent width/height
+	   pair for the 21/9 slots (560×180 does not divide to 21:9; 420×180 does).
+	   So these two ratios go the other way: `width: 100%` of whatever
+	   container they are given, `aspect-ratio` (already set inline by
+	   `MarketingImageSlot`'s `ratio` prop) derives the natural height, and
+	   `max-height` only clamps it down if that would exceed the tier's
+	   reserved ceiling — never forces it up. Below 768 both stay fully fluid,
+	   matching the register's "100vw−32 × ratio" column for every ratio. */
+	.publy-landing-06-slot-4-3,
+	.publy-landing-06-slot-21-9 {
+		width: 100%;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-06-slot-4-3.publy-landing-06-slot-tier-d2 {
+			max-height: var(--publy-landing-06-slot-max-d2);
+		}
+
+		.publy-landing-06-slot-21-9.publy-landing-06-slot-tier-d3 {
+			max-height: var(--publy-landing-06-slot-max-d3);
+		}
+	}
+
+	/* ---- 9. FAQ accordion (§11.2) ---- */
+
+	/* `grid-template-rows: 0fr -> 1fr`, matching the house pattern already
+	   used elsewhere in this codebase for the same job (see app.css's own
+	   `grid-template-columns` transition) rather than todesktop-33's
+	   measured-`--original-height` technique, which predates the `fr` trick. */
+	.publy-landing-06-faq-panel {
+		display: grid;
+		grid-template-rows: 0fr;
+		transition: grid-template-rows var(--publy-motion-medium)
+			var(--publy-motion-ease);
+	}
+
+	.publy-landing-06-faq-item[data-open='true'] .publy-landing-06-faq-panel {
+		grid-template-rows: 1fr;
+	}
+
+	.publy-landing-06-faq-panel-inner {
+		overflow: hidden;
+	}
+
+	.publy-landing-06-faq-chevron {
+		transition: transform var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.publy-landing-06-faq-item[data-open='true'] .publy-landing-06-faq-chevron {
+		transform: rotate(180deg);
+	}
+
+	/* todesktop-33's one genuinely valuable detail: the answer arrives with a
+	   1px blur dissolving to 0, so opening reads as text arriving rather than
+	   a box growing. Gated by the blanket `prefers-reduced-motion` override in
+	   app.css like every other transition on this page. */
+	.publy-landing-06-faq-answer {
+		filter: blur(1px);
+		transition: filter var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.publy-landing-06-faq-item[data-open='true'] .publy-landing-06-faq-answer {
+		filter: blur(0);
+	}
+
 	/* ---- 8. Product tour rail (§6.2) ---- */
 
 	/* The rail items and the shared 2px indicator both key off one fixed row

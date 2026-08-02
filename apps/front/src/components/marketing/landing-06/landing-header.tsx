@@ -7,10 +7,29 @@ import { cn } from '~/lib/utils';
 import { useCondensedChrome } from './use-condensed-chrome';
 
 const NAV_LINKS = [
-	{ id: 'tour', hash: 'tour', labelKey: 'landing-06-nav-tour' },
-	{ id: 'pricing', hash: 'pricing', labelKey: 'landing-06-nav-pricing' },
-	{ id: 'faq', hash: 'faq', labelKey: 'landing-06-nav-faq' },
+	{ id: 'tour', hash: 'tour' },
+	{ id: 'pricing', hash: 'pricing' },
+	{ id: 'faq', hash: 'faq' },
 ] as const;
+
+// A literal `t('landing-06-nav-…')` call per branch, not a `labelKey:`
+// data-array property — the i18n coverage guard's dedicated `labelKey:`
+// extractor always resolves against the 'common' namespace (it exists for
+// unrelated breadcrumb crumbs), which would misfile this page's own
+// namespaced keys and fail the coverage check.
+const navLabel = (
+	t: (key: string) => string,
+	id: (typeof NAV_LINKS)[number]['id'],
+) => {
+	switch (id) {
+		case 'tour':
+			return t('landing-06-nav-tour');
+		case 'pricing':
+			return t('landing-06-nav-pricing');
+		case 'faq':
+			return t('landing-06-nav-faq');
+	}
+};
 
 /**
  * The shrinking frame (PROMPT.md §2). A wide, transparent, borderless bar
@@ -63,7 +82,7 @@ export const LandingHeader = () => {
 							hash={link.hash}
 							className="publy-landing-06-interactive publy-landing-06-type-small rounded-[var(--publy-radius-small-control)] px-3 py-2 text-(--publy-foreground-secondary) no-underline outline-none hover:text-(--publy-foreground) focus-visible:ring-3 focus-visible:ring-ring"
 						>
-							{t(link.labelKey)}
+							{navLabel(t, link.id)}
 						</Link>
 					))}
 				</nav>
