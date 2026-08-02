@@ -56,15 +56,27 @@ reported as a named `z-index-unparseable-static-css` diagnostic rather than cras
 The `?inline`/`?raw` provenance uses Vite's own CSS-language set (`isCSSRequest`), so `.pcss`,
 `.postcss` and every other language Vite treats as CSS are covered as they ship. For `?raw` on a
 non-CSS extension, the guard does **not** decide from the file's bytes and does **not** re-test the
-specifier text: the build records every raw module it transforms, and the script pass asks that
-record. Both sides classify a specifier through the same query-token parse (`?v=1&raw` is raw,
-`?rawish` is not — Vite's own test is `/(?:\?|&)raw(?:&|$)/`), and the script pass records every
+specifier text: raw/inline classification is decided in exactly one function (`classifyModuleKind`),
+which reads what the build itself produced — the module's own transform result (a `?raw` module is
+rewritten by Vite's `vite:asset` load hook into the exact `export default "<bytes>"` shape, plain
+CSS becomes an empty module, `?inline`/`?raw` CSS becomes the inlined export-default shape), the
+module info Vite recorded (the `vite:asset` marker carried by `?url` modules, which export a URL
+rather than raw text), and the ids this guard's post-order `load` hook observed (exactly the
+modules `vite:asset` did not claim — separating the raw-export shape `vite:asset` produced from the
+same shape an ordinary module wrote). The file part is Vite's own `cleanUrl` semantics — strip from
+the first `?` or `#` — so a legal specifier containing another query separator (`./x.txt?v=1?raw`)
+is raw because Vite transformed it as raw, never because a hand-written parser said so. The fixture
+suite scans the guard's own source and fails if query parsing appears anywhere outside that one
+function, so a second classifier cannot come back. The script pass asks the recorded build
+provenance: an import binding exists only when its resolved file is in the recorded `?raw` set,
+never by re-classifying the specifier text. The script pass records every
 binding a static import can introduce — the default clause, the namespace clause, `{ default as x }`
 (the same default under another spelling), and mixed spellings such as `import d, * as ns` — so a
 raw module's bytes are walked only when such a binding reaches a style-capable sink: a `<style>`
 element's children or a `dangerouslySetInnerHTML` payload (walked as CSS on a `<style>` host, as
 HTML elsewhere). A named element that is not `default` is undefined on a raw module and ships
-nothing; it is recorded by name, not silently omitted, and the walk resolves it to nothing. The
+nothing; it is recorded by name, not silently omitted, the record is directly assertable in the
+fixture suite, and the walk resolves it to nothing. The
 binding
 is followed through module-scope `const` aliases (including alias chains, to a cycle-guarded
 fixpoint) and through the statically transparent expression family — object-member reads through
@@ -93,8 +105,14 @@ and every string it can provably be is walked; static text beside a runtime chil
 it is walked individually (a `+` whose other operand is runtime still ships its static operand —
 as a provable *substring*, which the payload walk scans but which never doubles as a member
 identity), and a purely runtime payload stays in the declared runtime bucket. A payload whose
-provable candidates exceed 4096 cannot be enumerated at all; it is a named
-`z-index-static-candidate-overflow` diagnostic rather than a hang or a silent green.
+provable candidates exceed 100 000 cannot be enumerated at all — the Cartesian bound is a resource
+ceiling (the candidates are CSS payload strings bounded in length by the source expression), not a
+statement about how many candidates a payload may legitimately have: thirteen independent binary
+choices (8192 candidates) enumerate comfortably. Beyond the bound the payload is unresolvable, and
+it is a named `z-index-static-candidate-overflow` diagnostic rather than a hang or a silent green,
+and overflow is monotone through every expression-family combinator — an overflowing branch nested
+in a conditional, template substitution, `+` operand, member read, or const alias keeps the whole
+enclosing payload loud by name.
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -145,13 +163,14 @@ Five components:
    `app.css`. This is the exact failure that killed the previous attempt, whose own fixture literals
    reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
    scanner watches.
-5. **Scale-definition integrity.** A Vite pre-transform hook records project CSS and script modules
-   reached by the real build — from **both** the client and the SSR environment, so an SSR-only module
-   (`src/server.ts` and friends) is exactly as build-reachable as a client module — and the authored
-   pass extends the CSS set through local relative CSS
-   `@import`s. It does not scan unimported samples or fixtures merely because they have a relevant
-   extension; importing one puts it in the build graph and therefore back in scope. A
-   `--publy-z-*` declaration is accepted only
+5. **Scale-definition integrity.** A Vite post-order transform hook records project CSS and script
+   modules reached by the real build — from **both** the client and the SSR environment, so an
+   SSR-only module
+    (`src/server.ts` and friends) is exactly as build-reachable as a client module — and the authored
+    pass extends the CSS set through local relative CSS
+    `@import`s. It does not scan unimported samples or fixtures merely because they have a relevant
+    extension; importing one puts it in the build graph and therefore back in scope. A
+    `--publy-z-*` declaration is accepted only
    when it originates in a top-level `:root` in `src/styles/app.css`, and a repeated tier is rejected.
    Splitting the canonical scale into a second reachable stylesheet remains forbidden. This source
    pass preserves provenance that a bundled asset cannot. Separately, the emitted pass recognises
@@ -186,22 +205,30 @@ Five components:
     native JSX `<style>` element in either spelling — element or self-closing — including the
     `dangerouslySetInnerHTML` payload, because such CSS
     ships as SSR HTML or client JS rather than an emitted asset, and CSS files imported with the
-    `?inline`/`?raw` query forms are walked on the authored file for the same reason — their text
-    leaves the build as JS, never as an asset the emitted gate can see. The provenance records the
-    inline/raw forms across Vite's own CSS-language set and, for `?raw`, every module the build
-    transforms regardless of extension; a raw payload is walked only when the import binding reaches
-    a style-capable sink (a `<style>` element's children or a `dangerouslySetInnerHTML` payload, the
-    binding tracked unshadowed from its import declaration through module-scope `const` alias chains,
-    the transparent expression family — object-member reads through const object literals,
-    conditionals (both branches), `String(...)`, element access with a provably complete key — and
-    template-literal substitutions, including the `import * as raw … ?raw`
-    namespace spelling through `.default` and the `{ default as x }` spelling as the same default
-    binding), and a style-sink payload the declaration walk cannot
-    parse (template syntax, an HTML comment, an unclosed block — any PostCSS failure, with no
-    reason string consulted) is a named diagnostic, never a
-    crash and never a silent pass. The same raw bytes displayed through a text node are escaped
-    text, not a stylesheet, and are not walked. A style-sink expression the family cannot evaluate
-    that still contains a recorded raw binding — including an element-access key the family cannot
+     `?inline`/`?raw` query forms are walked on the authored file for the same reason — their text
+     leaves the build as JS, never as an asset the emitted gate can see. The provenance classifies
+     every module through the single `classifyModuleKind` function from what the build itself
+     produced — the post-order transform result (a `?raw` module arrives as the exact
+     `export default "<bytes>"` shape `vite:asset`'s load wrote, plain CSS as an empty module,
+     `?inline`/`?raw` CSS as the inlined export-default shape), the `vite:asset` marker Vite records
+     on `?url` modules, and the ids this guard's post-order `load` hook observed (exactly the
+     modules `vite:asset` did not claim) — across Vite's own CSS-language set and, for `?raw`,
+     every module the build transforms regardless of extension. The fixture suite scans the guard's
+     own source so query parsing cannot reappear outside that one function, and the script pass
+     never re-classifies a specifier: an import binding exists only when the build's recorded set
+     contains the specifier's resolved file. A raw payload is walked only when the import binding reaches
+     a style-capable sink (a `<style>` element's children or a `dangerouslySetInnerHTML` payload, the
+     binding tracked unshadowed from its import declaration through module-scope `const` alias chains,
+     the transparent expression family — object-member reads through const object literals,
+     conditionals (both branches), `String(...)`, element access with a provably complete key — and
+     template-literal substitutions, including the `import * as raw … ?raw`
+     namespace spelling through `.default` and the `{ default as x }` spelling as the same default
+     binding), and a style-sink payload the declaration walk cannot
+     parse (template syntax, an HTML comment, an unclosed block — any PostCSS failure, with no
+     reason string consulted) is a named diagnostic, never a
+     crash and never a silent pass. The same raw bytes displayed through a text node are escaped
+     text, not a stylesheet, and are not walked. A style-sink expression the family cannot evaluate
+     that still contains a recorded raw binding — including an element-access key the family cannot
     prove complete, which resolves no member — is a named `z-index-unresolved-raw-expression`
     diagnostic. A `<style>` element's
     `dangerouslySetInnerHTML` attribute suppresses children inspection in both the static walk and
@@ -275,11 +302,14 @@ gaps, each with its current evidence:
   does not perform interprocedural data flow. A helper whose
   `setProperty(name, value)` key or `CSS.registerProperty({ name })` value arrives through a
   parameter, or a payload produced by a helper or unscanned import, remains outside the static
-  boundary. Spreads are never silent: an unresolvable spread (a parameter, import, call, or alias
+  boundary. Every JSX attribute reader — `dangerouslySetInnerHTML` payloads, `<link>` `rel`/`href`,
+  duplicate attributes — goes through one source-ordered walker, so the readers cannot disagree
+  about spreads. Spreads are never silent: an unresolvable spread (a parameter, import, call, or alias
   chain ending anywhere other than a module-scope const object literal) that sits after a static
   fact it could carry or override is a named `z-index-unresolved-spread-shadow` diagnostic, and in
   a position the guard can **prove** style-capable — a `<style>` element's attribute list, a
-  `dangerouslySetInnerHTML` payload object, a `CSS.registerProperty()` argument — the same named
+  `dangerouslySetInnerHTML` payload object, a `<link>` element carrying a static `rel`/`href` fact,
+  a `CSS.registerProperty()` argument — the same named
   diagnostic fires even when the opaque spread is the **only** source: the payload may be anything
   and cannot be dismissed as unrelated runtime data. An opaque spread in an ordinary object literal
   (a link-descriptor candidate with no facts to shadow) or on a non-style element (`<div
