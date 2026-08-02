@@ -1887,6 +1887,28 @@ test('e2e (round 13 B2): the static-string family resolves the same transparent 
 				'export const probe = <style>{c}</style>;',
 			],
 		],
+		[
+			'element access',
+			[
+				"const o = { css: '.probe { z-index: 2147483594; }' };",
+				"export const probe = <style>{o['css']}</style>;",
+			],
+		],
+		[
+			'aliased element access',
+			[
+				"const o = { css: '.probe { z-index: 2147483593; }' };",
+				"const key = 'css';",
+				'export const probe = <style>{o[key]}</style>;',
+			],
+		],
+		[
+			'nested element access',
+			[
+				"const o = { a: { css: '.probe { z-index: 2147483592; }' } };",
+				"export const probe = <style>{o.a['css']}</style>;",
+			],
+		],
 	];
 	for (const [name, lines] of cases) {
 		const { violations } = await runFixtureGuard(
@@ -1965,6 +1987,54 @@ test('e2e (round 13 B2): static style text beside runtime children still ships a
 		['z-index-style-element-shipped'],
 		`a static operand of a runtime concatenation must red: ${JSON.stringify(mixedBinary)}`,
 	);
+	// The class, not one member of it: the offending static part must red at
+	// every position — before, between, and after runtime children, at both
+	// two and three static parts. A walk that visits only the first static
+	// part keeps every case where the offender is not first silent.
+	const positions = [
+		[
+			'two static parts, offender first',
+			"{'.probe { z-index: 2147483596; }'}{runtimeCss}{'.harmless { color: red; }'}",
+		],
+		[
+			'two static parts, offender between runtime children',
+			"{'.harmless { color: red; }'}{runtimeCss}{'.probe { z-index: 2147483595; }'}{runtimeCss}",
+		],
+		[
+			'two static parts, offender last',
+			"{'.harmless { color: red; }'}{runtimeCss}{'.probe { z-index: 2147483594; }'}",
+		],
+		[
+			'three static parts, offender first',
+			"{'.probe { z-index: 2147483593; }'}{runtimeCss}{'.harmless { color: red; }'}{runtimeCss}{'.quiet { color: blue; }'}",
+		],
+		[
+			'three static parts, offender between runtime children',
+			"{'.harmless { color: red; }'}{runtimeCss}{'.probe { z-index: 2147483592; }'}{runtimeCss}{'.quiet { color: blue; }'}",
+		],
+		[
+			'three static parts, offender last',
+			"{'.harmless { color: red; }'}{runtimeCss}{'.quiet { color: blue; }'}{runtimeCss}{'.probe { z-index: 2147483591; }'}",
+		],
+	];
+	for (const [name, children] of positions) {
+		const { violations: positioned } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					'export const probe = (runtimeCss: string) => <style>' +
+						children +
+						'</style>;',
+				].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			positioned.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`${name} must red: ${JSON.stringify(positioned)}`,
+		);
+	}
 });
 
 test('e2e (round 13 B2): conditional rel/href and reserved-token keys are candidate-aware', async () => {
