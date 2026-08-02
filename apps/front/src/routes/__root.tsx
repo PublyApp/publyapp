@@ -322,6 +322,14 @@ export const isAuthedSurface = (pathname: string): boolean => {
 	return pathname.startsWith('/staff') || pathname.startsWith('/tenant');
 };
 
+/**
+ * The `/temp/landing-*` routes are throwaway design explorations (#1082). Each
+ * one renders its own shell, so the root must not give it a second one. Removed
+ * with the explorations themselves.
+ */
+export const isLandingExplorationPath = (pathname: string): boolean =>
+	pathname.startsWith('/temp/landing-');
+
 export const resolveRouteSurface = (pathname: string): RouteSurface => {
 	if (isAuthPath(pathname)) {
 		return 'auth';
@@ -570,6 +578,13 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 				<AuthLayout brand={brand}>{children}</AuthLayout>
 			</AuthBrandProvider>
 		);
+	} else if (isLandingExplorationPath(pathname)) {
+		// The /temp landing explorations each own their entire page chrome —
+		// header, navigation and footer are part of the design being evaluated,
+		// so wrapping them in MarketingLayout would render a second header and
+		// a second footer around them. Delete this branch together with the
+		// /temp routes once a direction is chosen (#1082).
+		shellContent = children;
 	} else {
 		shellContent = (
 			<MarketingLayout pathname={pathname}>{children}</MarketingLayout>

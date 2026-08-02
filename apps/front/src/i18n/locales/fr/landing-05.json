@@ -1,4 +1,14 @@
 {
+	"landing-skip-to-content": "Aller au contenu principal",
+	"landing-nav-aria-label": "Sections de la page",
+	"landing-nav-product": "Produit",
+	"landing-nav-pricing": "Tarifs",
+	"landing-nav-faq": "FAQ",
+	"landing-nav-login": "Se connecter",
+	"landing-nav-cta": "S'inscrire",
+	"landing-footer-nav-aria-label": "Pied de page",
+	"landing-footer-copyright": "© {{year}} PublyApp",
+
 	"landing-hero-badge": "Bêta ouverte · gratuite aujourd'hui",
 	"landing-hero-title": "Publiez partout où vivent vos marques",
 	"landing-hero-description": "Un seul calendrier pour planifier, valider et publier sur tous vos profils. Rédigez une fois, adaptez le contexte, puis lancez ensemble.",
