@@ -2566,13 +2566,20 @@ export const ShorthandMapCleanDrawerFixture = ({
 );
 `;
 
-// BLOCKER 2 (review-r17), verbatim: an earlier component whose PROPS are
-// named `Surface`/`Form`/`Body`/`Footer` (parameter symbols — definite
-// non-drawers) followed by a broken drawer whose markers are IMPORTS under
-// those same local names. A text-keyed cache answers the first `Surface`
-// (a parameter) and applies it to the later import-bound `Surface`; per-
-// node resolution gives the later node its own verdict and the #990 div
-// between the surface and the form reddens.
+// BLOCKER 2 (review-r17), verbatim: an earlier component whose props are
+// named `Surface`/`Form`/`Body`/`Footer` followed by a broken drawer whose
+// markers are IMPORTS under those same local names. A text-keyed cache
+// answers the first `Surface` (the parameter — a definite null) and
+// applies it to every later same-text node; per-node resolution gives the
+// later import-bound nodes their own verdicts and the #990 div between the
+// surface and the form reddens. The earlier tags are PLAIN (non-
+// destructured) parameters because a destructured parameter is a
+// BindingElement — unverifiable under the round-18 default — so the
+// round-17 probe's destructured-param shape would redden through the
+// default even with a text-keyed cache; the live escape needs earlier tags
+// that resolve to definite nulls. They are OPENING elements so they
+// precede the drawer's tags in the scan's tag list, exactly like the
+// round-17 probe.
 const TEMPORARY_SCOPE_CACHE_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-scope-cache-fixture.tsx';
 const TEMPORARY_SCOPE_CACHE_DRAWER_PATH = fixturePath(
@@ -2587,19 +2594,17 @@ import {
 	DrawerForm as Form,
 } from '~/components/ui/drawer';
 
-type EarlierProps = {
-	Surface: ComponentType;
-	Form: ComponentType;
-	Body: ComponentType;
-	Footer: ComponentType;
-};
-
-const Earlier = ({ Surface, Form, Body, Footer }: EarlierProps) => (
+const Earlier = (
+	Surface: ComponentType,
+	Form: ComponentType,
+	Body: ComponentType,
+	Footer: ComponentType,
+) => (
 	<div>
-		<Surface />
-		<Form />
-		<Body />
-		<Footer />
+		<Surface>{null}</Surface>
+		<Form>{null}</Form>
+		<Body>{null}</Body>
+		<Footer>{null}</Footer>
 	</div>
 );
 
