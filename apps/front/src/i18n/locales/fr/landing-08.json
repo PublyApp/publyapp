@@ -1,3 +1,25 @@
 {
-	"page-placeholder": "Exploration de page d'accueil 08"
+	"landing-fold-eyebrow": "Bêta ouverte · gratuit pendant la construction",
+	"landing-fold-statement": "Publiez partout\noù vivent\nvos marques.",
+	"landing-fold-scroll-cue": "Le produit commence plus bas",
+	"landing-commitment-eyebrow": "Ce que nous ne ferons pas",
+	"landing-commitment-statement": "Rien ne se publie\nsans un nom dessus.",
+	"landing-surfaces-eyebrow": "Le produit",
+	"landing-surfaces-title": "Cinq surfaces, un seul flux",
+	"landing-claims-eyebrow": "Ce qui change",
+	"landing-bento-eyebrow": "Pour qui c'est fait",
+	"landing-bento-title": "Conçu pour les travaux qui ne tiennent pas dans une seule boîte",
+	"landing-pricing-subtitle": "Tarification provisoire",
+	"landing-pricing-title": "Un prix par équipe, pas par marque",
+	"landing-timeline-eyebrow": "Essai gratuit prévu",
+	"landing-timeline-title": "Un parcours court et prévisible pour l'essai à venir",
+	"landing-faq-eyebrow": "FAQ",
+	"landing-faq-title": "Questions courantes au premier abord",
+	"landing-closing-title": "Placez votre équipe de publication dans un workflow partagé",
+	"landing-hero-primary-cta": "S'inscrire gratuitement",
+	"landing-customer-logos-title": "La confiance des agences et des équipes internes qui publient sur des centaines de profils",
+	"chrome-nav-label": "Navigation principale",
+	"chrome-nav-product": "Produit",
+	"chrome-nav-faq": "FAQ",
+	"footer-copyright": "© {{year}} PublyApp. Tous droits réservés."
 }

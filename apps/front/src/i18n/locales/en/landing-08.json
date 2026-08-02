@@ -1,3 +1,25 @@
 {
-	"page-placeholder": "Landing exploration 08"
+	"landing-fold-eyebrow": "Now in open beta · free while we build",
+	"landing-fold-statement": "Publish everywhere\nyour brands live.",
+	"landing-fold-scroll-cue": "The product starts below",
+	"landing-commitment-eyebrow": "What we will not do",
+	"landing-commitment-statement": "Nothing publishes\nwithout a name on it.",
+	"landing-surfaces-eyebrow": "The product",
+	"landing-surfaces-title": "Five surfaces, one workflow",
+	"landing-claims-eyebrow": "What is different",
+	"landing-bento-eyebrow": "Who it is for",
+	"landing-bento-title": "Built for the work that does not fit in one inbox",
+	"landing-pricing-subtitle": "Placeholder pricing",
+	"landing-pricing-title": "One price per team, not per brand",
+	"landing-timeline-eyebrow": "Planned free trial",
+	"landing-timeline-title": "A short, predictable path through the planned trial",
+	"landing-faq-eyebrow": "FAQs",
+	"landing-faq-title": "Questions teams ask at first look",
+	"landing-closing-title": "Put your publishing team in one shared workflow",
+	"landing-hero-primary-cta": "Sign up free",
+	"landing-customer-logos-title": "Trusted by agencies and in-house teams publishing across hundreds of profiles",
+	"chrome-nav-label": "Primary navigation",
+	"chrome-nav-product": "Product",
+	"chrome-nav-faq": "FAQ",
+	"footer-copyright": "© {{year}} PublyApp. All rights reserved."
 }
