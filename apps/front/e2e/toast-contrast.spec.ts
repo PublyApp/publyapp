@@ -29,13 +29,20 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  * whose band (offset, spread and blur) can reach the sampled point; text
  * shadows; background images that are not a flat linear gradient;
  * pseudo-elements that paint a background whose box, resolved from computed
- * styles, contains the sampled point; and a modelled painted surface that
- * the composited pixels of the target's box do not contain. That last
- * check — the pixel cross-check — is the one reading that does not model
- * the paint: it screenshots the target's box, decodes it in the page and
- * requires the modelled surface to be present, which also catches what hit
- * testing cannot see at all (a click-through `pointer-events: none`
- * overlay), naming the overlays it finds.
+ * styles, contains the sampled point and whose paint order is at or above
+ * the opaque surface at that point; a click-through overlay
+ * (`pointer-events: none`) that paints a background, is stacked above the
+ * opaque surface and intersects the glyphs' own area; and a modelled
+ * painted surface that the composited pixels of the glyph area do not
+ * contain. The last two checks — the click-through scan and the pixel
+ * cross-check — are the readings that do not model the paint: the scan
+ * walks the DOM unconditionally for overlays that hit testing cannot see at
+ * all, and the cross-check screenshots the target's box, decodes it in the
+ * page and requires the modelled surface to be present among the pixels the
+ * glyphs actually occupy — inside the text's own line boxes (text targets)
+ * or inside the painted-glyph region (glyph targets) — not merely somewhere
+ * in the box. The scan names the overlays it finds; the cross-check names
+ * the glyph area it measured.
  *
  * What still escapes — declared, so the boundary is not mistaken for a
  * guarantee:
@@ -47,9 +54,12 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  * - `elementsFromPoint` cannot report pseudo-element boxes, so pseudo paint
  *   is read from resolved styles instead of hit tests; a positioned pseudo
  *   whose painted box cannot be resolved from computed styles fails loudly.
- * - The pixel cross-check asserts the modelled surface is PRESENT in the
- *   target's box, not that nothing else is; an overlay that leaves part of
- *   the box untouched is accepted.
+ * - The pixel cross-check asserts the modelled surface is PRESENT among the
+ *   glyph pixels, not that nothing else is; a hit-testable overlay that
+ *   covers part of the glyph area while the rest still shows the surface is
+ *   accepted (it is not click-through, so the scan cannot see it either).
+ *   Click-through overlays over the glyph area are the scan's named
+ *   failures, whether or not they fully cover the glyphs.
  * - Only mounted, opaque toasts are measured; enter/exit and hover
  *   intermediate states are out of scope.
  * - Text painted with `background-clip: text` resolves to a transparent
@@ -61,8 +71,9 @@ const GLYPH_CONTRAST_FLOOR = 3;
 // Per-channel distance between the modelled painted surface and a
 // composited pixel for the pixel cross-check: the model composites
 // browser-reported sRGB values, so the browser's own composited pixel
-// differs by at most a rounding step. And how many pixels of the target's
-// box must show that surface.
+// differs by at most a rounding step. And how many pixels INSIDE the glyph
+// area (the text's line boxes, or the painted-glyph region) must show that
+// surface.
 const PIXEL_MATCH_TOLERANCE = 3;
 const PIXEL_MATCH_MIN_COUNT = 16;
 
@@ -563,17 +574,21 @@ const readBrowserPaint = async (
 		 * Pseudo-element paint is invisible to elementsFromPoint, so read the
 		 * resolved pseudo styles directly. A pseudo-element that paints a
 		 * background whose resolved box contains the sampled point would wash
-		 * out the measured text; one whose box provably does not contain it
-		 * (an edge accent stripe, a corner ornament) passes, and one whose
-		 * box cannot be resolved fails loudly rather than assume. The shipped
-		 * float (`::before` on the title) and sonner's own transparent
-		 * hit-area pseudos pass, having no paint.
+		 * out the measured text — but only when its paint order is at or
+		 * above the opaque surface that the point actually shows: a
+		 * backgrounded pseudo stacked BELOW that surface (a `z-index: -1`
+		 * decoration on an ancestor of the toast, say) changes no rendered
+		 * pixel and must not fail the guard. One whose box cannot be resolved
+		 * fails loudly rather than assume. The shipped float (`::before` on
+		 * the title) and sonner's own transparent hit-area pseudos pass,
+		 * having no paint.
 		 */
 		const assertNoPseudoOverlay = (
 			layer: Element,
 			x: number,
 			y: number,
 			source: string,
+			opaqueElement: Element,
 		): void => {
 			for (const pseudo of ['::before', '::after'] as const) {
 				const style = getComputedStyle(layer, pseudo);
@@ -586,6 +601,14 @@ const readBrowserPaint = async (
 					image !== 'none' ||
 					paintAlpha(backgroundColor, `${source}${pseudo} background`) !== 0;
 				if (!paint) {
+					continue;
+				}
+				if (
+					!paintsAbove(
+						pseudoPaintChain(layer, style),
+						paintChain(opaqueElement),
+					)
+				) {
 					continue;
 				}
 				const box = pseudoElementBox(layer, style);
@@ -607,6 +630,194 @@ const readBrowserPaint = async (
 			}
 		};
 
+		/**
+		 * Paint-order resolution. An overlay — a pseudo-element, or a
+		 * click-through element the scan finds — is only a defect when it is
+		 * stacked at or above the opaque surface the point actually shows; a
+		 * backgrounded decoration painted BELOW that surface changes no
+		 * rendered pixel. Both `assertNoPseudoOverlay` and the click-through
+		 * scan therefore compare stacking chains.
+		 *
+		 * A chain lists the element's own paint position and every
+		 * context-creating ancestor's, innermost first. Each record names the
+		 * stacking context the participant paints in (null = the root
+		 * context), the painting step within it (negative-z < in-flow <
+		 * positioned-auto < positive-z), the z-index and the DOM position.
+		 * The root record of every chain participates in the root context,
+		 * so two chains can be walked from the outside in; at the first
+		 * divergent record the step decides, then the z-index, then the DOM
+		 * position. A chain that runs out first belongs to the element whose
+		 * own box is the root of the remaining records' context, so the
+		 * remaining paint is above that box's background unless it is
+		 * negative-z.
+		 */
+		type PaintStep = 'negative' | 'in-flow' | 'positioned-auto' | 'positive';
+		type PaintRecord = {
+			context: Element | null;
+			step: PaintStep;
+			z: number;
+			index: number;
+		};
+		const STEP_RANK: Record<PaintStep, number> = {
+			negative: -1,
+			'in-flow': 0,
+			'positioned-auto': 1,
+			positive: 2,
+		};
+
+		const paintStep = (position: string, zIndex: string): PaintStep => {
+			if (position === 'static') {
+				return 'in-flow';
+			}
+			if (zIndex === 'auto') {
+				return 'positioned-auto';
+			}
+			return Number(zIndex) < 0 ? 'negative' : 'positive';
+		};
+
+		const paintZ = (position: string, zIndex: string): number =>
+			position === 'static' ? 0 : zIndex === 'auto' ? 0 : Number(zIndex);
+
+		const createsStackingContext = (layer: Element | null): boolean => {
+			if (layer === null) {
+				return false;
+			}
+			const style = getComputedStyle(layer);
+			if (style.position !== 'static' && style.zIndex !== 'auto') {
+				return true;
+			}
+			if (style.transform !== 'none') {
+				return true;
+			}
+			if (style.opacity !== '1') {
+				return true;
+			}
+			if (style.filter !== 'none' || style.backdropFilter !== 'none') {
+				return true;
+			}
+			if (style.perspective !== 'none') {
+				return true;
+			}
+			return style.mixBlendMode !== 'normal';
+		};
+
+		const nearestStackingContext = (layer: Element | null): Element | null => {
+			for (
+				let current = layer;
+				current !== null;
+				current = current.parentElement
+			) {
+				if (createsStackingContext(current)) {
+					return current;
+				}
+			}
+			return null;
+		};
+
+		const indexInParent = (layer: Element): number => {
+			const parent = layer.parentElement;
+			if (parent === null) {
+				return -1;
+			}
+			return Array.prototype.indexOf.call(parent.children, layer);
+		};
+
+		const paintChain = (layer: Element): PaintRecord[] => {
+			const ownStyle = getComputedStyle(layer);
+			const records: PaintRecord[] = [
+				{
+					context: nearestStackingContext(layer.parentElement),
+					step: paintStep(ownStyle.position, ownStyle.zIndex),
+					z: paintZ(ownStyle.position, ownStyle.zIndex),
+					index: indexInParent(layer),
+				},
+			];
+			for (
+				let current = layer.parentElement;
+				current !== null;
+				current = current.parentElement
+			) {
+				if (!createsStackingContext(current)) {
+					continue;
+				}
+				const style = getComputedStyle(current);
+				records.push({
+					context: nearestStackingContext(current.parentElement),
+					step: paintStep(style.position, style.zIndex),
+					z: paintZ(style.position, style.zIndex),
+					index: indexInParent(current),
+				});
+			}
+			return records;
+		};
+
+		const pseudoPaintChain = (
+			origin: Element,
+			pseudoStyle: CSSStyleDeclaration,
+		): PaintRecord[] => {
+			const records: PaintRecord[] = [
+				{
+					context: createsStackingContext(origin)
+						? origin
+						: nearestStackingContext(origin.parentElement),
+					step: paintStep(pseudoStyle.position, pseudoStyle.zIndex),
+					z: paintZ(pseudoStyle.position, pseudoStyle.zIndex),
+					// A pseudo paints as the originating element's first child.
+					index: -1,
+				},
+			];
+			for (
+				let current: Element | null = origin;
+				current !== null;
+				current = current.parentElement
+			) {
+				if (!createsStackingContext(current)) {
+					continue;
+				}
+				const style = getComputedStyle(current);
+				records.push({
+					context: nearestStackingContext(current.parentElement),
+					step: paintStep(style.position, style.zIndex),
+					z: paintZ(style.position, style.zIndex),
+					index: indexInParent(current),
+				});
+			}
+			return records;
+		};
+
+		const paintsAbove = (a: PaintRecord[], b: PaintRecord[]): boolean => {
+			let aIndex = a.length - 1;
+			let bIndex = b.length - 1;
+			while (aIndex >= 0 && bIndex >= 0) {
+				const aRecord = a[aIndex];
+				const bRecord = b[bIndex];
+				if (
+					aRecord.context === bRecord.context &&
+					aRecord.step === bRecord.step &&
+					aRecord.z === bRecord.z &&
+					aRecord.index === bRecord.index
+				) {
+					aIndex -= 1;
+					bIndex -= 1;
+					continue;
+				}
+				if (STEP_RANK[aRecord.step] !== STEP_RANK[bRecord.step]) {
+					return STEP_RANK[aRecord.step] > STEP_RANK[bRecord.step];
+				}
+				if (aRecord.z !== bRecord.z) {
+					return aRecord.z > bRecord.z;
+				}
+				return aRecord.index > bRecord.index;
+			}
+			if (aIndex < 0 && bIndex < 0) {
+				return false;
+			}
+			if (aIndex >= 0) {
+				return a[aIndex].step !== 'negative';
+			}
+			return b[bIndex].step === 'negative';
+		};
+
 		const rect = element.getBoundingClientRect();
 		if (rect.width === 0 || rect.height === 0) {
 			throw new Error('Contrast target has no painted box');
@@ -620,9 +831,65 @@ const readBrowserPaint = async (
 				'Contrast target is absent from its own painted hit stack',
 			);
 		}
+		// The opaque layer the point shows is resolved first: everything the
+		// pseudo checks and the click-through scan compare against is stacked
+		// relative to THIS surface. Collect the background layers on the way
+		// down and stop at the first element that paints one.
+		const backgroundLayers: BackgroundLayer[] = [];
+		const seen = new Set<Element>();
+		const opaqueElement = ((): Element | null => {
+			for (const layer of hitStack.slice(targetIndex)) {
+				if (seen.has(layer)) {
+					continue;
+				}
+				seen.add(layer);
+
+				const name = elementName(layer);
+				const style = getComputedStyle(layer);
+				for (const layerColor of backgroundImageLayers(
+					style.backgroundImage,
+					name,
+				)) {
+					backgroundLayers.push({
+						color: layerColor,
+						element: name,
+						source: 'background-image',
+					});
+					if (paintAlpha(layerColor, `${name} background-image`) === 1) {
+						return layer;
+					}
+				}
+
+				const backgroundColor = toSrgb(
+					style.backgroundColor,
+					`${name} background-color`,
+				);
+				const alpha = paintAlpha(backgroundColor, `${name} background-color`);
+				if (alpha !== 0) {
+					backgroundLayers.push({
+						color: backgroundColor,
+						element: name,
+						source: 'background-color',
+					});
+					if (alpha === 1) {
+						return layer;
+					}
+				}
+			}
+			return null;
+		})();
+
+		if (!opaqueElement) {
+			throw new Error(
+				'No opaque painted background found behind contrast target',
+			);
+		}
+
+		// The hit stack above the target: only a painted background that hit
+		// testing really sees can sit between the target and the surface.
 		for (const paintedAbove of hitStack.slice(0, targetIndex)) {
 			const aboveName = elementName(paintedAbove);
-			assertNoPseudoOverlay(paintedAbove, x, y, aboveName);
+			assertNoPseudoOverlay(paintedAbove, x, y, aboveName, opaqueElement);
 			if (element.contains(paintedAbove)) {
 				const aboveStyle = getComputedStyle(paintedAbove);
 				if (aboveStyle.backgroundImage !== 'none') {
@@ -643,56 +910,16 @@ const readBrowserPaint = async (
 			throw new Error(`${aboveName} unexpectedly paints above contrast target`);
 		}
 
-		const backgroundLayers: BackgroundLayer[] = [];
-		const seen = new Set<Element>();
-		let foundOpaqueLayer = false;
-
-		const pushBackgroundPaint = (
-			color: string,
-			layerName: string,
-			source: string,
-		): void => {
-			backgroundLayers.push({ color, element: layerName, source });
-			if (paintAlpha(color, `${layerName} ${source}`) === 1) {
-				foundOpaqueLayer = true;
-			}
-		};
-
+		// From the target down to the opaque layer, everything the point sees:
+		// assert the supported paint and the pseudo overlays of each layer.
 		for (const layer of hitStack.slice(targetIndex)) {
-			if (seen.has(layer)) {
-				continue;
-			}
-			seen.add(layer);
-
 			const name = elementName(layer);
 			const style = getComputedStyle(layer);
 			assertSupportedPaint(style, layer.getBoundingClientRect(), x, y, name);
-			assertNoPseudoOverlay(layer, x, y, name);
-
-			for (const layerColor of backgroundImageLayers(
-				style.backgroundImage,
-				name,
-			)) {
-				pushBackgroundPaint(layerColor, name, 'background-image');
-			}
-
-			const backgroundColor = toSrgb(
-				style.backgroundColor,
-				`${name} background-color`,
-			);
-			const alpha = paintAlpha(backgroundColor, `${name} background-color`);
-			if (alpha !== 0) {
-				pushBackgroundPaint(backgroundColor, name, 'background-color');
-			}
-			if (foundOpaqueLayer) {
+			assertNoPseudoOverlay(layer, x, y, name, opaqueElement);
+			if (layer === opaqueElement) {
 				break;
 			}
-		}
-
-		if (!foundOpaqueLayer) {
-			throw new Error(
-				'No opaque painted background found behind contrast target',
-			);
 		}
 
 		// Group compositing above the first opaque layer is invisible to the
@@ -711,7 +938,7 @@ const readBrowserPaint = async (
 				y,
 				name,
 			);
-			assertNoPseudoOverlay(layer, x, y, name);
+			assertNoPseudoOverlay(layer, x, y, name, opaqueElement);
 		}
 
 		const foregrounds: string[] = [];
@@ -806,6 +1033,103 @@ const readBrowserPaint = async (
 			}
 		}
 
+		// The click-through scan: elements with `pointer-events: none` are
+		// invisible to `elementsFromPoint` by definition, yet paint like any
+		// other element. Walk the whole DOM unconditionally — not only when
+		// another reading failed — for a click-through element that paints a
+		// background, is stacked at or above the opaque surface and
+		// intersects the area the glyphs actually occupy (the text's line
+		// boxes, or the painted shapes' boxes). Such an element is an
+		// occlusion the model cannot enumerate; it fails loud by name.
+		const glyphArea = ((): {
+			bottom: number;
+			left: number;
+			right: number;
+			top: number;
+		} => {
+			const rects: DOMRect[] = [];
+			if (targetKind === 'text') {
+				const textNodes: Node[] = [];
+				const collect = (candidate: Element): void => {
+					for (const node of candidate.childNodes) {
+						if (node.nodeType === Node.TEXT_NODE) {
+							textNodes.push(node);
+						}
+					}
+				};
+				collect(element);
+				for (const descendant of element.querySelectorAll('*')) {
+					collect(descendant);
+				}
+				for (const node of textNodes) {
+					if ((node.textContent ?? '').trim() === '') {
+						continue;
+					}
+					const range = document.createRange();
+					range.selectNodeContents(node);
+					for (const rect of range.getClientRects()) {
+						rects.push(rect);
+					}
+				}
+			} else {
+				for (const shape of element.querySelectorAll(
+					'path, circle, ellipse, line, polyline, polygon, rect',
+				)) {
+					rects.push(shape.getBoundingClientRect());
+				}
+			}
+			if (rects.length === 0) {
+				throw new Error(
+					`${elementName(element)} has no resolvable glyph area for the click-through scan`,
+				);
+			}
+			return {
+				left: Math.min(...rects.map((rect) => rect.left)),
+				right: Math.max(...rects.map((rect) => rect.right)),
+				top: Math.min(...rects.map((rect) => rect.top)),
+				bottom: Math.max(...rects.map((rect) => rect.bottom)),
+			};
+		})();
+
+		for (const candidate of document.querySelectorAll('body *')) {
+			const style = getComputedStyle(candidate);
+			if (style.pointerEvents !== 'none') {
+				continue;
+			}
+			if (style.display === 'none' || style.visibility === 'hidden') {
+				continue;
+			}
+			if (style.opacity === '0') {
+				continue;
+			}
+			const rect = candidate.getBoundingClientRect();
+			if (rect.width === 0 || rect.height === 0) {
+				continue;
+			}
+			if (
+				rect.left >= glyphArea.right ||
+				rect.right <= glyphArea.left ||
+				rect.top >= glyphArea.bottom ||
+				rect.bottom <= glyphArea.top
+			) {
+				continue;
+			}
+			const image = style.backgroundImage;
+			const backgroundColor = style.backgroundColor;
+			const paints =
+				image !== 'none' ||
+				paintAlpha(backgroundColor, `${elementName(candidate)} background`) !==
+					0;
+			if (!paints) {
+				continue;
+			}
+			if (paintsAbove(paintChain(candidate), paintChain(opaqueElement))) {
+				throw new Error(
+					`${elementName(candidate)} is a click-through overlay painted above the toast surface and over the ${targetKind === 'text' ? 'text' : 'glyph'} area: ${image !== 'none' ? image : backgroundColor}`,
+				);
+			}
+		}
+
 		return { backgroundLayers, foregrounds };
 	}, kind);
 
@@ -895,20 +1219,34 @@ const rgbaLabel = ({ r, g, b, a }: Rgba): string =>
  * per-channel against the browser-composited pixel; the model's surface and
  * the painted pixel differ by at most a rounding step.
  */
+/**
+ * The one reading in the guard that does not model the paint: screenshot the
+ * target's box, decode it in the page, and require the modelled painted
+ * surface to actually be present among the pixels the glyphs occupy — the
+ * text's own line boxes (text targets) or the painted-glyph region (glyph
+ * targets) — not merely somewhere in the box. A threshold satisfiable by
+ * background pixels the text does not touch is not a measurement of
+ * contrast. This catches paint that the model cannot see at all — an
+ * overlay with `pointer-events: none` is invisible to `elementsFromPoint`
+ * by definition, yet paints over the target like any other element — and
+ * independently cross-checks the alpha parsing and the inset-shadow
+ * geometry. Tolerance is per-channel against the browser-composited pixel;
+ * the model's surface and the painted pixel differ by at most a rounding
+ * step.
+ */
 const assertPaintedSurfaceVisible = async (
 	target: Locator,
+	kind: TargetKind,
 	background: Rgba,
 	label: string,
 ): Promise<void> => {
-	const page = target.page();
 	const box = await target.boundingBox();
 	if (!box) {
 		throw new Error(`${label} has no painted box to cross-check`);
 	}
-	const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 	const screenshot = await target.screenshot();
-	const report = await page.evaluate(
-		async ({ background, dataUrl, tolerance }) => {
+	const report = await target.evaluate(
+		async (element, { background, box, dataUrl, kind, label, tolerance }) => {
 			const base64 = dataUrl.slice('data:image/png;base64,'.length);
 			const binary = atob(base64);
 			const bytes = new Uint8Array(binary.length);
@@ -927,81 +1265,145 @@ const assertPaintedSurfaceVisible = async (
 			}
 			context.drawImage(bitmap, 0, 0);
 			const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-			let matchCount = 0;
+			const isSurface = (x: number, y: number): boolean => {
+				const index = (y * canvas.width + x) * 4;
+				return (
+					Math.abs(data[index] - background[0]) <= tolerance &&
+					Math.abs(data[index + 1] - background[1]) <= tolerance &&
+					Math.abs(data[index + 2] - background[2]) <= tolerance
+				);
+			};
 			let nearestDistance = Number.POSITIVE_INFINITY;
 			let nearest: [number, number, number] = [0, 0, 0];
-			for (let index = 0; index < data.length; index += 4) {
-				const distance = Math.max(
-					Math.abs(data[index] - background[0]),
-					Math.abs(data[index + 1] - background[1]),
-					Math.abs(data[index + 2] - background[2]),
-				);
-				if (distance <= tolerance) {
-					matchCount += 1;
+			let minX = Number.POSITIVE_INFINITY;
+			let minY = Number.POSITIVE_INFINITY;
+			let maxX = -1;
+			let maxY = -1;
+			for (let y = 0; y < canvas.height; y += 1) {
+				for (let x = 0; x < canvas.width; x += 1) {
+					const index = (y * canvas.width + x) * 4;
+					const distance = Math.max(
+						Math.abs(data[index] - background[0]),
+						Math.abs(data[index + 1] - background[1]),
+						Math.abs(data[index + 2] - background[2]),
+					);
+					if (distance < nearestDistance) {
+						nearestDistance = distance;
+						nearest = [data[index], data[index + 1], data[index + 2]];
+					}
+					if (distance <= tolerance) {
+						continue;
+					}
+					if (x < minX) {
+						minX = x;
+					}
+					if (x > maxX) {
+						maxX = x;
+					}
+					if (y < minY) {
+						minY = y;
+					}
+					if (y > maxY) {
+						maxY = y;
+					}
 				}
-				if (distance < nearestDistance) {
-					nearestDistance = distance;
-					nearest = [data[index], data[index + 1], data[index + 2]];
+			}
+			const paintedRegionEmpty = minX === Number.POSITIVE_INFINITY;
+			let glyphArea: {
+				bottom: number;
+				left: number;
+				right: number;
+				top: number;
+			} | null = null;
+			if (kind === 'text') {
+				const textNodes: Node[] = [];
+				const collect = (candidate: Element): void => {
+					for (const node of candidate.childNodes) {
+						if (node.nodeType === Node.TEXT_NODE) {
+							textNodes.push(node);
+						}
+					}
+				};
+				collect(element);
+				for (const descendant of element.querySelectorAll('*')) {
+					collect(descendant);
+				}
+				const rects: DOMRect[] = [];
+				for (const node of textNodes) {
+					if ((node.textContent ?? '').trim() === '') {
+						continue;
+					}
+					const range = document.createRange();
+					range.selectNodeContents(node);
+					for (const rect of range.getClientRects()) {
+						rects.push(rect);
+					}
+				}
+				if (rects.length === 0) {
+					throw new Error(
+						`${label} has no text nodes to delimit its glyph area`,
+					);
+				}
+				glyphArea = {
+					left: Math.min(...rects.map((rect) => rect.left)) - box.x,
+					right: Math.max(...rects.map((rect) => rect.right)) - box.x,
+					top: Math.min(...rects.map((rect) => rect.top)) - box.y,
+					bottom: Math.max(...rects.map((rect) => rect.bottom)) - box.y,
+				};
+			} else if (!paintedRegionEmpty) {
+				glyphArea = { left: minX, right: maxX, top: minY, bottom: maxY };
+			}
+			let surfaceInGlyphArea = 0;
+			let glyphAreaPixels = 0;
+			if (glyphArea) {
+				for (
+					let y = Math.floor(glyphArea.top);
+					y <= Math.ceil(glyphArea.bottom);
+					y += 1
+				) {
+					for (
+						let x = Math.floor(glyphArea.left);
+						x <= Math.ceil(glyphArea.right);
+						x += 1
+					) {
+						if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+							continue;
+						}
+						glyphAreaPixels += 1;
+						if (isSurface(x, y)) {
+							surfaceInGlyphArea += 1;
+						}
+					}
 				}
 			}
 			return {
-				matchCount,
+				glyphAreaPixels,
 				nearest,
 				nearestDistance,
-				pixelCount: data.length / 4,
+				paintedRegionEmpty,
+				surfaceInGlyphArea,
 			};
 		},
 		{
 			background: [background.r, background.g, background.b],
+			box: { x: box.x, y: box.y },
 			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			kind,
+			label,
 			tolerance: PIXEL_MATCH_TOLERANCE,
 		},
 	);
-	if (report.matchCount < PIXEL_MATCH_MIN_COUNT) {
-		// Name the likely cause: hit testing cannot see click-through paint,
-		// so look for elements that paint a background over the sampled
-		// point while carrying `pointer-events: none`.
-		const overlays = await page.evaluate(({ x, y }) => {
-			const names: string[] = [];
-			for (const element of document.querySelectorAll('body *')) {
-				const rect = element.getBoundingClientRect();
-				if (rect.width === 0 || rect.height === 0) {
-					continue;
-				}
-				if (
-					x < rect.left ||
-					x > rect.right ||
-					y < rect.top ||
-					y > rect.bottom
-				) {
-					continue;
-				}
-				const style = getComputedStyle(element);
-				if (style.pointerEvents !== 'none') {
-					continue;
-				}
-				const name =
-					element.getAttribute('data-testid') ??
-					element.getAttribute('data-slot') ??
-					element.tagName.toLowerCase();
-				if (style.backgroundImage !== 'none') {
-					names.push(`${name} (${style.backgroundImage})`);
-					continue;
-				}
-				if (
-					style.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
-					style.backgroundColor !== 'transparent'
-				) {
-					names.push(`${name} (${style.backgroundColor})`);
-				}
-			}
-			return names;
-		}, point);
+	if (report.paintedRegionEmpty) {
 		throw new Error(
-			`${label}: modelled painted surface ${rgbaLabel(background)} is absent from the painted box ` +
+			`${label}: no painted glyphs found in the box — the modelled surface ${rgbaLabel(background)} fills every pixel`,
+		);
+	}
+	if (report.surfaceInGlyphArea < PIXEL_MATCH_MIN_COUNT) {
+		throw new Error(
+			`${label}: modelled painted surface ${rgbaLabel(background)} is absent from the glyph area ` +
 				`(nearest painted colour rgb(${report.nearest.join(', ')}), channel distance ` +
-				`${report.nearestDistance}, ${report.matchCount}/${report.pixelCount} pixels match); ` +
-				`click-through overlays at the sampled point: ${overlays.join(', ') || 'none found'}`,
+				`${report.nearestDistance}, ${report.surfaceInGlyphArea}/${report.glyphAreaPixels} ` +
+				`surface pixels inside the glyph area)`,
 		);
 	}
 };
@@ -1021,7 +1423,12 @@ const measureToastTarget = async ({
 }): Promise<ContrastMeasurement> => {
 	await expect(target, `${label} must render`).toBeVisible();
 	const measurement = await measureContrast(target, kind);
-	await assertPaintedSurfaceVisible(target, measurement.background, label);
+	await assertPaintedSurfaceVisible(
+		target,
+		kind,
+		measurement.background,
+		label,
+	);
 	const description =
 		`${label}: ${measurement.ratio.toFixed(2)}:1 ` +
 		`(foreground ${rgbaLabel(measurement.foreground)}, ` +
@@ -1248,6 +1655,99 @@ test('an inset highlight confined to an edge stays measured', async ({
 	await page.addStyleTag({
 		content:
 			'.publy-toast { box-shadow: var(--publy-shadow-menu), inset 0 1px 0 rgb(255 255 255 / 0.6); }',
+	});
+	const toast = await renderToast(page, 'success');
+	const measurement = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+	);
+	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
+});
+
+/**
+ * Paired proof for the pseudo-element paint-order rule (round-5 I1): an
+ * in-front pseudo must red the guard, a pseudo stacked BEHIND the opaque
+ * toast must stay green even though it paints a background the sampled
+ * point's box would geometrically contain, and the edge accent stripe the
+ * geometry was made for stays green. All three mutate the real toaster rule
+ * through an injected un-layered rule, so the guard reads genuine cascade
+ * results.
+ */
+test('a pseudo-element overlay in front of the toast fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			".publy-toaster::before { content: ''; position: fixed; inset: 0; background: rgb(255 0 0); pointer-events: none; z-index: 2147483647; }",
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+	).rejects.toThrow(/paints a background over the sampled point/);
+});
+
+test('a pseudo-element painted behind the toast stays measured', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			".publy-toaster::before { content: ''; position: fixed; inset: 0; background: rgb(255 0 0); pointer-events: none; z-index: -1; }",
+	});
+	const toast = await renderToast(page, 'success');
+	const measurement = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+	);
+	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
+});
+
+test('an edge accent stripe on the toast stays measured', async ({ page }) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			".publy-toast::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--publy-toast-accent); pointer-events: none; }",
+	});
+	const toast = await renderToast(page, 'success');
+	const measurement = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+	);
+	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
+});
+
+/**
+ * Paired proof for the click-through scan (round-5 B1): the 220x40
+ * click-through scrim over the title — invisible to hit testing, exactly
+ * the round-5 reproduction — must red the guard BY NAME, and the same box
+ * stacked BEHIND the toast must stay green. Both restyle the fixture's own
+ * real element (`field-validation-title`), so the scan reads a genuine DOM
+ * overlay, not a synthetic one.
+ */
+test('a click-through overlay over the text fails the guard by name', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			"[data-testid='field-validation-title'] { position: fixed; top: 31px; right: 117px; width: 220px; height: 40px; background: var(--publy-foreground); color: transparent; pointer-events: none; z-index: 2147483647; }",
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+	).rejects.toThrow(
+		/field-validation-title is a click-through overlay painted above the toast surface and over the text area/,
+	);
+});
+
+test('a click-through overlay painted behind the toast stays measured', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			"[data-testid='field-validation-title'] { position: fixed; top: 31px; right: 117px; width: 220px; height: 40px; background: var(--publy-foreground); color: transparent; pointer-events: none; z-index: -1; }",
 	});
 	const toast = await renderToast(page, 'success');
 	const measurement = await measureContrast(
