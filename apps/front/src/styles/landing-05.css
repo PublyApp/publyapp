@@ -731,50 +731,12 @@
 		padding-inline: 10px;
 	}
 
-	/* ---- §8 FAQ (todesktop-33): the trigger's chevron, on the house
-	   duration/easing rather than a scattered Tailwind arbitrary value. */
-	.publy-landing-05 .publy-l05-faq-chevron {
-		transition: transform var(--publy-motion-medium) var(--publy-motion-ease);
-	}
-
-	/* The answer panel: the same measured-height-free `grid-template-rows:
-	   0fr -> 1fr` technique as the §2 mobile accordion (todesktop-33's own
-	   goal — no `max-height: 9999px` lag on a short answer — reached without
-	   a JS height measurement), at this section's own 240ms/house-easing
-	   pair. The inner blur-in (opacity 0 + 1px blur -> clear) is what makes
-	   the reveal read as text arriving rather than a box growing. */
-	.publy-landing-05 .publy-l05-faq-panel {
-		display: grid;
-		grid-template-rows: 0fr;
-		overflow: hidden;
-		transition: grid-template-rows var(--publy-motion-medium)
-			var(--publy-motion-ease);
-	}
-
-	.publy-landing-05 .publy-l05-faq-panel-open {
-		grid-template-rows: 1fr;
-	}
-
-	.publy-landing-05 .publy-l05-faq-panel-inner {
-		min-height: 0;
-		opacity: 0;
-		filter: blur(1px);
-		transition:
-			opacity var(--publy-motion-medium) var(--publy-motion-ease),
-			filter var(--publy-motion-medium) var(--publy-motion-ease);
-	}
-
-	.publy-landing-05 .publy-l05-faq-panel-open .publy-l05-faq-panel-inner {
-		opacity: 1;
-		filter: blur(0);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.publy-landing-05 .publy-l05-faq-chevron,
-		.publy-landing-05 .publy-l05-faq-panel,
-		.publy-landing-05 .publy-l05-faq-panel-inner,
-		.publy-landing-05 .publy-l05-faq-panel-open .publy-l05-faq-panel-inner {
-			transition: none;
-		}
+	/* ---- §8 FAQ: a ruled list, not an accordion. Four short answers read
+	   fully open, in one column, at every breakpoint — nothing to click and
+	   nothing to reflow. `publy-l05-faq-item` supplies only the between-item
+	   rule; type comes from the shared `.publy-type-sky-display-4` /
+	   `.publy-type-sky-body` classes above. */
+	.publy-landing-05 .publy-l05-faq-item + .publy-l05-faq-item {
+		border-block-start: 1px solid var(--publy-border);
 	}
 }
