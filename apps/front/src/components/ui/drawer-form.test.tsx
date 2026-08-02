@@ -367,13 +367,19 @@ const signalProbeDirs: string[] = [];
 const runSignalProbeChild = (
 	childSource: string,
 	signal: NodeJS.Signals,
-): Promise<string> =>
+): Promise<{
+	dirPath: string;
+	exitCode: number | null;
+	exitSignal: NodeJS.Signals | null;
+}> =>
 	new Promise((resolve, reject) => {
 		const child = spawn(process.execPath, ['-e', childSource], {
 			stdio: ['ignore', 'pipe', 'inherit'],
 		});
 		let buffer = '';
 		let dirPath: string | null = null;
+		let exitCode: number | null = null;
+		let exitSignal: NodeJS.Signals | null = null;
 		child.stdout.on('data', (chunk: Buffer) => {
 			buffer += chunk.toString();
 			if (dirPath === null && buffer.includes('\n')) {
@@ -383,9 +389,11 @@ const runSignalProbeChild = (
 			}
 		});
 		child.on('error', reject);
-		child.on('exit', () => {
+		child.on('exit', (code, childSignal) => {
+			exitCode = code;
+			exitSignal = childSignal;
 			if (dirPath !== null) {
-				resolve(dirPath);
+				resolve({ dirPath, exitCode, exitSignal });
 			} else {
 				reject(
 					new Error(
@@ -5771,31 +5779,34 @@ describe('drawer surface flex chain guard (#990)', () => {
 		}
 	});
 
-	test('SIGTERM runs the guard signal handlers and removes the temp directory', async () => {
+	test('SIGTERM runs the guard signal handlers, removes the temp directory and does not exit 0', async () => {
 		// Round 13's IMPORTANT 4: `process.on('exit')` does not run when the
 		// process dies on a signal, so the round-12 crash net leaked the
 		// whole temp dir on SIGTERM — exactly how CI cancels a job. The
 		// child below requires the guard's OWN drawer-guard-tmp-dir.cjs, so
 		// this exercises the exact registration a cancelled run goes
 		// through, and dies if the signal handlers are removed.
-		const handledDir = await runSignalProbeChild(
+		// Round 15's MINOR 7: the handlers used to `process.exit(0)`,
+		// turning a cancelled run into a successful one — the exit code
+		// must be non-zero, so a cancelled CI run still fails.
+		const handled = await runSignalProbeChild(
 			SIGNAL_PROBE_WITH_HANDLERS,
 			'SIGTERM',
 		);
-		expect(existsSync(handledDir)).toBe(false);
+		expect(existsSync(handled.dirPath)).toBe(false);
+		expect(handled.exitCode).not.toBe(0);
 
 		// The control: the round-13 shape (exit handler only) really does
 		// leak — the process dies on the signal and no handler runs. This
 		// pins that the probe above is exercising the signal path, and
-		// documents the defect the handlers close.
-		const leakedDir = await runSignalProbeChild(
-			SIGNAL_PROBE_EXIT_ONLY,
-			'SIGTERM',
-		);
+		// documents the defect the handlers close. A signal death is also
+		// not a 0 exit.
+		const leaked = await runSignalProbeChild(SIGNAL_PROBE_EXIT_ONLY, 'SIGTERM');
 		try {
-			expect(existsSync(leakedDir)).toBe(true);
+			expect(existsSync(leaked.dirPath)).toBe(true);
+			expect(leaked.exitCode).not.toBe(0);
 		} finally {
-			rmSync(leakedDir, { recursive: true, force: true });
+			rmSync(leaked.dirPath, { recursive: true, force: true });
 		}
 	});
 

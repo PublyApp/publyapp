@@ -22,7 +22,11 @@ const createGuardTempDir = (prefix) => {
 	for (const signal of ['SIGINT', 'SIGTERM']) {
 		process.on(signal, () => {
 			remove();
-			process.exit(0);
+			// A cleanup handler must not turn a cancelled run into a
+			// successful one: `process.exit(0)` masked the real exit code
+			// (and pre-empted every other signal handler) on Ctrl-C / CI
+			// cancellation. Exit non-zero instead.
+			process.exit(1);
 		});
 	}
 	return { dir, remove };
