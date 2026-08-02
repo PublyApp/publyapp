@@ -1290,11 +1290,12 @@ export const scanZIndexFile = ({
 				return;
 			}
 			const withoutQuery = specifier.split(/[?#]/)[0];
+			const relativeRawPath = withoutQuery.startsWith('~/')
+				? path.resolve(baseDir, 'src', withoutQuery.slice(2))
+				: path.resolve(baseDir, path.dirname(relativePath), withoutQuery);
 			const rawPath = path.isAbsolute(withoutQuery)
 				? withoutQuery
-				: withoutQuery.startsWith('~/')
-					? path.resolve(baseDir, 'src', withoutQuery.slice(2))
-					: path.resolve(baseDir, path.dirname(relativePath), withoutQuery);
+				: relativeRawPath;
 			const text = rawImportTexts.get(path.resolve(rawPath));
 			if (text == null) {
 				// The production build validated every import (an unresolvable

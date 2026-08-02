@@ -76,11 +76,13 @@ const runFixtureGuard = async (
 ) => {
 	// `emittedCssOverride` is a single `{ file, content }` entry or an array
 	// of them, so tests can pin gates that only fire across assets.
-	const emittedOverrides = Array.isArray(emittedCssOverride)
-		? emittedCssOverride
-		: emittedCssOverride == null
+	const singleEmittedOverride =
+		emittedCssOverride == null
 			? []
 			: [{ file: 'fixture.css', content: emittedCssOverride }];
+	const emittedOverrides = Array.isArray(emittedCssOverride)
+		? emittedCssOverride
+		: singleEmittedOverride;
 	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
 	try {
 		await mkdir(path.join(root, 'src'), { recursive: true });
