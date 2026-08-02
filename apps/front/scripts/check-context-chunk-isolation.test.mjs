@@ -667,6 +667,60 @@ void test('discovers factory-minted contexts in unbound holder positions', async
 	}
 });
 
+void test('records the structural position of each discovered holder mint', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/make-context.ts': `
+			import { createContext } from 'react';
+			export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+		`,
+		'src/object-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			export const contexts = { probe: createStrictContext<null>(null) };
+		`,
+		'src/array-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			export const contexts = [createStrictContext<null>(null)];
+		`,
+		'src/export-default.tsx': `
+			import { createStrictContext } from './make-context';
+			export default createStrictContext<null>(null);
+		`,
+		'src/as-wrapped-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			import type { StrictContext } from './make-context';
+			export const contexts = { probe: createStrictContext<null>(null) as StrictContext<null> };
+		`,
+		'src/nested-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			export const contexts = { outer: { probe: createStrictContext<null>(null) } };
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		const positionsIn = (relativeSourceFile) =>
+			contexts.find(
+				(context) =>
+					context.name === '<anonymous context>' &&
+					context.sourceFile ===
+						path.join(fixtureDirectory, relativeSourceFile),
+			)?.mintingPositions;
+		assert.deepEqual(positionsIn('src/object-holder.tsx'), ['contexts.probe']);
+		assert.deepEqual(positionsIn('src/array-holder.tsx'), ['contexts[0]']);
+		assert.deepEqual(positionsIn('src/export-default.tsx'), ['<default>']);
+		assert.deepEqual(positionsIn('src/as-wrapped-holder.tsx'), [
+			'contexts.probe',
+		]);
+		assert.deepEqual(positionsIn('src/nested-holder.tsx'), [
+			'contexts.outer.probe',
+		]);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('tracks a comma-chain holder mint only when the call is the chain value', async () => {
 	const fixtureDirectory = await createFixture({
 		'src/make-context.ts': `
@@ -1732,7 +1786,7 @@ void test('counts a rendered factory mint held in an array element as a creator'
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['createStrictContext'],
+					mintingPositions: ['contexts[0]'],
 				},
 			],
 			[
@@ -1770,7 +1824,7 @@ void test('counts a rendered factory mint held in an export default as a creator
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['createStrictContext'],
+					mintingPositions: ['<default>'],
 				},
 			],
 			[
@@ -1812,7 +1866,7 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 					{
 						name: '<anonymous context>',
 						sourceFile,
-						mintingCallees: ['createStrictContext'],
+						mintingPositions: ['contexts.probe'],
 					},
 				],
 				[
@@ -1835,7 +1889,7 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 	);
 });
 
-void test('fails closed when two unattributed copies of a holder-mint module share one chunk', () => {
+void test('fails when two positioned holder mints of a module share one chunk', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -1844,30 +1898,31 @@ void test('fails closed when two unattributed copies of a holder-mint module sha
 		var contexts = { probe: make_context_default(null) };
 	`;
 
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[
-					{
-						name: '<anonymous context>',
-						sourceFile,
-						mintingCallees: ['mkDefault'],
-					},
-				],
-				[
-					{
-						fileName: 'assets/probe-pair.js',
-						modules: {
-							[sourceFile]: { code: unattributedMintCode },
-							[`${sourceFile}?tsr-split=component`]: {
-								code: unattributedMintCode,
-							},
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingPositions: ['contexts.probe'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/probe-pair.js',
+					modules: {
+						[sourceFile]: { code: unattributedMintCode },
+						[`${sourceFile}?tsr-split=component`]: {
+							code: unattributedMintCode,
 						},
 					},
-				],
-				frontDirectory,
-			),
-		/cannot classify how <anonymous context> .* is created/i,
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is created by multiple client modules in chunk: assets/probe-pair.js.',
+		],
 	);
 });
 
@@ -1887,7 +1942,7 @@ void test('passes an un-attributable holder-position call when the module is in 
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['createStrictContext'],
+					mintingPositions: ['contexts.probe'],
 				},
 			],
 			[
@@ -1921,7 +1976,7 @@ void test('passes when one rendered copy of a split module mints while the other
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['createStrictContext'],
+					mintingPositions: ['contexts.probe'],
 				},
 			],
 			[
@@ -1944,7 +1999,7 @@ void test('passes when one rendered copy of a split module mints while the other
 	);
 });
 
-void test('attributes a rendered holder mint through the callee declared export name', () => {
+void test('attributes a rendered holder mint at a recorded source position', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -1959,7 +2014,7 @@ void test('attributes a rendered holder mint through the callee declared export 
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['mk', 'createStrictContext'],
+					mintingPositions: ['contexts.probe'],
 				},
 			],
 			[
@@ -1984,7 +2039,7 @@ void test('attributes a rendered holder mint through the callee declared export 
 	);
 });
 
-void test('attributes a rendered IIFE holder mint through the call it executes', () => {
+void test('attributes a rendered IIFE holder mint at its recorded source position', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -1999,7 +2054,7 @@ void test('attributes a rendered IIFE holder mint through the call it executes',
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['createStrictContext'],
+					mintingPositions: ['contexts.probe'],
 				},
 			],
 			[
@@ -2024,7 +2079,7 @@ void test('attributes a rendered IIFE holder mint through the call it executes',
 	);
 });
 
-void test('does not attribute an unnameable rendered holder call that runs no minting callee', () => {
+void test('does not attribute a rendered holder call that is not at a recorded source position', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -2039,7 +2094,7 @@ void test('does not attribute an unnameable rendered holder call that runs no mi
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['createStrictContext'],
+					mintingPositions: ['contexts.other'],
 				},
 			],
 			[
@@ -2060,7 +2115,7 @@ void test('does not attribute an unnameable rendered holder call that runs no mi
 					{
 						name: '<anonymous context>',
 						sourceFile,
-						mintingCallees: ['createStrictContext'],
+						mintingPositions: ['contexts.other'],
 					},
 				],
 				[
@@ -2083,7 +2138,7 @@ void test('does not attribute an unnameable rendered holder call that runs no mi
 	);
 });
 
-void test('attributes a comma-chain-wrapped rendered holder mint', () => {
+void test('attributes a comma-chain-wrapped rendered holder mint at its recorded position', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -2098,7 +2153,7 @@ void test('attributes a comma-chain-wrapped rendered holder mint', () => {
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingCallees: ['createStrictContext'],
+					mintingPositions: ['contexts.probe'],
 				},
 			],
 			[
@@ -2111,6 +2166,127 @@ void test('attributes a comma-chain-wrapped rendered holder mint', () => {
 					modules: {
 						[`${sourceFile}?tsr-split=component`]: {
 							code: commaMintCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('attributes a rendered holder mint through a deconflicted binding name', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const deconflictedCode = `
+		var contexts$1 = { probe: createStrictContext(null) };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingPositions: ['contexts.probe'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: deconflictedCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: deconflictedCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('attributes a rendered holder mint through a nested property chain', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const nestedHolderCode = `
+		var contexts = { outer: { probe: createStrictContext(null) } };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingPositions: ['contexts.outer.probe'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: nestedHolderCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: nestedHolderCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+});
+
+void test('does not attribute a same-named helper call held at the same property of another holder', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const forgedHolderCode = `
+		var contexts = { probe: make_context_default(null) };
+		var unrelatedHolder = { probe: mkDefault("sentinel") };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingPositions: ['contexts.probe'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: forgedHolderCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: forgedHolderCode,
 						},
 					},
 				},
@@ -3309,7 +3485,141 @@ void test(
 			assert.notEqual(result.status, 0, result.trace);
 			assert.match(
 				result.output,
-				/cannot classify how <anonymous context> in src\/routes\/probe\.tsx is created/i,
+				/<anonymous context> in src\/routes\/probe\.tsx is created by multiple client modules in chunk: assets\/probe-pair/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a same-named non-context helper must not mask two anonymous context mints',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					import type { Context } from 'react';
+					export default function <T,>(fallback: T): Context<T> {
+						return createContext(fallback);
+					}
+				`,
+				'src/not-context.ts': `
+					export function mkDefault<T>(value: T): T { return value; }
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import mkDefault from '../make-context';
+					import { mkDefault as other } from '../not-context';
+					const contexts = { probe: mkDefault<null>(null) };
+					export const unrelatedHolder = { value: other('sentinel') };
+					export const useProbe = () => useContext(contexts.probe);
+					const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			const mintingCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						/make_context_default\s*\(/.test(code)
+					) {
+						mintingCopies.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(
+				mintingCopies.length,
+				2,
+				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
+			);
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a same-named export is deconflicted by the bundler',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					import type { Context } from 'react';
+					export function mk<T,>(fallback: T): Context<T> {
+						return createContext(fallback);
+					}
+				`,
+				'src/not-context.ts': `
+					export function mk<T>(value: T): T { return value; }
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { mk } from '../make-context';
+					import { mk as other } from '../not-context';
+					const contexts = { probe: mk<null>(null) };
+					export const unrelatedHolder = { value: other('sentinel') };
+					export const useProbe = () => useContext(contexts.probe);
+					const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			const mintingCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						/contexts[^;]*\{ probe: mk/.test(code)
+					) {
+						mintingCopies.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(
+				mintingCopies.length,
+				2,
+				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
+			);
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
 			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });

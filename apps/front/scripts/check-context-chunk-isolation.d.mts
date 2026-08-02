@@ -3,8 +3,9 @@ import type { Plugin } from 'vite';
 export type ContextDeclaration = {
 	name: string;
 	sourceFile: string;
-	/** Callee names the source scan attributed to a holder-position mint. */
-	mintingCallees?: string[];
+	/** Structural positions (`contexts.probe`, `contexts[0]`, `<default>.probe`)
+	 *  the source scan recorded for a holder-position mint. */
+	mintingPositions?: string[];
 };
 
 export type ClientChunk = {
