@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '~/lib/utils';
 
 import { LedgerRowHeader } from './ledger-row-header';
+import { useLedgerReveal } from './use-ledger-reveal';
 
 type FactEntry = {
 	id: string;
@@ -57,6 +58,36 @@ const borderClassesFor = (index: number): string =>
 	);
 
 /**
+ * One capability fact. Its own component (rather than inlined in the
+ * `.map()` below) because it calls the reveal hook — a hook call inside a
+ * `.map()` callback is a rules-of-hooks violation.
+ */
+const FactCell = ({ fact, index }: { fact: FactEntry; index: number }) => {
+	const { t } = useTranslation('landing-07');
+	const reveal = useLedgerReveal<HTMLDivElement>(index);
+
+	return (
+		<div
+			{...reveal}
+			className={cn('flex gap-3 px-1 py-5', borderClassesFor(index))}
+		>
+			<span
+				aria-hidden="true"
+				className="ld07-accent-rule mt-1.5 h-4 w-0.5 shrink-0"
+			/>
+			<p className="max-w-[46ch]">
+				<span className="ld07-body-label text-(--publy-foreground)">
+					{t(fact.labelI18nKey)}
+				</span>{' '}
+				<span className="ld07-body text-(--publy-foreground-secondary)">
+					{t(fact.bodyI18nKey)}
+				</span>
+			</p>
+		</div>
+	);
+};
+
+/**
  * Row 05 — The capability strip (PROMPT.md §4 Row 05, `todesktop-31`).
  * Ground: raised. Six facts as "Label. Continuation." pairs sharing one line
  * box (`todesktop-05`'s metric parity — both 16/26, the label only adding
@@ -94,23 +125,7 @@ export const LedgerFacts = ({ rowNumber }: { rowNumber: string }) => {
 				/>
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
 					{FACTS.map((fact, index) => (
-						<div
-							key={fact.id}
-							className={cn('flex gap-3 px-1 py-5', borderClassesFor(index))}
-						>
-							<span
-								aria-hidden="true"
-								className="ld07-accent-rule mt-1.5 h-4 w-0.5 shrink-0"
-							/>
-							<p className="max-w-[46ch]">
-								<span className="ld07-body-label text-(--publy-foreground)">
-									{t(fact.labelI18nKey)}
-								</span>{' '}
-								<span className="ld07-body text-(--publy-foreground-secondary)">
-									{t(fact.bodyI18nKey)}
-								</span>
-							</p>
-						</div>
+						<FactCell key={fact.id} fact={fact} index={index} />
 					))}
 				</div>
 			</div>

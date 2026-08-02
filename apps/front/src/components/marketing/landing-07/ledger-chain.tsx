@@ -3,6 +3,7 @@ import { MarketingImageSlot } from '~/components/marketing/marketing-image-slot'
 import { cn } from '~/lib/utils';
 
 import { LedgerRowHeader } from './ledger-row-header';
+import { useLedgerReveal } from './use-ledger-reveal';
 
 type ChainStep = {
 	id: 'draft' | 'approval' | 'publish';
@@ -43,6 +44,53 @@ const CHAIN_STEPS: readonly ChainStep[] = [
 const CHAIN_SLOT_HEIGHT = 'h-[160px] md:h-[200px] xl:h-[220px]';
 
 /**
+ * One chain step. Its own component (rather than inlined in the `.map()`
+ * below) because it calls the reveal hook — a hook call inside a `.map()`
+ * callback is a rules-of-hooks violation.
+ */
+const ChainStepArticle = ({
+	step,
+	index,
+}: {
+	step: ChainStep;
+	index: number;
+}) => {
+	const { t } = useTranslation('landing-07');
+	const reveal = useLedgerReveal<HTMLElement>(index);
+
+	return (
+		<article
+			{...reveal}
+			className="grid grid-rows-[auto_1fr] gap-px bg-(--publy-rule)"
+		>
+			<div className="bg-(--publy-surface-raised)">
+				<MarketingImageSlot
+					slot={step.slot}
+					subject={step.subject}
+					className={cn('w-full', CHAIN_SLOT_HEIGHT)}
+				/>
+			</div>
+			<div className="bg-(--publy-background) p-5 md:p-6">
+				<div className="flex items-baseline gap-2.5">
+					<span
+						aria-hidden="true"
+						className="ld07-row-number text-(--publy-foreground-subtle)"
+					>
+						{String(index + 1).padStart(2, '0')}
+					</span>
+					<h3 className="publy-type-eyebrow text-(--publy-foreground-secondary)">
+						{t(step.labelI18nKey)}
+					</h3>
+				</div>
+				<p className="ld07-body-small mt-2 max-w-[38ch] text-(--publy-foreground-secondary)">
+					{t(step.bodyI18nKey)}
+				</p>
+			</div>
+		</article>
+	);
+};
+
+/**
  * Row 08 — The chain (PROMPT.md §4 Row 08). Ground: raised. Three slots,
  * inverted against Row 04: the well sits on the raised row ground and the
  * caption block sits on the page ground, so the page's two slot-bearing rows
@@ -67,34 +115,7 @@ export const LedgerChain = ({ rowNumber }: { rowNumber: string }) => {
 			/>
 			<div className="grid grid-cols-1 gap-px bg-(--publy-rule) md:grid-cols-3">
 				{CHAIN_STEPS.map((step, index) => (
-					<article
-						key={step.id}
-						className="grid grid-rows-[auto_1fr] gap-px bg-(--publy-rule)"
-					>
-						<div className="bg-(--publy-surface-raised)">
-							<MarketingImageSlot
-								slot={step.slot}
-								subject={step.subject}
-								className={cn('w-full', CHAIN_SLOT_HEIGHT)}
-							/>
-						</div>
-						<div className="bg-(--publy-background) p-5 md:p-6">
-							<div className="flex items-baseline gap-2.5">
-								<span
-									aria-hidden="true"
-									className="ld07-row-number text-(--publy-foreground-subtle)"
-								>
-									{String(index + 1).padStart(2, '0')}
-								</span>
-								<h3 className="publy-type-eyebrow text-(--publy-foreground-secondary)">
-									{t(step.labelI18nKey)}
-								</h3>
-							</div>
-							<p className="ld07-body-small mt-2 max-w-[38ch] text-(--publy-foreground-secondary)">
-								{t(step.bodyI18nKey)}
-							</p>
-						</div>
-					</article>
+					<ChainStepArticle key={step.id} step={step} index={index} />
 				))}
 			</div>
 		</div>

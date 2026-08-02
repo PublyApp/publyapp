@@ -12,6 +12,7 @@ import { MarketingImageSlot } from '~/components/marketing/marketing-image-slot'
 import { cn } from '~/lib/utils';
 
 import { LedgerRowHeader } from './ledger-row-header';
+import { useLedgerReveal } from './use-ledger-reveal';
 
 type TourTabId =
 	| 'calendar'
@@ -88,8 +89,6 @@ const TOUR_TABS: readonly TourTab[] = [
 const TOUR_SLOT_HEIGHT =
 	'h-[220px] sm:h-[300px] md:h-[380px] lg:h-[min(38vw,520px)]';
 
-const HOUSE_EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]';
-
 /**
  * Row 04 — The product tour (PROMPT.md §4 Row 04). The page's largest
  * structure and the home of five of the eight image slots. Desktop
@@ -110,6 +109,7 @@ export const LedgerTour = ({ rowNumber }: { rowNumber: string }) => {
 	const { t } = useTranslation('landing-07');
 	const [activeTab, setActiveTab] = useState<TourTabId>('calendar');
 	const activeIndex = TOUR_TABS.findIndex((tab) => tab.id === activeTab);
+	const reveal = useLedgerReveal<HTMLDivElement>(0);
 
 	const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
 		let nextIndex = activeIndex;
@@ -139,7 +139,7 @@ export const LedgerTour = ({ rowNumber }: { rowNumber: string }) => {
 	};
 
 	return (
-		<div>
+		<div {...reveal}>
 			<LedgerRowHeader
 				number={rowNumber}
 				eyebrow={t('tour-eyebrow')}
@@ -168,7 +168,7 @@ export const LedgerTour = ({ rowNumber }: { rowNumber: string }) => {
 								data-active={isActive}
 								onClick={() => setActiveTab(tab.id)}
 								onKeyDown={handleTabKeyDown}
-								className="group relative flex flex-col items-start gap-2 px-5 py-4 text-left data-[active=false]:bg-(--publy-surface-raised) data-[active=true]:bg-(--publy-background)"
+								className="ld07-cell group relative flex flex-col items-start gap-2 px-5 py-4 text-left data-[active=false]:bg-(--publy-surface-raised) data-[active=true]:bg-(--publy-background)"
 							>
 								<span
 									aria-hidden="true"
@@ -182,10 +182,7 @@ export const LedgerTour = ({ rowNumber }: { rowNumber: string }) => {
 								</span>
 								<span
 									aria-hidden="true"
-									className={cn(
-										'absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-(--publy-primary) transition-transform duration-[240ms] group-data-[active=true]:scale-x-100',
-										HOUSE_EASE,
-									)}
+									className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-(--publy-primary) transition-transform duration-[240ms] ease-(--publy-motion-ease) group-data-[active=true]:scale-x-100"
 								/>
 							</button>
 						);

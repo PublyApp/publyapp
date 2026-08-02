@@ -38,13 +38,13 @@ export const LedgerHero = () => {
 			<div className="mt-8 flex flex-wrap items-center gap-3">
 				<Link
 					to="/signup"
-					className="inline-flex h-11 items-center rounded-[var(--publy-radius-control)] bg-(--publy-primary) px-5 text-[15px]/[20px] font-semibold tracking-(--publy-tracking-text) text-(--publy-primary-foreground) shadow-[var(--publy-shadow-cta)] no-underline transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:translate-y-px active:shadow-none active:duration-50"
+					className="inline-flex h-11 items-center rounded-[var(--publy-radius-control)] bg-(--publy-primary) px-5 text-[15px]/[20px] font-semibold tracking-(--publy-tracking-text) text-(--publy-primary-foreground) shadow-[var(--publy-shadow-cta)] no-underline transition-[transform,box-shadow] duration-200 ease-(--publy-motion-ease) active:translate-y-px active:shadow-none active:duration-50"
 				>
 					{t('hero-primary-cta')}
 				</Link>
 				<a
 					href="#row-04"
-					className="inline-flex h-11 items-center rounded-[var(--publy-radius-control)] border border-(--publy-rule-strong) bg-transparent px-5 text-[15px]/[20px] font-semibold tracking-(--publy-tracking-text) text-(--publy-foreground) no-underline transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] active:translate-y-px active:duration-50"
+					className="inline-flex h-11 items-center rounded-[var(--publy-radius-control)] border border-(--publy-rule-strong) bg-transparent px-5 text-[15px]/[20px] font-semibold tracking-(--publy-tracking-text) text-(--publy-foreground) no-underline transition-transform duration-200 ease-(--publy-motion-ease) active:translate-y-px active:duration-50"
 				>
 					{t('hero-secondary-cta')}
 				</a>

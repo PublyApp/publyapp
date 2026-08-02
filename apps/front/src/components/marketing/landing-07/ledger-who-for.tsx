@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '~/lib/utils';
 
 import { LedgerRowHeader } from './ledger-row-header';
+import { useLedgerReveal } from './use-ledger-reveal';
 
 type WhoForCell = {
 	id: string;
@@ -64,6 +65,42 @@ const WHO_FOR_CELLS: readonly WhoForCell[] = [
 ];
 
 /**
+ * One "who it is for" cell. Its own component (rather than inlined in the
+ * `.map()` below) because it calls the reveal hook — a hook call inside a
+ * `.map()` callback is a rules-of-hooks violation.
+ */
+const WhoForCellItem = ({
+	cell,
+	index,
+}: {
+	cell: WhoForCell;
+	index: number;
+}) => {
+	const { t } = useTranslation('landing-07');
+	const reveal = useLedgerReveal<HTMLDivElement>(index);
+
+	return (
+		<div
+			{...reveal}
+			className={cn(
+				"group relative flex min-h-[196px] flex-col gap-2 overflow-hidden bg-(--publy-background) p-6 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:origin-top before:scale-y-0 before:bg-(--publy-primary) before:transition-transform before:duration-300 before:ease-(--publy-motion-ease) before:content-[''] hover:before:scale-y-100 hover:before:duration-50 md:p-7",
+				cell.lgSpan,
+			)}
+		>
+			<h3 className="ld07-display-3 flex max-w-[22ch] items-center gap-2 text-balance">
+				<span aria-hidden="true" className="text-(--publy-foreground-subtle)">
+					{cell.icon}
+				</span>
+				{t(cell.titleI18nKey)}
+			</h3>
+			<p className="ld07-body max-w-[44ch] text-(--publy-foreground-secondary)">
+				{t(cell.bodyI18nKey)}
+			</p>
+		</div>
+	);
+};
+
+/**
  * Row 06 — Who it is for (PROMPT.md §4 Row 06). Five cells in a `gap-px`
  * grid, 2-over-3 at `lg` (the "bento" idea drawn as a table rather than
  * floating cards). Watermark icons are dropped — a 96px ghosted glyph behind
@@ -85,27 +122,8 @@ export const LedgerWhoFor = ({ rowNumber }: { rowNumber: string }) => {
 				title={t('who-for-title')}
 			/>
 			<div className="grid grid-cols-1 gap-px bg-(--publy-rule) md:grid-cols-2 lg:grid-cols-6">
-				{WHO_FOR_CELLS.map((cell) => (
-					<div
-						key={cell.id}
-						className={cn(
-							"group relative flex min-h-[196px] flex-col gap-2 overflow-hidden bg-(--publy-background) p-6 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:origin-top before:scale-y-0 before:bg-(--publy-primary) before:transition-transform before:duration-300 before:ease-[cubic-bezier(0.22,1,0.36,1)] before:content-[''] hover:before:scale-y-100 hover:before:duration-50 md:p-7",
-							cell.lgSpan,
-						)}
-					>
-						<h3 className="ld07-display-3 flex max-w-[22ch] items-center gap-2 text-balance">
-							<span
-								aria-hidden="true"
-								className="text-(--publy-foreground-subtle)"
-							>
-								{cell.icon}
-							</span>
-							{t(cell.titleI18nKey)}
-						</h3>
-						<p className="ld07-body max-w-[44ch] text-(--publy-foreground-secondary)">
-							{t(cell.bodyI18nKey)}
-						</p>
-					</div>
+				{WHO_FOR_CELLS.map((cell, index) => (
+					<WhoForCellItem key={cell.id} cell={cell} index={index} />
 				))}
 			</div>
 		</div>

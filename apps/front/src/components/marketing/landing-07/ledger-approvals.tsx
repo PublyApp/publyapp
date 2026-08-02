@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
+import { useLedgerReveal } from './use-ledger-reveal';
+
 /**
  * Row 07 — Approvals (PROMPT.md §4 Row 07, `padyna-20`). A two-column text
  * band with no visual. `sm:items-end` is the whole trick: bottom-aligned
@@ -14,10 +16,12 @@ import { useTranslation } from 'react-i18next';
  */
 export const LedgerApprovals = ({ rowNumber }: { rowNumber: string }) => {
 	const { t } = useTranslation('landing-07');
+	const titleReveal = useLedgerReveal<HTMLDivElement>(0);
+	const bodyReveal = useLedgerReveal<HTMLParagraphElement>(1);
 
 	return (
 		<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-12">
-			<div className="flex flex-1 flex-col gap-3">
+			<div {...titleReveal} className="flex flex-1 flex-col gap-3">
 				<div className="flex items-baseline gap-3">
 					<span
 						aria-hidden="true"
@@ -38,7 +42,10 @@ export const LedgerApprovals = ({ rowNumber }: { rowNumber: string }) => {
 					</span>
 				</h2>
 			</div>
-			<p className="ld07-body max-w-[52ch] flex-1 text-(--publy-foreground-secondary)">
+			<p
+				{...bodyReveal}
+				className="ld07-body max-w-[52ch] flex-1 text-(--publy-foreground-secondary)"
+			>
 				{t('approvals-body')}
 			</p>
 		</div>

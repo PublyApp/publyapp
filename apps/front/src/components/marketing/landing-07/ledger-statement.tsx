@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
+import { useLedgerReveal } from './use-ledger-reveal';
+
 /**
  * Row 03 — The statement (PROMPT.md §4 Row 03, `padyna-19`). Two paragraphs
  * of set prose — problem, then answer — instead of a three-column feature
@@ -16,6 +18,8 @@ import { useTranslation } from 'react-i18next';
  */
 export const LedgerStatement = () => {
 	const { t } = useTranslation('landing-07');
+	const problemReveal = useLedgerReveal<HTMLParagraphElement>(0);
+	const answerReveal = useLedgerReveal<HTMLParagraphElement>(1);
 
 	return (
 		<div>
@@ -23,14 +27,20 @@ export const LedgerStatement = () => {
 				{t('statement-eyebrow')}
 			</h2>
 			<div className="flex flex-col gap-8">
-				<p className="ld07-statement-text max-w-[62ch] text-pretty text-(--publy-foreground-secondary)">
+				<p
+					{...problemReveal}
+					className="ld07-statement-text max-w-[62ch] text-pretty text-(--publy-foreground-secondary)"
+				>
 					{t('statement-problem-lead')}{' '}
 					<strong className="font-semibold text-(--publy-foreground)">
 						{t('statement-problem-emphasis')}
 					</strong>{' '}
 					{t('statement-problem-tail')}
 				</p>
-				<p className="ld07-statement-text max-w-[62ch] text-pretty text-(--publy-foreground-secondary)">
+				<p
+					{...answerReveal}
+					className="ld07-statement-text max-w-[62ch] text-pretty text-(--publy-foreground-secondary)"
+				>
 					{t('statement-answer-lead')}{' '}
 					<strong className="font-semibold text-(--publy-foreground)">
 						{t('statement-answer-emphasis')}
