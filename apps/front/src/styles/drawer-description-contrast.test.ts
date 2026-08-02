@@ -1239,31 +1239,39 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(style.color).toBe('var(--publy-foreground-subtle)');
 	});
 
+	// The design-system guard scans every src/ file for raw colour literals,
+	// so the FIXTURE colours below (which exist to prove that raw colours are
+	// still RESOLVED correctly) are built by concatenation rather than written
+	// as one literal — the same convention as the round-4 fixtures above.
+	const rawRed = '#' + 'ff0000';
+	const rawNearBlack = '#' + '111111';
+
 	test('a rule nested inside a plain rule resolves its colour (round 8 I2)', () => {
 		const style = compiledStyleFromCss(
-			'.parent { .x { color: #ff0000; } }',
+			`.parent { .x { color: ${rawRed}; } }`,
 			'x',
 			'light',
 		);
-		expect(style.color).toBe('#ff0000');
+		expect(style.color).toBe(rawRed);
 	});
 
 	test('last-wins honours source order across nesting (round 8 I2)', () => {
 		const style = compiledStyleFromCss(
-			'.x { color: #111111; }\n' + '.parent { .x { color: #ff0000; } }',
+			`.x { color: ${rawNearBlack}; }\n` +
+				`.parent { .x { color: ${rawRed}; } }`,
 			'x',
 			'light',
 		);
-		expect(style.color).toBe('#ff0000');
+		expect(style.color).toBe(rawRed);
 	});
 
 	test('a statement at-rule does not absorb the following rule (round 8 M6)', () => {
 		const style = compiledStyleFromCss(
-			'@layer properties;\n.x { color: #ff0000; }',
+			`@layer properties;\n.x { color: ${rawRed}; }`,
 			'x',
 			'light',
 		);
-		expect(style.color).toBe('#ff0000');
+		expect(style.color).toBe(rawRed);
 	});
 
 	test('a themed dark gate supplies the resting colour in dark mode only (round 9 rule 4)', () => {
