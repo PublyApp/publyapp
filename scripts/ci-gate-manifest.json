@@ -146,6 +146,11 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front check:design-system."
 		},
+		"front-ci.yml::supply-chain::Cache Playwright browsers": {
+			"hash": "35a8c72a62e5ade9",
+			"mirror": null,
+			"reason": "Round 17: mirrors the identical cache step front-e2e.yml already runs, keyed the same way (runner.os + pnpm-lock.yaml hash), so the unit lane's Chromium install is a cache restore after the first run per lockfile hash instead of a full download every time. A cache restore step has no meaningful local mirror — locally the browser is already present in ~/.cache/ms-playwright."
+		},
 		"front-ci.yml::supply-chain::Install Playwright browser for the drawer-contrast guard": {
 			"hash": "0ea113ed64a18531",
 			"mirror": null,

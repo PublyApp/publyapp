@@ -203,6 +203,19 @@ jobs:
       - name: Check front design system
         run: pnpm --filter front check:design-system
 
+      # Round 17: this lane cannot borrow the browser front-e2e.yml installs —
+      # that is a SEPARATE workflow/job that never runs `pnpm --filter front
+      # test` (the only invocation of the front unit suite in any workflow),
+      # so the vitest guard's Chromium need cannot move there. Caching the
+      # binary the same way front-e2e.yml does keeps the added CI time to a
+      # cache restore on every run after the first per lockfile hash, instead
+      # of a full download every time.
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Playwright browser for the drawer-contrast guard
         # Round 15: the front unit suite (pnpm --filter front test) launches
         # Chromium to measure the drawer-description paint — the same engine
