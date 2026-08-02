@@ -54,23 +54,32 @@
  * component, and an import that cannot be resolved is rejected rather than
  * guessed: the wrapper rule fails closed, so the #990 defect shape (the plain
  * field `Form`) is a structural violation with no discovery gap to hide in.
- * Round 16 resolves the exception class instead of enumerating it: a tag is
- * a drawer marker iff its binding is the SAME VALUE as a drawer-module
- * export in TypeScript's own symbol graph — getSymbol()/getAliasedSymbol()/
- * declaration identity against the drawer module's exported declarations.
- * Direct import, alias (`DrawerForm as Form`), namespace member
- * (`Drawer.DrawerForm`), re-export barrel, identity chain
- * (`const Form = DrawerForm`), object-literal component map
- * (`const Parts = { Form: DrawerForm }` + `<Parts.Form>`), cross-file
- * `export const X = DrawerX` shim, same-symbol conditional, and shapes
- * nobody has written yet all terminate at the same declaration, so a
- * spelling cannot evade the resolver by being written in four lines. A
- * binding the symbol graph cannot resolve (a call, a mixed-symbol
- * conditional, a reassigned `let`) is UNVERIFIABLE and reddens instead of
- * silently not being an anchor. A runtime component factory whose loader is
- * not statically a drawer symbol (`lazy`, `useMemo`, an HOC) is a real
- * local component — never a marker — and a factory whose loader IS a drawer
- * symbol resolves to it, because the factory adds no DOM node of its own.
+ *  Round 16 resolves the exception class instead of enumerating it: a tag is
+ *  a drawer marker iff its binding is the SAME VALUE as a drawer-module
+ *  export in TypeScript's own symbol graph — getSymbol()/getAliasedSymbol()/
+ *  declaration identity against the drawer module's exported declarations.
+ *  Direct import, alias (`DrawerForm as Form`), namespace member
+ *  (`Drawer.DrawerForm`), re-export barrel, identity chain
+ *  (`const Form = DrawerForm`), object-literal component map
+ *  (`const Parts = { Form: DrawerForm }` + `<Parts.Form>`, longhand,
+ *  shorthand `{ DrawerForm }` — resolved by the checker's own shorthand
+ *  value symbol, round 17's BLOCKER 1 — spread, computed-with-a-literal-key),
+ *  cross-file `export const X = DrawerX` shim, same-symbol conditional, and
+ *  shapes nobody has written yet all terminate at the same declaration, so a
+ *  spelling cannot evade the resolver by being written in four lines. A
+ *  binding the symbol graph cannot resolve (a call, a mixed-symbol
+ *  conditional, a reassigned `let`) is UNVERIFIABLE and reddens instead of
+ *  silently not being an anchor — and since round 18, so is ANY declaration
+ *  kind the resolver does not handle: not knowing means UNVERIFIABLE, never
+ *  null, so the next unknown spelling costs a red build and a one-line
+ *  addition instead of a silent escape. A runtime component factory whose
+ *  loader is not statically a drawer symbol (`lazy`, `useMemo`, an HOC) is a
+ *  real local component — never a marker — and a factory whose loader IS a
+ *  drawer symbol resolves to it, because the factory adds no DOM node of its
+ *  own. Tag-name resolution is keyed on the ACTUAL JSX node, in its own
+ *  scope: a same-named local declaration shadows an import by scope, and
+ *  two same-text tags in different scopes get their own verdicts (round
+ *  17's BLOCKER 2).
  *
  * The wrapper walk is DOM-faithful, not syntactic: it sees through
  * everything that creates no node — JSX expressions, conditionals, `&&`
@@ -188,6 +197,7 @@ import {
 	type PropertyAccessExpression,
 	type PropertyAssignment,
 	type ReturnStatement,
+	type ShorthandPropertyAssignment,
 	type SourceFile,
 	type Statement,
 	type SwitchStatement,
@@ -2467,6 +2477,255 @@ export const ConditionalSameSymbolCleanDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 18 fixtures.
+//
+// Round 17's review (`.dump/review-r17.md`) filed three BLOCKERs and three
+// IMPORTANTs against the round-16 symbol-graph resolution:
+//
+//  - BLOCKER 1: `const Parts = { DrawerContent, ... }` — the SHORTHAND
+//    object map — resolved every member to null because the value walk
+//    enumerated `VariableDeclaration`/`PropertyAssignment` and nothing
+//    else, and the terminal default was null ("definitely not a drawer").
+//    Round 18 resolves shorthand members through the checker's own
+//    shorthand value symbol, and flips the terminal default to
+//    UNVERIFIABLE — not knowing reddens, it never silently passes.
+//  - BLOCKER 2: tag resolution was cached per (file, tag TEXT) at the
+//    first JSX node, so a component whose props were named `Surface`/
+//    `Form`/`Body`/`Footer` silenced a later drawer built from imports
+//    under those same names. Resolution is now keyed on the actual node.
+//  - BLOCKER 3: an opaque marker file whose namespace import came through
+//    an `export *` barrel was invisible to the discriminator (the
+//    namespace branch compared the resolved module path to the drawer
+//    module instead of asking the symbol graph). It now resolves the
+//    namespace binding's exports.
+//  - IMPORTANT 4: `import type * as Drawer` made an unrelated opaque
+//    component redden. Type-only imports are skipped.
+//  - IMPORTANT 6 (the seam): the drawerModuleExports terminal is pinned
+//    directly by a unit test below, so "the module does not export this
+//    name" dies when the export-list check dies.
+// ---------------------------------------------------------------------------
+
+// BLOCKER 1 (review-r17), verbatim: the drawer exports spelled through a
+// SHORTHAND object map — the most ordinary way anyone would write it. The
+// property symbols carry only the declaration; the member value must come
+// from the checker's shorthand value symbol. The #990 div between the
+// surface and the form reddens only then. The clean control below stays
+// green only when the shorthand branch resolves instead of reddening the
+// whole map as UNVERIFIABLE.
+const TEMPORARY_SHORTHAND_MAP_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-shorthand-map-fixture.tsx';
+const TEMPORARY_SHORTHAND_MAP_DRAWER_PATH = fixturePath(
+	TEMPORARY_SHORTHAND_MAP_DRAWER_FILE,
+);
+const TEMPORARY_SHORTHAND_MAP_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const Parts = { DrawerContent, DrawerForm, DrawerBody, DrawerFooter };
+
+export const ShorthandMapDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Parts.DrawerContent data-testid="r18-shorthand-map">
+		<div className="p-4">
+			<Parts.DrawerForm methods={methods}>
+				<Parts.DrawerBody />
+				<Parts.DrawerFooter>
+					<button type="submit" />
+				</Parts.DrawerFooter>
+			</Parts.DrawerForm>
+		</div>
+	</Parts.DrawerContent>
+);
+`;
+
+const TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-shorthand-map-clean-fixture.tsx';
+const TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const Parts = { DrawerContent, DrawerForm, DrawerBody, DrawerFooter };
+
+export const ShorthandMapCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Parts.DrawerContent data-testid="r18-shorthand-map-clean">
+		<Parts.DrawerForm methods={methods}>
+			<Parts.DrawerBody />
+			<Parts.DrawerFooter>
+				<button type="submit" />
+			</Parts.DrawerFooter>
+		</Parts.DrawerForm>
+	</Parts.DrawerContent>
+);
+`;
+
+// BLOCKER 2 (review-r17), verbatim: an earlier component whose PROPS are
+// named `Surface`/`Form`/`Body`/`Footer` (parameter symbols — definite
+// non-drawers) followed by a broken drawer whose markers are IMPORTS under
+// those same local names. A text-keyed cache answers the first `Surface`
+// (a parameter) and applies it to the later import-bound `Surface`; per-
+// node resolution gives the later node its own verdict and the #990 div
+// between the surface and the form reddens.
+const TEMPORARY_SCOPE_CACHE_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-scope-cache-fixture.tsx';
+const TEMPORARY_SCOPE_CACHE_DRAWER_PATH = fixturePath(
+	TEMPORARY_SCOPE_CACHE_DRAWER_FILE,
+);
+const TEMPORARY_SCOPE_CACHE_DRAWER_SOURCE = `import type { ComponentType } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	DrawerBody as Body,
+	DrawerContent as Surface,
+	DrawerFooter as Footer,
+	DrawerForm as Form,
+} from '~/components/ui/drawer';
+
+type EarlierProps = {
+	Surface: ComponentType;
+	Form: ComponentType;
+	Body: ComponentType;
+	Footer: ComponentType;
+};
+
+const Earlier = ({ Surface, Form, Body, Footer }: EarlierProps) => (
+	<div>
+		<Surface />
+		<Form />
+		<Body />
+		<Footer />
+	</div>
+);
+
+export const ScopeCacheDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Surface data-testid="r18-scope-cache">
+		<div className="p-4">
+			<Form methods={methods}>
+				<Body />
+				<Footer>
+					<button type="submit" />
+				</Footer>
+			</Form>
+		</div>
+	</Surface>
+);
+`;
+
+// BLOCKER 3 (review-r17), verbatim: every drawer marker is OPAQUE and the
+// namespace import comes through an `export *` BARREL — the repo's normal
+// way of organising exports. The discriminator must resolve the barrel the
+// way the tag machinery does; the round-17 shape shipped green because the
+// namespace branch compared the resolved path to the drawer module only.
+const TEMPORARY_R18_BARREL_FILE =
+	'src/components/ui/_r18-drawer-barrel-fixture.ts';
+const TEMPORARY_R18_BARREL_PATH = fixturePath(TEMPORARY_R18_BARREL_FILE);
+const TEMPORARY_R18_BARREL_SOURCE = `export * from '~/components/ui/drawer';
+`;
+const TEMPORARY_BARREL_OPAQUE_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-barrel-opaque-fixture.tsx';
+const TEMPORARY_BARREL_OPAQUE_DRAWER_PATH = fixturePath(
+	TEMPORARY_BARREL_OPAQUE_DRAWER_FILE,
+);
+const TEMPORARY_BARREL_OPAQUE_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import * as Drawer from './_r18-drawer-barrel-fixture';
+
+const choose = <T,>(value: T): T => value;
+
+const Surface = choose(Drawer.DrawerContent);
+const Form = choose(Drawer.DrawerForm);
+const Body = choose(Drawer.DrawerBody);
+const Footer = choose(Drawer.DrawerFooter);
+
+export const BarrelOpaqueDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Surface data-testid="r18-barrel-opaque">
+		<div className="p-4">
+			<Form methods={methods}>
+				<Body />
+				<Footer />
+			</Form>
+		</div>
+	</Surface>
+);
+`;
+
+// IMPORTANT 4 (review-r17), verbatim: a TYPE-ONLY namespace import of the
+// drawer module next to an unrelated opaque component. There is no runtime
+// drawer marker, so the file must stay out of the inventory — a type-only
+// import is not a drawer signal. Dropping the type-only skip reddens this
+// exact file.
+const TEMPORARY_TYPE_ONLY_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-type-only-fixture.tsx';
+const TEMPORARY_TYPE_ONLY_DRAWER_PATH = fixturePath(
+	TEMPORARY_TYPE_ONLY_DRAWER_FILE,
+);
+const TEMPORARY_TYPE_ONLY_DRAWER_SOURCE = `import type { ComponentType } from 'react';
+import type * as DrawerTypes from '~/components/ui/drawer';
+
+declare const Mystery: ComponentType;
+type DrawerNamespace = typeof DrawerTypes;
+
+export const TypeOnlyDrawerFixture = () => <Mystery />;
+void (null as unknown as DrawerNamespace);
+`;
+
+// The round-18 default, pinned by a fixture that does not care which shape
+// is unhandled: a DESTRUCTURED binding — `const { DrawerContent: Surface,
+// ... } = Drawer` — is a declaration kind the resolver does not enumerate
+// (a BindingElement; the checker exposes no value symbol for it), so today
+// every marker resolves UNVERIFIABLE and the file reddens through the
+// default. If a future round learns to resolve destructuring, the markers
+// become drawer symbols and the SAME file still reddens — the #990 div
+// between the surface and the form is then found by the walk. Either way
+// the break is red; only a fail-open terminal (unhandled means null) makes
+// it green.
+const TEMPORARY_DESTRUCTURED_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-destructured-fixture.tsx';
+const TEMPORARY_DESTRUCTURED_DRAWER_PATH = fixturePath(
+	TEMPORARY_DESTRUCTURED_DRAWER_FILE,
+);
+const TEMPORARY_DESTRUCTURED_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import * as Drawer from '~/components/ui/drawer';
+
+const {
+	DrawerBody: Body,
+	DrawerContent: Surface,
+	DrawerFooter: Footer,
+	DrawerForm: Form,
+} = Drawer;
+
+export const DestructuredDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Surface data-testid="r18-destructured">
+		<div className="p-4">
+			<Form methods={methods}>
+				<Body />
+				<Footer>
+					<button type="submit" />
+				</Footer>
+			</Form>
+		</div>
+	</Surface>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -2717,6 +2976,31 @@ const FIXTURE_FILES: ReadonlyArray<{
 		file: TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_FILE,
 		source: TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_SOURCE,
 	},
+	{
+		file: TEMPORARY_SHORTHAND_MAP_DRAWER_FILE,
+		source: TEMPORARY_SHORTHAND_MAP_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_SCOPE_CACHE_DRAWER_FILE,
+		source: TEMPORARY_SCOPE_CACHE_DRAWER_SOURCE,
+	},
+	{ file: TEMPORARY_R18_BARREL_FILE, source: TEMPORARY_R18_BARREL_SOURCE },
+	{
+		file: TEMPORARY_BARREL_OPAQUE_DRAWER_FILE,
+		source: TEMPORARY_BARREL_OPAQUE_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_TYPE_ONLY_DRAWER_FILE,
+		source: TEMPORARY_TYPE_ONLY_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_DESTRUCTURED_DRAWER_FILE,
+		source: TEMPORARY_DESTRUCTURED_DRAWER_SOURCE,
+	},
 ];
 
 for (const fixture of FIXTURE_FILES) {
@@ -2876,9 +3160,27 @@ const drawerModuleExports = (project: Project, exportName: string): boolean =>
 // name. Identity chains, object-literal members, cross-file shims,
 // namespace members and same-symbol conditionals are all followed by
 // recursing into the declarations the checker hands back — the class, not
-// the enumeration. A binding the graph cannot answer (a call, a mixed-
-// symbol conditional, a reassigned `let`) is the unverifiable case below,
-// never a silent non-anchor.
+// the enumeration. Round 18 closes the two escapes round 17 demonstrated
+// against that recursion:
+//
+//  - the value walk enumerated declaration node kinds and its terminal was
+//    `null` — "definitely not a drawer" — for anything it did not
+//    enumerate, so `const Parts = { DrawerContent, ... }` (shorthand
+//    properties) shipped the #990 break green (BLOCKER 1). Shorthand
+//    members now resolve through the checker's OWN shorthand value symbol,
+//    and the terminal default is UNVERIFIABLE: a declaration kind the
+//    resolver does not handle reddens the file (the only nulls left are
+//    kinds whose value IS the symbol — local function/class/parameter/
+//    namespace/type declarations — which are definite non-drawers).
+//  - the per-file tag-name index cached ONE answer per tag text and
+//    applied it to every same-text node, so an earlier component whose
+//    props were named `Surface`/`Form`/`Body`/`Footer` silenced a later
+//    drawer built from imports under those same names (BLOCKER 2).
+//    Resolution is now keyed on the actual tag-name node.
+//
+// A binding the graph cannot answer (a call, a mixed-symbol conditional, a
+// reassigned `let`) is the unverifiable case below, never a silent
+// non-anchor.
 // ---------------------------------------------------------------------------
 
 /**
@@ -2961,12 +3263,17 @@ const isFactoryCall = (call: CallExpression): boolean => {
  *    chains (round 14), object-literal members (round 16's BLOCKER 1) and
  *    cross-file `export const X = DrawerX` shims (round 16's BLOCKER 2)
  *    all terminate here, in whichever file the declaration lives;
- *  - null — a real local value (a function/class declaration, a namespace
- *    import): definitely not the drawer module's symbol;
+ *  - null — a real local value (a function/class declaration, a parameter,
+ *    a namespace import, a type): definitely not the drawer module's
+ *    symbol;
  *  - UNVERIFIABLE — the value is runtime-computed (a call that is not a
  *    factory, a mixed-symbol conditional, a reassigned `let`, a missing
  *    initializer, an alias with no target — an import of a missing module
- *    or of a name the module does not export — or a resolution cycle).
+ *    or of a name the module does not export — or a resolution cycle), or
+ *    its declaration kind is one the resolver does not enumerate (a
+ *    destructured binding, a class property — round 17's BLOCKER 1). The
+ *    default is UNVERIFIABLE, never null: not knowing must redden, so the
+ *    next unhandled spelling costs a red build, not a silent green.
  *
  * `seen` guards cycles; declaration position + file makes the id stable
  * across recursive hops.
@@ -3072,11 +3379,79 @@ const resolveSymbolValue = (
 				seen,
 			);
 		}
+		if (declaration.getKind() === SyntaxKind.ShorthandPropertyAssignment) {
+			// `const Parts = { DrawerContent, ... }` — round 17's BLOCKER 1.
+			// The property symbol only carries the declaration; the VALUE
+			// symbol (what the shorthand name refers to) is the checker's to
+			// give, not a node kind to enumerate: getShorthandAssignmentValueSymbol
+			// hands back the same import-alias symbol a longhand initializer
+			// would, and the recursion below terminates at the same
+			// declaration.
+			const valueSymbol = project
+				.getTypeChecker()
+				.getShorthandAssignmentValueSymbol(
+					declaration as ShorthandPropertyAssignment,
+				);
+			if (!valueSymbol) {
+				return UNVERIFIABLE_TAG;
+			}
+			return resolveSymbolValue(
+				valueSymbol,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
 	}
 
-	// A function/class declaration, a namespace import, a type symbol — a
-	// real value that is not the drawer module's exported symbol.
-	return null;
+	// Round 18: NOT KNOWING IS UNVERIFIABLE. Every declaration kind that is
+	// not enumerated above is either a binding whose VALUE is the symbol
+	// itself — a local function/class/method declaration, a parameter, a
+	// namespace import or module object, a type, an enum — and is therefore
+	// definitely not the drawer module's exported symbol, or a binding whose
+	// value the checker does not expose through this API (a destructured
+	// binding element, a class property, ...). The former are null; anything
+	// else falls through to UNVERIFIABLE, so an unhandled spelling reddens
+	// the file instead of silently reading "definitely not a drawer" — the
+	// round-17 escape (a shape the resolver did not know about shipped the
+	// #990 break green because null meant "fine").
+	const definiteLocalDeclarationKinds = new Set([
+		SyntaxKind.FunctionDeclaration,
+		SyntaxKind.ClassDeclaration,
+		SyntaxKind.MethodDeclaration,
+		SyntaxKind.GetAccessor,
+		SyntaxKind.SetAccessor,
+		SyntaxKind.Parameter,
+		SyntaxKind.NamespaceImport,
+		SyntaxKind.NamespaceExportDeclaration,
+		SyntaxKind.ModuleDeclaration,
+		SyntaxKind.EnumDeclaration,
+		SyntaxKind.EnumMember,
+		SyntaxKind.InterfaceDeclaration,
+		SyntaxKind.TypeAliasDeclaration,
+		SyntaxKind.TypeParameter,
+		SyntaxKind.SourceFile,
+		// TYPE members (interface/type-literal members, index signatures):
+		// the member's symbol is the TYPE's declaration, never a value
+		// declaration — the drawer module's exports are values, so this
+		// symbol is definitely not one of them. (A runtime drawer VALUE
+		// routed through such a member — `const Icon = item.Icon` with
+		// `item = { Icon: DrawerContent }` — is still caught: the part
+		// wrapper rule and the definition walk both fail loud on it.)
+		SyntaxKind.PropertySignature,
+		SyntaxKind.MethodSignature,
+		SyntaxKind.IndexSignature,
+	]);
+	if (
+		symbol
+			.getDeclarations()
+			.every((declaration) =>
+				definiteLocalDeclarationKinds.has(declaration.getKind()),
+			)
+	) {
+		return null;
+	}
+	return UNVERIFIABLE_TAG;
 };
 
 /**
@@ -3250,33 +3625,28 @@ const resolvePropertyAccessValue = (
 };
 
 /**
- * Resolves a JSX tag's local name to the name the drawer module exports it
- * under — through the symbol graph described above. The tag-name node is
- * taken from the per-file index the scan builds (first occurrence of the
- * text), so the checker resolves the ACTUAL binding — a same-named local
- * declaration shadows the import by scope, not by text search. Discovery
- * uses the same machinery as the wrapper check, so there is no spelling
- * the wrapper check accepts that discovery can miss.
+ * Resolves a JSX tag's tag-name node to the name the drawer module exports
+ * it under — through the symbol graph described above. Resolution is keyed
+ * on the ACTUAL node: the checker resolves the binding at that node, in its
+ * own lexical scope, so a same-named local declaration shadows an import by
+ * scope, not by text search — and two same-text tags in different scopes
+ * (round 17's BLOCKER 2: an earlier component's props named `Surface`/`Form`
+ * followed by a later drawer built from imports under those same names) get
+ * their own verdicts instead of the first node's answer. Discovery uses the
+ * same machinery as the wrapper check, so there is no spelling the wrapper
+ * check accepts that discovery can miss.
  */
 const resolveDrawerTagName = (
-	sourceFile: SourceFile,
-	tagText: string,
+	tagNameNode: Node,
 	project: Project,
 	reassignedNamesByFile: Map<string, Set<string>>,
-	tagNameNodesByText: Map<string, Map<string, Node>>,
 ): DrawerTagNameResult => {
 	// A lowercase-leading tag is an intrinsic DOM element (`<button>`,
 	// `<div>`) — JSX forbids lowercase component names, and the checker
 	// does not give them a value symbol in every context, so they must be
 	// a definite non-drawer value, never UNVERIFIABLE.
-	if (/^[a-z]/.test(tagText)) {
+	if (/^[a-z]/.test(tagNameNode.getText())) {
 		return null;
-	}
-	const tagNameNode = tagNameNodesByText
-		.get(sourceFile.getFilePath())
-		?.get(tagText);
-	if (!tagNameNode) {
-		return UNVERIFIABLE_TAG;
 	}
 	if (tagNameNode.getKind() === SyntaxKind.PropertyAccessExpression) {
 		return resolvePropertyAccessValue(
@@ -3301,25 +3671,56 @@ const resolveDrawerTagName = (
  * and must be discovered and reddened; a file with no drawer import at all
  * carries no drawer signal, and discovering every opaque local component
  * would flood the inventory with non-drawers.
+ *
+ * The named-import branch resolves each specifier through the symbol graph.
+ * The namespace branch does the same, at the module level: the namespace
+ * binding is an alias whose target's exports are exactly what
+ * `Drawer.X`-spelled tags can reach — so an `export *` barrel (round 17's
+ * BLOCKER 3 — the repo's normal organization) counts when any of its
+ * exports is a drawer symbol, and a module with no drawer exports does not.
+ * Type-only imports are not values (round 17's IMPORTANT 4): `import type
+ * * as Drawer` must not make an unrelated opaque file look like a drawer
+ * file.
  */
 const fileImportsDrawerModule = (
 	sourceFile: SourceFile,
 	project: Project,
-	moduleResolution: ModuleResolution,
-	moduleCache: Map<string, string | null>,
 	reassignedNamesByFile: Map<string, Set<string>>,
 ): boolean => {
 	for (const declaration of sourceFile.getImportDeclarations()) {
-		const moduleSpecifier = declaration.getModuleSpecifierValue();
+		if (declaration.isTypeOnly()) {
+			continue;
+		}
 		if (declaration.getNamespaceImport()) {
-			const resolved = resolveModuleFilePath(
-				sourceFile.getFilePath(),
-				moduleSpecifier,
-				moduleResolution,
-				moduleCache,
-			);
-			if (resolved === DRAWER_MODULE_PATH) {
-				return true;
+			const namespaceImport = declaration.getNamespaceImport();
+			const namespaceSymbol = namespaceImport?.getSymbol();
+			const aliased = namespaceSymbol?.getAliasedSymbol();
+			if (
+				aliased &&
+				aliased !== namespaceSymbol &&
+				aliased.getDeclarations().length > 0
+			) {
+				// getExportsOfModule (not the symbol's raw exports map) is
+				// what resolves `export *` barrels: the raw map carries only
+				// a synthetic `__export` entry for a star re-export, while
+				// the checker hands back every name `Drawer.X`-spelled tags
+				// can reach.
+				if (
+					project
+						.getTypeChecker()
+						.getExportsOfModule(aliased)
+						.some(
+							(exportSymbol) =>
+								typeof resolveSymbolValue(
+									exportSymbol,
+									project,
+									reassignedNamesByFile,
+									new Set(),
+								) === 'string',
+						)
+				) {
+					return true;
+				}
 			}
 			continue;
 		}
@@ -3576,18 +3977,14 @@ const findWrapperOpeningElement = (
  * a structural violation.
  */
 const resolveTagBinding = (
-	sourceFile: SourceFile,
-	tagText: string,
+	tagNameNode: Node,
 	project: Project,
 	reassignedNamesByFile: Map<string, Set<string>>,
-	tagNameNodesByText: Map<string, Map<string, Node>>,
 ): 'drawer-form' | 'drawer-content' | 'other' => {
 	const name = resolveDrawerTagName(
-		sourceFile,
-		tagText,
+		tagNameNode,
 		project,
 		reassignedNamesByFile,
-		tagNameNodesByText,
 	);
 	if (name === 'DrawerForm') {
 		return 'drawer-form';
@@ -3667,10 +4064,7 @@ type WalkContext = {
 	moduleCache: Map<string, string | null>;
 	declaredNamesByFile: Map<string, Set<string>>;
 	reassignedNamesByFile: Map<string, Set<string>>;
-	drawerTagName: (
-		sourceFile: SourceFile,
-		tagText: string,
-	) => DrawerTagNameResult;
+	drawerTagName: (tagNameNode: Node) => DrawerTagNameResult;
 	definitionCache: Map<string, Map<string, DrawerSectionDefinition | null>>;
 };
 
@@ -4645,7 +5039,7 @@ const walkTag = (
 	state: WalkState,
 ): void => {
 	const tagText = opening.getTagNameNode().getText();
-	const drawerName = context.drawerTagName(sourceFile, tagText);
+	const drawerName = context.drawerTagName(opening.getTagNameNode());
 
 	if (drawerName === UNVERIFIABLE_TAG) {
 		// A locally-declared binding that cannot be classified statically
@@ -4785,39 +5179,31 @@ const scanDrawerSurfaces = (): {
 		host: project.getModuleResolutionHost(),
 	};
 
-	// Per-file memo of tag text -> drawer export name, so the symbol
-	// resolution runs once per distinct name instead of once per tag, a
-	// per-file index of tag text -> tag-name NODE (first occurrence) so the
-	// checker resolves the ACTUAL binding the text refers to, and a
-	// scan-wide memo of resolved (file, specifier) pairs for the module
+	// Per-tag-node memo of the resolution result, so the symbol resolution
+	// runs once per tag-name NODE instead of once per tag — and so two
+	// same-text tags in different scopes get their own verdicts (round
+	// 17's BLOCKER 2: a text-keyed cache applied the first node's answer
+	// to every same-text node in the file). ts-morph nodes are stable for
+	// the duration of a scan — files only refresh on content change, before
+	// the per-file loop — so a WeakMap keyed on the node object is sound.
+	// A scan-wide memo of resolved (file, specifier) pairs for the module
 	// resolution the definition walk needs.
-	const resolvedTagNames = new Map<string, Map<string, DrawerTagNameResult>>();
-	const tagNameNodesByText = new Map<string, Map<string, Node>>();
+	const tagNameResultCache = new WeakMap<Node, DrawerTagNameResult>();
 	const moduleCache = new Map<string, string | null>();
 	const declaredNamesByFile = new Map<string, Set<string>>();
 	const reassignedNamesByFile = new Map<string, Set<string>>();
-	const drawerTagName = (
-		sourceFile: SourceFile,
-		tagText: string,
-	): DrawerTagNameResult => {
-		let byName = resolvedTagNames.get(sourceFile.getFilePath());
-		if (!byName) {
-			byName = new Map<string, DrawerTagNameResult>();
-			resolvedTagNames.set(sourceFile.getFilePath(), byName);
+	const drawerTagName = (tagNameNode: Node): DrawerTagNameResult => {
+		const cached = tagNameResultCache.get(tagNameNode);
+		if (cached !== undefined) {
+			return cached;
 		}
-		if (!byName.has(tagText)) {
-			byName.set(
-				tagText,
-				resolveDrawerTagName(
-					sourceFile,
-					tagText,
-					project,
-					reassignedNamesByFile,
-					tagNameNodesByText,
-				),
-			);
-		}
-		return byName.get(tagText) ?? null;
+		const result = resolveDrawerTagName(
+			tagNameNode,
+			project,
+			reassignedNamesByFile,
+		);
+		tagNameResultCache.set(tagNameNode, result);
+		return result;
 	};
 
 	const discovered: string[] = [];
@@ -4834,18 +5220,6 @@ const scanDrawerSurfaces = (): {
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
 		];
-		// Round 16: the tag-name node index — the checker resolves the
-		// binding at a real node, so a same-named local declaration shadows
-		// the import by scope, not by text search.
-		const tagNodesByText = new Map<string, Node>();
-		for (const node of jsxTags) {
-			const tagNameNode = node.getTagNameNode();
-			const tagText = tagNameNode.getText();
-			if (!tagNodesByText.has(tagText)) {
-				tagNodesByText.set(tagText, tagNameNode);
-			}
-		}
-		tagNameNodesByText.set(sourceFile.getFilePath(), tagNodesByText);
 
 		// Round 14, BLOCKER 1 + round 16: a tag whose binding cannot be
 		// resolved statically (a call, a mixed conditional, a reassigned
@@ -4857,15 +5231,11 @@ const scanDrawerSurfaces = (): {
 		// too. A file with no drawer import at all carries no drawer signal,
 		// so the inventory does not flood.
 		const hasUnverifiableTag = jsxTags.some(
-			(node) =>
-				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
-				UNVERIFIABLE_TAG,
+			(node) => drawerTagName(node.getTagNameNode()) === UNVERIFIABLE_TAG,
 		);
 		const importsDrawerModule = fileImportsDrawerModule(
 			sourceFile,
 			project,
-			moduleResolution,
-			moduleCache,
 			reassignedNamesByFile,
 		);
 
@@ -4874,7 +5244,7 @@ const scanDrawerSurfaces = (): {
 
 		const partNodes = jsxTags.filter((node) => {
 			const tagText = node.getTagNameNode().getText();
-			const name = drawerTagName(sourceFile, tagText);
+			const name = drawerTagName(node.getTagNameNode());
 			if (name === 'DrawerBody' || name === 'DrawerFooter') {
 				return true;
 			}
@@ -4889,14 +5259,10 @@ const scanDrawerSurfaces = (): {
 			return tagText === 'DrawerBody' || tagText === 'DrawerFooter';
 		});
 		const formNodes = jsxTags.filter(
-			(node) =>
-				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
-				'DrawerForm',
+			(node) => drawerTagName(node.getTagNameNode()) === 'DrawerForm',
 		);
 		const surfaceNodes = jsxTags.filter(
-			(node) =>
-				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
-				'DrawerContent',
+			(node) => drawerTagName(node.getTagNameNode()) === 'DrawerContent',
 		);
 
 		// Round 12 — the anchored walk: every form/surface subtree this file
@@ -4991,11 +5357,9 @@ const scanDrawerSurfaces = (): {
 			}
 			return (
 				resolveTagBinding(
-					sourceFile,
-					wrapper.getTagNameNode().getText(),
+					wrapper.getTagNameNode(),
 					project,
 					reassignedNamesByFile,
-					tagNameNodesByText,
 				) !== 'drawer-content'
 			);
 		});
@@ -5031,11 +5395,9 @@ const scanDrawerSurfaces = (): {
 				return true;
 			}
 			const binding = resolveTagBinding(
-				sourceFile,
-				wrapper.getTagNameNode().getText(),
+				wrapper.getTagNameNode(),
 				project,
 				reassignedNamesByFile,
-				tagNameNodesByText,
 			);
 			return binding !== 'drawer-form' && binding !== 'drawer-content';
 		});
@@ -5919,7 +6281,10 @@ describe('drawer surface flex chain guard (#990)', () => {
 		// directly; that resolver is gone, so the pin is a fixture — the
 		// unbound export is an alias with no target (UNVERIFIABLE/'other'),
 		// the parts under it sit in that 'other' wrapper, and the file is
-		// rejected rather than guessed.
+		// rejected rather than guessed. The export-LIST terminal itself is
+		// pinned directly by the drawerModuleExports seam test below — round
+		// 17's IMPORTANT 6 showed the fixture reddens regardless of what
+		// the terminal returns, so the terminal's own behavior lives there.
 		writeFileSync(
 			TEMPORARY_NONEXPORT_DRAWER_PATH,
 			TEMPORARY_NONEXPORT_DRAWER_SOURCE,
@@ -5935,6 +6300,187 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_NONEXPORT_DRAWER_PATH);
+		}
+	});
+
+	test('the drawerModuleExports terminal admits exactly the names the drawer module exports', () => {
+		// Round 17's IMPORTANT 6: the nonexport FIXTURE reddens through a
+		// second mechanism (the unresolved import alias and the 'other'
+		// wrapper), so replacing the whole export-list terminal with "every
+		// name is exported" left every test green. This is the terminal's
+		// direct seam: it dies when the export-list check dies, whatever
+		// the fixtures do.
+		const project = getScanProject();
+		for (const exportedName of [
+			'Drawer',
+			'DrawerBody',
+			'DrawerClose',
+			'DrawerContent',
+			'DrawerDescription',
+			'DrawerFooter',
+			'DrawerForm',
+			'DrawerHeader',
+			'DrawerTitle',
+			'DrawerTrigger',
+		]) {
+			expect(drawerModuleExports(project, exportedName)).toBe(true);
+		}
+		expect(drawerModuleExports(project, 'NotADrawerExport')).toBe(false);
+		expect(drawerModuleExports(project, 'DrawerFormExtra')).toBe(false);
+	});
+
+	test('a drawer whose parts resolve through a SHORTHAND object-literal component map is discovered and rejected', () => {
+		// Round 17's BLOCKER 1, verbatim: `const Parts = { DrawerContent,
+		// DrawerForm, DrawerBody, DrawerFooter }` — the property symbol only
+		// carries the declaration, so the member value must come from the
+		// checker's shorthand value symbol. Without that branch the four
+		// members resolve null and the #990 div between the surface and the
+		// form ships green.
+		writeFileSync(
+			TEMPORARY_SHORTHAND_MAP_DRAWER_PATH,
+			TEMPORARY_SHORTHAND_MAP_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_SHORTHAND_MAP_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_SHORTHAND_MAP_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_SHORTHAND_MAP_DRAWER_PATH);
+		}
+	});
+
+	test('the same shorthand component map with a clean surface-to-form link stays green', () => {
+		// The control for the shorthand branch: without it every member
+		// resolves UNVERIFIABLE and this perfect drawer reddens — the
+		// branch exists so the default red is not the only possible red.
+		writeFileSync(
+			TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_PATH,
+			TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_SHORTHAND_MAP_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('tag resolution is keyed on the actual node: earlier same-named parameter tags do not silence a later drawer', () => {
+		// Round 17's BLOCKER 2, verbatim: an earlier component whose props
+		// are named `Surface`/`Form`/`Body`/`Footer` (parameters — definite
+		// non-drawers) followed by the broken drawer built from IMPORTS
+		// under those same local names. A text-keyed cache answers the
+		// first `Surface` and applies it everywhere; per-node resolution
+		// gives the later import-bound nodes their own verdicts and the
+		// #990 div reddens.
+		writeFileSync(
+			TEMPORARY_SCOPE_CACHE_DRAWER_PATH,
+			TEMPORARY_SCOPE_CACHE_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_SCOPE_CACHE_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_SCOPE_CACHE_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_SCOPE_CACHE_DRAWER_PATH);
+		}
+	});
+
+	test('an opaque marker drawer whose namespace import comes through an export * barrel is discovered and rejected', () => {
+		// Round 17's BLOCKER 3, verbatim: every marker is opaque
+		// (`choose(Drawer.DrawerX)`) and the namespace import is a BARREL
+		// (`export * from '~/components/ui/drawer'`) — how this repo
+		// organises exports. The discriminator must resolve the barrel the
+		// way the tag machinery does; the round-17 shape shipped green
+		// because the namespace branch compared the resolved path to the
+		// drawer module only.
+		writeFileSync(TEMPORARY_R18_BARREL_PATH, TEMPORARY_R18_BARREL_SOURCE);
+		writeFileSync(
+			TEMPORARY_BARREL_OPAQUE_DRAWER_PATH,
+			TEMPORARY_BARREL_OPAQUE_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_BARREL_OPAQUE_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_BARREL_OPAQUE_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_BARREL_OPAQUE_DRAWER_PATH);
+			unlinkSync(TEMPORARY_R18_BARREL_PATH);
+		}
+	});
+
+	test('a type-only namespace import of the drawer module is not a drawer signal', () => {
+		// Round 17's IMPORTANT 4, verbatim: `import type * as DrawerTypes
+		// from '~/components/ui/drawer'` next to an unrelated opaque
+		// component. Type-only imports are not values — the file must stay
+		// out of the inventory. Dropping the type-only skip makes the
+		// opaque tag's unverifiable verdict pair with the drawer import and
+		// this exact file reddens.
+		writeFileSync(
+			TEMPORARY_TYPE_ONLY_DRAWER_PATH,
+			TEMPORARY_TYPE_ONLY_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_TYPE_ONLY_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_TYPE_ONLY_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_TYPE_ONLY_DRAWER_PATH);
+		}
+	});
+
+	test('a declaration shape the resolver does not handle reddens instead of passing', () => {
+		// The round-18 default, pinned: a DESTRUCTURED binding is a
+		// declaration kind (BindingElement) the resolver does not
+		// enumerate, so today every marker is UNVERIFIABLE and this file —
+		// carrying the exact #990 div between the surface and the form —
+		// reddens through the default, not through any per-shape matcher.
+		// The fixture does not depend on which shape is unhandled TODAY:
+		// if a future round learns to resolve destructuring, the markers
+		// become drawer symbols and the same file still reddens through the
+		// walk. Only a fail-open terminal (unhandled means null) makes it
+		// green.
+		writeFileSync(
+			TEMPORARY_DESTRUCTURED_DRAWER_PATH,
+			TEMPORARY_DESTRUCTURED_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_DESTRUCTURED_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_DESTRUCTURED_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_DESTRUCTURED_DRAWER_PATH);
 		}
 	});
 
@@ -6447,22 +6993,25 @@ describe('drawer surface flex chain guard (#990)', () => {
 		}
 	});
 
-	test('SIGTERM runs the guard signal handlers, removes the temp directory and does not exit 0', async () => {
+	test('SIGTERM runs the guard signal handlers, removes the temp directory and dies of the signal', async () => {
 		// Round 13's IMPORTANT 4: `process.on('exit')` does not run when the
 		// process dies on a signal, so the round-12 crash net leaked the
 		// whole temp dir on SIGTERM — exactly how CI cancels a job. The
 		// child below requires the guard's OWN drawer-guard-tmp-dir.cjs, so
 		// this exercises the exact registration a cancelled run goes
 		// through, and dies if the signal handlers are removed.
-		// Round 15's MINOR 7: the handlers used to `process.exit(0)`,
-		// turning a cancelled run into a successful one — the exit code
-		// must be non-zero, so a cancelled CI run still fails.
+		// Round 17's IMPORTANT 5: the handlers used to `process.exit(1)`,
+		// replacing the signal with a fabricated failure status. A run that
+		// dies of the signal reports it as such — the exit event carries
+		// code null and signal "SIGTERM" — so the child must be observed
+		// dying of SIGTERM, not exiting with any invented code.
 		const handled = await runSignalProbeChild(
 			SIGNAL_PROBE_WITH_HANDLERS,
 			'SIGTERM',
 		);
 		expect(existsSync(handled.dirPath)).toBe(false);
-		expect(handled.exitCode).not.toBe(0);
+		expect(handled.exitSignal).toBe('SIGTERM');
+		expect(handled.exitCode).toBeNull();
 
 		// The control: the round-13 shape (exit handler only) really does
 		// leak — the process dies on the signal and no handler runs. This
@@ -6472,7 +7021,8 @@ describe('drawer surface flex chain guard (#990)', () => {
 		const leaked = await runSignalProbeChild(SIGNAL_PROBE_EXIT_ONLY, 'SIGTERM');
 		try {
 			expect(existsSync(leaked.dirPath)).toBe(true);
-			expect(leaked.exitCode).not.toBe(0);
+			expect(leaked.exitSignal).toBe('SIGTERM');
+			expect(leaked.exitCode).toBeNull();
 		} finally {
 			rmSync(leaked.dirPath, { recursive: true, force: true });
 		}
