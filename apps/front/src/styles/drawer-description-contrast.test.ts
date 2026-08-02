@@ -937,30 +937,19 @@ const flattenSelector = (
 		: `${parentSelector} ${selector}`;
 };
 
-/** The escaped class tokens of the SUBJECT compound of a (flattened) selector
- * — the classes the rule paints when it applies. Direct tokens count, and so
- * do classes inside `:is()`/`:where()` arguments (they are subject
- * alternatives — round 14 I1: `:is(.caller)` is how the round-12 masking
- * arrived, and the rule must be attributed through the arguments, never
- * fallen back to another class). Classes inside `:not()` (negated
- * conditions) and `:has()` (descendant conditions) are NOT subject classes.
- * Attribution feeds only the per-class fail-loud bookkeeping — the paint
- * itself is always the browser's. */
-const attributedElementClasses = (
-	selector: string,
-	elementClasses: Set<string>,
-): string[] => {
-	const attributed = new Set<string>();
+/** The SUBJECT compounds of a (flattened) selector — the compound(s) that
+ * must match the target element itself for the rule to apply: the last
+ * compound run of each comma-separated entry, plus (round 14 I1) the last
+ * compound run of each `:is()`/`:where()` argument in that compound — those
+ * are subject ALTERNATIVES (`:is(.caller)` is how the round-12 masking
+ * arrived, so a rule must be reachable through the arguments too, never
+ * fallen back to another class). Compounds inside `:not()` (a negated
+ * condition) and `:has()` (a descendant condition) are never subjects. */
+const subjectCompoundsOf = (selector: string): string[] => {
+	const compounds: string[] = [];
 	for (const entry of splitSelectorList(selector)) {
 		const subjectCompound = lastCompoundRun(entry);
-		const attributeSubject = (compound: string): void => {
-			for (const token of tokenizeCompound(compound)) {
-				if (token.kind === 'class' && elementClasses.has(token.name)) {
-					attributed.add(token.name);
-				}
-			}
-		};
-		attributeSubject(subjectCompound);
+		compounds.push(subjectCompound);
 		for (const token of tokenizeCompound(subjectCompound)) {
 			if (
 				token.kind === 'pseudo-class' &&
@@ -968,34 +957,154 @@ const attributedElementClasses = (
 				token.args !== null
 			) {
 				for (const arg of splitSelectorList(token.args)) {
-					attributeSubject(lastCompoundRun(arg));
+					compounds.push(lastCompoundRun(arg));
 				}
+			}
+		}
+	}
+	return compounds;
+};
+
+/** The escaped class tokens of the SUBJECT compounds of a (flattened)
+ * selector — the classes the rule paints when it applies. Attribution feeds
+ * only the per-class fail-loud bookkeeping — the paint itself is always the
+ * browser's. */
+const attributedElementClasses = (
+	selector: string,
+	elementClasses: Set<string>,
+): string[] => {
+	const attributed = new Set<string>();
+	for (const compound of subjectCompoundsOf(selector)) {
+		for (const token of tokenizeCompound(compound)) {
+			if (token.kind === 'class' && elementClasses.has(token.name)) {
+				attributed.add(token.name);
 			}
 		}
 	}
 	return [...attributed];
 };
 
-/** Whether a (flattened) selector contains any pseudo-class that does NOT
- * apply at rest — `:hover`, `:focus-visible`, structural pseudo-classes.
- * Such a rule never paints on a static element, so a class whose ONLY rules
- * are state variants is legitimate (a hover colour) and must never trip the
- * "no resting colour" fail-loud. The browser decides applicability
- * (`element.matches`); this flag only feeds the fail-loud exception. */
-const hasStatePseudo = (selector: string): boolean => {
+/** Attribute names the probe fixture explicitly stamps on the target element
+ * itself, matching the real `DrawerDescription` contract (`drawer.tsx`) — a
+ * rule keyed on one of these can trust `element.matches()` as ground truth,
+ * the same as a class. */
+const MODELED_ATTRIBUTE_NAMES = new Set(['data-slot']);
+
+/** `data-*`/`aria-*` are Base UI's and the app's vocabulary for ephemeral
+ * interaction state (`data-state`, `data-open`, `data-starting-style`,
+ * `aria-hidden`, …) — ATTRIBUTES the probe's static markup can no more
+ * reproduce than it can a `:hover`. Round 17 I4 folds a selector keyed on one
+ * of these (other than the modeled contract above) into the same
+ * never-throw treatment as a pseudo-class state variant. */
+const STATE_ATTRIBUTE_PREFIXES = ['data-', 'aria-'];
+
+const attributeNameOf = (attributeToken: string): string => {
+	const match = /^\[\s*([\w-]+)/.exec(attributeToken);
+	return (match?.[1] ?? attributeToken).toLowerCase();
+};
+
+const isStateAttributeToken = (token: CompoundToken): boolean =>
+	token.kind === 'attribute' &&
+	!MODELED_ATTRIBUTE_NAMES.has(attributeNameOf(token.name)) &&
+	STATE_ATTRIBUTE_PREFIXES.some((prefix) =>
+		attributeNameOf(token.name).startsWith(prefix),
+	);
+
+/** Whether a (flattened) selector contains any simple selector that does NOT
+ * apply at rest: a pseudo-class outside `REST_APPLYING_PSEUDO_CLASSES`
+ * (`:hover`, `:focus-visible`, `:checked`, …) — including one buried inside a
+ * `:is()`/`:where()`/`:not()` functional argument, which is how Tailwind v4
+ * compiles `group-hover:`/`peer-checked:` (round 17 I4: `hasStatePseudo` used
+ * to tokenize only the top compound, so the `:hover` inside
+ * `:is(:where(.group):hover *)` was invisible) — or a `data-*`/`aria-*`
+ * attribute selector outside the modeled contract (round 17 I4:
+ * `data-[state=open]:`/`aria-hidden:` compile to attribute selectors, never
+ * pseudo-classes, so the old scan rejected them as unconditionally
+ * unverifiable). Such a rule never paints on the STATIC probe, so a class
+ * whose only rules are state variants is legitimate (a hover/open/checked
+ * colour) and must never trip the "no resting colour" fail-loud. The browser
+ * decides applicability (`element.matches`); this flag only feeds the
+ * fail-loud exception. */
+const hasStateVariant = (selector: string): boolean => {
+	const visitCompound = (compound: string): boolean => {
+		for (const token of tokenizeCompound(compound)) {
+			if (
+				token.kind === 'pseudo-class' &&
+				!REST_APPLYING_PSEUDO_CLASSES.has(token.name)
+			) {
+				return true;
+			}
+			if (isStateAttributeToken(token)) {
+				return true;
+			}
+			if (
+				token.kind === 'pseudo-class' &&
+				(token.name === ':is' ||
+					token.name === ':where' ||
+					token.name === ':not') &&
+				token.args !== null
+			) {
+				for (const arg of splitSelectorList(token.args)) {
+					for (const nestedCompound of splitCompounds(arg)) {
+						if (visitCompound(nestedCompound)) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+		return false;
+	};
 	for (const entry of splitSelectorList(selector)) {
 		for (const compound of splitCompounds(entry)) {
-			for (const token of tokenizeCompound(compound)) {
-				if (
-					token.kind === 'pseudo-class' &&
-					!REST_APPLYING_PSEUDO_CLASSES.has(token.name)
-				) {
-					return true;
-				}
+			if (visitCompound(compound)) {
+				return true;
 			}
 		}
 	}
 	return false;
+};
+
+/** Round 17 I1: a non-class simple selector in a rule's SUBJECT compound that
+ * the probe fixture cannot faithfully reproduce — an id or (non-universal)
+ * type selector (the probe never models either; `*` matches trivially and
+ * needs no modeling — it is how Tailwind spells an `:is(.ancestor *)`
+ * ancestor gate, e.g. `dark:`), or an attribute selector outside both the
+ * modeled contract and the state-attribute exemption above. `false` from
+ * `element.matches()` on such a token is not ground truth: the probe's
+ * absence of the attribute/id/type cannot be told apart from the app
+ * genuinely never carrying it, so it must be reported as UNCERTAIN, never
+ * silently resolved to "does not apply". */
+const isUnmodeledToken = (
+	token: CompoundToken,
+): token is Extract<CompoundToken, { kind: 'id' | 'type' | 'attribute' }> => {
+	if (token.kind === 'id') {
+		return true;
+	}
+	if (token.kind === 'type') {
+		return token.name !== '*';
+	}
+	if (token.kind !== 'attribute') {
+		return false;
+	}
+	return (
+		!MODELED_ATTRIBUTE_NAMES.has(attributeNameOf(token.name)) &&
+		!isStateAttributeToken(token)
+	);
+};
+
+/** The unmodeled tokens (see `isUnmodeledToken`) in a selector's subject
+ * compounds. */
+const unmodeledSubjectTokens = (selector: string): string[] => {
+	const found: string[] = [];
+	for (const compound of subjectCompoundsOf(selector)) {
+		for (const token of tokenizeCompound(compound)) {
+			if (isUnmodeledToken(token)) {
+				found.push(token.name);
+			}
+		}
+	}
+	return found;
 };
 
 type ConditionSpec = {
@@ -1093,7 +1202,7 @@ const collectRecordedDeclarations = (
 			} else if (child instanceof postcss.Rule) {
 				const selector = flattenSelector(child.selector, parentSelector);
 				const attributed = attributedElementClasses(selector, elementClasses);
-				const stateVariant = hasStatePseudo(selector);
+				const stateVariant = hasStateVariant(selector);
 				walkDeclarations(
 					selector,
 					attributed,
@@ -1206,17 +1315,27 @@ const askEngine = async (
 			const hostEl = document.createElement('div');
 			hostEl.id = 'publy-probe-host';
 			hostEl.innerHTML =
-				'<div class="app-shell-workspace">' +
+				// Round 17 I1: `.app-shell-workspace` is an EMPTY sibling, not an
+				// ancestor — `DrawerContent` renders through `DialogPrimitive.Portal`,
+				// so the real drawer is a child of `<body>`, never nested inside the
+				// workspace shell. The sibling still satisfies `body:has(.app-shell-
+				// workspace)` (app.css:947). Every slot the real primitive stamps
+				// (`drawer.tsx`) carries its `data-slot` here too, so a rule keyed on
+				// the attribute — the idiom already used 42 times elsewhere in
+				// app.css — is visible to `element.matches()` instead of silently
+				// answered "false".
+				'<div class="app-shell-workspace"></div>' +
 				'<div class="publy-overlay-backdrop"></div>' +
-				'<div class="publy-drawer"><div class="publy-drawer-header">' +
+				'<div data-slot="drawer" class="publy-drawer">' +
+				'<div data-slot="drawer-header" class="publy-drawer-header">' +
 				(ancestorClass === null ? '' : `<div class="${ancestorClass}">`) +
 				'<div class="flex min-w-0 flex-col gap-[3px]">' +
-				'<div class="publy-drawer-title">Title</div>' +
-				`<div id="publy-probe-description" class="${elementClasses.join(' ')}">probe` +
+				'<div data-slot="drawer-title" class="publy-drawer-title">Title</div>' +
+				`<div id="publy-probe-description" data-slot="drawer-description" class="${elementClasses.join(' ')}">probe` +
 				children.map((child) => `<span class="${child}"></span>`).join('') +
 				'</div></div>' +
 				(ancestorClass === null ? '' : '</div>') +
-				'</div></div></div>';
+				'</div></div>';
 			document.body.appendChild(hostEl);
 		},
 		{
@@ -1270,6 +1389,19 @@ const askEngine = async (
 				rect.top + rect.height / 2,
 			);
 			const targetIndex = hitStack.indexOf(element);
+			if (targetIndex < 0) {
+				// Round 17 I3: the element is not hit-testable at its own centre
+				// point (visibility:hidden, pointer-events:none, a clipped
+				// sr-only, or anything painted over it) — `slice(-1)` would
+				// silently degrade to the LAST hit-stack element (`<html>`)
+				// instead of the drawer panel → scrim → canvas the text really
+				// sits on, substituting an unrelated background for an
+				// unmeasurable one. Fail loud by name instead.
+				throw new Error(
+					'Probe description element is not hit-testable at its own centre ' +
+						'point — the background behind it cannot be measured',
+				);
+			}
 			const backgroundLayers: string[] = [];
 			const seen = new Set<Element>();
 			for (const layer of hitStack.slice(targetIndex)) {
@@ -1385,11 +1517,18 @@ const attributedUtilityName = (
 };
 
 /** The fail-closed sweep and applicability checks over one compiled build —
- * all decided by the browser except the three things it cannot tell you:
+ * all decided by the browser except the four things it cannot tell you:
  *
  *  - TYPO: a class the compiled CSS never mentions (in any rule selector)
  *    throws by name — the browser would silently ignore it and paint the
  *    primitive.
+ *  - UNMODELED SELECTOR (round 17 I1): an attributed rule whose subject
+ *    compound carries a non-class simple selector the probe fixture cannot
+ *    faithfully reproduce (an id/type selector, or an attribute selector
+ *    outside both the modeled `data-slot` contract and the `data-*`/`aria-*`
+ *    state exemption) throws by name — `element.matches()` returning `false`
+ *    for a token the fixture never modeled is not ground truth, and must be
+ *    reported UNCERTAIN rather than silently resolved to "does not apply".
  *  - DROPPED VALUE: a declaration under a rule attributed to an element
  *    class whose value the browser cannot compute throws by name — an
  *    undeclared `var(--x)` token (the browser would substitute and paint the
@@ -1400,11 +1539,16 @@ const attributedUtilityName = (
  *    (round 14 M3: `text-primary/50` was thrown by a hand parser and is now
  *    resolved).
  *  - NO RESTING COLOUR: a class with rest-relevant declarations (attributed
- *    to it, not state-variant) that apply at NO measured viewport in EITHER
- *    theme fails loud by name — the theme-gate case is covered by the
+ *    to it, not a state variant) that apply at NO measured viewport in
+ *    EITHER theme fails loud by name — the theme-gate case is covered by the
  *    "either theme" formulation (a `dark:`-only class applies in the dark
  *    measurement, so it never throws in light), and the state-variant case
  *    by the eligibility clause (a `:hover`-only colour class is legitimate).
+ *    Round 17 I4: the throw message names the actual cause (a conditional
+ *    at-rule that never fires, versus a selector that never matches because
+ *    an ancestor the probe fixture does not render is missing) instead of
+ *    calling every shape "conditional" and prescribing a remedy ("extend the
+ *    measured viewports") that cannot fix an ancestor-qualified rule.
  */
 const assertVerifiable = (
 	root: postcss.Root,
@@ -1426,6 +1570,27 @@ const assertVerifiable = (
 		if (!mentioned) {
 			throw new Error(
 				`Unresolvable utility on a DrawerDescription: ${utility}`,
+			);
+		}
+	}
+
+	// UNMODELED SELECTOR (round 17 I1).
+	const uncertainSelectors = new Set<string>();
+	for (const declaration of recorded) {
+		if (
+			declaration.attributed.length === 0 ||
+			uncertainSelectors.has(declaration.selector)
+		) {
+			continue;
+		}
+		const unmodeled = unmodeledSubjectTokens(declaration.selector);
+		if (unmodeled.length > 0) {
+			uncertainSelectors.add(declaration.selector);
+			throw new Error(
+				`Unverifiable selector for ${attributedUtilityName(declaration, utilities)}: ` +
+					`${declaration.selector} — the probe fixture cannot represent ` +
+					`${unmodeled.join(', ')}; render it explicitly in the probe markup ` +
+					'(askEngine) or narrow the rule to a token the guard models.',
 			);
 		}
 	}
@@ -1499,24 +1664,48 @@ const assertVerifiable = (
 		if (appliesLight.has(escaped) || appliesDark.has(escaped)) {
 			continue;
 		}
-		const hasRestRelevant = recorded.some(
+		const restRelevant = recorded.filter(
 			(declaration) =>
 				!declaration.stateVariant && declaration.attributed.includes(escaped),
 		);
-		if (!hasRestRelevant) {
+		if (restRelevant.length === 0) {
 			continue;
 		}
-		const props = new Set(
-			recorded
-				.filter((declaration) => declaration.attributed.includes(escaped))
-				.map((declaration) => declaration.prop),
+		const propList = [...new Set(restRelevant.map((d) => d.prop))].join(', ');
+		// Round 17 I4: name the actual cause instead of calling every shape
+		// "conditional declarations" — a plain ancestor-qualified rule
+		// (`.parent .x`) has no at-rule to blame, and telling its author to
+		// "extend the measured viewports" cannot fix a missing ancestor.
+		const hasConditional = restRelevant.some((d) => d.conditions.length > 0);
+		const hasUnconditional = restRelevant.some(
+			(d) => d.conditions.length === 0,
 		);
+		if (hasConditional && !hasUnconditional) {
+			throw new Error(
+				`Only conditional declarations for ${utility}: ${propList} — ` +
+					`every declaration applies at no measured viewport ` +
+					`(${MEASURED_VIEWPORT.width}×${MEASURED_VIEWPORT.height}, light and dark); ` +
+					'the browser paints the primitive default here. Resolve it outside ' +
+					'the conditional rule or extend the measured viewports.',
+			);
+		}
+		if (hasUnconditional && !hasConditional) {
+			throw new Error(
+				`No resting colour for ${utility}: ${propList} — every unconditional ` +
+					"declaration never matches the probe's drawer markup in light or " +
+					'dark; an ancestor class or attribute the selector requires is ' +
+					'absent from the fixture. Add it to the probe markup in askEngine ' +
+					'(or pass an explicit ancestorClass), or confirm the rule is ' +
+					'reachable from the real drawer markup at all.',
+			);
+		}
 		throw new Error(
-			`Only conditional declarations for ${utility}: ${[...props].join(', ')} — ` +
-				`every declaration applies at no measured viewport ` +
-				`(${MEASURED_VIEWPORT.width}×${MEASURED_VIEWPORT.height}, light and dark); ` +
-				'the browser paints the primitive default here. Resolve it outside ' +
-				'the conditional rule or extend the measured viewports.',
+			`No resting colour for ${utility}: ${propList} — some declarations are ` +
+				'conditional at-rules that never fire at the measured viewport and ' +
+				'others never match because an ancestor the probe fixture does not ' +
+				'render is absent (light and dark); resolve the conditional rule, ' +
+				'extend the measured viewports, or add the missing ancestor to the ' +
+				'probe markup.',
 		);
 	}
 };
@@ -2342,10 +2531,13 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(light.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
 	});
 
-	test('a nested rule whose ancestor is absent fails loud by name (round 10 I2)', async () => {
+	// Round 17 I4: this shape has no `@media`/`@supports`/`@container` at all —
+	// the old "Only conditional declarations" message misdiagnosed a plain
+	// missing-ancestor rule as a viewport-conditional one.
+	test('a nested rule whose ancestor is absent fails loud by name, named as a missing ancestor (round 10 I2, round 17 I4)', async () => {
 		await expect(async () =>
 			resolveFixturePaint(`.parent { .x { color: ${rawRed}; } }`, ['x']),
-		).rejects.toThrow(/Only conditional declarations for x: color/);
+		).rejects.toThrow(/No resting colour for x: color .* ancestor/);
 	});
 
 	// Round 10 I2, flat spelling: the same ancestor qualification written as
@@ -2716,6 +2908,20 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(light.color).toEqual(
 			resolveColor('--publy-foreground-muted', 'light'),
 		);
+	});
+
+	// Round 16 IMPORTANT 3: when the probe element is not hit-testable at its
+	// own centre point, `hitStack.indexOf(element)` returns -1 and
+	// `slice(-1)` used to silently degrade the composite to the LAST hit-stack
+	// element (`<html>`) instead of throwing — a background substitution the
+	// reviewer proved measurably more forgiving than the real drawer surface.
+	// `invisible` (`visibility: hidden`) is an entirely ordinary thing to put
+	// on a dialog description and removes it from the hit stack; the guard
+	// must fail loud by name instead of measuring an unrelated background.
+	test('an element outside its own hit stack fails loud instead of measuring a substituted background (round 16 I3)', async () => {
+		await expect(async () =>
+			resolveClassPaint(['publy-drawer-description', 'invisible']),
+		).rejects.toThrow(/not hit-testable at its own centre point/);
 	});
 
 	// ---- The call-site guard ------------------------------------------------
