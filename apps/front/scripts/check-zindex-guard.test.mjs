@@ -1974,15 +1974,20 @@ test("raw sinks: the import binding's sink, never the bytes, decides the walk", 
 	);
 });
 
-test('e2e (round 11 I1/A2): structurally different unparseable style-sink payloads are named diagnostics', async () => {
-	// The round-10 A2 mutation reported only PostCSS failures whose reason
-	// contains "Unknown word", restoring round-8 I2 for every other failure
-	// shape. Two structurally different failures — an unclosed block and an
-	// unclosed bracket — must stay named diagnostics, each dying under that
-	// mutation.
+test('e2e (round 13 I1/A2): every PostCSS failure shape is a named diagnostic', async () => {
+	// Round 12 I1-A2: a mutation that keyed the raw style-sink catch on a
+	// single `error.reason` (even the 'Unclosed comment' one) kept all 113
+	// tests green while restoring a silent failure for every other parse
+	// shape. The class assertion is a table spanning the reasons PostCSS can
+	// produce — comment, block, bracket, string, and unknown-word failures —
+	// so no single-reason narrowing can land green. The guard keys on
+	// nothing: any parse failure is the named diagnostic.
 	const failures = [
+		['unclosed comment', '/*'],
 		['unclosed block', '.probe { z-index: 2147483629'],
 		['unclosed bracket', '.probe { z-index: calc(2147483629 }'],
+		['unclosed string', '.probe { content: "2147483629 }'],
+		['unknown word', '{{ brandColor }}'],
 	];
 	for (const [name, css] of failures) {
 		const { violations } = await runFixtureGuard(
@@ -2840,6 +2845,122 @@ test('e2e (round 11 I1/A1): the transparent wrapper set at the spread member is 
 			violations.map((violation) => violation.ruleId),
 			['z-index-style-element-shipped'],
 			`transparent wrapper ${payload} must red: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 13 I1/A1): nested transparent wrappers are unwrapped to a fixpoint', async () => {
+	// Round 12 I1-A1: a mutation that unwrapped at most one semantic wrapper
+	// plus parentheses at the spread-member site kept all 113 tests green
+	// while `((object as const)!)` went silent. The unwrap loops until the
+	// node stops changing, so the class assertion is depth: 2, 3, and 5
+	// nested wrappers of mixed kinds red exactly like a single wrapper, on
+	// the dSIH payload object, a static style child, and a ?raw style child.
+	// "One step further" is not a spelling because there is no bound to step
+	// past.
+	const wrap = (payload, depth) => {
+		let expression = payload;
+		for (let index = 0; index < depth; index += 1) {
+			expression = `(${expression})`;
+		}
+		return expression;
+	};
+	const wrappers = [
+		['two parentheses', wrap('PAYLOAD', 2)],
+		['three mixed', wrap('(PAYLOAD as const)!', 2)],
+		[
+			'five mixed',
+			wrap('(((PAYLOAD satisfies { __html: string }) as never)!) as const', 3),
+		],
+	];
+	for (const [name, wrapped] of wrappers) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					'export const probe = <style',
+					`  dangerouslySetInnerHTML={${wrapped.replace('PAYLOAD', "{ __html: '.probe { z-index: 2147483596; }' }")}}`,
+					'/>;',
+				].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`nested ${name} on a dSIH payload must red: ${JSON.stringify(violations)}`,
+		);
+	}
+	for (const [name, wrapped] of wrappers) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					`export const probe = <style>{${wrapped.replace('PAYLOAD', "'.probe { z-index: 2147483595; }'")}}</style>;`,
+				].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`nested ${name} on a static style child must red: ${JSON.stringify(violations)}`,
+		);
+	}
+	const { violations: rawViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				`export const probe = <style>{${wrap('rawCss', 6)}}</style>;`,
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483593; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.ok(
+		rawViolations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-declaration-not-on-scale' &&
+				violation.file === 'src/overlay.txt',
+		),
+		`six nested wrappers on a raw style child must red: ${JSON.stringify(rawViolations)}`,
+	);
+});
+
+test('e2e (round 13 I1/A3): a raw binding at the last child position reds for any child count', async () => {
+	// Round 12 I1-A3: a mutation that walked `node.children.slice(0, 3)`
+	// kept all 113 tests green while a raw binding in child four went
+	// silent. The walk iterates every child, so the class assertion
+	// generates the binding at the LAST position for child counts that
+	// extend beyond any fixed slice — 3, 4, 6, and 9 children. The last
+	// position moves with the count, so no slice bound of any size can pass.
+	const safeChildren = (count) =>
+		Array.from(
+			{ length: count - 1 },
+			(_, index) => `'{ .safe-${index} { color: red; } }'`,
+		);
+	for (const count of [3, 4, 6, 9]) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					`import rawCss from './overlay.txt?raw';`,
+					'export const probe = <style>{',
+					[...safeChildren(count), 'rawCss'].join('}{'),
+					'}</style>;',
+				].join('\n'),
+				'overlay.txt': '.overlay { z-index: 2147483592; }',
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.ok(
+			violations.some(
+				(violation) =>
+					violation.ruleId === 'z-index-declaration-not-on-scale' &&
+					violation.file === 'src/overlay.txt',
+			),
+			`a ${count}-child raw sink with the binding last must red: ${JSON.stringify(violations)}`,
 		);
 	}
 });
