@@ -580,6 +580,14 @@ export const scanZIndexFile = ({
 	productionCandidates = null,
 	checkBuildReachableScript = true,
 	checkClassDelivery = true,
+	// Raw-sink provenance: `baseDir` roots specifier resolution and
+	// `rawImportTexts` maps each recorded `?raw` module's absolute path to its
+	// bytes. With both present, a `?raw` import binding consumed by a
+	// style-capable sink (a `<style>` element or a dangerouslySetInnerHTML
+	// payload) is walked as shipped CSS/HTML; without them the walk is
+	// skipped, which keeps unit fixtures free of raw-file scaffolding.
+	baseDir = null,
+	rawImportTexts = null,
 }) => {
 	const violations = [];
 	const extension = path.extname(relativePath);
@@ -921,7 +929,10 @@ export const scanZIndexFile = ({
 			// the last member with the name wins, and a static object-literal
 			// spread is transparent (its member is hoisted in place). A
 			// non-literal spread (`{...props}`) is the declared data-flow
-			// boundary and contributes nothing.
+			// boundary and obeys source-order last-write-wins: it may carry
+			// the name, so it invalidates any fact established before it, and
+			// a later explicit member (or static spread carrying the member)
+			// may establish the value again.
 			let foundNode = null;
 			for (const candidate of object.properties) {
 				let valueNode = null;
@@ -945,6 +956,8 @@ export const scanZIndexFile = ({
 						if (nested != null) {
 							valueNode = nested;
 						}
+					} else {
+						foundNode = null;
 					}
 				}
 				if (valueNode != null) {
@@ -975,17 +988,20 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const staticDangerousHtmlPayload = (attributes) => {
-			// Resolves the `dangerouslySetInnerHTML={{ __html: … }}` payload of
-			// a JSX attributes list with real JSX semantics: the last
-			// occurrence wins, whether it is an explicit attribute or a static
-			// object-literal spread (`{...{dangerouslySetInnerHTML: …}}` is the
-			// same static payload, and a non-static occurrence shadows earlier
-			// static ones exactly as a later attribute override would).
+		const dangerousHtmlPayloadObject = (attributes) => {
+			// Resolves the `dangerouslySetInnerHTML={{ __html: … }}` payload
+			// object of a JSX attributes list with real JSX semantics: the
+			// last occurrence wins, whether it is an explicit attribute or a
+			// static object-literal spread (`{...{dangerouslySetInnerHTML: …}}`
+			// is the same static payload). A non-literal spread may carry the
+			// attribute, so it shadows earlier static occurrences exactly as a
+			// later attribute override would — source-order last-write-wins —
+			// and a later explicit occurrence establishes the payload again.
+			// Transparent parentheses/assertions around the payload object or
+			// around a spread's member are equivalent spellings.
 			let found = false;
-			let payload = null;
+			let payloadObject = null;
 			for (const property of attributes.properties) {
-				let payloadObject = null;
 				if (ts.isJsxAttribute(property)) {
 					if (
 						property.name.kind !== ts.SyntaxKind.Identifier ||
@@ -994,7 +1010,7 @@ export const scanZIndexFile = ({
 						continue;
 					}
 					found = true;
-					payload = null;
+					payloadObject = null;
 					if (ts.isJsxExpression(property.initializer)) {
 						const object = unwrapTransparentExpression(
 							property.initializer.expression,
@@ -1009,6 +1025,8 @@ export const scanZIndexFile = ({
 						spreadObject == null ||
 						!ts.isObjectLiteralExpression(spreadObject)
 					) {
+						found = false;
+						payloadObject = null;
 						continue;
 					}
 					const member = staticObjectMemberNode(
@@ -1017,17 +1035,24 @@ export const scanZIndexFile = ({
 					);
 					if (member != null) {
 						found = true;
-						payload = null;
-						if (ts.isObjectLiteralExpression(member)) {
-							payloadObject = member;
+						payloadObject = null;
+						const memberObject = unwrapTransparentExpression(member);
+						if (
+							memberObject != null &&
+							ts.isObjectLiteralExpression(memberObject)
+						) {
+							payloadObject = memberObject;
 						}
 					}
 				}
-				if (payloadObject != null) {
-					payload = staticObjectProperty(payloadObject, '__html');
-				}
 			}
-			return found ? payload : null;
+			return found ? payloadObject : null;
+		};
+		const staticDangerousHtmlPayload = (attributes) => {
+			const payloadObject = dangerousHtmlPayloadObject(attributes);
+			return payloadObject == null
+				? null
+				: staticObjectProperty(payloadObject, '__html');
 		};
 		const staticMember = (expression) => {
 			const member = unwrapTransparentExpression(expression);
@@ -1109,18 +1134,17 @@ export const scanZIndexFile = ({
 			}
 			return parts.join('');
 		};
-		const staticDangerousHtml = (node) => {
-			// A `dangerouslySetInnerHTML={{ __html: … }}` payload on any element
-			// is raw HTML shipped as SSR markup or client innerHTML. When the
-			// payload is a static literal, the `<style>`/`<link>` it embeds is
-			// the same declarative stylesheet route as a JSX `<style>` element.
-			if (!ts.isJsxElement(node) && !ts.isJsxSelfClosingElement(node)) {
-				return null;
+		const tagNameText = (node) => {
+			if (
+				ts.isJsxElement(node) &&
+				ts.isIdentifier(node.openingElement.tagName)
+			) {
+				return node.openingElement.tagName.text;
 			}
-			const attributes = ts.isJsxElement(node)
-				? node.openingElement.attributes
-				: node.attributes;
-			return staticDangerousHtmlPayload(attributes);
+			if (ts.isJsxSelfClosingElement(node) && ts.isIdentifier(node.tagName)) {
+				return node.tagName.text;
+			}
+			return null;
 		};
 		const scanHtmlStyleEscapes = (html) => {
 			// Static-HTML payloads can embed a `<style>` element (declaration
@@ -1187,6 +1211,129 @@ export const scanZIndexFile = ({
 			}
 			return escapes;
 		};
+		const rawImportBindings = new Map();
+		for (const statement of sourceFile.statements) {
+			if (!ts.isImportDeclaration(statement)) {
+				continue;
+			}
+			const specifier = statement.moduleSpecifier?.text ?? '';
+			if (!specifier.includes('?raw')) {
+				continue;
+			}
+			const importClause = statement.importClause;
+			if (importClause?.name != null && ts.isIdentifier(importClause.name)) {
+				rawImportBindings.set(importClause.name.text, {
+					specifier,
+					// The binding node `nearestBinding` resolves to for a
+					// default import is the import clause itself.
+					declaration: importClause,
+					namespace: false,
+				});
+			} else if (
+				importClause?.namedBindings != null &&
+				ts.isNamespaceImport(importClause.namedBindings)
+			) {
+				rawImportBindings.set(importClause.namedBindings.name.text, {
+					specifier,
+					declaration: importClause.namedBindings,
+					namespace: true,
+				});
+			}
+		}
+		const rawBindingForExpression = (node) => {
+			// Resolves an expression to a `?raw` import specifier when the
+			// binding reaches it unshadowed — the default import directly or
+			// the namespace form through `.default`. Only the declaration the
+			// binding actually resolves to counts, so a shadowed identifier is
+			// never mistaken for the raw import.
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
+				return null;
+			}
+			if (ts.isIdentifier(expression)) {
+				const entry = rawImportBindings.get(expression.text);
+				if (
+					entry != null &&
+					!entry.namespace &&
+					nearestBinding(expression, expression.text) === entry.declaration
+				) {
+					return entry.specifier;
+				}
+				return null;
+			}
+			if (
+				ts.isPropertyAccessExpression(expression) &&
+				expression.name.text === 'default'
+			) {
+				const owner = unwrapTransparentExpression(expression.expression);
+				if (owner != null && ts.isIdentifier(owner)) {
+					const entry = rawImportBindings.get(owner.text);
+					if (
+						entry?.namespace &&
+						nearestBinding(owner, owner.text) === entry.declaration
+					) {
+						return entry.specifier;
+					}
+				}
+			}
+			return null;
+		};
+		const reportRawImportSink = (specifier, kind, sinkNode) => {
+			// A `?raw` import whose binding reaches a style-capable sink is
+			// shipped text the emitted gate can never see — the same class as
+			// `?inline`/`?raw` CSS. The raw bytes are walked only when the
+			// import binding is consumed by such a sink: text displayed in
+			// `<pre>`/`<p>` is displayed text, not a stylesheet. A style-sink
+			// payload the declaration walk cannot parse is a named diagnostic,
+			// never a crash and never a silent pass.
+			if (baseDir == null || rawImportTexts == null) {
+				return;
+			}
+			const withoutQuery = specifier.split(/[?#]/)[0];
+			const rawPath = path.isAbsolute(withoutQuery)
+				? withoutQuery
+				: withoutQuery.startsWith('~/')
+					? path.resolve(baseDir, 'src', withoutQuery.slice(2))
+					: path.resolve(baseDir, path.dirname(relativePath), withoutQuery);
+			const text = rawImportTexts.get(path.resolve(rawPath));
+			if (text == null) {
+				// The production build validated every import (an unresolvable
+				// specifier fails the build), so a miss here only means the raw
+				// module never entered this build's transform graph — nothing
+				// ships.
+				return;
+			}
+			const base = {
+				file: path.relative(baseDir, rawPath),
+				line: 1,
+				source: text.slice(0, 120),
+			};
+			try {
+				if (kind === 'html') {
+					for (const escape of scanHtmlStyleEscapes(text)) {
+						violations.push({ ...escape, ...base });
+					}
+				} else {
+					violations.push(
+						...checkCompiledCssZIndex(
+							text,
+							KNOWN_RAW_Z_INDEX_DECLARATIONS,
+							base.file,
+						),
+					);
+				}
+			} catch (error) {
+				violations.push({
+					ruleId: 'z-index-unparseable-static-css',
+					message:
+						`raw-imported text in ${base.file} is consumed by a style sink ` +
+						`and cannot be parsed as CSS (${cssParseFailureReason(error)}) — ` +
+						'the guard cannot inspect what ships; fix the payload or ' +
+						'import the stylesheet through the build graph.',
+					...base,
+				});
+			}
+		};
 		const visitStaticStyleEscapes = (node) => {
 			const styleCss = staticStyleElementCss(node);
 			if (styleCss != null) {
@@ -1225,7 +1372,33 @@ export const scanZIndexFile = ({
 					violations.push({ ...violation, ...base });
 				}
 			}
-			const dangerousHtml = staticDangerousHtml(node);
+			const isStyleElement = tagNameText(node) === 'style';
+			if (isStyleElement && styleCss == null && ts.isJsxElement(node)) {
+				// A `<style>` element whose children include a `?raw` import
+				// binding ships that file's bytes as CSS — the binding is the
+				// provenance, so text displayed elsewhere (a `<pre>`) is not
+				// walked. The raw walk reports unparseable bytes by name.
+				for (const child of node.children) {
+					if (ts.isJsxExpression(child) && child.expression != null) {
+						const specifier = rawBindingForExpression(child.expression);
+						if (specifier != null) {
+							reportRawImportSink(specifier, 'style', child);
+						}
+					}
+				}
+			}
+			const payloadObject =
+				ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)
+					? dangerousHtmlPayloadObject(
+							ts.isJsxElement(node)
+								? node.openingElement.attributes
+								: node.attributes,
+						)
+					: null;
+			const dangerousHtml =
+				payloadObject == null
+					? null
+					: staticObjectProperty(payloadObject, '__html');
 			if (dangerousHtml != null) {
 				const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
 				for (const escape of htmlEscapes) {
@@ -1234,6 +1407,20 @@ export const scanZIndexFile = ({
 						file: relativePath,
 						line: lineForOffset(content, node.getStart(sourceFile)),
 					});
+				}
+			} else if (payloadObject != null) {
+				// The payload is not a static string — when `__html` is a
+				// `?raw` import binding it still ships the file's bytes, as
+				// CSS on a `<style>` host or as HTML elsewhere.
+				const memberNode = staticObjectMemberNode(payloadObject, '__html');
+				const specifier =
+					memberNode == null ? null : rawBindingForExpression(memberNode);
+				if (specifier != null) {
+					reportRawImportSink(
+						specifier,
+						isStyleElement ? 'style' : 'html',
+						node,
+					);
 				}
 			}
 			let rel = null;
@@ -1756,9 +1943,10 @@ export const buildProductionApp = async (baseDir) => {
 			} else if (queryTokens.includes('raw') && path.isAbsolute(filePath)) {
 				// `?raw` ships the raw text of *any* file as JS, and that text
 				// can be CSS even when the extension is not a CSS language
-				// (`.txt`?raw is the documented case). Record every raw module;
-				// the walk treats text that does not parse as CSS as having no
-				// declarations.
+				// (`.txt`?raw is the documented case). Record every raw module
+				// the build transforms; the script pass resolves each raw
+				// import binding to one of these paths and walks its bytes
+				// only when the binding reaches a style-capable sink.
 				rawTextPaths.add(path.resolve(filePath));
 			} else if (
 				path.isAbsolute(filePath) &&
@@ -1954,6 +2142,19 @@ export const runZIndexGuard = async ({
 						.includes('node_modules'),
 			)
 			.sort((left, right) => left.localeCompare(right));
+		const inlineCssPaths = (buildResult.inlineCssPaths ?? [])
+			.map((filePath) => path.resolve(filePath))
+			.sort((left, right) => left.localeCompare(right));
+		const rawTextPaths = (buildResult.rawTextPaths ?? [])
+			.map((filePath) => path.resolve(filePath))
+			.filter((filePath) => !inlineCssPaths.includes(filePath))
+			.sort((left, right) => left.localeCompare(right));
+		// The script pass resolves each `?raw` import binding to one of these
+		// recorded modules and walks its bytes only at a style-capable sink.
+		const rawImportTexts = new Map();
+		for (const rawPath of rawTextPaths) {
+			rawImportTexts.set(rawPath, await readFile(rawPath, 'utf8'));
+		}
 		for (const scriptPath of authoredScriptPaths) {
 			const content = await readFile(scriptPath, 'utf8');
 			violations.push(
@@ -1964,6 +2165,8 @@ export const runZIndexGuard = async ({
 					productionCandidates,
 					checkBuildReachableScript: true,
 					checkClassDelivery: false,
+					baseDir,
+					rawImportTexts,
 				}),
 			);
 		}
@@ -1988,9 +2191,6 @@ export const runZIndexGuard = async ({
 				}),
 			);
 		}
-		const inlineCssPaths = (buildResult.inlineCssPaths ?? [])
-			.map((filePath) => path.resolve(filePath))
-			.sort((left, right) => left.localeCompare(right));
 		for (const cssPath of inlineCssPaths) {
 			const content = await readFile(cssPath, 'utf8');
 			const relativePath = path.relative(baseDir, cssPath);
@@ -2022,28 +2222,6 @@ export const runZIndexGuard = async ({
 				];
 			}
 			violations.push(...inlineViolations);
-		}
-		const rawTextPaths = (buildResult.rawTextPaths ?? [])
-			.map((filePath) => path.resolve(filePath))
-			.filter((filePath) => !inlineCssPaths.includes(filePath))
-			.sort((left, right) => left.localeCompare(right));
-		for (const rawPath of rawTextPaths) {
-			const content = await readFile(rawPath, 'utf8');
-			// `?raw` ships the raw file text as JS without CSS compilation.
-			// The payload is walked as CSS: text that does not parse has no
-			// declarations, while a payload that parses as CSS is checked
-			// like any other shipped stylesheet.
-			try {
-				violations.push(
-					...checkCompiledCssZIndex(
-						content,
-						KNOWN_RAW_Z_INDEX_DECLARATIONS,
-						path.relative(baseDir, rawPath),
-					),
-				);
-			} catch {
-				// not CSS — nothing for the declaration walk to inspect.
-			}
 		}
 		const emittedCssRoot = path.resolve(buildResult.emittedCssRoot);
 		const emittedCssPaths = await collectCssPaths(emittedCssRoot);
