@@ -1398,6 +1398,110 @@ test('e2e (round 8 I2/I3): the same unparseable bytes displayed as text stay gre
 	);
 });
 
+test('e2e (round 11 B2): module-scope const aliases of a raw binding reach a style sink', async () => {
+	// Round 10 B2(b): the per-file matcher only fired on the literal import
+	// identifier, so a one-line local alias shipped the raw CSS green. The
+	// alias (and an alias-of-alias chain) is the same binding, resolved
+	// through the module-scope const map with the shadowing check intact.
+	for (const [name, aliasLines, sink] of [
+		['alias', ['const aliased = rawCss;'], 'aliased'],
+		['chain', ['const first = rawCss;', 'const second = first;'], 'second'],
+	]) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					`import rawCss from './overlay.txt?raw';`,
+					...aliasLines,
+					`export const probe = <style>{${sink}}</style>;`,
+				].join('\n'),
+				'overlay.txt': '.overlay { z-index: 2147483627; }',
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.ok(
+			violations.some(
+				(violation) =>
+					violation.ruleId === 'z-index-declaration-not-on-scale' &&
+					violation.file === 'src/overlay.txt',
+			),
+			`${name} style sink must red: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 11 B2): a template literal sink ships the raw binding bytes', async () => {
+	// Round 10 B2(b): `` <style>{`${rawCss}`}</style> `` ships the same bytes
+	// as the bare binding; the sink walk must look through the substitution.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				'export const probe = <style>{`${rawCss}`}</style>;',
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483626; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-declaration-not-on-scale' &&
+				violation.file === 'src/overlay.txt',
+		),
+		`template-literal style sink must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 11 B2): a Vite root-absolute ?raw specifier resolves against the project root', async () => {
+	// Round 10 B2(c): `/src/…?raw` is root-absolute for Vite (project root),
+	// but the round-9 resolver treated it as filesystem-absolute, missed the
+	// recorded module, and returned silently green. The bytes really ship.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from '/src/overlay.txt?raw';`,
+				'export const probe = <style>{rawCss}</style>;',
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483625; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.ok(
+		violations.some(
+			(violation) =>
+				violation.ruleId === 'z-index-declaration-not-on-scale' &&
+				violation.file === 'src/overlay.txt',
+		),
+		`root-absolute style sink must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 11 B2): an alias of a raw binding displayed in a text node stays green', async () => {
+	// The paired green half: the alias is the same binding, and its only
+	// consumer is a text node — displayed escaped text, never a stylesheet —
+	// exactly as the round-8 I3 narrowing protected.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './code-sample.txt?raw';`,
+				'const aliased = rawCss;',
+				'export const probe = <pre>{aliased}</pre>;',
+			].join('\n'),
+			'code-sample.txt': '.example { z-index: 2147483624; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`displayed aliased raw text must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
 test("raw sinks: the import binding's sink, never the bytes, decides the walk", () => {
 	// Unit-level pair over `scanZIndexFile`'s sink walk: the same bytes red
 	// through a <style> sink, stay green through a <pre> sink, and red as a
@@ -1510,6 +1614,100 @@ test("raw sinks: the import binding's sink, never the bytes, decides the walk", 
 		).map((violation) => violation.ruleId),
 		['z-index-style-element-shipped'],
 		'a raw HTML payload reaching innerHTML must be walked as HTML',
+	);
+});
+
+test('e2e (round 11 I1/A2): structurally different unparseable style-sink payloads are named diagnostics', async () => {
+	// The round-10 A2 mutation reported only PostCSS failures whose reason
+	// contains "Unknown word", restoring round-8 I2 for every other failure
+	// shape. Two structurally different failures — an unclosed block and an
+	// unclosed bracket — must stay named diagnostics, each dying under that
+	// mutation.
+	const failures = [
+		['unclosed block', '.probe { z-index: 2147483629'],
+		['unclosed bracket', '.probe { z-index: calc(2147483629 }'],
+	];
+	for (const [name, css] of failures) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					`import rawProbeCss from './raw-probe.txt?raw';`,
+					'export const probe = <style>{rawProbeCss}</style>;',
+				].join('\n'),
+				'raw-probe.txt': css,
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map(({ ruleId, file }) => ({ ruleId, file })),
+			[{ ruleId: 'z-index-unparseable-static-css', file: 'src/raw-probe.txt' }],
+			`${name} style-sink payload must be a named diagnostic: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 11 I1/A3): a <style> raw sink with the binding after other children stays red', async () => {
+	// The round-10 A3 mutation walked only the first child of a `<style>`
+	// element's raw-sink scan. A binding that is not the first child — the
+	// second or third — must still red, so a `children.slice(0, 1)`
+	// simplification cannot land green.
+	const cases = [
+		['second', ["'{ .safe { color: red; } }'", 'rawCss']],
+		[
+			'third',
+			[
+				"'{ .safe { color: red; } }'",
+				"'{ .cleaner { color: blue; } }'",
+				'rawCss',
+			],
+		],
+	];
+	for (const [position, children] of cases) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					`import rawCss from './overlay.txt?raw';`,
+					'export const probe = <style>{',
+					children.join('}{'),
+					'}</style>;',
+				].join('\n'),
+				'overlay.txt': '.overlay { z-index: 2147483628; }',
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.ok(
+			violations.some(
+				(violation) =>
+					violation.ruleId === 'z-index-declaration-not-on-scale' &&
+					violation.file === 'src/overlay.txt',
+			),
+			`a ${position}-child raw sink must red: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('raw sinks: a style-sink specifier resolving to no recorded module is a named diagnostic', () => {
+	// The round-10 B2 half: the resolver's miss must fail loud by name, never
+	// the silent compliant default. The unit map contains a different file,
+	// so the specifier genuinely resolves to nothing recorded — the guard
+	// cannot inspect what ships.
+	const baseDir = '/tmp/zindex-r11-unit';
+	const violations = scanZIndexFile({
+		scanner,
+		relativePath: 'probe.tsx',
+		content: [
+			`import rawCss from './missing.txt?raw';`,
+			'export const probe = <style>{rawCss}</style>;',
+		].join('\n'),
+		baseDir,
+		rawImportTexts: new Map([[path.join(baseDir, 'other.txt'), 'x']]),
+	});
+	assert.deepEqual(
+		violations.map(({ ruleId, source }) => ({ ruleId, source })),
+		[{ ruleId: 'z-index-unresolved-raw-import', source: './missing.txt?raw' }],
+		`an unresolvable style-sink specifier must be a named diagnostic: ${JSON.stringify(violations)}`,
 	);
 });
 
@@ -1892,6 +2090,279 @@ test('e2e (round 8 I4): an explicit raw payload after an unresolved spread stays
 	);
 });
 
+test('e2e (round 11 B1): registerProperty with a resolvable const spread stays red', async () => {
+	// Round 9's shared-member clearing disarmed the token-registration rule
+	// with five trailing characters: `{ name: … , ...runtime }` where
+	// `runtime` is a module-scope const object literal. The spread resolves,
+	// the `name` fact survives, and the registration stays red — the
+	// round-10 reviewer's exact probe shape.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.ts': [
+				'const runtime = { inherits: false };',
+				"export const probe = () => CSS.registerProperty({ name: '--publy-z-raised', syntax: '<integer>', ...runtime });",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-scale-token-registered'],
+		`a resolvable const spread must not disarm the registration rule: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 11 B1): a descriptor with a resolvable const spread stays red', async () => {
+	// The same shared-member clearing disarmed the stylesheet-link rule: a
+	// module-scope const object literal spread after static `rel`/`href`
+	// facts must not hide them.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'const runtime = { id: 1 };',
+				'export const probe = { links: [{',
+				"  rel: 'stylesheet' as const,",
+				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
+				'  ...runtime,',
+				'}] };',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		`a resolvable const spread must not disarm the link rule: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 11 B1): an unresolvable spread shadowing static facts is a named diagnostic', async () => {
+	// The paired proof for the genuinely opaque spread: it may carry or
+	// override the member, so the guard cannot verify what ships — that is a
+	// named `z-index-unresolved-spread-shadow` diagnostic, never the silent
+	// green the round-9 clearing produced. Parameterized over all three sites
+	// the clearing reached: the `<style>` attribute list, the link
+	// descriptor, and the CSS.registerProperty() argument object.
+	const cases = [
+		{
+			name: 'style element',
+			files: {
+				'probe.tsx': [
+					'export const probe = (props: any) => <style',
+					"  dangerouslySetInnerHTML={{ __html: '.probe { z-index: 2147483647; }' }}",
+					'  {...props}',
+					'/>;',
+				].join('\n'),
+			},
+			expected: ['z-index-unresolved-spread-shadow'],
+		},
+		{
+			name: 'link descriptor',
+			files: {
+				'probe.tsx': [
+					'export const probe = (props: any) => ({ links: [{',
+					"  rel: 'stylesheet' as const,",
+					"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
+					'  ...props,',
+					'}] });',
+				].join('\n'),
+			},
+			expected: ['z-index-unresolved-spread-shadow'],
+		},
+		{
+			name: 'registerProperty',
+			files: {
+				'probe.ts': [
+					"export const probe = (props: any) => CSS.registerProperty({ name: '--publy-z-raised', ...props });",
+				].join('\n'),
+			},
+			expected: ['z-index-unresolved-spread-shadow'],
+		},
+		{
+			name: 'dSIH payload member',
+			files: {
+				'probe.tsx': [
+					'export const probe = (props: any) => <div',
+					'  dangerouslySetInnerHTML={{',
+					"    __html: '<style>.probe { z-index: 9; }</style>',",
+					'    ...props,',
+					'  }}',
+					'/>;',
+				].join('\n'),
+			},
+			expected: ['z-index-unresolved-spread-shadow'],
+		},
+		{
+			name: 'style-element dSIH payload member',
+			files: {
+				'probe.tsx': [
+					'export const probe = (props: any) => <style',
+					'  dangerouslySetInnerHTML={{',
+					"    __html: '.probe { z-index: 2147483623; }',",
+					'    ...props,',
+					'  }}',
+					'/>;',
+				].join('\n'),
+			},
+			expected: ['z-index-unresolved-spread-shadow'],
+		},
+	];
+	for (const { name, files, expected } of cases) {
+		const { violations } = await runFixtureGuard(files, '', [
+			"import { probe } from './probe';",
+		]);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			expected,
+			`${name} must fail loud by name: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 11 B1): an opaque spread before an explicit member stays red without a diagnostic', async () => {
+	// Last-write-wins cuts both ways: the explicit member after the spread
+	// re-establishes the fact, so the link is provably a stylesheet and the
+	// guard reports exactly that — no spread diagnostic on a provable value.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = (props: any) => ({ links: [{',
+				'  ...props,',
+				"  rel: 'stylesheet' as const,",
+				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
+				'}] });',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		`explicit members after an opaque spread must stay red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 11 B1): a shadowed module-scope const is not a spread source', async () => {
+	// `nearestBinding` gates the const resolution: the parameter shadows the
+	// module-scope `const`, so the spread inside the function is genuinely
+	// opaque — with no static fact to shadow it stays in the runtime bucket.
+	// Removing the shadowing check would resolve it to the module const and
+	// red the fixture, which this pins against.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'const props = { dangerouslySetInnerHTML: { __html:',
+				"  '.probe { z-index: 2147483647; }',",
+				'} };',
+				'export const probe = (props: any) => <style {...props} />;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 11 B1): the round-8 safe-payload reproduction stays green through resolution', async () => {
+	// The legitimate case round 9 was narrowing for: a later resolvable
+	// spread whose payload is scale-routed wins last-write-wins, so the
+	// element ships safe CSS. Round 9 kept it green by clearing; round 11
+	// keeps it green by actually resolving the payload.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'const safeStyleProps = { dangerouslySetInnerHTML: { __html:',
+				"  '.probe { z-index: var(--publy-z-raised); }',",
+				'} };',
+				'export const probe = <style',
+				'  dangerouslySetInnerHTML={{',
+				"    __html: '.probe { z-index: 2147483647; }',",
+				'  }}',
+				'  {...safeStyleProps}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 11 M1): a non-static dangerouslySetInnerHTML suppresses children inspection', async () => {
+	// The round-10 M1 probe: the code comment says a non-static dSIH payload
+	// is the runtime bucket — React ignores children whenever dSIH is
+	// present, so the children never ship as CSS. The code now matches the
+	// comment. The second spelling pins that the *raw-sink walk* is
+	// suppressed too: the binding would red as a style sink if the children
+	// were inspected at all.
+	const { violations: staticChildren } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'const runtime = {};',
+				"export const probe = <style dangerouslySetInnerHTML={runtime}>{'.probe { z-index: 2147483626; }'}</style>;",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		staticChildren,
+		[],
+		`children of a non-static dSIH <style> must not be inspected: ${JSON.stringify(staticChildren)}`,
+	);
+	const { violations: rawChild } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				'const runtime = {};',
+				'export const probe = <style dangerouslySetInnerHTML={runtime}>{rawCss}</style>;',
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483625; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		rawChild,
+		[],
+		`a raw-binding child of a non-static dSIH <style> must not be walked: ${JSON.stringify(rawChild)}`,
+	);
+});
+
+test('e2e (round 11 I1/A1): the transparent wrapper set at the spread member is equivalent', async () => {
+	// The round-9 fix unwraps the spread member with the full transparent set
+	// (parentheses, `as`, type assertions, non-null, `satisfies`). The round-7
+	// test pins the parenthesized spelling only; this parameterizes the
+	// remaining spellings of the same class, so a future simplification to a
+	// parentheses-only unwrap (the round-10 A1 mutation) cannot land green.
+	for (const payload of [
+		"({ __html: '.probe { z-index: 2147483635; }' }) as never",
+		"({ __html: '.probe { z-index: 2147483634; }' }) as const",
+		"({ __html: '.probe { z-index: 2147483633; }' }) satisfies { __html: string }",
+		"({ __html: '.probe { z-index: 2147483632; }' })!",
+	]) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					'export const probe = <style',
+					`  {...{ dangerouslySetInnerHTML: ${payload} }}`,
+					'/>;',
+				].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`transparent wrapper ${payload} must red: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
 test('e2e (round 7 M1): unparseable static <style> payload is a named diagnostic, not a crash', async () => {
 	const { violations } = await runFixtureGuard(
 		{
@@ -1955,6 +2426,12 @@ test('e2e (round 7 M1): ?raw CSS that cannot be parsed is a named diagnostic', a
 	);
 	// A CSS-language `?raw` module is recorded as inline CSS and walked by the
 	// inline gate; the sink walk must not double-report it as unresolved.
+	assert.ok(
+		!violations.some(
+			(violation) => violation.ruleId === 'z-index-unresolved-raw-import',
+		),
+		`inline-recorded ?raw CSS must not be reported unresolved: ${JSON.stringify(violations)}`,
+	);
 });
 
 test('e2e (round 5 audit): build-reachable static script escapes are red', async () => {
