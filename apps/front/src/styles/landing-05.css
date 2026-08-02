@@ -1,9 +1,780 @@
-/* Landing exploration 05 — scoped stylesheet.
+/* Landing exploration 05 — "THE SKY": one continuous atmosphere.
 
    Owned exclusively by the /temp/landing-05 implementation. Every selector in
    this file MUST be nested under `.publy-landing-05` so nothing here can reach
    the product or the other explorations. Imported from app.css.
 
-   Tokens: reuse `--publy-*`. If this direction genuinely needs a value the
-   system lacks, define it here on `.publy-landing-05` in the `--publy-*`
-   convention with light and dark values, and say why in a comment. */
+   THE DESIGN-TOKEN SITUATION, read before touching anything here:
+
+   The direction prompt declares its new values as publy tokens in
+   app.css, but app.css is shared and off-limits to this exploration, and the
+   design-system guard makes that binding anyway: `token-must-be-declared`
+   resolves every publy-token reference against app.css ONLY, so a
+   publy-prefixed custom property declared here can never be referenced
+   (probe: it fails the guard). And `no-raw-visual-color` forbids raw colour
+   literals outside app.css's `:root`/`html.dark` blocks — this file
+   included.
+
+   So every colour below is DERIVED, never literal: `color-mix()` of existing
+   app.css tokens (`--publy-primary`, `--publy-background`,
+   `--publy-primary-soft`, the fixed auth-panel canvas tokens). Where the
+   prompt hand-tunes both theme ramps (the sky), each theme gets its own
+   token-derived declaration — still a remap, never an overlay or a literal.
+   The few genuinely new *non-colour* values (24px band radius, scoped
+   derived tints) live on the `.publy-landing-05` scope as `--l05-*` custom
+   properties — deliberately NOT `--publy-*`, which the guard reserves for
+   app.css declarations. The prompt's literal targets and the measured deltas
+   of every derivation are recorded in `.dump/report-t1.md`. */
+
+@layer components {
+	/* ---- Scoped derived values (geometry + guard-safe derived tints) ---- */
+
+	.publy-landing-05 {
+		/* The warm shadow tint (todesktop-09: shadows on a warm field are
+		   tinted toward the field, never neutral black — black on yellow
+		   goes olive). Approximates the prompt's rgba(69,44,6,…) cascade:
+		   20% brand primary into the page foreground is a deep warm brown,
+		   and the per-layer alpha lives in each shadow declaration below.
+		   Light-theme value; dark re-bases below. */
+		--l05-shadow-tint: color-mix(
+			in srgb,
+			var(--publy-primary) 20%,
+			var(--publy-foreground)
+		);
+		/* The night band's cream foreground (prompt target #f5efe3, ~13:1 on
+		   the band): brand primary at 5% into the fixed auth canvas heading
+		   colour. The auth panel is the repo's existing fixed-dark-canvas
+		   precedent, so the night reads as the same slice of sky in both
+		   themes by construction. See report-t1.md for the derivation. */
+		--l05-night-foreground: color-mix(
+			in srgb,
+			var(--publy-primary) 5%,
+			var(--publy-auth-panel-heading)
+		);
+		/* The night's secondary foreground (prompt target #c9b895, ~6:1 on
+		   the band): 12% primary into the fixed auth body colour. */
+		--l05-night-foreground-muted: color-mix(
+			in srgb,
+			var(--publy-primary) 12%,
+			var(--publy-auth-panel-body)
+		);
+		/* The night's own hairline: the cream at 12% alpha. */
+		--l05-night-hairline: color-mix(
+			in srgb,
+			var(--l05-night-foreground) 12%,
+			transparent
+		);
+	}
+
+	html.dark .publy-landing-05 {
+		/* Dark shadows re-base on the fixed near-black auth canvas instead of
+		   the warm tint: a warm-tinted shadow composites to nothing on the
+		   dark field. This is the brand block's own "dark shadows re-based
+		   on black" rule; the auth token is the only literal-free near-black
+		   reference available outside app.css. */
+		--l05-shadow-tint: var(--publy-auth-panel-bg);
+	}
+
+	/* ---- The field (todesktop-14): one gradient, mounted once, no section
+	   owns a background. Dark mode is a token remap, not an overlay
+	   (attio-03): light is dawn, dark is dusk, and the two ramps below are
+	   the one geometry re-pointed per theme. 0%/100% are the page background
+	   itself so the ramp is seamless against the opaque sticky header and
+	   the page foot; the warmth blooms in the middle-upper third, where the
+	   hero and the product window live. Positions are the prompt's measured
+	   ramp: 0 · 14 · 34 · 58 · 100.
+
+	   Stop derivations (targets are the prompt's five sky-ramp literals):
+	   light 14% ≈ #fef7db (target #fef6db), 34% ≈ #fef7d6 (#fdf3d0),
+	   58% ≈ #fefdf5 (#fdfbf4) — the bloom carries ~1% more blue than the
+	   literal, inside the same measured-contrast envelope (report-t1.md). */
+	.publy-landing-05 .publy-marketing-sky {
+		position: absolute;
+		inset-block-start: 0;
+		/* Full-bleed breakout from the reading column, inset 9px per side so
+		   a classic (non-overlay) scrollbar can never make the sky overflow
+		   the layout viewport horizontally — the worst case is a 17px
+		   scrollbar, and 9px > 17px/2. */
+		inset-inline-start: calc(50% - 50vw + 9px);
+		inset-inline-end: calc(50% - 50vw + 9px);
+		height: 1900px;
+		pointer-events: none;
+		user-select: none;
+		background-image: linear-gradient(
+			180deg,
+			var(--publy-background) 0%,
+			color-mix(in srgb, var(--publy-primary) 14%, var(--publy-background)) 14%,
+			color-mix(in srgb, var(--publy-primary) 16%, var(--publy-background)) 34%,
+			color-mix(in srgb, var(--publy-primary) 4%, var(--publy-background)) 58%,
+			var(--publy-background) 100%
+		);
+		/* todesktop-38: dissolve the bottom edge instead of terminating it.
+		   A mask reads alpha only, so `currentColor` is a legal opaque stop
+		   and keeps a raw colour literal out of the file. */
+		mask-image: linear-gradient(
+			to bottom,
+			currentColor 0%,
+			currentColor 76%,
+			transparent 100%
+		);
+	}
+
+	/* The dusk ramp. The prompt's dark stops sit deeper and more saturated
+	   than primary-over-background can reach (the dark background's blue
+	   channel floors the mix), so they derive from the system's own dark
+	   soft-primary tint instead: 14% ≈ #211e0e (target #23200f), 34% =
+	   #2a2400 (#2a2410, blue channel unreachable — the tint has none),
+	   58% ≈ #1d1b14 (#1e1d19). */
+	html.dark .publy-landing-05 .publy-marketing-sky {
+		background-image: linear-gradient(
+			180deg,
+			var(--publy-background) 0%,
+			color-mix(in srgb, var(--publy-primary-soft) 50%, var(--publy-background))
+				14%,
+			var(--publy-primary-soft) 34%,
+			color-mix(in srgb, var(--publy-primary-soft) 25%, var(--publy-background))
+				58%,
+			var(--publy-background) 100%
+		);
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05 .publy-marketing-sky {
+			height: 2400px;
+		}
+	}
+
+	/* ---- The night (todesktop-15): a boxed slice of the same sky, rotated
+	   7° off vertical, bright at the bottom and deepening upward. Built from
+	   the fixed auth canvas + brand primary so it reads identically in both
+	   themes (the auth fixed-canvas precedent) without a guard-visible
+	   literal. Stop positions are the prompt's: -8 · 34 · 72 · 100 at
+	   353deg. */
+	.publy-landing-05 .publy-marketing-night {
+		background-image: linear-gradient(
+			353deg,
+			color-mix(
+					in srgb,
+					var(--publy-primary) 12%,
+					var(--publy-auth-panel-bg)
+				) -8%,
+			color-mix(in srgb, var(--publy-primary) 9%, var(--publy-auth-panel-bg))
+				34%,
+			color-mix(in srgb, var(--publy-primary) 6%, var(--publy-auth-panel-bg))
+				72%,
+			color-mix(in srgb, var(--publy-primary) 3%, var(--publy-auth-panel-bg))
+				100%
+		);
+	}
+
+	/* todesktop-15's paired 1px vertical edge-lights on the night band. */
+	.publy-landing-05 .publy-marketing-night::before,
+	.publy-landing-05 .publy-marketing-night::after {
+		content: '';
+		position: absolute;
+		inset-block: 0;
+		width: 1px;
+		background-image: linear-gradient(
+			to top,
+			transparent 30%,
+			var(--l05-night-hairline) 65%
+		);
+		pointer-events: none;
+	}
+
+	.publy-landing-05 .publy-marketing-night::before {
+		inset-inline-start: 0;
+	}
+
+	.publy-landing-05 .publy-marketing-night::after {
+		inset-inline-end: 0;
+	}
+
+	/* ---- Type ramp (todesktop-03 law, px-stated so it can never drift):
+	   display at size × -0.015, UI text at size × -0.010, mono micro-labels
+	   at size × +0.030. 600 is the display weight and the ceiling — Geist
+		   ships 400/500/600 only, so a 700 anywhere would synthesise. */
+	.publy-landing-05 .publy-type-sky-display-1 {
+		font-size: 40px;
+		line-height: 44px;
+		letter-spacing: -0.6px;
+		font-weight: 600;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05 .publy-type-sky-display-1 {
+			font-size: 68px;
+			line-height: 72px;
+			letter-spacing: -1.02px;
+		}
+	}
+
+	.publy-landing-05 .publy-type-sky-display-2 {
+		font-size: 34px;
+		line-height: 38px;
+		letter-spacing: -0.51px;
+		font-weight: 600;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05 .publy-type-sky-display-2 {
+			font-size: 48px;
+			line-height: 52px;
+			letter-spacing: -0.72px;
+		}
+	}
+
+	.publy-landing-05 .publy-type-sky-display-3 {
+		font-size: 26px;
+		line-height: 32px;
+		letter-spacing: -0.39px;
+		font-weight: 600;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05 .publy-type-sky-display-3 {
+			font-size: 32px;
+			line-height: 38px;
+			letter-spacing: -0.48px;
+		}
+	}
+
+	/* display-4 IS the product's text-2xl step (24px, -0.01em, semibold):
+	   the ramp extends the in-app ladder from its existing top rather than
+	   changing typographic voice at the sign-in boundary. */
+	.publy-landing-05 .publy-type-sky-display-4 {
+		font-size: 24px;
+		line-height: 32px;
+		letter-spacing: -0.24px;
+		font-weight: 600;
+	}
+
+	.publy-landing-05 .publy-type-sky-lead {
+		font-size: 17px;
+		line-height: 28px;
+		letter-spacing: -0.17px;
+		font-weight: 400;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05 .publy-type-sky-lead {
+			font-size: 18px;
+			line-height: 30px;
+			letter-spacing: -0.18px;
+		}
+	}
+
+	/* todesktop-05: body and label share metrics (15/24) and differ only by
+	   weight and tracking, so a lead-in and its continuation share one line
+	   box with no baseline drift. That parity is load-bearing for the fact
+	   strip — do not give them different sizes. */
+	.publy-landing-05 .publy-type-sky-body {
+		font-size: 15px;
+		line-height: 24px;
+		letter-spacing: 0;
+		font-weight: 400;
+	}
+
+	.publy-landing-05 .publy-type-sky-label {
+		font-size: 15px;
+		line-height: 24px;
+		letter-spacing: -0.15px;
+		font-weight: 500;
+	}
+
+	.publy-landing-05 .publy-type-sky-micro {
+		font-family: var(--publy-font-mono);
+		font-size: 11px;
+		line-height: 16px;
+		letter-spacing: 0.33px;
+		font-weight: 500;
+		text-transform: uppercase;
+	}
+
+	/* ---- Vertical rhythm (todesktop-19 two-number discipline + attio-13
+	   asymmetry: a section opens with roughly double the air it closes
+	   with). 72/48 → 96/56 → 120/64 across <1024 / 1024 / 1280. */
+	.publy-landing-05 .publy-l05-section {
+		padding-block-start: 72px;
+		padding-block-end: 48px;
+		padding-inline: 16px;
+	}
+
+	@media (min-width: 640px) {
+		.publy-landing-05 .publy-l05-section {
+			padding-inline: 24px;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-landing-05 .publy-l05-section {
+			padding-block-start: 96px;
+			padding-block-end: 56px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-05 .publy-l05-section {
+			padding-block-start: 120px;
+			padding-block-end: 64px;
+		}
+	}
+
+	/* Every section from §3 down is separated by a 1px rule instead of
+	   spending vertical whitespace on a divider (attio-14 / padyna-01). */
+	.publy-landing-05 .publy-l05-section-ruled {
+		border-block-start: 1px solid var(--publy-border);
+	}
+
+	/* Exception 1: the hero follows the header, not a section, and flows
+	   into the product window with no rule and no bottom padding. */
+	.publy-landing-05 .publy-l05-section-hero {
+		padding-block-start: 64px;
+		padding-block-end: 0;
+		padding-inline: 16px;
+	}
+
+	@media (min-width: 640px) {
+		.publy-landing-05 .publy-l05-section-hero {
+			padding-inline: 24px;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-landing-05 .publy-l05-section-hero {
+			padding-block-start: 80px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-05 .publy-l05-section-hero {
+			padding-block-start: 96px;
+		}
+	}
+
+	/* Exception 2: the product window closes on a large foot (120/160) so
+	   the floating cascade's 120px outer blur never lands on the next
+	   heading (todesktop's own hero does the same at pb-284). */
+	.publy-landing-05 .publy-l05-section-window {
+		padding-block-start: 72px;
+		padding-block-end: 120px;
+		padding-inline: 16px;
+	}
+
+	@media (min-width: 640px) {
+		.publy-landing-05 .publy-l05-section-window {
+			padding-inline: 24px;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-landing-05 .publy-l05-section-window {
+			padding-block-start: 96px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-05 .publy-l05-section-window {
+			padding-block-start: 120px;
+			padding-block-end: 160px;
+		}
+	}
+
+	/* ---- The ruled column (attio-14): the whole page's content sits in one
+	   reading column with 1px vertical rules on both edges — on the sky,
+	   they read as window mullions. Rules appear only at >=1280; below that
+	   a narrower viewport has no room for edge rules. */
+	.publy-landing-05 .publy-l05-ruled-column {
+		margin-inline: auto;
+		width: 100%;
+		max-width: var(--publy-container-reading);
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-05 .publy-l05-ruled-column {
+			border-inline-start: 1px solid var(--publy-border);
+			border-inline-end: 1px solid var(--publy-border);
+		}
+	}
+
+	/* ---- The two-object rule, ornament layer ---- */
+
+	/* A window's ring is a ::before pseudo-element (todesktop-07), never a
+	   real border: `border-radius: inherit` keeps ring and parent radius
+	   locked, it never touches box-sizing, and its colour transitions
+	   independently — which is how the product window answers a tab press
+	   with nothing inside it. A real border-width also survives
+	   forced-colors, where a box-shadow-only ring disappears. */
+	.publy-landing-05 .publy-l05-ring {
+		position: relative;
+	}
+
+	.publy-landing-05 .publy-l05-ring::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		border: 1px solid var(--publy-border);
+		pointer-events: none;
+		transition: border-color var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	/* The tab-press pulse: the ring flashes to the strong step and back over
+	   240ms while the aperture stays empty (todesktop-28's legible state
+	   change without artwork). */
+	.publy-landing-05 .publy-l05-ring-strong::before {
+		border-color: var(--publy-border-strong);
+	}
+
+	/* ---- Elevation (todesktop-08 law: y = blur, blur halves per step,
+	   spread ≈ -blur/4, alpha flat at 3-5%, ring last; todesktop-09 tint).
+	   Budgeted: the window cascade is used EXACTLY ONCE (the product
+	   window), the panel cascade on pricing cards and the night band only,
+	   everything else stays on --publy-shadow-ring. */
+	.publy-landing-05 .publy-l05-shadow-panel {
+		box-shadow:
+			0 12px 12px -3px
+				color-mix(in srgb, var(--l05-shadow-tint) 5%, transparent),
+			0 6px 6px -1.5px
+				color-mix(in srgb, var(--l05-shadow-tint) 3%, transparent),
+			0 3px 3px -0.75px
+				color-mix(in srgb, var(--l05-shadow-tint) 3%, transparent),
+			0 1px 1px -0.25px
+				color-mix(in srgb, var(--l05-shadow-tint) 4%, transparent),
+			0 0 0 1px var(--publy-border);
+	}
+
+	.publy-landing-05 .publy-l05-shadow-window {
+		box-shadow:
+			0 120px 80px -64px
+				color-mix(in srgb, var(--l05-shadow-tint) 8%, transparent),
+			0 64px 64px -16px
+				color-mix(in srgb, var(--l05-shadow-tint) 5%, transparent),
+			0 32px 32px -8px
+				color-mix(in srgb, var(--l05-shadow-tint) 4%, transparent),
+			0 16px 16px -4px
+				color-mix(in srgb, var(--l05-shadow-tint) 4%, transparent),
+			0 8px 8px -2px color-mix(in srgb, var(--l05-shadow-tint) 4%, transparent),
+			0 4px 4px -1px color-mix(in srgb, var(--l05-shadow-tint) 5%, transparent),
+			0 0 0 1px var(--publy-border);
+	}
+
+	html.dark .publy-landing-05 .publy-l05-shadow-panel {
+		box-shadow:
+			0 12px 12px -3px
+				color-mix(in srgb, var(--l05-shadow-tint) 36%, transparent),
+			0 6px 6px -1.5px
+				color-mix(in srgb, var(--l05-shadow-tint) 28%, transparent),
+			0 3px 3px -0.75px
+				color-mix(in srgb, var(--l05-shadow-tint) 24%, transparent),
+			0 1px 1px -0.25px
+				color-mix(in srgb, var(--l05-shadow-tint) 28%, transparent),
+			0 0 0 1px var(--publy-border);
+	}
+
+	html.dark .publy-landing-05 .publy-l05-shadow-window {
+		box-shadow:
+			0 120px 80px -64px
+				color-mix(in srgb, var(--l05-shadow-tint) 55%, transparent),
+			0 64px 64px -16px
+				color-mix(in srgb, var(--l05-shadow-tint) 45%, transparent),
+			0 32px 32px -8px
+				color-mix(in srgb, var(--l05-shadow-tint) 38%, transparent),
+			0 16px 16px -4px
+				color-mix(in srgb, var(--l05-shadow-tint) 34%, transparent),
+			0 8px 8px -2px color-mix(in srgb, var(--l05-shadow-tint) 30%, transparent),
+			0 4px 4px -1px color-mix(in srgb, var(--l05-shadow-tint) 30%, transparent),
+			0 0 0 1px var(--publy-border);
+	}
+
+	/* ---- Radii: the one value the system lacks is the 24px band radius —
+	   the night band and the product window are larger objects than any
+	   in-app card, and 14px on a ~1100px band reads as an accident.
+	   Geometry is theme-invariant, so no dark counterpart is needed. Pairs
+	   per todesktop-22 (outer - padding = inner): 24 - 4 = 20 (night band
+	   inner), 24 - 10 ≈ 12 (window pane inside its bracket), 14 - 4 = 10
+	   (pricing card inner). */
+	.publy-landing-05 .publy-l05-radius-band {
+		border-radius: 24px;
+	}
+
+	/* The night band's inner panel: 24 - 4 = 20 (todesktop-23's 4px-inset
+	   card frame, verbatim). */
+	.publy-landing-05 .publy-l05-radius-band-inner {
+		border-radius: 20px;
+	}
+
+	/* ---- Focus (prompt §7): `Button`/`buttonVariants` elements already ship
+	   their own focus-visible ring (`--ring` resolves to `--publy-focus-ring`),
+	   but this page also hand-builds interactive controls — the tab strip, the
+	   mobile accordion triggers, the FAQ triggers, the inline "Learn more"
+	   links — that are plain buttons/links with no ring of their own. A real
+	   `outline`, not a box-shadow ring, so it survives forced-colors mode
+	   (todesktop-45/sendr-29's own measured failure was zero visible focus at
+	   all; this page ships one everywhere instead). */
+	.publy-landing-05 .publy-l05-focus-ring {
+		outline: none;
+	}
+
+	.publy-landing-05 .publy-l05-focus-ring:focus-visible {
+		outline: 2px solid var(--publy-focus-ring);
+		outline-offset: 2px;
+	}
+
+	/* The night band is deliberately theme-invariant (§2.2), but
+	   --publy-focus-ring is not — its light-mode value (#a16207) measures only
+	   3.00:1 against the derived night background, a pass with zero margin.
+	   --publy-primary is warm yellow in both themes and clears ~8.5–9.4:1 on
+	   the same background, the same family the prompt's own dark-mode pin
+	   (#facc15, 11.19:1) is reaching for. Scoped override, not a new token. */
+	.publy-landing-05 .publy-marketing-night {
+		--publy-focus-ring: var(--publy-primary);
+	}
+
+	/* ---- The eyebrow chip (todesktop-06 form, attio-31 chip, repo colour):
+	   brand yellow at every section boundary without dominating any, and it
+	   keeps the eyebrow off the failing muted-on-bloom pair at the same
+	   time. Metrics come from the global `.publy-marketing-eyebrow` (13px /
+	   600 / 0.04em / uppercase); this class supplies only the chip. */
+	.publy-landing-05 .publy-l05-eyebrow-chip {
+		display: inline-flex;
+		align-items: center;
+		border-radius: var(--publy-radius-chip);
+		background: var(--publy-primary-soft);
+		color: var(--publy-primary-soft-foreground);
+		padding-block: 4px;
+		padding-inline: 10px;
+	}
+
+	/* ---- Motion: the house curve and durations already exist as tokens
+	   (--publy-motion-ease = easeOutQuint, 120/240ms). The one addition is
+	   the asymmetric press (todesktop-12 / attio-17): 50ms on :active is
+	   below the perceptible-delay threshold, so a press feels instant while
+	   the release settles at the house 120ms. */
+	.publy-landing-05 .publy-l05-pressable {
+		transition:
+			color var(--publy-motion-fast) var(--publy-motion-ease),
+			background-color var(--publy-motion-fast) var(--publy-motion-ease),
+			border-color var(--publy-motion-fast) var(--publy-motion-ease);
+	}
+
+	.publy-landing-05 .publy-l05-pressable:active {
+		transition-duration: 50ms;
+	}
+
+	/* ---- Entrance: attio-21's blur-in, for exactly two elements (the hero
+	   H1 and the product window). 1.5px is below the threshold where blur is
+	   consciously seen, so the element reads as focusing, not appearing.
+	   Reduced motion: already in place, never stuck at opacity 0. */
+	.publy-landing-05 .publy-sky-focus-in {
+		animation: publy-l05-focus-in 600ms var(--publy-motion-ease) both;
+		will-change: filter, opacity;
+	}
+
+	@keyframes publy-l05-focus-in {
+		from {
+			opacity: 0;
+			filter: blur(1.5px);
+			transform: translateY(12px);
+		}
+
+		to {
+			opacity: 1;
+			filter: blur(0);
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.publy-landing-05 .publy-sky-focus-in {
+			animation-name: none;
+			opacity: 1;
+			filter: none;
+			transform: none;
+		}
+	}
+
+	/* ---- §1 hero: the announcement pill (attio-19, de-pilled). A window,
+	   not a panel — no background, a hairline ring only. */
+	.publy-landing-05 .publy-l05-hero-badge {
+		display: inline-flex;
+		align-items: center;
+		border-radius: var(--publy-radius-chip);
+		border: 1px solid var(--publy-border);
+		padding-block: 5px;
+		padding-inline-start: 11px;
+		padding-inline-end: 7px;
+		font-size: 13px;
+		line-height: 18px;
+		font-weight: 500;
+		color: var(--publy-foreground-secondary);
+	}
+
+	/* ---- §2 product window: the static progress rail (padyna-10's spring
+	   underline, without the spring — see §7's rejection of auto-advance).
+	   Five fixed tab ids, five fixed steps: a translateX lookup keyed by
+	   `data-active-tab` on the rail track keeps the geometry out of JSX
+	   inline styles entirely. */
+	.publy-landing-05 .publy-l05-tour-rail-indicator {
+		transition: transform var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.publy-landing-05
+		[data-active-tab='calendar']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(0%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='composer']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(100%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='approvals']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(200%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='profiles']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(300%);
+	}
+
+	.publy-landing-05
+		[data-active-tab='dashboards']
+		.publy-l05-tour-rail-indicator {
+		transform: translateX(400%);
+	}
+
+	/* ---- §2 mobile accordion (padyna-11): a `grid-template-rows: 0fr → 1fr`
+	   transition animates to an unknown content height without measuring it
+	   in JS, which is what lets the 400ms height step, the 250ms opacity
+	   step (started 100ms late, so it reads as focusing rather than
+	   growing) and the 300ms chevron rotate (in the component) run as three
+	   independent, correctly-timed signals. */
+	.publy-landing-05 .publy-l05-accordion-panel {
+		display: grid;
+		grid-template-rows: 0fr;
+		overflow: hidden;
+		transition: grid-template-rows 400ms cubic-bezier(0.04, 0.62, 0.23, 0.98);
+	}
+
+	.publy-landing-05 .publy-l05-accordion-panel-open {
+		grid-template-rows: 1fr;
+	}
+
+	.publy-landing-05 .publy-l05-accordion-panel-inner {
+		min-height: 0;
+		opacity: 0;
+		transition: opacity 250ms var(--publy-motion-ease);
+	}
+
+	.publy-landing-05
+		.publy-l05-accordion-panel-open
+		.publy-l05-accordion-panel-inner {
+		opacity: 1;
+		transition-delay: 100ms;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.publy-landing-05 .publy-l05-accordion-panel,
+		.publy-landing-05 .publy-l05-accordion-panel-inner,
+		.publy-landing-05
+			.publy-l05-accordion-panel-open
+			.publy-l05-accordion-panel-inner {
+			transition: none;
+		}
+	}
+
+	/* ---- §4 the six-fact strip (todesktop-31): positioned rules, not
+	   borders — a `border-top` per cell with the current breakpoint's first
+	   row exempted, so the divider only ever falls BETWEEN rows and never
+	   opens the grid into boxes. */
+	.publy-landing-05 .publy-l05-fact-cell {
+		border-block-start: 1px solid var(--publy-border);
+	}
+
+	.publy-landing-05 .publy-l05-fact-grid > .publy-l05-fact-cell:first-child {
+		border-block-start: none;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05
+			.publy-l05-fact-grid
+			> .publy-l05-fact-cell:nth-child(-n + 2) {
+			border-block-start: none;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-landing-05
+			.publy-l05-fact-grid
+			> .publy-l05-fact-cell:nth-child(-n + 3) {
+			border-block-start: none;
+		}
+	}
+
+	/* ---- §10 closing: the night's own eyebrow chip. Not
+	   `--publy-primary-soft` — a cream chip on deep brown would be a hole
+	   (prompt §10). Built from the night's own hairline/foreground pair so it
+	   stays theme-invariant along with the rest of the band. */
+	.publy-landing-05 .publy-l05-eyebrow-chip-night {
+		display: inline-flex;
+		align-items: center;
+		border-radius: var(--publy-radius-chip);
+		background: var(--l05-night-hairline);
+		color: var(--l05-night-foreground);
+		padding-block: 4px;
+		padding-inline: 10px;
+	}
+
+	/* ---- §8 FAQ (todesktop-33): the trigger's chevron, on the house
+	   duration/easing rather than a scattered Tailwind arbitrary value. */
+	.publy-landing-05 .publy-l05-faq-chevron {
+		transition: transform var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	/* The answer panel: the same measured-height-free `grid-template-rows:
+	   0fr -> 1fr` technique as the §2 mobile accordion (todesktop-33's own
+	   goal — no `max-height: 9999px` lag on a short answer — reached without
+	   a JS height measurement), at this section's own 240ms/house-easing
+	   pair. The inner blur-in (opacity 0 + 1px blur -> clear) is what makes
+	   the reveal read as text arriving rather than a box growing. */
+	.publy-landing-05 .publy-l05-faq-panel {
+		display: grid;
+		grid-template-rows: 0fr;
+		overflow: hidden;
+		transition: grid-template-rows var(--publy-motion-medium)
+			var(--publy-motion-ease);
+	}
+
+	.publy-landing-05 .publy-l05-faq-panel-open {
+		grid-template-rows: 1fr;
+	}
+
+	.publy-landing-05 .publy-l05-faq-panel-inner {
+		min-height: 0;
+		opacity: 0;
+		filter: blur(1px);
+		transition:
+			opacity var(--publy-motion-medium) var(--publy-motion-ease),
+			filter var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.publy-landing-05 .publy-l05-faq-panel-open .publy-l05-faq-panel-inner {
+		opacity: 1;
+		filter: blur(0);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.publy-landing-05 .publy-l05-faq-chevron,
+		.publy-landing-05 .publy-l05-faq-panel,
+		.publy-landing-05 .publy-l05-faq-panel-inner,
+		.publy-landing-05 .publy-l05-faq-panel-open .publy-l05-faq-panel-inner {
+			transition: none;
+		}
+	}
+}
