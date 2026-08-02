@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CookiePrefsDrawer } from '~/components/marketing/cookie-prefs-drawer';
 import { Landing05Audience } from '~/components/marketing/landing-05/landing-05-audience';
 import { Landing05Capabilities } from '~/components/marketing/landing-05/landing-05-capabilities';
 import { Landing05Claims } from '~/components/marketing/landing-05/landing-05-claims';
+import { Landing05CookieBand } from '~/components/marketing/landing-05/landing-05-cookie-band';
 import { Landing05Faq } from '~/components/marketing/landing-05/landing-05-faq';
 import { Landing05Footer } from '~/components/marketing/landing-05/landing-05-footer';
 import { Landing05Header } from '~/components/marketing/landing-05/landing-05-header';
@@ -51,6 +54,7 @@ export const Route = createFileRoute('/temp/landing-05')({
  */
 function LandingExploration05() {
 	const { t } = useTranslation('landing-05');
+	const [isCookiePrefsOpen, setIsCookiePrefsOpen] = useState(false);
 
 	return (
 		<div
@@ -318,6 +322,11 @@ function LandingExploration05() {
 				</div>
 			</main>
 			<Landing05Footer />
+			<Landing05CookieBand onCustomize={() => setIsCookiePrefsOpen(true)} />
+			<CookiePrefsDrawer
+				open={isCookiePrefsOpen}
+				onOpenChange={setIsCookiePrefsOpen}
+			/>
 		</div>
 	);
 }

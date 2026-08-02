@@ -6,9 +6,8 @@ import { MarketingBrand } from '../marketing-brand';
  * The footer frame (§4 Footer, §3.1): chrome, aligned to the same 1280px
  * ledger column as the header rather than the narrower reading width — the
  * resolution §3.1 describes for the page's pre-existing header/body
- * container mismatch. Cookie-consent UI is owned by the shared
- * MarketingShell (off-limits to this exploration) and already renders once
- * per page, so this frame does not duplicate it.
+ * container mismatch. Cookie-consent UI is its own row-shaped band
+ * (`ledger-cookie-band.tsx`), mounted as this route's own sibling.
  */
 export const LedgerFooter = () => {
 	const { t } = useTranslation('landing-07');

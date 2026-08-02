@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
+import { CookiePrefsDrawer } from '~/components/marketing/cookie-prefs-drawer';
 import { LedgerApprovals } from '~/components/marketing/landing-07/ledger-approvals';
 import { LedgerChain } from '~/components/marketing/landing-07/ledger-chain';
 import { LedgerClosing } from '~/components/marketing/landing-07/ledger-closing';
+import { LedgerCookieBand } from '~/components/marketing/landing-07/ledger-cookie-band';
 import { LedgerFacts } from '~/components/marketing/landing-07/ledger-facts';
 import { LedgerFaq } from '~/components/marketing/landing-07/ledger-faq';
 import { LedgerFooter } from '~/components/marketing/landing-07/ledger-footer';
@@ -69,21 +71,31 @@ function renderRowContent(row: LedgerRowCensusEntry): ReactNode {
  * filled rows 01–04 (hero through the product tour); this task fills the
  * remainder, rows 05–12 (differentiators through the closing panel).
  *
- * No <main> here: the shared MarketingShell (marketing-shell.tsx, off-limits
- * to this exploration) already renders one around every /temp/* route.
+ * `<main>` owned here: `__root.tsx` renders every /temp/landing-* route bare
+ * (no `MarketingShell`), so this route — like its siblings — supplies its
+ * own landmark rather than inheriting one that no longer wraps it.
  */
 function LandingExploration07() {
+	const [isCookiePrefsOpen, setIsCookiePrefsOpen] = useState(false);
+
 	return (
 		<div className="publy-landing-07">
 			<LedgerHeader />
-			<LedgerFrame>
-				{LEDGER_ROWS.map((row) => (
-					<LedgerRow key={row.slug} row={row}>
-						{renderRowContent(row)}
-					</LedgerRow>
-				))}
-			</LedgerFrame>
+			<main data-testid="landing-07-main">
+				<LedgerFrame>
+					{LEDGER_ROWS.map((row) => (
+						<LedgerRow key={row.slug} row={row}>
+							{renderRowContent(row)}
+						</LedgerRow>
+					))}
+				</LedgerFrame>
+			</main>
 			<LedgerFooter />
+			<LedgerCookieBand onCustomize={() => setIsCookiePrefsOpen(true)} />
+			<CookiePrefsDrawer
+				open={isCookiePrefsOpen}
+				onOpenChange={setIsCookiePrefsOpen}
+			/>
 		</div>
 	);
 }

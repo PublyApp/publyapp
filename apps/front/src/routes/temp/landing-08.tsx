@@ -1,8 +1,11 @@
 import { IconArrowNarrowDown } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
+import { CookiePrefsDrawer } from '~/components/marketing/cookie-prefs-drawer';
 import { Landing08Audience } from '~/components/marketing/landing-08/landing-08-audience';
 import { Landing08Claims } from '~/components/marketing/landing-08/landing-08-claims';
+import { Landing08CookieBand } from '~/components/marketing/landing-08/landing-08-cookie-band';
 import { Landing08Faq } from '~/components/marketing/landing-08/landing-08-faq';
 import { Landing08Footer } from '~/components/marketing/landing-08/landing-08-footer';
 import { Landing08Header } from '~/components/marketing/landing-08/landing-08-header';
@@ -44,6 +47,7 @@ export const Route = createFileRoute('/temp/landing-08')({
  */
 function LandingExploration08() {
 	const { t } = useTranslation('landing-08');
+	const [isCookiePrefsOpen, setIsCookiePrefsOpen] = useState(false);
 
 	return (
 		<div className="publy-landing-08 flex min-h-dvh flex-col bg-(--publy-background)">
@@ -272,6 +276,11 @@ function LandingExploration08() {
 				</MarketingContainer>
 			</main>
 			<Landing08Footer />
+			<Landing08CookieBand onCustomize={() => setIsCookiePrefsOpen(true)} />
+			<CookiePrefsDrawer
+				open={isCookiePrefsOpen}
+				onOpenChange={setIsCookiePrefsOpen}
+			/>
 		</div>
 	);
 }
