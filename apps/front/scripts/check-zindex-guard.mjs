@@ -630,15 +630,20 @@ export const scanZIndexFile = ({
 	// Raw-sink provenance: `baseDir` roots specifier resolution,
 	// `rawTextPaths` is the build's recorded set of `?raw` module paths (the
 	// binding classification — an import binding is raw only when the build
-	// recorded its file, never by re-testing the specifier text), and
-	// `rawImportTexts` maps each recorded path to its bytes. With all three
-	// present, a `?raw` import binding consumed by a style-capable sink (a
-	// `<style>` element or a dangerouslySetInnerHTML payload) is walked as
-	// shipped CSS/HTML; without them the walk is skipped, which keeps unit
-	// fixtures free of raw-file scaffolding.
+	// recorded its file, never by re-testing the specifier text),
+	// `queriedPaths` is the recorded set of every query-carrying module's
+	// file (so a queried specifier the guard cannot map to any record fails
+	// loud by name instead of going quiet, while a queried file the build
+	// recorded under a non-raw query stays quiet), and `rawImportTexts` maps
+	// each recorded path to its bytes. With all four present, a `?raw` import
+	// binding consumed by a style-capable sink (a `<style>` element or a
+	// dangerouslySetInnerHTML payload) is walked as shipped CSS/HTML; without
+	// them the walk is skipped, which keeps unit fixtures free of raw-file
+	// scaffolding.
 	baseDir = null,
 	rawImportTexts = null,
 	rawTextPaths = null,
+	queriedPaths = null,
 }) => {
 	const violations = [];
 	const extension = path.extname(relativePath);
@@ -1723,6 +1728,7 @@ export const scanZIndexFile = ({
 			relativePath,
 			baseDir,
 			rawTextPaths,
+			queriedPaths,
 		});
 		const rawImportEntryForExpression = (expression, visitedConsts) => {
 			// Resolves an expression to the `?raw` import entry it reaches —
@@ -2899,14 +2905,18 @@ const collectCssPaths = async (
 // from the first `?` or `#` — because that is exactly the file `vite:asset`
 // itself reads for a raw/url module. A legal specifier may contain further
 // `?` inside its query (`?v=1?raw`); the strip must not care, and Vite never
-// does.
+// does. `hasQuery` is a side output — whether the id carries a query at all —
+// so the script pass can tell a specifier that *might* be queried from one
+// that is plainly a bare path, without ever parsing the query itself; the
+// raw/inline answer still comes from the build's record alone.
 export const classifyModuleKind = (
 	id,
 	{ code, meta, assetPluginLoad } = {},
 ) => {
 	const filePath = id.replace(/[?#].*$/s, '');
+	const hasQuery = id.includes('?') || id.includes('#');
 	if (!path.isAbsolute(filePath)) {
-		return { filePath, kind: 'other' };
+		return { filePath, hasQuery, kind: 'other' };
 	}
 	if (isCSSRequest(id)) {
 		// CSS-language module: the authored file is always recorded for the
@@ -2919,6 +2929,7 @@ export const classifyModuleKind = (
 		// deliberately one kind: their authored text is walked identically.
 		return {
 			filePath,
+			hasQuery,
 			kind:
 				meta?.['vite:asset'] === true
 					? 'css-url'
@@ -2928,7 +2939,7 @@ export const classifyModuleKind = (
 		};
 	}
 	if (meta?.['vite:asset'] === true) {
-		return { filePath, kind: 'url-asset' };
+		return { filePath, hasQuery, kind: 'url-asset' };
 	}
 	if (
 		typeof code === 'string' &&
@@ -2936,12 +2947,12 @@ export const classifyModuleKind = (
 		assetPluginLoad != null &&
 		!assetPluginLoad.has(id)
 	) {
-		return { filePath, kind: 'raw' };
+		return { filePath, hasQuery, kind: 'raw' };
 	}
 	if (SCRIPT_EXTENSIONS.has(path.extname(filePath))) {
-		return { filePath, kind: 'script' };
+		return { filePath, hasQuery, kind: 'script' };
 	}
-	return { filePath, kind: 'other' };
+	return { filePath, hasQuery, kind: 'other' };
 };
 
 // Resolves a raw import specifier's file part (already stripped by the single
@@ -2984,7 +2995,7 @@ const resolveRawSpecifierPath = (withoutQuery, importerRelativePath, root) => {
 // claimed).
 export const collectRawImportBindings = (
 	sourceFile,
-	{ relativePath, baseDir, rawTextPaths },
+	{ relativePath, baseDir, rawTextPaths, queriedPaths },
 ) => {
 	const bindings = new Map();
 	if (baseDir == null || rawTextPaths == null) {
@@ -2995,16 +3006,30 @@ export const collectRawImportBindings = (
 			continue;
 		}
 		const specifier = statement.moduleSpecifier?.text ?? '';
+		const classified = classifyModuleKind(specifier, {});
 		const resolvedPath = resolveRawSpecifierPath(
-			classifyModuleKind(specifier, {}).filePath,
+			classified.filePath,
 			relativePath,
 			baseDir,
 		);
-		if (!rawTextPaths.has(resolvedPath)) {
-			// Not a recorded raw module — either the import is not `?raw` at
-			// all, or the specifier is a spelling the guard cannot map to the
-			// build's record. The record is the source of truth, never the
-			// specifier text.
+		const isRecordedRaw = rawTextPaths.has(resolvedPath);
+		// The record is the source of truth, never the specifier text. When
+		// the resolved file is NOT a recorded raw module, a specifier that
+		// carries a query whose file appears in NO build record at all is an
+		// import the guard cannot map — a spelling the build resolved
+		// differently (an alias, a symlink, a normalization difference).
+		// Such an import may still be a raw one whose bytes ship unread,
+		// exactly the round-15 class that failed loud by name, so it is
+		// recorded as an unresolvable-query binding and the sink walk
+		// reports it (round-17 hard-rule audit). A queried file the build
+		// DID record — under any query — is provably not raw text and stays
+		// quiet.
+		const isUnresolvableQuery =
+			!isRecordedRaw &&
+			classified.hasQuery &&
+			queriedPaths != null &&
+			!queriedPaths.has(resolvedPath);
+		if (!isRecordedRaw && !isUnresolvableQuery) {
 			continue;
 		}
 		const recordBinding = (name, kind, declaration) => {
@@ -3048,6 +3073,12 @@ export const buildProductionApp = async (baseDir) => {
 	const authoredScriptPaths = new Set();
 	const inlineCssPaths = new Set();
 	const rawTextPaths = new Set();
+	// Every module id the build transformed under a query, keyed by its file
+	// part. The script pass consults it to tell a queried specifier the guard
+	// cannot map to any record (an alias spelling — loud by name) from a
+	// queried module the build did record under a non-raw query (`?url`,
+	// `?v=1`, … — provably not raw text, quiet).
+	const queriedPaths = new Set();
 	// Ids this guard's post-order `load` hook observed: exactly the modules
 	// Vite's own `vite:asset` load hook did NOT claim (raw/url/asset modules
 	// are invisible to post-order load). The classifier reads this set to tell
@@ -3063,11 +3094,14 @@ export const buildProductionApp = async (baseDir) => {
 			// vite:asset's load produced, plain CSS as an empty module,
 			// `?inline`/`?raw` CSS as the inlined raw-export shape — so the
 			// record is the build's answer, never a re-parse of the id.
-			const { filePath, kind } = classifyModuleKind(id, {
+			const { filePath, kind, hasQuery } = classifyModuleKind(id, {
 				code,
 				meta: this.getModuleInfo(id)?.meta,
 				assetPluginLoad,
 			});
+			if (hasQuery) {
+				queriedPaths.add(path.resolve(filePath));
+			}
 			if (kind === 'css' || kind === 'inline-css' || kind === 'css-url') {
 				authoredCssPaths.add(path.resolve(filePath));
 			}
@@ -3126,6 +3160,7 @@ export const buildProductionApp = async (baseDir) => {
 		authoredScriptPaths: [...authoredScriptPaths],
 		inlineCssPaths: [...inlineCssPaths],
 		rawTextPaths: [...rawTextPaths],
+		queriedPaths: [...queriedPaths],
 		cleanup: () => {
 			activeBuildDirectories.delete(emittedCssRoot);
 			return rm(emittedCssRoot, { recursive: true, force: true });
@@ -3254,7 +3289,9 @@ export const runZIndexGuard = async ({
 			(buildResult.inlineCssPaths != null &&
 				!Array.isArray(buildResult.inlineCssPaths)) ||
 			(buildResult.rawTextPaths != null &&
-				!Array.isArray(buildResult.rawTextPaths))
+				!Array.isArray(buildResult.rawTextPaths)) ||
+			(buildResult.queriedPaths != null &&
+				!Array.isArray(buildResult.queriedPaths))
 		) {
 			throw new Error(
 				'z-index guard productionBuild must return the exact emittedCssRoot and ' +
@@ -3293,6 +3330,9 @@ export const runZIndexGuard = async ({
 		const rawTextPaths = (buildResult.rawTextPaths ?? [])
 			.map((filePath) => path.resolve(filePath))
 			.sort((left, right) => left.localeCompare(right));
+		const queriedPaths = (buildResult.queriedPaths ?? [])
+			.map((filePath) => path.resolve(filePath))
+			.sort((left, right) => left.localeCompare(right));
 		// The script pass resolves each `?raw` import binding to one of these
 		// recorded modules and walks its bytes only at a style-capable sink.
 		const rawImportTexts = new Map();
@@ -3312,6 +3352,7 @@ export const runZIndexGuard = async ({
 					baseDir,
 					rawImportTexts,
 					rawTextPaths: new Set(rawTextPaths),
+					queriedPaths: new Set(queriedPaths),
 				}),
 			);
 		}

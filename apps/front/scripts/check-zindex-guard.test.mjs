@@ -1905,6 +1905,7 @@ test('raw sinks (round 17 I3): a non-default named element is recorded by name, 
 				relativePath: 'probe.tsx',
 				baseDir,
 				rawTextPaths: new Set([path.join(baseDir, 'other.txt')]),
+				queriedPaths: new Set([path.join(baseDir, 'other.txt')]),
 			},
 		);
 	const mixed = record(
@@ -1913,6 +1914,7 @@ test('raw sinks (round 17 I3): a non-default named element is recorded by name, 
 			`import * as rawNs from './other.txt?raw';`,
 			`import plainDefault from './other.txt?raw';`,
 			`import unrelated from './unrelated.txt?raw';`,
+			`import plainModule from './helper.ts';`,
 		].join('\n'),
 	);
 	assert.equal(mixed.get('aliasedDefault')?.kind, 'default');
@@ -1920,12 +1922,24 @@ test('raw sinks (round 17 I3): a non-default named element is recorded by name, 
 	assert.equal(mixed.get('alsoMissing')?.kind, 'named-non-default');
 	assert.equal(mixed.get('rawNs')?.kind, 'namespace');
 	assert.equal(mixed.get('plainDefault')?.kind, 'default');
-	// A specifier resolving to a file the build did not record as raw is not
-	// a binding at all — the record is the source of truth.
-	assert.equal(mixed.has('unrelated'), false);
+	// A queried specifier whose file appears in no build record is the
+	// unresolvable-query class (an alias or otherwise unmappable spelling):
+	// it is recorded so the sink walk fails loud by name — round-15 was loud
+	// for this shape and stays loud (round-17 hard-rule audit).
+	assert.equal(mixed.get('unrelated')?.kind, 'default');
+	// A specifier with no query is not a binding at all — the record is the
+	// source of truth, never the specifier text.
+	assert.equal(mixed.has('plainModule'), false);
 	assert.deepEqual(
 		[...mixed.keys()].sort(),
-		['aliasedDefault', 'alsoMissing', 'other', 'plainDefault', 'rawNs'],
+		[
+			'aliasedDefault',
+			'alsoMissing',
+			'other',
+			'plainDefault',
+			'rawNs',
+			'unrelated',
+		],
 		'the record must contain every binding of the raw module by name',
 	);
 	// The walk resolves each binding exactly: the non-default element ships
@@ -2005,6 +2019,8 @@ test('structural (round 17 B1): query parsing exists only inside the single clas
 	const patterns = [
 		/split\(\s*['"]\?['"]\s*\)/g,
 		/indexOf\(\s*['"]\?['"]\s*\)/g,
+		/includes\(\s*['"]\?['"]\s*\)/g,
+		/includes\(\s*['"]#['"]\s*\)/g,
 		/\[?#\]/g,
 	];
 	let insideCount = 0;
@@ -2885,6 +2901,73 @@ test('raw sinks: a style-sink specifier resolving to no recorded module is a nam
 		violations.map(({ ruleId, source }) => ({ ruleId, source })),
 		[{ ruleId: 'z-index-unresolved-raw-import', source: './missing.txt?raw' }],
 		`an unresolvable style-sink specifier must be a named diagnostic: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('raw sinks (round 17 audit): an unmappable queried specifier still fails loud by name', () => {
+	// Round-15 was loud for a `?raw`-carrying specifier the guard cannot
+	// resolve to a recorded module (an alias or otherwise unmappable
+	// spelling): z-index-unresolved-raw-import at the style sink. The
+	// round-17 hard rule forbids converting that loud failure into silence,
+	// so the queried-but-unmappable class is recorded as an
+	// unresolvable-query binding and stays loud — while a queried file the
+	// build DID record under a non-raw query (`?url`, `?v=1`, …) is provably
+	// not raw text and stays quiet, and a plain specifier is never a binding.
+	const baseDir = '/tmp/zindex-r17-audit';
+	const walk = (content) =>
+		scanZIndexFile({
+			scanner,
+			relativePath: 'probe.tsx',
+			content,
+			baseDir,
+			rawTextPaths: new Set([path.join(baseDir, 'other.txt')]),
+			queriedPaths: new Set([path.join(baseDir, 'other.txt')]),
+			rawImportTexts: new Map([
+				[path.join(baseDir, 'other.txt'), '.other { color: red; }'],
+			]),
+		});
+	assert.deepEqual(
+		walk(
+			[
+				`import rawCss from '@aliased/other.txt?raw';`,
+				'export const probe = <style>{rawCss}</style>;',
+			].join('\n'),
+		).map((violation) => violation.ruleId),
+		['z-index-unresolved-raw-import'],
+		'an unmappable queried specifier at a style sink must fail loud by name',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import rawCss from '@aliased/other.txt?raw';`,
+				'export const probe = <pre>{rawCss}</pre>;',
+			].join('\n'),
+		),
+		[],
+		'displayed text stays green even for an unmappable queried specifier',
+	);
+	// A queried file the build recorded under a non-raw query is provably
+	// not raw text.
+	assert.deepEqual(
+		walk(
+			[
+				`import assetUrl from './other.txt?url';`,
+				'export const probe = <style>{assetUrl}</style>;',
+			].join('\n'),
+		),
+		[],
+		'a recorded non-raw queried import stays green',
+	);
+	// A plain specifier is never a binding.
+	assert.deepEqual(
+		walk(
+			[
+				`import helper from './helper.ts';`,
+				'export const probe = <style>{helper}</style>;',
+			].join('\n'),
+		),
+		[],
+		'a plain import stays green',
 	);
 });
 
