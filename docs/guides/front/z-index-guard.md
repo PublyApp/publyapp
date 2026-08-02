@@ -79,7 +79,8 @@ The `<style>` payload walk evaluates the same transparent family for **static st
 conditional whose branches are static literals, `String('…')`, an object-member read, a template
 whose substitutions are static, or a `+` of two static operands is a static payload at any depth,
 and every string it can provably be is walked; static text beside a runtime child still ships, so
-it is walked individually, and a purely runtime payload stays in the declared runtime bucket.
+it is walked individually (a `+` whose other operand is runtime still ships its static operand),
+and a purely runtime payload stays in the declared runtime bucket.
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
