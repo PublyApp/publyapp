@@ -1,0 +1,7 @@
+/* Landing exploration 05-A — scoped stylesheet.
+
+   A refinement of THE SKY (landing-05), owned exclusively by /temp/landing-05-a.
+   Every selector MUST be nested under `.publy-landing-05-a`. Imported from
+   app.css. New --publy-* tokens are declared in app.css's "/temp landing
+   explorations" section — the design-system guard reads declarations only from
+   that file — and consumed here. */

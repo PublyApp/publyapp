@@ -4,6 +4,7 @@ import type { LooseResource } from './en';
 import auth from './fr/auth.json';
 import common from './fr/common.json';
 import landing05 from './fr/landing-05.json';
+import landing05a from './fr/landing-05-a.json';
 import landing06 from './fr/landing-06.json';
 import landing07 from './fr/landing-07.json';
 import landing08 from './fr/landing-08.json';
@@ -20,6 +21,7 @@ const resourceFR = {
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,
 	'landing-05': landing05,
+	'landing-05-a': landing05a,
 	'landing-06': landing06,
 	'landing-07': landing07,
 	'landing-08': landing08,

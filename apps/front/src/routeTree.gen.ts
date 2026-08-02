@@ -21,6 +21,7 @@ import { Route as indexRouteImport } from './routes/index'
 import { Route as tempLanding08RouteImport } from './routes/temp/landing-08'
 import { Route as tempLanding07RouteImport } from './routes/temp/landing-07'
 import { Route as tempLanding06RouteImport } from './routes/temp/landing-06'
+import { Route as tempLanding05ARouteImport } from './routes/temp/landing-05-a'
 import { Route as tempLanding05RouteImport } from './routes/temp/landing-05'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffRouteImport } from './routes/authed/staff'
@@ -117,6 +118,11 @@ const tempLanding07Route = tempLanding07RouteImport.update({
 const tempLanding06Route = tempLanding06RouteImport.update({
   id: '/temp/landing-06',
   path: '/temp/landing-06',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const tempLanding05ARoute = tempLanding05ARouteImport.update({
+  id: '/temp/landing-05-a',
+  path: '/temp/landing-05-a',
   getParentRoute: () => rootRouteImport,
 } as any)
 const tempLanding05Route = tempLanding05RouteImport.update({
@@ -351,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/temp/landing-05': typeof tempLanding05Route
+  '/temp/landing-05-a': typeof tempLanding05ARoute
   '/temp/landing-06': typeof tempLanding06Route
   '/temp/landing-07': typeof tempLanding07Route
   '/temp/landing-08': typeof tempLanding08Route
@@ -402,6 +409,7 @@ export interface FileRoutesByTo {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
   '/temp/landing-05': typeof tempLanding05Route
+  '/temp/landing-05-a': typeof tempLanding05ARoute
   '/temp/landing-06': typeof tempLanding06Route
   '/temp/landing-07': typeof tempLanding07Route
   '/temp/landing-08': typeof tempLanding08Route
@@ -452,6 +460,7 @@ export interface FileRoutesById {
   '/_authed-layout/staff': typeof authedStaffRoute
   '/_authed-layout/tenant': typeof authedTenantRoute
   '/temp/landing-05': typeof tempLanding05Route
+  '/temp/landing-05-a': typeof tempLanding05ARoute
   '/temp/landing-06': typeof tempLanding06Route
   '/temp/landing-07': typeof tempLanding07Route
   '/temp/landing-08': typeof tempLanding08Route
@@ -505,6 +514,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tenant'
     | '/temp/landing-05'
+    | '/temp/landing-05-a'
     | '/temp/landing-06'
     | '/temp/landing-07'
     | '/temp/landing-08'
@@ -556,6 +566,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tenant'
     | '/temp/landing-05'
+    | '/temp/landing-05-a'
     | '/temp/landing-06'
     | '/temp/landing-07'
     | '/temp/landing-08'
@@ -605,6 +616,7 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff'
     | '/_authed-layout/tenant'
     | '/temp/landing-05'
+    | '/temp/landing-05-a'
     | '/temp/landing-06'
     | '/temp/landing-07'
     | '/temp/landing-08'
@@ -656,6 +668,7 @@ export interface RootRouteChildren {
   signupRoute: typeof signupRoute
   verifyEmailRoute: typeof verifyEmailRoute
   tempLanding05Route: typeof tempLanding05Route
+  tempLanding05ARoute: typeof tempLanding05ARoute
   tempLanding06Route: typeof tempLanding06Route
   tempLanding07Route: typeof tempLanding07Route
   tempLanding08Route: typeof tempLanding08Route
@@ -745,6 +758,13 @@ declare module '@tanstack/react-router' {
       path: '/temp/landing-06'
       fullPath: '/temp/landing-06'
       preLoaderRoute: typeof tempLanding06RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/temp/landing-05-a': {
+      id: '/temp/landing-05-a'
+      path: '/temp/landing-05-a'
+      fullPath: '/temp/landing-05-a'
+      preLoaderRoute: typeof tempLanding05ARouteImport
       parentRoute: typeof rootRouteImport
     }
     '/temp/landing-05': {
@@ -1163,6 +1183,7 @@ const rootRouteChildren: RootRouteChildren = {
   signupRoute: signupRoute,
   verifyEmailRoute: verifyEmailRoute,
   tempLanding05Route: tempLanding05Route,
+  tempLanding05ARoute: tempLanding05ARoute,
   tempLanding06Route: tempLanding06Route,
   tempLanding07Route: tempLanding07Route,
   tempLanding08Route: tempLanding08Route,

@@ -13,6 +13,7 @@ export const FEATURE_I18N_NAMESPACES = [
 	// Landing-page exploration namespaces (routes /temp/landing-*). Each
 	// exploration owns its own namespace so the four lanes never share a file.
 	'landing-05',
+	'landing-05-a',
 	'landing-06',
 	'landing-07',
 	'landing-08',
