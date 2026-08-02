@@ -901,6 +901,46 @@ describe('staff tenants route', () => {
 	});
 
 	describe('bulk actions', () => {
+		const chooseBulkAction = async (
+			actionName:
+				| 'Suspend selected'
+				| 'Delete selected'
+				| 'Reactivate selected',
+		) => {
+			const trigger = await screen.findByRole('button', {
+				name: 'More actions',
+				expanded: false,
+			});
+
+			// The floating trigger renders before Base UI wires its pointer props;
+			// a click dispatched into that window is swallowed. Gating on the settled
+			// closed state, then on the open state after the click, closes the race.
+			fireEvent.click(trigger);
+			await waitFor(() =>
+				expect(
+					trigger.getAttribute('aria-expanded'),
+					`bulk menu did not open for ${actionName}`,
+				).toBe('true'),
+			);
+			fireEvent.click(screen.getByRole('menuitem', { name: actionName }));
+		};
+		const mixedStatusTenants = [
+			{
+				id: 'tenant-1',
+				name: 'Acme Corporation',
+				status: 'Active',
+				usersCount: 12,
+				maxUsers: 50,
+			},
+			{
+				id: 'tenant-2',
+				name: 'Globex Corporation',
+				status: 'Suspended',
+				usersCount: 3,
+				maxUsers: 10,
+			},
+		];
+
 		test('renders a selection checkbox and hashed logo fallback for each tenant row', () => {
 			const { container } = renderPage();
 
@@ -994,12 +1034,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
+			await chooseBulkAction('Suspend selected');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Select at least one active tenant to suspend.',
@@ -1015,6 +1050,12 @@ describe('staff tenants route', () => {
 		});
 
 		test('bulk-suspends only the eligible selected tenants and reports success', async () => {
+			mocks.toStaffTenantRows.mockReturnValue(mixedStatusTenants);
+			mocks.useStaffTenantsQuery.mockReturnValue(
+				buildQueryResult({
+					data: { data: mixedStatusTenants, nextCursor: null },
+				}),
+			);
 			mocks.bulkSuspendTenantsMutation.mockResolvedValue({
 				succeededCount: 1,
 				failedCount: 0,
@@ -1026,17 +1067,13 @@ describe('staff tenants route', () => {
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
+				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
+			await chooseBulkAction('Suspend selected');
 
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Suspend selected' }),
-				).toBeTruthy(),
-			);
+			expect(
+				screen.getByRole('heading', { name: 'Suspend selected' }),
+			).toBeTruthy();
 			expect(
 				screen.getByText('Are you sure you want to suspend 1 tenants?'),
 			).toBeTruthy();
@@ -1046,15 +1083,13 @@ describe('staff tenants route', () => {
 			);
 
 			await waitFor(() =>
-				expect(mocks.bulkSuspendTenantsMutation).toHaveBeenCalledWith({
-					tenantIds: ['tenant-1'],
-				}),
-			);
-			await waitFor(() =>
 				expect(mocks.toastSuccess).toHaveBeenCalledWith(
 					'Successfully suspended 1 tenant(s).',
 				),
 			);
+			expect(mocks.bulkSuspendTenantsMutation).toHaveBeenCalledWith({
+				tenantIds: ['tenant-1'],
+			});
 			expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
 			expect(screen.queryByRole('status')).toBeNull();
 			expect(mocks.invalidateQueries).toHaveBeenCalledWith({
@@ -1078,17 +1113,10 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Suspend selected' }),
-				).toBeTruthy(),
-			);
+			await chooseBulkAction('Suspend selected');
+			expect(
+				screen.getByRole('heading', { name: 'Suspend selected' }),
+			).toBeTruthy();
 			fireEvent.click(
 				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
 			);
@@ -1117,13 +1145,8 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
-			const dialog = await screen.findByRole('alertdialog');
+			await chooseBulkAction('Suspend selected');
+			const dialog = screen.getByRole('alertdialog');
 			fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
 
 			await waitFor(() =>
@@ -1151,17 +1174,10 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Suspend selected' }),
-			);
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Suspend selected' }),
-				).toBeTruthy(),
-			);
+			await chooseBulkAction('Suspend selected');
+			expect(
+				screen.getByRole('heading', { name: 'Suspend selected' }),
+			).toBeTruthy();
 			fireEvent.click(
 				screen.getAllByRole('button', { name: 'Suspend' }).slice(-1)[0],
 			);
@@ -1172,23 +1188,6 @@ describe('staff tenants route', () => {
 			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 			expect(mocks.toastError).not.toHaveBeenCalled();
 		});
-
-		const mixedStatusTenants = [
-			{
-				id: 'tenant-1',
-				name: 'Acme Corporation',
-				status: 'Active',
-				usersCount: 12,
-				maxUsers: 50,
-			},
-			{
-				id: 'tenant-2',
-				name: 'Globex Corporation',
-				status: 'Suspended',
-				usersCount: 3,
-				maxUsers: 10,
-			},
-		];
 
 		const allSuspendedTenants = mixedStatusTenants.map((tenant) => ({
 			...tenant,
@@ -1211,12 +1210,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Delete selected' }),
-			);
+			await chooseBulkAction('Delete selected');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
@@ -1248,18 +1242,11 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			fireEvent.click(
-				await screen.findByRole('button', { name: 'More actions' }),
-			);
-			fireEvent.click(
-				await screen.findByRole('menuitem', { name: 'Delete selected' }),
-			);
+			await chooseBulkAction('Delete selected');
 
-			await waitFor(() =>
-				expect(
-					screen.getByRole('heading', { name: 'Delete selected' }),
-				).toBeTruthy(),
-			);
+			expect(
+				screen.getByRole('heading', { name: 'Delete selected' }),
+			).toBeTruthy();
 			fireEvent.click(
 				screen.getAllByRole('button', { name: 'Delete' }).slice(-1)[0],
 			);
