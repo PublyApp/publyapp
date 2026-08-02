@@ -1676,6 +1676,74 @@ test('e2e (round 13 B2): a raw binding inside an unhandled style-sink expression
 	);
 });
 
+test('e2e (round 15 B1): a partial element-access key reaching a recorded raw binding fails loud', async () => {
+	// 2b0ff1bb returned the static operand of a one-sided `+` as a complete
+	// candidate set, so `styles['cs' + suffix]` resolved member `cs`, found
+	// it absent, and reported nothing — a silent pass while the raw bytes
+	// ship under the runtime key. A partial key is unprovable: the guard
+	// resolves no member and fails loud by name whenever a recorded raw
+	// binding is reachable, exactly like the fully runtime key control.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				'const styles = { css: rawCss };',
+				"const suffix = ['s'].join('');",
+				"export const probe = <style>{styles['cs' + suffix]}</style>;",
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483584; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-unresolved-raw-expression'],
+		`a partial key over a recorded raw binding must fail loud: ${JSON.stringify(violations)}`,
+	);
+	const { violations: runtimeKey } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				'const styles = { css: rawCss };',
+				'export const probe = (key: string) => <style>{styles[key]}</style>;',
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483583; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		runtimeKey.map((violation) => violation.ruleId),
+		['z-index-unresolved-raw-expression'],
+		`a fully runtime key over a recorded raw binding must fail loud: ${JSON.stringify(runtimeKey)}`,
+	);
+});
+
+test('e2e (round 15 B1): a partial element-access key never reads a member the code does not read', async () => {
+	// The paired false positive: `o['a' + rt]` provably starts with `'a'`, so
+	// 2b0ff1bb read member `a` and red on its raw z-index — a
+	// z-index-style-element-shipped violation for CSS that never ships (the
+	// runtime key is `'ab'`). A partial key resolves no member; the sink
+	// stays in the declared runtime bucket.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"const rt = ['b'].join('');",
+				"const o = { a: '.probe-a { z-index: 2147483582; }', ab: '.probe-ab { color: red; }' };",
+				"export const probe = <style>{o['a' + rt]}</style>;",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`a partial element-access key must not read a member: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (round 13 B2): the static-string family resolves the same transparent expressions', async () => {
 	// The raw resolver's family is also the static-string family: an object
 	// property, a conditional, String(...), a template substitution, `+`, or

@@ -1027,12 +1027,20 @@ export const scanZIndexFile = ({
 		// reads through const object literals, template literals whose every
 		// substitution is static (the product of their candidate sets), and
 		// `+` where both operands are static (the product of concatenations).
-		// A branch that is not statically string-valued makes the expression
-		// partially static: the provably-shipped strings of the static
-		// branches still ship, so they are returned, and the caller treats
-		// the expression as runtime for everything else (the raw-sink walk
-		// covers recorded `?raw` bindings). Returns null when no string
-		// provably ships.
+		// Returns `{ values, partial }`: `values` is the candidate set, and
+		// `partial` says the set contains provable *substrings* of the
+		// expression's possible values (the static operand of a one-sided
+		// `+`) rather than complete values. The style-payload walk scans
+		// partial sets — the static operand's text ships either way — but an
+		// identity consumer (`staticString`: an element-access key, a
+		// computed property name) must reject them: reading member `a`
+		// because `'a' + rt` provably starts with `'a'` is reading a member
+		// the code may never read (round-15 B1). A branch that is not
+		// statically string-valued makes the expression partially static:
+		// the provably-shipped strings of the static branches still ship, so
+		// they are returned, and the caller treats the expression as runtime
+		// for everything else (the raw-sink walk covers recorded `?raw`
+		// bindings). Returns null when no string provably ships.
 		const staticStringValues = (node, visitedConsts = new Set()) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
@@ -1042,7 +1050,7 @@ export const scanZIndexFile = ({
 				ts.isStringLiteral(expression) ||
 				ts.isNoSubstitutionTemplateLiteral(expression)
 			) {
-				return new Set([expression.text]);
+				return { values: new Set([expression.text]), partial: false };
 			}
 			if (ts.isIdentifier(expression)) {
 				const fixpoint = resolveModuleConstFixpoint(expression, visitedConsts);
@@ -1059,13 +1067,21 @@ export const scanZIndexFile = ({
 				if (whenTrue == null && whenFalse == null) {
 					return null;
 				}
-				return new Set([...(whenTrue ?? []), ...(whenFalse ?? [])]);
+				return {
+					values: new Set([
+						...(whenTrue?.values ?? []),
+						...(whenFalse?.values ?? []),
+					]),
+					partial:
+						(whenTrue?.partial ?? false) || (whenFalse?.partial ?? false),
+				};
 			}
 			if (isStringCoercion(expression)) {
 				return staticStringValues(expression.arguments[0], visitedConsts);
 			}
 			if (ts.isTemplateExpression(expression)) {
 				let sets = [new Set([expression.head.text])];
+				let partial = false;
 				for (const span of expression.templateSpans) {
 					const substitution = staticStringValues(
 						span.expression,
@@ -1074,10 +1090,11 @@ export const scanZIndexFile = ({
 					if (substitution == null) {
 						return null;
 					}
-					sets.push(substitution);
+					sets.push(substitution.values);
+					partial = partial || substitution.partial;
 					sets.push(new Set([span.literal.text]));
 				}
-				return cartesianStringJoin(sets);
+				return { values: cartesianStringJoin(sets), partial };
 			}
 			if (ts.isPropertyAccessExpression(expression)) {
 				const memberNode = resolveMemberChain(expression, visitedConsts);
@@ -1099,22 +1116,27 @@ export const scanZIndexFile = ({
 				const right = staticStringValues(expression.right, visitedConsts);
 				if (left != null && right != null) {
 					const joined = new Set();
-					for (const leftValue of left) {
-						for (const rightValue of right) {
+					for (const leftValue of left.values) {
+						for (const rightValue of right.values) {
 							joined.add(leftValue + rightValue);
 						}
 					}
-					return joined;
+					return {
+						values: joined,
+						partial: left.partial || right.partial,
+					};
 				}
 				// One static operand: its text always ships as a substring of
 				// the concatenation (`'{z-index: 9}' + runtime` ships the
-				// literal part), so its candidates are returned; the runtime
-				// operand stays in the declared runtime bucket.
+				// literal part), so its candidates are returned — as a
+				// *partial* set, since the operand is a substring, not the
+				// complete value. The runtime operand stays in the declared
+				// runtime bucket.
 				if (left != null) {
-					return left;
+					return { values: left.values, partial: true };
 				}
 				if (right != null) {
-					return right;
+					return { values: right.values, partial: true };
 				}
 				return null;
 			}
@@ -1123,14 +1145,16 @@ export const scanZIndexFile = ({
 		// A single-value projection of the family: used where exactly one
 		// static string is required (computed property names, `?raw` element
 		// keys). A conditional or concatenation that can evaluate to several
-		// distinct strings is not single-valued and stays unprovable here;
-		// the style-sink callers use `staticStringValues` directly.
+		// distinct strings is not single-valued and stays unprovable here, as
+		// does a partial set — a member identity cannot be derived from a
+		// provable substring (round-15 B1); the style-sink callers use
+		// `staticStringValues` directly.
 		const staticString = (node) => {
-			const values = staticStringValues(node);
-			if (values == null || values.size !== 1) {
+			const result = staticStringValues(node);
+			if (result == null || result.partial || result.values.size !== 1) {
 				return null;
 			}
-			return [...values][0];
+			return [...result.values][0];
 		};
 		const propertyName = (name) => {
 			if (ts.isComputedPropertyName(name)) {
@@ -1275,7 +1299,8 @@ export const scanZIndexFile = ({
 				return new Set([attribute.initializer.text]);
 			}
 			if (ts.isJsxExpression(attribute.initializer)) {
-				return staticStringValues(attribute.initializer.expression);
+				const result = staticStringValues(attribute.initializer.expression);
+				return result == null ? null : result.values;
 			}
 			return null;
 		};
@@ -1434,13 +1459,13 @@ export const scanZIndexFile = ({
 					// caller reports the spread by name and nothing else. A
 					// static payload is the set of strings it can provably be;
 					// every candidate is walked as shipped CSS.
-					const cssCandidates =
+					const cssResult =
 						member.node == null ? null : staticStringValues(member.node);
 					return {
 						css:
-							member.unresolved || cssCandidates == null
+							member.unresolved || cssResult == null
 								? null
-								: [...cssCandidates],
+								: [...cssResult.values],
 						childrenSuppressed: true,
 					};
 				}
@@ -1462,14 +1487,20 @@ export const scanZIndexFile = ({
 				if (ts.isJsxText(child)) {
 					partSets.push(new Set([child.text]));
 				} else if (ts.isJsxExpression(child)) {
-					const values = staticStringValues(child.expression);
+					const result = staticStringValues(child.expression);
+					const values = result == null ? null : result.values;
 					// A child that also reaches a recorded raw binding is not
 					// fully static: `cond ? rawCss : ''` ships the raw bytes
 					// in one branch, and the raw walk must still run. The
 					// static branches still ship, so their candidates are
-					// kept for the individual-part scan.
+					// kept for the individual-part scan. A partial candidate
+					// set (the static operand of a one-sided `+`) is likewise
+					// not joinable — its members are provable substrings, not
+					// complete values — so it ships individually and keeps
+					// the payload out of the Cartesian join.
 					if (
 						values == null ||
+						result.partial ||
 						expressionContainsRawBinding(child.expression)
 					) {
 						fullyStatic = false;
@@ -2103,7 +2134,8 @@ export const scanZIndexFile = ({
 						'a dangerouslySetInnerHTML payload',
 					);
 				} else if (member.node != null) {
-					const htmlValues = staticStringValues(member.node);
+					const htmlResult = staticStringValues(member.node);
+					const htmlValues = htmlResult == null ? null : htmlResult.values;
 					if (htmlValues != null) {
 						for (const dangerousHtml of htmlValues) {
 							const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
@@ -2120,7 +2152,7 @@ export const scanZIndexFile = ({
 					// branch is static — `cond ? rawHtml : '<style>…'` ships
 					// the raw bytes in one branch and the static HTML in the
 					// other, so both must be inspected.
-					if (htmlValues == null || expressionContainsRawBinding(member.node)) {
+					if (htmlResult == null || expressionContainsRawBinding(member.node)) {
 						reportRawSinkExpression(
 							member.node,
 							isStyleElement ? 'style' : 'html',
@@ -2151,11 +2183,11 @@ export const scanZIndexFile = ({
 				relValues =
 					relResult.unresolved || relResult.node == null
 						? null
-						: staticStringValues(relResult.node);
+						: (staticStringValues(relResult.node)?.values ?? null);
 				hrefValues =
 					hrefResult.unresolved || hrefResult.node == null
 						? null
-						: staticStringValues(hrefResult.node);
+						: (staticStringValues(hrefResult.node)?.values ?? null);
 				if (relResult.unresolved || hrefResult.unresolved) {
 					unresolvedSpreadViolation(
 						node,
@@ -2205,10 +2237,11 @@ export const scanZIndexFile = ({
 						'CSS.registerProperty()',
 					);
 				} else {
-					const nameCandidates =
+					const nameResult =
 						propertyResult.node == null
 							? null
 							: staticStringValues(propertyResult.node);
+					const nameCandidates = nameResult == null ? null : nameResult.values;
 					if (nameCandidates != null) {
 						const reservedName = [...nameCandidates].find((name) =>
 							name.startsWith('--publy-z-'),
@@ -2263,14 +2296,25 @@ export const scanZIndexFile = ({
 		};
 		const visitScaleTokenDefinitions = (node) => {
 			if (ts.isPropertyAssignment(node)) {
-				recordScaleTokenDefinition(propertyName(node.name), node);
+				if (ts.isComputedPropertyName(node.name)) {
+					// A computed key is candidate-aware: `['--publy-z-' + x]`
+					// writes the reserved namespace for every completion of
+					// the partial key, so the first reserved candidate reds
+					// even though the key never resolves to one exact name.
+					recordScaleTokenDefinitionCandidates(
+						staticStringValues(node.name.expression)?.values ?? null,
+						node,
+					);
+				} else {
+					recordScaleTokenDefinition(propertyName(node.name), node);
+				}
 			} else if (
 				ts.isCallExpression(node) &&
 				ts.isPropertyAccessExpression(node.expression) &&
 				node.expression.name.text === 'setProperty'
 			) {
 				recordScaleTokenDefinitionCandidates(
-					staticStringValues(node.arguments[0]),
+					staticStringValues(node.arguments[0])?.values ?? null,
 					node,
 				);
 			}
