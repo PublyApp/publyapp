@@ -461,7 +461,11 @@ type CallSite = {
 // Round 10 M4: the resolution used `path.posix` against a NATIVE path — on
 // Windows every relative specifier collapsed and the round-8 pin itself
 // failed there. The importer path is normalised to forward slashes first
-// (AGENTS.md documents Windows as a supported dev platform).
+// (AGENTS.md documents Windows as a supported dev platform). Round 13: the
+// normalisation splits on BOTH separators (`path.sep` alone is a no-op for
+// a backslash path on Linux), so a literal win32 fixture can pin the
+// behaviour on every platform — the round-10 fix's regression test was
+// Linux-vacuous (reverting the normalisation kept it green).
 const isDrawerModuleImport = (
 	specifier: string,
 	importerPath: string,
@@ -475,7 +479,7 @@ const isDrawerModuleImport = (
 	if (!specifier.startsWith('.')) {
 		return false;
 	}
-	const posixImporter = importerPath.split(path.sep).join('/');
+	const posixImporter = importerPath.split(/[\\/]/).join('/');
 	const resolved = path.posix.normalize(
 		path.posix.join(path.posix.dirname(posixImporter), specifier),
 	);
@@ -2255,14 +2259,22 @@ describe('drawer description text contrast (#1043)', () => {
 		]);
 	});
 
-	test('a :where() rule supplies with zero specificity and last-wins (round 10 M3)', () => {
+	// Round 13: the round-10 M3 pin put the `:where()` rule AFTER an equal
+	// competitor, so it won by source order even if `:where()` contributed
+	// an arbitrarily large specificity — the named "zero specificity" claim
+	// was vacuous (removing the zero case kept it green). Reversed: the
+	// `:where()` rule comes FIRST and must still LOSE to the later plain
+	// rule of equal class specificity — only a true zero contribution ties
+	// them and hands the win to source order. Counting `:where()` arguments
+	// at all makes this go red.
+	test('a :where() rule contributes zero specificity and loses to a later equal competitor (round 10 M3)', () => {
 		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground); }\n' +
-				'.x:where(.a, .x) { color: var(--publy-foreground-subtle); }',
+			'.x:where(.a, .x) { color: var(--publy-foreground-subtle); }\n' +
+				'.x { color: var(--publy-foreground); }',
 			['x'],
 			'light',
 		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
+		expect(style.color).toBe('var(--publy-foreground)');
 	});
 
 	test('a dark-themed ancestor rule never supplies the light-theme colour (round 10 M3)', () => {
@@ -2312,6 +2324,21 @@ describe('drawer description text contrast (#1043)', () => {
 	test('a relative ./drawer import is enumerated (round 8 M3)', () => {
 		const source = "import { DrawerDescription } from './drawer';";
 		const file = path.join('src', 'components', 'ui', '_fixture.tsx');
+		expect(drawerDescriptionTagNames(source, file)).toEqual([
+			'DrawerDescription',
+		]);
+	});
+
+	// Round 13 M4: the pin above builds its fixture with native
+	// `path.join`, which contains `/` on Linux — reverting the round-10
+	// normalisation to the raw importer kept it green there, so the
+	// Windows fix was never actually pinned. `path.win32.join` produces a
+	// literal backslash path on EVERY platform; only the normalisation
+	// (now splitting on both separators) can make it resolve.
+	test('a relative ./drawer import is enumerated on a win32 importer path (round 10 M4)', () => {
+		const source = "import { DrawerDescription } from './drawer';";
+		const file = path.win32.join('src', 'components', 'ui', '_fixture.tsx');
+		expect(file).toContain('\\');
 		expect(drawerDescriptionTagNames(source, file)).toEqual([
 			'DrawerDescription',
 		]);
