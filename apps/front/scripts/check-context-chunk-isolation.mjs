@@ -741,6 +741,13 @@ export const findReactContextDeclarations = (
 			),
 		);
 		const contexts = [];
+		// Declarations whose binding already produced an inventory entry.
+		// A minting call inside such a declaration's initializer (a named
+		// conditional like `const Ctx = cond ? createContext(null) :
+		// createContext(null)`) is represented by the entry's recorded mint
+		// spans, so the direct-call fallback must not invent an anonymous
+		// entry per branch for it.
+		const trackedDeclarations = new Set();
 
 		for (const sourceFileName of project.program.getSourceFileNames()) {
 			if (
@@ -771,6 +778,7 @@ export const findReactContextDeclarations = (
 							reactContextType,
 						)
 					) {
+						trackedDeclarations.add(node);
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
@@ -798,6 +806,7 @@ export const findReactContextDeclarations = (
 							reactCreateContext,
 						)
 					) {
+						trackedDeclarations.add(node);
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
@@ -812,7 +821,7 @@ export const findReactContextDeclarations = (
 						(isVariableDeclaration(position) ||
 							isPropertyDeclaration(position)) &&
 						position.initializer === node;
-					if (!isDeclarationInitializer) {
+					if (!isDeclarationInitializer && !trackedDeclarations.has(position)) {
 						const isHolderPosition =
 							isPropertyAssignment(position) ||
 							isArrayLiteralExpression(position) ||

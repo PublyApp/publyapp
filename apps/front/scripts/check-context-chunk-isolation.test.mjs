@@ -981,6 +981,36 @@ void test('discovers each mint inside a conditional holder expression with its o
 	}
 });
 
+void test('records a named conditional createContext declaration as one inventory entry', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/conditional-declaration.tsx': `
+			import { createContext } from 'react';
+			export const ConditionalContext = Math.random() > -1
+				? createContext(null)
+				: createContext(null);
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		// One declaration, one inventory entry: the branch calls are mint
+		// spans of the named entry, never phantom anonymous entries.
+		assert.deepEqual(
+			contexts.map((context) => context.name),
+			['ConditionalContext'],
+		);
+		const [entry] = contexts;
+		assert.equal(entry.mintSpans.length, 2);
+		assert.notDeepEqual(entry.mintSpans[0], entry.mintSpans[1]);
+		assert.equal(entry.mintSpans[0].startLine, 3);
+		assert.equal(entry.mintSpans[1].startLine, 4);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('discovers a context whose binding type is a union of Context members', async () => {
 	const fixtureDirectory = await mkdtemp(
 		path.join(os.tmpdir(), 'publy-context-isolation-fixture-'),
