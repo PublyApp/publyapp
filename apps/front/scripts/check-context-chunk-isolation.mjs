@@ -2,12 +2,12 @@ import path from 'node:path';
 
 import { SyntaxKind } from 'typescript/unstable/ast';
 import {
-	isArrayBindingPattern,
 	isArrayLiteralExpression,
 	isAsExpression,
 	isBindingElement,
 	isBinaryExpression,
 	isCallExpression,
+	isConditionalExpression,
 	isElementAccessExpression,
 	isExportAssignment,
 	isIdentifier,
@@ -16,17 +16,18 @@ import {
 	isObjectBindingPattern,
 	isObjectLiteralExpression,
 	isParenthesizedExpression,
-	isPropertyAssignment,
 	isPropertyAccessExpression,
+	isPropertyAssignment,
 	isPropertyDeclaration,
 	isSatisfiesExpression,
 	isShorthandPropertyAssignment,
+	isSpreadAssignment,
+	isSpreadElement,
 	isStringLiteral,
 	isTypeAliasDeclaration,
 	isTypeAssertion,
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
-import { createVirtualFileSystem } from 'typescript/unstable/fs';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
 
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
@@ -472,14 +473,15 @@ const declarationBinding = (checker, node) => {
 	return undefined;
 };
 
-// Transparent expression wrappers (parens, `as`, `!`, `satisfies`) and comma
-// chains keep the wrapped call as the holder's value, so the holder-position
-// check walks through them: `{ probe: createStrictContext(null) as
-// StrictContext<null> }` and `{ probe: (0, createStrictContext(null)) }` are
-// still holder-position mints. A comma expression returns only its right
-// operand, so only a call that sits on the right side of a comma can be the
-// holder's value — `{ probe: (createStrictContext(null), 0) }` discards the
-// context and must not invent an `<anonymous context>` inventory entry.
+// The position a call's value lands in, walked through transparent value
+// wrappers: parens, `as`, `!`, `satisfies`, comma chains (only the right
+// operand is the value), conditional branches, logical operands (`&&`, `||`,
+// `??`), and property/element accesses. A comma expression returns only its
+// right operand, so only a call that sits on the right side of a comma can be
+// the value — `{ probe: (createStrictContext(null), 0) }` discards the
+// context and must not invent an `<anonymous context>` inventory entry. A
+// spread element is itself the holder of its argument's value
+// (`{ ...makeContexts(null) }` spreads a context record into the object).
 const holderPositionOfCall = (node) => {
 	let current = node;
 	for (;;) {
@@ -490,9 +492,37 @@ const holderPositionOfCall = (node) => {
 			isTypeAssertion(parent) ||
 			isNonNullExpression(parent) ||
 			isSatisfiesExpression(parent) ||
-			(isBinaryExpression(parent) &&
-				parent.operatorToken.kind === SyntaxKind.CommaToken &&
-				parent.right === current)
+			isPropertyAccessExpression(parent) ||
+			isElementAccessExpression(parent)
+		) {
+			current = parent;
+			continue;
+		}
+
+		if (
+			isBinaryExpression(parent) &&
+			parent.operatorToken.kind === SyntaxKind.CommaToken &&
+			parent.right === current
+		) {
+			current = parent;
+			continue;
+		}
+
+		if (
+			isBinaryExpression(parent) &&
+			[
+				SyntaxKind.AmpersandAmpersandToken,
+				SyntaxKind.BarBarToken,
+				SyntaxKind.QuestionQuestionToken,
+			].includes(parent.operatorToken.kind)
+		) {
+			current = parent;
+			continue;
+		}
+
+		if (
+			isConditionalExpression(parent) &&
+			(parent.whenTrue === current || parent.whenFalse === current)
 		) {
 			current = parent;
 			continue;
@@ -502,172 +532,165 @@ const holderPositionOfCall = (node) => {
 	}
 };
 
-// The structural identity of a holder-position call: the binding name plus
-// the property/index chain the call's value lands in (`contexts.probe`,
-// `contexts[0]`, `<default>.probe`). Object-literal keys, array element
-// order, and the binding name (modulo the bundler's `$N` deconfliction
-// suffix) survive every bundler transform, so the rendered copy of a mint
-// sits at the same key the source scan recorded. The walk mirrors
-// holderPositionOfCall: only a call that is the holder's value through
-// parens / `as` / `!` / `satisfies` / right-comma wrappers is a holder
-// position at all. A computed key, a non-identifier binding, or any other
-// unwalkable shape yields no key, and the mint is unattributable — it then
-// relies on the unattributed-presence fail-closed branch.
-const holderPositionKeyOf = (node) => {
-	const steps = [];
-	let current = node;
-	for (;;) {
-		const parent = current.parent;
-		if (
-			isParenthesizedExpression(parent) ||
-			isAsExpression(parent) ||
-			isTypeAssertion(parent) ||
-			isNonNullExpression(parent) ||
-			isSatisfiesExpression(parent) ||
-			(isBinaryExpression(parent) &&
-				parent.operatorToken.kind === SyntaxKind.CommaToken &&
-				parent.right === current)
-		) {
-			current = parent;
-			continue;
-		}
-
-		if (isPropertyAssignment(parent)) {
-			const key = parent.name;
-			if (!isIdentifier(key) && !isStringLiteral(key)) {
-				return undefined;
-			}
-			steps.push(`.${key.text}`);
-			current = parent;
-			continue;
-		}
-
-		if (isArrayLiteralExpression(parent)) {
-			const index = parent.elements.indexOf(current);
-			if (index === -1) {
-				return undefined;
-			}
-			steps.push(`[${index}]`);
-			current = parent;
-			continue;
-		}
-
-		if (isObjectLiteralExpression(parent) || isArrayLiteralExpression(parent)) {
-			current = parent;
-			continue;
-		}
-
-		if (isExportAssignment(parent)) {
-			return `<default>${steps.reverse().join('')}`;
-		}
-
-		if (isVariableDeclaration(parent) || isPropertyDeclaration(parent)) {
-			if (!isIdentifier(parent.name)) {
-				return undefined;
-			}
-			return `${parent.name.text}${steps.reverse().join('')}`;
-		}
-
-		return undefined;
-	}
-};
-
-// The bare callee name after bundler transforms: identifier text, property
-// access member name, string-literal element access, or the right side of a
-// comma chain. Used to recognize rendered createContext callees, which the
-// bundler cannot rewrite to a different declared name.
-const calleeNameOf = (expression) => {
-	if (isIdentifier(expression)) {
-		return expression.text;
-	}
-
-	if (isPropertyAccessExpression(expression)) {
-		return expression.name.text;
+// The calls whose values make up an expression: the expression itself when it
+// is a call, otherwise the calls reached through the transparent value
+// wrappers the holder walk above understands. `makeContexts().probe` yields
+// the `makeContexts()` call because the minted value flows through the access.
+// Used to attribute a binding mint (`const Ctx = makeContexts().probe`) to
+// the exact call positions that execute it.
+const valueCallsOf = (expression) => {
+	if (isCallExpression(expression)) {
+		return [expression];
 	}
 
 	if (
-		isElementAccessExpression(expression) &&
-		isStringLiteral(expression.argumentExpression)
+		isParenthesizedExpression(expression) ||
+		isAsExpression(expression) ||
+		isTypeAssertion(expression) ||
+		isNonNullExpression(expression) ||
+		isSatisfiesExpression(expression) ||
+		isPropertyAccessExpression(expression) ||
+		isElementAccessExpression(expression)
 	) {
-		return expression.argumentExpression.text;
-	}
-
-	if (isParenthesizedExpression(expression)) {
-		return calleeNameOf(expression.expression);
+		return valueCallsOf(expression.expression);
 	}
 
 	if (
 		isBinaryExpression(expression) &&
 		expression.operatorToken.kind === SyntaxKind.CommaToken
 	) {
-		return calleeNameOf(expression.right);
+		return valueCallsOf(expression.right);
 	}
 
-	return undefined;
+	if (
+		isBinaryExpression(expression) &&
+		[
+			SyntaxKind.AmpersandAmpersandToken,
+			SyntaxKind.BarBarToken,
+			SyntaxKind.QuestionQuestionToken,
+		].includes(expression.operatorToken.kind)
+	) {
+		return [
+			...valueCallsOf(expression.left),
+			...valueCallsOf(expression.right),
+		];
+	}
+
+	if (isConditionalExpression(expression)) {
+		return [
+			...valueCallsOf(expression.whenTrue),
+			...valueCallsOf(expression.whenFalse),
+		];
+	}
+
+	return [];
 };
 
-// Rolldown currently collapses most aliases to these property-access forms
-// before this parser runs. That is observed bundler behavior, not a guaranteed
-// contract, so module-local aliases are resolved below and other context
-// initializer callees must fail closed.
-const isRenderedCreateContextCallee = (expression, createContextAliases) => {
-	const name = calleeNameOf(expression);
+const isContextRecordType = (checker, type, reactContextType, seenTypeIds) => {
+	if (
+		type.isErrorType() ||
+		type.isTypeParameter() ||
+		seenTypeIds.has(type.id)
+	) {
+		return false;
+	}
+
+	seenTypeIds.add(type.id);
+	if (type.isUnionType() || type.isIntersectionType()) {
+		return type
+			.getTypes()
+			.some((member) =>
+				isContextRecordType(checker, member, reactContextType, seenTypeIds),
+			);
+	}
+
+	if (checker.isArrayType(type) || type.isTupleType()) {
+		const elementType = checker.getIndexInfosOfType(type)[0]?.type;
+		return (
+			elementType !== undefined &&
+			isContextRecordType(checker, elementType, reactContextType, seenTypeIds)
+		);
+	}
+
+	// A factory returning a *record* of contexts — `{ probe: Context<…> }` or
+	// a nested record — mints every context in the record each time the call
+	// executes, so the call is a mint at its own position: `{ probe:
+	// makeContexts(null) }` and `{ ...makeContexts(null) }` both execute the
+	// factory from every delivered copy of the module. Recursion is bounded
+	// by the per-type id set; function-typed property values resolve through
+	// Function's own members, which never contain a context.
+	for (const property of checker.getPropertiesOfType(type)) {
+		const propertyDeclaration = property.valueDeclaration?.resolve();
+		if (!propertyDeclaration) {
+			continue;
+		}
+
+		const propertyType = checker.getTypeOfSymbolAtLocation(
+			property,
+			propertyDeclaration,
+		);
+		if (
+			typeContainsReactContext(checker, propertyType, reactContextType) ||
+			isContextRecordType(checker, propertyType, reactContextType, seenTypeIds)
+		) {
+			return true;
+		}
+	}
+
+	return false;
+};
+
+// A minting call: its value resolves to React's `Context<…>` through the type
+// system, or its callee resolves to React's createContext export, or its value
+// is a record containing contexts (a record factory call whose result is held
+// or spread). Identity for the rendered analysis is the call's exact source
+// span — never a name.
+const callMintsContext = (
+	checker,
+	callExpression,
+	reactContextType,
+	reactCreateContext,
+) => {
+	const callType = checker.getTypeAtLocation(callExpression);
 	return (
-		name === 'createContext' ||
-		(name !== undefined && createContextAliases.has(name))
+		typeContainsReactContext(checker, callType, reactContextType) ||
+		isContextRecordType(checker, callType, reactContextType, new Set()) ||
+		resolvesToReactCreateContext(
+			checker,
+			symbolForExpression(checker, callExpression.expression),
+			reactCreateContext,
+		)
 	);
 };
 
-const findRenderedCreateContextAliases = (sourceFile) => {
-	const aliases = new Set();
-	const declarations = [];
-	const visit = (node) => {
-		if (
-			isVariableDeclaration(node) &&
-			isIdentifier(node.name) &&
-			node.initializer
-		) {
-			declarations.push(node);
-		}
-
-		node.forEachChild(visit);
+// The exact source span of the minting call, in the TypeScript scan's
+// 0-based line and UTF-16 column coordinates. The rendered copy of the call
+// is recognized when the bundler's own source map maps an emitted position
+// back inside this span.
+const spanOf = (sourceFile, node) => {
+	const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+	const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+	return {
+		endCol: end.character,
+		endLine: end.line,
+		startCol: start.character,
+		startLine: start.line,
 	};
-
-	visit(sourceFile);
-	let previousAliasCount = -1;
-	while (previousAliasCount !== aliases.size) {
-		previousAliasCount = aliases.size;
-		for (const declaration of declarations) {
-			if (
-				!aliases.has(declaration.name.text) &&
-				isRenderedCreateContextCallee(declaration.initializer, aliases)
-			) {
-				aliases.add(declaration.name.text);
-			}
-		}
-	}
-
-	return aliases;
 };
 
-const expressionContainsCreateContextName = (expression) => {
-	let containsCreateContextName = false;
-	const visit = (node) => {
-		if (
-			(isIdentifier(node) && node.text === 'createContext') ||
-			(isStringLiteral(node) && node.text === 'createContext')
-		) {
-			containsCreateContextName = true;
-			return;
-		}
+const spanKey = (span) =>
+	`${span.startLine}:${span.startCol}:${span.endLine}:${span.endCol}`;
 
-		if (!containsCreateContextName) {
-			node.forEachChild(visit);
+const uniqueSpans = (spans) => {
+	const seen = new Set();
+	return spans.filter((span) => {
+		const key = spanKey(span);
+		if (seen.has(key)) {
+			return false;
 		}
-	};
-
-	visit(expression);
-	return containsCreateContextName;
+		seen.add(key);
+		return true;
+	});
 };
 
 // A mint always executes createContext somewhere, so a binding or holder
@@ -691,253 +714,6 @@ const expressionContainsCall = (expression) => {
 
 	visit(expression);
 	return containsCall;
-};
-
-// Rolldown deconflicts duplicate bindings of the same source module by
-// suffixing one copy's names ($1, $2, ...), observed as `ProbeContext$1` in
-// the two-creators-share-one-chunk fixture. Matching must ignore that
-// suffix, or a renamed copy slips past the name-keyed fail-closed checks.
-const normalizeRenderedBindingName = (name) => name.replace(/\$\d+$/, '');
-
-// The rendered copy of a recorded holder position: the same key with the
-// binding name normalized for the bundler's `$N` deconfliction suffix
-// (`contexts$1.probe` matches a recorded `contexts.probe`).
-const normalizeRenderedPositionKey = (key) => {
-	const separator = key.search(/[.[]/);
-	if (separator === -1) {
-		return normalizeRenderedBindingName(key);
-	}
-	return `${normalizeRenderedBindingName(key.slice(0, separator))}${key.slice(
-		separator,
-	)}`;
-};
-
-// A rendered binding pattern that binds an expected context name through an
-// unrecognized callee cannot be attributed. Only the pattern's own bound
-// names count: `const { probe: ProbeContext } = makeContexts(null)` binds
-// ProbeContext, and if that name is expected the rendered copy is treated the
-// same way an unrecognized identifier binding is — it cannot be proven not to
-// mint. Nested patterns (`const { inner: { probe: ProbeContext } } = …`)
-// recurse; elided array elements have no name and are skipped.
-const bindingPatternBoundExpectedName = (pattern, expectedContextNames) => {
-	if (!isObjectBindingPattern(pattern) && !isArrayBindingPattern(pattern)) {
-		return undefined;
-	}
-
-	for (const element of pattern.elements) {
-		if (!isBindingElement(element)) {
-			continue;
-		}
-
-		const name = element.name;
-		if (isIdentifier(name)) {
-			const normalizedName = normalizeRenderedBindingName(name.text);
-			if (expectedContextNames.has(normalizedName)) {
-				return normalizedName;
-			}
-		} else if (name) {
-			const nestedName = bindingPatternBoundExpectedName(
-				name,
-				expectedContextNames,
-			);
-			if (nestedName) {
-				return nestedName;
-			}
-		}
-	}
-
-	return undefined;
-};
-
-// A rendered holder-position call mints when it sits at a structural
-// position the source scan recorded for the file's `<anonymous context>`
-// entries — the binding name plus the property/index chain where the minted
-// value lands (`contexts.probe`, `contexts[0]`, `<default>.probe`). Callee
-// names are never consulted: bundlers rewrite import names, synthesize
-// anonymous-default names, and choose import aliases at chunk assembly, so a
-// name key is forgeable by any other module exporting a same-named function,
-// while the binding name (modulo the `$N` deconfliction suffix), object
-// keys, and array element order survive every transform.
-const renderedHolderPositionMints = (node, holderMintingPositions) => {
-	if (!holderMintingPositions || holderMintingPositions.size === 0) {
-		return false;
-	}
-
-	const key = holderPositionKeyOf(node);
-	return (
-		key !== undefined &&
-		holderMintingPositions.has(normalizeRenderedPositionKey(key))
-	);
-};
-
-const analyzeRenderedContextModule = (
-	sourceFile,
-	expectedContexts,
-	moduleLabel,
-) => {
-	const recognizedContextNames = new Set();
-	const createContextAliases = findRenderedCreateContextAliases(sourceFile);
-	const expectedContextNames = new Set(expectedContexts.keys());
-	// The only holder-position calls a rendered copy can be proven to mint
-	// through are the positions the source scan recorded for the file's
-	// `<anonymous context>` entries. Anything else in a holder position —
-	// TanStack's own `component: lazyRouteComponent(…)` split shim among them —
-	// is a call whose value is not known to be a context, and must not be
-	// counted as one.
-	const holderMintingPositions = expectedContexts.get('<anonymous context>');
-	let hasUnattributedCreateContextCall = false;
-
-	const visit = (node) => {
-		if (isCallExpression(node)) {
-			if (
-				isRenderedCreateContextCallee(node.expression, createContextAliases)
-			) {
-				const declaration = node.parent;
-				if (
-					isVariableDeclaration(declaration) &&
-					declaration.initializer === node &&
-					isIdentifier(declaration.name) &&
-					expectedContextNames.has(
-						normalizeRenderedBindingName(declaration.name.text),
-					)
-				) {
-					recognizedContextNames.add(
-						normalizeRenderedBindingName(declaration.name.text),
-					);
-				} else {
-					// A direct createContext call in a holder position is a
-					// mint only when it sits at a recorded source position,
-					// the same gate as factory mints: a same-named
-					// createContext export in another module is subject to
-					// the same bundler-name forgeries the factory path is.
-					const position = holderPositionOfCall(node);
-					const isHolderPosition =
-						isPropertyAssignment(position) ||
-						isArrayLiteralExpression(position) ||
-						isExportAssignment(position);
-					if (
-						!isHolderPosition ||
-						renderedHolderPositionMints(node, holderMintingPositions)
-					) {
-						hasUnattributedCreateContextCall = true;
-					}
-				}
-			} else if (expressionContainsCreateContextName(node.expression)) {
-				throw new Error(
-					`Context chunk isolation guard cannot prove an unrecognized rendered createContext callee in ${moduleLabel}.`,
-				);
-			} else {
-				const declaration = holderPositionOfCall(node);
-				if (
-					(isPropertyAssignment(declaration) ||
-						isArrayLiteralExpression(declaration) ||
-						isExportAssignment(declaration)) &&
-					renderedHolderPositionMints(node, holderMintingPositions)
-				) {
-					// A factory-minted holder position (object property, array
-					// element, export default) that sits at a position the
-					// source scan recorded for the file's anonymous context:
-					// fail closed, the same way an unattributed createContext
-					// call does.
-					hasUnattributedCreateContextCall = true;
-				} else if (
-					isVariableDeclaration(declaration) &&
-					declaration.initializer === node &&
-					isIdentifier(declaration.name) &&
-					expectedContextNames.has(
-						normalizeRenderedBindingName(declaration.name.text),
-					)
-				) {
-					throw new Error(
-						`Context chunk isolation guard cannot prove how ${declaration.name.text} is created in ${moduleLabel}.`,
-					);
-				} else if (
-					isVariableDeclaration(declaration) &&
-					declaration.initializer === node &&
-					!isIdentifier(declaration.name)
-				) {
-					const boundName = bindingPatternBoundExpectedName(
-						declaration.name,
-						expectedContextNames,
-					);
-					if (boundName) {
-						throw new Error(
-							`Context chunk isolation guard cannot prove how ${boundName} is created in ${moduleLabel}.`,
-						);
-					}
-				}
-			}
-		}
-
-		node.forEachChild(visit);
-	};
-
-	visit(sourceFile);
-	return { hasUnattributedCreateContextCall, recognizedContextNames };
-};
-
-const analyzeRenderedContextModules = (entries) => {
-	const analyses = new Map();
-	if (entries.length === 0) {
-		return analyses;
-	}
-
-	const virtualRoot = '/publy-context-chunk-isolation';
-	const configPath = `${virtualRoot}/tsconfig.json`;
-	const files = {};
-	const sourceFiles = [];
-
-	for (const [index, entry] of entries.entries()) {
-		if (typeof entry.renderedModule.code !== 'string') {
-			throw new Error(
-				`Context chunk isolation guard cannot inspect rendered code for ${entry.moduleId} in ${entry.chunkName}.`,
-			);
-		}
-
-		const fileName = `module-${index}.js`;
-		const filePath = `${virtualRoot}/${fileName}`;
-		files[filePath] = entry.renderedModule.code;
-		sourceFiles.push({ entry, fileName, filePath });
-	}
-
-	files[configPath] = JSON.stringify({
-		compilerOptions: { allowJs: true, checkJs: false, noEmit: true },
-		files: sourceFiles.map(({ fileName }) => fileName),
-	});
-
-	const api = new API({ cwd: '/', fs: createVirtualFileSystem(files) });
-	try {
-		const snapshot = api.updateSnapshot({ openProjects: [configPath] });
-		const project = snapshot.getProject(configPath);
-		if (!project) {
-			throw new Error(
-				'Context chunk isolation guard could not parse rendered client modules.',
-			);
-		}
-
-		for (const { entry, filePath } of sourceFiles) {
-			const diagnostics = project.program.getSyntacticDiagnostics(filePath);
-			const sourceFile = project.program.getSourceFile(filePath);
-			if (!sourceFile || diagnostics.length > 0) {
-				throw new Error(
-					`Context chunk isolation guard cannot parse rendered code for ${entry.moduleId} in ${entry.chunkName}.`,
-				);
-			}
-
-			analyses.set(
-				entry.renderedModule,
-				analyzeRenderedContextModule(
-					sourceFile,
-					entry.expectedContexts,
-					`${entry.moduleId} in ${entry.chunkName}`,
-				),
-			);
-		}
-	} finally {
-		api.close();
-	}
-
-	return analyses;
 };
 
 export const findReactContextDeclarations = (
@@ -998,6 +774,18 @@ export const findReactContextDeclarations = (
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
+							mintSpans: uniqueSpans(
+								valueCallsOf(binding.initializer)
+									.filter((call) =>
+										callMintsContext(
+											project.checker,
+											call,
+											reactContextType,
+											reactCreateContext,
+										),
+									)
+									.map((call) => spanOf(sourceFile, call)),
+							),
 						});
 					} else if (
 						isCallExpression(binding.initializer) &&
@@ -1013,6 +801,7 @@ export const findReactContextDeclarations = (
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
+							mintSpans: [spanOf(sourceFile, binding.initializer)],
 						});
 					}
 				}
@@ -1027,23 +816,24 @@ export const findReactContextDeclarations = (
 						const isHolderPosition =
 							isPropertyAssignment(position) ||
 							isArrayLiteralExpression(position) ||
-							isExportAssignment(position);
+							isExportAssignment(position) ||
+							isSpreadElement(position) ||
+							isSpreadAssignment(position);
 						if (
 							isHolderPosition &&
-							typeContainsReactContext(
+							callMintsContext(
 								project.checker,
-								project.checker.getTypeAtLocation(node),
+								node,
 								reactContextType,
+								reactCreateContext,
 							)
 						) {
-							const mintingPosition = holderPositionKeyOf(node);
 							contexts.push({
 								name: '<anonymous context>',
 								sourceFile: normalizeModuleId(sourceFile.fileName),
-								mintingPositions:
-									mintingPosition === undefined ? [] : [mintingPosition],
+								mintSpans: [spanOf(sourceFile, node)],
 							});
-						} else {
+						} else if (!isHolderPosition) {
 							const calleeSymbol = symbolForExpression(
 								project.checker,
 								node.expression,
@@ -1058,6 +848,7 @@ export const findReactContextDeclarations = (
 								contexts.push({
 									name: contextNameForCall(node),
 									sourceFile: normalizeModuleId(sourceFile.fileName),
+									mintSpans: [spanOf(sourceFile, node)],
 								});
 							}
 						}
@@ -1076,10 +867,118 @@ export const findReactContextDeclarations = (
 	}
 };
 
+// Decoding of the chunk source map produced by the build. The map is the
+// bundler's own record of which emitted call originated at which source
+// position, so attribution through it survives every renaming, alias
+// elimination, inlining and chunk merge the bundler performs — a call that
+// did not originate at a recorded mint span can never map back to it.
+//
+// The mappings string is standard VLQ: per generated line, comma-separated
+// segments of (generatedColumn, sourceIndex, originalLine, originalColumn[,
+// nameIndex]) as zig-zag-encoded signed deltas, with original positions in
+// the standard 0-based line and column coordinates. The rendered copy of a
+// call therefore carries the same coordinates the TypeScript scan records —
+// no conversion is needed, and the regression suite pins the convention
+// against real builds.
+
+const SOURCE_MAP_BASE64 =
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+const readSourceMapVlq = (encoded, state) => {
+	let value = 0;
+	let shift = 0;
+	for (;;) {
+		const digit = SOURCE_MAP_BASE64.indexOf(encoded[state.index++]);
+		value += (digit & 31) << shift;
+		if ((digit & 32) === 0) {
+			break;
+		}
+		shift += 5;
+	}
+	const sign = value & 1;
+	return sign ? -(value >> 1) : value >> 1;
+};
+
+// Returns every mapping's original source position, keyed by nothing but the
+// position itself: consumers attribute a segment to a module copy by matching
+// the resolved source id and test the position against recorded mint spans.
+// Per line, segments are comma-separated and each segment carries 1
+// (generated column only), 4 or 5 (with names index) zig-zag VLQ fields.
+const decodeSourceMapSegments = (map) => {
+	const segments = [];
+	let sourceIndex = 0;
+	let origLine = 0;
+	let origCol = 0;
+	for (const encodedLine of map.mappings.split(';')) {
+		let genCol = 0;
+		for (const rawSegment of encodedLine.split(',')) {
+			if (rawSegment === '') {
+				continue;
+			}
+
+			const fields = [];
+			const state = { index: 0 };
+			while (state.index < rawSegment.length) {
+				fields.push(readSourceMapVlq(rawSegment, state));
+			}
+
+			const [
+				genColDelta,
+				sourceIndexDelta = 0,
+				origLineDelta = 0,
+				origColDelta = 0,
+			] = fields;
+			genCol += genColDelta;
+			sourceIndex += sourceIndexDelta;
+			origLine += origLineDelta;
+			origCol += origColDelta;
+			segments.push({ genCol, origCol, origLine, sourceIndex });
+		}
+	}
+	return segments;
+};
+
+// Resolves a chunk map's relative source id (relative to the chunk's own
+// directory in the output tree) to the absolute module id used by
+// chunk.modules. Internal Rolldown virtual ids are prefixed with a NUL byte
+// and are not real modules; they yield no segment.
+const resolveRenderedMapSource = (mapSource, chunkDirectory) => {
+	if (
+		typeof mapSource !== 'string' ||
+		mapSource === '' ||
+		mapSource.startsWith('\0')
+	) {
+		return undefined;
+	}
+
+	const resolved = path.isAbsolute(mapSource)
+		? mapSource
+		: path.resolve(chunkDirectory, mapSource);
+	return normalizeModuleId(resolved);
+};
+
+// A rendered segment matches a recorded mint span when the bundler's own map
+// says the emitted call originated inside the span: the same source line (in
+// the standard 0-based coordinates both the scan and the map use) and a
+// column within the call's [start, end) extent.
+const renderedSegmentMatchesSpan = (segment, span) => {
+	if (segment.origLine < span.startLine || segment.origLine > span.endLine) {
+		return false;
+	}
+	if (segment.origLine === span.startLine && segment.origCol < span.startCol) {
+		return false;
+	}
+	if (segment.origLine === span.endLine && segment.origCol >= span.endCol) {
+		return false;
+	}
+	return true;
+};
+
 export const findContextChunkIsolationViolations = (
 	contexts,
 	chunks,
 	projectDirectory = process.cwd(),
+	outputDirectory = projectDirectory,
 ) => {
 	const chunksForSource = new Map();
 
@@ -1088,6 +987,7 @@ export const findContextChunkIsolationViolations = (
 			const normalizedModuleId = normalizeModuleId(moduleId);
 			const moduleChunks = chunksForSource.get(normalizedModuleId) ?? [];
 			moduleChunks.push({
+				chunk,
 				chunkName: chunk.fileName,
 				moduleId: normalizedModuleId,
 				renderedModule,
@@ -1096,139 +996,131 @@ export const findContextChunkIsolationViolations = (
 		}
 	}
 
-	// Per source file, the expected contexts map to the holder positions the
-	// source scan recorded for their `<anonymous context>` mints — the binding
-	// name plus the property/index chain where the minted value lands. The
-	// rendered holder attribution fires only for those positions.
-	const contextsBySource = new Map();
-	for (const context of contexts) {
-		const contextPositions =
-			contextsBySource.get(context.sourceFile) ?? new Map();
-		const mintingPositions = contextPositions.get(context.name) ?? new Set();
-		for (const position of context.mintingPositions ?? []) {
-			mintingPositions.add(position);
+	// Every chunk's decoded source map, indexed by the chunk object. A chunk
+	// without a map makes every copy it delivers un-attributable: the verdict
+	// then falls back to the module/chunk cardinality facts alone and fails
+	// closed when more than one copy is delivered.
+	const chunkAnalyses = new Map();
+	for (const chunk of chunks) {
+		if (
+			typeof chunk.map?.mappings !== 'string' ||
+			!Array.isArray(chunk.map.sources)
+		) {
+			chunkAnalyses.set(chunk, { hasMap: false });
+			continue;
 		}
 
-		contextPositions.set(context.name, mintingPositions);
-		contextsBySource.set(context.sourceFile, contextPositions);
+		const chunkDirectory = path.join(
+			outputDirectory,
+			path.dirname(chunk.fileName),
+		);
+		const segments = [];
+		for (const segment of decodeSourceMapSegments(chunk.map)) {
+			const source = resolveRenderedMapSource(
+				chunk.map.sources[segment.sourceIndex],
+				chunkDirectory,
+			);
+			if (source === undefined) {
+				continue;
+			}
+			segments.push({
+				origCol: segment.origCol,
+				origLine: segment.origLine,
+				source,
+			});
+		}
+		chunkAnalyses.set(chunk, { hasMap: true, segments });
 	}
 
-	const analyzedSourceFiles = new Set();
-	const renderedModulesToAnalyze = [];
-	for (const [sourceFile, expectedContexts] of contextsBySource) {
-		const virtualModuleChunks = [];
+	return contexts.flatMap((context) => {
+		const sourcePath = path.relative(projectDirectory, context.sourceFile);
+		const mintSpans = context.mintSpans ?? [];
+		const familyCopies = [];
 		for (const [moduleId, moduleChunks] of chunksForSource) {
-			if (!moduleId.startsWith(`${sourceFile}?`)) {
+			const isSourceModule = moduleId === context.sourceFile;
+			const isSourceQueryModule = moduleId.startsWith(`${context.sourceFile}?`);
+			if (!isSourceModule && !isSourceQueryModule) {
 				continue;
 			}
 
-			if (!TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId)) {
+			if (
+				isSourceQueryModule &&
+				!TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId)
+			) {
 				throw new Error(
 					`Context chunk isolation guard cannot prove an unrecognized source-derived query module ${moduleId}; verify its transform semantics before adding its TanStack sibling family to the curated allowlist.`,
 				);
 			}
 
-			virtualModuleChunks.push(...moduleChunks);
-		}
-
-		const sourceModuleChunks = chunksForSource.get(sourceFile) ?? [];
-		if (sourceModuleChunks.length === 0 && virtualModuleChunks.length === 0) {
-			continue;
-		}
-
-		analyzedSourceFiles.add(sourceFile);
-		for (const moduleChunk of [...sourceModuleChunks, ...virtualModuleChunks]) {
-			renderedModulesToAnalyze.push({
-				...moduleChunk,
-				expectedContexts,
-			});
-		}
-	}
-
-	const renderedContextAnalyses = analyzeRenderedContextModules(
-		renderedModulesToAnalyze,
-	);
-	const renderedModuleCreatesContext = (renderedModule, contextName) => {
-		const analysis = renderedContextAnalyses.get(renderedModule);
-		if (!analysis) {
-			throw new Error(
-				'Context chunk isolation guard did not analyze a relevant rendered module.',
-			);
-		}
-
-		return (
-			analysis.hasUnattributedCreateContextCall ||
-			analysis.recognizedContextNames.has(contextName)
-		);
-	};
-
-	return contexts.flatMap((context) => {
-		const chunkNames = new Set();
-		const sourceChunkNames = new Set();
-		let contextCreatingModuleCount = 0;
-		let sourceModuleCopyCount = 0;
-		const hasRenderedContextAnalysis = analyzedSourceFiles.has(
-			context.sourceFile,
-		);
-		for (const [moduleId, moduleChunks] of chunksForSource) {
-			const isSourceModule = moduleId === context.sourceFile;
-			const isSourceQueryModule = moduleId.startsWith(`${context.sourceFile}?`);
-			if (
-				!isSourceModule &&
-				(!isSourceQueryModule ||
-					!TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId))
-			) {
-				continue;
-			}
-
-			const inspectRenderedContext =
-				hasRenderedContextAnalysis &&
-				(isSourceModule ||
-					TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId));
-			for (const { chunkName, renderedModule } of moduleChunks) {
-				// Every module-chunk pair is a delivered copy of the
-				// context's source, whether or not it is attributed a mint.
-				// The fail-closed branch counts copies, not the chunks they
-				// landed in: advanced chunk grouping can put two copies in
-				// one chunk, and a chunk name is a container, not a copy.
-				sourceModuleCopyCount += 1;
-				sourceChunkNames.add(chunkName);
-				if (
-					inspectRenderedContext &&
-					!renderedModuleCreatesContext(renderedModule, context.name)
-				) {
-					continue;
+			for (const moduleChunk of moduleChunks) {
+				const chunkAnalysis = chunkAnalyses.get(moduleChunk.chunk);
+				if (!chunkAnalysis) {
+					throw new Error(
+						'Context chunk isolation guard did not analyze a chunk delivering a context source module.',
+					);
 				}
 
-				contextCreatingModuleCount += 1;
-				chunkNames.add(chunkName);
+				// A copy mints the context when the bundler's map attributes
+				// an emitted call to one of the recorded mint spans in this
+				// exact module copy (the map's resolved source id matches the
+				// copy's module id — a sibling copy in the same chunk is a
+				// different source id, so per-copy attribution stays exact).
+				const minted =
+					chunkAnalysis.hasMap &&
+					chunkAnalysis.segments.some(
+						(segment) =>
+							segment.source === moduleChunk.moduleId &&
+							mintSpans.some((span) =>
+								renderedSegmentMatchesSpan(segment, span),
+							),
+					);
+				familyCopies.push({
+					chunkName: moduleChunk.chunkName,
+					hasMap: chunkAnalysis.hasMap,
+					minted,
+				});
 			}
 		}
 
-		const sourcePath = path.relative(projectDirectory, context.sourceFile);
-		if (contextCreatingModuleCount === 0) {
-			if (sourceModuleCopyCount >= 2) {
-				throw new Error(
-					`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: its source is delivered in ${sourceModuleCopyCount} client module copies (${[...sourceChunkNames].join(', ')}) and no rendered copy is attributed a mint.`,
-				);
-			}
-
-			if (
-				hasRenderedContextAnalysis &&
-				chunksForSource.has(context.sourceFile)
-			) {
-				return [];
-			}
-
+		if (familyCopies.length === 0) {
 			return [
 				`${context.name} in ${sourcePath} is not present in a client chunk.`,
 			];
 		}
 
-		if (contextCreatingModuleCount < 2) {
+		const mintingCopies = familyCopies.filter((copy) => copy.minted);
+		const copyCount = familyCopies.length;
+		// A delivered copy whose chunk emits no source map cannot be checked:
+		// it may mint the context like any other copy, so attribution is
+		// incomplete and the verdict fails closed whenever more than one copy
+		// exists. A single copy needs no attribution at all.
+		if (copyCount >= 2 && familyCopies.some((copy) => !copy.hasMap)) {
+			throw new Error(
+				`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: the build emits no source map for a client chunk delivering its source.`,
+			);
+		}
+
+		if (mintingCopies.length === 0) {
+			if (copyCount >= 2) {
+				const chunkNames = [
+					...new Set(familyCopies.map((copy) => copy.chunkName)),
+				];
+				throw new Error(
+					`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: its source is delivered in ${copyCount} client module copies (${chunkNames.join(', ')}) and no rendered copy is attributed a mint.`,
+				);
+			}
+
+			// A single delivered copy with no attributed mint stays green:
+			// with only one copy there is nothing to duplicate, and the mint
+			// not being in the bundle at all is likewise inert.
 			return [];
 		}
 
+		if (mintingCopies.length === 1) {
+			return [];
+		}
+
+		const chunkNames = new Set(mintingCopies.map((copy) => copy.chunkName));
 		if (chunkNames.size === 1) {
 			return [
 				`${context.name} in ${sourcePath} is created by multiple client modules in chunk: ${[...chunkNames].join(', ')}.`,
@@ -1315,11 +1207,23 @@ export const contextChunkIsolationPlugin = ({
 }) => {
 	let contexts = [];
 	let programSourceFiles = new Set();
+	let forcedSourcemap = false;
 
 	return {
 		name: 'publy:context-chunk-isolation',
 		apply: 'build',
 		applyToEnvironment: (environment) => environment.name === 'client',
+		// Rendered attribution reads the bundler's own source map, so the
+		// client build must emit one. 'hidden' writes the map without the
+		// sourceMappingURL comment; when the user configured sourcemaps
+		// themselves, their choice stands and the maps are theirs to keep.
+		config(config) {
+			const clientBuild = config.environments?.client?.build ?? config.build;
+			if (clientBuild?.sourcemap === undefined) {
+				clientBuild.sourcemap = 'hidden';
+				forcedSourcemap = true;
+			}
+		},
 		buildStart() {
 			contexts = findReactContextDeclarations(tsconfigPath, (sourceFiles) => {
 				programSourceFiles = sourceFiles;
@@ -1337,7 +1241,7 @@ export const contextChunkIsolationPlugin = ({
 				);
 			}
 		},
-		generateBundle(_outputOptions, bundle) {
+		generateBundle(outputOptions, bundle) {
 			const chunks = Object.values(bundle).filter(
 				(output) => output.type === 'chunk',
 			);
@@ -1347,6 +1251,7 @@ export const contextChunkIsolationPlugin = ({
 					contexts,
 					chunks,
 					projectDirectory,
+					outputOptions.dir ?? projectDirectory,
 				),
 				...findTypeScriptProgramCoverageViolations(
 					programSourceFiles,
@@ -1354,6 +1259,16 @@ export const contextChunkIsolationPlugin = ({
 					workspaceDirectory,
 				),
 			];
+			// The maps the guard forced on the build are consumed in memory
+			// and must not ship with the output: 'hidden' already omits the
+			// sourceMappingURL comment, and removing the map assets keeps the
+			// artifact byte-for-byte what it would have been without the
+			// guard's internal sourcemap requirement.
+			if (forcedSourcemap) {
+				for (const chunk of chunks) {
+					delete bundle[`${chunk.fileName}.map`];
+				}
+			}
 			if (violations.length > 0) {
 				this.error(
 					`React context chunk isolation failed:\n${violations

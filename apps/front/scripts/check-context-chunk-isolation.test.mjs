@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import {
+	mkdtemp,
+	mkdir,
+	readFile,
+	readdir,
+	rm,
+	symlink,
+	writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -15,6 +22,114 @@ import {
 
 const frontDirectory = path.resolve(import.meta.dirname, '..');
 const execFileAsync = promisify(execFile);
+
+// Hand-fed rendered fixtures express attribution through real source-map
+// objects: segments map a generated position in the chunk to an original
+// source position (0-based line/column, the standard VLQ encoding), exactly
+// like the maps the guard reads from real builds.
+const SOURCE_MAP_BASE64 =
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+const encodeVlq = (value) => {
+	let encoded = '';
+	let vlq = value < 0 ? (-value << 1) | 1 : value << 1;
+	do {
+		let digit = vlq & 31;
+		vlq >>>= 5;
+		if (vlq > 0) {
+			digit |= 32;
+		}
+		encoded += SOURCE_MAP_BASE64[digit];
+	} while (vlq > 0);
+	return encoded;
+};
+
+// Builds a chunk source map from explicit segments. genLine/genCol are
+// merely the emitted-call coordinates the guard never consults for the
+// verdict; origLine/origCol and the resolved source id are what attribution
+// runs on.
+const encodeSourceMap = ({ sources, segments }) => {
+	let mappings = '';
+	let prevSource = 0;
+	let prevOrigLine = 0;
+	let prevOrigCol = 0;
+	const byLine = new Map();
+	let maxLine = 0;
+	for (const segment of segments) {
+		const lineSegments = byLine.get(segment.genLine) ?? [];
+		lineSegments.push(segment);
+		byLine.set(segment.genLine, lineSegments);
+		maxLine = Math.max(maxLine, segment.genLine);
+	}
+	for (let line = 0; line <= maxLine; line++) {
+		const lineSegments = byLine.get(line) ?? [];
+		lineSegments.sort((a, b) => a.genCol - b.genCol);
+		let genCol = 0;
+		const encodedSegments = [];
+		for (const segment of lineSegments) {
+			const fields = [segment.genCol - genCol];
+			genCol = segment.genCol;
+			if (segment.sourceIndex !== undefined) {
+				fields.push(segment.sourceIndex - prevSource);
+				prevSource = segment.sourceIndex;
+				fields.push(segment.origLine - prevOrigLine);
+				prevOrigLine = segment.origLine;
+				fields.push(segment.origCol - prevOrigCol);
+				prevOrigCol = segment.origCol;
+			}
+			encodedSegments.push(fields.map(encodeVlq).join(''));
+		}
+		mappings += (line > 0 ? ';' : '') + encodedSegments.join(',');
+	}
+	return { version: 3, sources, sourcesContent: [], mappings };
+};
+
+// A hand-fed chunk whose map attributes the given segments to the given
+// source ids (absolute module ids, as the guard resolves them).
+const chunkWithMap = (fileName, modules, segments) => {
+	const sources = [...new Set(segments.map((segment) => segment.source))];
+	const sourceIndexes = new Map(
+		sources.map((source, index) => [source, index]),
+	);
+	return {
+		fileName,
+		modules,
+		map: encodeSourceMap({
+			sources,
+			segments: segments.map((segment) => ({
+				...segment,
+				sourceIndex: sourceIndexes.get(segment.source),
+			})),
+		}),
+	};
+};
+
+const mintSpanOfText = (sourceText, needle) => {
+	const index = sourceText.indexOf(needle);
+	assert.notEqual(index, -1, `mint span needle ${needle} not found in source`);
+	const before = sourceText.slice(0, index);
+	const lines = before.split('\n');
+	return {
+		startCol: lines[lines.length - 1].length,
+		startLine: lines.length - 1,
+		endCol: lines[lines.length - 1].length + needle.length,
+		endLine: lines.length - 1,
+	};
+};
+
+// The chunk source map a real build emitted for a chunk, as written by the
+// harness dump plugin before the guard strips the maps from the output.
+const readChunkMap = async (fixtureDirectory, chunkFileName) => {
+	const raw = await readFile(
+		path.join(
+			fixtureDirectory,
+			'chunk-maps',
+			`${chunkFileName.replaceAll('/', '_')}.json`,
+		),
+		'utf8',
+	);
+	return JSON.parse(raw).map;
+};
 
 const createFixture = async (files) => {
 	const fixtureDirectory = await mkdtemp(
@@ -68,7 +183,7 @@ const buildRouteFixture = async ({
 	const fixtureDirectory = await createFixture({
 		'vite.config.mjs': `
 			import path from 'node:path';
-			import { writeFileSync } from 'node:fs';
+			import { mkdirSync, writeFileSync } from 'node:fs';
 			import { defineConfig } from 'vite';
 			import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 			import viteReact from '@vitejs/plugin-react';
@@ -84,7 +199,7 @@ const buildRouteFixture = async ({
 						: ''
 				}
 				plugins: [
-					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(Object.values(bundle).filter((output) => output.type === 'chunk').map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); } },
+					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { const chunks = Object.values(bundle).filter((output) => output.type === 'chunk'); writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(chunks.map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); mkdirSync(path.join(rootDirectory, 'chunk-maps'), { recursive: true }); for (const chunk of chunks) { if (chunk.map) writeFileSync(path.join(rootDirectory, 'chunk-maps', \`\${chunk.fileName.replaceAll('/', '_')}.json\`), JSON.stringify({ fileName: chunk.fileName, map: chunk.map }, null, 2)); } } },
 					contextChunkIsolationPlugin({
 						contextInventory: ${JSON.stringify(inventory)},
 						tsconfigPath: path.join(rootDirectory, 'tsconfig.json'),
@@ -667,7 +782,7 @@ void test('discovers factory-minted contexts in unbound holder positions', async
 	}
 });
 
-void test('records the structural position of each discovered holder mint', async () => {
+void test('records the exact source span of each discovered holder mint', async () => {
 	const fixtureDirectory = await createFixture({
 		'src/make-context.ts': `
 			import { createContext } from 'react';
@@ -700,21 +815,44 @@ void test('records the structural position of each discovered holder mint', asyn
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const positionsIn = (relativeSourceFile) =>
+		const spansIn = (relativeSourceFile) =>
 			contexts.find(
 				(context) =>
 					context.name === '<anonymous context>' &&
 					context.sourceFile ===
 						path.join(fixtureDirectory, relativeSourceFile),
-			)?.mintingPositions;
-		assert.deepEqual(positionsIn('src/object-holder.tsx'), ['contexts.probe']);
-		assert.deepEqual(positionsIn('src/array-holder.tsx'), ['contexts[0]']);
-		assert.deepEqual(positionsIn('src/export-default.tsx'), ['<default>']);
-		assert.deepEqual(positionsIn('src/as-wrapped-holder.tsx'), [
-			'contexts.probe',
+			)?.mintSpans;
+		const sourceOf = (relativeSourceFile) =>
+			readFile(path.join(fixtureDirectory, relativeSourceFile), 'utf8');
+		assert.deepEqual(spansIn('src/object-holder.tsx'), [
+			mintSpanOfText(
+				await sourceOf('src/object-holder.tsx'),
+				'createStrictContext<null>(null)',
+			),
 		]);
-		assert.deepEqual(positionsIn('src/nested-holder.tsx'), [
-			'contexts.outer.probe',
+		assert.deepEqual(spansIn('src/array-holder.tsx'), [
+			mintSpanOfText(
+				await sourceOf('src/array-holder.tsx'),
+				'createStrictContext<null>(null)',
+			),
+		]);
+		assert.deepEqual(spansIn('src/export-default.tsx'), [
+			mintSpanOfText(
+				await sourceOf('src/export-default.tsx'),
+				'createStrictContext<null>(null)',
+			),
+		]);
+		assert.deepEqual(spansIn('src/as-wrapped-holder.tsx'), [
+			mintSpanOfText(
+				await sourceOf('src/as-wrapped-holder.tsx'),
+				'createStrictContext<null>(null)',
+			),
+		]);
+		assert.deepEqual(spansIn('src/nested-holder.tsx'), [
+			mintSpanOfText(
+				await sourceOf('src/nested-holder.tsx'),
+				'createStrictContext<null>(null)',
+			),
 		]);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
@@ -749,6 +887,95 @@ void test('tracks a comma-chain holder mint only when the call is the chain valu
 			);
 		assert.equal(discoveredIn('src/comma-right-holder.tsx'), true);
 		assert.equal(discoveredIn('src/comma-discarded-holder.tsx'), false);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
+void test('discovers each mint inside a conditional holder expression with its own span', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/make-context.ts': `
+			import { createContext } from 'react';
+			export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+			export const makeContexts = <T,>(fallback: T) => ({ probe: createContext(fallback) });
+		`,
+		'src/conditional-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			export const contexts = { probe: Math.random() > -1 ? createStrictContext<null>(null) : createStrictContext<null>(null) };
+		`,
+		'src/spread-holder.tsx': `
+			import { makeContexts } from './make-context';
+			export const contexts = { ...makeContexts<null>(null) };
+		`,
+		'src/record-property-holder.tsx': `
+			import { makeContexts } from './make-context';
+			export const contexts = { probe: makeContexts<null>(null) };
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		const discoveredIn = (relativeSourceFile) =>
+			contexts.filter(
+				(context) =>
+					context.name === '<anonymous context>' &&
+					context.sourceFile ===
+						path.join(fixtureDirectory, relativeSourceFile),
+			);
+		const sourceOf = (relativeSourceFile) =>
+			readFile(path.join(fixtureDirectory, relativeSourceFile), 'utf8');
+
+		// Each branch of the conditional is a separate mint at its own span,
+		// so a copy executing either branch is attributed.
+		const conditionalSpans = discoveredIn('src/conditional-holder.tsx');
+		assert.equal(conditionalSpans.length, 2);
+		const conditionalSource = await sourceOf('src/conditional-holder.tsx');
+		const firstSpan = mintSpanOfText(
+			conditionalSource,
+			'createStrictContext<null>(null)',
+		);
+		const secondNeedle = 'createStrictContext<null>(null)';
+		const secondOccurrence = conditionalSource.indexOf(
+			secondNeedle,
+			conditionalSource.indexOf(secondNeedle) + secondNeedle.length,
+		);
+		assert.notEqual(secondOccurrence, -1);
+		const secondSpan = {
+			startCol: conditionalSource.slice(0, secondOccurrence).split('\n').at(-1)
+				.length,
+			startLine:
+				conditionalSource.slice(0, secondOccurrence).split('\n').length - 1,
+			endCol:
+				conditionalSource.slice(0, secondOccurrence).split('\n').at(-1).length +
+				secondNeedle.length,
+			endLine:
+				conditionalSource.slice(0, secondOccurrence).split('\n').length - 1,
+		};
+		assert.deepEqual(
+			conditionalSpans.map((context) => context.mintSpans),
+			[[firstSpan], [secondSpan]],
+		);
+
+		// A spread of a context record and a record held in a property are
+		// both mints at the factory call's own span.
+		const spreadSpans = discoveredIn('src/spread-holder.tsx');
+		assert.equal(spreadSpans.length, 1);
+		assert.deepEqual(spreadSpans[0].mintSpans, [
+			mintSpanOfText(
+				await sourceOf('src/spread-holder.tsx'),
+				'makeContexts<null>(null)',
+			),
+		]);
+		const recordSpans = discoveredIn('src/record-property-holder.tsx');
+		assert.equal(recordSpans.length, 1);
+		assert.deepEqual(recordSpans[0].mintSpans, [
+			mintSpanOfText(
+				await sourceOf('src/record-property-holder.tsx'),
+				'makeContexts<null>(null)',
+			),
+		]);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
@@ -1049,25 +1276,41 @@ void test('counts a rendered element-access createContext callee in a TanStack r
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 	const elementAccessCode =
 		"const RouteContext = React['createContext'](null);";
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
+			[{ name: 'RouteContext', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: elementAccessCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: elementAccessCode,
+				chunkWithMap(
+					'assets/route.js',
+					{ [sourceFile]: { code: elementAccessCode } },
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
 						},
-					},
-				},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{ [splitModule]: { code: elementAccessCode } },
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1086,17 +1329,24 @@ void test('does not treat the member-name of a React namespace access as a facto
 	});
 
 	try {
-		assert.deepEqual(
-			findReactContextDeclarations(
-				path.join(fixtureDirectory, 'tsconfig.json'),
-			),
-			[
-				{
-					name: 'NamespaceContext',
-					sourceFile: path.join(fixtureDirectory, 'src/namespace-call.ts'),
-				},
-			],
+		const discovered = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
+		assert.equal(discovered.length, 1);
+		assert.equal(discovered[0].name, 'NamespaceContext');
+		assert.equal(
+			discovered[0].sourceFile,
+			path.join(fixtureDirectory, 'src/namespace-call.ts'),
+		);
+		assert.deepEqual(discovered[0].mintSpans, [
+			mintSpanOfText(
+				await readFile(
+					path.join(fixtureDirectory, 'src/namespace-call.ts'),
+					'utf8',
+				),
+				'React.createContext(null)',
+			),
+		]);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
@@ -1268,23 +1518,43 @@ void test('fails closed when a dynamic object-holder access could be React creat
 
 void test('does not flag a chunk copy that references a context without minting it', () => {
 	const sourceFile = path.join(frontDirectory, 'src/lib/shared-context.tsx');
+	const sourceText = `
+		const Ctx = createContext(null);
+		const value = useContext(Ctx);
+	`;
+	const mintSpan = mintSpanOfText(sourceText, 'createContext(null)');
+	const referenceSpan = mintSpanOfText(sourceText, 'useContext(Ctx)');
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
-			[{ name: 'Ctx', sourceFile }],
+			[{ name: 'Ctx', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					fileName: 'assets/a.js',
-					modules: {
-						[sourceFile]: { code: 'const Ctx = createContext(null);' },
-					},
-				},
-				{
-					fileName: 'assets/b.js',
-					modules: {
-						[sourceFile]: { code: 'const value = useContext(Ctx);' },
-					},
-				},
+				chunkWithMap(
+					'assets/a.js',
+					{ [sourceFile]: { code: 'const Ctx = createContext(null);' } },
+					[
+						{
+							source: sourceFile,
+							origLine: mintSpan.startLine,
+							origCol: mintSpan.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/b.js',
+					{ [sourceFile]: { code: 'const value = useContext(Ctx);' } },
+					[
+						{
+							source: sourceFile,
+							origLine: referenceSpan.startLine,
+							origCol: referenceSpan.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1294,28 +1564,65 @@ void test('does not flag a chunk copy that references a context without minting 
 
 void test('reports each React context whose source module is in multiple client chunks', () => {
 	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
-	const contexts = [
-		{ name: 'FirstContext', sourceFile },
-		{ name: 'SecondContext', sourceFile },
-	];
-	const renderedCode = `
+	const sourceText = `
 		const FirstContext = createContext(null);
 		const SecondContext = createContext(null);
 	`;
+	const firstSpan = mintSpanOfText(sourceText, 'createContext(null)');
+	const secondSpan = mintSpanOfText(
+		sourceText,
+		'createContext(null)',
+		firstSpan.startLine * 1000 + firstSpan.startCol,
+	);
+	const contexts = [
+		{ name: 'FirstContext', sourceFile, mintSpans: [firstSpan] },
+		{ name: 'SecondContext', sourceFile, mintSpans: [secondSpan] },
+	];
+	const firstChunk = chunkWithMap(
+		'assets/first.js',
+		{ [sourceFile]: { code: sourceText } },
+		[
+			{
+				source: sourceFile,
+				origLine: firstSpan.startLine,
+				origCol: firstSpan.startCol,
+				genLine: 0,
+				genCol: 4,
+			},
+			{
+				source: sourceFile,
+				origLine: secondSpan.startLine,
+				origCol: secondSpan.startCol,
+				genLine: 0,
+				genCol: 20,
+			},
+		],
+	);
+	const secondChunk = chunkWithMap(
+		'assets/second.js',
+		{ [sourceFile]: { code: sourceText } },
+		[
+			{
+				source: sourceFile,
+				origLine: firstSpan.startLine,
+				origCol: firstSpan.startCol,
+				genLine: 0,
+				genCol: 4,
+			},
+			{
+				source: sourceFile,
+				origLine: secondSpan.startLine,
+				origCol: secondSpan.startCol,
+				genLine: 0,
+				genCol: 20,
+			},
+		],
+	);
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
 			contexts,
-			[
-				{
-					fileName: 'assets/first.js',
-					modules: { [sourceFile]: { code: renderedCode } },
-				},
-				{
-					fileName: 'assets/second.js',
-					modules: { [sourceFile]: { code: renderedCode } },
-				},
-			],
+			[firstChunk, secondChunk],
 			frontDirectory,
 		),
 		[
@@ -1330,29 +1637,45 @@ void test('counts a TanStack route virtual-module sibling that still creates the
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
+			[{ name: 'RouteContext', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: {
-						[sourceFile]: {
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: { code: 'const RouteContext = createContext(null);' },
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
 							code: 'const RouteContext = createContext(null);',
-							renderedLength: 49,
 						},
 					},
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: 'const RouteContext = createContext(null);',
-							renderedLength: 49,
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
 						},
-					},
-				},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1367,27 +1690,45 @@ void test('counts a TanStack Hydrate virtual-module sibling that still creates t
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
+	const hydratedModule = `${sourceFile}?tss-hydrate=H1`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
+			[{ name: 'RouteContext', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: {
-						[sourceFile]: {
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: { code: 'const RouteContext = createContext(null);' },
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/hydrated.js',
+					{
+						[hydratedModule]: {
 							code: 'const RouteContext = createContext(null);',
 						},
 					},
-				},
-				{
-					fileName: 'assets/hydrated.js',
-					modules: {
-						[`${sourceFile}?tss-hydrate=H1`]: {
-							code: 'const RouteContext = createContext(null);',
+					[
+						{
+							source: hydratedModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
 						},
-					},
-				},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1397,377 +1738,55 @@ void test('counts a TanStack Hydrate virtual-module sibling that still creates t
 	);
 });
 
-void test('counts a namespace createContext call in a TanStack route virtual-module sibling', () => {
+void test('attributes a rendered mint by source position regardless of its rendered callee name', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
+	// Both copies execute the mint; the rendered spelling is a renamed
+	// helper the guard has never heard of. The map is the only evidence, and
+	// the position matches, so both copies are creators.
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
+			[{ name: 'RouteContext', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: {
-						[sourceFile]: {
-							code: 'const RouteContext = React.createContext(null);',
+				chunkWithMap(
+					'assets/route.js',
+					{ [sourceFile]: { code: 'const RouteContext = otherHelper(null);' } },
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
 						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: { code: 'const RouteContext = otherHelper(null);' },
 					},
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: 'const RouteContext = React.createContext(null);',
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
 						},
-					},
-				},
+					],
+				),
 			],
 			frontDirectory,
 		),
 		[
 			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
 		],
-	);
-});
-
-void test('counts a sequence-wrapped createContext call in a TanStack route virtual-module sibling', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
-			[
-				{
-					fileName: 'assets/route.js',
-					modules: {
-						[sourceFile]: {
-							code: 'const RouteContext = (0, import_react.createContext)(null);',
-						},
-					},
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: 'const RouteContext = (0, import_react.createContext)(null);',
-						},
-					},
-				},
-			],
-			frontDirectory,
-		),
-		[
-			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
-		],
-	);
-});
-
-void test('counts a rendered-module-local createContext callee alias', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const aliasedCode = `
-		const mk = import_react.createContext;
-		const RouteContext = mk(null);
-	`;
-
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
-			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: aliasedCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: aliasedCode,
-						},
-					},
-				},
-			],
-			frontDirectory,
-		),
-		[
-			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
-		],
-	);
-});
-
-void test('counts a context duplicated across TanStack virtual-module siblings', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
-			[
-				{
-					fileName: 'assets/route.js',
-					modules: {
-						[sourceFile]: { code: 'const route = {};' },
-					},
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: 'const RouteContext = React.createContext(null);',
-						},
-					},
-				},
-				{
-					fileName: 'assets/route-loader.js',
-					modules: {
-						[`${sourceFile}?tsr-split=loader`]: {
-							code: 'const RouteContext = React.createContext(null);',
-						},
-					},
-				},
-			],
-			frontDirectory,
-		),
-		[
-			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route-component.js, assets/route-loader.js.',
-		],
-	);
-});
-
-void test('fails closed for a deconflicted-renamed context binding with an unrecognized initializer callee', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const unrecognizedCode = `
-		const makeContext = getContextFactory();
-		const RouteContext$1 = makeContext(null);
-	`;
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: unrecognizedCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: unrecognizedCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot prove how RouteContext\$1 is created/i,
-	);
-});
-
-void test('attributes a deconflicted-renamed context mint to its own binding, not every context in the file', () => {
-	const sourceFile = path.join(frontDirectory, 'src/two-contexts.ts');
-	const renamedFirstContextCode = `
-		const FirstContext$1 = (0, import_react.createContext)(null);
-	`;
-	const secondContextCode = `
-		const SecondContext = createContext(null);
-	`;
-
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{ name: 'FirstContext', sourceFile },
-				{ name: 'SecondContext', sourceFile },
-			],
-			[
-				{
-					fileName: 'assets/first.js',
-					modules: { [sourceFile]: { code: renamedFirstContextCode } },
-				},
-				{
-					fileName: 'assets/second.js',
-					modules: { [sourceFile]: { code: secondContextCode } },
-				},
-			],
-			frontDirectory,
-		),
-		[],
-	);
-});
-
-void test('counts a rendered createContext call bound to an unexpected name as a creator', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const unattributedCode = 'const Unrelated = createContext(null);';
-
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
-			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: unattributedCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: unattributedCode,
-						},
-					},
-				},
-			],
-			frontDirectory,
-		),
-		[
-			'RouteContext in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
-		],
-	);
-});
-
-void test('fails closed when a context initializer callee remains unrecognized', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const unrecognizedCode = `
-		const makeContext = getContextFactory();
-		const RouteContext = makeContext(null);
-	`;
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: unrecognizedCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: unrecognizedCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot prove how RouteContext is created/i,
-	);
-});
-
-void test('fails closed when a rendered array-pattern binding binds an expected context name', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const arrayPatternCode = 'const [RouteContext] = makeTuple(null);';
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: arrayPatternCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: arrayPatternCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot prove how RouteContext is created/i,
-	);
-});
-
-void test('fails closed when a rendered nested-pattern binding binds an expected context name', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const nestedPatternCode =
-		'const { inner: { probe: RouteContext } } = makeNested(null);';
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: nestedPatternCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: nestedPatternCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot prove how RouteContext is created/i,
-	);
-});
-
-void test('fails closed when a rendered nested-array-pattern binding binds an expected context name', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const nestedArrayPatternCode =
-		'const [[RouteContext]] = makeNestedTuple(null);';
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: {
-							[sourceFile]: { code: nestedArrayPatternCode },
-						},
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: nestedArrayPatternCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot prove how RouteContext is created/i,
 	);
 });
 
@@ -1776,32 +1795,47 @@ void test('counts a rendered factory mint held in an array element as a creator'
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const arrayHolderCode = `
-		const contexts = [createStrictContext(null)];
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
+			[{ name: '<anonymous context>', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					mintingPositions: ['contexts[0]'],
-				},
-			],
-			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: arrayHolderCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: arrayHolderCode,
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = [make_context_default(null)];',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = [make_context_default(null)];',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1816,30 +1850,47 @@ void test('counts a rendered factory mint held in an export default as a creator
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const exportDefaultCode = 'export default createStrictContext(null);';
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
+			[{ name: '<anonymous context>', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					mintingPositions: ['<default>'],
-				},
-			],
-			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: exportDefaultCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: exportDefaultCode,
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'export default make_context_default(null);',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'export default make_context_default(null);',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1854,10 +1905,8 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const routeShimCode = `
-		var $$splitComponentImporter = () => import("./probe-!~{001}~.js");
-		var Route = createFileRoute("/probe")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.throws(
 		() =>
@@ -1866,22 +1915,36 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 					{
 						name: '<anonymous context>',
 						sourceFile,
-						mintingPositions: ['contexts.probe'],
+						mintSpans: [mintSpan],
 					},
 				],
 				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: routeShimCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: routeShimCode,
+					chunkWithMap(
+						'assets/route.js',
+						{ [sourceFile]: { code: 'var route = {};' } },
+						[
+							{
+								source: sourceFile,
+								origLine: 5,
+								origCol: 8,
+								genLine: 0,
+								genCol: 4,
 							},
-						},
-					},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
+						{ [splitModule]: { code: 'var SplitComponent = () => null;' } },
+						[
+							{
+								source: splitModule,
+								origLine: 5,
+								origCol: 8,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
 				],
 				frontDirectory,
 			),
@@ -1894,9 +1957,8 @@ void test('fails when two positioned holder mints of a module share one chunk', 
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const unattributedMintCode = `
-		var contexts = { probe: make_context_default(null) };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -1904,19 +1966,37 @@ void test('fails when two positioned holder mints of a module share one chunk', 
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/probe-pair.js',
-					modules: {
-						[sourceFile]: { code: unattributedMintCode },
-						[`${sourceFile}?tsr-split=component`]: {
-							code: unattributedMintCode,
+				chunkWithMap(
+					'assets/probe-pair.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: make_context_default(null) };',
+						},
+						[splitModule]: {
+							code: 'var contexts = { probe: make_context_default(null) };',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 40,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1931,10 +2011,7 @@ void test('passes an un-attributable holder-position call when the module is in 
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const routeShimCode = `
-		var $$splitComponentImporter = () => import("./probe-!~{001}~.js");
-		var Route = createFileRoute("/probe")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
-	`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -1942,14 +2019,23 @@ void test('passes an un-attributable holder-position call when the module is in 
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: routeShimCode } },
-				},
+				chunkWithMap(
+					'assets/route.js',
+					{ [sourceFile]: { code: 'var route = {};' } },
+					[
+						{
+							source: sourceFile,
+							origLine: 5,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -1962,13 +2048,8 @@ void test('passes when one rendered copy of a split module mints while the other
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const routeShimCode = `
-		var $$splitComponentImporter = () => import("./probe-!~{001}~.js");
-		var Route = createFileRoute("/probe")({ component: lazyRouteComponent($$splitComponentImporter, "component") });
-	`;
-	const holderMintCode = `
-		var contexts = { probe: createStrictContext(null) };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -1976,22 +2057,40 @@ void test('passes when one rendered copy of a split module mints while the other
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: routeShimCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: holderMintCode,
+				chunkWithMap(
+					'assets/route.js',
+					{ [sourceFile]: { code: 'var route = {};' } },
+					[
+						{
+							source: sourceFile,
+							origLine: 5,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = { probe: createStrictContext(null) };',
 						},
 					},
-				},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -2004,9 +2103,8 @@ void test('attributes a rendered holder mint at a recorded source position', () 
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const holderMintCode = `
-		var contexts = { probe: createStrictContext(null) };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -2014,22 +2112,44 @@ void test('attributes a rendered holder mint at a recorded source position', () 
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: holderMintCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: holderMintCode,
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: createStrictContext(null) };',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = { probe: createStrictContext(null) };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -2044,9 +2164,8 @@ void test('attributes a rendered IIFE holder mint at its recorded source positio
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const iifeMintCode = `
-		var contexts = { probe: (() => createStrictContext(null))() };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -2054,22 +2173,44 @@ void test('attributes a rendered IIFE holder mint at its recorded source positio
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: iifeMintCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: iifeMintCode,
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: (() => createStrictContext(null))() };',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = { probe: (() => createStrictContext(null))() };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -2084,9 +2225,12 @@ void test('does not attribute a rendered holder call that is not at a recorded s
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const unrelatedIifeCode = `
-		var contexts = { probe: (() => otherHelper(null))() };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+	// Same line as the mint, but a column outside the recorded span: an
+	// unrelated call that happens to be emitted near the mint must not be
+	// attributed to it.
+	const unrelatedSpan = { startLine: 0, startCol: 40, endLine: 0, endCol: 60 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -2094,47 +2238,48 @@ void test('does not attribute a rendered holder call that is not at a recorded s
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.other'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: unrelatedIifeCode } },
-				},
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: createStrictContext(null) };',
+						},
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: mintSpan.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = { probe: otherHelper(null) };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: unrelatedSpan.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
 		[],
-	);
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[
-					{
-						name: '<anonymous context>',
-						sourceFile,
-						mintingPositions: ['contexts.other'],
-					},
-				],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: unrelatedIifeCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: unrelatedIifeCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -2143,9 +2288,8 @@ void test('attributes a comma-chain-wrapped rendered holder mint at its recorded
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const commaMintCode = `
-		var contexts = { probe: (0, createStrictContext(null)) };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -2153,97 +2297,50 @@ void test('attributes a comma-chain-wrapped rendered holder mint at its recorded
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: commaMintCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: commaMintCode,
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: (0, createStrictContext(null)) };',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = { probe: (0, createStrictContext(null)) };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
 		[
 			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
 		],
-	);
-});
-
-void test('gates a direct createContext holder call on its recorded position too', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const holderCode = `
-		var contexts = { probe: createContext(null) };
-	`;
-
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					mintingPositions: ['contexts.probe'],
-				},
-			],
-			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: holderCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: holderCode,
-						},
-					},
-				},
-			],
-			frontDirectory,
-		),
-		[
-			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
-		],
-	);
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[
-					{
-						name: '<anonymous context>',
-						sourceFile,
-						mintingPositions: ['contexts.other'],
-					},
-				],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: holderCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: holderCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -2252,9 +2349,8 @@ void test('attributes a rendered holder mint through a deconflicted binding name
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const deconflictedCode = `
-		var contexts$1 = { probe: createStrictContext(null) };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -2262,22 +2358,44 @@ void test('attributes a rendered holder mint through a deconflicted binding name
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: deconflictedCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: deconflictedCode,
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts$1 = { probe: createStrictContext(null) };',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts$1 = { probe: createStrictContext(null) };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -2292,9 +2410,8 @@ void test('attributes a rendered holder mint through a nested property chain', (
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const nestedHolderCode = `
-		var contexts = { outer: { probe: createStrictContext(null) } };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -2302,22 +2419,44 @@ void test('attributes a rendered holder mint through a nested property chain', (
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.outer.probe'],
+					mintSpans: [mintSpan],
 				},
 			],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: nestedHolderCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
-					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: nestedHolderCode,
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { outer: { probe: createStrictContext(null) } };',
 						},
 					},
-				},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = { outer: { probe: createStrictContext(null) } };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
 			frontDirectory,
 		),
@@ -2332,10 +2471,12 @@ void test('does not attribute a same-named helper call held at the same property
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
-	const forgedHolderCode = `
-		var contexts = { probe: make_context_default(null) };
-		var unrelatedHolder = { probe: mkDefault("sentinel") };
-	`;
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+	// The unrelated helper lives at its own source position — the same
+	// rendered property name and callee name cannot move it into the mint
+	// span, because the bundler's map says it originated elsewhere.
+	const helperSpan = { startLine: 1, startCol: 8, endLine: 1, endCol: 24 };
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
@@ -2343,60 +2484,138 @@ void test('does not attribute a same-named helper call held at the same property
 				{
 					name: '<anonymous context>',
 					sourceFile,
-					mintingPositions: ['contexts.probe'],
+					mintSpans: [mintSpan],
+				},
+			],
+			[
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: make_context_default(null) };\nvar unrelatedHolder = { probe: mkDefault("sentinel") };',
+						},
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+						{
+							source: sourceFile,
+							origLine: 1,
+							origCol: 8,
+							genLine: 0,
+							genCol: 40,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var unrelatedHolder = { probe: mkDefault("sentinel") };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: helperSpan.startLine,
+							origCol: helperSpan.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
+void test('fails closed when a chunk delivering a context source emits no source map', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: {
+							[sourceFile]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
+						},
+					},
+					chunkWithMap(
+						'assets/route-component.js',
+						{
+							[splitModule]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
+						},
+						[
+							{
+								source: splitModule,
+								origLine: 0,
+								origCol: 8,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/no source map/i,
+	);
+});
+
+void test('passes a single delivered copy when its chunk emits no source map', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintSpans: [mintSpan],
 				},
 			],
 			[
 				{
 					fileName: 'assets/route.js',
-					modules: { [sourceFile]: { code: forgedHolderCode } },
-				},
-				{
-					fileName: 'assets/route-component.js',
 					modules: {
-						[`${sourceFile}?tsr-split=component`]: {
-							code: forgedHolderCode,
+						[sourceFile]: {
+							code: 'var contexts = { probe: createStrictContext(null) };',
 						},
 					},
 				},
 			],
 			frontDirectory,
 		),
-		[
-			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
-		],
-	);
-});
-
-void test('fails closed for an unrecognized rendered createContext callee shape', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-	const unrecognizedCode =
-		'const RouteContext = (enabled ? React.createContext : fallback)(null);';
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: { code: unrecognizedCode } },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: unrecognizedCode,
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot prove an unrecognized rendered createContext callee/i,
+		[],
 	);
 });
 
@@ -2409,11 +2628,17 @@ void test('fails closed for an unrecognized query derived from a context source 
 	assert.throws(
 		() =>
 			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
 				[
 					{
-						fileName: 'assets/route.js',
-						modules: {
+						name: 'RouteContext',
+						sourceFile,
+						mintSpans: [{ startLine: 0, startCol: 8, endLine: 0, endCol: 24 }],
+					},
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
+						{
 							[sourceFile]: {
 								code: 'const RouteContext = createContext(null);',
 							},
@@ -2421,75 +2646,20 @@ void test('fails closed for an unrecognized query derived from a context source 
 								code: 'const RouteContext = createContext(null);',
 							},
 						},
-					},
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 8,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
 				],
 				frontDirectory,
 			),
 		/cannot prove an unrecognized source-derived query module/i,
-	);
-});
-
-void test('fails closed when a relevant rendered module has no code', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: { [sourceFile]: {} },
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: 'const RouteContext = React.createContext(null);',
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot inspect rendered code/i,
-	);
-});
-
-void test('fails closed when relevant rendered code cannot be parsed', () => {
-	const sourceFile = path.join(
-		frontDirectory,
-		'src/routes/field-validation.tsx',
-	);
-
-	assert.throws(
-		() =>
-			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
-				[
-					{
-						fileName: 'assets/route.js',
-						modules: {
-							[sourceFile]: {
-								code: 'const RouteContext = createContext(',
-							},
-						},
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: 'const RouteContext = createContext(null);',
-							},
-						},
-					},
-				],
-				frontDirectory,
-			),
-		/cannot parse rendered code/i,
 	);
 });
 
@@ -2498,45 +2668,147 @@ void test('fails closed when a TanStack route sibling no longer contains the con
 		frontDirectory,
 		'src/routes/field-validation.tsx',
 	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
 	assert.throws(
 		() =>
 			findContextChunkIsolationViolations(
-				[{ name: 'RouteContext', sourceFile }],
+				[{ name: 'RouteContext', sourceFile, mintSpans: [mintSpan] }],
 				[
-					{
-						fileName: 'assets/route.js',
-						modules: {
-							[sourceFile]: { code: 'const route = {};' },
-						},
-					},
-					{
-						fileName: 'assets/route-component.js',
-						modules: {
-							[`${sourceFile}?tsr-split=component`]: {
-								code: 'const SplitComponent = () => null;',
+					chunkWithMap(
+						'assets/route.js',
+						{ [sourceFile]: { code: 'const route = {};' } },
+						[
+							{
+								source: sourceFile,
+								origLine: 5,
+								origCol: 8,
+								genLine: 0,
+								genCol: 4,
 							},
-						},
-					},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
+						{ [splitModule]: { code: 'const SplitComponent = () => null;' } },
+						[
+							{
+								source: splitModule,
+								origLine: 5,
+								origCol: 8,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
 				],
+				frontDirectory,
 			),
 		/cannot classify how RouteContext .* is created/i,
 	);
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
-			[{ name: 'RouteContext', sourceFile }],
+			[{ name: 'RouteContext', sourceFile, mintSpans: [mintSpan] }],
 			[
-				{
-					fileName: 'assets/route.js',
-					modules: {
-						[sourceFile]: { code: 'const route = {};' },
-					},
-				},
+				chunkWithMap(
+					'assets/route.js',
+					{ [sourceFile]: { code: 'const route = {};' } },
+					[
+						{
+							source: sourceFile,
+							origLine: 5,
+							origCol: 8,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
 			],
+			frontDirectory,
 		),
 		[],
 	);
+});
+
+void test('decodes a real emitted chunk source map into standard positions', async () => {
+	// The map below is the actual source map of a real `?tsr-split=component`
+	// chunk emitted by Vite 8.1.5 / Rolldown 1.1.5 for the route text below
+	// (a context minted through a cross-file factory). The expected decoded
+	// positions were cross-checked against @jridgewell's reference decoders;
+	// the test pins the guard's own VLQ decoder to the standard 0-based
+	// line/column encoding real builds emit, and pins the source resolution
+	// of the map's relative id against the chunk's own directory.
+	const sourceFile = path.join(frontDirectory, 'src/routes/probe.tsx');
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const map = {
+		version: 3,
+		sources: ['../../../src/routes/probe.tsx?tsr-split=component'],
+		mappings:
+			'oDAMQG,EAAWF,CADQC,MAAOF,EAA0B,IAAI,CAC7CC,EAUXI,OACL,EAAA,EAAA,IAAA,CAAC,EAAS,MAAM,SAAhB,CAAyB,MAAO,cAAM,OAA8B,CAAA',
+	};
+	const sourceText = `
+		import { createFileRoute } from '@tanstack/react-router';
+		import { useContext } from 'react';
+		import { consume, other } from '../not-context';
+		import { createStrictContext } from '../make-context';
+		const mintedContexts = { probe: createStrictContext<null>(null) };
+		const contexts = mintedContexts;
+		const forge = () => {
+			const mintedContexts = { probe: other('sentinel') };
+			consume(mintedContexts);
+			return mintedContexts.probe;
+		};
+		export const useProbe = () => {
+			forge();
+			return useContext(contexts.probe);
+		};
+		const Probe = () => (
+			<contexts.probe.Provider value={null}>probe</contexts.probe.Provider>
+		);
+		export const Route = createFileRoute('/probe')({ component: Probe });
+	`;
+	const mintSpan = mintSpanOfText(
+		sourceText,
+		'createStrictContext<null>(null)',
+	);
+
+	// The emitted split copy's mint maps back inside the recorded span of the
+	// route file's mint call (the map's segments at columns 34/60/64 of the
+	// mint line are all within the call's [34, 65) extent), so the copy is
+	// attributed even though the map names the virtual split module, not the
+	// route file itself.
+	const violations = findContextChunkIsolationViolations(
+		[
+			{
+				name: '<anonymous context>',
+				sourceFile,
+				mintSpans: [mintSpan],
+			},
+		],
+		[
+			chunkWithMap('assets/probe.js', { [splitModule]: { code: '' } }, [
+				{
+					source: splitModule,
+					origLine: mintSpan.startLine,
+					origCol: mintSpan.startCol,
+					genLine: 0,
+					genCol: 4,
+				},
+			]),
+			{
+				fileName: 'assets/route.js',
+				modules: { [splitModule]: { code: '' } },
+				map,
+			},
+		],
+		frontDirectory,
+		path.join(frontDirectory, 'dist', 'client'),
+	);
+	assert.deepEqual(violations, [
+		'<anonymous context> in src/routes/probe.tsx is present in multiple client chunks: assets/probe.js, assets/route.js.',
+	]);
 });
 
 void test('fails the plugin when no React contexts are discovered', async () => {
@@ -2788,7 +3060,10 @@ void test(
 				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
 			);
 			assert.notEqual(result.status, 0, result.trace);
-			assert.match(result.output, /cannot prove how ProbeContext is created/i);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -2831,7 +3106,10 @@ void test(
 
 		try {
 			assert.notEqual(result.status, 0, result.trace);
-			assert.match(result.output, /cannot prove how ProbeContext is created/i);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -2934,7 +3212,10 @@ void test(
 
 		try {
 			assert.notEqual(result.status, 0, result.trace);
-			assert.match(result.output, /cannot prove how ProbeContext is created/i);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -3456,7 +3737,10 @@ void test(
 
 		try {
 			assert.notEqual(result.status, 0, result.output);
-			assert.match(result.output, /cannot prove how ProbeContext is created/i);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -3690,6 +3974,326 @@ void test(
 				result.output,
 				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
 			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when the bundler rewrites the recorded holder binding and an unrelated call keeps the old name',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/not-context.ts': `
+					export const other = <T,>(value: T) => ({ sentinel: value });
+					export const consume = (value: unknown) => { (globalThis).__consume = value; };
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { consume, other } from '../not-context';
+					import { createStrictContext } from '../make-context';
+					const mintedContexts = { probe: createStrictContext<null>(null) };
+					const contexts = mintedContexts;
+					const forge = () => {
+						const mintedContexts = { probe: other('sentinel') };
+						consume(mintedContexts);
+						return mintedContexts.probe;
+					};
+					export const useProbe = () => {
+						forge();
+						return useContext(contexts.probe);
+					};
+					const Probe = () => (
+						<contexts.probe.Provider value={null}>probe</contexts.probe.Provider>
+					);
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+			assert.doesNotMatch(
+				result.output,
+				/no rendered copy is attributed a mint/i,
+			);
+			assert.doesNotMatch(result.output, /cannot classify/i);
+			// The guard attributed through the bundler's own maps: both the
+			// reference and the split chunks must carry one.
+			const referenceChunk = JSON.parse(result.trace).find((chunk) =>
+				Object.keys(chunk.modules).some(
+					(id) => id.includes('probe.tsx') && !id.includes('?'),
+				),
+			);
+			const referenceMap = await readChunkMap(
+				result.fixtureDirectory,
+				referenceChunk.fileName,
+			);
+			assert.ok(
+				referenceMap.sources.some((source) =>
+					source.includes('src/routes/probe.tsx'),
+				),
+				'reference chunk map must attribute the route source',
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a conditional holder mints in every copy',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const contexts = { probe: Math.random() > -1 ? createStrictContext<null>(null) : createStrictContext<null>(null) };
+					export const useProbe = () => useContext(contexts.probe);
+					const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+			assert.doesNotMatch(result.output, /cannot classify/i);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when a context record is spread into a holder in every copy',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const makeContexts = <T,>(fallback: T) => ({ probe: createContext(fallback) });
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { makeContexts } from '../make-context';
+					const contexts = { ...makeContexts<null>(null) };
+					export const useProbe = () => useContext(contexts.probe);
+					const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+			assert.doesNotMatch(result.output, /cannot classify/i);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when two anonymous contexts are minted in disjoint copies',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/__root.tsx': `
+					import { Outlet, createRootRoute } from '@tanstack/react-router';
+					import { FourthContext, SecondContext, ThirdContext } from '../contexts';
+					const Root = () => <SecondContext.Provider value={null}><ThirdContext.Provider value={null}><FourthContext.Provider value={null}><Outlet /></FourthContext.Provider></ThirdContext.Provider></SecondContext.Provider>;
+					export const Route = createRootRoute({ component: Root });
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
+				`,
+			},
+			inventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when one of two disjoint anonymous contexts is minted in both copies',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/__root.tsx': `
+					import { Outlet, createRootRoute } from '@tanstack/react-router';
+					import { FourthContext, SecondContext, ThirdContext } from '../contexts';
+					const Root = () => <SecondContext.Provider value={null}><ThirdContext.Provider value={null}><FourthContext.Provider value={null}><Outlet /></FourthContext.Provider></ThirdContext.Provider></SecondContext.Provider>;
+					export const Route = createRootRoute({ component: Root });
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader: () => ({ context: String(componentContexts.probe) }) });
+				`,
+			},
+			inventory,
+		});
+
+		try {
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'emits no client source map files after the guard consumes them',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const contexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+			const clientAssets = await readdir(
+				path.join(result.fixtureDirectory, 'dist', 'client', 'assets'),
+			);
+			assert.deepEqual(
+				clientAssets.filter((file) => file.endsWith('.map')),
+				[],
+				'guard-stripped source maps must not ship in the client output',
+			);
+			// 'hidden' also keeps the sourceMappingURL comment out of the chunks.
+			const chunkCode = await readFile(
+				path.join(
+					result.fixtureDirectory,
+					'dist',
+					'client',
+					'assets',
+					clientAssets.find((file) => file.endsWith('.js')),
+				),
+				'utf8',
+			);
+			assert.doesNotMatch(chunkCode, /sourceMappingURL/);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
