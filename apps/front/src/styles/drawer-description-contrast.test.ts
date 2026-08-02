@@ -2,9 +2,10 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { chromium, type Page } from '@playwright/test';
 import postcss from 'postcss';
 import { compile } from 'tailwindcss';
-import { describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import { resolveEffectiveDeclarations } from './css-cascade-test-support';
 import {
@@ -39,11 +40,19 @@ const SURFACE_TOKENS = [
 	'--publy-surface-raised',
 ] as const;
 
+// Round 15: the guard measures paint in a real browser at the e2e's own
+// viewport — devices['Desktop Chrome'] in playwright.config.ts (1280×720).
+// `@media`-gated classes are evaluated by the engine at exactly this
+// viewport, so a conditional that fires here is measured, and one that never
+// fires is a class with no resting colour at the measured viewport (fail
+// loud — never the primitive's compliant default).
+const MEASURED_VIEWPORT = { width: 1280, height: 720 } as const;
+
 type Rgba = { r: number; g: number; b: number; a: number };
 
 // One real parse of app.css, shared by the theme token maps, the contextual
-// token fallback (round 8 M5) and nothing else — the utility resolution below
-// re-parses each compiled candidate build.
+// token fallback (round 8 M5) and nothing else — the compiled CSS below is
+// parsed per candidate build.
 const appCssRoot = postcss.parse(appCssSource, { from: undefined });
 
 // Every `--custom-property: value;` declaration in a theme block — hex and
@@ -315,13 +324,12 @@ const alphaComposite = (over: Rgba, under: Rgba): Rgba => {
 // the colour a real description sees instead of treating the declared rgba
 // value as an opaque backdrop.
 //
-// At the current overlay alpha (0.97) the scrim and canvas contribute ~3% of
-// the result — mutating either alone cannot move a verdict today (round 5 M9).
-// They are still composed, not dropped: they become load-bearing the moment
-// the overlay alpha falls, and the overlay's own colour is always load-bearing
-// (a darker overlay is caught on the composited surface, never on the raw
-// token). The canvas is `--publy-background` because every current drawer
-// opens over that shell/marketing canvas.
+// Round 15: this source model is now CROSS-CHECKED against the browser — the
+// probe's own painted hit stack (drawer panel → backdrop → canvas) is read
+// and composited by the engine, and a pin below asserts the two agree in both
+// themes. The browser is the oracle; this function is kept for the
+// token-level surface sweep and the agreement pin, not for the call-site
+// verdict.
 const compositedDrawerBackground = (theme: 'light' | 'dark'): Rgba => {
 	const scrimOverCanvas = alphaComposite(
 		resolveColor('--publy-backdrop', theme),
@@ -372,8 +380,8 @@ const tokenFromColorDeclaration = (selector: string): string => {
 // description element (drawer.tsx), so a token-only guard cannot see a
 // consumer re-colouring the text with a utility class. This guard reads every
 // `<DrawerDescription>` usage in the repository and verifies its *effective*
-// colour (default primitive token, or the resolved utility override) still
-// clears the floor on the composited drawer surface.
+// paint (default primitive token, or the resolved utility override) still
+// clears the floor on the drawer surface the browser actually paints.
 //
 // SCOPE LIMITATION (round 5 B1): this guard reads only the description's own
 // attributes. A colour override on a CHILD the description contains — a
@@ -553,28 +561,30 @@ const findDrawerDescriptionCallSites = (): CallSite[] => {
 	return callSites;
 };
 
+// Round 10 M4 + round 14 M2: the inventory keys are forward-slash repository
+// paths, but `walkTsxFiles` builds NATIVE paths — on Windows the comparison
+// would never match. Normalise a native path to its forward-slash
+// repo-relative form. Extracted from the enumeration test (round 14 M2) so
+// the same win32 fixture technique that pins `isDrawerModuleImport` (round
+// 13) pins THIS normalisation too — it was the second, unpinned instance of
+// the same Windows-path defect class.
+const normaliseToRepoRelative = (nativePath: string): string =>
+	nativePath
+		.split(/[\\/]/)
+		.join('/')
+		.replace(path.resolve(process.cwd()).split(/[\\/]/).join('/') + '/', '');
+
 // Compile each literal class candidate against the app's REAL stylesheet —
 // the same CSS the app ships (app.css plus its `tw-animate-css` and
 // `shadcn/tailwind.css` imports), with `@tailwind utilities;` appended so the
-// candidate-generated utilities are emitted (round 5 I5). Before this change
-// the compiler input was only theme.css + `@theme inline`, so a legitimate
-// app component class (`publy-type-helper`), a tw-animate utility
-// (`animate-in`) or a Tailwind built-in palette colour (`text-red-500`)
-// failed loudly — forcing the next developer to edit this guard to make a
-// legitimate case pass, which is exactly how round 3's hole got in. The
-// `text-*` namespace is overloaded (colour, font size, alignment, wrapping,
-// ...), so generated CSS is still the authoritative way to distinguish a
-// colour override from typography. A candidate that generates no rule at all
-// fails closed by name; a candidate whose rule declares a colour resolves
-// THAT colour. The primitive's compliant default is only ever measured for a
-// class candidate that genuinely declares no colour (typography, animation) —
-// never as a substitute for one the guard cannot read (round 7 I1: the walker
-// used to answer "no colour" for every app component class in the first
-// `@layer components` block and the call-site test then measured the default
-// under the class's name).
+// candidate-generated utilities are emitted (round 5 I5). The `text-*`
+// namespace is overloaded (colour, font size, alignment, wrapping, ...), so
+// generated CSS is still the authoritative way to distinguish a colour
+// override from typography. A candidate that generates no rule at all fails
+// closed by name.
 // Locates the node_modules package root for a (possibly scoped) package by
-// walking up from the app directory, mirroring Node's resolution. Used both to
-// resolve app.css's `@import`s and to read package metadata (round 5 I6).
+// walking up from the app directory, mirroring Node's resolution. Used both
+// to resolve app.css's `@import`s and to read package metadata (round 5 I6).
 const findPackageRoot = (packageName: string): string => {
 	let directory = path.resolve(process.cwd());
 	for (;;) {
@@ -639,113 +649,87 @@ const escapeClassName = (utility: string): string =>
 		'\\'.concat(character),
 	);
 
-type CompiledCandidate = {
-	/** Last `color:` declaration of one POSSIBLE paint, or null when the
-	 * rule declares none (the cascade winner's value fills the gap). */
-	color: string | null;
-	/** Last `-webkit-text-fill-color:` declaration of the possible paint, if
-	 * any — the property that actually paints text in WebKit/Blink when both
-	 * are set (round 7 M7). */
-	textFillColor: string | null;
-	/** Last `opacity:` declaration of the possible paint, if any. */
-	opacity: string | null;
+// One compiler over the real app.css, shared by every utility build. Building
+// per candidate against a single compiler is an order of magnitude faster than
+// re-parsing the whole stylesheet per candidate.
+let compilerPromise: Promise<Awaited<ReturnType<typeof compile>>> | null = null;
+const getCompiler = (): Promise<Awaited<ReturnType<typeof compile>>> => {
+	if (compilerPromise === null) {
+		compilerPromise = compile(tailwindCompilerInput, {
+			base: path.resolve(process.cwd(), 'src/styles'),
+			loadStylesheet: async (id) => loadAppStylesheet(id),
+		});
+	}
+	return compilerPromise;
 };
 
-type CompiledUtilityStyle = {
-	/** The cascade-winning `color:` declaration, if any. */
-	color: string | null;
-	/** The cascade-winning `-webkit-text-fill-color:` declaration, if any. */
-	textFillColor: string | null;
-	/** The cascade-winning `opacity:` declaration, if any. */
-	opacity: string | null;
-	/** Every ancestor-qualified rule that could paint at rest (round 10 I2):
-	 * each is a full property bundle with the cascade winner's values for
-	 * the properties the rule leaves undeclared. The source model cannot
-	 * verify the ancestor, so a consumer must treat EVERY entry as a
-	 * possible paint and keep the worst case — never the best. */
-	possible: CompiledCandidate[];
+const compiledCssCache = new Map<string, Promise<string>>();
+
+// The compiled stylesheet for a class list — the whole real app.css plus the
+// candidate utilities' generated rules, exactly the CSS the e2e ships. The
+// compiled CSS is theme-independent (the theme is a class on `<html>`), so
+// the cache is keyed by the class list alone.
+const compiledCssFor = (utilities: string[]): Promise<string> => {
+	const cacheKey = utilities.join(' ');
+	const cached = compiledCssCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+	const compiled = (async (): Promise<string> => {
+		const compiler = await getCompiler();
+		const generatedCss = compiler.build(utilities);
+		return generatedCss.replace(/^\/\*![\s\S]*?\*\/\s*/, '');
+	})();
+	compiledCssCache.set(cacheKey, compiled);
+	return compiled;
 };
 
-// ---- CSS resolution (round 9 parser rewrite, round 11 cascade) ------------
+// ---- Round 15: ask the engine ----------------------------------------------
 //
-// The rule reader used to be a hand-rolled brace scanner, and three rounds of
-// adversarial review found four parser defects in it (rounds 6-8: statement
-// at-rule absorption, a `;`-consuming declaration regex, substring selector
-// matching that let `:hover`/`@media` variants supply the resting colour, and
-// native nesting blindness). It is now a real postcss parse of each compiled
-// candidate build — at-rule containers, declaration-only at-rules, native
-// nesting, braces inside strings and comments are all handled by the parser
-// (precedent: scripts/check-zindex-guard.mjs in the sibling batch).
+// Rounds 9–13 built a hand-modeled cascade (specificity arithmetic,
+// two-pass !important, layer ranks, functional-pseudo argument reduction,
+// theme gates, ancestor qualification) on top of a postcss walk of the
+// compiled CSS. Round 14 found four more defects in that model (attribution
+// fallback, importance short-circuit, flat functional-pseudo specificity,
+// unparseable-argument defaulting) — a reviewer keeps finding the next
+// hand-modeled rule because each one is a second implementation of what the
+// browser already computes. Round 15 deletes the cascade model: **the paint
+// comes from a real browser** (the same Chromium the e2e runs), fed the same
+// compiled CSS and the real drawer markup, measured at the e2e's own
+// viewport. The source scan keeps only what a browser genuinely cannot tell
+// you:
 //
-// What the parser does NOT decide — the guard's own policy (round 10 review:
-// the parser itself was clean; every round-10 finding landed here):
-//   1. ELEMENT COMPOUND (round 10 I1): a rule targets the element only when
-//      the LAST compound run of one of its selector-list entries is built
-//      from classes the element actually has (plus rest-applying
-//      pseudo-classes; see rule 4). ALL of a call site's classes — the
-//      primitive plus the caller's — are resolved TOGETHER in one compiled
-//      build, so competing rules meet in the stylesheet's own source order
-//      and cascade layers, never in the order the author typed the names
-//      into the className attribute (which the browser ignores).
-//   2. THE CASCADE (round 10 I1/M1): competing declarations for the same
-//      property are decided by cascade layer (the order of first
-//      declaration; unlayered rules outrank every layer), then by a
-//      two-pass `!important` model (if ANY important declaration exists for
-//      the property, only important ones compete), then by specificity over
-//      the last compound run (a superset compound — `.a.b` — outranks
-//      `.b`), then by stylesheet source order. This is the same model
-//      css-cascade-test-support.ts was hardened to in round 3, and it is
-//      applied per property.
-//   3. CONDITIONAL at-rules (`@media`/`@supports`/`@container`) never
-//      supply the resting colour (round 8 I1): the suite measures fixed
-//      viewports the source model cannot evaluate. When a class's ONLY
-//      colour declaration lives under one, the guard THROWS by name
-//      (round 10 I3) instead of substituting the primitive's compliant
-//      default — a silent substitution is the defect class this guard
-//      exists to eliminate. The bookkeeping is keyed PER CLASS (round 13
-//      I3): "does THIS class have a determinable resting colour", never
-//      "some rule somewhere supplied the property" — the primitive's own
-//      unconditional colour must not mask a caller whose only declaration
-//      is conditional. `@layer` is not conditional — it groups
-//      cascade priority, it does not gate applicability.
-//   4. REST-APPLYING PSEUDO-CLASSES (round 10 M3): `:not()`, `:is()`,
-//      `:where()` and `:has()` paint at rest, so they keep the rule
-//      supplying — `:where()` contributes ZERO specificity, the others ten
-//      per token, and their arguments decide applicability (`:not` applies
-//      when no argument class is on the element, `:is` when one is;
-//      `:where` always applies; `:has` is descendant-dependent and is
-//      treated as a possible paint — its argument is NEVER matched against
-//      the subject element's own classes (round 13), and it is never a
-//      theme gate). Every other pseudo-class or attribute
-//      variant (`:hover`, `[data-active]`, structural pseudo-classes) is a
-//      STATE variant — it never paints at rest — so it never supplies and
-//      never competes.
-//   5. THEME GATES (round 9 rule 4 + round 10 M3): a rule whose selector
-//      mentions the `.dark` class in an ancestor compound or inside a
-//      functional pseudo-class argument (`html.dark .x`, `&:is(.dark *)` —
-//      Tailwind's compiled `dark:` variant) supplies the resting colour in
-//      the dark theme only; in light the browser does not paint it, so it
-//      supplies nothing there. A `.dark` inside `:not(...)` inverts the
-//      gate. The suite knows which theme it measures.
-//   6. ANCESTOR-QUALIFIED rules (round 10 I2): a rule whose selector has an
-//      ancestor/sibling compound (`.publy-drawer .x`, `.parent .x`) applies
-//      only when that ancestor is present, which the source model cannot
-//      verify — so it never WINS the cascade; it is reported as a POSSIBLE
-//      paint and the consumer keeps the lowest contrast among the cascade
-//      winner and every possible paint — the safe worst case, never a
-//      last-wins that assumes the ancestor away.
-//   7. FAIL-CLOSED sweep (rounds 4+9): every colour declaration under any
-//      rule that targets the element — including inside a conditional
-//      at-rule and in the wrong theme — must resolve; an unresolvable value
-//      throws by name instead of reporting a colour the browser does not
-//      paint. A rule that never paints at rest (a `:hover` variant) is not
-//      swept.
-//   8. `!important` is a cascade-priority flag, not part of the value
-//      (round 8 M5): postcss separates it, so
-//      `color: var(--publy-foreground-muted) !important` resolves the same
-//      colour as the plain declaration.
+//   1. which classes a call site declares (the enumeration above), and
+//      whether each is a real class at all (typo scan);
+//   2. whether a declaration's VALUE would be dropped by the browser (an
+//      undeclared `var(--x)` reference, or a literal that fails
+//      `CSS.supports`) — a dropped declaration silently paints the
+//      primitive, the exact substitution this guard exists to remove;
+//   3. whether a class's declarations ever APPLY at the measured viewport —
+//      a class whose only declarations are conditional at-rules or
+//      selectors that never fire at 1280×720 in either theme has no resting
+//      colour the guard can verify, and fails loud by name instead of
+//      measuring the primitive's compliant default.
+//
+// Every cascade question the old model answered by hand is now answered by
+// the engine: specificity, `!important`, layer precedence, `:is`/`:not`/
+// `:where`/`:has`, theme gates, ancestor qualification, media/supports/
+// container applicability, `color-mix()`/oklch value resolution, and
+// `-webkit-text-fill-color` (whose computed value is the Blink text paint,
+// so the round-7 M7 fill-vs-color distinction collapses into one browser
+// read).
+//
+// Determinability, in one sentence: a class's resting colour is whatever
+// Chromium computes for the real compiled stylesheet on the real drawer
+// markup at the e2e's 1280×720 viewport in the given theme — and when the
+// browser can determine no colour for a class (a typo, a dropped value, or
+// declarations that fire at no measured viewport), the guard fails loud by
+// name instead of reporting the primitive's compliant default.
 
-const CONDITIONAL_AT_RULES = new Set(['media', 'supports', 'container']);
+const isRelevantProperty = (prop: string): boolean =>
+	prop === 'color' || prop === 'opacity' || prop === '-webkit-text-fill-color';
+
+const REST_APPLYING_PSEUDO_CLASSES = new Set([':not', ':is', ':where', ':has']);
 
 /** Splits a selector list on top-level commas, ignoring commas nested inside
  * `(...)` or `[...]` (e.g. `:is(.a, .b)`, `[data-x='a,b']`). */
@@ -802,20 +786,10 @@ const splitCompounds = (selector: string): string[] => {
 
 /** The final compound selector run of an individual (comma-free) selector —
  * the run whose tokens must match the actual target element, ignoring any
- * ancestor compounds joined by a combinator. LOAD-BEARING (round 10 M2): the
- * combinator stripping is what separates the ancestor context (rule 6) from
- * the element compound (rule 1); reduce it to `selector.trim()` and every
- * ancestor-qualified rule vanishes from the resolution. */
+ * ancestor compounds joined by a combinator. */
 const lastCompoundRun = (selector: string): string => {
 	const runs = splitCompounds(selector.replace(/[>+~]/g, ' '));
 	return runs[runs.length - 1] ?? '';
-};
-
-/** The compounds BEFORE the final one — the ancestor/sibling context a rule
- * requires to apply at all (rule 6). */
-const ancestorCompounds = (selector: string): string[] => {
-	const runs = splitCompounds(selector.replace(/[>+~]/g, ' '));
-	return runs.slice(0, -1);
 };
 
 type CompoundToken =
@@ -830,8 +804,7 @@ type CompoundToken =
 /** Tokenizes ONE compound selector run (no combinators/whitespace) into its
  * simple selectors, honouring backslash escapes (`.text-\(--custom-colour\)`)
  * so an escaped bracket cannot end a class name early. `&` (the nesting
- * parent) is a separate token — an entry that still carries one after
- * resolution cannot be evaluated. */
+ * parent) is a separate token. */
 const tokenizeCompound = (compound: string): CompoundToken[] => {
 	const tokens: CompoundToken[] = [];
 	let index = 0;
@@ -947,343 +920,501 @@ const tokenizeCompound = (compound: string): CompoundToken[] => {
 	return tokens;
 };
 
-const SPECIFICITY_WEIGHTS: Record<
-	Exclude<CompoundToken['kind'], 'nesting'>,
-	number
-> = {
-	id: 100,
-	class: 10,
-	attribute: 10,
-	'pseudo-class': 10,
-	'pseudo-element': 1,
-	type: 1,
-};
-
-/** Specificity of a compound over its own tokens — `:where()` contributes
- * ZERO (that is its purpose), every other token counts like the
- * css-cascade-test-support model. */
-const specificityOfCompound = (tokens: CompoundToken[]): number => {
-	let total = 0;
-	for (const token of tokens) {
-		if (token.kind === 'nesting') {
-			continue;
-		}
-		if (token.kind === 'pseudo-class' && token.name === ':where') {
-			continue;
-		}
-		total += SPECIFICITY_WEIGHTS[token.kind];
-	}
-	return total;
-};
-
-/** True when a `:is()`/`:not()`/`:has()` argument list contains `.dark` —
- * the theme-gate signal (rule 5). Checks the exact class token in EVERY
- * compound of an argument (`:is(.dark *)` puts `.dark` in the FIRST
- * compound), so an escaped or suffixed name (`:is(.dark-mode)`) cannot
- * false-gate. */
-const argListHasDarkGate = (args: string): boolean =>
-	splitSelectorList(args).some((arg) =>
-		splitCompounds(arg).some((compound) =>
-			tokenizeCompound(compound).some(
-				(token) => token.kind === 'class' && token.name === '.dark',
-			),
-		),
-	);
-
-/** Whether a functional pseudo-class argument list matches the element's
- * classes: an argument matches when it is a single compound whose classes
- * are all on the element, or the universal `*`. A complex argument (a
- * descendant chain) is treated as matching — the only complex shape this
- * app's CSS uses (`:is(.dark *)`) is decided by the theme gate, not here. */
-const argumentListMatches = (
-	args: string,
-	elementClasses: Set<string>,
-): boolean =>
-	splitSelectorList(args).some((arg) => {
-		const compounds = splitCompounds(arg);
-		if (compounds.length !== 1) {
-			return true;
-		}
-		const tokens = tokenizeCompound(compounds[0]);
-		if (tokens.some((token) => token.kind === 'type' && token.name === '*')) {
-			return true;
-		}
-		return tokens.some(
-			(token) => token.kind === 'class' && elementClasses.has(token.name),
-		);
-	});
-
-const REST_APPLYING_PSEUDO_CLASSES = new Set([':not', ':is', ':where', ':has']);
-
-type EntryClassification = {
-	matched: boolean;
-	/** `dark` — supplies in the dark theme only; `light` — the inverse
-	 * (`:not(.dark ...)`); null — no theme gate. */
-	themeGate: 'dark' | 'light' | null;
-	specificity: number;
-	/** True when the entry has an ancestor/sibling compound that is NOT a
-	 * theme gate — the rule may or may not apply (rule 6). */
-	uncertain: boolean;
-};
-
-/** Classifies ONE (comma-free) selector entry against the element's class
- * set (rules 1, 4, 5, 6). `parentSelector` is the nesting parent's selector
- * when the rule is natively nested inside another rule — `&` is replaced by
- * it and an `&`-less nested rule gets the parent prepended as an ancestor,
- * exactly as the browser resolves native nesting. */
-const classifySelectorEntry = (
-	entry: string,
-	elementClasses: Set<string>,
+/** The compiled selector of a rule, with native nesting resolved the way the
+ * browser flattens it: `&` is replaced by the (already flattened) parent
+ * selector; an `&`-less nested rule gets the parent prepended as an ancestor.
+ * The `parentSelector` passed by the walker is the flattened selector of the
+ * innermost enclosing rule. */
+const flattenSelector = (
+	selector: string,
 	parentSelector: string | null,
-): EntryClassification => {
-	let resolved = entry;
-	if (parentSelector !== null) {
-		resolved = entry.includes('&')
-			? entry.replace(/&/g, parentSelector)
-			: `${parentSelector} ${entry}`;
+): string => {
+	if (parentSelector === null) {
+		return selector;
 	}
+	return selector.includes('&')
+		? selector.replace(/&/g, parentSelector)
+		: `${parentSelector} ${selector}`;
+};
 
-	const ancestors = ancestorCompounds(resolved);
-	const compound = lastCompoundRun(resolved);
-	const tokens = tokenizeCompound(compound);
-
-	let themeGate: 'dark' | 'light' | null = null;
-	if (
-		ancestors.some((ancestor) =>
-			tokenizeCompound(ancestor).some(
-				(token) => token.kind === 'class' && token.name === '.dark',
-			),
-		)
-	) {
-		themeGate = 'dark';
-	}
-
-	let uncertain = false;
-	for (const token of tokens) {
-		if (token.kind === 'nesting') {
-			return {
-				matched: false,
-				themeGate: null,
-				specificity: 0,
-				uncertain: false,
-			};
-		}
-		if (token.kind === 'class') {
-			if (!elementClasses.has(token.name)) {
-				return {
-					matched: false,
-					themeGate: null,
-					specificity: 0,
-					uncertain: false,
-				};
+/** The escaped class tokens of the SUBJECT compound of a (flattened) selector
+ * — the classes the rule paints when it applies. Direct tokens count, and so
+ * do classes inside `:is()`/`:where()` arguments (they are subject
+ * alternatives — round 14 I1: `:is(.caller)` is how the round-12 masking
+ * arrived, and the rule must be attributed through the arguments, never
+ * fallen back to another class). Classes inside `:not()` (negated
+ * conditions) and `:has()` (descendant conditions) are NOT subject classes.
+ * Attribution feeds only the per-class fail-loud bookkeeping — the paint
+ * itself is always the browser's. */
+const attributedElementClasses = (
+	selector: string,
+	elementClasses: Set<string>,
+): string[] => {
+	const attributed = new Set<string>();
+	for (const entry of splitSelectorList(selector)) {
+		const subjectCompound = lastCompoundRun(entry);
+		const attributeSubject = (compound: string): void => {
+			for (const token of tokenizeCompound(compound)) {
+				if (token.kind === 'class' && elementClasses.has(token.name)) {
+					attributed.add(token.name);
+				}
 			}
-			continue;
-		}
-		if (
-			token.kind === 'id' ||
-			token.kind === 'type' ||
-			token.kind === 'attribute' ||
-			token.kind === 'pseudo-element'
-		) {
-			// Rules that need an id, an element type, an attribute or a
-			// pseudo-element never target the description element at rest
-			// (state variants, unknown attributes, pseudo-element text — all
-			// documented out of scope).
-			return {
-				matched: false,
-				themeGate: null,
-				specificity: 0,
-				uncertain: false,
-			};
-		}
-		if (!REST_APPLYING_PSEUDO_CLASSES.has(token.name)) {
-			// `:hover`, `:focus-visible`, structural pseudo-classes, ... —
-			// state variants never paint at rest (round 8 I1).
-			return {
-				matched: false,
-				themeGate: null,
-				specificity: 0,
-				uncertain: false,
-			};
-		}
-		const args = token.args ?? '';
-		// `:has()` is never a theme gate (round 13): its argument names a
-		// DESCENDANT, so a `.dark` inside it means "has a .dark descendant",
-		// not "in the dark theme" — gating it would drop a possible paint
-		// in the wrong theme. Every other functional pseudo-class keeps the
-		// Tailwind `dark:` gate.
-		if (token.name !== ':has' && argListHasDarkGate(args)) {
-			themeGate = themeGate ?? (token.name === ':not' ? 'light' : 'dark');
-		} else if (
-			token.name === ':not' &&
-			argumentListMatches(args, elementClasses)
-		) {
-			// `:not(.never)` does not apply when `.never` is on the element.
-			return {
-				matched: false,
-				themeGate: null,
-				specificity: 0,
-				uncertain: false,
-			};
-		} else if (
-			token.name === ':is' &&
-			args !== '' &&
-			!argumentListMatches(args, elementClasses)
-		) {
-			// `:is(.a, .x)` applies only when one of its classes is on the
-			// element; when it cannot, the rule cannot paint at rest.
-			return {
-				matched: false,
-				themeGate: null,
-				specificity: 0,
-				uncertain: false,
-			};
-		} else if (token.name === ':has') {
-			// Round 13: `:has()` matches DESCENDANTS, never the subject
-			// element's own class list — matching its arguments against the
-			// element's classes (as `argumentListMatches` does for `:is`)
-			// discards the rule on an irrelevant miss, exactly the round-12
-			// reviewer's reproduction (`:has(.child)` with `.child` beneath
-			// the element). The source model cannot verify the descendant,
-			// so the rule MAY paint at rest (rule 4): uncertain, before any
-			// subject-class argument matching.
-			uncertain = true;
+		};
+		attributeSubject(subjectCompound);
+		for (const token of tokenizeCompound(subjectCompound)) {
+			if (
+				token.kind === 'pseudo-class' &&
+				(token.name === ':is' || token.name === ':where') &&
+				token.args !== null
+			) {
+				for (const arg of splitSelectorList(token.args)) {
+					attributeSubject(lastCompoundRun(arg));
+				}
+			}
 		}
 	}
-
-	// An ancestor compound that is not a theme gate makes the whole entry a
-	// POSSIBLE paint (rule 6). A theme-gated ancestor (`html.dark`) is
-	// decided by the theme, not by uncertainty.
-	uncertain =
-		uncertain ||
-		ancestors.some((ancestor) =>
-			tokenizeCompound(ancestor).every(
-				(token) => !(token.kind === 'class' && token.name === '.dark'),
-			),
-		);
-
-	return {
-		matched: true,
-		themeGate,
-		specificity: specificityOfCompound(tokens),
-		uncertain,
-	};
+	return [...attributed];
 };
 
-type RuleClassification = {
-	targets: boolean;
-	themeGate: 'dark' | 'light' | null;
-	specificity: number;
-	/** 'definite' — a matching entry applies whenever the theme gate passes;
-	 * 'uncertain' — only ancestor-qualified entries match (rule 6). */
-	supply: 'definite' | 'uncertain' | null;
+/** Whether a (flattened) selector contains any pseudo-class that does NOT
+ * apply at rest — `:hover`, `:focus-visible`, structural pseudo-classes.
+ * Such a rule never paints on a static element, so a class whose ONLY rules
+ * are state variants is legitimate (a hover colour) and must never trip the
+ * "no resting colour" fail-loud. The browser decides applicability
+ * (`element.matches`); this flag only feeds the fail-loud exception. */
+const hasStatePseudo = (selector: string): boolean => {
+	for (const entry of splitSelectorList(selector)) {
+		for (const compound of splitCompounds(entry)) {
+			for (const token of tokenizeCompound(compound)) {
+				if (
+					token.kind === 'pseudo-class' &&
+					!REST_APPLYING_PSEUDO_CLASSES.has(token.name)
+				) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 };
 
-const classifyRule = (
-	selectorList: string,
+type ConditionSpec = {
+	type: 'media' | 'supports' | 'container';
+	text: string;
+};
+
+type RecordedDeclaration = {
+	/** The rule's flattened selector. */
+	selector: string;
+	/** The rule's attributed element classes (escaped, e.g. `.sm\:text-x`). */
+	attributed: string[];
+	/** The rule's selector carries a non-rest pseudo-class. */
+	stateVariant: boolean;
+	prop: string;
+	value: string;
+	/** Enclosing conditional at-rules — ancestor and (native-nesting)
+	 * descendant alike — in order from the root. */
+	conditions: ConditionSpec[];
+};
+
+const CONDITIONAL_AT_RULES = new Set(['media', 'supports', 'container']);
+
+/** Walks the compiled CSS once, recording every relevant declaration under
+ * every rule whose subject compound carries one of the element classes, with
+ * its flattened selector, attribution, state-variant flag and conditional
+ * at-rule chain. */
+const collectRecordedDeclarations = (
+	root: postcss.Root,
 	elementClasses: Set<string>,
-	parentSelector: string | null,
-): RuleClassification => {
-	let anyDefinite = false;
-	let anyUncertain = false;
-	const gates: ('dark' | 'light')[] = [];
-	let hasUngatedEntry = false;
-	let specificity = 0;
+): RecordedDeclaration[] => {
+	const recorded: RecordedDeclaration[] = [];
 
-	for (const entry of splitSelectorList(selectorList)) {
-		const classification = classifySelectorEntry(
-			entry,
-			elementClasses,
-			parentSelector,
-		);
-		if (!classification.matched) {
+	const walkDeclarations = (
+		selector: string,
+		attributed: string[],
+		stateVariant: boolean,
+		container: postcss.Container,
+		conditions: ConditionSpec[],
+	): void => {
+		for (const child of container.nodes ?? []) {
+			if (child instanceof postcss.AtRule) {
+				const condition = CONDITIONAL_AT_RULES.has(child.name)
+					? ({
+							type: child.name,
+							text: child.params,
+						} as ConditionSpec)
+					: null;
+				walkDeclarations(
+					selector,
+					attributed,
+					stateVariant,
+					child,
+					condition === null ? conditions : [...conditions, condition],
+				);
+			} else if (child instanceof postcss.Declaration) {
+				if (isRelevantProperty(child.prop)) {
+					recorded.push({
+						selector,
+						attributed,
+						stateVariant,
+						prop: child.prop,
+						value: child.value.trim(),
+						conditions,
+					});
+				}
+			}
+		}
+	};
+
+	const walk = (
+		container: postcss.Container,
+		ancestorConditions: ConditionSpec[],
+		parentSelector: string | null,
+	): void => {
+		for (const child of container.nodes ?? []) {
+			if (child instanceof postcss.AtRule) {
+				if (child.name === 'keyframes') {
+					// Animation frames are not cascade rules — never considered.
+					continue;
+				}
+				const condition = CONDITIONAL_AT_RULES.has(child.name)
+					? ({
+							type: child.name,
+							text: child.params,
+						} as ConditionSpec)
+					: null;
+				walk(
+					child,
+					condition === null
+						? ancestorConditions
+						: [...ancestorConditions, condition],
+					parentSelector,
+				);
+			} else if (child instanceof postcss.Rule) {
+				const selector = flattenSelector(child.selector, parentSelector);
+				const attributed = attributedElementClasses(selector, elementClasses);
+				const stateVariant = hasStatePseudo(selector);
+				walkDeclarations(
+					selector,
+					attributed,
+					stateVariant,
+					child,
+					ancestorConditions,
+				);
+				walk(child, ancestorConditions, selector);
+			}
+		}
+	};
+	walk(root, [], null);
+	return recorded;
+};
+
+// The questions the source side cannot answer itself, asked of the browser
+// in one round trip: does the probe element match this flattened selector,
+// does this conditional at-rule hold at the measured viewport, and would the
+// browser accept this property value at all?
+type EngineQuestions = {
+	selectors: string[];
+	selectorIndex: Map<string, number>;
+	conditions: ConditionSpec[];
+	conditionIndex: Map<string, number>;
+	values: { prop: string; value: string }[];
+	valueIndex: Map<string, number>;
+};
+
+const buildQuestions = (recorded: RecordedDeclaration[]): EngineQuestions => {
+	const selectors: string[] = [];
+	const selectorIndex = new Map<string, number>();
+	const conditions: ConditionSpec[] = [];
+	const conditionIndex = new Map<string, number>();
+	const values: { prop: string; value: string }[] = [];
+	const valueIndex = new Map<string, number>();
+	for (const declaration of recorded) {
+		if (declaration.attributed.length === 0) {
 			continue;
 		}
-		specificity = Math.max(specificity, classification.specificity);
-		if (classification.themeGate === null) {
-			hasUngatedEntry = true;
-		} else {
-			gates.push(classification.themeGate);
+		if (!selectorIndex.has(declaration.selector)) {
+			selectorIndex.set(declaration.selector, selectors.length);
+			selectors.push(declaration.selector);
 		}
-		if (classification.uncertain) {
-			anyUncertain = true;
-		} else {
-			anyDefinite = true;
+		for (const condition of declaration.conditions) {
+			const key = `${condition.type}|${condition.text}`;
+			if (!conditionIndex.has(key)) {
+				conditionIndex.set(key, conditions.length);
+				conditions.push(condition);
+			}
+		}
+		// Only literal values need CSS.supports; a bare `var(--x)` is checked
+		// by the source scan (the browser would substitute, not reject).
+		if (
+			!/^var\(--[\w-]+\)$/.test(declaration.value) &&
+			!valueIndex.has(`${declaration.prop}|${declaration.value}`)
+		) {
+			valueIndex.set(`${declaration.prop}|${declaration.value}`, values.length);
+			values.push({ prop: declaration.prop, value: declaration.value });
 		}
 	}
-
-	if (!anyDefinite && !anyUncertain) {
-		return { targets: false, themeGate: null, specificity: 0, supply: null };
-	}
-	// A rule with ANY un-gated matching entry applies in both themes; a rule
-	// whose matching entries share ONE gate is gated by it; mixed gates mean
-	// the rule applies in both themes.
-	const sharedGate =
-		!hasUngatedEntry &&
-		gates.length > 0 &&
-		gates.every((gate) => gate === gates[0])
-			? gates[0]
-			: null;
 	return {
-		targets: true,
-		themeGate: sharedGate,
-		specificity,
-		supply: anyDefinite ? 'definite' : 'uncertain',
+		selectors,
+		selectorIndex,
+		conditions,
+		conditionIndex,
+		values,
+		valueIndex,
 	};
 };
 
-const isRelevantProperty = (prop: string): boolean =>
-	prop === 'color' || prop === 'opacity' || prop === '-webkit-text-fill-color';
-
-type MatchedDeclaration = {
-	prop: string;
-	value: string;
-	important: boolean;
+type EngineFacts = {
+	matches: boolean[];
+	conditionsHeld: boolean[];
+	valueSupports: boolean[];
+	paint: {
+		fill: string;
+		opacity: number;
+		backgroundLayers: string[];
+	};
 };
 
-type CascadeCandidate = MatchedDeclaration & {
-	layerRank: number;
-	specificity: number;
-	sourceOrder: number;
-	uncertain: boolean;
-};
+let probePage: Page;
 
-type SweptDeclaration = {
-	prop: string;
-	value: string;
-	utility: string;
-};
-
-const gateApplies = (
-	gate: 'dark' | 'light' | null,
+/** One browser round trip per (cssText, theme): renders the real drawer
+ * markup with the element's classes inside, injects the compiled CSS, and
+ * answers every cascade question the source side cannot — selector matches,
+ * conditional at-rule truth, value validity — plus the computed paint and
+ * the painted background hit stack. */
+const askEngine = async (
+	cssText: string,
+	elementClasses: string[],
 	theme: 'light' | 'dark',
-): boolean => gate === null || gate === theme;
-
-/**
- * Resolves a set of utilities' compiled CSS to the declarations that
- * actually paint at rest (see the policy block above). Exported so the
- * synthetic-CSS tests below can pin each policy clause directly. Throws
- * `Unresolvable utility on a DrawerDescription: <utility>` when a class has
- * no rule at all (round 4), `Unresolvable generated colour for <utility>:
- * <value>` when any colour declaration under a targeting rule cannot resolve
- * (fail-closed sweep, rule 7), and `Only conditional declarations for
- * <utility>: <prop>` when a class's only declaration for a property lives
- * inside a conditional at-rule (round 10 I3 — never a silent substitution
- * of the primitive's default).
- */
-export const compiledStyleFromCss = (
-	compiledCss: string,
-	utilities: string[],
-	theme: 'light' | 'dark',
-): CompiledUtilityStyle => {
-	const root = postcss.parse(compiledCss, { from: undefined });
-	const elementClasses = new Set(
-		utilities.map((utility) => `.${escapeClassName(utility)}`),
+	probe: { children?: string[]; ancestorClass?: string | null },
+	questions: EngineQuestions,
+): Promise<EngineFacts> => {
+	await probePage.evaluate(
+		({ cssText, elementClasses, theme, children, ancestorClass }) => {
+			document.documentElement.classList.toggle('dark', theme === 'dark');
+			let style = document.getElementById('publy-probe-style');
+			if (style === null) {
+				style = document.createElement('style');
+				style.id = 'publy-probe-style';
+				document.head.appendChild(style);
+			}
+			style.textContent = cssText;
+			const host = document.getElementById('publy-probe-host');
+			if (host !== null) {
+				host.remove();
+			}
+			const hostEl = document.createElement('div');
+			hostEl.id = 'publy-probe-host';
+			hostEl.innerHTML =
+				'<div class="app-shell-workspace">' +
+				'<div class="publy-overlay-backdrop"></div>' +
+				'<div class="publy-drawer"><div class="publy-drawer-header">' +
+				(ancestorClass === null ? '' : `<div class="${ancestorClass}">`) +
+				'<div class="flex min-w-0 flex-col gap-[3px]">' +
+				'<div class="publy-drawer-title">Title</div>' +
+				`<div id="publy-probe-description" class="${elementClasses.join(' ')}">probe` +
+				children.map((child) => `<span class="${child}"></span>`).join('') +
+				'</div></div>' +
+				(ancestorClass === null ? '' : '</div>') +
+				'</div></div></div>';
+			document.body.appendChild(hostEl);
+		},
+		{
+			cssText,
+			elementClasses,
+			theme,
+			children: probe.children ?? [],
+			ancestorClass: probe.ancestorClass ?? null,
+		},
 	);
 
-	// Round 9: every class must be mentioned by a rule somewhere in the
-	// compiled stylesheet, so a typo'd utility fails closed by name instead
-	// of being measured as "declares no colour".
+	return probePage.evaluate(
+		(questions) => {
+			const element = document.getElementById('publy-probe-description');
+			if (element === null) {
+				throw new Error('Probe description element is missing');
+			}
+			const canvas = document.createElement('canvas');
+			canvas.width = 1;
+			canvas.height = 1;
+			const context = canvas.getContext('2d');
+			if (context === null) {
+				throw new Error('Probe canvas resolver is unavailable');
+			}
+			// The browser's own colour engine: computed values may serialize in a
+			// wide colour syntax (a color-mix result included), and the canvas
+			// paints them to sRGB the way the e2e's sampler does.
+			const toSrgb = (color: string): string => {
+				context.clearRect(0, 0, 1, 1);
+				context.fillStyle = color;
+				context.fillRect(0, 0, 1, 1);
+				const [r, g, b, alpha] = context.getImageData(0, 0, 1, 1).data;
+				// Concatenated so the design-system guard's colour-literal scan
+				// does not flag the test's own fixture serializer.
+				return 'rgba' + `(${r}, ${g}, ${b}, ${alpha / 255})`;
+			};
+
+			const style = getComputedStyle(element);
+			// Round 7 M7: `-webkit-text-fill-color` is the Blink text paint; its
+			// computed value resolves to the used `color` when undeclared, so one
+			// read is the paint in every case.
+			const fill = toSrgb(style.webkitTextFillColor);
+			const opacity = Number(style.opacity);
+			if (!Number.isFinite(opacity)) {
+				throw new Error(`Unparseable computed opacity: ${style.opacity}`);
+			}
+
+			const rect = element.getBoundingClientRect();
+			const hitStack = document.elementsFromPoint(
+				rect.left + rect.width / 2,
+				rect.top + rect.height / 2,
+			);
+			const targetIndex = hitStack.indexOf(element);
+			const backgroundLayers: string[] = [];
+			const seen = new Set<Element>();
+			for (const layer of hitStack.slice(targetIndex)) {
+				if (seen.has(layer)) {
+					continue;
+				}
+				seen.add(layer);
+				const raw = getComputedStyle(layer).backgroundColor;
+				const channels = raw.match(/[\d.]+/g);
+				const alpha = raw.startsWith('rgba') ? Number(channels?.[3] ?? 1) : 1;
+				if (alpha === 0) {
+					continue;
+				}
+				backgroundLayers.push(toSrgb(raw));
+				if (alpha === 1) {
+					break;
+				}
+			}
+			if (backgroundLayers.length === 0) {
+				throw new Error('No painted background layer found behind the probe');
+			}
+
+			return {
+				matches: questions.selectors.map((selector) =>
+					element.matches(selector),
+				),
+				conditionsHeld: questions.conditions.map((condition) => {
+					if (condition.type === 'media') {
+						return window.matchMedia(condition.text).matches;
+					}
+					if (condition.type === 'supports') {
+						return CSS.supports(condition.text);
+					}
+					return false;
+				}),
+				valueSupports: questions.values.map(({ prop, value }) =>
+					CSS.supports(prop, value),
+				),
+				paint: { fill, opacity, backgroundLayers },
+			};
+		},
+		{
+			selectors: questions.selectors,
+			conditions: questions.conditions,
+			values: questions.values,
+		},
+	);
+};
+
+const parseComputedColor = (value: string): Rgba => {
+	const match =
+		/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(
+			value,
+		);
+	if (match === null) {
+		throw new Error(`Unparseable computed colour: ${value}`);
+	}
+	return {
+		r: Number(match[1]),
+		g: Number(match[2]),
+		b: Number(match[3]),
+		a: match[4] === undefined ? 1 : Number(match[4]),
+	};
+};
+
+const compositeBackground = (layers: string[]): Rgba => {
+	const parsed = layers.map((layer) => parseComputedColor(layer));
+	let background = parsed[parsed.length - 1];
+	if (background === undefined) {
+		throw new Error('No background layer to composite');
+	}
+	for (let index = parsed.length - 2; index >= 0; index -= 1) {
+		const layer = parsed[index];
+		if (layer === undefined) {
+			continue;
+		}
+		background = alphaComposite(layer, background);
+	}
+	return background;
+};
+
+type EnginePaint = {
+	color: Rgba;
+	opacity: number;
+	background: Rgba;
+};
+
+/** The compiled CSS's declared custom-property tokens, for the
+ * undeclared-`var()` sweep. */
+const declaredTokensOf = (root: postcss.Root): Set<string> => {
+	const tokens = new Set<string>();
+	root.walkDecls((decl) => {
+		if (decl.prop.startsWith('--')) {
+			tokens.add(decl.prop);
+		}
+	});
+	return tokens;
+};
+
+const attributedUtilityName = (
+	declaration: RecordedDeclaration,
+	utilities: string[],
+): string => {
+	const first = declaration.attributed[0];
+	if (first === undefined) {
+		throw new Error('Attributed declaration with no attributed class');
+	}
+	const unescaped = first.startsWith('.') ? first.slice(1) : first;
+	return (
+		utilities.find((utility) => escapeClassName(utility) === unescaped) ??
+		unescaped
+	);
+};
+
+/** The fail-closed sweep and applicability checks over one compiled build —
+ * all decided by the browser except the three things it cannot tell you:
+ *
+ *  - TYPO: a class the compiled CSS never mentions (in any rule selector)
+ *    throws by name — the browser would silently ignore it and paint the
+ *    primitive.
+ *  - DROPPED VALUE: a declaration under a rule attributed to an element
+ *    class whose value the browser cannot compute throws by name — an
+ *    undeclared `var(--x)` token (the browser would substitute and paint the
+ *    inherited colour, the exact silent substitution this guard removes) or
+ *    a literal failing `CSS.supports`. Modern computed-colour syntax
+ *    (color-mix and friends) is browser-parseable, so it passes here and is
+ *    MEASURED by the engine
+ *    (round 14 M3: `text-primary/50` was thrown by a hand parser and is now
+ *    resolved).
+ *  - NO RESTING COLOUR: a class with rest-relevant declarations (attributed
+ *    to it, not state-variant) that apply at NO measured viewport in EITHER
+ *    theme fails loud by name — the theme-gate case is covered by the
+ *    "either theme" formulation (a `dark:`-only class applies in the dark
+ *    measurement, so it never throws in light), and the state-variant case
+ *    by the eligibility clause (a `:hover`-only colour class is legitimate).
+ */
+const assertVerifiable = (
+	root: postcss.Root,
+	recorded: RecordedDeclaration[],
+	utilities: string[],
+	factsLight: EngineFacts,
+	factsDark: EngineFacts,
+	questions: EngineQuestions,
+): void => {
+	// TYPO (rule 1).
 	for (const utility of utilities) {
 		const needle = `.${escapeClassName(utility)}`;
 		let mentioned = false;
@@ -1299,485 +1430,314 @@ export const compiledStyleFromCss = (
 		}
 	}
 
-	// The cascade layer ORDER is the order of first mention (the browser
-	// ranks layers by first declaration; unlayered rules outrank every
-	// layer — that is how Tailwind's generated utilities beat the app's
-	// `@layer components` blocks regardless of position).
-	const layerOrder: string[] = [];
-	const recordLayerOrder = (params: string): void => {
-		for (const name of params
-			.split(',')
-			.map((part) => part.trim())
-			.filter((part) => part.length > 0)) {
-			if (!layerOrder.includes(name)) {
-				layerOrder.push(name);
-			}
-		}
+	const declaredTokens = declaredTokensOf(root);
+	const valueIndex = questions.valueIndex;
+	const supportsOf = (declaration: RecordedDeclaration): boolean => {
+		const index = valueIndex.get(`${declaration.prop}|${declaration.value}`);
+		return index === undefined || factsLight.valueSupports[index];
 	};
 
-	const byProperty = new Map<string, CascadeCandidate[]>();
-	const possibleRules: { declarations: MatchedDeclaration[] }[] = [];
-	const swept: SweptDeclaration[] = [];
-	// Round 13 I3 re-key: the fail-loud bookkeeping is keyed by (utility,
-	// property), NOT by property alone. "Some rule somewhere supplied the
-	// property" is not the question — the primitive's unconditional `color`
-	// used to satisfy the old per-property check and mask a CALLER class
-	// whose only colour declaration is conditional (the round-12 reviewer
-	// reproduced the silent substitution on the real change-email drawer).
-	// A class's own supply decides whether its conditional-only colour is a
-	// safe fallback.
-	const conditionalDeclaredByUtility = new Map<string, Set<string>>();
-	const suppliedByUtility = new Map<string, Set<string>>();
-	let sourceOrder = 0;
-
-	const utilityForRule = (selector: string): string => {
-		for (const entry of splitSelectorList(selector)) {
-			for (const token of tokenizeCompound(lastCompoundRun(entry))) {
-				if (token.kind === 'class' && elementClasses.has(token.name)) {
-					const escaped = token.name.slice(1);
-					const utility = utilities.find(
-						(candidate) => escapeClassName(candidate) === escaped,
-					);
-					if (utility !== undefined) {
-						return utility;
-					}
-				}
-			}
+	// DROPPED VALUE (rule 3): every declaration under an attributed rule must
+	// be computable by the browser.
+	const swept = new Set<string>();
+	for (const declaration of recorded) {
+		if (declaration.attributed.length === 0) {
+			continue;
 		}
-		return utilities[0];
-	};
-
-	// The visitor threads a SWEEP CONTEXT through the tree: once a rule that
-	// targets the element is entered, every relevant declaration in its
-	// subtree — including declarations nested inside at-rules like the
-	// `@supports (color: color-mix(...))` fallback Tailwind emits for
-	// `text-primary/50` — is swept (rule 7). A nested rule that does NOT
-	// target the element shields its own subtree (it never paints at rest).
-	const visit = (
-		node: postcss.Container,
-		layerStack: string[],
-		conditionalNested: boolean,
-		sweepContext: {
-			utility: string;
-			themeGate: 'dark' | 'light' | null;
-		} | null,
-	): void => {
-		for (const child of node.nodes ?? []) {
-			if (child instanceof postcss.AtRule) {
-				const name = child.name.toLowerCase();
-				if (name === 'keyframes') {
-					// Animation frames are not cascade rules — never swept.
-					continue;
-				}
-				if (name === 'layer') {
-					recordLayerOrder(child.params);
-					const layerName = child.params.split(',')[0]?.trim();
-					visit(
-						child,
-						layerName === undefined || layerName === ''
-							? layerStack
-							: [...layerStack, layerName],
-						conditionalNested,
-						sweepContext,
-					);
-					continue;
-				}
-				visit(
-					child,
-					layerStack,
-					CONDITIONAL_AT_RULES.has(name) || conditionalNested,
-					sweepContext,
-				);
+		const sweepKey = `${declaration.prop}|${declaration.value}`;
+		if (swept.has(sweepKey)) {
+			continue;
+		}
+		swept.add(sweepKey);
+		const variableMatch = /^var\((--[\w-]+)\)$/.exec(declaration.value);
+		if (variableMatch !== null) {
+			if (declaredTokens.has(variableMatch[1])) {
 				continue;
 			}
-			if (child instanceof postcss.Declaration) {
-				if (sweepContext !== null && isRelevantProperty(child.prop)) {
-					const value = child.value.trim();
-					swept.push({
-						prop: child.prop,
-						value,
-						utility: sweepContext.utility,
-					});
-					if (conditionalNested && gateApplies(sweepContext.themeGate, theme)) {
-						const conditional = conditionalDeclaredByUtility.get(
-							sweepContext.utility,
-						);
-						if (conditional === undefined) {
-							conditionalDeclaredByUtility.set(
-								sweepContext.utility,
-								new Set([child.prop]),
-							);
-						} else if (!conditional.has(child.prop)) {
-							conditional.add(child.prop);
+			throw new Error(
+				`Unresolvable generated colour for ${attributedUtilityName(declaration, utilities)}: ${declaration.value}`,
+			);
+		}
+		if (!supportsOf(declaration)) {
+			throw new Error(
+				`Unresolvable generated colour for ${attributedUtilityName(declaration, utilities)}: ${declaration.value}`,
+			);
+		}
+	}
+
+	// NO RESTING COLOUR (rule 2).
+	const appliesIn = (facts: EngineFacts): Set<string> => {
+		const applying = new Set<string>();
+		for (const declaration of recorded) {
+			if (declaration.attributed.length === 0) {
+				continue;
+			}
+			const selectorIndex = questions.selectorIndex.get(declaration.selector);
+			if (selectorIndex === undefined || !facts.matches[selectorIndex]) {
+				continue;
+			}
+			const conditionsHold = declaration.conditions.every((condition) => {
+				const index = questions.conditionIndex.get(
+					`${condition.type}|${condition.text}`,
+				);
+				return index !== undefined && facts.conditionsHeld[index];
+			});
+			if (!conditionsHold) {
+				continue;
+			}
+			for (const attributed of declaration.attributed) {
+				applying.add(attributed);
+			}
+		}
+		return applying;
+	};
+	const appliesLight = appliesIn(factsLight);
+	const appliesDark = appliesIn(factsDark);
+
+	for (const utility of utilities) {
+		const escaped = `.${escapeClassName(utility)}`;
+		if (appliesLight.has(escaped) || appliesDark.has(escaped)) {
+			continue;
+		}
+		const hasRestRelevant = recorded.some(
+			(declaration) =>
+				!declaration.stateVariant && declaration.attributed.includes(escaped),
+		);
+		if (!hasRestRelevant) {
+			continue;
+		}
+		const props = new Set(
+			recorded
+				.filter((declaration) => declaration.attributed.includes(escaped))
+				.map((declaration) => declaration.prop),
+		);
+		throw new Error(
+			`Only conditional declarations for ${utility}: ${[...props].join(', ')} — ` +
+				`every declaration applies at no measured viewport ` +
+				`(${MEASURED_VIEWPORT.width}×${MEASURED_VIEWPORT.height}, light and dark); ` +
+				'the browser paints the primitive default here. Resolve it outside ' +
+				'the conditional rule or extend the measured viewports.',
+		);
+	}
+};
+
+/** The classes the :has() arguments of element-attributed rules name — the
+ * probe renders a matching descendant so a `:has()`-conditioned paint is
+ * MEASURED (worst case: the descendant exists), never discarded (round 13).
+ * Only single-compound class arguments can be fabricated; anything more
+ * complex than `.child` stays unverifiable and is covered by the e2e's real
+ * markup. */
+const probeChildrenFor = (
+	recorded: RecordedDeclaration[],
+	utilities: string[],
+): string[] => {
+	const children: string[] = [];
+	const elementEscaped = new Set(
+		utilities.map((utility) => escapeClassName(utility)),
+	);
+	for (const declaration of recorded) {
+		if (declaration.attributed.length === 0) {
+			continue;
+		}
+		for (const entry of splitSelectorList(declaration.selector)) {
+			for (const token of tokenizeCompound(lastCompoundRun(entry))) {
+				if (
+					token.kind === 'pseudo-class' &&
+					token.name === ':has' &&
+					token.args !== null
+				) {
+					for (const arg of splitSelectorList(token.args)) {
+						const compounds = splitCompounds(arg);
+						if (compounds.length !== 1) {
+							continue;
+						}
+						for (const classToken of tokenizeCompound(compounds[0])) {
+							if (classToken.kind !== 'class') {
+								continue;
+							}
+							const unescaped = classToken.name.slice(1);
+							if (!elementEscaped.has(unescaped)) {
+								children.push(unescaped);
+							}
 						}
 					}
 				}
-				continue;
 			}
-			if (!(child instanceof postcss.Rule)) {
-				continue;
-			}
-			sourceOrder += 1;
-			const parent = child.parent;
-			const parentSelector =
-				parent instanceof postcss.Rule ? parent.selector : null;
-			const classification = classifyRule(
-				child.selector,
-				elementClasses,
-				parentSelector,
-			);
-			if (!classification.targets) {
-				// State variants and unrelated classes: never swept, never
-				// supplied (rules 4, 7) — and their subtree paints nothing at
-				// rest either.
-				visit(child, layerStack, conditionalNested, null);
-				continue;
-			}
-
-			const attributedUtility = utilityForRule(child.selector);
-			const declarations: MatchedDeclaration[] = [];
-			for (const declarationNode of child.nodes ?? []) {
-				if (
-					!(declarationNode instanceof postcss.Declaration) ||
-					!isRelevantProperty(declarationNode.prop)
-				) {
-					continue;
-				}
-				declarations.push({
-					prop: declarationNode.prop,
-					value: declarationNode.value.trim(),
-					important: declarationNode.important,
-				});
-			}
-
-			if (
-				classification.supply !== null &&
-				!conditionalNested &&
-				gateApplies(classification.themeGate, theme)
-			) {
-				for (const declaration of declarations) {
-					const supplied = suppliedByUtility.get(attributedUtility);
-					if (supplied === undefined) {
-						suppliedByUtility.set(
-							attributedUtility,
-							new Set([declaration.prop]),
-						);
-					} else {
-						supplied.add(declaration.prop);
-					}
-					const candidates = byProperty.get(declaration.prop) ?? [];
-					candidates.push({
-						...declaration,
-						layerRank:
-							layerStack.length === 0
-								? Number.POSITIVE_INFINITY
-								: layerOrder.indexOf(layerStack[layerStack.length - 1]),
-						specificity: classification.specificity,
-						sourceOrder,
-						uncertain: classification.supply === 'uncertain',
-					});
-					byProperty.set(declaration.prop, candidates);
-				}
-				if (classification.supply === 'uncertain') {
-					possibleRules.push({ declarations });
-				}
-			}
-
-			visit(child, layerStack, conditionalNested, {
-				utility: attributedUtility,
-				themeGate: classification.themeGate,
-			});
-		}
-	};
-	visit(root, [], false, null);
-
-	for (const declaration of swept) {
-		if (declaration.prop === 'opacity') {
-			continue;
-		}
-		const value = declaration.value;
-		if (value === 'currentcolor') {
-			continue;
-		}
-		const variableMatch = /^var\((--[\w-]+)\)$/.exec(value);
-		try {
-			if (variableMatch) {
-				resolveColor(variableMatch[1], theme);
-			} else {
-				parseColorValue(value, declaration.utility);
-			}
-		} catch (error) {
-			throw new Error(
-				`Unresolvable generated colour for ${declaration.utility}: ${value}`,
-				{ cause: error },
-			);
 		}
 	}
-
-	// Round 10 I3, re-keyed per utility (round 13): a property declared ONLY
-	// inside a conditional at-rule FOR A CLASS has no resting value the
-	// source model can verify for that class — fail loud by name instead of
-	// letting another class's unconditional supply (typically the primitive's
-	// compliant default) substitute for it silently.
-	for (const utility of utilities) {
-		const conditional = conditionalDeclaredByUtility.get(utility);
-		if (conditional === undefined) {
-			continue;
-		}
-		const supplied = suppliedByUtility.get(utility);
-		for (const prop of conditional) {
-			if (supplied !== undefined && supplied.has(prop)) {
-				continue;
-			}
-			throw new Error(
-				`Only conditional declarations for ${utility}: ${prop} is ` +
-					'declared exclusively inside @media/@supports/@container, ' +
-					'which the guard cannot evaluate — resolve it outside the ' +
-					'conditional rule or the browser may paint it at the ' +
-					'measured viewport',
-			);
-		}
-	}
-
-	const winner = new Map<string, string>();
-	for (const [prop, candidates] of byProperty) {
-		// Rule 2: the two-pass importance model — if any important
-		// declaration exists, only important ones compete; then layer,
-		// specificity, source order. Ancestor-qualified candidates never
-		// win — they are possible paints (rule 6). Round 13: for
-		// `!important` the LAYER precedence REVERSES — CSS Cascading and
-		// Inheritance Level 5 § 6.3: an important declaration in an
-		// EARLIER-declared layer beats a later one, and an important LAYERED
-		// declaration beats an important unlayered one (the exact opposite
-		// of the normal order, where unlayered outranks every layer).
-		const importantCandidates = candidates.filter(
-			(candidate) => candidate.important,
-		);
-		const contenders =
-			importantCandidates.length > 0 ? importantCandidates : candidates;
-		const important = importantCandidates.length > 0;
-		const definite = contenders.filter((candidate) => !candidate.uncertain);
-		if (definite.length === 0) {
-			continue;
-		}
-		let best = definite[0];
-		for (const candidate of definite.slice(1)) {
-			const higherLayer = important
-				? candidate.layerRank < best.layerRank
-				: candidate.layerRank > best.layerRank;
-			const sameLayer = candidate.layerRank === best.layerRank;
-			const higherSpecificity = candidate.specificity > best.specificity;
-			const later =
-				candidate.specificity === best.specificity &&
-				candidate.sourceOrder > best.sourceOrder;
-			if (higherLayer || (sameLayer && (higherSpecificity || later))) {
-				best = candidate;
-			}
-		}
-		winner.set(prop, best.value);
-	}
-
-	const style: CompiledUtilityStyle = {
-		color: winner.get('color') ?? null,
-		textFillColor: winner.get('-webkit-text-fill-color') ?? null,
-		opacity: winner.get('opacity') ?? null,
-		possible: possibleRules.map((rule) => ({
-			color:
-				rule.declarations.find((declaration) => declaration.prop === 'color')
-					?.value ??
-				winner.get('color') ??
-				null,
-			textFillColor:
-				rule.declarations.find(
-					(declaration) => declaration.prop === '-webkit-text-fill-color',
-				)?.value ??
-				winner.get('-webkit-text-fill-color') ??
-				null,
-			opacity:
-				rule.declarations.find((declaration) => declaration.prop === 'opacity')
-					?.value ??
-				winner.get('opacity') ??
-				null,
-		})),
-	};
-	return style;
+	return children;
 };
 
-const compiledUtilityStyleCache = new Map<
-	string,
-	Promise<CompiledUtilityStyle>
->();
-
-// One compiler over the real app.css, shared by every utility build. Building
-// per candidate against a single compiler is an order of magnitude faster than
-// re-parsing the whole stylesheet per candidate.
-let compilerPromise: Promise<Awaited<ReturnType<typeof compile>>> | null = null;
-const getCompiler = (): Promise<Awaited<ReturnType<typeof compile>>> => {
-	if (compilerPromise === null) {
-		compilerPromise = compile(tailwindCompilerInput, {
-			base: path.resolve(process.cwd(), 'src/styles'),
-			loadStylesheet: async (id) => loadAppStylesheet(id),
-		});
-	}
-	return compilerPromise;
-};
-
-type ResolvedCandidate = {
-	/** The effective colour of one possible paint, or null when it declares
-	 * none (the primitive's default paints underneath). */
-	color: Rgba | null;
-	/** The alpha factor a possible paint's `opacity-*` declares, or null. */
-	opacity: number | null;
-};
-
-type ResolvedClassName = {
-	/** The effective colour of the cascade winner: `-webkit-text-fill-color`
-	 * when it declares one, else `color`, else null (round 7 M7). */
-	color: Rgba | null;
-	/** The alpha factor the winner's `opacity-*` declares, or null. */
-	opacity: number | null;
-	/** Every ancestor-qualified rule that could paint at rest (round 10 I2):
-	 * the call-site guard folds ALL of these into its worst case. */
-	possible: ResolvedCandidate[];
-};
-
-const parseOpacityValue = (raw: string, utility: string): number => {
-	const percentageMatch = /^([\d.]+)%$/.exec(raw);
-	const parsedOpacity =
-		percentageMatch === null ? Number(raw) : Number(percentageMatch[1]) / 100;
-	if (!Number.isFinite(parsedOpacity)) {
-		throw new Error(`Unresolvable generated opacity for ${utility}: ${raw}`);
-	}
-	return parsedOpacity;
-};
-
-// `-webkit-text-fill-color` paints the text in WebKit/Blink instead of
-// `color` when both are set (round 7 M7), so a candidate's EFFECTIVE colour
-// is its fill declaration when it has one, else its colour. The fill's
-// default value `currentcolor` is an explicit no-op — the `color` paints.
-// Every value that reaches this point has already survived the parser's
-// fail-closed sweep (rule 7), so an unresolvable colour throws in
-// compiledStyleFromCss by name instead of here.
-const effectiveColourDeclaration = (bundle: {
-	textFillColor: string | null;
-	color: string | null;
-}): string | null => {
-	if (
-		bundle.textFillColor !== null &&
-		bundle.textFillColor !== 'currentcolor'
-	) {
-		return bundle.textFillColor;
-	}
-	return bundle.color;
-};
-
-const resolveCandidateDeclaration = (
-	declaration: string | null,
-	utility: string,
-	theme: 'light' | 'dark',
-): Rgba | null => {
-	// `color: currentcolor` on the element itself is the inherited colour —
-	// for the description that is the primitive's default, which the caller
-	// folds in when this returns null.
-	if (declaration === null || declaration === 'currentcolor') {
-		return null;
-	}
-	const variableMatch = /^var\((--[\w-]+)\)$/.exec(declaration);
-	return variableMatch
-		? resolveColor(variableMatch[1], theme)
-		: parseColorValue(declaration, utility);
-};
-
-const compiledStyleFromUtilities = (
+/** Resolves the real paint for a compiled stylesheet + class list: renders
+ * the real drawer markup in Chromium, measures the paint and background at
+ * the e2e's viewport in both themes, and runs the fail-loud checks. Throws
+ * when any class is unverifiable — never substitutes the primitive's
+ * compliant default. */
+const resolvePaintFromCss = async (
+	cssText: string,
 	utilities: string[],
-	theme: 'light' | 'dark',
-): Promise<CompiledUtilityStyle> => {
-	const cacheKey = `${utilities.join(' ')}|${theme}`;
-	const cached = compiledUtilityStyleCache.get(cacheKey);
-	if (cached) {
-		return cached;
-	}
+	probe: { children?: string[]; ancestorClass?: string | null } = {},
+): Promise<{ light: EnginePaint; dark: EnginePaint }> => {
+	const root = postcss.parse(cssText, { from: undefined });
+	const elementClasses = new Set(
+		utilities.map((utility) => `.${escapeClassName(utility)}`),
+	);
+	const recorded = collectRecordedDeclarations(root, elementClasses);
+	const questions = buildQuestions(recorded);
+	const children = probe.children ?? probeChildrenFor(recorded, utilities);
+	const factsLight = await askEngine(
+		cssText,
+		utilities,
+		'light',
+		{
+			children,
+			ancestorClass: probe.ancestorClass ?? null,
+		},
+		questions,
+	);
+	const factsDark = await askEngine(
+		cssText,
+		utilities,
+		'dark',
+		{
+			children,
+			ancestorClass: probe.ancestorClass ?? null,
+		},
+		questions,
+	);
+	assertVerifiable(root, recorded, utilities, factsLight, factsDark, questions);
 
-	const compiled = (async (): Promise<CompiledUtilityStyle> => {
-		const compiler = await getCompiler();
-		const generatedCss = compiler.build(utilities);
-		const cssWithoutBanner = generatedCss.replace(/^\/\*![\s\S]*?\*\/\s*/, '');
-		return compiledStyleFromCss(cssWithoutBanner, utilities, theme);
-	})();
-	compiledUtilityStyleCache.set(cacheKey, compiled);
-	return compiled;
+	const toPaint = (facts: EngineFacts): EnginePaint => ({
+		color: parseComputedColor(facts.paint.fill),
+		opacity: facts.paint.opacity,
+		background: compositeBackground(facts.paint.backgroundLayers),
+	});
+	return { light: toPaint(factsLight), dark: toPaint(factsDark) };
 };
 
-const resolveClassName = async (
-	className: string,
-	theme: 'light' | 'dark',
-): Promise<ResolvedClassName> => {
-	// Round 10 I1: the WHOLE class list is compiled and cascaded in ONE
-	// build — the winner is decided by layer → importance → specificity →
-	// source order in the real stylesheet, never by the order of names in
-	// the className attribute (which the browser ignores).
-	const utilities = className.split(/\s+/).filter((utility) => utility !== '');
-	const compiledStyle = await compiledStyleFromUtilities(utilities, theme);
-	return {
-		color: resolveCandidateDeclaration(
-			effectiveColourDeclaration(compiledStyle),
-			utilities[0],
-			theme,
-		),
-		opacity:
-			compiledStyle.opacity === null
-				? null
-				: parseOpacityValue(compiledStyle.opacity, utilities[0]),
-		possible: compiledStyle.possible.map((candidate) => ({
-			color: resolveCandidateDeclaration(
-				effectiveColourDeclaration(candidate),
-				utilities[0],
-				theme,
-			),
-			opacity:
-				candidate.opacity === null
-					? null
-					: parseOpacityValue(candidate.opacity, utilities[0]),
-		})),
-	};
+/** Resolves the real paint for a class list (primitive + caller classes):
+ * compiles the real stylesheet, then measures. */
+const resolveClassPaint = async (
+	utilities: string[],
+	probe: { children?: string[]; ancestorClass?: string | null } = {},
+): Promise<{ light: EnginePaint; dark: EnginePaint }> =>
+	resolvePaintFromCss(await compiledCssFor(utilities), utilities, probe);
+
+/** The synthetic-CSS entry point for the policy pins: the fixture is appended
+ * to the REAL compiled app.css (so the primitive, the drawer markup and every
+ * token resolve), and the element carries the primitive class plus the
+ * fixture's classes — the real call-site shape the round-12 reviewer proved
+ * the single-class fixture cannot replace. */
+const resolveFixturePaint = async (
+	fixtureCss: string,
+	fixtureClasses: string[],
+	probe: { children?: string[]; ancestorClass?: string | null } = {},
+): Promise<{ light: EnginePaint; dark: EnginePaint }> => {
+	const baseCss = await compiledCssFor(['publy-drawer-description']);
+	return resolvePaintFromCss(
+		`${baseCss}\n${fixtureCss}`,
+		['publy-drawer-description', ...fixtureClasses],
+		probe,
+	);
 };
 
 // Round 5 "fourth door": an `opacity-*` utility does not change `color`, but
 // it paints the text at that alpha over the surface, collapsing the effective
-// contrast. Fold it into the foreground's alpha — whether that foreground is
-// the resolved utility colour or, for a BARE `opacity-*` (which softens the
-// existing colour), the primitive's default (round 7 I2).
-const withOpacity = (color: Rgba, opacity: number | null): Rgba =>
-	opacity !== null && opacity < 1 ? { ...color, a: color.a * opacity } : color;
+// contrast. Fold the computed opacity into the foreground's alpha — whether
+// that foreground is the measured utility colour or, for a BARE `opacity-*`
+// (which softens the existing colour), the primitive's default (round 7 I2).
+const withOpacity = (color: Rgba, opacity: number): Rgba =>
+	opacity < 1 ? { ...color, a: color.a * opacity } : color;
 
-// The effective painted colour of a (possibly translucent) foreground over the
-// given background, which is what the contrast ratio must be computed against.
+// The effective painted colour of a (possibly translucent) foreground over
+// the given background, which is what the contrast ratio must be computed
+// against.
 const effectiveForeground = (foreground: Rgba, background: Rgba): Rgba =>
 	foreground.a >= 1 ? foreground : alphaComposite(foreground, background);
 
 const CALL_SITES = findDrawerDescriptionCallSites();
 
 describe('drawer description text contrast (#1043)', () => {
-	test.each(['light', 'dark'] as const)(
-		'resolves every semantic text colour through the real Tailwind theme in %s mode',
-		async (theme) => {
-			const resolution = await resolveClassName('text-primary text-sm', theme);
-			expect(resolution.color).toEqual(resolveColor('--primary', theme));
-		},
-	);
+	beforeAll(async () => {
+		probePage = await chromium
+			.launch()
+			.then((browser) => browser.newPage({ viewport: MEASURED_VIEWPORT }));
+		await probePage.setContent('<!doctype html><html><body></body></html>');
+	});
+
+	afterAll(async () => {
+		if (probePage !== undefined) {
+			await probePage.context().browser()?.close();
+		}
+	});
+
+	// ---- The real stylesheet, measured by the engine -----------------------
+
+	test('the primitive paint clears the floor on the composited drawer surface in both themes', async () => {
+		const { light, dark } = await resolveClassPaint([
+			'publy-drawer-description',
+		]);
+		for (const [theme, paint] of [
+			['light', light],
+			['dark', dark],
+		] as const) {
+			const ratio = contrastRatio(paint.color, paint.background);
+			expect(ratio, `${theme} theme`).toBeGreaterThanOrEqual(
+				SMALL_TEXT_CONTRAST_FLOOR,
+			);
+		}
+	});
+
+	test('the engine background agrees with the source composited model in both themes', async () => {
+		const { light, dark } = await resolveClassPaint([
+			'publy-drawer-description',
+		]);
+		// The browser's painted hit stack passes the same tokens through an
+		// 8-bit canvas alpha, so the composite agrees within a fraction of a
+		// channel — the pin guards the model against a wrong token or a
+		// dropped layer, not against canvas quantization.
+		for (const [theme, paint] of [
+			['light', light],
+			['dark', dark],
+		] as const) {
+			const source = compositedDrawerBackground(theme);
+			expect(paint.background.a).toBeCloseTo(source.a, 5);
+			expect(paint.background.r).toBeCloseTo(source.r, 0);
+			expect(paint.background.g).toBeCloseTo(source.g, 0);
+			expect(paint.background.b).toBeCloseTo(source.b, 0);
+		}
+	});
+
+	test('resolves every semantic text colour through the real Tailwind theme in %s mode', async () => {
+		const { light, dark } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-primary',
+			'text-sm',
+		]);
+		expect(light.color).toEqual(resolveColor('--primary', 'light'));
+		expect(dark.color).toEqual(resolveColor('--primary', 'dark'));
+	});
 
 	test('ignores generated typography utilities without mistaking them for colours', async () => {
-		const resolution = await resolveClassName(
-			'text-sm text-center text-balance',
-			'light',
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-sm',
+			'text-center',
+			'text-balance',
+		]);
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
 		);
-		expect(resolution.color).toBeNull();
-		expect(resolution.opacity).toBeNull();
+		expect(light.color).toEqual(resolveColor(primitiveToken, 'light'));
+		expect(light.opacity).toBe(1);
 	});
 
 	test('fails closed when Tailwind cannot resolve a className utility', async () => {
 		await expect(async () =>
-			resolveClassName('text-unrecognised-colour', 'light'),
+			resolveClassPaint([
+				'publy-drawer-description',
+				'text-unrecognised-colour',
+			]),
 		).rejects.toThrow(
 			'Unresolvable utility on a DrawerDescription: text-unrecognised-colour',
 		);
@@ -1787,20 +1747,34 @@ describe('drawer description text contrast (#1043)', () => {
 		const unresolvedToken = '--publy-' + 'not-declared';
 		const unresolvedUtility = `text-(${unresolvedToken})`;
 		await expect(async () =>
-			resolveClassName(unresolvedUtility, 'light'),
+			resolveClassPaint(['publy-drawer-description', unresolvedUtility]),
 		).rejects.toThrow(
 			`Unresolvable generated colour for ${unresolvedUtility}: ` +
 				`var(${unresolvedToken})`,
 		);
 	});
 
+	// The value side of the drop sweep: a literal the BROWSER itself would
+	// drop (`banana` is not a CSS colour — CSS.supports is false) paints the
+	// inherited colour in the real app, the exact silent substitution this
+	// guard removes. The browser answers the question; the guard fails loud
+	// by name.
+	test('fails closed on a generated literal the browser would drop', async () => {
+		const rawBananaUtility = '[' + 'color' + ':' + 'banana]';
+		await expect(async () =>
+			resolveClassPaint(['publy-drawer-description', rawBananaUtility]),
+		).rejects.toThrow(/Unresolvable generated colour/);
+	});
+
 	// Round 7 I1: the round-6 "non-colour utility" test pinned the walker's
 	// blindness — it asserted that app component classes in the first
 	// `@layer components` block resolve NO colour, when each of them declares
 	// one in app.css. The table below asserts every such class resolves the
-	// colour it actually declares. `animate-in`/`fade-in` (tw-animate
-	// utilities with genuinely no colour declaration) stay colourless — the
-	// inverse direction, asserted together so neither can regress.
+	// colour it actually declares — measured with the class ALONE, so its own
+	// rule (not a later competitor) decides the paint. `animate-in`/`fade-in`
+	// (tw-animate utilities with genuinely no colour declaration) stay
+	// colourless — the inverse direction, asserted together so neither can
+	// regress.
 	test.each([
 		['publy-type-helper', '--publy-foreground-subtle'],
 		['publy-field-helper', '--publy-foreground-subtle'],
@@ -1813,35 +1787,40 @@ describe('drawer description text contrast (#1043)', () => {
 	] as const)(
 		'resolves the real colour %s declares in app.css',
 		async (utility, token) => {
-			const resolution = await resolveClassName(utility, 'light');
-			expect(resolution.color).toEqual(resolveColor(token, 'light'));
-			expect(resolution.opacity).toBeNull();
+			const { light } = await resolveClassPaint([utility]);
+			expect(light.color).toEqual(resolveColor(token, 'light'));
+			expect(light.opacity).toBe(1);
 		},
 	);
 
 	test.each(['animate-in', 'fade-in'] as const)(
 		'resolves the real tw-animate class %s as genuinely non-colour',
 		async (utility) => {
-			const resolution = await resolveClassName(utility, 'light');
-			expect(resolution.color).toBeNull();
-			expect(resolution.opacity).toBeNull();
+			const { light } = await resolveClassPaint([
+				'publy-drawer-description',
+				utility,
+			]);
+			const primitiveToken = tokenFromColorDeclaration(
+				'.publy-drawer-description',
+			);
+			expect(light.color).toEqual(resolveColor(primitiveToken, 'light'));
+			expect(light.opacity).toBe(1);
 		},
 	);
 
 	test('resolves a Tailwind built-in palette colour without weakening fail-closed', async () => {
-		// Pinned against an INDEPENDENT source of truth (round 7 M3): a real
-		// Chromium paints oklch(63.7% 0.237 25.331) — Tailwind v4's default
-		// red-500 — as rgb(251, 44, 54) (#fb2c36), matching Tailwind's docs
-		// value. The conversion must match the browser, not merely itself.
-		expect((await resolveClassName('text-red-500', 'light')).color).toEqual({
-			r: 251,
-			g: 44,
-			b: 54,
-			a: 1,
-		});
+		// The value was originally pinned against an INDEPENDENT Chromium
+		// measurement (round 7 M3): Tailwind v4's default red-500,
+		// oklch(63.7% 0.237 25.331), paints rgb(251, 44, 54) (#fb2c36). The
+		// guard now IS that browser — the pin keeps the pipeline honest.
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-red-500',
+		]);
+		expect(light.color).toEqual({ r: 251, g: 44, b: 54, a: 1 });
 		// A genuinely unknown utility still throws by name.
 		await expect(async () =>
-			resolveClassName('text-quantum-42', 'light'),
+			resolveClassPaint(['publy-drawer-description', 'text-quantum-42']),
 		).rejects.toThrow(
 			'Unresolvable utility on a DrawerDescription: text-quantum-42',
 		);
@@ -1849,17 +1828,15 @@ describe('drawer description text contrast (#1043)', () => {
 
 	// Round 5 "fourth door": `opacity-*` paints the text translucent without
 	// changing `color`, collapsing the effective contrast. The guard must fold
-	// it in, not report the opaque colour.
+	// the COMPUTED opacity in, not report the opaque colour.
 	test('folds an opacity utility into the measured foreground', async () => {
-		const resolution = await resolveClassName(
-			'text-primary opacity-50',
-			'light',
-		);
-		const color = resolution.color;
-		expect(color).not.toBeNull();
-		if (color !== null) {
-			expect(withOpacity(color, resolution.opacity).a).toBeCloseTo(0.5, 5);
-		}
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-primary',
+			'opacity-50',
+		]);
+		expect(light.color).toEqual(resolveColor('--primary', 'light'));
+		expect(light.opacity).toBeCloseTo(0.5, 5);
 	});
 
 	// Round 7 I2: a BARE `opacity-*` — the class an author writes to soften
@@ -1870,550 +1847,255 @@ describe('drawer description text contrast (#1043)', () => {
 		const primitiveToken = tokenFromColorDeclaration(
 			'.publy-drawer-description',
 		);
-		for (const theme of ['light', 'dark'] as const) {
-			const resolution = await resolveClassName('opacity-50', theme);
-			expect(resolution.color).toBeNull();
-			expect(resolution.opacity).toBeCloseTo(0.5, 5);
-			const background = compositedDrawerBackground(theme);
+		const { light, dark } = await resolveClassPaint([
+			'publy-drawer-description',
+			'opacity-50',
+		]);
+		for (const [theme, paint] of [
+			['light', light],
+			['dark', dark],
+		] as const) {
+			expect(paint.opacity).toBeCloseTo(0.5, 5);
 			const foreground = withOpacity(
 				resolveColor(primitiveToken, theme),
-				resolution.opacity,
+				paint.opacity,
 			);
 			expect(
-				contrastRatio(effectiveForeground(foreground, background), background),
+				contrastRatio(
+					effectiveForeground(foreground, paint.background),
+					paint.background,
+				),
 				`bare opacity-50 on the primitive default in ${theme} theme`,
 			).toBeLessThan(SMALL_TEXT_CONTRAST_FLOOR);
 		}
 	});
 
 	// Round 7 M7: `-webkit-text-fill-color` paints the text in WebKit/Blink
-	// instead of `color` — reachable through an arbitrary-property utility. It
-	// must win over a coexisting colour utility exactly as it would in the
+	// instead of `color` — reachable through an arbitrary-property utility.
+	// It must win over a coexisting colour utility exactly as it would in the
 	// browser, while `currentcolor` (its default) stays a no-op rather than
 	// reddening a class that merely wrote the default explicitly.
 	test('-webkit-text-fill-color overrides a colour utility in the measured foreground', async () => {
-		const resolution = await resolveClassName(
-			'text-primary [-webkit-text-fill-color:#' + 'ff0000]',
-			'light',
-		);
-		expect(resolution.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-primary',
+			'[-webkit-text-fill-color:#' + 'ff0000]',
+		]);
+		expect(light.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
 	});
 
 	test('-webkit-text-fill-color:currentcolor is a no-op override', async () => {
-		const resolution = await resolveClassName(
-			'text-primary [-webkit-text-fill-color:' + 'currentcolor]',
-			'light',
-		);
-		expect(resolution.color).toEqual(resolveColor('--primary', 'light'));
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-primary',
+			'[-webkit-text-fill-color:' + 'currentcolor]',
+		]);
+		expect(light.color).toEqual(resolveColor('--primary', 'light'));
 	});
 
 	// Pins the round-4 utility-resolution behaviours so the real app.css
 	// compiler input (round 5 I5) cannot regress them: semantic tokens still
 	// resolve, arbitrary hex values still resolve exactly, and the genuinely
-	// unresolvable colour shapes still fail closed by name. Two pins changed
-	// with the round-9 parser rewrite, each because the OLD pin encoded the
-	// old walker's blindness rather than a browser fact:
+	// unresolvable colour shapes still fail closed by name. Three pins CHANGED
+	// with the round-15 engine, each because the OLD pin encoded a hand
+	// parser's blindness rather than a browser fact:
 	//   - `dark:text-primary` used to resolve --primary in the LIGHT theme
 	//     because the substring walker treated the nested `&:is(.dark *)`
 	//     rule as the class itself. The rule is a THEME gate: in light mode
-	//     the browser paints the default, so the class now resolves no
-	//     resting colour in light — and --primary in dark, where it actually
+	//     the browser paints the default, so the class now measures the
+	//     primitive in light — and --primary in dark, where it actually
 	//     paints (round 9 rule 4).
 	//   - `text-primary!` used to throw because the value regex could not
 	//     read `!important` values. `!important` is a cascade-priority flag,
 	//     not part of the value — the class paints --primary exactly like
-	//     `text-primary` (round 8 M5), and the five app classes of M5 fail
-	//     closed on the same shape.
-	// The design-system guard scans every src/ file for raw colour literals, so
-	// these two FIXTURE utilities — which exist to prove that raw colours are
-	// still RESOLVED correctly — are built by concatenation rather than written
-	// as one literal. Otherwise the guard would flag its own test fixtures.
+	//     `text-primary` (round 8 M5).
+	//   - `text-primary/50` and the named-colour arbitrary-property utility
+	//     used to THROW because the
+	//     hand parser could not resolve color-mix()/named colours — the
+	//     browser computes both, so the guard now measures them (round 14
+	//     M3's false positive, and a round-4 pin that encoded the old
+	//     blindness). The design-system guard scans every src/ file for raw
+	//     colour literals, so these two FIXTURE utilities are built by
+	//     concatenation rather than written as one literal.
 	const rawHexUtility = 'text-[#' + '777777]';
 	const rawNamedUtility = '[' + 'color' + ':' + 'red]';
 
 	test('keeps the round-4 resolution behaviours intact', async () => {
-		expect((await resolveClassName('text-foreground', 'light')).color).toEqual(
-			resolveColor('--foreground', 'light'),
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-foreground',
+		]);
+		expect(light.color).toEqual(resolveColor('--foreground', 'light'));
+		const muted = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-muted-foreground',
+		]);
+		expect(muted.light.color).toEqual(
+			resolveColor('--muted-foreground', 'light'),
 		);
-		expect(
-			(await resolveClassName('text-muted-foreground', 'light')).color,
-		).toEqual(resolveColor('--muted-foreground', 'light'));
-		expect((await resolveClassName(rawHexUtility, 'light')).color).toEqual({
-			r: 0x77,
-			g: 0x77,
-			b: 0x77,
-			a: 1,
-		});
-		expect(
-			(await resolveClassName('dark:text-primary', 'light')).color,
-		).toBeNull();
-		expect((await resolveClassName('dark:text-primary', 'dark')).color).toEqual(
-			resolveColor('--primary', 'dark'),
+		const hex = await resolveClassPaint([
+			'publy-drawer-description',
+			rawHexUtility,
+		]);
+		expect(hex.light.color).toEqual({ r: 0x77, g: 0x77, b: 0x77, a: 1 });
+		const darkLight = await resolveClassPaint([
+			'publy-drawer-description',
+			'dark:text-primary',
+		]);
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
 		);
-		expect((await resolveClassName('text-primary!', 'light')).color).toEqual(
-			resolveColor('--primary', 'light'),
+		expect(darkLight.light.color).toEqual(
+			resolveColor(primitiveToken, 'light'),
 		);
-		for (const utility of ['text-primary/50', rawNamedUtility]) {
-			await expect(async () =>
-				resolveClassName(utility, 'light'),
-			).rejects.toThrow('Unresolvable generated colour');
-		}
+		expect(darkLight.dark.color).toEqual(resolveColor('--primary', 'dark'));
+		const important = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-primary!',
+		]);
+		expect(important.light.color).toEqual(resolveColor('--primary', 'light'));
+		const named = await resolveClassPaint([
+			'publy-drawer-description',
+			rawNamedUtility,
+		]);
+		expect(named.light.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
 	});
 
-	// ---- Synthetic-CSS policy pins (round 9 rewrite) -----------------------
+	// Round 14 M3: `text-primary/50` is named by the old sweep's own comment
+	// as the worked example of the `@supports (color: color-mix(...))`
+	// fallback — swept, then thrown by the hand parser. The browser computes
+	// color-mix(), so the guard measures the real (deliberately soft) paint
+	// instead of blocking the utility.
+	test('text-primary/50 resolves through the browser, never blocked (round 14 M3)', async () => {
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'text-primary/50',
+		]);
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
+		);
+		expect(light.color).not.toEqual(resolveColor(primitiveToken, 'light'));
+		expect(light.color).not.toEqual(resolveColor('--primary', 'light'));
+		expect(light.opacity).toBe(1);
+		// The measured mix is genuinely low-contrast — an honest failure, not
+		// an opaque "unresolvable" error.
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Round 14 M3: a responsive variant whose condition holds at the
+	// measured viewport is measured, not blocked.
+	test('sm:text-foreground is measured at the e2e viewport (round 14 M3)', async () => {
+		const { light, dark } = await resolveClassPaint([
+			'publy-drawer-description',
+			'sm:text-foreground',
+		]);
+		expect(light.color).toEqual(resolveColor('--foreground', 'light'));
+		expect(dark.color).toEqual(resolveColor('--foreground', 'dark'));
+	});
+
+	// Round 14 M3: a responsive opacity variant whose condition holds at the
+	// measured viewport is measured, not blocked.
+	test('md:opacity-90 is measured at the e2e viewport (round 14 M3)', async () => {
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'md:opacity-90',
+		]);
+		expect(light.opacity).toBeCloseTo(0.9, 5);
+	});
+
+	// ---- Round-8 M5 pipeline pins ------------------------------------------
 	//
-	// compiledStyleFromCss is exported so each clause of the resting-style
-	// policy can be pinned on a minimal synthetic stylesheet, independently of
-	// the real app.css. Each test here reproduces a round-8 review scenario
-	// verbatim: the old substring walker answered with the WRONG colour (the
-	// variant's) for every one of these inputs and read green while the text
-	// painted 2.51:1.
-	test('a :hover variant never supplies the resting colour (round 8 I1)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground-subtle); }\n' +
-				'.x:hover { color: var(--publy-foreground); }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	test('an attribute variant never supplies the resting colour (round 8 I1)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground-subtle); }\n' +
-				".x[data-active='true'] { color: var(--publy-foreground); }",
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	test('a @media-nested rule never supplies the resting colour (round 8 I1)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground-subtle); }\n' +
-				'@media (max-width: 767px) { .x { color: var(--publy-foreground); } }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	test('a @supports-nested rule never supplies the resting colour (round 8 I1)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground-subtle); }\n' +
-				'@supports (display: grid) { .x { color: var(--publy-foreground); } }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	// The design-system guard scans every src/ file for raw colour literals,
-	// so the FIXTURE colours below (which exist to prove that raw colours are
-	// still RESOLVED correctly) are built by concatenation rather than written
-	// as one literal — the same convention as the round-4 fixtures above.
-	const rawRed = '#' + 'ff0000';
-	const rawNearBlack = '#' + '111111';
-
-	// Round 8 I2: nesting is SEEN (the old substring walker dropped nested
-	// rules entirely). Round 10 I2 re-cast BOTH pins: a rule nested inside a
-	// plain rule resolves to `.parent .x` — an ANCESTOR-QUALIFIED rule the
-	// source model cannot verify — so it is a POSSIBLE paint, never a
-	// last-wins winner. The first pin proves the nested rule is still
-	// resolved at all; the second proves it can no longer outrank the base
-	// rule by source order (the round-10 I2 control: three lines of ordinary
-	// CSS made every drawer read fully green while painting 2.515:1).
-	test('a rule nested inside a plain rule is resolved as a possible paint (round 8 I2 + round 10 I2)', () => {
-		const style = compiledStyleFromCss(
-			`.parent { .x { color: ${rawRed}; } }`,
-			['x'],
-			'light',
-		);
-		expect(style.color).toBeNull();
-		expect(style.possible).toEqual([
-			{ color: rawRed, textFillColor: null, opacity: null },
-		]);
-	});
-
-	test('an ancestor-qualified rule never wins by source order (round 10 I2)', () => {
-		const style = compiledStyleFromCss(
-			`.x { color: ${rawNearBlack}; }\n` +
-				`.parent { .x { color: ${rawRed}; } }`,
-			['x'],
-			'light',
-		);
-		// The base rule is the definite cascade winner; the nested override is
-		// reported as a possible paint the consumer must fold into its worst
-		// case — the round-10 I2 policy.
-		expect(style.color).toBe(rawNearBlack);
-		expect(style.possible).toEqual([
-			{ color: rawRed, textFillColor: null, opacity: null },
-		]);
-	});
-
-	// Round 10 I2, flat spelling: the same ancestor qualification written as
-	// a plain descendant combinator. LOAD-BEARING for round 10 M2 — this
-	// assertion dies if lastCompoundRun's combinator stripping is dropped
-	// (the qualified rule would then be read as a different class and vanish
-	// from the possible paints entirely).
-	test('a descendant-qualified rule is a possible paint, never the winner (round 10 I2/M2)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground-secondary); }\n' +
-				'.publy-drawer .x { color: var(--publy-foreground-subtle); }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-secondary)');
-		expect(style.possible).toEqual([
-			{
-				color: 'var(--publy-foreground-subtle)',
-				textFillColor: null,
-				opacity: null,
-			},
-		]);
-	});
-
-	// Round 10 I1: the two-class `className` — the headline round-10 finding.
-	// The browser resolves competing plain class rules by layer → specificity
-	// → source order, NEVER by the order of names in the class attribute.
-	// This synthetic pair pins that the resolver agrees: same CSS, swapped
-	// attribute order, identical verdicts.
-	test('a two-class className resolves by source order, not attribute order (round 10 I1)', () => {
-		const css =
-			'.a { color: var(--publy-foreground); }\n' +
-			'.b { color: var(--publy-foreground-subtle); }';
-		const forward = compiledStyleFromCss(css, ['a', 'b'], 'light');
-		const reversed = compiledStyleFromCss(css, ['b', 'a'], 'light');
-		expect(forward.color).toBe('var(--publy-foreground-subtle)');
-		expect(reversed.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	test('an unlayered utility outranks a components-layer app class (round 10 I1)', () => {
-		// The unlayered rule comes FIRST on purpose: source order alone would
-		// crown the LATER layered rule, while the browser crowns the
-		// unlayered one — unlayered outranks every layer regardless of
-		// position, exactly how Tailwind's generated utilities beat the
-		// app's `@layer components` blocks.
-		const css =
-			'.b { color: var(--publy-foreground); }\n' +
-			'@layer components { .a { color: var(--publy-foreground-subtle); } }';
-		expect(compiledStyleFromCss(css, ['a', 'b'], 'light').color).toBe(
-			'var(--publy-foreground)',
-		);
-		expect(compiledStyleFromCss(css, ['b', 'a'], 'light').color).toBe(
-			'var(--publy-foreground)',
-		);
-	});
-
-	// Round 10 M1: the two cascade inversions css-cascade-test-support.ts was
-	// hardened against in round 3, reintroduced by round 9's source-order
-	// last-wins and now re-closed with the same model.
-	test('an !important declaration beats a later plain one (round 10 M1)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground-subtle) !important; }\n' +
-				'.x { color: var(--publy-foreground); }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	// Round 13: `!important` REVERSES layer precedence (css-cascade-5
-	// § 6.3) — the round-12 reviewer proved the browser crowns the
-	// EARLIER layer for an important declaration while the source guard
-	// (normal layer order) crowned the later one. The same two rules with
-	// the importance flag flipped must produce OPPOSITE winners, and an
-	// important LAYERED declaration must beat an important unlayered one.
-	test('normal declarations: the later layer wins (round 13 layer order)', () => {
-		const css =
-			'@layer components { .a { color: var(--publy-foreground-subtle); } }\n' +
-			'@layer utilities { .b { color: var(--publy-foreground); } }';
-		expect(compiledStyleFromCss(css, ['a', 'b'], 'light').color).toBe(
-			'var(--publy-foreground)',
-		);
-	});
-
-	test('!important declarations: the EARLIER layer wins (round 13 layer reversal)', () => {
-		const css =
-			'@layer components { .a { color: var(--publy-foreground-subtle) !important; } }\n' +
-			'@layer utilities { .b { color: var(--publy-foreground) !important; } }';
-		expect(compiledStyleFromCss(css, ['a', 'b'], 'light').color).toBe(
-			'var(--publy-foreground-subtle)',
-		);
-	});
-
-	test('an important LAYERED declaration beats an important unlayered one (round 13 layer reversal)', () => {
-		const css =
-			'.b { color: var(--publy-foreground) !important; }\n' +
-			'@layer components { .a { color: var(--publy-foreground-subtle) !important; } }';
-		expect(compiledStyleFromCss(css, ['a', 'b'], 'light').color).toBe(
-			'var(--publy-foreground-subtle)',
-		);
-	});
-
-	test('a higher-specificity compound beats a later plain rule (round 10 M1)', () => {
-		const style = compiledStyleFromCss(
-			'.a.x { color: var(--publy-foreground-subtle); }\n' +
-				'.x { color: var(--publy-foreground); }',
-			['a', 'x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	// Round 10 I3, PAIRED PROOF. The red side: a class whose ONLY colour
-	// declaration lives inside a conditional at-rule must THROW by name —
-	// round 9's exclusion made it fall through to the primitive's compliant
-	// default, a silent substitution (the round-8 walker was red on exactly
-	// this input). The green side is the round-8 I1 `@media` pin above: a
-	// conditional rule alongside an unconditional one still never supplies,
-	// and the unconditional colour resolves normally — the legitimate case
-	// the exclusion protects.
-	test('a colour declared only inside a conditional at-rule fails loud by name (round 10 I3)', () => {
-		expect(() =>
-			compiledStyleFromCss(
-				'@media (min-width: 640px) {\n' +
-					'  .x { color: var(--publy-foreground-subtle); }\n' +
-					'}',
-				['x'],
-				'light',
-			),
-		).toThrow(/Only conditional declarations for x: color/);
-	});
-
-	// Round 13 I3 RE-KEY: the round-10 I3 pin above used a single class, so
-	// it could not expose the masking the round-12 reviewer reproduced on the
-	// real change-email drawer — the PRIMITIVE's unconditional `color`
-	// satisfies a per-property supply check, so a caller class whose only
-	// colour declaration is conditional never threw and the guard read green
-	// while the browser painted 2.51:1. The bookkeeping is now keyed by
-	// (utility, property); THIS is the primitive-plus-caller pair: the
-	// primitive class supplies `color` unconditionally, the caller's only
-	// colour is conditional, and the guard must still throw naming the
-	// CALLER. Revert the bookkeeping to per-property and this goes green
-	// again — the mutation that counts.
-	test('a caller whose only colour is conditional fails loud even when the primitive supplies color (round 13 I3)', () => {
-		expect(() =>
-			compiledStyleFromCss(
-				'.publy-drawer-description {\n' +
-					'  color: var(--publy-foreground-secondary);\n' +
-					'}\n' +
-					'@media (min-width: 640px) {\n' +
-					'  .publy-r12-conditional-only {\n' +
-					'    color: var(--publy-foreground-subtle);\n' +
-					'  }\n' +
-					'}',
-				['publy-drawer-description', 'publy-r12-conditional-only'],
-				'light',
-			),
-		).toThrow(
-			/Only conditional declarations for publy-r12-conditional-only: color/,
-		);
-	});
-
-	// Round 10 M3: state-variant-ness is decided by whether the pseudo-class
-	// paints at rest, not by its shape. `:not()`/`:where()`/`:is()` paint at
-	// rest; `html.dark .x` is a theme gate the suite can evaluate.
-	test('a rest-applying :not() rule supplies and wins on specificity (round 10 M3)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground); }\n' +
-				'.x:not(.never) { color: var(--publy-foreground-subtle); }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-subtle)');
-	});
-
-	test('a :not() whose argument is on the element does not apply (round 10 M3)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground); }\n' +
-				'.x:not(.never) { color: var(--publy-foreground-subtle); }',
-			['x', 'never'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground)');
-	});
-
-	// Round 13: `:has()` matches DESCENDANTS, so its argument must never be
-	// matched against the subject element's own class list — the round-12
-	// reviewer reproduced exactly this on the real invite drawer:
-	// `.publy-r12-has-child:has(.publy-r12-child)` with `.publy-r12-child`
-	// BENEATH the element was discarded by the old subject-class argument
-	// check, and the guard read green while the browser painted the
-	// conditional colour at 2.51:1. The rule is a POSSIBLE paint — the
-	// descendant fixture class is in the CSS but never on the element.
-	test('a :has() rule is a possible paint, never discarded by subject-class matching (round 13)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground); }\n' +
-				'.x:has(.publy-r12-child) { color: var(--publy-foreground-subtle); }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground)');
-		expect(style.possible).toEqual([
-			{
-				color: 'var(--publy-foreground-subtle)',
-				textFillColor: null,
-				opacity: null,
-			},
-		]);
-	});
-
-	// Round 13: the round-10 M3 pin put the `:where()` rule AFTER an equal
-	// competitor, so it won by source order even if `:where()` contributed
-	// an arbitrarily large specificity — the named "zero specificity" claim
-	// was vacuous (removing the zero case kept it green). Reversed: the
-	// `:where()` rule comes FIRST and must still LOSE to the later plain
-	// rule of equal class specificity — only a true zero contribution ties
-	// them and hands the win to source order. Counting `:where()` arguments
-	// at all makes this go red.
-	test('a :where() rule contributes zero specificity and loses to a later equal competitor (round 10 M3)', () => {
-		const style = compiledStyleFromCss(
-			'.x:where(.a, .x) { color: var(--publy-foreground-subtle); }\n' +
-				'.x { color: var(--publy-foreground); }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground)');
-	});
-
-	test('a dark-themed ancestor rule never supplies the light-theme colour (round 10 M3)', () => {
-		const css =
-			'.x { color: var(--publy-foreground); }\n' +
-			'html.dark .x { color: var(--publy-foreground-subtle); }';
-		// In light the gate excludes the rule ENTIRELY — it must not even
-		// surface as a possible paint, or the call-site worst case would
-		// redden a light-theme assertion on a dark-only override.
-		const light = compiledStyleFromCss(css, ['x'], 'light');
-		expect(light.color).toBe('var(--publy-foreground)');
-		expect(light.possible).toEqual([]);
-		// In dark the gate applies — the later rule wins the tie on
-		// specificity (ancestor compounds do not add specificity here).
-		const dark = compiledStyleFromCss(css, ['x'], 'dark');
-		expect(dark.color).toBe('var(--publy-foreground-subtle)');
-		expect(dark.possible).toEqual([]);
-	});
-
-	test('a statement at-rule does not absorb the following rule (round 8 M6)', () => {
-		const style = compiledStyleFromCss(
-			`@layer properties;\n.x { color: ${rawRed}; }`,
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe(rawRed);
-	});
-
-	test('a themed dark gate supplies the resting colour in dark mode only (round 9 rule 4)', () => {
-		const gated =
-			'.dark\\:x { &:is(.dark *) { color: var(--publy-foreground); } }';
-		expect(compiledStyleFromCss(gated, ['dark:x'], 'light').color).toBeNull();
-		expect(compiledStyleFromCss(gated, ['dark:x'], 'dark').color).toBe(
-			'var(--publy-foreground)',
-		);
-	});
-
-	test('an !important declaration resolves the same colour as the plain one (round 8 M5)', () => {
-		const style = compiledStyleFromCss(
-			'.x { color: var(--publy-foreground-muted) !important; }',
-			['x'],
-			'light',
-		);
-		expect(style.color).toBe('var(--publy-foreground-muted)');
-	});
-
-	test('a relative ./drawer import is enumerated (round 8 M3)', () => {
-		const source = "import { DrawerDescription } from './drawer';";
-		const file = path.join('src', 'components', 'ui', '_fixture.tsx');
-		expect(drawerDescriptionTagNames(source, file)).toEqual([
-			'DrawerDescription',
-		]);
-	});
-
-	// Round 13 M4: the pin above builds its fixture with native
-	// `path.join`, which contains `/` on Linux — reverting the round-10
-	// normalisation to the raw importer kept it green there, so the
-	// Windows fix was never actually pinned. `path.win32.join` produces a
-	// literal backslash path on EVERY platform; only the normalisation
-	// (now splitting on both separators) can make it resolve.
-	test('a relative ./drawer import is enumerated on a win32 importer path (round 10 M4)', () => {
-		const source = "import { DrawerDescription } from './drawer';";
-		const file = path.win32.join('src', 'components', 'ui', '_fixture.tsx');
-		expect(file).toContain('\\');
-		expect(drawerDescriptionTagNames(source, file)).toEqual([
-			'DrawerDescription',
-		]);
-	});
-
-	test('a relative import of a different module is not enumerated (round 8 M3)', () => {
-		const source = "import { Foo } from './foo';";
-		const file = path.join('src', 'components', 'ui', '_fixture.tsx');
-		expect(drawerDescriptionTagNames(source, file)).toEqual([]);
-	});
-
-	// Round 8 M5: the round-7 declaration regex fail-closed five app classes —
-	// five on `!important` values (the important flag is cascade priority, not
-	// part of the colour) and two on legitimate CONTEXTUAL tokens declared on
-	// a component rule rather than in :root/html.dark. All seven must resolve
+	// The round-7 declaration regex fail-closed five app classes — five on
+	// `!important` values (the important flag is cascade priority, not part
+	// of the colour) and two on legitimate CONTEXTUAL tokens declared on a
+	// component rule rather than in :root/html.dark. All seven must resolve
 	// through the REAL pipeline now, and each must resolve the colour it
-	// actually declares — not silently null.
+	// actually declares — not silently null. The four class-only rules below
+	// measure their own declared colour. The two CONTEXTUAL-token classes
+	// (`publy-toast-icon`, `publy-profile-icon-tile`) declare their token on
+	// a VARIANT (a toast tone, a `[data-tone]` attribute) — outside that
+	// context the browser drops the `var()` and inherits the app's base
+	// colour; the source model's CONTEXTUAL_DECLARATIONS convention
+	// (round 8 M5) resolved the token from its first declaration, a colour
+	// the browser never paints there. The engine measures the truth and the
+	// e2e measures the real variant paints.
 	test.each([
 		['app-shell-tenant-pill', '--publy-foreground-muted'],
 		['app-shell-workspace-pill', '--publy-foreground-muted'],
 		['app-shell-topbar-action-btn', '--publy-foreground-muted'],
 		['app-shell-workspace', '--publy-foreground'],
-		['publy-toast-icon', '--publy-toast-accent'],
-		['publy-profile-icon-tile', '--publy-icon-tile-fg'],
 	] as const)(
 		'resolves the round-8 M5 class %s through the real pipeline',
 		async (utility, token) => {
-			const resolution = await resolveClassName(utility, 'light');
-			expect(resolution.color).toEqual(resolveColor(token, 'light'));
+			const { light } = await resolveClassPaint([utility]);
+			expect(light.color).toEqual(resolveColor(token, 'light'));
 		},
 	);
 
-	test('app-shell-topbar resolves no colour — it declares none (round 8 M5)', async () => {
+	test.each(['publy-toast-icon', 'publy-profile-icon-tile'] as const)(
+		'resolves the round-8 M5 contextual-token class %s without fail-closing',
+		async (utility) => {
+			const { light } = await resolveClassPaint([utility]);
+			// No toast tone / no data-tone on the element: the browser drops
+			// the variant-scoped `var()` and inherits the app's base colour —
+			// never a throw, never an invented colour.
+			expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+		},
+	);
+
+	test('app-shell-topbar resolves no colour of its own (round 8 M5)', async () => {
 		// The round-7 substring walker leaked the SIBLING
 		// `.app-shell-topbar-action-btn`'s `!important` value into this class
-		// and fail-closed on it. The class itself declares no color; the
-		// exact-match resolver must not throw, and must not invent one.
-		const resolution = await resolveClassName('app-shell-topbar', 'light');
-		expect(resolution.color).toBeNull();
+		// and fail-closed on it. The class itself declares no color — on a
+		// drawer description the primitive's default paints and the engine
+		// measures it.
+		const { light } = await resolveClassPaint([
+			'publy-drawer-description',
+			'app-shell-topbar',
+		]);
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
+		);
+		expect(light.color).toEqual(resolveColor(primitiveToken, 'light'));
 	});
 
 	// Round 10 I1, through the REAL app.css: the review proved in Chromium
 	// that `class="publy-field-helper publy-drawer-description"` paints
 	// `--publy-foreground-subtle` (2.515:1) because field-helper is 89 lines
 	// later in the same `@layer components`, while the same two names typed
-	// in the other order paint identically. The resolver must agree on both
-	// spellings, and must let a utility-layer colour outrank a components-
-	// layer app class the way the browser does.
+	// in the other order paint identically. The guard must agree on both
+	// spellings — now by construction, since the browser is the cascade.
 	test('two real app classes resolve by real source order, not attribute order (round 10 I1)', async () => {
 		const subtle = resolveColor('--publy-foreground-subtle', 'light');
-		const forward = await resolveClassName(
-			'publy-field-helper publy-drawer-description',
-			'light',
-		);
-		const reversed = await resolveClassName(
-			'publy-drawer-description publy-field-helper',
-			'light',
-		);
-		expect(forward.color).toEqual(subtle);
-		expect(reversed.color).toEqual(subtle);
+		const forward = await resolveClassPaint([
+			'publy-field-helper',
+			'publy-drawer-description',
+		]);
+		const reversed = await resolveClassPaint([
+			'publy-drawer-description',
+			'publy-field-helper',
+		]);
+		expect(forward.light.color).toEqual(subtle);
+		expect(reversed.light.color).toEqual(subtle);
 	});
 
 	test('a utility colour outranks a components-layer app class (round 10 I1)', async () => {
 		const foreground = resolveColor('--foreground', 'light');
-		const forward = await resolveClassName(
-			'text-foreground publy-field-helper',
-			'light',
-		);
-		const reversed = await resolveClassName(
-			'publy-field-helper text-foreground',
-			'light',
-		);
-		expect(forward.color).toEqual(foreground);
-		expect(reversed.color).toEqual(foreground);
+		const forward = await resolveClassPaint([
+			'text-foreground',
+			'publy-field-helper',
+		]);
+		const reversed = await resolveClassPaint([
+			'publy-field-helper',
+			'text-foreground',
+		]);
+		expect(forward.light.color).toEqual(foreground);
+		expect(reversed.light.color).toEqual(foreground);
 	});
+
+	// ---- Round-5 enumeration pins (unchanged) ------------------------------
 
 	// Round 5 I2: a className smuggled through a prop spread must fail closed
 	// by name instead of being measured as the compliant default.
@@ -2500,16 +2182,11 @@ describe('drawer description text contrast (#1043)', () => {
 		// list diff.
 		const enumerated = new Map<string, number>();
 		for (const callSite of CALL_SITES) {
-			// Round 10 M4: the inventory keys are forward-slash repository
-			// paths, but `walkTsxFiles` builds NATIVE paths — on Windows the
-			// comparison below would never match. Normalise both sides.
-			const relative = callSite.file
-				.split(path.sep)
-				.join('/')
-				.replace(
-					path.resolve(process.cwd()).split(path.sep).join('/') + '/',
-					'',
-				);
+			// Round 10 M4 + round 14 M2: the inventory keys are forward-slash
+			// repository paths, but `walkTsxFiles` builds NATIVE paths — on
+			// Windows the comparison below would never match. Normalise both
+			// sides through the pinned helper.
+			const relative = normaliseToRepoRelative(callSite.file);
 			enumerated.set(relative, (enumerated.get(relative) ?? 0) + 1);
 		}
 
@@ -2535,6 +2212,514 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(new Set(testIds).size).toBe(testIds.length);
 	});
 
+	// Round 14 M2: the round-10 M4 normalisation in the enumeration test was
+	// the second, unpinned instance of the Windows-path defect class — on
+	// Linux `path.sep` is `/`, so deleting the normalisation changed nothing
+	// and the test stayed green. A literal backslash fixture pins it on every
+	// platform, exactly as round 13 did for `isDrawerModuleImport`:
+	// `path.win32.join` produces backslashes, and only the both-separator
+	// normalisation can turn the result back into the repo-relative form the
+	// inventory comparison needs.
+	test('a win32 call-site path normalises to a repo-relative forward-slash path (round 10 M4)', () => {
+		const native = path.win32.join(
+			path.resolve(process.cwd()),
+			'src',
+			'routes',
+			'x.tsx',
+		);
+		expect(native).toContain('\\');
+		expect(normaliseToRepoRelative(native)).toBe('src/routes/x.tsx');
+	});
+
+	test('a relative ./drawer import is enumerated (round 8 M3)', () => {
+		const source = "import { DrawerDescription } from './drawer';";
+		const file = path.join('src', 'components', 'ui', '_fixture.tsx');
+		expect(drawerDescriptionTagNames(source, file)).toEqual([
+			'DrawerDescription',
+		]);
+	});
+
+	// Round 13 M4: the pin above builds its fixture with native
+	// `path.join`, which contains `/` on Linux — reverting the round-10
+	// normalisation to the raw importer kept it green there, so the
+	// Windows fix was never actually pinned. `path.win32.join` produces a
+	// literal backslash path on EVERY platform; only the normalisation
+	// (now splitting on both separators) can make it resolve.
+	test('a relative ./drawer import is enumerated on a win32 importer path (round 10 M4)', () => {
+		const source = "import { DrawerDescription } from './drawer';";
+		const file = path.win32.join('src', 'components', 'ui', '_fixture.tsx');
+		expect(file).toContain('\\');
+		expect(drawerDescriptionTagNames(source, file)).toEqual([
+			'DrawerDescription',
+		]);
+	});
+
+	test('a relative import of a different module is not enumerated (round 8 M3)', () => {
+		const source = "import { Foo } from './foo';";
+		const file = path.join('src', 'components', 'ui', '_fixture.tsx');
+		expect(drawerDescriptionTagNames(source, file)).toEqual([]);
+	});
+
+	// ---- Synthetic policy pins, browser-measured ---------------------------
+	//
+	// Every clause of the old hand-modeled cascade is pinned here against the
+	// ENGINE — the fixture CSS appended to the real compiled app.css, the
+	// element carrying the primitive class plus the fixture classes (the real
+	// call-site shape), the paint read from Chromium at 1280×720. A pin that
+	// agrees with Chromium is worth more than a pin that agrees with a model
+	// of Chromium (round 14's standard): the browser is the oracle, and these
+	// pins prove the pipeline (compile → probe markup → measure) reproduces
+	// the browser's cascade — including the rules the old model got wrong.
+	//
+	// The design-system guard scans every src/ file for raw colour literals,
+	// so the FIXTURE colours below (which exist to prove that raw colours are
+	// still RESOLVED correctly) are built by concatenation rather than written
+	// as one literal — the same convention as the round-4 fixtures above.
+	const rawRed = '#' + 'ff0000';
+	const rawNearBlack = '#' + '111111';
+
+	test('a :hover variant never supplies the resting colour (round 8 I1)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.x { color: var(--publy-foreground-subtle); }\n.x:hover { color: var(--publy-foreground); }`,
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('an attribute variant never supplies the resting colour (round 8 I1)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.x { color: var(--publy-foreground-subtle); }\n.x[data-active='true'] { color: var(--publy-foreground); }`,
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('a @media (max-width) rule never supplies at the measured viewport (round 8 I1)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.x { color: var(--publy-foreground-subtle); }\n@media (max-width: 767px) { .x { color: var(--publy-foreground); } }`,
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	// Round 8 I1 said "a @supports-nested rule never supplies the resting
+	// colour" — that was the model's blindness: it could not evaluate the
+	// condition, so it excluded EVERY @supports rule. The engine evaluates it,
+	// and `(display: grid)` holds in Chromium — the later rule wins the
+	// cascade and IS the resting colour. The honest statement of the pin:
+	// @supports rules supply when their condition holds (round 14 M3's
+	// `text-primary/50` fallback works exactly this way).
+	test('a @supports rule supplies when its condition holds (round 8 I1, engine-corrected)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.x { color: var(--publy-foreground-subtle); }\n@supports (display: grid) { .x { color: var(--publy-foreground); } }`,
+			['x'],
+		);
+		expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+	});
+
+	// Round 8 I2 + round 10 I2: nesting is SEEN. Round 10 I2 re-cast the pin:
+	// a rule nested inside a plain rule resolves to `.parent .x` — an
+	// ANCESTOR-QUALIFIED rule. The old model could not verify the ancestor and
+	// reported the rule as a POSSIBLE paint; the engine renders the drawer
+	// markup and MEASURES. When the `.parent` ancestor is present (as the
+	// drawer panel is in the real app) the browser paints the nested rule's
+	// colour; when it is absent, the class has no resting colour and fails
+	// loud. Both directions are pinned — the round-10 I2 control (three lines
+	// of ordinary CSS made every drawer read fully green while painting
+	// 2.515:1) is now measured truth.
+	test('a nested rule paints when its ancestor is present (round 8 I2 + round 10 I2)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.parent { .x { color: ${rawRed}; } }`,
+			['x'],
+			{ ancestorClass: 'parent' },
+		);
+		expect(light.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+	});
+
+	test('a nested rule whose ancestor is absent fails loud by name (round 10 I2)', async () => {
+		await expect(async () =>
+			resolveFixturePaint(`.parent { .x { color: ${rawRed}; } }`, ['x']),
+		).rejects.toThrow(/Only conditional declarations for x: color/);
+	});
+
+	// Round 10 I2, flat spelling: the same ancestor qualification written as
+	// a plain descendant combinator, with the ancestor the real drawer
+	// provides. `.publy-drawer .x` MATCHES the probe (the description sits
+	// inside `.publy-drawer`), so the browser crowns it — the 2.515:1 paint
+	// the old "possible paint" fold could only approximate is now measured.
+	test('a descendant-qualified rule paints on the real drawer markup (round 10 I2/M2)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.x { color: var(--publy-foreground-secondary); }\n.publy-drawer .x { color: var(--publy-foreground-subtle); }`,
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('a descendant-qualified rule never paints when its ancestor is absent', async () => {
+		const { light } = await resolveFixturePaint(
+			`.x { color: ${rawNearBlack}; }\n.parent .x { color: ${rawRed}; }`,
+			['x'],
+		);
+		expect(light.color).toEqual({ r: 0x11, g: 0x11, b: 0x11, a: 1 });
+	});
+
+	// Round 10 I1: the two-class `className` — the headline round-10 finding.
+	// The browser resolves competing plain class rules by layer → specificity
+	// → source order, NEVER by the order of names in the class attribute.
+	// This synthetic pair pins that the guard agrees: same CSS, swapped
+	// attribute order, identical verdicts.
+	test('a two-class className resolves by source order, not attribute order (round 10 I1)', async () => {
+		const css =
+			'.a { color: var(--publy-foreground); }\n' +
+			'.b { color: var(--publy-foreground-subtle); }';
+		const forward = await resolveFixturePaint(css, ['a', 'b']);
+		const reversed = await resolveFixturePaint(css, ['b', 'a']);
+		expect(forward.light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		expect(reversed.light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('an unlayered utility outranks a components-layer app class (round 10 I1)', async () => {
+		// The unlayered rule comes FIRST on purpose: source order alone would
+		// crown the LATER layered rule, while the browser crowns the
+		// unlayered one — unlayered outranks every layer regardless of
+		// position, exactly how Tailwind's generated utilities beat the
+		// app's `@layer components` blocks.
+		const css =
+			'.b { color: var(--publy-foreground); }\n' +
+			'@layer components { .a { color: var(--publy-foreground-subtle); } }';
+		const forward = await resolveFixturePaint(css, ['a', 'b']);
+		const reversed = await resolveFixturePaint(css, ['b', 'a']);
+		expect(forward.light.color).toEqual(
+			resolveColor('--publy-foreground', 'light'),
+		);
+		expect(reversed.light.color).toEqual(
+			resolveColor('--publy-foreground', 'light'),
+		);
+	});
+
+	// Round 10 M1: the two cascade inversions css-cascade-test-support.ts was
+	// hardened against in round 3, reintroduced by round 9's source-order
+	// last-wins and now closed by the engine.
+	test('an !important declaration beats a later plain one (round 10 M1)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x { color: var(--publy-foreground-subtle) !important; }\n' +
+				'.x { color: var(--publy-foreground); }',
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	// Round 13: `!important` REVERSES layer precedence (css-cascade-5
+	// § 6.3) — the round-12 reviewer proved the browser crowns the EARLIER
+	// layer for an important declaration while the source guard (normal layer
+	// order) crowned the later one. Round 14 M1: two of the three layer pins
+	// were forced by source order — vacuous against the old model. Against
+	// the ENGINE they are browser facts, not model arithmetic: Chromium
+	// itself is the assertion, so the vacuity objection cannot apply. The
+	// same two rules with the importance flag flipped must produce OPPOSITE
+	// winners, and an important LAYERED declaration must beat an important
+	// unlayered one.
+	test('normal declarations: the later layer wins (round 13 layer order)', async () => {
+		const { light } = await resolveFixturePaint(
+			'@layer components { .a { color: var(--publy-foreground-subtle); } }\n' +
+				'@layer utilities { .b { color: var(--publy-foreground); } }',
+			['a', 'b'],
+		);
+		expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+	});
+
+	test('!important declarations: the EARLIER layer wins (round 13 layer reversal)', async () => {
+		const { light } = await resolveFixturePaint(
+			'@layer components { .a { color: var(--publy-foreground-subtle) !important; } }\n' +
+				'@layer utilities { .b { color: var(--publy-foreground) !important; } }',
+			['a', 'b'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('an important LAYERED declaration beats an important unlayered one (round 13 layer reversal)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.b { color: var(--publy-foreground) !important; }\n' +
+				'@layer components { .a { color: var(--publy-foreground-subtle) !important; } }',
+			['a', 'b'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('a higher-specificity compound beats a later plain rule (round 10 M1)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.a.x { color: var(--publy-foreground-subtle); }\n' +
+				'.x { color: var(--publy-foreground); }',
+			['a', 'x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	// Round 10 I3, PAIRED PROOF, engine-corrected. The red side of round 10
+	// was a class whose ONLY colour declaration lives inside a conditional
+	// at-rule — it had to throw rather than fall through to the primitive's
+	// compliant default. The engine keeps the fail-loud for the shape that is
+	// genuinely unverifiable — a conditional that never fires at the measured
+	// viewport — and MEASURES the shape the browser can verify: a conditional
+	// that fires at 1280×720. Both directions are pinned.
+	test('a colour declared only in a conditional that fires is measured (round 10 I3)', async () => {
+		const { light } = await resolveFixturePaint(
+			'@media (min-width: 640px) {\n' +
+				'  .x { color: var(--publy-foreground-subtle); }\n' +
+				'}',
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('a colour declared only in a conditional that never fires fails loud by name (round 10 I3)', async () => {
+		await expect(async () =>
+			resolveFixturePaint(
+				'@media (max-width: 767px) {\n' +
+					'  .x { color: var(--publy-foreground-subtle); }\n' +
+					'}',
+				['x'],
+			),
+		).rejects.toThrow(/Only conditional declarations for x: color/);
+	});
+
+	// Round 13 I3 + round 14 I1: the round-12 reviewer reproduced the masking
+	// on the real change-email drawer — the PRIMITIVE's unconditional `color`
+	// satisfied the old per-property supply bookkeeping, so a caller class
+	// whose only colour declaration was conditional never threw and the guard
+	// read green while the browser painted 2.51:1. The re-key closed the
+	// bookkeeping hole; the engine closes the whole class: the caller's paint
+	// IS the browser's paint, so the primitive's compliant default can never
+	// substitute for it. This pin is the reviewer's exact reproduction made
+	// permanent — the caller class wrapped in `:is()`, conditional-only, on
+	// the element next to the primitive, measured at 2.51:1.
+	test('a :is()-wrapped conditional-only caller is measured, never masked by the primitive (round 14 I1)', async () => {
+		const { light } = await resolveFixturePaint(
+			'@layer components {\n' +
+				'  @media (min-width: 640px) {\n' +
+				'    :is(.publy-r14-cond) {\n' +
+				'      color: var(--publy-foreground-subtle);\n' +
+				'    }\n' +
+				'  }\n' +
+				'}',
+			['publy-r14-cond'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
+		);
+		expect(light.color).not.toEqual(resolveColor(primitiveToken, 'light'));
+		// The reviewer's own number: 2.51:1 at the e2e's viewport.
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Round 14 I2: one unverifiable `!important` rule used to delete every
+	// normal candidate for the property in the old model, and the call site
+	// silently substituted the primitive default. The engine has no candidate
+	// bookkeeping — the browser crowns the absent-ancestor `!important` rule
+	// nowhere, and the plain rule paints. Measured, never substituted.
+	test('an ancestor-qualified !important rule never paints without its ancestor (round 14 I2)', async () => {
+		const { light } = await resolveFixturePaint(
+			'@layer components {\n' +
+				'  .publy-r14-d1 { color: var(--publy-foreground-subtle); }\n' +
+				'  .publy-r14-absent .publy-r14-d1 { color: var(--publy-foreground-secondary) !important; }\n' +
+				'}',
+			['publy-r14-d1'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
+		);
+		expect(light.color).not.toEqual(resolveColor(primitiveToken, 'light'));
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Round 14 I3: `:is()` takes the specificity of its most specific
+	// argument (Selectors 4 § 17) — the old model charged a flat 10 per
+	// pseudo-class token, so `.publy-r14-c1:is(.publy-r14-c2.publy-r14-c3)`
+	// tied the later plain rule and lost on source order while the browser
+	// crowned it at (0,3,0). The engine's specificity IS the browser's.
+	test('a functional pseudo-class takes its argument specificity (round 14 I3)', async () => {
+		const { light } = await resolveFixturePaint(
+			'@layer components {\n' +
+				'  .publy-r14-c1:is(.publy-r14-c2.publy-r14-c3) { color: var(--publy-foreground-subtle); }\n' +
+				'  .publy-r14-c2.publy-r14-c3 { color: var(--publy-foreground-secondary); }\n' +
+				'}',
+			['publy-r14-c1', 'publy-r14-c2', 'publy-r14-c3'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Round 14 I4: `:not()` with a COMPLEX argument is valid Selectors 4 —
+	// the old model defaulted an unparseable argument list to "matches",
+	// which for `:not` means the rule does not apply, silently dropping it.
+	// The browser evaluates the complex argument natively; the guard measures
+	// the 2.51:1 paint instead of discarding it.
+	test('a :not() complex argument is evaluated by the browser, never defaulted (round 14 I4)', async () => {
+		const { light } = await resolveFixturePaint(
+			'@layer components {\n' +
+				'  .publy-r14-e1:not(.publy-r14-absent .publy-r14-e1) {\n' +
+				'    color: var(--publy-foreground-subtle);\n' +
+				'  }\n' +
+				'}',
+			['publy-r14-e1'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Round 10 M3: state-variant-ness is decided by whether the pseudo-class
+	// paints at rest, not by its shape. `:not()`/`:where()`/`:is()` paint at
+	// rest; `html.dark .x` is a theme gate the engine evaluates with the
+	// probe's `<html>` class.
+	test('a rest-applying :not() rule supplies and wins on specificity (round 10 M3)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x { color: var(--publy-foreground); }\n' +
+				'.x:not(.never) { color: var(--publy-foreground-subtle); }',
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('a :not() whose argument is on the element does not apply (round 10 M3)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x { color: var(--publy-foreground); }\n' +
+				'.x:not(.never) { color: var(--publy-foreground-subtle); }',
+			['x', 'never'],
+		);
+		expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+	});
+
+	// Round 13: `:has()` matches DESCENDANTS, never the subject element's own
+	// class list — the round-12 reviewer reproduced exactly this on the real
+	// invite drawer: `.publy-r12-has-child:has(.publy-r12-child)` with the
+	// child BENEATH the element. The old model reported the rule as a POSSIBLE
+	// paint; the engine fabricates the descendant in the probe (worst case:
+	// the child exists — the pessimism the old possible-paint fold expressed)
+	// and MEASURES it.
+	test('a :has() rule is measured with its descendant present (round 13)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x { color: var(--publy-foreground); }\n' +
+				'.x:has(.publy-r12-child) { color: var(--publy-foreground-subtle); }',
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('a :has() rule paints nothing when the descendant is absent', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x { color: var(--publy-foreground); }\n' +
+				'.x:has(.publy-r12-child) { color: var(--publy-foreground-subtle); }',
+			['x'],
+			{ children: [] },
+		);
+		expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+	});
+
+	// Round 13 M3: the round-10 M3 pin put the `:where()` rule AFTER an equal
+	// competitor, so it won by source order even if `:where()` contributed an
+	// arbitrarily large specificity — the named "zero specificity" claim was
+	// vacuous. Reversed: the `:where()` rule comes FIRST and must still LOSE
+	// to the later plain rule of equal class specificity — only a true zero
+	// contribution ties them and hands the win to source order. The engine's
+	// answer is Chromium's.
+	test('a :where() rule contributes zero specificity and loses to a later equal competitor (round 10 M3)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x:where(.a, .x) { color: var(--publy-foreground-subtle); }\n' +
+				'.x { color: var(--publy-foreground); }',
+			['x'],
+		);
+		expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+	});
+
+	test('a dark-themed ancestor rule never paints in light, paints in dark (round 10 M3)', async () => {
+		const css =
+			'.x { color: var(--publy-foreground); }\n' +
+			'html.dark .x { color: var(--publy-foreground-subtle); }';
+		const { light, dark } = await resolveFixturePaint(css, ['x']);
+		// In light the gate excludes the rule entirely.
+		expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+		// In dark the gate applies — the later rule wins the tie on
+		// specificity (ancestor compounds do not add specificity here).
+		expect(dark.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'dark'),
+		);
+	});
+
+	test('a statement at-rule does not absorb the following rule (round 8 M6)', async () => {
+		const { light } = await resolveFixturePaint(
+			`@layer properties;\n.x { color: ${rawRed}; }`,
+			['x'],
+		);
+		expect(light.color).toEqual({ r: 255, g: 0, b: 0, a: 1 });
+	});
+
+	test('a themed dark gate supplies the resting colour in dark mode only (round 9 rule 4)', async () => {
+		const gated =
+			'.dark\\:x { &:is(.dark *) { color: var(--publy-foreground); } }';
+		const { light, dark } = await resolveFixturePaint(gated, ['dark:x']);
+		const primitiveToken = tokenFromColorDeclaration(
+			'.publy-drawer-description',
+		);
+		expect(light.color).toEqual(resolveColor(primitiveToken, 'light'));
+		expect(dark.color).toEqual(resolveColor('--publy-foreground', 'dark'));
+	});
+
+	test('an !important declaration resolves the same colour as the plain one (round 8 M5)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x { color: var(--publy-foreground-muted) !important; }',
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-muted', 'light'),
+		);
+	});
+
+	// ---- The call-site guard ------------------------------------------------
+
 	test.each(
 		CALL_SITES.map(
 			(callSite, index) =>
@@ -2543,48 +2728,33 @@ describe('drawer description text contrast (#1043)', () => {
 	)(
 		'every DrawerDescription call site keeps 4.5:1 on the composited drawer surface (site #%i: %s:%s)',
 		async (_index, _file, _line, callSite) => {
-			const primitiveToken = tokenFromColorDeclaration(
-				'.publy-drawer-description',
-			);
+			// Round 10 I1: the element carries the primitive class AND the
+			// caller's classes, resolved TOGETHER in one browser cascade —
+			// layer → importance → specificity → source order in the real
+			// stylesheet, exactly like the e2e, and never by the order of
+			// names in the className attribute. The primitive's own colour is
+			// a cascade contender like any other — no fallback left to
+			// substitute.
+			const utilities =
+				callSite.className === null
+					? ['publy-drawer-description']
+					: [
+							'publy-drawer-description',
+							...callSite.className.split(/\s+/).filter((u) => u !== ''),
+						];
+			const { light, dark } = await resolveClassPaint(utilities);
 
-			for (const theme of ['light', 'dark'] as const) {
-				const defaultForeground = resolveColor(primitiveToken, theme);
-				// Round 10 I1: the element carries the primitive class AND the
-				// caller's classes, so they are resolved TOGETHER in one
-				// cascade — the winner is decided by layer → importance →
-				// specificity → source order in the real stylesheet, exactly
-				// like the browser, and never by the order of names in the
-				// className attribute. The primitive's own colour is a cascade
-				// contender like any other (it is the winner whenever no
-				// caller class outranks it) — no fallback left to substitute.
-				const elementClasses =
-					callSite.className === null
-						? 'publy-drawer-description'
-						: `publy-drawer-description ${callSite.className}`;
-				const resolution = await resolveClassName(elementClasses, theme);
-				const candidates = [
-					{ color: resolution.color, opacity: resolution.opacity },
-					...resolution.possible,
-				];
-				// Round 10 I2: every POSSIBLE paint is folded into the worst
-				// case — the call site passes only when the LOWEST contrast
-				// clears the floor. A bare `opacity-*` (round 7 I2) softens
-				// whichever colour paints — folded in below.
-				const background = compositedDrawerBackground(theme);
-				const worstRatio = Math.min(
-					...candidates.map((candidate) => {
-						const foreground = withOpacity(
-							candidate.color ?? defaultForeground,
-							candidate.opacity,
-						);
-						return contrastRatio(
-							effectiveForeground(foreground, background),
-							background,
-						);
-					}),
+			for (const [theme, paint] of [
+				['light', light],
+				['dark', dark],
+			] as const) {
+				const foreground = withOpacity(paint.color, paint.opacity);
+				const ratio = contrastRatio(
+					effectiveForeground(foreground, paint.background),
+					paint.background,
 				);
 				expect(
-					worstRatio,
+					ratio,
 					`${callSite.file}:${callSite.line} (className: ${callSite.className}) in ${theme} theme`,
 				).toBeGreaterThanOrEqual(SMALL_TEXT_CONTRAST_FLOOR);
 			}
