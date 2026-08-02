@@ -667,6 +667,39 @@ void test('discovers factory-minted contexts in unbound holder positions', async
 	}
 });
 
+void test('tracks a comma-chain holder mint only when the call is the chain value', async () => {
+	const fixtureDirectory = await createFixture({
+		'src/make-context.ts': `
+			import { createContext } from 'react';
+			export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+		`,
+		'src/comma-right-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			export const contexts = { probe: (0, createStrictContext<null>(null)) };
+		`,
+		'src/comma-discarded-holder.tsx': `
+			import { createStrictContext } from './make-context';
+			export const contexts = { probe: (createStrictContext<null>(null), 0) };
+		`,
+	});
+
+	try {
+		const contexts = findReactContextDeclarations(
+			path.join(fixtureDirectory, 'tsconfig.json'),
+		);
+		const discoveredIn = (relativeSourceFile) =>
+			contexts.some(
+				(context) =>
+					context.sourceFile ===
+					path.join(fixtureDirectory, relativeSourceFile),
+			);
+		assert.equal(discoveredIn('src/comma-right-holder.tsx'), true);
+		assert.equal(discoveredIn('src/comma-discarded-holder.tsx'), false);
+	} finally {
+		await rm(fixtureDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('discovers a context whose binding type is a union of Context members', async () => {
 	const fixtureDirectory = await mkdtemp(
 		path.join(os.tmpdir(), 'publy-context-isolation-fixture-'),

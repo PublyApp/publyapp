@@ -478,8 +478,10 @@ const declarationBinding = (checker, node) => {
 // chains keep the wrapped call as the holder's value, so the holder-position
 // check walks through them: `{ probe: createStrictContext(null) as
 // StrictContext<null> }` and `{ probe: (0, createStrictContext(null)) }` are
-// still holder-position mints. Walking the comma keeps the wrapped call
-// discoverable and attributed whichever way a bundler rewrites the value.
+// still holder-position mints. A comma expression returns only its right
+// operand, so only a call that sits on the right side of a comma can be the
+// holder's value — `{ probe: (createStrictContext(null), 0) }` discards the
+// context and must not invent an `<anonymous context>` inventory entry.
 const holderPositionOfCall = (node) => {
 	let current = node;
 	for (;;) {
@@ -491,7 +493,8 @@ const holderPositionOfCall = (node) => {
 			isNonNullExpression(parent) ||
 			isSatisfiesExpression(parent) ||
 			(isBinaryExpression(parent) &&
-				parent.operatorToken.kind === SyntaxKind.CommaToken)
+				parent.operatorToken.kind === SyntaxKind.CommaToken &&
+				parent.right === current)
 		) {
 			current = parent;
 			continue;
