@@ -1661,6 +1661,182 @@ test('e2e (round 13 B2): a raw binding inside an unhandled style-sink expression
 	);
 });
 
+test('e2e (round 13 B2): the static-string family resolves the same transparent expressions', async () => {
+	// The raw resolver's family is also the static-string family: an object
+	// property, a conditional, String(...), a template substitution, `+`, or
+	// a deep alias chain is just as transparent when the payload is a static
+	// literal as when it is a ?raw import. Round 11 resolved only the raw
+	// spellings; the same shapes with static text shipped green. Depth does
+	// not matter — there is no bound left to step past.
+	const cases = [
+		[
+			'object property',
+			[
+				"const o = { css: '.probe { z-index: 2147483606; }' };",
+				'export const probe = <style>{o.css}</style>;',
+			],
+		],
+		[
+			'nested object property',
+			[
+				"const o = { a: { css: '.probe { z-index: 2147483605; }' } };",
+				'export const probe = <style>{o.a.css}</style>;',
+			],
+		],
+		[
+			'conditional',
+			[
+				"const cond = true ? '.probe { z-index: 2147483604; }' : '';",
+				'export const probe = <style>{cond}</style>;',
+			],
+		],
+		[
+			'String coercion',
+			[
+				"const s = String('.probe { z-index: 2147483603; }');",
+				'export const probe = <style>{s}</style>;',
+			],
+		],
+		[
+			'template with static substitution',
+			[
+				"const level = '2147483602';",
+				'export const probe = <style>{`.probe { z-index: ${level}; }`}</style>;',
+			],
+		],
+		[
+			'static concatenation',
+			[
+				"export const probe = <style>{'.probe { z-index: 2147483601; }' + ';'}</style>;",
+			],
+		],
+		[
+			'deep alias chain',
+			[
+				"const a = '.probe { z-index: 2147483600; }';",
+				'const b = a;',
+				'const c = b;',
+				'export const probe = <style>{c}</style>;',
+			],
+		],
+	];
+	for (const [name, lines] of cases) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': lines.join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`a ${name} static style payload must red: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 13 B2): static style text beside runtime children still ships and reds', async () => {
+	// Round 12 returned on the first non-static child, discarding the static
+	// text before it — a static payload beside a runtime child shipped green.
+	// Static JSX text and static expression branches always ship, so each is
+	// walked individually; the runtime child stays in the runtime bucket.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"export const probe = (runtimeCss: string) => <style>{'.probe { z-index: 2147483599; }'}{runtimeCss}</style>;",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`static text beside a runtime child must red: ${JSON.stringify(violations)}`,
+	);
+	const { violations: mixed } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"export const probe = (runtimeCss: string) => <style>{flag ? '.probe { z-index: 2147483598; }' : runtimeCss}</style>;",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		mixed.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`a static conditional branch beside a runtime branch must red: ${JSON.stringify(mixed)}`,
+	);
+	const { violations: pureRuntime } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = (runtimeCss: string) => <style>{runtimeCss}</style>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		pureRuntime,
+		[],
+		`a purely runtime payload must stay green: ${JSON.stringify(pureRuntime)}`,
+	);
+});
+
+test('e2e (round 13 B2): conditional rel/href and reserved-token keys are candidate-aware', async () => {
+	// The same family at the remaining string sites: a conditional `rel` can
+	// provably evaluate to `stylesheet`, a conditional setProperty key or
+	// registerProperty name can provably write a reserved token — each reds
+	// because any candidate may ship.
+	const { violations: linkViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = (flag: boolean) => <link',
+				"  rel={flag ? 'stylesheet' : 'preload'}",
+				"  href='data:text/css,.x%7Bz-index%3A99%7D'",
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		linkViolations.map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		`a conditional stylesheet rel must red: ${JSON.stringify(linkViolations)}`,
+	);
+	const { violations: setPropertyViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"export const probe = (flag: boolean) => element.style.setProperty(flag ? '--publy-z-raised' : 'color', '997');",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		setPropertyViolations.map((violation) => violation.ruleId),
+		['z-index-scale-token-redefined'],
+		`a conditional setProperty key must red: ${JSON.stringify(setPropertyViolations)}`,
+	);
+	const { violations: registrationViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"export const probe = (flag: boolean) => CSS.registerProperty({ name: flag ? '--publy-z-raised' : 'color', inherits: false });",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		registrationViolations.map((violation) => violation.ruleId),
+		['z-index-scale-token-registered'],
+		`a conditional registerProperty name must red: ${JSON.stringify(registrationViolations)}`,
+	);
+});
+
 test('e2e (round 13 B2): a style sink with no raw binding stays in the runtime bucket', async () => {
 	// The resolver family must not turn ordinary runtime payloads red: a
 	// plain runtime identifier or a member of a runtime owner contains no

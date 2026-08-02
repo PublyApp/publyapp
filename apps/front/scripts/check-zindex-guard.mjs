@@ -2237,6 +2237,20 @@ export const scanZIndexFile = ({
 				source: name,
 			});
 		};
+		const recordScaleTokenDefinitionCandidates = (nameValues, node) => {
+			// Any provable candidate key is a possible reserved-token write:
+			// `setProperty(cond ? '--publy-z-a' : 'color')` may write the
+			// reserved token, so the first reserved candidate reds.
+			if (nameValues == null) {
+				return;
+			}
+			for (const name of nameValues) {
+				if (name.startsWith('--publy-z-')) {
+					recordScaleTokenDefinition(name, node);
+					return;
+				}
+			}
+		};
 		const visitScaleTokenDefinitions = (node) => {
 			if (ts.isPropertyAssignment(node)) {
 				recordScaleTokenDefinition(propertyName(node.name), node);
@@ -2245,7 +2259,10 @@ export const scanZIndexFile = ({
 				ts.isPropertyAccessExpression(node.expression) &&
 				node.expression.name.text === 'setProperty'
 			) {
-				recordScaleTokenDefinition(staticString(node.arguments[0]), node);
+				recordScaleTokenDefinitionCandidates(
+					staticStringValues(node.arguments[0]),
+					node,
+				);
 			}
 			node.forEachChild(visitScaleTokenDefinitions);
 		};
