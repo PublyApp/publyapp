@@ -170,11 +170,12 @@ export const displayLocalMutationFailure = async (
  * consumer today; every product call site passes a single message string.
  *
  * `satisfies Record<ToastMethod, …>` pins this object to the `ToastMethod`
- * union: the toast-contrast guard's measured set is derived from that
- * union (e2e/toast-contrast.spec.ts), so growing a method here without
- * measuring a toast for it fails the guard, and the `loading` method is
- * deliberately absent — `loading` toasts are not raisable, which is the
- * reason the guard excludes that class.
+ * union: the toast-contrast guard's type-level equality check ties this
+ * adapter's keys to the measured variant classes
+ * (e2e/toast-contrast.spec.ts), so growing a method here without measuring
+ * a toast for it fails the guard, and the `loading` method is deliberately
+ * absent — `loading` toasts are not raisable, which is the reason the
+ * guard excludes that class.
  */
 export const toastLocalMutationResult = {
 	default(message: string, description?: string): void {

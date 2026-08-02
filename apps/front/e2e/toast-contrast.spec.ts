@@ -7,7 +7,6 @@ import {
 } from '@playwright/test';
 
 import { toastVariantClassNames } from '../src/components/ui/toast-variants';
-import type { ToastMethod } from '../src/lib/mutation-toast';
 
 /**
  * #998 browser-side toast contrast guard.
@@ -92,18 +91,39 @@ type ContrastMeasurement = {
 
 /**
  * The measured set must cover every semantic toast the product can raise —
- * including the neutral `default`. It is pinned to the product's raise
- * path, the `ToastMethod` union in `mutation-toast.ts`: that union has no
- * `loading` member and nothing in the product calls
- * `toast.loading`/`toast.promise`, so the `loading` class cannot be raised
- * today and is excluded on that fact — not on what it paints. The
- * assignment below fails to typecheck the day `ToastMethod` grows a
- * member, and the runtime assertions fail the day `toastVariantClassNames`
- * grows a variant, until a toast for it is measured here.
+ * including the neutral `default`. The `loading` class is the one deliberate
+ * exception: the `ToastMethod` union has no `loading` member and nothing in
+ * the product calls `toast.loading`/`toast.promise`, so the `loading` class
+ * cannot be raised today and is excluded on that fact — not on what it
+ * paints.
+ *
+ * The agreement is enforced at two levels, and both reject missing AND
+ * extra members, so neither side can drift silently:
+ * - type level: the raisable adapter's keys and the measured variant
+ *   classes must name exactly the same members. Growing `ToastMethod`
+ *   together with the adapter (the paired product change) leaves the adapter
+ *   with a method that has no measured class, which reds the type-level
+ *   equality below; growing the union alone reds the adapter's own
+ *   `satisfies Record<ToastMethod, …>` in `mutation-toast.ts`.
+ * - runtime: the measured list is compared against the class map, so a
+ *   variant class with no measured toast reds here until one is measured.
  */
 test('every product toast variant is contrast-measured', () => {
-	const measuredVariants: readonly ToastMethod[] = [...VARIANTS, 'default'];
-	expect([...measuredVariants].sort()).toEqual(
+	type RaisableMethod =
+		keyof typeof import('../src/lib/mutation-toast').toastLocalMutationResult;
+	type MeasuredVariant = Exclude<
+		keyof typeof toastVariantClassNames,
+		'loading'
+	>;
+	type MissingMethods = Exclude<MeasuredVariant, RaisableMethod>;
+	type ExtraMethods = Exclude<RaisableMethod, MeasuredVariant>;
+	const exhaustive: [MissingMethods, ExtraMethods] extends [never, never]
+		? true
+		: false = true;
+	expect(exhaustive).toBe(true);
+
+	const measuredVariants = [...VARIANTS, 'default'];
+	expect(measuredVariants.sort()).toEqual(
 		Object.keys(toastVariantClassNames)
 			.filter((name) => name !== 'loading')
 			.sort(),
