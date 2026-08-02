@@ -1662,95 +1662,31 @@ export const scanZIndexFile = ({
 			}
 			return escapes;
 		};
-		// Resolves a raw import specifier's file part (already stripped by the
-		// single classifier) against the project root: `~/` aliases the
-		// `src/` directory, Vite root-absolute specifiers (`/src/…`) resolve
-		// against the project root (not the filesystem root), and everything
-		// else resolves relative to the importing module.
-		const resolveRawSpecifierPath = (
-			withoutQuery,
-			importerRelativePath,
-			root,
-		) => {
-			let rawPath;
-			if (withoutQuery.startsWith('~/')) {
-				rawPath = path.resolve(root, 'src', withoutQuery.slice(2));
-			} else if (withoutQuery.startsWith('/')) {
-				rawPath = path.resolve(root, withoutQuery.slice(1));
-			} else {
-				rawPath = path.resolve(
-					root,
-					path.dirname(importerRelativePath),
-					withoutQuery,
-				);
-			}
-			return path.resolve(rawPath);
-		};
-		// Every binding a static import declaration can introduce, for the
-		// recorded `?raw` modules: the default clause, the namespace clause,
-		// named elements (`{ default as x }` is the default under another
-		// spelling), and mixed spellings (`import d, * as ns`) — each clause
-		// is recorded, never one branch of an else-if (round-15 B2). Whether
-		// an import IS a raw import is never re-derived from the specifier
-		// text (round-16 B1): the specifier resolves to a file path through
-		// the single classifier, and the binding exists only when the build's
-		// provenance record contains that path — `?v=1?raw` is raw because
-		// the build transformed it as raw and recorded the file, exactly like
-		// any other spelling. `kind` tells the walk what each binding
-		// provably ships: the default text, a namespace object readable
-		// through `.default`, or — for a named element that is not
-		// `default` — nothing at all (undefined on a raw module, recorded by
-		// name so shadowing resolution stays exact, green by name rather than
-		// by omission).
-		const rawImportBindings = new Map();
-		if (baseDir != null && rawTextPaths != null) {
-			for (const statement of sourceFile.statements) {
-				if (!ts.isImportDeclaration(statement)) {
-					continue;
-				}
-				const specifier = statement.moduleSpecifier?.text ?? '';
-				const resolvedPath = resolveRawSpecifierPath(
-					classifyModuleKind(specifier, {}).filePath,
-					relativePath,
-					baseDir,
-				);
-				if (!rawTextPaths.has(resolvedPath)) {
-					// Not a recorded raw module — either the import is not
-					// `?raw` at all, or the specifier is a spelling the guard
-					// cannot map to the build's record. The record is the
-					// source of truth, never the specifier text.
-					continue;
-				}
-				const recordBinding = (name, kind, declaration) => {
-					rawImportBindings.set(name, { specifier, declaration, kind });
-				};
-				const importClause = statement.importClause;
-				if (importClause == null) {
-					continue;
-				}
-				if (importClause.name != null && ts.isIdentifier(importClause.name)) {
-					// The binding node `nearestBinding` resolves to for a
-					// default import is the import clause itself.
-					recordBinding(importClause.name.text, 'default', importClause);
-				}
-				const namedBindings = importClause.namedBindings;
-				if (namedBindings != null && ts.isNamespaceImport(namedBindings)) {
-					recordBinding(namedBindings.name.text, 'namespace', namedBindings);
-				} else if (namedBindings != null && ts.isNamedImports(namedBindings)) {
-					for (const element of namedBindings.elements) {
-						const importedName =
-							element.propertyName == null
-								? element.name.text
-								: element.propertyName.text;
-						recordBinding(
-							element.name.text,
-							importedName === 'default' ? 'default' : 'named-non-default',
-							element,
-						);
-					}
-				}
-			}
-		}
+		// The recorded raw-binding record of one script: every binding a static
+		// import declaration can introduce, for the recorded `?raw` modules —
+		// the default clause, the namespace clause, named elements
+		// (`{ default as x }` is the default under another spelling), and
+		// mixed spellings (`import d, * as ns`) — each clause is recorded,
+		// never one branch of an else-if (round-15 B2). Whether an import IS
+		// a raw import is never re-derived from the specifier text (round-16
+		// B1): the specifier resolves to a file path through the single
+		// classifier, and the binding exists only when the build's provenance
+		// record contains that path — `?v=1?raw` is raw because the build
+		// transformed it as raw and recorded the file, exactly like any other
+		// spelling. `kind` tells the walk what each binding provably ships:
+		// the default text, a namespace object readable through `.default`,
+		// or — for a named element that is not `default` — nothing at all
+		// (undefined on a raw module, recorded by name so shadowing
+		// resolution stays exact, green by name rather than by omission).
+		// Exported so the fixture suite can assert the record itself
+		// (round-16 I3 — "recorded by name" must be observable, not claimed).
+		// The sourceFile is passed in so the recorded declaration nodes are
+		// the very nodes `nearestBinding` resolves to later.
+		const rawImportBindings = collectRawImportBindings(sourceFile, {
+			relativePath,
+			baseDir,
+			rawTextPaths,
+		});
 		const rawImportEntryForExpression = (expression, visitedConsts) => {
 			// Resolves an expression to the `?raw` import entry it reaches —
 			// the default import directly, the namespace form through
@@ -2941,6 +2877,101 @@ export const classifyModuleKind = (
 		return { filePath, kind: 'script' };
 	}
 	return { filePath, kind: 'other' };
+};
+
+// Resolves a raw import specifier's file part (already stripped by the single
+// classifier) against the project root: `~/` aliases the `src/` directory,
+// Vite root-absolute specifiers (`/src/…`) resolve against the project root
+// (not the filesystem root), and everything else resolves relative to the
+// importing module.
+const resolveRawSpecifierPath = (withoutQuery, importerRelativePath, root) => {
+	let rawPath;
+	if (withoutQuery.startsWith('~/')) {
+		rawPath = path.resolve(root, 'src', withoutQuery.slice(2));
+	} else if (withoutQuery.startsWith('/')) {
+		rawPath = path.resolve(root, withoutQuery.slice(1));
+	} else {
+		rawPath = path.resolve(
+			root,
+			path.dirname(importerRelativePath),
+			withoutQuery,
+		);
+	}
+	return path.resolve(rawPath);
+};
+
+// The recorded raw-binding record of one script file: every binding a static
+// import declaration can introduce, for the recorded `?raw` modules — the
+// default clause, the namespace clause, named elements (`{ default as x }` is
+// the default under another spelling), and mixed spellings
+// (`import d, * as ns`) — each clause recorded, never one branch of an
+// else-if (round-15 B2). Whether an import IS a raw import is never
+// re-derived from the specifier text (round-16 B1): the specifier resolves to
+// a file path through the single classifier, and the binding exists only when
+// the build's provenance record contains that path — `?v=1?raw` is raw
+// because the build transformed it as raw and recorded the file, exactly like
+// any other spelling. `kind` tells the walk what each binding provably ships:
+// the default text, a namespace object readable through `.default`, or — for
+// a named element that is not `default` — nothing at all (undefined on a raw
+// module, recorded by name so shadowing resolution stays exact, green by name
+// rather than by omission). Exported so the fixture suite can assert the
+// record itself (round-16 I3 — "recorded by name" must be observable, not
+// claimed).
+export const collectRawImportBindings = (
+	sourceFile,
+	{ relativePath, baseDir, rawTextPaths },
+) => {
+	const bindings = new Map();
+	if (baseDir == null || rawTextPaths == null) {
+		return bindings;
+	}
+	for (const statement of sourceFile.statements) {
+		if (!ts.isImportDeclaration(statement)) {
+			continue;
+		}
+		const specifier = statement.moduleSpecifier?.text ?? '';
+		const resolvedPath = resolveRawSpecifierPath(
+			classifyModuleKind(specifier, {}).filePath,
+			relativePath,
+			baseDir,
+		);
+		if (!rawTextPaths.has(resolvedPath)) {
+			// Not a recorded raw module — either the import is not `?raw` at
+			// all, or the specifier is a spelling the guard cannot map to the
+			// build's record. The record is the source of truth, never the
+			// specifier text.
+			continue;
+		}
+		const recordBinding = (name, kind, declaration) => {
+			bindings.set(name, { specifier, declaration, kind });
+		};
+		const importClause = statement.importClause;
+		if (importClause == null) {
+			continue;
+		}
+		if (importClause.name != null && ts.isIdentifier(importClause.name)) {
+			// The binding node `nearestBinding` resolves to for a default
+			// import is the import clause itself.
+			recordBinding(importClause.name.text, 'default', importClause);
+		}
+		const namedBindings = importClause.namedBindings;
+		if (namedBindings != null && ts.isNamespaceImport(namedBindings)) {
+			recordBinding(namedBindings.name.text, 'namespace', namedBindings);
+		} else if (namedBindings != null && ts.isNamedImports(namedBindings)) {
+			for (const element of namedBindings.elements) {
+				const importedName =
+					element.propertyName == null
+						? element.name.text
+						: element.propertyName.text;
+				recordBinding(
+					element.name.text,
+					importedName === 'default' ? 'default' : 'named-non-default',
+					element,
+				);
+			}
+		}
+	}
+	return bindings;
 };
 
 export const buildProductionApp = async (baseDir) => {

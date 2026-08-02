@@ -14,6 +14,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { Scanner } from '@tailwindcss/oxide';
+import { ts } from 'ts-morph';
 
 import {
 	buildProductionApp,
@@ -21,6 +22,7 @@ import {
 	classifyZUtility,
 	checkAuthoredCssScaleDefinitions,
 	checkCompiledCssZIndex,
+	collectRawImportBindings,
 	KNOWN_RAW_Z_INDEX_DECLARATIONS,
 	runZIndexGuard,
 	scanZIndexFile,
@@ -1799,14 +1801,54 @@ test('e2e (round 15 B2/B3): every import binding shape of a ?raw module is recor
 	);
 });
 
-test('raw sinks: a non-default named element of a ?raw module is recorded but ships nothing', () => {
+test('raw sinks (round 17 I3): a non-default named element is recorded by name, never by omission', () => {
 	// Round-14 B2's other half: a named element that is not `default` is
 	// undefined on a raw module (which only has a default export — the build
-	// cannot even compile such an import), so it is recorded by name — the
-	// shadowing resolution stays exact — yet resolves to nothing: green by
-	// name, never by omission. Pinned at the script-pass level because the
-	// fixture build cannot produce that module shape.
+	// cannot even compile such an import), so it must be recorded by name —
+	// the shadowing resolution stays exact — yet resolve to nothing: green
+	// by name, never by omission. Round-16 I3: the old assertion only proved
+	// the walk stayed green, which it would also do if the binding were
+	// silently omitted, so the record itself is asserted directly.
 	const baseDir = '/tmp/zindex-r15-unit';
+	const record = (content) =>
+		collectRawImportBindings(
+			ts.createSourceFile(
+				'probe.tsx',
+				content,
+				ts.ScriptTarget.Latest,
+				true,
+				ts.ScriptKind.TSX,
+			),
+			{
+				relativePath: 'probe.tsx',
+				baseDir,
+				rawTextPaths: new Set([path.join(baseDir, 'other.txt')]),
+			},
+		);
+	const mixed = record(
+		[
+			`import { default as aliasedDefault, other, alsoMissing } from './other.txt?raw';`,
+			`import * as rawNs from './other.txt?raw';`,
+			`import plainDefault from './other.txt?raw';`,
+			`import unrelated from './unrelated.txt?raw';`,
+		].join('\n'),
+	);
+	assert.equal(mixed.get('aliasedDefault')?.kind, 'default');
+	assert.equal(mixed.get('other')?.kind, 'named-non-default');
+	assert.equal(mixed.get('alsoMissing')?.kind, 'named-non-default');
+	assert.equal(mixed.get('rawNs')?.kind, 'namespace');
+	assert.equal(mixed.get('plainDefault')?.kind, 'default');
+	// A specifier resolving to a file the build did not record as raw is not
+	// a binding at all — the record is the source of truth.
+	assert.equal(mixed.has('unrelated'), false);
+	assert.deepEqual(
+		[...mixed.keys()].sort(),
+		['aliasedDefault', 'alsoMissing', 'other', 'plainDefault', 'rawNs'],
+		'the record must contain every binding of the raw module by name',
+	);
+	// The walk resolves each binding exactly: the non-default element ships
+	// nothing (green), the `{ default as x }` spelling is the default
+	// binding and reds at the raw file.
 	const walk = (content, files) =>
 		scanZIndexFile({
 			scanner,
