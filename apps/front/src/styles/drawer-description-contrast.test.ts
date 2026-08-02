@@ -2497,6 +2497,39 @@ describe('drawer description text contrast (#1043)', () => {
 		);
 	});
 
+	// Round 16 IMPORTANT 4: `hasStatePseudo` used to tokenize only the TOP
+	// compound, so a `:hover`/`:checked` buried inside `:is()`/`:where()` —
+	// exactly how Tailwind v4 compiles `group-hover:`/`peer-checked:` — was
+	// invisible, and `data-[…]:`/`aria-…:` compile to attribute selectors,
+	// never pseudo-classes, so neither shape was ever recognised as a state
+	// variant. Each of these four classes' ONLY declaration is state-gated
+	// (never resting), the exact shape `:hover`-only already tolerates — the
+	// old scan rejected all four with a message that misdiagnosed the cause
+	// ("resolve it outside the conditional rule or extend the measured
+	// viewports", neither of which is possible for a `group-hover` variant).
+	// A guard that reddens correct code on every Base-UI `data-open`/`data-
+	// state` colour variant in the app is a false positive that must not
+	// throw at all — it must silently accept the primitive's resting colour,
+	// the same as the `:hover`-only case above.
+	test.each([
+		'group-hover:text-foreground',
+		'peer-checked:text-foreground',
+		'aria-hidden:text-foreground',
+		'data-[state=open]:text-foreground',
+	] as const)(
+		'%s is a legitimate state variant and never trips the no-resting-colour throw (round 16 I4)',
+		async (utility) => {
+			const { light } = await resolveClassPaint([
+				'publy-drawer-description',
+				utility,
+			]);
+			const primitiveToken = tokenFromColorDeclaration(
+				'.publy-drawer-description',
+			);
+			expect(light.color).toEqual(resolveColor(primitiveToken, 'light'));
+		},
+	);
+
 	// Round 8 I1 said "a @supports-nested rule never supplies the resting
 	// colour" — that was the model's blindness: it could not evaluate the
 	// condition, so it excluded EVERY @supports rule. The engine evaluates it,
