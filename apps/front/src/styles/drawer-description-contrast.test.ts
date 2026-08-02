@@ -1554,8 +1554,12 @@ const assertVerifiable = (
 	root: postcss.Root,
 	recorded: RecordedDeclaration[],
 	utilities: string[],
-	factsLight: EngineFacts,
-	factsDark: EngineFacts,
+	// Round 17 I2: one entry per `:has()`-descendant probe variant (child
+	// present / child absent) — value support and applicability are unioned
+	// across all of them, since a `:has()`-gated declaration is only
+	// reachable in the variant that renders its descendant.
+	factsLightVariants: EngineFacts[],
+	factsDarkVariants: EngineFacts[],
 	questions: EngineQuestions,
 ): void => {
 	// TYPO (rule 1).
@@ -1597,9 +1601,15 @@ const assertVerifiable = (
 
 	const declaredTokens = declaredTokensOf(root);
 	const valueIndex = questions.valueIndex;
+	// CSS.supports() answers do not depend on which :has()-descendant variant
+	// rendered the probe, so any one variant's reading is authoritative.
+	const referenceFacts = factsLightVariants[0];
+	if (referenceFacts === undefined) {
+		throw new Error('No engine facts to verify against');
+	}
 	const supportsOf = (declaration: RecordedDeclaration): boolean => {
 		const index = valueIndex.get(`${declaration.prop}|${declaration.value}`);
-		return index === undefined || factsLight.valueSupports[index];
+		return index === undefined || referenceFacts.valueSupports[index];
 	};
 
 	// DROPPED VALUE (rule 3): every declaration under an attributed rule must
@@ -1630,8 +1640,11 @@ const assertVerifiable = (
 		}
 	}
 
-	// NO RESTING COLOUR (rule 2).
-	const appliesIn = (facts: EngineFacts): Set<string> => {
+	// NO RESTING COLOUR (rule 2). Unioned across every :has()-descendant probe
+	// variant (round 17 I2): a declaration gated by `:has(.child)` only
+	// matches in the variant that rendered `.child`, so checking a single
+	// variant would report it as having no resting colour in the OTHER one.
+	const appliesInOne = (facts: EngineFacts): Set<string> => {
 		const applying = new Set<string>();
 		for (const declaration of recorded) {
 			if (declaration.attributed.length === 0) {
@@ -1656,8 +1669,17 @@ const assertVerifiable = (
 		}
 		return applying;
 	};
-	const appliesLight = appliesIn(factsLight);
-	const appliesDark = appliesIn(factsDark);
+	const appliesIn = (factsVariants: EngineFacts[]): Set<string> => {
+		const applying = new Set<string>();
+		for (const facts of factsVariants) {
+			for (const attributed of appliesInOne(facts)) {
+				applying.add(attributed);
+			}
+		}
+		return applying;
+	};
+	const appliesLight = appliesIn(factsLightVariants);
+	const appliesDark = appliesIn(factsDarkVariants);
 
 	for (const utility of utilities) {
 		const escaped = `.${escapeClassName(utility)}`;
@@ -1757,11 +1779,65 @@ const probeChildrenFor = (
 	return children;
 };
 
+// Round 5 "fourth door": an `opacity-*` utility does not change `color`, but
+// it paints the text at that alpha over the surface, collapsing the effective
+// contrast. Fold the computed opacity into the foreground's alpha — whether
+// that foreground is the measured utility colour or, for a BARE `opacity-*`
+// (which softens the existing colour), the primitive's default (round 7 I2).
+const withOpacity = (color: Rgba, opacity: number): Rgba =>
+	opacity < 1 ? { ...color, a: color.a * opacity } : color;
+
+// The effective painted colour of a (possibly translucent) foreground over
+// the given background, which is what the contrast ratio must be computed
+// against.
+const effectiveForeground = (foreground: Rgba, background: Rgba): Rgba =>
+	foreground.a >= 1 ? foreground : alphaComposite(foreground, background);
+
+/** Round 17 I2: the LOWER-contrast (worse, more likely non-compliant) of
+ * several measured paint candidates for the same theme — see the
+ * `:has()`-descendant worst-case comment on `resolvePaintFromCss` below. */
+const worseOf = (paints: EnginePaint[]): EnginePaint => {
+	const ratioOf = (paint: EnginePaint): number =>
+		contrastRatio(
+			effectiveForeground(
+				withOpacity(paint.color, paint.opacity),
+				paint.background,
+			),
+			paint.background,
+		);
+	let worst = paints[0];
+	if (worst === undefined) {
+		throw new Error('No paint candidates measured');
+	}
+	let worstRatio = ratioOf(worst);
+	for (const candidate of paints.slice(1)) {
+		const ratio = ratioOf(candidate);
+		if (ratio < worstRatio) {
+			worst = candidate;
+			worstRatio = ratio;
+		}
+	}
+	return worst;
+};
+
 /** Resolves the real paint for a compiled stylesheet + class list: renders
  * the real drawer markup in Chromium, measures the paint and background at
  * the e2e's viewport in both themes, and runs the fail-loud checks. Throws
  * when any class is unverifiable — never substitutes the primitive's
- * compliant default. */
+ * compliant default.
+ *
+ * Round 17 I2: when the caller does not pin an explicit `probe.children`, a
+ * `:has()`-gated declaration is measured in BOTH configurations — the
+ * descendant present and the descendant absent — and the WORSE (lower-
+ * contrast) of the two is reported. `probeChildrenFor`'s comment used to call
+ * "the descendant exists" the worst case, but it is not a worst case, it is
+ * one arbitrary case: whenever the `:has()` rule carries the MORE compliant
+ * colour, fabricating the child can only turn a failing real paint green (the
+ * reviewer's `.publy-r16-has:has(.publy-r16-kid)` reproduction). Measuring
+ * both and keeping the worse one removes the arbitrariness in either
+ * direction. An explicit `probe.children` still forces that exact
+ * configuration (the round-13 "paints nothing when the descendant is absent"
+ * pin depends on this). */
 const resolvePaintFromCss = async (
 	cssText: string,
 	utilities: string[],
@@ -1773,35 +1849,57 @@ const resolvePaintFromCss = async (
 	);
 	const recorded = collectRecordedDeclarations(root, elementClasses);
 	const questions = buildQuestions(recorded);
-	const children = probe.children ?? probeChildrenFor(recorded, utilities);
-	const factsLight = await askEngine(
-		cssText,
+
+	const childVariants: string[][] =
+		probe.children !== undefined
+			? [probe.children]
+			: (() => {
+					const fabricated = probeChildrenFor(recorded, utilities);
+					return fabricated.length === 0 ? [[]] : [[], fabricated];
+				})();
+
+	// One page, so variants run sequentially — never Promise.all, which would
+	// race concurrent mutations of the single shared probePage.
+	const factsLightVariants: EngineFacts[] = [];
+	const factsDarkVariants: EngineFacts[] = [];
+	for (const children of childVariants) {
+		factsLightVariants.push(
+			await askEngine(
+				cssText,
+				utilities,
+				'light',
+				{ children, ancestorClass: probe.ancestorClass ?? null },
+				questions,
+			),
+		);
+		factsDarkVariants.push(
+			await askEngine(
+				cssText,
+				utilities,
+				'dark',
+				{ children, ancestorClass: probe.ancestorClass ?? null },
+				questions,
+			),
+		);
+	}
+	assertVerifiable(
+		root,
+		recorded,
 		utilities,
-		'light',
-		{
-			children,
-			ancestorClass: probe.ancestorClass ?? null,
-		},
+		factsLightVariants,
+		factsDarkVariants,
 		questions,
 	);
-	const factsDark = await askEngine(
-		cssText,
-		utilities,
-		'dark',
-		{
-			children,
-			ancestorClass: probe.ancestorClass ?? null,
-		},
-		questions,
-	);
-	assertVerifiable(root, recorded, utilities, factsLight, factsDark, questions);
 
 	const toPaint = (facts: EngineFacts): EnginePaint => ({
 		color: parseComputedColor(facts.paint.fill),
 		opacity: facts.paint.opacity,
 		background: compositeBackground(facts.paint.backgroundLayers),
 	});
-	return { light: toPaint(factsLight), dark: toPaint(factsDark) };
+	return {
+		light: worseOf(factsLightVariants.map(toPaint)),
+		dark: worseOf(factsDarkVariants.map(toPaint)),
+	};
 };
 
 /** Resolves the real paint for a class list (primitive + caller classes):
@@ -1829,20 +1927,6 @@ const resolveFixturePaint = async (
 		probe,
 	);
 };
-
-// Round 5 "fourth door": an `opacity-*` utility does not change `color`, but
-// it paints the text at that alpha over the surface, collapsing the effective
-// contrast. Fold the computed opacity into the foreground's alpha — whether
-// that foreground is the measured utility colour or, for a BARE `opacity-*`
-// (which softens the existing colour), the primitive's default (round 7 I2).
-const withOpacity = (color: Rgba, opacity: number): Rgba =>
-	opacity < 1 ? { ...color, a: color.a * opacity } : color;
-
-// The effective painted colour of a (possibly translucent) foreground over
-// the given background, which is what the contrast ratio must be computed
-// against.
-const effectiveForeground = (foreground: Rgba, background: Rgba): Rgba =>
-	foreground.a >= 1 ? foreground : alphaComposite(foreground, background);
 
 const CALL_SITES = findDrawerDescriptionCallSites();
 
@@ -2860,10 +2944,12 @@ describe('drawer description text contrast (#1043)', () => {
 	// class list — the round-12 reviewer reproduced exactly this on the real
 	// invite drawer: `.publy-r12-has-child:has(.publy-r12-child)` with the
 	// child BENEATH the element. The old model reported the rule as a POSSIBLE
-	// paint; the engine fabricates the descendant in the probe (worst case:
-	// the child exists — the pessimism the old possible-paint fold expressed)
-	// and MEASURES it.
-	test('a :has() rule is measured with its descendant present (round 13)', async () => {
+	// paint; the engine measures BOTH configurations — the descendant present
+	// and absent — and reports whichever is the WORSE (round 16 I2: a single
+	// fabricated child is not a worst case, it is one arbitrary case that can
+	// only turn a failing real paint green). Here the `:has()` colour IS the
+	// worse one, so it is what a caller with no explicit `children` sees.
+	test('a :has() rule is measured with its descendant present when that is the worse paint (round 13, round 16 I2)', async () => {
 		const { light } = await resolveFixturePaint(
 			'.x { color: var(--publy-foreground); }\n' +
 				'.x:has(.publy-r12-child) { color: var(--publy-foreground-subtle); }',
@@ -2874,7 +2960,25 @@ describe('drawer description text contrast (#1043)', () => {
 		);
 	});
 
-	test('a :has() rule paints nothing when the descendant is absent', async () => {
+	// Round 16 I2, the paired proof in the OTHER direction: the `:has()` rule
+	// now carries the MORE compliant colour, and the app never renders
+	// `.publy-r16-kid` as a real descendant. A guard that only ever fabricates
+	// the descendant would measure the compliant colour and miss the real
+	// 2.51:1-class paint entirely; measuring both and keeping the worse one
+	// cannot be fooled by a `:has()` rule that only helps in a configuration
+	// the app never reaches.
+	test('a :has() rule that only turns MORE compliant with an unrendered descendant cannot mask the worse base paint (round 16 I2)', async () => {
+		const { light } = await resolveFixturePaint(
+			'.x { color: var(--publy-foreground-subtle); }\n' +
+				'.x:has(.publy-r16-kid) { color: var(--publy-foreground-secondary); }',
+			['x'],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+	});
+
+	test('a :has() rule paints nothing when the descendant is explicitly forced absent', async () => {
 		const { light } = await resolveFixturePaint(
 			'.x { color: var(--publy-foreground); }\n' +
 				'.x:has(.publy-r12-child) { color: var(--publy-foreground-subtle); }',
