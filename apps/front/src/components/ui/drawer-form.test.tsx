@@ -54,6 +54,13 @@
  * component, and an import that cannot be resolved is rejected rather than
  * guessed: the wrapper rule fails closed, so the #990 defect shape (the plain
  * field `Form`) is a structural violation with no discovery gap to hide in.
+ * One deliberate exception, round 14's BLOCKER 1: a local declaration whose
+ * binding is an identity chain (`const Surface = DrawerContent;
+ * const Form = DrawerForm; const Body = DrawerBody;`) is resolved to its
+ * target BEFORE anchor discovery — the walk's entry point — and a local
+ * binding the scan cannot classify (a call, a mixed-symbol conditional, a
+ * reassigned `let`) is UNVERIFIABLE and reddens instead of silently not
+ * being an anchor.
  *
  * The wrapper walk is DOM-faithful, not syntactic: it sees through
  * everything that creates no node — JSX expressions, conditionals, `&&`
@@ -88,9 +95,15 @@
  * occurrences by the element chain around them (a part or form behind a
  * `<div>`, anywhere in the chain, is a violation; directly under the
  * surface/form, clean). The resolution boundary is stated in the
- * drawer-section block below: everything the scan cannot resolve statically
- * is UNVERIFIABLE and reddens the file, so a drawer whose geometry cannot
- * be verified is never silently green.
+ * drawer-section block below, and the ENTRY-point half is stated above
+ * (round 14, BLOCKER 1): everything the scan cannot resolve statically —
+ * at the walk roots and at the anchors themselves — is UNVERIFIABLE and
+ * reddens the file, so a drawer whose geometry cannot be verified is never
+ * silently green. The one remaining silent boundary is documented there
+ * too: a file whose every drawer marker sits behind a binding with no
+ * drawer signal at all (e.g. `const Form = getForm()` with nothing else
+ * drawer-related in the file) is not discovered — nothing tells the scan
+ * it is a drawer file.
  *
  * Deliberate friction: every file the scanner discovers must appear in the
  * inventory (the `DRAWER_FORM_CALL_SITES` union below, or
@@ -140,19 +153,35 @@ import {
 	SyntaxKind,
 	ts,
 	type ArrowFunction,
+	type BinaryExpression,
 	type Block,
 	type CallExpression,
+	type CaseClause,
+	type CatchClause,
 	type ConditionalExpression,
+	type DoStatement,
+	type FinallyClause,
+	type ForInStatement,
+	type ForOfStatement,
+	type ForStatement,
 	type FunctionDeclaration,
+	type IfStatement,
 	type JsxElement,
 	type JsxExpression,
 	type JsxFragment,
 	type JsxOpeningElement,
 	type JsxSelfClosingElement,
+	type LabeledStatement,
 	type Node,
+	type PrefixUnaryExpression,
+	type PropertyAccessExpression,
 	type ReturnStatement,
 	type SourceFile,
+	type Statement,
+	type SwitchStatement,
+	type TryStatement,
 	type VariableDeclaration,
+	type WhileStatement,
 } from 'ts-morph';
 import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
 import { Form } from '~/components/field/form';
@@ -288,10 +317,10 @@ const RE_EXPORT_CHAIN_DEPTH_LIMIT = 6;
 // then reads each one — a fixture deleted between the list and the read is
 // an ENOENT that reddens an innocent suite (reproduced at HEAD in round 11:
 // five i18n tests red). They live in a per-run temp directory instead,
-// created once here and removed on every exit path: the afterAll below, plus
-// a synchronous process 'exit' net so a crashed or failed run still cleans
-// up (a sibling guard leaked 60,000 /tmp directories once; this directory
-// must never do the same).
+// created once here and removed on every exit path: the afterAll below,
+// plus a synchronous process 'exit' net so a crashed or failed run still
+// cleans up (a sibling guard leaked 60,000 /tmp directories once; this
+// directory must never do the same).
 const FIXTURE_TMP_DIR = mkdtempSync(path.join(tmpdir(), 'publy-drawer-guard-'));
 process.on('exit', () => {
 	rmSync(FIXTURE_TMP_DIR, { recursive: true, force: true });
@@ -1397,6 +1426,629 @@ const FORM_LESS_DRAWER_SURFACE_FILES = [
 	'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx',
 ] as const;
 
+// ---------------------------------------------------------------------------
+// Round 14 fixtures.
+//
+// BLOCKER 1 (review-r13): the walk could only begin at tags whose local
+// binding RESOLVED to the drawer module, and a local declaration was a
+// dead end — `const Surface = DrawerContent; const Form = DrawerForm;
+// const Body = DrawerBody; const Footer = DrawerFooter;` moved every
+// marker behind a local name and the exact #990 break walked through
+// 43/43 green. The entry point now resolves identity chains, same-symbol
+// conditionals and (through the wrapper rule) mixed conditionals and
+// reassigned `let`s. Each shape below gets a broken fixture and a clean
+// control.
+//
+// IMPORTANT 2: function-block parsing read only top-level returns, so an
+// `if (true) { return <div><Body/></div>; } return <DrawerBody />;`
+// substituted the unreachable clean return for the one actually taken.
+// The collector now reads every return that can execute, and a return
+// that cannot be extracted fails loud.
+//
+// IMPORTANT 3: the two round-12 cross-file-part tests could not fail —
+// the negative carried the div at the call site and the positive only
+// asserted green. The pair below puts the div INSIDE the helper and keeps
+// the call-site link clean, so both tests die when the imported helper
+// bodies resolve to nothing.
+// ---------------------------------------------------------------------------
+
+// The exact round-13 reproduction: every drawer marker behind a local
+// identity alias, with the #990 `<div>` between the surface and the form.
+const TEMPORARY_ALIASED_ENTIRE_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-aliased-entire-fixture.tsx';
+const TEMPORARY_ALIASED_ENTIRE_DRAWER_PATH = fixturePath(
+	TEMPORARY_ALIASED_ENTIRE_DRAWER_FILE,
+);
+const TEMPORARY_ALIASED_ENTIRE_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const Surface = DrawerContent;
+const Form = DrawerForm;
+const Body = DrawerBody;
+const Footer = DrawerFooter;
+
+export const AliasedEntireDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<Surface data-testid="r14-aliased-entire">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<Form methods={methods}>
+					<Body />
+					<Footer>
+						<button type="submit" />
+					</Footer>
+				</Form>
+			</div>
+		</Surface>
+	</Drawer>
+);
+`;
+
+// The clean control for the aliased shape — no intermediate element, so
+// the same aliases must stay green.
+const TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-aliased-entire-clean-fixture.tsx';
+const TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const Surface = DrawerContent;
+const Form = DrawerForm;
+const Body = DrawerBody;
+const Footer = DrawerFooter;
+
+export const AliasedEntireCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<Surface data-testid="r14-aliased-clean">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<Form methods={methods}>
+				<Body />
+				<Footer>
+					<button type="submit" />
+				</Footer>
+			</Form>
+		</Surface>
+	</Drawer>
+);
+`;
+
+// One hop deeper: an identity chain through a second local name —
+// `const Surface2 = Surface` must follow to `DrawerContent`, not stop at
+// the first local hop.
+const TEMPORARY_ALIASED_CHAIN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-aliased-chain-fixture.tsx';
+const TEMPORARY_ALIASED_CHAIN_DRAWER_PATH = fixturePath(
+	TEMPORARY_ALIASED_CHAIN_DRAWER_FILE,
+);
+const TEMPORARY_ALIASED_CHAIN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const Surface = DrawerContent;
+const Form = DrawerForm;
+const Body = DrawerBody;
+const Footer = DrawerFooter;
+const Surface2 = Surface;
+const Form2 = Form;
+const Body2 = Body;
+const Footer2 = Footer;
+
+export const AliasedChainDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<Surface2 data-testid="r14-aliased-chain">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<Form2 methods={methods}>
+					<Body2 />
+					<Footer2>
+						<button type="submit" />
+					</Footer2>
+				</Form2>
+			</div>
+		</Surface2>
+	</Drawer>
+);
+`;
+
+// A conditional assignment whose branches are the SAME drawer symbol is
+// statically an alias — `open ? DrawerContent : DrawerContent` is always
+// the surface, and the div above the form must redden.
+const TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-conditional-same-symbol-fixture.tsx';
+const TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_PATH = fixturePath(
+	TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_FILE,
+);
+const TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const Surface = isOpen ? DrawerContent : DrawerContent;
+const Form = DrawerForm;
+const Body = DrawerBody;
+const Footer = DrawerFooter;
+
+export const ConditionalSameSymbolDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<Surface data-testid="r14-conditional-same-symbol">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<Form methods={methods}>
+					<Body />
+					<Footer>
+						<button type="submit" />
+					</Footer>
+				</Form>
+			</div>
+		</Surface>
+	</Drawer>
+);
+`;
+
+// A conditional whose branches DISAGREE — one the drawer form, one not —
+// is not statically decidable: the parts under it must redden through the
+// wrapper rule (UNVERIFIABLE is 'other'), never resolve to the drawer
+// form.
+const TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-conditional-mixed-form-fixture.tsx';
+const TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_PATH = fixturePath(
+	TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_FILE,
+);
+const TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Form as PlainForm } from '~/components/field';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const Form = isOpen ? DrawerForm : PlainForm;
+
+export const ConditionalMixedFormDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Form methods={methods}>
+		<DrawerBody />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</Form>
+);
+`;
+
+// A `let` whose binding is reassigned after initialization renders a
+// different component at runtime — the alias the initializer started from
+// is not the binding the JSX tag sees, so the file is unverifiable.
+const TEMPORARY_REASSIGNED_FORM_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-reassigned-form-fixture.tsx';
+const TEMPORARY_REASSIGNED_FORM_DRAWER_PATH = fixturePath(
+	TEMPORARY_REASSIGNED_FORM_DRAWER_FILE,
+);
+const TEMPORARY_REASSIGNED_FORM_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const Surface = DrawerContent;
+const Body = DrawerBody;
+const Footer = DrawerFooter;
+let Form = DrawerForm;
+if (someCondition) {
+	Form = OtherForm;
+}
+
+export const ReassignedFormDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<Surface data-testid="r14-reassigned-form">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<div className="p-4">
+				<Form methods={methods}>
+					<Body />
+					<Footer>
+						<button type="submit" />
+					</Footer>
+				</Form>
+			</div>
+		</Surface>
+	</Drawer>
+);
+`;
+
+// IMPORTANT 2 — the exact round-13 probe: the executing nested return
+// wraps the body in a div; the top-level return it hid behind was clean.
+// The broken return lives in a HELPER FILE: a same-file div-wrapped part
+// is caught by the legacy wrapper pass regardless of which return the
+// function-block parser reads, but the call site below has a clean
+// surface-to-form link and no part tags of its own — only the expansion
+// through the return collector can redden it, so these fixtures die when
+// nested returns stop being read.
+const TEMPORARY_NESTED_RETURN_PARTS_FILE =
+	'src/components/ui/_drawer-nested-return-parts-fixture.tsx';
+const TEMPORARY_NESTED_RETURN_PARTS_PATH = fixturePath(
+	TEMPORARY_NESTED_RETURN_PARTS_FILE,
+);
+const TEMPORARY_NESTED_RETURN_PARTS_SOURCE = `import { DrawerBody } from '~/components/ui/drawer';
+
+export const BranchBody = () => {
+	if (true) {
+		return (
+			<div className="p-4">
+				<DrawerBody />
+			</div>
+		);
+	}
+	return <DrawerBody />;
+};
+`;
+const TEMPORARY_NESTED_RETURN_DIV_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-nested-return-div-fixture.tsx';
+const TEMPORARY_NESTED_RETURN_DIV_DRAWER_PATH = fixturePath(
+	TEMPORARY_NESTED_RETURN_DIV_DRAWER_FILE,
+);
+const TEMPORARY_NESTED_RETURN_DIV_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { BranchBody } from './_drawer-nested-return-parts-fixture';
+
+export const NestedReturnDivDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<BranchBody />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
+// Same shape with a NON-literal condition: both branches can execute, so
+// the broken nested return must still be read — never silently dropped.
+const TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_FILE =
+	'src/components/ui/_drawer-conditioned-nested-return-parts-fixture.tsx';
+const TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_PATH = fixturePath(
+	TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_FILE,
+);
+const TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_SOURCE = `import { DrawerBody } from '~/components/ui/drawer';
+
+export const BranchBody = () => {
+	if (shouldSplit) {
+		return (
+			<div className="p-4">
+				<DrawerBody />
+			</div>
+		);
+	}
+	return <DrawerBody />;
+};
+`;
+const TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-conditioned-nested-return-fixture.tsx';
+const TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_PATH = fixturePath(
+	TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_FILE,
+);
+const TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { BranchBody } from './_drawer-conditioned-nested-return-parts-fixture';
+
+export const ConditionedNestedReturnDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<BranchBody />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
+// The clean control for multi-return bodies: an idiomatic early-return
+// (`if (isEmpty) return null;` then the real body) stays green — the
+// union of both return paths is statically clean.
+const TEMPORARY_EARLY_RETURN_PARTS_FILE =
+	'src/components/ui/_drawer-early-return-parts-fixture.tsx';
+const TEMPORARY_EARLY_RETURN_PARTS_PATH = fixturePath(
+	TEMPORARY_EARLY_RETURN_PARTS_FILE,
+);
+const TEMPORARY_EARLY_RETURN_PARTS_SOURCE = `import { DrawerBody } from '~/components/ui/drawer';
+
+export const EarlyReturnBody = ({ isEmpty }: { isEmpty: boolean }) => {
+	if (isEmpty) {
+		return null;
+	}
+	return <DrawerBody />;
+};
+`;
+const TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-early-return-clean-fixture.tsx';
+const TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { EarlyReturnBody } from './_drawer-early-return-parts-fixture';
+
+export const EarlyReturnCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<EarlyReturnBody isEmpty={false} />
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerForm>
+);
+`;
+
+// IMPORTANT 3 — the div lives INSIDE the helper file. The call site has a
+// clean surface-to-form link, so ONLY the expansion can see the break.
+const TEMPORARY_CROSSFILE_DIV_IN_HELPER_FILE =
+	'src/components/ui/_drawer-crossfile-div-in-helper-fixture.tsx';
+const TEMPORARY_CROSSFILE_DIV_IN_HELPER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DIV_IN_HELPER_FILE,
+);
+const TEMPORARY_CROSSFILE_DIV_IN_HELPER_SOURCE = `import { DrawerBody, DrawerFooter } from '~/components/ui/drawer';
+
+export const DivWrappedBodySection = () => (
+	<div className="p-4">
+		<DrawerBody />
+	</div>
+);
+export const DivWrappedFooterSection = () => (
+	<DrawerFooter>
+		<button type="submit" />
+	</DrawerFooter>
+);
+`;
+const TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_FILE =
+	'src/components/ui/_drawer-surface-crossfile-div-in-helper-fixture.tsx';
+const TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_FILE,
+);
+const TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerContent,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+import {
+	DivWrappedBodySection,
+	DivWrappedFooterSection,
+} from './_drawer-crossfile-div-in-helper-fixture';
+
+export const CrossFileDivInHelperDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r14-crossfile-div-in-helper">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<DrawerForm methods={methods}>
+				<DivWrappedBodySection />
+				<DivWrappedFooterSection />
+			</DrawerForm>
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// The clean counterpart of the pair: every section in the helper is
+// chain-preserving, and the FORM also comes from the helper — so the
+// call site's formBearing verdict depends on the expansion too, and the
+// positive dies with the same mutation as the negative.
+const TEMPORARY_CROSSFILE_CLEAN_SECTIONS_FILE =
+	'src/components/ui/_drawer-crossfile-clean-sections-fixture.tsx';
+const TEMPORARY_CROSSFILE_CLEAN_SECTIONS_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_CLEAN_SECTIONS_FILE,
+);
+const TEMPORARY_CROSSFILE_CLEAN_SECTIONS_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const CleanBodySection = () => <DrawerBody />;
+export const CleanFooterSection = () => (
+	<DrawerFooter>
+		<button type="submit" />
+	</DrawerFooter>
+);
+
+export const CleanFormSection = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerForm methods={methods}>
+		<CleanBodySection />
+		<CleanFooterSection />
+	</DrawerForm>
+);
+`;
+const TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_FILE =
+	'src/components/ui/_drawer-surface-crossfile-clean-sections-fixture.tsx';
+const TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_FILE,
+);
+const TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+import { CleanFormSection } from './_drawer-crossfile-clean-sections-fixture';
+
+export const CrossFileCleanSectionsDrawer = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r14-crossfile-clean-sections">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<CleanFormSection methods={methods} />
+		</DrawerContent>
+	</Drawer>
+);
+`;
+
+// A file-level unverifiable tag OUTSIDE the anchored drawer subtree: the
+// drawer itself is clean, but the file also renders a locally-declared
+// component whose binding cannot be classified (`const Mystery =
+// getSurface();`) — it could be a hidden drawer marker, so the FILE must
+// redden even though no anchor walk reaches it.
+const TEMPORARY_UNVERIFIABLE_TAG_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-unverifiable-tag-fixture.tsx';
+const TEMPORARY_UNVERIFIABLE_TAG_DRAWER_PATH = fixturePath(
+	TEMPORARY_UNVERIFIABLE_TAG_DRAWER_FILE,
+);
+const TEMPORARY_UNVERIFIABLE_TAG_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const Mystery = getSurface();
+
+export const UnverifiableTagDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r14-unverifiable-tag">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</DrawerContent>
+		<Mystery />
+	</Drawer>
+);
+`;
+
+// A namespace member reached through a LOCAL alias of the namespace
+// import: `const D = Drawer;` + `<D.DrawerContent>...` is the same
+// identity chain as the named-alias shape, one spelling over.
+const TEMPORARY_NS_BASE_ALIAS_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-ns-base-alias-fixture.tsx';
+const TEMPORARY_NS_BASE_ALIAS_DRAWER_PATH = fixturePath(
+	TEMPORARY_NS_BASE_ALIAS_DRAWER_FILE,
+);
+const TEMPORARY_NS_BASE_ALIAS_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import * as Drawer from '~/components/ui/drawer';
+
+const D = Drawer;
+
+export const NsBaseAliasDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<D.Drawer open>
+		<D.DrawerContent data-testid="r14-ns-base-alias">
+			<D.DrawerHeader>
+				<D.DrawerTitle />
+			</D.DrawerHeader>
+			<div className="p-4">
+				<D.DrawerForm methods={methods}>
+					<D.DrawerBody />
+					<D.DrawerFooter>
+						<button type="submit" />
+					</D.DrawerFooter>
+				</D.DrawerForm>
+			</div>
+		</D.DrawerContent>
+	</D.Drawer>
+);
+`;
+
 type ModuleResolution = {
 	compilerOptions: ts.CompilerOptions;
 	host: ts.ModuleResolutionHost;
@@ -1721,83 +2373,47 @@ const isLocallyDeclared = (
 };
 
 /**
- * Resolves a JSX tag's local name to the name the drawer module exports it
- * under, or null when the tag is NOT the drawer module's symbol — through
- * the same chain every wrapper goes through: direct import, alias
- * (`DrawerBody as Body`), namespace member (`Drawer.DrawerBody` where the
- * base is a namespace import or a named binding of a namespace re-export),
- * and re-export barrels including aliased re-exports. A same-named local
- * declaration shadows every import; an import that cannot be resolved is
- * null (fail-closed). Discovery uses the same machinery as the wrapper
- * check, so there is no import spelling that the scan can miss while the
- * wrapper check accepts.
+ * The third resolution outcome, beyond "the drawer module's symbol under
+ * this name" (a string) and "definitely not the drawer module's symbol"
+ * (null): a locally-declared binding that the scan cannot classify
+ * statically. Round 13's BLOCKER 1: `const Surface = DrawerContent;
+ * const Form = DrawerForm; const Body = DrawerBody; const Footer =
+ * DrawerFooter;` moved every marker the walk keys its entry on behind a
+ * local declaration, and the shadowing rule returned null for all four —
+ * no anchor, no walk, 43/43 green with the exact #990 break in the tree.
+ * Local declarations are therefore no longer a dead end: identity chains
+ * (`const X = Y` through any number of hops), namespace-member aliases
+ * (`const D = Drawer; <D.DrawerBody />`) and same-symbol conditionals
+ * (`const Surface = open ? DrawerContent : DrawerContent`) resolve to
+ * their targets BEFORE anchor discovery, and a local binding the scan
+ * cannot decide — a call, a mixed-symbol conditional, a reassigned
+ * `let`, a `{children}`-routed definition — is UNVERIFIABLE and reddens
+ * the file instead of silently not being an anchor.
  */
-const resolveDrawerTagName = (
+const UNVERIFIABLE_TAG = Symbol('drawer-tag-unverifiable');
+
+type DrawerTagNameResult = string | null | typeof UNVERIFIABLE_TAG;
+
+/**
+ * Resolves a name that is NOT locally declared in `sourceFile` through
+ * the import machinery — direct import, alias (`DrawerForm as Form`) and
+ * re-export barrels (including aliased re-exports), the same chain the
+ * wrapper check uses. Null when the name is not an import of the drawer
+ * module's symbol (including an import that cannot be resolved, which
+ * fails closed).
+ */
+const resolveImportedName = (
 	sourceFile: SourceFile,
-	tagText: string,
+	name: string,
 	moduleResolution: ModuleResolution,
 	project: Project,
 	moduleCache: Map<string, string | null>,
-	declaredNamesByFile: Map<string, Set<string>>,
 ): string | null => {
-	const namespaceMatch = tagText.match(
-		/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/,
-	);
-	if (namespaceMatch) {
-		// A same-named local declaration shadows every import, including a
-		// member-expression base: `const Drawer = { DrawerBody: ... }` in
-		// this file is THIS file's object, never the drawer module.
-		if (isLocallyDeclared(sourceFile, namespaceMatch[1], declaredNamesByFile)) {
-			return null;
-		}
-		let namespaceSpecifier = resolveNamespaceImport(
-			sourceFile,
-			namespaceMatch[1],
-		);
-		if (!namespaceSpecifier) {
-			// A member-expression base that is a NAMED binding (round 9's
-			// MINOR 3): `import { Drawer } from '...'` where the barrel
-			// re-exports the drawer module as a namespace
-			// (`export * as Drawer from './drawer'`). Follow the binding
-			// like any named import; the chain resolver forwards the member
-			// through the barrel's namespace re-export.
-			for (const declaration of sourceFile.getImportDeclarations()) {
-				for (const namedImport of declaration.getNamedImports()) {
-					const localName =
-						namedImport.getAliasNode()?.getText() ?? namedImport.getName();
-					if (localName !== namespaceMatch[1]) {
-						continue;
-					}
-					namespaceSpecifier = declaration.getModuleSpecifierValue();
-				}
-			}
-			if (!namespaceSpecifier) {
-				return null;
-			}
-		}
-		return resolveDrawerSymbol(
-			sourceFile.getFilePath(),
-			namespaceSpecifier,
-			namespaceMatch[2],
-			moduleResolution,
-			project,
-			undefined,
-			0,
-			moduleCache,
-		);
-	}
-
-	// A same-named local declaration shadows every import — `const Body = ...`
-	// in this file is THIS file's component, never the drawer module's part.
-	if (isLocallyDeclared(sourceFile, tagText, declaredNamesByFile)) {
-		return null;
-	}
-
 	for (const declaration of sourceFile.getImportDeclarations()) {
 		for (const namedImport of declaration.getNamedImports()) {
 			const localName =
 				namedImport.getAliasNode()?.getText() ?? namedImport.getName();
-			if (localName !== tagText) {
+			if (localName !== name) {
 				continue;
 			}
 			return resolveDrawerSymbol(
@@ -1806,11 +2422,432 @@ const resolveDrawerTagName = (
 				namedImport.getName(),
 				moduleResolution,
 				project,
+				undefined,
+				0,
+				moduleCache,
 			);
 		}
 	}
-
 	return null;
+};
+
+/**
+ * True when the name is bound by an assignment anywhere in the file —
+ * `let Form = DrawerForm; if (x) Form = Div;` renders a binding whose
+ * final value is not statically decidable, so the alias it started from
+ * is not the binding the JSX tag sees (round 14, BLOCKER 1: a conditional
+ * assignment is the same problem as an alias chain, and must not be
+ * silently resolved as if the reassignment did not exist). Memoized per
+ * file.
+ */
+const isReassigned = (
+	sourceFile: SourceFile,
+	name: string,
+	reassignedNamesByFile: Map<string, Set<string>>,
+): boolean => {
+	let reassigned = reassignedNamesByFile.get(sourceFile.getFilePath());
+	if (!reassigned) {
+		reassigned = new Set<string>();
+		for (const binary of sourceFile.getDescendantsOfKind(
+			SyntaxKind.BinaryExpression,
+		)) {
+			const binaryExpression = binary as BinaryExpression;
+			if (binaryExpression.getOperatorToken() === SyntaxKind.EqualsToken) {
+				const left = binaryExpression.getLeft();
+				if (left.getKind() === SyntaxKind.Identifier) {
+					reassigned.add(left.getText());
+				}
+			}
+		}
+		reassignedNamesByFile.set(sourceFile.getFilePath(), reassigned);
+	}
+	return reassigned.has(name);
+};
+
+const unwrapExpression = (node: Node): Node => {
+	let current = node;
+	for (;;) {
+		const kind = current.getKind();
+		if (
+			kind === SyntaxKind.ParenthesizedExpression ||
+			kind === SyntaxKind.AsExpression ||
+			kind === SyntaxKind.NonNullExpression ||
+			kind === SyntaxKind.SatisfiesExpression
+		) {
+			current = (current as Node & { getExpression(): Node }).getExpression();
+			continue;
+		}
+		return current;
+	}
+};
+
+/**
+ * Resolves a locally-declared name as a MEMBER-EXPRESSION base — the
+ * `Drawer` in `<Drawer.DrawerBody />` — through identity chains before
+ * the normal base resolution: `const D = Drawer; <D.DrawerBody />` is
+ * the same alias the tag-name machinery resolves, so a same-named local
+ * base is only a shadow when its own binding is statically a local value
+ * (an object, a component). A base the scan cannot classify is
+ * UNVERIFIABLE. The terminal name runs the normal base path: namespace
+ * import, or a named binding of a namespace re-export barrel.
+ */
+const resolveMemberAccessName = (
+	sourceFile: SourceFile,
+	baseName: string,
+	memberName: string,
+	moduleResolution: ModuleResolution,
+	project: Project,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
+	reassignedNamesByFile: Map<string, Set<string>>,
+): DrawerTagNameResult => {
+	if (isLocallyDeclared(sourceFile, baseName, declaredNamesByFile)) {
+		const terminal = resolveLocalBaseChainTerminal(
+			sourceFile,
+			baseName,
+			declaredNamesByFile,
+			reassignedNamesByFile,
+		);
+		if (terminal === null) {
+			return null;
+		}
+		if (terminal === UNVERIFIABLE_TAG) {
+			return UNVERIFIABLE_TAG;
+		}
+		baseName = terminal;
+	}
+	let namespaceSpecifier = resolveNamespaceImport(sourceFile, baseName);
+	if (!namespaceSpecifier) {
+		// A member-expression base that is a NAMED binding (round 9's
+		// MINOR 3): `import { Drawer } from '...'` where the barrel
+		// re-exports the drawer module as a namespace
+		// (`export * as Drawer from './drawer'`). Follow the binding
+		// like any named import; the chain resolver forwards the member
+		// through the barrel's namespace re-export.
+		for (const declaration of sourceFile.getImportDeclarations()) {
+			for (const namedImport of declaration.getNamedImports()) {
+				const localName =
+					namedImport.getAliasNode()?.getText() ?? namedImport.getName();
+				if (localName !== baseName) {
+					continue;
+				}
+				namespaceSpecifier = declaration.getModuleSpecifierValue();
+			}
+		}
+		if (!namespaceSpecifier) {
+			return null;
+		}
+	}
+	return resolveDrawerSymbol(
+		sourceFile.getFilePath(),
+		namespaceSpecifier,
+		memberName,
+		moduleResolution,
+		project,
+		undefined,
+		0,
+		moduleCache,
+	);
+};
+
+/**
+ * Follows a locally-declared name used as a member-expression base
+ * through identity chains to the terminal name that is NOT locally
+ * declared. Returns null when the chain ends at a real local value (an
+ * object literal, a component) — its member is this file's own, never
+ * the drawer module's — and UNVERIFIABLE when the chain cannot be
+ * decided (a call, a reassigned `let`, a cycle).
+ */
+const resolveLocalBaseChainTerminal = (
+	sourceFile: SourceFile,
+	name: string,
+	declaredNamesByFile: Map<string, Set<string>>,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string> = new Set(),
+): string | null | typeof UNVERIFIABLE_TAG => {
+	if (seen.has(name)) {
+		return UNVERIFIABLE_TAG;
+	}
+	seen.add(name);
+	if (!isLocallyDeclared(sourceFile, name, declaredNamesByFile)) {
+		return name;
+	}
+	if (isReassigned(sourceFile, name, reassignedNamesByFile)) {
+		return UNVERIFIABLE_TAG;
+	}
+	const declaration = findLocalComponentDeclaration(sourceFile, name);
+	if (!declaration) {
+		return null;
+	}
+	if (declaration.getKind() !== SyntaxKind.VariableDeclaration) {
+		return null;
+	}
+	const initializer = (declaration as VariableDeclaration).getInitializer();
+	if (!initializer) {
+		return UNVERIFIABLE_TAG;
+	}
+	const unwrapped = unwrapExpression(initializer);
+	const kind = unwrapped.getKind();
+	if (kind === SyntaxKind.Identifier) {
+		return resolveLocalBaseChainTerminal(
+			sourceFile,
+			unwrapped.getText(),
+			declaredNamesByFile,
+			reassignedNamesByFile,
+			seen,
+		);
+	}
+	if (
+		kind === SyntaxKind.ObjectLiteralExpression ||
+		kind === SyntaxKind.ArrayLiteralExpression ||
+		kind === SyntaxKind.JsxElement ||
+		kind === SyntaxKind.JsxSelfClosingElement ||
+		kind === SyntaxKind.JsxFragment ||
+		kind === SyntaxKind.ArrowFunction ||
+		kind === SyntaxKind.FunctionExpression ||
+		kind === SyntaxKind.ClassExpression
+	) {
+		return null;
+	}
+	return UNVERIFIABLE_TAG;
+};
+
+/**
+ * Resolves a locally-declared name used as a JSX tag. The declaration's
+ * binding is followed exactly like an import when it is statically an
+ * alias (see resolveAliasExpression); a real local component (arrow,
+ * JSX body, memo/forwardRef) is null — the drawer module's symbols are
+ * never this file's own components, and the anchored walk expands those
+ * through resolveComponentDefinition. Anything else — a call, a mixed
+ * conditional, a reassigned `let`, a missing initializer — is
+ * UNVERIFIABLE: the tag COULD be a drawer marker the walk keys its entry
+ * on, so it must redden rather than silently not be an anchor.
+ */
+const resolveLocallyDeclaredName = (
+	sourceFile: SourceFile,
+	name: string,
+	moduleResolution: ModuleResolution,
+	project: Project,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string> = new Set(),
+): DrawerTagNameResult => {
+	if (seen.has(name)) {
+		return UNVERIFIABLE_TAG;
+	}
+	seen.add(name);
+	if (isReassigned(sourceFile, name, reassignedNamesByFile)) {
+		return UNVERIFIABLE_TAG;
+	}
+	const declaration = findLocalComponentDeclaration(sourceFile, name);
+	if (!declaration) {
+		return null;
+	}
+	const kind = declaration.getKind();
+	if (
+		kind === SyntaxKind.FunctionDeclaration ||
+		kind === SyntaxKind.ClassDeclaration
+	) {
+		// A real local component — not the drawer module's symbol; the
+		// anchored walk expands it (and reddens it when its body is not
+		// statically walkable).
+		return null;
+	}
+	const initializer = (declaration as VariableDeclaration).getInitializer();
+	if (!initializer) {
+		return UNVERIFIABLE_TAG;
+	}
+	return resolveAliasExpression(
+		sourceFile,
+		initializer,
+		moduleResolution,
+		project,
+		moduleCache,
+		declaredNamesByFile,
+		reassignedNamesByFile,
+		seen,
+	);
+};
+
+/**
+ * Classifies an expression as an alias of the drawer module's symbols or
+ * as a statically-decidable non-drawer value. Identifier chains follow
+ * local declarations recursively (`const Form = DrawerForm`,
+ * `const Form = Inner; const Inner = DrawerForm;`), and a
+ * member-expression aliases a namespace member (`const Form =
+ * Drawer.DrawerForm`). A conditional is resolved branch by branch: both
+ * branches resolving to the SAME drawer symbol is an alias; both to
+ * non-drawer values is a local value; anything mixed or unresolvable is
+ * UNVERIFIABLE. A statically-decidable component body is a local
+ * component (null); a bare value (null, a string, an object literal) is
+ * not a drawer marker (null); everything else cannot be classified and
+ * fails loud.
+ */
+const resolveAliasExpression = (
+	sourceFile: SourceFile,
+	expression: Node,
+	moduleResolution: ModuleResolution,
+	project: Project,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const unwrapped = unwrapExpression(expression);
+	const kind = unwrapped.getKind();
+	if (kind === SyntaxKind.Identifier) {
+		const targetName = unwrapped.getText();
+		if (isLocallyDeclared(sourceFile, targetName, declaredNamesByFile)) {
+			return resolveLocallyDeclaredName(
+				sourceFile,
+				targetName,
+				moduleResolution,
+				project,
+				moduleCache,
+				declaredNamesByFile,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		return resolveImportedName(
+			sourceFile,
+			targetName,
+			moduleResolution,
+			project,
+			moduleCache,
+		);
+	}
+	if (kind === SyntaxKind.PropertyAccessExpression) {
+		const property = unwrapped as PropertyAccessExpression;
+		return resolveMemberAccessName(
+			sourceFile,
+			property.getExpression().getText(),
+			property.getName(),
+			moduleResolution,
+			project,
+			moduleCache,
+			declaredNamesByFile,
+			reassignedNamesByFile,
+		);
+	}
+	if (kind === SyntaxKind.ConditionalExpression) {
+		const conditional = unwrapped as ConditionalExpression;
+		// Each branch gets its own copy of the cycle set: resolving the
+		// same local name in both branches is normal, not a cycle.
+		const whenTrue = resolveAliasExpression(
+			sourceFile,
+			conditional.getWhenTrue(),
+			moduleResolution,
+			project,
+			moduleCache,
+			declaredNamesByFile,
+			reassignedNamesByFile,
+			new Set(seen),
+		);
+		const whenFalse = resolveAliasExpression(
+			sourceFile,
+			conditional.getWhenFalse(),
+			moduleResolution,
+			project,
+			moduleCache,
+			declaredNamesByFile,
+			reassignedNamesByFile,
+			new Set(seen),
+		);
+		if (whenTrue === UNVERIFIABLE_TAG || whenFalse === UNVERIFIABLE_TAG) {
+			return UNVERIFIABLE_TAG;
+		}
+		if (whenTrue === null && whenFalse === null) {
+			return null;
+		}
+		if (typeof whenTrue === 'string' && whenTrue === whenFalse) {
+			return whenTrue;
+		}
+		return UNVERIFIABLE_TAG;
+	}
+	if (
+		kind === SyntaxKind.ObjectLiteralExpression ||
+		kind === SyntaxKind.ArrayLiteralExpression ||
+		kind === SyntaxKind.StringLiteral ||
+		kind === SyntaxKind.NumericLiteral ||
+		kind === SyntaxKind.TrueKeyword ||
+		kind === SyntaxKind.FalseKeyword ||
+		kind === SyntaxKind.NullKeyword ||
+		kind === SyntaxKind.UndefinedKeyword
+	) {
+		// A local value — never the drawer module's symbol.
+		return null;
+	}
+	const body = extractComponentBody(unwrapped);
+	if (body) {
+		// A statically-decidable component (arrow, JSX body, memo,
+		// forwardRef, ...) — a real local component, not a marker.
+		return null;
+	}
+	return UNVERIFIABLE_TAG;
+};
+
+/**
+ * Resolves a JSX tag's local name to the name the drawer module exports it
+ * under, or null when the tag is NOT the drawer module's symbol — through
+ * the same chain every wrapper goes through: direct import, alias
+ * (`DrawerBody as Body`), namespace member (`Drawer.DrawerBody` where the
+ * base is a namespace import or a named binding of a namespace re-export),
+ * and re-export barrels including aliased re-exports. A same-named local
+ * declaration no longer ends resolution (round 14, BLOCKER 1): identity
+ * alias chains and same-symbol conditionals are resolved to their targets,
+ * and a local binding the scan cannot classify is UNVERIFIABLE — it might
+ * be a drawer marker the anchored walk keys its entry on, so it must fail
+ * loud instead of silently not being an anchor. An import that cannot be
+ * resolved is null (fail-closed). Discovery uses the same machinery as the
+ * wrapper check, so there is no import spelling that the scan can miss
+ * while the wrapper check accepts.
+ */
+const resolveDrawerTagName = (
+	sourceFile: SourceFile,
+	tagText: string,
+	moduleResolution: ModuleResolution,
+	project: Project,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
+	reassignedNamesByFile: Map<string, Set<string>>,
+): DrawerTagNameResult => {
+	const namespaceMatch = tagText.match(
+		/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/,
+	);
+	if (namespaceMatch) {
+		return resolveMemberAccessName(
+			sourceFile,
+			namespaceMatch[1],
+			namespaceMatch[2],
+			moduleResolution,
+			project,
+			moduleCache,
+			declaredNamesByFile,
+			reassignedNamesByFile,
+		);
+	}
+
+	if (isLocallyDeclared(sourceFile, tagText, declaredNamesByFile)) {
+		return resolveLocallyDeclaredName(
+			sourceFile,
+			tagText,
+			moduleResolution,
+			project,
+			moduleCache,
+			declaredNamesByFile,
+			reassignedNamesByFile,
+		);
+	}
+
+	return resolveImportedName(
+		sourceFile,
+		tagText,
+		moduleResolution,
+		project,
+		moduleCache,
+	);
 };
 
 const isTransparentExpression = (node: Node): boolean => {
@@ -1931,6 +2968,7 @@ const resolveTagBinding = (
 	project: Project,
 	moduleCache: Map<string, string | null>,
 	declaredNamesByFile: Map<string, Set<string>>,
+	reassignedNamesByFile: Map<string, Set<string>>,
 ): 'drawer-form' | 'drawer-content' | 'other' => {
 	const name = resolveDrawerTagName(
 		sourceFile,
@@ -1939,6 +2977,7 @@ const resolveTagBinding = (
 		project,
 		moduleCache,
 		declaredNamesByFile,
+		reassignedNamesByFile,
 	);
 	if (name === 'DrawerForm') {
 		return 'drawer-form';
@@ -1946,6 +2985,8 @@ const resolveTagBinding = (
 	if (name === 'DrawerContent') {
 		return 'drawer-content';
 	}
+	// UNVERIFIABLE (and every non-drawer binding) is 'other': a part under
+	// a wrapper the scan cannot classify is a structural violation.
 	return 'other';
 };
 
@@ -2015,7 +3056,11 @@ type WalkContext = {
 	project: Project;
 	moduleCache: Map<string, string | null>;
 	declaredNamesByFile: Map<string, Set<string>>;
-	drawerTagName: (sourceFile: SourceFile, tagText: string) => string | null;
+	reassignedNamesByFile: Map<string, Set<string>>;
+	drawerTagName: (
+		sourceFile: SourceFile,
+		tagText: string,
+	) => DrawerTagNameResult;
 	definitionCache: Map<string, Map<string, DrawerSectionDefinition | null>>;
 };
 
@@ -2046,10 +3091,11 @@ const resolveModuleFilePath = (
 /**
  * The JSX a component definition ultimately renders — the walk roots for a
  * resolved reference. Unwraps the forms a static scan can see through: the
- * JSX itself, arrow/function bodies (expression or a block whose top-level
- * returns), memo/forwardRef wrapping, parentheses and conditionals. A body
- * that renders a literal nothing (null, undefined, a string) is an EMPTY
- * body, not an unresolvable one. Anything else (an identifier, a call to a
+ * JSX itself, arrow/function bodies (expression or a block whose returns
+ * are read by the execution-aware collector below — round 13's IMPORTANT
+ * 2), memo/forwardRef wrapping, parentheses and conditionals. A body that
+ * renders a literal nothing (null, undefined, a string) is an EMPTY body,
+ * not an unresolvable one. Anything else (an identifier, a call to a
  * non-memo helper, ...) is null — the walk then fails loud, because the
  * geometry behind that reference is not statically decidable.
  */
@@ -2122,23 +3168,249 @@ const extractComponentBody = (node: Node): Node[] | null => {
 	return null;
 };
 
-const extractBlockReturns = (block: Block): Node[] | null => {
-	const bodies: Node[] = [];
-	for (const statement of block.getStatements()) {
-		if (statement.getKind() !== SyntaxKind.ReturnStatement) {
-			continue;
-		}
-		const expression = (statement as ReturnStatement).getExpression();
-		if (!expression) {
-			continue;
-		}
-		const extracted = extractComponentBody(expression);
-		if (!extracted) {
-			return null;
-		}
-		bodies.push(...extracted);
+/**
+ * Literal truth of a condition — `true`, `false`, `!true`, `!false` — or
+ * null when the condition is not statically decidable. Round 13's
+ * IMPORTANT 2 probe used `if (true)` to hide the executing return behind a
+ * clean unreachable one; a literal condition selects exactly the branch
+ * that executes, and the statements after a returning branch are dead.
+ */
+const evalLiteralCondition = (node: Node): boolean | null => {
+	const kind = node.getKind();
+	if (kind === SyntaxKind.TrueKeyword) {
+		return true;
 	}
-	return bodies;
+	if (kind === SyntaxKind.FalseKeyword) {
+		return false;
+	}
+	if (kind === SyntaxKind.PrefixUnaryExpression) {
+		const unary = node as PrefixUnaryExpression;
+		if (unary.getOperatorToken() === SyntaxKind.ExclamationToken) {
+			const operand = evalLiteralCondition(unary.getOperand());
+			return operand === null ? null : !operand;
+		}
+	}
+	return null;
+};
+
+type BlockReturnCollector = {
+	bodies: Node[];
+	terminated: boolean;
+};
+
+const asStatementList = (statement: Statement): readonly Statement[] =>
+	statement.getKind() === SyntaxKind.Block
+		? (statement as Block).getStatements()
+		: [statement];
+
+/**
+ * Collects every return value that can execute in a statement list,
+ * following the control flow: sequential statements (an unconditional
+ * return makes everything after it dead), if/else (literal conditions
+ * select one branch; otherwise both branches AND the fall-through when
+ * there is no else), switch (every case is a candidate, and the
+ * continuation too unless a default exists and every case returns),
+ * try/catch/finally (union of all three blocks), loops (the body may run
+ * zero times, so the continuation always joins), and nested blocks.
+ * Returns null when ANY reachable return value is not statically
+ * extractable — the walk then fails loud. Round 13's IMPORTANT 2: the
+ * old collector read only top-level returns, so a nested return that is
+ * the one actually taken (`if (true) { return <div><Body/></div>; }
+ * return <DrawerBody />;`) silently substituted the unreachable clean
+ * return and shipped 43/43 green.
+ */
+const collectStatementReturns = (
+	statements: readonly Statement[],
+): BlockReturnCollector | null => {
+	const bodies: Node[] = [];
+	for (const statement of statements) {
+		const kind = statement.getKind();
+		if (kind === SyntaxKind.ReturnStatement) {
+			const expression = (statement as ReturnStatement).getExpression();
+			if (expression) {
+				const extracted = extractComponentBody(expression);
+				if (!extracted) {
+					return null;
+				}
+				bodies.push(...extracted);
+			}
+			return { bodies, terminated: true };
+		}
+		if (kind === SyntaxKind.IfStatement) {
+			const ifStatement = statement as IfStatement;
+			const condition = evalLiteralCondition(ifStatement.getExpression());
+			const thenStatement = ifStatement.getThenStatement();
+			const elseStatement = ifStatement.getElseStatement();
+			if (condition === true) {
+				const thenCollected = collectStatementReturns(
+					asStatementList(thenStatement),
+				);
+				if (thenCollected === null) {
+					return null;
+				}
+				bodies.push(...thenCollected.bodies);
+				if (thenCollected.terminated) {
+					return { bodies, terminated: true };
+				}
+				continue;
+			}
+			if (condition === false) {
+				if (!elseStatement) {
+					continue;
+				}
+				const elseCollected = collectStatementReturns(
+					asStatementList(elseStatement),
+				);
+				if (elseCollected === null) {
+					return null;
+				}
+				bodies.push(...elseCollected.bodies);
+				if (elseCollected.terminated) {
+					return { bodies, terminated: true };
+				}
+				continue;
+			}
+			const thenCollected = collectStatementReturns(
+				asStatementList(thenStatement),
+			);
+			if (thenCollected === null) {
+				return null;
+			}
+			bodies.push(...thenCollected.bodies);
+			if (elseStatement) {
+				const elseCollected = collectStatementReturns(
+					asStatementList(elseStatement),
+				);
+				if (elseCollected === null) {
+					return null;
+				}
+				bodies.push(...elseCollected.bodies);
+				if (thenCollected.terminated && elseCollected.terminated) {
+					return { bodies, terminated: true };
+				}
+			}
+			continue;
+		}
+		if (kind === SyntaxKind.SwitchStatement) {
+			const switchStatement = statement as SwitchStatement;
+			let hasDefault = false;
+			let allTerminated = true;
+			for (const clause of switchStatement.getCaseBlock().getClauses()) {
+				if (clause.getKind() === SyntaxKind.DefaultClause) {
+					hasDefault = true;
+				}
+				const clauseCollected = collectStatementReturns(
+					(clause as CaseClause).getStatements(),
+				);
+				if (clauseCollected === null) {
+					return null;
+				}
+				bodies.push(...clauseCollected.bodies);
+				if (!clauseCollected.terminated) {
+					allTerminated = false;
+				}
+			}
+			if (hasDefault && allTerminated) {
+				return { bodies, terminated: true };
+			}
+			continue;
+		}
+		if (kind === SyntaxKind.TryStatement) {
+			const tryStatement = statement as TryStatement;
+			const tryCollected = collectStatementReturns(
+				tryStatement.getTryBlock().getStatements(),
+			);
+			if (tryCollected === null) {
+				return null;
+			}
+			bodies.push(...tryCollected.bodies);
+			const catchClause = tryStatement.getCatchClause();
+			let catchTerminated = false;
+			if (catchClause) {
+				const catchCollected = collectStatementReturns(
+					(catchClause as CatchClause).getBlock().getStatements(),
+				);
+				if (catchCollected === null) {
+					return null;
+				}
+				bodies.push(...catchCollected.bodies);
+				catchTerminated = catchCollected.terminated;
+			}
+			const finallyBlock = tryStatement.getFinallyBlock();
+			if (finallyBlock) {
+				const finallyCollected = collectStatementReturns(
+					(finallyBlock as FinallyClause).getBlock().getStatements(),
+				);
+				if (finallyCollected === null) {
+					return null;
+				}
+				bodies.push(...finallyCollected.bodies);
+				if (finallyCollected.terminated) {
+					return { bodies, terminated: true };
+				}
+			}
+			if (tryCollected.terminated && (!catchClause || catchTerminated)) {
+				return { bodies, terminated: true };
+			}
+			continue;
+		}
+		if (
+			kind === SyntaxKind.ForStatement ||
+			kind === SyntaxKind.ForInStatement ||
+			kind === SyntaxKind.ForOfStatement ||
+			kind === SyntaxKind.WhileStatement ||
+			kind === SyntaxKind.DoStatement
+		) {
+			const loopBody = (
+				statement as Node & { getStatement(): Statement }
+			).getStatement();
+			const loopCollected = collectStatementReturns(asStatementList(loopBody));
+			if (loopCollected === null) {
+				return null;
+			}
+			bodies.push(...loopCollected.bodies);
+			// The body may run zero times — the continuation always joins.
+			continue;
+		}
+		if (kind === SyntaxKind.Block) {
+			const nestedCollected = collectStatementReturns(
+				(statement as Block).getStatements(),
+			);
+			if (nestedCollected === null) {
+				return null;
+			}
+			bodies.push(...nestedCollected.bodies);
+			if (nestedCollected.terminated) {
+				return { bodies, terminated: true };
+			}
+			continue;
+		}
+		if (kind === SyntaxKind.LabeledStatement) {
+			const labeledCollected = collectStatementReturns([
+				(statement as LabeledStatement).getStatement(),
+			]);
+			if (labeledCollected === null) {
+				return null;
+			}
+			bodies.push(...labeledCollected.bodies);
+			if (labeledCollected.terminated) {
+				return { bodies, terminated: true };
+			}
+			continue;
+		}
+		// Everything else — expression statements, declarations, throws —
+		// cannot return from this function (a return inside a nested arrow
+		// or function declaration belongs to THAT function).
+	}
+	return { bodies, terminated: false };
+};
+
+const extractBlockReturns = (block: Block): Node[] | null => {
+	const collected = collectStatementReturns(block.getStatements());
+	if (collected === null) {
+		return null;
+	}
+	return collected.bodies;
 };
 
 const findLocalComponentDeclaration = (
@@ -2732,6 +4004,15 @@ const walkTag = (
 	const tagText = opening.getTagNameNode().getText();
 	const drawerName = context.drawerTagName(sourceFile, tagText);
 
+	if (drawerName === UNVERIFIABLE_TAG) {
+		// A locally-declared binding that cannot be classified statically
+		// (a call, a mixed conditional, a reassigned `let`, ...) is exactly
+		// the shape that could be hiding a drawer marker — fail loud
+		// instead of descending with it as a plain element.
+		state.unverifiable = true;
+		return;
+	}
+
 	if (drawerName === 'DrawerBody' || drawerName === 'DrawerFooter') {
 		state.parts.push({ node: opening, chain });
 		return;
@@ -2859,16 +4140,17 @@ const scanDrawerSurfaces = (): {
 	// resolution runs once per distinct name instead of once per tag, and a
 	// scan-wide memo of resolved (file, specifier) pairs for the module
 	// resolution inside the chain.
-	const resolvedTagNames = new Map<string, Map<string, string | null>>();
+	const resolvedTagNames = new Map<string, Map<string, DrawerTagNameResult>>();
 	const moduleCache = new Map<string, string | null>();
 	const declaredNamesByFile = new Map<string, Set<string>>();
+	const reassignedNamesByFile = new Map<string, Set<string>>();
 	const drawerTagName = (
 		sourceFile: SourceFile,
 		tagText: string,
-	): string | null => {
+	): DrawerTagNameResult => {
 		let byName = resolvedTagNames.get(sourceFile.getFilePath());
 		if (!byName) {
-			byName = new Map<string, string | null>();
+			byName = new Map<string, DrawerTagNameResult>();
 			resolvedTagNames.set(sourceFile.getFilePath(), byName);
 		}
 		if (!byName.has(tagText)) {
@@ -2881,6 +4163,7 @@ const scanDrawerSurfaces = (): {
 					project,
 					moduleCache,
 					declaredNamesByFile,
+					reassignedNamesByFile,
 				),
 			);
 		}
@@ -2900,6 +4183,19 @@ const scanDrawerSurfaces = (): {
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
 		];
+
+		// Round 14, BLOCKER 1: a tag whose local binding cannot be classified
+		// statically (a call, a mixed conditional, a reassigned `let`, ...)
+		// could be a drawer marker the walk keys its entry on — in a drawer
+		// file it must fail loud instead of silently not being an anchor. A
+		// file with ONLY such tags is not discovered at all: it never was,
+		// and treating every unresolvable local component as a drawer file
+		// would flood the inventory.
+		const hasUnverifiableTag = jsxTags.some(
+			(node) =>
+				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
+				UNVERIFIABLE_TAG,
+		);
 
 		const wrapperOf = (node: JsxOpeningElement | JsxSelfClosingElement) =>
 			findWrapperOpeningElement(node, sourceFile);
@@ -2962,6 +4258,7 @@ const scanDrawerSurfaces = (): {
 				project,
 				moduleCache,
 				declaredNamesByFile,
+				reassignedNamesByFile,
 				drawerTagName,
 				definitionCache: new Map(),
 			};
@@ -3028,6 +4325,7 @@ const scanDrawerSurfaces = (): {
 					project,
 					moduleCache,
 					declaredNamesByFile,
+					reassignedNamesByFile,
 				) !== 'drawer-content'
 			);
 		});
@@ -3064,6 +4362,7 @@ const scanDrawerSurfaces = (): {
 				project,
 				moduleCache,
 				declaredNamesByFile,
+				reassignedNamesByFile,
 			);
 			return binding !== 'drawer-form' && binding !== 'drawer-content';
 		});
@@ -3072,6 +4371,7 @@ const scanDrawerSurfaces = (): {
 			isRejected ||
 			formLinkBroken ||
 			walkState.unverifiable ||
+			hasUnverifiableTag ||
 			walkPartBroken ||
 			walkFormBroken
 		) {
@@ -3983,6 +5283,337 @@ describe('drawer surface flex chain guard (#990)', () => {
 		} finally {
 			unlinkSync(TEMPORARY_NS_BARREL_CALL_SITE_PATH);
 			unlinkSync(TEMPORARY_NS_BARREL_PATH);
+		}
+	});
+
+	test('a drawer whose surface, form, body and footer are local identity aliases of the shared components is discovered and rejected', () => {
+		// Round 13's BLOCKER 1, verbatim: `const Surface = DrawerContent;
+		// const Form = DrawerForm; const Body = DrawerBody; const Footer =
+		// DrawerFooter;` + the #990 `<div>` between surface and form shipped
+		// 43/43 green because the walk could only begin at tags whose local
+		// binding resolved — and a local declaration was a dead end. The
+		// entry point now resolves identity chains BEFORE anchor discovery.
+		writeFileSync(
+			TEMPORARY_ALIASED_ENTIRE_DRAWER_PATH,
+			TEMPORARY_ALIASED_ENTIRE_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ALIASED_ENTIRE_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_ALIASED_ENTIRE_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ALIASED_ENTIRE_DRAWER_PATH);
+		}
+	});
+
+	test('the same identity aliases with a clean surface-to-form link stay green', () => {
+		// The control for the aliased shape: resolution must make the file
+		// ANCHORED, and the clean arrangement must survive the walk.
+		writeFileSync(
+			TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_PATH,
+			TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ALIASED_ENTIRE_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('an identity alias chain longer than one hop is followed to the drawer module', () => {
+		// `const Surface2 = Surface;` where `Surface = DrawerContent` — the
+		// chain must not stop at the first local hop.
+		writeFileSync(
+			TEMPORARY_ALIASED_CHAIN_DRAWER_PATH,
+			TEMPORARY_ALIASED_CHAIN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ALIASED_CHAIN_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_ALIASED_CHAIN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ALIASED_CHAIN_DRAWER_PATH);
+		}
+	});
+
+	test('a conditional whose branches are the same drawer symbol is resolved like an identity alias', () => {
+		// `open ? DrawerContent : DrawerContent` is statically the surface —
+		// the div above the form must redden.
+		writeFileSync(
+			TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_PATH,
+			TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_PATH);
+		}
+	});
+
+	test('a conditional whose branches disagree is unverifiable: the parts under it redden through the wrapper rule', () => {
+		// `open ? DrawerForm : PlainForm` could be either at runtime — the
+		// scan must not resolve it to the drawer form, and a body part under
+		// it is a structural violation ('other' wrapper).
+		writeFileSync(
+			TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_PATH,
+			TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_PATH);
+		}
+	});
+
+	test('a let-reassigned form binding is unverifiable and reddens', () => {
+		// `let Form = DrawerForm; if (x) Form = Other;` — the reassignment
+		// makes the final binding not statically decidable; the aliased
+		// initializer must not be silently trusted.
+		writeFileSync(
+			TEMPORARY_REASSIGNED_FORM_DRAWER_PATH,
+			TEMPORARY_REASSIGNED_FORM_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_REASSIGNED_FORM_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_REASSIGNED_FORM_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_REASSIGNED_FORM_DRAWER_PATH);
+		}
+	});
+
+	test('a nested return guarded by a literal true is the return that executes — its div reddens', () => {
+		// Round 13's IMPORTANT 2, verbatim: `if (true) { return <div>...
+		// </div>; } return <DrawerBody />;` — the old collector read only
+		// the unreachable clean top-level return. The broken return lives
+		// in the HELPER file: the call site has no part tags of its own, so
+		// only the expansion through the return collector can redden it.
+		writeFileSync(
+			TEMPORARY_NESTED_RETURN_PARTS_PATH,
+			TEMPORARY_NESTED_RETURN_PARTS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_NESTED_RETURN_DIV_DRAWER_PATH,
+			TEMPORARY_NESTED_RETURN_DIV_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_NESTED_RETURN_DIV_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_NESTED_RETURN_DIV_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_NESTED_RETURN_DIV_DRAWER_PATH);
+			unlinkSync(TEMPORARY_NESTED_RETURN_PARTS_PATH);
+		}
+	});
+
+	test('a nested return under a non-literal condition is still read — the broken branch reddens', () => {
+		// Both branches can execute, so the union must include the
+		// div-wrapped return; dropping nested returns would make this exact
+		// shape green again (same cross-file isolation as above).
+		writeFileSync(
+			TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_PATH,
+			TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_PATH,
+			TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_PATH);
+			unlinkSync(TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_PATH);
+		}
+	});
+
+	test('an idiomatic early-return body stays green when every return path is clean', () => {
+		// The control for multi-return bodies: `if (isEmpty) return null;
+		// return <DrawerBody />;` must not blanket-redden block bodies —
+		// green with the collector reading every return path.
+		writeFileSync(
+			TEMPORARY_EARLY_RETURN_PARTS_PATH,
+			TEMPORARY_EARLY_RETURN_PARTS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_PATH,
+			TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_PATH);
+			unlinkSync(TEMPORARY_EARLY_RETURN_PARTS_PATH);
+		}
+	});
+
+	test('a part wrapped in an element INSIDE a cross-file helper reddens through the expansion at a clean call site', () => {
+		// Round 13's IMPORTANT 3: the old negative carried the div at the
+		// call site, so it stayed red even when the imported helper bodies
+		// resolved to nothing. Here the div lives in the helper and the call
+		// site's surface-to-form link is clean — ONLY the expansion can see
+		// the break, so the test dies when cross-file resolution dies.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DIV_IN_HELPER_PATH,
+			TEMPORARY_CROSSFILE_DIV_IN_HELPER_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_PATH,
+			TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_FILE),
+			);
+			// The div-wrapped helper is a structural violation by the
+			// round-8 contract ("a helper that wraps the part in a real
+			// element IS discovered and judged") — the call-site red comes
+			// from the expansion, this one from the wrapper rule.
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DIV_IN_HELPER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_DIV_IN_HELPER_PATH);
+		}
+	});
+
+	test('the clean counterpart of the div-in-helper pair stays green and is form-bearing only through the expansion', () => {
+		// The positive of the pair: chain-preserving helpers, and the FORM
+		// also comes from the helper — the call site's formBearing verdict
+		// depends on the expansion, so this test dies under the same
+		// "helpers resolve to nothing" mutation as the negative.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_CLEAN_SECTIONS_PATH,
+			TEMPORARY_CROSSFILE_CLEAN_SECTIONS_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_PATH,
+			TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_FILE),
+			);
+			expect(scan.formBearing).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CLEAN_SECTIONS_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_CLEAN_SECTIONS_PATH);
+		}
+	});
+
+	test('an unverifiable local tag anywhere in a discovered file reddens it, even outside the anchored subtree', () => {
+		// The entry-point half of the fail-loud boundary: `const Mystery =
+		// getSurface(); <Mystery />` next to a clean drawer could be a hidden
+		// drawer marker — the file must redden even though no anchor walk
+		// reaches the tag. Deleting the file-level unverifiable verdict
+		// leaves this exact file green.
+		writeFileSync(
+			TEMPORARY_UNVERIFIABLE_TAG_DRAWER_PATH,
+			TEMPORARY_UNVERIFIABLE_TAG_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_UNVERIFIABLE_TAG_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_UNVERIFIABLE_TAG_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_UNVERIFIABLE_TAG_DRAWER_PATH);
+		}
+	});
+
+	test('a namespace member reached through a local alias of the namespace import is discovered and rejected', () => {
+		// `const D = Drawer;` + `<D.DrawerContent>` — the member-expression
+		// base is an identity chain too; the div between surface and form
+		// must redden through the same entry-point resolution.
+		writeFileSync(
+			TEMPORARY_NS_BASE_ALIAS_DRAWER_PATH,
+			TEMPORARY_NS_BASE_ALIAS_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_NS_BASE_ALIAS_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_NS_BASE_ALIAS_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_NS_BASE_ALIAS_DRAWER_PATH);
 		}
 	});
 
