@@ -130,19 +130,19 @@ const BENTO_TILES: readonly BentoCard[] = [
 
 const TRIAL_STEPS: readonly TrialStep[] = [
 	{
-		titleKey: 'landing-trial-today-title',
-		labelKey: 'landing-trial-today-label',
-		descriptionKey: 'landing-trial-today-description',
+		titleKey: 'landing-timeline-step-1-title',
+		labelKey: 'landing-timeline-step-1-label',
+		descriptionKey: 'landing-timeline-step-1-description',
 	},
 	{
-		titleKey: 'landing-trial-day-3-title',
-		labelKey: 'landing-trial-day-3-label',
-		descriptionKey: 'landing-trial-day-3-description',
+		titleKey: 'landing-timeline-step-2-title',
+		labelKey: 'landing-timeline-step-2-label',
+		descriptionKey: 'landing-timeline-step-2-description',
 	},
 	{
-		titleKey: 'landing-trial-day-10-title',
-		labelKey: 'landing-trial-day-10-label',
-		descriptionKey: 'landing-trial-day-10-description',
+		titleKey: 'landing-timeline-step-3-title',
+		labelKey: 'landing-timeline-step-3-label',
+		descriptionKey: 'landing-timeline-step-3-description',
 	},
 ];
 
@@ -476,6 +476,12 @@ export const IndexRoute = () => {
 					<h2 className="mt-3 text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
 						{t('landing-timeline-title')}
 					</h2>
+					<p
+						data-testid="landing-trial-plan-note"
+						className="mx-auto mt-3 max-w-[58ch] text-xs leading-[1.6] text-(--publy-foreground-secondary)"
+					>
+						{t('landing-trial-plan-note')}
+					</p>
 				</div>
 				<div className="publy-marketing-hairline-grid mt-8 grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
 					{TRIAL_STEPS.map((step) => (

@@ -112,6 +112,23 @@ describe('marketing landing route', () => {
 		expect(container.querySelectorAll('del')).toHaveLength(3);
 	});
 
+	test('keeps the trial planning note inside the timeline section', () => {
+		render(<IndexRoute />);
+
+		const note = screen.getByTestId('landing-trial-plan-note');
+		expect(note.textContent).toBe('landing-trial-plan-note');
+
+		// Placement is the property that matters — the note must sit with the
+		// trial timeline it explains. It is deliberately not a "visible" or
+		// styling assertion: token and spacing discipline is owned by
+		// check:design-system, and asserting class strings here would only
+		// redden on a legitimate restyle.
+		const timelineSection = screen
+			.getByText('landing-timeline-title')
+			.closest('section');
+		expect(timelineSection?.contains(note)).toBe(true);
+	});
+
 	test('keeps optional marketing bands behind feature flags', () => {
 		const { container } = render(<IndexRoute />);
 

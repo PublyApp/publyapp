@@ -287,9 +287,9 @@ describe('MarketingHeader — production nav model', () => {
 		await renderHeader('fr');
 
 		expect(
-			screen.getAllByRole('link', { name: 'Essai gratuit' }).length,
+			screen.getAllByRole('link', { name: "S'inscrire gratuitement" }).length,
 		).toBeGreaterThan(0);
-		expect(screen.queryByRole('link', { name: 'Start free trial' })).toBeNull();
+		expect(screen.queryByRole('link', { name: 'Sign up free' })).toBeNull();
 		expect(screen.getByRole('link', { name: 'Tarifs' })).toBeTruthy();
 	});
 });
