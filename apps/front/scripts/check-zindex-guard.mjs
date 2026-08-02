@@ -123,9 +123,15 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 //     <style> element, or a dynamically assembled stylesheet <link>. They
 //     never become production-build CSS assets. Literal JSX stylesheet links
 //     and static link-descriptor objects are rejected by the script AST pass.
-//   - reserved-token writes mediated by helper parameters, or object spreads
-//     whose token-bearing source is produced by a helper/import rather than a
-//     literal in the scanned module.
+//   - reserved-token writes mediated by helper parameters (a key or name that
+//     arrives through a function parameter or an unscanned import). Spreads
+//     are NOT silent: a spread whose source resolves to a module-scope const
+//     object literal is transparent, and a genuinely opaque spread in a
+//     style-capable position is a named `z-index-unresolved-spread-shadow`
+//     diagnostic — never a silent green.
+//   - `?raw` consumed through a dynamic `import('./x.txt?raw')` or re-exported
+//     across modules; the AST pass tracks static import declarations and
+//     per-file bindings only.
 //   - a class assembled by `+` string concatenation (`'z-' + 5`) produces no
 //     extractor candidate, so it ships no rule on its own — it is dead text
 //     UNLESS a rule for that class exists by another route. Any route that
@@ -586,8 +592,12 @@ export const scanZIndexFile = ({
 	// style-capable sink (a `<style>` element or a dangerouslySetInnerHTML
 	// payload) is walked as shipped CSS/HTML; without them the walk is
 	// skipped, which keeps unit fixtures free of raw-file scaffolding.
+	// `inlineCssPaths` lists the recorded CSS-language modules whose `?raw`
+	// (or `?inline`) bytes are already walked by the inline gate, so a
+	// resolver miss on them is not an unresolved import.
 	baseDir = null,
 	rawImportTexts = null,
+	inlineCssPaths = null,
 }) => {
 	const violations = [];
 	const extension = path.extname(relativePath);
@@ -732,7 +742,13 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const moduleConstStrings = new Map();
+		// Every module-scope `const` with an identifier name and an initializer.
+		// The initializer node is kept so the same one-hop constant following
+		// serves the string rules (a `const` bound to a string literal), the
+		// object rules (a `const` bound to an object literal is a transparent
+		// spread source), and the `?raw` binding rules (a `const` bound to a
+		// raw import is the same binding).
+		const moduleConstInitializers = new Map();
 		for (const statement of sourceFile.statements) {
 			if (
 				!ts.isVariableStatement(statement) ||
@@ -744,11 +760,10 @@ export const scanZIndexFile = ({
 				if (!ts.isIdentifier(declaration.name)) {
 					continue;
 				}
-				const value = literalText(declaration.initializer);
-				if (value != null) {
-					moduleConstStrings.set(declaration.name.text, {
+				if (declaration.initializer != null) {
+					moduleConstInitializers.set(declaration.name.text, {
 						declaration,
-						value,
+						initializer: declaration.initializer,
 					});
 				}
 			}
@@ -904,13 +919,13 @@ export const scanZIndexFile = ({
 				return direct;
 			}
 			if (expression != null && ts.isIdentifier(expression)) {
-				const moduleConstant = moduleConstStrings.get(expression.text);
+				const moduleConstant = moduleConstInitializers.get(expression.text);
 				if (
 					moduleConstant != null &&
 					nearestBinding(expression, expression.text) ===
 						moduleConstant.declaration
 				) {
-					return moduleConstant.value;
+					return literalText(moduleConstant.initializer);
 				}
 			}
 			return null;
@@ -924,51 +939,112 @@ export const scanZIndexFile = ({
 			}
 			return literalText(name);
 		};
+		const spreadSourceObjectLiteral = (expression) => {
+			// Resolves a spread source to the object literal it provably is: a
+			// literal (through transparent wrappers) or a module-scope `const`
+			// bound to one (the same one-hop constant following the string
+			// rules). Returns null when the source is genuinely opaque — a
+			// parameter, an import, a call, an alias to anything else — and
+			// the caller must fail loud by name instead of assuming compliant.
+			const spreadObject = unwrapTransparentExpression(expression);
+			if (spreadObject == null) {
+				return null;
+			}
+			if (ts.isObjectLiteralExpression(spreadObject)) {
+				return spreadObject;
+			}
+			if (ts.isIdentifier(spreadObject)) {
+				const moduleConstant = moduleConstInitializers.get(spreadObject.text);
+				if (
+					moduleConstant != null &&
+					nearestBinding(spreadObject, spreadObject.text) ===
+						moduleConstant.declaration
+				) {
+					const initializer = unwrapTransparentExpression(
+						moduleConstant.initializer,
+					);
+					if (
+						initializer != null &&
+						ts.isObjectLiteralExpression(initializer)
+					) {
+						return initializer;
+					}
+				}
+			}
+			return null;
+		};
 		const staticObjectMemberNode = (object, name) => {
 			// Order-aware member resolution mirroring real object semantics:
 			// the last member with the name wins, and a static object-literal
-			// spread is transparent (its member is hoisted in place). A
-			// non-literal spread (`{...props}`) is the declared data-flow
-			// boundary and obeys source-order last-write-wins: it may carry
-			// the name, so it invalidates any fact established before it, and
-			// a later explicit member (or static spread carrying the member)
-			// may establish the value again.
+			// spread is transparent (its member is hoisted in place). A spread
+			// whose source resolves to a module-scope const object literal is
+			// equally transparent. A genuinely opaque spread (`{...props}` from
+			// a parameter, import, or call) is the declared data-flow boundary:
+			// it may carry the name, so it invalidates any fact established
+			// before it, and a later explicit member (or static spread carrying
+			// the member) may establish the value again — but the resolved
+			// value is then only provable when the opaque spread does not sit
+			// after the last establishing occurrence, and `unresolved` says
+			// whether it does. Callers turn `unresolved` into the named
+			// `z-index-unresolved-spread-shadow` diagnostic instead of treating
+			// the spread as a compliant default.
 			let foundNode = null;
-			for (const candidate of object.properties) {
+			let lastOccurrenceIndex = -1;
+			let lastOpaqueSpreadIndex = -1;
+			let opaqueSpreadNode = null;
+			for (let index = 0; index < object.properties.length; index += 1) {
+				const candidate = object.properties[index];
 				let valueNode = null;
 				if (ts.isPropertyAssignment(candidate)) {
 					if (propertyName(candidate.name) === name) {
 						valueNode = candidate.initializer;
+						lastOccurrenceIndex = index;
 					}
 				} else if (ts.isShorthandPropertyAssignment(candidate)) {
 					if (candidate.name.text === name) {
 						valueNode = candidate.name;
+						lastOccurrenceIndex = index;
 					}
 				} else if (ts.isSpreadAssignment(candidate)) {
-					const spreadObject = unwrapTransparentExpression(
-						candidate.expression,
-					);
-					if (
-						spreadObject != null &&
-						ts.isObjectLiteralExpression(spreadObject)
-					) {
-						const nested = staticObjectMemberNode(spreadObject, name);
-						if (nested != null) {
-							valueNode = nested;
-						}
+					const spreadObject = spreadSourceObjectLiteral(candidate.expression);
+					if (spreadObject == null) {
+						lastOpaqueSpreadIndex = index;
+						opaqueSpreadNode = candidate;
 					} else {
-						foundNode = null;
+						const nested = staticObjectMemberNode(spreadObject, name);
+						if (nested.node != null) {
+							valueNode = nested.node;
+							lastOccurrenceIndex = index;
+							if (nested.unresolved) {
+								lastOpaqueSpreadIndex = index;
+								opaqueSpreadNode = candidate;
+							}
+						} else if (nested.unresolved) {
+							lastOpaqueSpreadIndex = index;
+							opaqueSpreadNode = candidate;
+						}
 					}
 				}
 				if (valueNode != null) {
 					foundNode = valueNode;
 				}
 			}
-			return foundNode;
+			return {
+				node: foundNode,
+				unresolved:
+					lastOpaqueSpreadIndex >= 0 &&
+					lastOccurrenceIndex >= 0 &&
+					lastOpaqueSpreadIndex >= lastOccurrenceIndex,
+				opaqueSpreadNode,
+			};
 		};
 		const staticObjectProperty = (object, name) => {
 			const member = staticObjectMemberNode(object, name);
-			return member == null ? null : staticString(member);
+			return {
+				value: member.node == null ? null : staticString(member.node),
+				unresolved: member.unresolved,
+				opaqueSpreadNode: member.opaqueSpreadNode,
+			};
 		};
 		const staticJsxAttribute = (attributes, attributeName) => {
 			const attribute = attributes.properties.find(
@@ -993,15 +1069,24 @@ export const scanZIndexFile = ({
 			// object of a JSX attributes list with real JSX semantics: the
 			// last occurrence wins, whether it is an explicit attribute or a
 			// static object-literal spread (`{...{dangerouslySetInnerHTML: …}}`
-			// is the same static payload). A non-literal spread may carry the
-			// attribute, so it shadows earlier static occurrences exactly as a
-			// later attribute override would — source-order last-write-wins —
-			// and a later explicit occurrence establishes the payload again.
-			// Transparent parentheses/assertions around the payload object or
-			// around a spread's member are equivalent spellings.
+			// is the same static payload, and the spread source may be a
+			// module-scope const bound to an object literal). A genuinely
+			// opaque spread may carry the attribute, so it shadows earlier
+			// static occurrences exactly as a later attribute override would —
+			// source-order last-write-wins — and a later explicit occurrence
+			// establishes the payload again. `unresolved` says whether an
+			// opaque spread sits after the last establishing occurrence, in
+			// which case the final payload is not provable and the caller must
+			// fail loud by name. Transparent parentheses/assertions around the
+			// payload object or around a spread's member are equivalent
+			// spellings.
 			let found = false;
 			let payloadObject = null;
-			for (const property of attributes.properties) {
+			let lastOccurrenceIndex = -1;
+			let lastOpaqueSpreadIndex = -1;
+			let opaqueSpreadNode = null;
+			for (let index = 0; index < attributes.properties.length; index += 1) {
+				const property = attributes.properties[index];
 				if (ts.isJsxAttribute(property)) {
 					if (
 						property.name.kind !== ts.SyntaxKind.Identifier ||
@@ -1011,6 +1096,7 @@ export const scanZIndexFile = ({
 					}
 					found = true;
 					payloadObject = null;
+					lastOccurrenceIndex = index;
 					if (ts.isJsxExpression(property.initializer)) {
 						const object = unwrapTransparentExpression(
 							property.initializer.expression,
@@ -1020,23 +1106,23 @@ export const scanZIndexFile = ({
 						}
 					}
 				} else if (ts.isJsxSpreadAttribute(property)) {
-					const spreadObject = unwrapTransparentExpression(property.expression);
-					if (
-						spreadObject == null ||
-						!ts.isObjectLiteralExpression(spreadObject)
-					) {
+					const spreadObject = spreadSourceObjectLiteral(property.expression);
+					if (spreadObject == null) {
 						found = false;
 						payloadObject = null;
+						lastOpaqueSpreadIndex = index;
+						opaqueSpreadNode = property;
 						continue;
 					}
 					const member = staticObjectMemberNode(
 						spreadObject,
 						'dangerouslySetInnerHTML',
 					);
-					if (member != null) {
+					if (member.node != null) {
 						found = true;
 						payloadObject = null;
-						const memberObject = unwrapTransparentExpression(member);
+						lastOccurrenceIndex = index;
+						const memberObject = unwrapTransparentExpression(member.node);
 						if (
 							memberObject != null &&
 							ts.isObjectLiteralExpression(memberObject)
@@ -1044,15 +1130,22 @@ export const scanZIndexFile = ({
 							payloadObject = memberObject;
 						}
 					}
+					if (member.unresolved) {
+						lastOpaqueSpreadIndex = index;
+						opaqueSpreadNode = property;
+					}
 				}
 			}
-			return found ? payloadObject : null;
-		};
-		const staticDangerousHtmlPayload = (attributes) => {
-			const payloadObject = dangerousHtmlPayloadObject(attributes);
-			return payloadObject == null
-				? null
-				: staticObjectProperty(payloadObject, '__html');
+			const unresolved =
+				lastOpaqueSpreadIndex >= 0 &&
+				lastOccurrenceIndex >= 0 &&
+				lastOpaqueSpreadIndex >= lastOccurrenceIndex;
+			return {
+				payloadObject,
+				found: found && !unresolved,
+				unresolved,
+				opaqueSpreadNode,
+			};
 		};
 		const staticMember = (expression) => {
 			const member = unwrapTransparentExpression(expression);
@@ -1094,7 +1187,14 @@ export const scanZIndexFile = ({
 			// Both JSX spellings carry the same payload: a `<style>` element
 			// and a self-closing `<style … />` are the same DOM node, so the
 			// `dangerouslySetInnerHTML` attribute lives in a different
-			// `attributes` shape on each.
+			// `attributes` shape on each. A `dangerouslySetInnerHTML` payload
+			// on a `<style>` element is the same static CSS text, just spelled
+			// through the attribute. When the attribute is present, it decides
+			// the element's shipped content: React ignores children in that
+			// case, so there is nothing static to inspect beyond the payload
+			// itself — a static payload is the shipped CSS, a non-static one
+			// is the declared runtime bucket, and `childrenSuppressed` tells
+			// the caller not to walk the children either.
 			const selfClosing = ts.isJsxSelfClosingElement(node);
 			if (!ts.isJsxElement(node) && !selfClosing) {
 				return null;
@@ -1106,17 +1206,22 @@ export const scanZIndexFile = ({
 			if (!ts.isIdentifier(tag) || tag.text !== 'style') {
 				return null;
 			}
-			// A `dangerouslySetInnerHTML` payload on a `<style>` element is the
-			// same static CSS text, just spelled through the attribute. When
-			// the attribute is present but not static, the element's shipped
-			// CSS is the declared runtime bucket (React ignores children in
-			// that case, so there is nothing static to inspect).
-			const dangerousHtml = staticDangerousHtmlPayload(attributes);
-			if (dangerousHtml != null) {
-				return dangerousHtml;
+			const payload = dangerousHtmlPayloadObject(attributes);
+			if (payload.found) {
+				if (payload.payloadObject != null) {
+					const html = staticObjectProperty(payload.payloadObject, '__html');
+					// An unresolved spread inside the payload may override the
+					// member, so the value is not provable — the caller reports
+					// the spread by name and nothing else.
+					return {
+						css: html.unresolved ? null : html.value,
+						childrenSuppressed: true,
+					};
+				}
+				return { css: null, childrenSuppressed: true };
 			}
 			if (selfClosing) {
-				return null;
+				return { css: null, childrenSuppressed: false };
 			}
 			const parts = [];
 			for (const child of node.children) {
@@ -1125,14 +1230,14 @@ export const scanZIndexFile = ({
 				} else if (ts.isJsxExpression(child)) {
 					const text = staticString(child.expression);
 					if (text == null) {
-						return null;
+						return { css: null, childrenSuppressed: false };
 					}
 					parts.push(text);
 				} else {
-					return null;
+					return { css: null, childrenSuppressed: false };
 				}
 			}
-			return parts.join('');
+			return { css: parts.join(''), childrenSuppressed: false };
 		};
 		const tagNameText = (node) => {
 			if (
@@ -1240,43 +1345,82 @@ export const scanZIndexFile = ({
 				});
 			}
 		}
-		const rawBindingForExpression = (node) => {
-			// Resolves an expression to a `?raw` import specifier when the
-			// binding reaches it unshadowed — the default import directly or
-			// the namespace form through `.default`. Only the declaration the
-			// binding actually resolves to counts, so a shadowed identifier is
-			// never mistaken for the raw import.
-			const expression = unwrapTransparentExpression(node);
-			if (expression == null) {
+		const rawImportEntryForExpression = (expression, visitedConsts) => {
+			// Resolves an expression to the `?raw` import entry it reaches —
+			// the default import directly, the namespace form through
+			// `.default`, or a module-scope `const` alias of either (following
+			// alias chains, cycle-guarded). Only the declaration the binding
+			// actually resolves to counts, so a shadowed identifier is never
+			// mistaken for the raw import.
+			const unwrapped = unwrapTransparentExpression(expression);
+			if (unwrapped == null) {
 				return null;
 			}
-			if (ts.isIdentifier(expression)) {
-				const entry = rawImportBindings.get(expression.text);
+			if (ts.isIdentifier(unwrapped)) {
+				const entry = rawImportBindings.get(unwrapped.text);
 				if (
 					entry != null &&
-					!entry.namespace &&
-					nearestBinding(expression, expression.text) === entry.declaration
+					nearestBinding(unwrapped, unwrapped.text) === entry.declaration
 				) {
-					return entry.specifier;
+					return entry;
+				}
+				const alias = moduleConstInitializers.get(unwrapped.text);
+				if (
+					alias != null &&
+					!visitedConsts.has(unwrapped.text) &&
+					nearestBinding(unwrapped, unwrapped.text) === alias.declaration
+				) {
+					const next = new Set(visitedConsts);
+					next.add(unwrapped.text);
+					return rawImportEntryForExpression(alias.initializer, next);
 				}
 				return null;
 			}
 			if (
-				ts.isPropertyAccessExpression(expression) &&
-				expression.name.text === 'default'
+				ts.isPropertyAccessExpression(unwrapped) &&
+				unwrapped.name.text === 'default'
 			) {
-				const owner = unwrapTransparentExpression(expression.expression);
-				if (owner != null && ts.isIdentifier(owner)) {
-					const entry = rawImportBindings.get(owner.text);
-					if (
-						entry?.namespace &&
-						nearestBinding(owner, owner.text) === entry.declaration
-					) {
-						return entry.specifier;
+				const owner = unwrapTransparentExpression(unwrapped.expression);
+				if (owner != null) {
+					const ownerEntry = rawImportEntryForExpression(owner, visitedConsts);
+					if (ownerEntry != null && ownerEntry.namespace) {
+						return { ...ownerEntry, namespace: false };
 					}
 				}
+				return null;
 			}
 			return null;
+		};
+		const rawBindingSpecifiersForExpression = (
+			node,
+			visitedConsts = new Set(),
+		) => {
+			// Every `?raw` specifier whose bytes reach the expression: the
+			// import binding directly (or through module-scope const aliases
+			// and `.default`), and every substitution of a template literal
+			// (`<style>{`${rawCss}`}</style>` ships the same bytes as the
+			// bare binding).
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
+				return [];
+			}
+			if (ts.isTemplateExpression(expression)) {
+				const specifiers = [];
+				for (const span of expression.templateSpans) {
+					specifiers.push(
+						...rawBindingSpecifiersForExpression(
+							span.expression,
+							visitedConsts,
+						),
+					);
+				}
+				return specifiers;
+			}
+			const entry = rawImportEntryForExpression(expression, visitedConsts);
+			if (entry == null || entry.namespace) {
+				return [];
+			}
+			return [entry.specifier];
 		};
 		const reportRawImportSink = (specifier, kind, sinkNode) => {
 			// A `?raw` import whose binding reaches a style-capable sink is
@@ -1290,22 +1434,53 @@ export const scanZIndexFile = ({
 				return;
 			}
 			const withoutQuery = specifier.split(/[?#]/)[0];
-			const relativeRawPath = withoutQuery.startsWith('~/')
-				? path.resolve(baseDir, 'src', withoutQuery.slice(2))
-				: path.resolve(baseDir, path.dirname(relativePath), withoutQuery);
-			const rawPath = path.isAbsolute(withoutQuery)
-				? withoutQuery
-				: relativeRawPath;
-			const text = rawImportTexts.get(path.resolve(rawPath));
+			let rawPath;
+			if (withoutQuery.startsWith('~/')) {
+				rawPath = path.resolve(baseDir, 'src', withoutQuery.slice(2));
+			} else if (withoutQuery.startsWith('/')) {
+				// Vite root-absolute specifiers (`/src/…?raw`) resolve against
+				// the project root, not the filesystem root.
+				rawPath = path.resolve(baseDir, withoutQuery.slice(1));
+			} else {
+				rawPath = path.resolve(
+					baseDir,
+					path.dirname(relativePath),
+					withoutQuery,
+				);
+			}
+			const resolvedPath = path.resolve(rawPath);
+			if (
+				inlineCssPaths != null &&
+				inlineCssPaths.has(resolvedPath) &&
+				!rawImportTexts.has(resolvedPath)
+			) {
+				// A CSS-language `?raw` import is recorded as inline CSS and
+				// its authored bytes are walked by the inline gate regardless
+				// of sink — nothing left for the sink walk to do.
+				return;
+			}
+			const text = rawImportTexts.get(resolvedPath);
 			if (text == null) {
-				// The production build validated every import (an unresolvable
-				// specifier fails the build), so a miss here only means the raw
-				// module never entered this build's transform graph — nothing
-				// ships.
+				// The build records every `?raw` module it transforms, so a
+				// miss after correct resolution means the specifier spelling
+				// is one the guard cannot map or the import never entered this
+				// build's graph. Either way the guard cannot inspect what
+				// ships — a named diagnostic, never a silent pass.
+				violations.push({
+					ruleId: 'z-index-unresolved-raw-import',
+					message:
+						`raw import \`${specifier}\` consumed by a style-capable sink ` +
+						'cannot be resolved to a recorded ?raw module — the guard ' +
+						'cannot inspect what ships; import the stylesheet through ' +
+						'the build graph.',
+					file: relativePath,
+					line: lineForOffset(content, sinkNode.getStart(sourceFile)),
+					source: specifier,
+				});
 				return;
 			}
 			const base = {
-				file: path.relative(baseDir, rawPath),
+				file: path.relative(baseDir, resolvedPath),
 				line: 1,
 				source: text.slice(0, 120),
 			};
@@ -1335,8 +1510,28 @@ export const scanZIndexFile = ({
 				});
 			}
 		};
+		const unresolvedSpreadViolation = (hostNode, opaqueSpreadNode, site) => {
+			const base = {
+				file: relativePath,
+				line: lineForOffset(content, hostNode.getStart(sourceFile)),
+			};
+			if (opaqueSpreadNode != null) {
+				base.source = opaqueSpreadNode.getText(sourceFile);
+			}
+			violations.push({
+				ruleId: 'z-index-unresolved-spread-shadow',
+				message:
+					'an unresolvable spread may carry or override the member this ' +
+					`rule must inspect (${site}) — the guard cannot verify what ` +
+					'ships; spread only a module-scope const object literal here, ' +
+					'or import the stylesheet through the build graph.',
+				...base,
+			});
+		};
 		const visitStaticStyleEscapes = (node) => {
-			const styleCss = staticStyleElementCss(node);
+			const styleResult = staticStyleElementCss(node);
+			const styleCss = styleResult == null ? null : styleResult.css;
+			const childrenSuppressed = styleResult?.childrenSuppressed ?? false;
 			if (styleCss != null) {
 				const base = {
 					file: relativePath,
@@ -1374,54 +1569,84 @@ export const scanZIndexFile = ({
 				}
 			}
 			const isStyleElement = tagNameText(node) === 'style';
-			if (isStyleElement && styleCss == null && ts.isJsxElement(node)) {
+			let elementAttributes = null;
+			if (ts.isJsxElement(node)) {
+				elementAttributes = node.openingElement.attributes;
+			} else if (ts.isJsxSelfClosingElement(node)) {
+				elementAttributes = node.attributes;
+			}
+			const payload =
+				elementAttributes == null
+					? null
+					: dangerousHtmlPayloadObject(elementAttributes);
+			if (isStyleElement && payload?.unresolved) {
+				// An unresolvable spread on a `<style>` element may carry
+				// `dangerouslySetInnerHTML` — the payload could be anything,
+				// so the element leaves the guarded class by name.
+				unresolvedSpreadViolation(
+					node,
+					payload.opaqueSpreadNode,
+					'a <style> element',
+				);
+			}
+			if (
+				isStyleElement &&
+				styleCss == null &&
+				!childrenSuppressed &&
+				ts.isJsxElement(node)
+			) {
 				// A `<style>` element whose children include a `?raw` import
 				// binding ships that file's bytes as CSS — the binding is the
 				// provenance, so text displayed elsewhere (a `<pre>`) is not
-				// walked. The raw walk reports unparseable bytes by name.
+				// walked. Aliases, template substitutions, and the namespace
+				// `.default` spelling are the same binding. The raw walk
+				// reports unparseable bytes by name.
 				for (const child of node.children) {
 					if (ts.isJsxExpression(child) && child.expression != null) {
-						const specifier = rawBindingForExpression(child.expression);
-						if (specifier != null) {
+						for (const specifier of rawBindingSpecifiersForExpression(
+							child.expression,
+						)) {
 							reportRawImportSink(specifier, 'style', child);
 						}
 					}
 				}
 			}
-			const payloadObject =
-				ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)
-					? dangerousHtmlPayloadObject(
-							ts.isJsxElement(node)
-								? node.openingElement.attributes
-								: node.attributes,
-						)
-					: null;
-			const dangerousHtml =
-				payloadObject == null
-					? null
-					: staticObjectProperty(payloadObject, '__html');
-			if (dangerousHtml != null) {
-				const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
-				for (const escape of htmlEscapes) {
-					violations.push({
-						...escape,
-						file: relativePath,
-						line: lineForOffset(content, node.getStart(sourceFile)),
-					});
-				}
-			} else if (payloadObject != null) {
-				// The payload is not a static string — when `__html` is a
-				// `?raw` import binding it still ships the file's bytes, as
-				// CSS on a `<style>` host or as HTML elsewhere.
-				const memberNode = staticObjectMemberNode(payloadObject, '__html');
-				const specifier =
-					memberNode == null ? null : rawBindingForExpression(memberNode);
-				if (specifier != null) {
-					reportRawImportSink(
-						specifier,
-						isStyleElement ? 'style' : 'html',
+			const payloadObject = payload == null ? null : payload.payloadObject;
+			if (payloadObject != null) {
+				const member = staticObjectMemberNode(payloadObject, '__html');
+				if (member.unresolved) {
+					// `{ __html: …, ...opaque }` — the spread may override the
+					// payload the guard would otherwise inspect.
+					unresolvedSpreadViolation(
 						node,
+						member.opaqueSpreadNode,
+						'a dangerouslySetInnerHTML payload',
 					);
+				} else if (member.node != null) {
+					const dangerousHtml = staticString(member.node);
+					if (dangerousHtml != null) {
+						const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
+						for (const escape of htmlEscapes) {
+							violations.push({
+								...escape,
+								file: relativePath,
+								line: lineForOffset(content, node.getStart(sourceFile)),
+							});
+						}
+					} else {
+						// The payload is not a static string — when `__html` is a
+						// `?raw` import binding it still ships the file's bytes,
+						// as CSS on a `<style>` host or as HTML elsewhere.
+						for (const specifier of rawBindingSpecifiersForExpression(
+							member.node,
+						)) {
+							reportRawImportSink(
+								specifier,
+								isStyleElement ? 'style' : 'html',
+								node,
+							);
+						}
+					}
 				}
 			}
 			let rel = null;
@@ -1434,8 +1659,20 @@ export const scanZIndexFile = ({
 				rel = staticJsxAttribute(node.attributes, 'rel');
 				href = staticJsxAttribute(node.attributes, 'href');
 			} else if (ts.isObjectLiteralExpression(node)) {
-				rel = staticObjectProperty(node, 'rel');
-				href = staticObjectProperty(node, 'href');
+				const relResult = staticObjectProperty(node, 'rel');
+				const hrefResult = staticObjectProperty(node, 'href');
+				// An unresolved spread may override the member, so the value is
+				// not provable — the named diagnostic carries the case and the
+				// literal rule must not fire on an unprovable member.
+				rel = relResult.unresolved ? null : relResult.value;
+				href = hrefResult.unresolved ? null : hrefResult.value;
+				if (relResult.unresolved || hrefResult.unresolved) {
+					unresolvedSpreadViolation(
+						node,
+						relResult.opaqueSpreadNode ?? hrefResult.opaqueSpreadNode,
+						'a link descriptor',
+					);
+				}
 			}
 			const relTokens =
 				rel == null
@@ -1465,17 +1702,26 @@ export const scanZIndexFile = ({
 				isDirectGlobalCss(registrationMember.owner) &&
 				ts.isObjectLiteralExpression(node.arguments[0])
 			) {
-				const property = staticObjectProperty(node.arguments[0], 'name');
-				if (property?.startsWith('--publy-z-')) {
+				const propertyResult = staticObjectProperty(node.arguments[0], 'name');
+				if (propertyResult.unresolved) {
+					unresolvedSpreadViolation(
+						node,
+						propertyResult.opaqueSpreadNode,
+						'CSS.registerProperty()',
+					);
+				} else if (
+					propertyResult.value != null &&
+					propertyResult.value.startsWith('--publy-z-')
+				) {
 					violations.push({
 						ruleId: 'z-index-scale-token-registered',
 						message:
-							`script registration of reserved scale token \`${property}\` can ` +
+							`script registration of reserved scale token \`${propertyResult.value}\` can ` +
 							'replace its inherited tier value — the --publy-z-* namespace ' +
 							'must not be registered with CSS.registerProperty().',
 						file: relativePath,
 						line: lineForOffset(content, node.getStart(sourceFile)),
-						source: `CSS.registerProperty(${property})`,
+						source: `CSS.registerProperty(${propertyResult.value})`,
 					});
 				}
 			}
@@ -2168,6 +2414,7 @@ export const runZIndexGuard = async ({
 					checkClassDelivery: false,
 					baseDir,
 					rawImportTexts,
+					inlineCssPaths: new Set(inlineCssPaths),
 				}),
 			);
 		}

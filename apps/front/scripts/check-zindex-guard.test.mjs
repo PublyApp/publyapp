@@ -1756,10 +1756,13 @@ test('e2e (round 7 audit): a static literal spread cannot smuggle a style payloa
 	);
 });
 
-test('e2e (round 7 audit): a spread whose source is not a static literal stays in the runtime bucket', async () => {
-	// `{...props}` with a module-scope object is the declared data-flow
-	// boundary (the guard does not trace object identifiers), so it stays
-	// green — matching the helper/import-produced spread exemption.
+test('e2e (round 11 B1): a module-scope const object-literal spread resolves like the literal spelling', async () => {
+	// `{...props}` whose source is a module-scope `const` bound to an object
+	// literal is the same static payload spelled through a binding — the
+	// payload is raw, so it reds exactly like the non-spread spelling. Round
+	// 9 treated every identifier spread as opaque; round 11 resolves the
+	// resolvable one (the guard already follows module-scope string
+	// constants) and names the genuinely opaque one instead of staying green.
 	const { violations } = await runFixtureGuard(
 		{
 			'probe.tsx': [
@@ -1772,6 +1775,29 @@ test('e2e (round 7 audit): a spread whose source is not a static literal stays i
 		'',
 		["import { probe } from './probe';"],
 	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`a resolvable const spread must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 11 B1): an unresolvable spread with no static facts stays in the runtime bucket', async () => {
+	// The other half of the round-7 boundary: a spread whose source is a
+	// function parameter cannot be traced, and there is no static fact for it
+	// to shadow, so the construct stays green — exactly the `<div {...props}/>`
+	// runtime bucket, on both the element and the descriptor shapes. The
+	// named diagnostic is reserved for the case where an unresolvable spread
+	// would otherwise silence a real fact.
+	const files = {
+		'probe.tsx': [
+			'export const probe = (props: any) => <style {...props} />;',
+			'export const descriptor = (props: any) => ({ links: [{ ...props }] });',
+		].join('\n'),
+	};
+	const { violations } = await runFixtureGuard(files, '', [
+		"import { probe, descriptor } from './probe';",
+	]);
 	assert.deepEqual(violations, []);
 });
 
@@ -1927,6 +1953,8 @@ test('e2e (round 7 M1): ?raw CSS that cannot be parsed is a named diagnostic', a
 		),
 		`unparseable raw-shipped CSS must be a named diagnostic: ${JSON.stringify(violations)}`,
 	);
+	// A CSS-language `?raw` module is recorded as inline CSS and walked by the
+	// inline gate; the sink walk must not double-report it as unresolved.
 });
 
 test('e2e (round 5 audit): build-reachable static script escapes are red', async () => {
