@@ -4,6 +4,8 @@ import { MarketingImageSlot } from '~/components/marketing/marketing-image-slot'
 import { buttonVariants } from '~/components/ui/button';
 import { cn } from '~/lib/utils';
 
+import { LANDING_06_PRESS_CLASSES } from './landing-motion';
+
 /**
  * The closing CTA (PROMPT.md §12.1–§12.3): the one deliberate backward step
  * on the page. After four tiers of tightening, the frame opens back up to D1
@@ -39,7 +41,11 @@ export const LandingClosingCta = () => {
 				<div className="mt-8 flex flex-wrap items-center justify-center gap-3">
 					<Link
 						to="/signup"
-						className={cn(buttonVariants({ size: 'lg' }), 'no-underline')}
+						className={cn(
+							buttonVariants({ size: 'lg' }),
+							'no-underline',
+							LANDING_06_PRESS_CLASSES,
+						)}
 					>
 						{t('landing-06-closing-primary-cta')}
 					</Link>
@@ -49,6 +55,7 @@ export const LandingClosingCta = () => {
 						className={cn(
 							buttonVariants({ variant: 'outline', size: 'lg' }),
 							'no-underline',
+							LANDING_06_PRESS_CLASSES,
 						)}
 					>
 						{t('landing-06-closing-secondary-cta')}

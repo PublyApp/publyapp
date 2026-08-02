@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { MarketingContainer } from '~/components/marketing/marketing-container';
 import { cn } from '~/lib/utils';
 
+import { useSectionReveal } from './use-section-reveal';
+
 /**
  * One density tier, D0–D4 (PROMPT.md §1.4). Every section on the page
  * declares exactly one tier and inherits all of its values — grid inset,
@@ -43,23 +45,28 @@ export const LandingTierSection = ({
 	anchor = true,
 	className,
 	children,
-}: LandingTierSectionProps) => (
-	<section
-		id={id}
-		data-testid={testId}
-		data-tier={tier}
-		data-band={band}
-		data-overlap={overlap ? 'true' : undefined}
-		className={cn(
-			'publy-landing-06-tier relative',
-			anchor && 'publy-marketing-anchor',
-			className,
-		)}
-	>
-		<MarketingContainer width="chrome">
-			<div className="publy-landing-06-tier-grid">
-				<div className="publy-landing-06-tier-content">{children}</div>
-			</div>
-		</MarketingContainer>
-	</section>
-);
+}: LandingTierSectionProps) => {
+	const revealRef = useSectionReveal<HTMLElement>();
+
+	return (
+		<section
+			ref={revealRef}
+			id={id}
+			data-testid={testId}
+			data-tier={tier}
+			data-band={band}
+			data-overlap={overlap ? 'true' : undefined}
+			className={cn(
+				'publy-landing-06-tier relative',
+				anchor && 'publy-marketing-anchor',
+				className,
+			)}
+		>
+			<MarketingContainer width="chrome">
+				<div className="publy-landing-06-tier-grid">
+					<div className="publy-landing-06-tier-content">{children}</div>
+				</div>
+			</MarketingContainer>
+		</section>
+	);
+};

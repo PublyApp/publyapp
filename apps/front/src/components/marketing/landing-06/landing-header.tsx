@@ -4,6 +4,7 @@ import { ThemeToggle } from '~/components/app-shell/theme/theme-toggle';
 import { buttonVariants } from '~/components/ui/button';
 import { cn } from '~/lib/utils';
 
+import { LANDING_06_PRESS_CLASSES } from './landing-motion';
 import { useCondensedChrome } from './use-condensed-chrome';
 
 const NAV_LINKS = [
@@ -91,7 +92,11 @@ export const LandingHeader = () => {
 					<ThemeToggle />
 					<Link
 						to="/signup"
-						className={cn(buttonVariants({ size: 'sm' }), 'no-underline')}
+						className={cn(
+							buttonVariants({ size: 'sm' }),
+							'no-underline',
+							LANDING_06_PRESS_CLASSES,
+						)}
 					>
 						{t('landing-06-nav-cta')}
 					</Link>

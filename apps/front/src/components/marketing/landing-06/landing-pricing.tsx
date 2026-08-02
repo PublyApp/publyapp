@@ -4,6 +4,8 @@ import { MarketingImageSlot } from '~/components/marketing/marketing-image-slot'
 import { buttonVariants } from '~/components/ui/button';
 import { cn } from '~/lib/utils';
 
+import { LANDING_06_PRESS_CLASSES } from './landing-motion';
+
 const TIERS = ['studio', 'agency', 'network'] as const;
 
 /**
@@ -30,7 +32,12 @@ export const LandingPricing = () => {
 			<p className="publy-landing-06-type-body mt-3 text-(--publy-foreground-secondary)">
 				{t('landing-06-pricing-subtitle')}
 			</p>
-			<div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+			{/* Mobile: one column, capped at a readable card width rather than
+			    the literal desktop cell width (§14.3 — at 960px with a 20px
+			    gutter the desktop cell is (960-40)/3=306px, which the prompt's
+			    own worked example rejects as "too narrow to read on a phone";
+			    400px is the readable value it settles on instead). */}
+			<div className="mx-auto mt-10 grid max-w-[400px] grid-cols-1 gap-5 md:mx-0 md:max-w-none md:grid-cols-3">
 				{TIERS.map((tier) => (
 					<div key={tier} className="publy-landing-06-frame">
 						<div className="publy-landing-06-frame-inner flex h-full flex-col gap-4 p-6">
@@ -68,6 +75,7 @@ export const LandingPricing = () => {
 										size: 'sm',
 									}),
 									'mt-auto no-underline',
+									LANDING_06_PRESS_CLASSES,
 								)}
 							>
 								{t(`landing-06-pricing-${tier}-cta`)}

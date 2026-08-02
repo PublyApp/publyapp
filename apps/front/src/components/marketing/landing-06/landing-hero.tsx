@@ -4,6 +4,8 @@ import { MarketingImageSlot } from '~/components/marketing/marketing-image-slot'
 import { buttonVariants } from '~/components/ui/button';
 import { cn } from '~/lib/utils';
 
+import { LANDING_06_PRESS_CLASSES } from './landing-motion';
+
 /**
  * The hero (PROMPT.md §4): pure typography on the page wash down to y≈474,
  * then the one framed, concentric, elevated panel this page grants to
@@ -32,10 +34,16 @@ export const LandingHero = () => {
 			<p className="publy-landing-06-type-deck-lg mt-4 max-w-[62ch] text-(--publy-foreground-secondary)">
 				{t('landing-06-hero-description')}
 			</p>
-			<div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+			{/* Mobile: stacked full-width buttons (§14.3), not a wrapped row —
+			    two lg buttons side by side at 390px crowd the French labels. */}
+			<div className="mt-8 flex w-full max-w-[360px] flex-col items-stretch gap-3 sm:max-w-none sm:w-auto sm:flex-row sm:items-center sm:justify-center">
 				<Link
 					to="/signup"
-					className={cn(buttonVariants({ size: 'lg' }), 'no-underline')}
+					className={cn(
+						buttonVariants({ size: 'lg' }),
+						'w-full no-underline sm:w-auto',
+						LANDING_06_PRESS_CLASSES,
+					)}
 				>
 					{t('landing-06-hero-primary-cta')}
 				</Link>
@@ -46,7 +54,8 @@ export const LandingHero = () => {
 					hash="tour"
 					className={cn(
 						buttonVariants({ variant: 'outline', size: 'lg' }),
-						'no-underline',
+						'w-full no-underline sm:w-auto',
+						LANDING_06_PRESS_CLASSES,
 					)}
 				>
 					{t('landing-06-hero-secondary-cta')}

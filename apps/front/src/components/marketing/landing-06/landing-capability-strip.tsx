@@ -48,8 +48,19 @@ export const LandingCapabilityStrip = () => {
 				<div
 					key={id}
 					className={cn(
-						'flex gap-3 p-6',
-						index >= 3 && 'lg:border-t lg:border-(--publy-border)',
+						// §14.3: "one column, border-t between cells" on mobile — a
+						// row divider is every cell after the first at whatever
+						// column count is active (1 col mobile, 2 col md, 3 col lg),
+						// i.e. `index >= columnCount`. The two overrides below remove
+						// the divider from cells that are still in row one once the
+						// grid gains columns: index 1 leaves row one at md (2-col);
+						// index 2 leaves row one at lg (3-col) — and `md:border-t-0`
+						// on index 1 persists upward through lg since no later
+						// breakpoint re-adds it.
+						'flex gap-3 border-(--publy-border) p-6',
+						index >= 1 && 'border-t',
+						index === 1 && 'md:border-t-0',
+						index === 2 && 'lg:border-t-0',
 					)}
 				>
 					<CellIcon

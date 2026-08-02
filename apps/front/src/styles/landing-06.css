@@ -36,11 +36,23 @@
 
 	/* The house entrance (brand block: opacity 0→1, translateY 6px→0, 360ms,
 	   house easing) reuses the SHARED `publy-state-rise` keyframe already
-	   declared once in app.css — this page does not need its own keyframe,
-	   only a named hook a later task can attach after an IntersectionObserver
-	   fires. `prefers-reduced-motion` is handled globally already (app.css's
-	   blanket `* { transition-duration: 1ms !important }` rule), so nothing
-	   page-specific is needed here. */
+	   declared once in app.css. `useSectionReveal` (per §13.2/§13.4) attaches
+	   these two classes directly to each tier `<section>` DOM node from a
+	   client effect — never through the server-rendered className — so a
+	   visitor without JavaScript, or one mid-hydration, always sees the
+	   section at its final, visible state. `-pending` is the pre-reveal state
+	   (only ever added by JS, and only when the visitor has no reduced-motion
+	   preference); `-reveal` plays the entrance once and is swapped in when
+	   the section's `IntersectionObserver` fires. `prefers-reduced-motion` is
+	   ALSO handled globally by app.css's blanket 1ms collapse, but the hook
+	   skips adding `-pending` entirely under that preference rather than
+	   relying solely on the 1ms collapse, so a reduced-motion visitor never
+	   sees even a sub-frame opacity dip. */
+	.publy-landing-06-reveal-pending {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+
 	.publy-landing-06-reveal {
 		animation: publy-state-rise 360ms var(--publy-motion-ease) both;
 	}
@@ -396,6 +408,14 @@
 		--publy-surface: #18181b;
 		--publy-surface-raised: #1f1f23;
 		--publy-surface-hover: #2f2f33;
+		/* §15.1's binding check: the light theme's own focus ring (#a16207)
+		   still clears 3:1 against this band's #18181b (measured ≈3.6:1), but
+		   re-scoping it to the dark theme's ring here keeps the visible ring
+		   consistent with every other token this band re-scopes, rather than
+		   leaving one token to survive on a numeric coincidence. Nothing in
+		   this section is focusable today (§8.4 — three plain text columns),
+		   so this is forward cover for whatever is added here next. */
+		--publy-focus-ring: #facc15;
 	}
 
 	/* ---- 4. Elevation — the two-exception shadow cascade (§1.6) ---- */

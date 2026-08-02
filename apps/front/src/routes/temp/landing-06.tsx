@@ -1,4 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 import { LandingCapabilityStrip } from '~/components/marketing/landing-06/landing-capability-strip';
 import { LandingClosingCta } from '~/components/marketing/landing-06/landing-closing-cta';
 import { LandingDifferentiators } from '~/components/marketing/landing-06/landing-differentiators';
@@ -32,11 +33,23 @@ export const Route = createFileRoute('/temp/landing-06')({
  */
 
 function LandingExploration06() {
+	const { t } = useTranslation('landing-06');
+
 	return (
 		<div
 			data-testid="landing-06-page"
 			className="publy-landing-06 flex min-h-dvh flex-col"
 		>
+			{/* §15.6: keyboard order is skip link → header → main → footer.
+			    Invisible until focused; a keyboard user tabbing in from the
+			    address bar can jump straight past the header/nav repetition. */}
+			<Link
+				to="/temp/landing-06"
+				hash="landing-06-main"
+				className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-3 focus-visible:z-(--publy-z-toast) focus-visible:rounded-[var(--publy-radius-small-control)] focus-visible:bg-(--publy-surface) focus-visible:px-4 focus-visible:py-2 focus-visible:text-(--publy-foreground) focus-visible:no-underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+			>
+				{t('landing-06-skip-to-content')}
+			</Link>
 			<LandingHeader />
 			{/* The header goes `fixed` once condensed and leaves the flow; this
 			    spacer reserves the space it occupied while `sticky`, so nothing
@@ -44,7 +57,12 @@ function LandingExploration06() {
 			<div aria-hidden="true" className="h-(--publy-header-height)" />
 			<main
 				id="landing-06-main"
-				className="relative isolate flex-1 overflow-x-clip"
+				// -1: not in the tab order, but programmatically focusable so the
+				// skip link above actually moves focus here rather than only
+				// scrolling — a hash jump to a non-focusable target leaves focus
+				// stranded at the top of the document.
+				tabIndex={-1}
+				className="relative isolate flex-1 overflow-x-clip outline-none"
 			>
 				<LandingPageWash />
 				<LandingTierSection
