@@ -741,11 +741,11 @@ const DARK_GATE_SELECTOR_PATTERN =
 const isConditionalAtRuleAncestor = (node: postcss.Node): boolean => {
 	let current = node.parent;
 	while (current != null && current.type !== 'root') {
-		if (
-			current.type === 'atrule' &&
-			CONDITIONAL_AT_RULES.has(current.name.toLowerCase())
-		) {
-			return true;
+		if (current instanceof postcss.AtRule) {
+			const name = current.name.toLowerCase();
+			if (CONDITIONAL_AT_RULES.has(name)) {
+				return true;
+			}
 		}
 		current = current.parent;
 	}
@@ -790,7 +790,10 @@ export const compiledStyleFromCss = (
 		supply: boolean,
 	): void => {
 		for (const node of rule.nodes ?? []) {
-			if (node.type !== 'decl' || !isRelevantProperty(node.prop)) {
+			if (
+				!(node instanceof postcss.Declaration) ||
+				!isRelevantProperty(node.prop)
+			) {
 				continue;
 			}
 			const value = node.value.trim();
@@ -801,16 +804,19 @@ export const compiledStyleFromCss = (
 		}
 	};
 
-	const visit = (node: postcss.Node, underExactMatch: boolean): void => {
+	const visit = (node: postcss.Container, underExactMatch: boolean): void => {
 		for (const child of node.nodes ?? []) {
-			if (child.type === 'decl') {
+			if (child instanceof postcss.Declaration) {
 				if (underExactMatch && isRelevantProperty(child.prop)) {
 					sweep.push({ prop: child.prop, value: child.value.trim() });
 				}
 				continue;
 			}
-			if (child.type !== 'rule') {
+			if (child instanceof postcss.AtRule) {
 				visit(child, underExactMatch);
+				continue;
+			}
+			if (!(child instanceof postcss.Rule)) {
 				continue;
 			}
 			const exact = isExactClassSelector(child.selector, needle);

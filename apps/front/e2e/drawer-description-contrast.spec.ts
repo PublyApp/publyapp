@@ -50,17 +50,29 @@ const PROFILE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
 const STAFF_USER_ID = '0197b8f0-5555-7ccc-8ccc-cccccccccccc';
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
 
-// Round 7 M5: the selectors this spec actually measures — every drawer case
-// measures `[data-slot="drawer-description"]`, which carries
-// `.publy-drawer-description`, plus one explicit live case per non-drawer
-// description class. The linkage test below fails until this list covers
-// every selector in the source guard's DESCRIPTION_SELECTORS, so a fourth
-// description class cannot gain source coverage and never browser coverage.
-const BROWSER_COVERED_SELECTORS = [
-	'.publy-drawer-description',
-	'.publy-danger-zone-row-description',
-	'.publy-field-switch-description',
-];
+// Round 8 M4: the linkage used to compare against BROWSER_COVERED_SELECTORS,
+// a plain string[] nothing else read — adding a selector to the source list
+// reddened the linkage, but the cheapest remedy was to TYPE the string into
+// the second list, no measurement required. That list is gone. The selectors
+// this spec measures are now live case DEFINITIONS (below, after the
+// openers): each entry carries a real opener (navigates to a page) and a real
+// locator (finds the element), and the tests are DRIVEN from this list.
+// Satisfying the linkage for a fourth description class means writing a case
+// that opens a page and measures a real element — the drawer-opener model,
+// one list down.
+//
+// `.publy-drawer-description` is not a single case: it is covered by EVERY
+// drawer case, each of which measures `[data-slot="drawer-description"]` and
+// asserts (assertDrawerDescriptionContrast, live) that the slot actually
+// carries the class — so that coverage is a measurement, not a comment.
+const DRAWER_DESCRIPTION_SELECTOR = '.publy-drawer-description';
+
+type DescriptionLiveCase = {
+	selector: string;
+	name: string;
+	open: (page: Page) => Promise<void>;
+	locate: (page: Page) => Locator;
+};
 
 type Theme = 'light' | 'dark';
 type Rgba = { r: number; g: number; b: number; a: number };
@@ -356,6 +368,27 @@ const openFieldValidationFixture = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('field-validation-title')).toBeVisible();
 };
 
+// Round 8 M4: the selectors this spec measures, as live case DEFINITIONS —
+// each carries a real opener and a real locator, and the live tests below
+// are driven from this exact list (so is the linkage test). A selector added
+// to the source guard's DESCRIPTION_SELECTORS fails the linkage until a real
+// measurement case exists here; typing the string into a second list is no
+// longer a remedy, because there is no second list.
+const DESCRIPTION_LIVE_CASES: readonly DescriptionLiveCase[] = [
+	{
+		selector: '.publy-danger-zone-row-description',
+		name: 'danger-zone description',
+		open: openProfileOverview,
+		locate: (page) => page.locator('.publy-danger-zone-row-description'),
+	},
+	{
+		selector: '.publy-field-switch-description',
+		name: 'Field.Switch description',
+		open: openFieldValidationFixture,
+		locate: (page) => page.locator('.publy-field-switch-description'),
+	},
+];
+
 const parseComputedColor = (value: string): Rgba => {
 	const match =
 		/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(
@@ -611,11 +644,17 @@ const assertDrawerDescriptionContrast = async (
 ): Promise<void> => {
 	const drawer = page.getByTestId(drawerTestId);
 	await expect(drawer).toHaveCSS('translate', 'none');
+	const description = drawer.locator('[data-slot="drawer-description"]');
+	// Round 8 M4: the drawer cases are the LIVE browser coverage of
+	// `.publy-drawer-description` — asserted here, per drawer, so the
+	// linkage's claim that the slot carries the class is a measurement, not
+	// a comment.
+	await expect(description).toHaveClass(/publy-drawer-description/);
 	await assertTextContrast({
 		label: drawerTestId,
 		page,
 		testInfo,
-		text: drawer.locator('[data-slot="drawer-description"]'),
+		text: description,
 	});
 };
 
@@ -683,13 +722,21 @@ test.describe('live description text contrast (#1043 / PR #1061)', () => {
 		}
 	});
 
-	// Round 7 M5: the source guard's DESCRIPTION_SELECTORS is its own list,
+	// Round 8 M4: the source guard's DESCRIPTION_SELECTORS is its own list,
 	// and this spec's explicit description cases used to be hardcoded with
 	// nothing relating the two — a fourth description class gained source
-	// coverage automatically and browser coverage never. This fails the e2e
-	// until a live case exists, mirroring the inventory linkage above.
+	// coverage automatically and browser coverage never, and the old
+	// BROWSER_COVERED_SELECTORS string[] was satisfiable by copy-paste. The
+	// coverage is now the DESCRIPTION_LIVE_CASES definitions below (real
+	// openers + real locators, driven into actual tests) plus the drawer
+	// description class, whose live coverage every drawer case asserts via
+	// toHaveClass. This fails the e2e until a live case exists.
 	test('every source-guarded description selector has a live browser case', () => {
-		expect([...BROWSER_COVERED_SELECTORS].sort()).toEqual(
+		const liveSelectors = new Set([
+			DRAWER_DESCRIPTION_SELECTOR,
+			...DESCRIPTION_LIVE_CASES.map((liveCase) => liveCase.selector),
+		]);
+		expect([...liveSelectors].sort()).toEqual(
 			[...DESCRIPTION_SELECTORS].sort(),
 		);
 	});
@@ -703,29 +750,19 @@ test.describe('live description text contrast (#1043 / PR #1061)', () => {
 		});
 	}
 
-	test('the real danger-zone description clears 4.5:1 in both themes', async ({
-		page,
-	}, testInfo) => {
-		await openProfileOverview(page);
-		await assertTextContrast({
-			label: 'profile-danger-zone',
+	for (const liveCase of DESCRIPTION_LIVE_CASES) {
+		test(`the real ${liveCase.name} clears 4.5:1 in both themes`, async ({
 			page,
-			testInfo,
-			text: page.locator('.publy-danger-zone-row-description'),
+		}, testInfo) => {
+			await liveCase.open(page);
+			await assertTextContrast({
+				label: liveCase.name,
+				page,
+				testInfo,
+				text: liveCase.locate(page),
+			});
 		});
-	});
-
-	test('the real Field.Switch description clears 4.5:1 in both themes', async ({
-		page,
-	}, testInfo) => {
-		await openFieldValidationFixture(page);
-		await assertTextContrast({
-			label: 'field-switch-description',
-			page,
-			testInfo,
-			text: page.locator('.publy-field-switch-description'),
-		});
-	});
+	}
 
 	// Round 5 I7: the source model deliberately drops `@media`-nested rules
 	// (documented in css-cascade-test-support.ts) and defers to a real-browser
