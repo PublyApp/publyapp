@@ -203,6 +203,7 @@ const buildRouteFixture = async ({
 	customSourcemapFileNames = false,
 	coarsenSplitMap = false,
 	forgeSplitMap = false,
+	emitKeepMap = false,
 }) => {
 	let buildOptions = '';
 	if (groupProbeModules) {
@@ -227,6 +228,17 @@ const buildRouteFixture = async ({
 			export default defineConfig({
 				${buildOptions}
 				plugins: [
+					${
+						emitKeepMap
+							? `{
+							name: 'r22-emit-keep-map',
+							applyToEnvironment: (environment) => environment.name === 'client',
+							buildStart() {
+								this.emitFile({ type: 'asset', fileName: 'assets/keep.map', source: '{"version":3,"sources":[],"mappings":""}' });
+							},
+						},`
+							: ''
+					}
 					${
 						forgeSplitMap
 							? `{
@@ -5112,7 +5124,7 @@ void test(
 );
 
 void test(
-	'emits no client source map files after the guard consumes them',
+	'emits no client source map files after the guard consumes them while an unrelated map asset survives',
 	{ timeout: 120_000 },
 	async () => {
 		const inventory = [
@@ -5138,6 +5150,7 @@ void test(
 				`,
 			},
 			inventory,
+			emitKeepMap: true,
 		});
 
 		try {
@@ -5146,10 +5159,31 @@ void test(
 				path.join(result.fixtureDirectory, 'dist', 'client'),
 				{ recursive: true },
 			);
+			const mapFiles = clientFiles.filter((file) => file.endsWith('.map'));
+			// The forced chunk maps must not ship anywhere in the client
+			// output — but the unrelated asset an earlier plugin emitted
+			// (assets/keep.map) is not a map this plugin forced, and it must
+			// survive byte-for-byte instead of being swept up by a *.map
+			// filename filter.
 			assert.deepEqual(
-				clientFiles.filter((file) => file.endsWith('.map')),
+				mapFiles.filter((file) => file !== 'assets/keep.map'),
 				[],
 				'guard-stripped source maps must not ship anywhere in the client output',
+			);
+			const keepMap = await readFile(
+				path.join(
+					result.fixtureDirectory,
+					'dist',
+					'client',
+					'assets',
+					'keep.map',
+				),
+				'utf8',
+			);
+			assert.equal(
+				keepMap,
+				'{"version":3,"sources":[],"mappings":""}',
+				'the unrelated .map asset must survive byte-for-byte',
 			);
 			// 'hidden' also keeps the sourceMappingURL comment out of the chunks.
 			const chunkCode = await readFile(
@@ -5171,7 +5205,7 @@ void test(
 );
 
 void test(
-	'emits no client source map files even when the output renames map files',
+	'emits no client source map files even when the output renames map files while an unrelated map asset survives',
 	{ timeout: 120_000 },
 	async () => {
 		const inventory = [
@@ -5198,6 +5232,7 @@ void test(
 			},
 			inventory,
 			customSourcemapFileNames: true,
+			emitKeepMap: true,
 		});
 
 		try {
@@ -5208,11 +5243,29 @@ void test(
 			);
 			// With `sourcemapFileNames: 'maps/[name]-[hash].map'` the map
 			// assets live outside `assets/` under names no `${chunk}.map`
-			// derivation could have guessed; the guard must still strip them.
+			// derivation could have guessed; the guard must still strip them —
+			// while the unrelated `assets/keep.map` asset survives untouched.
 			assert.deepEqual(
-				clientFiles.filter((file) => file.endsWith('.map')),
+				clientFiles.filter(
+					(file) => file.endsWith('.map') && file !== 'assets/keep.map',
+				),
 				[],
 				'guard-stripped source maps must not ship under renamed map file names',
+			);
+			const keepMap = await readFile(
+				path.join(
+					result.fixtureDirectory,
+					'dist',
+					'client',
+					'assets',
+					'keep.map',
+				),
+				'utf8',
+			);
+			assert.equal(
+				keepMap,
+				'{"version":3,"sources":[],"mappings":""}',
+				'the unrelated .map asset must survive byte-for-byte',
 			);
 			const chunkCode = await readFile(
 				path.join(
