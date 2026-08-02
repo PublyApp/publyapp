@@ -65,15 +65,20 @@ The guard deliberately throws instead of passing when it cannot classify rendere
   name with a `$1` suffix (`ProbeContext$1`), and when the binding is a destructuring pattern
   (`const { probe: ProbeContext } = makeContexts(null)`).
 - A rendered factory call in a holder position (object property value, array element, export
-  default) that survives with a recognized callee in a file owning an `<anonymous context>`
-  entry is counted as a mint. Attribution is keyed on the callee's **declared export name**,
-  not its local spelling: the source scan records the resolved identity of each minting
-  callee (so `import { createStrictContext as mk }`, `import mkDefault from …`, and barrel
-  re-exports all attribute to `createStrictContext`, which is the name the bundler emits),
-  and the rendered copy is a mint when its callee — or, for an IIFE wrapper, the call the
-  wrapper executes — matches that identity. Holder-position calls whose callee is not a
-  known minting callee (TanStack's own `component: lazyRouteComponent(…)` split shim, for
-  example) are calls whose value is not known to be a context, and are not counted as mints.
+  default) that survives at a **recorded minting position** in a file owning an `<anonymous
+  context>` entry is counted as a mint. Attribution is keyed on the call's **structural
+  position**, not on any callee name: the source scan records the binding name plus the
+  property/index chain where the minted value lands (`contexts.probe`, `contexts[0]`,
+  `<default>.probe`), and the rendered copy is a mint when a holder-position call sits at one
+  of those positions (the binding name matched modulo the bundler's `$N` deconfliction
+  suffix). Object keys, array element order, and binding names survive every bundler
+  transform — which is precisely why callee names cannot be trusted: bundlers rewrite import
+  names, synthesize anonymous-default names (`make_context_default`), and choose import
+  aliases at chunk assembly, so a same-named function in another module can forge a name
+  match but cannot move a call to a position the source scan never recorded as a mint.
+  Holder-position calls at positions that were never recorded (TanStack's own
+  `component: lazyRouteComponent(…)` split shim, for example) are calls whose value is not
+  known to be a context, and are not counted as mints.
 - **Unattributed presence fails closed.** When a source file owns an inventory entry and
   **two or more copies** of its module are delivered (each module–chunk pair is a copy)
   while no rendered copy is attributed a mint, the guard cannot tell whether the context is
@@ -118,10 +123,10 @@ closed by design.
   discovered when its result is bound or held (the enclosing binding or holder is typed),
   and when the result is discarded nothing can consume the duplicate, so neither form is a
   real coverage gap. A comma-chain or IIFE-wrapped holder value (`{ p: (0, factory()) }`,
-  `{ p: (() => factory())() }`) is discovered, inventoried, and attributed through the call
-  the wrapper executes — the residual here is only a wrapper the bundler rewrites so the
-  minting callee disappears, and that case fails closed on unattributed presence instead of
-  passing.
+  `{ p: (() => factory())() }`) is discovered and inventoried, and the holder position the
+  wrapper's value lands in is attributed positionally — the residual here is only a bundler
+  transform that rewrites the holder itself, and that case fails closed on unattributed
+  presence instead of passing.
 - A factory returning a *record* of contexts, bound to a plain identifier
   (`const contexts = makeContexts()`), is invisible: the type scan keys on the binding's own
   type, and an object whose *property* is a context is not itself a context. The destructured
