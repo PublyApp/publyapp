@@ -1876,6 +1876,31 @@ test('an edge accent stripe on the toast stays measured', async ({ page }) => {
 });
 
 /**
+ * Round-7 M2's second undeclared gap, closed in code: a RELATIVELY
+ * positioned pseudo paints the origin's box translated by its offsets, and
+ * resolving that box was exactly what the old rule did not do — it tested
+ * the origin's own rectangle, which is where the pseudo ISN'T when it is
+ * offset away. This pseudo paints over the close-button corner, far from
+ * the title's ink; before the fix the origin rectangle still contained the
+ * sampled point and the guard redded a paint that never reached the text.
+ */
+test('a relatively positioned pseudo offset away from the glyphs stays measured', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			".publy-toast-title::after { content: ''; position: relative; z-index: 1; left: 250px; top: 5px; width: 46px; height: 11px; background: rgb(255 0 0); pointer-events: none; }",
+	});
+	const toast = await renderToast(page, 'success');
+	const measurement = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+	);
+	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
+});
+
+/**
  * Paired proof for the click-through scan (round-5 B1): the 220x40
  * click-through scrim over the title — invisible to hit testing, exactly
  * the round-5 reproduction — must red the guard BY NAME, and the same box
