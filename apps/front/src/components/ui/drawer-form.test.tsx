@@ -130,6 +130,7 @@
  * silence the form-link verdict or hide the file from discovery).
  */
 
+import { spawn } from 'node:child_process';
 import {
 	existsSync,
 	mkdtempSync,
@@ -140,6 +141,7 @@ import {
 	unlinkSync,
 	writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -317,14 +319,90 @@ const RE_EXPORT_CHAIN_DEPTH_LIMIT = 6;
 // then reads each one — a fixture deleted between the list and the read is
 // an ENOENT that reddens an innocent suite (reproduced at HEAD in round 11:
 // five i18n tests red). They live in a per-run temp directory instead,
-// created once here and removed on every exit path: the afterAll below,
-// plus a synchronous process 'exit' net so a crashed or failed run still
-// cleans up (a sibling guard leaked 60,000 /tmp directories once; this
-// directory must never do the same).
-const FIXTURE_TMP_DIR = mkdtempSync(path.join(tmpdir(), 'publy-drawer-guard-'));
-process.on('exit', () => {
-	rmSync(FIXTURE_TMP_DIR, { recursive: true, force: true });
-});
+// created once here by drawer-guard-tmp-dir.cjs, which registers the
+// cleanup on every exit path: an 'exit' handler (crashes and failures) and
+// explicit SIGINT/SIGTERM handlers (cancellation — round 13's IMPORTANT 4:
+// `exit` never runs on a signal, so a cancelled run used to leak the whole
+// directory; a sibling guard once leaked 60,000 /tmp directories).
+const guardTempDirRequire = createRequire(import.meta.url);
+const { createGuardTempDir } = guardTempDirRequire(
+	'./drawer-guard-tmp-dir.cjs',
+) as {
+	createGuardTempDir: (prefix: string) => {
+		dir: string;
+		remove: () => void;
+	};
+};
+const FIXTURE_TMP_DIR = createGuardTempDir('publy-drawer-guard-').dir;
+
+// ---------------------------------------------------------------------------
+// Round 14, IMPORTANT 4: the SIGTERM probe. The "with handlers" child
+// requires the SAME drawer-guard-tmp-dir.cjs module the guard itself uses,
+// so a killed child exercises the guard's exact registration — the child
+// creates the directory through createGuardTempDir and then waits for the
+// signal. The exit-only child is the round-13 shape (raw mkdtempSync + an
+// 'exit' handler only) and documents the defect the signal handlers close.
+// Every directory the probe creates is registered here so the afterAll
+// removes it even if a test dies mid-probe; the `publy-drawer-sigterm-`
+// prefix deliberately differs from the guard's own prefix so a probe leak
+// can never be miscounted as a guard leak.
+// ---------------------------------------------------------------------------
+
+const GUARD_TMP_DIR_MODULE_PATH = path.join(
+	import.meta.dirname,
+	'drawer-guard-tmp-dir.cjs',
+);
+
+const SIGNAL_PROBE_WITH_HANDLERS = `
+const { createGuardTempDir } = require(${JSON.stringify(GUARD_TMP_DIR_MODULE_PATH)});
+const { dir } = createGuardTempDir('publy-drawer-sigterm-probe-');
+process.stdout.write(dir + '\\n');
+setInterval(() => undefined, 60000);
+`;
+
+const SIGNAL_PROBE_EXIT_ONLY = `
+const { mkdtempSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const path = require('node:path');
+const dir = mkdtempSync(path.join(tmpdir(), 'publy-drawer-sigterm-probe-'));
+process.on('exit', () => rmSync(dir, { recursive: true, force: true }));
+process.stdout.write(dir + '\\n');
+setInterval(() => undefined, 60000);
+`;
+
+const signalProbeDirs: string[] = [];
+
+const runSignalProbeChild = (
+	childSource: string,
+	signal: NodeJS.Signals,
+): Promise<string> =>
+	new Promise((resolve, reject) => {
+		const child = spawn(process.execPath, ['-e', childSource], {
+			stdio: ['ignore', 'pipe', 'inherit'],
+		});
+		let buffer = '';
+		let dirPath: string | null = null;
+		child.stdout.on('data', (chunk: Buffer) => {
+			buffer += chunk.toString();
+			if (dirPath === null && buffer.includes('\n')) {
+				dirPath = buffer.split('\n')[0];
+				signalProbeDirs.push(dirPath);
+				child.kill(signal);
+			}
+		});
+		child.on('error', reject);
+		child.on('exit', () => {
+			if (dirPath !== null) {
+				resolve(dirPath);
+			} else {
+				reject(
+					new Error(
+						`signal probe exited before printing its temp dir (output: ${buffer})`,
+					),
+				);
+			}
+		});
+	});
 
 // Maps a fixture's logical `src/components/ui/...` name (used in the SOURCE
 // constants below) to its actual temp-directory path, and to the portable
@@ -4475,10 +4553,16 @@ afterEach(cleanup);
 
 // Round 11's IMPORTANT 3 — the fixture directory must be gone when the suite
 // is done, on every exit path. The assertion proves the afterAll cleanup
-// actually ran; the process 'exit' net above covers crashes and aborts.
+// actually ran; the process 'exit' net and the SIGINT/SIGTERM handlers above
+// cover crashes and cancellations (round 13's IMPORTANT 4).
 afterAll(() => {
 	rmSync(FIXTURE_TMP_DIR, { recursive: true, force: true });
 	expect(existsSync(FIXTURE_TMP_DIR)).toBe(false);
+	// The SIGTERM probe child removes its own directory; these are the
+	// safety net for a probe that died before the signal arrived.
+	for (const dir of signalProbeDirs) {
+		rmSync(dir, { recursive: true, force: true });
+	}
 });
 
 describe('drawer surface flex chain guard (#990)', () => {
@@ -5614,6 +5698,34 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_NS_BASE_ALIAS_DRAWER_PATH);
+		}
+	});
+
+	test('SIGTERM runs the guard signal handlers and removes the temp directory', async () => {
+		// Round 13's IMPORTANT 4: `process.on('exit')` does not run when the
+		// process dies on a signal, so the round-12 crash net leaked the
+		// whole temp dir on SIGTERM — exactly how CI cancels a job. The
+		// child below requires the guard's OWN drawer-guard-tmp-dir.cjs, so
+		// this exercises the exact registration a cancelled run goes
+		// through, and dies if the signal handlers are removed.
+		const handledDir = await runSignalProbeChild(
+			SIGNAL_PROBE_WITH_HANDLERS,
+			'SIGTERM',
+		);
+		expect(existsSync(handledDir)).toBe(false);
+
+		// The control: the round-13 shape (exit handler only) really does
+		// leak — the process dies on the signal and no handler runs. This
+		// pins that the probe above is exercising the signal path, and
+		// documents the defect the handlers close.
+		const leakedDir = await runSignalProbeChild(
+			SIGNAL_PROBE_EXIT_ONLY,
+			'SIGTERM',
+		);
+		try {
+			expect(existsSync(leakedDir)).toBe(true);
+		} finally {
+			rmSync(leakedDir, { recursive: true, force: true });
 		}
 	});
 
