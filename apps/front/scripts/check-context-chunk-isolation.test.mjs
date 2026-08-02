@@ -12,6 +12,7 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import {
@@ -3121,6 +3122,56 @@ void test('fails with a named diagnostic instead of hanging on a malformed sourc
 			),
 		/could not decode the source map for chunk assets\/route\.js: invalid VLQ character/i,
 	);
+});
+
+void test('bounds the malformed VLQ decode in a child process instead of letting a hang stall the suite', async () => {
+	// The in-process test above only proves today's diagnostic message; it
+	// cannot itself distinguish a fast throw from a hang, because a hang
+	// would stall this very test process forever rather than fail it. The
+	// original defect (before the VLQ decode was bounded) had exactly that
+	// shape: an out-of-range digit's continuation bit stays set forever, so
+	// an invalid or exhausted character never terminates the field. Running
+	// the decode in a child process under execFile's own `timeout` turns
+	// that failure mode into a bounded, in-process red assertion instead of
+	// a suite-wide hang that only an external `timeout` wrapper can end.
+	const moduleFile = path.join(
+		frontDirectory,
+		'scripts/context-source-map.mjs',
+	);
+	const probeScript = `
+			import(${JSON.stringify(pathToFileURL(moduleFile).href)}).then((mod) => {
+				try {
+					mod.decodeSourceMapSegments(
+						{ version: 3, sources: ['x'], mappings: '!' },
+						'assets/route.js',
+					);
+					console.error('DID_NOT_THROW');
+					process.exitCode = 1;
+				} catch (error) {
+					console.error(error.message);
+					process.exitCode = /invalid VLQ character/i.test(error.message)
+						? 0
+						: 2;
+				}
+			});
+		`;
+	try {
+		const { stderr } = await execFileAsync(
+			process.execPath,
+			['-e', probeScript],
+			{ timeout: 5_000 },
+		);
+		assert.match(stderr, /invalid VLQ character/i);
+	} catch (error) {
+		if (error.killed) {
+			assert.fail(
+				`the decode hung and was killed by the test's own timeout (signal ${error.signal}) instead of throwing a named diagnostic`,
+			);
+		}
+		assert.fail(
+			`expected the child process to exit 0 with the invalid VLQ diagnostic; it exited ${error.code} with stderr: ${error.stderr}`,
+		);
+	}
 });
 
 void test('fails with a named diagnostic on a truncated source map VLQ field', () => {
