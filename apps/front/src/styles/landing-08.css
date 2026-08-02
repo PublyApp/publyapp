@@ -1,0 +1,9 @@
+/* Landing exploration 08 — scoped stylesheet.
+
+   Owned exclusively by the /temp/landing-08 implementation. Every selector in
+   this file MUST be nested under `.publy-landing-08` so nothing here can reach
+   the product or the other explorations. Imported from app.css.
+
+   Tokens: reuse `--publy-*`. If this direction genuinely needs a value the
+   system lacks, define it here on `.publy-landing-08` in the `--publy-*`
+   convention with light and dark values, and say why in a comment. */
