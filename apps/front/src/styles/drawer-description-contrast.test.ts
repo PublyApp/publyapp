@@ -710,7 +710,9 @@ type CompiledUtilityStyle = {
 //      per token, and their arguments decide applicability (`:not` applies
 //      when no argument class is on the element, `:is` when one is;
 //      `:where` always applies; `:has` is descendant-dependent and is
-//      treated as a possible paint). Every other pseudo-class or attribute
+//      treated as a possible paint — its argument is NEVER matched against
+//      the subject element's own classes (round 13), and it is never a
+//      theme gate). Every other pseudo-class or attribute
 //      variant (`:hover`, `[data-active]`, structural pseudo-classes) is a
 //      STATE variant — it never paints at rest — so it never supplies and
 //      never competes.
@@ -1101,7 +1103,12 @@ const classifySelectorEntry = (
 			};
 		}
 		const args = token.args ?? '';
-		if (argListHasDarkGate(args)) {
+		// `:has()` is never a theme gate (round 13): its argument names a
+		// DESCENDANT, so a `.dark` inside it means "has a .dark descendant",
+		// not "in the dark theme" — gating it would drop a possible paint
+		// in the wrong theme. Every other functional pseudo-class keeps the
+		// Tailwind `dark:` gate.
+		if (token.name !== ':has' && argListHasDarkGate(args)) {
 			themeGate = themeGate ?? (token.name === ':not' ? 'light' : 'dark');
 		} else if (
 			token.name === ':not' &&
@@ -1115,7 +1122,7 @@ const classifySelectorEntry = (
 				uncertain: false,
 			};
 		} else if (
-			(token.name === ':is' || token.name === ':has') &&
+			token.name === ':is' &&
 			args !== '' &&
 			!argumentListMatches(args, elementClasses)
 		) {
@@ -1128,8 +1135,14 @@ const classifySelectorEntry = (
 				uncertain: false,
 			};
 		} else if (token.name === ':has') {
-			// `:has()` is descendant-dependent — the source model cannot
-			// verify the descendant, so the rule MAY paint at rest.
+			// Round 13: `:has()` matches DESCENDANTS, never the subject
+			// element's own class list — matching its arguments against the
+			// element's classes (as `argumentListMatches` does for `:is`)
+			// discards the rule on an irrelevant miss, exactly the round-12
+			// reviewer's reproduction (`:has(.child)` with `.child` beneath
+			// the element). The source model cannot verify the descendant,
+			// so the rule MAY paint at rest (rule 4): uncertain, before any
+			// subject-class argument matching.
 			uncertain = true;
 		}
 	}
@@ -1527,19 +1540,27 @@ export const compiledStyleFromCss = (
 		// Rule 2: the two-pass importance model — if any important
 		// declaration exists, only important ones compete; then layer,
 		// specificity, source order. Ancestor-qualified candidates never
-		// win — they are possible paints (rule 6).
+		// win — they are possible paints (rule 6). Round 13: for
+		// `!important` the LAYER precedence REVERSES — CSS Cascading and
+		// Inheritance Level 5 § 6.3: an important declaration in an
+		// EARLIER-declared layer beats a later one, and an important LAYERED
+		// declaration beats an important unlayered one (the exact opposite
+		// of the normal order, where unlayered outranks every layer).
 		const importantCandidates = candidates.filter(
 			(candidate) => candidate.important,
 		);
 		const contenders =
 			importantCandidates.length > 0 ? importantCandidates : candidates;
+		const important = importantCandidates.length > 0;
 		const definite = contenders.filter((candidate) => !candidate.uncertain);
 		if (definite.length === 0) {
 			continue;
 		}
 		let best = definite[0];
 		for (const candidate of definite.slice(1)) {
-			const higherLayer = candidate.layerRank > best.layerRank;
+			const higherLayer = important
+				? candidate.layerRank < best.layerRank
+				: candidate.layerRank > best.layerRank;
 			const sameLayer = candidate.layerRank === best.layerRank;
 			const higherSpecificity = candidate.specificity > best.specificity;
 			const later =
@@ -2093,6 +2114,39 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(style.color).toBe('var(--publy-foreground-subtle)');
 	});
 
+	// Round 13: `!important` REVERSES layer precedence (css-cascade-5
+	// § 6.3) — the round-12 reviewer proved the browser crowns the
+	// EARLIER layer for an important declaration while the source guard
+	// (normal layer order) crowned the later one. The same two rules with
+	// the importance flag flipped must produce OPPOSITE winners, and an
+	// important LAYERED declaration must beat an important unlayered one.
+	test('normal declarations: the later layer wins (round 13 layer order)', () => {
+		const css =
+			'@layer components { .a { color: var(--publy-foreground-subtle); } }\n' +
+			'@layer utilities { .b { color: var(--publy-foreground); } }';
+		expect(compiledStyleFromCss(css, ['a', 'b'], 'light').color).toBe(
+			'var(--publy-foreground)',
+		);
+	});
+
+	test('!important declarations: the EARLIER layer wins (round 13 layer reversal)', () => {
+		const css =
+			'@layer components { .a { color: var(--publy-foreground-subtle) !important; } }\n' +
+			'@layer utilities { .b { color: var(--publy-foreground) !important; } }';
+		expect(compiledStyleFromCss(css, ['a', 'b'], 'light').color).toBe(
+			'var(--publy-foreground-subtle)',
+		);
+	});
+
+	test('an important LAYERED declaration beats an important unlayered one (round 13 layer reversal)', () => {
+		const css =
+			'.b { color: var(--publy-foreground) !important; }\n' +
+			'@layer components { .a { color: var(--publy-foreground-subtle) !important; } }';
+		expect(compiledStyleFromCss(css, ['a', 'b'], 'light').color).toBe(
+			'var(--publy-foreground-subtle)',
+		);
+	});
+
 	test('a higher-specificity compound beats a later plain rule (round 10 M1)', () => {
 		const style = compiledStyleFromCss(
 			'.a.x { color: var(--publy-foreground-subtle); }\n' +
@@ -2174,6 +2228,31 @@ describe('drawer description text contrast (#1043)', () => {
 			'light',
 		);
 		expect(style.color).toBe('var(--publy-foreground)');
+	});
+
+	// Round 13: `:has()` matches DESCENDANTS, so its argument must never be
+	// matched against the subject element's own class list — the round-12
+	// reviewer reproduced exactly this on the real invite drawer:
+	// `.publy-r12-has-child:has(.publy-r12-child)` with `.publy-r12-child`
+	// BENEATH the element was discarded by the old subject-class argument
+	// check, and the guard read green while the browser painted the
+	// conditional colour at 2.51:1. The rule is a POSSIBLE paint — the
+	// descendant fixture class is in the CSS but never on the element.
+	test('a :has() rule is a possible paint, never discarded by subject-class matching (round 13)', () => {
+		const style = compiledStyleFromCss(
+			'.x { color: var(--publy-foreground); }\n' +
+				'.x:has(.publy-r12-child) { color: var(--publy-foreground-subtle); }',
+			['x'],
+			'light',
+		);
+		expect(style.color).toBe('var(--publy-foreground)');
+		expect(style.possible).toEqual([
+			{
+				color: 'var(--publy-foreground-subtle)',
+				textFillColor: null,
+				opacity: null,
+			},
+		]);
 	});
 
 	test('a :where() rule supplies with zero specificity and last-wins (round 10 M3)', () => {
