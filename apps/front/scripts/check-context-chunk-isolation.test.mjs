@@ -3065,6 +3065,39 @@ void test(
 			`),
 			inventory: holderInventory,
 		});
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'passes a real TanStack route build when a named-default-factory holder mint survives only in the split copy',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					import type { Context } from 'react';
+					export interface StrictContext<T> extends Context<T> { readonly strict: true; }
+					export default function createStrictContext<T>(fallback: T): StrictContext<T> {
+						return Object.assign(createContext(fallback), { strict: true as const });
+					}
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import mkDefault from '../make-context';
+					const contexts = { probe: mkDefault<null>(null) };
+					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory: holderInventory,
+		});
 
 		try {
 			assert.equal(result.status, 0, result.output);
