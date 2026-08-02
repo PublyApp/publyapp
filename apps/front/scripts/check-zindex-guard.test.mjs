@@ -816,12 +816,18 @@ test('e2e (round 7 M2): runZIndexGuard threads one allowlist counter through all
 
 test('e2e (round 7 M3): emitted CSS assets are collected case-insensitively', async () => {
 	// `collectCssPaths` folds `.css` names to ASCII lowercase, so an emitted
-	// asset with an uppercase extension cannot skip the compiled gate.
+	// asset with an uppercase extension cannot skip the compiled gate. A
+	// clean lowercase asset sits beside `FIXTURE.CSS` so the case-folding
+	// mutation fails THIS assertion (the uppercase violation is missing)
+	// instead of the empty-output gate (no assets found at all).
 	const { violations } = await runFixtureGuard(
 		{ 'probe.ts': `export const probe = 'probe';` },
 		'',
 		[],
-		[{ file: 'FIXTURE.CSS', content: '.probe { z-index: 2147483641; }' }],
+		[
+			{ file: 'FIXTURE.CSS', content: '.probe { z-index: 2147483641; }' },
+			{ file: 'fixture-clean.css', content: '.clean { color: red; }' },
+		],
 	);
 	assert.ok(
 		violations.some(
@@ -1315,6 +1321,196 @@ test('e2e (round 7 I2): ?raw on plain non-CSS text stays green', async () => {
 	);
 });
 
+test('e2e (round 8 I3): ?raw CSS-looking text displayed in <pre> stays green', async () => {
+	// The imported bytes ARE valid CSS, but the only sink is a text node —
+	// the bytes are displayed as escaped text, never shipped as a
+	// stylesheet. The guard distinguishes by import binding, not by file
+	// contents, so the same bytes in a <style> sink (above) stay red.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import cssCodeSample from './code-sample.txt?raw';`,
+				`export const probe = <pre>{cssCodeSample}</pre>;`,
+			].join('\n'),
+			'code-sample.txt': '.example { z-index: 2147483644; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`displayed raw CSS text must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 8 I2): unparseable browser-valid ?raw CSS in a <style> sink is a named diagnostic', async () => {
+	// CSS's legacy top-level `<!--`/`-->` comment tokens are valid for the
+	// browser but rejected by PostCSS, so the style-sink walk cannot parse
+	// the payload — that is a named diagnostic that fails the guard, never
+	// the silent compliant default. Chromium applies the exact payload.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawProbeCss from './raw-probe.txt?raw';`,
+				`export const probe = <style>{rawProbeCss}</style>;`,
+			].join('\n'),
+			'raw-probe.txt':
+				'<!-- .publy-r8-raw-probe { position: fixed; z-index: 2147483646; } -->',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map(({ ruleId, file }) => ({ ruleId, file })),
+		[{ ruleId: 'z-index-unparseable-static-css', file: 'src/raw-probe.txt' }],
+		`unparseable style-sink raw text must be a named diagnostic: ${JSON.stringify(violations)}`,
+	);
+	assert.match(
+		violations[0].message,
+		/consumed by a style sink and cannot be parsed as CSS/,
+	);
+});
+
+test('e2e (round 8 I2/I3): the same unparseable bytes displayed as text stay green', async () => {
+	// The paired half of the round-8 I2 fixture: identical imported bytes
+	// that red in a <style> sink stay green when the only sink is a text
+	// node — the two cases are distinguished by the import binding's sink,
+	// never by the bytes themselves.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawProbeText from './raw-probe.txt?raw';`,
+				`export const probe = <pre>{rawProbeText}</pre>;`,
+			].join('\n'),
+			'raw-probe.txt':
+				'<!-- .publy-r8-raw-probe { position: fixed; z-index: 2147483646; } -->',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`displayed unparseable raw text must stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
+test("raw sinks: the import binding's sink, never the bytes, decides the walk", () => {
+	// Unit-level pair over `scanZIndexFile`'s sink walk: the same bytes red
+	// through a <style> sink, stay green through a <pre> sink, and red as a
+	// named diagnostic when the style-sink bytes cannot be parsed. A shadowed
+	// binding is never mistaken for the raw import, and the namespace import
+	// spelling resolves through `.default`.
+	const baseDir = '/tmp/zindex-r9-unit';
+	const walk = (content, files) =>
+		scanZIndexFile({
+			scanner,
+			relativePath: 'probe.tsx',
+			content,
+			baseDir,
+			rawImportTexts: new Map(
+				Object.entries(files).map(([relative, text]) => [
+					path.join(baseDir, relative),
+					text,
+				]),
+			),
+		});
+	const cssText = '.overlay { z-index: 2147483642; }';
+	assert.deepEqual(
+		walk(
+			[
+				`import rawCss from './overlay.txt?raw';`,
+				'export const probe = <style>{rawCss}</style>;',
+			].join('\n'),
+			{ 'overlay.txt': cssText },
+		).map((violation) => violation.ruleId),
+		['z-index-declaration-not-on-scale'],
+		'style-sink raw CSS must red',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import rawCss from './overlay.txt?raw';`,
+				'export const probe = <pre>{rawCss}</pre>;',
+			].join('\n'),
+			{ 'overlay.txt': cssText },
+		),
+		[],
+		'text-sink raw CSS must stay green',
+	);
+	const legacyText = '<!-- .legacy { z-index: 2147483641; } -->';
+	assert.deepEqual(
+		walk(
+			[
+				`import rawCss from './legacy.txt?raw';`,
+				'export const probe = <style>{rawCss}</style>;',
+			].join('\n'),
+			{ 'legacy.txt': legacyText },
+		).map((violation) => violation.ruleId),
+		['z-index-unparseable-static-css'],
+		'unparseable style-sink raw text must be a named diagnostic',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import rawCss from './legacy.txt?raw';`,
+				'export const probe = <pre>{rawCss}</pre>;',
+			].join('\n'),
+			{ 'legacy.txt': legacyText },
+		),
+		[],
+		'the same unparseable bytes as displayed text must stay green',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import rawCss from './overlay.txt?raw';`,
+				'function show(rawCss: string) { return <style>{rawCss}</style>; }',
+				'export const probe = show("literal");',
+			].join('\n'),
+			{ 'overlay.txt': cssText },
+		),
+		[],
+		'a shadowed identifier must not resolve to the raw import',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import * as rawStyles from './overlay.txt?raw';`,
+				'export const probe = <style>{rawStyles.default}</style>;',
+			].join('\n'),
+			{ 'overlay.txt': cssText },
+		).map((violation) => violation.ruleId),
+		['z-index-declaration-not-on-scale'],
+		'namespace-import style sink must red',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import * as rawStyles from './overlay.txt?raw';`,
+				'export const probe = <style>{rawStyles.other}</style>;',
+			].join('\n'),
+			{ 'overlay.txt': cssText },
+		),
+		[],
+		'a namespace member other than default must not resolve to the raw text',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import rawHtml from './page.html?raw';`,
+				'export const probe = <div',
+				'  dangerouslySetInnerHTML={{ __html: rawHtml }}',
+				'/>;',
+			].join('\n'),
+			{ 'page.html': '<style>.evil { z-index: 2147483643; }</style>' },
+		).map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		'a raw HTML payload reaching innerHTML must be walked as HTML',
+	);
+});
+
 test('e2e (round 6 M2): scanner over an empty source root fails closed', async () => {
 	await assert.rejects(
 		runFixtureGuard(
@@ -1492,7 +1688,10 @@ test('e2e (round 7 audit): a static literal spread cannot smuggle a style payloa
 	// `{...{dangerouslySetInnerHTML: {__html: …}}}` is the same static
 	// payload spelled through a spread attribute; a static object literal is
 	// transparent through the spread, exactly as the object-literal
-	// descriptor rules already treat non-spread members.
+	// descriptor rules already treat non-spread members. Round 8 I1 adds the
+	// parenthesized payload spelling — `({__html: …})` is the same static
+	// object behind a transparent parenthesis, and the spread member is
+	// unwrapped before the object-literal test.
 	for (const element of [
 		[
 			'<style',
@@ -1502,10 +1701,24 @@ test('e2e (round 7 audit): a static literal spread cannot smuggle a style payloa
 			'/>;',
 		],
 		[
+			'<style',
+			'  {...{ dangerouslySetInnerHTML: ({',
+			"    __html: '.probe { z-index: 2147483637; }',",
+			'  }) }}',
+			'/>;',
+		],
+		[
 			'<div',
 			'  {...{ dangerouslySetInnerHTML: { __html:',
 			"    '<style>.probe { z-index: 2147483639; }</style>',",
 			'  } }}',
+			'/>;',
+		],
+		[
+			'<div',
+			'  {...{ dangerouslySetInnerHTML: ({',
+			"    __html: '<style>.probe { z-index: 2147483636; }</style>',",
+			'  }) }}',
 			'/>;',
 		],
 	]) {
@@ -1558,6 +1771,97 @@ test('e2e (round 7 audit): a spread whose source is not a static literal stays i
 		["import { probe } from './probe';"],
 	);
 	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 8 I4): a later unresolved spread shadows an earlier static style payload', async () => {
+	// Source-order last-write-wins, mirrored from real object/JSX semantics:
+	// `{...props}` may carry the attribute, so the earlier raw attribute no
+	// longer reaches the rendered element — the payload moves to the runtime
+	// bucket, where the guard cannot read it.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'const safeStyleProps = { dangerouslySetInnerHTML: { __html:',
+				"  '.probe { z-index: var(--publy-z-raised); }',",
+				'} };',
+				'export const probe = <style',
+				'  dangerouslySetInnerHTML={{',
+				"    __html: '.probe { z-index: 2147483647; }',",
+				'  }}',
+				'  {...safeStyleProps}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(violations, []);
+});
+
+test('e2e (round 8 I4): descriptor spreads obey source-order last-write-wins', async () => {
+	// A later unresolved spread may carry `rel`, so the earlier static
+	// `stylesheet` fact is invalidated and the descriptor leaves the guarded
+	// class. The same spread BEFORE an explicit member does not hide it — the
+	// explicit member establishes the fact again and the link stays red.
+	const { violations: safeViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"const runtimeLinkProps = { rel: 'preload' as const };",
+				'export const probe = { links: [{',
+				"  rel: 'stylesheet' as const,",
+				'  ...runtimeLinkProps,',
+				"  href: 'data:text/css,.probe%7Bz-index%3A2147483647%7D',",
+				'}] };',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(safeViolations, []);
+	const { violations: rawViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"const runtimeLinkProps = { rel: 'preload' as const };",
+				'export const probe = { links: [{',
+				'  ...runtimeLinkProps,',
+				"  rel: 'stylesheet' as const,",
+				"  href: 'data:text/css,.probe%7Bz-index%3A2147483647%7D',",
+				'}] };',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		rawViolations.map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		`an explicit member after an unknown spread must red: ${JSON.stringify(rawViolations)}`,
+	);
+});
+
+test('e2e (round 8 I4): an explicit raw payload after an unresolved spread stays red', async () => {
+	// The reverse ordering: the explicit attribute comes after `{...props}`
+	// and wins in JSX semantics, so the raw payload still ships.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"const props = { className: 'probe' };",
+				'export const probe = <style',
+				'  {...props}',
+				'  dangerouslySetInnerHTML={{',
+				"    __html: '.probe { z-index: 2147483647; }',",
+				'  }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`an explicit payload after an unknown spread must red: ${JSON.stringify(violations)}`,
+	);
 });
 
 test('e2e (round 7 M1): unparseable static <style> payload is a named diagnostic, not a crash', async () => {
