@@ -126,12 +126,18 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 //   - reserved-token writes mediated by helper parameters (a key or name that
 //     arrives through a function parameter or an unscanned import). Spreads
 //     are NOT silent: a spread whose source resolves to a module-scope const
-//     object literal is transparent, and a genuinely opaque spread in a
-//     style-capable position is a named `z-index-unresolved-spread-shadow`
-//     diagnostic — never a silent green.
+//     object literal — through any alias chain, followed to a cycle-guarded
+//     fixpoint — is transparent, and a genuinely opaque spread in a provably
+//     style-capable position (a `<style>` element, a dangerouslySetInnerHTML
+//     payload object, a CSS.registerProperty() descriptor) is a named
+//     `z-index-unresolved-spread-shadow` diagnostic even when it is the only
+//     source — never a silent green. An opaque spread in an object literal
+//     that is not provably a style descriptor stays in the runtime bucket.
 //   - `?raw` consumed through a dynamic `import('./x.txt?raw')` or re-exported
 //     across modules; the AST pass tracks static import declarations and
-//     per-file bindings only.
+//     per-file bindings only. A style-sink expression that contains a
+//     recorded raw binding in a position the guard cannot statically evaluate
+//     is a named `z-index-unresolved-raw-expression` diagnostic.
 //   - a class assembled by `+` string concatenation (`'z-' + 5`) produces no
 //     extractor candidate, so it ships no rule on its own — it is dead text
 //     UNLESS a rule for that class exists by another route. Any route that
@@ -281,6 +287,23 @@ const asciiLowerCase = (text) =>
 	text.replace(/[A-Z]/g, (character) =>
 		String.fromCharCode(character.charCodeAt(0) + 32),
 	);
+
+// Cartesian product of string candidate sets, concatenated in order. Used to
+// evaluate a template literal (static parts × substitution sets) or a `+` of
+// two static operands to every string the expression can provably be.
+const cartesianStringJoin = (sets) => {
+	let results = [''];
+	for (const set of sets) {
+		const next = [];
+		for (const prefix of results) {
+			for (const value of set) {
+				next.push(prefix + value);
+			}
+		}
+		results = next;
+	}
+	return new Set(results);
+};
 
 // PostCSS failures on arbitrary static payloads carry a terse `reason`; the
 // diagnostics name it so a developer can find the offending syntax without a
@@ -912,23 +935,192 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const staticString = (node) => {
+		// Every module-scope const resolution follows the alias chain to a
+		// fixpoint: `const a = b; const b = c; …` resolves to the final
+		// initializer, cycle-guarded (a cycle is opaque, not an infinite
+		// loop), with the shadowing check reapplied at every hop. A bound of
+		// one hop is exactly the "I stopped looking" defect round 13 exists
+		// to remove — the language allows unbounded alias chains, so the
+		// resolver does not bound them.
+		const resolveModuleConstFixpoint = (node, visitedConsts = new Set()) => {
 			const expression = unwrapTransparentExpression(node);
-			const direct = literalText(expression);
-			if (direct != null) {
-				return direct;
+			if (expression == null) {
+				return null;
 			}
-			if (expression != null && ts.isIdentifier(expression)) {
-				const moduleConstant = moduleConstInitializers.get(expression.text);
-				if (
-					moduleConstant != null &&
-					nearestBinding(expression, expression.text) ===
-						moduleConstant.declaration
-				) {
-					return literalText(moduleConstant.initializer);
+			if (!ts.isIdentifier(expression)) {
+				return expression;
+			}
+			if (visitedConsts.has(expression.text)) {
+				return null;
+			}
+			const moduleConstant = moduleConstInitializers.get(expression.text);
+			if (moduleConstant == null) {
+				return null;
+			}
+			if (
+				nearestBinding(expression, expression.text) !==
+				moduleConstant.declaration
+			) {
+				return null;
+			}
+			const next = new Set(visitedConsts);
+			next.add(expression.text);
+			return resolveModuleConstFixpoint(moduleConstant.initializer, next);
+		};
+		// Resolves a chain of property/element accesses rooted in module-scope
+		// consts to the value node it provably reads: `a.b.c` where `a` is a
+		// const object literal resolves through member `b` to the node `c`
+		// reads. Returns null when any hop is unprovable (absent member,
+		// opaque spread, non-const root).
+		const resolveMemberChain = (node, visitedConsts = new Set()) => {
+			const unwrapped = unwrapTransparentExpression(node);
+			if (unwrapped == null) {
+				return null;
+			}
+			if (ts.isPropertyAccessExpression(unwrapped)) {
+				const ownerNode = resolveMemberChain(
+					unwrapped.expression,
+					visitedConsts,
+				);
+				if (ownerNode == null || !ts.isObjectLiteralExpression(ownerNode)) {
+					return null;
 				}
+				return staticObjectMemberNode(ownerNode, unwrapped.name.text).node;
+			}
+			if (ts.isElementAccessExpression(unwrapped)) {
+				const key = staticString(unwrapped.argumentExpression);
+				if (key == null) {
+					return null;
+				}
+				const ownerNode = resolveMemberChain(
+					unwrapped.expression,
+					visitedConsts,
+				);
+				if (ownerNode == null || !ts.isObjectLiteralExpression(ownerNode)) {
+					return null;
+				}
+				return staticObjectMemberNode(ownerNode, key).node;
+			}
+			return resolveModuleConstFixpoint(unwrapped, visitedConsts);
+		};
+		// `String(x)` preserves the imported bytes exactly; only the unshadowed
+		// global spelling counts (a locally shadowed `String` is not a
+		// coercion the guard can reason about).
+		const isStringCoercion = (expression) => {
+			if (
+				!ts.isCallExpression(expression) ||
+				expression.arguments.length !== 1
+			) {
+				return false;
+			}
+			const callee = unwrapTransparentExpression(expression.expression);
+			return (
+				callee != null &&
+				ts.isIdentifier(callee) &&
+				callee.text === 'String' &&
+				nearestBinding(callee, callee.text) == null
+			);
+		};
+		// Static evaluation of the transparent expression family to the set of
+		// strings the expression can provably be: literals, const alias chains
+		// (fixpoint), both branches of a conditional, `String(...)`, member
+		// reads through const object literals, template literals whose every
+		// substitution is static (the product of their candidate sets), and
+		// `+` where both operands are static (the product of concatenations).
+		// A branch that is not statically string-valued makes the expression
+		// partially static: the provably-shipped strings of the static
+		// branches still ship, so they are returned, and the caller treats
+		// the expression as runtime for everything else (the raw-sink walk
+		// covers recorded `?raw` bindings). Returns null when no string
+		// provably ships.
+		const staticStringValues = (node, visitedConsts = new Set()) => {
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
+				return null;
+			}
+			if (
+				ts.isStringLiteral(expression) ||
+				ts.isNoSubstitutionTemplateLiteral(expression)
+			) {
+				return new Set([expression.text]);
+			}
+			if (ts.isIdentifier(expression)) {
+				const fixpoint = resolveModuleConstFixpoint(expression, visitedConsts);
+				return fixpoint == null
+					? null
+					: staticStringValues(fixpoint, visitedConsts);
+			}
+			if (ts.isConditionalExpression(expression)) {
+				const whenTrue = staticStringValues(expression.whenTrue, visitedConsts);
+				const whenFalse = staticStringValues(
+					expression.whenFalse,
+					visitedConsts,
+				);
+				if (whenTrue == null && whenFalse == null) {
+					return null;
+				}
+				return new Set([...(whenTrue ?? []), ...(whenFalse ?? [])]);
+			}
+			if (isStringCoercion(expression)) {
+				return staticStringValues(expression.arguments[0], visitedConsts);
+			}
+			if (ts.isTemplateExpression(expression)) {
+				let sets = [new Set([expression.head.text])];
+				for (const span of expression.templateSpans) {
+					const substitution = staticStringValues(
+						span.expression,
+						visitedConsts,
+					);
+					if (substitution == null) {
+						return null;
+					}
+					sets.push(substitution);
+					sets.push(new Set([span.literal.text]));
+				}
+				return cartesianStringJoin(sets);
+			}
+			if (ts.isPropertyAccessExpression(expression)) {
+				const memberNode = resolveMemberChain(expression, visitedConsts);
+				return memberNode == null
+					? null
+					: staticStringValues(memberNode, visitedConsts);
+			}
+			if (ts.isElementAccessExpression(expression)) {
+				const memberNode = resolveMemberChain(expression, visitedConsts);
+				return memberNode == null
+					? null
+					: staticStringValues(memberNode, visitedConsts);
+			}
+			if (
+				ts.isBinaryExpression(expression) &&
+				expression.operatorToken.kind === ts.SyntaxKind.PlusToken
+			) {
+				const left = staticStringValues(expression.left, visitedConsts);
+				const right = staticStringValues(expression.right, visitedConsts);
+				if (left == null || right == null) {
+					return null;
+				}
+				const joined = new Set();
+				for (const leftValue of left) {
+					for (const rightValue of right) {
+						joined.add(leftValue + rightValue);
+					}
+				}
+				return joined;
 			}
 			return null;
+		};
+		// A single-value projection of the family: used where exactly one
+		// static string is required (computed property names, `?raw` element
+		// keys). A conditional or concatenation that can evaluate to several
+		// distinct strings is not single-valued and stays unprovable here;
+		// the style-sink callers use `staticStringValues` directly.
+		const staticString = (node) => {
+			const values = staticStringValues(node);
+			if (values == null || values.size !== 1) {
+				return null;
+			}
+			return [...values][0];
 		};
 		const propertyName = (name) => {
 			if (ts.isComputedPropertyName(name)) {
@@ -942,42 +1134,27 @@ export const scanZIndexFile = ({
 		const spreadSourceObjectLiteral = (expression) => {
 			// Resolves a spread source to the object literal it provably is: a
 			// literal (through transparent wrappers) or a module-scope `const`
-			// bound to one (the same one-hop constant following the string
-			// rules). Returns null when the source is genuinely opaque — a
-			// parameter, an import, a call, an alias to anything else — and
-			// the caller must fail loud by name instead of assuming compliant.
-			const spreadObject = unwrapTransparentExpression(expression);
-			if (spreadObject == null) {
-				return null;
-			}
-			if (ts.isObjectLiteralExpression(spreadObject)) {
-				return spreadObject;
-			}
-			if (ts.isIdentifier(spreadObject)) {
-				const moduleConstant = moduleConstInitializers.get(spreadObject.text);
-				if (
-					moduleConstant != null &&
-					nearestBinding(spreadObject, spreadObject.text) ===
-						moduleConstant.declaration
-				) {
-					const initializer = unwrapTransparentExpression(
-						moduleConstant.initializer,
-					);
-					if (
-						initializer != null &&
-						ts.isObjectLiteralExpression(initializer)
-					) {
-						return initializer;
-					}
-				}
-			}
-			return null;
+			// chain bound to one, followed to a cycle-guarded fixpoint — the
+			// two-hop const-object alias is the same static payload as the
+			// literal, at any depth. Returns null when the fixpoint is
+			// genuinely not a static object — a parameter, an import, a call,
+			// a cycle — and the caller must fail loud by name instead of
+			// assuming compliant.
+			const fixpoint = resolveModuleConstFixpoint(expression);
+			return fixpoint != null && ts.isObjectLiteralExpression(fixpoint)
+				? fixpoint
+				: null;
 		};
-		const staticObjectMemberNode = (object, name) => {
+		const staticObjectMemberNode = (
+			object,
+			name,
+			visitedObjects = new Set(),
+		) => {
 			// Order-aware member resolution mirroring real object semantics:
 			// the last member with the name wins, and a static object-literal
 			// spread is transparent (its member is hoisted in place). A spread
-			// whose source resolves to a module-scope const object literal is
+			// whose source resolves to a module-scope const object literal —
+			// through any alias chain, to a cycle-guarded fixpoint — is
 			// equally transparent. A genuinely opaque spread (`{...props}` from
 			// a parameter, import, or call) is the declared data-flow boundary:
 			// it may carry the name, so it invalidates any fact established
@@ -985,9 +1162,28 @@ export const scanZIndexFile = ({
 			// the member) may establish the value again — but the resolved
 			// value is then only provable when the opaque spread does not sit
 			// after the last establishing occurrence, and `unresolved` says
-			// whether it does. Callers turn `unresolved` into the named
-			// `z-index-unresolved-spread-shadow` diagnostic instead of treating
-			// the spread as a compliant default.
+			// whether it does. `opaqueOnly` says an opaque spread exists with
+			// no establishing occurrence at all: the member's final value is
+			// unprovable either way. Callers turn `unresolved`/`opaqueOnly`
+			// into the named `z-index-unresolved-spread-shadow` diagnostic at
+			// positions they can prove style-capable instead of treating the
+			// spread as a compliant default; positions that are not provably
+			// style-capable (an ordinary object literal) keep the fact-based
+			// rule so `<div {...props}>`-shaped runtime data stays green.
+			// `visitedObjects` is the cycle guard for object-literal spread
+			// cycles (`const a = {...b}; const b = {...a};`): the same object
+			// literal re-entered up the resolution stack is opaque, never an
+			// infinite loop.
+			if (visitedObjects.has(object)) {
+				return {
+					node: null,
+					unresolved: false,
+					opaqueOnly: true,
+					opaqueSpreadNode: null,
+				};
+			}
+			const nextVisitedObjects = new Set(visitedObjects);
+			nextVisitedObjects.add(object);
 			let foundNode = null;
 			let lastOccurrenceIndex = -1;
 			let lastOpaqueSpreadIndex = -1;
@@ -1011,15 +1207,19 @@ export const scanZIndexFile = ({
 						lastOpaqueSpreadIndex = index;
 						opaqueSpreadNode = candidate;
 					} else {
-						const nested = staticObjectMemberNode(spreadObject, name);
+						const nested = staticObjectMemberNode(
+							spreadObject,
+							name,
+							nextVisitedObjects,
+						);
 						if (nested.node != null) {
 							valueNode = nested.node;
 							lastOccurrenceIndex = index;
-							if (nested.unresolved) {
+							if (nested.unresolved || nested.opaqueOnly) {
 								lastOpaqueSpreadIndex = index;
 								opaqueSpreadNode = candidate;
 							}
-						} else if (nested.unresolved) {
+						} else if (nested.unresolved || nested.opaqueOnly) {
 							lastOpaqueSpreadIndex = index;
 							opaqueSpreadNode = candidate;
 						}
@@ -1035,18 +1235,23 @@ export const scanZIndexFile = ({
 					lastOpaqueSpreadIndex >= 0 &&
 					lastOccurrenceIndex >= 0 &&
 					lastOpaqueSpreadIndex >= lastOccurrenceIndex,
+				opaqueOnly: lastOpaqueSpreadIndex >= 0 && lastOccurrenceIndex < 0,
 				opaqueSpreadNode,
 			};
 		};
 		const staticObjectProperty = (object, name) => {
 			const member = staticObjectMemberNode(object, name);
 			return {
-				value: member.node == null ? null : staticString(member.node),
+				node: member.node,
 				unresolved: member.unresolved,
+				opaqueOnly: member.opaqueOnly,
 				opaqueSpreadNode: member.opaqueSpreadNode,
 			};
 		};
-		const staticJsxAttribute = (attributes, attributeName) => {
+		const staticJsxAttributeValues = (attributes, attributeName) => {
+			// The candidate set of a JSX attribute value over the transparent
+			// expression family — a conditional `rel` can provably evaluate to
+			// `stylesheet`, so the link rule must see it.
 			const attribute = attributes.properties.find(
 				(property) =>
 					ts.isJsxAttribute(property) &&
@@ -1057,10 +1262,10 @@ export const scanZIndexFile = ({
 				return null;
 			}
 			if (ts.isStringLiteral(attribute.initializer)) {
-				return attribute.initializer.text;
+				return new Set([attribute.initializer.text]);
 			}
 			if (ts.isJsxExpression(attribute.initializer)) {
-				return staticString(attribute.initializer.expression);
+				return staticStringValues(attribute.initializer.expression);
 			}
 			return null;
 		};
@@ -1130,7 +1335,7 @@ export const scanZIndexFile = ({
 							payloadObject = memberObject;
 						}
 					}
-					if (member.unresolved) {
+					if (member.unresolved || member.opaqueOnly) {
 						lastOpaqueSpreadIndex = index;
 						opaqueSpreadNode = property;
 					}
@@ -1144,6 +1349,7 @@ export const scanZIndexFile = ({
 				payloadObject,
 				found: found && !unresolved,
 				unresolved,
+				opaqueOnly: lastOpaqueSpreadIndex >= 0 && lastOccurrenceIndex < 0,
 				opaqueSpreadNode,
 			};
 		};
@@ -1209,12 +1415,22 @@ export const scanZIndexFile = ({
 			const payload = dangerousHtmlPayloadObject(attributes);
 			if (payload.found) {
 				if (payload.payloadObject != null) {
-					const html = staticObjectProperty(payload.payloadObject, '__html');
-					// An unresolved spread inside the payload may override the
-					// member, so the value is not provable — the caller reports
-					// the spread by name and nothing else.
+					const member = staticObjectMemberNode(
+						payload.payloadObject,
+						'__html',
+					);
+					// An unresolved/opaque spread inside the payload may
+					// override the member, so the value is not provable — the
+					// caller reports the spread by name and nothing else. A
+					// static payload is the set of strings it can provably be;
+					// every candidate is walked as shipped CSS.
+					const cssCandidates =
+						member.node == null ? null : staticStringValues(member.node);
 					return {
-						css: html.unresolved ? null : html.value,
+						css:
+							member.unresolved || cssCandidates == null
+								? null
+								: [...cssCandidates],
 						childrenSuppressed: true,
 					};
 				}
@@ -1223,21 +1439,45 @@ export const scanZIndexFile = ({
 			if (selfClosing) {
 				return { css: null, childrenSuppressed: false };
 			}
-			const parts = [];
+			// Children. A text node always ships. A static expression ships
+			// every string it can provably evaluate to; a non-static expression
+			// is the declared runtime bucket — the static siblings still ship,
+			// so they are returned as `staticParts` for the caller to walk
+			// individually. When every child is static, the payload is the
+			// Cartesian join of the child candidate sets and is walked as one
+			// stylesheet (so a declaration spanning two children is caught).
+			const partSets = [];
+			let fullyStatic = true;
 			for (const child of node.children) {
 				if (ts.isJsxText(child)) {
-					parts.push(child.text);
+					partSets.push(new Set([child.text]));
 				} else if (ts.isJsxExpression(child)) {
-					const text = staticString(child.expression);
-					if (text == null) {
-						return { css: null, childrenSuppressed: false };
+					const values = staticStringValues(child.expression);
+					if (values == null) {
+						fullyStatic = false;
+						continue;
 					}
-					parts.push(text);
+					partSets.push(values);
 				} else {
-					return { css: null, childrenSuppressed: false };
+					fullyStatic = false;
 				}
 			}
-			return { css: parts.join(''), childrenSuppressed: false };
+			if (fullyStatic) {
+				return {
+					css: [...cartesianStringJoin(partSets)],
+					staticParts: null,
+					childrenSuppressed: false,
+				};
+			}
+			const staticParts = [];
+			for (const set of partSets) {
+				staticParts.push(...set);
+			}
+			return {
+				css: null,
+				staticParts: staticParts.length === 0 ? null : staticParts,
+				childrenSuppressed: false,
+			};
 		};
 		const tagNameText = (node) => {
 			if (
@@ -1530,9 +1770,10 @@ export const scanZIndexFile = ({
 		};
 		const visitStaticStyleEscapes = (node) => {
 			const styleResult = staticStyleElementCss(node);
-			const styleCss = styleResult == null ? null : styleResult.css;
+			const styleCssCandidates = styleResult == null ? null : styleResult.css;
+			const staticParts = styleResult?.staticParts ?? null;
 			const childrenSuppressed = styleResult?.childrenSuppressed ?? false;
-			if (styleCss != null) {
+			const scanStaticCss = (cssCandidate) => {
 				const base = {
 					file: relativePath,
 					line: lineForOffset(content, node.getStart(sourceFile)),
@@ -1540,16 +1781,18 @@ export const scanZIndexFile = ({
 				};
 				let cssViolations;
 				try {
-					cssViolations = checkCompiledCssZIndex(styleCss).map((violation) => ({
-						ruleId: 'z-index-style-element-shipped',
-						message:
-							'static <style> element ships CSS that never becomes an ' +
-							'emitted asset — ' +
-							`\`${violation.source}\` does not resolve through ` +
-							'var(--publy-z-…); route every z-index through the ' +
-							'scale or import the stylesheet through the build ' +
-							'graph.',
-					}));
+					cssViolations = checkCompiledCssZIndex(cssCandidate).map(
+						(violation) => ({
+							ruleId: 'z-index-style-element-shipped',
+							message:
+								'static <style> element ships CSS that never becomes an ' +
+								'emitted asset — ' +
+								`\`${violation.source}\` does not resolve through ` +
+								'var(--publy-z-…); route every z-index through the ' +
+								'scale or import the stylesheet through the build ' +
+								'graph.',
+						}),
+					);
 				} catch (error) {
 					// A payload the walk cannot parse is a violation, not a
 					// crash and not a silent pass — the CSS ships unread.
@@ -1567,6 +1810,19 @@ export const scanZIndexFile = ({
 				for (const violation of cssViolations) {
 					violations.push({ ...violation, ...base });
 				}
+			};
+			if (styleCssCandidates != null) {
+				// Every candidate is a payload the element can provably ship;
+				// any candidate containing a raw declaration reds.
+				for (const cssCandidate of styleCssCandidates) {
+					scanStaticCss(cssCandidate);
+				}
+			} else if (staticParts != null) {
+				// A mixed payload (static parts beside runtime children): the
+				// static text still ships, so each part is walked individually.
+				for (const staticPart of staticParts) {
+					scanStaticCss(staticPart);
+				}
 			}
 			const isStyleElement = tagNameText(node) === 'style';
 			let elementAttributes = null;
@@ -1579,10 +1835,13 @@ export const scanZIndexFile = ({
 				elementAttributes == null
 					? null
 					: dangerousHtmlPayloadObject(elementAttributes);
-			if (isStyleElement && payload?.unresolved) {
+			if (isStyleElement && (payload?.unresolved || payload?.opaqueOnly)) {
 				// An unresolvable spread on a `<style>` element may carry
 				// `dangerouslySetInnerHTML` — the payload could be anything,
-				// so the element leaves the guarded class by name.
+				// so the element leaves the guarded class by name. An opaque
+				// spread with no static facts at all is the same hole: the
+				// element is provably style-capable, so the spread cannot be
+				// dismissed as unrelated runtime data.
 				unresolvedSpreadViolation(
 					node,
 					payload.opaqueSpreadNode,
@@ -1591,7 +1850,7 @@ export const scanZIndexFile = ({
 			}
 			if (
 				isStyleElement &&
-				styleCss == null &&
+				styleCssCandidates == null &&
 				!childrenSuppressed &&
 				ts.isJsxElement(node)
 			) {
@@ -1599,8 +1858,12 @@ export const scanZIndexFile = ({
 				// binding ships that file's bytes as CSS — the binding is the
 				// provenance, so text displayed elsewhere (a `<pre>`) is not
 				// walked. Aliases, template substitutions, and the namespace
-				// `.default` spelling are the same binding. The raw walk
-				// reports unparseable bytes by name.
+				// `.default` spelling are the same binding. The raw walk runs
+				// whenever the children were not fully consumed as static CSS
+				// (a fully static payload contains no raw binding by
+				// construction), and reports unparseable bytes by name.
+				// Every child position is walked — a slice bound of any size
+				// is the same class of defect as a one-hop resolver.
 				for (const child of node.children) {
 					if (ts.isJsxExpression(child) && child.expression != null) {
 						for (const specifier of rawBindingSpecifiersForExpression(
@@ -1614,24 +1877,29 @@ export const scanZIndexFile = ({
 			const payloadObject = payload == null ? null : payload.payloadObject;
 			if (payloadObject != null) {
 				const member = staticObjectMemberNode(payloadObject, '__html');
-				if (member.unresolved) {
-					// `{ __html: …, ...opaque }` — the spread may override the
-					// payload the guard would otherwise inspect.
+				if (member.unresolved || member.opaqueOnly) {
+					// `{ __html: …, ...opaque }` or `{ ...opaque }` — the
+					// spread may override or supply the payload the guard
+					// would otherwise inspect. The payload object is provably
+					// a dSIH payload, so the opaque-only spread fails loud
+					// exactly like the shadowing one.
 					unresolvedSpreadViolation(
 						node,
 						member.opaqueSpreadNode,
 						'a dangerouslySetInnerHTML payload',
 					);
 				} else if (member.node != null) {
-					const dangerousHtml = staticString(member.node);
-					if (dangerousHtml != null) {
-						const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
-						for (const escape of htmlEscapes) {
-							violations.push({
-								...escape,
-								file: relativePath,
-								line: lineForOffset(content, node.getStart(sourceFile)),
-							});
+					const htmlValues = staticStringValues(member.node);
+					if (htmlValues != null) {
+						for (const dangerousHtml of htmlValues) {
+							const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
+							for (const escape of htmlEscapes) {
+								violations.push({
+									...escape,
+									file: relativePath,
+									line: lineForOffset(content, node.getStart(sourceFile)),
+								});
+							}
 						}
 					} else {
 						// The payload is not a static string — when `__html` is a
@@ -1649,23 +1917,33 @@ export const scanZIndexFile = ({
 					}
 				}
 			}
-			let rel = null;
-			let href = null;
+			let relValues = null;
+			let hrefValues = null;
 			if (
 				(ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
 				ts.isIdentifier(node.tagName) &&
 				node.tagName.text === 'link'
 			) {
-				rel = staticJsxAttribute(node.attributes, 'rel');
-				href = staticJsxAttribute(node.attributes, 'href');
+				relValues = staticJsxAttributeValues(node.attributes, 'rel');
+				hrefValues = staticJsxAttributeValues(node.attributes, 'href');
 			} else if (ts.isObjectLiteralExpression(node)) {
 				const relResult = staticObjectProperty(node, 'rel');
 				const hrefResult = staticObjectProperty(node, 'href');
 				// An unresolved spread may override the member, so the value is
 				// not provable — the named diagnostic carries the case and the
-				// literal rule must not fire on an unprovable member.
-				rel = relResult.unresolved ? null : relResult.value;
-				href = hrefResult.unresolved ? null : hrefResult.value;
+				// literal rule must not fire on an unprovable member. An
+				// opaque-only spread stays in the runtime bucket: this object
+				// literal is not provably a link descriptor, so the spread
+				// cannot be policed as one (that is what the `{...props}`
+				// green proof pins).
+				relValues =
+					relResult.unresolved || relResult.node == null
+						? null
+						: staticStringValues(relResult.node);
+				hrefValues =
+					hrefResult.unresolved || hrefResult.node == null
+						? null
+						: staticStringValues(hrefResult.node);
 				if (relResult.unresolved || hrefResult.unresolved) {
 					unresolvedSpreadViolation(
 						node,
@@ -1674,14 +1952,16 @@ export const scanZIndexFile = ({
 					);
 				}
 			}
-			const relTokens =
-				rel == null
-					? []
-					: rel
-							.split(/[\t\n\f\r ]+/)
-							.filter(Boolean)
-							.map(asciiLowerCase);
-			if (href != null && relTokens.includes('stylesheet')) {
+			const relHasStylesheet =
+				relValues != null &&
+				[...relValues].some((value) =>
+					value
+						.split(/[\t\n\f\r ]+/)
+						.filter(Boolean)
+						.map(asciiLowerCase)
+						.includes('stylesheet'),
+				);
+			if (hrefValues != null && relHasStylesheet) {
 				violations.push({
 					ruleId: 'z-index-opaque-stylesheet-link',
 					message:
@@ -1703,26 +1983,37 @@ export const scanZIndexFile = ({
 				ts.isObjectLiteralExpression(node.arguments[0])
 			) {
 				const propertyResult = staticObjectProperty(node.arguments[0], 'name');
-				if (propertyResult.unresolved) {
+				if (propertyResult.unresolved || propertyResult.opaqueOnly) {
+					// An opaque spread may supply or override `name`. The
+					// argument object is provably a registerProperty
+					// descriptor, so the opaque-only spread fails loud.
 					unresolvedSpreadViolation(
 						node,
 						propertyResult.opaqueSpreadNode,
 						'CSS.registerProperty()',
 					);
-				} else if (
-					propertyResult.value != null &&
-					propertyResult.value.startsWith('--publy-z-')
-				) {
-					violations.push({
-						ruleId: 'z-index-scale-token-registered',
-						message:
-							`script registration of reserved scale token \`${propertyResult.value}\` can ` +
-							'replace its inherited tier value — the --publy-z-* namespace ' +
-							'must not be registered with CSS.registerProperty().',
-						file: relativePath,
-						line: lineForOffset(content, node.getStart(sourceFile)),
-						source: `CSS.registerProperty(${propertyResult.value})`,
-					});
+				} else {
+					const nameCandidates =
+						propertyResult.node == null
+							? null
+							: staticStringValues(propertyResult.node);
+					if (nameCandidates != null) {
+						const reservedName = [...nameCandidates].find((name) =>
+							name.startsWith('--publy-z-'),
+						);
+						if (reservedName != null) {
+							violations.push({
+								ruleId: 'z-index-scale-token-registered',
+								message:
+									`script registration of reserved scale token \`${reservedName}\` can ` +
+									'replace its inherited tier value — the --publy-z-* namespace ' +
+									'must not be registered with CSS.registerProperty().',
+								file: relativePath,
+								line: lineForOffset(content, node.getStart(sourceFile)),
+								source: `CSS.registerProperty(${reservedName})`,
+							});
+						}
+					}
 				}
 			}
 			node.forEachChild(visitStaticStyleEscapes);

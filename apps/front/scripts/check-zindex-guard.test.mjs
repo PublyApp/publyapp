@@ -1980,23 +1980,62 @@ test('e2e (round 11 B1): a module-scope const object-literal spread resolves lik
 	);
 });
 
-test('e2e (round 11 B1): an unresolvable spread with no static facts stays in the runtime bucket', async () => {
-	// The other half of the round-7 boundary: a spread whose source is a
-	// function parameter cannot be traced, and there is no static fact for it
-	// to shadow, so the construct stays green — exactly the `<div {...props}/>`
-	// runtime bucket, on both the element and the descriptor shapes. The
-	// named diagnostic is reserved for the case where an unresolvable spread
-	// would otherwise silence a real fact.
+test('e2e (round 13 B1): an opaque-only spread in a provably style-capable position is a named diagnostic', async () => {
+	// Round 13 policy: an opaque spread fails loud by name wherever the
+	// position is *provably* style-capable — a `<style>` element (any
+	// attribute could be dangerouslySetInnerHTML shipping CSS), a
+	// dangerouslySetInnerHTML payload object, or a CSS.registerProperty()
+	// descriptor — even when the spread is the only source, because "only
+	// source" previously meant "no static fact to shadow" and therefore a
+	// silent green for a payload the guard cannot inspect. The `<div
+	// {...props}/>` shape is NOT provably a style host in this guard's
+	// knowledge, so it stays in the runtime bucket — that is the paired
+	// legitimate proof.
 	const files = {
 		'probe.tsx': [
 			'export const probe = (props: any) => <style {...props} />;',
 			'export const descriptor = (props: any) => ({ links: [{ ...props }] });',
+			'export const plain = (props: any) => <div {...props} />;',
 		].join('\n'),
 	};
 	const { violations } = await runFixtureGuard(files, '', [
-		"import { probe, descriptor } from './probe';",
+		"import { probe, descriptor, plain } from './probe';",
 	]);
-	assert.deepEqual(violations, []);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-unresolved-spread-shadow'],
+		`only the style element may fail loud: ${JSON.stringify(violations)}`,
+	);
+	const { violations: payloadViolations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = (props: any) => <style',
+				'  dangerouslySetInnerHTML={{ ...props }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		payloadViolations.map((violation) => violation.ruleId),
+		['z-index-unresolved-spread-shadow'],
+		`an opaque-only dSIH payload spread must fail loud: ${JSON.stringify(payloadViolations)}`,
+	);
+	const { violations: registrationViolations } = await runFixtureGuard(
+		{
+			'probe.ts': [
+				'export const probe = (props: any) => CSS.registerProperty({ ...props });',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		registrationViolations.map((violation) => violation.ruleId),
+		['z-index-unresolved-spread-shadow'],
+		`an opaque-only registerProperty spread must fail loud: ${JSON.stringify(registrationViolations)}`,
+	);
 });
 
 test('e2e (round 8 I4): a later unresolved spread shadows an earlier static style payload', async () => {
@@ -2245,12 +2284,93 @@ test('e2e (round 11 B1): an opaque spread before an explicit member stays red wi
 	);
 });
 
-test('e2e (round 11 B1): a shadowed module-scope const is not a spread source', async () => {
+test('e2e (round 13 B1): const-object alias chains resolve to a fixpoint at any depth', async () => {
+	// Round 12 B1: a two-hop const-object spread (`const b = a; <style
+	// {...b} />` where `a` is a static object literal) looked "genuinely
+	// opaque" to the one-hop resolver and shipped the raw payload green when
+	// the spread was the only source. The resolver follows the alias chain to
+	// a cycle-guarded fixpoint, so depth does not matter: 0, 1, 2, and 4 hops
+	// red exactly like the literal spelling. "One step further" cannot defeat
+	// the assertion because there is no bound left to step past.
+	const payloadLines = [
+		'const payload = { dangerouslySetInnerHTML: { __html:',
+		"  '.probe { z-index: 2147483614; }',",
+		'} };',
+	];
+	const chains = [
+		['direct', [], 'payload'],
+		['one hop', ['const last = payload;'], 'last'],
+		['two hops', ['const second = payload;', 'const last = second;'], 'last'],
+		[
+			'four hops',
+			[
+				'const second = payload;',
+				'const third = second;',
+				'const fourth = third;',
+				'const last = fourth;',
+			],
+			'last',
+		],
+	];
+	for (const [name, aliasLines, sink] of chains) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					...payloadLines,
+					...aliasLines,
+					`export const probe = <style {...${sink}} />;`,
+				].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-style-element-shipped'],
+			`a ${name} const-object spread must red as the literal spelling: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 13 B1): a spread const cycle terminates as an opaque named diagnostic', async () => {
+	// A const-alias cycle (`const a = b; const b = a`) and an object-literal
+	// spread cycle (`const a = {...b}; const b = {...a}`) must terminate —
+	// the resolver treats the cycle as opaque and the provably style-capable
+	// `<style>` host fails loud by name. Neither hangs the guard nor goes
+	// quiet.
+	for (const [name, lines, sink] of [
+		['alias cycle', ['const a = b;', 'const b = a;'], 'a'],
+		[
+			'object spread cycle',
+			['const a = { ...b };', 'const b = { ...a };'],
+			'a',
+		],
+	]) {
+		const { violations } = await runFixtureGuard(
+			{
+				'probe.tsx': [
+					...lines,
+					`export const probe = <style {...${sink}} />;`,
+				].join('\n'),
+			},
+			'',
+			["import { probe } from './probe';"],
+		);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-unresolved-spread-shadow'],
+			`a ${name} must terminate and fail loud by name: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
+test('e2e (round 13 B1): a shadowed module-scope const is not a spread source', async () => {
 	// `nearestBinding` gates the const resolution: the parameter shadows the
 	// module-scope `const`, so the spread inside the function is genuinely
-	// opaque — with no static fact to shadow it stays in the runtime bucket.
-	// Removing the shadowing check would resolve it to the module const and
-	// red the fixture, which this pins against.
+	// opaque. Round 11 kept the opaque-only style-element spread green; round
+	// 13 makes it fail loud by name, and the ruleId distinguishes the two —
+	// removing the shadowing check would resolve the spread to the module
+	// const and red `z-index-style-element-shipped` instead.
 	const { violations } = await runFixtureGuard(
 		{
 			'probe.tsx': [
@@ -2263,7 +2383,11 @@ test('e2e (round 11 B1): a shadowed module-scope const is not a spread source', 
 		'',
 		["import { probe } from './probe';"],
 	);
-	assert.deepEqual(violations, []);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-unresolved-spread-shadow'],
+		`a shadowed const must stay opaque and fail loud by name: ${JSON.stringify(violations)}`,
+	);
 });
 
 test('e2e (round 11 B1): the round-8 safe-payload reproduction stays green through resolution', async () => {
