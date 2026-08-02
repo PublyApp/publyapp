@@ -3893,7 +3893,6 @@ const isTypeSideMemberSymbol = (symbol: TsMorphSymbol): boolean =>
  */
 const findObjectLiteralValueSide = (
 	baseSymbol: TsMorphSymbol,
-	project: Project,
 	reassignedNamesByFile: Map<string, Set<string>>,
 	seen: Set<string>,
 ): ObjectLiteralExpression | null => {
@@ -3914,12 +3913,7 @@ const findObjectLiteralValueSide = (
 		if (!aliased || aliased === baseSymbol) {
 			return null;
 		}
-		return findObjectLiteralValueSide(
-			aliased,
-			project,
-			reassignedNamesByFile,
-			seen,
-		);
+		return findObjectLiteralValueSide(aliased, reassignedNamesByFile, seen);
 	}
 	for (const declaration of baseSymbol.getDeclarations()) {
 		if (declaration.getKind() !== SyntaxKind.VariableDeclaration) {
@@ -3950,7 +3944,6 @@ const findObjectLiteralValueSide = (
 			if (innerSymbol) {
 				return findObjectLiteralValueSide(
 					innerSymbol,
-					project,
 					reassignedNamesByFile,
 					seen,
 				);
@@ -3999,7 +3992,6 @@ const resolveTypeSideMemberValue = (
 	}
 	const objectLiteral = findObjectLiteralValueSide(
 		baseSymbol,
-		project,
 		reassignedNamesByFile,
 		seen,
 	);
