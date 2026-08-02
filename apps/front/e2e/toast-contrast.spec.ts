@@ -675,8 +675,12 @@ const readBrowserPaint = async (
 			return Number(zIndex) < 0 ? 'negative' : 'positive';
 		};
 
-		const paintZ = (position: string, zIndex: string): number =>
-			position === 'static' ? 0 : zIndex === 'auto' ? 0 : Number(zIndex);
+		const paintZ = (position: string, zIndex: string): number => {
+			if (position === 'static' || zIndex === 'auto') {
+				return 0;
+			}
+			return Number(zIndex);
+		};
 
 		const createsStackingContext = (layer: Element | null): boolean => {
 			if (layer === null) {
