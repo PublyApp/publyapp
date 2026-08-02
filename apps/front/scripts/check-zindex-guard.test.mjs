@@ -2052,6 +2052,36 @@ test('e2e (round 13 B2): static style text beside runtime children still ships a
 	}
 });
 
+test('e2e (round 15 M2): an uncapped Cartesian product is a named diagnostic, not a hang', async () => {
+	// cartesianStringJoin multiplies substitution candidate sets without a
+	// bound, so a template with several multi-candidate substitutions would
+	// hang the guard. The product is capped; a payload beyond the cap is
+	// provably static text the guard cannot enumerate, so it fails loud by
+	// name instead of silently dropping into the runtime bucket.
+	const flags = [];
+	for (let index = 0; index < 13; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 13; index += 1) {
+		substitutions.push(`\${f${index} ? 'a' : 'b'}`);
+	}
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`export const probe = (${flags.join(', ')}) => <style>{\`x${substitutions.join('')}y\`}</style>;`,
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-static-candidate-overflow'],
+		`an overflowing static candidate space must fail loud: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('e2e (round 13 B2): conditional rel/href and reserved-token keys are candidate-aware', async () => {
 	// The same family at the remaining string sites: a conditional `rel` can
 	// provably evaluate to `stylesheet`, a conditional setProperty key or

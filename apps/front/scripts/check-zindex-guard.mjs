@@ -291,6 +291,14 @@ const asciiLowerCase = (text) =>
 // Cartesian product of string candidate sets, concatenated in order. Used to
 // evaluate a template literal (static parts × substitution sets) or a `+` of
 // two static operands to every string the expression can provably be.
+//
+// The product is capped (round-15 M2): several multi-candidate substitutions
+// multiply without bound, and a pathological template would otherwise hang the
+// guard instead of failing. Beyond the cap the join is not enumerable, so the
+// function returns null and the caller fails loud by name — a static payload
+// the guard cannot enumerate may ship unread, exactly like an unparseable
+// one; it is never silently dropped into the runtime bucket.
+export const CARTESIAN_PRODUCT_CAP = 4096;
 const cartesianStringJoin = (sets) => {
 	let results = [''];
 	for (const set of sets) {
@@ -298,6 +306,9 @@ const cartesianStringJoin = (sets) => {
 		for (const prefix of results) {
 			for (const value of set) {
 				next.push(prefix + value);
+				if (next.length > CARTESIAN_PRODUCT_CAP) {
+					return null;
+				}
 			}
 		}
 		results = next;
@@ -1027,20 +1038,24 @@ export const scanZIndexFile = ({
 		// reads through const object literals, template literals whose every
 		// substitution is static (the product of their candidate sets), and
 		// `+` where both operands are static (the product of concatenations).
-		// Returns `{ values, partial }`: `values` is the candidate set, and
-		// `partial` says the set contains provable *substrings* of the
+		// Returns `{ values, partial, overflow }`: `values` is the candidate
+		// set, `partial` says the set contains provable *substrings* of the
 		// expression's possible values (the static operand of a one-sided
-		// `+`) rather than complete values. The style-payload walk scans
-		// partial sets — the static operand's text ships either way — but an
-		// identity consumer (`staticString`: an element-access key, a
-		// computed property name) must reject them: reading member `a`
-		// because `'a' + rt` provably starts with `'a'` is reading a member
-		// the code may never read (round-15 B1). A branch that is not
-		// statically string-valued makes the expression partially static:
-		// the provably-shipped strings of the static branches still ship, so
-		// they are returned, and the caller treats the expression as runtime
-		// for everything else (the raw-sink walk covers recorded `?raw`
-		// bindings). Returns null when no string provably ships.
+		// `+`) rather than complete values, and `overflow` says the candidates
+		// are too numerous to enumerate (the Cartesian product cap) — the
+		// payload is provably static text the guard cannot inspect, so the
+		// caller fails loud by name instead of dropping it in the runtime
+		// bucket. The style-payload walk scans partial sets — the static
+		// operand's text ships either way — but an identity consumer
+		// (`staticString`: an element-access key, a computed property name)
+		// must reject them: reading member `a` because `'a' + rt` provably
+		// starts with `'a'` is reading a member the code may never read
+		// (round-15 B1). A branch that is not statically string-valued makes
+		// the expression partially static: the provably-shipped strings of
+		// the static branches still ship, so they are returned, and the
+		// caller treats the expression as runtime for everything else (the
+		// raw-sink walk covers recorded `?raw` bindings). Returns null when
+		// no string provably ships.
 		const staticStringValues = (node, visitedConsts = new Set()) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
@@ -1094,7 +1109,11 @@ export const scanZIndexFile = ({
 					partial = partial || substitution.partial;
 					sets.push(new Set([span.literal.text]));
 				}
-				return { values: cartesianStringJoin(sets), partial };
+				const joined = cartesianStringJoin(sets);
+				if (joined == null) {
+					return { values: null, partial: false, overflow: true };
+				}
+				return { values: joined, partial };
 			}
 			if (ts.isPropertyAccessExpression(expression)) {
 				const memberNode = resolveMemberChain(expression, visitedConsts);
@@ -1115,11 +1134,9 @@ export const scanZIndexFile = ({
 				const left = staticStringValues(expression.left, visitedConsts);
 				const right = staticStringValues(expression.right, visitedConsts);
 				if (left != null && right != null) {
-					const joined = new Set();
-					for (const leftValue of left.values) {
-						for (const rightValue of right.values) {
-							joined.add(leftValue + rightValue);
-						}
+					const joined = cartesianStringJoin([left.values, right.values]);
+					if (joined == null) {
+						return { values: null, partial: false, overflow: true };
 					}
 					return {
 						values: joined,
@@ -1146,12 +1163,18 @@ export const scanZIndexFile = ({
 		// static string is required (computed property names, `?raw` element
 		// keys). A conditional or concatenation that can evaluate to several
 		// distinct strings is not single-valued and stays unprovable here, as
-		// does a partial set — a member identity cannot be derived from a
-		// provable substring (round-15 B1); the style-sink callers use
-		// `staticStringValues` directly.
+		// do a partial set and an overflowing one — a member identity cannot
+		// be derived from a provable substring (round-15 B1), and an
+		// unenumerable candidate space cannot name a member at all; the
+		// style-sink callers use `staticStringValues` directly.
 		const staticString = (node) => {
 			const result = staticStringValues(node);
-			if (result == null || result.partial || result.values.size !== 1) {
+			if (
+				result == null ||
+				result.overflow ||
+				result.partial ||
+				result.values.size !== 1
+			) {
 				return null;
 			}
 			return [...result.values][0];
@@ -1465,21 +1488,26 @@ export const scanZIndexFile = ({
 					// override the member, so the value is not provable — the
 					// caller reports the spread by name and nothing else. A
 					// static payload is the set of strings it can provably be;
-					// every candidate is walked as shipped CSS.
+					// every candidate is walked as shipped CSS. A payload
+					// whose candidates overflow the Cartesian cap is
+					// provably static text the guard cannot inspect —
+					// surfaced as `overflow` so the caller fails loud by
+					// name instead of treating it as runtime.
 					const cssResult =
 						member.node == null ? null : staticStringValues(member.node);
 					return {
 						css:
-							member.unresolved || cssResult == null
+							member.unresolved || cssResult == null || cssResult.values == null
 								? null
 								: [...cssResult.values],
 						childrenSuppressed: true,
+						overflow: cssResult?.overflow ?? false,
 					};
 				}
-				return { css: null, childrenSuppressed: true };
+				return { css: null, childrenSuppressed: true, overflow: false };
 			}
 			if (selfClosing) {
-				return { css: null, childrenSuppressed: false };
+				return { css: null, childrenSuppressed: false, overflow: false };
 			}
 			// Children. A text node always ships. A static expression ships
 			// every string it can provably evaluate to; a non-static expression
@@ -1490,6 +1518,7 @@ export const scanZIndexFile = ({
 			// stylesheet (so a declaration spanning two children is caught).
 			const partSets = [];
 			let fullyStatic = true;
+			let overflow = false;
 			for (const child of node.children) {
 				if (ts.isJsxText(child)) {
 					partSets.push(new Set([child.text]));
@@ -1504,15 +1533,22 @@ export const scanZIndexFile = ({
 					// set (the static operand of a one-sided `+`) is likewise
 					// not joinable — its members are provable substrings, not
 					// complete values — so it ships individually and keeps
-					// the payload out of the Cartesian join.
+					// the payload out of the Cartesian join. An overflowing
+					// candidate space is not enumerable at all — the payload
+					// ships unread and `overflow` makes the caller fail loud
+					// by name.
 					if (
 						values == null ||
+						result.overflow ||
 						result.partial ||
 						expressionContainsRawBinding(child.expression)
 					) {
 						fullyStatic = false;
 						if (values != null) {
 							partSets.push(values);
+						}
+						if (result?.overflow) {
+							overflow = true;
 						}
 						continue;
 					}
@@ -1522,10 +1558,20 @@ export const scanZIndexFile = ({
 				}
 			}
 			if (fullyStatic) {
+				const joined = cartesianStringJoin(partSets);
+				if (joined == null) {
+					return {
+						css: null,
+						staticParts: null,
+						childrenSuppressed: false,
+						overflow: true,
+					};
+				}
 				return {
-					css: [...cartesianStringJoin(partSets)],
+					css: [...joined],
 					staticParts: null,
 					childrenSuppressed: false,
+					overflow: false,
 				};
 			}
 			const staticParts = [];
@@ -1536,6 +1582,7 @@ export const scanZIndexFile = ({
 				css: null,
 				staticParts: staticParts.length === 0 ? null : staticParts,
 				childrenSuppressed: false,
+				overflow,
 			};
 		};
 		const tagNameText = (node) => {
@@ -2064,6 +2111,23 @@ export const scanZIndexFile = ({
 			const styleCssCandidates = styleResult == null ? null : styleResult.css;
 			const staticParts = styleResult?.staticParts ?? null;
 			const childrenSuppressed = styleResult?.childrenSuppressed ?? false;
+			if (styleResult?.overflow) {
+				// The payload is provably static text with too many candidates
+				// to enumerate — the guard cannot inspect what ships, exactly
+				// like an unparseable payload, and a hang would be a worse
+				// failure than a red. Named, never silent (round-15 M2).
+				violations.push({
+					ruleId: 'z-index-static-candidate-overflow',
+					message:
+						`static <style> payload has more than ${CARTESIAN_PRODUCT_CAP} ` +
+						'provable candidates — the guard cannot enumerate what ships; ' +
+						'simplify the payload or import the stylesheet through the ' +
+						'build graph.',
+					file: relativePath,
+					line: lineForOffset(content, node.getStart(sourceFile)),
+					source: node.getText(sourceFile),
+				});
+			}
 			const scanStaticCss = (cssCandidate) => {
 				const base = {
 					file: relativePath,
@@ -2178,6 +2242,19 @@ export const scanZIndexFile = ({
 				} else if (member.node != null) {
 					const htmlResult = staticStringValues(member.node);
 					const htmlValues = htmlResult == null ? null : htmlResult.values;
+					if (htmlResult?.overflow) {
+						violations.push({
+							ruleId: 'z-index-static-candidate-overflow',
+							message:
+								`static dangerouslySetInnerHTML payload has more than ` +
+								`${CARTESIAN_PRODUCT_CAP} provable candidates — the guard ` +
+								'cannot enumerate what ships; simplify the payload or ' +
+								'import the stylesheet through the build graph.',
+							file: relativePath,
+							line: lineForOffset(content, node.getStart(sourceFile)),
+							source: node.getText(sourceFile),
+						});
+					}
 					if (htmlValues != null) {
 						for (const dangerousHtml of htmlValues) {
 							const htmlEscapes = scanHtmlStyleEscapes(dangerousHtml);
