@@ -698,7 +698,11 @@ type CompiledUtilityStyle = {
 //      colour declaration lives under one, the guard THROWS by name
 //      (round 10 I3) instead of substituting the primitive's compliant
 //      default — a silent substitution is the defect class this guard
-//      exists to eliminate. `@layer` is not conditional — it groups
+//      exists to eliminate. The bookkeeping is keyed PER CLASS (round 13
+//      I3): "does THIS class have a determinable resting colour", never
+//      "some rule somewhere supplied the property" — the primitive's own
+//      unconditional colour must not mask a caller whose only declaration
+//      is conditional. `@layer` is not conditional — it groups
 //      cascade priority, it does not gate applicability.
 //   4. REST-APPLYING PSEUDO-CLASSES (round 10 M3): `:not()`, `:is()`,
 //      `:where()` and `:has()` paint at rest, so they keep the rule
@@ -1297,8 +1301,16 @@ export const compiledStyleFromCss = (
 	const byProperty = new Map<string, CascadeCandidate[]>();
 	const possibleRules: { declarations: MatchedDeclaration[] }[] = [];
 	const swept: SweptDeclaration[] = [];
-	const conditionalDeclared = new Map<string, string>();
-	const suppliedProps = new Set<string>();
+	// Round 13 I3 re-key: the fail-loud bookkeeping is keyed by (utility,
+	// property), NOT by property alone. "Some rule somewhere supplied the
+	// property" is not the question — the primitive's unconditional `color`
+	// used to satisfy the old per-property check and mask a CALLER class
+	// whose only colour declaration is conditional (the round-12 reviewer
+	// reproduced the silent substitution on the real change-email drawer).
+	// A class's own supply decides whether its conditional-only colour is a
+	// safe fallback.
+	const conditionalDeclaredByUtility = new Map<string, Set<string>>();
+	const suppliedByUtility = new Map<string, Set<string>>();
 	let sourceOrder = 0;
 
 	const utilityForRule = (selector: string): string => {
@@ -1369,12 +1381,18 @@ export const compiledStyleFromCss = (
 						value,
 						utility: sweepContext.utility,
 					});
-					if (
-						conditionalNested &&
-						gateApplies(sweepContext.themeGate, theme) &&
-						!conditionalDeclared.has(child.prop)
-					) {
-						conditionalDeclared.set(child.prop, sweepContext.utility);
+					if (conditionalNested && gateApplies(sweepContext.themeGate, theme)) {
+						const conditional = conditionalDeclaredByUtility.get(
+							sweepContext.utility,
+						);
+						if (conditional === undefined) {
+							conditionalDeclaredByUtility.set(
+								sweepContext.utility,
+								new Set([child.prop]),
+							);
+						} else if (!conditional.has(child.prop)) {
+							conditional.add(child.prop);
+						}
 					}
 				}
 				continue;
@@ -1421,7 +1439,15 @@ export const compiledStyleFromCss = (
 				gateApplies(classification.themeGate, theme)
 			) {
 				for (const declaration of declarations) {
-					suppliedProps.add(declaration.prop);
+					const supplied = suppliedByUtility.get(attributedUtility);
+					if (supplied === undefined) {
+						suppliedByUtility.set(
+							attributedUtility,
+							new Set([declaration.prop]),
+						);
+					} else {
+						supplied.add(declaration.prop);
+					}
 					const candidates = byProperty.get(declaration.prop) ?? [];
 					candidates.push({
 						...declaration,
@@ -1471,11 +1497,21 @@ export const compiledStyleFromCss = (
 		}
 	}
 
-	// Round 10 I3: a property declared ONLY inside a conditional at-rule has
-	// no resting value the source model can verify — fail loud by name
-	// instead of letting the call site substitute the compliant default.
-	for (const [prop, utility] of conditionalDeclared) {
-		if (!suppliedProps.has(prop)) {
+	// Round 10 I3, re-keyed per utility (round 13): a property declared ONLY
+	// inside a conditional at-rule FOR A CLASS has no resting value the
+	// source model can verify for that class — fail loud by name instead of
+	// letting another class's unconditional supply (typically the primitive's
+	// compliant default) substitute for it silently.
+	for (const utility of utilities) {
+		const conditional = conditionalDeclaredByUtility.get(utility);
+		if (conditional === undefined) {
+			continue;
+		}
+		const supplied = suppliedByUtility.get(utility);
+		for (const prop of conditional) {
+			if (supplied !== undefined && supplied.has(prop)) {
+				continue;
+			}
 			throw new Error(
 				`Only conditional declarations for ${utility}: ${prop} is ` +
 					'declared exclusively inside @media/@supports/@container, ' +
@@ -2085,6 +2121,36 @@ describe('drawer description text contrast (#1043)', () => {
 				'light',
 			),
 		).toThrow(/Only conditional declarations for x: color/);
+	});
+
+	// Round 13 I3 RE-KEY: the round-10 I3 pin above used a single class, so
+	// it could not expose the masking the round-12 reviewer reproduced on the
+	// real change-email drawer — the PRIMITIVE's unconditional `color`
+	// satisfies a per-property supply check, so a caller class whose only
+	// colour declaration is conditional never threw and the guard read green
+	// while the browser painted 2.51:1. The bookkeeping is now keyed by
+	// (utility, property); THIS is the primitive-plus-caller pair: the
+	// primitive class supplies `color` unconditionally, the caller's only
+	// colour is conditional, and the guard must still throw naming the
+	// CALLER. Revert the bookkeeping to per-property and this goes green
+	// again — the mutation that counts.
+	test('a caller whose only colour is conditional fails loud even when the primitive supplies color (round 13 I3)', () => {
+		expect(() =>
+			compiledStyleFromCss(
+				'.publy-drawer-description {\n' +
+					'  color: var(--publy-foreground-secondary);\n' +
+					'}\n' +
+					'@media (min-width: 640px) {\n' +
+					'  .publy-r12-conditional-only {\n' +
+					'    color: var(--publy-foreground-subtle);\n' +
+					'  }\n' +
+					'}',
+				['publy-drawer-description', 'publy-r12-conditional-only'],
+				'light',
+			),
+		).toThrow(
+			/Only conditional declarations for publy-r12-conditional-only: color/,
+		);
 	});
 
 	// Round 10 M3: state-variant-ness is decided by whether the pseudo-class
