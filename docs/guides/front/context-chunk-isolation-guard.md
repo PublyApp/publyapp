@@ -75,10 +75,13 @@ The guard deliberately throws instead of passing when it cannot classify rendere
   known minting callee (TanStack's own `component: lazyRouteComponent(…)` split shim, for
   example) are calls whose value is not known to be a context, and are not counted as mints.
 - **Unattributed presence fails closed.** When a source file owns an inventory entry and
-  appears in **two or more chunks** while no rendered copy is attributed a mint, the guard
-  cannot tell whether the context is minted once (safe) or in every copy (the bug class), so
-  it throws. A single chunk with no attributed mint stays green — with only one copy there
-  is nothing to duplicate.
+  **two or more copies** of its module are delivered (each module–chunk pair is a copy)
+  while no rendered copy is attributed a mint, the guard cannot tell whether the context is
+  minted once (safe) or in every copy (the bug class), so it throws. The count is of
+  delivered copies, not of the chunks they landed in: advanced chunk grouping can put two
+  copies of a module in one chunk, and that is the same duplicate-mint hazard as two
+  chunks. A single delivered copy with no attributed mint stays green — with only one copy
+  there is nothing to duplicate.
 - An unrecognized query-module family derived from a context source file (new TanStack sibling
   transforms must be added to the curated allowlist first).
 - Rendered code it cannot parse or inspect.
