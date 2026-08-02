@@ -333,7 +333,7 @@ const parseCmapTable = (tableData) => {
 	}
 	for (const offset of records) {
 		if (offset >= tableData.length) continue;
-		const subtable = tableData.slice(offset);
+		const subtable = tableData.subarray(offset);
 		for (const cp of parseCmapSubtable(subtable)) {
 			codepoints.add(cp);
 		}
@@ -377,7 +377,7 @@ const parseWoff2CmapCodepoints = (file) => {
 			if (cursor + 4 > buffer.length) {
 				throw new Error(`Font file ${file} has malformed table tag.`);
 			}
-			tag = buffer.slice(cursor, cursor + 4).toString('ascii');
+			tag = buffer.subarray(cursor, cursor + 4).toString('ascii');
 			cursor += 4;
 		} else {
 			tag = KNOWN_TABLE_TAGS[tagIndex] ?? `tag-${tagIndex}`;
@@ -415,7 +415,7 @@ const parseWoff2CmapCodepoints = (file) => {
 			`Font file  declares compressed data longer than file length.`,
 		);
 	}
-	const compressedData = buffer.slice(cursor, compressedEnd);
+	const compressedData = buffer.subarray(cursor, compressedEnd);
 	const decompressed = brotliDecompressSync(compressedData);
 	let expectedLength = 0;
 	for (const entry of entries) {
