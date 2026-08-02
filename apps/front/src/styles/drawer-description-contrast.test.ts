@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import postcss from 'postcss';
 import { compile } from 'tailwindcss';
 import { describe, expect, test } from 'vitest';
 
@@ -40,46 +41,65 @@ const SURFACE_TOKENS = [
 
 type Rgba = { r: number; g: number; b: number; a: number };
 
-const extractBlock = (
-	header: '@theme inline' | ':root' | 'html.dark',
-): string => {
-	const start = appCssSource.indexOf(`${header} {`);
-	if (start === -1) {
-		throw new Error(`Missing ${header} theme block`);
-	}
-
-	let depth = 0;
-	for (let index = start; index < appCssSource.length; index += 1) {
-		if (appCssSource[index] === '{') {
-			depth += 1;
-		} else if (appCssSource[index] === '}') {
-			depth -= 1;
-			if (depth === 0) {
-				return appCssSource.slice(start, index + 1);
-			}
-		}
-	}
-
-	throw new Error(`Unclosed ${header} theme block`);
-};
+// One real parse of app.css, shared by the theme token maps, the contextual
+// token fallback (round 8 M5) and nothing else — the utility resolution below
+// re-parses each compiled candidate build.
+const appCssRoot = postcss.parse(appCssSource, { from: undefined });
 
 // Every `--custom-property: value;` declaration in a theme block — hex and
 // rgba() colours, `var(--publy-*)` aliases, and everything else — so the
 // guard can read the real overlay surface and the backdrop it composites
-// over, not only the opaque surface tokens.
+// over, not only the opaque surface tokens. Read from the postcss tree (not
+// brace arithmetic) so a statement at-rule before the block or a brace in a
+// comment cannot desynchronize the scan (round 8 M6).
 const readDeclarations = (
-	header: ':root' | 'html.dark',
+	selector: ':root' | 'html.dark',
 ): Map<string, string> => {
 	const declarations = new Map<string, string>();
-	const pattern = /(--[\w-]+)\s*:\s*([^;]+);/g;
-	for (const match of extractBlock(header).matchAll(pattern)) {
-		declarations.set(match[1], match[2].trim());
+	let found = false;
+	appCssRoot.walkRules((rule) => {
+		if (
+			rule.selector
+				.split(',')
+				.map((entry) => entry.trim())
+				.includes(selector)
+		) {
+			found = true;
+			for (const node of rule.nodes) {
+				if (node.type === 'decl' && node.prop.startsWith('--')) {
+					declarations.set(node.prop, node.value.trim());
+				}
+			}
+		}
+	});
+	if (!found) {
+		throw new Error(`Missing ${selector} theme block`);
 	}
 	return declarations;
 };
 
 const LIGHT_DECLARATIONS = readDeclarations(':root');
 const DARK_DECLARATIONS = readDeclarations('html.dark');
+
+// Round 8 M5: tokens declared on a component rule rather than in
+// :root/html.dark (e.g. `--publy-toast-accent` on `.publy-toast`,
+// `--publy-icon-tile-fg` on `.publy-profile-icon-tile[data-tone='0']`) are
+// legitimate app declarations, and the old resolver rejected them with a
+// misleading "not declared" message. When a token is missing from both theme
+// blocks and the Tailwind theme, fall back to its FIRST declaration in
+// app.css — the base (unvarianted) context. A variant-gated value (a
+// different toast tone, a different data-tone) cannot be modelled
+// statically; the guard resolves the base declaration and the browser spec
+// measures the real paints.
+const CONTEXTUAL_DECLARATIONS = (() => {
+	const declarations = new Map<string, string>();
+	appCssRoot.walkDecls((decl) => {
+		if (decl.prop.startsWith('--') && !declarations.has(decl.prop)) {
+			declarations.set(decl.prop, decl.value.trim());
+		}
+	});
+	return declarations;
+})();
 
 const parseColorValue = (raw: string, name: string): Rgba => {
 	const trimmed = raw.trim();
@@ -198,31 +218,22 @@ const tailwindThemePath = fileURLToPath(
 );
 const tailwindThemeDeclarations = (() => {
 	const themeSource = readFileSync(tailwindThemePath, 'utf8');
-	const themeBlockStart = themeSource.indexOf('@theme default {');
-	if (themeBlockStart === -1) {
-		throw new Error('Missing @theme default block in tailwindcss/theme.css');
-	}
-
-	let depth = 0;
-	let end = themeBlockStart;
-	for (let index = themeBlockStart; index < themeSource.length; index += 1) {
-		if (themeSource[index] === '{') {
-			depth += 1;
-		} else if (themeSource[index] === '}') {
-			depth -= 1;
-			if (depth === 0) {
-				end = index;
-				break;
-			}
-		}
-	}
-
+	const themeRoot = postcss.parse(themeSource, { from: undefined });
 	const declarations = new Map<string, string>();
-	const pattern = /(--[\w-]+)\s*:\s*([^;]+);/g;
-	for (const match of themeSource
-		.slice(themeBlockStart, end)
-		.matchAll(pattern)) {
-		declarations.set(match[1], match[2].trim());
+	let found = false;
+	themeRoot.walkAtRules('theme', (atRule) => {
+		if (atRule.params.trim() !== 'default') {
+			return;
+		}
+		found = true;
+		atRule.walkDecls((decl) => {
+			if (decl.prop.startsWith('--')) {
+				declarations.set(decl.prop, decl.value.trim());
+			}
+		});
+	});
+	if (!found) {
+		throw new Error('Missing @theme default block in tailwindcss/theme.css');
 	}
 	return declarations;
 })();
@@ -250,12 +261,21 @@ const resolveColor = (name: string, theme: 'light' | 'dark'): Rgba => {
 				: LIGHT_DECLARATIONS.get(tokenName);
 		if (raw === undefined) {
 			const tailwindRaw = tailwindThemeDeclarations.get(tokenName);
-			if (tailwindRaw === undefined) {
-				throw new Error(
-					`Token ${tokenName} is not declared in app.css or the Tailwind theme`,
-				);
+			if (tailwindRaw !== undefined) {
+				return parseColorDeclaration(tailwindRaw, tokenName);
 			}
-			return parseColorDeclaration(tailwindRaw, tokenName);
+			const contextualRaw = CONTEXTUAL_DECLARATIONS.get(tokenName);
+			if (contextualRaw !== undefined) {
+				// Round 8 M5 — see the CONTEXTUAL_DECLARATIONS comment above.
+				const aliasMatch = /^var\((--[\w-]+)\)$/.exec(contextualRaw);
+				if (aliasMatch) {
+					return resolve(aliasMatch[1]);
+				}
+				return parseColorDeclaration(contextualRaw, tokenName);
+			}
+			throw new Error(
+				`Token ${tokenName} is not declared in app.css or the Tailwind theme`,
+			);
 		}
 
 		const aliasMatch = /^var\((--[\w-]+)\)$/.exec(raw);
@@ -431,22 +451,51 @@ type CallSite = {
 	className: string | null;
 };
 
+// Round 8 M3: the module matcher used to gate on
+// `/\/components\/ui\/drawer$/` against the raw specifier, so a RELATIVE
+// import from a sibling in `src/components/ui/` (`./drawer`) escaped both
+// guards entirely — the round-7 alias fix one level up the resolver. The
+// specifier is now resolved against the importing file (like the bundler
+// does) before matching, so `./drawer`, `../components/ui/drawer` and the
+// `~/components/ui/drawer` alias all land on the same module.
+const isDrawerModuleImport = (
+	specifier: string,
+	importerPath: string,
+): boolean => {
+	if (
+		specifier === '~/components/ui/drawer' ||
+		specifier === '~/components/ui/drawer.tsx'
+	) {
+		return true;
+	}
+	if (!specifier.startsWith('.')) {
+		return false;
+	}
+	const resolved = path.posix.normalize(
+		path.posix.join(path.posix.dirname(importerPath), specifier),
+	);
+	return /\/components\/ui\/drawer(?:\.tsx)?$/.test(resolved);
+};
+
 // Round 7 M4: the local JSX tag names that refer to `DrawerDescription` in a
 // file — the plain named import plus every alias (`DrawerDescription as
 // Description`) and the namespace of `import * as Drawer` (used as
 // `<Drawer.DrawerDescription>`). Before this, an aliased import escaped the
 // enumeration entirely: no source coverage, no inventory entry, no browser
 // case — which is what turned the I1/I2 source-guard gaps into full escapes
-// instead of browser-bounded ones.
-const drawerDescriptionTagNames = (source: string): string[] => {
+// instead of browser-bounded ones. Round 8 M3: relative specifiers are
+// resolved against the importing file, not matched literally.
+export const drawerDescriptionTagNames = (
+	source: string,
+	file: string,
+): string[] => {
 	const tagNames = new Set<string>();
-	const drawerModule = /\/components\/ui\/drawer$/;
 
 	for (const match of source.matchAll(
 		/import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g,
 	)) {
 		const modulePath = match[2];
-		if (!drawerModule.test(modulePath)) {
+		if (!isDrawerModuleImport(modulePath, file)) {
 			continue;
 		}
 		for (const specifier of match[1].split(',')) {
@@ -465,7 +514,7 @@ const drawerDescriptionTagNames = (source: string): string[] => {
 	for (const match of source.matchAll(
 		/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*['"]([^'"]+)['"]/g,
 	)) {
-		if (drawerModule.test(match[2])) {
+		if (isDrawerModuleImport(match[2], file)) {
 			tagNames.add(`${match[1]}.DrawerDescription`);
 		}
 	}
@@ -478,7 +527,7 @@ const findDrawerDescriptionCallSites = (): CallSite[] => {
 	const callSites: CallSite[] = [];
 	for (const file of walkTsxFiles(srcRoot)) {
 		const source = readFileSync(file, 'utf8');
-		for (const tagName of drawerDescriptionTagNames(source)) {
+		for (const tagName of drawerDescriptionTagNames(source, file)) {
 			const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 			const tagPattern = new RegExp(`<${escapedTagName}\\b([^>]*)(\\/?)>`, 'g');
 			for (const match of source.matchAll(tagPattern)) {
@@ -591,61 +640,234 @@ type CompiledUtilityStyle = {
 	opacity: string | null;
 };
 
-// Extracts the declarations of every rule in the compiled CSS whose selector
-// targets the utility's class. Scoped to those rules (not the whole output) so
-// a base rule like `.publy-drawer-description { color: ... }` cannot leak its
-// colour into a typography utility's verdict. Container at-rules (`@layer`,
-// `@media`, `@supports`) are ENTERED so a variant utility's rule nested inside
-// one is still found, but their bodies are walked recursively and the scan
-// resumes after the at-rule's own closing brace — a sibling rule's header can
-// never absorb a `}` that belongs to an at-rule. Declaration-only at-rules
-// (`@property`, `@font-face`, `@theme` — bodies with no nested rule braces)
-// are skipped whole: re-entering one would make the walker treat its body text
-// as the next rule's header and desynchronize the scan (round 7 I1).
-const declarationsFromUtilityRules = (
+// ---- CSS resolution (round 9 rewrite) -------------------------------------
+//
+// The rule reader used to be a hand-rolled brace scanner, and three rounds of
+// adversarial review found four parser defects in it (rounds 6-8: statement
+// at-rule absorption, a `;`-consuming declaration regex, substring selector
+// matching that let `:hover`/`@media` variants supply the resting colour, and
+// native nesting blindness). It is now a real postcss parse of each compiled
+// candidate build — at-rule containers, declaration-only at-rules, native
+// nesting, braces inside strings and comments are all handled by the parser
+// (precedent: scripts/check-zindex-guard.mjs in the sibling batch).
+//
+// What the parser does NOT decide — the guard's own policy:
+//   1. EXACT selector matching (round 8 I1): a rule supplies the RESTING
+//      style of a class only when one of its selector-list entries IS the
+//      class itself (its final compound run equals `.class`). `.x:hover`,
+//      `.x[data-active]`, `.x:focus-visible` are state variants — they never
+//      paint at rest — so they are ignored, never last-wins.
+//   2. CONDITIONAL at-rules (`@media`/`@supports`/`@container`) never supply
+//      the resting colour either (round 8 I1): the suite measures fixed
+//      viewports the source model cannot evaluate, mirroring the documented
+//      policy of css-cascade-test-support.ts. `@layer` is not conditional —
+//      it groups cascade priority, it does not gate applicability.
+//   3. LAST-WINS across nesting (round 8 I2): Tailwind emits authored
+//      nesting verbatim, so a rule nested inside a plain rule counts with
+//      the full tree in source order — a later nested override wins exactly
+//      as it does in the browser.
+//   4. THEME-gated nesting (round 9): Tailwind's class-based `dark:` variant
+//      compiles to `.dark\:text-primary { &:is(.dark *) { … } }`. The
+//      nested `&:is(.dark *)` is a THEME gate, and the suite knows which
+//      theme it measures (the browser spec toggles the real `.dark` class),
+//      so it supplies the resting colour in the dark theme only — and is
+//      ignored in light, where the browser would not paint it.
+//   5. FAIL-CLOSED sweep (rounds 4+9): every colour declaration anywhere
+//      under an exact-match rule — including inside a conditional at-rule —
+//      must resolve; an unresolvable value (`text-primary/50`'s
+//      `color-mix(…)` fallback, a named colour) throws by name instead of
+//      letting the guard report the fallback colour the browser does not
+//      paint. Resolvable conditional values still never supply the resting
+//      colour (rule 2).
+//   6. `!important` is a cascade-priority flag, not part of the value
+//      (round 8 M5): postcss separates it, so
+//      `color: var(--publy-foreground-muted) !important` resolves the same
+//      colour as the plain declaration.
+
+const CONDITIONAL_AT_RULES = new Set(['media', 'supports', 'container']);
+
+/** Splits a selector list on top-level commas, ignoring commas nested inside
+ * `(...)` or `[...]` (e.g. `:is(.a, .b)`, `[data-x='a,b']`). */
+const splitSelectorList = (selector: string): string[] => {
+	const entries: string[] = [];
+	let depth = 0;
+	let start = 0;
+	for (let index = 0; index < selector.length; index += 1) {
+		const character = selector[index];
+		if (character === '(' || character === '[') {
+			depth += 1;
+		} else if (character === ')' || character === ']') {
+			depth -= 1;
+		} else if (character === ',' && depth === 0) {
+			entries.push(selector.slice(start, index));
+			start = index + 1;
+		}
+	}
+	entries.push(selector.slice(start));
+	return entries
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+};
+
+/** The final compound selector run of an individual (comma-free) selector —
+ * the run whose tokens must match the actual target element, ignoring any
+ * ancestor compounds joined by a combinator. */
+const lastCompoundRun = (selector: string): string => {
+	const withSpacedCombinators = selector.replace(/[>+~]/g, ' ');
+	return (
+		withSpacedCombinators
+			.split(/\s+/)
+			.filter((run) => run.length > 0)
+			.slice(-1)[0] ?? ''
+	);
+};
+
+/** True when `selector` (a possibly comma-separated list) targets the class
+ * itself — the exact-match policy of round 8 I1, rule 1 above. */
+const isExactClassSelector = (selector: string, needle: string): boolean =>
+	splitSelectorList(selector).some(
+		(entry) => lastCompoundRun(entry) === needle,
+	);
+
+/** Tailwind's class-based `dark:` variant nesting shape (rule 4 above). The
+ * `&` is the parent selector — the class itself — so the nested rule is the
+ * dark-theme gate of exactly that class. Covers both the bare gate
+ * (`&:is(.dark)`) and the scoped form Tailwind v4 actually emits for
+ * `@custom-variant dark (&:is(.dark *))` — `&:is(.dark *)`, plus the default
+ * `&:where(.dark, .dark *)` spelling. */
+const DARK_GATE_SELECTOR_PATTERN =
+	/^&:(?:is|where)\(\s*\.dark(?:\s*\*\s*|\s*,\s*\.dark\s*\*)?\s*\)$/;
+
+const isConditionalAtRuleAncestor = (node: postcss.Node): boolean => {
+	let current = node.parent;
+	while (current != null && current.type !== 'root') {
+		if (
+			current.type === 'atrule' &&
+			CONDITIONAL_AT_RULES.has(current.name.toLowerCase())
+		) {
+			return true;
+		}
+		current = current.parent;
+	}
+	return false;
+};
+
+const isRelevantProperty = (prop: string): boolean =>
+	prop === 'color' || prop === 'opacity' || prop === '-webkit-text-fill-color';
+
+/**
+ * Resolves a utility's compiled CSS to the declarations that actually paint
+ * at rest (see the policy block above). Exported so the synthetic-CSS tests
+ * below can pin each policy clause directly. Throws `Unresolvable utility on
+ * a DrawerDescription: <utility>` when no rule targets the class at all
+ * (round 4), and `Unresolvable generated colour for <utility>: <value>` when
+ * any colour declaration under the class's rules cannot be resolved
+ * (fail-closed sweep, rule 5).
+ */
+export const compiledStyleFromCss = (
 	compiledCss: string,
 	utility: string,
-): string[] => {
+	theme: 'light' | 'dark',
+): CompiledUtilityStyle => {
+	const root = postcss.parse(compiledCss, { from: undefined });
 	const needle = `.${escapeClassName(utility)}`;
-	const bodies: string[] = [];
 
-	const scan = (segment: string): void => {
-		let index = 0;
-		const length = segment.length;
-		while (index < length) {
-			const open = segment.indexOf('{', index);
-			if (open === -1) {
-				return;
-			}
-			const header = segment.slice(index, open).trim();
-			let depth = 1;
-			let cursor = open + 1;
-			let nested = false;
-			while (cursor < length && depth > 0) {
-				if (segment[cursor] === '{') {
-					depth += 1;
-					nested = true;
-				} else if (segment[cursor] === '}') {
-					depth -= 1;
-				}
-				cursor += 1;
-			}
-			if (header.startsWith('@')) {
-				if (nested) {
-					scan(segment.slice(open + 1, cursor - 1));
-				}
-				index = cursor;
+	let mentioned = false;
+	root.walkRules((rule) => {
+		if (rule.selector.includes(needle)) {
+			mentioned = true;
+		}
+	});
+	if (!mentioned) {
+		throw new Error(`Unresolvable utility on a DrawerDescription: ${utility}`);
+	}
+
+	const resting = new Map<string, string>();
+	const sweep: { prop: string; value: string }[] = [];
+
+	const collectRuleDeclarations = (
+		rule: postcss.Rule,
+		supply: boolean,
+	): void => {
+		for (const node of rule.nodes ?? []) {
+			if (node.type !== 'decl' || !isRelevantProperty(node.prop)) {
 				continue;
 			}
-			if (header.includes(needle)) {
-				bodies.push(segment.slice(open + 1, cursor - 1));
+			const value = node.value.trim();
+			if (supply) {
+				resting.set(node.prop, value);
 			}
-			index = cursor;
+			sweep.push({ prop: node.prop, value });
 		}
 	};
 
-	scan(compiledCss);
-	return bodies;
+	const visit = (node: postcss.Node, underExactMatch: boolean): void => {
+		for (const child of node.nodes ?? []) {
+			if (child.type === 'decl') {
+				if (underExactMatch && isRelevantProperty(child.prop)) {
+					sweep.push({ prop: child.prop, value: child.value.trim() });
+				}
+				continue;
+			}
+			if (child.type !== 'rule') {
+				visit(child, underExactMatch);
+				continue;
+			}
+			const exact = isExactClassSelector(child.selector, needle);
+			const darkGate =
+				underExactMatch && DARK_GATE_SELECTOR_PATTERN.test(child.selector);
+			const conditional = isConditionalAtRuleAncestor(child);
+			if (exact) {
+				collectRuleDeclarations(child, !conditional);
+				visit(child, true);
+			} else if (darkGate) {
+				collectRuleDeclarations(child, theme === 'dark' && !conditional);
+				visit(child, true);
+			} else {
+				visit(child, underExactMatch);
+			}
+		}
+	};
+	visit(root, false);
+
+	for (const declaration of sweep) {
+		if (declaration.prop === 'opacity') {
+			continue;
+		}
+		const value = declaration.value;
+		if (value === 'currentcolor') {
+			continue;
+		}
+		const variableMatch = /^var\((--[\w-]+)\)$/.exec(value);
+		try {
+			if (variableMatch) {
+				resolveColor(variableMatch[1], theme);
+			} else {
+				parseColorValue(value, utility);
+			}
+		} catch (error) {
+			throw new Error(
+				`Unresolvable generated colour for ${utility}: ${value}`,
+				{ cause: error },
+			);
+		}
+	}
+
+	const style: CompiledUtilityStyle = {
+		color: null,
+		textFillColor: null,
+		opacity: null,
+	};
+	for (const [prop, value] of resting) {
+		if (prop === 'color') {
+			style.color = value;
+		} else if (prop === 'opacity') {
+			style.opacity = value;
+		} else if (prop === '-webkit-text-fill-color') {
+			style.textFillColor = value;
+		}
+	}
+	return style;
 };
 
 const compiledUtilityStyleCache = new Map<
@@ -669,8 +891,10 @@ const getCompiler = (): Promise<Awaited<ReturnType<typeof compile>>> => {
 
 const compiledStyleFromUtility = (
 	utility: string,
+	theme: 'light' | 'dark',
 ): Promise<CompiledUtilityStyle> => {
-	const cached = compiledUtilityStyleCache.get(utility);
+	const cacheKey = `${utility}|${theme}`;
+	const cached = compiledUtilityStyleCache.get(cacheKey);
 	if (cached) {
 		return cached;
 	}
@@ -679,51 +903,9 @@ const compiledStyleFromUtility = (
 		const compiler = await getCompiler();
 		const generatedCss = compiler.build([utility]);
 		const cssWithoutBanner = generatedCss.replace(/^\/\*![\s\S]*?\*\/\s*/, '');
-
-		// The utility resolves iff a rule targets its class — either generated
-		// for it (a Tailwind utility) or already present in app.css's own
-		// `@layer components` (an app class like `publy-type-helper`). An
-		// unknown utility like `text-quantum-42` generates nothing and must not
-		// be silently treated as "no colour override".
-		if (cssWithoutBanner.indexOf(`.${escapeClassName(utility)}`) === -1) {
-			throw new Error(
-				`Unresolvable utility on a DrawerDescription: ${utility}`,
-			);
-		}
-
-		const declarations = declarationsFromUtilityRules(
-			cssWithoutBanner,
-			utility,
-		);
-		const style: CompiledUtilityStyle = {
-			color: null,
-			textFillColor: null,
-			opacity: null,
-		};
-		// The terminating `;` is a LOOKAHEAD, not part of the match: consuming
-		// it would let the next match anchor only on the *following*
-		// declaration's `;` and silently skip every other declaration — a
-		// `color` at an even position (e.g. `.publy-drawer-description`'s
-		// `font-size` then `color`) was never extracted (round 7 I1). The `{`
-		// anchor still matches the `{` that opens a nested at-rule block, so a
-		// `color` inside one (e.g. `text-primary/50`'s nested `@supports`
-		// color-mix) still resolves last and fails closed by name.
-		const declarationPattern = /(?:^|[;{])\s*([\w-]+)\s*:\s*([^;{}]+)(?=;)/g;
-		for (const body of declarations) {
-			for (const match of body.matchAll(declarationPattern)) {
-				const value = match[2].trim();
-				if (match[1] === 'color') {
-					style.color = value;
-				} else if (match[1] === 'opacity') {
-					style.opacity = value;
-				} else if (match[1] === '-webkit-text-fill-color') {
-					style.textFillColor = value;
-				}
-			}
-		}
-		return style;
+		return compiledStyleFromCss(cssWithoutBanner, utility, theme);
 	})();
-	compiledUtilityStyleCache.set(utility, compiled);
+	compiledUtilityStyleCache.set(cacheKey, compiled);
 	return compiled;
 };
 
@@ -747,7 +929,7 @@ const resolveClassName = async (
 			continue;
 		}
 
-		const compiledStyle = await compiledStyleFromUtility(utility);
+		const compiledStyle = await compiledStyleFromUtility(utility, theme);
 		if (compiledStyle.opacity !== null) {
 			const percentageMatch = /^([\d.]+)%$/.exec(compiledStyle.opacity);
 			const parsedOpacity =
@@ -764,7 +946,10 @@ const resolveClassName = async (
 
 		// `-webkit-text-fill-color` paints the text in WebKit/Blink instead of
 		// `color` when both are set (round 7 M7). `currentcolor` is its
-		// default: an explicit no-op override, not a blind spot.
+		// default: an explicit no-op override, not a blind spot. Every value
+		// that reaches this point has already survived the parser's
+		// fail-closed sweep (round 9 rule 5), so an unresolvable colour throws
+		// in compiledStyleFromCss by name instead of here.
 		const overrideDeclaration =
 			compiledStyle.textFillColor ?? compiledStyle.color;
 		if (
@@ -775,16 +960,9 @@ const resolveClassName = async (
 		}
 
 		const variableMatch = /^var\((--[\w-]+)\)$/.exec(overrideDeclaration);
-		try {
-			resolved = variableMatch
-				? resolveColor(variableMatch[1], theme)
-				: parseColorValue(overrideDeclaration, utility);
-		} catch (error) {
-			throw new Error(
-				`Unresolvable generated colour for ${utility}: ${overrideDeclaration}`,
-				{ cause: error },
-			);
-		}
+		resolved = variableMatch
+			? resolveColor(variableMatch[1], theme)
+			: parseColorValue(overrideDeclaration, utility);
 	}
 	return { color: resolved, opacity };
 };
@@ -957,7 +1135,20 @@ describe('drawer description text contrast (#1043)', () => {
 	// Pins the round-4 utility-resolution behaviours so the real app.css
 	// compiler input (round 5 I5) cannot regress them: semantic tokens still
 	// resolve, arbitrary hex values still resolve exactly, and the genuinely
-	// unresolvable colour shapes still fail closed by name.
+	// unresolvable colour shapes still fail closed by name. Two pins changed
+	// with the round-9 parser rewrite, each because the OLD pin encoded the
+	// old walker's blindness rather than a browser fact:
+	//   - `dark:text-primary` used to resolve --primary in the LIGHT theme
+	//     because the substring walker treated the nested `&:is(.dark *)`
+	//     rule as the class itself. The rule is a THEME gate: in light mode
+	//     the browser paints the default, so the class now resolves no
+	//     resting colour in light — and --primary in dark, where it actually
+	//     paints (round 9 rule 4).
+	//   - `text-primary!` used to throw because the value regex could not
+	//     read `!important` values. `!important` is a cascade-priority flag,
+	//     not part of the value — the class paints --primary exactly like
+	//     `text-primary` (round 8 M5), and the five app classes of M5 fail
+	//     closed on the same shape.
 	// The design-system guard scans every src/ file for raw colour literals, so
 	// these two FIXTURE utilities — which exist to prove that raw colours are
 	// still RESOLVED correctly — are built by concatenation rather than written
@@ -980,12 +1171,14 @@ describe('drawer description text contrast (#1043)', () => {
 		});
 		expect(
 			(await resolveClassName('dark:text-primary', 'light')).color,
-		).toEqual(resolveColor('--primary', 'light'));
-		for (const utility of [
-			'text-primary/50',
-			'text-primary!',
-			rawNamedUtility,
-		]) {
+		).toBeNull();
+		expect((await resolveClassName('dark:text-primary', 'dark')).color).toEqual(
+			resolveColor('--primary', 'dark'),
+		);
+		expect((await resolveClassName('text-primary!', 'light')).color).toEqual(
+			resolveColor('--primary', 'light'),
+		);
+		for (const utility of ['text-primary/50', rawNamedUtility]) {
 			await expect(async () =>
 				resolveClassName(utility, 'light'),
 			).rejects.toThrow('Unresolvable generated colour');
