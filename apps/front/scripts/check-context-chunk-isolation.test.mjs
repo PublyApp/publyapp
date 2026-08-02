@@ -3042,6 +3042,121 @@ void test('fails with a named diagnostic when a source map segment references an
 	);
 });
 
+void test('type-checks the hand-written declaration file against the current runtime API', async () => {
+	// The .d.mts is hand-maintained and can drift from the runtime API; the
+	// probe below uses the current API (mintSpans, chunk maps, the output
+	// directory parameter) and pins the removed position-key mechanism's
+	// absence, then the real TypeScript compiler must accept it.
+	const probeDirectory = await mkdtemp(
+		path.join(frontDirectory, '.r20-type-probe-'),
+	);
+	const scriptPath = path.join(
+		frontDirectory,
+		'scripts/check-context-chunk-isolation.mjs',
+	);
+	try {
+		await writeFile(
+			path.join(probeDirectory, 'type-probe.mts'),
+			`
+			import {
+				contextChunkIsolationPlugin,
+				findContextChunkIsolationViolations,
+				findContextInventoryViolations,
+				findReactContextDeclarations,
+				type ClientChunk,
+				type ContextDeclaration,
+				type SourceSpan,
+			} from ${JSON.stringify(scriptPath)};
+
+			const span: SourceSpan = {
+				startLine: 0,
+				startCol: 8,
+				endLine: 0,
+				endCol: 24,
+			};
+
+			const context: ContextDeclaration = {
+				name: 'ProbeContext',
+				sourceFile: 'src/probe.tsx',
+				mintSpans: [span],
+			};
+
+			const chunk: ClientChunk = {
+				fileName: 'assets/route.js',
+				modules: { 'src/probe.tsx': { code: 'x' } },
+				map: {
+					version: 3,
+					sources: ['src/probe.tsx'],
+					mappings: 'AAAA',
+				},
+			};
+
+			const violations: string[] = findContextChunkIsolationViolations(
+				[context],
+				[chunk],
+				${JSON.stringify(frontDirectory)},
+				${JSON.stringify(path.join(frontDirectory, 'dist', 'client'))},
+			);
+
+			const declarations: ContextDeclaration[] =
+				findReactContextDeclarations(
+					${JSON.stringify(path.join(frontDirectory, 'tsconfig.json'))},
+				);
+
+			const inventoryViolations: string[] =
+				findContextInventoryViolations(
+					declarations,
+					[context],
+					${JSON.stringify(frontDirectory)},
+				);
+
+			const plugin = contextChunkIsolationPlugin({
+				contextInventory: [context],
+				tsconfigPath: ${JSON.stringify(
+					path.join(frontDirectory, 'tsconfig.json'),
+				)},
+				workspaceDirectory: ${JSON.stringify(frontDirectory)},
+			});
+
+			// The discarded position-key mechanism must not be describable by
+			// this declaration file anymore.
+			const stale = {
+				// @ts-expect-error mintingPositions was removed with the position-key mechanism
+				mintingPositions: ['contexts.probe'],
+			} satisfies ContextDeclaration;
+
+			export {
+				chunk,
+				declarations,
+				inventoryViolations,
+				plugin,
+				stale,
+				violations,
+			};
+			`,
+		);
+		await execFileAsync(
+			process.execPath,
+			[
+				path.join(frontDirectory, 'node_modules/typescript/bin/tsc'),
+				'--ignoreConfig',
+				'--noEmit',
+				'--skipLibCheck',
+				'--target',
+				'ES2022',
+				'--module',
+				'NodeNext',
+				'--moduleResolution',
+				'NodeNext',
+				path.join(probeDirectory, 'type-probe.mts'),
+			],
+			{ cwd: frontDirectory },
+		);
+	} finally {
+		await rm(probeDirectory, { force: true, recursive: true });
+	}
+});
+
 void test('fails the plugin when no React contexts are discovered', async () => {
 	const fixtureDirectory = await createFixture({
 		'src/no-context.ts': `
