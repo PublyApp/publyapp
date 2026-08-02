@@ -17,6 +17,7 @@ import { Scanner } from '@tailwindcss/oxide';
 
 import {
 	buildProductionApp,
+	classifyModuleKind,
 	classifyZUtility,
 	checkAuthoredCssScaleDefinitions,
 	checkCompiledCssZIndex,
@@ -1812,6 +1813,9 @@ test('raw sinks: a non-default named element of a ?raw module is recorded but sh
 			relativePath: 'probe.tsx',
 			content,
 			baseDir,
+			rawTextPaths: new Set(
+				Object.keys(files).map((relative) => path.join(baseDir, relative)),
+			),
 			rawImportTexts: new Map(
 				Object.entries(files).map(([relative, text]) => [
 					path.join(baseDir, relative),
@@ -1842,6 +1846,242 @@ test('raw sinks: a non-default named element of a ?raw module is recorded but sh
 		['z-index-declaration-not-on-scale'],
 		'`{ default as x }` is the default binding and must red at the raw file',
 	);
+});
+
+// ---------------------------------------------------------------------------
+// Round-17 B1 — the single module classifier. Classification is decided in
+// exactly one function (`classifyModuleKind`), which reads what the build
+// itself produced; the tests below pin the mechanism at the source level.
+// ---------------------------------------------------------------------------
+test('structural (round 17 B1): query parsing exists only inside the single classifier', async () => {
+	// The recurring defect across rounds 13–16 was a second hand-written
+	// specifier parser appearing next to the first one and disagreeing with
+	// Vite. The only assertion that stops it is one over the guard's own
+	// source: every query-parsing token in check-zindex-guard.mjs must sit
+	// inside `classifyModuleKind`'s body, so a future classifier cannot be
+	// added without reddening this test — no model of the guard, the real
+	// artifact.
+	const source = await readFile(
+		path.join(scriptsDir, 'check-zindex-guard.mjs'),
+		'utf8',
+	);
+	const marker = 'export const classifyModuleKind';
+	const definitionIndex = source.indexOf(marker);
+	assert.ok(
+		definitionIndex !== -1,
+		'the single classifier must exist as a named export',
+	);
+	const bodyStart = source.indexOf('=>', definitionIndex);
+	assert.ok(bodyStart !== -1, 'the classifier must be an arrow function');
+	const bodyEnd = source.indexOf('\n};', bodyStart);
+	assert.ok(
+		bodyEnd !== -1,
+		'the classifier body must terminate with a top-level };',
+	);
+	const patterns = [
+		/split\(\s*['"]\?['"]\s*\)/g,
+		/indexOf\(\s*['"]\?['"]\s*\)/g,
+		/\[?#\]/g,
+	];
+	let insideCount = 0;
+	for (const pattern of patterns) {
+		for (const match of source.matchAll(pattern)) {
+			assert.ok(
+				match.index >= bodyStart && match.index < bodyEnd,
+				`query parsing \`${match[0]}\` must live inside classifyModuleKind, ` +
+					'never in a second classifier',
+			);
+			insideCount += 1;
+		}
+	}
+	assert.ok(
+		insideCount > 0,
+		'the classifier must actually contain the query strip it owns',
+	);
+});
+
+test('structural (round 17 B1): the classifier reads Vite-observable signals, never query tokens', () => {
+	// The classifier's raw/inline answer is a pure function of the build's
+	// own transform result, module info marker, and load claim — the
+	// multi-query spelling `?v=1?raw` is raw because Vite transformed it as
+	// raw (same raw-export shape), not because any query token said so.
+	// `?url` carries Vite's own asset marker and is never raw text.
+	const txtPath = '/probe/src/named.txt';
+	const cssPath = '/probe/src/overlay.css';
+	assert.equal(
+		classifyModuleKind(`${txtPath}?raw`, {
+			code: 'export default ".x { color: red; }"',
+			meta: {},
+			assetPluginLoad: new Set(),
+		}).kind,
+		'raw',
+	);
+	assert.equal(
+		classifyModuleKind(`${txtPath}?v=1?raw`, {
+			code: 'export default ".x { color: red; }"',
+			meta: {},
+			assetPluginLoad: new Set(),
+		}).kind,
+		'raw',
+	);
+	assert.equal(
+		classifyModuleKind(`${txtPath}?v=1&raw`, {
+			code: 'export default ".x { color: red; }"',
+			meta: {},
+			assetPluginLoad: new Set(),
+		}).kind,
+		'raw',
+	);
+	assert.equal(
+		classifyModuleKind(`${txtPath}?raw`, {
+			code: 'export default ".x { color: red; }"',
+			meta: {},
+			// The build's post-order load hook observed the id, so vite:asset
+			// did not claim it — a plain module, not a raw one.
+			assetPluginLoad: new Set([`${txtPath}?raw`]),
+		}).kind,
+		'other',
+	);
+	assert.equal(
+		classifyModuleKind(`${txtPath}?url`, {
+			code: 'export default "/assets/named-abc123.txt"',
+			meta: { 'vite:asset': true },
+			assetPluginLoad: new Set(),
+		}).kind,
+		'url-asset',
+	);
+	assert.equal(
+		classifyModuleKind(`${cssPath}?raw`, {
+			code: 'export default ".x { color: red; }"',
+			meta: {},
+			assetPluginLoad: new Set(),
+		}).kind,
+		'inline-css',
+	);
+	assert.equal(
+		classifyModuleKind(`${cssPath}?inline`, {
+			code: 'export default ".x{color:red}"',
+			meta: {},
+			assetPluginLoad: new Set([`${cssPath}?inline`]),
+		}).kind,
+		'inline-css',
+	);
+	assert.equal(
+		classifyModuleKind(cssPath, {
+			code: '',
+			meta: {},
+			assetPluginLoad: new Set([cssPath]),
+		}).kind,
+		'css',
+	);
+	assert.equal(
+		classifyModuleKind(cssPath, {
+			code: '.x { color: red; }',
+			meta: {},
+			assetPluginLoad: new Set([cssPath]),
+		}).kind,
+		'css',
+	);
+	assert.equal(
+		classifyModuleKind(`${cssPath}?url`, {
+			code: 'export default "/assets/overlay-abc123.css"',
+			meta: { 'vite:asset': true },
+			assetPluginLoad: new Set(),
+		}).kind,
+		'css-url',
+	);
+	assert.equal(
+		classifyModuleKind('/probe/src/main.ts', {
+			code: "import './app.css';",
+			meta: {},
+			assetPluginLoad: new Set(['/probe/src/main.ts']),
+		}).kind,
+		'script',
+	);
+});
+
+test('e2e (round 17 B1): a second query separator cannot hide a raw module from either classifier', async () => {
+	// Round-16 B1's exact reproduction: `./x.txt?v=1?raw` is a raw module to
+	// Vite's own `/(?:\?|&)raw(?:&|$)/` test, but the round-15 hand-written
+	// `split('?')` discarded the second query segment and neither the build
+	// record nor the script pass saw it — the raw bytes shipped green. The
+	// build now records the module from its own transform result, and the
+	// script pass asks that record, so the multi-query spelling reds at its
+	// raw file like every other spelling.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?v=1?raw';`,
+				`export const probe = <style>{rawCss}</style>;`,
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483575; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.file),
+		['src/overlay.txt'],
+		`a multi-query-separator ?raw module must red at its raw file: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 17 B1): emitted bytes and recorded provenance agree for multi-query raw modules', async () => {
+	// The B1 "real-build test": the module the build transformed as raw (its
+	// text is in an emitted JS asset) is exactly the module the provenance
+	// record names, for the `?v=1?raw` spelling Vite accepts and the guard
+	// previously missed.
+	const root = await mkdtemp(path.join(scriptsDir, 'zindex-guard-'));
+	try {
+		await mkdir(path.join(root, 'src'), { recursive: true });
+		await writeFile(path.join(root, 'app.css'), FIXTURE_APP_CSS);
+		await writeFile(
+			path.join(root, 'index.html'),
+			'<div id="app"></div><script type="module" src="/src/main.ts"></script>',
+		);
+		await writeFile(
+			path.join(root, 'vite.config.mjs'),
+			"import tailwindcss from '@tailwindcss/vite';\n" +
+				'export default { plugins: [tailwindcss()] };\n',
+		);
+		const marker = '.r17-b1 { z-index: 2147483574; }';
+		await writeFile(
+			path.join(root, 'src/main.ts'),
+			[
+				"import '../app.css';",
+				"import multiRaw from './overlay.txt?v=1?raw';",
+				'document.body.dataset.probe = multiRaw;',
+			].join('\n'),
+		);
+		await writeFile(path.join(root, 'src/overlay.txt'), marker);
+		const buildResult = await buildProductionApp(root);
+		try {
+			const resolved = path.resolve(root, 'src/overlay.txt');
+			assert.ok(
+				buildResult.rawTextPaths.includes(resolved),
+				`the build record must contain the multi-query raw module: ` +
+					JSON.stringify(buildResult.rawTextPaths),
+			);
+			const emittedFiles = await readdir(buildResult.emittedCssRoot, {
+				recursive: true,
+			});
+			const jsFiles = emittedFiles.filter((file) => file.endsWith('.js'));
+			assert.ok(jsFiles.length > 0, 'the build must emit JS');
+			const emitted = await Promise.all(
+				jsFiles.map((file) =>
+					readFile(path.join(buildResult.emittedCssRoot, file), 'utf8'),
+				),
+			);
+			assert.ok(
+				emitted.some((text) => text.includes(marker)),
+				'the raw bytes must ship in an emitted asset',
+			);
+		} finally {
+			await buildResult.cleanup();
+		}
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
 });
 
 test('e2e (round 13 B2): the static-string family resolves the same transparent expressions', async () => {
@@ -2169,6 +2409,9 @@ test("raw sinks: the import binding's sink, never the bytes, decides the walk", 
 			relativePath: 'probe.tsx',
 			content,
 			baseDir,
+			rawTextPaths: new Set(
+				Object.keys(files).map((relative) => path.join(baseDir, relative)),
+			),
 			rawImportTexts: new Map(
 				Object.entries(files).map(([relative, text]) => [
 					path.join(baseDir, relative),
@@ -2349,9 +2592,9 @@ test('e2e (round 11 I1/A3): a <style> raw sink with the binding after other chil
 
 test('raw sinks: a style-sink specifier resolving to no recorded module is a named diagnostic', () => {
 	// The round-10 B2 half: the resolver's miss must fail loud by name, never
-	// the silent compliant default. The unit map contains a different file,
-	// so the specifier genuinely resolves to nothing recorded — the guard
-	// cannot inspect what ships.
+	// the silent compliant default. The build's record contains the module
+	// (the binding exists), but the text map is missing its bytes — the
+	// guard cannot inspect what ships.
 	const baseDir = '/tmp/zindex-r11-unit';
 	const violations = scanZIndexFile({
 		scanner,
@@ -2361,6 +2604,7 @@ test('raw sinks: a style-sink specifier resolving to no recorded module is a nam
 			'export const probe = <style>{rawCss}</style>;',
 		].join('\n'),
 		baseDir,
+		rawTextPaths: new Set([path.join(baseDir, 'missing.txt')]),
 		rawImportTexts: new Map([[path.join(baseDir, 'other.txt'), 'x']]),
 	});
 	assert.deepEqual(

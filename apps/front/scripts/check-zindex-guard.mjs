@@ -620,18 +620,18 @@ export const scanZIndexFile = ({
 	productionCandidates = null,
 	checkBuildReachableScript = true,
 	checkClassDelivery = true,
-	// Raw-sink provenance: `baseDir` roots specifier resolution and
-	// `rawImportTexts` maps each recorded `?raw` module's absolute path to its
-	// bytes. With both present, a `?raw` import binding consumed by a
-	// style-capable sink (a `<style>` element or a dangerouslySetInnerHTML
-	// payload) is walked as shipped CSS/HTML; without them the walk is
-	// skipped, which keeps unit fixtures free of raw-file scaffolding.
-	// `inlineCssPaths` lists the recorded CSS-language modules whose `?raw`
-	// (or `?inline`) bytes are already walked by the inline gate, so a
-	// resolver miss on them is not an unresolved import.
+	// Raw-sink provenance: `baseDir` roots specifier resolution,
+	// `rawTextPaths` is the build's recorded set of `?raw` module paths (the
+	// binding classification — an import binding is raw only when the build
+	// recorded its file, never by re-testing the specifier text), and
+	// `rawImportTexts` maps each recorded path to its bytes. With all three
+	// present, a `?raw` import binding consumed by a style-capable sink (a
+	// `<style>` element or a dangerouslySetInnerHTML payload) is walked as
+	// shipped CSS/HTML; without them the walk is skipped, which keeps unit
+	// fixtures free of raw-file scaffolding.
 	baseDir = null,
 	rawImportTexts = null,
-	inlineCssPaths = null,
+	rawTextPaths = null,
 }) => {
 	const violations = [];
 	const extension = path.extname(relativePath);
@@ -1662,54 +1662,92 @@ export const scanZIndexFile = ({
 			}
 			return escapes;
 		};
+		// Resolves a raw import specifier's file part (already stripped by the
+		// single classifier) against the project root: `~/` aliases the
+		// `src/` directory, Vite root-absolute specifiers (`/src/…`) resolve
+		// against the project root (not the filesystem root), and everything
+		// else resolves relative to the importing module.
+		const resolveRawSpecifierPath = (
+			withoutQuery,
+			importerRelativePath,
+			root,
+		) => {
+			let rawPath;
+			if (withoutQuery.startsWith('~/')) {
+				rawPath = path.resolve(root, 'src', withoutQuery.slice(2));
+			} else if (withoutQuery.startsWith('/')) {
+				rawPath = path.resolve(root, withoutQuery.slice(1));
+			} else {
+				rawPath = path.resolve(
+					root,
+					path.dirname(importerRelativePath),
+					withoutQuery,
+				);
+			}
+			return path.resolve(rawPath);
+		};
 		// Every binding a static import declaration can introduce, for the
-		// specifiers Vite treats as raw: the default clause, the namespace
-		// clause, named elements (`{ default as x }` is the default under
-		// another spelling), and mixed spellings (`import d, * as ns`) — each
-		// clause is recorded, never one branch of an else-if (round-15 B2).
-		// Classification comes from the same query-token parse the build's
-		// provenance plugin uses (round-15 B3), and `kind` tells the walk
-		// what each binding provably ships: the default text, a namespace
-		// object readable through `.default`, or — for a named element that
-		// is not `default` — nothing at all (undefined on a raw module,
-		// recorded by name so shadowing resolution stays exact, green by
-		// name rather than by omission).
+		// recorded `?raw` modules: the default clause, the namespace clause,
+		// named elements (`{ default as x }` is the default under another
+		// spelling), and mixed spellings (`import d, * as ns`) — each clause
+		// is recorded, never one branch of an else-if (round-15 B2). Whether
+		// an import IS a raw import is never re-derived from the specifier
+		// text (round-16 B1): the specifier resolves to a file path through
+		// the single classifier, and the binding exists only when the build's
+		// provenance record contains that path — `?v=1?raw` is raw because
+		// the build transformed it as raw and recorded the file, exactly like
+		// any other spelling. `kind` tells the walk what each binding
+		// provably ships: the default text, a namespace object readable
+		// through `.default`, or — for a named element that is not
+		// `default` — nothing at all (undefined on a raw module, recorded by
+		// name so shadowing resolution stays exact, green by name rather than
+		// by omission).
 		const rawImportBindings = new Map();
-		for (const statement of sourceFile.statements) {
-			if (!ts.isImportDeclaration(statement)) {
-				continue;
-			}
-			const specifier = statement.moduleSpecifier?.text ?? '';
-			const { queryTokens } = parseImportQuery(specifier);
-			if (!queryTokens.includes('raw')) {
-				continue;
-			}
-			const recordBinding = (name, kind, declaration) => {
-				rawImportBindings.set(name, { specifier, declaration, kind });
-			};
-			const importClause = statement.importClause;
-			if (importClause == null) {
-				continue;
-			}
-			if (importClause.name != null && ts.isIdentifier(importClause.name)) {
-				// The binding node `nearestBinding` resolves to for a
-				// default import is the import clause itself.
-				recordBinding(importClause.name.text, 'default', importClause);
-			}
-			const namedBindings = importClause.namedBindings;
-			if (namedBindings != null && ts.isNamespaceImport(namedBindings)) {
-				recordBinding(namedBindings.name.text, 'namespace', namedBindings);
-			} else if (namedBindings != null && ts.isNamedImports(namedBindings)) {
-				for (const element of namedBindings.elements) {
-					const importedName =
-						element.propertyName == null
-							? element.name.text
-							: element.propertyName.text;
-					recordBinding(
-						element.name.text,
-						importedName === 'default' ? 'default' : 'named-non-default',
-						element,
-					);
+		if (baseDir != null && rawTextPaths != null) {
+			for (const statement of sourceFile.statements) {
+				if (!ts.isImportDeclaration(statement)) {
+					continue;
+				}
+				const specifier = statement.moduleSpecifier?.text ?? '';
+				const resolvedPath = resolveRawSpecifierPath(
+					classifyModuleKind(specifier, {}).filePath,
+					relativePath,
+					baseDir,
+				);
+				if (!rawTextPaths.has(resolvedPath)) {
+					// Not a recorded raw module — either the import is not
+					// `?raw` at all, or the specifier is a spelling the guard
+					// cannot map to the build's record. The record is the
+					// source of truth, never the specifier text.
+					continue;
+				}
+				const recordBinding = (name, kind, declaration) => {
+					rawImportBindings.set(name, { specifier, declaration, kind });
+				};
+				const importClause = statement.importClause;
+				if (importClause == null) {
+					continue;
+				}
+				if (importClause.name != null && ts.isIdentifier(importClause.name)) {
+					// The binding node `nearestBinding` resolves to for a
+					// default import is the import clause itself.
+					recordBinding(importClause.name.text, 'default', importClause);
+				}
+				const namedBindings = importClause.namedBindings;
+				if (namedBindings != null && ts.isNamespaceImport(namedBindings)) {
+					recordBinding(namedBindings.name.text, 'namespace', namedBindings);
+				} else if (namedBindings != null && ts.isNamedImports(namedBindings)) {
+					for (const element of namedBindings.elements) {
+						const importedName =
+							element.propertyName == null
+								? element.name.text
+								: element.propertyName.text;
+						recordBinding(
+							element.name.text,
+							importedName === 'default' ? 'default' : 'named-non-default',
+							element,
+						);
+					}
 				}
 			}
 		}
@@ -1975,41 +2013,24 @@ export const scanZIndexFile = ({
 		};
 		const reportRawImportSink = (specifier, kind, sinkNode) => {
 			// A `?raw` import whose binding reaches a style-capable sink is
-			// shipped text the emitted gate can never see — the same class as
-			// `?inline`/`?raw` CSS. The raw bytes are walked only when the
-			// import binding is consumed by such a sink: text displayed in
-			// `<pre>`/`<p>` is displayed text, not a stylesheet. A style-sink
-			// payload the declaration walk cannot parse is a named diagnostic,
-			// never a crash and never a silent pass.
+			// shipped text the emitted gate can never see. The raw bytes are
+			// walked only when the import binding is consumed by such a sink:
+			// text displayed in `<pre>`/`<p>` is displayed text, not a
+			// stylesheet. A style-sink payload the declaration walk cannot
+			// parse is a named diagnostic, never a crash and never a silent
+			// pass.
 			if (baseDir == null || rawImportTexts == null) {
 				return;
 			}
-			const withoutQuery = parseImportQuery(specifier).filePath;
-			let rawPath;
-			if (withoutQuery.startsWith('~/')) {
-				rawPath = path.resolve(baseDir, 'src', withoutQuery.slice(2));
-			} else if (withoutQuery.startsWith('/')) {
-				// Vite root-absolute specifiers (`/src/…?raw`) resolve against
-				// the project root, not the filesystem root.
-				rawPath = path.resolve(baseDir, withoutQuery.slice(1));
-			} else {
-				rawPath = path.resolve(
-					baseDir,
-					path.dirname(relativePath),
-					withoutQuery,
-				);
-			}
-			const resolvedPath = path.resolve(rawPath);
-			if (
-				inlineCssPaths != null &&
-				inlineCssPaths.has(resolvedPath) &&
-				!rawImportTexts.has(resolvedPath)
-			) {
-				// A CSS-language `?raw` import is recorded as inline CSS and
-				// its authored bytes are walked by the inline gate regardless
-				// of sink — nothing left for the sink walk to do.
-				return;
-			}
+			// The file part comes from the single classifier — the same
+			// cleanUrl semantics the build used — so the multi-query spelling
+			// (`./x.txt?v=1?raw`) resolves to the same recorded file as any
+			// other spelling (round-16 B1).
+			const resolvedPath = resolveRawSpecifierPath(
+				classifyModuleKind(specifier, {}).filePath,
+				relativePath,
+				baseDir,
+			);
 			const text = rawImportTexts.get(resolvedPath);
 			if (text == null) {
 				// The build records every `?raw` module it transforms, so a
@@ -2845,19 +2866,81 @@ const collectCssPaths = async (
 };
 
 // ---------------------------------------------------------------------------
-// Shared Vite-style specifier query parse. Vite's own raw test is a
-// query-token test (`/(?:\?|&)raw(?:&|$)/`), so `?v=1&raw` is a raw module and
-// `?rawish` is not — a substring sniff (`specifier.includes('?raw')`) gets
-// both wrong. The provenance plugin and the script pass must classify the
-// same specifier identically (round-15 B3), so both parse through this one
-// helper: the plugin records what the build transforms as raw, and the script
-// pass asks the record instead of re-testing the text.
-const parseImportQuery = (specifier) => {
-	const [filePath, query] = specifier.split('?');
-	return {
-		filePath,
-		queryTokens: query == null ? [] : query.split('&'),
-	};
+// THE single module classifier. Every "is this module id a raw/inline CSS
+// module, and which file is it" answer in the guard is decided here — and
+// nowhere else: the fixture suite's structural test scans this file's own
+// source and fails if query parsing appears outside this function, so a
+// second classifier cannot come back (round-16 B1, the third consecutive
+// round of "one mechanism decides").
+//
+// The classification is not a re-implementation of Vite's raw rule. It reads
+// three things the build itself produced:
+//   - `code` — the module's transform result. A `?raw` module is rewritten by
+//     Vite's own `vite:asset` load hook into the exact raw-export shape
+//     `export default "<bytes>"`, and no other loader produces that shape;
+//     `?inline`/`?raw` CSS is rewritten into the same shape by vite:css and
+//     vite:asset, while plain CSS becomes an empty JS module (the CSS text is
+//     the emitted asset). The multi-query spelling `./x.txt?v=1?raw` is raw
+//     because Vite says so — the shape is identical to `?raw`, and this
+//     function never re-tests the query text to find out.
+//   - `meta` — the module info Vite recorded for the id. `?url`/asset modules
+//     carry Vite's own `vite:asset` marker and export a URL, never the raw
+//     text, so they are never mistaken for raw text modules.
+//   - `assetPluginLoad` — the set of ids this guard's post-order `load` hook
+//     observed, i.e. exactly the ids `vite:asset`'s load hook did NOT claim.
+//     A module `vite:asset` claimed (raw or url) is invisible to post-order
+//     load; a module it did not claim (a script whose own source is literally
+//     `export default "…"`, a JSON module, CSS, …) is visible. The claim
+//     separates the raw-export shape produced by `vite:asset`'s raw load from
+//     the same shape produced by an ordinary module.
+//
+// The file part is extracted with Vite's own `cleanUrl` semantics — strip
+// from the first `?` or `#` — because that is exactly the file `vite:asset`
+// itself reads for a raw/url module. A legal specifier may contain further
+// `?` inside its query (`?v=1?raw`); the strip must not care, and Vite never
+// does.
+export const classifyModuleKind = (
+	id,
+	{ code, meta, assetPluginLoad } = {},
+) => {
+	const filePath = id.replace(/[?#].*$/s, '');
+	if (!path.isAbsolute(filePath)) {
+		return { filePath, kind: 'other' };
+	}
+	if (isCSSRequest(id)) {
+		// CSS-language module: the authored file is always recorded for the
+		// scale-integrity gate. Plain CSS ships its text as an emitted asset
+		// (its JS module is empty after vite:css), `?url` CSS ships a URL to
+		// that asset (Vite's own marker), and `?inline`/`?raw` CSS ships its
+		// text as JS — vite:css inlines the former and vite:asset's raw load
+		// provides the latter, both as the raw-export shape — so the authored
+		// bytes are walked by the inline gate. The two spellings are
+		// deliberately one kind: their authored text is walked identically.
+		return {
+			filePath,
+			kind:
+				meta?.['vite:asset'] === true
+					? 'css-url'
+					: typeof code === 'string' && code.startsWith('export default ')
+						? 'inline-css'
+						: 'css',
+		};
+	}
+	if (meta?.['vite:asset'] === true) {
+		return { filePath, kind: 'url-asset' };
+	}
+	if (
+		typeof code === 'string' &&
+		code.startsWith('export default ') &&
+		assetPluginLoad != null &&
+		!assetPluginLoad.has(id)
+	) {
+		return { filePath, kind: 'raw' };
+	}
+	if (SCRIPT_EXTENSIONS.has(path.extname(filePath))) {
+		return { filePath, kind: 'script' };
+	}
+	return { filePath, kind: 'other' };
 };
 
 export const buildProductionApp = async (baseDir) => {
@@ -2869,23 +2952,36 @@ export const buildProductionApp = async (baseDir) => {
 	const authoredScriptPaths = new Set();
 	const inlineCssPaths = new Set();
 	const rawTextPaths = new Set();
+	// Ids this guard's post-order `load` hook observed: exactly the modules
+	// Vite's own `vite:asset` load hook did NOT claim (raw/url/asset modules
+	// are invisible to post-order load). The classifier reads this set to tell
+	// the raw-export transform shape produced by vite:asset's raw load from
+	// the same shape produced by an ordinary module (round-16 B1).
+	const assetPluginLoad = new Set();
 	const provenancePlugin = {
 		name: 'publy-zindex-css-provenance',
-		enforce: 'pre',
-		transform(_code, id) {
-			const { filePath, queryTokens } = parseImportQuery(id);
-			if (isCSSRequest(id)) {
-				// Vite's own CSS-language set (`.css`, `.pcss`, `.postcss`,
-				// `.sss`, the preprocessor languages, …) so the guard cannot
-				// drift when Vite adds a language.
+		enforce: 'post',
+		transform(code, id) {
+			// The post-order transform result is Vite's own classification of
+			// the module — raw modules arrive as the exact raw-export shape
+			// vite:asset's load produced, plain CSS as an empty module,
+			// `?inline`/`?raw` CSS as the inlined raw-export shape — so the
+			// record is the build's answer, never a re-parse of the id.
+			const { filePath, kind } = classifyModuleKind(id, {
+				code,
+				meta: this.getModuleInfo(id)?.meta,
+				assetPluginLoad,
+			});
+			if (kind === 'css' || kind === 'inline-css' || kind === 'css-url') {
 				authoredCssPaths.add(path.resolve(filePath));
-				// `?inline` / `?raw` imports ship the CSS text as JS rather than
-				// as an emitted asset, so the emitted gate never sees it. The
-				// authored file is walked directly by the declaration gate.
-				if (queryTokens.includes('inline') || queryTokens.includes('raw')) {
-					inlineCssPaths.add(path.resolve(filePath));
-				}
-			} else if (queryTokens.includes('raw') && path.isAbsolute(filePath)) {
+			}
+			if (kind === 'inline-css') {
+				// `?inline` / `?raw` on CSS ships the CSS text as JS rather
+				// than as an emitted asset, so the emitted gate never sees it.
+				// The authored file is walked directly by the inline gate.
+				inlineCssPaths.add(path.resolve(filePath));
+			}
+			if (kind === 'raw') {
 				// `?raw` ships the raw text of *any* file as JS, and that text
 				// can be CSS even when the extension is not a CSS language
 				// (`.txt`?raw is the documented case). Record every raw module
@@ -2893,12 +2989,17 @@ export const buildProductionApp = async (baseDir) => {
 				// import binding to one of these paths and walks its bytes
 				// only when the binding reaches a style-capable sink.
 				rawTextPaths.add(path.resolve(filePath));
-			} else if (
-				path.isAbsolute(filePath) &&
-				SCRIPT_EXTENSIONS.has(path.extname(filePath))
-			) {
+			}
+			if (kind === 'script') {
 				authoredScriptPaths.add(path.resolve(filePath));
 			}
+			return null;
+		},
+		load(id) {
+			// Fires exactly for the modules vite:asset did not claim. Returns
+			// null so the load result is unchanged; the observation is the
+			// only purpose.
+			assetPluginLoad.add(id);
 			return null;
 		},
 	};
@@ -2996,7 +3097,10 @@ const collectReachableAuthoredCssPaths = async (baseDir, entryPaths) => {
 			if (specifier == null || !specifier.startsWith('.')) {
 				return;
 			}
-			const [withoutQuery] = specifier.split(/[?#]/);
+			// The file part comes from the single classifier — the same
+			// cleanUrl semantics the build uses — so a query on the @import
+			// target cannot diverge from the module-id reading.
+			const withoutQuery = classifyModuleKind(specifier, {}).filePath;
 			if (!isCSSRequest(withoutQuery)) {
 				return;
 			}
@@ -3092,7 +3196,6 @@ export const runZIndexGuard = async ({
 			.sort((left, right) => left.localeCompare(right));
 		const rawTextPaths = (buildResult.rawTextPaths ?? [])
 			.map((filePath) => path.resolve(filePath))
-			.filter((filePath) => !inlineCssPaths.includes(filePath))
 			.sort((left, right) => left.localeCompare(right));
 		// The script pass resolves each `?raw` import binding to one of these
 		// recorded modules and walks its bytes only at a style-capable sink.
@@ -3112,7 +3215,7 @@ export const runZIndexGuard = async ({
 					checkClassDelivery: false,
 					baseDir,
 					rawImportTexts,
-					inlineCssPaths: new Set(inlineCssPaths),
+					rawTextPaths: new Set(rawTextPaths),
 				}),
 			);
 		}
