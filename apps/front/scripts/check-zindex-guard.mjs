@@ -1364,12 +1364,13 @@ export const scanZIndexFile = ({
 					// A bare attribute (`rel` with no initializer) is React's
 					// `rel={true}`: an establishing occurrence that carries no
 					// string, so the value stays unprovable either way.
-					valueNode =
-						property.initializer == null
-							? null
-							: ts.isJsxExpression(property.initializer)
-								? property.initializer.expression
-								: property.initializer;
+					if (property.initializer == null) {
+						valueNode = null;
+					} else if (ts.isJsxExpression(property.initializer)) {
+						valueNode = property.initializer.expression;
+					} else {
+						valueNode = property.initializer;
+					}
 					lastOccurrenceIndex = index;
 				} else if (ts.isJsxSpreadAttribute(property)) {
 					const spreadObject = spreadSourceObjectLiteral(property.expression);
@@ -2927,16 +2928,13 @@ export const classifyModuleKind = (
 		// provides the latter, both as the raw-export shape — so the authored
 		// bytes are walked by the inline gate. The two spellings are
 		// deliberately one kind: their authored text is walked identically.
-		return {
-			filePath,
-			hasQuery,
-			kind:
-				meta?.['vite:asset'] === true
-					? 'css-url'
-					: typeof code === 'string' && code.startsWith('export default ')
-						? 'inline-css'
-						: 'css',
-		};
+		let kind = 'css';
+		if (meta?.['vite:asset'] === true) {
+			kind = 'css-url';
+		} else if (typeof code === 'string' && code.startsWith('export default ')) {
+			kind = 'inline-css';
+		}
+		return { filePath, hasQuery, kind };
 	}
 	if (meta?.['vite:asset'] === true) {
 		return { filePath, hasQuery, kind: 'url-asset' };
