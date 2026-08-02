@@ -1097,16 +1097,26 @@ export const scanZIndexFile = ({
 			) {
 				const left = staticStringValues(expression.left, visitedConsts);
 				const right = staticStringValues(expression.right, visitedConsts);
-				if (left == null || right == null) {
-					return null;
-				}
-				const joined = new Set();
-				for (const leftValue of left) {
-					for (const rightValue of right) {
-						joined.add(leftValue + rightValue);
+				if (left != null && right != null) {
+					const joined = new Set();
+					for (const leftValue of left) {
+						for (const rightValue of right) {
+							joined.add(leftValue + rightValue);
+						}
 					}
+					return joined;
 				}
-				return joined;
+				// One static operand: its text always ships as a substring of
+				// the concatenation (`'{z-index: 9}' + runtime` ships the
+				// literal part), so its candidates are returned; the runtime
+				// operand stays in the declared runtime bucket.
+				if (left != null) {
+					return left;
+				}
+				if (right != null) {
+					return right;
+				}
+				return null;
 			}
 			return null;
 		};

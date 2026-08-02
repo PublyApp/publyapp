@@ -1618,10 +1618,25 @@ test('e2e (round 13 B2): a raw binding inside an unhandled style-sink expression
 	// `z-index-unresolved-raw-expression` diagnostic, never the silent green
 	// a resolver miss produced. The paired `<pre>` proof keeps the round-8
 	// I3 boundary: the same bytes displayed as text are not a stylesheet.
-	for (const [name, sink] of [
-		['call', '<style>{wrap(rawCss)}</style>'],
-		['binary', "<style>{rawCss + 'x'}</style>"],
-		['member of call result', '<style>{makeCss(rawCss).text}</style>'],
+	for (const [name, sink, expected] of [
+		[
+			'call',
+			'<style>{wrap(rawCss)}</style>',
+			['z-index-unresolved-raw-expression'],
+		],
+		[
+			'binary',
+			"<style>{rawCss + 'x'}</style>",
+			// the static operand 'x' ships as unparseable CSS text, and the
+			// raw binding in the unhandled expression fails loud — both
+			// diagnostics are true
+			['z-index-unparseable-static-css', 'z-index-unresolved-raw-expression'],
+		],
+		[
+			'member of call result',
+			'<style>{makeCss(rawCss).text}</style>',
+			['z-index-unresolved-raw-expression'],
+		],
 	]) {
 		const { violations } = await runFixtureGuard(
 			{
@@ -1638,7 +1653,7 @@ test('e2e (round 13 B2): a raw binding inside an unhandled style-sink expression
 		);
 		assert.deepEqual(
 			violations.map((violation) => violation.ruleId),
-			['z-index-unresolved-raw-expression'],
+			expected,
 			`${name} must fail loud by name: ${JSON.stringify(violations)}`,
 		);
 	}
@@ -1782,6 +1797,20 @@ test('e2e (round 13 B2): static style text beside runtime children still ships a
 		pureRuntime,
 		[],
 		`a purely runtime payload must stay green: ${JSON.stringify(pureRuntime)}`,
+	);
+	const { violations: mixedBinary } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"export const probe = (runtimeCss: string) => <style>{'.probe { z-index: 2147483597; }' + runtimeCss}</style>;",
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		mixedBinary.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`a static operand of a runtime concatenation must red: ${JSON.stringify(mixedBinary)}`,
 	);
 });
 
