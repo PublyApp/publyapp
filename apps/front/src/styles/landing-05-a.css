@@ -70,72 +70,140 @@
 		--l05a-shadow-tint: var(--publy-auth-panel-bg);
 	}
 
-	/* ---- The field (todesktop-14): one gradient, mounted once, no section
-	   owns a background. Dark mode is a token remap, not an overlay
-	   (attio-03): light is dawn, dark is dusk, and the two ramps below are
-	   the one geometry re-pointed per theme. 0%/100% are the page background
-	   itself so the ramp is seamless against the opaque sticky header and
-	   the page foot; the warmth blooms in the middle-upper third, where the
-	   hero and the product window live. Positions are the prompt's measured
-	   ramp: 0 · 14 · 34 · 58 · 100.
+	/* ---- The field (todesktop-14): one gradient element, mounted once, no
+	   section owns a background. Dark mode is a token remap, not an overlay
+	   (attio-03): light is dawn, dark is dusk, and the ramps below are the
+	   one geometry re-pointed per theme.
 
-	   Stop derivations (targets are the prompt's five sky-ramp literals):
-	   light 14% ≈ #fef7db (target #fef6db), 34% ≈ #fef7d6 (#fdf3d0),
-	   58% ≈ #fefdf5 (#fdfbf4) — the bloom carries ~1% more blue than the
-	   literal, inside the same measured-contrast envelope (report-t1.md). */
+	   THE ONE CHANGE THAT MATTERS MOST ON THIS PAGE. The transposed sky was a
+	   2400px band at the top of a ~9000px document, mounted inside `<main>`.
+	   So the direction's whole thesis — "the page is one atmosphere" — was
+	   true for the first quarter of the page and abandoned for the other
+	   three, and the footer sat outside it entirely. Below the product window
+	   the page became a plain white document with hairlines on it, which is a
+	   different direction, done less well.
+
+	   It is now ONE element at document scale — still one element, still
+	   mounted once, still no section background anywhere — carrying TWO
+	   px-anchored ramps in one `background-image`:
+
+	     dawn   anchored to the TOP,    1900px / 2400px at >=768
+	     dusk   anchored to the BOTTOM,  900px / 1200px at >=768
+
+	   Between them the page is transparent, so it falls through to the page
+	   background — and because each ramp's outer stop IS the page background,
+	   there is no seam where either ends. That gives the scroll a shape it
+	   did not have: warm at the opening, clear through the middle where the
+	   argument is made, warm again as it closes, so the closing band and the
+	   footer sit IN the atmosphere rather than on paper below it. The dusk
+	   peaks at 9% primary against the dawn's 16% — it is the same sky at
+	   dusk, not a second event competing with the hero.
+
+	   Anchoring in px rather than in percentages of an unknown document
+	   height is what keeps this stable: the bloom lands on the hero and the
+	   product window at every page length, and nothing has to be re-measured
+	   when a section is added.
+
+	   Stop derivations for the dawn (targets are the direction's five
+	   sky-ramp literals): light 14% ≈ #fef7db (target #fef6db), 34% ≈ #fef7d6
+	   (#fdf3d0), 58% ≈ #fefdf5 (#fdfbf4) — the bloom carries ~1% more blue
+	   than the literal, inside the same measured-contrast envelope. */
 	.publy-landing-05-a .publy-marketing-sky {
 		position: absolute;
-		inset-block-start: 0;
-		/* Full-bleed breakout from the reading column, inset 9px per side so
-		   a classic (non-overlay) scrollbar can never make the sky overflow
-		   the layout viewport horizontally — the worst case is a 17px
-		   scrollbar, and 9px > 17px/2. */
-		inset-inline-start: calc(50% - 50vw + 9px);
-		inset-inline-end: calc(50% - 50vw + 9px);
-		height: 1900px;
+		/* Mounted on the page ROOT, not inside `<main>`, so the header's own
+		   opaque background, the document body and the footer all sit on the
+		   same field. `inset: 0` means no viewport breakout and no scrollbar
+		   arithmetic: the root is a body child, so its width already excludes
+		   a classic scrollbar. */
+		inset: 0;
 		pointer-events: none;
 		user-select: none;
-		background-image: linear-gradient(
-			180deg,
-			var(--publy-background) 0%,
-			color-mix(in srgb, var(--publy-primary) 14%, var(--publy-background)) 14%,
-			color-mix(in srgb, var(--publy-primary) 16%, var(--publy-background)) 34%,
-			color-mix(in srgb, var(--publy-primary) 4%, var(--publy-background)) 58%,
-			var(--publy-background) 100%
-		);
-		/* todesktop-38: dissolve the bottom edge instead of terminating it.
-		   A mask reads alpha only, so `currentColor` is a legal opaque stop
-		   and keeps a raw colour literal out of the file. */
-		mask-image: linear-gradient(
-			to bottom,
-			currentColor 0%,
-			currentColor 76%,
-			transparent 100%
-		);
+		background-repeat: no-repeat;
+		background-position:
+			top center,
+			bottom center;
+		background-size:
+			100% 1900px,
+			100% 900px;
+		background-image:
+			linear-gradient(
+				180deg,
+				var(--publy-background) 0%,
+				color-mix(in srgb, var(--publy-primary) 14%, var(--publy-background))
+					14%,
+				color-mix(in srgb, var(--publy-primary) 16%, var(--publy-background))
+					34%,
+				color-mix(in srgb, var(--publy-primary) 4%, var(--publy-background)) 58%,
+				var(--publy-background) 100%
+			),
+			linear-gradient(
+				180deg,
+				var(--publy-background) 0%,
+				color-mix(in srgb, var(--publy-primary) 4%, var(--publy-background)) 34%,
+				color-mix(in srgb, var(--publy-primary) 9%, var(--publy-background)) 72%,
+				color-mix(in srgb, var(--publy-primary) 7%, var(--publy-background))
+					100%
+			);
 	}
 
-	/* The dusk ramp. The prompt's dark stops sit deeper and more saturated
-	   than primary-over-background can reach (the dark background's blue
-	   channel floors the mix), so they derive from the system's own dark
-	   soft-primary tint instead: 14% ≈ #211e0e (target #23200f), 34% =
-	   #2a2400 (#2a2410, blue channel unreachable — the tint has none),
-	   58% ≈ #1d1b14 (#1e1d19). */
+	/* The dark ramps. The direction's dark stops sit deeper and more
+	   saturated than primary-over-background can reach (the dark
+	   background's blue channel floors the mix), so they derive from the
+	   system's own dark soft-primary tint instead: 14% ≈ #211e0e (target
+	   #23200f), 34% = #2a2400 (#2a2410, blue channel unreachable — the tint
+	   has none), 58% ≈ #1d1b14 (#1e1d19). The dusk is re-tuned rather than
+	   inherited: on a #18181b page a warm tint reads roughly twice as loudly
+	   as the same tint does on white, so its peak sits at 60% of the soft
+	   tint where the light dusk sits at 9% of primary. */
 	html.dark .publy-landing-05-a .publy-marketing-sky {
-		background-image: linear-gradient(
-			180deg,
-			var(--publy-background) 0%,
-			color-mix(in srgb, var(--publy-primary-soft) 50%, var(--publy-background))
-				14%,
-			var(--publy-primary-soft) 34%,
-			color-mix(in srgb, var(--publy-primary-soft) 25%, var(--publy-background))
-				58%,
-			var(--publy-background) 100%
-		);
+		background-image:
+			linear-gradient(
+				180deg,
+				var(--publy-background) 0%,
+				color-mix(
+						in srgb,
+						var(--publy-primary-soft) 50%,
+						var(--publy-background)
+					)
+					14%,
+				var(--publy-primary-soft) 34%,
+				color-mix(
+						in srgb,
+						var(--publy-primary-soft) 25%,
+						var(--publy-background)
+					)
+					58%,
+				var(--publy-background) 100%
+			),
+			linear-gradient(
+				180deg,
+				var(--publy-background) 0%,
+				color-mix(
+						in srgb,
+						var(--publy-primary-soft) 25%,
+						var(--publy-background)
+					)
+					34%,
+				color-mix(
+						in srgb,
+						var(--publy-primary-soft) 60%,
+						var(--publy-background)
+					)
+					72%,
+				color-mix(
+						in srgb,
+						var(--publy-primary-soft) 45%,
+						var(--publy-background)
+					)
+					100%
+			);
 	}
 
 	@media (min-width: 768px) {
 		.publy-landing-05-a .publy-marketing-sky {
-			height: 2400px;
+			background-size:
+				100% 2400px,
+				100% 1200px;
 		}
 	}
 
@@ -451,9 +519,18 @@
 	}
 
 	/* Exception 1: the hero follows the header, not a section, and flows
-	   into the product window with no rule and no bottom padding. */
+	   into the product window with no rule and no bottom padding.
+
+	   96/120/144 rather than the transposed 64/80/96. The hero is the only
+	   section every visitor sees and it was the thinnest on the page: a 68px
+	   headline starting 64px under the header reads as the top of a document,
+	   not as an opening. Raising it by one scale step puts the H1's cap at
+	   ~270px on a 1440x900 laptop — the dawn's own first peak, so the page's
+	   thesis is visible in the first viewport for the first time — and still
+	   leaves the CTA row at ~530px and a slice of the product window above
+	   the fold, which is the constraint attio-10 keys its whole hero to. */
 	.publy-landing-05-a .publy-l05a-section-hero {
-		padding-block-start: 64px;
+		padding-block-start: 96px;
 		padding-block-end: 0;
 		padding-inline: 16px;
 	}
@@ -466,13 +543,13 @@
 
 	@media (min-width: 1024px) {
 		.publy-landing-05-a .publy-l05a-section-hero {
-			padding-block-start: 80px;
+			padding-block-start: 120px;
 		}
 	}
 
 	@media (min-width: 1280px) {
 		.publy-landing-05-a .publy-l05a-section-hero {
-			padding-block-start: 96px;
+			padding-block-start: 144px;
 		}
 	}
 
@@ -518,6 +595,50 @@
 		.publy-landing-05-a .publy-l05a-ruled-column {
 			border-inline-start: 1px solid var(--publy-border);
 			border-inline-end: 1px solid var(--publy-border);
+		}
+	}
+
+	/* ---- COMPOSITIONAL BREAK 1 OF 2: the one section that leaves the column.
+
+	   Ten sections in one 1152px column is coherent and, over a 9000px page,
+	   monotonous — every section the same width, the same shape, the same
+	   distance from the reader. This is the single place the column breaks
+	   its own rule, and the section chosen is the one whose subject IS
+	   breadth: six product surfaces, the page's densest and most factual
+	   band. Width carries the argument, so the reader feels the product's
+	   surface area before reading a word of it.
+
+	   Only the BODY leaves the column. The section's top rule and its header
+	   triple stay exactly where every other section's are, so the page's left
+	   edge is never broken and the heading is still one of eight in a
+	   sequence — what widens is the argument underneath it. That is what
+	   keeps the move reading as a wider row of the same ledger rather than as
+	   a different page, and it is why the mullions pass behind the grid
+	   instead of stopping at it.
+
+	   Two moments in a page is a composition; five is a scrapbook. The other
+	   moment is the FAQ's asymmetric split, which stays inside the column
+	   entirely — so nothing else on the page leaves it.
+
+	   The 9px inset is the scrollbar guarantee the sky no longer needs: a
+	   classic (non-overlay) scrollbar is at most 17px, and 9 > 17/2, so
+	   `50% - 50vw + 9px` can never open a horizontal scrollbar of its own. */
+	.publy-landing-05-a .publy-l05a-bleed {
+		margin-inline: calc(50% - 50vw + 9px);
+		padding-inline: 16px;
+	}
+
+	@media (min-width: 640px) {
+		.publy-landing-05-a .publy-l05a-bleed {
+			padding-inline: 24px;
+		}
+	}
+
+	/* Past the reading column's own width the band gets a real gutter, so its
+	   first and last cells are never glued to the viewport edge. */
+	@media (min-width: 1280px) {
+		.publy-landing-05-a .publy-l05a-bleed {
+			padding-inline: 48px;
 		}
 	}
 
@@ -645,6 +766,27 @@
 	.publy-landing-05-a .publy-l05a-focus-ring:focus-visible {
 		outline: 2px solid var(--publy-focus-ring);
 		outline-offset: 2px;
+	}
+
+	/* ---- Link underlines, designed rather than defaulted.
+
+	   `text-decoration: underline` puts a 1px rule on the alphabetic baseline
+	   at the browser's own thickness, which slices through every descender in
+	   "Pricing" and "Sign up". The offset, the thickness and the colour are
+	   all set at rest so that revealing the line on hover changes exactly one
+	   property — 4px clears Geist's descenders, 1px matches every other
+	   hairline on the page, and the rule is drawn at 45% of the text colour so
+	   it reads as an underline rather than as a second line of type. */
+	.publy-landing-05-a .publy-l05a-underline {
+		text-decoration-line: none;
+		text-underline-offset: 4px;
+		text-decoration-thickness: 1px;
+		text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+	}
+
+	.publy-landing-05-a .publy-l05a-underline:hover,
+	.publy-landing-05-a .publy-l05a-underline:focus-visible {
+		text-decoration-line: underline;
 	}
 
 	/* The night band is deliberately theme-invariant (§2.2), but
