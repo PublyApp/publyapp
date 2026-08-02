@@ -79,7 +79,15 @@
  *  own. Tag-name resolution is keyed on the ACTUAL JSX node, in its own
  *  scope: a same-named local declaration shadows an import by scope, and
  *  two same-text tags in different scopes get their own verdicts (round
- *  17's BLOCKER 2).
+ *  17's BLOCKER 2). Round 20 closes the two paths that never reached the
+ *  fail-closed terminal: a lowercase-leading DOTTED tag is a value
+ *  expression, not an intrinsic element (round 19's BLOCKER 1 — only a
+ *  plain Identifier tag can be intrinsic), and a member that resolves to
+ *  a TYPE-side symbol is followed to its value side — the annotated
+ *  object literal's own property — instead of being allowed to read
+ *  "definitely not a drawer" (round 19's BLOCKER 2; the signature kinds
+ *  are deleted from the definite-non-drawer allowlist, so a type-side
+ *  member whose value side the scan cannot read is UNVERIFIABLE).
  *
  * The wrapper walk is DOM-faithful, not syntactic: it sees through
  * everything that creates no node — JSX expressions, conditionals, `&&`
@@ -193,6 +201,7 @@ import {
 	type JsxSelfClosingElement,
 	type LabeledStatement,
 	type Node,
+	type ObjectLiteralExpression,
 	type PrefixUnaryExpression,
 	type PropertyAccessExpression,
 	type PropertyAssignment,
@@ -3183,6 +3192,26 @@ const drawerModuleExports = (project: Project, exportName: string): boolean =>
 //    drawer built from imports under those same names (BLOCKER 2).
 //    Resolution is now keyed on the actual tag-name node.
 //
+// Round 20 closes the two escapes round 19 demonstrated against that
+// recursion — the fail-closed terminal is only as closed as the paths
+// that reach it:
+//
+//  - BLOCKER 1: the intrinsic-element cut read `/^[a-z]/` against the
+//    WHOLE tag text, so a LOWERCASE-leading DOTTED tag (`<kit.Surface>`,
+//    `<option.Icon />` — the repo already writes this shape) was read as
+//    an intrinsic DOM element — a definite non-drawer — with the exact
+//    #990 break green. A member-expression tag is a value expression
+//    regardless of case; only a plain Identifier tag can be intrinsic.
+//  - BLOCKER 2: the checker resolves the member of a TYPE-ANNOTATED
+//    object literal to the type's PropertySignature, and that kind sat in
+//    the definite-non-drawer allowlist — `const KIT: DrawerKit = {...}`
+//    resolved every marker to null with the break green, and the code
+//    comment's claim that such a value is "still caught" by the walk was
+//    false. The signature kinds are deleted from the allowlist, and a
+//    type-side member is followed to its VALUE side — the annotated
+//    object literal's own property — through the same symbol graph; a
+//    value side the scan cannot read is UNVERIFIABLE, never null.
+//
 // A binding the graph cannot answer (a call, a mixed-symbol conditional, a
 // reassigned `let`) is the unverifiable case below, never a silent
 // non-anchor.
@@ -3210,6 +3239,34 @@ const isDrawerModuleExportSymbol = (
 // external — its values can never be the repo-local drawer module's exports.
 const isRepoFilePath = (filePath: string): boolean =>
 	filePath.startsWith(FRONT_ROOT) || filePath.startsWith(FIXTURE_TMP_DIR);
+
+// The declaration kinds whose VALUE is the symbol itself — a local
+// function/class/method declaration, a parameter, a namespace import or
+// module object, a type, an enum. The value of such a binding is a local
+// value, never the drawer module's exported symbol (identity was already
+// disproven before the cut — see resolveSymbolValue), so the binding is a
+// definite non-drawer. Round 18's round-19 amendment: the TYPE-side member
+// kinds (PropertySignature, MethodSignature, IndexSignature) are NOT here —
+// a type-side member is not evidence of absence; its value side must be
+// walked (round 19's BLOCKER 2), and a member of a binding in this set is
+// itself a definite local value (round 19's BLOCKER 1 paired proof).
+const DEFINITE_LOCAL_DECLARATION_KINDS = new Set([
+	SyntaxKind.FunctionDeclaration,
+	SyntaxKind.ClassDeclaration,
+	SyntaxKind.MethodDeclaration,
+	SyntaxKind.GetAccessor,
+	SyntaxKind.SetAccessor,
+	SyntaxKind.Parameter,
+	SyntaxKind.NamespaceImport,
+	SyntaxKind.NamespaceExportDeclaration,
+	SyntaxKind.ModuleDeclaration,
+	SyntaxKind.EnumDeclaration,
+	SyntaxKind.EnumMember,
+	SyntaxKind.InterfaceDeclaration,
+	SyntaxKind.TypeAliasDeclaration,
+	SyntaxKind.TypeParameter,
+	SyntaxKind.SourceFile,
+]);
 
 /**
  * A call whose FIRST argument is a function expression or a dynamic
@@ -3276,9 +3333,11 @@ const isFactoryCall = (call: CallExpression): boolean => {
  *    initializer, an alias with no target — an import of a missing module
  *    or of a name the module does not export — or a resolution cycle), or
  *    its declaration kind is one the resolver does not enumerate (a
- *    destructured binding, a class property — round 17's BLOCKER 1). The
- *    default is UNVERIFIABLE, never null: not knowing must redden, so the
- *    next unhandled spelling costs a red build, not a silent green.
+ *    destructured binding, a class property — round 17's BLOCKER 1; a
+ *    type-side member that escaped the value-side walk — round 19's
+ *    BLOCKER 2). The default is UNVERIFIABLE, never null: not knowing
+ *    must redden, so the next unhandled spelling costs a red build, not a
+ *    silent green.
  *
  * `seen` guards cycles; declaration position + file makes the id stable
  * across recursive hops.
@@ -3420,38 +3479,23 @@ const resolveSymbolValue = (
 	// the file instead of silently reading "definitely not a drawer" — the
 	// round-17 escape (a shape the resolver did not know about shipped the
 	// #990 break green because null meant "fine").
-	const definiteLocalDeclarationKinds = new Set([
-		SyntaxKind.FunctionDeclaration,
-		SyntaxKind.ClassDeclaration,
-		SyntaxKind.MethodDeclaration,
-		SyntaxKind.GetAccessor,
-		SyntaxKind.SetAccessor,
-		SyntaxKind.Parameter,
-		SyntaxKind.NamespaceImport,
-		SyntaxKind.NamespaceExportDeclaration,
-		SyntaxKind.ModuleDeclaration,
-		SyntaxKind.EnumDeclaration,
-		SyntaxKind.EnumMember,
-		SyntaxKind.InterfaceDeclaration,
-		SyntaxKind.TypeAliasDeclaration,
-		SyntaxKind.TypeParameter,
-		SyntaxKind.SourceFile,
-		// TYPE members (interface/type-literal members, index signatures):
-		// the member's symbol is the TYPE's declaration, never a value
-		// declaration — the drawer module's exports are values, so this
-		// symbol is definitely not one of them. (A runtime drawer VALUE
-		// routed through such a member — `const Icon = item.Icon` with
-		// `item = { Icon: DrawerContent }` — is still caught: the part
-		// wrapper rule and the definition walk both fail loud on it.)
-		SyntaxKind.PropertySignature,
-		SyntaxKind.MethodSignature,
-		SyntaxKind.IndexSignature,
-	]);
+	//
+	// Round 19's BLOCKER 2 removed the TYPE-side member kinds
+	// (PropertySignature, MethodSignature, IndexSignature) from this set:
+	// a type-side member is NOT evidence of absence — the checker resolves
+	// the member of a type-ANNOTATED object literal to the type's
+	// PropertySignature, never to the literal's PropertyAssignment, so the
+	// initializer recursion above cannot run and "the member is the type's
+	// declaration, not a value" is exactly the escape `const KIT: DrawerKit
+	// = { Surface: DrawerContent, ... }` walked through. A type-side member
+	// is routed to the value-side walk in resolvePropertyAccessValue
+	// instead; a signature symbol that still reaches this terminal is
+	// UNVERIFIABLE, because its value is unknown, not absent.
 	if (
 		symbol
 			.getDeclarations()
 			.every((declaration) =>
-				definiteLocalDeclarationKinds.has(declaration.getKind()),
+				DEFINITE_LOCAL_DECLARATION_KINDS.has(declaration.getKind()),
 			)
 	) {
 		return null;
@@ -3571,6 +3615,254 @@ const resolveValueIdentity = (
 	return UNVERIFIABLE_TAG;
 };
 
+// ---------------------------------------------------------------------------
+// Round 19's BLOCKER 2 — the type-side member value walk.
+//
+// The checker resolves the member of a type-ANNOTATED object literal to
+// the TYPE's PropertySignature, never to the literal's PropertyAssignment,
+// so the initializer recursion (round 16) never runs and
+// `const KIT: DrawerKit = { Surface: DrawerContent, ... }` resolved every
+// member to the round-18 allowlist's null — "definitely not a drawer" —
+// with the exact #990 break green. A type-side member is NOT evidence of
+// absence: the walk below follows the BASE binding to its value side (the
+// annotated object literal's own property) and resolves the member's
+// initializer through the same symbol graph as a longhand property. When
+// the value side is not reachable in the scanned tree, the verdict is
+// UNVERIFIABLE — not knowing must redden, never silently pass — and the
+// three signature kinds are removed from the definite-non-drawer allowlist
+// for the same reason.
+// ---------------------------------------------------------------------------
+
+const TYPE_SIDE_MEMBER_KINDS = new Set([
+	SyntaxKind.PropertySignature,
+	SyntaxKind.MethodSignature,
+	SyntaxKind.IndexSignature,
+]);
+
+const isTypeSideMemberSymbol = (symbol: TsMorphSymbol): boolean =>
+	symbol
+		.getDeclarations()
+		.every((declaration) => TYPE_SIDE_MEMBER_KINDS.has(declaration.getKind()));
+
+/**
+ * The object literal that is the VALUE side of a binding — the base's
+ * annotated object literal, followed through alias chains and identity
+ * initializers (`const KIT2 = KIT;`). Only a VariableDeclaration whose
+ * initializer is (or identity-resolves to) an object literal has a value
+ * side the scan can read; anything else — a parameter, a call result, a
+ * reassigned `let`, an unresolvable import — returns null and the caller
+ * must fail closed. Cycle-guarded through the shared `seen` set.
+ */
+const findObjectLiteralValueSide = (
+	baseSymbol: TsMorphSymbol,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): ObjectLiteralExpression | null => {
+	const symbolId = `${baseSymbol.getName()}#${baseSymbol
+		.getDeclarations()
+		.map(
+			(declaration) =>
+				`${declaration.getStart()}:${declaration.getSourceFile().getFilePath()}`,
+		)
+		.join('|')}`;
+	if (seen.has(symbolId)) {
+		return null;
+	}
+	seen.add(symbolId);
+
+	if ((baseSymbol.getFlags() & ts.SymbolFlags.Alias) !== 0) {
+		const aliased = baseSymbol.getAliasedSymbol();
+		if (!aliased || aliased === baseSymbol) {
+			return null;
+		}
+		return findObjectLiteralValueSide(
+			aliased,
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
+	}
+	for (const declaration of baseSymbol.getDeclarations()) {
+		if (declaration.getKind() !== SyntaxKind.VariableDeclaration) {
+			continue;
+		}
+		const variableDeclaration = declaration as VariableDeclaration;
+		if (
+			isReassigned(
+				variableDeclaration.getSourceFile(),
+				variableDeclaration.getName(),
+				reassignedNamesByFile,
+			)
+		) {
+			// `let kit = {...}; kit = other;` — the binding the tag sees
+			// is not the initializer's value.
+			return null;
+		}
+		const initializer = variableDeclaration.getInitializer();
+		if (!initializer) {
+			return null;
+		}
+		const unwrapped = unwrapExpression(initializer);
+		if (unwrapped.getKind() === SyntaxKind.ObjectLiteralExpression) {
+			return unwrapped as ObjectLiteralExpression;
+		}
+		if (unwrapped.getKind() === SyntaxKind.Identifier) {
+			const innerSymbol = (unwrapped as Identifier).getSymbol();
+			if (innerSymbol) {
+				return findObjectLiteralValueSide(
+					innerSymbol,
+					project,
+					reassignedNamesByFile,
+					seen,
+				);
+			}
+		}
+		return null;
+	}
+	return null;
+};
+
+/**
+ * Resolves a member expression whose member symbol is a TYPE-side member
+ * (a PropertySignature/MethodSignature/IndexSignature of the base's
+ * type) — round 19's BLOCKER 2. The verdicts:
+ *
+ *  - a drawer-module export name — the annotated object literal's own
+ *    property VALUE resolved through the symbol graph;
+ *  - null — a function-literal member (a method/getter/setter), a
+ *    property the value side does not declare (with no spread that could
+ *    supply it — it is undefined at runtime), or a member of a base
+ *    binding that is itself a definite local value or an external value
+ *    (round 19's BLOCKER 1 paired proof: `const Icon = item.Icon` with
+ *    `item` a typed parameter — the shipped `app-shell.tsx` shape — is a
+ *    member of a definite local value, and `<option.Icon />` in
+ *    `icon-color-picker.tsx` is the same classification);
+ *  - UNVERIFIABLE — the base is not a binding with a readable value side
+ *    and not a definite local/external value (a call result, a `??`
+ *    chain, a nested member, a reassigned `let`), the value side is an
+ *    object literal whose member could come from a spread, or the
+ *    property's initializer itself cannot be resolved. Not knowing must
+ *    redden.
+ */
+const resolveTypeSideMemberValue = (
+	propertyAccess: PropertyAccessExpression,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const base = unwrapExpression(propertyAccess.getExpression());
+	if (base.getKind() !== SyntaxKind.Identifier) {
+		return UNVERIFIABLE_TAG;
+	}
+	const baseSymbol = (base as Identifier).getSymbol();
+	if (!baseSymbol) {
+		return UNVERIFIABLE_TAG;
+	}
+	const objectLiteral = findObjectLiteralValueSide(
+		baseSymbol,
+		project,
+		reassignedNamesByFile,
+		seen,
+	);
+	if (objectLiteral) {
+		const memberName = propertyAccess.getName();
+		const property = objectLiteral.getProperty(memberName);
+		if (property) {
+			const propertyKind = property.getKind();
+			if (propertyKind === SyntaxKind.PropertyAssignment) {
+				const initializer = (property as PropertyAssignment).getInitializer();
+				if (!initializer) {
+					return UNVERIFIABLE_TAG;
+				}
+				return resolveValueIdentity(
+					initializer,
+					project,
+					reassignedNamesByFile,
+					seen,
+				);
+			}
+			if (propertyKind === SyntaxKind.ShorthandPropertyAssignment) {
+				const valueSymbol = project
+					.getTypeChecker()
+					.getShorthandAssignmentValueSymbol(
+						property as ShorthandPropertyAssignment,
+					);
+				if (!valueSymbol) {
+					return UNVERIFIABLE_TAG;
+				}
+				return resolveSymbolValue(
+					valueSymbol,
+					project,
+					reassignedNamesByFile,
+					seen,
+				);
+			}
+			if (
+				propertyKind === SyntaxKind.MethodDeclaration ||
+				propertyKind === SyntaxKind.GetAccessor ||
+				propertyKind === SyntaxKind.SetAccessor
+			) {
+				// A function literal — the member's value IS the function, a
+				// real local value, never the drawer module's exported symbol.
+				return null;
+			}
+			return UNVERIFIABLE_TAG;
+		}
+		if (
+			objectLiteral
+				.getProperties()
+				.some(
+					(candidate) => candidate.getKind() === SyntaxKind.SpreadAssignment,
+				)
+		) {
+			// The member could be supplied by the spread — not decidable.
+			return UNVERIFIABLE_TAG;
+		}
+		// The value side declares no such property and no spread can supply
+		// one: the member is undefined at runtime.
+		return null;
+	}
+
+	// No readable value side. The base binding itself decides the verdict.
+	const baseDeclarations = baseSymbol.getDeclarations();
+	if (
+		baseDeclarations.length > 0 &&
+		baseDeclarations.every(
+			(declaration) =>
+				!isRepoFilePath(declaration.getSourceFile().getFilePath()),
+		)
+	) {
+		// An external base value — the member is part of an external value,
+		// and the drawer module is a repo file (identity proof, the same
+		// cut resolveSymbolValue applies to symbols).
+		return null;
+	}
+	if (
+		baseDeclarations.length > 0 &&
+		baseDeclarations.every(
+			(declaration) =>
+				DEFINITE_LOCAL_DECLARATION_KINDS.has(declaration.getKind()) ||
+				declaration.getKind() === SyntaxKind.BindingElement,
+		)
+	) {
+		// A base binding whose value IS the symbol — a parameter, a
+		// destructured prop (a BindingElement), a local function/class, a
+		// namespace import. Its member belongs to that definite local
+		// value, never to the drawer module's exports. This is the
+		// round-19 BLOCKER 1 paired proof: `option.Icon` (a `.map` callback
+		// parameter) and `const Icon = item.Icon` with `item` a
+		// destructured typed prop (the shipped app-shell.tsx shape) must
+		// not become unverifiable in files that legitimately render them.
+		// BindingElement is deliberately absent from the DEFINITE set
+		// itself — a destructured binding USED AS THE TAG'S VALUE is
+		// round 18's fail-closed default — but as a member BASE it is a
+		// definite local value like any parameter.
+		return null;
+	}
+	return UNVERIFIABLE_TAG;
+};
+
 /**
  * Resolves a member-expression value (`Parts.Surface`, `React.Suspense`,
  * `Layout.Suspense`) through the symbol graph. The checker hands back the
@@ -3583,6 +3875,12 @@ const resolveValueIdentity = (
  * import that is not the repo-local drawer module is a certain
  * non-drawer verdict. A member that is not an export of a module whose
  * exports the checker enumerates is definitely not the drawer module's.
+ *
+ * Round 19's BLOCKER 2: when the checker hands back a TYPE-side member
+ * symbol (a PropertySignature of the base's type — what the member of a
+ * type-annotated object literal resolves to), the value side walk above
+ * follows the base to the annotated object literal instead of trusting
+ * the signature as evidence of absence.
  */
 const resolvePropertyAccessValue = (
 	propertyAccess: PropertyAccessExpression,
@@ -3592,6 +3890,14 @@ const resolvePropertyAccessValue = (
 ): DrawerTagNameResult => {
 	const symbol = propertyAccess.getSymbol();
 	if (symbol) {
+		if (symbol.getDeclarations().length > 0 && isTypeSideMemberSymbol(symbol)) {
+			return resolveTypeSideMemberValue(
+				propertyAccess,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
 		return resolveSymbolValue(symbol, project, reassignedNamesByFile, seen);
 	}
 	const base = unwrapExpression(propertyAccess.getExpression());
@@ -3646,13 +3952,25 @@ const resolveDrawerTagName = (
 	project: Project,
 	reassignedNamesByFile: Map<string, Set<string>>,
 ): DrawerTagNameResult => {
-	// A lowercase-leading tag is an intrinsic DOM element (`<button>`,
-	// `<div>`) — JSX forbids lowercase component names, and the checker
-	// does not give them a value symbol in every context, so they must be
-	// a definite non-drawer value, never UNVERIFIABLE.
-	if (/^[a-z]/.test(tagNameNode.getText())) {
+	// A lowercase-leading PLAIN IDENTIFIER tag is an intrinsic DOM element
+	// (`<button>`, `<div>`) — JSX forbids lowercase component identifiers,
+	// and the checker does not give them a value symbol in every context,
+	// so they must be a definite non-drawer value, never UNVERIFIABLE.
+	// Round 19's BLOCKER 1: the intrinsic cut must NOT see the case of a
+	// DOTTED tag name — `getText()` is the whole dotted path, and a
+	// member-expression tag is a value expression regardless of the case
+	// of its leading identifier (`<option.Icon />` renders the `Icon`
+	// member of the `option` binding). Only a plain `Identifier` tag can
+	// be intrinsic.
+	if (
+		tagNameNode.getKind() === SyntaxKind.Identifier &&
+		/^[a-z]/.test(tagNameNode.getText())
+	) {
 		return null;
 	}
+	// A dotted tag name is resolved like any other member expression,
+	// whatever the case of its base (the checker hands JSX member tags to
+	// this resolver as PropertyAccessExpression).
 	if (tagNameNode.getKind() === SyntaxKind.PropertyAccessExpression) {
 		return resolvePropertyAccessValue(
 			tagNameNode as PropertyAccessExpression,
