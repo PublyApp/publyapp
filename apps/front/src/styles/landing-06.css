@@ -601,4 +601,66 @@
 		opacity: 0;
 		pointer-events: none;
 	}
+
+	/* ---- 7. Imagery slot sizing (§7.2's register) ---- */
+
+	/* Every 16/10 slot on the page (the hero and the five tour scenes) shares
+	   one sizing rule: below 768 the box stays fluid at `width: 100%` with
+	   `MarketingImageSlot`'s own `ratio` prop governing height unclamped, and
+	   from 768 up the HEIGHT is the fixed number and the width is left to
+	   `aspect-ratio` to derive and `margin-inline: auto` to centre — so
+	   704×440 and 992×620 (§7.2) are not two hand-picked numbers but one
+	   formula (`height x (16/10) = width`) applied at two heights. The 440px
+	   mid-breakpoint cap is shared by every 16/10 slot regardless of tier —
+	   only the >=1024 height comes from the tier ladder. */
+	.publy-landing-06-slot-16-10 {
+		width: 100%;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-06-slot-16-10 {
+			width: auto;
+			height: 440px;
+			margin-inline: auto;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-landing-06-slot-16-10.publy-landing-06-slot-tier-d0 {
+			height: var(--publy-landing-06-slot-max-d0);
+		}
+
+		.publy-landing-06-slot-16-10.publy-landing-06-slot-tier-d1 {
+			height: var(--publy-landing-06-slot-max-d1);
+		}
+	}
+
+	/* ---- 8. Product tour rail (§6.2) ---- */
+
+	/* The rail items and the shared 2px indicator both key off one fixed row
+	   height, so the indicator can slide with a plain `transform: translateY`
+	   (`index * item height`, computed in `landing-product-tour.tsx`) instead
+	   of a ResizeObserver/ref measurement pass. Theme-invariant — a length,
+	   not a colour. */
+	.publy-landing-06 {
+		--publy-landing-06-rail-item-h: 40px;
+	}
+
+	.publy-landing-06-tour-rail-link {
+		display: flex;
+		align-items: center;
+		height: var(--publy-landing-06-rail-item-h);
+	}
+
+	.publy-landing-06-tour-rail-indicator {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 2px;
+		height: var(--publy-landing-06-rail-item-h);
+		border-radius: var(--publy-radius-sm);
+		background: var(--publy-primary);
+		transition: transform var(--publy-motion-medium) var(--publy-motion-ease);
+		pointer-events: none;
+	}
 }

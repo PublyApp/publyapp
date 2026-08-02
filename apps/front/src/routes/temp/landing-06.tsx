@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { LandingCapabilityStrip } from '~/components/marketing/landing-06/landing-capability-strip';
 import { LandingFooter } from '~/components/marketing/landing-06/landing-footer';
 import { LandingHeader } from '~/components/marketing/landing-06/landing-header';
+import { LandingHero } from '~/components/marketing/landing-06/landing-hero';
 import { LandingPageWash } from '~/components/marketing/landing-06/landing-page-wash';
+import { LandingProductTour } from '~/components/marketing/landing-06/landing-product-tour';
 import {
 	LandingTierSection,
 	type LandingTierSectionProps,
@@ -20,36 +23,32 @@ export const Route = createFileRoute('/temp/landing-06')({
  * closing CTA deliberately breaks back to D1 — the one backward step on the
  * page — and does not overlap, so the frame visibly releases.
  *
- * Sections render empty here: heading copy, decks, ornaments and imagery
- * slots land in the subtasks that follow (see .dump/report-t1.md).
+ * Subtask 2/5 (this one) fills the hero, capability strip and product tour
+ * with real content (see .dump/report-t2.md). The remaining six sections
+ * below still render empty, carried over from subtask 1's scaffold (see
+ * .dump/report-t1.md) — their copy, ornaments and imagery slots land in the
+ * subtasks that follow.
  */
-const SECTIONS: readonly Omit<LandingTierSectionProps, 'children'>[] = [
-	{ id: 'hero', testId: 'landing-06-section-hero', tier: 'd0', anchor: false },
-	{
-		id: 'capabilities',
-		testId: 'landing-06-section-capabilities',
-		tier: 'd1',
-		overlap: true,
-	},
-	{ id: 'tour', testId: 'landing-06-section-tour', tier: 'd1' },
-	{
-		id: 'differentiators',
-		testId: 'landing-06-section-differentiators',
-		tier: 'd2',
-		band: 'inverted',
-		overlap: true,
-	},
-	{ id: 'who', testId: 'landing-06-section-who', tier: 'd2' },
-	{
-		id: 'timeline',
-		testId: 'landing-06-section-timeline',
-		tier: 'd3',
-		overlap: true,
-	},
-	{ id: 'pricing', testId: 'landing-06-section-pricing', tier: 'd3' },
-	{ id: 'faq', testId: 'landing-06-section-faq', tier: 'd4', overlap: true },
-	{ id: 'closing-cta', testId: 'landing-06-section-closing-cta', tier: 'd1' },
-];
+const REMAINING_SECTIONS: readonly Omit<LandingTierSectionProps, 'children'>[] =
+	[
+		{
+			id: 'differentiators',
+			testId: 'landing-06-section-differentiators',
+			tier: 'd2',
+			band: 'inverted',
+			overlap: true,
+		},
+		{ id: 'who', testId: 'landing-06-section-who', tier: 'd2' },
+		{
+			id: 'timeline',
+			testId: 'landing-06-section-timeline',
+			tier: 'd3',
+			overlap: true,
+		},
+		{ id: 'pricing', testId: 'landing-06-section-pricing', tier: 'd3' },
+		{ id: 'faq', testId: 'landing-06-section-faq', tier: 'd4', overlap: true },
+		{ id: 'closing-cta', testId: 'landing-06-section-closing-cta', tier: 'd1' },
+	];
 
 function LandingExploration06() {
 	return (
@@ -67,7 +66,30 @@ function LandingExploration06() {
 				className="relative isolate flex-1 overflow-x-clip"
 			>
 				<LandingPageWash />
-				{SECTIONS.map((section) => (
+				<LandingTierSection
+					id="hero"
+					testId="landing-06-section-hero"
+					tier="d0"
+					anchor={false}
+				>
+					<LandingHero />
+				</LandingTierSection>
+				<LandingTierSection
+					id="capabilities"
+					testId="landing-06-section-capabilities"
+					tier="d1"
+					overlap
+				>
+					<LandingCapabilityStrip />
+				</LandingTierSection>
+				<LandingTierSection
+					id="tour"
+					testId="landing-06-section-tour"
+					tier="d1"
+				>
+					<LandingProductTour />
+				</LandingTierSection>
+				{REMAINING_SECTIONS.map((section) => (
 					<LandingTierSection key={section.id} {...section} />
 				))}
 			</main>
