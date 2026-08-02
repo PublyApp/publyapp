@@ -3152,6 +3152,33 @@ void test(
 );
 
 void test(
+	'passes a real TanStack route build when a comma chain discards the factory result',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const holder = { probe: (createStrictContext(null), 0) };
+				const Probe = () => <div>{String(holder.probe)}</div>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: [
+				{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+				{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+				{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+				{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+			],
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
 	'fails a real TanStack route build when a context is destructured through a nested pattern',
 	{ timeout: 120_000 },
 	async () => {
