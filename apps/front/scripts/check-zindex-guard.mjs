@@ -1608,33 +1608,55 @@ export const scanZIndexFile = ({
 			}
 			return escapes;
 		};
+		// Every binding a static import declaration can introduce, for the
+		// specifiers Vite treats as raw: the default clause, the namespace
+		// clause, named elements (`{ default as x }` is the default under
+		// another spelling), and mixed spellings (`import d, * as ns`) — each
+		// clause is recorded, never one branch of an else-if (round-15 B2).
+		// Classification comes from the same query-token parse the build's
+		// provenance plugin uses (round-15 B3), and `kind` tells the walk
+		// what each binding provably ships: the default text, a namespace
+		// object readable through `.default`, or — for a named element that
+		// is not `default` — nothing at all (undefined on a raw module,
+		// recorded by name so shadowing resolution stays exact, green by
+		// name rather than by omission).
 		const rawImportBindings = new Map();
 		for (const statement of sourceFile.statements) {
 			if (!ts.isImportDeclaration(statement)) {
 				continue;
 			}
 			const specifier = statement.moduleSpecifier?.text ?? '';
-			if (!specifier.includes('?raw')) {
+			const { queryTokens } = parseImportQuery(specifier);
+			if (!queryTokens.includes('raw')) {
 				continue;
 			}
+			const recordBinding = (name, kind, declaration) => {
+				rawImportBindings.set(name, { specifier, declaration, kind });
+			};
 			const importClause = statement.importClause;
-			if (importClause?.name != null && ts.isIdentifier(importClause.name)) {
-				rawImportBindings.set(importClause.name.text, {
-					specifier,
-					// The binding node `nearestBinding` resolves to for a
-					// default import is the import clause itself.
-					declaration: importClause,
-					namespace: false,
-				});
-			} else if (
-				importClause?.namedBindings != null &&
-				ts.isNamespaceImport(importClause.namedBindings)
-			) {
-				rawImportBindings.set(importClause.namedBindings.name.text, {
-					specifier,
-					declaration: importClause.namedBindings,
-					namespace: true,
-				});
+			if (importClause == null) {
+				continue;
+			}
+			if (importClause.name != null && ts.isIdentifier(importClause.name)) {
+				// The binding node `nearestBinding` resolves to for a
+				// default import is the import clause itself.
+				recordBinding(importClause.name.text, 'default', importClause);
+			}
+			const namedBindings = importClause.namedBindings;
+			if (namedBindings != null && ts.isNamespaceImport(namedBindings)) {
+				recordBinding(namedBindings.name.text, 'namespace', namedBindings);
+			} else if (namedBindings != null && ts.isNamedImports(namedBindings)) {
+				for (const element of namedBindings.elements) {
+					const importedName =
+						element.propertyName == null
+							? element.name.text
+							: element.propertyName.text;
+					recordBinding(
+						element.name.text,
+						importedName === 'default' ? 'default' : 'named-non-default',
+						element,
+					);
+				}
 			}
 		}
 		const rawImportEntryForExpression = (expression, visitedConsts) => {
@@ -1685,6 +1707,10 @@ export const scanZIndexFile = ({
 				const entry = rawImportBindings.get(expression.text);
 				if (
 					entry != null &&
+					// A named element that is not `default` is undefined on a
+					// raw module — it ships nothing, so it cannot put raw
+					// bytes into an unevaluable expression.
+					entry.kind !== 'named-non-default' &&
 					nearestBinding(expression, expression.text) === entry.declaration
 				) {
 					return true;
@@ -1744,10 +1770,14 @@ export const scanZIndexFile = ({
 		// literal chain and the member value is resolved recursively. An
 		// owner that cannot be resolved still fails loud when a recorded raw
 		// binding occurs inside it — the bytes may ship under that member.
+		// The absent-member answer `{ specifiers: [], unresolved: false }` is
+		// only reached with a provably complete key, so it is a genuine
+		// provable absence (`o.other`), never a key the guard failed to pin
+		// down (round-15 B1).
 		const rawSpecifiersForNamedMemberAccess = (owner, name, visitedConsts) => {
 			const ownerEntry = rawImportEntryForExpression(owner, visitedConsts);
 			if (ownerEntry != null) {
-				return ownerEntry.namespace && name === 'default'
+				return ownerEntry.kind === 'namespace' && name === 'default'
 					? { specifiers: [ownerEntry.specifier], unresolved: false }
 					: { specifiers: [], unresolved: false };
 			}
@@ -1829,7 +1859,7 @@ export const scanZIndexFile = ({
 						expression.expression,
 						visitedConsts,
 					);
-					if (ownerEntry != null && ownerEntry.namespace) {
+					if (ownerEntry != null && ownerEntry.kind === 'namespace') {
 						return { specifiers: [ownerEntry.specifier], unresolved: false };
 					}
 				}
@@ -1863,9 +1893,14 @@ export const scanZIndexFile = ({
 					entry != null &&
 					nearestBinding(expression, expression.text) === entry.declaration
 				) {
-					return entry.namespace
-						? { specifiers: [], unresolved: false }
-						: { specifiers: [entry.specifier], unresolved: false };
+					// Only the default binding's identifier is the raw text
+					// itself; a namespace identifier is a module object (read
+					// through `.default`) and a named element that is not
+					// `default` is undefined on a raw module and ships
+					// nothing — both stay green by name, never by omission.
+					return entry.kind === 'default'
+						? { specifiers: [entry.specifier], unresolved: false }
+						: { specifiers: [], unresolved: false };
 				}
 				const alias = moduleConstInitializers.get(expression.text);
 				if (
@@ -1895,7 +1930,7 @@ export const scanZIndexFile = ({
 			if (baseDir == null || rawImportTexts == null) {
 				return;
 			}
-			const withoutQuery = specifier.split(/[?#]/)[0];
+			const withoutQuery = parseImportQuery(specifier).filePath;
 			let rawPath;
 			if (withoutQuery.startsWith('~/')) {
 				rawPath = path.resolve(baseDir, 'src', withoutQuery.slice(2));
@@ -2725,6 +2760,22 @@ const collectCssPaths = async (
 	return cssPaths.sort((left, right) => left.localeCompare(right));
 };
 
+// ---------------------------------------------------------------------------
+// Shared Vite-style specifier query parse. Vite's own raw test is a
+// query-token test (`/(?:\?|&)raw(?:&|$)/`), so `?v=1&raw` is a raw module and
+// `?rawish` is not — a substring sniff (`specifier.includes('?raw')`) gets
+// both wrong. The provenance plugin and the script pass must classify the
+// same specifier identically (round-15 B3), so both parse through this one
+// helper: the plugin records what the build transforms as raw, and the script
+// pass asks the record instead of re-testing the text.
+const parseImportQuery = (specifier) => {
+	const [filePath, query] = specifier.split('?');
+	return {
+		filePath,
+		queryTokens: query == null ? [] : query.split('&'),
+	};
+};
+
 export const buildProductionApp = async (baseDir) => {
 	const emittedCssRoot = await mkdtemp(
 		path.join(tmpdir(), 'publy-zindex-guard-'),
@@ -2738,8 +2789,7 @@ export const buildProductionApp = async (baseDir) => {
 		name: 'publy-zindex-css-provenance',
 		enforce: 'pre',
 		transform(_code, id) {
-			const [filePath, query] = id.split('?');
-			const queryTokens = query == null ? [] : query.split('&');
+			const { filePath, queryTokens } = parseImportQuery(id);
 			if (isCSSRequest(id)) {
 				// Vite's own CSS-language set (`.css`, `.pcss`, `.postcss`,
 				// `.sss`, the preprocessor languages, …) so the guard cannot

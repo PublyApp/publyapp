@@ -1744,6 +1744,91 @@ test('e2e (round 15 B1): a partial element-access key never reads a member the c
 	);
 });
 
+test('e2e (round 15 B2/B3): every import binding shape of a ?raw module is recorded and resolved', async () => {
+	// Round-14 B2: rawImportBindings recorded only the default clause or the
+	// namespace clause (an else-if), so `{ default as x }` — the default
+	// under another spelling — was not a recorded binding at all, and a
+	// mixed `import d, * as ns` dropped the namespace half. Round-14 B3: the
+	// `?raw` test was a substring sniff, so `?v=1&raw` (raw by Vite's own
+	// query-token test) was invisible to the script pass while the build's
+	// provenance plugin recorded it. Each spelling now reds at its raw file
+	// exactly like the plain default import.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				"import { default as namedDefault } from './named.txt?raw';",
+				"import mixedDefault, * as mixedNs from './mixed.txt?raw';",
+				"import queried from './queried.txt?v=1&raw';",
+				'export const namedProbe = <style>{namedDefault}</style>;',
+				'export const mixedProbe = <style>{mixedNs.default}</style>;',
+				'export const queriedProbe = <style>{queried}</style>;',
+				'void mixedDefault;',
+			].join('\n'),
+			'named.txt': '.named { z-index: 2147483581; }',
+			'mixed.txt': '.mixed { z-index: 2147483580; }',
+			'queried.txt': '.queried { z-index: 2147483579; }',
+		},
+		'',
+		["import { namedProbe, mixedProbe, queriedProbe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations
+			.filter(
+				(violation) => violation.ruleId === 'z-index-declaration-not-on-scale',
+			)
+			.map((violation) => violation.file)
+			.sort(),
+		['src/mixed.txt', 'src/named.txt', 'src/queried.txt'],
+		`every import binding shape must red at its raw file: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('raw sinks: a non-default named element of a ?raw module is recorded but ships nothing', () => {
+	// Round-14 B2's other half: a named element that is not `default` is
+	// undefined on a raw module (which only has a default export — the build
+	// cannot even compile such an import), so it is recorded by name — the
+	// shadowing resolution stays exact — yet resolves to nothing: green by
+	// name, never by omission. Pinned at the script-pass level because the
+	// fixture build cannot produce that module shape.
+	const baseDir = '/tmp/zindex-r15-unit';
+	const walk = (content, files) =>
+		scanZIndexFile({
+			scanner,
+			relativePath: 'probe.tsx',
+			content,
+			baseDir,
+			rawImportTexts: new Map(
+				Object.entries(files).map(([relative, text]) => [
+					path.join(baseDir, relative),
+					text,
+				]),
+			),
+		});
+	const cssText = '.other { z-index: 2147483577; }';
+	assert.deepEqual(
+		walk(
+			[
+				`import { notDefault } from './other.txt?raw';`,
+				'export const probe = <style>{notDefault}</style>;',
+			].join('\n'),
+			{ 'other.txt': cssText },
+		),
+		[],
+		'a named element that is not default ships nothing and must stay green',
+	);
+	assert.deepEqual(
+		walk(
+			[
+				`import { default as aliasedDefault, other } from './other.txt?raw';`,
+				'export const probe = <style>{aliasedDefault}</style>;',
+			].join('\n'),
+			{ 'other.txt': cssText },
+		).map((violation) => violation.ruleId),
+		['z-index-declaration-not-on-scale'],
+		'`{ default as x }` is the default binding and must red at the raw file',
+	);
+});
+
 test('e2e (round 13 B2): the static-string family resolves the same transparent expressions', async () => {
 	// The raw resolver's family is also the static-string family: an object
 	// property, a conditional, String(...), a template substitution, `+`, or
