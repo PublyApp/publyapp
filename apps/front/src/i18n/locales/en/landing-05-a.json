@@ -1,4 +1,6 @@
 {
+	"landing-meta-title": "PublyApp — publish everywhere your brands live",
+	"landing-meta-description": "One calendar, one composer and explicit approvals for teams and agencies publishing across more than one brand. Open beta, free today.",
 	"landing-skip-to-content": "Skip to main content",
 	"landing-nav-aria-label": "Page sections",
 	"landing-nav-product": "Product",
@@ -10,8 +12,8 @@
 	"landing-footer-line": "A publishing platform for teams and agencies running more than one brand.",
 	"landing-footer-group-page": "Page",
 	"landing-footer-group-account": "Account",
-	"landing-footer-copyright": "© {{year}} PublyApp",
-	"landing-hero-badge": "Open beta · free today",
+	"landing-footer-copyright": "© {{year}} PublyApp",
+	"landing-hero-badge": "Open beta · free today",
 	"landing-hero-title": "Publish everywhere your brands live",
 	"landing-hero-description": "One calendar for planning, approvals, and publishing across all your profiles. Draft once, route with context, and launch together.",
 	"landing-hero-primary-cta": "Sign up free",

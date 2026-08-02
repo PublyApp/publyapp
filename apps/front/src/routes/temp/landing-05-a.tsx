@@ -18,6 +18,7 @@ import { Landing05ATrial } from '~/components/marketing/landing-05-a/landing-05-
 import { useL05aReveal } from '~/components/marketing/landing-05-a/use-l05a-reveal';
 import { buttonVariants } from '~/components/ui/button';
 import { FEATURES } from '~/lib/flags';
+import { createI18nFromResources } from '~/lib/i18n.shared';
 import { cn } from '~/lib/utils';
 
 /* §9 — the two flag-gated bands: restyled onto the shared attio-15 hairline
@@ -40,6 +41,32 @@ const SOCIAL_PROOF_KEYS = [
 export const Route = createFileRoute('/temp/landing-05-a')({
 	component: LandingExploration05A,
 	staticData: { i18nNamespaces: ['landing-05-a'], crumbs: 'shell' },
+	/**
+	 * The document title and description, resolved in the reader's own
+	 * locale.
+	 *
+	 * The root route declares only `charSet` and `viewport`, so every landing
+	 * exploration inherits the app's default title — the last detail of a page
+	 * a reader sees is the browser tab, and it was unset. `head` runs with the
+	 * match's context, which is where the root's `beforeLoad` has already put
+	 * the resolved locale and the loaded i18n resources, so the title and the
+	 * description come out of the same bundle the page's copy does rather
+	 * than out of a second, English-only source that would silently drift.
+	 */
+	head: ({ match }) => {
+		const { locale, namespaces, resources } = match.context;
+		const t = createI18nFromResources(locale, namespaces, resources).getFixedT(
+			locale,
+			'landing-05-a',
+		);
+
+		return {
+			meta: [
+				{ title: t('landing-meta-title') },
+				{ name: 'description', content: t('landing-meta-description') },
+			],
+		};
+	},
 });
 
 /**

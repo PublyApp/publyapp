@@ -90,7 +90,7 @@ export const Landing05AFooter = () => {
 						</div>
 					</nav>
 				</div>
-				<p className="publy-type-sky-body mt-12 border-t border-(--publy-border) pt-8 text-(--publy-foreground-muted)">
+				<p className="publy-type-sky-body mt-12 border-t border-(--publy-border) pt-8 text-(--publy-foreground-secondary)">
 					{t('landing-footer-copyright', { year })}
 				</p>
 			</div>

@@ -47,18 +47,32 @@ export const Landing05ACapabilities = () => {
 	const { t } = useTranslation('landing-05-a');
 
 	return (
-		<div className="publy-l05a-bleed publy-l05a-section-body">
-			<div className="publy-l05a-fact-grid relative grid gap-x-8 md:grid-cols-2 lg:grid-cols-3">
-				<div
-					aria-hidden="true"
-					className="pointer-events-none absolute inset-y-0 left-1/3 my-auto hidden h-[198px] w-px bg-(--publy-border) lg:block"
-				/>
-				<div
-					aria-hidden="true"
-					className="pointer-events-none absolute inset-y-0 left-2/3 my-auto hidden h-[198px] w-px bg-(--publy-border) lg:block"
-				/>
+		<div className="publy-l05a-bleed publy-l05a-section-body relative">
+			{/* The two floating dividers live OUTSIDE the list: a `<ul>` may
+			    only contain `<li>`, and a decorative div inside one is invalid
+			    markup that some screen readers resolve by dropping the list
+			    semantics entirely. */}
+			<div
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-y-0 left-1/3 my-auto hidden h-[198px] w-px bg-(--publy-border) lg:block"
+			/>
+			<div
+				aria-hidden="true"
+				className="pointer-events-none absolute inset-y-0 left-2/3 my-auto hidden h-[198px] w-px bg-(--publy-border) lg:block"
+			/>
+			{/* A real list, so the section announces "6 items" instead of six
+			    unrelated paragraphs — six is the claim. `list-none` removes the
+			    marker (the page draws its own structure with rules, and a
+			    bullet beside a 20px icon is two bullets), and `role="list"` is
+			    there because Safari drops list semantics from a `<ul>` whose
+			    `list-style` is `none` — removing the marker must not also
+			    remove the meaning. */}
+			<ul
+				role="list"
+				className="publy-l05a-fact-grid grid list-none gap-x-8 md:grid-cols-2 lg:grid-cols-3"
+			>
 				{CAPABILITY_FACTS.map((fact) => (
-					<div key={fact.key} className="publy-l05a-fact-cell p-8">
+					<li key={fact.key} className="publy-l05a-fact-cell p-8">
 						<fact.Icon
 							className="size-5 text-(--publy-foreground-secondary)"
 							aria-hidden="true"
@@ -71,9 +85,9 @@ export const Landing05ACapabilities = () => {
 								{t(`landing-capability-${fact.key}-body`)}
 							</span>
 						</p>
-					</div>
+					</li>
 				))}
-			</div>
+			</ul>
 		</div>
 	);
 };

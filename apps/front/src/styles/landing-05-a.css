@@ -824,6 +824,34 @@
 		outline-offset: 2px;
 	}
 
+	/* ---- Selection, chosen rather than inherited.
+
+	   The OS default is a saturated blue, and it is the loudest colour on
+	   most pages at the exact moment a reader is engaged enough to drag
+	   across a line. Over a warm yellow field it is worse than loud, it is
+	   wrong. 26% of the brand primary is a wash the page already contains,
+	   the foreground stays the foreground so nothing is harder to read
+	   selected than unselected, and it is legible over the dawn, over a
+	   panel, and inside the aperture without a second value.
+
+	   Dark takes 34%: the same 26% mix over #18181b lands too close to the
+	   page to register as a selection at all. */
+	.publy-landing-05-a ::selection {
+		background-color: color-mix(in srgb, var(--publy-primary) 26%, transparent);
+		color: var(--publy-foreground);
+	}
+
+	html.dark .publy-landing-05-a ::selection {
+		background-color: color-mix(in srgb, var(--publy-primary) 34%, transparent);
+	}
+
+	/* The night band is a fixed dark canvas in both themes, so a selection
+	   tuned for the page would drop its own foreground onto it. */
+	.publy-landing-05-a .publy-marketing-night ::selection {
+		background-color: color-mix(in srgb, var(--publy-primary) 34%, transparent);
+		color: var(--l05a-night-foreground);
+	}
+
 	/* ---- Link underlines, designed rather than defaulted.
 
 	   `text-decoration: underline` puts a 1px rule on the alphabetic baseline
@@ -1006,6 +1034,53 @@
 			opacity: 1;
 			filter: none;
 			transform: none;
+		}
+	}
+
+	/* Print takes the same path. A reader who prints the page part-way down
+	   it would otherwise get blank sections wherever the observer had not
+	   fired yet — the one failure mode a JS-driven reveal can still have on a
+	   page that is otherwise complete without JS. */
+	@media print {
+		.publy-landing-05-a .publy-sky-a-focus-in,
+		.publy-landing-05-a [data-l05a-reveal='idle'] > *,
+		.publy-landing-05-a [data-l05a-reveal='in'] > * {
+			animation-name: none;
+			opacity: 1;
+			filter: none;
+			transform: none;
+		}
+
+		.publy-landing-05-a .publy-marketing-sky {
+			display: none;
+		}
+	}
+
+	/* ---- Forced colours. The whole page is carried by hairlines, tinted
+	   shadows and a gradient, and in forced-colors mode every one of those is
+	   discarded by the engine: a `box-shadow` ring vanishes, a gradient
+	   becomes the forced background, and what is left is unruled text.
+
+	   The window's ring survives because it was built as a real
+	   `border-width` on a pseudo-element rather than as a box-shadow — that
+	   was the reason for the construction and this is where it pays. The
+	   three objects whose edge is a RING rather than a border are given a
+	   real border of the system's own `ButtonBorder` for the same reason, and
+	   the sky is dropped rather than left as a flat forced fill behind
+	   forced-colour text. */
+	@media (forced-colors: active) {
+		.publy-landing-05-a .publy-l05a-hero-badge,
+		.publy-landing-05-a .publy-l05a-eyebrow-chip,
+		.publy-landing-05-a .publy-l05a-ring-chip {
+			border: 1px solid ButtonBorder;
+		}
+
+		.publy-landing-05-a .publy-marketing-sky {
+			display: none;
+		}
+
+		.publy-landing-05-a .publy-l05a-focus-ring:focus-visible {
+			outline-color: Highlight;
 		}
 	}
 
