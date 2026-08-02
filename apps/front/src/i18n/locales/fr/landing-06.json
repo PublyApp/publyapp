@@ -1,3 +1,9 @@
 {
-	"page-placeholder": "Exploration de page d'accueil 06"
+	"landing-06-brand-aria-label": "Accueil PublyApp",
+	"landing-06-nav-aria-label": "Sections de la page",
+	"landing-06-nav-tour": "Produit",
+	"landing-06-nav-pricing": "Tarifs",
+	"landing-06-nav-faq": "FAQ",
+	"landing-06-nav-cta": "S'inscrire",
+	"landing-06-footer-copyright": "© {{year}} PublyApp"
 }
