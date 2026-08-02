@@ -519,12 +519,18 @@ const readBrowserPaint = async (
 				// resolved box said.
 				const originPosition = getComputedStyle(layer).position;
 				const offsetParent = (layer as HTMLElement).offsetParent;
-				containing =
-					originPosition !== 'static'
-						? layer.getBoundingClientRect()
-						: offsetParent === null
-							? { left: 0, right: innerWidth, top: 0, bottom: innerHeight }
-							: offsetParent.getBoundingClientRect();
+				if (originPosition !== 'static') {
+					containing = layer.getBoundingClientRect();
+				} else if (offsetParent === null) {
+					containing = {
+						left: 0,
+						right: innerWidth,
+						top: 0,
+						bottom: innerHeight,
+					};
+				} else {
+					containing = offsetParent.getBoundingClientRect();
+				}
 			} else if (style.position === 'fixed') {
 				containing = {
 					left: 0,
@@ -558,14 +564,21 @@ const readBrowserPaint = async (
 				const right = asPixels(style.right);
 				const top = asPixels(style.top);
 				const bottom = asPixels(style.bottom);
-				const offsetX =
-					left !== undefined && (right === undefined || direction === 'ltr')
-						? left
-						: right !== undefined
-							? -right
-							: 0;
-				const offsetY =
-					top !== undefined ? top : bottom !== undefined ? -bottom : 0;
+				let offsetX = 0;
+				if (
+					left !== undefined &&
+					(right === undefined || direction === 'ltr')
+				) {
+					offsetX = left;
+				} else if (right !== undefined) {
+					offsetX = -right;
+				}
+				let offsetY = 0;
+				if (top !== undefined) {
+					offsetY = top;
+				} else if (bottom !== undefined) {
+					offsetY = -bottom;
+				}
 				return {
 					left: originRect.left + offsetX,
 					right: originRect.right + offsetX,
