@@ -1998,7 +1998,7 @@ test('an outset shadow from a neighbouring element over the glyphs fails the gua
 	await openToastFixture(page, 'light', VIEWPORTS[0]);
 	await page.addStyleTag({
 		content:
-			"[data-testid='field-validation-title'] { position: fixed; top: 31px; left: 1096px; width: 153px; height: 20px; box-shadow: -160px 0 0 0 var(--publy-foreground); color: transparent; z-index: 2147483647; }",
+			"[data-testid='field-validation-title'] { position: fixed; top: 31px; left: 1096px; width: 153px; height: 20px; box-shadow: -160px 7px 0 0 var(--publy-foreground); color: transparent; z-index: 2147483647; }",
 	});
 	const toast = await renderToast(page, 'success');
 	await expect(
