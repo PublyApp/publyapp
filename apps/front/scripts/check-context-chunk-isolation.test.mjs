@@ -1802,6 +1802,42 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 	);
 });
 
+void test('fails closed when two unattributed copies of a holder-mint module share one chunk', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const unattributedMintCode = `
+		var contexts = { probe: make_context_default(null) };
+	`;
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintingCallees: ['mkDefault'],
+					},
+				],
+				[
+					{
+						fileName: 'assets/probe-pair.js',
+						modules: {
+							[sourceFile]: { code: unattributedMintCode },
+							[`${sourceFile}?tsr-split=component`]: {
+								code: unattributedMintCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
+	);
+});
+
 void test('passes an un-attributable holder-position call when the module is in a single chunk', () => {
 	const sourceFile = path.join(
 		frontDirectory,
@@ -3114,6 +3150,74 @@ void test(
 
 		try {
 			assert.equal(result.status, 0, result.output);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build when anonymous default-factory holder copies share one chunk',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					import type { Context } from 'react';
+					export default function <T,>(fallback: T): Context<T> {
+						return createContext(fallback);
+					}
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import mkDefault from '../make-context';
+					const contexts = { probe: mkDefault<null>(null) };
+					export const useProbe = () => useContext(contexts.probe);
+					const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			groupProbeModules: true,
+			inventory,
+			rootImportsProbe: true,
+		});
+
+		try {
+			const mintingCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						/make_context_default\s*\(/.test(code)
+					) {
+						mintingCopies.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(
+				mintingCopies.length,
+				2,
+				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
+			);
+			assert.equal(
+				new Set(mintingCopies.map((location) => location.split(' :: ')[0]))
+					.size,
+				1,
+			);
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/cannot classify how <anonymous context> in src\/routes\/probe\.tsx is created/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}

@@ -1196,6 +1196,7 @@ export const findContextChunkIsolationViolations = (
 		const chunkNames = new Set();
 		const sourceChunkNames = new Set();
 		let contextCreatingModuleCount = 0;
+		let sourceModuleCopyCount = 0;
 		const hasRenderedContextAnalysis = analyzedSourceFiles.has(
 			context.sourceFile,
 		);
@@ -1215,6 +1216,12 @@ export const findContextChunkIsolationViolations = (
 				(isSourceModule ||
 					TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE.test(moduleId));
 			for (const { chunkName, renderedModule } of moduleChunks) {
+				// Every module-chunk pair is a delivered copy of the
+				// context's source, whether or not it is attributed a mint.
+				// The fail-closed branch counts copies, not the chunks they
+				// landed in: advanced chunk grouping can put two copies in
+				// one chunk, and a chunk name is a container, not a copy.
+				sourceModuleCopyCount += 1;
 				sourceChunkNames.add(chunkName);
 				if (
 					inspectRenderedContext &&
@@ -1230,9 +1237,9 @@ export const findContextChunkIsolationViolations = (
 
 		const sourcePath = path.relative(projectDirectory, context.sourceFile);
 		if (contextCreatingModuleCount === 0) {
-			if (sourceChunkNames.size >= 2) {
+			if (sourceModuleCopyCount >= 2) {
 				throw new Error(
-					`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: its module is present in ${sourceChunkNames.size} client chunks (${[...sourceChunkNames].join(', ')}) and no rendered copy is attributed a mint.`,
+					`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: its source is delivered in ${sourceModuleCopyCount} client module copies (${[...sourceChunkNames].join(', ')}) and no rendered copy is attributed a mint.`,
 				);
 			}
 
