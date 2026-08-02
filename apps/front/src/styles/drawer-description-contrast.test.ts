@@ -576,12 +576,22 @@ const normaliseToRepoRelative = (nativePath: string): string =>
 
 // Compile each literal class candidate against the app's REAL stylesheet —
 // the same CSS the app ships (app.css plus its `tw-animate-css` and
-// `shadcn/tailwind.css` imports), with `@tailwind utilities;` appended so the
-// candidate-generated utilities are emitted (round 5 I5). The `text-*`
-// namespace is overloaded (colour, font size, alignment, wrapping, ...), so
-// generated CSS is still the authoritative way to distinguish a colour
-// override from typography. A candidate that generates no rule at all fails
-// closed by name.
+// `shadcn/tailwind.css` imports), resolving app.css's own `@import
+// 'tailwindcss'` to the package's `index.css` (round 17 MINOR 4: this used to
+// resolve to `theme.css`, which carries no `@layer theme, base, components,
+// utilities;` declaration and no `@tailwind utilities;` directive at all — a
+// stray comment claimed "the same CSS the app ships" while every generated
+// utility was UNLAYERED, an accidental topology that happened to still crown
+// the right declaration for every shape this file pins, but was never the
+// real one and would have broken silently the first time app.css mentioned a
+// layer in a different order). `index.css` inlines the theme, the base/
+// preflight layer and `@layer utilities { @tailwind utilities; }` with no
+// further nested imports, so app.css's own import is now enough — no
+// separate `@tailwind utilities;` needs to be appended to the compiler input
+// (round 5 I5's original reason for appending one). The `text-*` namespace is
+// overloaded (colour, font size, alignment, wrapping, ...), so generated CSS
+// is still the authoritative way to distinguish a colour override from
+// typography. A candidate that generates no rule at all fails closed by name.
 // Locates the node_modules package root for a (possibly scoped) package by
 // walking up from the app directory, mirroring Node's resolution. Used both
 // to resolve app.css's `@import`s and to read package metadata (round 5 I6).
@@ -602,9 +612,16 @@ const findPackageRoot = (packageName: string): string => {
 	}
 };
 
+// The real entry the app's bundler resolves `@import 'tailwindcss'` to —
+// distinct from `tailwindThemePath` above, which is a narrower, JS-side
+// token source and stays `theme.css` on purpose (round 17 MINOR 4).
+const tailwindIndexPath = fileURLToPath(
+	import.meta.resolve('tailwindcss/index.css'),
+);
+
 const resolveAppStylesheetImport = (id: string): string => {
 	if (id === 'tailwindcss') {
-		return tailwindThemePath;
+		return tailwindIndexPath;
 	}
 
 	if (id === 'tw-animate-css') {
@@ -637,17 +654,41 @@ const loadAppStylesheet = async (
 	};
 };
 
-const tailwindCompilerInput = `${appCssSource}\n@tailwind utilities;`;
+// Round 17 MINOR 4: no `@tailwind utilities;` is appended here any more —
+// app.css's own `@import 'tailwindcss'` now resolves to the real `index.css`
+// import graph, which already declares `@layer utilities { @tailwind
+// utilities; }`. Appending a second, unlayered one would generate every
+// utility TWICE, with the unlayered copy silently outranking the properly
+// layered one — undoing the very layer-order fix this resolves.
+const tailwindCompilerInput = appCssSource;
 
 // Escapes a utility class name the way the Tailwind compiler escapes it in a
 // selector (`text-primary` → `text-primary`, an arbitrary-value utility whose
 // brackets hold a colon → `\[…\:…\]`, `dark:text-primary` →
 // `dark\:text-primary`). Only `[0-9A-Za-z_-]` survives unescaped; everything
-// else is backslash-prefixed.
-const escapeClassName = (utility: string): string =>
-	utility.replace(/[^\x2d\x30-\x39\x41-\x5a\x5f\x61-\x7a]/g, (character) =>
-		'\\'.concat(character),
-	);
+// else is backslash-prefixed — EXCEPT a digit in a position CSS forbids a
+// bare digit from starting an identifier (index 0, or index 1 when index 0 is
+// `-`), which is spelled as its codepoint escape instead (round 17 MINOR 1):
+// `2xl:text-foreground` compiles to `.\32 xl\:text-foreground`, not
+// `.\2xl\:text-foreground` — the per-character form the old scan produced,
+// whose needle never matched the real selector, so a class name starting
+// with a digit (every `2xl:`/`3xl:` variant, every arbitrary value starting
+// with a digit) was reported as a typo.
+const escapeClassName = (utility: string): string => {
+	let escaped = '';
+	for (let index = 0; index < utility.length; index += 1) {
+		const character = utility[index];
+		const isLeadingDigit =
+			/[0-9]/.test(character) &&
+			(index === 0 || (index === 1 && utility[0] === '-'));
+		if (isLeadingDigit) {
+			escaped += `\\${character.charCodeAt(0).toString(16)} `;
+			continue;
+		}
+		escaped += /[0-9A-Za-z_-]/.test(character) ? character : `\\${character}`;
+	}
+	return escaped;
+};
 
 // One compiler over the real app.css, shared by every utility build. Building
 // per candidate against a single compiler is an order of magnitude faster than
@@ -754,9 +795,36 @@ const splitSelectorList = (selector: string): string[] => {
 		.filter((entry) => entry.length > 0);
 };
 
+/** The length of the escape sequence starting at `text[backslashIndex]`
+ * (which must be `\`): a CSS codepoint escape is 1-6 hex digits optionally
+ * followed by ONE trailing whitespace character that terminates it (not a
+ * combinator) — Tailwind spells a leading-digit class this way, `2xl:` →
+ * `\32 xl\:…` (round 17 MINOR 1/2) — otherwise a plain single-character
+ * escape (`\:`, `\.`, …). */
+const escapeSequenceLength = (text: string, backslashIndex: number): number => {
+	let cursor = backslashIndex + 1;
+	let hexDigits = 0;
+	while (
+		cursor < text.length &&
+		hexDigits < 6 &&
+		/[0-9a-fA-F]/.test(text[cursor])
+	) {
+		cursor += 1;
+		hexDigits += 1;
+	}
+	if (hexDigits > 0) {
+		if (cursor < text.length && /\s/.test(text[cursor])) {
+			cursor += 1;
+		}
+		return cursor - backslashIndex;
+	}
+	return cursor < text.length ? 2 : 1;
+};
+
 /** Splits an individual (comma-free) selector into its compound runs, on
  * combinators (whitespace, `>`, `+`, `~`) that are NOT inside `(...)` or
- * `[...]` — the depth awareness keeps `&:is(.dark *)` one compound. */
+ * `[...]` and not the terminating whitespace of a codepoint escape — the
+ * depth awareness keeps `&:is(.dark *)` one compound. */
 const splitCompounds = (selector: string): string[] => {
 	const runs: string[] = [];
 	let depth = 0;
@@ -764,7 +832,7 @@ const splitCompounds = (selector: string): string[] => {
 	for (let index = 0; index < selector.length; index += 1) {
 		const character = selector[index];
 		if (character === '\\') {
-			index += 1;
+			index += escapeSequenceLength(selector, index) - 1;
 			continue;
 		}
 		if (character === '(' || character === '[') {
@@ -1550,6 +1618,33 @@ const attributedUtilityName = (
  *    calling every shape "conditional" and prescribing a remedy ("extend the
  *    measured viewports") that cannot fix an ancestor-qualified rule.
  */
+/** Whether a (possibly comma-separated, possibly nested-pseudo-argument)
+ * selector mentions the exact escaped class token `needle` anywhere in it —
+ * recursing into `:is()`/`:where()`/`:not()`/`:has()` arguments, where
+ * Tailwind's own compiled selectors put a class (round 17 MINOR 2: the old
+ * TYPO scan was a plain `string.includes()`, a SUBSTRING test, so a typo that
+ * happens to be a prefix of a real class — `.publy-drawer-desc` inside
+ * `.publy-drawer-description` — was silently accepted as "mentioned"). */
+const selectorMentionsClass = (selector: string, needle: string): boolean => {
+	for (const entry of splitSelectorList(selector)) {
+		for (const compound of splitCompounds(entry)) {
+			for (const token of tokenizeCompound(compound)) {
+				if (token.kind === 'class' && token.name === needle) {
+					return true;
+				}
+				if (
+					token.kind === 'pseudo-class' &&
+					token.args !== null &&
+					selectorMentionsClass(token.args, needle)
+				) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+};
+
 const assertVerifiable = (
 	root: postcss.Root,
 	recorded: RecordedDeclaration[],
@@ -1567,7 +1662,7 @@ const assertVerifiable = (
 		const needle = `.${escapeClassName(utility)}`;
 		let mentioned = false;
 		root.walkRules((rule) => {
-			if (rule.selector.includes(needle)) {
+			if (selectorMentionsClass(rule.selector, needle)) {
 				mentioned = true;
 			}
 		});
@@ -1702,13 +1797,28 @@ const assertVerifiable = (
 		const hasUnconditional = restRelevant.some(
 			(d) => d.conditions.length === 0,
 		);
+		// Round 16 MINOR 3: `askEngine` never evaluates a `@container` query
+		// (it hardcodes `conditionsHeld: false`) — a container-gated
+		// declaration can therefore only ever land in THIS throw, never in
+		// `appliesLight`/`appliesDark`, regardless of whether the real drawer
+		// markup would actually establish the container and match. State the
+		// exclusion by name rather than implying the same measured-viewport
+		// remedy that works for `@media`/`@supports`.
+		const hasContainer = restRelevant.some((d) =>
+			d.conditions.some((condition) => condition.type === 'container'),
+		);
 		if (hasConditional && !hasUnconditional) {
+			const containerNote = hasContainer
+				? ' This guard never evaluates a @container condition — it is not ' +
+					'in the "extend the measured viewports" remedy below; verify a ' +
+					'@container-gated declaration by hand against the real drawer width.'
+				: '';
 			throw new Error(
 				`Only conditional declarations for ${utility}: ${propList} — ` +
 					`every declaration applies at no measured viewport ` +
 					`(${MEASURED_VIEWPORT.width}×${MEASURED_VIEWPORT.height}, light and dark); ` +
 					'the browser paints the primitive default here. Resolve it outside ' +
-					'the conditional rule or extend the measured viewports.',
+					`the conditional rule or extend the measured viewports.${containerNote}`,
 			);
 		}
 		if (hasUnconditional && !hasConditional) {
@@ -2013,6 +2123,34 @@ describe('drawer description text contrast (#1043)', () => {
 			]),
 		).rejects.toThrow(
 			'Unresolvable utility on a DrawerDescription: text-unrecognised-colour',
+		);
+	});
+
+	// Round 16 MINOR 1: `escapeClassName` used to backslash-prefix a leading
+	// digit as a literal character (`\2xl\:…`), so the TYPO scan's needle
+	// never matched Tailwind's real codepoint-escaped selector
+	// (`.\32 xl\:…`) and a perfectly real utility was reported as a typo. At
+	// the measured 1280px viewport `2xl:` (96rem) genuinely never fires, so
+	// the fixed scan recognises the utility and reports the ACCURATE cause —
+	// no resting colour at this viewport — never "unresolvable".
+	test('a utility whose class name starts with a digit is recognised, not reported as a typo (round 16 MINOR 1)', async () => {
+		await expect(async () =>
+			resolveClassPaint(['publy-drawer-description', '2xl:text-foreground']),
+		).rejects.toThrow(/Only conditional declarations for 2xl:text-foreground/);
+	});
+
+	// Round 16 MINOR 2: the TYPO scan used to be a plain substring test
+	// (`rule.selector.includes(needle)`), so a typo that happens to be a
+	// PREFIX of a real class name — `.publy-drawer-desc` inside the real
+	// `.publy-drawer-description` — was silently accepted as "mentioned" and
+	// never reported. The browser ignores the unrecognised class and paints
+	// the primitive underneath it, so this had no contrast consequence, but
+	// the check did not do what its comment claimed.
+	test('a typo that is a prefix of a real class name is still reported as a typo (round 16 MINOR 2)', async () => {
+		await expect(async () =>
+			resolveClassPaint(['publy-drawer-description', 'publy-drawer-desc']),
+		).rejects.toThrow(
+			'Unresolvable utility on a DrawerDescription: publy-drawer-desc',
 		);
 	});
 
@@ -2423,6 +2561,24 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(directVersion).toBe(vitePackageJson.dependencies.tailwindcss);
 	});
 
+	// Round 16 MINOR 4: `resolveAppStylesheetImport('tailwindcss')` used to
+	// resolve to `theme.css`, which declares no `@layer theme, base,
+	// components, utilities;` and no `@tailwind utilities;` at all — every
+	// generated utility came out UNLAYERED while a comment three lines above
+	// the resolver claimed "the same CSS the app ships". `index.css` (what the
+	// app's bundler actually resolves the import to) carries the real layer
+	// order, so a generated utility must land inside `@layer utilities`, not
+	// at the top level.
+	test('the guard compiles the real layered tailwindcss import graph, not a bare theme file (round 16 MINOR 4)', async () => {
+		const compiled = await compiledCssFor(['text-foreground']);
+		expect(compiled).toContain('@layer theme, base, components, utilities;');
+		const utilityIndex = compiled.indexOf('.text-foreground {');
+		expect(utilityIndex).toBeGreaterThan(-1);
+		const utilitiesLayerIndex = compiled.indexOf('@layer utilities {');
+		expect(utilitiesLayerIndex).toBeGreaterThan(-1);
+		expect(utilitiesLayerIndex).toBeLessThan(utilityIndex);
+	});
+
 	test.each(DESCRIPTION_SELECTORS)(
 		'%s clears the 4.5:1 small-text floor on every opaque surface and the composited drawer surface in both themes',
 		(selector) => {
@@ -2627,6 +2783,24 @@ describe('drawer description text contrast (#1043)', () => {
 			['x'],
 		);
 		expect(light.color).toEqual(resolveColor('--publy-foreground', 'light'));
+	});
+
+	// Round 16 MINOR 3: `askEngine` never evaluates `@container` — it
+	// hardcodes `conditionsHeld: false` for it, unlike `@media`/`@supports` —
+	// so a class whose only declaration is container-gated always lands in
+	// the no-resting-colour throw, regardless of whether the real drawer
+	// markup would establish the container and match. The throw must name
+	// this exclusion, not imply the media/supports remedy ("extend the
+	// measured viewports") can fix it.
+	test('a @container-gated declaration states the exclusion by name (round 16 MINOR 3)', async () => {
+		await expect(async () =>
+			resolveFixturePaint(
+				'@container (min-width: 1px) {\n' +
+					'  .x { color: var(--publy-foreground-subtle); }\n' +
+					'}',
+				['x'],
+			),
+		).rejects.toThrow(/This guard never evaluates a @container condition/);
 	});
 
 	// Round 8 I2 + round 10 I2: nesting is SEEN. Round 10 I2 re-cast the pin:
