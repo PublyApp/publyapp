@@ -179,7 +179,14 @@ const buildRouteFixture = async ({
 	groupProbeModules = false,
 	inventory,
 	rootImportsProbe = false,
+	customSourcemapFileNames = false,
+	coarsenSplitMap = false,
 }) => {
+	const buildOptions = groupProbeModules
+		? "build: { rolldownOptions: { output: { advancedChunks: { groups: [{ name: 'probe-pair', test: /src[\\/]routes[\\/]probe\\.tsx/ }] } } } },"
+		: customSourcemapFileNames
+			? "build: { rolldownOptions: { output: { sourcemapFileNames: 'maps/[name]-[hash].map' } } },"
+			: '';
 	const fixtureDirectory = await createFixture({
 		'vite.config.mjs': `
 			import path from 'node:path';
@@ -193,11 +200,7 @@ const buildRouteFixture = async ({
 
 			const rootDirectory = import.meta.dirname;
 			export default defineConfig({
-				${
-					groupProbeModules
-						? "build: { rolldownOptions: { output: { advancedChunks: { groups: [{ name: 'probe-pair', test: /src[\\/]routes[\\/]probe\\.tsx/ }] } } } },"
-						: ''
-				}
+				${buildOptions}
 				plugins: [
 					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { const chunks = Object.values(bundle).filter((output) => output.type === 'chunk'); writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(chunks.map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); mkdirSync(path.join(rootDirectory, 'chunk-maps'), { recursive: true }); for (const chunk of chunks) { if (chunk.map) writeFileSync(path.join(rootDirectory, 'chunk-maps', \`\${chunk.fileName.replaceAll('/', '_')}.json\`), JSON.stringify({ fileName: chunk.fileName, map: chunk.map }, null, 2)); } } },
 					contextChunkIsolationPlugin({
@@ -210,6 +213,30 @@ const buildRouteFixture = async ({
 						router: { virtualRouteConfig: './src/routes.ts' },
 					}),
 					viteReact(),
+					${
+						coarsenSplitMap
+							? `{
+							name: 'r20-coarsen-split-map',
+							applyToEnvironment: (environment) => environment.name === 'client',
+							transform(code, id) {
+								if (!id.includes('?tsr-split=component')) {
+									return null;
+								}
+								return {
+									code,
+									map: {
+										version: 3,
+										sources: [id],
+										sourcesContent: [code],
+										mappings: new Array(code.split('\\n').length)
+											.fill('AAAA')
+											.join(';'),
+									},
+								};
+							},
+						},`
+							: ''
+					}
 				],
 			});
 		`,
@@ -4478,13 +4505,14 @@ void test(
 
 		try {
 			assert.equal(result.status, 0, result.output);
-			const clientAssets = await readdir(
-				path.join(result.fixtureDirectory, 'dist', 'client', 'assets'),
+			const clientFiles = await readdir(
+				path.join(result.fixtureDirectory, 'dist', 'client'),
+				{ recursive: true },
 			);
 			assert.deepEqual(
-				clientAssets.filter((file) => file.endsWith('.map')),
+				clientFiles.filter((file) => file.endsWith('.map')),
 				[],
-				'guard-stripped source maps must not ship in the client output',
+				'guard-stripped source maps must not ship anywhere in the client output',
 			);
 			// 'hidden' also keeps the sourceMappingURL comment out of the chunks.
 			const chunkCode = await readFile(
@@ -4492,8 +4520,71 @@ void test(
 					result.fixtureDirectory,
 					'dist',
 					'client',
-					'assets',
-					clientAssets.find((file) => file.endsWith('.js')),
+					clientFiles.find(
+						(file) => file.endsWith('.js') && !file.endsWith('.map'),
+					),
+				),
+				'utf8',
+			);
+			assert.doesNotMatch(chunkCode, /sourceMappingURL/);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'emits no client source map files even when the output renames map files',
+	{ timeout: 120_000 },
+	async () => {
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const contexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			customSourcemapFileNames: true,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+			const clientFiles = await readdir(
+				path.join(result.fixtureDirectory, 'dist', 'client'),
+				{ recursive: true },
+			);
+			// With `sourcemapFileNames: 'maps/[name]-[hash].map'` the map
+			// assets live outside `assets/` under names no `${chunk}.map`
+			// derivation could have guessed; the guard must still strip them.
+			assert.deepEqual(
+				clientFiles.filter((file) => file.endsWith('.map')),
+				[],
+				'guard-stripped source maps must not ship under renamed map file names',
+			);
+			const chunkCode = await readFile(
+				path.join(
+					result.fixtureDirectory,
+					'dist',
+					'client',
+					clientFiles.find(
+						(file) => file.endsWith('.js') && !file.endsWith('.map'),
+					),
 				),
 				'utf8',
 			);

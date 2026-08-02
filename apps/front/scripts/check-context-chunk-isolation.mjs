@@ -1318,10 +1318,16 @@ export const contextChunkIsolationPlugin = ({
 			// and must not ship with the output: 'hidden' already omits the
 			// sourceMappingURL comment, and removing the map assets keeps the
 			// artifact byte-for-byte what it would have been without the
-			// guard's internal sourcemap requirement.
+			// guard's internal sourcemap requirement. The assets are removed
+			// by their bundle identity (any emitted asset named *.map), never
+			// by a filename derived from the chunk — the output may rename map
+			// files via `sourcemapFileNames` and the leak must not depend on
+			// the default `${chunk.fileName}.map` convention.
 			if (forcedSourcemap) {
-				for (const chunk of chunks) {
-					delete bundle[`${chunk.fileName}.map`];
+				for (const [fileName, output] of Object.entries(bundle)) {
+					if (output.type === 'asset' && fileName.endsWith('.map')) {
+						delete bundle[fileName];
+					}
 				}
 			}
 			if (violations.length > 0) {
