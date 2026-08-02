@@ -2088,8 +2088,8 @@ const extractComponentBody = (node: Node): Node[] | null => {
 		kind === SyntaxKind.FunctionDeclaration ||
 		kind === SyntaxKind.FunctionExpression
 	) {
-		const body = (node as FunctionDeclaration | FunctionExpression).getBody();
-		return body ? extractBlockReturns(body) : [];
+		const block = (node as FunctionDeclaration).getBody() as Block | undefined;
+		return block ? extractBlockReturns(block) : [];
 	}
 	if (kind === SyntaxKind.CallExpression) {
 		const call = node as CallExpression;
@@ -2557,7 +2557,6 @@ const walkBareExpression = (
 	inDefinition: boolean,
 	insideDrawerModuleElement: boolean,
 	refChildren: PendingRefChildren | null,
-	sourceFile: SourceFile,
 	context: WalkContext,
 	state: WalkState,
 ): void => {
@@ -2684,7 +2683,6 @@ const walkNode = (
 				inDefinition,
 				insideDrawerModuleElement,
 				refChildren,
-				sourceFile,
 				context,
 				state,
 			);
@@ -2995,7 +2993,7 @@ const scanDrawerSurfaces = (): {
 		const isInsideAnchoredSubtree = (
 			node: JsxOpeningElement | JsxSelfClosingElement,
 		): boolean => {
-			let current = node.getParent();
+			let current: Node | undefined = node.getParent();
 			while (current) {
 				if (current.getKind() === SyntaxKind.JsxElement) {
 					if (
