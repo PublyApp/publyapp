@@ -230,6 +230,9 @@ importers:
       jsdom:
         specifier: 29.1.1
         version: 29.1.1
+      postcss:
+        specifier: ^8.5.18
+        version: 8.5.25
       shadcn:
         specifier: 4.1.2
         version: 4.1.2(@types/node@22.19.21)(babel-plugin-macros@3.1.0)(typescript@7.0.2)
