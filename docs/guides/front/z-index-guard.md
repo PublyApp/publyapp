@@ -48,14 +48,20 @@ link-descriptor object whose `rel` and `href` resolve to literals or module-scop
 The descriptor rule covers framework head APIs that render a link later through `<HeadContent>`.
 The same "declarative payload that never becomes an emitted asset" logic covers a native JSX
 `<style>` element whose children are static text (the declaration walk runs over the payload, so a
-raw `z-index:` inside it reds) and CSS files imported with `?inline`/`?raw` (their authored file is
+raw `z-index:` inside it reds) and CSS files imported with `?inline` (their authored file is
 walked directly, so they cannot smuggle a raw declaration past the emitted gate). The `<style>` rule
 covers both JSX spellings — the element and the self-closing `<style … />` — including the
 `dangerouslySetInnerHTML` payload on either, and a payload the declaration walk cannot parse is
 reported as a named `z-index-unparseable-static-css` diagnostic rather than crashing the guard.
 The `?inline`/`?raw` provenance uses Vite's own CSS-language set (`isCSSRequest`), so `.pcss`,
-`.postcss` and every other language Vite treats as CSS are covered as they ship; `?raw` on *any*
-file is also walked, since its raw text can be CSS regardless of extension.
+`.postcss` and every other language Vite treats as CSS are covered as they ship. For `?raw` on a
+non-CSS extension, the guard does **not** decide from the file's bytes: the build records every raw
+module, and the script pass resolves each `?raw` import binding and walks the file's bytes only when
+that binding reaches a style-capable sink — a `<style>` element's children or a
+`dangerouslySetInnerHTML` payload (walked as CSS on a `<style>` host, as HTML elsewhere). The same
+imported bytes consumed by a text node (`<pre>`, `<p>`) are displayed text, not a stylesheet, and
+stay green; a style-sink payload the declaration walk cannot parse is a named diagnostic that fails
+the guard, never a silent pass.
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -149,9 +155,14 @@ Five components:
     ships as SSR HTML or client JS rather than an emitted asset, and CSS files imported with the
     `?inline`/`?raw` query forms are walked on the authored file for the same reason — their text
     leaves the build as JS, never as an asset the emitted gate can see. The provenance records the
-    inline/raw forms across Vite's own CSS-language set and, for `?raw`, every file regardless of
-    extension; a payload the declaration walk cannot parse (template syntax, an HTML comment, an
-    unclosed block) is a named diagnostic, never a crash. This prevents an inline style
+    inline/raw forms across Vite's own CSS-language set and, for `?raw`, every module the build
+    transforms regardless of extension; a raw payload is walked only when the import binding reaches
+    a style-capable sink (a `<style>` element's children or a `dangerouslySetInnerHTML` payload, the
+    binding tracked unshadowed from its import declaration, including the `import * as raw … ?raw`
+    namespace spelling through `.default`), and a style-sink payload the declaration walk cannot
+    parse (template syntax, an HTML comment, an unclosed block) is a named diagnostic, never a
+    crash and never a silent pass. The same raw bytes displayed through a text node are escaped
+    text, not a stylesheet, and are not walked. This prevents an inline style
    from shadowing a legitimate tier after
    the emitted gate has accepted its reference, and prevents declarative CSS payloads from bypassing
    that gate as JavaScript bundle text. Build provenance identifies the
@@ -217,7 +228,10 @@ gaps, each with its current evidence:
   `CSS.registerProperty({ name })` value
   arrives through a parameter, or a spread/Object.assign payload whose token-bearing object is
   produced by a helper or unscanned import (an identifier spread such as `{...props}`), remains
-  outside the static boundary. Assigning a complete
+  outside the static boundary. Source-order last-write-wins is still mirrored: a later unresolved
+  spread may carry any property, so it shadows static facts established before it (an earlier raw
+  `rel`/`dangerouslySetInnerHTML` followed by `{...props}` leaves the guarded class), and a later
+  explicit member or static literal spread re-establishes them. Assigning a complete
   style string through `cssText`, `setAttribute('style', ...)`, or raw HTML at **runtime** has the
   same data-flow boundary; a **static literal** `dangerouslySetInnerHTML` payload is closed instead —
   the script pass scans its `<style>`/`<link rel="stylesheet">` fragments exactly like the JSX routes.
