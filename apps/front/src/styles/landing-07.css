@@ -85,6 +85,25 @@
 		     measured and distinct — a length/timing value, not a colour, so it
 		     needs no dark counterpart. */
 		--publy-motion-ease-accordion: cubic-bezier(0.04, 0.62, 0.23, 0.98);
+
+		/* — Text ranks on Row 12's solid-primary closing panel (§4 Row 12: text
+		     at ~85%/~70% of --publy-primary-foreground). A literal alpha
+		     channel on brand text isn't in the palette, so these simulate the
+		     spec's opacity ranks by mixing toward the panel's own fill instead
+		     of toward transparent — mathematically the same result as alpha
+		     over a solid background, and correct in both themes for free
+		     since both operands are already theme-aware tokens (no separate
+		     html.dark block needed). */
+		--publy-primary-foreground-muted: color-mix(
+			in oklab,
+			var(--publy-primary-foreground) 85%,
+			var(--publy-primary)
+		);
+		--publy-primary-foreground-subtle: color-mix(
+			in oklab,
+			var(--publy-primary-foreground) 70%,
+			var(--publy-primary)
+		);
 	}
 
 	@media (min-width: 768px) {
@@ -372,6 +391,16 @@
 		outline: 2px solid var(--publy-focus-ring);
 		outline-offset: 2px;
 		border-radius: var(--publy-radius-chip);
+	}
+
+	/* Row 12's panel is solid --publy-primary: the page's yellow-on-white
+	   focus ring token doesn't clear 3:1 there, so §8 specifies the panel's
+	   own foreground (deep warm brown, ~5.8:1 on the yellow fill in both
+	   themes) instead. Scoped to a class rather than the closing panel's own
+	   background utility so it beats the generic rule above on specificity,
+	   not on source order. */
+	.publy-landing-07 .ld07-closing-panel :where(a, button):focus-visible {
+		outline-color: var(--publy-primary-foreground);
 	}
 
 	/* ————————————————————— Header chrome (§4 Row 00) ————————————————————— */

@@ -8,14 +8,26 @@ export type LedgerRowHeaderProps = {
 	/** The muted second span of a two-tone `<h2>` (§2.2 attio-30). */
 	titleContinuation?: string;
 	lede?: string;
+	/**
+	 * Row 10's subtitle is 14/22, not the row lede's 18/28 (§4 Row 10:
+	 * "landing-pricing-subtitle … is the row lede, at 14/22"). Defaults to
+	 * the standard lede size used everywhere else.
+	 */
+	ledeSize?: 'lede' | 'small';
+	/**
+	 * True on rows sitting on --publy-surface-raised (§2.3): steps the
+	 * eyebrow up one foreground rank so its 11px mono label clears 4.5:1 on
+	 * the raised background instead of staying at the borderline
+	 * --publy-foreground-muted, which only clears it on the plain page
+	 * ground.
+	 */
+	raised?: boolean;
 	className?: string;
 };
 
 /**
  * The row-header triple (§3.5): row number + eyebrow on one shared baseline,
- * a two-tone `<h2>`, and a lede. Built now as shared scaffolding for tasks
- * 2/3 — this component renders no copy of its own and is not yet mounted
- * inside any row (§ task brief: "no section content yet").
+ * a two-tone `<h2>`, and a lede.
  */
 export const LedgerRowHeader = ({
 	number,
@@ -23,6 +35,8 @@ export const LedgerRowHeader = ({
 	title,
 	titleContinuation,
 	lede,
+	ledeSize = 'lede',
+	raised = false,
 	className,
 }: LedgerRowHeaderProps) => (
 	<header className={cn('mb-10 flex flex-col gap-3 md:mb-14', className)}>
@@ -33,7 +47,14 @@ export const LedgerRowHeader = ({
 			>
 				{number}
 			</span>
-			<span className="publy-type-eyebrow text-(--publy-foreground-muted)">
+			<span
+				className={cn(
+					'publy-type-eyebrow',
+					raised
+						? 'text-(--publy-foreground-secondary)'
+						: 'text-(--publy-foreground-muted)',
+				)}
+			>
 				{eyebrow}
 			</span>
 		</div>
@@ -49,7 +70,12 @@ export const LedgerRowHeader = ({
 			) : null}
 		</h2>
 		{lede ? (
-			<p className="ld07-lede max-w-[52ch] text-pretty text-(--publy-foreground-muted)">
+			<p
+				className={cn(
+					'max-w-[52ch] text-pretty text-(--publy-foreground-muted)',
+					ledeSize === 'small' ? 'ld07-body-small' : 'ld07-lede',
+				)}
+			>
 				{lede}
 			</p>
 		) : null}
