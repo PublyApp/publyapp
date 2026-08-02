@@ -1185,6 +1185,143 @@ describe('drawer description text contrast (#1043)', () => {
 		}
 	});
 
+	// ---- Synthetic-CSS policy pins (round 9 rewrite) -----------------------
+	//
+	// compiledStyleFromCss is exported so each clause of the resting-style
+	// policy can be pinned on a minimal synthetic stylesheet, independently of
+	// the real app.css. Each test here reproduces a round-8 review scenario
+	// verbatim: the old substring walker answered with the WRONG colour (the
+	// variant's) for every one of these inputs and read green while the text
+	// painted 2.51:1.
+	test('a :hover variant never supplies the resting colour (round 8 I1)', () => {
+		const style = compiledStyleFromCss(
+			'.x { color: var(--publy-foreground-subtle); }\n' +
+				'.x:hover { color: var(--publy-foreground); }',
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('var(--publy-foreground-subtle)');
+	});
+
+	test('an attribute variant never supplies the resting colour (round 8 I1)', () => {
+		const style = compiledStyleFromCss(
+			'.x { color: var(--publy-foreground-subtle); }\n' +
+				".x[data-active='true'] { color: var(--publy-foreground); }",
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('var(--publy-foreground-subtle)');
+	});
+
+	test('a @media-nested rule never supplies the resting colour (round 8 I1)', () => {
+		const style = compiledStyleFromCss(
+			'.x { color: var(--publy-foreground-subtle); }\n' +
+				'@media (max-width: 767px) { .x { color: var(--publy-foreground); } }',
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('var(--publy-foreground-subtle)');
+	});
+
+	test('a @supports-nested rule never supplies the resting colour (round 8 I1)', () => {
+		const style = compiledStyleFromCss(
+			'.x { color: var(--publy-foreground-subtle); }\n' +
+				'@supports (display: grid) { .x { color: var(--publy-foreground); } }',
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('var(--publy-foreground-subtle)');
+	});
+
+	test('a rule nested inside a plain rule resolves its colour (round 8 I2)', () => {
+		const style = compiledStyleFromCss(
+			'.parent { .x { color: #ff0000; } }',
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('#ff0000');
+	});
+
+	test('last-wins honours source order across nesting (round 8 I2)', () => {
+		const style = compiledStyleFromCss(
+			'.x { color: #111111; }\n' + '.parent { .x { color: #ff0000; } }',
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('#ff0000');
+	});
+
+	test('a statement at-rule does not absorb the following rule (round 8 M6)', () => {
+		const style = compiledStyleFromCss(
+			'@layer properties;\n.x { color: #ff0000; }',
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('#ff0000');
+	});
+
+	test('a themed dark gate supplies the resting colour in dark mode only (round 9 rule 4)', () => {
+		const gated =
+			'.dark\\:x { &:is(.dark *) { color: var(--publy-foreground); } }';
+		expect(compiledStyleFromCss(gated, 'dark:x', 'light').color).toBeNull();
+		expect(compiledStyleFromCss(gated, 'dark:x', 'dark').color).toBe(
+			'var(--publy-foreground)',
+		);
+	});
+
+	test('an !important declaration resolves the same colour as the plain one (round 8 M5)', () => {
+		const style = compiledStyleFromCss(
+			'.x { color: var(--publy-foreground-muted) !important; }',
+			'x',
+			'light',
+		);
+		expect(style.color).toBe('var(--publy-foreground-muted)');
+	});
+
+	test('a relative ./drawer import is enumerated (round 8 M3)', () => {
+		const source = "import { DrawerDescription } from './drawer';";
+		const file = path.join('src', 'components', 'ui', '_fixture.tsx');
+		expect(drawerDescriptionTagNames(source, file)).toEqual([
+			'DrawerDescription',
+		]);
+	});
+
+	test('a relative import of a different module is not enumerated (round 8 M3)', () => {
+		const source = "import { Foo } from './foo';";
+		const file = path.join('src', 'components', 'ui', '_fixture.tsx');
+		expect(drawerDescriptionTagNames(source, file)).toEqual([]);
+	});
+
+	// Round 8 M5: the round-7 declaration regex fail-closed five app classes —
+	// five on `!important` values (the important flag is cascade priority, not
+	// part of the colour) and two on legitimate CONTEXTUAL tokens declared on
+	// a component rule rather than in :root/html.dark. All seven must resolve
+	// through the REAL pipeline now, and each must resolve the colour it
+	// actually declares — not silently null.
+	test.each([
+		['app-shell-tenant-pill', '--publy-foreground-muted'],
+		['app-shell-workspace-pill', '--publy-foreground-muted'],
+		['app-shell-topbar-action-btn', '--publy-foreground-muted'],
+		['app-shell-workspace', '--publy-foreground'],
+		['publy-toast-icon', '--publy-toast-accent'],
+		['publy-profile-icon-tile', '--publy-icon-tile-fg'],
+	] as const)(
+		'resolves the round-8 M5 class %s through the real pipeline',
+		async (utility, token) => {
+			const resolution = await resolveClassName(utility, 'light');
+			expect(resolution.color).toEqual(resolveColor(token, 'light'));
+		},
+	);
+
+	test('app-shell-topbar resolves no colour — it declares none (round 8 M5)', async () => {
+		// The round-7 substring walker leaked the SIBLING
+		// `.app-shell-topbar-action-btn`'s `!important` value into this class
+		// and fail-closed on it. The class itself declares no color; the
+		// exact-match resolver must not throw, and must not invent one.
+		const resolution = await resolveClassName('app-shell-topbar', 'light');
+		expect(resolution.color).toBeNull();
+	});
+
 	// Round 5 I2: a className smuggled through a prop spread must fail closed
 	// by name instead of being measured as the compliant default.
 	test('fails closed on a className arriving through a prop spread', () => {
