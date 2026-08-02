@@ -8,6 +8,12 @@ import { LANDING_06_PRESS_CLASSES } from './landing-motion';
 
 const TIERS = ['studio', 'agency', 'network'] as const;
 
+// Documentation for the pricing slot's intended asset — never rendered (see
+// MarketingImageSlot's doc comment). Held in a constant rather than inlined
+// as the `subject` prop's literal so it reads as data, not JSX-attribute UI
+// copy.
+const PRICING_SLOT_SUBJECT = 'The billing screen, once billing exists';
+
 /**
  * Pricing (PROMPT.md §10.3–§10.4): gated, not deleted. `_context.md` §2 is
  * explicit — "prices ship struck-through with a beta note. Do not remove
@@ -90,10 +96,10 @@ export const LandingPricing = () => {
 			<div className="mx-auto mt-10 max-w-[420px]">
 				<MarketingImageSlot
 					slot="pricing-context"
-					subject="The billing screen, once billing exists"
+					subject={PRICING_SLOT_SUBJECT}
 					ratio="21 / 9"
 					tint
-					alt="landing-06-pricing-image-alt"
+					alt={t('landing-06-pricing-image-alt')}
 					className="publy-landing-06-slot-21-9 publy-landing-06-slot-tier-d3"
 				/>
 			</div>

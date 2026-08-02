@@ -139,7 +139,7 @@ export const LandingProductTour = () => {
 										slot={scene.id}
 										subject={scene.subject}
 										ratio="16 / 10"
-										alt={`landing-06-tour-${prefix}-image-alt`}
+										alt={t(`landing-06-tour-${prefix}-image-alt`)}
 										className="publy-landing-06-slot-16-10 publy-landing-06-slot-tier-d1"
 									/>
 								</div>

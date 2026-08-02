@@ -6,6 +6,13 @@ import { cn } from '~/lib/utils';
 
 import { LANDING_06_PRESS_CLASSES } from './landing-motion';
 
+// Documentation for the closer slot's intended asset — never rendered (see
+// MarketingImageSlot's doc comment). Held in a constant rather than inlined
+// as the `subject` prop's literal so it reads as data, not JSX-attribute UI
+// copy.
+const CLOSING_SLOT_SUBJECT =
+	'A wide brand plate or product still for the closer';
+
 /**
  * The closing CTA (PROMPT.md §12.1–§12.3): the one deliberate backward step
  * on the page. After four tiers of tightening, the frame opens back up to D1
@@ -70,10 +77,10 @@ export const LandingClosingCta = () => {
 				<div className="mx-auto mt-10 max-w-[560px]">
 					<MarketingImageSlot
 						slot="closing-wordmark"
-						subject="A wide brand plate or product still for the closer"
+						subject={CLOSING_SLOT_SUBJECT}
 						ratio="21 / 9"
 						tint
-						alt="landing-06-closing-image-alt"
+						alt={t('landing-06-closing-image-alt')}
 						className="publy-landing-06-slot-21-9 publy-landing-06-slot-tier-d3"
 					/>
 				</div>

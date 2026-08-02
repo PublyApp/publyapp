@@ -56,7 +56,7 @@ export const LandingWho = () => {
 										slot={id}
 										subject={subject}
 										ratio="4 / 3"
-										alt={`landing-06-who-${prefix}-image-alt`}
+										alt={t(`landing-06-who-${prefix}-image-alt`)}
 										className="publy-landing-06-slot-4-3 publy-landing-06-slot-tier-d2"
 									/>
 								</div>

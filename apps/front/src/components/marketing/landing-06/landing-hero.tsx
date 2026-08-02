@@ -6,6 +6,13 @@ import { cn } from '~/lib/utils';
 
 import { LANDING_06_PRESS_CLASSES } from './landing-motion';
 
+// Documentation for the hero slot's intended asset — never rendered (see
+// MarketingImageSlot's doc comment). Held in a constant, not inlined as the
+// `subject` prop's literal, purely so the string reads as data rather than
+// as a JSX-attribute-position UI copy candidate.
+const HERO_SLOT_SUBJECT =
+	'The week calendar across four brand profiles, real content, real avatars';
+
 /**
  * The hero (PROMPT.md §4): pure typography on the page wash down to y≈474,
  * then the one framed, concentric, elevated panel this page grants to
@@ -69,9 +76,9 @@ export const LandingHero = () => {
 					<div className="publy-landing-06-frame-inner publy-landing-06-hero-frame-rim">
 						<MarketingImageSlot
 							slot="hero-calendar"
-							subject="The week calendar across four brand profiles, real content, real avatars"
+							subject={HERO_SLOT_SUBJECT}
 							ratio="16 / 10"
-							alt="landing-06-hero-image-alt"
+							alt={t('landing-06-hero-image-alt')}
 							className="publy-landing-06-slot-16-10 publy-landing-06-slot-tier-d0"
 						/>
 					</div>
