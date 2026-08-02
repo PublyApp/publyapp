@@ -11,14 +11,14 @@
    elevation, structure and grid work normally done by borders, cards and
    shadows. See .dump/PROMPT.md for the full spec this file implements.
 
-   KNOWN GAP (flagged in .dump/report-t1.md): apps/front/scripts/
-   check-design-system.mjs's `no-raw-visual-color` and `token-must-be-declared`
-   rules only recognise src/styles/app.css as a token-declaration layer. The
-   new colour tokens declared below (light values only — see each token's
-   comment) will not yet pass `pnpm --filter front test`'s design-system
-   guard, which this task does not run (see task brief). Follow-up needed:
-   either extend the guard to recognise per-exploration token files, or move
-   these tokens once a direction is chosen. */
+   Tokens: this page's new custom properties (--publy-rule/-rule-strong, the
+   display/tracking ramp, --publy-shadow-cta, --publy-motion-ease-accordion,
+   --publy-primary-foreground-muted/-subtle) are declared in app.css's /temp
+   landing explorations section, not here — check-design-system.mjs's token
+   guard only recognises a --publy-* declaration (and, for the
+   no-raw-visual-color rule specifically, a raw colour literal) that lives in
+   that file. Every rule below still consumes them by name via var() as
+   usual. */
 
 @layer components {
 	.publy-landing-07 {
@@ -35,140 +35,6 @@
 		margin-right: calc(50% - 50vw);
 		margin-left: calc(50% - 50vw);
 		background-color: var(--publy-background);
-
-		/* — The structural rule (§2.1, §2.4). A real gap: --publy-border is
-		     tuned for component edges and at rgba(255,255,255,0.1) in dark it
-		     is too faint to carry a page whose entire structure is 1px lines.
-		     Light values are deliberately identical to the existing
-		     --publy-border / --publy-border-strong — only dark is louder. */
-		--publy-rule: #e4e4e7;
-		--publy-rule-strong: #d4d4d8;
-
-		/* — The display ramp (§2.2). No heading in the product exceeds 24px,
-		     so this is a genuinely new scale step. Mobile values here; md/xl
-		     overrides below tighten line-height as size grows (1.11 → 1.03 on
-		     display-1), matching the measured law rather than one flat ratio. */
-		--publy-display-1: 36px;
-		--publy-display-1-lh: 40px;
-		--publy-display-2: 28px;
-		--publy-display-2-lh: 32px;
-		--publy-display-3: 22px;
-		--publy-display-3-lh: 28px;
-
-		/* — The tracking law (§2.2), three constants. The repo's own eyebrow
-		     rung (0.06em) already covers the uppercase-label case, so no
-		     fourth tracking value is introduced for that. */
-		--publy-tracking-display: -0.015em;
-		--publy-tracking-text: -0.01em;
-
-		/* — The one shadow on the page, on the one primary CTA (§2.5). Built
-		     from `color-mix()` against existing tokens rather than the raw
-		     rgba() the spec states literally: --publy-primary-foreground
-		     (#733e0a) IS the warm brown the spec's rgba(115,62,10,*) values
-		     already resolve to, and --publy-background (white in light) is
-		     the spec's white inset rim — expressing both as references keeps
-		     every operand theme-aware without a second, unpaired literal. */
-		--publy-shadow-cta:
-			0 8px 8px -3px
-				color-mix(in oklab, var(--publy-primary-foreground) 10%, transparent),
-			0 3px 3px -1.5px
-				color-mix(in oklab, var(--publy-primary-foreground) 8%, transparent),
-			0 1px 1px -0.5px
-				color-mix(in oklab, var(--publy-primary-foreground) 8%, transparent),
-			0 0 0 1px
-				color-mix(in oklab, var(--publy-primary-foreground) 12%, transparent),
-			0 1px 2px -0.5px
-				color-mix(in oklab, var(--publy-background) 26%, transparent) inset;
-
-		/* — Motion (§6). The house curve (var(--publy-motion-ease), from
-		     app.css) is reused everywhere except the accordion, whose curve is
-		     measured and distinct — a length/timing value, not a colour, so it
-		     needs no dark counterpart. */
-		--publy-motion-ease-accordion: cubic-bezier(0.04, 0.62, 0.23, 0.98);
-
-		/* — Text ranks on Row 12's solid-primary closing panel (§4 Row 12: text
-		     at ~85%/~70% of --publy-primary-foreground). A literal alpha
-		     channel on brand text isn't in the palette, so these simulate the
-		     spec's opacity ranks by mixing toward the panel's own fill instead
-		     of toward transparent — mathematically the same result as alpha
-		     over a solid background.
-
-		     The spec's own 85%/70% mix, verified against #fdc700 (see
-		     .dump/report-t4.md), measures ~4.16:1 / ~3.13:1 in LIGHT — both
-		     under the 4.5:1 floor §8 sets for the two things this token
-		     actually paints as text on this page (closing-description at 16px,
-		     and closing-eyebrow at 11px once it moves off -subtle below).
-		     92% clears it (~4.76:1) with a comfortable margin. Dark already
-		     clears easily at the spec's own 85% (~8.61:1), so — unlike -rule
-		     and -shadow-cta above — this token DOES need a light/dark split;
-		     the html.dark block below restores 85% there rather than
-		     inheriting light's 92%, which would crush Row 12's dark-mode
-		     heading/continuation contrast down to near-indistinguishable. */
-		--publy-primary-foreground-muted: color-mix(
-			in oklab,
-			var(--publy-primary-foreground) 92%,
-			var(--publy-primary)
-		);
-		/* Border-only now (the closing secondary CTA's outline) — the
-		     eyebrow moved to -muted above once verification showed -subtle
-		     fails 4.5:1 as text. 75% keeps a comfortable margin over the 3:1
-		     non-text floor in both themes (~3.5:1 light / ~6.85:1 dark),
-		     versus the spec's 70% which cleared light by only ~0.13. */
-		--publy-primary-foreground-subtle: color-mix(
-			in oklab,
-			var(--publy-primary-foreground) 75%,
-			var(--publy-primary)
-		);
-	}
-
-	@media (min-width: 768px) {
-		.publy-landing-07 {
-			--publy-display-1: 48px;
-			--publy-display-1-lh: 52px;
-			--publy-display-2: 34px;
-			--publy-display-2-lh: 38px;
-			--publy-display-3: 24px;
-			--publy-display-3-lh: 30px;
-		}
-	}
-
-	@media (min-width: 1280px) {
-		.publy-landing-07 {
-			--publy-display-1: 60px;
-			--publy-display-1-lh: 62px;
-			--publy-display-2: 40px;
-			--publy-display-2-lh: 44px;
-			--publy-display-3: 26px;
-			--publy-display-3-lh: 32px;
-		}
-	}
-
-	html.dark .publy-landing-07 {
-		--publy-rule: color-mix(in oklab, var(--publy-foreground) 14%, transparent);
-		--publy-rule-strong: color-mix(
-			in oklab,
-			var(--publy-foreground) 22%,
-			transparent
-		);
-		/* Restores the spec's own 85% for dark (~8.61:1 against #f0bd00,
-		     verified in .dump/report-t4.md) rather than inheriting light's
-		     92% override above, which dark doesn't need and which would
-		     visually crush this rank toward full strength for no reason. */
-		--publy-primary-foreground-muted: color-mix(
-			in oklab,
-			var(--publy-primary-foreground) 85%,
-			var(--publy-primary)
-		);
-		--publy-shadow-cta:
-			0 8px 8px -3px
-				color-mix(in oklab, var(--publy-background) 36%, transparent),
-			0 3px 3px -1.5px
-				color-mix(in oklab, var(--publy-background) 28%, transparent),
-			0 1px 1px -0.5px
-				color-mix(in oklab, var(--publy-background) 28%, transparent),
-			0 0 0 1px color-mix(in oklab, var(--publy-background) 40%, transparent),
-			0 1px 2px -0.5px
-				color-mix(in oklab, var(--publy-foreground) 18%, transparent) inset;
 	}
 
 	/* Scroll-behaviour is a `<html>` concern and app.css is off-limits, so this

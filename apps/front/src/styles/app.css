@@ -362,6 +362,175 @@
 	--publy-profile-tone-6-fg: #15803d;
 	--publy-profile-tone-7-bg: #eff6ff;
 	--publy-profile-tone-7-fg: #1d4ed8;
+
+	/* ---- /temp landing explorations — remove once a direction ships ----
+	   check-design-system.mjs's token guard only recognises a --publy-*
+	   declaration that lives in THIS file (any block, for
+	   token-must-be-declared; specifically :root/html.dark for
+	   token-theme-parity and for the no-raw-visual-color literal-colour
+	   exemption) — a declaration in a scoped exploration stylesheet like
+	   landing-06.css/landing-07.css can never satisfy it. These tokens are
+	   relocated here for that reason only; every consuming rule (the
+	   selectors that read them via var()) stays in landing-06.css /
+	   landing-07.css, scoped under .publy-landing-06 / .publy-landing-07.
+	   Delete this whole section (both here and in html.dark below) the day
+	   one exploration is chosen and the rest are deleted. */
+
+	/* landing-06 — motion vocabulary (theme-invariant durations) */
+	--publy-landing-06-motion-press: 50ms;
+	--publy-landing-06-motion-chrome: 420ms;
+
+	/* landing-06 — display/deck/body/small type ramp, desktop values.
+	   display-1/2/3's mobile step-down lives in the max-width:767px block
+	   below, alongside --publy-header-height's own mobile override. */
+	--publy-landing-06-display-1-size: 56px;
+	--publy-landing-06-display-1-lh: 58px;
+	--publy-landing-06-display-1-ls: -0.84px;
+	--publy-landing-06-display-2-size: 40px;
+	--publy-landing-06-display-2-lh: 44px;
+	--publy-landing-06-display-2-ls: -0.6px;
+	--publy-landing-06-display-3-size: 32px;
+	--publy-landing-06-display-3-lh: 36px;
+	--publy-landing-06-display-3-ls: -0.48px;
+	--publy-landing-06-display-4-size: 24px;
+	--publy-landing-06-display-4-lh: 32px;
+	--publy-landing-06-display-4-ls: -0.24px;
+	--publy-landing-06-deck-lg-size: 20px;
+	--publy-landing-06-deck-lg-lh: 30px;
+	--publy-landing-06-deck-lg-ls: -0.2px;
+	--publy-landing-06-deck-size: 17px;
+	--publy-landing-06-deck-lh: 27px;
+	--publy-landing-06-deck-ls: -0.17px;
+	--publy-landing-06-body-size: 15px;
+	--publy-landing-06-body-lh: 24px;
+	--publy-landing-06-body-ls: -0.15px;
+	--publy-landing-06-small-size: 13px;
+	--publy-landing-06-small-lh: 20px;
+	--publy-landing-06-small-ls: -0.13px;
+
+	/* landing-06 — 24-track grid / density-ladder tokens. Their REAL values
+	   stay declared per `[data-tier='dN']` in landing-06.css exactly as
+	   before (theme-invariant, no colour) — these are inert defaults that
+	   only exist so the guard sees the name declared somewhere in this
+	   file; every real usage always carries a `data-tier` attribute with
+	   higher selector specificity, so this default is never actually
+	   rendered. Value picked from the D1 tier (the first tier that
+	   declares all four together; D0 has no hairline entry by design). */
+	--publy-landing-06-tier-gutter: 32px;
+	--publy-landing-06-tier-pt: 120px;
+	--publy-landing-06-tier-pb: 64px;
+	--publy-landing-06-tier-hairline: var(--publy-border);
+
+	/* landing-06 — reserved image-slot heights (theme-invariant) */
+	--publy-landing-06-slot-max-d0: 620px;
+	--publy-landing-06-slot-max-d1: 460px;
+	--publy-landing-06-slot-max-d2: 300px;
+	--publy-landing-06-slot-max-d3: 180px;
+
+	/* landing-06 — inverted-band content re-scope. The band's content
+	   (foreground/border/surface roles) needs its real dark-theme value
+	   while painted in the light theme, so it cannot use --publy-foreground
+	   etc. directly (those resolve to the LIGHT value in this context).
+	   Theme-invariant by design — same value in :root and html.dark below —
+	   so landing-06.css can reference a token instead of repeating these as
+	   raw literals. */
+	--publy-landing-06-band-inverted-foreground: #fafafa;
+	--publy-landing-06-band-inverted-foreground-secondary: #d4d4d8;
+	--publy-landing-06-band-inverted-foreground-muted: #a1a1aa;
+	--publy-landing-06-band-inverted-foreground-subtle: #71717a;
+	--publy-landing-06-band-inverted-border: rgba(255, 255, 255, 0.1);
+	--publy-landing-06-band-inverted-border-strong: rgba(255, 255, 255, 0.15);
+	--publy-landing-06-band-inverted-surface: #18181b;
+	--publy-landing-06-band-inverted-surface-raised: #1f1f23;
+	--publy-landing-06-band-inverted-surface-hover: #2f2f33;
+	--publy-landing-06-band-inverted-focus-ring: #facc15;
+
+	/* landing-06 — inverted band, elevation, atmosphere (light values) */
+	--publy-landing-06-band-inverted: #18181b;
+	--publy-landing-06-shadow-frame:
+		0 12px 12px -3px rgba(115, 62, 10, 0.05),
+		0 6px 6px -3px rgba(115, 62, 10, 0.03),
+		0 3px 3px -1.5px rgba(115, 62, 10, 0.03),
+		0 1px 1px -0.5px rgba(115, 62, 10, 0.04), 0 0 0 1px var(--publy-border);
+	--publy-landing-06-hero-rim: rgba(253, 199, 0, 0.28);
+	--publy-landing-06-hero-rim-glow: rgba(253, 199, 0, 0.18);
+	/* The closing CTA card's fill is this wash rotated 353deg, 7deg off
+	   vertical — reads as a different object rather than a repeat of the
+	   hero. */
+	--publy-landing-06-page-wash: linear-gradient(
+		180deg,
+		#fff8e1 0%,
+		#fffdf6 18%,
+		#ffffff 42%,
+		#ffffff 100%
+	);
+	--publy-landing-06-cta-wash: linear-gradient(
+		353deg,
+		#ffffff 0%,
+		#fffdf6 46%,
+		#fff6d9 100%
+	);
+
+	/* landing-06 — shrinking header frame. Condensed height's mobile
+	   override lives in the max-width:767px block below. */
+	--publy-landing-06-header-max-width-condensed: 1024px;
+	--publy-landing-06-header-height-condensed: 52px;
+
+	/* landing-06 — product tour rail (theme-invariant length) */
+	--publy-landing-06-rail-item-h: 40px;
+
+	/* landing-07 — structural rule + type ramp + motion (light values).
+	   display-1/2/3's md/xl step-ups live in their own media blocks below
+	   (landing-07.css itself scales them at 768px/1280px, not
+	   767px/1024px, so they cannot share the landing-06/house media
+	   blocks). */
+	/* -rule/-rule-strong: light values are deliberately identical to
+	   --publy-border/--publy-border-strong — only dark is louder, since
+	   --publy-border at rgba(255,255,255,0.1) in dark is too faint to
+	   carry a page whose whole structure is 1px lines. */
+	--publy-rule: #e4e4e7;
+	--publy-rule-strong: #d4d4d8;
+	--publy-display-1: 36px;
+	--publy-display-1-lh: 40px;
+	--publy-display-2: 28px;
+	--publy-display-2-lh: 32px;
+	--publy-display-3: 22px;
+	--publy-display-3-lh: 28px;
+	--publy-tracking-display: -0.015em;
+	--publy-tracking-text: -0.01em;
+	--publy-shadow-cta:
+		0 8px 8px -3px
+			color-mix(in oklab, var(--publy-primary-foreground) 10%, transparent),
+		0 3px 3px -1.5px
+			color-mix(in oklab, var(--publy-primary-foreground) 8%, transparent),
+		0 1px 1px -0.5px
+			color-mix(in oklab, var(--publy-primary-foreground) 8%, transparent),
+		0 0 0 1px
+			color-mix(in oklab, var(--publy-primary-foreground) 12%, transparent),
+		0 1px 2px -0.5px
+			color-mix(in oklab, var(--publy-background) 26%, transparent) inset;
+	--publy-motion-ease-accordion: cubic-bezier(0.04, 0.62, 0.23, 0.98);
+	/* Row 12's closing panel text ranks (~85%/~70% of -primary-foreground
+	   per spec). Light needs 92% (not the spec's own 85%) to clear the
+	   4.5:1 text floor at 15px/11px against #fdc700 — dark already clears
+	   at the spec's 85%, restored in html.dark below. */
+	--publy-primary-foreground-muted: color-mix(
+		in oklab,
+		var(--publy-primary-foreground) 92%,
+		var(--publy-primary)
+	);
+	/* Border-only (non-text) use, so the spec's 70% only needed nudging to
+	   75% to keep a comfortable margin over the 3:1 non-text floor. */
+	--publy-primary-foreground-subtle: color-mix(
+		in oklab,
+		var(--publy-primary-foreground) 75%,
+		var(--publy-primary)
+	);
+	/* Per-element stagger index, set inline by use-ledger-reveal.ts —
+	   this default only backs landing-07.css's own
+	   `var(--publy-reveal-index, 0)` fallback and is theme-invariant. */
+	--publy-reveal-index: 0;
+	/* ---- end /temp landing explorations (:root) ---- */
 }
 
 html.dark {
@@ -467,6 +636,74 @@ html.dark {
 	--publy-profile-tone-6-fg: #4ade80;
 	--publy-profile-tone-7-bg: #172554;
 	--publy-profile-tone-7-fg: #60a5fa;
+
+	/* ---- /temp landing explorations (html.dark counterpart) — see the
+	   matching :root section above for why these live here. Only tokens
+	   whose colour genuinely differs by theme get a dark override; the
+	   rest inherit their :root value as-is. ---- */
+	/* Theme-invariant re-scope tokens (same value as :root — see the
+	   comment there) — declared in both blocks only so
+	   token-theme-parity sees a pair; the value is identical by design. */
+	--publy-landing-06-band-inverted-foreground: #fafafa;
+	--publy-landing-06-band-inverted-foreground-secondary: #d4d4d8;
+	--publy-landing-06-band-inverted-foreground-muted: #a1a1aa;
+	--publy-landing-06-band-inverted-foreground-subtle: #71717a;
+	--publy-landing-06-band-inverted-border: rgba(255, 255, 255, 0.1);
+	--publy-landing-06-band-inverted-border-strong: rgba(255, 255, 255, 0.15);
+	--publy-landing-06-band-inverted-surface: #18181b;
+	--publy-landing-06-band-inverted-surface-raised: #1f1f23;
+	--publy-landing-06-band-inverted-surface-hover: #2f2f33;
+	--publy-landing-06-band-inverted-focus-ring: #facc15;
+	/* A LIGHTER step, not a hue — in dark the "dark band" is
+	   --publy-surface-raised, so the rhythm survives as a value step
+	   upward instead of a repeated hue. */
+	--publy-landing-06-band-inverted: #1f1f23;
+	/* Re-based on pure black, not the light value's warm tint — #18181b
+	   would composite a warm-tinted shadow to nothing. */
+	--publy-landing-06-shadow-frame:
+		0 12px 12px -3px rgba(0, 0, 0, 0.32), 0 6px 6px -3px rgba(0, 0, 0, 0.24),
+		0 3px 3px -1.5px rgba(0, 0, 0, 0.2), 0 1px 1px -0.5px rgba(0, 0, 0, 0.24),
+		0 0 0 1px var(--publy-border);
+	--publy-landing-06-hero-rim: rgba(240, 189, 0, 0.2);
+	--publy-landing-06-hero-rim-glow: rgba(240, 189, 0, 0.12);
+	--publy-landing-06-page-wash: linear-gradient(
+		180deg,
+		#241f10 0%,
+		#1d1b16 18%,
+		#18181b 42%,
+		#18181b 100%
+	);
+	/* Dark end resolves to --publy-primary-soft's own dark value (#2a2400),
+	   so the card's warm corner is literally the brand's soft token in
+	   both themes. */
+	--publy-landing-06-cta-wash: linear-gradient(
+		353deg,
+		#1f1f23 0%,
+		#201d16 46%,
+		#2a2400 100%
+	);
+	--publy-rule: color-mix(in oklab, var(--publy-foreground) 14%, transparent);
+	--publy-rule-strong: color-mix(
+		in oklab,
+		var(--publy-foreground) 22%,
+		transparent
+	);
+	--publy-primary-foreground-muted: color-mix(
+		in oklab,
+		var(--publy-primary-foreground) 85%,
+		var(--publy-primary)
+	);
+	--publy-shadow-cta:
+		0 8px 8px -3px
+			color-mix(in oklab, var(--publy-background) 36%, transparent),
+		0 3px 3px -1.5px
+			color-mix(in oklab, var(--publy-background) 28%, transparent),
+		0 1px 1px -0.5px
+			color-mix(in oklab, var(--publy-background) 28%, transparent),
+		0 0 0 1px color-mix(in oklab, var(--publy-background) 40%, transparent),
+		0 1px 2px -0.5px
+			color-mix(in oklab, var(--publy-foreground) 18%, transparent) inset;
+	/* ---- end /temp landing explorations (html.dark) ---- */
 }
 
 /* The marketing header steps down to 56px below 768 (#1038). Declared here,
@@ -479,6 +716,50 @@ html.dark {
 		--publy-header-height: 56px;
 	}
 }
+
+/* /temp landing explorations — mobile step-downs for the tokens relocated
+   into :root/html.dark above. See that section's header comment; delete
+   alongside it. landing-06's own breakpoint is max-width:767px (matches the
+   house header-height step above); landing-07's are its own 768px/1280px
+   min-width steps, since that page scales up from a mobile-first base
+   instead of stepping down from a desktop base. */
+@media (max-width: 767px) {
+	:root {
+		--publy-landing-06-display-1-size: 38px;
+		--publy-landing-06-display-1-lh: 42px;
+		--publy-landing-06-display-1-ls: -0.57px;
+		--publy-landing-06-display-2-size: 30px;
+		--publy-landing-06-display-2-lh: 34px;
+		--publy-landing-06-display-2-ls: -0.45px;
+		--publy-landing-06-display-3-size: 26px;
+		--publy-landing-06-display-3-lh: 30px;
+		--publy-landing-06-display-3-ls: -0.39px;
+		--publy-landing-06-header-height-condensed: 44px;
+	}
+}
+
+@media (min-width: 768px) {
+	:root {
+		--publy-display-1: 48px;
+		--publy-display-1-lh: 52px;
+		--publy-display-2: 34px;
+		--publy-display-2-lh: 38px;
+		--publy-display-3: 24px;
+		--publy-display-3-lh: 30px;
+	}
+}
+
+@media (min-width: 1280px) {
+	:root {
+		--publy-display-1: 60px;
+		--publy-display-1-lh: 62px;
+		--publy-display-2: 40px;
+		--publy-display-2-lh: 44px;
+		--publy-display-3: 26px;
+		--publy-display-3-lh: 32px;
+	}
+}
+/* ---- end /temp landing explorations (media queries) ---- */
 
 /* PersonAvatar intentionally keeps the shared AvatarFallback primitive's
    neutral defaults unchanged. This opt-in rule is unlayered so its fixed,
