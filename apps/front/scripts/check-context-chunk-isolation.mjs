@@ -805,7 +805,22 @@ const analyzeRenderedContextModule = (
 						normalizeRenderedBindingName(declaration.name.text),
 					);
 				} else {
-					hasUnattributedCreateContextCall = true;
+					// A direct createContext call in a holder position is a
+					// mint only when it sits at a recorded source position,
+					// the same gate as factory mints: a same-named
+					// createContext export in another module is subject to
+					// the same bundler-name forgeries the factory path is.
+					const position = holderPositionOfCall(node);
+					const isHolderPosition =
+						isPropertyAssignment(position) ||
+						isArrayLiteralExpression(position) ||
+						isExportAssignment(position);
+					if (
+						!isHolderPosition ||
+						renderedHolderPositionMints(node, holderMintingPositions)
+					) {
+						hasUnattributedCreateContextCall = true;
+					}
 				}
 			} else if (expressionContainsCreateContextName(node.expression)) {
 				throw new Error(

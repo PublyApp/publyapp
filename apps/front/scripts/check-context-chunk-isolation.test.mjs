@@ -2178,6 +2178,75 @@ void test('attributes a comma-chain-wrapped rendered holder mint at its recorded
 	);
 });
 
+void test('gates a direct createContext holder call on its recorded position too', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const holderCode = `
+		var contexts = { probe: createContext(null) };
+	`;
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintingPositions: ['contexts.probe'],
+				},
+			],
+			[
+				{
+					fileName: 'assets/route.js',
+					modules: { [sourceFile]: { code: holderCode } },
+				},
+				{
+					fileName: 'assets/route-component.js',
+					modules: {
+						[`${sourceFile}?tsr-split=component`]: {
+							code: holderCode,
+						},
+					},
+				},
+			],
+			frontDirectory,
+		),
+		[
+			'<anonymous context> in src/routes/field-validation.tsx is present in multiple client chunks: assets/route.js, assets/route-component.js.',
+		],
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintingPositions: ['contexts.other'],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: holderCode } },
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: holderCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
+	);
+});
+
 void test('attributes a rendered holder mint through a deconflicted binding name', () => {
 	const sourceFile = path.join(
 		frontDirectory,
