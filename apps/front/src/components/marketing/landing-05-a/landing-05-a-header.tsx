@@ -31,7 +31,7 @@ export const Landing05AHeader = () => {
 				<MarketingBrand />
 				<nav
 					aria-label={t('landing-nav-aria-label')}
-					className="ml-2 hidden items-center gap-5 lg:flex"
+					className="ml-2 hidden items-center gap-6 lg:flex"
 				>
 					<a
 						href="#product-window"

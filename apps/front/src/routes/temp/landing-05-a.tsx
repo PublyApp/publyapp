@@ -11,6 +11,7 @@ import { Landing05AFooter } from '~/components/marketing/landing-05-a/landing-05
 import { Landing05AHeader } from '~/components/marketing/landing-05-a/landing-05-a-header';
 import { Landing05APricing } from '~/components/marketing/landing-05-a/landing-05-a-pricing';
 import { Landing05ASection } from '~/components/marketing/landing-05-a/landing-05-a-section';
+import { Landing05ASectionHeader } from '~/components/marketing/landing-05-a/landing-05-a-section-header';
 import { Landing05ASky } from '~/components/marketing/landing-05-a/landing-05-a-sky';
 import { Landing05ATour } from '~/components/marketing/landing-05-a/landing-05-a-tour';
 import { Landing05ATrial } from '~/components/marketing/landing-05-a/landing-05-a-trial';
@@ -91,17 +92,17 @@ function LandingExploration05A() {
 							labelledBy="landing-05-a-hero-heading"
 							className="text-center"
 						>
-							<p className="publy-l05a-hero-badge mx-auto mb-9">
+							<p className="publy-l05a-hero-badge mx-auto mb-8">
 								{t('landing-hero-badge')}
 							</p>
 							<h1
 								id="landing-05-a-hero-heading"
 								data-testid="landing-hero-title"
-								className="publy-type-sky-display-1 publy-sky-a-focus-in mx-auto max-w-[46ch] text-balance text-(--publy-foreground)"
+								className="publy-type-sky-display-1 publy-sky-a-focus-in mx-auto max-w-[24ch] text-balance text-(--publy-foreground) md:max-w-[20ch]"
 							>
 								{t('landing-hero-title')}
 							</h1>
-							<p className="publy-type-sky-lead mx-auto mt-4 max-w-[58ch] text-pretty text-(--publy-foreground-secondary)">
+							<p className="publy-type-sky-lead mx-auto mt-6 max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">
 								{t('landing-hero-description')}
 							</p>
 							<div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -140,57 +141,49 @@ function LandingExploration05A() {
 
 						{/* §3 — Three claims (attio-29 stat blocks). */}
 						<Landing05ASection ruled labelledBy="landing-05-a-claim-heading">
-							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip">
-								{t('landing-claim-eyebrow')}
-							</p>
-							<h2
-								id="landing-05-a-claim-heading"
-								className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
-							>
-								{t('landing-claim-title')}
-							</h2>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-claim-heading"
+								eyebrowKey="landing-claim-eyebrow"
+								titleKey="landing-claim-title"
+								dekKey="landing-claim-dek"
+							/>
 							<Landing05AClaims />
 						</Landing05ASection>
 
 						{/* §4 — What ships today: the six-fact strip (todesktop-31). */}
-						<Landing05ASection ruled labelledBy="landing-05-a-capability-heading">
-							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip">
-								{t('landing-capability-eyebrow')}
-							</p>
-							<h2
-								id="landing-05-a-capability-heading"
-								className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
-							>
-								{t('landing-capability-title')}
-							</h2>
+						<Landing05ASection
+							ruled
+							labelledBy="landing-05-a-capability-heading"
+						>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-capability-heading"
+								eyebrowKey="landing-capability-eyebrow"
+								titleKey="landing-capability-title"
+								dekKey="landing-capability-dek"
+							/>
 							<Landing05ACapabilities />
 						</Landing05ASection>
 
 						{/* §5 — Who it is for (attio-15 hairline grid + one side-pane slot). */}
 						<Landing05ASection ruled labelledBy="landing-05-a-audience-heading">
-							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip">
-								{t('landing-bento-eyebrow')}
-							</p>
-							<h2
-								id="landing-05-a-audience-heading"
-								className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
-							>
-								{t('landing-bento-title')}
-							</h2>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-audience-heading"
+								eyebrowKey="landing-bento-eyebrow"
+								titleKey="landing-bento-title"
+								dekKey="landing-bento-dek"
+							/>
 							<Landing05AAudience />
 						</Landing05ASection>
 
 						{/* §6 — The planned trial: claim-gated, three steps. */}
 						<Landing05ASection ruled labelledBy="landing-05-a-timeline-heading">
-							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip">
-								{t('landing-timeline-eyebrow')}
-							</p>
-							<h2
-								id="landing-05-a-timeline-heading"
-								className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
-							>
-								{t('landing-timeline-title')}
-							</h2>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-timeline-heading"
+								eyebrowKey="landing-timeline-eyebrow"
+								titleKey="landing-timeline-title"
+								dekKey="landing-trial-plan-note"
+								dekTestId="landing-trial-plan-note"
+							/>
 							<Landing05ATrial />
 						</Landing05ASection>
 
@@ -202,18 +195,12 @@ function LandingExploration05A() {
 							testId="landing-pricing"
 							labelledBy="landing-05-a-pricing-heading"
 						>
-							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip">
-								{t('landing-pricing-eyebrow')}
-							</p>
-							<h2
-								id="landing-05-a-pricing-heading"
-								className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
-							>
-								{t('landing-pricing-title')}
-							</h2>
-							<p className="publy-type-sky-lead mt-3 max-w-[62ch] text-pretty text-(--publy-foreground-secondary)">
-								{t('landing-pricing-subtitle')}
-							</p>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-pricing-heading"
+								eyebrowKey="landing-pricing-eyebrow"
+								titleKey="landing-pricing-title"
+								dekKey="landing-pricing-subtitle"
+							/>
 							<Landing05APricing />
 						</Landing05ASection>
 
@@ -224,15 +211,12 @@ function LandingExploration05A() {
 							anchor
 							labelledBy="landing-05-a-faq-heading"
 						>
-							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip">
-								{t('landing-faq-eyebrow')}
-							</p>
-							<h2
-								id="landing-05-a-faq-heading"
-								className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
-							>
-								{t('landing-faq-title')}
-							</h2>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-faq-heading"
+								eyebrowKey="landing-faq-eyebrow"
+								titleKey="landing-faq-title"
+								dekKey="landing-faq-dek"
+							/>
 							<Landing05AFaq />
 						</Landing05ASection>
 
@@ -296,7 +280,7 @@ function LandingExploration05A() {
 								>
 									{t('landing-closing-title')}
 								</h2>
-								<p className="publy-type-sky-lead mx-auto mt-3 max-w-[54ch] text-pretty text-(--l05a-night-foreground-muted)">
+								<p className="publy-type-sky-lead mx-auto mt-3 max-w-[52ch] text-pretty text-(--l05a-night-foreground-muted)">
 									{t('landing-closing-description')}
 								</p>
 								<div className="mt-8 flex flex-wrap justify-center gap-3">

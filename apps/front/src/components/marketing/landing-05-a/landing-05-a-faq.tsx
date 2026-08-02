@@ -19,13 +19,16 @@ export const Landing05AFaq = () => {
 	const { t } = useTranslation('landing-05-a');
 
 	return (
-		<div className="mt-8 flex max-w-[66ch] flex-col">
+		<div className="publy-l05a-section-body flex max-w-[66ch] flex-col">
 			{FAQ_ITEMS.map((item) => (
-				<div key={item} className="publy-l05a-faq-item flex flex-col gap-3 py-8">
+				<div
+					key={item}
+					className="publy-l05a-faq-item flex flex-col gap-3 py-8"
+				>
 					<h3 className="publy-type-sky-display-4 text-(--publy-foreground)">
 						{t(`landing-faq-${item}-question`)}
 					</h3>
-					<p className="publy-type-sky-body text-pretty text-(--publy-foreground-secondary)">
+					<p className="publy-type-sky-prose text-pretty text-(--publy-foreground-secondary)">
 						{t(`landing-faq-${item}-answer`)}
 					</p>
 				</div>

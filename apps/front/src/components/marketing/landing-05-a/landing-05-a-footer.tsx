@@ -23,7 +23,7 @@ export const Landing05AFooter = () => {
 			data-testid="landing-05-a-footer"
 			className="mt-auto border-t border-(--publy-border)"
 		>
-			<div className="publy-l05a-ruled-column flex flex-col gap-8 px-4 py-10 sm:px-6 sm:py-12">
+			<div className="publy-l05a-ruled-column flex flex-col gap-8 px-4 py-12 sm:px-6 sm:py-16">
 				<div className="flex flex-wrap items-center justify-between gap-6">
 					<MarketingBrand />
 					<nav

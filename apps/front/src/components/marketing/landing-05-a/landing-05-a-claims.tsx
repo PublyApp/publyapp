@@ -13,7 +13,7 @@ export const Landing05AClaims = () => {
 	const { t } = useTranslation('landing-05-a');
 
 	return (
-		<div className="mt-8 grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-8">
+		<div className="publy-l05a-section-body grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-8">
 			{CLAIM_KEYS.map((key) => (
 				<div
 					key={key}
@@ -22,10 +22,10 @@ export const Landing05AClaims = () => {
 					<p className="publy-type-sky-display-3 leading-none text-(--publy-foreground)">
 						{t(`landing-claim-${key}-value`)}
 					</p>
-					<p className="publy-type-sky-label mt-1.5 text-(--publy-foreground)">
+					<p className="publy-type-sky-label mt-2 text-(--publy-foreground)">
 						{t(`landing-claim-${key}-title`)}
 					</p>
-					<p className="publy-type-sky-body mt-1.5 text-(--publy-foreground-secondary)">
+					<p className="publy-type-sky-body mt-2 text-(--publy-foreground-secondary)">
 						{t(`landing-claim-${key}-details`)}
 					</p>
 				</div>

@@ -68,7 +68,7 @@ export const Landing05ATour = () => {
 				>
 					{t('landing-tour-title')}
 				</h2>
-				<p className="publy-type-sky-lead mx-auto mt-3 max-w-[62ch] text-pretty text-(--publy-foreground-secondary)">
+				<p className="publy-type-sky-lead mx-auto mt-3 max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">
 					{t('landing-tour-description')}
 				</p>
 			</div>
@@ -166,7 +166,7 @@ export const Landing05ATour = () => {
 									</p>
 									<Link
 										to="/signup"
-										className="publy-l05a-pressable publy-l05a-focus-ring mt-3 inline-flex items-center gap-1.5 text-[15px] font-medium text-(--publy-foreground)"
+										className="publy-l05a-pressable publy-l05a-focus-ring mt-4 inline-flex items-center gap-2 text-[15px] font-medium text-(--publy-foreground)"
 									>
 										{t('landing-tour-learn-more')}
 										<IconArrowRight className="size-3.5" aria-hidden="true" />
@@ -240,12 +240,12 @@ export const Landing05ATour = () => {
 						<h3 className="publy-type-sky-display-3 text-balance text-(--publy-foreground)">
 							{t(tab.titleKey)}
 						</h3>
-						<p className="publy-type-sky-lead mx-auto mt-3 max-w-[58ch] text-pretty text-(--publy-foreground-secondary)">
+						<p className="publy-type-sky-lead mx-auto mt-3 max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">
 							{t(tab.descriptionKey)}
 						</p>
 						<Link
 							to="/signup"
-							className="publy-l05a-pressable publy-l05a-focus-ring mt-4 inline-flex items-center gap-1.5 text-[15px] font-medium text-(--publy-foreground)"
+							className="publy-l05a-pressable publy-l05a-focus-ring mt-4 inline-flex items-center gap-2 text-[15px] font-medium text-(--publy-foreground)"
 						>
 							{t('landing-tour-learn-more')}
 							<IconArrowRight className="size-3.5" aria-hidden="true" />

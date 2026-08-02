@@ -27,10 +27,10 @@ export const Landing05AAudience = () => {
 	const { t } = useTranslation('landing-05-a');
 
 	return (
-		<div className="publy-marketing-hairline-grid mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-			<article className="relative overflow-hidden bg-(--publy-surface) p-8 lg:col-span-2 lg:py-10 lg:pl-10">
+		<div className="publy-marketing-hairline-grid publy-l05a-section-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+			<article className="relative overflow-hidden p-8 lg:col-span-2 lg:py-12 lg:pl-12">
 				<div className="lg:max-w-[440px]">
-					<h3 className="publy-type-sky-display-3 text-balance text-(--publy-foreground)">
+					<h3 className="publy-type-sky-display-3 publy-l05a-optical-flush text-balance text-(--publy-foreground)">
 						{t('landing-bento-shared-queue-title')}
 					</h3>
 					<p className="publy-type-sky-body mt-3 max-w-[46ch] text-(--publy-foreground-secondary)">
@@ -51,8 +51,8 @@ export const Landing05AAudience = () => {
 				</div>
 			</article>
 			{AUDIENCE_CELLS.map((key) => (
-				<article key={key} className="bg-(--publy-surface) p-8">
-					<h3 className="publy-type-sky-display-3 text-balance text-(--publy-foreground)">
+				<article key={key} className="p-8">
+					<h3 className="publy-type-sky-display-3 publy-l05a-optical-flush text-balance text-(--publy-foreground)">
 						{t(`landing-bento-${key}-title`)}
 					</h3>
 					<p className="publy-type-sky-body mt-3 max-w-[46ch] text-(--publy-foreground-secondary)">

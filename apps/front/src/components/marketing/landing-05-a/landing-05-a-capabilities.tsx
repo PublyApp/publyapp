@@ -33,7 +33,7 @@ export const Landing05ACapabilities = () => {
 	const { t } = useTranslation('landing-05-a');
 
 	return (
-		<div className="publy-l05a-fact-grid relative mt-8 grid gap-x-4 md:grid-cols-2 lg:grid-cols-3">
+		<div className="publy-l05a-fact-grid publy-l05a-section-body relative grid gap-x-4 md:grid-cols-2 lg:grid-cols-3">
 			<div
 				aria-hidden="true"
 				className="pointer-events-none absolute inset-y-0 left-1/3 my-auto hidden h-[198px] w-px bg-(--publy-border) lg:block"

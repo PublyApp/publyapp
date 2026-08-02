@@ -21,7 +21,7 @@ export const Landing05APricing = () => {
 	const { t } = useTranslation('landing-05-a');
 
 	return (
-		<div className="mt-8 grid gap-4 md:grid-cols-3">
+		<div className="publy-l05a-section-body grid gap-4 md:grid-cols-3">
 			{PRICING_TIERS.map((tier) => (
 				<article
 					key={tier.id}
@@ -33,7 +33,7 @@ export const Landing05APricing = () => {
 							: 'shadow-[var(--publy-shadow-ring)]',
 					)}
 				>
-					<div className="rounded-[var(--publy-radius-small-control)] bg-(--publy-surface) p-6 pb-5">
+					<div className="rounded-[var(--publy-radius-small-control)] bg-(--publy-surface) p-6">
 						{tier.id === 'agency' ? (
 							<span className="rounded-[var(--publy-radius-small-control)] border border-(--publy-border) px-2.5 py-1 text-xs font-semibold text-(--publy-foreground-secondary)">
 								{t('landing-pricing-agency-badge')}
@@ -42,8 +42,8 @@ export const Landing05APricing = () => {
 						<h3 className="publy-type-sky-display-3 mt-4 text-(--publy-foreground)">
 							{t(`landing-pricing-${tier.id}-name`)}
 						</h3>
-						<div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-							<del className="publy-type-sky-display-3 text-(--publy-foreground-muted)">
+						<div className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+							<del className="publy-type-sky-display-3 publy-l05a-tabular text-(--publy-foreground-muted)">
 								{t(`landing-pricing-${tier.id}-price`)}
 							</del>
 							<span className="publy-type-sky-body text-(--publy-foreground-secondary)">
@@ -57,7 +57,7 @@ export const Landing05APricing = () => {
 							{t(`landing-pricing-${tier.id}-description`)}
 						</p>
 					</div>
-					<div className="px-6 pt-5 pb-6">
+					<div className="px-6 pt-6 pb-6">
 						<Link
 							to="/signup"
 							className={cn(

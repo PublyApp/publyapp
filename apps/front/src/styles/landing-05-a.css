@@ -188,7 +188,33 @@
 	/* ---- Type ramp (todesktop-03 law, px-stated so it can never drift):
 	   display at size × -0.015, UI text at size × -0.010, mono micro-labels
 	   at size × +0.030. 600 is the display weight and the ceiling — Geist
-		   ships 400/500/600 only, so a 700 anywhere would synthesise. */
+		   ships 400/500/600 only, so a 700 anywhere would synthesise.
+
+	   ONE display weight, and it is the only weight above 15px: 600 at
+	   display-1 through display-4. Hierarchy above the label step is carried
+	   by size, colour, space and position — never by a weight change.
+
+	   LEADING IS A FUNCTION OF MEASURE, NOT A CONSTANT. The ratio descends
+	   monotonically as size grows, and the two text steps are ordered by the
+	   measure they are capped to rather than by their size:
+
+	     display-1  68/70  1.029   <= 20ch   two-line display statement
+	     display-2  48/52  1.083   <= 24ch   section heading, one or two lines
+	     display-3  32/36  1.125   <= 24ch   card heading, two to four words
+	     display-4  24/32  1.333   <= 40ch   question / step title
+	     lead       18/30  1.667   <= 52ch   deks
+	     prose      16/28  1.750   <= 66ch   the only long-measure reading text
+	     body       15/24  1.600   <= 46ch   in-card copy
+	     label      15/24  1.600   -         metric twin of body (todesktop-05)
+
+	   body sits BELOW prose on the ratio ladder despite being the smaller
+	   step, because it is capped 20 characters shorter: a 46ch line needs
+	   less vertical guidance to find its way back to the left margin than a
+	   66ch one does. That inversion is the law, applied, rather than broken.
+
+	   Every tracking value below is `round(size x ratio, 0.01px)` and each is
+	   restated per breakpoint, so no step ever inherits a neighbour's value.
+	   Verified per step in .dump/report-05a.md. */
 	.publy-landing-05-a .publy-type-sky-display-1 {
 		font-size: 40px;
 		line-height: 44px;
@@ -199,7 +225,13 @@
 	@media (min-width: 768px) {
 		.publy-landing-05-a .publy-type-sky-display-1 {
 			font-size: 68px;
-			line-height: 72px;
+			/* 70, not the transposed 72. At a 20ch cap the H1 is a two-line
+			   display OBJECT, and 72/68 = 1.059 is a text leading applied to
+			   a display size — the two lines drift apart and stop reading as
+			   one block. 70/68 = 1.029 closes them without letting line 1's
+			   descenders reach line 2's caps (Geist's ascender-to-descender
+			   is ~1.0em, so the clearance is ~1.4px). */
+			line-height: 70px;
 			letter-spacing: -1.02px;
 		}
 	}
@@ -229,14 +261,21 @@
 	@media (min-width: 768px) {
 		.publy-landing-05-a .publy-type-sky-display-3 {
 			font-size: 32px;
-			line-height: 38px;
+			/* 36, not the transposed 38. A card heading is two to four words
+			   on one or two lines; 38/32 = 1.1875 was looser than display-2's
+			   1.083 by more than the size step justifies, which broke the
+			   ladder's monotone descent between the two steps most often seen
+			   next to each other. */
+			line-height: 36px;
 			letter-spacing: -0.48px;
 		}
 	}
 
 	/* display-4 IS the product's text-2xl step (24px, -0.01em, semibold):
 	   the ramp extends the in-app ladder from its existing top rather than
-	   changing typographic voice at the sign-in boundary. */
+	   changing typographic voice at the sign-in boundary. It is the JOIN, so
+	   it keeps the product's -1.0% text rule; the -1.5% display rule starts
+	   one step up, at display-3. */
 	.publy-landing-05-a .publy-type-sky-display-4 {
 		font-size: 24px;
 		line-height: 32px;
@@ -257,6 +296,21 @@
 			line-height: 30px;
 			letter-spacing: -0.18px;
 		}
+	}
+
+	/* The long-measure reading step, and the one genuinely new step in this
+	   ramp. The FAQ answers are the only running text on the page allowed to
+	   reach 66 characters, and they were set in `body` (15/24, capped at
+	   46ch) — a line 43% longer than the step was designed for, at the tight
+	   leading that short measure allows. 16/28 gives the extra size a long
+	   line wants and the 1.75 ratio that returns the eye to a 66ch left
+	   margin. Nothing else on the page uses it, which is the point: it exists
+	   because a measure exists, not because a size was missing. */
+	.publy-landing-05-a .publy-type-sky-prose {
+		font-size: 16px;
+		line-height: 28px;
+		letter-spacing: -0.16px;
+		font-weight: 400;
 	}
 
 	/* todesktop-05: body and label share metrics (15/24) and differ only by
@@ -284,6 +338,40 @@
 		letter-spacing: 0.33px;
 		font-weight: 500;
 		text-transform: uppercase;
+	}
+
+	/* ---- Optical correction, not mathematical alignment ----
+
+	   OPTICAL MARGIN ALIGNMENT. A glyph's left side bearing scales with the
+	   type size, so a 48px heading set flush to the same edge as the 15px
+	   copy beneath it has ~0.5px more air on its left than the copy does, and
+	   the stems visibly disagree. Pulling the display step back by 0.01em
+	   (-0.68px at 68, -0.48px at 48, -0.32px at 32) aligns the STEMS rather
+	   than the boxes. It is expressed in em so it tracks every breakpoint of
+	   the ramp above and is locale-independent, which a per-string correction
+	   for "A"/"V"/"W"/"T"/"Y"/quote openings could never be across en and fr.
+	   Applied only where a heading is left-aligned against a shared edge —
+	   never to the centred hero or the centred night band, where it would
+	   move the centre instead of the edge. */
+	.publy-landing-05-a .publy-l05a-optical-flush {
+		margin-inline-start: -0.01em;
+	}
+
+	/* Hanging punctuation for the same reason, where the engine supports it
+	   (Safari today). A quote or an opening bracket has almost no stem to
+	   align, so the correction is a full hang rather than a side bearing. */
+	.publy-landing-05-a .publy-l05a-optical-flush,
+	.publy-landing-05-a .publy-type-sky-prose {
+		hanging-punctuation: first;
+	}
+
+	/* Tabular figures where numbers align in a column, proportional
+	   everywhere else. On this page that is exactly one place: the three
+	   struck prices, which sit at the same y across three parallel cards and
+	   would otherwise disagree in width digit by digit. The copyright year
+	   and the "2-40 brands" figures are running text and stay proportional. */
+	.publy-landing-05-a .publy-l05a-tabular {
+		font-variant-numeric: tabular-nums;
 	}
 
 	/* ---- Vertical rhythm (todesktop-19 two-number discipline + attio-13
@@ -319,6 +407,47 @@
 	   spending vertical whitespace on a divider (attio-14 / padyna-01). */
 	.publy-landing-05-a .publy-l05a-section-ruled {
 		border-block-start: 1px solid var(--publy-border);
+	}
+
+	/* ---- THE SPACING SCALE, and the one place it is deliberately broken.
+
+	   Every vertical gap inside a section is a member of this set and nothing
+	   else. It is the measured {4,8,12,16,24,32,48} extended upward with the
+	   section ladder, and its ratio is ~1.5 throughout:
+
+	     4 . 8 . 12 . 16 . 24 . 32 . 48 . 64 . 96 . 120
+
+	   The transposed page spent 36, 20, 28, 40, 6, 56 and 80 as one-off
+	   values; all seven are gone. FEWER, LARGER MOVES: inside a section only
+	   three gaps are now in play — 12 (lines of one object), 24 (blocks of
+	   one object) and 48 (object to object) — so a reader can feel the
+	   hierarchy instead of measuring it.
+
+	   SPACE IS ASYMMETRIC AROUND A HEADING. A heading belongs to what follows
+	   it, so the air above it is the section's own top padding (72/96/120)
+	   and the air below it is 12 to its dek and 48 to its body. Getting that
+	   backwards - a bigger gap above the body than above the heading - is
+	   what makes a page read as a stack of cards.
+
+	   The one break, and its arithmetic: the chip-to-heading gap is METRIC
+	   20px so that it is OPTICAL 24px. The chip's 18px line box carries 2.5px
+	   of half-leading below its cap, and display-2's 52px line box carries
+	   ~2px above its cap at 48px; 20 + 2.5 + 2 = 24.5. A baseline-to-cap
+	   relationship, not a box-to-box one. */
+	.publy-landing-05-a .publy-l05a-header-heading {
+		margin-block-start: 20px;
+	}
+
+	/* Heading -> dek: one object, so the tightest gap on the page. */
+	.publy-landing-05-a .publy-l05a-header-dek {
+		margin-block-start: 12px;
+	}
+
+	/* Header triple -> the section's body: the largest in-section gap, so the
+	   three lines above read as one object rather than as the first row of
+	   the grid below. */
+	.publy-landing-05-a .publy-l05a-section-body {
+		margin-block-start: 48px;
 	}
 
 	/* Exception 1: the hero follows the header, not a section, and flows
@@ -477,8 +606,10 @@
 				color-mix(in srgb, var(--l05a-shadow-tint) 38%, transparent),
 			0 16px 16px -4px
 				color-mix(in srgb, var(--l05a-shadow-tint) 34%, transparent),
-			0 8px 8px -2px color-mix(in srgb, var(--l05a-shadow-tint) 30%, transparent),
-			0 4px 4px -1px color-mix(in srgb, var(--l05a-shadow-tint) 30%, transparent),
+			0 8px 8px -2px
+				color-mix(in srgb, var(--l05a-shadow-tint) 30%, transparent),
+			0 4px 4px -1px
+				color-mix(in srgb, var(--l05a-shadow-tint) 30%, transparent),
 			0 0 0 1px var(--publy-border);
 	}
 
@@ -538,7 +669,13 @@
 		background: var(--publy-primary-soft);
 		color: var(--publy-primary-soft-foreground);
 		padding-block: 4px;
-		padding-inline: 10px;
+		/* Optically, not mathematically, symmetric. `.publy-marketing-eyebrow`
+		   opens uppercase at +0.04em, and letter-spacing is applied AFTER the
+		   last glyph as well as between glyphs — so at 13px the chip carries
+		   0.52px of dead air on its right that it does not carry on its left.
+		   10px leading / 9.5px trailing puts the same amount of light on both
+		   sides of the word. */
+		padding-inline: 10px 9.5px;
 	}
 
 	/* ---- Motion: the house curve and durations already exist as tokens
@@ -692,7 +829,9 @@
 		border-block-start: 1px solid var(--publy-border);
 	}
 
-	.publy-landing-05-a .publy-l05a-fact-grid > .publy-l05a-fact-cell:first-child {
+	.publy-landing-05-a
+		.publy-l05a-fact-grid
+		> .publy-l05a-fact-cell:first-child {
 		border-block-start: none;
 	}
 
