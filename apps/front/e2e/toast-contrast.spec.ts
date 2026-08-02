@@ -7,6 +7,7 @@ import {
 } from '@playwright/test';
 
 import { toastVariantClassNames } from '../src/components/ui/toast-variants';
+import type { ToastMethod } from '../src/lib/mutation-toast';
 
 /**
  * #998 browser-side toast contrast guard.
@@ -25,9 +26,17 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  *
  * The guard fails loudly, by element name, when it cannot determine the
  * painted result: opacity, filter, backdrop-filter or mix-blend-mode other
- * than the neutral values anywhere on the ancestor chain; inset shadows that
- * can reach the sampled point; text shadows; background images that are not
- * a flat linear gradient; and pseudo-elements that paint a background.
+ * than the neutral values anywhere on the ancestor chain; inset shadows
+ * whose band (offset, spread and blur) can reach the sampled point; text
+ * shadows; background images that are not a flat linear gradient;
+ * pseudo-elements that paint a background whose box, resolved from computed
+ * styles, contains the sampled point; and a modelled painted surface that
+ * the composited pixels of the target's box do not contain. That last
+ * check — the pixel cross-check — is the one reading that does not model
+ * the paint: it screenshots the target's box, decodes it in the page and
+ * requires the modelled surface to be present, which also catches what hit
+ * testing cannot see at all (a click-through `pointer-events: none`
+ * overlay), naming the overlays it finds.
  *
  * What still escapes — declared, so the boundary is not mistaken for a
  * guarantee:
@@ -37,7 +46,11 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  * - Pseudo-elements are resolved for background paint only; one that paints
  *   only glyphs or text without a background is not detected.
  * - `elementsFromPoint` cannot report pseudo-element boxes, so pseudo paint
- *   is read from resolved styles instead of hit tests.
+ *   is read from resolved styles instead of hit tests; a positioned pseudo
+ *   whose painted box cannot be resolved from computed styles fails loudly.
+ * - The pixel cross-check asserts the modelled surface is PRESENT in the
+ *   target's box, not that nothing else is; an overlay that leaves part of
+ *   the box untouched is accepted.
  * - Only mounted, opaque toasts are measured; enter/exit and hover
  *   intermediate states are out of scope.
  * - Text painted with `background-clip: text` resolves to a transparent
@@ -46,6 +59,13 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
 
 const TEXT_CONTRAST_FLOOR = 4.5;
 const GLYPH_CONTRAST_FLOOR = 3;
+// Per-channel distance between the modelled painted surface and a
+// composited pixel for the pixel cross-check: the model composites
+// browser-reported sRGB values, so the browser's own composited pixel
+// differs by at most a rounding step. And how many pixels of the target's
+// box must show that surface.
+const PIXEL_MATCH_TOLERANCE = 3;
+const PIXEL_MATCH_MIN_COUNT = 16;
 
 const THEMES = ['light', 'dark'] as const;
 const VARIANTS = ['success', 'error', 'warning', 'info'] as const;
@@ -72,16 +92,25 @@ type ContrastMeasurement = {
 
 /**
  * The measured set must cover every semantic toast the product can raise —
- * including the neutral `default` — so adding a variant to
- * `toastVariantClassNames` without covering it here fails the suite. The
- * `loading` variant paints no message or glyph the contrast floors apply to.
+ * including the neutral `default`. It is pinned to the product's raise
+ * path, the `ToastMethod` union in `mutation-toast.ts`: that union has no
+ * `loading` member and nothing in the product calls
+ * `toast.loading`/`toast.promise`, so the `loading` class cannot be raised
+ * today and is excluded on that fact — not on what it paints. The
+ * assignment below fails to typecheck the day `ToastMethod` grows a
+ * member, and the runtime assertions fail the day `toastVariantClassNames`
+ * grows a variant, until a toast for it is measured here.
  */
 test('every product toast variant is contrast-measured', () => {
-	const measuredVariants = [...VARIANTS, 'default'].sort();
-	const productVariants = Object.keys(toastVariantClassNames)
-		.filter((name) => name !== 'loading')
-		.sort();
-	expect(measuredVariants).toEqual(productVariants);
+	const measuredVariants: readonly ToastMethod[] = [...VARIANTS, 'default'];
+	expect([...measuredVariants].sort()).toEqual(
+		Object.keys(toastVariantClassNames)
+			.filter((name) => name !== 'loading')
+			.sort(),
+	);
+	expect(Object.keys(toastVariantClassNames).sort()).toEqual(
+		[...measuredVariants, 'loading'].sort(),
+	);
 });
 
 const parseComputedColor = (value: string): Rgba => {
@@ -168,6 +197,26 @@ const readBrowserPaint = async (
 			context.fillRect(0, 0, 1, 1);
 			const [r, g, b, alpha] = context.getImageData(0, 0, 1, 1).data;
 			return `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;
+		};
+
+		/**
+		 * The alpha of a raw computed colour. Every colour value is run
+		 * through `toSrgb` FIRST so the alpha is read from a normalised
+		 * `rgba(...)` string; indexing digits out of the raw value shifts on
+		 * any colour function whose name contains a digit
+		 * (`color(display-p3 1 0 0)` reads its blue channel as alpha) and
+		 * would silently treat opaque wide-gamut paint as transparent.
+		 * Unparseable values throw instead of reading as compliant.
+		 */
+		const paintAlpha = (color: string, source: string): number => {
+			const normalised = toSrgb(color, source);
+			const match = /^rgba\(\d+, \d+, \d+, ([\d.]+)\)$/u.exec(normalised);
+			if (!match) {
+				throw new Error(
+					`${source} is not the expected normalised colour: ${normalised}`,
+				);
+			}
+			return Number(match[1]);
 		};
 
 		const splitTopLevel = (value: string): string[] => {
@@ -266,36 +315,57 @@ const readBrowserPaint = async (
 		};
 
 		/**
-		 * Distance from a point to a rectangle, or to the rectangle's
-		 * boundary when the point is inside it. Used to decide whether an
-		 * inset shadow's band can reach the sampled point.
+		 * Whether an inset shadow's band can reach the sampled point. The
+		 * shadow paints the whole border box except its un-shadowed interior
+		 * (the border box translated by the shadow's offset and inset by its
+		 * spread), and the band's inner edge is blurred by `blur` — so the
+		 * point is reached when it lies inside the border box and either
+		 * outside the interior at all (the solid band) or within `blur` of
+		 * the interior's edge. A spread that inverts the interior
+		 * (`left > right` or `top > bottom`) makes the entire border box the
+		 * band, so it reaches any point inside the box.
 		 */
-		const distanceToRect = (
+		const insetShadowReachesPoint = (
 			pointX: number,
 			pointY: number,
-			rect: { bottom: number; left: number; right: number; top: number },
-		): number => {
-			const horizontal = Math.max(rect.left - pointX, pointX - rect.right);
-			const vertical = Math.max(rect.top - pointY, pointY - rect.bottom);
-			if (horizontal > 0 || vertical > 0) {
-				return Math.hypot(horizontal, vertical);
+			borderBox: { bottom: number; left: number; right: number; top: number },
+			interior: { bottom: number; left: number; right: number; top: number },
+			blur: number,
+		): boolean => {
+			const insideBorderBox =
+				pointX >= borderBox.left &&
+				pointX <= borderBox.right &&
+				pointY >= borderBox.top &&
+				pointY <= borderBox.bottom;
+			if (!insideBorderBox) {
+				return false;
 			}
-			return Math.min(
-				pointX - rect.left,
-				rect.right - pointX,
-				pointY - rect.top,
-				rect.bottom - pointY,
+			if (interior.left > interior.right || interior.top > interior.bottom) {
+				return true;
+			}
+			const outsideInterior =
+				pointX <= interior.left ||
+				pointX >= interior.right ||
+				pointY <= interior.top ||
+				pointY >= interior.bottom;
+			if (outsideInterior) {
+				return true;
+			}
+			return (
+				Math.min(
+					pointX - interior.left,
+					interior.right - pointX,
+					pointY - interior.top,
+					interior.bottom - pointY,
+				) < blur
 			);
 		};
 
 		/**
 		 * An inset shadow paints a band inside the box; it is rejected only
-		 * when the band could reach the sampled point. The shadow's
-		 * un-shadowed interior is the border box translated by the shadow's
-		 * offset and inset by its spread; the band extends blur beyond that
-		 * interior's boundary. Anything else — the ordinary menu shadow, an
-		 * outset shadow, an edge highlight far from the sample — is paint the
-		 * midpoint provably does not see.
+		 * when the band could reach the sampled point. Anything else — the
+		 * ordinary menu shadow, an outset shadow, an edge highlight far from
+		 * the sample — is paint the midpoint provably does not see.
 		 */
 		const assertInsetShadowsAvoidPoint = (
 			style: CSSStyleDeclaration,
@@ -326,7 +396,7 @@ const readBrowserPaint = async (
 					top: rect.top + offsetY + spread,
 					bottom: rect.bottom + offsetY - spread,
 				};
-				if (distanceToRect(x, y, interior) < blur) {
+				if (insetShadowReachesPoint(x, y, rect, interior, blur)) {
 					throw new Error(
 						`${source} has an inset shadow that can reach the sampled point: ${shadow}`,
 					);
@@ -358,28 +428,160 @@ const readBrowserPaint = async (
 		};
 
 		/**
+		 * The pseudo-element's painted box in viewport coordinates, derived
+		 * from its resolved styles. An absolutely positioned pseudo resolves
+		 * against its originating element's containing block (its offset
+		 * parent, or the viewport); a fixed one against the nearest
+		 * transformed ancestor, or the viewport. An in-flow pseudo paints
+		 * within the originating element's box, so that box is the
+		 * conservative assumption — a backgrounded in-flow pseudo cannot be
+		 * proven to avoid the point from computed styles alone. Returns
+		 * `undefined` when a positioned pseudo's box is under-determined
+		 * (the caller fails loudly rather than assume).
+		 */
+		const pseudoElementBox = (
+			layer: Element,
+			style: CSSStyleDeclaration,
+		):
+			| { bottom: number; left: number; right: number; top: number }
+			| undefined => {
+			const asPixels = (value: string): number | undefined => {
+				if (value === 'auto') {
+					return undefined;
+				}
+				const match = /^-?\d+(?:\.\d+)?px$/u.exec(value);
+				return match ? Number(value.slice(0, -2)) : undefined;
+			};
+
+			let containing: {
+				bottom: number;
+				left: number;
+				right: number;
+				top: number;
+			};
+			if (style.position === 'absolute') {
+				const offsetParent = (layer as HTMLElement).offsetParent;
+				containing =
+					offsetParent === null
+						? { left: 0, right: innerWidth, top: 0, bottom: innerHeight }
+						: offsetParent.getBoundingClientRect();
+			} else if (style.position === 'fixed') {
+				containing = {
+					left: 0,
+					right: innerWidth,
+					top: 0,
+					bottom: innerHeight,
+				};
+				for (
+					let candidate = layer.parentElement;
+					candidate !== null;
+					candidate = candidate.parentElement
+				) {
+					const candidateStyle = getComputedStyle(candidate);
+					if (
+						candidateStyle.transform !== 'none' ||
+						candidateStyle.filter !== 'none' ||
+						candidateStyle.backdropFilter !== 'none' ||
+						candidateStyle.perspective !== 'none'
+					) {
+						containing = candidate.getBoundingClientRect();
+						break;
+					}
+				}
+			} else {
+				return layer.getBoundingClientRect();
+			}
+
+			const left = asPixels(style.left);
+			const right = asPixels(style.right);
+			const top = asPixels(style.top);
+			const bottom = asPixels(style.bottom);
+			const width = asPixels(style.width);
+			const height = asPixels(style.height);
+
+			let leftEdge: number | undefined;
+			let rightEdge: number | undefined;
+			if (left !== undefined && width !== undefined) {
+				leftEdge = containing.left + left;
+				rightEdge = leftEdge + width;
+			} else if (right !== undefined && width !== undefined) {
+				rightEdge = containing.right - right;
+				leftEdge = rightEdge - width;
+			} else if (left !== undefined && right !== undefined) {
+				leftEdge = containing.left + left;
+				rightEdge = containing.right - right;
+			}
+			let topEdge: number | undefined;
+			let bottomEdge: number | undefined;
+			if (top !== undefined && height !== undefined) {
+				topEdge = containing.top + top;
+				bottomEdge = topEdge + height;
+			} else if (bottom !== undefined && height !== undefined) {
+				bottomEdge = containing.bottom - bottom;
+				topEdge = bottomEdge - height;
+			} else if (top !== undefined && bottom !== undefined) {
+				topEdge = containing.top + top;
+				bottomEdge = containing.bottom - bottom;
+			}
+			if (
+				leftEdge === undefined ||
+				rightEdge === undefined ||
+				topEdge === undefined ||
+				bottomEdge === undefined
+			) {
+				return undefined;
+			}
+			return {
+				left: leftEdge,
+				right: rightEdge,
+				top: topEdge,
+				bottom: bottomEdge,
+			};
+		};
+
+		/**
 		 * Pseudo-element paint is invisible to elementsFromPoint, so read the
 		 * resolved pseudo styles directly. A pseudo-element that paints a
-		 * background over the sampled point would wash out the measured text;
-		 * the shipped float (`::before` on the title) and sonner's own
-		 * transparent hit-area pseudos pass, having no paint.
+		 * background whose resolved box contains the sampled point would wash
+		 * out the measured text; one whose box provably does not contain it
+		 * (an edge accent stripe, a corner ornament) passes, and one whose
+		 * box cannot be resolved fails loudly rather than assume. The shipped
+		 * float (`::before` on the title) and sonner's own transparent
+		 * hit-area pseudos pass, having no paint.
 		 */
-		const assertNoPseudoOverlay = (layer: Element, source: string): void => {
+		const assertNoPseudoOverlay = (
+			layer: Element,
+			x: number,
+			y: number,
+			source: string,
+		): void => {
 			for (const pseudo of ['::before', '::after'] as const) {
 				const style = getComputedStyle(layer, pseudo);
 				if (style.content === 'none') {
 					continue;
 				}
 				const image = style.backgroundImage;
-				if (image !== 'none') {
+				const backgroundColor = style.backgroundColor;
+				const paint =
+					image !== 'none' ||
+					paintAlpha(backgroundColor, `${source}${pseudo} background`) !== 0;
+				if (!paint) {
+					continue;
+				}
+				const box = pseudoElementBox(layer, style);
+				if (box === undefined) {
 					throw new Error(
-						`${source}${pseudo} paints a background over the sampled point: ${image}`,
+						`${source}${pseudo} paints a background whose painted box cannot be resolved from computed styles (position ${style.position}, width ${style.width}, height ${style.height}, inset ${style.top} ${style.right} ${style.bottom} ${style.left})`,
 					);
 				}
-				const channels = style.backgroundColor.match(/[\d.]+/gu);
-				if (Number(channels?.[3] ?? 1) !== 0) {
+				if (
+					x >= box.left &&
+					x <= box.right &&
+					y >= box.top &&
+					y <= box.bottom
+				) {
 					throw new Error(
-						`${source}${pseudo} paints a background over the sampled point: ${style.backgroundColor}`,
+						`${source}${pseudo} paints a background over the sampled point: ${image !== 'none' ? image : backgroundColor}`,
 					);
 				}
 			}
@@ -400,7 +602,7 @@ const readBrowserPaint = async (
 		}
 		for (const paintedAbove of hitStack.slice(0, targetIndex)) {
 			const aboveName = elementName(paintedAbove);
-			assertNoPseudoOverlay(paintedAbove, aboveName);
+			assertNoPseudoOverlay(paintedAbove, x, y, aboveName);
 			if (element.contains(paintedAbove)) {
 				const aboveStyle = getComputedStyle(paintedAbove);
 				if (aboveStyle.backgroundImage !== 'none') {
@@ -408,8 +610,10 @@ const readBrowserPaint = async (
 						`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundImage}`,
 					);
 				}
-				const channels = aboveStyle.backgroundColor.match(/[\d.]+/gu);
-				if (Number(channels?.[3] ?? 1) !== 0) {
+				if (
+					paintAlpha(aboveStyle.backgroundColor, `${aboveName} background`) !==
+					0
+				) {
 					throw new Error(
 						`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundColor}`,
 					);
@@ -429,9 +633,7 @@ const readBrowserPaint = async (
 			source: string,
 		): void => {
 			backgroundLayers.push({ color, element: layerName, source });
-			const channels = color.match(/[\d.]+/gu);
-			const alpha = Number(channels?.[3] ?? 1);
-			if (alpha === 1) {
+			if (paintAlpha(color, `${layerName} ${source}`) === 1) {
 				foundOpaqueLayer = true;
 			}
 		};
@@ -445,7 +647,7 @@ const readBrowserPaint = async (
 			const name = elementName(layer);
 			const style = getComputedStyle(layer);
 			assertSupportedPaint(style, layer.getBoundingClientRect(), x, y, name);
-			assertNoPseudoOverlay(layer, name);
+			assertNoPseudoOverlay(layer, x, y, name);
 
 			for (const layerColor of backgroundImageLayers(
 				style.backgroundImage,
@@ -458,8 +660,7 @@ const readBrowserPaint = async (
 				style.backgroundColor,
 				`${name} background-color`,
 			);
-			const channels = backgroundColor.match(/[\d.]+/gu);
-			const alpha = Number(channels?.[3] ?? 1);
+			const alpha = paintAlpha(backgroundColor, `${name} background-color`);
 			if (alpha !== 0) {
 				pushBackgroundPaint(backgroundColor, name, 'background-color');
 			}
@@ -490,7 +691,7 @@ const readBrowserPaint = async (
 				y,
 				name,
 			);
-			assertNoPseudoOverlay(layer, name);
+			assertNoPseudoOverlay(layer, x, y, name);
 		}
 
 		const foregrounds: string[] = [];
@@ -663,6 +864,128 @@ const setTheme = async (page: Page, theme: Theme): Promise<void> => {
 const rgbaLabel = ({ r, g, b, a }: Rgba): string =>
 	`rgba(${r.toFixed(1)}, ${g.toFixed(1)}, ${b.toFixed(1)}, ${a.toFixed(3)})`;
 
+/**
+ * The one reading in the guard that does not model the paint: screenshot the
+ * target's box, decode it in the page, and require the modelled painted
+ * surface to actually be present in the composited pixels. This catches
+ * paint that the model cannot see at all — an overlay with
+ * `pointer-events: none` is invisible to `elementsFromPoint` by definition,
+ * yet paints over the target like any other element — and independently
+ * cross-checks the alpha parsing and the inset-shadow geometry. Tolerance is
+ * per-channel against the browser-composited pixel; the model's surface and
+ * the painted pixel differ by at most a rounding step.
+ */
+const assertPaintedSurfaceVisible = async (
+	target: Locator,
+	background: Rgba,
+	label: string,
+): Promise<void> => {
+	const page = target.page();
+	const box = await target.boundingBox();
+	if (!box) {
+		throw new Error(`${label} has no painted box to cross-check`);
+	}
+	const point = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+	const screenshot = await target.screenshot();
+	const report = await page.evaluate(
+		async ({ background, dataUrl, tolerance }) => {
+			const base64 = dataUrl.slice('data:image/png;base64,'.length);
+			const binary = atob(base64);
+			const bytes = new Uint8Array(binary.length);
+			for (let index = 0; index < binary.length; index += 1) {
+				bytes[index] = binary.charCodeAt(index);
+			}
+			const bitmap = await createImageBitmap(
+				new Blob([bytes], { type: 'image/png' }),
+			);
+			const canvas = document.createElement('canvas');
+			canvas.width = bitmap.width;
+			canvas.height = bitmap.height;
+			const context = canvas.getContext('2d');
+			if (!context) {
+				throw new Error('Browser canvas colour resolver is unavailable');
+			}
+			context.drawImage(bitmap, 0, 0);
+			const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+			let matchCount = 0;
+			let nearestDistance = Number.POSITIVE_INFINITY;
+			let nearest: [number, number, number] = [0, 0, 0];
+			for (let index = 0; index < data.length; index += 4) {
+				const distance = Math.max(
+					Math.abs(data[index] - background[0]),
+					Math.abs(data[index + 1] - background[1]),
+					Math.abs(data[index + 2] - background[2]),
+				);
+				if (distance <= tolerance) {
+					matchCount += 1;
+				}
+				if (distance < nearestDistance) {
+					nearestDistance = distance;
+					nearest = [data[index], data[index + 1], data[index + 2]];
+				}
+			}
+			return {
+				matchCount,
+				nearest,
+				nearestDistance,
+				pixelCount: data.length / 4,
+			};
+		},
+		{
+			background: [background.r, background.g, background.b],
+			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			tolerance: PIXEL_MATCH_TOLERANCE,
+		},
+	);
+	if (report.matchCount < PIXEL_MATCH_MIN_COUNT) {
+		// Name the likely cause: hit testing cannot see click-through paint,
+		// so look for elements that paint a background over the sampled
+		// point while carrying `pointer-events: none`.
+		const overlays = await page.evaluate(({ x, y }) => {
+			const names: string[] = [];
+			for (const element of document.querySelectorAll('body *')) {
+				const rect = element.getBoundingClientRect();
+				if (rect.width === 0 || rect.height === 0) {
+					continue;
+				}
+				if (
+					x < rect.left ||
+					x > rect.right ||
+					y < rect.top ||
+					y > rect.bottom
+				) {
+					continue;
+				}
+				const style = getComputedStyle(element);
+				if (style.pointerEvents !== 'none') {
+					continue;
+				}
+				const name =
+					element.getAttribute('data-testid') ??
+					element.getAttribute('data-slot') ??
+					element.tagName.toLowerCase();
+				if (style.backgroundImage !== 'none') {
+					names.push(`${name} (${style.backgroundImage})`);
+					continue;
+				}
+				if (
+					style.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+					style.backgroundColor !== 'transparent'
+				) {
+					names.push(`${name} (${style.backgroundColor})`);
+				}
+			}
+			return names;
+		}, point);
+		throw new Error(
+			`${label}: modelled painted surface ${rgbaLabel(background)} is absent from the painted box ` +
+				`(nearest painted colour rgb(${report.nearest.join(', ')}), channel distance ` +
+				`${report.nearestDistance}, ${report.matchCount}/${report.pixelCount} pixels match); ` +
+				`click-through overlays at the sampled point: ${overlays.join(', ') || 'none found'}`,
+		);
+	}
+};
+
 const measureToastTarget = async ({
 	floor,
 	kind,
@@ -678,6 +1001,7 @@ const measureToastTarget = async ({
 }): Promise<ContrastMeasurement> => {
 	await expect(target, `${label} must render`).toBeVisible();
 	const measurement = await measureContrast(target, kind);
+	await assertPaintedSurfaceVisible(target, measurement.background, label);
 	const description =
 		`${label}: ${measurement.ratio.toFixed(2)}:1 ` +
 		`(foreground ${rgbaLabel(measurement.foreground)}, ` +
@@ -823,6 +1147,7 @@ for (const theme of THEMES) {
 					testInfo,
 				});
 			}
+			await assertCloseButtonContainingBlock(neutralToast, theme, viewport);
 			await dismissToast(neutralToast);
 
 			for (const variant of VARIANTS) {
@@ -873,3 +1198,41 @@ for (const theme of THEMES) {
 		});
 	}
 }
+
+/**
+ * Paired proof for the inset-shadow geometry, so neither blindness survives:
+ * the flooding `spread` variant must red the guard, and the edge-only
+ * highlight the geometry was made for must stay green. A single test here
+ * would pin the bug whichever way it points. Both mutate the real toast
+ * rule through an injected un-layered rule, which beats app.css's layered
+ * one, so the guard reads genuine cascade results.
+ */
+test('an inset shadow that floods the whole box via spread fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toast { box-shadow: var(--publy-shadow-menu), inset 0 0 0 60px var(--publy-foreground); }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+	).rejects.toThrow(/inset shadow that can reach the sampled point/);
+});
+
+test('an inset highlight confined to an edge stays measured', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toast { box-shadow: var(--publy-shadow-menu), inset 0 1px 0 rgb(255 255 255 / 0.6); }',
+	});
+	const toast = await renderToast(page, 'success');
+	const measurement = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+	);
+	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
+});
