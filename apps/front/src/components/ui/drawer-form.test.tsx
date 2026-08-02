@@ -108,6 +108,7 @@ import {
 	readFileSync,
 	readdirSync,
 	rmSync,
+	statSync,
 	unlinkSync,
 	writeFileSync,
 } from 'node:fs';
@@ -914,6 +915,42 @@ const walkSrcTsxFiles = (): string[] => {
 	return results;
 };
 
+// Round 11's MINOR 5: the shared project never re-reads a path it has
+// parsed — `addSourceFileAtPathIfExists` on an already-loaded path returns
+// the cached SourceFile, so a fixture rewritten between scans (same path,
+// new content) was scanned as its old self: a silent false negative. The
+// reconcile below refreshes exactly the files whose (size, mtime) changed —
+// unchanged files cost one stat per scan, changed files are re-read from
+// disk, and the 35651a2c perf win (one project, no full re-parse) survives.
+const sourceFileFreshness = new Map<string, string>();
+
+const reconcileScanProject = (
+	project: Project,
+	desiredFilePaths: Set<string>,
+): void => {
+	for (const sourceFile of project.getSourceFiles()) {
+		const filePath = sourceFile.getFilePath();
+		if (!desiredFilePaths.has(filePath)) {
+			project.removeSourceFile(sourceFile);
+			sourceFileFreshness.delete(filePath);
+		}
+	}
+	for (const filePath of desiredFilePaths) {
+		const stat = statSync(filePath, { bigint: true });
+		const stamp = `${stat.size}:${stat.mtimeNs}`;
+		if (sourceFileFreshness.get(filePath) === stamp) {
+			continue;
+		}
+		const existing = project.getSourceFile(filePath);
+		if (existing) {
+			existing.refreshFromFileSystemSync();
+		} else {
+			project.addSourceFileAtPathIfExists(filePath);
+		}
+		sourceFileFreshness.set(filePath, stamp);
+	}
+};
+
 /**
  * True when the drawer module (src/components/ui/drawer.tsx) exports
  * `exportName` through a specifier-less `export { ... }` declaration. The
@@ -1392,16 +1429,11 @@ const scanDrawerSurfaces = (): {
 	// Reconcile the shared project with the current on-disk file set: a
 	// fixture written for an earlier assertion and deleted since must not
 	// linger as a loaded source file, and a fixture on disk now but never
-	// loaded must be added. Real files are loaded once and reused.
+	// loaded must be added. Real files are loaded once and reused; a file
+	// rewritten in place between scans is refreshed from disk (round 11's
+	// MINOR 5).
 	const desiredFilePaths = new Set(walkSrcTsxFiles());
-	for (const sourceFile of project.getSourceFiles()) {
-		if (!desiredFilePaths.has(sourceFile.getFilePath())) {
-			project.removeSourceFile(sourceFile);
-		}
-	}
-	for (const filePath of desiredFilePaths) {
-		project.addSourceFileAtPathIfExists(filePath);
-	}
+	reconcileScanProject(project, desiredFilePaths);
 	const moduleResolution: ModuleResolution = {
 		compilerOptions: project.getCompilerOptions(),
 		host: project.getModuleResolutionHost(),
@@ -1886,6 +1918,35 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_NODELESS_WRAPPERS_DRAWER_PATH);
+		}
+	});
+
+	test('a fixture path rewritten between scans is scanned as its current content', () => {
+		// Round 11's MINOR 5: the shared ts-morph project (35651a2c) never
+		// re-reads a path it has parsed, so "correct passes, broken fails,
+		// same temp path" silently scanned the first content twice. The
+		// freshness-tracking reconcile must re-read the rewritten fixture.
+		writeFileSync(TEMPORARY_NEW_DRAWER_PATH, TEMPORARY_NEW_DRAWER_SOURCE);
+		try {
+			const first = scanDrawerSurfaces();
+			expect(first.discovered).toContain(fixtureRel(TEMPORARY_NEW_DRAWER_FILE));
+			expect(first.violations).not.toContain(
+				fixtureRel(TEMPORARY_NEW_DRAWER_FILE),
+			);
+
+			writeFileSync(
+				TEMPORARY_NEW_DRAWER_PATH,
+				TEMPORARY_REGRESSED_DRAWER_SOURCE,
+			);
+			const second = scanDrawerSurfaces();
+			expect(second.discovered).toContain(
+				fixtureRel(TEMPORARY_NEW_DRAWER_FILE),
+			);
+			expect(second.violations).toContain(
+				fixtureRel(TEMPORARY_NEW_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_NEW_DRAWER_PATH);
 		}
 	});
 
