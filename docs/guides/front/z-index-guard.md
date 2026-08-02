@@ -55,15 +55,23 @@ covers both JSX spellings — the element and the self-closing `<style … />` �
 reported as a named `z-index-unparseable-static-css` diagnostic rather than crashing the guard.
 The `?inline`/`?raw` provenance uses Vite's own CSS-language set (`isCSSRequest`), so `.pcss`,
 `.postcss` and every other language Vite treats as CSS are covered as they ship. For `?raw` on a
-non-CSS extension, the guard does **not** decide from the file's bytes: the build records every raw
-module, and the script pass resolves each `?raw` import binding and walks the file's bytes only when
-that binding reaches a style-capable sink — a `<style>` element's children or a
-`dangerouslySetInnerHTML` payload (walked as CSS on a `<style>` host, as HTML elsewhere). The binding
+non-CSS extension, the guard does **not** decide from the file's bytes and does **not** re-test the
+specifier text: the build records every raw module it transforms, and the script pass asks that
+record. Both sides classify a specifier through the same query-token parse (`?v=1&raw` is raw,
+`?rawish` is not — Vite's own test is `/(?:\?|&)raw(?:&|$)/`), and the script pass records every
+binding a static import can introduce — the default clause, the namespace clause, `{ default as x }`
+(the same default under another spelling), and mixed spellings such as `import d, * as ns` — so a
+raw module's bytes are walked only when such a binding reaches a style-capable sink: a `<style>`
+element's children or a `dangerouslySetInnerHTML` payload (walked as CSS on a `<style>` host, as
+HTML elsewhere). A named element that is not `default` is undefined on a raw module and ships
+nothing; it is recorded by name, not silently omitted, and the walk resolves it to nothing. The
+binding
 is followed through module-scope `const` aliases (including alias chains, to a cycle-guarded
 fixpoint) and through the statically transparent expression family — object-member reads through
 const object literals (`<style>{obj.css}</style>` ships the member's bytes, nested at any depth),
 both branches of a conditional, `String(...)`, template-literal substitutions, and element-access
-spellings — and the namespace spelling resolves through `.default`; `~/`, Vite root-absolute
+spellings with a **provably complete** key — and the namespace spelling resolves through `.default`;
+`~/`, Vite root-absolute
 (`/src/…`) and relative specifiers all resolve against the project root. The same imported bytes
 consumed by a text node (`<pre>`, `<p>`) are displayed text, not a stylesheet, and stay green; a
 style-sink payload the declaration walk cannot parse is a named diagnostic that fails the guard,
@@ -73,14 +81,20 @@ CSS and walked by the inline gate instead, so they are never misreported as unre
 expression the resolver family cannot evaluate that still contains a recorded raw binding — a call
 (`fn(rawCss)`), a binary (`rawCss + 'x'`), a member of a call result — is a named
 `z-index-unresolved-raw-expression` diagnostic: the raw bytes may ship as CSS the guard cannot read,
-and the guard fails loud by name rather than treating the miss as "nothing there". The same bytes
+and the guard fails loud by name rather than treating the miss as "nothing there". An element-access
+key the family cannot prove complete (`styles['cs' + suffix]`) resolves **no** member — the guard
+never reads a member the code may not read — and when a recorded raw binding is reachable under
+that key the same named diagnostic fires. The same bytes
 displayed through a text node are still just displayed text.
 The `<style>` payload walk evaluates the same transparent family for **static strings**: a
 conditional whose branches are static literals, `String('…')`, an object-member read, a template
 whose substitutions are static, or a `+` of two static operands is a static payload at any depth,
 and every string it can provably be is walked; static text beside a runtime child still ships, so
-it is walked individually (a `+` whose other operand is runtime still ships its static operand),
-and a purely runtime payload stays in the declared runtime bucket.
+it is walked individually (a `+` whose other operand is runtime still ships its static operand —
+as a provable *substring*, which the payload walk scans but which never doubles as a member
+identity), and a purely runtime payload stays in the declared runtime bucket. A payload whose
+provable candidates exceed 4096 cannot be enumerated at all; it is a named
+`z-index-static-candidate-overflow` diagnostic rather than a hang or a silent green.
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -179,14 +193,16 @@ Five components:
     a style-capable sink (a `<style>` element's children or a `dangerouslySetInnerHTML` payload, the
     binding tracked unshadowed from its import declaration through module-scope `const` alias chains,
     the transparent expression family — object-member reads through const object literals,
-    conditionals (both branches), `String(...)`, element access — and template-literal
-    substitutions, including the `import * as raw … ?raw`
-    namespace spelling through `.default`), and a style-sink payload the declaration walk cannot
+    conditionals (both branches), `String(...)`, element access with a provably complete key — and
+    template-literal substitutions, including the `import * as raw … ?raw`
+    namespace spelling through `.default` and the `{ default as x }` spelling as the same default
+    binding), and a style-sink payload the declaration walk cannot
     parse (template syntax, an HTML comment, an unclosed block — any PostCSS failure, with no
     reason string consulted) is a named diagnostic, never a
     crash and never a silent pass. The same raw bytes displayed through a text node are escaped
     text, not a stylesheet, and are not walked. A style-sink expression the family cannot evaluate
-    that still contains a recorded raw binding is a named `z-index-unresolved-raw-expression`
+    that still contains a recorded raw binding — including an element-access key the family cannot
+    prove complete, which resolves no member — is a named `z-index-unresolved-raw-expression`
     diagnostic. A `<style>` element's
     `dangerouslySetInnerHTML` attribute suppresses children inspection in both the static walk and
     the raw-sink walk — React ignores children whenever the attribute is present, so only the
