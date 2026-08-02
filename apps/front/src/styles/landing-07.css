@@ -321,6 +321,51 @@
 		background-color: var(--publy-rule);
 	}
 
+	/* ————————————————————— Accordion (§4 Row 04 mobile, §6.2) —————————————————————
+	   0fr → 1fr on the wrapper, a staggered opacity+blur on the content, driven by
+	   `data-open` rather than a React inline style so the `scripting: none` no-JS
+	   fallback below can win on plain specificity instead of needing `!important`
+	   (banned, §10.3.4) against an inline style. */
+
+	.publy-landing-07 .ld07-accordion-panel {
+		display: grid;
+		grid-template-rows: 0fr;
+		overflow: hidden;
+		transition: grid-template-rows 400ms var(--publy-motion-ease-accordion);
+	}
+
+	.publy-landing-07 .ld07-accordion-panel[data-open='true'] {
+		grid-template-rows: 1fr;
+	}
+
+	.publy-landing-07 .ld07-accordion-content {
+		opacity: 0;
+		filter: blur(1px);
+		transition:
+			opacity 250ms var(--publy-motion-ease),
+			filter 250ms var(--publy-motion-ease);
+	}
+
+	.publy-landing-07
+		.ld07-accordion-panel[data-open='true']
+		.ld07-accordion-content {
+		opacity: 1;
+		filter: blur(0);
+		transition-delay: 100ms;
+	}
+
+	/* No JS, no toggle: every panel must be readable (§6.3 SSR requirement). */
+	@media (scripting: none) {
+		.publy-landing-07 .ld07-accordion-panel {
+			grid-template-rows: 1fr;
+		}
+
+		.publy-landing-07 .ld07-accordion-content {
+			opacity: 1;
+			filter: none;
+		}
+	}
+
 	/* ————————————————————— Focus (§8) ————————————————————— */
 
 	.publy-landing-07 :where(a, button, [role='tab'], summary):focus-visible {
