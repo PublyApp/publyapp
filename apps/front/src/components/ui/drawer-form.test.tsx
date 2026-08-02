@@ -54,13 +54,23 @@
  * component, and an import that cannot be resolved is rejected rather than
  * guessed: the wrapper rule fails closed, so the #990 defect shape (the plain
  * field `Form`) is a structural violation with no discovery gap to hide in.
- * One deliberate exception, round 14's BLOCKER 1: a local declaration whose
- * binding is an identity chain (`const Surface = DrawerContent;
- * const Form = DrawerForm; const Body = DrawerBody;`) is resolved to its
- * target BEFORE anchor discovery — the walk's entry point — and a local
- * binding the scan cannot classify (a call, a mixed-symbol conditional, a
- * reassigned `let`) is UNVERIFIABLE and reddens instead of silently not
- * being an anchor.
+ * Round 16 resolves the exception class instead of enumerating it: a tag is
+ * a drawer marker iff its binding is the SAME VALUE as a drawer-module
+ * export in TypeScript's own symbol graph — getSymbol()/getAliasedSymbol()/
+ * declaration identity against the drawer module's exported declarations.
+ * Direct import, alias (`DrawerForm as Form`), namespace member
+ * (`Drawer.DrawerForm`), re-export barrel, identity chain
+ * (`const Form = DrawerForm`), object-literal component map
+ * (`const Parts = { Form: DrawerForm }` + `<Parts.Form>`), cross-file
+ * `export const X = DrawerX` shim, same-symbol conditional, and shapes
+ * nobody has written yet all terminate at the same declaration, so a
+ * spelling cannot evade the resolver by being written in four lines. A
+ * binding the symbol graph cannot resolve (a call, a mixed-symbol
+ * conditional, a reassigned `let`) is UNVERIFIABLE and reddens instead of
+ * silently not being an anchor. A runtime component factory whose loader is
+ * not statically a drawer symbol (`lazy`, `useMemo`, an HOC) is a real
+ * local component — never a marker — and a factory whose loader IS a drawer
+ * symbol resolves to it, because the factory adds no DOM node of its own.
  *
  * The wrapper walk is DOM-faithful, not syntactic: it sees through
  * everything that creates no node — JSX expressions, conditionals, `&&`
@@ -96,14 +106,18 @@
  * `<div>`, anywhere in the chain, is a violation; directly under the
  * surface/form, clean). The resolution boundary is stated in the
  * drawer-section block below, and the ENTRY-point half is stated above
- * (round 14, BLOCKER 1): everything the scan cannot resolve statically —
- * at the walk roots and at the anchors themselves — is UNVERIFIABLE and
- * reddens the file, so a drawer whose geometry cannot be verified is never
- * silently green. The one remaining silent boundary is documented there
- * too: a file whose every drawer marker sits behind a binding with no
- * drawer signal at all (e.g. `const Form = getForm()` with nothing else
- * drawer-related in the file) is not discovered — nothing tells the scan
- * it is a drawer file.
+ *  (round 14, BLOCKER 1): everything the scan cannot resolve statically —
+ *  at the walk roots and at the anchors themselves — is UNVERIFIABLE and
+ *  reddens the file, so a drawer whose geometry cannot be verified is never
+ *  silently green. Round 16 closes the boundary the round-14 report
+ *  nominated and round 15 reproduced: a file that imports the drawer module
+ *  AND carries an unverifiable tag is a drawer file with an opaque marker —
+ *  it is discovered and reddens. The discriminator (a drawer-module import)
+ *  is exactly the thing the no-signal file (`const Form = getForm()` with
+ *  no drawer import anywhere) lacks, so the inventory does not flood. The
+ *  only files left undiscovered are ones whose markers carry no drawer
+ *  signal at all — not even an import — and such a file is not a drawer
+ *  file.
  *
  * Deliberate friction: every file the scanner discovers must appear in the
  * inventory (the `DRAWER_FORM_CALL_SITES` union below, or
@@ -152,6 +166,7 @@ import {
 	Project,
 	SyntaxKind,
 	ts,
+	type Symbol as TsMorphSymbol,
 	type ArrowFunction,
 	type BinaryExpression,
 	type Block,
@@ -161,6 +176,7 @@ import {
 	type ConditionalExpression,
 	type FunctionDeclaration,
 	type IfStatement,
+	type Identifier,
 	type JsxElement,
 	type JsxExpression,
 	type JsxFragment,
@@ -170,6 +186,7 @@ import {
 	type Node,
 	type PrefixUnaryExpression,
 	type PropertyAccessExpression,
+	type PropertyAssignment,
 	type ReturnStatement,
 	type SourceFile,
 	type Statement,
@@ -303,7 +320,6 @@ const noop = () => undefined;
 const FRONT_ROOT = path.resolve(import.meta.dirname, '../../..');
 const DRAWER_MODULE_RELATIVE_PATH = 'src/components/ui/drawer.tsx';
 const DRAWER_MODULE_PATH = path.join(FRONT_ROOT, DRAWER_MODULE_RELATIVE_PATH);
-const RE_EXPORT_CHAIN_DEPTH_LIMIT = 6;
 
 // Round 11's IMPORTANT 3: the fixture files must NOT live under
 // `apps/front/src`. The guard writes and deletes them mid-suite, and a
@@ -1749,7 +1765,12 @@ export const ConditionalMixedFormDrawerFixture = ({
 
 // A `let` whose binding is reassigned after initialization renders a
 // different component at runtime — the alias the initializer started from
-// is not the binding the JSX tag sees, so the file is unverifiable.
+// is not the binding the JSX tag sees, so the file is unverifiable. Round
+// 15's IMPORTANT 4: this fixture used to carry a `<div>` between the
+// surface and the form, so the anchored walk reddened it on the div alone
+// and the reassignment rule was not what the assertion measured. The div is
+// gone — the ONLY mechanism that can redden this file is the reassignment
+// (kill isReassigned and the file goes green).
 const TEMPORARY_REASSIGNED_FORM_DRAWER_FILE =
 	'src/components/ui/_drawer-surface-reassigned-form-fixture.tsx';
 const TEMPORARY_REASSIGNED_FORM_DRAWER_PATH = fixturePath(
@@ -1784,14 +1805,12 @@ export const ReassignedFormDrawerFixture = ({
 			<DrawerHeader>
 				<DrawerTitle />
 			</DrawerHeader>
-			<div className="p-4">
-				<Form methods={methods}>
-					<Body />
-					<Footer>
-						<button type="submit" />
-					</Footer>
-				</Form>
-			</div>
+			<Form methods={methods}>
+				<Body />
+				<Footer>
+					<button type="submit" />
+				</Footer>
+			</Form>
 		</Surface>
 	</Drawer>
 );
@@ -2172,6 +2191,538 @@ export const NsBaseAliasDrawerFixture = ({
 );
 `;
 
+// ---------------------------------------------------------------------------
+// Round 16 fixtures.
+//
+// Round 15's review (`.dump/review-r15.md`) found the resolution walk was
+// still keyed on which SPELLINGS of an alias the matcher happened to
+// enumerate: an object-literal component map and a cross-file
+// `export const X = DrawerX` shim moved every drawer marker behind a
+// binding the matcher classified as "definitely not the drawer module",
+// and the exact #990 defect shipped 58/58 green. Round 16 replaces the
+// matcher with TypeScript's own symbol graph (see the resolution block
+// below), so each reviewer shape below is now resolved to the drawer
+// module's declaration — and each shape gets a broken fixture and a
+// control, as before.
+//
+// IMPORTANT 3 (the round-14 boundary that reproduced): a file whose every
+// drawer marker is an opaque local binding (`const Surface =
+// pick(DrawerContent)`) imports the drawer module and is therefore a
+// drawer file — it is discovered and reddens. IMPORTANT 5 (the false
+// positive that would block real work): a runtime component factory
+// (`lazy(() => import('./chart'))`) is a real local component, so a
+// structurally perfect drawer that merely contains one stays green — and
+// a factory whose loader IS a drawer symbol (`lazy(() => DrawerBody)`)
+// resolves to it, because the factory adds no DOM node.
+// ---------------------------------------------------------------------------
+
+// BLOCKER 1 (review-r15), verbatim: the drawer module's exports spelled
+// through a local OBJECT-LITERAL component map. The member lookup must
+// resolve the property's initializer to the drawer module — the #990 div
+// between the surface and the form reddens only then.
+const TEMPORARY_OBJECT_NS_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-object-ns-fixture.tsx';
+const TEMPORARY_OBJECT_NS_DRAWER_PATH = fixturePath(
+	TEMPORARY_OBJECT_NS_DRAWER_FILE,
+);
+const TEMPORARY_OBJECT_NS_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+} from '~/components/ui/drawer';
+
+const Parts = {
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+};
+
+export const ObjectNsDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Parts.Surface data-testid="r16-object-ns">
+		<div className="p-4">
+			<Parts.Form methods={methods}>
+				<Parts.Body />
+				<Parts.Footer>
+					<button type="submit" />
+				</Parts.Footer>
+			</Parts.Form>
+		</div>
+	</Parts.Surface>
+);
+`;
+
+// BLOCKER 2 (review-r15), verbatim: the drawer exports re-exported by a
+// CROSS-FILE shim (`export const Surface = DrawerContent;`) and consumed at
+// a call site. The identity chain must follow the export to the shim's
+// initializer and from there to the drawer module — across the file
+// boundary.
+const TEMPORARY_SHIM_FILE = 'src/components/ui/_drawer-r16-shim-fixture.tsx';
+const TEMPORARY_SHIM_PATH = fixturePath(TEMPORARY_SHIM_FILE);
+const TEMPORARY_SHIM_SOURCE = `import {
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+} from '~/components/ui/drawer';
+
+export const Surface = DrawerContent;
+export const Form = DrawerForm;
+export const Body = DrawerBody;
+export const Footer = DrawerFooter;
+`;
+const TEMPORARY_SHIM_CALL_SITE_FILE =
+	'src/components/ui/_drawer-surface-shim-call-site-fixture.tsx';
+const TEMPORARY_SHIM_CALL_SITE_PATH = fixturePath(
+	TEMPORARY_SHIM_CALL_SITE_FILE,
+);
+const TEMPORARY_SHIM_CALL_SITE_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { Body, Footer, Form, Surface } from './_drawer-r16-shim-fixture';
+
+export const ShimCallSiteDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Surface data-testid="r16-shim-call-site">
+		<div className="p-4">
+			<Form methods={methods}>
+				<Body />
+				<Footer>
+					<button type="submit" />
+				</Footer>
+			</Form>
+		</div>
+	</Surface>
+);
+`;
+
+// IMPORTANT 3 (review-r15), verbatim: every drawer marker is an OPAQUE
+// local binding (`const Surface = pick(DrawerContent)`). No tag resolves,
+// so there are no anchors and no call-site parts — but the file imports
+// the drawer module and carries an unverifiable marker, so it IS a drawer
+// file and must be discovered and reddened.
+const TEMPORARY_OPAQUE_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-opaque-fixture.tsx';
+const TEMPORARY_OPAQUE_DRAWER_PATH = fixturePath(TEMPORARY_OPAQUE_DRAWER_FILE);
+const TEMPORARY_OPAQUE_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+} from '~/components/ui/drawer';
+
+const pick = <T,>(value: T): T => value;
+
+const Surface = pick(DrawerContent);
+const Form = pick(DrawerForm);
+const Body = pick(DrawerBody);
+const Footer = pick(DrawerFooter);
+
+export const OpaqueDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Surface>
+		<div className="p-4">
+			<Form methods={methods}>
+				<Body />
+				<Footer />
+			</Form>
+		</div>
+	</Surface>
+);
+`;
+
+// IMPORTANT 5 (review-r15), verbatim: a structurally PERFECT drawer that
+// also declares a lazy() component. The lazy factory is a real local
+// component — the file must stay green; `_r16-lazy-chart-fixture.tsx` is
+// the trivial module it loads. The paired proof with the opaque fixture:
+// `pick(DrawerContent)` is a genuinely unresolvable drawer marker (its
+// argument is the drawer symbol, not a function), `lazy(() => import(...))`
+// is a runtime component factory (its argument is a function).
+const TEMPORARY_LAZY_CHART_FILE =
+	'src/components/ui/_r16-lazy-chart-fixture.tsx';
+const TEMPORARY_LAZY_CHART_PATH = fixturePath(TEMPORARY_LAZY_CHART_FILE);
+const TEMPORARY_LAZY_CHART_SOURCE = `export const LazyChart = () => <div>chart</div>;
+`;
+const TEMPORARY_LAZY_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-lazy-fixture.tsx';
+const TEMPORARY_LAZY_DRAWER_PATH = fixturePath(TEMPORARY_LAZY_DRAWER_FILE);
+const TEMPORARY_LAZY_DRAWER_SOURCE = `import { lazy, Suspense } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const LazyChart = lazy(() => import('./_r16-lazy-chart-fixture'));
+
+export const LazyDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<DrawerContent data-testid="r16-lazy">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</DrawerContent>
+		<Suspense fallback={null}>
+			<LazyChart />
+		</Suspense>
+	</Drawer>
+);
+`;
+
+// The round-9 gate ("only names the drawer module actually exports")
+// pinned directly: importing a name the module does not export must not
+// resolve to a drawer symbol. The old pin drove the hand-rolled resolver
+// directly; round 16 deletes that resolver, so the pin now drives the
+// symbol-graph entry through a fixture — the unbound export is an alias
+// with no target, the parts under it sit in an 'other' wrapper, and the
+// file is rejected rather than guessed.
+const TEMPORARY_NONEXPORT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-nonexport-fixture.tsx';
+const TEMPORARY_NONEXPORT_DRAWER_PATH = fixturePath(
+	TEMPORARY_NONEXPORT_DRAWER_FILE,
+);
+const TEMPORARY_NONEXPORT_DRAWER_SOURCE = `import { DrawerBody, DrawerFooter } from '~/components/ui/drawer';
+import { NotADrawerExport } from '~/components/ui/drawer';
+
+export const NonexportDrawerFixture = () => (
+	<NotADrawerExport>
+		<DrawerBody />
+		<DrawerFooter />
+	</NotADrawerExport>
+);
+`;
+
+// MINOR 6 (review-r15) — the missing control that makes the capability
+// measurable: a same-symbol-conditional SURFACE with a clean
+// surface-to-form link must stay green, and only the same-symbol
+// conditional resolution keeps it green (kill that resolution and the
+// surface becomes unverifiable and the file reddens). The broken fixture
+// above it keeps the div, so its red is the walk's, not the resolution's.
+const TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-conditional-same-symbol-clean-fixture.tsx';
+const TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+const Surface = isOpen ? DrawerContent : DrawerContent;
+const Form = isOpen ? DrawerForm : DrawerForm;
+const Body = isOpen ? DrawerBody : DrawerBody;
+const Footer = isOpen ? DrawerFooter : DrawerFooter;
+
+export const ConditionalSameSymbolCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<Drawer open>
+		<Surface data-testid="r16-conditional-same-symbol-clean">
+			<DrawerHeader>
+				<DrawerTitle />
+			</DrawerHeader>
+			<Form methods={methods}>
+				<Body />
+				<Footer>
+					<button type="submit" />
+				</Footer>
+			</Form>
+		</Surface>
+	</Drawer>
+);
+`;
+
+// ---------------------------------------------------------------------------
+// The fixture registry. The round-16 scan loads ONE ts-morph project once
+// (see getScanProject below) with every file it can ever touch, so every
+// fixture the suite will write must already exist on disk before the first
+// scan. This registry pre-writes them all at module scope; the per-test
+// writeFileSync calls become rewrites of the same content (the freshness
+// reconciliation detects identical content and does not re-read).
+// ---------------------------------------------------------------------------
+
+const FIXTURE_FILES: ReadonlyArray<{
+	file: string;
+	source: string;
+}> = [
+	{ file: TEMPORARY_NEW_DRAWER_FILE, source: TEMPORARY_NEW_DRAWER_SOURCE },
+	{
+		file: TEMPORARY_ALIASED_DRAWER_FILE,
+		source: TEMPORARY_ALIASED_DRAWER_SOURCE,
+	},
+	{ file: TEMPORARY_BARREL_FILE, source: TEMPORARY_BARREL_SOURCE },
+	{
+		file: TEMPORARY_BARREL_CALL_SITE_FILE,
+		source: TEMPORARY_BARREL_CALL_SITE_SOURCE,
+	},
+	{
+		file: TEMPORARY_NAMESPACE_DRAWER_FILE,
+		source: TEMPORARY_NAMESPACE_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_REGRESSED_DRAWER_FILE,
+		source: TEMPORARY_REGRESSED_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_ALIASED_PARTS_DRAWER_FILE,
+		source: TEMPORARY_ALIASED_PARTS_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_ALIASED_BARREL_PARTS_FILE,
+		source: TEMPORARY_ALIASED_BARREL_PARTS_SOURCE,
+	},
+	{
+		file: TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_FILE,
+		source: TEMPORARY_ALIASED_BARREL_PARTS_CALL_SITE_SOURCE,
+	},
+	{
+		file: TEMPORARY_LOCAL_SHADOW_DRAWER_FILE,
+		source: TEMPORARY_LOCAL_SHADOW_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_UNRESOLVED_DRAWER_FILE,
+		source: TEMPORARY_UNRESOLVED_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_BARE_WRAPPER_DRAWER_FILE,
+		source: TEMPORARY_BARE_WRAPPER_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONDITIONAL_DRAWER_FILE,
+		source: TEMPORARY_CONDITIONAL_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_NODELESS_WRAPPERS_DRAWER_FILE,
+		source: TEMPORARY_NODELESS_WRAPPERS_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_DEFINITION_HELPER_FILE,
+		source: TEMPORARY_DEFINITION_HELPER_SOURCE,
+	},
+	{
+		file: TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_FILE,
+		source: TEMPORARY_DIV_WRAPPED_PARTS_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_FOOTER_ONLY_DRAWER_FILE,
+		source: TEMPORARY_FOOTER_ONLY_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_DIV_ABOVE_FORM_DRAWER_FILE,
+		source: TEMPORARY_DIV_ABOVE_FORM_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_FILE,
+		source: TEMPORARY_HELPER_HIDDEN_DIV_ABOVE_FORM_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_FAKE_SUSPENSE_DRAWER_FILE,
+		source: TEMPORARY_FAKE_SUSPENSE_DRAWER_SOURCE,
+	},
+	{ file: TEMPORARY_NS_BARREL_FILE, source: TEMPORARY_NS_BARREL_SOURCE },
+	{
+		file: TEMPORARY_NS_BARREL_CALL_SITE_FILE,
+		source: TEMPORARY_NS_BARREL_CALL_SITE_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_FILE,
+		source: TEMPORARY_CONDITIONAL_SAME_SYMBOL_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_FILE,
+		source: TEMPORARY_CONDITIONAL_MIXED_FORM_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_REASSIGNED_FORM_DRAWER_FILE,
+		source: TEMPORARY_REASSIGNED_FORM_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_NESTED_RETURN_PARTS_FILE,
+		source: TEMPORARY_NESTED_RETURN_PARTS_SOURCE,
+	},
+	{
+		file: TEMPORARY_NESTED_RETURN_DIV_DRAWER_FILE,
+		source: TEMPORARY_NESTED_RETURN_DIV_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_FILE,
+		source: TEMPORARY_CONDITIONED_NESTED_RETURN_PARTS_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_FILE,
+		source: TEMPORARY_CONDITIONED_NESTED_RETURN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_EARLY_RETURN_PARTS_FILE,
+		source: TEMPORARY_EARLY_RETURN_PARTS_SOURCE,
+	},
+	{
+		file: TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_EARLY_RETURN_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_FILE,
+		source: TEMPORARY_LITERAL_DEAD_BRANCH_PARTS_SOURCE,
+	},
+	{
+		file: TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_FILE,
+		source: TEMPORARY_LITERAL_DEAD_BRANCH_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DIV_IN_HELPER_FILE,
+		source: TEMPORARY_CROSSFILE_DIV_IN_HELPER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_FILE,
+		source: TEMPORARY_CROSSFILE_DIV_IN_HELPER_CALL_SITE_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_CLEAN_SECTIONS_FILE,
+		source: TEMPORARY_CROSSFILE_CLEAN_SECTIONS_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_FILE,
+		source: TEMPORARY_CROSSFILE_CLEAN_SECTIONS_CALL_SITE_SOURCE,
+	},
+	{
+		file: TEMPORARY_UNVERIFIABLE_TAG_DRAWER_FILE,
+		source: TEMPORARY_UNVERIFIABLE_TAG_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_NS_BASE_ALIAS_DRAWER_FILE,
+		source: TEMPORARY_NS_BASE_ALIAS_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_PARTS_FILE,
+		source: TEMPORARY_CROSSFILE_PARTS_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_FILE,
+		source: TEMPORARY_CROSSFILE_DIV_ABOVE_FORM_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DIRECT_FORM_FILE,
+		source: TEMPORARY_CROSSFILE_DIRECT_FORM_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_FORM_HELPER_FILE,
+		source: TEMPORARY_CROSSFILE_FORM_HELPER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_FILE,
+		source: TEMPORARY_CROSSFILE_FORM_DIV_ABOVE_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_FORM_DIRECT_FILE,
+		source: TEMPORARY_CROSSFILE_FORM_DIRECT_SOURCE,
+	},
+	{
+		file: TEMPORARY_HELPER_DIV_WRAPPED_PART_FILE,
+		source: TEMPORARY_HELPER_DIV_WRAPPED_PART_SOURCE,
+	},
+	{
+		file: TEMPORARY_DIV_PASSTHROUGH_HELPER_FILE,
+		source: TEMPORARY_DIV_PASSTHROUGH_HELPER_SOURCE,
+	},
+	{
+		file: TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_FILE,
+		source: TEMPORARY_FRAGMENT_PASSTHROUGH_HELPER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CHILDREN_IN_FORM_FILE,
+		source: TEMPORARY_CHILDREN_IN_FORM_SOURCE,
+	},
+	{
+		file: TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_FILE,
+		source: TEMPORARY_CHILDREN_IN_SURFACE_ELEMENT_SOURCE,
+	},
+	{
+		file: TEMPORARY_NONREACT_SUSPENSE_MODULE_FILE,
+		source: TEMPORARY_NONREACT_SUSPENSE_MODULE_SOURCE,
+	},
+	{
+		file: TEMPORARY_NAMED_NONREACT_SUSPENSE_FILE,
+		source: TEMPORARY_NAMED_NONREACT_SUSPENSE_SOURCE,
+	},
+	{
+		file: TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_FILE,
+		source: TEMPORARY_NS_MEMBER_NONREACT_SUSPENSE_SOURCE,
+	},
+	{
+		file: TEMPORARY_REACT_NS_SUSPENSE_FILE,
+		source: TEMPORARY_REACT_NS_SUSPENSE_SOURCE,
+	},
+	{
+		file: TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_FILE,
+		source: TEMPORARY_INNER_FORM_DIV_ABOVE_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_INNER_FORM_DIRECT_DRAWER_FILE,
+		source: TEMPORARY_INNER_FORM_DIRECT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_OBJECT_NS_DRAWER_FILE,
+		source: TEMPORARY_OBJECT_NS_DRAWER_SOURCE,
+	},
+	{ file: TEMPORARY_SHIM_FILE, source: TEMPORARY_SHIM_SOURCE },
+	{
+		file: TEMPORARY_SHIM_CALL_SITE_FILE,
+		source: TEMPORARY_SHIM_CALL_SITE_SOURCE,
+	},
+	{
+		file: TEMPORARY_OPAQUE_DRAWER_FILE,
+		source: TEMPORARY_OPAQUE_DRAWER_SOURCE,
+	},
+	{ file: TEMPORARY_LAZY_CHART_FILE, source: TEMPORARY_LAZY_CHART_SOURCE },
+	{ file: TEMPORARY_LAZY_DRAWER_FILE, source: TEMPORARY_LAZY_DRAWER_SOURCE },
+	{
+		file: TEMPORARY_NONEXPORT_DRAWER_FILE,
+		source: TEMPORARY_NONEXPORT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_SOURCE,
+	},
+];
+
+for (const fixture of FIXTURE_FILES) {
+	writeFileSync(fixturePath(fixture.file), fixture.source);
+}
+
 type ModuleResolution = {
 	compilerOptions: ts.CompilerOptions;
 	host: ts.ModuleResolutionHost;
@@ -2181,77 +2732,110 @@ const toPortableSourcePath = (filePath: string): string =>
 	path.relative(FRONT_ROOT, filePath).split(path.sep).join('/');
 
 // The scan's ts-morph Project is expensive to construct (tsconfig parse,
-// module-resolution host) and the per-file ASTs dominate the rest of the
-// work, so ONE project is shared by every scanDrawerSurfaces() call in the
-// suite. Fixture files are written and deleted between scans, so each scan
-// reconciles the shared project against the current on-disk file set
-// instead of rebuilding it (round 10's MINOR 4 — the suite was paying one
-// full-src parse per assertion).
+// module-resolution host, TypeScript checker) and the per-file ASTs dominate
+// the rest of the work, so ONE project is shared by every scanDrawerSurfaces()
+// call in the suite (round 10's MINOR 4 — the suite used to pay one full-src
+// parse per assertion). Round 16 stops reconciling it: the project is loaded
+// ONCE with every file the scan can ever touch — the whole src tree and every
+// fixture the suite knows (FIXTURE_FILES pre-writes them at module scope) —
+// and is never torn down, so the TypeScript checker it carries is created
+// once and cached. A scan only refreshes files whose CONTENT changed (the
+// freshness reconciliation below compares text, not just stamps — the
+// fixture tests rewrite their files with identical content between scans,
+// and a no-op refresh would rebuild the checker), and iterates the current
+// on-disk file set while stale copies of deleted fixtures simply sit
+// unvisited. Refreshing one file bumps the compiler program and rebuilds
+// the checker once (~2s) — only the "rewritten between scans" test pays it.
 let sharedScanProject: Project | null = null;
+
+const allScannableFilePaths = (): string[] => {
+	const results: string[] = [];
+	const walk = (dir: string, extension: string | null): void => {
+		for (const entry of readdirSync(dir, { withFileTypes: true })) {
+			const fullPath = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				walk(fullPath, extension);
+			} else if (
+				entry.isFile() &&
+				(extension === null || entry.name.endsWith(extension))
+			) {
+				results.push(fullPath);
+			}
+		}
+	};
+	walk(path.join(FRONT_ROOT, 'src'), '.tsx');
+	walk(path.join(FRONT_ROOT, 'src'), '.ts');
+	// Fixtures live in a per-run temp directory outside src (round 11's
+	// IMPORTANT 3 — see FIXTURE_TMP_DIR). Every file in it — including the
+	// `.ts` re-export barrels — is loaded up front.
+	walk(FIXTURE_TMP_DIR, null);
+	return results;
+};
 
 const getScanProject = (): Project => {
 	if (!sharedScanProject) {
-		sharedScanProject = new Project({
+		const project = new Project({
 			tsConfigFilePath: path.join(FRONT_ROOT, 'tsconfig.json'),
 			skipAddingFilesFromTsConfig: true,
 		});
+		for (const filePath of allScannableFilePaths()) {
+			project.addSourceFileAtPathIfExists(filePath);
+		}
+		sharedScanProject = project;
 	}
 	return sharedScanProject;
 };
 
-const walkSrcTsxFiles = (): string[] => {
+const walkCurrentFixtureFiles = (): string[] => {
 	const results: string[] = [];
 	const walk = (dir: string): void => {
 		for (const entry of readdirSync(dir, { withFileTypes: true })) {
 			const fullPath = path.join(dir, entry.name);
 			if (entry.isDirectory()) {
 				walk(fullPath);
-			} else if (entry.isFile() && entry.name.endsWith('.tsx')) {
+			} else if (entry.isFile()) {
 				results.push(fullPath);
 			}
 		}
 	};
-	walk(path.join(FRONT_ROOT, 'src'));
-	// Fixtures live in a per-run temp directory outside src (round 11's
-	// IMPORTANT 3 — see FIXTURE_TMP_DIR), so the scan reconciles that
-	// directory alongside the real tree.
 	walk(FIXTURE_TMP_DIR);
 	return results;
 };
 
 // Round 11's MINOR 5: the shared project never re-reads a path it has
-// parsed — `addSourceFileAtPathIfExists` on an already-loaded path returns
-// the cached SourceFile, so a fixture rewritten between scans (same path,
-// new content) was scanned as its old self: a silent false negative. The
-// reconcile below refreshes exactly the files whose (size, mtime) changed —
-// unchanged files cost one stat per scan, changed files are re-read from
-// disk, and the 35651a2c perf win (one project, no full re-parse) survives.
-const sourceFileFreshness = new Map<string, string>();
+// parsed, so a fixture rewritten between scans (same path, new content) was
+// scanned as its old self — a silent false negative. The round-16
+// reconciliation compares CONTENT, not just (size, mtime): a rewrite with
+// identical content (which every fixture test performs — FIXTURE_FILES
+// pre-wrote the same text at module scope) must not refresh anything,
+// because refreshing bumps the compiler program and rebuilds the checker;
+// a rewrite with different content re-reads the file once. Deleted files
+// are simply not visited.
+const sourceFileFreshness = new Map<string, { stamp: string; text: string }>();
 
-const reconcileScanProject = (
+const refreshChangedSourceFiles = (
 	project: Project,
 	desiredFilePaths: Set<string>,
 ): void => {
-	for (const sourceFile of project.getSourceFiles()) {
-		const filePath = sourceFile.getFilePath();
-		if (!desiredFilePaths.has(filePath)) {
-			project.removeSourceFile(sourceFile);
-			sourceFileFreshness.delete(filePath);
-		}
-	}
 	for (const filePath of desiredFilePaths) {
 		const stat = statSync(filePath, { bigint: true });
 		const stamp = `${stat.size}:${stat.mtimeNs}`;
-		if (sourceFileFreshness.get(filePath) === stamp) {
+		const loaded = sourceFileFreshness.get(filePath);
+		if (loaded && loaded.stamp === stamp) {
 			continue;
 		}
+		const diskText = readFileSync(filePath, 'utf8');
 		const existing = project.getSourceFile(filePath);
+		if (existing && existing.getFullText() === diskText) {
+			sourceFileFreshness.set(filePath, { stamp, text: diskText });
+			continue;
+		}
 		if (existing) {
 			existing.refreshFromFileSystemSync();
 		} else {
 			project.addSourceFileAtPathIfExists(filePath);
 		}
-		sourceFileFreshness.set(filePath, stamp);
+		sourceFileFreshness.set(filePath, { stamp, text: diskText });
 	}
 };
 
@@ -2274,180 +2858,491 @@ const drawerModuleExports = (project: Project, exportName: string): boolean =>
 				.some((specifier) => specifier.getName() === exportName),
 		) ?? false;
 
+// ---------------------------------------------------------------------------
+// Round 16 — ask the TypeScript symbol resolver.
+//
+// Rounds 1-15 extended a hand-written declaration matcher one shape at a
+// time, and every round a reviewer wrote the next shape in four lines:
+// round 15's BLOCKER 1 (a local object-literal component map) and
+// BLOCKER 2 (a cross-file `export const X = DrawerX` shim) both shipped
+// the exact #990 defect with 58/58 green, because the matcher classified
+// them as "definitely not the drawer module". This round deletes the
+// matcher. A tag is a drawer marker iff its binding is the SAME VALUE as a
+// drawer-module export — asked of TypeScript's own symbol graph:
+// `getSymbol()` resolves the binding (scope-accurately), `getAliasedSymbol()`
+// undoes import/barrel aliasing to the terminal declaration, and the
+// terminal is the drawer module's symbol exactly when one of its
+// declarations lives in the drawer module file and the module exports its
+// name. Identity chains, object-literal members, cross-file shims,
+// namespace members and same-symbol conditionals are all followed by
+// recursing into the declarations the checker hands back — the class, not
+// the enumeration. A binding the graph cannot answer (a call, a mixed-
+// symbol conditional, a reassigned `let`) is the unverifiable case below,
+// never a silent non-anchor.
+// ---------------------------------------------------------------------------
+
 /**
- * Follows `exportName` from `moduleSpecifier` (imported from `fromFilePath`)
- * through at most RE_EXPORT_CHAIN_DEPTH_LIMIT hops of re-export barrels and
- * returns the name under which the drawer module itself exports the symbol —
- * the ORIGINAL name once every alias hop has been undone. Returns null when
- * the chain does not terminate at the drawer module (including hops that
- * cannot be resolved: a hop that cannot be resolved is not the drawer
- * module, so this fails closed). Resolution is bounded and memoized per
- * (module, export) pair in `visited`, so a barrel cycle terminates.
- *
- * A hop matches by the name the barrel's consumers see
- * (`getAliasNode() ?? getName()`), and recurses with the name the next
- * module must export — so `export { DrawerBody as Body } from './drawer'`
- * followed as `Body` continues as `DrawerBody`, and only a chain that ends
- * at the drawer module actually exporting `DrawerBody` counts.
+ * True when `symbol` is one of the drawer module's exported symbols: a
+ * declaration in the drawer module file, under a name the module's
+ * specifier-less `export { ... }` list actually exports. This is the
+ * declaration identity every resolution terminates at.
  */
-const resolveDrawerSymbol = (
-	fromFilePath: string,
-	moduleSpecifier: string,
-	exportName: string,
-	moduleResolution: ModuleResolution,
+const isDrawerModuleExportSymbol = (
+	symbol: TsMorphSymbol,
 	project: Project,
-	visited: Set<string> = new Set(),
-	depth = 0,
-	moduleCache: Map<string, string | null> = new Map(),
-): string | null => {
-	if (depth >= RE_EXPORT_CHAIN_DEPTH_LIMIT) {
+): boolean =>
+	symbol
+		.getDeclarations()
+		.some(
+			(declaration) =>
+				declaration.getSourceFile().getFilePath() === DRAWER_MODULE_PATH,
+		) && drawerModuleExports(project, symbol.getName());
+
+// A file the scan can actually resolve against: the front app tree and the
+// per-run fixture directory. Everything else (node_modules, ambient lib) is
+// external — its values can never be the repo-local drawer module's exports.
+const isRepoFilePath = (filePath: string): boolean =>
+	filePath.startsWith(FRONT_ROOT) || filePath.startsWith(FIXTURE_TMP_DIR);
+
+/**
+ * A call whose FIRST argument is a function expression or a dynamic
+ * `import()` — a runtime component factory (`lazy`, `useMemo`, an HOC
+ * wrapper). The factory class is decided by the argument's shape, not by
+ * callee name, so the pair round 15 demanded is decided exactly:
+ * `pick(DrawerContent)` passes an identifier and stays unverifiable (the
+ * call could do anything with it), `lazy(() => ...)` passes a function and
+ * is a factory (its value is the loader's result, and the loader is the
+ * thing to resolve).
+ */
+const isFactoryCall = (call: CallExpression): boolean => {
+	// Known runtime component factories by callee name — `memo`,
+	// `forwardRef` and `lazy` (and their `React.`/`X.` namespace spellings)
+	// add no DOM node of their own and pass their argument through
+	// unchanged, so `memo(forwardRef((props) => ...))` is a factory too
+	// (its first argument is a call, not a function — the argument-shape
+	// check below alone would miss the composition).
+	const calleeText = call.getExpression().getText();
+	if (
+		calleeText === 'memo' ||
+		calleeText === 'forwardRef' ||
+		calleeText === 'lazy' ||
+		calleeText.endsWith('.memo') ||
+		calleeText.endsWith('.forwardRef') ||
+		calleeText.endsWith('.lazy')
+	) {
+		return true;
+	}
+	const firstArgument = call.getArguments()[0];
+	if (!firstArgument) {
+		return false;
+	}
+	const unwrapped = unwrapExpression(firstArgument);
+	const kind = unwrapped.getKind();
+	if (
+		kind === SyntaxKind.ArrowFunction ||
+		kind === SyntaxKind.FunctionExpression
+	) {
+		return true;
+	}
+	return (
+		kind === SyntaxKind.CallExpression &&
+		(unwrapped as CallExpression).getExpression().getKind() ===
+			SyntaxKind.ImportKeyword
+	);
+};
+
+/**
+ * Follows a symbol to the drawer module's exported symbol it is the same
+ * value as, or to the verdicts below:
+ *
+ *  - a drawer-module export name (string) — `getAliasedSymbol()` undoes
+ *    imports, re-export barrels, aliases and namespace re-exports; a
+ *    variable declaration is followed through its initializer, so identity
+ *    chains (round 14), object-literal members (round 16's BLOCKER 1) and
+ *    cross-file `export const X = DrawerX` shims (round 16's BLOCKER 2)
+ *    all terminate here, in whichever file the declaration lives;
+ *  - null — a real local value (a function/class declaration, a namespace
+ *    import): definitely not the drawer module's symbol;
+ *  - UNVERIFIABLE — the value is runtime-computed (a call that is not a
+ *    factory, a mixed-symbol conditional, a reassigned `let`, a missing
+ *    initializer, an alias with no target — an import of a missing module
+ *    or of a name the module does not export — or a resolution cycle).
+ *
+ * `seen` guards cycles; declaration position + file makes the id stable
+ * across recursive hops.
+ */
+const resolveSymbolValue = (
+	symbol: TsMorphSymbol,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const symbolId = `${symbol.getName()}#${symbol
+		.getDeclarations()
+		.map(
+			(declaration) =>
+				`${declaration.getStart()}:${declaration.getSourceFile().getFilePath()}`,
+		)
+		.join('|')}`;
+	if (seen.has(symbolId)) {
+		return UNVERIFIABLE_TAG;
+	}
+	seen.add(symbolId);
+
+	if (
+		(symbol.getFlags() & ts.SymbolFlags.Alias) !== 0 &&
+		symbol.getDeclarations().length > 1
+	) {
+		// A symbol the checker merged across an alias AND a value
+		// declaration (a same-named local declaration redeclaring an
+		// import) has no single binding: TypeScript itself cannot decide
+		// which one a reference sees. That ambiguity is exactly the
+		// shadowing shape that must not silently resolve as the alias —
+		// fail loud.
+		return UNVERIFIABLE_TAG;
+	}
+
+	if ((symbol.getFlags() & ts.SymbolFlags.Alias) !== 0) {
+		const aliased = symbol.getAliasedSymbol();
+		if (!aliased || aliased === symbol) {
+			// An alias with no target — the import could not be resolved.
+			return UNVERIFIABLE_TAG;
+		}
+		return resolveSymbolValue(aliased, project, reassignedNamesByFile, seen);
+	}
+
+	if (isDrawerModuleExportSymbol(symbol, project)) {
+		return symbol.getName();
+	}
+
+	if (
+		symbol
+			.getDeclarations()
+			.every(
+				(declaration) =>
+					!isRepoFilePath(declaration.getSourceFile().getFilePath()),
+			)
+	) {
+		// Every declaration lives outside the scanned tree (node_modules,
+		// ambient lib) — the drawer module is a repo file, so an external
+		// value is definitely not one of its exports. This is the old
+		// matcher's node_modules cut: `import { Link } from '@tanstack/
+		// react-router'` resolves into an ambient `declare const` with no
+		// initializer, and chaining into that would be UNVERIFIABLE — a
+		// drawer file that merely renders an external component would
+		// redden on it.
 		return null;
 	}
 
-	// `ts.resolveModuleName` is filesystem work; the resolution of a
-	// (file, specifier) pair is the same for every export name, so it is
-	// memoized for the whole scan.
-	const cacheKey = `${fromFilePath}|${moduleSpecifier}`;
-	let resolved = moduleCache.get(cacheKey);
-	if (resolved === undefined) {
-		resolved =
-			ts.resolveModuleName(
-				moduleSpecifier,
-				fromFilePath,
-				moduleResolution.compilerOptions,
-				moduleResolution.host,
-			).resolvedModule?.resolvedFileName ?? null;
-		moduleCache.set(cacheKey, resolved);
-	}
-	if (!resolved) {
-		return null;
-	}
-	if (path.resolve(resolved) === DRAWER_MODULE_PATH) {
-		return drawerModuleExports(project, exportName) ? exportName : null;
-	}
-	// A drawer re-export barrel is a repo-local file — a node_modules module
-	// can never re-export the drawer module's symbols, so it is not the
-	// drawer and the chain ends here. Skipping the parse is what keeps this
-	// resolution cheap enough to run for every tag name in every file.
-	if (resolved.includes(`${path.sep}node_modules${path.sep}`)) {
-		return null;
-	}
-
-	const visitedKey = `${resolved}:${exportName}`;
-	if (visited.has(visitedKey)) {
-		return null;
-	}
-	visited.add(visitedKey);
-
-	const reExportingFile = project.addSourceFileAtPath(resolved);
-	for (const exportDeclaration of reExportingFile.getExportDeclarations()) {
-		const reExportSpecifier = exportDeclaration.getModuleSpecifierValue();
-		const namedExports = exportDeclaration.getNamedExports();
-
-		if (reExportSpecifier) {
+	for (const declaration of symbol.getDeclarations()) {
+		if (declaration.getKind() === SyntaxKind.VariableDeclaration) {
+			const variableDeclaration = declaration as VariableDeclaration;
 			if (
-				namedExports.length === 0 &&
-				!exportDeclaration.getNamespaceExport()
+				isReassigned(
+					variableDeclaration.getSourceFile(),
+					variableDeclaration.getName(),
+					reassignedNamesByFile,
+				)
 			) {
-				// `export * from '...'` — forwards every named export unchanged.
-				const result = resolveDrawerSymbol(
-					resolved,
-					reExportSpecifier,
-					exportName,
-					moduleResolution,
-					project,
-					visited,
-					depth + 1,
-					moduleCache,
-				);
-				if (result) {
-					return result;
-				}
-				continue;
+				// `let Form = DrawerForm; Form = Other;` — the binding the
+				// tag sees is not the initializer's value.
+				return UNVERIFIABLE_TAG;
 			}
-			const namespaceExport = exportDeclaration.getNamespaceExport();
-			if (namespaceExport) {
-				// `export * as X from '...'` — the namespace re-exports every
-				// member of the target module under X, so a member lookup
-				// through a base binding that resolves to this barrel
-				// forwards to the target module regardless of the namespace
-				// name X (round 9's MINOR 3).
-				const result = resolveDrawerSymbol(
-					resolved,
-					reExportSpecifier,
-					exportName,
-					moduleResolution,
-					project,
-					visited,
-					depth + 1,
-					moduleCache,
-				);
-				if (result) {
-					return result;
-				}
-				continue;
+			const initializer = variableDeclaration.getInitializer();
+			if (!initializer) {
+				return UNVERIFIABLE_TAG;
 			}
-			for (const specifier of namedExports) {
-				if (
-					(specifier.getAliasNode()?.getText() ?? specifier.getName()) !==
-					exportName
-				) {
-					continue;
-				}
-				const result = resolveDrawerSymbol(
-					resolved,
-					reExportSpecifier,
-					specifier.getName(),
-					moduleResolution,
-					project,
-					visited,
-					depth + 1,
-					moduleCache,
+			return resolveValueIdentity(
+				initializer,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		if (declaration.getKind() === SyntaxKind.PropertyAssignment) {
+			const propertyAssignment = declaration as PropertyAssignment;
+			const initializer = propertyAssignment.getInitializer();
+			if (!initializer) {
+				return UNVERIFIABLE_TAG;
+			}
+			return resolveValueIdentity(
+				initializer,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+	}
+
+	// A function/class declaration, a namespace import, a type symbol — a
+	// real value that is not the drawer module's exported symbol.
+	return null;
+};
+
+/**
+ * Classifies an EXPRESSION (a declaration initializer) through the same
+ * symbol graph: an identifier or property access resolves its binding
+ * symbol (scope- and type-accurate — the member of an object literal, of a
+ * namespace import, of an `export * as` barrel, of an aliased namespace
+ * base all resolve here); a conditional is resolved branch by branch (both
+ * branches the SAME drawer symbol is an alias; both non-drawer is a local
+ * value; anything mixed or unresolvable is unverifiable); a factory call
+ * follows its loader when the loader is a drawer symbol (`lazy(() =>
+ * DrawerBody)` IS the body — the factory adds no DOM node) and is a real
+ * local component otherwise (`lazy(() => import('./chart'))`, `useMemo(() =>
+ * Chart, [])`); a statically-decidable component body is a local component;
+ * everything else is unverifiable.
+ */
+const resolveValueIdentity = (
+	expression: Node,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const unwrapped = unwrapExpression(expression);
+	const kind = unwrapped.getKind();
+
+	if (kind === SyntaxKind.Identifier) {
+		const symbol = (unwrapped as Identifier).getSymbol();
+		return symbol
+			? resolveSymbolValue(symbol, project, reassignedNamesByFile, seen)
+			: UNVERIFIABLE_TAG;
+	}
+	if (kind === SyntaxKind.PropertyAccessExpression) {
+		return resolvePropertyAccessValue(
+			unwrapped as PropertyAccessExpression,
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
+	}
+	if (kind === SyntaxKind.ConditionalExpression) {
+		const conditional = unwrapped as ConditionalExpression;
+		const whenTrue = resolveValueIdentity(
+			conditional.getWhenTrue(),
+			project,
+			reassignedNamesByFile,
+			new Set(seen),
+		);
+		const whenFalse = resolveValueIdentity(
+			conditional.getWhenFalse(),
+			project,
+			reassignedNamesByFile,
+			new Set(seen),
+		);
+		if (whenTrue === UNVERIFIABLE_TAG || whenFalse === UNVERIFIABLE_TAG) {
+			return UNVERIFIABLE_TAG;
+		}
+		if (whenTrue === null && whenFalse === null) {
+			return null;
+		}
+		if (typeof whenTrue === 'string' && whenTrue === whenFalse) {
+			return whenTrue;
+		}
+		return UNVERIFIABLE_TAG;
+	}
+	if (
+		kind === SyntaxKind.ObjectLiteralExpression ||
+		kind === SyntaxKind.ArrayLiteralExpression ||
+		kind === SyntaxKind.StringLiteral ||
+		kind === SyntaxKind.NumericLiteral ||
+		kind === SyntaxKind.TrueKeyword ||
+		kind === SyntaxKind.FalseKeyword ||
+		kind === SyntaxKind.NullKeyword ||
+		kind === SyntaxKind.UndefinedKeyword
+	) {
+		// A local value — never the drawer module's symbol.
+		return null;
+	}
+	if (kind === SyntaxKind.CallExpression) {
+		const call = unwrapped as CallExpression;
+		if (isFactoryCall(call)) {
+			const firstArgument = unwrapExpression(call.getArguments()[0]);
+			const argumentKind = firstArgument.getKind();
+			if (
+				argumentKind === SyntaxKind.ArrowFunction ||
+				argumentKind === SyntaxKind.FunctionExpression
+			) {
+				const body = unwrapExpression(
+					(firstArgument as ArrowFunction).getBody(),
 				);
-				if (result) {
-					return result;
+				if (body.getKind() === SyntaxKind.Identifier) {
+					return resolveValueIdentity(
+						body,
+						project,
+						reassignedNamesByFile,
+						seen,
+					);
 				}
+			}
+			// A runtime component factory whose loader is not statically a
+			// drawer symbol — a real component, never the drawer module's
+			// own export.
+			return null;
+		}
+		return UNVERIFIABLE_TAG;
+	}
+	const body = extractComponentBody(unwrapped);
+	if (body) {
+		// A statically-decidable component (arrow, JSX body, memo,
+		// forwardRef, ...) — a real local component, not a marker.
+		return null;
+	}
+	return UNVERIFIABLE_TAG;
+};
+
+/**
+ * Resolves a member-expression value (`Parts.Surface`, `React.Suspense`,
+ * `Layout.Suspense`) through the symbol graph. The checker hands back the
+ * member's own symbol for most bindings (an object-literal property, a
+ * namespace member of a repo module — which the drawer module is, so the
+ * drawer spellings never reach the fallback below); when it returns none
+ * (a member of an EXTERNAL namespace import, e.g. `<React.Suspense>` —
+ * the checker enumerates no member symbol for ambient modules), the
+ * member belongs to the base's module, and the base being a namespace
+ * import that is not the repo-local drawer module is a certain
+ * non-drawer verdict. A member that is not an export of a module whose
+ * exports the checker enumerates is definitely not the drawer module's.
+ */
+const resolvePropertyAccessValue = (
+	propertyAccess: PropertyAccessExpression,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const symbol = propertyAccess.getSymbol();
+	if (symbol) {
+		return resolveSymbolValue(symbol, project, reassignedNamesByFile, seen);
+	}
+	const base = unwrapExpression(propertyAccess.getExpression());
+	if (base.getKind() === SyntaxKind.Identifier) {
+		const baseSymbol = (base as Identifier).getSymbol();
+		if (baseSymbol) {
+			const aliasedBase =
+				baseSymbol !== baseSymbol.getAliasedSymbol()
+					? baseSymbol.getAliasedSymbol()
+					: null;
+			if (aliasedBase && aliasedBase.getExports().length > 0) {
+				const member = aliasedBase.getExport(propertyAccess.getName());
+				if (!member) {
+					return null;
+				}
+				return resolveSymbolValue(member, project, reassignedNamesByFile, seen);
+			}
+			if (
+				baseSymbol
+					.getDeclarations()
+					.some(
+						(declaration) =>
+							declaration.getKind() === SyntaxKind.NamespaceImport,
+					)
+			) {
+				// A namespace import whose module the checker does not
+				// enumerate (react's ambient `export =` module, or a module
+				// that cannot be resolved from this file) — the member
+				// belongs to that external module, never the repo-local
+				// drawer module.
+				return null;
+			}
+		}
+	}
+	return UNVERIFIABLE_TAG;
+};
+
+/**
+ * Resolves a JSX tag's local name to the name the drawer module exports it
+ * under — through the symbol graph described above. The tag-name node is
+ * taken from the per-file index the scan builds (first occurrence of the
+ * text), so the checker resolves the ACTUAL binding — a same-named local
+ * declaration shadows the import by scope, not by text search. Discovery
+ * uses the same machinery as the wrapper check, so there is no spelling
+ * the wrapper check accepts that discovery can miss.
+ */
+const resolveDrawerTagName = (
+	sourceFile: SourceFile,
+	tagText: string,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	tagNameNodesByText: Map<string, Map<string, Node>>,
+): DrawerTagNameResult => {
+	// A lowercase-leading tag is an intrinsic DOM element (`<button>`,
+	// `<div>`) — JSX forbids lowercase component names, and the checker
+	// does not give them a value symbol in every context, so they must be
+	// a definite non-drawer value, never UNVERIFIABLE.
+	if (/^[a-z]/.test(tagText)) {
+		return null;
+	}
+	const tagNameNode = tagNameNodesByText
+		.get(sourceFile.getFilePath())
+		?.get(tagText);
+	if (!tagNameNode) {
+		return UNVERIFIABLE_TAG;
+	}
+	if (tagNameNode.getKind() === SyntaxKind.PropertyAccessExpression) {
+		return resolvePropertyAccessValue(
+			tagNameNode as PropertyAccessExpression,
+			project,
+			reassignedNamesByFile,
+			new Set(),
+		);
+	}
+	const symbol = tagNameNode.getSymbol();
+	if (!symbol) {
+		return UNVERIFIABLE_TAG;
+	}
+	return resolveSymbolValue(symbol, project, reassignedNamesByFile, new Set());
+};
+
+/**
+ * True when the file imports at least one drawer-module export by name —
+ * through any of the same alias/barrel spellings the tag machinery accepts.
+ * This is round 15's IMPORTANT 3 discriminator: a file with an unverifiable
+ * tag that imports the drawer module is a drawer file with an opaque marker
+ * and must be discovered and reddened; a file with no drawer import at all
+ * carries no drawer signal, and discovering every opaque local component
+ * would flood the inventory with non-drawers.
+ */
+const fileImportsDrawerModule = (
+	sourceFile: SourceFile,
+	project: Project,
+	moduleResolution: ModuleResolution,
+	moduleCache: Map<string, string | null>,
+	reassignedNamesByFile: Map<string, Set<string>>,
+): boolean => {
+	for (const declaration of sourceFile.getImportDeclarations()) {
+		const moduleSpecifier = declaration.getModuleSpecifierValue();
+		if (declaration.getNamespaceImport()) {
+			const resolved = resolveModuleFilePath(
+				sourceFile.getFilePath(),
+				moduleSpecifier,
+				moduleResolution,
+				moduleCache,
+			);
+			if (resolved === DRAWER_MODULE_PATH) {
+				return true;
 			}
 			continue;
 		}
-
-		// `export { X as Y }` without a specifier re-exports a symbol bound in
-		// this file (usually imported) — follow that binding's import instead.
-		for (const specifier of namedExports) {
-			if (
-				(specifier.getAliasNode()?.getText() ?? specifier.getName()) !==
-				exportName
-			) {
+		for (const namedImport of declaration.getNamedImports()) {
+			if (namedImport.isTypeOnly()) {
 				continue;
 			}
-			const originalName = specifier.getName();
-			for (const declaration of reExportingFile.getImportDeclarations()) {
-				for (const namedImport of declaration.getNamedImports()) {
-					if (
-						(namedImport.getAliasNode()?.getText() ?? namedImport.getName()) !==
-						originalName
-					) {
-						continue;
-					}
-					const result = resolveDrawerSymbol(
-						resolved,
-						declaration.getModuleSpecifierValue(),
-						namedImport.getName(),
-						moduleResolution,
-						project,
-						visited,
-						depth + 1,
-						moduleCache,
-					);
-					if (result) {
-						return result;
-					}
-				}
+			const symbol = namedImport.getNameNode().getSymbol();
+			if (!symbol) {
+				continue;
+			}
+			const result = resolveSymbolValue(
+				symbol,
+				project,
+				reassignedNamesByFile,
+				new Set(),
+			);
+			if (typeof result === 'string') {
+				return true;
 			}
 		}
 	}
-
-	return null;
+	return false;
 };
 
 const resolveNamespaceImport = (
@@ -2518,43 +3413,6 @@ const UNVERIFIABLE_TAG = Symbol('drawer-tag-unverifiable');
 type DrawerTagNameResult = string | null | typeof UNVERIFIABLE_TAG;
 
 /**
- * Resolves a name that is NOT locally declared in `sourceFile` through
- * the import machinery — direct import, alias (`DrawerForm as Form`) and
- * re-export barrels (including aliased re-exports), the same chain the
- * wrapper check uses. Null when the name is not an import of the drawer
- * module's symbol (including an import that cannot be resolved, which
- * fails closed).
- */
-const resolveImportedName = (
-	sourceFile: SourceFile,
-	name: string,
-	moduleResolution: ModuleResolution,
-	project: Project,
-	moduleCache: Map<string, string | null>,
-): string | null => {
-	for (const declaration of sourceFile.getImportDeclarations()) {
-		for (const namedImport of declaration.getNamedImports()) {
-			const localName =
-				namedImport.getAliasNode()?.getText() ?? namedImport.getName();
-			if (localName !== name) {
-				continue;
-			}
-			return resolveDrawerSymbol(
-				sourceFile.getFilePath(),
-				declaration.getModuleSpecifierValue(),
-				namedImport.getName(),
-				moduleResolution,
-				project,
-				undefined,
-				0,
-				moduleCache,
-			);
-		}
-	}
-	return null;
-};
-
-/**
  * True when the name is bound by an assignment anywhere in the file —
  * `let Form = DrawerForm; if (x) Form = Div;` renders a binding whose
  * final value is not statically decidable, so the alias it started from
@@ -2604,376 +3462,6 @@ const unwrapExpression = (node: Node): Node => {
 		}
 		return current;
 	}
-};
-
-/**
- * Resolves a locally-declared name as a MEMBER-EXPRESSION base — the
- * `Drawer` in `<Drawer.DrawerBody />` — through identity chains before
- * the normal base resolution: `const D = Drawer; <D.DrawerBody />` is
- * the same alias the tag-name machinery resolves, so a same-named local
- * base is only a shadow when its own binding is statically a local value
- * (an object, a component). A base the scan cannot classify is
- * UNVERIFIABLE. The terminal name runs the normal base path: namespace
- * import, or a named binding of a namespace re-export barrel.
- */
-const resolveMemberAccessName = (
-	sourceFile: SourceFile,
-	baseName: string,
-	memberName: string,
-	moduleResolution: ModuleResolution,
-	project: Project,
-	moduleCache: Map<string, string | null>,
-	declaredNamesByFile: Map<string, Set<string>>,
-	reassignedNamesByFile: Map<string, Set<string>>,
-): DrawerTagNameResult => {
-	let resolvedBaseName = baseName;
-	if (isLocallyDeclared(sourceFile, baseName, declaredNamesByFile)) {
-		const terminal = resolveLocalBaseChainTerminal(
-			sourceFile,
-			baseName,
-			declaredNamesByFile,
-			reassignedNamesByFile,
-		);
-		if (terminal === null) {
-			return null;
-		}
-		if (terminal === UNVERIFIABLE_TAG) {
-			return UNVERIFIABLE_TAG;
-		}
-		resolvedBaseName = terminal;
-	}
-	let namespaceSpecifier = resolveNamespaceImport(sourceFile, resolvedBaseName);
-	if (!namespaceSpecifier) {
-		// A member-expression base that is a NAMED binding (round 9's
-		// MINOR 3): `import { Drawer } from '...'` where the barrel
-		// re-exports the drawer module as a namespace
-		// (`export * as Drawer from './drawer'`). Follow the binding
-		// like any named import; the chain resolver forwards the member
-		// through the barrel's namespace re-export.
-		for (const declaration of sourceFile.getImportDeclarations()) {
-			for (const namedImport of declaration.getNamedImports()) {
-				const localName =
-					namedImport.getAliasNode()?.getText() ?? namedImport.getName();
-				if (localName !== resolvedBaseName) {
-					continue;
-				}
-				namespaceSpecifier = declaration.getModuleSpecifierValue();
-			}
-		}
-		if (!namespaceSpecifier) {
-			return null;
-		}
-	}
-	return resolveDrawerSymbol(
-		sourceFile.getFilePath(),
-		namespaceSpecifier,
-		memberName,
-		moduleResolution,
-		project,
-		undefined,
-		0,
-		moduleCache,
-	);
-};
-
-/**
- * Follows a locally-declared name used as a member-expression base
- * through identity chains to the terminal name that is NOT locally
- * declared. Returns null when the chain ends at a real local value (an
- * object literal, a component) — its member is this file's own, never
- * the drawer module's — and UNVERIFIABLE when the chain cannot be
- * decided (a call, a reassigned `let`, a cycle).
- */
-const resolveLocalBaseChainTerminal = (
-	sourceFile: SourceFile,
-	name: string,
-	declaredNamesByFile: Map<string, Set<string>>,
-	reassignedNamesByFile: Map<string, Set<string>>,
-	seen: Set<string> = new Set(),
-): string | null | typeof UNVERIFIABLE_TAG => {
-	if (seen.has(name)) {
-		return UNVERIFIABLE_TAG;
-	}
-	seen.add(name);
-	if (!isLocallyDeclared(sourceFile, name, declaredNamesByFile)) {
-		return name;
-	}
-	if (isReassigned(sourceFile, name, reassignedNamesByFile)) {
-		return UNVERIFIABLE_TAG;
-	}
-	const declaration = findLocalComponentDeclaration(sourceFile, name);
-	if (!declaration) {
-		return null;
-	}
-	if (declaration.getKind() !== SyntaxKind.VariableDeclaration) {
-		return null;
-	}
-	const initializer = (declaration as VariableDeclaration).getInitializer();
-	if (!initializer) {
-		return UNVERIFIABLE_TAG;
-	}
-	const unwrapped = unwrapExpression(initializer);
-	const kind = unwrapped.getKind();
-	if (kind === SyntaxKind.Identifier) {
-		return resolveLocalBaseChainTerminal(
-			sourceFile,
-			unwrapped.getText(),
-			declaredNamesByFile,
-			reassignedNamesByFile,
-			seen,
-		);
-	}
-	if (
-		kind === SyntaxKind.ObjectLiteralExpression ||
-		kind === SyntaxKind.ArrayLiteralExpression ||
-		kind === SyntaxKind.JsxElement ||
-		kind === SyntaxKind.JsxSelfClosingElement ||
-		kind === SyntaxKind.JsxFragment ||
-		kind === SyntaxKind.ArrowFunction ||
-		kind === SyntaxKind.FunctionExpression ||
-		kind === SyntaxKind.ClassExpression
-	) {
-		return null;
-	}
-	return UNVERIFIABLE_TAG;
-};
-
-/**
- * Resolves a locally-declared name used as a JSX tag. The declaration's
- * binding is followed exactly like an import when it is statically an
- * alias (see resolveAliasExpression); a real local component (arrow,
- * JSX body, memo/forwardRef) is null — the drawer module's symbols are
- * never this file's own components, and the anchored walk expands those
- * through resolveComponentDefinition. Anything else — a call, a mixed
- * conditional, a reassigned `let`, a missing initializer — is
- * UNVERIFIABLE: the tag COULD be a drawer marker the walk keys its entry
- * on, so it must redden rather than silently not be an anchor.
- */
-const resolveLocallyDeclaredName = (
-	sourceFile: SourceFile,
-	name: string,
-	moduleResolution: ModuleResolution,
-	project: Project,
-	moduleCache: Map<string, string | null>,
-	declaredNamesByFile: Map<string, Set<string>>,
-	reassignedNamesByFile: Map<string, Set<string>>,
-	seen: Set<string> = new Set(),
-): DrawerTagNameResult => {
-	if (seen.has(name)) {
-		return UNVERIFIABLE_TAG;
-	}
-	seen.add(name);
-	if (isReassigned(sourceFile, name, reassignedNamesByFile)) {
-		return UNVERIFIABLE_TAG;
-	}
-	const declaration = findLocalComponentDeclaration(sourceFile, name);
-	if (!declaration) {
-		return null;
-	}
-	const kind = declaration.getKind();
-	if (
-		kind === SyntaxKind.FunctionDeclaration ||
-		kind === SyntaxKind.ClassDeclaration
-	) {
-		// A real local component — not the drawer module's symbol; the
-		// anchored walk expands it (and reddens it when its body is not
-		// statically walkable).
-		return null;
-	}
-	const initializer = (declaration as VariableDeclaration).getInitializer();
-	if (!initializer) {
-		return UNVERIFIABLE_TAG;
-	}
-	return resolveAliasExpression(
-		sourceFile,
-		initializer,
-		moduleResolution,
-		project,
-		moduleCache,
-		declaredNamesByFile,
-		reassignedNamesByFile,
-		seen,
-	);
-};
-
-/**
- * Classifies an expression as an alias of the drawer module's symbols or
- * as a statically-decidable non-drawer value. Identifier chains follow
- * local declarations recursively (`const Form = DrawerForm`,
- * `const Form = Inner; const Inner = DrawerForm;`), and a
- * member-expression aliases a namespace member (`const Form =
- * Drawer.DrawerForm`). A conditional is resolved branch by branch: both
- * branches resolving to the SAME drawer symbol is an alias; both to
- * non-drawer values is a local value; anything mixed or unresolvable is
- * UNVERIFIABLE. A statically-decidable component body is a local
- * component (null); a bare value (null, a string, an object literal) is
- * not a drawer marker (null); everything else cannot be classified and
- * fails loud.
- */
-const resolveAliasExpression = (
-	sourceFile: SourceFile,
-	expression: Node,
-	moduleResolution: ModuleResolution,
-	project: Project,
-	moduleCache: Map<string, string | null>,
-	declaredNamesByFile: Map<string, Set<string>>,
-	reassignedNamesByFile: Map<string, Set<string>>,
-	seen: Set<string>,
-): DrawerTagNameResult => {
-	const unwrapped = unwrapExpression(expression);
-	const kind = unwrapped.getKind();
-	if (kind === SyntaxKind.Identifier) {
-		const targetName = unwrapped.getText();
-		if (isLocallyDeclared(sourceFile, targetName, declaredNamesByFile)) {
-			return resolveLocallyDeclaredName(
-				sourceFile,
-				targetName,
-				moduleResolution,
-				project,
-				moduleCache,
-				declaredNamesByFile,
-				reassignedNamesByFile,
-				seen,
-			);
-		}
-		return resolveImportedName(
-			sourceFile,
-			targetName,
-			moduleResolution,
-			project,
-			moduleCache,
-		);
-	}
-	if (kind === SyntaxKind.PropertyAccessExpression) {
-		const property = unwrapped as PropertyAccessExpression;
-		return resolveMemberAccessName(
-			sourceFile,
-			property.getExpression().getText(),
-			property.getName(),
-			moduleResolution,
-			project,
-			moduleCache,
-			declaredNamesByFile,
-			reassignedNamesByFile,
-		);
-	}
-	if (kind === SyntaxKind.ConditionalExpression) {
-		const conditional = unwrapped as ConditionalExpression;
-		// Each branch gets its own copy of the cycle set: resolving the
-		// same local name in both branches is normal, not a cycle.
-		const whenTrue = resolveAliasExpression(
-			sourceFile,
-			conditional.getWhenTrue(),
-			moduleResolution,
-			project,
-			moduleCache,
-			declaredNamesByFile,
-			reassignedNamesByFile,
-			new Set(seen),
-		);
-		const whenFalse = resolveAliasExpression(
-			sourceFile,
-			conditional.getWhenFalse(),
-			moduleResolution,
-			project,
-			moduleCache,
-			declaredNamesByFile,
-			reassignedNamesByFile,
-			new Set(seen),
-		);
-		if (whenTrue === UNVERIFIABLE_TAG || whenFalse === UNVERIFIABLE_TAG) {
-			return UNVERIFIABLE_TAG;
-		}
-		if (whenTrue === null && whenFalse === null) {
-			return null;
-		}
-		if (typeof whenTrue === 'string' && whenTrue === whenFalse) {
-			return whenTrue;
-		}
-		return UNVERIFIABLE_TAG;
-	}
-	if (
-		kind === SyntaxKind.ObjectLiteralExpression ||
-		kind === SyntaxKind.ArrayLiteralExpression ||
-		kind === SyntaxKind.StringLiteral ||
-		kind === SyntaxKind.NumericLiteral ||
-		kind === SyntaxKind.TrueKeyword ||
-		kind === SyntaxKind.FalseKeyword ||
-		kind === SyntaxKind.NullKeyword ||
-		kind === SyntaxKind.UndefinedKeyword
-	) {
-		// A local value — never the drawer module's symbol.
-		return null;
-	}
-	const body = extractComponentBody(unwrapped);
-	if (body) {
-		// A statically-decidable component (arrow, JSX body, memo,
-		// forwardRef, ...) — a real local component, not a marker.
-		return null;
-	}
-	return UNVERIFIABLE_TAG;
-};
-
-/**
- * Resolves a JSX tag's local name to the name the drawer module exports it
- * under, or null when the tag is NOT the drawer module's symbol — through
- * the same chain every wrapper goes through: direct import, alias
- * (`DrawerBody as Body`), namespace member (`Drawer.DrawerBody` where the
- * base is a namespace import or a named binding of a namespace re-export),
- * and re-export barrels including aliased re-exports. A same-named local
- * declaration no longer ends resolution (round 14, BLOCKER 1): identity
- * alias chains and same-symbol conditionals are resolved to their targets,
- * and a local binding the scan cannot classify is UNVERIFIABLE — it might
- * be a drawer marker the anchored walk keys its entry on, so it must fail
- * loud instead of silently not being an anchor. An import that cannot be
- * resolved is null (fail-closed). Discovery uses the same machinery as the
- * wrapper check, so there is no import spelling that the scan can miss
- * while the wrapper check accepts.
- */
-const resolveDrawerTagName = (
-	sourceFile: SourceFile,
-	tagText: string,
-	moduleResolution: ModuleResolution,
-	project: Project,
-	moduleCache: Map<string, string | null>,
-	declaredNamesByFile: Map<string, Set<string>>,
-	reassignedNamesByFile: Map<string, Set<string>>,
-): DrawerTagNameResult => {
-	const namespaceMatch = tagText.match(
-		/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/,
-	);
-	if (namespaceMatch) {
-		return resolveMemberAccessName(
-			sourceFile,
-			namespaceMatch[1],
-			namespaceMatch[2],
-			moduleResolution,
-			project,
-			moduleCache,
-			declaredNamesByFile,
-			reassignedNamesByFile,
-		);
-	}
-
-	if (isLocallyDeclared(sourceFile, tagText, declaredNamesByFile)) {
-		return resolveLocallyDeclaredName(
-			sourceFile,
-			tagText,
-			moduleResolution,
-			project,
-			moduleCache,
-			declaredNamesByFile,
-			reassignedNamesByFile,
-		);
-	}
-
-	return resolveImportedName(
-		sourceFile,
-		tagText,
-		moduleResolution,
-		project,
-		moduleCache,
-	);
 };
 
 const isTransparentExpression = (node: Node): boolean => {
@@ -3090,20 +3578,16 @@ const findWrapperOpeningElement = (
 const resolveTagBinding = (
 	sourceFile: SourceFile,
 	tagText: string,
-	moduleResolution: ModuleResolution,
 	project: Project,
-	moduleCache: Map<string, string | null>,
-	declaredNamesByFile: Map<string, Set<string>>,
 	reassignedNamesByFile: Map<string, Set<string>>,
+	tagNameNodesByText: Map<string, Map<string, Node>>,
 ): 'drawer-form' | 'drawer-content' | 'other' => {
 	const name = resolveDrawerTagName(
 		sourceFile,
 		tagText,
-		moduleResolution,
 		project,
-		moduleCache,
-		declaredNamesByFile,
 		reassignedNamesByFile,
+		tagNameNodesByText,
 	);
 	if (name === 'DrawerForm') {
 		return 'drawer-form';
@@ -3274,6 +3758,37 @@ const extractComponentBody = (node: Node): Node[] | null => {
 		) {
 			const firstArg = call.getArguments()[0];
 			return firstArg ? extractComponentBody(firstArg) : [];
+		}
+		// Round 16 (IMPORTANT 5): a runtime component factory — a call whose
+		// first argument is a function expression or a dynamic import
+		// (`lazy(() => import('./chart'))`, `lazy(() => <div />)`, `useMemo(
+		// () => Chart, [])`). The factory adds no DOM node of its own, so a
+		// loader whose body IS statically JSX expands normally; a loader
+		// that is not statically JSX (an identifier — a component resolved
+		// elsewhere — a dynamic import — a module scanned on its own) is an
+		// EMPTY body: nothing to expand, and nothing unverifiable.
+		if (isFactoryCall(call)) {
+			const firstArgument = unwrapExpression(call.getArguments()[0]);
+			const argumentKind = firstArgument.getKind();
+			if (
+				argumentKind === SyntaxKind.ArrowFunction ||
+				argumentKind === SyntaxKind.FunctionExpression
+			) {
+				const body = (firstArgument as ArrowFunction).getBody();
+				if (body.getKind() === SyntaxKind.Block) {
+					return extractBlockReturns(body as Block);
+				}
+				const bodyUnwrapped = unwrapExpression(body);
+				const bodyKind = bodyUnwrapped.getKind();
+				if (
+					bodyKind === SyntaxKind.Identifier ||
+					bodyKind === SyntaxKind.CallExpression
+				) {
+					return [];
+				}
+				return extractComponentBody(bodyUnwrapped);
+			}
+			return [];
 		}
 		return null;
 	}
@@ -4251,24 +4766,33 @@ const scanDrawerSurfaces = (): {
 	formBearing: string[];
 } => {
 	const project = getScanProject();
-	// Reconcile the shared project with the current on-disk file set: a
-	// fixture written for an earlier assertion and deleted since must not
-	// linger as a loaded source file, and a fixture on disk now but never
-	// loaded must be added. Real files are loaded once and reused; a file
-	// rewritten in place between scans is refreshed from disk (round 11's
-	// MINOR 5).
-	const desiredFilePaths = new Set(walkSrcTsxFiles());
-	reconcileScanProject(project, desiredFilePaths);
+	// The project is loaded once (round 16 — see getScanProject) and the
+	// scan only refreshes files whose CONTENT changed: a fixture rewritten
+	// between scans is re-read from disk (round 11's MINOR 5), a rewrite
+	// with identical content is not, and deleted fixtures simply fall out of
+	// the desired set without being torn down (torn-down files would rebuild
+	// the shared TypeScript checker). Only the current on-disk file set is
+	// iterated below.
+	const desiredFilePaths = new Set([
+		...allScannableFilePaths().filter(
+			(filePath) => !filePath.startsWith(FIXTURE_TMP_DIR),
+		),
+		...walkCurrentFixtureFiles(),
+	]);
+	refreshChangedSourceFiles(project, desiredFilePaths);
 	const moduleResolution: ModuleResolution = {
 		compilerOptions: project.getCompilerOptions(),
 		host: project.getModuleResolutionHost(),
 	};
 
-	// Per-file memo of tag text -> drawer export name, so the 6-hop chain
-	// resolution runs once per distinct name instead of once per tag, and a
+	// Per-file memo of tag text -> drawer export name, so the symbol
+	// resolution runs once per distinct name instead of once per tag, a
+	// per-file index of tag text -> tag-name NODE (first occurrence) so the
+	// checker resolves the ACTUAL binding the text refers to, and a
 	// scan-wide memo of resolved (file, specifier) pairs for the module
-	// resolution inside the chain.
+	// resolution the definition walk needs.
 	const resolvedTagNames = new Map<string, Map<string, DrawerTagNameResult>>();
+	const tagNameNodesByText = new Map<string, Map<string, Node>>();
 	const moduleCache = new Map<string, string | null>();
 	const declaredNamesByFile = new Map<string, Set<string>>();
 	const reassignedNamesByFile = new Map<string, Set<string>>();
@@ -4287,11 +4811,9 @@ const scanDrawerSurfaces = (): {
 				resolveDrawerTagName(
 					sourceFile,
 					tagText,
-					moduleResolution,
 					project,
-					moduleCache,
-					declaredNamesByFile,
 					reassignedNamesByFile,
+					tagNameNodesByText,
 				),
 			);
 		}
@@ -4302,8 +4824,9 @@ const scanDrawerSurfaces = (): {
 	const violations: string[] = [];
 	const formBearing: string[] = [];
 
-	for (const sourceFile of project.getSourceFiles()) {
-		if (/\.(?:spec|test)\.tsx$/.test(sourceFile.getBaseName())) {
+	for (const filePath of desiredFilePaths) {
+		const sourceFile = project.getSourceFile(filePath);
+		if (!sourceFile || /\.(?:spec|test)\.tsx$/.test(path.basename(filePath))) {
 			continue;
 		}
 
@@ -4311,18 +4834,39 @@ const scanDrawerSurfaces = (): {
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
 			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
 		];
+		// Round 16: the tag-name node index — the checker resolves the
+		// binding at a real node, so a same-named local declaration shadows
+		// the import by scope, not by text search.
+		const tagNodesByText = new Map<string, Node>();
+		for (const node of jsxTags) {
+			const tagNameNode = node.getTagNameNode();
+			const tagText = tagNameNode.getText();
+			if (!tagNodesByText.has(tagText)) {
+				tagNodesByText.set(tagText, tagNameNode);
+			}
+		}
+		tagNameNodesByText.set(sourceFile.getFilePath(), tagNodesByText);
 
-		// Round 14, BLOCKER 1: a tag whose local binding cannot be classified
-		// statically (a call, a mixed conditional, a reassigned `let`, ...)
-		// could be a drawer marker the walk keys its entry on — in a drawer
-		// file it must fail loud instead of silently not being an anchor. A
-		// file with ONLY such tags is not discovered at all: it never was,
-		// and treating every unresolvable local component as a drawer file
-		// would flood the inventory.
+		// Round 14, BLOCKER 1 + round 16: a tag whose binding cannot be
+		// resolved statically (a call, a mixed conditional, a reassigned
+		// `let`, ...) could be a drawer marker the walk keys its entry on —
+		// in a drawer file it must fail loud instead of silently not being
+		// an anchor. Round 15's IMPORTANT 3 closes the last silent gap: a
+		// file with ONLY such tags that also imports the drawer module is a
+		// drawer file with an opaque marker — it is discovered (and reddens)
+		// too. A file with no drawer import at all carries no drawer signal,
+		// so the inventory does not flood.
 		const hasUnverifiableTag = jsxTags.some(
 			(node) =>
 				drawerTagName(sourceFile, node.getTagNameNode().getText()) ===
 				UNVERIFIABLE_TAG,
+		);
+		const importsDrawerModule = fileImportsDrawerModule(
+			sourceFile,
+			project,
+			moduleResolution,
+			moduleCache,
+			reassignedNamesByFile,
 		);
 
 		const wrapperOf = (node: JsxOpeningElement | JsxSelfClosingElement) =>
@@ -4449,11 +4993,9 @@ const scanDrawerSurfaces = (): {
 				resolveTagBinding(
 					sourceFile,
 					wrapper.getTagNameNode().getText(),
-					moduleResolution,
 					project,
-					moduleCache,
-					declaredNamesByFile,
 					reassignedNamesByFile,
+					tagNameNodesByText,
 				) !== 'drawer-content'
 			);
 		});
@@ -4468,10 +5010,15 @@ const scanDrawerSurfaces = (): {
 			(occurrence) => occurrence.chain.length > 0,
 		);
 
+		// Round 15's IMPORTANT 3: a drawer-importing file whose ONLY drawer
+		// signal is an opaque marker is discovered and reddened instead of
+		// being silently green — the discriminator (the drawer-module import)
+		// is what the no-signal file lacks, so the inventory does not flood.
 		if (
 			anchorElements.length === 0 &&
 			callSitePartNodes.length === 0 &&
-			callSiteFormNodes.length === 0
+			callSiteFormNodes.length === 0 &&
+			!(importsDrawerModule && hasUnverifiableTag)
 		) {
 			continue;
 		}
@@ -4486,11 +5033,9 @@ const scanDrawerSurfaces = (): {
 			const binding = resolveTagBinding(
 				sourceFile,
 				wrapper.getTagNameNode().getText(),
-				moduleResolution,
 				project,
-				moduleCache,
-				declaredNamesByFile,
 				reassignedNamesByFile,
+				tagNameNodesByText,
 			);
 			return binding !== 'drawer-form' && binding !== 'drawer-content';
 		});
@@ -4849,8 +5394,11 @@ describe('drawer surface flex chain guard (#990)', () => {
 	test('a fixture path rewritten between scans is scanned as its current content', () => {
 		// Round 11's MINOR 5: the shared ts-morph project (35651a2c) never
 		// re-reads a path it has parsed, so "correct passes, broken fails,
-		// same temp path" silently scanned the first content twice. The
-		// freshness-tracking reconcile must re-read the rewritten fixture.
+		// same temp path" silently scanned the first content twice. Round
+		// 16's content-based freshness reconciliation must re-read the
+		// rewritten fixture — and only the rewritten one: this test is the
+		// single content change in the suite, so it is also the single
+		// (intended) compiler-program rebuild.
 		writeFileSync(TEMPORARY_NEW_DRAWER_PATH, TEMPORARY_NEW_DRAWER_SOURCE);
 		try {
 			const first = scanDrawerSurfaces();
@@ -5364,39 +5912,30 @@ describe('drawer surface flex chain guard (#990)', () => {
 		}
 	});
 
-	test('a chain terminating at the drawer module is only resolved for names the drawer module actually exports', () => {
-		// Pins the terminal `drawerModuleExports` gate in resolveDrawerSymbol
-		// (round 9's MINOR 2): a resolved chain that reaches the drawer
-		// module with a name the module does not export is null, not the
-		// name. No fixture can exercise that verdict — every fixture import
-		// that terminates at the drawer module does so with a name it
-		// genuinely exports, and the literal-text part fallback neutralizes
-		// the rest — so the pin drives resolveDrawerSymbol directly.
-		const project = getScanProject();
-		project.addSourceFileAtPathIfExists(DRAWER_MODULE_PATH);
-		const moduleResolution: ModuleResolution = {
-			compilerOptions: project.getCompilerOptions(),
-			host: project.getModuleResolutionHost(),
-		};
+	test('a name the drawer module does not export is not resolved as a drawer symbol', () => {
+		// Round 9's MINOR 2, re-pinned for round 16: the symbol-graph entry
+		// resolves a chain to the drawer module only for names the module
+		// actually exports. The old pin drove the hand-rolled resolver
+		// directly; that resolver is gone, so the pin is a fixture — the
+		// unbound export is an alias with no target (UNVERIFIABLE/'other'),
+		// the parts under it sit in that 'other' wrapper, and the file is
+		// rejected rather than guessed.
+		writeFileSync(
+			TEMPORARY_NONEXPORT_DRAWER_PATH,
+			TEMPORARY_NONEXPORT_DRAWER_SOURCE,
+		);
 
-		expect(
-			resolveDrawerSymbol(
-				DRAWER_MODULE_PATH,
-				'./drawer',
-				'DrawerBody',
-				moduleResolution,
-				project,
-			),
-		).toBe('DrawerBody');
-		expect(
-			resolveDrawerSymbol(
-				DRAWER_MODULE_PATH,
-				'./drawer',
-				'NotADrawerExport',
-				moduleResolution,
-				project,
-			),
-		).toBeNull();
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_NONEXPORT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_NONEXPORT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_NONEXPORT_DRAWER_PATH);
+		}
 	});
 
 	test('a member-expression part tag whose base is a named binding through an export * as barrel is discovered and rejected', () => {
@@ -5748,6 +6287,135 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_NS_BASE_ALIAS_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose parts resolve through a local object-literal component map is discovered and rejected', () => {
+		// Round 15's BLOCKER 1, verbatim: `const Parts = { Surface:
+		// DrawerContent, Form: DrawerForm, ... }` + `<Parts.Surface>` — the
+		// member lookup must resolve the property's initializer through the
+		// symbol graph to the drawer module, or the #990 div between the
+		// surface and the form ships green.
+		writeFileSync(
+			TEMPORARY_OBJECT_NS_DRAWER_PATH,
+			TEMPORARY_OBJECT_NS_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_OBJECT_NS_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_OBJECT_NS_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_OBJECT_NS_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose parts resolve through a cross-file export const shim is discovered and rejected', () => {
+		// Round 15's BLOCKER 2, verbatim: a helper module binds the drawer
+		// exports to local names (`export const Surface = DrawerContent;`)
+		// and the call site imports THOSE. The identity chain must follow
+		// the export's initializer across the file boundary — the #990 div
+		// between the surface and the form reddens only then. The shim file
+		// itself has no JSX and stays out of the inventory.
+		writeFileSync(TEMPORARY_SHIM_PATH, TEMPORARY_SHIM_SOURCE);
+		writeFileSync(
+			TEMPORARY_SHIM_CALL_SITE_PATH,
+			TEMPORARY_SHIM_CALL_SITE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_SHIM_CALL_SITE_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_SHIM_CALL_SITE_FILE),
+			);
+			expect(scan.discovered).not.toContain(fixtureRel(TEMPORARY_SHIM_FILE));
+			expect(scan.violations).not.toContain(fixtureRel(TEMPORARY_SHIM_FILE));
+		} finally {
+			unlinkSync(TEMPORARY_SHIM_CALL_SITE_PATH);
+			unlinkSync(TEMPORARY_SHIM_PATH);
+		}
+	});
+
+	test('a drawer whose every marker is an opaque local binding is discovered and rejected when the file imports the drawer module', () => {
+		// Round 15's IMPORTANT 3, verbatim: `const Surface = pick(
+		// DrawerContent);` — no tag resolves, so there are no anchors and no
+		// call-site parts, but the file imports the drawer module and
+		// carries unverifiable markers. That import is the discriminator: it
+		// is a drawer file with an opaque marker, and the no-signal file
+		// (`const Form = getForm();` with no drawer import anywhere) lacks
+		// it, so the inventory does not flood.
+		writeFileSync(TEMPORARY_OPAQUE_DRAWER_PATH, TEMPORARY_OPAQUE_DRAWER_SOURCE);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_OPAQUE_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_OPAQUE_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_OPAQUE_DRAWER_PATH);
+		}
+	});
+
+	test('a structurally perfect drawer that merely declares a lazy() component stays green', () => {
+		// Round 15's IMPORTANT 5, verbatim: `const LazyChart = lazy(() =>
+		// import('./chart'))` is a runtime component factory — a real local
+		// component, not a marker — so the perfect drawer around it must
+		// stay green. This is the green half of the paired proof: the
+		// opaque fixture above is the red half, and both die when the
+		// factory rule is removed (the lazy tag becomes unverifiable and
+		// reddens the file).
+		writeFileSync(TEMPORARY_LAZY_CHART_PATH, TEMPORARY_LAZY_CHART_SOURCE);
+		writeFileSync(TEMPORARY_LAZY_DRAWER_PATH, TEMPORARY_LAZY_DRAWER_SOURCE);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(fixtureRel(TEMPORARY_LAZY_DRAWER_FILE));
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_LAZY_DRAWER_FILE),
+			);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_LAZY_CHART_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_LAZY_CHART_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_LAZY_DRAWER_PATH);
+			unlinkSync(TEMPORARY_LAZY_CHART_PATH);
+		}
+	});
+
+	test('a same-symbol-conditional drawer with a clean surface-to-form link stays green', () => {
+		// Round 15's MINOR 6 — the missing control: every marker routed
+		// through `isOpen ? DrawerX : DrawerX`, no intermediate element.
+		// ONLY the same-symbol conditional resolution keeps this green;
+		// kill that resolution and every marker becomes unverifiable and
+		// the file reddens.
+		writeFileSync(
+			TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_PATH,
+			TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONDITIONAL_SAME_SYMBOL_CLEAN_DRAWER_PATH);
 		}
 	});
 
