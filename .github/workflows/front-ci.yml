@@ -203,6 +203,13 @@ jobs:
       - name: Check front design system
         run: pnpm --filter front check:design-system
 
+      - name: Install Playwright browser for the drawer-contrast guard
+        # Round 15: the front unit suite (pnpm --filter front test) launches
+        # Chromium to measure the drawer-description paint — the same engine
+        # and binary the e2e workflow provisions. Without it the vitest run
+        # cannot start; the guard fails loudly on launch if it is missing.
+        run: pnpm --filter front exec playwright install chromium --with-deps
+
       - name: Test front
         run: pnpm --filter front test
 

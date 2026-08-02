@@ -146,6 +146,11 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front check:design-system."
 		},
+		"front-ci.yml::supply-chain::Install Playwright browser for the drawer-contrast guard": {
+			"hash": "0ea113ed64a18531",
+			"mirror": null,
+			"reason": "Round 15: the front unit suite (pnpm --filter front test) launches Chromium to measure the drawer-description paint, so CI must provision the same browser binary the e2e workflow installs (pnpm --filter front exec playwright install chromium --with-deps). Locally the browser is already present in ~/.cache/ms-playwright and the guard fails loudly with a clear launch error if it is ever missing; provisioning cannot be meaningfully mirrored by a local gate command (it would re-download the same binary)."
+		},
 		"front-ci.yml::supply-chain::Test front": {
 			"hash": "b0ae64935f5d9419",
 			"mirror": "just ci-front",
