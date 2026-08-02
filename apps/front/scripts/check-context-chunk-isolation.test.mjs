@@ -1650,6 +1650,40 @@ void test('fails closed when a rendered nested-pattern binding binds an expected
 	);
 });
 
+void test('fails closed when a rendered nested-array-pattern binding binds an expected context name', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const nestedArrayPatternCode =
+		'const [[RouteContext]] = makeNestedTuple(null);';
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[{ name: 'RouteContext', sourceFile }],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: {
+							[sourceFile]: { code: nestedArrayPatternCode },
+						},
+					},
+					{
+						fileName: 'assets/route-component.js',
+						modules: {
+							[`${sourceFile}?tsr-split=component`]: {
+								code: nestedArrayPatternCode,
+							},
+						},
+					},
+				],
+				frontDirectory,
+			),
+		/cannot prove how RouteContext is created/i,
+	);
+});
+
 void test('counts a rendered factory mint held in an array element as a creator', () => {
 	const sourceFile = path.join(
 		frontDirectory,
