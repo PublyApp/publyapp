@@ -8,6 +8,15 @@ import {
 
 import { toastVariantClassNames } from '../src/components/ui/toast-variants';
 
+// The pixel reading measures the composited glyphs; at the default 1x render
+// scale the fixture's 12px close glyph antialiases away its core colour and
+// measures 2.7:1 while the product's computed fill is 4.05:1. Pin the render
+// resolution so the guard measures the real, deterministic rendering (the
+// WCAG floors hold at the pinned scale; a 1x probe would measure different
+// absolute numbers, which is why the scale is fixed here rather than left to
+// the runner).
+test.use({ deviceScaleFactor: 2 });
+
 /**
  * #998 browser-side toast contrast guard.
  *
@@ -15,17 +24,29 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  * resolved the cascade. Sonner's un-layered stylesheet can beat app.css's
  * layered rules, so a source parser cannot know what the toast actually paints.
  *
- * Browser measurements: the computed foreground colour of the target and of
- * every visible text-bearing descendant, the hit-tested background stack at
- * the sampled point, flat computed gradients, resolved pseudo-element
- * styles, compositing properties on the whole ancestor chain, and the close
- * button's actual offset parent/geometry. The sampled point is the midpoint
- * of the GLYPH AREA — the text's own line boxes (text targets) or the
- * painted shapes' boxes (glyph targets) — never the target box's midpoint,
- * which can sit well away from where the text actually is. Modelled
- * operations: alpha-compositing those browser-reported sRGB layers and the
- * WCAG 2 contrast formula. The model never reads or resolves a source
- * token.
+ * Browser measurements: the hit-tested background stack at the sampled
+ * point, flat computed gradients, resolved pseudo-element styles,
+ * compositing properties on the whole ancestor chain, the close button's
+ * actual offset parent/geometry, and — the reading that decides — a
+ * screenshot of the target decoded to pixels. The sampled point is the
+ * midpoint of the GLYPH AREA — the text's own line boxes (text targets) or
+ * the painted shapes' boxes (glyph targets) — never the target box's
+ * midpoint, which can sit well away from where the text actually is.
+ * Modelled operations: the CSS painting algorithm (pseudo and overlay paint
+ * order) and the WCAG 2 contrast formula. The model never reads or resolves
+ * a source token, and it never asserts a colour: it only says which element
+ * and which region to measure.
+ *
+ * THE CONTRAST NUMBER IS MEASURED, NOT MODELLED. It comes from the rendered
+ * pixels of the screenshot: the surface is the modal colour of the target's
+ * box (text targets) or of the ring immediately around the glyphs (glyph
+ * targets), the ink is the glyph-area pixel cluster with the strongest
+ * contrast to that surface, and the WCAG ratio is computed between those
+ * two measured colours. A wash matching the modelled surface cannot inflate
+ * the number, because there is no modelled surface in the measurement: the
+ * wash drags the measured ink to its real contrast (round 9's α-sweep
+ * measured 1.36:1 at α 0.85, 1.03:1 at α 0.99 while the model reported
+ * 15.64:1), and the guard fails it.
  *
  * The guard fails loudly, by element name, when it cannot determine the
  * painted result: opacity, filter, backdrop-filter or mix-blend-mode other
@@ -37,36 +58,39 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  * the opaque surface at that point — negative-z paint counts as above when
  * it lives inside the surface's own stacking context, where the CSS
  * painting algorithm places it between the surface's background and its
- * content; a click-through overlay (`pointer-events: none`) that paints a
- * background, is stacked above the opaque surface and intersects the glyph
- * area; and an ink-level pixel cross-check that fails on any glyph-area
- * pixel the model did not produce, and on any explained-colour block that
- * swallows or erases the glyphs. The last two checks — the click-through
- * scan and the pixel cross-check — are the readings that do not model the
- * paint: the scan walks the DOM unconditionally for overlays that hit
- * testing cannot see at all, and the cross-check screenshots the target's
- * box, decodes it in the page and classifies every pixel inside the glyph
- * area against the modelled paint (surface, foreground, or a blend of the
- * two), naming anything else. Paint that reaches the glyphs but is
+ * content; a pseudo that is transformed (`transform`, `translate`, `rotate`
+ * or `scale`), whose painted box cannot be resolved from computed styles; a
+ * click-through overlay (`pointer-events: none`) that paints a background,
+ * is stacked above the opaque surface and intersects the glyph area; and
+ * the pixel reading itself: any glyph-area pixel that is neither the
+ * measured surface, nor the measured ink, nor a blend of the two is paint
+ * an overlay put there and fails by name, and the measured contrast must
+ * stay above the legibility floor. The click-through scan and the pixel
+ * reading are the checks that do not model the paint: the scan walks the
+ * DOM unconditionally for overlays that hit testing cannot see at all, and
+ * the pixel reading screenshots the target's box, decodes it in the page
+ * and classifies every pixel inside the glyph area against the MEASURED
+ * pair, naming anything else. Paint that reaches the glyphs but is
  * invisible to the model for any other reason — an outset shadow from a
- * neighbouring element, say — is exactly what the cross-check exists to
+ * neighbouring element, say — is exactly what the pixel reading exists to
  * see.
  *
  * What still escapes — declared, so the boundary is not mistaken for a
  * guarantee:
  * - Partial occlusion is bounded, not prohibited: an overlay that leaves
- *   the glyphs mostly legible passes (the explained-paint share of the
- *   glyph area must stay between the pristine bounds measured on the
- *   fixture and the solid-block bound), while an overlay that occludes
- *   most or all of the ink fails.
+ *   the glyphs mostly legible passes (the explained and pure-ink shares of
+ *   the glyph area must stay within the measured pristine bounds, which sit
+ *   at half the pristine shares), while an overlay that occludes most or
+ *   all of the ink fails — at its real measured contrast.
  * - Pseudo-elements are resolved for background paint only; one that paints
  *   only glyphs or text without a background is not detected.
  * - `elementsFromPoint` cannot report pseudo-element boxes, so pseudo paint
  *   is read from resolved styles instead of hit tests; a positioned pseudo
  *   whose painted box cannot be resolved from computed styles fails loudly.
- * - The pixel check classifies glyphs against a single modelled foreground
- *   (the worst-contrast one); a target whose glyphs genuinely paint in more
- *   than one colour would fail the check and needs its own measurement.
+ * - The pixel reading measures a single ink cluster (the strongest-contrast
+ *   one); a target whose glyphs genuinely paint in more than one colour
+ *   with differing contrast is measured at its strongest and needs its own
+ *   measurement.
  * - Only mounted, opaque toasts are measured; enter/exit and hover
  *   intermediate states are out of scope.
  * - Text painted with `background-clip: text` resolves to a transparent
@@ -75,22 +99,28 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
 
 const TEXT_CONTRAST_FLOOR = 4.5;
 const GLYPH_CONTRAST_FLOOR = 3;
-// Ink-level pixel cross-check bounds. The check screenshots the target's
-// box and classifies every pixel INSIDE the glyph area (the text's own line
-// boxes, or the painted-glyph region) against the modelled paint: the
-// modelled surface, the modelled foreground, or a blend of the two (the
-// per-channel interval between them, widened by the antialiasing fuzz the
-// browser's own text edges produce — measured at ±6 on the shipped
-// fixture). Anything else is FOREIGN paint an overlay put there, and a
-// single such pixel fails the guard by name. Bounds, measured on the
-// pristine production fixture across all four theme/viewport legs (text
-// ~31-33% explained, icon ~52%, close glyph ~27%):
+// Pixel-reading bounds, measured on the pristine production fixture at the
+// pinned render scale (deviceScaleFactor 2) across all four theme/viewport
+// legs; the fontless-fallback readings (the one flake vector the pixel
+// reading adds) are in parentheses:
+//   text    explained 24.4-25.9 % (22.0 %), pure ink 9.5-12.7 % (6.9 %);
+//   glyph   explained 40.8-45.9 %,        pure ink 14.2-22.2 %.
+// The floors sit at HALF the weakest pristine measurement of each kind, so
+// the guard fails once more than half the ink is erased; the ceilings sit
+// ~1.5x above the strongest, so a solid block of any explained colour fails.
+// The explained share is ink+blend (a block of the surface colour erases
+// it); the pure-ink share is the pixels that match the measured ink cluster
+// (a wash of the surface colour with only a sliver of pristine ink leaves
+// it, even though the washed ink still counts as explained paint).
 const PIXEL_MATCH_TOLERANCE = 3;
 const BLEND_MARGIN = 6;
+const SURFACE_BAND_MARGIN = 4;
 const TEXT_EXPLAINED_MAX = 0.4;
-const TEXT_INK_MIN = 0.06;
+const TEXT_EXPLAINED_MIN = 0.12;
+const TEXT_INK_MIN = 0.045;
 const GLYPH_EXPLAINED_MAX = 0.7;
-const GLYPH_INK_MIN = 0.05;
+const GLYPH_EXPLAINED_MIN = 0.2;
+const GLYPH_INK_MIN = 0.07;
 
 const THEMES = ['light', 'dark'] as const;
 const VARIANTS = ['success', 'error', 'warning', 'info'] as const;
@@ -104,11 +134,6 @@ type Variant = (typeof VARIANTS)[number];
 type ViewportPreset = (typeof VIEWPORTS)[number];
 type TargetKind = 'glyph' | 'text';
 type Rgba = { r: number; g: number; b: number; a: number };
-type BackgroundLayer = { color: string; element: string; source: string };
-type BrowserPaint = {
-	backgroundLayers: BackgroundLayer[];
-	foregrounds: string[];
-};
 type ContrastMeasurement = {
 	background: Rgba;
 	foreground: Rgba;
@@ -163,70 +188,10 @@ test('every product toast variant is contrast-measured', () => {
 	);
 });
 
-const parseComputedColor = (value: string): Rgba => {
-	const match =
-		/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,/]\s*([\d.]+))?\s*\)$/.exec(
-			value,
-		);
-	if (!match) {
-		throw new Error(`Unparseable browser-reported colour: ${value}`);
-	}
-
-	return {
-		r: Number(match[1]),
-		g: Number(match[2]),
-		b: Number(match[3]),
-		a: match[4] === undefined ? 1 : Number(match[4]),
-	};
-};
-
-const alphaComposite = (over: Rgba, under: Rgba): Rgba => {
-	const resultAlpha = over.a + under.a * (1 - over.a);
-	if (resultAlpha === 0) {
-		return { r: 0, g: 0, b: 0, a: 0 };
-	}
-
-	const compositeChannel = (
-		overChannel: number,
-		underChannel: number,
-	): number =>
-		(overChannel * over.a + underChannel * under.a * (1 - over.a)) /
-		resultAlpha;
-
-	return {
-		r: compositeChannel(over.r, under.r),
-		g: compositeChannel(over.g, under.g),
-		b: compositeChannel(over.b, under.b),
-		a: resultAlpha,
-	};
-};
-
-const relativeLuminance = ({ r, g, b }: Rgba): number => {
-	const linearize = (channel: number): number => {
-		const value = channel / 255;
-		return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-	};
-
-	return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
-};
-
-const contrastRatio = (foreground: Rgba, background: Rgba): number => {
-	const lighter = Math.max(
-		relativeLuminance(foreground),
-		relativeLuminance(background),
-	);
-	const darker = Math.min(
-		relativeLuminance(foreground),
-		relativeLuminance(background),
-	);
-
-	return (lighter + 0.05) / (darker + 0.05);
-};
-
 const readBrowserPaint = async (
 	target: Locator,
 	kind: TargetKind,
-): Promise<BrowserPaint> =>
+): Promise<void> =>
 	target.evaluate((element, targetKind) => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 1;
@@ -645,9 +610,13 @@ const readBrowserPaint = async (
 		 * backgrounded pseudo stacked BELOW that surface (a `z-index: -1`
 		 * decoration on an ancestor of the toast, say) changes no rendered
 		 * pixel and must not fail the guard. One whose box cannot be resolved
-		 * fails loudly rather than assume. The shipped float (`::before` on
-		 * the title) and sonner's own transparent hit-area pseudos pass,
-		 * having no paint.
+		 * fails loudly rather than assume — including one whose paint is
+		 * relocated by `transform`/`translate`/`rotate`/`scale`, whose box
+		 * computed styles cannot describe (round-9 I1: a transform silently
+		 * relocated the paint back onto the ink while the resolved box sat
+		 * 400 px away and the guard substituted the compliant box). The
+		 * shipped float (`::before` on the title) and sonner's own
+		 * transparent hit-area pseudos pass, having no paint.
 		 */
 		const assertNoPseudoOverlay = (
 			layer: Element,
@@ -969,9 +938,8 @@ const readBrowserPaint = async (
 		}
 		// The opaque layer the point shows is resolved first: everything the
 		// pseudo checks and the click-through scan compare against is stacked
-		// relative to THIS surface. Collect the background layers on the way
-		// down and stop at the first element that paints one.
-		const backgroundLayers: BackgroundLayer[] = [];
+		// relative to THIS surface. Walk the hit stack down and stop at the
+		// first element that paints an opaque background.
 		const seen = new Set<Element>();
 		const opaqueElement = ((): Element | null => {
 			for (const layer of hitStack.slice(targetIndex)) {
@@ -986,11 +954,6 @@ const readBrowserPaint = async (
 					style.backgroundImage,
 					name,
 				)) {
-					backgroundLayers.push({
-						color: layerColor,
-						element: name,
-						source: 'background-image',
-					});
 					if (paintAlpha(layerColor, `${name} background-image`) === 1) {
 						return layer;
 					}
@@ -1000,16 +963,8 @@ const readBrowserPaint = async (
 					style.backgroundColor,
 					`${name} background-color`,
 				);
-				const alpha = paintAlpha(backgroundColor, `${name} background-color`);
-				if (alpha !== 0) {
-					backgroundLayers.push({
-						color: backgroundColor,
-						element: name,
-						source: 'background-color',
-					});
-					if (alpha === 1) {
-						return layer;
-					}
+				if (paintAlpha(backgroundColor, `${name} background-color`) === 1) {
+					return layer;
 				}
 			}
 			return null;
@@ -1077,7 +1032,11 @@ const readBrowserPaint = async (
 			assertNoPseudoOverlay(layer, x, y, name, opaqueElement);
 		}
 
-		const foregrounds: string[] = [];
+		// The pixel reading decides the ink colour; the model's remaining job
+		// here is to fail loudly on paint that would corrupt the reading —
+		// opacity/filter/inset-shadow properties on every text-bearing
+		// painter, and a text shadow. An unparseable computed fill also fails
+		// loud (the pixels cannot be trusted to tell the story alone).
 		if (targetKind === 'text') {
 			const hasTextContent = (candidate: Element): boolean =>
 				Array.from(candidate.childNodes).some(
@@ -1086,12 +1045,6 @@ const readBrowserPaint = async (
 						(node.textContent ?? '').trim() !== '',
 				);
 
-			// The container's computed colour is not necessarily the colour
-			// the text paints: a descendant may carry its own colour (a
-			// `<Trans>` span, say), and it both paints over the sampled point
-			// and is invisible to the hit-stack reading. Take the worst
-			// colour among the target and every visible text-bearing
-			// descendant.
 			const textPainters: Element[] = [element];
 			for (const descendant of element.querySelectorAll('*')) {
 				if (hasTextContent(descendant)) {
@@ -1120,18 +1073,16 @@ const readBrowserPaint = async (
 						`${painterName} has unsupported text shadow ${painterStyle.textShadow}`,
 					);
 				}
-				const color = toSrgb(
+				toSrgb(
 					painterStyle.webkitTextFillColor || painterStyle.color,
 					`${painterName} text fill colour`,
 				);
-				if (!foregrounds.includes(color)) {
-					foregrounds.push(color);
-				}
 			}
 		} else {
 			const shapes = element.querySelectorAll(
 				'path, circle, ellipse, line, polyline, polygon, rect',
 			);
+			let paintedShapes = 0;
 			for (const shape of shapes) {
 				const style = getComputedStyle(shape);
 				assertSupportedPaint(
@@ -1153,16 +1104,11 @@ const readBrowserPaint = async (
 							`${elementName(element)} ${shape.tagName} has unsupported ${property}-opacity ${paintOpacity}`,
 						);
 					}
-					const color = toSrgb(
-						paint,
-						`${elementName(element)} ${shape.tagName} ${property}`,
-					);
-					if (!foregrounds.includes(color)) {
-						foregrounds.push(color);
-					}
+					toSrgb(paint, `${elementName(element)} ${shape.tagName} ${property}`);
+					paintedShapes += 1;
 				}
 			}
-			if (foregrounds.length === 0) {
+			if (paintedShapes === 0) {
 				throw new Error(
 					`${elementName(element)} has no parseable painted glyph`,
 				);
@@ -1215,47 +1161,17 @@ const readBrowserPaint = async (
 			}
 		}
 
-		return { backgroundLayers, foregrounds };
+		return undefined;
 	}, kind);
 
 const measureContrast = async (
 	target: Locator,
 	kind: TargetKind,
+	floor: number,
+	label = 'contrast target',
 ): Promise<ContrastMeasurement> => {
-	const computed = await readBrowserPaint(target, kind);
-	if (computed.backgroundLayers.length === 0) {
-		throw new Error('No painted background layer found behind contrast target');
-	}
-
-	const layers = computed.backgroundLayers.map((layer) =>
-		parseComputedColor(layer.color),
-	);
-	let background = layers[layers.length - 1];
-	for (let index = layers.length - 2; index >= 0; index -= 1) {
-		background = alphaComposite(layers[index], background);
-	}
-
-	let minimum: ContrastMeasurement | undefined;
-	for (const foregroundValue of computed.foregrounds) {
-		const rawForeground = parseComputedColor(foregroundValue);
-		const foreground =
-			rawForeground.a === 1
-				? rawForeground
-				: alphaComposite(rawForeground, background);
-		const measurement = {
-			background,
-			foreground,
-			ratio: contrastRatio(foreground, background),
-		};
-		if (!minimum || measurement.ratio < minimum.ratio) {
-			minimum = measurement;
-		}
-	}
-
-	if (!minimum) {
-		throw new Error('No browser-reported foreground paint found');
-	}
-	return minimum;
+	await readBrowserPaint(target, kind);
+	return measurePaintedContrast(target, kind, floor, label);
 };
 
 const setTheme = async (page: Page, theme: Theme): Promise<void> => {
@@ -1294,59 +1210,60 @@ const rgbaLabel = ({ r, g, b, a }: Rgba): string =>
 	`rgba(${r.toFixed(1)}, ${g.toFixed(1)}, ${b.toFixed(1)}, ${a.toFixed(3)})`;
 
 /**
- * The one reading in the guard that does not model the paint: screenshot the
- * target's box, decode it in the page, and require the modelled painted
- * surface to actually be present in the composited pixels. This catches
- * paint that the model cannot see at all — an overlay with
- * `pointer-events: none` is invisible to `elementsFromPoint` by definition,
- * yet paints over the target like any other element — and independently
- * cross-checks the alpha parsing and the inset-shadow geometry. Tolerance is
- * per-channel against the browser-composited pixel; the model's surface and
- * the painted pixel differ by at most a rounding step.
+ * The reading that decides: screenshot the target's box, decode it in the
+ * page, and MEASURE the pair the contrast number is computed from. The
+ * surface is the modal colour of the target's box (text targets) or of the
+ * ring immediately around the glyph area (glyph targets, whose box can be
+ * dominated by the glyph itself); the ink is the glyph-area pixel cluster
+ * with the strongest contrast to that surface; the WCAG ratio is computed
+ * between the two measured colours. The model's only role is to say which
+ * element and which region to measure — it never asserts a colour, so a
+ * wash matching any modelled surface cannot inflate the number: the wash
+ * drags the measured ink to its real contrast and the guard fails it
+ * (round-9 B1).
+ *
+ * Every glyph-area pixel is then classified against the MEASURED pair:
+ * surface, ink, blend (per-channel between the two, widened by the
+ * antialiasing fuzz the browser's own text edges produce — measured at ±6
+ * on the shipped fixture), or foreign. A single foreign pixel fails the
+ * guard by name — it is paint an overlay put there (the outset-shadow
+ * vector, invisible to every model reading). Four bounds keep the reading
+ * honest at the ends:
+ * - the measured contrast must stay above the target's legibility floor;
+ * - the pure-ink share must stay above its floor (half the weakest pristine
+ *   measurement of its kind) — a wash of the surface colour with only a
+ *   sliver of pristine ink keeps the explained share at pristine and the
+ *   ratio at 15.6:1, but erases the ink;
+ * - the explained share must stay above its floor (half the weakest
+ *   pristine measurement of its kind) — a block of the surface colour
+ *   erases it while the surviving ink still measures 15.6:1;
+ * - the explained share must stay below the ceiling — a solid block of any
+ *   explained colour (surface, ink or a blend) would otherwise pass while
+ *   swallowing every glyph.
  */
-/**
- * The one reading in the guard that does not model the paint: screenshot the
- * target's box, decode it in the page, and measure the glyphs THEMSELVES —
- * the pixels inside the text's own line boxes (text targets) or the painted
- * shapes' boxes (glyph targets). Every pixel in that area must be explained
- * by the model: the modelled surface, the modelled foreground, or a blend of
- * the two (the per-channel interval between them, widened by the
- * antialiasing fuzz the browser's own text edges produce). A pixel that is
- * none of those is paint an overlay put there, and it fails the guard by
- * name. Two bounds keep the reading honest at the ends: the explained paint
- * must not swallow the glyph area (a solid block of any explained colour
- * would otherwise pass while occluding every glyph — round-7 B1), and it
- * must not vanish (a block of the surface colour would erase the ink). The
- * check therefore also cross-checks the alpha parsing and the inset-shadow
- * geometry, and catches paint the model cannot see at all — an overlay with
- * `pointer-events: none` is invisible to `elementsFromPoint` by definition,
- * yet paints over the target like any other element. Tolerance is per-channel
- * against the browser-composited pixel; the model's surface and the painted
- * pixel differ by at most a rounding step.
- */
-const assertPaintedSurfaceVisible = async (
+const measurePaintedContrast = async (
 	target: Locator,
 	kind: TargetKind,
-	background: Rgba,
-	foreground: Rgba,
+	floor: number,
 	label: string,
-): Promise<void> => {
-	const box = await target.boundingBox();
-	if (!box) {
-		throw new Error(`${label} has no painted box to cross-check`);
-	}
+): Promise<ContrastMeasurement> => {
+	// The screenshot waits for the element to be stable (the toast's
+	// entrance animation), so the pixels and the geometry read in the
+	// evaluate below come from the same settled frame.
 	const screenshot = await target.screenshot();
 	const report = await target.evaluate(
 		async (
 			element,
 			{
-				background,
+				bandMargin,
 				blendMargin,
-				box,
 				dataUrl,
-				foreground,
+				floor,
 				kind,
 				label,
+				maxExplained,
+				minExplained,
+				minInk,
 				tolerance,
 			},
 		) => {
@@ -1369,6 +1286,45 @@ const assertPaintedSurfaceVisible = async (
 			context.drawImage(bitmap, 0, 0);
 			const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
 
+			const luminance = ([r, g, b]: number[]): number => {
+				const linearize = (channel: number): number => {
+					const value = channel / 255;
+					return value <= 0.04045
+						? value / 12.92
+						: ((value + 0.055) / 1.055) ** 2.4;
+				};
+				return (
+					0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+				);
+			};
+			const contrast = (a: number[], b: number[]): number => {
+				const la = luminance(a);
+				const lb = luminance(b);
+				return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+			};
+			const modalColours = (
+				pixels: number[][],
+			): { average: number[]; count: number }[] => {
+				const counts = new Map<string, number>();
+				for (const pixel of pixels) {
+					const key = `${pixel[0]},${pixel[1]},${pixel[2]}`;
+					counts.set(key, (counts.get(key) ?? 0) + 1);
+				}
+				if (counts.size === 0) {
+					throw new Error(`${label}: no modal colour to measure`);
+				}
+				return [...counts.entries()]
+					.map(([key, count]) => ({
+						average: key.split(',').map(Number),
+						count,
+					}))
+					.sort((a, b) => b.count - a.count);
+			};
+			const within = (a: number[], b: number[]): boolean =>
+				a.every((channel, index) => Math.abs(channel - b[index]) <= tolerance);
+
+			const dpr = devicePixelRatio;
+			const elementBox = element.getBoundingClientRect();
 			const glyphArea = ((): {
 				bottom: number;
 				left: number;
@@ -1412,52 +1368,165 @@ const assertPaintedSurfaceVisible = async (
 					);
 				}
 				return {
-					left: Math.min(...rects.map((textRect) => textRect.left)) - box.x,
-					right: Math.max(...rects.map((textRect) => textRect.right)) - box.x,
-					top: Math.min(...rects.map((textRect) => textRect.top)) - box.y,
-					bottom: Math.max(...rects.map((textRect) => textRect.bottom)) - box.y,
+					left: (Math.min(...rects.map((r) => r.left)) - elementBox.left) * dpr,
+					right:
+						(Math.max(...rects.map((r) => r.right)) - elementBox.left) * dpr,
+					top: (Math.min(...rects.map((r) => r.top)) - elementBox.top) * dpr,
+					bottom:
+						(Math.max(...rects.map((r) => r.bottom)) - elementBox.top) * dpr,
 				};
 			})();
 
-			const isSurface = (x: number, y: number): boolean => {
+			const pixelAt = (x: number, y: number): [number, number, number] => {
 				const index = (y * canvas.width + x) * 4;
-				return (
-					Math.abs(data[index] - background[0]) <= tolerance &&
-					Math.abs(data[index + 1] - background[1]) <= tolerance &&
-					Math.abs(data[index + 2] - background[2]) <= tolerance
-				);
-			};
-			const isInk = (x: number, y: number): boolean => {
-				const index = (y * canvas.width + x) * 4;
-				return (
-					Math.abs(data[index] - foreground[0]) <= tolerance &&
-					Math.abs(data[index + 1] - foreground[1]) <= tolerance &&
-					Math.abs(data[index + 2] - foreground[2]) <= tolerance
-				);
-			};
-			const isBlend = (x: number, y: number): boolean => {
-				const index = (y * canvas.width + x) * 4;
-				const between = (channel: number, low: number, high: number): boolean =>
-					low - blendMargin <= channel && channel <= high + blendMargin;
-				return (
-					between(
-						data[index],
-						Math.min(foreground[0], background[0]),
-						Math.max(foreground[0], background[0]),
-					) &&
-					between(
-						data[index + 1],
-						Math.min(foreground[1], background[1]),
-						Math.max(foreground[1], background[1]),
-					) &&
-					between(
-						data[index + 2],
-						Math.min(foreground[2], background[2]),
-						Math.max(foreground[2], background[2]),
-					)
-				);
+				return [data[index], data[index + 1], data[index + 2]];
 			};
 
+			// The surface: for text targets the modal colour of the whole box
+			// (an outset shadow big enough to dominate the box would itself be
+			// the story the guard must tell); for glyph targets the ring just
+			// outside the glyph area, whose own box can be dominated by the
+			// glyph (the 16px icon is ~60 % glyph pixels). The box's modal
+			// colour must actually be what the glyphs sit on: when it occupies
+			// less than 15 % of the glyph area — below the strongest pristine
+			// ink share of any measured text target (12.7 %), so a modal that
+			// appears only as the ink is the ink colour itself — it is an
+			// overlay, and the ring immediately around the glyphs decides
+			// instead (the round-8 green pair's overlay covers the box's
+			// right half with the ink colour while leaving the glyphs
+			// pristine).
+			const ring = (margin: number): number[][] => {
+				const pixels: number[][] = [];
+				for (
+					let y = Math.floor(glyphArea.top - margin);
+					y <= Math.ceil(glyphArea.bottom + margin);
+					y += 1
+				) {
+					for (
+						let x = Math.floor(glyphArea.left - margin);
+						x <= Math.ceil(glyphArea.right + margin);
+						x += 1
+					) {
+						if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+							continue;
+						}
+						if (
+							x >= Math.floor(glyphArea.left) &&
+							x <= Math.ceil(glyphArea.right) &&
+							y >= Math.floor(glyphArea.top) &&
+							y <= Math.ceil(glyphArea.bottom)
+						) {
+							continue;
+						}
+						pixels.push(pixelAt(x, y));
+					}
+				}
+				return pixels;
+			};
+			const band = ((): number[][] => {
+				for (const margin of [bandMargin, 2, 1]) {
+					const pixels = ring(margin * dpr);
+					if (pixels.length > 0) {
+						return pixels;
+					}
+				}
+				return [];
+			})();
+			let surface: number[];
+			if (kind === 'text') {
+				const allPixels: number[][] = [];
+				for (let y = 0; y < canvas.height; y += 1) {
+					for (let x = 0; x < canvas.width; x += 1) {
+						allPixels.push(pixelAt(x, y));
+					}
+				}
+				const boxWinner = modalColours(allPixels)[0].average;
+				let boxWinnerGlyphPixels = 0;
+				let glyphPixels = 0;
+				for (
+					let y = Math.floor(glyphArea.top);
+					y <= Math.ceil(glyphArea.bottom);
+					y += 1
+				) {
+					for (
+						let x = Math.floor(glyphArea.left);
+						x <= Math.ceil(glyphArea.right);
+						x += 1
+					) {
+						if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+							continue;
+						}
+						glyphPixels += 1;
+						if (within(pixelAt(x, y), boxWinner)) {
+							boxWinnerGlyphPixels += 1;
+						}
+					}
+				}
+				const bandWinner = band.length > 0 ? modalColours(band)[0] : undefined;
+				surface =
+					boxWinnerGlyphPixels / glyphPixels < 0.15 && bandWinner !== undefined
+						? bandWinner.average
+						: boxWinner;
+			} else {
+				if (band.length === 0) {
+					throw new Error(
+						`${label}: the glyph area leaves no surface ring to measure`,
+					);
+				}
+				surface = modalColours(band)[0].average;
+			}
+
+			// The ink: the glyph-area pixel cluster with the strongest
+			// contrast to the measured surface (blends of the pair have lower
+			// contrast than the ink they come from, so the cluster with the
+			// strongest contrast is the glyph core colour).
+			const candidates: number[][] = [];
+			for (
+				let y = Math.floor(glyphArea.top);
+				y <= Math.ceil(glyphArea.bottom);
+				y += 1
+			) {
+				for (
+					let x = Math.floor(glyphArea.left);
+					x <= Math.ceil(glyphArea.right);
+					x += 1
+				) {
+					if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+						continue;
+					}
+					const pixel = pixelAt(x, y);
+					if (!within(pixel, surface)) {
+						candidates.push(pixel);
+					}
+				}
+			}
+			const clusters: { average: number[]; count: number }[] = [];
+			for (const pixel of candidates) {
+				const match = clusters.find((cluster) =>
+					cluster.average.every(
+						(channel, index) => Math.abs(channel - pixel[index]) <= tolerance,
+					),
+				);
+				if (match) {
+					match.average = match.average.map(
+						(channel, index) =>
+							(channel * match.count + pixel[index]) / (match.count + 1),
+					);
+					match.count += 1;
+				} else {
+					clusters.push({ average: [...pixel], count: 1 });
+				}
+			}
+			const strongest = [...clusters].sort((a, b) => {
+				const ratio =
+					contrast(b.average, surface) - contrast(a.average, surface);
+				return ratio !== 0 ? ratio : b.count - a.count;
+			})[0];
+			const ink = strongest?.average;
+			const ratio = ink ? contrast(ink, surface) : 0;
+
+			// Classification against the measured pair: surface, ink, blend,
+			// then foreign.
 			let surfacePixels = 0;
 			let inkPixels = 0;
 			let blendPixels = 0;
@@ -1478,72 +1547,108 @@ const assertPaintedSurfaceVisible = async (
 						continue;
 					}
 					total += 1;
-					const index = (y * canvas.width + x) * 4;
-					if (isSurface(x, y)) {
+					const pixel = pixelAt(x, y);
+					if (within(pixel, surface)) {
 						surfacePixels += 1;
-					} else if (isInk(x, y)) {
+					} else if (ink && within(pixel, ink)) {
 						inkPixels += 1;
-					} else if (isBlend(x, y)) {
-						blendPixels += 1;
+					} else if (ink) {
+						const blend = pixel.every((channel, index) => {
+							const low = Math.min(ink[index], surface[index]) - blendMargin;
+							const high = Math.max(ink[index], surface[index]) + blendMargin;
+							return low <= channel && channel <= high;
+						});
+						if (blend) {
+							blendPixels += 1;
+						} else {
+							foreignPixels += 1;
+							firstForeign ??= [pixel[0], pixel[1], pixel[2]];
+						}
 					} else {
 						foreignPixels += 1;
-						firstForeign ??= [data[index], data[index + 1], data[index + 2]];
+						firstForeign ??= [pixel[0], pixel[1], pixel[2]];
 					}
 				}
 			}
+			if (total === 0) {
+				throw new Error(
+					`${label}: the glyph area contains no pixels to measure`,
+				);
+			}
+
+			const rgbLabel = (channels: number[]): string =>
+				`rgb(${Math.round(channels[0])}, ${Math.round(channels[1])}, ${Math.round(channels[2])})`;
+			const inkFraction = inkPixels / total;
+			const explainedFraction = (inkPixels + blendPixels) / total;
+			if (foreignPixels > 0) {
+				throw new Error(
+					`${label}: the glyph area contains ${foreignPixels} pixel(s) of paint ` +
+						`the measured surface and ink did not produce — neither the measured ` +
+						`surface ${rgbLabel(surface)} nor the measured ink ${rgbLabel(ink ?? [])} ` +
+						`nor a blend of the two (nearest foreign colour ` +
+						`rgb(${firstForeign?.join(', ') ?? '?'}))`,
+				);
+			}
+			if (inkFraction < minInk) {
+				throw new Error(
+					`${label}: no legible glyph ink in the glyph area — only ` +
+						`${inkFraction.toFixed(3)} of ${total} glyph-area pixels match the ` +
+						`measured ink — the ink has been washed away`,
+				);
+			}
+			if (explainedFraction < minExplained) {
+				throw new Error(
+					`${label}: no legible glyph ink in the glyph area — only ` +
+						`${explainedFraction.toFixed(3)} of ${total} glyph-area pixels are ` +
+						`explained paint (surface ${surfacePixels}, ink ${inkPixels}, blends ` +
+						`${blendPixels}) — the surface colour may have erased the ink`,
+				);
+			}
+			if (explainedFraction > maxExplained) {
+				throw new Error(
+					`${label}: ${explainedFraction.toFixed(3)} of ${total} glyph-area pixels ` +
+						`are explained paint — a solid block of an explained colour (surface, ` +
+						`text colour or a blend) is covering the glyphs (ink ${inkPixels}, ` +
+						`blends ${blendPixels}, surface ${surfacePixels})`,
+				);
+			}
+			if (ratio < floor) {
+				throw new Error(
+					`${label}: measured contrast ${ratio.toFixed(2)}:1 is below the ` +
+						`${floor}:1 floor — the ink is washed or occluded`,
+				);
+			}
+
 			return {
-				blendPixels,
-				foreignPixels,
-				firstForeign,
-				glyphArea,
-				inkPixels,
-				surfacePixels,
-				total,
+				background: {
+					r: Math.round(surface[0]),
+					g: Math.round(surface[1]),
+					b: Math.round(surface[2]),
+					a: 1,
+				},
+				foreground: {
+					r: ink ? Math.round(ink[0]) : 0,
+					g: ink ? Math.round(ink[1]) : 0,
+					b: ink ? Math.round(ink[2]) : 0,
+					a: 1,
+				},
+				ratio,
 			};
 		},
 		{
-			background: [background.r, background.g, background.b],
+			bandMargin: SURFACE_BAND_MARGIN,
 			blendMargin: BLEND_MARGIN,
-			box: { x: box.x, y: box.y },
 			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
-			foreground: [foreground.r, foreground.g, foreground.b],
+			floor,
 			kind,
 			label,
+			maxExplained: kind === 'text' ? TEXT_EXPLAINED_MAX : GLYPH_EXPLAINED_MAX,
+			minExplained: kind === 'text' ? TEXT_EXPLAINED_MIN : GLYPH_EXPLAINED_MIN,
+			minInk: kind === 'text' ? TEXT_INK_MIN : GLYPH_INK_MIN,
 			tolerance: PIXEL_MATCH_TOLERANCE,
 		},
 	);
-	if (report.total === 0) {
-		throw new Error(`${label}: the glyph area contains no pixels to measure`);
-	}
-	if (report.foreignPixels > 0) {
-		throw new Error(
-			`${label}: the glyph area contains ${report.foreignPixels} pixel(s) of paint ` +
-				`the model did not produce — neither the modelled surface ${rgbaLabel(background)} ` +
-				`nor the modelled text colour ${rgbaLabel(foreground)} nor a blend of the two ` +
-				`(nearest foreign colour rgb(${report.firstForeign?.join(', ') ?? '?'}))`,
-		);
-	}
-	const explainedFraction =
-		(report.inkPixels + report.blendPixels) / report.total;
-	const maxFraction =
-		kind === 'text' ? TEXT_EXPLAINED_MAX : GLYPH_EXPLAINED_MAX;
-	const minFraction = kind === 'text' ? TEXT_INK_MIN : GLYPH_INK_MIN;
-	if (explainedFraction < minFraction) {
-		throw new Error(
-			`${label}: no legible glyph ink in the glyph area — only ` +
-				`${explainedFraction.toFixed(3)} of ${report.total} glyph-area pixels are ` +
-				`explained paint (surface ${report.surfacePixels}, ink ${report.inkPixels}, ` +
-				`blends ${report.blendPixels}) — the text may be painted over by the surface colour`,
-		);
-	}
-	if (explainedFraction > maxFraction) {
-		throw new Error(
-			`${label}: ${explainedFraction.toFixed(3)} of ${report.total} glyph-area pixels ` +
-				`are explained paint — a solid block of an explained colour (surface, text ` +
-				`colour or a blend) is covering the glyphs (ink ${report.inkPixels}, blends ` +
-				`${report.blendPixels}, surface ${report.surfacePixels})`,
-		);
-	}
+	return report;
 };
 
 const measureToastTarget = async ({
@@ -1560,20 +1665,12 @@ const measureToastTarget = async ({
 	testInfo: TestInfo;
 }): Promise<ContrastMeasurement> => {
 	await expect(target, `${label} must render`).toBeVisible();
-	const measurement = await measureContrast(target, kind);
-	await assertPaintedSurfaceVisible(
-		target,
-		kind,
-		measurement.background,
-		measurement.foreground,
-		label,
-	);
+	const measurement = await measureContrast(target, kind, floor, label);
 	const description =
 		`${label}: ${measurement.ratio.toFixed(2)}:1 ` +
-		`(foreground ${rgbaLabel(measurement.foreground)}, ` +
-		`painted surface ${rgbaLabel(measurement.background)})`;
+		`(measured ink ${rgbaLabel(measurement.foreground)}, ` +
+		`measured surface ${rgbaLabel(measurement.background)})`;
 	testInfo.annotations.push({ type: 'contrast', description });
-	expect.soft(measurement.ratio, description).toBeGreaterThanOrEqual(floor);
 	return measurement;
 };
 
@@ -1791,7 +1888,11 @@ test('an inset shadow that floods the whole box via spread fails the guard', asy
 	});
 	const toast = await renderToast(page, 'success');
 	await expect(
-		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
 	).rejects.toThrow(/inset shadow that can reach the sampled point/);
 });
 
@@ -1804,11 +1905,11 @@ test('an inset highlight confined to an edge stays measured', async ({
 			'.publy-toast { box-shadow: var(--publy-shadow-menu), inset 0 1px 0 rgb(255 255 255 / 0.6); }',
 	});
 	const toast = await renderToast(page, 'success');
-	const measurement = await measureContrast(
+	await measureContrast(
 		toast.locator('.publy-toast-title'),
 		'text',
+		TEXT_CONTRAST_FLOOR,
 	);
-	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
 });
 
 /**
@@ -1830,7 +1931,11 @@ test('a pseudo-element overlay in front of the toast fails the guard', async ({
 	});
 	const toast = await renderToast(page, 'success');
 	await expect(
-		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
 	).rejects.toThrow(/paints a background over the sampled point/);
 });
 
@@ -1843,11 +1948,11 @@ test('a pseudo-element painted behind the toast stays measured', async ({
 			".publy-toaster::before { content: ''; position: fixed; inset: 0; background: rgb(255 0 0); pointer-events: none; z-index: -1; }",
 	});
 	const toast = await renderToast(page, 'success');
-	const measurement = await measureContrast(
+	await measureContrast(
 		toast.locator('.publy-toast-title'),
 		'text',
+		TEXT_CONTRAST_FLOOR,
 	);
-	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
 });
 
 /**
@@ -1870,7 +1975,11 @@ test('a negative-z pseudo-element over the toast text fails the guard', async ({
 	});
 	const toast = await renderToast(page, 'success');
 	await expect(
-		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
 	).rejects.toThrow(/paints a background over the sampled point/);
 });
 
@@ -1881,21 +1990,23 @@ test('an edge accent stripe on the toast stays measured', async ({ page }) => {
 			".publy-toast::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--publy-toast-accent); pointer-events: none; }",
 	});
 	const toast = await renderToast(page, 'success');
-	const measurement = await measureContrast(
+	await measureContrast(
 		toast.locator('.publy-toast-title'),
 		'text',
+		TEXT_CONTRAST_FLOOR,
 	);
-	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
 });
 
 /**
- * Round-7 M2's second undeclared gap, closed in code: a RELATIVELY
- * positioned pseudo paints the origin's box translated by its offsets, and
- * resolving that box was exactly what the old rule did not do — it tested
- * the origin's own rectangle, which is where the pseudo ISN'T when it is
- * offset away. This pseudo paints over the close-button corner, far from
- * the title's ink; before the fix the origin rectangle still contained the
- * sampled point and the guard redded a paint that never reached the text.
+ * Round-9 I2's green half: a RELATIVELY positioned pseudo that ACTUALLY
+ * paints (round 8's pseudo was `display: inline`, so its width/height did
+ * not apply and it painted nothing anywhere) and is offset away from the
+ * glyphs stays measured. `pseudoElementBox` resolves the painted box as the
+ * origin's rect translated by the offsets, which puts this pseudo over the
+ * close-button corner — far from the title's ink; before the fix the origin
+ * rectangle still contained the sampled point and the guard redded a paint
+ * that never reached the text. The self-check below proves the pseudo
+ * paints real red pixels, so the green verdict is earned, not vacuous.
  */
 test('a relatively positioned pseudo offset away from the glyphs stays measured', async ({
 	page,
@@ -1906,11 +2017,11 @@ test('a relatively positioned pseudo offset away from the glyphs stays measured'
 			".publy-toast-title::after { content: ''; position: relative; z-index: 1; left: 250px; top: 5px; width: 46px; height: 11px; background: rgb(255 0 0); pointer-events: none; }",
 	});
 	const toast = await renderToast(page, 'success');
-	const measurement = await measureContrast(
+	await measureContrast(
 		toast.locator('.publy-toast-title'),
 		'text',
+		TEXT_CONTRAST_FLOOR,
 	);
-	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
 });
 
 /**
@@ -1931,7 +2042,11 @@ test('a click-through overlay over the text fails the guard by name', async ({
 	});
 	const toast = await renderToast(page, 'success');
 	await expect(
-		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
 	).rejects.toThrow(
 		/field-validation-title is a click-through overlay painted above the toast surface and over the text area/,
 	);
@@ -1946,11 +2061,11 @@ test('a click-through overlay painted behind the toast stays measured', async ({
 			"[data-testid='field-validation-title'] { position: fixed; top: 31px; right: 117px; width: 220px; height: 40px; background: var(--publy-foreground); color: transparent; pointer-events: none; z-index: -1; }",
 	});
 	const toast = await renderToast(page, 'success');
-	const measurement = await measureContrast(
+	await measureContrast(
 		toast.locator('.publy-toast-title'),
 		'text',
+		TEXT_CONTRAST_FLOOR,
 	);
-	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
 });
 
 /**
@@ -1974,7 +2089,11 @@ test('a hit-testable overlay over the glyphs fails the guard', async ({
 	});
 	const toast = await renderToast(page, 'success');
 	await expect(
-		measureContrast(toast.locator('.publy-toast-title'), 'text'),
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
 	).rejects.toThrow(
 		/field-validation-title unexpectedly paints above contrast target/,
 	);
@@ -1989,11 +2108,11 @@ test('a hit-testable overlay away from the glyphs stays measured', async ({
 			"[data-testid='field-validation-title'] { position: fixed; top: 31px; left: 1096px; width: 153px; height: 20px; overflow: hidden; background: var(--publy-foreground); color: transparent; z-index: 2147483647; }",
 	});
 	const toast = await renderToast(page, 'success');
-	const measurement = await measureContrast(
+	await measureContrast(
 		toast.locator('.publy-toast-title'),
 		'text',
+		TEXT_CONTRAST_FLOOR,
 	);
-	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
 });
 
 /**
@@ -2023,4 +2142,134 @@ test('an outset shadow from a neighbouring element over the glyphs fails the gua
 			testInfo,
 		}),
 	).rejects.toThrow(/solid block of an explained colour/);
+});
+
+/**
+ * Round-9 B1's paired proof: the guard's contrast number must come from the
+ * rendered pixels, not from a model of the surface. A translucent wash of
+ * the MEASURED surface colour over the glyphs erases the text at every
+ * opacity — round 9's own sweep measured 1.36:1 (α .85), 1.18 (α .92), 1.07
+ * (α .97) and 1.03 (α .99) while the old model reported 15.64:1. The wash
+ * is delivered by the fixture h1's box-shadow, which is invisible to hit
+ * testing, to the click-through scan and to the paint-order model; only the
+ * pixel measurement can see it, and it must red at every α. The label on
+ * the expectation names the α that regressed.
+ */
+test('a translucent wash of the toast surface erases the text at every opacity', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	const toast = await renderToast(page, 'success');
+	const pristine = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+		TEXT_CONTRAST_FLOOR,
+	);
+	const { b, g, r } = pristine.background;
+	for (const alpha of [0.85, 0.92, 0.97, 0.99]) {
+		await page.addStyleTag({
+			content: `[data-testid='field-validation-title'] { position: fixed; top: 31px; left: 1096px; width: 153px; height: 20px; box-shadow: -160px 2px 0 8px rgba(${r}, ${g}, ${b}, ${alpha}); color: transparent; z-index: 2147483647; }`,
+		});
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+			`a ${alpha} wash of the surface must erase the text`,
+		).rejects.toThrow();
+	}
+});
+
+/**
+ * Round-9 B2's explained-share floor, pinned: a block of the TOAST SURFACE
+ * colour over most of the glyphs erases the ink while the surviving ink
+ * still measures 15.6:1 — only the explained-share floor can see it. The
+ * block is an outset shadow of the measured surface colour (invisible to
+ * every model reading) covering ~59 % of the title's glyph area, which
+ * leaves the pure-ink share above its own floor; the floor that fires is
+ * the explained one, so deleting that branch alone greens this test.
+ */
+test('a block of the toast surface colour over most of the glyphs fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	const toast = await renderToast(page, 'success');
+	const pristine = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+		TEXT_CONTRAST_FLOOR,
+	);
+	const { b, g, r } = pristine.background;
+	await page.addStyleTag({
+		content: `[data-testid='field-validation-title'] { position: fixed; top: 35px; left: 1096px; width: 46px; height: 20px; box-shadow: -135px -2px 0 0 rgba(${r}, ${g}, ${b}, 1); color: transparent; z-index: 2147483647; }`,
+	});
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/are explained paint/);
+});
+
+/**
+ * Round-9 B2's pure-ink floor, pinned: a wash of the surface colour that
+ * leaves a sliver of pristine ink measures 15.6:1 on the survivor (so the
+ * ratio floor passes) and keeps the explained share at pristine (the washed
+ * ink classifies as a blend), yet erases 73 % of the ink — only the
+ * pure-ink floor can see it. The two washes are outset shadows of the
+ * measured surface colour with a 12px gap over the middle of the glyphs;
+ * deleting the pure-ink branch alone greens this test.
+ */
+test('a wash of the surface colour leaving only a sliver of pristine ink fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	const toast = await renderToast(page, 'success');
+	const pristine = await measureContrast(
+		toast.locator('.publy-toast-title'),
+		'text',
+		TEXT_CONTRAST_FLOOR,
+	);
+	const { b, g, r } = pristine.background;
+	await page.addStyleTag({
+		content: `[data-testid='field-validation-title'] { position: fixed; top: 31px; left: 1096px; width: 153px; height: 20px; box-shadow: -280px 2px 0 0 rgba(${r}, ${g}, ${b}, 0.93), -115px 2px 0 0 rgba(${r}, ${g}, ${b}, 0.93); color: transparent; z-index: 2147483647; }`,
+	});
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/match the measured ink/);
+});
+
+/**
+ * Round-9 B2(b)'s foreign-pixel branch, pinned: a block of a colour that is
+ * neither the measured surface, nor the measured ink, nor a blend of the
+ * two — blue, chosen so its own contrast against the surface sits above the
+ * glyph floor, so only the foreign branch can fire — over part of the
+ * glyphs must fail the guard by name. The block is an outset shadow
+ * (invisible to every model reading) covering ~39 % of the glyph area,
+ * which leaves the explained and pure-ink shares above their floors.
+ */
+test('a foreign-colour block over part of the glyphs fails the guard by name', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			"[data-testid='field-validation-title'] { position: fixed; top: 33px; left: 1096px; width: 46px; height: 20px; box-shadow: -126px 0px 0 0 rgb(0 0 255); color: transparent; z-index: 2147483647; }",
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(
+		/pixel\(s\) of paint the measured surface and ink did not produce/,
+	);
 });
