@@ -17,11 +17,15 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  *
  * Browser measurements: the computed foreground colour of the target and of
  * every visible text-bearing descendant, the hit-tested background stack at
- * each target's midpoint, flat computed gradients, resolved pseudo-element
+ * the sampled point, flat computed gradients, resolved pseudo-element
  * styles, compositing properties on the whole ancestor chain, and the close
- * button's actual offset parent/geometry. Modelled operations:
- * alpha-compositing those browser-reported sRGB layers and the WCAG 2
- * contrast formula. The model never reads or resolves a source token.
+ * button's actual offset parent/geometry. The sampled point is the midpoint
+ * of the GLYPH AREA — the text's own line boxes (text targets) or the
+ * painted shapes' boxes (glyph targets) — never the target box's midpoint,
+ * which can sit well away from where the text actually is. Modelled
+ * operations: alpha-compositing those browser-reported sRGB layers and the
+ * WCAG 2 contrast formula. The model never reads or resolves a source
+ * token.
  *
  * The guard fails loudly, by element name, when it cannot determine the
  * painted result: opacity, filter, backdrop-filter or mix-blend-mode other
@@ -30,36 +34,39 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
  * shadows; background images that are not a flat linear gradient;
  * pseudo-elements that paint a background whose box, resolved from computed
  * styles, contains the sampled point and whose paint order is at or above
- * the opaque surface at that point; a click-through overlay
- * (`pointer-events: none`) that paints a background, is stacked above the
- * opaque surface and intersects the glyphs' own area; and a modelled
- * painted surface that the composited pixels of the glyph area do not
- * contain. The last two checks — the click-through scan and the pixel
- * cross-check — are the readings that do not model the paint: the scan
- * walks the DOM unconditionally for overlays that hit testing cannot see at
- * all, and the cross-check screenshots the target's box, decodes it in the
- * page and requires the modelled surface to be present among the pixels the
- * glyphs actually occupy — inside the text's own line boxes (text targets)
- * or inside the painted-glyph region (glyph targets) — not merely somewhere
- * in the box. The scan names the overlays it finds; the cross-check names
- * the glyph area it measured.
+ * the opaque surface at that point — negative-z paint counts as above when
+ * it lives inside the surface's own stacking context, where the CSS
+ * painting algorithm places it between the surface's background and its
+ * content; a click-through overlay (`pointer-events: none`) that paints a
+ * background, is stacked above the opaque surface and intersects the glyph
+ * area; and an ink-level pixel cross-check that fails on any glyph-area
+ * pixel the model did not produce, and on any explained-colour block that
+ * swallows or erases the glyphs. The last two checks — the click-through
+ * scan and the pixel cross-check — are the readings that do not model the
+ * paint: the scan walks the DOM unconditionally for overlays that hit
+ * testing cannot see at all, and the cross-check screenshots the target's
+ * box, decodes it in the page and classifies every pixel inside the glyph
+ * area against the modelled paint (surface, foreground, or a blend of the
+ * two), naming anything else. Paint that reaches the glyphs but is
+ * invisible to the model for any other reason — an outset shadow from a
+ * neighbouring element, say — is exactly what the cross-check exists to
+ * see.
  *
  * What still escapes — declared, so the boundary is not mistaken for a
  * guarantee:
- * - The sampled point is each target's box midpoint. Paint that provably
- *   cannot reach it (an inset highlight at a box edge, say) is accepted, and
- *   a defect elsewhere in the box is not sampled.
+ * - Partial occlusion is bounded, not prohibited: an overlay that leaves
+ *   the glyphs mostly legible passes (the explained-paint share of the
+ *   glyph area must stay between the pristine bounds measured on the
+ *   fixture and the solid-block bound), while an overlay that occludes
+ *   most or all of the ink fails.
  * - Pseudo-elements are resolved for background paint only; one that paints
  *   only glyphs or text without a background is not detected.
  * - `elementsFromPoint` cannot report pseudo-element boxes, so pseudo paint
  *   is read from resolved styles instead of hit tests; a positioned pseudo
  *   whose painted box cannot be resolved from computed styles fails loudly.
- * - The pixel cross-check asserts the modelled surface is PRESENT among the
- *   glyph pixels, not that nothing else is; a hit-testable overlay that
- *   covers part of the glyph area while the rest still shows the surface is
- *   accepted (it is not click-through, so the scan cannot see it either).
- *   Click-through overlays over the glyph area are the scan's named
- *   failures, whether or not they fully cover the glyphs.
+ * - The pixel check classifies glyphs against a single modelled foreground
+ *   (the worst-contrast one); a target whose glyphs genuinely paint in more
+ *   than one colour would fail the check and needs its own measurement.
  * - Only mounted, opaque toasts are measured; enter/exit and hover
  *   intermediate states are out of scope.
  * - Text painted with `background-clip: text` resolves to a transparent
@@ -119,13 +126,17 @@ type ContrastMeasurement = {
  * The agreement is enforced at two levels, and both reject missing AND
  * extra members, so neither side can drift silently:
  * - type level: the raisable adapter's keys and the measured variant
- *   classes must name exactly the same members. Growing `ToastMethod`
- *   together with the adapter (the paired product change) leaves the adapter
- *   with a method that has no measured class, which reds the type-level
- *   equality below; growing the union alone reds the adapter's own
- *   `satisfies Record<ToastMethod, …>` in `mutation-toast.ts`.
- * - runtime: the measured list is compared against the class map, so a
- *   variant class with no measured toast reds here until one is measured.
+ *   classes must name exactly the same members. This half is enforced by
+ *   `pnpm --filter front typecheck` (a separate gate in the same
+ *   `just ci-front` chain), not by this e2e run — Playwright strips types,
+ *   so the type-level assignment below is a tautology at runtime. Growing
+ *   `ToastMethod` together with the adapter (the paired product change)
+ *   leaves the adapter with a method that has no measured class, which reds
+ *   the type-level equality below; growing the union alone reds the
+ *   adapter's own `satisfies Record<ToastMethod, …>` in `mutation-toast.ts`.
+ * - runtime: the measured list is compared against the class map HERE, so a
+ *   variant class with no measured toast reds this spec until one is
+ *   measured.
  */
 test('every product toast variant is contrast-measured', () => {
 	type RaisableMethod =
@@ -537,6 +548,30 @@ const readBrowserPaint = async (
 						break;
 					}
 				}
+			} else if (style.position === 'relative') {
+				// A relatively positioned pseudo paints the origin's box
+				// translated by its resolved offsets; when both inline
+				// offsets are set the direction decides which one wins.
+				const originRect = layer.getBoundingClientRect();
+				const direction = getComputedStyle(layer).direction;
+				const left = asPixels(style.left);
+				const right = asPixels(style.right);
+				const top = asPixels(style.top);
+				const bottom = asPixels(style.bottom);
+				const offsetX =
+					left !== undefined && (right === undefined || direction === 'ltr')
+						? left
+						: right !== undefined
+							? -right
+							: 0;
+				const offsetY =
+					top !== undefined ? top : bottom !== undefined ? -bottom : 0;
+				return {
+					left: originRect.left + offsetX,
+					right: originRect.right + offsetX,
+					top: originRect.top + offsetY,
+					bottom: originRect.bottom + offsetY,
+				};
 			} else {
 				return layer.getBoundingClientRect();
 			}
@@ -1921,4 +1956,33 @@ test('a hit-testable overlay away from the glyphs stays measured', async ({
 		'text',
 	);
 	expect(measurement.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST_FLOOR);
+});
+
+/**
+ * Round-7 M2's first undeclared gap, closed by the ink-level pixel check:
+ * an OUTSET shadow from a neighbouring element paints over the toast, is
+ * not a background (so the click-through scan skips it) and sits outside
+ * the hit stack at the ink (only the element's own box hit-tests, not its
+ * shadow) — the model cannot see it at all. Only the pixel check can, and
+ * it must, by name: the shadowed glyphs are a solid block of an explained
+ * colour.
+ */
+test('an outset shadow from a neighbouring element over the glyphs fails the guard', async ({
+	page,
+}, testInfo) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			"[data-testid='field-validation-title'] { position: fixed; top: 31px; left: 1096px; width: 153px; height: 20px; box-shadow: -160px 0 0 0 var(--publy-foreground); color: transparent; z-index: 2147483647; }",
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureToastTarget({
+			floor: TEXT_CONTRAST_FLOOR,
+			kind: 'text',
+			label: 'light desktop outset-shadowed title',
+			target: toast.locator('.publy-toast-title'),
+			testInfo,
+		}),
+	).rejects.toThrow(/solid block of an explained colour/);
 });
