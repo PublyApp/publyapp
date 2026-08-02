@@ -458,6 +458,10 @@ type CallSite = {
 // specifier is now resolved against the importing file (like the bundler
 // does) before matching, so `./drawer`, `../components/ui/drawer` and the
 // `~/components/ui/drawer` alias all land on the same module.
+// Round 10 M4: the resolution used `path.posix` against a NATIVE path — on
+// Windows every relative specifier collapsed and the round-8 pin itself
+// failed there. The importer path is normalised to forward slashes first
+// (AGENTS.md documents Windows as a supported dev platform).
 const isDrawerModuleImport = (
 	specifier: string,
 	importerPath: string,
@@ -471,8 +475,9 @@ const isDrawerModuleImport = (
 	if (!specifier.startsWith('.')) {
 		return false;
 	}
+	const posixImporter = importerPath.split(path.sep).join('/');
 	const resolved = path.posix.normalize(
-		path.posix.join(path.posix.dirname(importerPath), specifier),
+		path.posix.join(path.posix.dirname(posixImporter), specifier),
 	);
 	return /\/components\/ui\/drawer(?:\.tsx)?$/.test(resolved);
 };
@@ -1421,10 +1426,16 @@ describe('drawer description text contrast (#1043)', () => {
 		// list diff.
 		const enumerated = new Map<string, number>();
 		for (const callSite of CALL_SITES) {
-			const relative = callSite.file.replace(
-				path.resolve(process.cwd()) + path.sep,
-				'',
-			);
+			// Round 10 M4: the inventory keys are forward-slash repository
+			// paths, but `walkTsxFiles` builds NATIVE paths — on Windows the
+			// comparison below would never match. Normalise both sides.
+			const relative = callSite.file
+				.split(path.sep)
+				.join('/')
+				.replace(
+					path.resolve(process.cwd()).split(path.sep).join('/') + '/',
+					'',
+				);
 			enumerated.set(relative, (enumerated.get(relative) ?? 0) + 1);
 		}
 
