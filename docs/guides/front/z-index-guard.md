@@ -58,10 +58,16 @@ The `?inline`/`?raw` provenance uses Vite's own CSS-language set (`isCSSRequest`
 non-CSS extension, the guard does **not** decide from the file's bytes: the build records every raw
 module, and the script pass resolves each `?raw` import binding and walks the file's bytes only when
 that binding reaches a style-capable sink — a `<style>` element's children or a
-`dangerouslySetInnerHTML` payload (walked as CSS on a `<style>` host, as HTML elsewhere). The same
-imported bytes consumed by a text node (`<pre>`, `<p>`) are displayed text, not a stylesheet, and
-stay green; a style-sink payload the declaration walk cannot parse is a named diagnostic that fails
-the guard, never a silent pass.
+`dangerouslySetInnerHTML` payload (walked as CSS on a `<style>` host, as HTML elsewhere). The binding
+is followed through module-scope `const` aliases (including alias chains) and through template-literal
+substitutions (`` <style>{`${rawCss}`}</style> `` ships the same bytes), and the namespace spelling
+resolves through `.default`; `~/`, Vite root-absolute (`/src/…`) and relative specifiers all resolve
+against the project root. The same imported bytes consumed by a text node (`<pre>`, `<p>`) are
+displayed text, not a stylesheet, and stay green; a style-sink payload the declaration walk cannot
+parse is a named diagnostic that fails the guard, never a silent pass. A style-sink specifier the
+resolver cannot map to a recorded raw module is a named `z-index-unresolved-raw-import` diagnostic
+(CSS-language `?raw` modules are recorded as inline CSS and walked by the inline gate instead, so
+they are never misreported as unresolved).
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -158,11 +164,15 @@ Five components:
     inline/raw forms across Vite's own CSS-language set and, for `?raw`, every module the build
     transforms regardless of extension; a raw payload is walked only when the import binding reaches
     a style-capable sink (a `<style>` element's children or a `dangerouslySetInnerHTML` payload, the
-    binding tracked unshadowed from its import declaration, including the `import * as raw … ?raw`
+    binding tracked unshadowed from its import declaration through module-scope `const` aliases and
+    template-literal substitutions, including the `import * as raw … ?raw`
     namespace spelling through `.default`), and a style-sink payload the declaration walk cannot
     parse (template syntax, an HTML comment, an unclosed block) is a named diagnostic, never a
     crash and never a silent pass. The same raw bytes displayed through a text node are escaped
-    text, not a stylesheet, and are not walked. This prevents an inline style
+    text, not a stylesheet, and are not walked. A `<style>` element's
+    `dangerouslySetInnerHTML` attribute suppresses children inspection in both the static walk and
+    the raw-sink walk — React ignores children whenever the attribute is present, so only the
+    payload itself can ship. This prevents an inline style
    from shadowing a legitimate tier after
    the emitted gate has accepted its reference, and prevents declarative CSS payloads from bypassing
    that gate as JavaScript bundle text. Build provenance identifies the
@@ -220,22 +230,25 @@ gaps, each with its current evidence:
   reference it from shipped code (a static `<link rel="stylesheet" href="/evil.css">`, a link written
   by `src/server.ts`, a residual CSS `@import`) trips an existing rule, so the file itself is not a
   working green bypass. Declared for completeness, not because a live route exists.
-- **Helper-mediated reserved-token writes, registrations, and helper/import-produced spreads.** The
-  script pass follows direct module-scope string constants, and a static object-literal spread is
-  transparent to it (`{...{rel: 'stylesheet'}}` and
-  `{...{dangerouslySetInnerHTML: {__html: …}}}` resolve exactly like the non-spread spelling), but
-  it does not perform interprocedural data flow. A helper whose `setProperty(name, value)` key or
-  `CSS.registerProperty({ name })` value
-  arrives through a parameter, or a spread/Object.assign payload whose token-bearing object is
-  produced by a helper or unscanned import (an identifier spread such as `{...props}`), remains
-  outside the static boundary. Source-order last-write-wins is still mirrored: a later unresolved
-  spread may carry any property, so it shadows static facts established before it (an earlier raw
-  `rel`/`dangerouslySetInnerHTML` followed by `{...props}` leaves the guarded class), and a later
-  explicit member or static literal spread re-establishes them. Assigning a complete
-  style string through `cssText`, `setAttribute('style', ...)`, or raw HTML at **runtime** has the
-  same data-flow boundary; a **static literal** `dangerouslySetInnerHTML` payload is closed instead —
-  the script pass scans its `<style>`/`<link rel="stylesheet">` fragments exactly like the JSX routes.
-  Literal object properties in scanned source remain red even when that object is later spread.
+- **Helper-mediated reserved-token writes and registrations.** The script pass follows direct
+  module-scope string constants and a static object-literal spread whose source is a module-scope
+  `const` bound to an object literal is transparent to it — `{...{rel: 'stylesheet'}}`,
+  `{...constObj}` and `{...{dangerouslySetInnerHTML: {__html: …}}}` resolve exactly like the
+  non-spread spelling — but it does not perform interprocedural data flow. A helper whose
+  `setProperty(name, value)` key or `CSS.registerProperty({ name })` value arrives through a
+  parameter, or a payload produced by a helper or unscanned import, remains outside the static
+  boundary. Spreads are never silent: an unresolvable spread (a parameter, import, call, or alias
+  to anything other than a module-scope const object literal) that sits after a static fact it
+  could carry or override is a named `z-index-unresolved-spread-shadow` diagnostic, never the
+  silent green a clearing resolver would produce; a spread with no static fact to shadow stays in
+  the runtime bucket exactly like an unresolvable payload expression. Source-order last-write-wins
+  is still mirrored: a later spread may carry any property, so it shadows static facts established
+  before it, and a later explicit member or static literal spread re-establishes them. Assigning a
+  complete style string through `cssText`, `setAttribute('style', ...)`, or raw HTML at **runtime**
+  has the same data-flow boundary; a **static literal** `dangerouslySetInnerHTML` payload is closed
+  instead — the script pass scans its `<style>`/`<link rel="stylesheet">` fragments exactly like the
+  JSX routes. Literal object properties in scanned source remain red even when that object is later
+  spread.
 - **A class assembled by `+` string concatenation (`'z-' + 5`).** It produces no extractor candidate,
   so on its own it ships no rule and paints at `auto` — it is dead text. It becomes load-bearing only
   **in combination with** a route that generates a rule for that class (`@source inline("z-5")`,
