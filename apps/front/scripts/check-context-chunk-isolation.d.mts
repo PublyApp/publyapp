@@ -24,13 +24,17 @@ export type ClientChunk = {
 	 *  ties the map's generated positions to the calls it parses in this
 	 *  code before it trusts a map for a copy. */
 	code?: string;
-	/** The source map the build emitted for this chunk. */
-	map?: {
-		version: number;
-		sources: string[];
-		mappings: string;
-		names?: string[];
-	};
+	/** The source map the build emitted for this chunk. The runtime accepts
+	 *  `null` (Rolldown declares `SourceMap | null`), which takes the
+	 *  fail-closed path like an absent map. */
+	map?:
+		| {
+				version: number;
+				sources: string[];
+				mappings: string;
+				names?: string[];
+		  }
+		| null;
 };
 
 export declare const findReactContextDeclarations: (

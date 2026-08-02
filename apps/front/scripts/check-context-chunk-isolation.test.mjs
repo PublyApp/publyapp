@@ -3520,9 +3520,18 @@ void test('type-checks the hand-written declaration file against the current run
 				},
 			};
 
+			// Rolldown declares OutputChunk.map as SourceMap | null, and the
+			// runtime treats a null map like an absent one (fail-closed past a
+			// single copy); the declaration must accept it too.
+			const nullMapChunk: ClientChunk = {
+				fileName: 'assets/route-null-map.js',
+				modules: { 'src/other.tsx': { code: 'x' } },
+				map: null,
+			};
+
 			const violations: string[] = findContextChunkIsolationViolations(
 				[context],
-				[chunk],
+				[chunk, nullMapChunk],
 				${JSON.stringify(frontDirectory)},
 				${JSON.stringify(path.join(frontDirectory, 'dist', 'client'))},
 			);
@@ -3558,6 +3567,7 @@ void test('type-checks the hand-written declaration file against the current run
 				chunk,
 				declarations,
 				inventoryViolations,
+				nullMapChunk,
 				plugin,
 				stale,
 				violations,
