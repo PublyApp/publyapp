@@ -996,15 +996,21 @@ const resolveRenderedMapSource = (mapSource, chunkDirectory) => {
 	return normalizeModuleId(resolved);
 };
 
-// A rendered segment matches a recorded mint span when the bundler's own map
-// says the emitted call originated inside the span: the same source line (in
-// the standard 0-based coordinates both the scan and the map use) and a
-// column within the call's [start, end) extent.
-const renderedSegmentMatchesSpan = (segment, span) => {
+// A rendered segment matches a mint only when the bundler's own map places
+// an emitted token strictly inside the recorded extent of the minting call,
+// in the standard 0-based coordinates both the scan and the map use. The
+// call's first token — the callee at the span start — is excluded: bundlers
+// map an emitted callee identifier to its import position, and a callee
+// *reference* emitted without the call would occupy the same in-span start
+// position as the call itself. Only the argument-list extent (the open
+// paren, arguments, close paren) can be emitted by the call and by nothing
+// else, so a segment there is an emitted call, not a token that happens to
+// map into the span.
+const renderedSegmentMatchesCallEmission = (segment, span) => {
 	if (segment.origLine < span.startLine || segment.origLine > span.endLine) {
 		return false;
 	}
-	if (segment.origLine === span.startLine && segment.origCol < span.startCol) {
+	if (segment.origLine === span.startLine && segment.origCol <= span.startCol) {
 		return false;
 	}
 	if (segment.origLine === span.endLine && segment.origCol >= span.endCol) {
@@ -1115,21 +1121,40 @@ export const findContextChunkIsolationViolations = (
 					);
 				}
 
+				// A copy can answer the minting question only when its
+				// chunk's map resolves positions for this exact copy: at
+				// least two distinct original positions must be attributed
+				// to the copy's module id. A map that collapses a copy's
+				// content onto a single anchor (every generated line at
+				// original 0:0, or everything composed onto one position)
+				// cannot distinguish an emitted mint from an absent one, so
+				// the copy is un-attributable and takes the fail-closed
+				// branch below instead of a silent non-mint verdict.
+				const copySegments = chunkAnalysis.hasMap
+					? chunkAnalysis.segments.filter(
+							(segment) => segment.source === moduleChunk.moduleId,
+						)
+					: [];
+				const copyPositions = new Set(
+					copySegments.map(
+						(segment) => `${segment.origLine}:${segment.origCol}`,
+					),
+				);
+				const attributable = chunkAnalysis.hasMap && copyPositions.size >= 2;
 				// A copy mints the context when the bundler's map attributes
-				// an emitted call to one of the recorded mint spans in this
+				// an emitted call to a recorded mint call start in this
 				// exact module copy (the map's resolved source id matches the
 				// copy's module id — a sibling copy in the same chunk is a
 				// different source id, so per-copy attribution stays exact).
 				const minted =
-					chunkAnalysis.hasMap &&
-					chunkAnalysis.segments.some(
-						(segment) =>
-							segment.source === moduleChunk.moduleId &&
-							mintSpans.some((span) =>
-								renderedSegmentMatchesSpan(segment, span),
-							),
+					attributable &&
+					copySegments.some((segment) =>
+						mintSpans.some((span) =>
+							renderedSegmentMatchesCallEmission(segment, span),
+						),
 					);
 				familyCopies.push({
+					attributable,
 					chunkName: moduleChunk.chunkName,
 					hasMap: chunkAnalysis.hasMap,
 					minted,
@@ -1145,13 +1170,15 @@ export const findContextChunkIsolationViolations = (
 
 		const mintingCopies = familyCopies.filter((copy) => copy.minted);
 		const copyCount = familyCopies.length;
-		// A delivered copy whose chunk emits no source map cannot be checked:
-		// it may mint the context like any other copy, so attribution is
-		// incomplete and the verdict fails closed whenever more than one copy
-		// exists. A single copy needs no attribution at all.
-		if (copyCount >= 2 && familyCopies.some((copy) => !copy.hasMap)) {
+		// A delivered copy whose chunk emits no source map — or whose map
+		// does not resolve precise original positions for the copy — cannot
+		// be checked: it may mint the context like any other copy, so
+		// attribution is incomplete and the verdict fails closed whenever
+		// more than one copy exists. A single copy needs no attribution at
+		// all.
+		if (copyCount >= 2 && familyCopies.some((copy) => !copy.attributable)) {
 			throw new Error(
-				`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: the build emits no source map for a client chunk delivering its source.`,
+				`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it.`,
 			);
 		}
 

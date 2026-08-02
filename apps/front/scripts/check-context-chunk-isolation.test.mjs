@@ -85,18 +85,31 @@ const encodeSourceMap = ({ sources, segments }) => {
 };
 
 // A hand-fed chunk whose map attributes the given segments to the given
-// source ids (absolute module ids, as the guard resolves them).
+// source ids (absolute module ids, as the guard resolves them). Every source
+// also receives an anchor segment at original 0:0, the way real maps anchor
+// the first emitted token, so single-segment fixtures stay distinguishable
+// from a collapsed map (which resolves a copy to exactly one position).
 const chunkWithMap = (fileName, modules, segments) => {
 	const sources = [...new Set(segments.map((segment) => segment.source))];
 	const sourceIndexes = new Map(
 		sources.map((source, index) => [source, index]),
 	);
+	const anchoredSegments = [
+		...sources.map((source) => ({
+			source,
+			origLine: 0,
+			origCol: 0,
+			genLine: 0,
+			genCol: 0,
+		})),
+		...segments,
+	];
 	return {
 		fileName,
 		modules,
 		map: encodeSourceMap({
 			sources,
-			segments: segments.map((segment) => ({
+			segments: anchoredSegments.map((segment) => ({
 				...segment,
 				sourceIndex: sourceIndexes.get(segment.source),
 			})),
@@ -1349,7 +1362,7 @@ void test('counts a rendered element-access createContext callee in a TanStack r
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1362,7 +1375,7 @@ void test('counts a rendered element-access createContext callee in a TanStack r
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1593,7 +1606,7 @@ void test('does not flag a chunk copy that references a context without minting 
 						{
 							source: sourceFile,
 							origLine: mintSpan.startLine,
-							origCol: mintSpan.startCol,
+							origCol: mintSpan.startCol + 5,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1642,14 +1655,14 @@ void test('reports each React context whose source module is in multiple client 
 			{
 				source: sourceFile,
 				origLine: firstSpan.startLine,
-				origCol: firstSpan.startCol,
+				origCol: firstSpan.startCol + 5,
 				genLine: 0,
 				genCol: 4,
 			},
 			{
 				source: sourceFile,
 				origLine: secondSpan.startLine,
-				origCol: secondSpan.startCol,
+				origCol: secondSpan.startCol + 5,
 				genLine: 0,
 				genCol: 20,
 			},
@@ -1662,14 +1675,14 @@ void test('reports each React context whose source module is in multiple client 
 			{
 				source: sourceFile,
 				origLine: firstSpan.startLine,
-				origCol: firstSpan.startCol,
+				origCol: firstSpan.startCol + 5,
 				genLine: 0,
 				genCol: 4,
 			},
 			{
 				source: sourceFile,
 				origLine: secondSpan.startLine,
-				origCol: secondSpan.startCol,
+				origCol: secondSpan.startCol + 5,
 				genLine: 0,
 				genCol: 20,
 			},
@@ -1710,7 +1723,7 @@ void test('counts a TanStack route virtual-module sibling that still creates the
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1727,7 +1740,7 @@ void test('counts a TanStack route virtual-module sibling that still creates the
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1763,7 +1776,7 @@ void test('counts a TanStack Hydrate virtual-module sibling that still creates t
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1780,7 +1793,7 @@ void test('counts a TanStack Hydrate virtual-module sibling that still creates t
 						{
 							source: hydratedModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1817,7 +1830,7 @@ void test('attributes a rendered mint by source position regardless of its rende
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1832,7 +1845,7 @@ void test('attributes a rendered mint by source position regardless of its rende
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1870,7 +1883,7 @@ void test('counts a rendered factory mint held in an array element as a creator'
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1887,7 +1900,7 @@ void test('counts a rendered factory mint held in an array element as a creator'
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1925,7 +1938,7 @@ void test('counts a rendered factory mint held in an export default as a creator
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1942,7 +1955,7 @@ void test('counts a rendered factory mint held in an export default as a creator
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -1983,7 +1996,7 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 							{
 								source: sourceFile,
 								origLine: 5,
-								origCol: 8,
+								origCol: 17,
 								genLine: 0,
 								genCol: 4,
 							},
@@ -1996,7 +2009,7 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 							{
 								source: splitModule,
 								origLine: 5,
-								origCol: 8,
+								origCol: 17,
 								genLine: 0,
 								genCol: 4,
 							},
@@ -2041,14 +2054,14 @@ void test('fails when two positioned holder mints of a module share one chunk', 
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 40,
 						},
@@ -2063,7 +2076,7 @@ void test('fails when two positioned holder mints of a module share one chunk', 
 	);
 });
 
-void test('passes an un-attributable holder-position call when the module is in a single chunk', () => {
+void test('passes a single delivered copy of a holder-position mint when no rendered call is attributed', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -2087,7 +2100,7 @@ void test('passes an un-attributable holder-position call when the module is in 
 						{
 							source: sourceFile,
 							origLine: 5,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2125,7 +2138,7 @@ void test('passes when one rendered copy of a split module mints while the other
 						{
 							source: sourceFile,
 							origLine: 5,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2142,7 +2155,7 @@ void test('passes when one rendered copy of a split module mints while the other
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2184,7 +2197,7 @@ void test('attributes a rendered holder mint at a recorded source position', () 
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2201,7 +2214,7 @@ void test('attributes a rendered holder mint at a recorded source position', () 
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2245,7 +2258,7 @@ void test('attributes a rendered IIFE holder mint at its recorded source positio
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2262,7 +2275,7 @@ void test('attributes a rendered IIFE holder mint at its recorded source positio
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2310,7 +2323,7 @@ void test('does not attribute a rendered holder call that is not at a recorded s
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: mintSpan.startCol,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2328,6 +2341,175 @@ void test('does not attribute a rendered holder call that is not at a recorded s
 							source: splitModule,
 							origLine: 0,
 							origCol: unrelatedSpan.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
+void test('does not attribute a segment at the call start without an emitted call', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+
+	// The split copy emits only the callee *start* position (a callee
+	// reference or a map that anchors there); the call's argument extent is
+	// not emitted. The callee start alone must not count as an emitted mint:
+	// only a segment strictly inside the call's extent proves the call.
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintSpans: [mintSpan],
+				},
+			],
+			[
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: createStrictContext(null) };',
+						},
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 17,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var contexts = { probe: otherHelper(null) };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: 0,
+							origCol: mintSpan.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+			],
+			frontDirectory,
+		),
+		[],
+	);
+});
+
+void test('fails closed when a delivered copy map collapses every position to the origin', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+
+	// The split copy genuinely contains the mint (the emitted code carries
+	// it), but its map collapses every generated line to original 0:0. The
+	// reference copy is attributed through its precise map; the coarse copy
+	// cannot answer, so the verdict must fail closed instead of silently
+	// treating the copy as non-minting.
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
+					},
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
+						{
+							[sourceFile]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
+						},
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
+						{
+							[splitModule]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
+						},
+						[
+							{
+								source: splitModule,
+								origLine: 0,
+								origCol: 0,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+	);
+});
+
+void test('passes a single delivered copy even when its map collapses every position to the origin', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					mintSpans: [mintSpan],
+				},
+			],
+			[
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: createStrictContext(null) };',
+						},
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 0,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2369,7 +2551,7 @@ void test('attributes a comma-chain-wrapped rendered holder mint at its recorded
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2386,7 +2568,7 @@ void test('attributes a comma-chain-wrapped rendered holder mint at its recorded
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2430,7 +2612,7 @@ void test('attributes a rendered holder mint through a deconflicted binding name
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2447,7 +2629,7 @@ void test('attributes a rendered holder mint through a deconflicted binding name
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2491,7 +2673,7 @@ void test('attributes a rendered holder mint through a nested property chain', (
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2508,7 +2690,7 @@ void test('attributes a rendered holder mint through a nested property chain', (
 						{
 							source: splitModule,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2556,14 +2738,14 @@ void test('does not attribute a same-named helper call held at the same property
 						{
 							source: sourceFile,
 							origLine: 0,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
 						{
 							source: sourceFile,
 							origLine: 1,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 40,
 						},
@@ -2631,7 +2813,7 @@ void test('fails closed when a chunk delivering a context source emits no source
 							{
 								source: splitModule,
 								origLine: 0,
-								origCol: 8,
+								origCol: 17,
 								genLine: 0,
 								genCol: 4,
 							},
@@ -2707,7 +2889,7 @@ void test('fails closed for an unrecognized query derived from a context source 
 							{
 								source: sourceFile,
 								origLine: 0,
-								origCol: 8,
+								origCol: 17,
 								genLine: 0,
 								genCol: 4,
 							},
@@ -2740,7 +2922,7 @@ void test('fails closed when a TanStack route sibling no longer contains the con
 							{
 								source: sourceFile,
 								origLine: 5,
-								origCol: 8,
+								origCol: 17,
 								genLine: 0,
 								genCol: 4,
 							},
@@ -2753,7 +2935,7 @@ void test('fails closed when a TanStack route sibling no longer contains the con
 							{
 								source: splitModule,
 								origLine: 5,
-								origCol: 8,
+								origCol: 17,
 								genLine: 0,
 								genCol: 4,
 							},
@@ -2776,7 +2958,7 @@ void test('fails closed when a TanStack route sibling no longer contains the con
 						{
 							source: sourceFile,
 							origLine: 5,
-							origCol: 8,
+							origCol: 17,
 							genLine: 0,
 							genCol: 4,
 						},
@@ -2849,7 +3031,7 @@ void test('decodes a real emitted chunk source map into standard positions', asy
 				{
 					source: splitModule,
 					origLine: mintSpan.startLine,
-					origCol: mintSpan.startCol,
+					origCol: mintSpan.startCol + 5,
 					genLine: 0,
 					genCol: 4,
 				},
@@ -4489,6 +4671,57 @@ void test(
 				/<anonymous context> in src\/routes\/probe\.tsx is present in multiple client chunks/i,
 			);
 			assert.doesNotMatch(result.output, /cannot classify/i);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build closed when a split-module transform emits a coarse map',
+	{ timeout: 120_000 },
+	async () => {
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const contexts = { probe: createStrictContext<null>(null) };
+				export const useProbe = () => useContext(contexts.probe);
+				const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+			rootImportsProbe: true,
+			coarsenSplitMap: true,
+		});
+
+		try {
+			// The real split copy genuinely mints — prove the duplicated mint
+			// shipped before asserting the guard's verdict.
+			const mintingCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						/createStrictContext\s*\(/.test(code)
+					) {
+						mintingCopies.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(
+				new Set(mintingCopies.map((location) => location.split(' :: ')[0]))
+					.size,
+				2,
+				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
+			);
+			// The post-transform coarse map (every generated line at original
+			// 0:0 for the split copy) must not produce a silent green: the
+			// split copy cannot answer, so the verdict fails closed.
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/cannot classify how <anonymous context> .* is created/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
