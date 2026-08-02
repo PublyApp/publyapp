@@ -99,7 +99,7 @@ const resolveMessage = (intent: MutationFeedbackIntent): string | undefined => {
 	return intent.fallbackMessage;
 };
 
-type ToastMethod = 'default' | 'error' | 'info' | 'success' | 'warning';
+export type ToastMethod = 'default' | 'error' | 'info' | 'success' | 'warning';
 
 const displayToast = async (
 	method: ToastMethod,
@@ -168,6 +168,13 @@ export const displayLocalMutationFailure = async (
  * fixture's way of raising a described neutral toast through the real
  * product API (routes/field-validation.tsx) — that fixture is their only
  * consumer today; every product call site passes a single message string.
+ *
+ * `satisfies Record<ToastMethod, …>` pins this object to the `ToastMethod`
+ * union: the toast-contrast guard's measured set is derived from that
+ * union (e2e/toast-contrast.spec.ts), so growing a method here without
+ * measuring a toast for it fails the guard, and the `loading` method is
+ * deliberately absent — `loading` toasts are not raisable, which is the
+ * reason the guard excludes that class.
  */
 export const toastLocalMutationResult = {
 	default(message: string, description?: string): void {
@@ -185,4 +192,7 @@ export const toastLocalMutationResult = {
 	info(message: string, description?: string): void {
 		void displayToast('info', message, description);
 	},
-};
+} satisfies Record<
+	ToastMethod,
+	(message: string, description?: string) => void
+>;
