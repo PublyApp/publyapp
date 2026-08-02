@@ -4077,8 +4077,15 @@ describe('drawer surface flex chain guard (#990)', () => {
 				(node): node is AtRule =>
 					node.type === 'atrule' && node.name === 'apply',
 			)
-			.map((node) => node.params.trim().split(/\s+/).join(' '));
+			.flatMap((node) => node.params.trim().split(/\s+/));
 
-		expect(applyParams).toContain('flex min-h-0 flex-1 flex-col');
+		// Round 11's MINOR 6: the geometry is the PRESENCE of the four
+		// utilities, not their order — reordering or extending the rule is
+		// semantically identical CSS and must stay green. A deleted utility
+		// still reddens.
+		const requiredUtilities = ['flex', 'min-h-0', 'flex-1', 'flex-col'];
+		expect(
+			requiredUtilities.every((utility) => applyParams.includes(utility)),
+		).toBe(true);
 	});
 });
