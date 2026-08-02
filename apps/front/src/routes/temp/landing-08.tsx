@@ -1,14 +1,34 @@
 import { IconArrowNarrowDown } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { Trans, useTranslation } from 'react-i18next';
+import { Landing08Audience } from '~/components/marketing/landing-08/landing-08-audience';
+import { Landing08Claims } from '~/components/marketing/landing-08/landing-08-claims';
+import { Landing08Faq } from '~/components/marketing/landing-08/landing-08-faq';
 import { Landing08Footer } from '~/components/marketing/landing-08/landing-08-footer';
 import { Landing08Header } from '~/components/marketing/landing-08/landing-08-header';
+import { Landing08Pricing } from '~/components/marketing/landing-08/landing-08-pricing';
 import { Landing08Section } from '~/components/marketing/landing-08/landing-08-section';
 import { Landing08SurfacesList } from '~/components/marketing/landing-08/landing-08-surfaces-list';
+import { Landing08Trial } from '~/components/marketing/landing-08/landing-08-trial';
 import { MarketingContainer } from '~/components/marketing/marketing-container';
 import { buttonVariants } from '~/components/ui/button';
 import { FEATURES } from '~/lib/flags';
 import { cn } from '~/lib/utils';
+
+const CUSTOMER_LOGO_KEYS = [
+	'landing-customer-logo-northbeam',
+	'landing-customer-logo-halcyon',
+	'landing-customer-logo-fieldnote',
+	'landing-customer-logo-studio-mera',
+	'landing-customer-logo-orrery',
+	'landing-customer-logo-caldera',
+] as const;
+
+const SOCIAL_PROOF_KEYS = [
+	'landing-social-proof-rating',
+	'landing-social-proof-brands',
+	'landing-social-proof-setup',
+] as const;
 
 export const Route = createFileRoute('/temp/landing-08')({
 	component: LandingExploration08,
@@ -16,17 +36,11 @@ export const Route = createFileRoute('/temp/landing-08')({
 });
 
 /**
- * THE LONG FOLD — the page skeleton. One enormous typographic statement holds
- * the entire first screen, terminated by a 1px rule; the product is withheld
- * until the reader has scrolled past a commitment. Everything is flush left to
- * one vertical line — the reading column's content-box edge — with exactly one
- * centred element on the page (the closer's yellow field).
- *
- * The upper half — the fold's standfirst and CTA row, the commitment's rule
- * and body, and the five-entry surfaces list with its image-slot register —
- * is built. Claims, the audience grid, the price ledger, the trial sequence,
- * the FAQ disclosures and the closer's body/CTAs remain heading-only frames
- * for the lower-half task.
+ * THE LONG FOLD — one enormous typographic statement holds the entire first
+ * screen, terminated by a 1px rule; the product is withheld until the reader
+ * has scrolled past a commitment. Everything is flush left to one vertical
+ * line — the reading column's content-box edge — with exactly one centred
+ * element on the page (the closer's yellow field).
  */
 function LandingExploration08() {
 	const { t } = useTranslation('landing-08');
@@ -134,8 +148,11 @@ function LandingExploration08() {
 							<Landing08SurfacesList />
 						</Landing08Section>
 
-						{/* What is different. */}
-						<Landing08Section eyebrow={t('landing-claims-eyebrow')} />
+						{/* What is different — the three-claim fact strip. No heading,
+						    only the eyebrow: the strip itself is the statement. */}
+						<Landing08Section eyebrow={t('landing-claims-eyebrow')}>
+							<Landing08Claims />
+						</Landing08Section>
 
 						{FEATURES.marketing.customerLogos ? (
 							<section
@@ -145,6 +162,13 @@ function LandingExploration08() {
 								<p className="publy-type-marginal">
 									{t('landing-customer-logos-title')}
 								</p>
+								<div className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
+									{CUSTOMER_LOGO_KEYS.map((key) => (
+										<span key={key} className="publy-type-mono">
+											{t(key)}
+										</span>
+									))}
+								</div>
 							</section>
 						) : null}
 
@@ -152,27 +176,46 @@ function LandingExploration08() {
 							<section
 								data-testid="landing-social-proof"
 								className="publy-fold-section"
-							/>
+							>
+								<div className="publy-marketing-hairline-grid grid grid-cols-1 sm:grid-cols-3">
+									{SOCIAL_PROOF_KEYS.map((key) => (
+										<p
+											key={key}
+											className="publy-type-marginal px-0 py-6 sm:px-6 sm:first:pl-0 sm:last:pr-0"
+										>
+											{t(key)}
+										</p>
+									))}
+								</div>
+							</section>
 						) : null}
 
 						{/* Who it is for. */}
 						<Landing08Section
 							eyebrow={t('landing-bento-eyebrow')}
 							heading={t('landing-bento-title')}
-						/>
+						>
+							<Landing08Audience />
+						</Landing08Section>
 
-						{/* The price ledger. */}
+						{/* The price ledger — struck-through prices, gated with the beta
+						    note (no billing system runs today). */}
 						<Landing08Section
 							data-testid="landing-pricing"
 							eyebrow={t('landing-pricing-subtitle')}
 							heading={t('landing-pricing-title')}
-						/>
+						>
+							<Landing08Pricing />
+						</Landing08Section>
 
-						{/* What comes next. */}
+						{/* What comes next — the planned trial, hedged: never described
+						    as running today. */}
 						<Landing08Section
 							eyebrow={t('landing-timeline-eyebrow')}
 							heading={t('landing-timeline-title')}
-						/>
+						>
+							<Landing08Trial />
+						</Landing08Section>
 
 						{/* Questions. */}
 						<Landing08Section
@@ -180,15 +223,49 @@ function LandingExploration08() {
 							className="publy-marketing-anchor"
 							eyebrow={t('landing-faq-eyebrow')}
 							heading={t('landing-faq-title')}
-						/>
+						>
+							<Landing08Faq />
+						</Landing08Section>
 
 						{/* The close — the page's one centred element and its one yellow
-						    field, promoted from a point to a field for exactly one block. */}
+						    field, promoted from a point to a field for exactly one block.
+						    The primary CTA cannot be `variant="default"` here (yellow on
+						    yellow is invisible): `secondary` resolves to
+						    `--publy-surface-muted`, a neutral surface fill, which is the
+						    condition F.10 sets for using it as-is. The secondary CTA
+						    reuses `outline` with its fill, border and text repainted to
+						    the closer's own ink token — the glass-on-a-coloured-card
+						    pattern, reproduced in tokens rather than a new colour — and
+						    the outline variant's own `dark:` classes are neutralised the
+						    same way so the field reads identically in both themes. */}
 						<section className="publy-fold-section">
 							<div className="publy-fold-closer rounded-[var(--publy-radius-control)] bg-(--publy-primary) px-6 py-14 text-center sm:px-12 sm:py-20 lg:px-16 lg:py-24">
 								<h2 className="publy-type-title publy-fold-clip-mark mx-auto max-w-[18ch]">
 									{t('landing-closing-title')}
 								</h2>
+								<p className="publy-type-copy mx-auto mt-5 max-w-[56ch] text-(--publy-primary-foreground)">
+									{t('landing-closing-description')}
+								</p>
+								<div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+									<Link
+										to="/signup"
+										className={cn(
+											buttonVariants({ variant: 'secondary', size: 'lg' }),
+											'publy-fold-cta no-underline',
+										)}
+									>
+										{t('landing-hero-primary-cta')}
+									</Link>
+									<a
+										href="#surfaces"
+										className={cn(
+											buttonVariants({ variant: 'outline', size: 'lg' }),
+											'publy-fold-cta border-(--publy-primary-foreground) bg-(--publy-primary-foreground)/5 text-(--publy-primary-foreground) no-underline hover:bg-(--publy-primary-foreground)/10 hover:text-(--publy-primary-foreground) dark:bg-(--publy-primary-foreground)/5 dark:hover:bg-(--publy-primary-foreground)/10',
+										)}
+									>
+										{t('landing-fold-secondary-cta')}
+									</a>
+								</div>
 							</div>
 						</section>
 					</div>
