@@ -884,16 +884,34 @@ export const findReactContextDeclarations = (
 const SOURCE_MAP_BASE64 =
 	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-const readSourceMapVlq = (encoded, state) => {
+// The decode is bounded: every character must be in the base64 alphabet, every
+// field must terminate (continuation bit cleared) before the input ends, and
+// no field may exceed the 31-bit value range of the standard encoding.
+// Malformed input throws a named guard error — it never hangs and never
+// silently mis-reads.
+const readSourceMapVlq = (encoded, state, chunkFileName) => {
 	let value = 0;
 	let shift = 0;
 	for (;;) {
-		const digit = SOURCE_MAP_BASE64.indexOf(encoded[state.index++]);
+		const character = encoded[state.index];
+		const digit =
+			character === undefined ? -1 : SOURCE_MAP_BASE64.indexOf(character);
+		if (digit === -1) {
+			throw new Error(
+				`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: invalid VLQ character ${JSON.stringify(character)}.`,
+			);
+		}
+		state.index++;
 		value += (digit & 31) << shift;
 		if ((digit & 32) === 0) {
 			break;
 		}
 		shift += 5;
+		if (shift > 30) {
+			throw new Error(
+				`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: VLQ field exceeds the supported 31-bit value range.`,
+			);
+		}
 	}
 	const sign = value & 1;
 	return sign ? -(value >> 1) : value >> 1;
@@ -903,8 +921,9 @@ const readSourceMapVlq = (encoded, state) => {
 // position itself: consumers attribute a segment to a module copy by matching
 // the resolved source id and test the position against recorded mint spans.
 // Per line, segments are comma-separated and each segment carries 1
-// (generated column only), 4 or 5 (with names index) zig-zag VLQ fields.
-const decodeSourceMapSegments = (map) => {
+// (generated column only), 4 or 5 (with names index) zig-zag VLQ fields; any
+// other arity is malformed input.
+const decodeSourceMapSegments = (map, chunkFileName) => {
 	const segments = [];
 	let sourceIndex = 0;
 	let origLine = 0;
@@ -919,7 +938,13 @@ const decodeSourceMapSegments = (map) => {
 			const fields = [];
 			const state = { index: 0 };
 			while (state.index < rawSegment.length) {
-				fields.push(readSourceMapVlq(rawSegment, state));
+				fields.push(readSourceMapVlq(rawSegment, state, chunkFileName));
+			}
+
+			if (![1, 4, 5].includes(fields.length)) {
+				throw new Error(
+					`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: segment carries ${fields.length} VLQ fields.`,
+				);
 			}
 
 			const [
@@ -932,6 +957,11 @@ const decodeSourceMapSegments = (map) => {
 			sourceIndex += sourceIndexDelta;
 			origLine += origLineDelta;
 			origCol += origColDelta;
+			if (sourceIndex < 0 || origLine < 0 || origCol < 0) {
+				throw new Error(
+					`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: segment resolves to a negative original position.`,
+				);
+			}
 			segments.push({ genCol, origCol, origLine, sourceIndex });
 		}
 	}
@@ -999,15 +1029,26 @@ export const findContextChunkIsolationViolations = (
 	// Every chunk's decoded source map, indexed by the chunk object. A chunk
 	// without a map makes every copy it delivers un-attributable: the verdict
 	// then falls back to the module/chunk cardinality facts alone and fails
-	// closed when more than one copy is delivered.
+	// closed when more than one copy is delivered. A map that is present but
+	// not a structurally valid version-3 map (wrong version, malformed VLQ,
+	// out-of-range source ids) is input the guard cannot interpret, so it
+	// fails loud with a named diagnostic rather than guessing.
 	const chunkAnalyses = new Map();
 	for (const chunk of chunks) {
-		if (
-			typeof chunk.map?.mappings !== 'string' ||
-			!Array.isArray(chunk.map.sources)
-		) {
+		const map = chunk.map;
+		if (map === undefined || map === null) {
 			chunkAnalyses.set(chunk, { hasMap: false });
 			continue;
+		}
+
+		if (
+			map.version !== 3 ||
+			typeof map.mappings !== 'string' ||
+			!Array.isArray(map.sources)
+		) {
+			throw new Error(
+				`Context chunk isolation guard could not use the source map the build emitted for chunk ${chunk.fileName}: expected a version-3 map with a mappings string and a sources array.`,
+			);
 		}
 
 		const chunkDirectory = path.join(
@@ -1015,9 +1056,14 @@ export const findContextChunkIsolationViolations = (
 			path.dirname(chunk.fileName),
 		);
 		const segments = [];
-		for (const segment of decodeSourceMapSegments(chunk.map)) {
+		for (const segment of decodeSourceMapSegments(map, chunk.fileName)) {
+			if (segment.sourceIndex >= map.sources.length) {
+				throw new Error(
+					`Context chunk isolation guard could not use the source map the build emitted for chunk ${chunk.fileName}: segment references source index ${segment.sourceIndex} beyond the ${map.sources.length} listed sources.`,
+				);
+			}
 			const source = resolveRenderedMapSource(
-				chunk.map.sources[segment.sourceIndex],
+				map.sources[segment.sourceIndex],
 				chunkDirectory,
 			);
 			if (source === undefined) {

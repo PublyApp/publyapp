@@ -2811,6 +2811,180 @@ void test('decodes a real emitted chunk source map into standard positions', asy
 	]);
 });
 
+void test('fails with a named diagnostic instead of hanging on a malformed source map VLQ character', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: 'RouteContext',
+						sourceFile,
+						mintSpans: [{ startLine: 0, startCol: 8, endLine: 0, endCol: 24 }],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: '' } },
+						map: { version: 3, sources: [sourceFile], mappings: '!' },
+					},
+				],
+				frontDirectory,
+			),
+		/could not decode the source map for chunk assets\/route\.js: invalid VLQ character/i,
+	);
+});
+
+void test('fails with a named diagnostic on a truncated source map VLQ field', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: 'RouteContext',
+						sourceFile,
+						mintSpans: [{ startLine: 0, startCol: 8, endLine: 0, endCol: 24 }],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: '' } },
+						map: { version: 3, sources: [sourceFile], mappings: 'g' },
+					},
+				],
+				frontDirectory,
+			),
+		/could not decode the source map for chunk assets\/route\.js: invalid VLQ character/i,
+	);
+});
+
+void test('fails with a named diagnostic when a source map VLQ field exceeds the value range', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: 'RouteContext',
+						sourceFile,
+						mintSpans: [{ startLine: 0, startCol: 8, endLine: 0, endCol: 24 }],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: '' } },
+						map: { version: 3, sources: [sourceFile], mappings: 'ggggggg' },
+					},
+				],
+				frontDirectory,
+			),
+		/could not decode the source map for chunk assets\/route\.js: VLQ field exceeds the supported 31-bit value range/i,
+	);
+});
+
+void test('fails with a named diagnostic on a source map segment with invalid field arity', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: 'RouteContext',
+						sourceFile,
+						mintSpans: [{ startLine: 0, startCol: 8, endLine: 0, endCol: 24 }],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: '' } },
+						map: { version: 3, sources: [sourceFile], mappings: 'AA' },
+					},
+				],
+				frontDirectory,
+			),
+		/could not decode the source map for chunk assets\/route\.js: segment carries 2 VLQ fields/i,
+	);
+});
+
+void test('fails with a named diagnostic when a source map is not a version-3 map', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: 'RouteContext',
+						sourceFile,
+						mintSpans: [{ startLine: 0, startCol: 8, endLine: 0, endCol: 24 }],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: '' } },
+						map: { version: 2, sources: [sourceFile], mappings: 'AAAA' },
+					},
+				],
+				frontDirectory,
+			),
+		/could not use the source map the build emitted for chunk assets\/route\.js: expected a version-3 map/i,
+	);
+});
+
+void test('fails with a named diagnostic when a source map segment references an unknown source', () => {
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: 'RouteContext',
+						sourceFile,
+						mintSpans: [{ startLine: 0, startCol: 8, endLine: 0, endCol: 24 }],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						modules: { [sourceFile]: { code: '' } },
+						map: { version: 3, sources: [sourceFile], mappings: 'ACAA' },
+					},
+				],
+				frontDirectory,
+			),
+		/could not use the source map the build emitted for chunk assets\/route\.js: segment references source index 1 beyond the 1 listed sources/i,
+	);
+});
+
 void test('fails the plugin when no React contexts are discovered', async () => {
 	const fixtureDirectory = await createFixture({
 		'src/no-context.ts': `
