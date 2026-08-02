@@ -292,13 +292,20 @@ const asciiLowerCase = (text) =>
 // evaluate a template literal (static parts × substitution sets) or a `+` of
 // two static operands to every string the expression can provably be.
 //
-// The product is capped (round-15 M2): several multi-candidate substitutions
-// multiply without bound, and a pathological template would otherwise hang the
-// guard instead of failing. Beyond the cap the join is not enumerable, so the
-// function returns null and the caller fails loud by name — a static payload
-// the guard cannot enumerate may ship unread, exactly like an unparseable
-// one; it is never silently dropped into the runtime bucket.
-export const CARTESIAN_PRODUCT_CAP = 4096;
+// The product is capped to bound the *work*, not the *legitimacy* (round-16
+// I2): several multi-candidate substitutions multiply without bound, and a
+// pathological template would otherwise hang the guard instead of failing.
+// The cap is a resource ceiling — the candidates are CSS payload strings
+// bounded in length by the source expression, so 100 000 of them are tens of
+// megabytes transient, still far from a hang — not a statement about how
+// many candidates a payload may legitimately have. Thirteen independent
+// binary choices (8192 candidates, the round-16 I2 reproduction) enumerate
+// comfortably; only a payload whose product truly cannot be enumerated fails,
+// and it fails loud by name: beyond the cap the join is unresolvable, so the
+// function returns null and the caller reports the named diagnostic — a
+// static payload the guard cannot enumerate may ship unread, exactly like an
+// unparseable one; it is never silently dropped into the runtime bucket.
+export const CARTESIAN_PRODUCT_CAP = 100_000;
 const cartesianStringJoin = (sets) => {
 	let results = [''];
 	for (const set of sets) {
@@ -2104,16 +2111,17 @@ export const scanZIndexFile = ({
 			// (round-17 B2 proof).
 			if (styleResult?.overflow && !childrenSuppressed) {
 				// The payload is provably static text with too many candidates
-				// to enumerate — the guard cannot inspect what ships, exactly
-				// like an unparseable payload, and a hang would be a worse
-				// failure than a red. Named, never silent (round-15 M2).
+				// to enumerate — an unresolvable payload the guard cannot
+				// inspect, exactly like an unparseable one, and a hang would
+				// be a worse failure than a red. Named, never silent
+				// (round-15 M2, round-16 I2).
 				violations.push({
 					ruleId: 'z-index-static-candidate-overflow',
 					message:
 						`static <style> payload has more than ${CARTESIAN_PRODUCT_CAP} ` +
-						'provable candidates — the guard cannot enumerate what ships; ' +
-						'simplify the payload or import the stylesheet through the ' +
-						'build graph.',
+						'provable candidates — an unresolvable payload the guard ' +
+						'cannot enumerate; simplify the payload or import the ' +
+						'stylesheet through the build graph.',
 					file: relativePath,
 					line: lineForOffset(content, node.getStart(sourceFile)),
 					source: node.getText(sourceFile),
@@ -2238,9 +2246,10 @@ export const scanZIndexFile = ({
 							ruleId: 'z-index-static-candidate-overflow',
 							message:
 								`static dangerouslySetInnerHTML payload has more than ` +
-								`${CARTESIAN_PRODUCT_CAP} provable candidates — the guard ` +
-								'cannot enumerate what ships; simplify the payload or ' +
-								'import the stylesheet through the build graph.',
+								`${CARTESIAN_PRODUCT_CAP} provable candidates — an ` +
+								'unresolvable payload the guard cannot enumerate; ' +
+								'simplify the payload or import the stylesheet ' +
+								'through the build graph.',
 							file: relativePath,
 							line: lineForOffset(content, node.getStart(sourceFile)),
 							source: node.getText(sourceFile),
