@@ -176,7 +176,7 @@ import path from 'node:path';
 
 import { cleanup, render, screen } from '@testing-library/react';
 import postcss from 'postcss';
-import type { AtRule, Rule } from 'postcss';
+import type { AnyNode, AtRule, Rule } from 'postcss';
 import { createElement, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import {
@@ -6730,6 +6730,147 @@ const SpacingReferenceForm = () => {
 	);
 };
 
+// Round 21's IMPORTANT 3: the CSS geometry guard used to assume the LAST
+// source rule matching `.publy-drawer-form` always wins the cascade — false
+// whenever an EARLIER rule has higher specificity (`.publy-drawer
+// .publy-drawer-form` beats a bare `.publy-drawer-form` regardless of which
+// one is declared later). A standard (id, class/attribute/pseudo-class,
+// type/pseudo-element) specificity triple, compared component-by-component
+// with source order as the tie-break, answers the real cascade question
+// instead of the ordering one. `app.css`'s drawer selectors are plain
+// compound selectors (classes, one attribute selector, no nesting
+// functions), so a flat per-token count is sufficient; `:where(...)`  is the
+// one pseudo-class the CSS spec defines as contributing zero, so it is
+// excluded explicitly rather than counted like every other pseudo-class.
+type SelectorSpecificity = readonly [number, number, number];
+
+const computeSelectorSpecificity = (selector: string): SelectorSpecificity => {
+	let idCount = 0;
+	let classCount = 0;
+	let typeCount = 0;
+	let working = selector;
+
+	working = working.replace(/\[[^\]]*\]/g, () => {
+		classCount += 1;
+		return ' ';
+	});
+	working = working.replace(/#[-\w]+/g, () => {
+		idCount += 1;
+		return ' ';
+	});
+	working = working.replace(
+		/::[-\w]+|:(?:before|after|first-line|first-letter)\b/gi,
+		() => {
+			typeCount += 1;
+			return ' ';
+		},
+	);
+	working = working.replace(/:where\([^)]*\)/gi, ' ');
+	working = working.replace(/:(?!:)[-\w]+(?:\([^)]*\))?/g, () => {
+		classCount += 1;
+		return ' ';
+	});
+	working = working.replace(/\.[-\w]+/g, () => {
+		classCount += 1;
+		return ' ';
+	});
+	typeCount += (working.match(/[A-Za-z][-\w]*/g) ?? []).length;
+
+	return [idCount, classCount, typeCount];
+};
+
+const compareSelectorSpecificity = (
+	a: SelectorSpecificity,
+	b: SelectorSpecificity,
+): number => {
+	for (let index = 0; index < a.length; index += 1) {
+		if (a[index] !== b[index]) {
+			return a[index] - b[index];
+		}
+	}
+	return 0;
+};
+
+// A rule nested in `@media`/`@supports` only applies within its own
+// condition — whether it beats the unconditional cascade winner at a given
+// viewport is not decidable from source alone. Rather than leave that
+// implied, the geometry guard below ranks only the unconditional selectors
+// and the e2e spec (`e2e/drawer-form-scroll-geometry.spec.ts`) is the one
+// that closes the conditional side, by actually sampling a viewport inside
+// every `min-width`/`max-width` range app.css declares for the drawer.
+const isNestedInConditionalAtRule = (rule: Rule): boolean => {
+	let current: AnyNode | undefined = rule.parent as AnyNode | undefined;
+	while (current && current.type !== 'root' && current.type !== 'document') {
+		if (
+			current.type === 'atrule' &&
+			(current.name === 'media' || current.name === 'supports')
+		) {
+			return true;
+		}
+		current = current.parent as AnyNode | undefined;
+	}
+	return false;
+};
+
+type MatchingSelector = {
+	rule: Rule;
+	selector: string;
+	specificity: SelectorSpecificity;
+	sourceIndex: number;
+	conditional: boolean;
+};
+
+/**
+ * The selector that wins the real CSS cascade among every UNCONDITIONAL
+ * rule whose selector contains `targetFragment` — highest specificity,
+ * source order as the tie-break. Returns `null` when no unconditional
+ * selector matches at all (every match sits behind a conditional at-rule,
+ * or nothing matches).
+ */
+const findCascadeWinningSelector = (
+	cssSource: string,
+	targetFragment: string,
+): MatchingSelector | null => {
+	const root = postcss.parse(cssSource);
+	const matchingSelectors: MatchingSelector[] = [];
+	root.walkRules((rule) => {
+		for (const selector of rule.selectors ?? []) {
+			if (!selector.includes(targetFragment)) {
+				continue;
+			}
+			matchingSelectors.push({
+				rule,
+				selector,
+				specificity: computeSelectorSpecificity(selector),
+				sourceIndex: matchingSelectors.length,
+				conditional: isNestedInConditionalAtRule(rule),
+			});
+		}
+	});
+
+	const unconditionalSelectors = matchingSelectors.filter(
+		(entry) => !entry.conditional,
+	);
+	let winner: MatchingSelector | null = null;
+	for (const candidate of unconditionalSelectors) {
+		if (!winner) {
+			winner = candidate;
+			continue;
+		}
+		const comparison = compareSelectorSpecificity(
+			candidate.specificity,
+			winner.specificity,
+		);
+		if (
+			comparison > 0 ||
+			(comparison === 0 && candidate.sourceIndex > winner.sourceIndex)
+		) {
+			winner = candidate;
+		}
+	}
+	return winner;
+};
+
 afterEach(cleanup);
 
 // Round 11's IMPORTANT 3 — the fixture directory must be gone when the suite
@@ -8619,35 +8760,32 @@ describe('drawer surface flex chain guard (#990)', () => {
 		);
 	});
 
-	test('app.css gives .publy-drawer-form the flex geometry as the last matching rule', () => {
+	test('app.css gives .publy-drawer-form the flex geometry as the highest-specificity unconditional rule', () => {
 		const appCssSource = readFileSync(
 			path.resolve(import.meta.dirname, '../../styles/app.css'),
 			'utf8',
 		);
 
-		const root = postcss.parse(appCssSource);
+		// Round 21's IMPORTANT 3: specificity decides the cascade winner, not
+		// source order — a `.publy-drawer .publy-drawer-form` compound
+		// declared BEFORE the plain `.publy-drawer-form` rule would still win,
+		// and the old "last matching rule" assumption missed exactly that. A
+		// rule nested in `@media`/`@supports` only applies within its own
+		// condition, which is not decidable from source alone — see
+		// `isNestedInConditionalAtRule` above; the ranking is deliberately
+		// scoped to the ALWAYS-applying selectors, and the e2e spec
+		// (`e2e/drawer-form-scroll-geometry.spec.ts`) is what closes the
+		// conditional side, by sampling a viewport inside every conditional
+		// range app.css declares for the drawer (currently a 1024px sample,
+		// above every `min-width` this file uses).
+		const geometryEntry = findCascadeWinningSelector(
+			appCssSource,
+			'.publy-drawer-form',
+		);
+		expect(geometryEntry).not.toBeNull();
+		expect(geometryEntry?.selector).toBe('.publy-drawer-form');
 
-		const matchingRules: Rule[] = [];
-		root.walkRules((rule) => {
-			if (
-				rule.selectors?.some((selector) =>
-					selector.includes('.publy-drawer-form'),
-				)
-			) {
-				matchingRules.push(rule);
-			}
-		});
-
-		expect(matchingRules.length).toBeGreaterThan(0);
-
-		// The rule the browser applies is the last one whose selector matches —
-		// any later `.publy-drawer-form` rule would win in the cascade and could
-		// delete the geometry. A commented-out rule never becomes a rule node,
-		// so it cannot satisfy this either.
-		const geometryRule = matchingRules[matchingRules.length - 1];
-		expect(geometryRule.selectors).toEqual(['.publy-drawer-form']);
-
-		const applyParams = geometryRule.nodes
+		const applyParams = (geometryEntry?.rule.nodes ?? [])
 			.filter(
 				(node): node is AtRule =>
 					node.type === 'atrule' && node.name === 'apply',
@@ -8662,5 +8800,61 @@ describe('drawer surface flex chain guard (#990)', () => {
 		expect(
 			requiredUtilities.every((utility) => applyParams.includes(utility)),
 		).toBe(true);
+	});
+
+	test('a higher-specificity unconditional rule declared earlier still wins the cascade ranking', () => {
+		// Round 21's IMPORTANT 3 paired proof, verbatim shape from the
+		// review: an earlier `.publy-drawer .publy-drawer-form` compound
+		// (higher specificity) beats a LATER plain `.publy-drawer-form` rule
+		// in the real cascade. The old "last matching rule" heuristic would
+		// have picked the later, losing rule.
+		const source = `
+.publy-drawer .publy-drawer-form {
+	display: block;
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		const winner = findCascadeWinningSelector(source, '.publy-drawer-form');
+		expect(winner?.selector).toBe('.publy-drawer .publy-drawer-form');
+
+		// The control: with equal specificity, source order breaks the tie —
+		// the later plain rule wins over an earlier plain rule.
+		const equalSpecificitySource = `
+.publy-drawer-form {
+	display: block;
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		const equalSpecificityWinner = findCascadeWinningSelector(
+			equalSpecificitySource,
+			'.publy-drawer-form',
+		);
+		expect(equalSpecificityWinner?.rule.toString()).toContain('@apply');
+
+		// A rule nested in `@media`/`@supports` is excluded from the
+		// unconditional ranking entirely, no matter its specificity — the
+		// unconditional plain rule remains the reported winner.
+		const conditionalSource = `
+@media (min-width: 901px) {
+	.publy-drawer .publy-drawer-form {
+		display: block;
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		const conditionalWinner = findCascadeWinningSelector(
+			conditionalSource,
+			'.publy-drawer-form',
+		);
+		expect(conditionalWinner?.selector).toBe('.publy-drawer-form');
 	});
 });

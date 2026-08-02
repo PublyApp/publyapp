@@ -42,6 +42,14 @@ const DRAWER_VIEWPORTS = [
 	// `@media (max-width: 639px)`), so any such narrow-breakpoint rule is live
 	// here and the computed-style assertions below would see it.
 	{ name: 'narrow', width: 600, height: 560 },
+	// Round 21's IMPORTANT 3: the source-level CSS guard cannot decide, from
+	// static analysis alone, which rule wins the cascade at a viewport where
+	// a `min-width`-gated rule becomes active — that depends on the real
+	// viewport, not the source. 1024px sits above every `min-width` app.css
+	// currently declares for the drawer, so a future higher-specificity rule
+	// scoped to a wide breakpoint is live here and the computed-style
+	// assertions below would see it override the geometry.
+	{ name: 'wide', width: 1024, height: 700 },
 ] as const;
 
 type Rect = {
@@ -318,7 +326,18 @@ const measureDrawer = async (
 			const flexChain: FlexChainItem[] = [];
 			let current: HTMLElement = body;
 			while (current !== drawerElement) {
-				const parent = current.parentElement;
+				// Round 21's IMPORTANT 4: a `display: contents` ancestor generates
+				// no principal box of its own, so it never participates as a flex
+				// container — skip past it (and any further boxless ancestors) to
+				// the nearest ancestor that actually generates one, exactly like
+				// the source-level guard treats it as transparent.
+				let parent = current.parentElement;
+				while (
+					parent instanceof HTMLElement &&
+					getComputedStyle(parent).display === 'contents'
+				) {
+					parent = parent.parentElement;
+				}
 				if (!(parent instanceof HTMLElement)) {
 					throw new Error(
 						'Drawer body ancestor chain did not reach the surface',
