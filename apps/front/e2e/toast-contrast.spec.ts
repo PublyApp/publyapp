@@ -646,6 +646,19 @@ const readBrowserPaint = async (
 				) {
 					continue;
 				}
+				const relocated = (
+					[
+						['transform', style.transform],
+						['translate', style.translate],
+						['rotate', style.rotate],
+						['scale', style.scale],
+					] as const
+				).find(([, value]) => value !== 'none');
+				if (relocated) {
+					throw new Error(
+						`${source}${pseudo} paints a background whose painted box cannot be resolved from computed styles (${relocated[0]}: ${relocated[1]}; position ${style.position}, width ${style.width}, height ${style.height}, inset ${style.top} ${style.right} ${style.bottom} ${style.left})`,
+					);
+				}
 				const box = pseudoElementBox(layer, style);
 				if (box === undefined) {
 					throw new Error(
@@ -1674,6 +1687,63 @@ const measureToastTarget = async ({
 	return measurement;
 };
 
+/**
+ * Self-check that a pseudo the test injects actually PAINTS: screenshot the
+ * given box (the toast), decode it in the page and count pixels within
+ * tolerance of the given colour. Round 9's I2 showed how easily a pseudo
+ * test can be vacuous — `display: inline` ignores width/height and paints
+ * nothing — so every injected-pseudo test proves its pseudo paints before
+ * asserting the guard's verdict.
+ */
+const assertPaintsPixels = async (
+	target: Locator,
+	rgb: [number, number, number],
+	label: string,
+): Promise<void> => {
+	const screenshot = await target.screenshot();
+	const count = await target.evaluate(
+		async (_element, { dataUrl, rgb }) => {
+			const base64 = dataUrl.slice('data:image/png;base64,'.length);
+			const binary = atob(base64);
+			const bytes = new Uint8Array(binary.length);
+			for (let index = 0; index < binary.length; index += 1) {
+				bytes[index] = binary.charCodeAt(index);
+			}
+			const bitmap = await createImageBitmap(
+				new Blob([bytes], { type: 'image/png' }),
+			);
+			const canvas = document.createElement('canvas');
+			canvas.width = bitmap.width;
+			canvas.height = bitmap.height;
+			const context = canvas.getContext('2d');
+			if (!context) {
+				throw new Error('Browser canvas colour resolver is unavailable');
+			}
+			context.drawImage(bitmap, 0, 0);
+			const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+			let count = 0;
+			for (let index = 0; index < data.length; index += 4) {
+				if (
+					Math.abs(data[index] - rgb[0]) <= 3 &&
+					Math.abs(data[index + 1] - rgb[1]) <= 3 &&
+					Math.abs(data[index + 2] - rgb[2]) <= 3
+				) {
+					count += 1;
+				}
+			}
+			return count;
+		},
+		{
+			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			rgb,
+		},
+	);
+	expect(
+		count,
+		`${label} must actually paint ${rgb.join(',')} pixels`,
+	).toBeGreaterThanOrEqual(10);
+};
+
 const assertCloseButtonContainingBlock = async (
 	toast: Locator,
 	theme: Theme,
@@ -2014,14 +2084,48 @@ test('a relatively positioned pseudo offset away from the glyphs stays measured'
 	await openToastFixture(page, 'light', VIEWPORTS[0]);
 	await page.addStyleTag({
 		content:
-			".publy-toast-title::after { content: ''; position: relative; z-index: 1; left: 250px; top: 5px; width: 46px; height: 11px; background: rgb(255 0 0); pointer-events: none; }",
+			".publy-toast-title::after { content: ''; display: inline-block; position: relative; z-index: 1; left: 250px; top: 5px; width: 46px; height: 11px; background: rgb(255 0 0); pointer-events: none; }",
 	});
 	const toast = await renderToast(page, 'success');
+	await assertPaintsPixels(toast, [255, 0, 0], 'the offset-away pseudo');
 	await measureContrast(
 		toast.locator('.publy-toast-title'),
 		'text',
 		TEXT_CONTRAST_FLOOR,
 	);
+});
+
+/**
+ * Round-9 I2's red half: the same relative box resolution, offset ONTO the
+ * glyphs — the resolved box (the origin rect translated by the offsets)
+ * contains the sampled point, so the guard must red it. This is the half
+ * that makes the branch load-bearing: with the branch stubbed to a
+ * far-away box the same test goes green, which is the mutation that proves
+ * the resolution is doing the work. The pseudo paints (self-check below)
+ * at 12px past the text's end, off the glyph area, so no other reading can
+ * fire.
+ */
+test('a relatively positioned pseudo offset onto the glyphs fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			".publy-toast-title::after { content: ''; display: inline-block; position: relative; z-index: 5; left: -60px; top: 0px; width: 12px; height: 12px; background: rgb(255 0 0); pointer-events: none; }",
+	});
+	const toast = await renderToast(page, 'success');
+	await assertPaintsPixels(
+		toast,
+		[255, 0, 0],
+		'the offset-onto-the-glyphs pseudo',
+	);
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/paints a background over the sampled point/);
 });
 
 /**
@@ -2272,4 +2376,30 @@ test('a foreign-colour block over part of the glyphs fails the guard by name', a
 	).rejects.toThrow(
 		/pixel\(s\) of paint the measured surface and ink did not produce/,
 	);
+});
+
+/**
+ * Round-9 I1: a pseudo whose paint is relocated by `transform` silently
+ * resolved to a compliant box — the resolved box sat 400 px away while the
+ * transform put the paint back over the ink, and the guard substituted the
+ * compliant box. `transform`, `translate`, `rotate` and `scale` on a
+ * painted pseudo now join the fail-loudly list: the painted box cannot be
+ * resolved from computed styles, so the guard must say so by element name.
+ */
+test('a transformed pseudo-element over the toast fails loudly', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			".publy-toast-title { position: relative; } .publy-toast-title::before { content: ''; position: absolute; left: 400px; top: 2px; width: 60px; height: 18px; transform: translateX(-400px); background: rgba(235, 242, 240, 0.93); pointer-events: none; z-index: 5; }",
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/painted box cannot be resolved from computed styles/);
 });
