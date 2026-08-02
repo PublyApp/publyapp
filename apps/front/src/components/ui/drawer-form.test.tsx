@@ -184,6 +184,7 @@ import {
 	SyntaxKind,
 	ts,
 	type Symbol as TsMorphSymbol,
+	type ArrayLiteralExpression,
 	type ArrowFunction,
 	type BinaryExpression,
 	type Block,
@@ -192,8 +193,10 @@ import {
 	type CatchClause,
 	type ConditionalExpression,
 	type FunctionDeclaration,
+	type GetAccessorDeclaration,
 	type IfStatement,
 	type Identifier,
+	type JsxAttribute,
 	type JsxElement,
 	type JsxExpression,
 	type JsxFragment,
@@ -209,6 +212,7 @@ import {
 	type ShorthandPropertyAssignment,
 	type SourceFile,
 	type Statement,
+	type StringLiteral,
 	type SwitchStatement,
 	type TryStatement,
 	type VariableDeclaration,
@@ -2928,19 +2932,28 @@ export const PropSigCleanDrawerFixture = ({
 
 // The paired proof (BLOCKER 1's note): `<option.Icon />`-shaped tags —
 // a member of a TYPED `.map` callback parameter — must not false-positive
-// a shipped file. The member resolves to the parameter type's
-// PropertySignature; the base `option` is a definite local value (a
-// parameter — round 19's BLOCKER 1 paired proof), so the member is a
-// definite non-drawer. The shipped `app-shell.tsx` renders the harder
-// variant — `const Icon = item.Icon` with `item` a typed prop, inside a
-// file that imports the drawer module — and the shipped-file checks
-// below pin it end to end.
+// a shipped file. Round 21's MINOR 5: the original version of this fixture
+// carried no drawer import, so it could never be DISCOVERED at all — even
+// mutating the classification this pins straight to UNVERIFIABLE left both
+// assertions below green, because a file with no drawer signal is never
+// visited (see the `importsDrawerModule` gate above). The drawer import and
+// real anchor below make the file's discovery depend on the classification
+// this fixture actually exercises: `option`'s iterable (`options`) IS a
+// traceable array literal, so round 21's array walk runs and resolves
+// `option.Icon` to `IconOne` — a real local component, still null — the
+// same verdict the old blanket "parameter member is null" rule gave, but
+// reached through the mechanism that must keep giving it. The shipped
+// `app-shell.tsx` renders the harder variant with NO traceable iterable at
+// all — `const Icon = item.Icon` with `item` a prop passed down from a
+// `.map()` two components away — and stays covered by the inventory checks
+// at the bottom of this file.
 const TEMPORARY_MEMBER_OF_PARAMETER_FILE =
 	'src/components/ui/_drawer-surface-r20-member-of-parameter-fixture.tsx';
 const TEMPORARY_MEMBER_OF_PARAMETER_PATH = fixturePath(
 	TEMPORARY_MEMBER_OF_PARAMETER_FILE,
 );
 const TEMPORARY_MEMBER_OF_PARAMETER_SOURCE = `import type { ComponentType } from 'react';
+import { DrawerBody, DrawerContent, DrawerFooter } from '~/components/ui/drawer';
 
 const IconOne = () => <svg aria-hidden="true" />;
 
@@ -2949,11 +2962,256 @@ type IconOption = { Icon: ComponentType };
 const options: IconOption[] = [{ Icon: IconOne }];
 
 export const MemberOfParameterFixture = () => (
-	<div>
-		{options.map((option) => (
-			<option.Icon aria-hidden="true" />
+	<DrawerContent data-testid="r20-member-of-parameter">
+		<DrawerBody>
+			{options.map((option) => (
+				<option.Icon aria-hidden="true" />
+			))}
+		</DrawerBody>
+		<DrawerFooter>
+			<button type="submit" />
+		</DrawerFooter>
+	</DrawerContent>
+);
+`;
+
+// ---------------------------------------------------------------------------
+// Round 21's BLOCKER 1: the false-positive fix above ("a member whose base
+// is a callback parameter is a definite non-drawer") was wider than the
+// false positive it closed — an explicitly typed array CAN carry the real
+// drawer exports as its elements. `kits.map((kit) => <kit.Surface />)` with
+// `const kits: DrawerKit[] = [{ Surface: DrawerContent, ... }]` must resolve
+// through the array to the real exports, not read "a parameter is always a
+// real local value."
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_ARRAY_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r21-array-kit-fixture.tsx';
+const TEMPORARY_ARRAY_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_ARRAY_KIT_DRAWER_FILE,
+);
+const TEMPORARY_ARRAY_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const kits: DrawerKit[] = [
+	{ Surface: DrawerContent, Form: DrawerForm, Body: DrawerBody, Footer: DrawerFooter },
+];
+
+export const ArrayKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<>
+		{kits.map((kit) => (
+			<kit.Surface key="r21-array-kit" data-testid="r21-array-kit">
+				<div className="p-4">
+					<kit.Form methods={methods}>
+						<kit.Body />
+						<kit.Footer>
+							<button type="submit" />
+						</kit.Footer>
+					</kit.Form>
+				</div>
+			</kit.Surface>
 		))}
-	</div>
+	</>
+);
+`;
+
+const TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r21-array-kit-clean-fixture.tsx';
+const TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const kits: DrawerKit[] = [
+	{ Surface: DrawerContent, Form: DrawerForm, Body: DrawerBody, Footer: DrawerFooter },
+];
+
+export const ArrayKitCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<>
+		{kits.map((kit) => (
+			<kit.Surface key="r21-array-kit-clean" data-testid="r21-array-kit-clean">
+				<kit.Form methods={methods}>
+					<kit.Body />
+					<kit.Footer>
+						<button type="submit" />
+					</kit.Footer>
+				</kit.Form>
+			</kit.Surface>
+		))}
+	</>
+);
+`;
+
+// ---------------------------------------------------------------------------
+// Round 21's BLOCKER 2: object-literal getters were explicitly grouped with
+// methods/setters and read as "the member's value IS the function" — false
+// for a getter, since property access INVOKES it and returns whatever it
+// returns. \`const kit = { get Surface() { return DrawerContent; }, ... }\`
+// must resolve \`kit.Surface\` to the real \`DrawerContent\` export.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_GETTER_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r21-getter-kit-fixture.tsx';
+const TEMPORARY_GETTER_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_GETTER_KIT_DRAWER_FILE,
+);
+const TEMPORARY_GETTER_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const kit = {
+	get Surface() {
+		return DrawerContent;
+	},
+	get Form() {
+		return DrawerForm;
+	},
+	get Body() {
+		return DrawerBody;
+	},
+	get Footer() {
+		return DrawerFooter;
+	},
+};
+
+export const GetterKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<kit.Surface data-testid="r21-getter-kit">
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer>
+					<button type="submit" />
+				</kit.Footer>
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_GETTER_KIT_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r21-getter-kit-clean-fixture.tsx';
+const TEMPORARY_GETTER_KIT_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_GETTER_KIT_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_GETTER_KIT_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const kit = {
+	get Surface() {
+		return DrawerContent;
+	},
+	get Form() {
+		return DrawerForm;
+	},
+	get Body() {
+		return DrawerBody;
+	},
+	get Footer() {
+		return DrawerFooter;
+	},
+};
+
+export const GetterKitCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<kit.Surface data-testid="r21-getter-kit-clean">
+		<kit.Form methods={methods}>
+			<kit.Body />
+			<kit.Footer>
+				<button type="submit" />
+			</kit.Footer>
+		</kit.Form>
+	</kit.Surface>
+);
+`;
+
+// ---------------------------------------------------------------------------
+// Round 21's IMPORTANT 4: the wrapper guard rejected EVERY intermediate
+// element, but #990 only asks it to forbid wrappers that BREAK the flex
+// chain. A `display: contents` element generates no principal box — its
+// child participates directly in the drawer's flex formatting context — so
+// it is a legitimate wrapper. The broken control is the ordinary `<div
+// className="p-4">` at the exact same position (still a real box, still a
+// violation); only the `contents` variant must go green.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_CONTENTS_WRAPPER_BROKEN_FILE =
+	'src/components/ui/_drawer-surface-r21-contents-wrapper-broken-fixture.tsx';
+const TEMPORARY_CONTENTS_WRAPPER_BROKEN_PATH = fixturePath(
+	TEMPORARY_CONTENTS_WRAPPER_BROKEN_FILE,
+);
+const TEMPORARY_CONTENTS_WRAPPER_BROKEN_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ContentsWrapperBrokenDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r21-contents-wrapper-broken">
+		<div className="p-4">
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
+const TEMPORARY_CONTENTS_WRAPPER_CLEAN_FILE =
+	'src/components/ui/_drawer-surface-r21-contents-wrapper-clean-fixture.tsx';
+const TEMPORARY_CONTENTS_WRAPPER_CLEAN_PATH = fixturePath(
+	TEMPORARY_CONTENTS_WRAPPER_CLEAN_FILE,
+);
+const TEMPORARY_CONTENTS_WRAPPER_CLEAN_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ContentsWrapperCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r21-contents-wrapper-clean">
+		<div className="contents">
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
 );
 `;
 
@@ -3253,6 +3511,30 @@ const FIXTURE_FILES: ReadonlyArray<{
 		file: TEMPORARY_MEMBER_OF_PARAMETER_FILE,
 		source: TEMPORARY_MEMBER_OF_PARAMETER_SOURCE,
 	},
+	{
+		file: TEMPORARY_ARRAY_KIT_DRAWER_FILE,
+		source: TEMPORARY_ARRAY_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_GETTER_KIT_DRAWER_FILE,
+		source: TEMPORARY_GETTER_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_GETTER_KIT_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_GETTER_KIT_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_WRAPPER_BROKEN_FILE,
+		source: TEMPORARY_CONTENTS_WRAPPER_BROKEN_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_WRAPPER_CLEAN_FILE,
+		source: TEMPORARY_CONTENTS_WRAPPER_CLEAN_SOURCE,
+	},
 ];
 
 for (const fixture of FIXTURE_FILES) {
@@ -3488,11 +3770,15 @@ const isRepoFilePath = (filePath: string): boolean =>
 // a type-side member is not evidence of absence; its value side must be
 // walked (round 19's BLOCKER 2), and a member of a binding in this set is
 // itself a definite local value (round 19's BLOCKER 1 paired proof).
+// Round 21's BLOCKER 2 amendment: GetAccessor is NOT here either — property
+// access INVOKES a getter and returns whatever it returns, so its own
+// declaration is not evidence of absence the way a method/setter reference
+// is; resolveSymbolValue resolves it through resolveGetAccessorValue
+// instead, and only a getter this scan cannot resolve reaches UNVERIFIABLE.
 const DEFINITE_LOCAL_DECLARATION_KINDS = new Set([
 	SyntaxKind.FunctionDeclaration,
 	SyntaxKind.ClassDeclaration,
 	SyntaxKind.MethodDeclaration,
-	SyntaxKind.GetAccessor,
 	SyntaxKind.SetAccessor,
 	SyntaxKind.Parameter,
 	SyntaxKind.NamespaceImport,
@@ -3699,6 +3985,18 @@ const resolveSymbolValue = (
 			}
 			return resolveSymbolValue(
 				valueSymbol,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		if (declaration.getKind() === SyntaxKind.GetAccessor) {
+			// Round 21's BLOCKER 2: property access INVOKES a getter and
+			// returns whatever it returns — `kit.Surface` with `get Surface()
+			// { return DrawerContent; }` is the real `DrawerContent` export,
+			// not "a real local value" the way a method reference is.
+			return resolveGetAccessorValue(
+				declaration as GetAccessorDeclaration,
 				project,
 				reassignedNamesByFile,
 				seen,
@@ -3955,26 +4253,345 @@ const findObjectLiteralValueSide = (
 };
 
 /**
+ * The array-literal sibling of `findObjectLiteralValueSide` — round 21's
+ * BLOCKER 1. Follows the same identity/alias chain, but the value side it
+ * looks for is an ARRAY literal (`const kits: DrawerKit[] = [...]`) instead
+ * of an object literal, so a `.map()`/`.forEach()` callback's element
+ * parameter can be resolved to the real elements that flow into it.
+ */
+const findArrayLiteralValueSide = (
+	baseSymbol: TsMorphSymbol,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): ArrayLiteralExpression | null => {
+	const symbolId = `${baseSymbol.getName()}#${baseSymbol
+		.getDeclarations()
+		.map(
+			(declaration) =>
+				`${declaration.getStart()}:${declaration.getSourceFile().getFilePath()}`,
+		)
+		.join('|')}`;
+	if (seen.has(symbolId)) {
+		return null;
+	}
+	seen.add(symbolId);
+
+	if ((baseSymbol.getFlags() & ts.SymbolFlags.Alias) !== 0) {
+		const aliased = baseSymbol.getAliasedSymbol();
+		if (!aliased || aliased === baseSymbol) {
+			return null;
+		}
+		return findArrayLiteralValueSide(aliased, reassignedNamesByFile, seen);
+	}
+	for (const declaration of baseSymbol.getDeclarations()) {
+		if (declaration.getKind() !== SyntaxKind.VariableDeclaration) {
+			continue;
+		}
+		const variableDeclaration = declaration as VariableDeclaration;
+		if (
+			isReassigned(
+				variableDeclaration.getSourceFile(),
+				variableDeclaration.getName(),
+				reassignedNamesByFile,
+			)
+		) {
+			return null;
+		}
+		const initializer = variableDeclaration.getInitializer();
+		if (!initializer) {
+			return null;
+		}
+		const unwrapped = unwrapExpression(initializer);
+		if (unwrapped.getKind() === SyntaxKind.ArrayLiteralExpression) {
+			return unwrapped as ArrayLiteralExpression;
+		}
+		if (unwrapped.getKind() === SyntaxKind.Identifier) {
+			const innerSymbol = (unwrapped as Identifier).getSymbol();
+			if (innerSymbol) {
+				return findArrayLiteralValueSide(
+					innerSymbol,
+					reassignedNamesByFile,
+					seen,
+				);
+			}
+		}
+		return null;
+	}
+	return null;
+};
+
+/**
+ * Resolves what a getter's body returns — round 21's BLOCKER 2. A getter is
+ * not a value like a method reference: property access INVOKES it and
+ * yields whatever it returns, so `get Surface() { return DrawerContent; }`
+ * makes `kit.Surface` the real `DrawerContent` export, not "a real local
+ * value" the way a method reference is. Only a single, unconditional
+ * `return` statement is resolved through the same value grammar as an
+ * object-literal property; anything else (no return, more than one
+ * statement, a non-block body) is UNVERIFIABLE — not knowing what a getter
+ * returns must redden, never silently read as a real local value.
+ */
+const resolveGetAccessorValue = (
+	getAccessor: GetAccessorDeclaration,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const body = getAccessor.getBody();
+	if (!body || body.getKind() !== SyntaxKind.Block) {
+		return UNVERIFIABLE_TAG;
+	}
+	const statements = (body as Block).getStatements();
+	if (
+		statements.length !== 1 ||
+		statements[0].getKind() !== SyntaxKind.ReturnStatement
+	) {
+		return UNVERIFIABLE_TAG;
+	}
+	const expression = (statements[0] as ReturnStatement).getExpression();
+	if (!expression) {
+		return UNVERIFIABLE_TAG;
+	}
+	return resolveValueIdentity(expression, project, reassignedNamesByFile, seen);
+};
+
+/**
+ * Resolves a single member of an object literal that is a binding's VALUE
+ * side — shared by the direct value-side walk below and by round 21's
+ * array-iterable walk, where the "object literal" is one element of a
+ * traced array rather than the base's own initializer.
+ *
+ *  - a drawer-module export name — the property's initializer/shorthand
+ *    value resolved through the symbol graph;
+ *  - null — a method or a setter-only member (the member's value IS the
+ *    function, or undefined with no getter — never the drawer module's
+ *    export), or a property the literal does not declare with no spread
+ *    that could supply it (undefined at runtime);
+ *  - UNVERIFIABLE — a getter whose return value cannot be resolved (round
+ *    21's BLOCKER 2 — property access INVOKES a getter, so its member is
+ *    NOT a real local value the way a method reference is), the property
+ *    could come from a spread, or its initializer cannot be resolved.
+ */
+const resolveObjectLiteralMember = (
+	objectLiteral: ObjectLiteralExpression,
+	memberName: string,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const property = objectLiteral.getProperty(memberName);
+	if (property) {
+		const propertyKind = property.getKind();
+		if (propertyKind === SyntaxKind.PropertyAssignment) {
+			const initializer = (property as PropertyAssignment).getInitializer();
+			if (!initializer) {
+				return UNVERIFIABLE_TAG;
+			}
+			return resolveValueIdentity(
+				initializer,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		if (propertyKind === SyntaxKind.ShorthandPropertyAssignment) {
+			const valueSymbol = project
+				.getTypeChecker()
+				.getShorthandAssignmentValueSymbol(
+					property as ShorthandPropertyAssignment,
+				);
+			if (!valueSymbol) {
+				return UNVERIFIABLE_TAG;
+			}
+			return resolveSymbolValue(
+				valueSymbol,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		if (propertyKind === SyntaxKind.GetAccessor) {
+			return resolveGetAccessorValue(
+				property as GetAccessorDeclaration,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		if (
+			propertyKind === SyntaxKind.MethodDeclaration ||
+			propertyKind === SyntaxKind.SetAccessor
+		) {
+			// A method reference or a setter-only member — the member's value
+			// IS the function, or undefined (no getter to invoke), a real
+			// local value, never the drawer module's exported symbol.
+			return null;
+		}
+		return UNVERIFIABLE_TAG;
+	}
+	if (
+		objectLiteral
+			.getProperties()
+			.some((candidate) => candidate.getKind() === SyntaxKind.SpreadAssignment)
+	) {
+		// The member could be supplied by the spread — not decidable.
+		return UNVERIFIABLE_TAG;
+	}
+	// The value side declares no such property and no spread can supply
+	// one: the member is undefined at runtime.
+	return null;
+};
+
+const ITERATION_CALLBACK_METHOD_NAMES = new Set(['map', 'forEach', 'flatMap']);
+
+/**
+ * The array a `.map()`/`.forEach()`/`.flatMap()` callback's ELEMENT
+ * parameter draws its values from — round 21's BLOCKER 1: `kit` in
+ * `kits.map((kit) => <kit.Surface />)`. Only the callback's first
+ * (element) parameter qualifies — the index/array parameters never carry
+ * an element's own members. Returns null for every shape that is not
+ * exactly this — a named callback passed by reference, a destructured
+ * element parameter, a call whose callee is not one of the iteration
+ * methods above — so the caller falls back to its existing default instead
+ * of guessing.
+ */
+const findIterableReceiverForParameter = (
+	parameterDeclaration: Node,
+): Node | null => {
+	if (parameterDeclaration.getKind() !== SyntaxKind.Parameter) {
+		return null;
+	}
+	const callback = parameterDeclaration.getParent();
+	if (
+		!callback ||
+		(callback.getKind() !== SyntaxKind.ArrowFunction &&
+			callback.getKind() !== SyntaxKind.FunctionExpression)
+	) {
+		return null;
+	}
+	const parameters = (callback as ArrowFunction).getParameters();
+	if (parameters.length === 0 || parameters[0] !== parameterDeclaration) {
+		return null;
+	}
+	const call = callback.getParent();
+	if (!call || call.getKind() !== SyntaxKind.CallExpression) {
+		return null;
+	}
+	const callExpression = call as CallExpression;
+	if (callExpression.getArguments()[0] !== callback) {
+		return null;
+	}
+	const callee = callExpression.getExpression();
+	if (callee.getKind() !== SyntaxKind.PropertyAccessExpression) {
+		return null;
+	}
+	const calleePropertyAccess = callee as PropertyAccessExpression;
+	if (!ITERATION_CALLBACK_METHOD_NAMES.has(calleePropertyAccess.getName())) {
+		return null;
+	}
+	return calleePropertyAccess.getExpression();
+};
+
+/**
+ * Resolves `<parameter>.<memberName>` when `parameter` is a `.map()`-style
+ * callback's element parameter and the iterable it draws from traces to a
+ * real array literal — round 21's BLOCKER 1 paired proof: `const kits:
+ * DrawerKit[] = [{ Surface: DrawerContent, ... }]` +
+ * `kits.map((kit) => <kit.Surface />)` must resolve to the real
+ * `DrawerContent` export, not "a parameter is always a real local value."
+ * Returns `undefined` — not a verdict — when the iterable cannot be traced
+ * to an array literal (an imported/computed collection, a `.filter()`
+ * chain, ...) or an element is not itself an object literal: the caller
+ * then falls back to its existing default instead of a guess. Non-empty
+ * literal elements are resolved individually and must agree — every element
+ * the same drawer name, or every element null — otherwise the member could
+ * be a drawer export on some iterations and not others, which is
+ * UNVERIFIABLE, not a guess either way.
+ */
+const resolveIterableParameterMember = (
+	parameterDeclaration: Node,
+	memberName: string,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult | undefined => {
+	const receiver = findIterableReceiverForParameter(parameterDeclaration);
+	if (!receiver) {
+		return undefined;
+	}
+	const unwrappedReceiver = unwrapExpression(receiver);
+	if (unwrappedReceiver.getKind() !== SyntaxKind.Identifier) {
+		return undefined;
+	}
+	const receiverSymbol = (unwrappedReceiver as Identifier).getSymbol();
+	if (!receiverSymbol) {
+		return undefined;
+	}
+	const arrayLiteral = findArrayLiteralValueSide(
+		receiverSymbol,
+		reassignedNamesByFile,
+		new Set(),
+	);
+	if (!arrayLiteral) {
+		return undefined;
+	}
+	const elements = arrayLiteral.getElements();
+	if (elements.length === 0) {
+		return undefined;
+	}
+	const results: DrawerTagNameResult[] = [];
+	for (const element of elements) {
+		const unwrappedElement = unwrapExpression(element);
+		if (unwrappedElement.getKind() !== SyntaxKind.ObjectLiteralExpression) {
+			// A spread, a call, an identifier — not an object literal this
+			// walk can read a member off. Not knowing must redden.
+			return UNVERIFIABLE_TAG;
+		}
+		results.push(
+			resolveObjectLiteralMember(
+				unwrappedElement as ObjectLiteralExpression,
+				memberName,
+				project,
+				reassignedNamesByFile,
+				seen,
+			),
+		);
+	}
+	if (results.some((result) => result === UNVERIFIABLE_TAG)) {
+		return UNVERIFIABLE_TAG;
+	}
+	const distinctResults = new Set(results);
+	if (distinctResults.size === 1) {
+		return results[0];
+	}
+	// Elements disagree on this member — it could be a drawer export on some
+	// iterations and a real local value on others. Ambiguous, not a guess.
+	return UNVERIFIABLE_TAG;
+};
+
+/**
  * Resolves a member expression whose member symbol is a TYPE-side member
  * (a PropertySignature/MethodSignature/IndexSignature of the base's
  * type) — round 19's BLOCKER 2. The verdicts:
  *
  *  - a drawer-module export name — the annotated object literal's own
- *    property VALUE resolved through the symbol graph;
- *  - null — a function-literal member (a method/getter/setter), a
- *    property the value side does not declare (with no spread that could
- *    supply it — it is undefined at runtime), or a member of a base
- *    binding that is itself a definite local value or an external value
- *    (round 19's BLOCKER 1 paired proof: `const Icon = item.Icon` with
- *    `item` a typed parameter — the shipped `app-shell.tsx` shape — is a
- *    member of a definite local value, and `<option.Icon />` in
- *    `icon-color-picker.tsx` is the same classification);
+ *    property VALUE resolved through the symbol graph, or (round 21's
+ *    BLOCKER 1) the same walk applied to each element of a traced array
+ *    when the base is a `.map()`-style callback's element parameter;
+ *  - null — a property the value side does not declare (with no spread
+ *    that could supply it — it is undefined at runtime), a method/setter
+ *    member (its value IS the function, or undefined), or a member of a
+ *    base binding that is itself a definite local value or an external
+ *    value with no traceable iterable (`const Icon = item.Icon` with
+ *    `item` a typed prop passed down from elsewhere — the shipped
+ *    `app-shell.tsx` shape — has no iterable to trace at all);
  *  - UNVERIFIABLE — the base is not a binding with a readable value side
  *    and not a definite local/external value (a call result, a `??`
- *    chain, a nested member, a reassigned `let`), the value side is an
- *    object literal whose member could come from a spread, or the
- *    property's initializer itself cannot be resolved. Not knowing must
- *    redden.
+ *    chain, a nested member, a reassigned `let`), a getter whose return
+ *    value cannot be resolved, the value side is an object literal whose
+ *    member could come from a spread, the property's initializer itself
+ *    cannot be resolved, or a traced array's elements disagree on the
+ *    member. Not knowing must redden.
  */
 const resolveTypeSideMemberValue = (
 	propertyAccess: PropertyAccessExpression,
@@ -3996,66 +4613,37 @@ const resolveTypeSideMemberValue = (
 		seen,
 	);
 	if (objectLiteral) {
-		const memberName = propertyAccess.getName();
-		const property = objectLiteral.getProperty(memberName);
-		if (property) {
-			const propertyKind = property.getKind();
-			if (propertyKind === SyntaxKind.PropertyAssignment) {
-				const initializer = (property as PropertyAssignment).getInitializer();
-				if (!initializer) {
-					return UNVERIFIABLE_TAG;
-				}
-				return resolveValueIdentity(
-					initializer,
-					project,
-					reassignedNamesByFile,
-					seen,
-				);
-			}
-			if (propertyKind === SyntaxKind.ShorthandPropertyAssignment) {
-				const valueSymbol = project
-					.getTypeChecker()
-					.getShorthandAssignmentValueSymbol(
-						property as ShorthandPropertyAssignment,
-					);
-				if (!valueSymbol) {
-					return UNVERIFIABLE_TAG;
-				}
-				return resolveSymbolValue(
-					valueSymbol,
-					project,
-					reassignedNamesByFile,
-					seen,
-				);
-			}
-			if (
-				propertyKind === SyntaxKind.MethodDeclaration ||
-				propertyKind === SyntaxKind.GetAccessor ||
-				propertyKind === SyntaxKind.SetAccessor
-			) {
-				// A function literal — the member's value IS the function, a
-				// real local value, never the drawer module's exported symbol.
-				return null;
-			}
-			return UNVERIFIABLE_TAG;
-		}
-		if (
-			objectLiteral
-				.getProperties()
-				.some(
-					(candidate) => candidate.getKind() === SyntaxKind.SpreadAssignment,
-				)
-		) {
-			// The member could be supplied by the spread — not decidable.
-			return UNVERIFIABLE_TAG;
-		}
-		// The value side declares no such property and no spread can supply
-		// one: the member is undefined at runtime.
-		return null;
+		return resolveObjectLiteralMember(
+			objectLiteral,
+			propertyAccess.getName(),
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
 	}
 
-	// No readable value side. The base binding itself decides the verdict.
+	// No readable value side. Round 21's BLOCKER 1: before falling back to
+	// "the base binding IS a real local value," a base that is exactly a
+	// `.map()`-style callback's element parameter is a member of whatever
+	// the callback's ITERABLE supplies, not a value of its own.
 	const baseDeclarations = baseSymbol.getDeclarations();
+	if (
+		baseDeclarations.length === 1 &&
+		baseDeclarations[0].getKind() === SyntaxKind.Parameter
+	) {
+		const iterableVerdict = resolveIterableParameterMember(
+			baseDeclarations[0],
+			propertyAccess.getName(),
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
+		if (iterableVerdict !== undefined) {
+			return iterableVerdict;
+		}
+	}
+
+	// The base binding itself decides the verdict.
 	if (
 		baseDeclarations.length > 0 &&
 		baseDeclarations.every(
@@ -4076,18 +4664,20 @@ const resolveTypeSideMemberValue = (
 				declaration.getKind() === SyntaxKind.BindingElement,
 		)
 	) {
-		// A base binding whose value IS the symbol — a parameter, a
-		// destructured prop (a BindingElement), a local function/class, a
-		// namespace import. Its member belongs to that definite local
-		// value, never to the drawer module's exports. This is the
-		// round-19 BLOCKER 1 paired proof: `option.Icon` (a `.map` callback
-		// parameter) and `const Icon = item.Icon` with `item` a
-		// destructured typed prop (the shipped app-shell.tsx shape) must
-		// not become unverifiable in files that legitimately render them.
-		// BindingElement is deliberately absent from the DEFINITE set
-		// itself — a destructured binding USED AS THE TAG'S VALUE is
-		// round 18's fail-closed default — but as a member BASE it is a
-		// definite local value like any parameter.
+		// A base binding whose value IS the symbol — a parameter with no
+		// traceable iterable, a destructured prop (a BindingElement), a
+		// local function/class, a namespace import. Its member belongs to
+		// that definite local value, never to the drawer module's exports.
+		// This is the round-19 BLOCKER 1 paired proof: `option.Icon` (a
+		// `.map` callback parameter whose iterable resolves to real local
+		// values) and `const Icon = item.Icon` with `item` a destructured
+		// typed prop (the shipped app-shell.tsx shape, which has no
+		// iterable to trace — `item` is a component prop, not a callback's
+		// own element parameter) must not become unverifiable in files that
+		// legitimately render them. BindingElement is deliberately absent
+		// from the DEFINITE set itself — a destructured binding USED AS THE
+		// TAG'S VALUE is round 18's fail-closed default — but as a member
+		// BASE it is a definite local value like any parameter.
 		return null;
 	}
 	return UNVERIFIABLE_TAG;
@@ -4482,15 +5072,85 @@ const isNodelessReactWrapper = (
 		);
 };
 
+const CONTENTS_CLASS_TOKEN = /(?:^|\s)contents(?:\s|$)/;
+
+/**
+ * A `className`/`style` value that statically resolves to `display:
+ * contents` — round 21's IMPORTANT 4. Such an element generates no
+ * principal box: its own children participate directly in ITS PARENT's
+ * formatting context, so it does not break the drawer's flex column the
+ * way a real `<div>` does, and #990 asks the guard to forbid wrappers that
+ * BREAK the chain, not every intermediate element. Only the Tailwind
+ * `contents` utility class and a literal `style={{ display: 'contents' }}`
+ * are recognized — a computed or conditional class/style is not statically
+ * decidable and is NOT treated as boxless (fail closed).
+ */
+const isBoxlessWrapperElement = (
+	openingElement: JsxOpeningElement | JsxSelfClosingElement,
+): boolean => {
+	for (const attribute of openingElement.getAttributes()) {
+		if (attribute.getKind() !== SyntaxKind.JsxAttribute) {
+			continue;
+		}
+		const jsxAttribute = attribute as JsxAttribute;
+		const attributeName = jsxAttribute.getNameNode().getText();
+		const initializer = jsxAttribute.getInitializer();
+		if (!initializer) {
+			continue;
+		}
+		if (
+			attributeName === 'className' &&
+			initializer.getKind() === SyntaxKind.StringLiteral &&
+			CONTENTS_CLASS_TOKEN.test(
+				` ${(initializer as StringLiteral).getLiteralValue()} `,
+			)
+		) {
+			return true;
+		}
+		if (
+			attributeName === 'style' &&
+			initializer.getKind() === SyntaxKind.JsxExpression
+		) {
+			const expression = (initializer as JsxExpression).getExpression();
+			if (
+				expression &&
+				expression.getKind() === SyntaxKind.ObjectLiteralExpression
+			) {
+				const displayProperty = (
+					expression as ObjectLiteralExpression
+				).getProperty('display');
+				if (
+					displayProperty &&
+					displayProperty.getKind() === SyntaxKind.PropertyAssignment
+				) {
+					const displayInitializer = (
+						displayProperty as PropertyAssignment
+					).getInitializer();
+					if (
+						displayInitializer &&
+						displayInitializer.getKind() === SyntaxKind.StringLiteral &&
+						(displayInitializer as StringLiteral).getLiteralValue() ===
+							'contents'
+					) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+};
+
 /**
  * The nearest element that actually contains the body/footer tag in the DOM
  * sense: fragments, JSX expressions and the other kinds below create no
- * node, so they are skipped — and so are the nodeless React wrappers. Any
- * other kind of ancestor means the tag is not directly inside an element,
- * which the caller treats as a structural violation. A null result means no
- * enclosing element exists at all in the file, i.e. the tag sits inside a
- * component DEFINITION (a composition helper) rather than at a drawer call
- * site.
+ * node, so they are skipped — and so are the nodeless React wrappers and a
+ * `display: contents` element (round 21's IMPORTANT 4 — it generates no box
+ * of its own either). Any other kind of ancestor means the tag is not
+ * directly inside an element, which the caller treats as a structural
+ * violation. A null result means no enclosing element exists at all in the
+ * file, i.e. the tag sits inside a component DEFINITION (a composition
+ * helper) rather than at a drawer call site.
  */
 const findWrapperOpeningElement = (
 	node: JsxOpeningElement | JsxSelfClosingElement,
@@ -4508,7 +5168,11 @@ const findWrapperOpeningElement = (
 	while (current) {
 		if (current.getKind() === SyntaxKind.JsxElement) {
 			const openingElement = (current as JsxElement).getOpeningElement();
-			if (isNodelessReactWrapper(openingElement, sourceFile)) {
+			if (
+				isNodelessReactWrapper(openingElement, sourceFile) ||
+				(/^[a-z]/.test(openingElement.getTagNameNode().getText()) &&
+					isBoxlessWrapperElement(openingElement))
+			) {
 				current = current.getParent();
 				continue;
 			}
@@ -5637,9 +6301,16 @@ const walkTag = (
 		}
 		return;
 	}
-	if (isNodelessReactWrapper(opening, sourceFile)) {
-		// Fragment/Suspense/StrictMode imported from react — no DOM node, so
-		// the walk passes through without a chain element.
+	if (
+		isNodelessReactWrapper(opening, sourceFile) ||
+		(/^[a-z]/.test(tagText) && isBoxlessWrapperElement(opening))
+	) {
+		// Fragment/Suspense/StrictMode imported from react, or an intrinsic
+		// element with a statically `display: contents` class/style (round
+		// 21's IMPORTANT 4 — a component reference is NOT eligible here,
+		// since what it renders is not decided by its own `className`) —
+		// neither generates a DOM node of its own, so the walk passes
+		// through without a chain element.
 		if (jsxChildren) {
 			for (const child of jsxChildren) {
 				walkNode(
@@ -7174,16 +7845,17 @@ describe('drawer surface flex chain guard (#990)', () => {
 		}
 	});
 
-	test('a member-expression tag on a typed callback parameter is not a drawer signal', () => {
+	test('a member-expression tag on a typed callback parameter over a traceable array resolves to its element, not an opaque signal', () => {
 		// Round 19's BLOCKER 1 paired proof, verbatim shape: `<option.Icon
-		// />` — a member of a TYPED `.map` callback parameter. Its member
-		// symbol is the parameter type's PropertySignature; the base
-		// `option` is a definite local value, so the member is a definite
-		// non-drawer — deleting that classification makes it unverifiable,
-		// and in a file that imports the drawer module (the shipped
-		// `app-shell.tsx` — `const Icon = item.Icon` with `item` a typed
-		// prop — is exactly this shape) that reddens the shipped-file
-		// checks below.
+		// />` — a member of a TYPED `.map` callback parameter. Round 21's
+		// MINOR 5: this fixture used to carry no drawer import, so it was
+		// never DISCOVERED at all and this test could not fail even when the
+		// classification it names was deliberately broken. The drawer import
+		// + real anchor below make that classification load-bearing: `option`'s
+		// iterable (`options`) is a traceable array literal, so round 21's
+		// array walk resolves `option.Icon` to `IconOne` (null, a real local
+		// component) — killing either that resolution or the array walk
+		// itself reddens this exact file.
 		writeFileSync(
 			TEMPORARY_MEMBER_OF_PARAMETER_PATH,
 			TEMPORARY_MEMBER_OF_PARAMETER_SOURCE,
@@ -7191,7 +7863,7 @@ describe('drawer surface flex chain guard (#990)', () => {
 
 		try {
 			const scan = scanDrawerSurfaces();
-			expect(scan.discovered).not.toContain(
+			expect(scan.discovered).toContain(
 				fixtureRel(TEMPORARY_MEMBER_OF_PARAMETER_FILE),
 			);
 			expect(scan.violations).not.toContain(
@@ -7199,6 +7871,149 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_MEMBER_OF_PARAMETER_PATH);
+		}
+	});
+
+	test('a drawer whose parts resolve through a typed array literal accessed via a .map callback parameter is discovered and rejected', () => {
+		// Round 21's BLOCKER 1, verbatim: `const kits: DrawerKit[] = [{
+		// Surface: DrawerContent, ... }]` + `kits.map((kit) => <kit.Surface
+		// />)`. Before the fix, EVERY member of a `.map` callback's element
+		// parameter read "definitely not a drawer" regardless of what the
+		// array actually held — no anchor and no UNVERIFIABLE signal, so the
+		// #990 div between the surface and the form was invisible to
+		// discovery. The array walk must resolve through to the real
+		// exports.
+		writeFileSync(
+			TEMPORARY_ARRAY_KIT_DRAWER_PATH,
+			TEMPORARY_ARRAY_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ARRAY_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_ARRAY_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ARRAY_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('the same typed array literal with a clean surface-to-form link stays green', () => {
+		// The control for the array walk: only the walk's resolution keeps
+		// this perfect drawer green (with no anchors at all, a fully green
+		// suite is also possible — the walk itself is what must be tested).
+		writeFileSync(
+			TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_PATH,
+			TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ARRAY_KIT_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose parts resolve through object-literal getters is discovered and rejected', () => {
+		// Round 21's BLOCKER 2, verbatim: `const kit = { get Surface() {
+		// return DrawerContent; }, ... }`. Before the fix, GetAccessor was
+		// grouped with methods/setters and read as "the member's value IS
+		// the function" — but property access INVOKES a getter and returns
+		// whatever it returns, so `kit.Surface` silently became "definitely
+		// not a drawer" with the #990 div right behind it.
+		writeFileSync(
+			TEMPORARY_GETTER_KIT_DRAWER_PATH,
+			TEMPORARY_GETTER_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_GETTER_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_GETTER_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_GETTER_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('the same object-literal getters with a clean surface-to-form link stay green', () => {
+		// The control for the getter walk: only resolving what the getter
+		// RETURNS (not reading it as a real local value) keeps this perfect
+		// drawer green.
+		writeFileSync(
+			TEMPORARY_GETTER_KIT_CLEAN_DRAWER_PATH,
+			TEMPORARY_GETTER_KIT_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_GETTER_KIT_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_GETTER_KIT_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_GETTER_KIT_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a plain div between the surface and the form is still rejected at the exact position a display:contents wrapper is allowed', () => {
+		// The broken control for round 21's IMPORTANT 4: an ordinary
+		// `<div className="p-4">` at the same position a `display: contents`
+		// wrapper occupies below. This must stay a violation — the fix must
+		// not have widened the guard into accepting any wrapper.
+		writeFileSync(
+			TEMPORARY_CONTENTS_WRAPPER_BROKEN_PATH,
+			TEMPORARY_CONTENTS_WRAPPER_BROKEN_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_WRAPPER_BROKEN_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_WRAPPER_BROKEN_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_WRAPPER_BROKEN_PATH);
+		}
+	});
+
+	test('a display:contents wrapper between the surface and the form does not break the flex chain and stays green', () => {
+		// Round 21's IMPORTANT 4: #990 forbids wrappers that BREAK the flex
+		// chain, not every intermediate element. A `display: contents`
+		// element generates no principal box, so its child participates
+		// directly in the drawer's own formatting context — this is the
+		// exact broken-control fixture above with only the class changed.
+		writeFileSync(
+			TEMPORARY_CONTENTS_WRAPPER_CLEAN_PATH,
+			TEMPORARY_CONTENTS_WRAPPER_CLEAN_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_WRAPPER_CLEAN_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CONTENTS_WRAPPER_CLEAN_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_WRAPPER_CLEAN_PATH);
 		}
 	});
 
