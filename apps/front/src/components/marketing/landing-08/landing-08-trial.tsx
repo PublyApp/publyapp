@@ -34,6 +34,9 @@ const TRIAL_STEPS: readonly TrialStep[] = [
  * as running today. No connector line, no numbered circles —
  * `--publy-radius-circular` is off-limits and a timeline chevron would be
  * decoration; the mono ordinals alone carry the sequence.
+ *
+ * `<ol>`/`<li>`, not `<div>`: this is a numbered sequence (I.1), so a screen
+ * reader should announce it as a three-item list, not three unrelated cells.
  */
 export const Landing08Trial = () => {
 	const { t } = useTranslation('landing-08');
@@ -43,9 +46,9 @@ export const Landing08Trial = () => {
 			<p className="publy-type-copy mt-4 max-w-[58ch]">
 				{t('landing-trial-plan-note')}
 			</p>
-			<div className="publy-marketing-hairline-grid mt-12 grid grid-cols-1 sm:grid-cols-3">
+			<ol className="publy-marketing-hairline-grid mt-12 grid grid-cols-1 sm:grid-cols-3">
 				{TRIAL_STEPS.map((step, index) => (
-					<div
+					<li
 						key={step.id}
 						className="px-0 py-8 sm:px-6 sm:first:pl-0 sm:last:pr-0"
 					>
@@ -59,9 +62,9 @@ export const Landing08Trial = () => {
 						</div>
 						<p className="publy-type-copy-mark mt-3">{t(step.labelKey)}</p>
 						<p className="publy-type-copy mt-2">{t(step.descriptionKey)}</p>
-					</div>
+					</li>
 				))}
-			</div>
+			</ol>
 		</>
 	);
 };
