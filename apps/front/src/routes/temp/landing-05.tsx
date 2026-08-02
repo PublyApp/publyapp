@@ -1,13 +1,34 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Landing05Audience } from '~/components/marketing/landing-05/landing-05-audience';
 import { Landing05Capabilities } from '~/components/marketing/landing-05/landing-05-capabilities';
 import { Landing05Claims } from '~/components/marketing/landing-05/landing-05-claims';
+import { Landing05Faq } from '~/components/marketing/landing-05/landing-05-faq';
+import { Landing05Pricing } from '~/components/marketing/landing-05/landing-05-pricing';
 import { Landing05Section } from '~/components/marketing/landing-05/landing-05-section';
 import { Landing05Sky } from '~/components/marketing/landing-05/landing-05-sky';
 import { Landing05Tour } from '~/components/marketing/landing-05/landing-05-tour';
+import { Landing05Trial } from '~/components/marketing/landing-05/landing-05-trial';
 import { buttonVariants } from '~/components/ui/button';
 import { FEATURES } from '~/lib/flags';
 import { cn } from '~/lib/utils';
+
+/* §9 — the two flag-gated bands: restyled onto the shared attio-15 hairline
+   grid, flags left off in every released image (no Dockerfile ARG exists). */
+const CUSTOMER_LOGO_KEYS = [
+	'landing-customer-logo-northbeam',
+	'landing-customer-logo-halcyon',
+	'landing-customer-logo-fieldnote',
+	'landing-customer-logo-studio-mera',
+	'landing-customer-logo-orrery',
+	'landing-customer-logo-caldera',
+] as const;
+
+const SOCIAL_PROOF_KEYS = [
+	'landing-social-proof-rating',
+	'landing-social-proof-brands',
+	'landing-social-proof-setup',
+] as const;
 
 export const Route = createFileRoute('/temp/landing-05')({
 	component: LandingExploration05,
@@ -15,16 +36,15 @@ export const Route = createFileRoute('/temp/landing-05')({
 });
 
 /**
- * 05 — THE SKY: page skeleton (foundations only — section content lands in
- * the follow-up tasks).
+ * 05 — THE SKY: hero through the footer.
  *
  * One continuous atmosphere (`Landing05Sky`) behind a single ruled column;
- * every section below is one empty frame — its id, testid, anchor class,
- * rhythm variant and real heading — that the content tasks fill. The chrome
- * (announcement bar, header/nav, footer, cookie surfaces) is the marketing
- * shell's own: `__root.tsx` wraps every marketing-surface route, this one
- * included, and the direction keeps that chrome untouched (prompt §0/§11),
- * so this page renders no chrome of its own.
+ * every section below opens with its own chip → H2 → dek triple (§2.6) and
+ * hands its body to a dedicated component. The chrome (announcement bar,
+ * header/nav, footer, cookie surfaces) is the marketing shell's own:
+ * `__root.tsx` wraps every marketing-surface route, this one included, and
+ * the direction keeps that chrome untouched (prompt §0/§11), so this page
+ * renders no chrome of its own.
  *
  * The shell wraps children in `MarketingContainer width="reading"` with
  * `py-10` and `px-4 sm:px-6`, and the shell is shared and off-limits. The
@@ -126,22 +146,30 @@ function LandingExploration05() {
 
 					{/* §5 — Who it is for (attio-15 hairline grid + one side-pane slot). */}
 					<Landing05Section ruled labelledBy="landing-05-audience-heading">
+						<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip">
+							{t('landing-bento-eyebrow')}
+						</p>
 						<h2
 							id="landing-05-audience-heading"
-							className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+							className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
 						>
 							{t('landing-bento-title')}
 						</h2>
+						<Landing05Audience />
 					</Landing05Section>
 
 					{/* §6 — The planned trial: claim-gated, three steps. */}
 					<Landing05Section ruled labelledBy="landing-05-timeline-heading">
+						<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip">
+							{t('landing-timeline-eyebrow')}
+						</p>
 						<h2
 							id="landing-05-timeline-heading"
-							className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+							className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
 						>
 							{t('landing-timeline-title')}
 						</h2>
+						<Landing05Trial />
 					</Landing05Section>
 
 					{/* §7 — Pricing: struck through, beta-noted, todesktop-23 framed. */}
@@ -150,12 +178,19 @@ function LandingExploration05() {
 						testId="landing-pricing"
 						labelledBy="landing-05-pricing-heading"
 					>
+						<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip">
+							{t('landing-pricing-eyebrow')}
+						</p>
 						<h2
 							id="landing-05-pricing-heading"
-							className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+							className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
 						>
 							{t('landing-pricing-title')}
 						</h2>
+						<p className="publy-type-sky-lead mt-3 max-w-[62ch] text-pretty text-(--publy-foreground-secondary)">
+							{t('landing-pricing-subtitle')}
+						</p>
+						<Landing05Pricing />
 					</Landing05Section>
 
 					{/* §8 — FAQ (todesktop-33, two columns). */}
@@ -165,16 +200,21 @@ function LandingExploration05() {
 						anchor
 						labelledBy="landing-05-faq-heading"
 					>
+						<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip">
+							{t('landing-faq-eyebrow')}
+						</p>
 						<h2
 							id="landing-05-faq-heading"
-							className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+							className="publy-type-sky-display-2 mt-6 text-balance text-(--publy-foreground)"
 						>
 							{t('landing-faq-title')}
 						</h2>
+						<Landing05Faq />
 					</Landing05Section>
 
-					{/* §9 — The two flag-gated bands: kept, restyle later, flags stay
-					    off in every released image (no Dockerfile ARG exists). */}
+					{/* §9 — The two flag-gated bands: restyled onto the attio-15
+					    hairline grid, flags stay off in every released image (no
+					    Dockerfile ARG exists). */}
 					{FEATURES.marketing.customerLogos ? (
 						<Landing05Section
 							ruled
@@ -183,29 +223,75 @@ function LandingExploration05() {
 						>
 							<h2
 								id="landing-05-logos-heading"
-								className="publy-type-sky-display-2 text-balance text-(--publy-foreground)"
+								className="publy-type-sky-display-3 mx-auto max-w-[58ch] text-center text-balance text-(--publy-foreground)"
 							>
 								{t('landing-customer-logos-title')}
 							</h2>
+							<div className="publy-marketing-hairline-grid mt-7 grid grid-cols-2 sm:grid-cols-3">
+								{CUSTOMER_LOGO_KEYS.map((logoKey) => (
+									<div
+										key={logoKey}
+										className="flex min-h-16 items-center justify-center bg-(--publy-surface) px-4 text-center"
+									>
+										<span className="publy-type-sky-label text-(--publy-foreground-secondary)">
+											{t(logoKey)}
+										</span>
+									</div>
+								))}
+							</div>
 						</Landing05Section>
 					) : null}
 					{FEATURES.marketing.socialProof ? (
 						<section
 							data-testid="landing-social-proof"
 							className="publy-l05-section publy-l05-section-ruled"
-						/>
+						>
+							<div className="publy-marketing-hairline-grid grid grid-cols-1 sm:grid-cols-3">
+								{SOCIAL_PROOF_KEYS.map((proofKey) => (
+									<p
+										key={proofKey}
+										className="publy-type-sky-label bg-(--publy-surface) px-6 py-5 text-center text-(--publy-foreground-secondary)"
+									>
+										{t(proofKey)}
+									</p>
+								))}
+							</div>
+						</section>
 					) : null}
 
 					{/* §10 — Closing: the night slice (todesktop-15) — one boxed slice
 					    of the same sky, rotated 7° off vertical, theme-invariant. */}
 					<Landing05Section ruled labelledBy="landing-05-closing-heading">
 						<div className="publy-marketing-night publy-l05-radius-band relative isolate overflow-hidden px-6 py-14 text-center sm:px-12 lg:py-20">
+							<p className="publy-marketing-eyebrow publy-l05-eyebrow-chip-night mx-auto w-fit">
+								{t('landing-closing-eyebrow')}
+							</p>
 							<h2
 								id="landing-05-closing-heading"
-								className="publy-type-sky-display-2 mx-auto max-w-[18ch] text-balance text-(--l05-night-foreground)"
+								className="publy-type-sky-display-2 mx-auto mt-6 max-w-[18ch] text-balance text-(--l05-night-foreground)"
 							>
 								{t('landing-closing-title')}
 							</h2>
+							<p className="publy-type-sky-lead mx-auto mt-3 max-w-[54ch] text-pretty text-(--l05-night-foreground-muted)">
+								{t('landing-closing-description')}
+							</p>
+							<div className="mt-8 flex flex-wrap justify-center gap-3">
+								<Link
+									to="/signup"
+									className={cn(
+										buttonVariants({ variant: 'default', size: 'lg' }),
+										'publy-l05-pressable',
+									)}
+								>
+									{t('landing-closing-primary-cta')}
+								</Link>
+								<Link
+									to="/login"
+									className="publy-l05-pressable inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] border border-(--l05-night-hairline) px-6 text-sm font-medium text-(--l05-night-foreground) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--publy-focus-ring)"
+								>
+									{t('landing-closing-secondary-cta')}
+								</Link>
+							</div>
 						</div>
 					</Landing05Section>
 				</div>

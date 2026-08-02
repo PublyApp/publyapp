@@ -689,4 +689,65 @@
 			border-block-start: none;
 		}
 	}
+
+	/* ---- §10 closing: the night's own eyebrow chip. Not
+	   `--publy-primary-soft` — a cream chip on deep brown would be a hole
+	   (prompt §10). Built from the night's own hairline/foreground pair so it
+	   stays theme-invariant along with the rest of the band. */
+	.publy-landing-05 .publy-l05-eyebrow-chip-night {
+		display: inline-flex;
+		align-items: center;
+		border-radius: var(--publy-radius-chip);
+		background: var(--l05-night-hairline);
+		color: var(--l05-night-foreground);
+		padding-block: 4px;
+		padding-inline: 10px;
+	}
+
+	/* ---- §8 FAQ (todesktop-33): the trigger's chevron, on the house
+	   duration/easing rather than a scattered Tailwind arbitrary value. */
+	.publy-landing-05 .publy-l05-faq-chevron {
+		transition: transform var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	/* The answer panel: the same measured-height-free `grid-template-rows:
+	   0fr -> 1fr` technique as the §2 mobile accordion (todesktop-33's own
+	   goal — no `max-height: 9999px` lag on a short answer — reached without
+	   a JS height measurement), at this section's own 240ms/house-easing
+	   pair. The inner blur-in (opacity 0 + 1px blur -> clear) is what makes
+	   the reveal read as text arriving rather than a box growing. */
+	.publy-landing-05 .publy-l05-faq-panel {
+		display: grid;
+		grid-template-rows: 0fr;
+		overflow: hidden;
+		transition: grid-template-rows var(--publy-motion-medium)
+			var(--publy-motion-ease);
+	}
+
+	.publy-landing-05 .publy-l05-faq-panel-open {
+		grid-template-rows: 1fr;
+	}
+
+	.publy-landing-05 .publy-l05-faq-panel-inner {
+		min-height: 0;
+		opacity: 0;
+		filter: blur(1px);
+		transition:
+			opacity var(--publy-motion-medium) var(--publy-motion-ease),
+			filter var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.publy-landing-05 .publy-l05-faq-panel-open .publy-l05-faq-panel-inner {
+		opacity: 1;
+		filter: blur(0);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.publy-landing-05 .publy-l05-faq-chevron,
+		.publy-landing-05 .publy-l05-faq-panel,
+		.publy-landing-05 .publy-l05-faq-panel-inner,
+		.publy-landing-05 .publy-l05-faq-panel-open .publy-l05-faq-panel-inner {
+			transition: none;
+		}
+	}
 }
