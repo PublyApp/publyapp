@@ -41,12 +41,18 @@ test.use({ deviceScaleFactor: 2 });
  * pixels of the screenshot: the surface is the modal colour of the target's
  * box (text targets) or of the ring immediately around the glyphs (glyph
  * targets), the ink is the glyph-area pixel cluster with the strongest
- * contrast to that surface, and the WCAG ratio is computed between those
- * two measured colours. A wash matching the modelled surface cannot inflate
- * the number, because there is no modelled surface in the measurement: the
- * wash drags the measured ink to its real contrast (round 9's α-sweep
- * measured 1.36:1 at α 0.85, 1.03:1 at α 0.99 while the model reported
- * 15.64:1), and the guard fails it.
+ * contrast to that surface AMONG those that are spatially distributed like
+ * glyph paint (fragmentary across a large share of the glyph area's rows
+ * and columns — see `INK_SPATIAL_FRACTION`/`INK_THIN_BAND_DENSITY`), and the
+ * WCAG ratio is computed between those two measured colours. The ink is
+ * thereby tied to the glyphs, not to "whatever contrasts most inside the
+ * rectangle": a contrast-donating overlay (a 1px bar across the glyph rows)
+ * is rejected as ink and the washed glyphs measure at their real 1.4:1
+ * (round-11 B1). A wash matching the modelled surface cannot inflate the
+ * number, because there is no modelled surface in the measurement: the wash
+ * drags the measured ink to its real contrast (round 9's α-sweep measured
+ * 1.36:1 at α 0.85, 1.03:1 at α 0.99 while the model reported 15.64:1), and
+ * the guard fails it.
  *
  * The guard fails loudly, by element name, when it cannot determine the
  * painted result: opacity, filter, backdrop-filter or mix-blend-mode other
@@ -80,17 +86,24 @@ test.use({ deviceScaleFactor: 2 });
  * - Partial occlusion is bounded, not prohibited: an overlay that leaves
  *   the glyphs mostly legible passes (the explained and pure-ink shares of
  *   the glyph area must stay within the measured pristine bounds, which sit
- *   at half the pristine shares), while an overlay that occludes most or
- *   all of the ink fails — at its real measured contrast.
+ *   at half the weakest pristine share of each kind — the message and
+ *   semantic-glyph ink therefore tolerate up to about two thirds erased
+ *   before their pure-ink floor fires, see the floor comment below), while
+ *   an overlay that occludes most or all of the ink fails — at its real
+ *   measured contrast.
  * - Pseudo-elements are resolved for background paint only; one that paints
  *   only glyphs or text without a background is not detected.
  * - `elementsFromPoint` cannot report pseudo-element boxes, so pseudo paint
  *   is read from resolved styles instead of hit tests; a positioned pseudo
  *   whose painted box cannot be resolved from computed styles fails loudly.
  * - The pixel reading measures a single ink cluster (the strongest-contrast
- *   one); a target whose glyphs genuinely paint in more than one colour
- *   with differing contrast is measured at its strongest and needs its own
- *   measurement.
+ *   one that is spatially distributed like glyph paint); a target whose
+ *   glyphs genuinely paint in more than one colour with differing contrast
+ *   is measured at its strongest and needs its own measurement. The spatial
+ *   filter is deliberately not a foolproof glyph detector: a contrast donor
+ *   that is itself fragmented and spread across the glyph area (a sparse
+ *   stipple arrangement, say) would still be adopted as the ink; the rule
+ *   closes the solid-bar/block donor, which is the round-11 vector.
  * - Only mounted, opaque toasts are measured; enter/exit and hover
  *   intermediate states are out of scope.
  * - Text painted with `background-clip: text` resolves to a transparent
@@ -105,9 +118,25 @@ const GLYPH_CONTRAST_FLOOR = 3;
 // reading adds) are in parentheses:
 //   text    explained 24.4-25.9 % (22.0 %), pure ink 9.5-12.7 % (6.9 %);
 //   glyph   explained 40.8-45.9 %,        pure ink 14.2-22.2 %.
-// The floors sit at HALF the weakest pristine measurement of each kind, so
-// the guard fails once more than half the ink is erased; the ceilings sit
-// ~1.5x above the strongest, so a solid block of any explained colour fails.
+// The floors sit at HALF the weakest pristine measurement of each kind —
+// and because each kind's single weakest target (description, close glyph)
+// sets the floor, "half" is exact ONLY on those two targets. The targets
+// that measure strongest tolerate more before their floor fires, so the
+// guard's real boundary is a range, measured on the pristine fixture:
+//   ink floors let description (0.0945 -> 0.045) and close glyph
+//   (0.1420 -> 0.07) erase just past half (52 % / 51 %), while message
+//   (0.1246 -> 0.045) and semantic glyph (0.2119 -> 0.07) can lose up to
+//   about two thirds (64 % / 67 %) before the pure-ink floor fires;
+//   explained floors fail between 51 % (description 0.2439 -> 0.12, close
+//   glyph 0.4083 -> 0.20) and 54-56 % (semantic glyph 0.4331 -> 0.20,
+//   message 0.2560 -> 0.12) of the explained share erased.
+// So an exact "the guard fails once more than half the ink is erased" only
+// holds for the description and close-glyph targets; on the message and
+// semantic-glyph targets the ink can be better than two thirds gone before
+// their pure-ink floor fires (the ratio floor and the explained-share
+// floors are the other mechanisms standing between those targets and a
+// washed-away ink). The ceilings sit ~1.5x above the strongest, so a solid
+// block of any explained colour fails.
 // The explained share is ink+blend (a block of the surface colour erases
 // it); the pure-ink share is the pixels that match the measured ink cluster
 // (a wash of the surface colour with only a sliver of pristine ink leaves
@@ -1926,6 +1955,19 @@ const dismissToast = async (toast: Locator): Promise<void> => {
 	await toast.locator('.publy-toast-close-button').click();
 	await expect(toast).toHaveCount(0);
 };
+
+// Timing budget (round-11 I2, recorded so it is not rediscovered): AppToaster
+// sets no `duration`, so Sonner's 4 s default auto-dismiss applies to every
+// toast. Every measurement of a toast's targets — and the whole leg's
+// dismiss — must complete inside that window, or the toast vanishes
+// mid-measurement and the next `toHaveAttribute('data-mounted')`/`toHaveCSS`
+// wait reds for reasons unrelated to contrast. The one measurement the
+// guard makes is a full screenshot decode plus a two-pass pixel scan, which
+// is why the round-10 report's "nothing moved a timing boundary" was wrong
+// in kind: the work got heavier. The flake closure itself survives (the
+// reviewer's three loaded runs here, plus round 9's, are consecutive
+// greens), but the binding constraint is the Sonner auto-dismiss, not the
+// waits.
 
 const TEXT_TARGETS = [
 	{
