@@ -31,7 +31,15 @@ export const Landing05ATrial = () => {
 	return (
 		<ol
 			role="list"
-			className="publy-marketing-hairline-grid publy-l05a-section-body grid list-none grid-cols-[repeat(auto-fit,minmax(200px,1fr))]"
+			// Three explicit columns, not `auto-fit`. There are exactly three
+			// steps and there always will be — the sequence IS the claim — so
+			// `repeat(auto-fit, minmax(200px, 1fr))` was solving a problem this
+			// list does not have, and it was creating one: at the reading
+			// column's width it resolved to FIVE tracks, three real and two
+			// collapsed to 0px, which puts two extra gap positions in a grid
+			// whose gaps are drawn in the border colour. Stacked below `md`,
+			// three across above it.
+			className="publy-marketing-hairline-grid publy-l05a-section-body grid list-none grid-cols-1 md:grid-cols-3"
 		>
 			{TRIAL_STEPS.map((step) => (
 				<li key={step} className="p-8">

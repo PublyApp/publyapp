@@ -87,11 +87,23 @@ export const Landing05ATour = () => {
 			{/* The outer bracket + window: a second, unfilled, ring-only box
 			    offset outside the window (todesktop-29's mounted-not-pasted
 			    construction), then the window itself, ring + shadow-window,
-			    exactly once on the page. Both rise through the horizon. */}
+			    exactly once on the page. Both rise through the horizon.
+
+			    THE BRACKET IS RAISED, and it has to be. It is a sibling that
+			    paints BEFORE the window, so the window's six-layer shadow
+			    lands on top of it. In light mode those layers run 4-8% alpha
+			    and nothing shows; in dark they run 30-55% of a near-black
+			    tint, while `--publy-border` in that theme is a low-alpha
+			    light hairline — so the line was being washed out exactly
+			    where the shadow's downward offsets are strongest, which is
+			    the bottom and right the owner reported. Raising it puts the
+			    line above the wash. It cannot collide with the window's own
+			    edge: the bracket is unfilled, `pointer-events-none`, and
+			    every border it draws sits outside the window's box. */}
 			<div className="relative">
 				<div
 					aria-hidden="true"
-					className="publy-l05a-radius-band pointer-events-none absolute inset-0 -inset-x-1 -bottom-1 border-x border-b border-(--publy-border) md:-inset-x-2 md:-bottom-2"
+					className="publy-l05a-radius-band pointer-events-none absolute inset-0 -inset-x-1 -bottom-1 z-(--publy-z-raised) border-x border-b border-(--publy-border) md:-inset-x-2 md:-bottom-2"
 				/>
 				<div
 					className={cn(

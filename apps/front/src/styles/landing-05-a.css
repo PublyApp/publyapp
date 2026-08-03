@@ -735,6 +735,15 @@
 		position: relative;
 	}
 
+	/* THE RING ITSELF NEVER TRANSITIONS ITS COLOUR.
+
+	   It used to: `transition: border-color` sat here so the tab-press pulse
+	   below could animate. But `--publy-border` is one of the values the theme
+	   toggle swaps, and a transition cannot tell a pulse from a theme change —
+	   so on every light/dark switch this one border spent 240ms crossfading to
+	   its new value while the entire rest of the page flipped instantly. The
+	   owner saw it as the window's border lagging behind the theme, which is
+	   exactly what it was. */
 	.publy-landing-05-a .publy-l05a-ring::before {
 		content: '';
 		position: absolute;
@@ -742,14 +751,40 @@
 		border-radius: inherit;
 		border: 1px solid var(--publy-border);
 		pointer-events: none;
-		transition: border-color var(--publy-motion-medium) var(--publy-motion-ease);
 	}
 
 	/* The tab-press pulse: the ring flashes to the strong step and back over
 	   240ms while the aperture stays empty (todesktop-28's legible state
-	   change without artwork). */
-	.publy-landing-05-a .publy-l05a-ring-strong::before {
-		border-color: var(--publy-border-strong);
+	   change without artwork).
+
+	   It is a SECOND ring at the strong step, faded in and out on `opacity`,
+	   rather than a colour transition on the first. That keeps the animation
+	   identical to the eye while leaving the base ring's colour instantaneous,
+	   so a theme swap has nothing to animate. It is also the cheaper of the
+	   two: opacity composites, border-color repaints. Both rings share
+	   `border-radius: inherit`, so they stay locked to the window's corner. */
+	.publy-landing-05-a .publy-l05a-ring::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		border: 1px solid var(--publy-border-strong);
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity var(--publy-motion-medium) var(--publy-motion-ease);
+	}
+
+	.publy-landing-05-a .publy-l05a-ring-strong::after {
+		opacity: 1;
+	}
+
+	/* Under reduced motion the pulse still happens — it is a state change the
+	   reader asked for by pressing a tab, not an ambient flourish — but it
+	   arrives at once instead of over 240ms. */
+	@media (prefers-reduced-motion: reduce) {
+		.publy-landing-05-a .publy-l05a-ring::after {
+			transition: none;
+		}
 	}
 
 	/* ---- Elevation (todesktop-08 law: y = blur, blur halves per step,
@@ -1299,6 +1334,38 @@
 	   and the other explorations. */
 	.publy-landing-05-a .publy-marketing-hairline-grid > * {
 		background: var(--publy-surface);
+	}
+
+	/* ---- THE HAIRLINE THAT SHOULD NOT EXIST, ON THE RIGHT EDGE.
+
+	   The gap-reveal technique has one failure the shared class cannot see:
+	   the container paints `--publy-border` across its whole box, and the
+	   cells cover it only where they actually land. Measured on the built page
+	   at 1280, 1366, 1440, 1512, 1600, 1728 and 1920, three equal tracks plus
+	   two 1px gaps resolve to 366.656 + 366.672 + 366.656 + 2 = 1101.984
+	   inside a 1102px reading column, so **0.016px of container is left
+	   uncovered at the right edge at every width**. Anti-aliased, that
+	   subpixel is drawn as a faint full-height line — which is why the owner
+	   reported a right border on exactly the three right-column cells (§5's
+	   two, §6's third step) and on nothing else. The sum is identical at every
+	   viewport because the reading column is max-width bound, so this is not
+	   an artifact of one screen: it was always there.
+
+	   `clip-path` removes it at the source. Half a pixel is more than the
+	   0.016 leftover and less than the 1px gap, so every real hairline BETWEEN
+	   cells survives untouched and only the container's own uncovered edge is
+	   cut. What the clip takes from the last cell is half a pixel of that
+	   cell's own background — the same colour as the cell — so nothing
+	   visible is lost, and no content is near it: every cell is inset by 32px
+	   of padding.
+
+	   The alternatives were worse. `overflow: hidden` does not clip an
+	   element's own background. Adding a 1px border in the page colour changes
+	   the grid's box width and re-introduces the same rounding one pixel over.
+	   Making the cells draw the lines themselves would fork the shared class,
+	   which `landing-05` and the other explorations still use. */
+	.publy-landing-05-a .publy-marketing-hairline-grid {
+		clip-path: inset(0 0.5px 0 0);
 	}
 
 	/* ---- §8 FAQ: a ruled list, not an accordion. Four short answers read
