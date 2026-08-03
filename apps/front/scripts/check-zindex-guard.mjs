@@ -635,13 +635,15 @@ export const scanZIndexFile = ({
 	checkClassDelivery = true,
 	// Raw-sink provenance: `baseDir` roots specifier resolution,
 	// `rawTextPaths` is the build's recorded set of `?raw` module paths (the
-	// binding classification — an import binding is raw only when the build
-	// recorded its file, never by re-testing the specifier text),
+	// pending classification), `rawTextIds` is the build's recorded set of
+	// full `?raw` module IDs — path plus query — and is the source of truth
+	// when present (round-19 I1: a `?url` ID for a file that is also
+	// `?raw`-imported is a distinct module and provably not raw text),
 	// `queriedPaths` is the recorded set of every query-carrying module's
 	// file (so a queried specifier the guard cannot map to any record fails
 	// loud by name instead of going quiet, while a queried file the build
 	// recorded under a non-raw query stays quiet), and `rawImportTexts` maps
-	// each recorded path to its bytes. With all four present, a `?raw` import
+	// each recorded path to its bytes. With all present, a `?raw` import
 	// binding consumed by a style-capable sink (a `<style>` element or a
 	// dangerouslySetInnerHTML payload) is walked as shipped CSS/HTML; without
 	// them the walk is skipped, which keeps unit fixtures free of raw-file
@@ -649,6 +651,7 @@ export const scanZIndexFile = ({
 	baseDir = null,
 	rawImportTexts = null,
 	rawTextPaths = null,
+	rawTextIds = null,
 	queriedPaths = null,
 }) => {
 	const violations = [];
@@ -1747,6 +1750,7 @@ export const scanZIndexFile = ({
 			relativePath,
 			baseDir,
 			rawTextPaths,
+			rawTextIds,
 			queriedPaths,
 		});
 		const rawImportEntryForExpression = (expression, visitedConsts) => {
@@ -3070,6 +3074,26 @@ const resolveRawSpecifierPath = (withoutQuery, importerRelativePath, root) => {
 	return path.resolve(rawPath);
 };
 
+// Resolves a raw import specifier to its full module ID — the resolved file
+// path plus its query string (`./x.txt?v=1?raw` → `/abs/x.txt?v=1?raw`). The
+// build records raw provenance per module ID, not per file path (round-19 I1):
+// two distinct IDs for the same file (`?raw` and `?url`) are different modules,
+// so the script pass must compare the full ID, never the collapsed path — a
+// `?url` import of a file that is also `?raw`-imported is provably not raw text
+// and stays quiet. The query is the part after the first `?` or `#`, the same
+// character the single classifier strips.
+const resolveRawSpecifierId = (specifier, importerRelativePath, root) => {
+	const classified = classifyModuleKind(specifier, {});
+	const resolvedPath = resolveRawSpecifierPath(
+		classified.filePath,
+		importerRelativePath,
+		root,
+	);
+	const queryIndex = specifier.search(/[?#]/);
+	const query = queryIndex === -1 ? '' : specifier.slice(queryIndex);
+	return resolvedPath + query;
+};
+
 // The recorded raw-binding record of one script file: every binding a static
 // import declaration can introduce, for the recorded `?raw` modules — the
 // default clause, the namespace clause, named elements (`{ default as x }` is
@@ -3089,12 +3113,30 @@ const resolveRawSpecifierPath = (withoutQuery, importerRelativePath, root) => {
 // claimed).
 export const collectRawImportBindings = (
 	sourceFile,
-	{ relativePath, baseDir, rawTextPaths, queriedPaths },
+	{ relativePath, baseDir, rawTextPaths, rawTextIds = null, queriedPaths },
 ) => {
 	const bindings = new Map();
 	if (baseDir == null || rawTextPaths == null) {
 		return bindings;
 	}
+	// Per-ID provenance (round-19 I1): the build records full module IDs
+	// (path + query), and the script pass compares the specifier's full ID.
+	// When the record is present, an ID is raw only if THAT exact ID is
+	// recorded — a `?url` sibling of a `?raw` module for the same file is a
+	// different module and provably not raw text. Unit fixtures that only
+	// carry path provenance fall back to the path, which is the historical
+	// collapse those fixtures do not exercise.
+	const recordIds = rawTextIds ?? new Set();
+	const isRecordedRawBy = (specifier) =>
+		rawTextIds == null
+			? rawTextPaths.has(
+					resolveRawSpecifierPath(
+						classifyModuleKind(specifier, {}).filePath,
+						relativePath,
+						baseDir,
+					),
+				)
+			: recordIds.has(resolveRawSpecifierId(specifier, relativePath, baseDir));
 	for (const statement of sourceFile.statements) {
 		if (!ts.isImportDeclaration(statement)) {
 			continue;
@@ -3106,7 +3148,7 @@ export const collectRawImportBindings = (
 			relativePath,
 			baseDir,
 		);
-		const isRecordedRaw = rawTextPaths.has(resolvedPath);
+		const isRecordedRaw = isRecordedRawBy(specifier);
 		// The record is the source of truth, never the specifier text. When
 		// the resolved file is NOT a recorded raw module, a specifier that
 		// carries a query whose file appears in NO build record at all is an
@@ -3167,6 +3209,13 @@ export const buildProductionApp = async (baseDir) => {
 	const authoredScriptPaths = new Set();
 	const inlineCssPaths = new Set();
 	const rawTextPaths = new Set();
+	// Per-ID raw provenance (round-19 I1): the full module IDs (path + query)
+	// the build transformed as raw. Two distinct IDs for the same file (`?raw`
+	// and `?url`) are different modules and must not share a raw answer, so
+	// the script pass consults this set by full ID rather than the collapsed
+	// `rawTextPaths`. `rawTextPaths` is kept for byte reading (the same file
+	// bytes are read under any query).
+	const rawTextIds = new Set();
 	// Every module id the build transformed under a query, keyed by its file
 	// part. The script pass consults it to tell a queried specifier the guard
 	// cannot map to any record (an alias spelling — loud by name) from a
@@ -3211,8 +3260,11 @@ export const buildProductionApp = async (baseDir) => {
 				// (`.txt`?raw is the documented case). Record every raw module
 				// the build transforms; the script pass resolves each raw
 				// import binding to one of these paths and walks its bytes
-				// only when the binding reaches a style-capable sink.
+				// only when the binding reaches a style-capable sink. The
+				// full module ID is recorded separately so a `?url` sibling of
+				// the same file is not mistaken for raw text (round-19 I1).
 				rawTextPaths.add(path.resolve(filePath));
+				rawTextIds.add(id);
 			}
 			if (kind === 'script') {
 				authoredScriptPaths.add(path.resolve(filePath));
@@ -3254,6 +3306,7 @@ export const buildProductionApp = async (baseDir) => {
 		authoredScriptPaths: [...authoredScriptPaths],
 		inlineCssPaths: [...inlineCssPaths],
 		rawTextPaths: [...rawTextPaths],
+		rawTextIds: [...rawTextIds],
 		queriedPaths: [...queriedPaths],
 		cleanup: () => {
 			activeBuildDirectories.delete(emittedCssRoot);
@@ -3384,6 +3437,8 @@ export const runZIndexGuard = async ({
 				!Array.isArray(buildResult.inlineCssPaths)) ||
 			(buildResult.rawTextPaths != null &&
 				!Array.isArray(buildResult.rawTextPaths)) ||
+			(buildResult.rawTextIds != null &&
+				!Array.isArray(buildResult.rawTextIds)) ||
 			(buildResult.queriedPaths != null &&
 				!Array.isArray(buildResult.queriedPaths))
 		) {
@@ -3424,6 +3479,9 @@ export const runZIndexGuard = async ({
 		const rawTextPaths = (buildResult.rawTextPaths ?? [])
 			.map((filePath) => path.resolve(filePath))
 			.sort((left, right) => left.localeCompare(right));
+		const rawTextIds = (buildResult.rawTextIds ?? [])
+			.map((filePath) => filePath)
+			.sort((left, right) => left.localeCompare(right));
 		const queriedPaths = (buildResult.queriedPaths ?? [])
 			.map((filePath) => path.resolve(filePath))
 			.sort((left, right) => left.localeCompare(right));
@@ -3446,6 +3504,7 @@ export const runZIndexGuard = async ({
 					baseDir,
 					rawImportTexts,
 					rawTextPaths: new Set(rawTextPaths),
+					rawTextIds: new Set(rawTextIds),
 					queriedPaths: new Set(queriedPaths),
 				}),
 			);

@@ -417,6 +417,69 @@ test('raw sinks (round 17 I1): JSX link attributes follow the source-ordered spr
 	);
 });
 
+test('raw sinks (round 19 B1): an overflowing rel/href candidate space is unresolvable, not unknown', () => {
+	// Round-19 B1: staticStringValues returns `{ overflow: true }` when a
+	// candidate set exceeds the work budget, and staticJsxAttributeValues
+	// previously returned only `values` — overflow became `{ values: null,
+	// unresolved: false }`, which the link consumer read as an ordinary
+	// unknown and reported nothing. The guard is the standing rule: an input
+	// it cannot fully analyse must fail loud, never resolve to a compliant
+	// default. A rel whose candidate space overflows the work budget is
+	// provably static text the guard cannot enumerate, so it may be
+	// `stylesheet` pointing at a data URL — the link consumer must report the
+	// named diagnostic.
+	const flags = [];
+	for (let index = 0; index < 20; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 20; index += 1) {
+		substitutions.push(`\${f${index} ? 'stylesheet' : 'a'}`);
+	}
+	const content = [
+		`export const probe = (${flags.join(', ')}) => <link`,
+		`  rel={\`${substitutions.join('')}\`}`,
+		'  href="data:text/css,.x%7Bz-index%3A99%7D"',
+		'/>;',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-static-candidate-overflow'],
+		'an overflowing rel candidate space must fail loud by name, not as unknown',
+	);
+});
+
+test('raw sinks (round 19 B1): a 131072-candidate rel that evaluates to stylesheet is red', () => {
+	// The round-19 B1 reproduction: 17 module-scope `true` constants make a
+	// rel expression with 2^17 = 131,072 statically provable values whose
+	// actual runtime value is exactly `stylesheet`. Under the round-19 work
+	// budget these short candidates enumerate, so `stylesheet` is a member
+	// and the link consumer reds it — a working raw stylesheet can no longer
+	// ship while the guard is green.
+	const decls = [];
+	for (let index = 0; index < 17; index += 1) {
+		decls.push(`const g${index} = true;`);
+	}
+	const substitutions = ["${g0 ? 'stylesheet' : 'preload'}"];
+	for (let index = 1; index < 17; index += 1) {
+		substitutions.push(
+			`\${g${index} ? '' : '${String.fromCharCode(96 + index)}'}`,
+		);
+	}
+	const content = [
+		...decls,
+		'export const probe = <link',
+		`  rel={\`${substitutions.join('')}\`}`,
+		'  href="data:text/css,.x%7Bz-index%3A99%7D"',
+		'/>;',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		'a 131072-candidate rel that must evaluate to stylesheet must red',
+	);
+});
+
 test('evasion: script cannot register a reserved scale token', () => {
 	for (const content of [
 		"CSS.registerProperty({ name: '--publy-z-raised', syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
@@ -1991,53 +2054,61 @@ test('raw sinks (round 17 I3): a non-default named element is recorded by name, 
 // exactly one function (`classifyModuleKind`), which reads what the build
 // itself produced; the tests below pin the mechanism at the source level.
 // ---------------------------------------------------------------------------
-test('structural (round 17 B1): query parsing exists only inside the single classifier', async () => {
-	// The recurring defect across rounds 13–16 was a second hand-written
-	// specifier parser appearing next to the first one and disagreeing with
-	// Vite. The only assertion that stops it is one over the guard's own
-	// source: every query-parsing token in check-zindex-guard.mjs must sit
-	// inside `classifyModuleKind`'s body, so a future classifier cannot be
-	// added without reddening this test — no model of the guard, the real
-	// artifact.
-	const source = await readFile(
-		path.join(scriptsDir, 'check-zindex-guard.mjs'),
-		'utf8',
+test('structural (round 17 B1 → round 19 B2): the single classifier and per-ID provenance are asserted behaviourally', async () => {
+	// Round-17 B1 claimed the single classifier by scanning the guard's own
+	// source for a handful of query-parsing spellings. Round-19 B2 showed
+	// that is a source-regex stand-in: it reds for the exact `split('?')`
+	// spelling but stays green for an equivalent `replace(/\?.*$/)` +
+	// `endsWith('?raw')` classifier, and it cannot tell a query parse that
+	// *classifies* from the query extraction that *reconstructs a module ID
+	// for a per-ID membership lookup*. The claim is therefore asserted
+	// behaviourally, not lexically:
+	//   * both ID shapes of one file (`?raw`, `?url`, `?v=1?raw`) feed the
+	//     real classification path (`classifyModuleKind`) and classify
+	//     exactly as Vite observes them — raw against the raw-export shape,
+	//     url-asset against the vite:asset marker;
+	//   * the script pass consults per-ID provenance (round-19 I1): a `?url`
+	//     specifier for a file the build also recorded as `?raw` is a distinct
+	//     module ID and provably not raw text, so it resolves to no binding.
+	const txtPath = '/probe/src/named.txt';
+	const rawShape = {
+		code: 'export default ".x"',
+		meta: {},
+		assetPluginLoad: new Set(),
+	};
+	const urlShape = {
+		code: 'export default "/assets/named.txt"',
+		meta: { 'vite:asset': true },
+		assetPluginLoad: new Set(),
+	};
+	assert.equal(classifyModuleKind(`${txtPath}?raw`, rawShape).kind, 'raw');
+	assert.equal(classifyModuleKind(`${txtPath}?v=1?raw`, rawShape).kind, 'raw');
+	assert.equal(
+		classifyModuleKind(`${txtPath}?url`, urlShape).kind,
+		'url-asset',
 	);
-	const marker = 'export const classifyModuleKind';
-	const definitionIndex = source.indexOf(marker);
-	assert.ok(
-		definitionIndex !== -1,
-		'the single classifier must exist as a named export',
+	// A `?url` ID for a file the build also recorded as `?raw` is a distinct
+	// module: only the `?raw` ID resolves to a raw binding, never the `?url`.
+	const baseDir = '/probe';
+	const sourceFile = ts.createSourceFile(
+		'probe.tsx',
+		[
+			`import rawText from './named.txt?raw';`,
+			`import assetUrl from './named.txt?url';`,
+		].join('\n'),
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TSX,
 	);
-	const bodyStart = source.indexOf('=>', definitionIndex);
-	assert.ok(bodyStart !== -1, 'the classifier must be an arrow function');
-	const bodyEnd = source.indexOf('\n};', bodyStart);
-	assert.ok(
-		bodyEnd !== -1,
-		'the classifier body must terminate with a top-level };',
-	);
-	const patterns = [
-		/split\(\s*['"]\?['"]\s*\)/g,
-		/indexOf\(\s*['"]\?['"]\s*\)/g,
-		/includes\(\s*['"]\?['"]\s*\)/g,
-		/includes\(\s*['"]#['"]\s*\)/g,
-		/\[?#\]/g,
-	];
-	let insideCount = 0;
-	for (const pattern of patterns) {
-		for (const match of source.matchAll(pattern)) {
-			assert.ok(
-				match.index >= bodyStart && match.index < bodyEnd,
-				`query parsing \`${match[0]}\` must live inside classifyModuleKind, ` +
-					'never in a second classifier',
-			);
-			insideCount += 1;
-		}
-	}
-	assert.ok(
-		insideCount > 0,
-		'the classifier must actually contain the query strip it owns',
-	);
+	const bindings = collectRawImportBindings(sourceFile, {
+		relativePath: 'probe.tsx',
+		baseDir,
+		rawTextPaths: new Set([path.join(baseDir, 'named.txt')]),
+		rawTextIds: new Set([`${path.join(baseDir, 'named.txt')}?raw`]),
+		queriedPaths: new Set([path.join(baseDir, 'named.txt')]),
+	});
+	assert.equal(bindings.get('rawText')?.kind, 'default');
+	assert.equal(bindings.has('assetUrl'), false);
 });
 
 test('structural (round 17 B1): the classifier reads Vite-observable signals, never query tokens', () => {
@@ -2222,6 +2293,36 @@ test('e2e (round 17 B1): emitted bytes and recorded provenance agree for multi-q
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
+});
+
+test('e2e (round 19 I1): a ?url import of a file that is also ?raw-imported stays green', async () => {
+	// Round-19 I1: the build recorded raw provenance only as a file path, so
+	// two distinct Vite module IDs for the same file (`?raw` and `?url`)
+	// collapsed to one path and the `?url` binding inherited the `?raw`
+	// rawness — the URL string reached a `<style>` sink and the guard walked
+	// the file's bytes as CSS, a false positive on legitimate code. The
+	// build now records per-ID provenance (path + query), and the script pass
+	// consults it: the `?raw` binding is raw, the `?url` binding is a distinct
+	// module and provably not raw text, so it resolves to no binding and the
+	// fixture stays green. Both halves: the raw bytes displayed as text stay
+	// green, and the URL string reaching `<style>` is not walked as CSS.
+	const { violations } = await runFixtureGuard(
+		{
+			'__r18-dual-query.txt': '.r18-displayed-only { z-index: 2147483571; }',
+			'probe.tsx': [
+				`import r18RawText from './__r18-dual-query.txt?raw';`,
+				`import r18AssetUrl from './__r18-dual-query.txt?url';`,
+				'export const probe = <><pre>{r18RawText}</pre><style>{r18AssetUrl}</style></>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations,
+		[],
+		`a ?url import of a ?raw file must stay green: ${JSON.stringify(violations)}`,
+	);
 });
 
 test('e2e (round 13 B2): the static-string family resolves the same transparent expressions', async () => {
@@ -3065,6 +3166,34 @@ test('e2e (round 6 I1): static dangerouslySetInnerHTML payload with a <style> is
 		violations.map((violation) => violation.ruleId),
 		['z-index-style-element-shipped'],
 		`dangerous HTML <style> payload must red: ${JSON.stringify(violations)}`,
+	);
+});
+
+test('e2e (round 19 B3): an EOF-closed <style> in static HTML is walked, not silently skipped', async () => {
+	// Browser fragment parsing closes an open raw-text style element at EOF
+	// and applies its declarations, so omitting the closing `</style>` does
+	// not make the CSS inert. The static-HTML scanner previously required a
+	// closing tag; an unterminated `<style>` shipped its raw declaration
+	// while the guard was green — an unparseable/partial input silently
+	// treated as compliant (round-19 B3). It is now walked exactly like a
+	// closed one.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				'export const probe = <div',
+				'  dangerouslySetInnerHTML={{',
+				"    __html: '<style>.r18-eof-style { z-index: 2147483572; }'",
+				'  }}',
+				'/>;',
+			].join('\n'),
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		`an EOF-closed <style> payload must red: ${JSON.stringify(violations)}`,
 	);
 });
 
