@@ -2953,12 +2953,15 @@ const TEMPORARY_MEMBER_OF_PARAMETER_FILE =
 const TEMPORARY_MEMBER_OF_PARAMETER_PATH = fixturePath(
 	TEMPORARY_MEMBER_OF_PARAMETER_FILE,
 );
-const TEMPORARY_MEMBER_OF_PARAMETER_SOURCE = `import type { ComponentType } from 'react';
-import { DrawerBody, DrawerContent, DrawerFooter } from '~/components/ui/drawer';
+const TEMPORARY_MEMBER_OF_PARAMETER_SOURCE = `import { DrawerBody, DrawerContent, DrawerFooter } from '~/components/ui/drawer';
 
 const IconOne = () => <svg aria-hidden="true" />;
 
-type IconOption = { Icon: ComponentType };
+// Round 24's MINOR 5: the member type is deliberately REPO-LOCAL (typeof
+// IconOne), so the untraced-Parameter fallback (UNVERIFIABLE, never null)
+// is what yields if the array walk is killed — the walk is the ONLY path
+// that resolves option.Icon to its element.
+type IconOption = { Icon: typeof IconOne };
 
 const options: IconOption[] = [{ Icon: IconOne }];
 
@@ -8769,14 +8772,51 @@ describe('drawer surface flex chain guard (#990)', () => {
 		// + real anchor below make that classification load-bearing: `option`'s
 		// iterable (`options`) is a traceable array literal, so round 21's
 		// array walk resolves `option.Icon` to `IconOne` (null, a real local
-		// component) — killing either that resolution or the array walk
-		// itself reddens this exact file.
+		// component).
+		//
+		// Round 24's MINOR 5: the OLD fixture typed `option.Icon` as
+		// `ComponentType` (external), so killing the array walk did NOT redden
+		// this file — the untraced-Parameter fallback still returned null via
+		// the external-type proof. The member type is now `typeof IconOne`
+		// (repo-local), so the fallback is UNVERIFIABLE and the ROW BELOW is
+		// the array walk's own: `option.Icon` resolving to null is the WALKED
+		// element, not a fallback verdict. Killing the walk reddens this exact
+		// assertion.
 		writeFileSync(
 			TEMPORARY_MEMBER_OF_PARAMETER_PATH,
 			TEMPORARY_MEMBER_OF_PARAMETER_SOURCE,
 		);
 
 		try {
+			const project = getScanProject();
+			const sourceFile = project.getSourceFile(
+				fixturePath(TEMPORARY_MEMBER_OF_PARAMETER_FILE),
+			);
+			if (!sourceFile) {
+				throw new Error(
+					`member-of-parameter fixture not loaded: ${TEMPORARY_MEMBER_OF_PARAMETER_FILE}`,
+				);
+			}
+			const reassignedNamesByFile = new Map<string, Set<string>>();
+			const resolvedByTagText = new Map<string, DrawerTagNameResult>();
+			for (const node of [
+				...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+				...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+			]) {
+				resolvedByTagText.set(
+					node.getTagNameNode().getText(),
+					resolveDrawerTagName(
+						node.getTagNameNode(),
+						project,
+						reassignedNamesByFile,
+					),
+				);
+			}
+			// The array walk resolves `<option.Icon>` to `IconOne` — a real
+			// local component, i.e. null, NOT an opaque/unverifiable signal and
+			// NOT a drawer export. Killing the walk makes this UNVERIFIABLE.
+			expect(resolvedByTagText.get('option.Icon')).toBe(null);
+
 			const scan = scanDrawerSurfaces();
 			expect(scan.discovered).toContain(
 				fixtureRel(TEMPORARY_MEMBER_OF_PARAMETER_FILE),
