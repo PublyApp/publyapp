@@ -137,13 +137,13 @@ export const resolveRenderedMapSource = (mapSource, chunkDirectory) => {
 // A rendered segment matches a mint only when the bundler's own map places
 // an emitted token strictly inside the recorded extent of the minting call,
 // in the standard 0-based coordinates both the scan and the map use. The
-// call's first token — the callee at the span start — is excluded: bundlers
-// map an emitted callee identifier to its import position, and a callee
-// *reference* emitted without the call would occupy the same in-span start
-// position as the call itself. Only the argument-list extent (the open
-// paren, arguments, close paren) can be emitted by the call and by nothing
-// else, so a segment there is an emitted call, not a token that happens to
-// map into the span.
+// recorded span is the call's *argument-list* extent — the open paren through
+// the close paren, as the parser computed it — so a segment here is an
+// emitted call, not a token that happens to map into the callee's text. Only
+// the argument-list extent can be emitted by the call and by nothing else:
+// an emitted callee identifier (or a callee *reference* that maps into the
+// callee, for example a mere property access on the minted value) would
+// otherwise occupy an in-span position although no call was emitted.
 export const renderedSegmentMatchesCallEmission = (segment, span) => {
 	if (segment.origLine < span.startLine || segment.origLine > span.endLine) {
 		return false;
@@ -209,19 +209,119 @@ export const findEmittedCallExtents = (code) => {
 	const templates = [];
 	let regex = false;
 	let comment = undefined;
-	let previousSignificant = undefined;
+	// The last significant token: a word (identifier or keyword) or a single
+	// symbol character. The scanner decides whether a `(` starts a call by
+	// this token, not by the final character — a `(` after a control-flow or
+	// grouping keyword (`if`, `for`, `function`, `return`, …) is a statement
+	// or grouped-expression paren, never a call, while a `(` after a value
+	// token (identifier, closing bracket, `?.`, …) is a call.
+	let previousToken = undefined;
+	// True while the scanner is between a `function` keyword and the `(` of its
+	// parameter list (across the function's name, if any); that `(` is a
+	// parameter list, never a call.
+	let functionNamePending = false;
+
+	const isIdentifierStart = (character) =>
+		character !== undefined &&
+		(/[A-Za-z_$]/.test(character) || character.charCodeAt(0) > 127);
 
 	const isIdentifierPart = (character) =>
 		character !== undefined &&
 		(/[A-Za-z0-9_$]/.test(character) || character.charCodeAt(0) > 127);
 
-	const isExpressionEnd = (character) =>
-		character !== undefined &&
-		(isIdentifierPart(character) ||
-			character === ')' ||
-			character === ']' ||
-			character === '}' ||
-			character === '`');
+	// Keywords after which a `(` cannot be a call: statement/grouping parens
+	// and expression keywords. `import` is a trailing-exception: `import('x')`
+	// is a dynamic import (a call-like expression), while `import{n}from` is a
+	// declaration whose `(` never follows the keyword directly.
+	const NON_CALL_BEFORE_PAREN = new Set([
+		'if',
+		'for',
+		'while',
+		'switch',
+		'catch',
+		'with',
+		'function',
+		'return',
+		'throw',
+		'new',
+		'delete',
+		'void',
+		'typeof',
+		'do',
+		'else',
+		'case',
+		'in',
+		'of',
+		'yield',
+		'await',
+		'instanceof',
+		'let',
+		'var',
+		'const',
+		'class',
+		'extends',
+		'default',
+		'static',
+		'get',
+		'set',
+		'async',
+		'export',
+	]);
+
+	// Keywords after which a `/` starts a regular-expression literal rather
+	// than a division: they expect an expression operand next.
+	const REGEX_HINT_KEYWORDS = new Set([
+		'return',
+		'typeof',
+		'instanceof',
+		'in',
+		'of',
+		'new',
+		'delete',
+		'void',
+		'throw',
+		'yield',
+		'await',
+		'case',
+		'do',
+		'else',
+	]);
+
+	const isWordToken = (token) =>
+		token !== undefined && /^[^\s()[\]{};:,.\-+*/%<>=!&|^~?]+$/.test(token);
+
+	const expressionEnds = new Set([
+		')',
+		']',
+		'}',
+		'`',
+		"'",
+		'"',
+		'?.',
+		'++',
+		'--',
+	]);
+
+	const endsExpression = (token) => {
+		if (token === undefined) {
+			return false;
+		}
+		if (expressionEnds.has(token)) {
+			return true;
+		}
+		if (isWordToken(token)) {
+			// A value word (identifier or literal) ends an expression; a
+			// statement or grouping keyword after which a `(` can never be a
+			// call (`if`, `for`, `function`, `return`, `new`, …) does not —
+			// except the literal and `this`/`super`, which are values.
+			if (NON_CALL_BEFORE_PAREN.has(token)) {
+				return false;
+			}
+			return true;
+		}
+		// A number literal ends an expression.
+		return /[0-9]/.test(token[0]);
+	};
 
 	const inTemplateText = () =>
 		templates.length > 0 && templates[templates.length - 1].depth === 0;
@@ -265,7 +365,7 @@ export const findEmittedCallExtents = (code) => {
 				index++;
 			} else if (character === '`') {
 				templates.pop();
-				previousSignificant = '`';
+				previousToken = '`';
 			} else if (character === '$' && next === '{') {
 				templates[templates.length - 1].depth = 1;
 				index++;
@@ -288,42 +388,83 @@ export const findEmittedCallExtents = (code) => {
 				}
 				index++;
 			}
-			previousSignificant = quote;
+			previousToken = quote;
 			continue;
 		}
 
 		if (character === '`') {
 			templates.push({ depth: 0 });
-			previousSignificant = '`';
+			previousToken = '`';
 			continue;
 		}
 
-		if (character === '/') {
-			if (next === '/') {
-				comment = 'line';
-				index++;
-				continue;
-			}
-			if (next === '*') {
-				comment = 'block';
-				index++;
-				continue;
-			}
-			if (
-				previousSignificant === undefined ||
-				'([{;,=:!&|?+-*%^<>=~'.includes(previousSignificant)
-			) {
+		if (character === '/' && next !== '/' && next !== '*') {
+			const startsRegex =
+				previousToken === undefined ||
+				'([{;,=:!&|?+-*%^<>=~'.includes(previousToken) ||
+				(previousToken !== undefined &&
+					!endsExpression(previousToken) &&
+					isWordToken(previousToken) &&
+					REGEX_HINT_KEYWORDS.has(previousToken));
+			if (startsRegex) {
 				regex = true;
 				continue;
 			}
 		}
 
+		if (character === '/' && (next === '/' || next === '*')) {
+			comment = next === '/' ? 'line' : 'block';
+			index++;
+			continue;
+		}
+
+		if (isIdentifierStart(character)) {
+			let end = index + 1;
+			while (end < code.length && isIdentifierPart(code[end])) {
+				end++;
+			}
+			const word = code.slice(index, end);
+			previousToken = word;
+			// After the `function` keyword the next identifier is the function's
+			// name; the `(` after it is the parameter list, never a call.
+			if (word === 'function') {
+				functionNamePending = true;
+			}
+			index = end - 1;
+			continue;
+		}
+
+		if (character >= '0' && character <= '9') {
+			let end = index + 1;
+			while (
+				end < code.length &&
+				/[0-9]/.test(code[end]) &&
+				code[end] !== '.'
+			) {
+				end++;
+			}
+			previousToken = code.slice(index, end);
+			index = end - 1;
+			continue;
+		}
+
+		if (character === '?' && next === '.') {
+			previousToken = '?.';
+			index++;
+			continue;
+		}
+
 		if (character === '(') {
+			// The parameter list of a `function` declaration/expression, or
+			// a `(` directly after a statement or grouping keyword, is never
+			// a call; `import(` is a dynamic import (a call-like expression).
+			const isFunctionParameterList = functionNamePending;
+			functionNamePending = false;
 			parenStack.push({
 				start: index,
-				isCall: isExpressionEnd(previousSignificant),
+				isCall: !isFunctionParameterList && endsExpression(previousToken),
 			});
-			previousSignificant = '(';
+			previousToken = '(';
 			continue;
 		}
 
@@ -339,7 +480,7 @@ export const findEmittedCallExtents = (code) => {
 					startLine: startPosition.line,
 				});
 			}
-			previousSignificant = ')';
+			previousToken = ')';
 			continue;
 		}
 
@@ -347,20 +488,26 @@ export const findEmittedCallExtents = (code) => {
 			const template = templates[templates.length - 1];
 			if (character === '{') {
 				template.depth++;
-				previousSignificant = '{';
+				previousToken = '{';
 				continue;
 			}
 			if (character === '}') {
 				template.depth--;
 				if (template.depth === 0) {
-					previousSignificant = '}';
+					previousToken = '}';
 				}
 				continue;
 			}
 		}
 
 		if (!/\s/.test(character)) {
-			previousSignificant = character;
+			previousToken = character;
+			// A `function` keyword is only a parameter-list opener when the
+			// `(` follows directly (after the name); any other intermediate
+			// token breaks the declaration, so clear the pending flag.
+			if (character !== '(') {
+				functionNamePending = false;
+			}
 		}
 	}
 
@@ -387,42 +534,51 @@ const segmentInsideEmittedCall = (segment, extents) => {
 	return false;
 };
 
+// The span key identifies a mint span across the module's contexts, so the
+// guard can tell which context a copy's tied segment belongs to.
+export const spanKeyOf = (span) =>
+	`${span.startLine}:${span.startCol}:${span.endLine}:${span.endCol}`;
+
 // Classifies one delivered copy of a context source module against the map
-// the chunk carries. `segments` are the copy's own resolved segments (the
-// map's source id resolved to the copy's module id); `mintSpans` are the
-// recorded extents of the context's minting calls; `emittedCallExtents` are
-// the argument-list extents parsed from the chunk's generated code, or
-// undefined when the chunk carries no generated code to parse against.
+// the chunk carries and the copy's own rendered code. `segments` are the
+// copy's resolved segments (the map's source id resolved to the copy's module
+// id); `allMintSpans` are the recorded argument-list extents of every minting
+// call in the module (across all its contexts); `emittedCallExtents` are the
+// argument-list extents parsed from the chunk's generated code, or undefined
+// when the chunk carries no generated code to parse against.
 //
-// A copy is attributable when the map is precise — it resolves the copy to
-// distinct original positions, so a map that collapses the copy onto a single
-// anchor cannot answer — and, when the chunk's code is available, when the
-// map ties at least one of its positions to a call the copy actually emits:
-// an emitted mint call whose tokens the map never touches means the map does
-// not describe this copy, so the copy cannot be trusted as non-minting. A
-// copy is minting when an attributable segment lies strictly inside a
-// recorded mint span.
+// The mint question is "did this copy, at this generated call, mint this
+// context". A copy MINTED at a context when a single segment ties a generated
+// call to that context's mint span — the same segment inside an emitted call
+// and inside the span. The copy's map facts are returned once: `precise` (the
+// map resolves the copy to distinct original positions) and `tiedSpanKeys` (the
+// set of mint spans, across all the module's contexts, that some segment ties
+// to). The caller decides each context's verdict from these facts, so a copy
+// whose mint calls are all explained by other contexts' spans is verifiably
+// non-minting for the remaining ones, while a copy that ties to no span at all
+// is unverifiable (fail closed) rather than silently non-minting.
 export const classifyCopyAttribution = (
 	segments,
-	mintSpans,
+	allMintSpans,
 	emittedCallExtents,
 ) => {
 	const copyPositions = new Set(
 		segments.map((segment) => `${segment.origLine}:${segment.origCol}`),
 	);
 	const precise = copyPositions.size >= 2;
-	const attributedToEmittedCall =
-		emittedCallExtents === undefined ||
-		segments.some((segment) =>
-			segmentInsideEmittedCall(segment, emittedCallExtents),
-		);
-	const attributable = precise && attributedToEmittedCall;
-	const minted =
-		attributable &&
-		segments.some((segment) =>
-			mintSpans.some((span) =>
-				renderedSegmentMatchesCallEmission(segment, span),
-			),
-		);
-	return { attributable, minted };
+	const tiedSpanKeys = new Set();
+	for (const segment of segments) {
+		if (
+			emittedCallExtents !== undefined &&
+			!segmentInsideEmittedCall(segment, emittedCallExtents)
+		) {
+			continue;
+		}
+		for (const span of allMintSpans) {
+			if (renderedSegmentMatchesCallEmission(segment, span)) {
+				tiedSpanKeys.add(spanKeyOf(span));
+			}
+		}
+	}
+	return { precise, tiedSpanKeys };
 };

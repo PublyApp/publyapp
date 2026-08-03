@@ -20,6 +20,7 @@ import {
 	findContextChunkIsolationViolations,
 	findReactContextDeclarations,
 } from './check-context-chunk-isolation.mjs';
+import { findEmittedCallExtents } from './context-source-map.mjs';
 
 const frontDirectory = path.resolve(import.meta.dirname, '..');
 const execFileAsync = promisify(execFile);
@@ -45,10 +46,11 @@ const encodeVlq = (value) => {
 	return encoded;
 };
 
-// Builds a chunk source map from explicit segments. genLine/genCol are
-// merely the emitted-call coordinates the guard never consults for the
-// verdict; origLine/origCol and the resolved source id are what attribution
-// runs on.
+// Builds a chunk source map from explicit segments. genLine/genCol are the
+// generated coordinates the guard ties to the chunk's emitted calls;
+// origLine/origCol and the resolved source id are the original coordinates
+// it ties to the recorded mint spans. A copy is attributed a mint only when
+// the same segment lands both inside an emitted call and inside a mint span.
 const encodeSourceMap = ({ sources, segments }) => {
 	let mappings = '';
 	let prevSource = 0;
@@ -126,16 +128,23 @@ const chunkWithCode = (fileName, code, modules, segments) => ({
 	code,
 });
 
+// The recorded span of a mint is the call's *argument-list* extent (open paren
+// through close paren), which only the call's own execution can emit. The
+// helper locates the needle's open paren and spans from there to the end of
+// the needle, the way the source scan records mint spans.
 const mintSpanOfText = (sourceText, needle) => {
 	const index = sourceText.indexOf(needle);
 	assert.notEqual(index, -1, `mint span needle ${needle} not found in source`);
-	const before = sourceText.slice(0, index);
-	const lines = before.split('\n');
+	const openParenOffset = needle.indexOf('(');
+	const before = sourceText.slice(0, index + openParenOffset);
+	const after = sourceText.slice(0, index + needle.length);
+	const beforeLines = before.split('\n');
+	const afterLines = after.split('\n');
 	return {
-		startCol: lines[lines.length - 1].length,
-		startLine: lines.length - 1,
-		endCol: lines[lines.length - 1].length + needle.length,
-		endLine: lines.length - 1,
+		startCol: beforeLines[beforeLines.length - 1].length,
+		startLine: beforeLines.length - 1,
+		endCol: afterLines[afterLines.length - 1].length,
+		endLine: afterLines.length - 1,
 	};
 };
 
@@ -204,15 +213,22 @@ const buildRouteFixture = async ({
 	customSourcemapFileNames = false,
 	coarsenSplitMap = false,
 	forgeSplitMap = false,
+	forgeSplitMapInCall = false,
 	emitKeepMap = false,
+	keepMapContentEqualsChunkMap = false,
 }) => {
 	let buildOptions = '';
 	if (groupProbeModules) {
 		buildOptions =
 			"build: { rolldownOptions: { output: { advancedChunks: { groups: [{ name: 'probe-pair', test: /src[\\/]routes[\\/]probe\\.tsx/ }] } } } },";
 	} else if (customSourcemapFileNames) {
-		buildOptions =
-			"build: { rolldownOptions: { output: { sourcemapFileNames: 'maps/[name]-[hash].map' } } },";
+		const pattern =
+			typeof customSourcemapFileNames === 'string'
+				? customSourcemapFileNames
+				: 'maps/[name]-[hash].map';
+		buildOptions = `build: { rolldownOptions: { output: { sourcemapFileNames: ${JSON.stringify(
+			pattern,
+		)} } } },`;
 	}
 	const fixtureDirectory = await createFixture({
 		'vite.config.mjs': `
@@ -224,6 +240,20 @@ const buildRouteFixture = async ({
 			import { contextChunkIsolationPlugin } from ${JSON.stringify(
 				path.join(frontDirectory, 'scripts/check-context-chunk-isolation.mjs'),
 			)};
+			${
+				forgeSplitMapInCall
+					? `import { findEmittedCallExtents } from ${JSON.stringify(
+							path.join(frontDirectory, 'scripts/context-source-map.mjs'),
+						)};`
+					: ''
+			}
+			${
+				forgeSplitMapInCall
+					? `const SOURCE_MAP_BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+						const encodeVlq = (value) => { let encoded = ''; let vlq = value < 0 ? (-value << 1) | 1 : value << 1; do { let digit = vlq & 31; vlq >>>= 5; if (vlq > 0) digit |= 32; encoded += SOURCE_MAP_BASE64[digit]; } while (vlq > 0); return encoded; };
+						const encodeSourceMap = ({ sources, segments }) => { let mappings = ''; let prevSource = 0; let prevOrigLine = 0; let prevOrigCol = 0; const byLine = new Map(); let maxLine = 0; for (const s of segments) { const l = byLine.get(s.genLine) ?? []; l.push(s); byLine.set(s.genLine, l); maxLine = Math.max(maxLine, s.genLine); } for (let line = 0; line <= maxLine; line++) { const ls = byLine.get(line) ?? []; ls.sort((a, b) => a.genCol - b.genCol); let genCol = 0; const enc = []; for (const s of ls) { const f = [s.genCol - genCol]; genCol = s.genCol; if (s.sourceIndex !== undefined) { f.push(s.sourceIndex - prevSource); prevSource = s.sourceIndex; f.push(s.origLine - prevOrigLine); prevOrigLine = s.origLine; f.push(s.origCol - prevOrigCol); prevOrigCol = s.origCol; } enc.push(f.map(encodeVlq).join('')); } mappings += (line > 0 ? ';' : '') + enc.join(','); } return { version: 3, sources, sourcesContent: [], mappings }; };`
+					: ''
+			}
 
 			const rootDirectory = import.meta.dirname;
 			export default defineConfig({
@@ -234,8 +264,38 @@ const buildRouteFixture = async ({
 							? `{
 							name: 'r22-emit-keep-map',
 							applyToEnvironment: (environment) => environment.name === 'client',
-							buildStart() {
-								this.emitFile({ type: 'asset', fileName: 'assets/keep.map', source: '{"version":3,"sources":[],"mappings":""}' });
+							${keepMapContentEqualsChunkMap ? 'generateBundle(_options, bundle)' : 'buildStart()'} {
+								${
+									keepMapContentEqualsChunkMap
+										? `const keepSource = Object.values(bundle).find((output) => output.type === 'chunk' && output.map)?.map; this.emitFile({ type: 'asset', fileName: 'assets/keep.map', source: JSON.stringify(keepSource) });`
+										: `this.emitFile({ type: 'asset', fileName: 'assets/keep.map', source: '{"version":3,"sources":[],"mappings":""}' });`
+								}
+							},
+						},`
+							: ''
+					}
+					${
+						forgeSplitMapInCall
+							? `{
+							name: 'r23-forge-split-map-in-call',
+							applyToEnvironment: (environment) => environment.name === 'client',
+							generateBundle(_options, bundle) {
+								for (const chunk of Object.values(bundle)) {
+									if (chunk.type !== 'chunk' || !chunk.map) {
+										continue;
+									}
+									const splitModuleId = Object.keys(chunk.modules).find((id) => id.includes('?tsr-split=component'));
+									if (!splitModuleId) {
+										continue;
+									}
+									const firstCall = findEmittedCallExtents(chunk.code)[0];
+									const forgedGen = firstCall ? firstCall.startCol + 1 : 2;
+									chunk.map = { version: 3, sources: [splitModuleId], mappings: encodeSourceMap({ sources: [splitModuleId], segments: [
+										{ sourceIndex: 0, genLine: 0, genCol: 0, origLine: 0, origCol: 0 },
+										{ sourceIndex: 0, genLine: 0, genCol: 1, origLine: 0, origCol: 0 },
+										{ sourceIndex: 0, genLine: 0, genCol: forgedGen, origLine: 0, origCol: 1 },
+									] }).mappings };
+								}
 							},
 						},`
 							: ''
@@ -1027,16 +1087,19 @@ void test('discovers each mint inside a conditional holder expression with its o
 			conditionalSource.indexOf(secondNeedle) + secondNeedle.length,
 		);
 		assert.notEqual(secondOccurrence, -1);
+		// The second occurrence's span is the argument-list extent of the call
+		// at that occurrence, not the whole call.
+		const secondOpenParen = secondOccurrence + secondNeedle.indexOf('(');
+		const secondBefore = conditionalSource.slice(0, secondOpenParen);
+		const secondAfter = conditionalSource.slice(
+			0,
+			secondOccurrence + secondNeedle.length,
+		);
 		const secondSpan = {
-			startCol: conditionalSource.slice(0, secondOccurrence).split('\n').at(-1)
-				.length,
-			startLine:
-				conditionalSource.slice(0, secondOccurrence).split('\n').length - 1,
-			endCol:
-				conditionalSource.slice(0, secondOccurrence).split('\n').at(-1).length +
-				secondNeedle.length,
-			endLine:
-				conditionalSource.slice(0, secondOccurrence).split('\n').length - 1,
+			startCol: secondBefore.split('\n').at(-1).length,
+			startLine: secondBefore.split('\n').length - 1,
+			endCol: secondAfter.split('\n').at(-1).length,
+			endLine: secondAfter.split('\n').length - 1,
 		};
 		assert.deepEqual(
 			conditionalSpans.map((context) => context.mintSpans),
@@ -1642,7 +1705,14 @@ void test('does not flag a chunk copy that references a context without minting 
 
 	assert.deepEqual(
 		findContextChunkIsolationViolations(
-			[{ name: 'Ctx', sourceFile, mintSpans: [mintSpan] }],
+			[
+				{
+					name: 'Ctx',
+					sourceFile,
+					callee: 'createContext',
+					mintSpans: [mintSpan],
+				},
+			],
 			[
 				chunkWithMap(
 					'assets/a.js',
@@ -2030,6 +2100,7 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 					{
 						name: '<anonymous context>',
 						sourceFile,
+						callee: 'createStrictContext',
 						mintSpans: [mintSpan],
 					},
 				],
@@ -2172,6 +2243,7 @@ void test('passes when one rendered copy of a split module mints while the other
 				{
 					name: '<anonymous context>',
 					sourceFile,
+					callee: 'createStrictContext',
 					mintSpans: [mintSpan],
 				},
 			],
@@ -2353,6 +2425,7 @@ void test('does not attribute a rendered holder call that is not at a recorded s
 				{
 					name: '<anonymous context>',
 					sourceFile,
+					callee: 'createStrictContext',
 					mintSpans: [mintSpan],
 				},
 			],
@@ -2416,6 +2489,7 @@ void test('does not attribute a segment at the call start without an emitted cal
 				{
 					name: '<anonymous context>',
 					sourceFile,
+					callee: 'createStrictContext',
 					mintSpans: [mintSpan],
 				},
 			],
@@ -2768,6 +2842,7 @@ void test('does not attribute a same-named helper call held at the same property
 				{
 					name: '<anonymous context>',
 					sourceFile,
+					callee: 'createStrictContext',
 					mintSpans: [mintSpan],
 				},
 			],
@@ -3093,6 +3168,115 @@ void test('decodes a real emitted chunk source map into standard positions', asy
 	assert.deepEqual(violations, [
 		'<anonymous context> in src/routes/probe.tsx is present in multiple client chunks: assets/probe.js, assets/route.js.',
 	]);
+});
+
+void test('scans emitted call argument lists without inventing or missing calls', () => {
+	// Round 23 §88: the extent finder decided from one preceding character
+	// whether a `(` starts a call. `if(cond)` and `function declared(parm)`
+	// were accepted as calls, a regex after `return` was mis-tokenized, and a
+	// direct optional call `maybe?.(value)` was missed. The scanner is a real
+	// oracle now: statement/grouping parens and function parameter lists are
+	// never calls, and optional calls are.
+	const inside = (code) =>
+		findEmittedCallExtents(code).map((extent) => ({
+			startCol: extent.startCol,
+			endCol: extent.endCol,
+		}));
+
+	// `if(cond)` is a statement paren, not a call; the inner `a()` is.
+	assert.deepEqual(inside('if(cond){a()}'), [{ startCol: 10, endCol: 12 }]);
+	// A function declaration's parameter list is not a call.
+	assert.deepEqual(inside('function declared(parameter){return 1}'), []);
+	// A regex after `return` is opaque, not a call; `.test(x)` is.
+	assert.deepEqual(inside('return /ab(c)/.test(x)'), [
+		{ startCol: 19, endCol: 22 },
+	]);
+	// A direct optional call IS a call.
+	assert.deepEqual(inside('maybe?.(value)'), [{ startCol: 7, endCol: 14 }]);
+	// A string and a comment never register calls.
+	assert.deepEqual(inside('"a/b(c)"//x(y)\n'), []);
+	// A call whose callee is a parenthesized expression (`(0,a.b)(x)`) is a
+	// call on the outer parens, not the wrapper.
+	assert.deepEqual(inside('(0,a.b)(x)'), [{ startCol: 7, endCol: 10 }]);
+});
+
+void test('does not count a segment in the mint callee text as the emitted call', () => {
+	// Round 23 §127: the recorded mint span is the call's *argument-list*
+	// extent. A segment whose original position lies inside the callee text —
+	// e.g. a property reference to `createContext` mapping back to the callee
+	// — must not be accepted as "the call was emitted": it is outside the
+	// argument list, so it cannot be the call's own emission. The split copy
+	// below genuinely does not mint (its rendered code never calls the mint
+	// callee), so the build with one minting copy stays green; under the old
+	// whole-call span the callee-text segment made the split copy a false
+	// creator and the build shipped red with a phantom duplicate.
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	// `createContext(null)`: the callee `createContext` occupies [0, 13) and
+	// the argument list `(null)` spans [13, 19). A segment whose original
+	// position lies inside the callee text (here 0:2) is outside the recorded
+	// argument-list extent, so it cannot be the call's own emission.
+	const argListSpan = { startLine: 0, startCol: 13, endLine: 0, endCol: 19 };
+	const calleeTextPosition = {
+		startLine: 0,
+		startCol: 2,
+		endLine: 0,
+		endCol: 13,
+	};
+
+	assert.deepEqual(
+		findContextChunkIsolationViolations(
+			[
+				{
+					name: '<anonymous context>',
+					sourceFile,
+					callee: 'createContext',
+					mintSpans: [argListSpan],
+				},
+			],
+			[
+				chunkWithMap(
+					'assets/route.js',
+					{
+						[sourceFile]: {
+							code: 'var contexts = { probe: createContext(null) };',
+						},
+					},
+					[
+						{
+							source: sourceFile,
+							origLine: 0,
+							origCol: 15,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+				chunkWithMap(
+					'assets/route-component.js',
+					{
+						[splitModule]: {
+							code: 'var other = { probe: h(null) };',
+						},
+					},
+					[
+						{
+							source: splitModule,
+							origLine: calleeTextPosition.startLine,
+							origCol: calleeTextPosition.startCol,
+							genLine: 0,
+							genCol: 4,
+						},
+					],
+				),
+			],
+			frontDirectory,
+		),
+		[],
+	);
 });
 
 void test('fails with a named diagnostic instead of hanging on a malformed source map VLQ character', () => {
@@ -3475,6 +3659,7 @@ void test('keeps a non-minting copy attributable when its map covers the call it
 				{
 					name: '<anonymous context>',
 					sourceFile,
+					callee: 'createStrictContext',
 					mintSpans: [mintSpan],
 				},
 			],
@@ -3519,6 +3704,91 @@ void test('keeps a non-minting copy attributable when its map covers the call it
 			frontDirectory,
 		),
 		[],
+	);
+});
+
+void test('fails closed when a wrong map lands a forged generated position inside a call', () => {
+	// Round 23's BLOCKER, driven through the production API: the genuinely
+	// minting split copy's map forges two wrong original positions (outside
+	// the mint span) but places its generated column inside an emitted call —
+	// exactly the property the round-22 containment gate did not check. The
+	// guard must not trust that map as a non-minting verdict: it cannot verify
+	// the copy does not execute the mint, so a multi-copy build fails closed
+	// instead of shipping the duplicated mint silently.
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+	// Both copies emit the mint (`m` is its minified callee); the reference
+	// copy's map is honest, the split copy's is forged with its generated
+	// column 2 inside the `m(null)` argument list.
+	const mkMap = ({ source, segments }) =>
+		encodeSourceMap({
+			sources: [...new Set([source])],
+			segments: [
+				{ sourceIndex: 0, genLine: 0, genCol: 0, origLine: 0, origCol: 0 },
+				...segments,
+			].map((segment) => ({
+				...segment,
+				sourceIndex: 0,
+			})),
+		});
+
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
+					},
+				],
+				[
+					{
+						fileName: 'assets/route.js',
+						code: 'm(null)',
+						modules: { [sourceFile]: { code: 'm(null)' } },
+						map: mkMap({
+							source: sourceFile,
+							segments: [
+								{
+									genLine: 0,
+									genCol: 2,
+									origLine: 0,
+									origCol: 15,
+								},
+							],
+						}),
+					},
+					{
+						fileName: 'assets/route-component.js',
+						code: 'm(null)',
+						modules: { [splitModule]: { code: 'm(null)' } },
+						map: mkMap({
+							source: splitModule,
+							segments: [
+								{
+									genLine: 0,
+									genCol: 2,
+									origLine: 99,
+									origCol: 5,
+								},
+								{
+									genLine: 0,
+									genCol: 5,
+									origLine: 99,
+									origCol: 6,
+								},
+							],
+						}),
+					},
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -5091,6 +5361,60 @@ void test(
 );
 
 void test(
+	'fails a real TanStack route build closed when a wrong map places a forged position inside an emitted call',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 23's escape: land the forged map's generated coordinate inside
+		// an emitted call — the one property the round-22 containment gate did
+		// not check. The split copy genuinely mints (its rendered code carries
+		// createStrictContext( and the trace proves two chunks emit it), but
+		// its final map forges two wrong original positions that happen to
+		// point into a real emitted call. The guard must not trust that map as
+		// a non-minting verdict: it cannot verify the copy does not execute the
+		// mint, so it fails closed.
+		const result = await buildRouteFixture({
+			files: holderFactoryFixture(`
+				import { createStrictContext } from '../make-context';
+				const contexts = { probe: createStrictContext<null>(null) };
+				export const useProbe = () => useContext(contexts.probe);
+				const Probe = () => <contexts.probe.Provider value={null}>probe</contexts.probe.Provider>;
+				export const Route = createFileRoute('/probe')({ component: Probe });
+			`),
+			inventory: holderInventory,
+			rootImportsProbe: true,
+			forgeSplitMapInCall: true,
+		});
+
+		try {
+			const mintingCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (
+						moduleId.includes('/src/routes/probe.tsx') &&
+						/createStrictContext\s*\(/.test(code)
+					) {
+						mintingCopies.push(`${chunk.fileName} :: ${moduleId}`);
+					}
+				}
+			}
+			assert.equal(
+				new Set(mintingCopies.map((location) => location.split(' :: ')[0]))
+					.size,
+				2,
+				`MINTING ${JSON.stringify(mintingCopies, null, 2)}`,
+			);
+			assert.notEqual(result.status, 0, result.trace);
+			assert.match(
+				result.output,
+				/cannot classify how <anonymous context> .* is created/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
 	'passes a real TanStack route build when two anonymous contexts are minted in disjoint copies',
 	{ timeout: 120_000 },
 	async () => {
@@ -5340,6 +5664,134 @@ void test(
 				'utf8',
 			);
 			assert.doesNotMatch(chunkCode, /sourceMappingURL/);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'emits no client source map files even when the output renames maps to a non-.map extension',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 23 §157: the old cleanup only considered `.map`-suffixed
+		// assets, so a `sourcemapFileNames` pattern ending in `.txt` leaked the
+		// guard's forced maps. The guard now owns the forced map filenames
+		// and strips them by name, whatever suffix the output would have used.
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const contexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			customSourcemapFileNames: 'maps/[name]-[hash].txt',
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+			const clientDirectory = path.join(
+				result.fixtureDirectory,
+				'dist',
+				'client',
+			);
+			const clientFiles = await readdir(clientDirectory, { recursive: true });
+			// No source map may ship under ANY name — the guard pins the forced
+			// map naming to `[name].map`, so even a user pattern ending in
+			// `.txt` must be neutralized and the maps stripped. A leaked
+			// `.txt` map would be a source map that must not be present.
+			for (const file of clientFiles) {
+				const fullPath = path.join(clientDirectory, file);
+				let source;
+				try {
+					source = await readFile(fullPath, 'utf8');
+				} catch {
+					continue; // a directory entry, not a file
+				}
+				assert.doesNotMatch(
+					source,
+					/^\{\s*"version"\s*:\s*3/,
+					`source map content leaked at ${file}`,
+				);
+			}
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'does not delete an unrelated map asset whose content equals a chunk map',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 23 §157: content equality is not ownership. An unrelated
+		// asset that happens to serialize one of the chunk maps byte-for-byte
+		// is not a map this plugin forced, and must survive untouched — the
+		// guard deletes the forced maps by their own exact filenames, never
+		// every content-identical lookalike.
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const contexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			emitKeepMap: true,
+			keepMapContentEqualsChunkMap: true,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+			const keepMap = await readFile(
+				path.join(
+					result.fixtureDirectory,
+					'dist',
+					'client',
+					'assets',
+					'keep.map',
+				),
+				'utf8',
+			);
+			assert.match(keepMap, /^\{/);
+			assert.doesNotThrow(() => JSON.parse(keepMap));
+			const parsed = JSON.parse(keepMap);
+			assert.equal(parsed.version, 3);
+			assert.ok(
+				parsed.sources?.length > 0,
+				'the asset carried a real chunk map',
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}

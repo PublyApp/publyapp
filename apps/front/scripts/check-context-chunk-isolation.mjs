@@ -4,12 +4,14 @@ import { SyntaxKind } from 'typescript/unstable/ast';
 import {
 	isArrayLiteralExpression,
 	isAsExpression,
+	isArrowFunction,
 	isBindingElement,
 	isBinaryExpression,
 	isCallExpression,
 	isConditionalExpression,
 	isElementAccessExpression,
 	isExportAssignment,
+	isFunctionExpression,
 	isIdentifier,
 	isInterfaceDeclaration,
 	isNonNullExpression,
@@ -35,6 +37,7 @@ import {
 	decodeSourceMapSegments,
 	findEmittedCallExtents,
 	resolveRenderedMapSource,
+	spanKeyOf,
 } from './context-source-map.mjs';
 
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
@@ -685,6 +688,80 @@ const spanOf = (sourceFile, node) => {
 	};
 };
 
+// The recorded mint span is the call's *argument-list* extent — the open
+// paren through the close paren — not the whole CallExpression. Only that
+// extent can be emitted by the call and by nothing else: an emitted callee
+// identifier, or a callee *reference* that maps back into the callee text,
+// would otherwise be accepted as "the call was emitted" when no call was.
+// A holder mint that is a wrapper call (`(() => createContext(null))()`,
+// `(0, factory)()` with an empty outer argument list) is descended into its
+// innermost minting call, whose argument list is where the bundler's map
+// places the mint's emitted tokens.
+const innermostMintCall = (node) => {
+	let mint = node;
+	for (let guard = 0; guard < 20; guard++) {
+		let form = mint.expression;
+		while (
+			isParenthesizedExpression(form) ||
+			isAsExpression(form) ||
+			isSatisfiesExpression(form) ||
+			isTypeAssertion(form) ||
+			isNonNullExpression(form)
+		) {
+			form = form.expression;
+		}
+		if (isArrowFunction(form) || isFunctionExpression(form)) {
+			if (isCallExpression(form.body)) {
+				mint = form.body;
+				continue;
+			}
+			break;
+		}
+		if (isCallExpression(form)) {
+			mint = form;
+			continue;
+		}
+		break;
+	}
+	return mint;
+};
+
+const mintCallSpan = (sourceFile, node) => {
+	const mint = innermostMintCall(node);
+	const openParen = sourceFile.text.indexOf('(', mint.expression.end);
+	const start = sourceFile.getLineAndCharacterOfPosition(openParen);
+	const end = sourceFile.getLineAndCharacterOfPosition(mint.getEnd());
+	return {
+		endCol: end.character,
+		endLine: end.line,
+		startCol: start.character,
+		startLine: start.line,
+	};
+};
+
+// The rendered per-module code keeps the mint callee's name (only the final
+// minified chunk renames it), so the guard verifies a copy's mint status
+// against its own rendered code by this name. The name is the callee's final
+// emitted component: `createContext`, `React.createContext`, `React['...']`
+// and alias forms all render to their lifted property name.
+const mintCalleeName = (node) => {
+	if (!isCallExpression(node)) {
+		return undefined;
+	}
+	const mint = innermostMintCall(node);
+	if (isPropertyAccessExpression(mint.expression)) {
+		return mint.expression.name.text;
+	}
+	if (isElementAccessExpression(mint.expression)) {
+		const key = mint.expression.argumentExpression;
+		return isStringLiteral(key) ? key.text : undefined;
+	}
+	if (isIdentifier(mint.expression)) {
+		return mint.expression.text;
+	}
+	return undefined;
+};
+
 const spanKey = (span) =>
 	`${span.startLine}:${span.startCol}:${span.endLine}:${span.endCol}`;
 
@@ -786,20 +863,25 @@ export const findReactContextDeclarations = (
 						)
 					) {
 						trackedDeclarations.add(node);
+						const mintingCalls = valueCallsOf(binding.initializer).filter(
+							(call) =>
+								callMintsContext(
+									project.checker,
+									call,
+									reactContextType,
+									reactCreateContext,
+								),
+						);
+						const callee =
+							mintingCalls.length > 0
+								? mintCalleeName(mintingCalls[0])
+								: undefined;
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
+							callee,
 							mintSpans: uniqueSpans(
-								valueCallsOf(binding.initializer)
-									.filter((call) =>
-										callMintsContext(
-											project.checker,
-											call,
-											reactContextType,
-											reactCreateContext,
-										),
-									)
-									.map((call) => spanOf(sourceFile, call)),
+								mintingCalls.map((call) => mintCallSpan(sourceFile, call)),
 							),
 						});
 					} else if (
@@ -817,7 +899,8 @@ export const findReactContextDeclarations = (
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
-							mintSpans: [spanOf(sourceFile, binding.initializer)],
+							callee: mintCalleeName(binding.initializer),
+							mintSpans: [mintCallSpan(sourceFile, binding.initializer)],
 						});
 					}
 				}
@@ -847,7 +930,8 @@ export const findReactContextDeclarations = (
 							contexts.push({
 								name: '<anonymous context>',
 								sourceFile: normalizeModuleId(sourceFile.fileName),
-								mintSpans: [spanOf(sourceFile, node)],
+								callee: mintCalleeName(node),
+								mintSpans: [mintCallSpan(sourceFile, node)],
 							});
 						} else if (!isHolderPosition) {
 							const calleeSymbol = symbolForExpression(
@@ -864,7 +948,8 @@ export const findReactContextDeclarations = (
 								contexts.push({
 									name: contextNameForCall(node),
 									sourceFile: normalizeModuleId(sourceFile.fileName),
-									mintSpans: [spanOf(sourceFile, node)],
+									callee: mintCalleeName(node),
+									mintSpans: [mintCallSpan(sourceFile, node)],
 								});
 							}
 						}
@@ -976,13 +1061,40 @@ export const findContextChunkIsolationViolations = (
 		});
 	}
 
-	return contexts.flatMap((context) => {
-		const sourcePath = path.relative(projectDirectory, context.sourceFile);
-		const mintSpans = context.mintSpans ?? [];
-		const familyCopies = [];
+	// Group the discovered contexts by their source module so a copy's mint
+	// calls can be explained against every span in the module at once: a copy
+	// whose map ties its mint calls to some other context's span is verifiably
+	// non-minting for the context being checked, while a copy that ties to no
+	// span at all is unverifiable (fail closed) rather than silently
+	// non-minting.
+	const contextsByModule = new Map();
+	for (const context of contexts) {
+		const moduleContexts = contextsByModule.get(context.sourceFile) ?? [];
+		moduleContexts.push(context);
+		contextsByModule.set(context.sourceFile, moduleContexts);
+	}
+
+	const violations = [];
+	for (const [sourceFile, moduleContexts] of contextsByModule) {
+		const sourcePath = path.relative(projectDirectory, sourceFile);
+		const allMintSpans = moduleContexts.flatMap(
+			(context) => context.mintSpans ?? [],
+		);
+		// The callees that execute any mint in this module; a copy's own
+		// rendered code provably lacks a mint when it contains none of these.
+		const moduleCallees = [
+			...new Set(
+				moduleContexts.map((context) => context.callee).filter(Boolean),
+			),
+		];
+
+		// Per delivered module copy, the facts shared by every context of the
+		// module: the map's precision, the mint spans the copy ties to, and
+		// whether the copy's own rendered code executes any mint call.
+		const moduleCopies = [];
 		for (const [moduleId, moduleChunks] of chunksForSource) {
-			const isSourceModule = moduleId === context.sourceFile;
-			const isSourceQueryModule = moduleId.startsWith(`${context.sourceFile}?`);
+			const isSourceModule = moduleId === sourceFile;
+			const isSourceQueryModule = moduleId.startsWith(`${sourceFile}?`);
 			if (!isSourceModule && !isSourceQueryModule) {
 				continue;
 			}
@@ -1003,88 +1115,111 @@ export const findContextChunkIsolationViolations = (
 						'Context chunk isolation guard did not analyze a chunk delivering a context source module.',
 					);
 				}
-
-				// A copy can answer the minting question only when the map
-				// demonstrates that it describes this exact copy. The map must
-				// resolve the copy's module id to distinct original positions
-				// (a map that collapses the copy onto a single anchor cannot
-				// distinguish an emitted mint from an absent one) and, when
-				// the chunk's emitted code is available, it must tie at least
-				// one of those positions to a call the copy actually emits —
-				// an emitted mint call whose tokens the map never touches is
-				// a map that does not describe this copy. A copy failing
-				// either test is un-attributable and takes the fail-closed
-				// branch below instead of a silent non-mint verdict.
 				const copySegments = chunkAnalysis.hasMap
 					? chunkAnalysis.segments.filter(
 							(segment) => segment.source === moduleChunk.moduleId,
 						)
 					: [];
-				const { attributable, minted } = classifyCopyAttribution(
+				const { precise, tiedSpanKeys } = classifyCopyAttribution(
 					copySegments,
-					mintSpans,
+					allMintSpans,
 					chunkAnalysis.emittedCallExtents,
 				);
-				familyCopies.push({
-					attributable,
+				const renderedCode = moduleChunk.renderedModule?.code;
+				const mintPresence =
+					moduleCallees.length > 0 &&
+					typeof renderedCode === 'string' &&
+					renderedCode.length > 0
+						? moduleCallees.some((callee) =>
+								new RegExp(
+									`\\b${callee.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`,
+								).test(renderedCode),
+							)
+						: undefined;
+				moduleCopies.push({
 					chunkName: moduleChunk.chunkName,
 					hasMap: chunkAnalysis.hasMap,
-					minted,
+					mintPresence,
+					precise,
+					tiedSpanKeys,
 				});
 			}
 		}
 
-		if (familyCopies.length === 0) {
-			return [
-				`${context.name} in ${sourcePath} is not present in a client chunk.`,
-			];
+		if (moduleCopies.length === 0) {
+			for (const context of moduleContexts) {
+				violations.push(
+					`${context.name} in ${sourcePath} is not present in a client chunk.`,
+				);
+			}
+			continue;
 		}
 
-		const mintingCopies = familyCopies.filter((copy) => copy.minted);
-		const copyCount = familyCopies.length;
-		// A delivered copy whose chunk emits no source map — or whose map
-		// does not resolve the copy to precise positions tied to the calls
-		// it emits — cannot be checked: it may mint the context like any
-		// other copy, so attribution is incomplete and the verdict fails
-		// closed whenever more than one copy exists. A single copy needs no
-		// attribution at all.
-		if (copyCount >= 2 && familyCopies.some((copy) => !copy.attributable)) {
-			throw new Error(
-				`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it.`,
-			);
-		}
+		for (const context of moduleContexts) {
+			const contextSpanKeys = new Set((context.mintSpans ?? []).map(spanKeyOf));
+			const familyCopies = moduleCopies.map((copy) => {
+				const minted =
+					copy.precise &&
+					[...copy.tiedSpanKeys].some((key) => contextSpanKeys.has(key));
+				// A copy is verifiably non-minting for this context when its own
+				// rendered code provably executes no mint call at all, or when
+				// every mint call its map ties to belongs to some *other*
+				// context's span (so this context's mint cannot be the one the
+				// copy executes). Anything else — the copy executes a mint call
+				// its map cannot tie to any span, or the map is unverifiable —
+				// is unverifiable and fails closed.
+				const verifiablyNonMinting =
+					!minted &&
+					(copy.mintPresence === false ||
+						(copy.mintPresence !== false &&
+							copy.tiedSpanKeys.size > 0 &&
+							![...copy.tiedSpanKeys].some((key) => contextSpanKeys.has(key))));
+				return {
+					attributable: minted || verifiablyNonMinting,
+					chunkName: copy.chunkName,
+					hasMap: copy.hasMap,
+					minted,
+				};
+			});
 
-		if (mintingCopies.length === 0) {
-			if (copyCount >= 2) {
-				const chunkNames = [
-					...new Set(familyCopies.map((copy) => copy.chunkName)),
-				];
+			const mintingCopies = familyCopies.filter((copy) => copy.minted);
+			const copyCount = familyCopies.length;
+			if (copyCount >= 2 && familyCopies.some((copy) => !copy.attributable)) {
 				throw new Error(
-					`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: its source is delivered in ${copyCount} client module copies (${chunkNames.join(', ')}) and no rendered copy is attributed a mint.`,
+					`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it.`,
 				);
 			}
 
-			// A single delivered copy with no attributed mint stays green:
-			// with only one copy there is nothing to duplicate, and the mint
-			// not being in the bundle at all is likewise inert.
-			return [];
-		}
+			if (mintingCopies.length === 0) {
+				if (copyCount >= 2) {
+					const chunkNames = [
+						...new Set(familyCopies.map((copy) => copy.chunkName)),
+					];
+					throw new Error(
+						`Context chunk isolation guard cannot classify how ${context.name} in ${sourcePath} is created: its source is delivered in ${copyCount} client module copies (${chunkNames.join(', ')}) and no rendered copy is attributed a mint.`,
+					);
+				}
+				continue;
+			}
 
-		if (mintingCopies.length === 1) {
-			return [];
-		}
+			if (mintingCopies.length === 1) {
+				continue;
+			}
 
-		const chunkNames = new Set(mintingCopies.map((copy) => copy.chunkName));
-		if (chunkNames.size === 1) {
-			return [
-				`${context.name} in ${sourcePath} is created by multiple client modules in chunk: ${[...chunkNames].join(', ')}.`,
-			];
+			const chunkNames = new Set(mintingCopies.map((copy) => copy.chunkName));
+			if (chunkNames.size === 1) {
+				violations.push(
+					`${context.name} in ${sourcePath} is created by multiple client modules in chunk: ${[...chunkNames].join(', ')}.`,
+				);
+			} else {
+				violations.push(
+					`${context.name} in ${sourcePath} is present in multiple client chunks: ${[...chunkNames].join(', ')}.`,
+				);
+			}
 		}
+	}
 
-		return [
-			`${context.name} in ${sourcePath} is present in multiple client chunks: ${[...chunkNames].join(', ')}.`,
-		];
-	});
+	return violations;
 };
 
 export const findContextInventoryViolations = (
@@ -1171,10 +1306,23 @@ export const contextChunkIsolationPlugin = ({
 		// client build must emit one. 'hidden' writes the map without the
 		// sourceMappingURL comment; when the user configured sourcemaps
 		// themselves, their choice stands and the maps are theirs to keep.
+		// When the guard forces the map it also pins the map asset naming to
+		// `[name].map`, so the guard knows the exact filename every forced
+		// map lands at — `chunk.name + '.map'` — and can later delete
+		// precisely the assets it caused, never an unrelated asset that
+		// merely shares a suffix or bytes.
 		config(config) {
 			const clientBuild = config.environments?.client?.build ?? config.build;
 			if (clientBuild?.sourcemap === undefined) {
 				clientBuild.sourcemap = 'hidden';
+				// Pin the map asset naming to `[name].map` (overriding any user
+				// pattern), so the guard knows the exact filename every forced
+				// map lands at — `chunk.name + '.map'` — and can delete
+				// precisely the assets it caused, never an unrelated asset
+				// that merely shares a suffix or bytes.
+				clientBuild.rolldownOptions ??= {};
+				clientBuild.rolldownOptions.output ??= {};
+				clientBuild.rolldownOptions.output.sourcemapFileNames = '[name].map';
 				forcedSourcemap = true;
 			}
 		},
@@ -1218,32 +1366,19 @@ export const contextChunkIsolationPlugin = ({
 			// sourceMappingURL comment, and removing the map assets keeps the
 			// artifact byte-for-byte what it would have been without the
 			// guard's internal sourcemap requirement. The assets are removed
-			// by their bundle identity — the forced maps are exactly the map
-			// assets whose content is one of the chunk maps in this bundle,
-			// however the output renamed them via `sourcemapFileNames` — so a
-			// legitimate asset that happens to be named *.map (an unrelated
-			// application or plugin asset) survives untouched.
+			// by the exact filename the guard forced for them — the config
+			// hook pinned `sourcemapFileNames` to `[name].map`, so the guarded
+			// map for a chunk sits at `chunk.name + '.map'` — so an
+			// unrelated asset that merely shares a `.map` suffix or the bytes
+			// of a chunk map (a plugin or application asset) survives.
 			if (forcedSourcemap) {
-				const chunkMapContents = chunks
-					.filter((chunk) => chunk.map !== undefined && chunk.map !== null)
-					.map((chunk) => JSON.stringify(chunk.map));
-				for (const [fileName, output] of Object.entries(bundle)) {
-					if (output.type !== 'asset' || !fileName.endsWith('.map')) {
-						continue;
-					}
-					let parsedMap;
-					try {
-						parsedMap =
-							typeof output.source === 'string'
-								? JSON.parse(output.source)
-								: undefined;
-					} catch {
-						parsedMap = undefined;
-					}
-					if (
-						parsedMap !== undefined &&
-						chunkMapContents.includes(JSON.stringify(parsedMap))
-					) {
+				const forcedMapFilenames = new Set(
+					chunks
+						.filter((chunk) => chunk.map !== undefined && chunk.map !== null)
+						.map((chunk) => `${chunk.name}.map`),
+				);
+				for (const fileName of forcedMapFilenames) {
+					if (bundle[fileName]?.type === 'asset') {
 						delete bundle[fileName];
 					}
 				}
