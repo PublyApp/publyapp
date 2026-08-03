@@ -100,187 +100,140 @@
 		);
 	}
 
-	/* ---- The field (todesktop-14): one gradient element, mounted once, no
-	   section owns a background. Dark mode is a token remap, not an overlay
-	   (attio-03): light is dawn, dark is dusk, and the ramps below are the
-	   one geometry re-pointed per theme.
+	/* ================= THE THREE REGIONS AND THE TWO HORIZONS =================
 
-	   THE ONE CHANGE THAT MATTERS MOST ON THIS PAGE. The transposed sky was a
-	   2400px band at the top of a ~9000px document, mounted inside `<main>`.
-	   So the direction's whole thesis — "the page is one atmosphere" — was
-	   true for the first quarter of the page and abandoned for the other
-	   three, and the footer sat outside it entirely. Below the product window
-	   the page became a plain white document with hairlines on it, which is a
-	   different direction, done less well.
+	   THE ONE CHANGE THAT MATTERS MOST ON THIS PAGE, and it reverses round
+	   one's. Round one made the atmosphere CONTINUOUS: one absolutely
+	   positioned element at document scale, a bloom at the top and a quieter
+	   one at the foot, behind every landmark on the page. That is precisely
+	   what turned it into wallpaper. A gradient that is behind all ten
+	   sections is behind none of them; nobody can point at where it begins or
+	   where it ends, so it stops being an event and becomes a tint.
 
-	   It is now ONE element at document scale — still one element, still
-	   mounted once, still no section background anywhere — carrying TWO
-	   px-anchored ramps in one `background-image`:
+	   The atmosphere is now BOUNDED, and the boundary is the whole design.
+	   The page is one day:
 
-	     dawn   anchored to the TOP,    1900px / 2400px at >=768
-	     dusk   anchored to the BOTTOM,  900px / 1200px at >=768
+	     DAWN   a full screen of sky, warming downward, the hero and nothing
+	            else in it
+	     ——— horizon ———
+	     DAY    no field at all: paper, ruled, dense, the entire argument
+	     ——— horizon ———
+	     NIGHT  full-bleed, deepening downward, the closing argument and the
+	            footer swallowed into one dark object that runs off the bottom
 
-	   Between them the page is transparent, so it falls through to the page
-	   background — and because each ramp's outer stop IS the page background,
-	   there is no seam where either ends. That gives the scroll a shape it
-	   did not have: warm at the opening, clear through the middle where the
-	   argument is made, warm again as it closes, so the closing band and the
-	   footer sit IN the atmosphere rather than on paper below it. The dusk
-	   peaks at 9% primary against the dawn's 16% — it is the same sky at
-	   dusk, not a second event competing with the hero.
+	   Each region is a real element in normal flow whose height is its own
+	   content's height. Nothing is absolutely positioned and nothing carries
+	   a z-index. The two horizons are the ONLY lines on the page that leave
+	   the reading column, which is what makes them read as the page's
+	   structure rather than as two more rules among fifty.
 
-	   Anchoring in px rather than in percentages of an unknown document
-	   height is what keeps this stable: the bloom lands on the hero and the
-	   product window at every page length, and nothing has to be re-measured
-	   when a section is added.
+	   THE HORIZON IS DRAWN IN THE FOREGROUND, NOT IN --publy-border. Every
+	   other line here is `--publy-border`, and a neutral grey hairline laid
+	   across a warm cream field goes visibly cool — the same
+	   black-on-yellow-goes-olive problem the shadow tint solves. 22% of the
+	   page foreground is warm-neutral over the dawn's cream and reads as a
+	   real edge rather than as a seam; the identical declaration is 22% of
+	   #fafafa in dark, so one line serves both themes without a counterpart.
 
-	   Stop derivations for the dawn (targets are the direction's five
-	   sky-ramp literals): light 14% ≈ #fef7db (target #fef6db), 34% ≈ #fef7d6
-	   (#fdf3d0), 58% ≈ #fefdf5 (#fdfbf4) — the bloom carries ~1% more blue
-	   than the literal, inside the same measured-contrast envelope. */
-	.publy-landing-05-a .publy-marketing-sky {
-		position: absolute;
-		/* Mounted on the page ROOT, not inside `<main>`, so the header's own
-		   opaque background, the document body and the footer all sit on the
-		   same field. `inset: 0` means no viewport breakout and no scrollbar
-		   arithmetic: the root is a body child, so its width already excludes
-		   a classic scrollbar. */
-		inset: 0;
-		pointer-events: none;
-		user-select: none;
-		background-repeat: no-repeat;
-		background-position:
-			top center,
-			bottom center;
-		background-size:
-			100% 1900px,
-			100% 900px;
-		background-image:
-			linear-gradient(
-				180deg,
-				var(--publy-background) 0%,
-				color-mix(in srgb, var(--publy-primary) 14%, var(--publy-background))
-					14%,
-				color-mix(in srgb, var(--publy-primary) 16%, var(--publy-background))
-					34%,
-				color-mix(in srgb, var(--publy-primary) 4%, var(--publy-background)) 58%,
-				var(--publy-background) 100%
-			),
-			linear-gradient(
-				180deg,
-				var(--publy-background) 0%,
-				color-mix(in srgb, var(--publy-primary) 4%, var(--publy-background)) 34%,
-				color-mix(in srgb, var(--publy-primary) 9%, var(--publy-background)) 72%,
-				color-mix(in srgb, var(--publy-primary) 7%, var(--publy-background))
-					100%
-			);
-	}
-
-	/* The dark ramps. The direction's dark stops sit deeper and more
-	   saturated than primary-over-background can reach (the dark
-	   background's blue channel floors the mix), so they derive from the
-	   system's own dark soft-primary tint instead: 14% ≈ #211e0e (target
-	   #23200f), 34% = #2a2400 (#2a2410, blue channel unreachable — the tint
-	   has none), 58% ≈ #1d1b14 (#1e1d19). The dusk is re-tuned rather than
-	   inherited: on a #18181b page a warm tint reads roughly twice as loudly
-	   as the same tint does on white, so its peak sits at 60% of the soft
-	   tint where the light dusk sits at 9% of primary. */
-	html.dark .publy-landing-05-a .publy-marketing-sky {
-		background-image:
-			linear-gradient(
-				180deg,
-				var(--publy-background) 0%,
-				color-mix(
-						in srgb,
-						var(--publy-primary-soft) 50%,
-						var(--publy-background)
-					)
-					14%,
-				var(--publy-primary-soft) 34%,
-				color-mix(
-						in srgb,
-						var(--publy-primary-soft) 25%,
-						var(--publy-background)
-					)
-					58%,
-				var(--publy-background) 100%
-			),
-			linear-gradient(
-				180deg,
-				var(--publy-background) 0%,
-				color-mix(
-						in srgb,
-						var(--publy-primary-soft) 25%,
-						var(--publy-background)
-					)
-					34%,
-				color-mix(
-						in srgb,
-						var(--publy-primary-soft) 60%,
-						var(--publy-background)
-					)
-					72%,
-				color-mix(
-						in srgb,
-						var(--publy-primary-soft) 45%,
-						var(--publy-background)
-					)
-					100%
-			);
-	}
-
-	@media (min-width: 768px) {
-		.publy-landing-05-a .publy-marketing-sky {
-			background-size:
-				100% 2400px,
-				100% 1200px;
-		}
-	}
-
-	/* ---- The night (todesktop-15): a boxed slice of the same sky, rotated
-	   7° off vertical, bright at the bottom and deepening upward. Built from
-	   the fixed auth canvas + brand primary so it reads identically in both
-	   themes (the auth fixed-canvas precedent) without a guard-visible
-	   literal. Stop positions are the prompt's: -8 · 34 · 72 · 100 at
-	   353deg. */
-	.publy-landing-05-a .publy-marketing-night {
+	   Stop derivations, light dawn (over #ffffff with #fdc700):
+	     30%  6% ≈ #fff9e8    72% 15% ≈ #fff3cf    100% 24% ≈ #fff2c2
+	   The last stop is the warmest value anywhere on the page and it sits at
+	   the horizon, because that is where a dawn actually concentrates: the
+	   glow is at the ground, not overhead. Round one had the peak at 34% of
+	   a 2400px band, i.e. floating in the middle of the hero with nothing to
+	   land on. */
+	.publy-landing-05-a .publy-l05a-dawn {
+		border-block-end: 1px solid
+			color-mix(in srgb, var(--publy-foreground) 22%, transparent);
 		background-image: linear-gradient(
-			353deg,
-			color-mix(
-					in srgb,
-					var(--publy-primary) 12%,
-					var(--publy-auth-panel-bg)
-				) -8%,
-			color-mix(in srgb, var(--publy-primary) 9%, var(--publy-auth-panel-bg))
-				34%,
+			180deg,
+			var(--publy-background) 0%,
+			color-mix(in srgb, var(--publy-primary) 6%, var(--publy-background)) 30%,
+			color-mix(in srgb, var(--publy-primary) 15%, var(--publy-background)) 72%,
+			color-mix(in srgb, var(--publy-primary) 24%, var(--publy-background)) 100%
+		);
+	}
+
+	/* The dark dawn. `--publy-primary-soft` (#2a2400) is the system's own dark
+	   warm tint but it tops out too pale for a field this large, so the dark
+	   ramp mixes the primary straight into the page instead: 14% is
+	   (54, 47, 23) — a warm brown-black that still reads as ONE surface with
+	   the #18181b header above it. Same three stop positions as light, so the
+	   geometry is one ramp re-pointed per theme (attio-03) rather than two
+	   ramps. */
+	html.dark .publy-landing-05-a .publy-l05a-dawn {
+		background-image: linear-gradient(
+			180deg,
+			var(--publy-background) 0%,
+			color-mix(in srgb, var(--publy-primary) 3%, var(--publy-background)) 30%,
+			color-mix(in srgb, var(--publy-primary) 8%, var(--publy-background)) 72%,
+			color-mix(in srgb, var(--publy-primary) 14%, var(--publy-background)) 100%
+		);
+	}
+
+	/* ---- THE NIGHT, in two elements that are one field.
+
+	   The closing region and the footer are separate elements — a page-level
+	   `<footer>` cannot live inside `<main>` — so the ramp is split at a
+	   shared value rather than restarted: the closing region runs 11% → 6% of
+	   the brand primary over the fixed auth canvas, and the footer picks up at
+	   exactly 6% and carries on to 2%. Both are vertical, so the handover is
+	   seamless at every viewport width. (Round one's band was a 353deg tilt,
+	   which is a fine device on a 1100px box and impossible to hand over
+	   across two elements at page scale.)
+
+	   Theme-invariant by construction, on the auth panel's fixed dark canvas —
+	   the repo's existing precedent for a surface that is dark in both themes.
+
+	   THE TOKEN RE-POINT. Everything inside the night is written in the
+	   ordinary page tokens and simply comes out in night values, which is why
+	   the footer needed no colour of its own. Note that the Tailwind ALIASES
+	   have to be re-pointed alongside the tokens: `@theme inline` resolves
+	   `--foreground: var(--publy-foreground)` once, at `:root`, so a utility
+	   like `text-foreground` (which `MarketingBrand`'s wordmark uses) would
+	   otherwise keep the root value while `text-(--publy-foreground)` followed
+	   the override. Re-declaring the alias here, where `var(--publy-*)` now
+	   resolves to the night value, keeps the two in step. */
+	.publy-landing-05-a .publy-l05a-night,
+	.publy-landing-05-a .publy-l05a-night-foot {
+		--publy-foreground: var(--l05a-night-foreground);
+		--publy-foreground-secondary: var(--l05a-night-foreground-muted);
+		--publy-foreground-muted: var(--l05a-night-foreground-muted);
+		--publy-border: var(--l05a-night-hairline);
+		--publy-border-strong: color-mix(
+			in srgb,
+			var(--l05a-night-foreground) 22%,
+			transparent
+		);
+		/* --publy-focus-ring's light value (#a16207) measures 3.00:1 on this
+		   field — a pass with zero margin. The brand primary is warm yellow in
+		   both themes and clears ~8.5:1 on the same background. */
+		--publy-focus-ring: var(--publy-primary);
+		--foreground: var(--publy-foreground);
+		--border: var(--publy-border);
+		--input: var(--publy-border);
+		--ring: var(--publy-focus-ring);
+	}
+
+	.publy-landing-05-a .publy-l05a-night {
+		border-block-start: 1px solid
+			color-mix(in srgb, var(--publy-foreground) 22%, transparent);
+		background-image: linear-gradient(
+			180deg,
+			color-mix(in srgb, var(--publy-primary) 11%, var(--publy-auth-panel-bg))
+				0%,
 			color-mix(in srgb, var(--publy-primary) 6%, var(--publy-auth-panel-bg))
-				72%,
-			color-mix(in srgb, var(--publy-primary) 3%, var(--publy-auth-panel-bg))
 				100%
 		);
 	}
 
-	/* todesktop-15's paired 1px vertical edge-lights on the night band. */
-	.publy-landing-05-a .publy-marketing-night::before,
-	.publy-landing-05-a .publy-marketing-night::after {
-		content: '';
-		position: absolute;
-		inset-block: 0;
-		width: 1px;
+	.publy-landing-05-a .publy-l05a-night-foot {
 		background-image: linear-gradient(
-			to top,
-			transparent 30%,
-			var(--l05a-night-hairline) 65%
+			180deg,
+			color-mix(in srgb, var(--publy-primary) 6%, var(--publy-auth-panel-bg)) 0%,
+			color-mix(in srgb, var(--publy-primary) 2%, var(--publy-auth-panel-bg))
+				100%
 		);
-		pointer-events: none;
-	}
-
-	.publy-landing-05-a .publy-marketing-night::before {
-		inset-inline-start: 0;
-	}
-
-	.publy-landing-05-a .publy-marketing-night::after {
-		inset-inline-end: 0;
 	}
 
 	/* ---- Type ramp (todesktop-03 law, px-stated so it can never drift):
@@ -313,6 +266,19 @@
 	   Every tracking value below is `round(size x ratio, 0.01px)` and each is
 	   restated per breakpoint, so no step ever inherits a neighbour's value.
 	   Verified per step in .dump/report-05a.md. */
+	/* display-1 IS THE PAGE. It is the only thing in the dawn, it has a full
+	   screen to itself and a 15-character measure, and it now runs to 104px —
+	   a step and a half above round one's 68. At 68 the H1 was merely the
+	   biggest text on a page of big text; at 104 across three lines it is an
+	   OBJECT, roughly 900 x 320px, and the composition is that object against
+	   an empty half-screen of sky. Nothing else on the page comes within 56px
+	   of it, which is what makes the rest of the ramp able to be quiet.
+
+	   The ratio keeps descending as the law requires: 44/40 = 1.100 at the
+	   base step, 78/76 = 1.026 at 768, 106/104 = 1.019 at 1280. At 104px that
+	   leaves ~8px between a descender and the next line's caps (Geist runs
+	   ~0.93em ascender-to-descender on the glyphs in play), which closes the
+	   three lines into one block without letting them touch. */
 	.publy-landing-05-a .publy-type-sky-display-1 {
 		font-size: 40px;
 		line-height: 44px;
@@ -322,15 +288,17 @@
 
 	@media (min-width: 768px) {
 		.publy-landing-05-a .publy-type-sky-display-1 {
-			font-size: 68px;
-			/* 70, not the transposed 72. At a 20ch cap the H1 is a two-line
-			   display OBJECT, and 72/68 = 1.059 is a text leading applied to
-			   a display size — the two lines drift apart and stop reading as
-			   one block. 70/68 = 1.029 closes them without letting line 1's
-			   descenders reach line 2's caps (Geist's ascender-to-descender
-			   is ~1.0em, so the clearance is ~1.4px). */
-			line-height: 70px;
-			letter-spacing: -1.02px;
+			font-size: 76px;
+			line-height: 78px;
+			letter-spacing: -1.14px;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.publy-landing-05-a .publy-type-sky-display-1 {
+			font-size: 104px;
+			line-height: 106px;
+			letter-spacing: -1.56px;
 		}
 	}
 
@@ -473,11 +441,21 @@
 	}
 
 	/* ---- Vertical rhythm (todesktop-19 two-number discipline + attio-13
-	   asymmetry: a section opens with roughly double the air it closes
-	   with). 72/48 → 96/56 → 120/64 across <1024 / 1024 / 1280. */
+	   asymmetry: a section opens with roughly double the air it closes with).
+
+	   THE DAY IS TIGHTER THAN IT WAS, ON PURPOSE. 64/40 → 80/48 → 96/56,
+	   one full step down from round one's 72/48 → 96/56 → 120/64. The page
+	   now spends its scale in two places — a full screen of dawn and a
+	   thousand pixels of night — and a document that answers a hero that big
+	   with the same generous air everywhere reads as evenly padded, which is
+	   the thing that made round one feel long. Tight → vast → tight is a
+	   shape you feel while scrolling; evenly-spacious is not a shape at all.
+	   The numbers stay on the spacing scale (see below) and the 2:1 open/close
+	   asymmetry is unchanged, so this is the same rhythm at a smaller
+	   amplitude, not a different one. */
 	.publy-landing-05-a .publy-l05a-section {
-		padding-block-start: 72px;
-		padding-block-end: 48px;
+		padding-block-start: 64px;
+		padding-block-end: 40px;
 		padding-inline: 16px;
 	}
 
@@ -489,15 +467,15 @@
 
 	@media (min-width: 1024px) {
 		.publy-landing-05-a .publy-l05a-section {
-			padding-block-start: 96px;
-			padding-block-end: 56px;
+			padding-block-start: 80px;
+			padding-block-end: 48px;
 		}
 	}
 
 	@media (min-width: 1280px) {
 		.publy-landing-05-a .publy-l05a-section {
-			padding-block-start: 120px;
-			padding-block-end: 64px;
+			padding-block-start: 96px;
+			padding-block-end: 56px;
 		}
 	}
 
@@ -548,20 +526,21 @@
 		margin-block-start: 48px;
 	}
 
-	/* Exception 1: the hero follows the header, not a section, and flows
-	   into the product window with no rule and no bottom padding.
+	/* Exception 1: the hero. It is the whole of the dawn, so its padding is
+	   what sets where the horizon falls, and the horizon has to fall inside
+	   the first viewport or the device does not exist for anyone who never
+	   scrolls.
 
-	   96/120/144 rather than the transposed 64/80/96. The hero is the only
-	   section every visitor sees and it was the thinnest on the page: a 68px
-	   headline starting 64px under the header reads as the top of a document,
-	   not as an opening. Raising it by one scale step puts the H1's cap at
-	   ~270px on a 1440x900 laptop — the dawn's own first peak, so the page's
-	   thesis is visible in the first viewport for the first time — and still
-	   leaves the CTA row at ~530px and a slice of the product window above
-	   the fold, which is the constraint attio-10 keys its whole hero to. */
+	   The arithmetic at 1440x900, which is the size this was tuned against:
+	   64 header + 128 top padding + 26 badge + 28 gap + 318 headline (three
+	   104px lines) + 32 gap + 30 lead + 40 gap + 44 CTA row + 120 bottom
+	   padding = 830. So the horizon lands at 830 and the window's 40px title
+	   bar occupies 790-830, leaving ~70px of the aperture below the line and
+	   above the fold. A reader who never scrolls has seen the statement, the
+	   two calls to action, the horizon and the top of the product. */
 	.publy-landing-05-a .publy-l05a-section-hero {
-		padding-block-start: 96px;
-		padding-block-end: 0;
+		padding-block-start: 72px;
+		padding-block-end: 80px;
 		padding-inline: 16px;
 	}
 
@@ -573,21 +552,39 @@
 
 	@media (min-width: 1024px) {
 		.publy-landing-05-a .publy-l05a-section-hero {
-			padding-block-start: 120px;
+			padding-block-start: 96px;
+			padding-block-end: 96px;
 		}
 	}
 
 	@media (min-width: 1280px) {
 		.publy-landing-05-a .publy-l05a-section-hero {
-			padding-block-start: 144px;
+			padding-block-start: 128px;
+			padding-block-end: 120px;
 		}
 	}
 
-	/* Exception 2: the product window closes on a large foot (120/160) so
-	   the floating cascade's 120px outer blur never lands on the next
-	   heading (todesktop's own hero does the same at pb-284). */
+	/* Exception 2: the product window, and the page's one deliberate
+	   collision. Its top margin is a negative 49px, which is not a nudge —
+	   it is exactly the window's own head: a 48px chrome bar carrying the
+	   five-surface tab strip, plus the 1px rail beneath it. So the chrome
+	   stands in the dawn and the dawn's 1px bottom border falls precisely on
+	   the rail: THE PAGE'S HORIZON AND THE TOUR'S ACTIVE-SURFACE INDICATOR
+	   ARE THE SAME LINE, one fifth of it in brand yellow, and that fifth
+	   slides when the reader changes tab. The product is the one object
+	   allowed to break out of the day and into the sky.
+
+	   Being keyed to the bar's height rather than to a measured page position
+	   is what makes it survive a locale change, a viewport change or an edit
+	   to the hero copy — the relationship is between two elements, not
+	   between an element and a number.
+
+	   It closes on a large foot (120/160) so the floating cascade's 120px
+	   outer blur never lands on the next heading (todesktop's own hero does
+	   the same at pb-284). */
 	.publy-landing-05-a .publy-l05a-section-window {
-		padding-block-start: 72px;
+		margin-block-start: -49px;
+		padding-block-start: 0;
 		padding-block-end: 120px;
 		padding-inline: 16px;
 	}
@@ -598,16 +595,40 @@
 		}
 	}
 
-	@media (min-width: 1024px) {
+	@media (min-width: 1280px) {
 		.publy-landing-05-a .publy-l05a-section-window {
-			padding-block-start: 96px;
+			padding-block-end: 160px;
+		}
+	}
+
+	/* Exception 3: the closing argument, the only section inside the night.
+	   It opens on the second horizon rather than on a rule of its own, so
+	   its top padding is the section ladder's own opening value; it closes
+	   on a foot deep enough that the ramp has visibly darkened before the
+	   footer takes it over. */
+	.publy-landing-05-a .publy-l05a-section-closing {
+		padding-block-start: 80px;
+		padding-block-end: 80px;
+		padding-inline: 16px;
+	}
+
+	@media (min-width: 640px) {
+		.publy-landing-05-a .publy-l05a-section-closing {
+			padding-inline: 24px;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.publy-landing-05-a .publy-l05a-section-closing {
+			padding-block-start: 120px;
+			padding-block-end: 120px;
 		}
 	}
 
 	@media (min-width: 1280px) {
-		.publy-landing-05-a .publy-l05a-section-window {
-			padding-block-start: 120px;
-			padding-block-end: 160px;
+		.publy-landing-05-a .publy-l05a-section-closing {
+			padding-block-start: 160px;
+			padding-block-end: 144px;
 		}
 	}
 
@@ -766,12 +787,6 @@
 		border-radius: 24px;
 	}
 
-	/* The night band's inner panel: 24 - 4 = 20 (todesktop-23's 4px-inset
-	   card frame, verbatim). */
-	.publy-landing-05-a .publy-l05a-radius-band-inner {
-		border-radius: 20px;
-	}
-
 	/* ---- Focus (prompt §7): `Button`/`buttonVariants` elements already ship
 	   their own focus-visible ring (`--ring` resolves to `--publy-focus-ring`),
 	   but this page also hand-builds interactive controls — the tab strip, the
@@ -810,9 +825,10 @@
 		background-color: color-mix(in srgb, var(--publy-primary) 34%, transparent);
 	}
 
-	/* The night band is a fixed dark canvas in both themes, so a selection
-	   tuned for the page would drop its own foreground onto it. */
-	.publy-landing-05-a .publy-marketing-night ::selection {
+	/* The night is a fixed dark canvas in both themes, so a selection tuned
+	   for the page would drop its own foreground onto it. */
+	.publy-landing-05-a .publy-l05a-night ::selection,
+	.publy-landing-05-a .publy-l05a-night-foot ::selection {
 		background-color: color-mix(in srgb, var(--publy-primary) 34%, transparent);
 		color: var(--l05a-night-foreground);
 	}
@@ -836,16 +852,6 @@
 	.publy-landing-05-a .publy-l05a-underline:hover,
 	.publy-landing-05-a .publy-l05a-underline:focus-visible {
 		text-decoration-line: underline;
-	}
-
-	/* The night band is deliberately theme-invariant (§2.2), but
-	   --publy-focus-ring is not — its light-mode value (#a16207) measures only
-	   3.00:1 against the derived night background, a pass with zero margin.
-	   --publy-primary is warm yellow in both themes and clears ~8.5–9.4:1 on
-	   the same background, the same family the prompt's own dark-mode pin
-	   (#facc15, 11.19:1) is reaching for. Scoped override, not a new token. */
-	.publy-landing-05-a .publy-marketing-night {
-		--publy-focus-ring: var(--publy-primary);
 	}
 
 	/* ---- The eyebrow chip (todesktop-06 form, attio-31 chip, repo colour):
@@ -1016,8 +1022,10 @@
 			transform: none;
 		}
 
-		.publy-landing-05-a .publy-marketing-sky {
-			display: none;
+		.publy-landing-05-a .publy-l05a-dawn,
+		.publy-landing-05-a .publy-l05a-night,
+		.publy-landing-05-a .publy-l05a-night-foot {
+			background-image: none;
 		}
 	}
 
@@ -1031,8 +1039,9 @@
 	   was the reason for the construction and this is where it pays. The
 	   three objects whose edge is a RING rather than a border are given a
 	   real border of the system's own `ButtonBorder` for the same reason, and
-	   the sky is dropped rather than left as a flat forced fill behind
-	   forced-colour text. */
+	   the two atmospheres are dropped rather than left as flat forced fills
+	   behind forced-colour text — the horizons survive, because they are
+	   real borders. */
 	@media (forced-colors: active) {
 		.publy-landing-05-a .publy-l05a-hero-badge,
 		.publy-landing-05-a .publy-l05a-eyebrow-chip,
@@ -1040,8 +1049,10 @@
 			border: 1px solid ButtonBorder;
 		}
 
-		.publy-landing-05-a .publy-marketing-sky {
-			display: none;
+		.publy-landing-05-a .publy-l05a-dawn,
+		.publy-landing-05-a .publy-l05a-night,
+		.publy-landing-05-a .publy-l05a-night-foot {
+			background-image: none;
 		}
 
 		.publy-landing-05-a .publy-l05a-focus-ring:focus-visible {

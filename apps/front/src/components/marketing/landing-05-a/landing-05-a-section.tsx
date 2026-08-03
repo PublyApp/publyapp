@@ -16,21 +16,27 @@ import { cn } from '~/lib/utils';
  * - `hero`: follows the header, not a section (96/120/144 top), and closes at
  *   zero so the hero and the product window share one continuous unruled
  *   stretch of field — they are one statement.
- * - `window`: the product window's large foot (120 → 160 bottom), so the
- *   floating cascade's 120px outer blur never lands on the next heading.
+ * - `window`: the first section below the first horizon, and the one that
+ *   crosses it. Its top margin is a negative 40px — exactly the height of the
+ *   product window's own title bar — so the bar rises into the dawn and the
+ *   horizon rule runs out of its bottom edge. Large foot (120 → 160 bottom),
+ *   so the floating cascade's 120px outer blur never lands on the next
+ *   heading.
+ * - `closing`: the only section inside the night. It opens on the second
+ *   horizon rather than on a rule of its own, and closes on a foot deep
+ *   enough that the ramp has room to darken before the footer takes it over.
  *
  * Horizontal gutters (16 → 24px) are part of the same classes: inside the
  * ruled column they are what insets content from the two vertical rules.
  *
- * One section's BODY leaves this frame: §4's fact grid carries
- * `.publy-l05a-bleed` and runs to the viewport edges while its header stays
- * on the column's left edge with every other heading on the page. See
- * "COMPOSITIONAL BREAK 1 OF 2" in `styles/landing-05-a.css`.
+ * Nothing leaves this frame. Every section on the page is the same width;
+ * what varies is what a section IS, never how wide it is.
  */
 const VARIANT_CLASS = {
 	standard: 'publy-l05a-section',
 	hero: 'publy-l05a-section-hero',
 	window: 'publy-l05a-section-window',
+	closing: 'publy-l05a-section-closing',
 } as const;
 
 type Landing05ASectionProps = {

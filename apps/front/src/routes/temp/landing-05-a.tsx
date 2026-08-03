@@ -10,9 +10,13 @@ import { Landing05AFaq } from '~/components/marketing/landing-05-a/landing-05-a-
 import { Landing05AFooter } from '~/components/marketing/landing-05-a/landing-05-a-footer';
 import { Landing05AHeader } from '~/components/marketing/landing-05-a/landing-05-a-header';
 import { Landing05APricing } from '~/components/marketing/landing-05-a/landing-05-a-pricing';
+import {
+	Landing05ADawn,
+	Landing05ADay,
+	Landing05ANight,
+} from '~/components/marketing/landing-05-a/landing-05-a-regions';
 import { Landing05ASection } from '~/components/marketing/landing-05-a/landing-05-a-section';
 import { Landing05ASectionHeader } from '~/components/marketing/landing-05-a/landing-05-a-section-header';
-import { Landing05ASky } from '~/components/marketing/landing-05-a/landing-05-a-sky';
 import { Landing05ATour } from '~/components/marketing/landing-05-a/landing-05-a-tour';
 import { Landing05ATrial } from '~/components/marketing/landing-05-a/landing-05-a-trial';
 import { useL05aReveal } from '~/components/marketing/landing-05-a/use-l05a-reveal';
@@ -70,16 +74,23 @@ export const Route = createFileRoute('/temp/landing-05-a')({
 });
 
 /**
- * 05-A — THE SKY, REFINED: header through the footer.
+ * 05-A — THE DAY: header through the footer.
  *
  * `__root.tsx`'s `isLandingExplorationPath` branch renders every /temp/
  * landing route bare — no `MarketingLayout`, so no shared header/footer and
  * no inherited `MarketingContainer` inset. This direction therefore owns its
  * whole shell: `Landing05AHeader` and `Landing05AFooter` (own files, own
- * `.publy-landing-05-a`-scoped styling) bracket a `<main>` that carries one
- * continuous atmosphere (`Landing05ASky`) behind a single ruled column; every
- * section below opens with its own chip → H2 → dek triple (§2.6) and hands
- * its body to a dedicated component.
+ * `.publy-landing-05-a`-scoped styling) bracket a `<main>` built from three
+ * regions and the two horizons between them — see `landing-05-a-regions.tsx`.
+ *
+ * DAWN holds the hero and nothing else, for a full screen. The first HORIZON
+ * is the dawn's own bottom edge, a hairline running the full width of the
+ * viewport; the product window is pulled up by exactly the height of its
+ * title bar so that the bar stands above the line and the horizon runs
+ * straight out of it in both directions. DAY is paper: no field, one ruled
+ * column, the entire argument, deliberately the flattest part of the page.
+ * The second HORIZON opens NIGHT, which takes the closing argument and the
+ * footer together and runs off the bottom of the document.
  */
 function LandingExploration05A() {
 	const { t } = useTranslation('landing-05-a');
@@ -95,15 +106,6 @@ function LandingExploration05A() {
 			data-testid="landing-05-a-page"
 			className="publy-landing-05-a relative isolate flex min-h-dvh flex-col"
 		>
-			{/* The page's one atmosphere, mounted once — on the ROOT, not
-			    inside `<main>`, so the header, the document and the footer all
-			    sit on the same field and the page never leaves it. It is the
-			    first child and it is the only absolutely positioned element
-			    here; every landmark after it is a positioned sibling, so the
-			    content paints above the sky by DOM order and the page still
-			    carries no z-index of its own. `isolate` keeps the arrangement
-			    out of the sticky header's stacking context. */}
-			<Landing05ASky />
 			{/* Keyboard order is skip link → header → main → footer. Invisible
 			    until focused; a keyboard user tabbing in from the address bar
 			    can jump straight past the header/nav repetition. */}
@@ -124,227 +126,254 @@ function LandingExploration05A() {
 				tabIndex={-1}
 				className="relative flex-1 overflow-x-clip outline-none"
 			>
-				<div className="publy-l05a-ruled-column">
-					{/* §1 — Hero: type on the gradient, nothing else. */}
-					<Landing05ASection
-						variant="hero"
-						labelledBy="landing-05-a-hero-heading"
-						className="text-center"
-					>
-						<p className="publy-l05a-hero-badge mx-auto mb-8">
-							{t('landing-hero-badge')}
-						</p>
-						<h1
-							id="landing-05-a-hero-heading"
-							data-testid="landing-hero-title"
-							className="publy-type-sky-display-1 publy-sky-a-focus-in mx-auto max-w-[24ch] text-balance text-(--publy-foreground) md:max-w-[20ch]"
+				{/* ---- DAWN. One statement, one screen, nothing else in it. The
+				    hero is left-flush against the reading column's own edge, and
+				    the right half of the sky is left empty on purpose: it is the
+				    only place on the page where emptiness is the composition
+				    rather than a gap between two things. */}
+				<Landing05ADawn>
+					<div className="publy-l05a-ruled-column">
+						<Landing05ASection
+							variant="hero"
+							labelledBy="landing-05-a-hero-heading"
 						>
-							{t('landing-hero-title')}
-						</h1>
-						<p className="publy-type-sky-lead mx-auto mt-6 max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">
-							{t('landing-hero-description')}
-						</p>
-						<div className="mt-8 flex flex-wrap justify-center gap-3">
-							<Link
-								to="/signup"
-								className={cn(
-									buttonVariants({ variant: 'default', size: 'lg' }),
-									'publy-l05a-pressable',
-								)}
+							<p className="publy-l05a-hero-badge mb-7">
+								{t('landing-hero-badge')}
+							</p>
+							<h1
+								id="landing-05-a-hero-heading"
+								data-testid="landing-hero-title"
+								className="publy-type-sky-display-1 publy-sky-a-focus-in publy-l05a-optical-flush max-w-[15ch] text-balance text-(--publy-foreground)"
 							>
-								{t('landing-hero-primary-cta')}
-							</Link>
-							<a
-								href="#product-window"
-								className={cn(
-									buttonVariants({ variant: 'outline', size: 'lg' }),
-									'publy-l05a-pressable',
-								)}
-							>
-								{t('landing-hero-secondary-cta')}
-							</a>
-						</div>
-					</Landing05ASection>
+								{t('landing-hero-title')}
+							</h1>
+							<p className="publy-type-sky-lead mt-8 max-w-[46ch] text-pretty text-(--publy-foreground-secondary)">
+								{t('landing-hero-description')}
+							</p>
+							<div className="mt-10 flex flex-wrap gap-3">
+								<Link
+									to="/signup"
+									className={cn(
+										buttonVariants({ variant: 'default', size: 'lg' }),
+										'publy-l05a-pressable',
+									)}
+								>
+									{t('landing-hero-primary-cta')}
+								</Link>
+								<a
+									href="#product-window"
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'lg' }),
+										'publy-l05a-pressable',
+									)}
+								>
+									{t('landing-hero-secondary-cta')}
+								</a>
+							</div>
+						</Landing05ASection>
+					</div>
+				</Landing05ADawn>
 
-					{/* §2 — The product window: one aperture over the bloom, and the
-					    hero secondary CTA's anchor target. Unruled — hero and window
-					    share one continuous stretch of field. */}
-					<Landing05ASection
-						variant="window"
-						id="product-window"
-						anchor
-						labelledBy="landing-05-a-tour-heading"
-					>
-						<Landing05ATour />
-					</Landing05ASection>
+				{/* ---- DAY. Paper. The whole argument, in one ruled column, with
+				    no field behind it. */}
+				<Landing05ADay>
+					<div className="publy-l05a-ruled-column">
+						{/* §2 — The product window. It is the first thing below the
+						    horizon and it is pulled up through it: `publy-l05a-cross`
+						    lifts the section by exactly the 40px of the window's own
+						    title bar, so the bar stands in the dawn and the horizon
+						    runs out of its bottom edge to both viewport edges. Also
+						    the hero secondary CTA's anchor target. */}
+						<Landing05ASection
+							variant="window"
+							id="product-window"
+							anchor
+							labelledBy="landing-05-a-tour-heading"
+						>
+							<Landing05ATour />
+						</Landing05ASection>
 
-					{/* §3 — Three claims (attio-29 stat blocks). */}
-					<Landing05ASection
-						reveal
-						ruled
-						labelledBy="landing-05-a-claim-heading"
-					>
-						<Landing05ASectionHeader
-							headingId="landing-05-a-claim-heading"
-							eyebrowKey="landing-claim-eyebrow"
-							titleKey="landing-claim-title"
-							dekKey="landing-claim-dek"
-						/>
-						<Landing05AClaims />
-					</Landing05ASection>
-
-					{/* §4 — What ships today: the six-fact strip (todesktop-31). */}
-					<Landing05ASection
-						reveal
-						ruled
-						labelledBy="landing-05-a-capability-heading"
-					>
-						<Landing05ASectionHeader
-							headingId="landing-05-a-capability-heading"
-							eyebrowKey="landing-capability-eyebrow"
-							titleKey="landing-capability-title"
-							dekKey="landing-capability-dek"
-						/>
-						<Landing05ACapabilities />
-					</Landing05ASection>
-
-					{/* §5 — Who it is for (attio-15 hairline grid + one side-pane slot). */}
-					<Landing05ASection
-						reveal
-						ruled
-						labelledBy="landing-05-a-audience-heading"
-					>
-						<Landing05ASectionHeader
-							headingId="landing-05-a-audience-heading"
-							eyebrowKey="landing-bento-eyebrow"
-							titleKey="landing-bento-title"
-							dekKey="landing-bento-dek"
-						/>
-						<Landing05AAudience />
-					</Landing05ASection>
-
-					{/* §6 — The planned trial: claim-gated, three steps. */}
-					<Landing05ASection
-						reveal
-						ruled
-						labelledBy="landing-05-a-timeline-heading"
-					>
-						<Landing05ASectionHeader
-							headingId="landing-05-a-timeline-heading"
-							eyebrowKey="landing-timeline-eyebrow"
-							titleKey="landing-timeline-title"
-							dekKey="landing-trial-plan-note"
-							dekTestId="landing-trial-plan-note"
-						/>
-						<Landing05ATrial />
-					</Landing05ASection>
-
-					{/* §7 — Pricing: struck through, beta-noted, todesktop-23 framed. */}
-					<Landing05ASection
-						reveal
-						ruled
-						id="pricing"
-						anchor
-						testId="landing-pricing"
-						labelledBy="landing-05-a-pricing-heading"
-					>
-						<Landing05ASectionHeader
-							headingId="landing-05-a-pricing-heading"
-							eyebrowKey="landing-pricing-eyebrow"
-							titleKey="landing-pricing-title"
-							dekKey="landing-pricing-subtitle"
-						/>
-						<Landing05APricing />
-					</Landing05ASection>
-
-					{/* §8 — FAQ: ONE COLUMN, like every other section on the page.
-					    The heading sits above the questions, full width; there is
-					    no side rail, no split and no offset. */}
-					<Landing05ASection
-						reveal
-						ruled
-						id="faq"
-						anchor
-						labelledBy="landing-05-a-faq-heading"
-					>
-						<Landing05ASectionHeader
-							headingId="landing-05-a-faq-heading"
-							eyebrowKey="landing-faq-eyebrow"
-							titleKey="landing-faq-title"
-							dekKey="landing-faq-dek"
-						/>
-						<Landing05AFaq />
-					</Landing05ASection>
-
-					{/* §9 — The two flag-gated bands: restyled onto the attio-15
-					    hairline grid, flags stay off in every released image (no
-					    Dockerfile ARG exists). */}
-					{FEATURES.marketing.customerLogos ? (
+						{/* §3 — Three claims (attio-29 stat blocks). */}
 						<Landing05ASection
 							reveal
 							ruled
-							testId="landing-customer-logos"
-							labelledBy="landing-05-a-logos-heading"
+							labelledBy="landing-05-a-claim-heading"
 						>
-							<h2
-								id="landing-05-a-logos-heading"
-								className="publy-type-sky-display-3 mx-auto max-w-[58ch] text-center text-balance text-(--publy-foreground)"
-							>
-								{t('landing-customer-logos-title')}
-							</h2>
-							<div className="publy-marketing-hairline-grid mt-7 grid grid-cols-2 sm:grid-cols-3">
-								{CUSTOMER_LOGO_KEYS.map((logoKey) => (
-									<div
-										key={logoKey}
-										className="flex min-h-16 items-center justify-center bg-(--publy-surface) px-4 text-center"
-									>
-										<span className="publy-type-sky-label text-(--publy-foreground-secondary)">
-											{t(logoKey)}
-										</span>
-									</div>
-								))}
-							</div>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-claim-heading"
+								eyebrowKey="landing-claim-eyebrow"
+								titleKey="landing-claim-title"
+								dekKey="landing-claim-dek"
+							/>
+							<Landing05AClaims />
 						</Landing05ASection>
-					) : null}
-					{FEATURES.marketing.socialProof ? (
-						<section
-							data-testid="landing-social-proof"
-							className="publy-l05a-section publy-l05a-section-ruled"
-						>
-							<div className="publy-marketing-hairline-grid grid grid-cols-1 sm:grid-cols-3">
-								{SOCIAL_PROOF_KEYS.map((proofKey) => (
-									<p
-										key={proofKey}
-										className="publy-type-sky-label bg-(--publy-surface) px-6 py-5 text-center text-(--publy-foreground-secondary)"
-									>
-										{t(proofKey)}
-									</p>
-								))}
-							</div>
-						</section>
-					) : null}
 
-					{/* §10 — Closing: the night slice (todesktop-15) — one boxed slice
-					    of the same sky, rotated 7° off vertical, theme-invariant. */}
-					<Landing05ASection
-						reveal
-						ruled
-						labelledBy="landing-05-a-closing-heading"
-					>
-						<div className="publy-marketing-night publy-l05a-radius-band relative isolate overflow-hidden px-6 py-14 text-center sm:px-12 md:py-16 lg:py-20">
-							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip-night mx-auto w-fit">
+						{/* §4 — What ships today: the six-fact strip (todesktop-31). */}
+						<Landing05ASection
+							reveal
+							ruled
+							labelledBy="landing-05-a-capability-heading"
+						>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-capability-heading"
+								eyebrowKey="landing-capability-eyebrow"
+								titleKey="landing-capability-title"
+								dekKey="landing-capability-dek"
+							/>
+							<Landing05ACapabilities />
+						</Landing05ASection>
+
+						{/* §5 — Who it is for (attio-15 hairline grid + one side-pane slot). */}
+						<Landing05ASection
+							reveal
+							ruled
+							labelledBy="landing-05-a-audience-heading"
+						>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-audience-heading"
+								eyebrowKey="landing-bento-eyebrow"
+								titleKey="landing-bento-title"
+								dekKey="landing-bento-dek"
+							/>
+							<Landing05AAudience />
+						</Landing05ASection>
+
+						{/* §6 — The planned trial: claim-gated, three steps. */}
+						<Landing05ASection
+							reveal
+							ruled
+							labelledBy="landing-05-a-timeline-heading"
+						>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-timeline-heading"
+								eyebrowKey="landing-timeline-eyebrow"
+								titleKey="landing-timeline-title"
+								dekKey="landing-trial-plan-note"
+								dekTestId="landing-trial-plan-note"
+							/>
+							<Landing05ATrial />
+						</Landing05ASection>
+
+						{/* §7 — Pricing: struck through, beta-noted, todesktop-23 framed. */}
+						<Landing05ASection
+							reveal
+							ruled
+							id="pricing"
+							anchor
+							testId="landing-pricing"
+							labelledBy="landing-05-a-pricing-heading"
+						>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-pricing-heading"
+								eyebrowKey="landing-pricing-eyebrow"
+								titleKey="landing-pricing-title"
+								dekKey="landing-pricing-subtitle"
+							/>
+							<Landing05APricing />
+						</Landing05ASection>
+
+						{/* §8 — FAQ: ONE COLUMN, like every other section on the page.
+					    The heading sits above the questions, full width; there is
+					    no side rail, no split and no offset. */}
+						<Landing05ASection
+							reveal
+							ruled
+							id="faq"
+							anchor
+							labelledBy="landing-05-a-faq-heading"
+						>
+							<Landing05ASectionHeader
+								headingId="landing-05-a-faq-heading"
+								eyebrowKey="landing-faq-eyebrow"
+								titleKey="landing-faq-title"
+								dekKey="landing-faq-dek"
+							/>
+							<Landing05AFaq />
+						</Landing05ASection>
+
+						{/* §9 — The two flag-gated bands: restyled onto the attio-15
+					    hairline grid, flags stay off in every released image (no
+					    Dockerfile ARG exists). */}
+						{FEATURES.marketing.customerLogos ? (
+							<Landing05ASection
+								reveal
+								ruled
+								testId="landing-customer-logos"
+								labelledBy="landing-05-a-logos-heading"
+							>
+								<h2
+									id="landing-05-a-logos-heading"
+									className="publy-type-sky-display-3 mx-auto max-w-[58ch] text-center text-balance text-(--publy-foreground)"
+								>
+									{t('landing-customer-logos-title')}
+								</h2>
+								<div className="publy-marketing-hairline-grid mt-7 grid grid-cols-2 sm:grid-cols-3">
+									{CUSTOMER_LOGO_KEYS.map((logoKey) => (
+										<div
+											key={logoKey}
+											className="flex min-h-16 items-center justify-center bg-(--publy-surface) px-4 text-center"
+										>
+											<span className="publy-type-sky-label text-(--publy-foreground-secondary)">
+												{t(logoKey)}
+											</span>
+										</div>
+									))}
+								</div>
+							</Landing05ASection>
+						) : null}
+						{FEATURES.marketing.socialProof ? (
+							<section
+								data-testid="landing-social-proof"
+								className="publy-l05a-section publy-l05a-section-ruled"
+							>
+								<div className="publy-marketing-hairline-grid grid grid-cols-1 sm:grid-cols-3">
+									{SOCIAL_PROOF_KEYS.map((proofKey) => (
+										<p
+											key={proofKey}
+											className="publy-type-sky-label bg-(--publy-surface) px-6 py-5 text-center text-(--publy-foreground-secondary)"
+										>
+											{t(proofKey)}
+										</p>
+									))}
+								</div>
+							</section>
+						) : null}
+					</div>
+				</Landing05ADay>
+
+				{/* ---- NIGHT, and the page's second horizon. The closing argument
+				    used to be a 24px-radius box floating inside the column with
+				    the footer on paper beneath it — a dark card, not an ending.
+				    It is now the region itself: full-bleed, no radius, no
+				    bracket, opening on the horizon rule and running off the
+				    bottom of the document. The footer picks the same ramp up
+				    where this hands it over, so the last thousand pixels of the
+				    page are one object.
+
+				    Left-flush, like everything above it. Centring the closing
+				    band was the page's last disagreement with its own alignment:
+				    a reader who has read one left edge for seven thousand pixels
+				    does not want the final sentence somewhere else. */}
+				<Landing05ANight>
+					<div className="publy-l05a-ruled-column">
+						<Landing05ASection
+							reveal
+							variant="closing"
+							labelledBy="landing-05-a-closing-heading"
+						>
+							<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip-night w-fit">
 								{t('landing-closing-eyebrow')}
 							</p>
 							<h2
 								id="landing-05-a-closing-heading"
-								className="publy-type-sky-display-2 mx-auto mt-6 max-w-[18ch] text-balance text-(--l05a-night-foreground)"
+								className="publy-type-sky-display-2 publy-l05a-optical-flush mt-7 max-w-[16ch] text-balance text-(--publy-foreground)"
 							>
 								{t('landing-closing-title')}
 							</h2>
-							<p className="publy-type-sky-lead mx-auto mt-3 max-w-[52ch] text-pretty text-(--l05a-night-foreground-muted)">
+							<p className="publy-type-sky-lead mt-6 max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">
 								{t('landing-closing-description')}
 							</p>
-							<div className="mt-8 flex flex-wrap justify-center gap-3">
+							<div className="mt-10 flex flex-wrap gap-3">
 								<Link
 									to="/signup"
 									className={cn(
@@ -356,14 +385,14 @@ function LandingExploration05A() {
 								</Link>
 								<Link
 									to="/login"
-									className="publy-l05a-pressable inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] border border-(--l05a-night-hairline) px-6 text-sm font-medium text-(--l05a-night-foreground) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--publy-focus-ring)"
+									className="publy-l05a-pressable publy-l05a-focus-ring inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] border border-(--publy-border) px-6 text-sm font-medium text-(--publy-foreground) no-underline"
 								>
 									{t('landing-closing-secondary-cta')}
 								</Link>
 							</div>
-						</div>
-					</Landing05ASection>
-				</div>
+						</Landing05ASection>
+					</div>
+				</Landing05ANight>
 			</main>
 			<Landing05AFooter />
 			<Landing05ACookieBand onCustomize={() => setIsCookiePrefsOpen(true)} />
