@@ -103,7 +103,7 @@ export const Landing05ATour = () => {
 			<div className="relative">
 				<div
 					aria-hidden="true"
-					className="publy-l05a-radius-band pointer-events-none absolute inset-0 -inset-x-1 -bottom-1 z-(--publy-z-raised) border-x border-b border-(--publy-border) md:-inset-x-2 md:-bottom-2"
+					className="publy-l05a-radius-band publy-l05a-bracket pointer-events-none absolute inset-0 -inset-x-1 -bottom-1 z-(--publy-z-raised) border-x border-b md:-inset-x-2 md:-bottom-2"
 				/>
 				<div
 					className={cn(

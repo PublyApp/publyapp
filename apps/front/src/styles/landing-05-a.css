@@ -180,39 +180,49 @@
 	   real edge rather than as a seam; the identical declaration is 22% of
 	   #fafafa in dark, so one line serves both themes without a counterpart.
 
-	   Stop derivations, light dawn (over #ffffff with #fdc700):
-	     30%  6% ≈ #fff9e8    72% 15% ≈ #fff3cf    100% 24% ≈ #fff2c2
-	   The last stop is the warmest value anywhere on the page and it sits at
-	   the horizon, because that is where a dawn actually concentrates: the
-	   glow is at the ground, not overhead. Round one had the peak at 34% of
-	   a 2400px band, i.e. floating in the middle of the hero with nothing to
-	   land on. */
+	   THE RAMP IS DELIBERATELY FAINT. Owner's call: he wants the gradient,
+	   and he wants it *very* subtle. The stops were 6/15/24 and are now
+	   2/5/8 — a third of their weight, keeping the shape of the ramp and the
+	   position of every stop, changing only how much of it you see. The last
+	   stop is still the warmest value anywhere on the page and it still sits
+	   at the horizon, because that is where a dawn concentrates: the glow is
+	   at the ground, not overhead. (Round one had the peak at 34% of a 2400px
+	   band, floating mid-hero with nothing to land on. That was the wrong
+	   PLACE for the warmth; this is the right place at a much lower volume.)
+
+	   Keeping the stop positions rather than flattening to a two-stop ramp
+	   matters at this weight: the 30/72/100 spacing is what stops a very
+	   faint gradient from banding on a wide field. */
 	.publy-landing-05-a .publy-l05a-dawn {
 		border-block-end: 1px solid
 			color-mix(in srgb, var(--publy-foreground) 22%, transparent);
 		background-image: linear-gradient(
 			180deg,
 			var(--publy-background) 0%,
-			color-mix(in srgb, var(--publy-primary) 6%, var(--publy-background)) 30%,
-			color-mix(in srgb, var(--publy-primary) 15%, var(--publy-background)) 72%,
-			color-mix(in srgb, var(--publy-primary) 24%, var(--publy-background)) 100%
+			color-mix(in srgb, var(--publy-primary) 2%, var(--publy-background)) 30%,
+			color-mix(in srgb, var(--publy-primary) 5%, var(--publy-background)) 72%,
+			color-mix(in srgb, var(--publy-primary) 8%, var(--publy-background)) 100%
 		);
 	}
 
-	/* The dark dawn. `--publy-primary-soft` (#2a2400) is the system's own dark
-	   warm tint but it tops out too pale for a field this large, so the dark
-	   ramp mixes the primary straight into the page instead: 14% is
-	   (54, 47, 23) — a warm brown-black that still reads as ONE surface with
-	   the #18181b header above it. Same three stop positions as light, so the
-	   geometry is one ramp re-pointed per theme (attio-03) rather than two
-	   ramps. */
+	/* The dark dawn, at the same reduced volume: 3/8/14 became 1/3/5. It stays
+	   a straight mix of the primary into the page rather than
+	   `--publy-primary-soft`, which tops out too pale for a field this large.
+	   Same three stop positions as light, so the geometry is one ramp
+	   re-pointed per theme (attio-03) rather than two ramps.
+
+	   Dark carries roughly two thirds of light's percentage at every stop, and
+	   that ratio is deliberate rather than proportional habit: the same mix
+	   percentage reads warmer against a near-black page than against white,
+	   so matching the numbers across themes would make the dark dawn the
+	   louder of the two. */
 	html.dark .publy-landing-05-a .publy-l05a-dawn {
 		background-image: linear-gradient(
 			180deg,
 			var(--publy-background) 0%,
-			color-mix(in srgb, var(--publy-primary) 3%, var(--publy-background)) 30%,
-			color-mix(in srgb, var(--publy-primary) 8%, var(--publy-background)) 72%,
-			color-mix(in srgb, var(--publy-primary) 14%, var(--publy-background)) 100%
+			color-mix(in srgb, var(--publy-primary) 1%, var(--publy-background)) 30%,
+			color-mix(in srgb, var(--publy-primary) 3%, var(--publy-background)) 72%,
+			color-mix(in srgb, var(--publy-primary) 5%, var(--publy-background)) 100%
 		);
 	}
 
@@ -220,10 +230,14 @@
 
 	   The closing region and the footer are separate elements — a page-level
 	   `<footer>` cannot live inside `<main>` — so the ramp is split at a
-	   shared value rather than restarted: the closing region runs 11% → 6% of
+	   shared value rather than restarted: the closing region runs 4% → 2% of
 	   the brand primary over the fixed auth canvas, and the footer picks up at
-	   exactly 6% and carries on to 2%. Both are vertical, so the handover is
-	   seamless at every viewport width. (Round one's band was a 353deg tilt,
+	   exactly 2% and carries on to 1%. Both are vertical, so the handover is
+	   seamless at every viewport width. The four numbers were 11 → 6 → 6 → 2
+	   and came down with the dawn on the same owner call; what matters is that
+	   the two middle values still MATCH, because that shared value is the only
+	   thing making two elements read as one field. Change one of them and the
+	   footer separates from the band. (Round one's band was a 353deg tilt,
 	   which is a fine device on a 1100px box and impossible to hand over
 	   across two elements at page scale.)
 
@@ -265,9 +279,8 @@
 			color-mix(in srgb, var(--publy-foreground) 22%, transparent);
 		background-image: linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--publy-primary) 11%, var(--publy-auth-panel-bg))
-				0%,
-			color-mix(in srgb, var(--publy-primary) 6%, var(--publy-auth-panel-bg))
+			color-mix(in srgb, var(--publy-primary) 4%, var(--publy-auth-panel-bg)) 0%,
+			color-mix(in srgb, var(--publy-primary) 2%, var(--publy-auth-panel-bg))
 				100%
 		);
 	}
@@ -275,8 +288,8 @@
 	.publy-landing-05-a .publy-l05a-night-foot {
 		background-image: linear-gradient(
 			180deg,
-			color-mix(in srgb, var(--publy-primary) 6%, var(--publy-auth-panel-bg)) 0%,
-			color-mix(in srgb, var(--publy-primary) 2%, var(--publy-auth-panel-bg))
+			color-mix(in srgb, var(--publy-primary) 2%, var(--publy-auth-panel-bg)) 0%,
+			color-mix(in srgb, var(--publy-primary) 1%, var(--publy-auth-panel-bg))
 				100%
 		);
 	}
@@ -848,21 +861,28 @@
 			0 0 0 1px var(--publy-border);
 	}
 
+	/* ---- IN DARK, THE WINDOW HAS NO CAST SHADOW. Owner's call, and the
+	   better one.
+
+	   A shadow says "this object is above the page" by darkening the page
+	   around it. On a near-black field there is almost nothing left to
+	   darken, so the six-layer cascade bought very little elevation — and it
+	   cost something real: a 55%-of-near-black wash spread across the 120px
+	   around the window, sitting exactly where the bracket's hairline lives.
+	   That wash is why the bracket read as missing on its bottom and right,
+	   the sides the downward offsets reach hardest.
+
+	   So dark mode keeps the ring and drops the cast. The window is separated
+	   from the field by its EDGE, which is how a dark interface separates
+	   things anyway. Light mode is untouched: there the cascade runs 4-8% on
+	   a bright field, where a shadow is the honest way to lift an object and
+	   costs the bracket nothing.
+
+	   The featured pricing tray keeps its own (much smaller, 12px) cascade in
+	   dark — elevation is that tier's ONLY differentiator, and nothing of the
+	   page's structure sits in its shadow's reach. */
 	html.dark .publy-landing-05-a .publy-l05a-shadow-window {
-		box-shadow:
-			0 120px 80px -64px
-				color-mix(in srgb, var(--l05a-shadow-tint) 55%, transparent),
-			0 64px 64px -16px
-				color-mix(in srgb, var(--l05a-shadow-tint) 45%, transparent),
-			0 32px 32px -8px
-				color-mix(in srgb, var(--l05a-shadow-tint) 38%, transparent),
-			0 16px 16px -4px
-				color-mix(in srgb, var(--l05a-shadow-tint) 34%, transparent),
-			0 8px 8px -2px
-				color-mix(in srgb, var(--l05a-shadow-tint) 30%, transparent),
-			0 4px 4px -1px
-				color-mix(in srgb, var(--l05a-shadow-tint) 30%, transparent),
-			0 0 0 1px var(--publy-border);
+		box-shadow: 0 0 0 1px var(--publy-border);
 	}
 
 	/* ---- Radii: the one value the system lacks is the 24px band radius —
@@ -887,6 +907,53 @@
 	   own depends on this value. */
 	.publy-landing-05-a .publy-l05a-radius-band {
 		border-radius: 16px;
+	}
+
+	/* ---- THE BRACKET'S LINE SURVIVES A FRACTIONAL DEVICE PIXEL.
+
+	   In light mode the bracket takes the page's ordinary border token. In
+	   dark it does not, and the reason is measured rather than aesthetic.
+
+	   The bracket's box does not land on whole device pixels on every side:
+	   its left edge sits at an integer x, its bottom does not, and at a
+	   fractional device-pixel ratio neither does its right. Sampling the
+	   rendered page in dark mode at 1440, the border's peak intensity was:
+
+	     DPR 1     left 55   right 55   bottom 55
+	     DPR 1.25  left 55   right 39   bottom 46
+	     DPR 1.5   left 45   right 55   bottom 42
+	     DPR 2     left 55   right 55   bottom 55
+
+	   At a fractional ratio the browser splits the 1px line across two device
+	   pixels at partial coverage, and a low-alpha light hairline that loses
+	   30% of its weight over a near-black field stops being visible at all.
+	   That is exactly what the owner reported: dark mode only, right and
+	   bottom only, left fine. Light mode has enough contrast headroom that
+	   the same loss still reads, which is why it never showed there.
+
+	   Nothing in CSS can force the box onto whole device pixels — the page
+	   cannot know the reader's scaling. So the line is given more weight, and
+	   the honest report of what that buys, measured the same way at 22%:
+
+	     DPR 1     70 / 70 / 71      (was 55 / 55 / 55)
+	     DPR 1.25  70 / 47 / 58      (was 55 / 39 / 46)
+	     DPR 1.5   57 / 70 / 52      (was 45 / 55 / 42)
+	     DPR 2     70 / 70 / 71      (was 55 / 55 / 55)
+
+	   Every case improves and the worst case rises from 39 to 47 against a
+	   field of ~20 — a contrast of 1.23:1 to 1.38:1. It does NOT reach the
+	   value a crisply-snapped line has; a partially-covered pixel cannot,
+	   short of a heavier line than the design wants. If a reader still cannot
+	   see it at their scaling, the number to raise is this one, and the ceiling
+	   is the window's own ring: the mount must never out-draw the object it
+	   holds. This is the page's dark mode being DESIGNED rather than derived,
+	   which is the standard the direction sets for itself elsewhere. */
+	.publy-landing-05-a .publy-l05a-bracket {
+		border-color: var(--publy-border);
+	}
+
+	html.dark .publy-landing-05-a .publy-l05a-bracket {
+		border-color: color-mix(in srgb, var(--publy-foreground) 22%, transparent);
 	}
 
 	@media (min-width: 768px) {
