@@ -44,13 +44,13 @@ export const Landing05ASectionHeader = ({
 			    pill with a hairline ring, and the reason it gave was contrast:
 			    the muted step failed against the bloom the eyebrow used to sit
 			    on. There is no bloom under it any more — the day is paper — so
-			    the pill's only remaining job was to be yellow eight times on a
-			    page whose whole discipline is that nothing below the hero is
-			    filled. `--publy-marketing-eyebrow-accent` measures 5.05:1 on
+			    what was left was a yellow pill at eight section openings, which
+			    is decoration by repetition rather than a mark that means
+			    anything. `--publy-marketing-eyebrow-accent` measures 5.05:1 on
 			    white, and the eyebrow now reads as what it is: a label, in the
 			    brand's own colour, at the top of a section. Chips still exist on
-			    this page — the hero badge and the closing eyebrow — and both are
-			    in the sky. Chips in the sky, type on the ground. */}
+			    this page — the hero badge, the closing eyebrow, the featured
+			    tier's badge — and each of the three appears exactly once. */}
 			<p className="publy-marketing-eyebrow text-(--publy-marketing-eyebrow-accent)">
 				{t(eyebrowKey)}
 			</p>

@@ -9,9 +9,11 @@ import { cn } from '~/lib/utils';
  * shared `MarketingShell` (`__root.tsx` renders every /temp/landing-* route
  * bare). A panel — `bg-(--publy-surface-raised)` plus a hairline ring — never
  * a window, since there is nothing behind it to see through; the generic
- * `--publy-shadow-menu` token carries its elevation rather than the scoped
- * `.publy-l05a-shadow-window` cascade, which stays budgeted to the product window
- * and the night band only (§2.8). Type and press motion are this page's own
+ * `--publy-shadow-menu` token carries its elevation rather than either of the
+ * page's own cascades, which stay budgeted to the product window and the one
+ * pricing tray (`landing-05-a.css`, "THE THREE SURFACES"). The band is chrome
+ * rather than page — it is not one of the three surfaces, which is exactly why
+ * it borrows a system token. Type and press motion are this page's own
  * (`.publy-type-sky-*`, `.publy-l05a-pressable`). Accept and reject stay
  * equally weighted — a dark pattern otherwise, not a hierarchy choice.
  */

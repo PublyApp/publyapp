@@ -8,9 +8,10 @@ const FAQ_ITEMS = ['0', '1', '2', '3'] as const;
  * reflow, and the page reads as though it isn't hiding anything
  * (`padyna-01`/`attio-14`'s own device — a hairline rule, not a border —
  * continued from the section rhythm into the FAQ itself). A bordered,
- * chevron-toggled card is the one shape THE SKY's two-object rule forbids:
- * neither a window nor a panel, so it was the only "third kind of object" on
- * the page. The prior `columns-1 sm:columns-2` layout also rebalanced its
+ * chevron-toggled card is the shape the page's three-surface rule forbids
+ * here: an FAQ is a thing to READ, and the page raises a surface only where it
+ * asks the reader to DECIDE (`landing-05-a.css`, "THE THREE SURFACES") — which
+ * happens once, at pricing. The prior `columns-1 sm:columns-2` layout also rebalanced its
  * column break whenever an answer's height changed — confirmed in a browser,
  * where opening one item moved another item's position without touching it —
  * which a single reading order removes structurally rather than patches.

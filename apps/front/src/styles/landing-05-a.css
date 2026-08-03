@@ -13,12 +13,45 @@
    can point at both places.
 
    Three rules fall out of that, and nearly everything here is one of them:
-     1. Below the first horizon, the page draws with LINES and never with
-        FILLS. No section, cell, card or tray is filled. The only filled
-        things in the day are the primary buttons.
+     1. THE THREE SURFACES. The day is drawn with lines, not with fills — but
+        it has exactly three raised things in it, and each is used for one
+        job: WINDOWS (the product window), BANDS (the night), and ONE TRAY
+        (the pricing tiers). See "THE THREE SURFACES" below; the tray's
+        scarcity is its meaning.
      2. There is ONE alignment, and it is the reading column's left edge, from
         the hero badge to the copyright line.
-     3. There is ONE raised object, and it is the product window.
+     3. Everything that is neither a window, a band nor the tray is drawn with
+        a 1px line and nothing else: no fill, no radius, no shadow.
+
+   ================= THE THREE SURFACES =================
+
+   An earlier pass on this file stated rule 1 as "the page draws with LINES
+   and never with FILLS", and then followed it to its conclusion: the pricing
+   tiers lost their concentric trays and became three cells of a hairline
+   grid. They are the best-liked object in the whole direction, and a
+   principle that deletes the best object on the page is the wrong principle,
+   not the wrong element.
+
+   So the rule is restated rather than the object being sacrificed to it. The
+   page has three kinds of surface and no more:
+
+     WINDOW  a pane you look THROUGH — the product window, and only it. It is
+             the page's largest object, it carries the whole elevation
+             cascade, and it is the one thing allowed to break out of the day
+             into the sky.
+     BAND    a full-bleed field that IS the page for its own height — the
+             dawn and the night. A band has no edge of its own except the
+             horizon it opens on.
+     TRAY    a raised plate holding a card, used EXACTLY ONCE, at the one
+             place on the page where the reader is asked to compare three
+             things and choose one.
+
+   The tray's scarcity is the entire point. A page that raises a surface once
+   is saying something by raising it: this is where you decide. A page that
+   raises eight is saying nothing. That is why the two hairline grids ("who it
+   is for", the planned trial), the six-fact strip, the FAQ list and the three
+   claim blocks are all still drawn with lines alone — they are things to
+   READ, and the page never raises something it only wants read.
 
    THE DESIGN-TOKEN SITUATION, read before touching anything here:
 
@@ -690,7 +723,7 @@
 		box-shadow: 0 0 0 1px var(--publy-border);
 	}
 
-	/* ---- The two-object rule, ornament layer ---- */
+	/* ---- The three-surface rule, ornament layer ---- */
 
 	/* A window's ring is a ::before pseudo-element (todesktop-07), never a
 	   real border: `border-radius: inherit` keeps ring and parent radius
@@ -721,12 +754,50 @@
 
 	/* ---- Elevation (todesktop-08 law: y = blur, blur halves per step,
 	   spread ≈ -blur/4, alpha flat at 3-5%, ring last; todesktop-09 tint).
-	   THE BUDGET IS NOW ONE. The window cascade is the page's only elevation:
-	   the panel cascade it used to share the page with was spent on the
-	   pricing trays and on the closing band, and both of those are gone —
-	   pricing is ruled cells and the closing band is a full-bleed region. A
-	   document drawn entirely in hairlines has exactly one raised object in
-	   it, which is the product. */
+
+	   THE BUDGET IS TWO CASCADES AND THREE OBJECTS, which is exactly the
+	   three-surface rule at the top of this file expressed in shadows:
+
+	     window cascade  used ONCE, on the product window (six layers, 120px
+	                     outer blur — the page's largest object and the only
+	                     thing that floats above the field)
+	     panel cascade   used ONCE, on the featured pricing tray (four layers,
+	                     12px outer blur — a plate resting on paper, not
+	                     floating above it)
+	     ring only       the other two trays, so the featured tier is
+	                     separated by ELEVATION ALONE (sendr-18) rather than
+	                     by a border, a colour or a ribbon
+
+	   The closing band is not in this budget at all: it stopped being a card
+	   floating in the column and became the region itself, and a full-bleed
+	   band that runs off the bottom of the document has nothing to cast a
+	   shadow onto. Everything else on the page is a 1px line. */
+	.publy-landing-05-a .publy-l05a-shadow-panel {
+		box-shadow:
+			0 12px 12px -3px
+				color-mix(in srgb, var(--l05a-shadow-tint) 5%, transparent),
+			0 6px 6px -1.5px
+				color-mix(in srgb, var(--l05a-shadow-tint) 3%, transparent),
+			0 3px 3px -0.75px
+				color-mix(in srgb, var(--l05a-shadow-tint) 3%, transparent),
+			0 1px 1px -0.25px
+				color-mix(in srgb, var(--l05a-shadow-tint) 4%, transparent),
+			0 0 0 1px var(--publy-border);
+	}
+
+	html.dark .publy-landing-05-a .publy-l05a-shadow-panel {
+		box-shadow:
+			0 12px 12px -3px
+				color-mix(in srgb, var(--l05a-shadow-tint) 36%, transparent),
+			0 6px 6px -1.5px
+				color-mix(in srgb, var(--l05a-shadow-tint) 28%, transparent),
+			0 3px 3px -0.75px
+				color-mix(in srgb, var(--l05a-shadow-tint) 24%, transparent),
+			0 1px 1px -0.25px
+				color-mix(in srgb, var(--l05a-shadow-tint) 28%, transparent),
+			0 0 0 1px var(--publy-border);
+	}
+
 	.publy-landing-05-a .publy-l05a-shadow-window {
 		box-shadow:
 			0 120px 80px -64px
@@ -1187,7 +1258,7 @@
 		padding-inline: 10px;
 	}
 
-	/* ---- §5 / §6: THE PAGE DRAWS WITH LINES, IT DOES NOT DRAW WITH FILLS.
+	/* ---- §5 / §6: THINGS TO READ ARE DRAWN WITH LINES.
 
 	   `.publy-marketing-hairline-grid` works by painting the grid container
 	   in `--publy-border` and every cell in a surface colour, so the 1px gaps
@@ -1200,11 +1271,11 @@
 	   The cells are re-pointed at `--publy-surface` — identical to
 	   `--publy-background` in both themes — so what is left is the hairline
 	   ruling and nothing else, and the section reads as ruled paper rather
-	   than as a tray of cards. This is the page's standing rule below the
-	   hero: an object may have an EDGE, never a FILL, and the only filled
-	   things on the whole document are the primary buttons and the closing
-	   night. Scoped to this page, so the shared class is untouched for
-	   `landing-05` and the other explorations. */
+	   than as a tray of cards. That is the three-surface rule applied: these
+	   two sections are things to READ, and the page raises a surface only
+	   where it asks the reader to DECIDE, which happens once, at pricing.
+	   Scoped to this page, so the shared class is untouched for `landing-05`
+	   and the other explorations. */
 	.publy-landing-05-a .publy-marketing-hairline-grid > * {
 		background: var(--publy-surface);
 	}
