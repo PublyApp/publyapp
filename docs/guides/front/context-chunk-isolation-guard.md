@@ -38,11 +38,12 @@ object, and a provider in one chunk no longer matches a consumer in another.
 - The discovered contexts are checked against the checked-in inventory
   (`apps/front/scripts/context-chunk-isolation.inventory.mjs`). Any mismatch fails the build.
 - At `generateBundle` it reads the source map the build itself emitted for every client chunk.
-  For each inventory context the source scan records the **exact source span of every minting
-  call**, and a rendered copy of the source module is attributed a mint when the map places an
-  emitted call inside one of those spans in that exact module copy. The verdict is per context
-  and per copy: it fails the build when minting copies land in more than one chunk — or when a
-  single chunk contains two minting copies.
+  For each inventory context the source scan records the **argument-list extent of every minting
+  call** (the open paren through the close paren, not the whole call) and the mint callee's name.
+  A rendered copy of the source module is attributed a mint only when a single map segment ties a
+  generated call to a recorded mint span in that exact module copy. The verdict is per context and
+  per copy: it fails the build when minting copies land in more than one chunk — or when a single
+  chunk contains two minting copies.
 
 ## The inventory is a hand-maintained, build-blocking list
 
@@ -70,41 +71,45 @@ The guard deliberately throws instead of passing when it cannot attribute render
 - **Rendered attribution is source-map keyed, and the guard requests the map.** The plugin
   configures the client build to emit `hidden` source maps (no `sourceMappingURL` comment) when
   the user did not configure any, reads them at `generateBundle`, and strips the map assets from
-  the output before they can ship. The strip matches each candidate `*.map` asset's parsed content
-  against the client chunk maps the build actually produced — not a filename derived from the
-  chunk — so it also holds when the output renames map files via `sourcemapFileNames`, and a
-  legitimate unrelated asset that happens to be named `*.map` survives byte-for-byte instead of
-  being swept up by extension alone. The source scan records the exact source span of every
-  minting call; a rendered copy of the module is attributed a mint when the bundler's own map
-  places an emitted token **strictly inside** one of those spans in that exact module copy (the
-  map's resolved source id must equal the copy's module id, so sibling copies in the same chunk
-  stay distinct, and the span's first token is excluded because bundlers map an emitted callee
-  identifier to its import position and a callee *reference* would occupy the same in-span start
-  position as the call). The bundler cannot rewrite this identity, because the bundler is the
-  producer of the map: a call that did not originate at a recorded mint span can never map back to
-  it, no matter what names the bundler assigned — callee names, binding names, alias elimination,
-  import renaming and chunk merging are all invisible to a position comparison. A rendered copy
-  whose emitted call the map places outside every recorded span (TanStack's own
-  `component: lazyRouteComponent(…)` split shim, for example) is not counted as a mint.
+  the output before they can ship. When the guard forces the maps it also pins the map asset
+  naming to `[name].map`, so it owns the exact filename every forced map lands at
+  (`chunk.name + '.map'`) and deletes precisely those assets by name — never an unrelated asset
+  that merely shares a `*.map` suffix or the bytes of a chunk map. The source scan records the
+  argument-list extent of every minting call; a rendered copy of the module is attributed a mint
+  when the bundler's own map places an emitted token **strictly inside** one of those extent in
+  that exact module copy (the map's resolved source id must equal the copy's module id, so sibling
+  copies in the same chunk stay distinct, and only the argument-list extent counts — an emitted
+  callee identifier or a callee *reference* that maps back into the callee text is outside the
+  extent and is never accepted as an emitted call). The bundler cannot rewrite this identity,
+  because the bundler is the producer of the map: a call that did not originate at a recorded mint
+  span can never map back to it, no matter what names the bundler assigned — callee names, binding
+  names, alias elimination, import renaming and chunk merging are all invisible to a position
+  comparison. A copy whose emitted calls the map places outside every recorded span (TanStack's own
+  `component: lazyRouteComponent(…)` split shim, for example) is verifiably non-minting only when
+  its own rendered module code provably executes none of the module's mint calls.
 - **A map the guard cannot trust fails closed.** A chunk's map is trusted only when it is a
   structurally valid version-3 map (version, mappings string, sources array, well-formed VLQ)
   whose decoded segments are in bounds; malformed input fails the build with a named diagnostic
   instead of a wrong verdict or a hang, and a one-field (generated-only) VLQ segment never
   contributes an original position — it is not a decoding shortcut to inherit the previous
-  segment's origin for it, that would let a coarse map forge precision it does not have. A map is
-  trusted for a delivered copy only when it demonstrates both that it is precise for that copy —
-  it resolves the copy's module id to **at least two distinct original positions**, since a map
-  that collapses a copy's content onto a single anchor cannot distinguish an emitted mint from an
-  absent one — **and** that it describes that copy's actual emitted code: at least one of those
-  positions must tie back to a call the copy's own generated code (parsed once per chunk for its
-  call-argument extents) actually contains. A count of positions alone is not proof — a wrong pair
-  of positions that never lands inside anything the copy emits is exactly as untrustworthy as one
-  position — so a copy failing either half of that test is un-attributable, not "attributable and
-  non-minting". Un-attributable copies fail closed past a single delivered copy: the guard cannot
-  tell whether the context is minted once (safe) or in every copy (the bug class), so it throws
-  `cannot classify … the build emits no source map for a client chunk delivering its source, or a
-  delivered copy's map does not resolve precise original positions for it`. A single delivered
-  copy with no attributed mint stays green — with only one copy there is nothing to duplicate.
+  segment's origin for it, that would let a coarse map forge precision it does not have. The mint
+  question is "did *this* copy, at *this* generated call, mint *this* context". A copy is MINTING
+  when a **single segment** ties a generated call to one of the context's recorded spans — the
+  same segment inside an emitted call (the chunk's generated code is parsed once per chunk for its
+  call-argument extents by a token-aware scanner that never mistakes an `if`/`for`/`function`
+  paren for a call and always catches optional calls) and inside the mint span. A copy is
+  verifiably NON-MINTING only when its own rendered module code — which preserves the mint
+  callee's name, unlike the final minified chunk — provably does not execute the mint. Anything
+  else is unverifiable, not "attributable and non-minting": the guard cannot tell a copy that
+  genuinely does not mint from a copy whose map is forged to hide the mint it does execute. A
+  copy whose setup calls tie to some other context's span in the same module counts as
+  verified-only-there, so a multi-context module split across copies stays green; a copy that ties
+  to no span at all fails closed. Un-attributable copies fail closed past a single delivered copy:
+  the guard cannot tell whether the context is minted once (safe) or in every copy (the bug class),
+  so it throws `cannot classify … the build emits no source map for a client chunk delivering its
+  source, or a delivered copy's map does not resolve precise original positions for it`. A single
+  delivered copy with no attributed mint stays green — with only one copy there is nothing to
+  duplicate.
 - **Unattributed presence fails closed.** When a source file owns an inventory entry and
   **two or more copies** of its module are delivered (each module–chunk pair is a copy)
   while no rendered copy is attributed a mint, the guard cannot tell whether the context is
@@ -168,6 +173,11 @@ closed by design.
   configuration that disables source maps after the fact — or a transform whose map collapses a
   copy's positions onto a single anchor — takes the fail-closed branch (see above) rather than a
   silent pass.
+- A copy is only verifiably non-minting when its own rendered module code (`chunk.modules[id].code`)
+  is present and provably lacks every mint call. That code preserves the mint callee's name (the
+  final minified chunk renames it), so a copy that genuinely does not execute the mint is
+  attributed; a copy whose rendered code is absent, or whose callee was not recorded, is
+  unverifiable and fails closed past a single delivered copy.
 - A context that is tree-shaken out of a particular build configuration (for example one behind
   a feature flag that the e2e image disables) fails the build with `is not present in a client
   chunk`. No current context is flag-gated; if one ever is, the e2e/release build asymmetry
