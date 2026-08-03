@@ -10,7 +10,7 @@ import { cn } from '~/lib/utils';
  * bare). A panel — `bg-(--publy-surface-raised)` plus a hairline ring — never
  * a window, since there is nothing behind it to see through; the generic
  * `--publy-shadow-menu` token carries its elevation rather than the scoped
- * `.publy-l05a-shadow-panel` class, which stays budgeted to the pricing cards
+ * `.publy-l05a-shadow-window` cascade, which stays budgeted to the product window
  * and the night band only (§2.8). Type and press motion are this page's own
  * (`.publy-type-sky-*`, `.publy-l05a-pressable`). Accept and reject stay
  * equally weighted — a dark pattern otherwise, not a hierarchy choice.

@@ -1,12 +1,24 @@
-/* Landing exploration 05-A — "THE SKY, REFINED": one continuous atmosphere.
+/* Landing exploration 05-A — "THE DAY": dawn, horizon, day, horizon, night.
 
    Owned exclusively by the /temp/landing-05-a implementation. Every selector in
    this file MUST be nested under `.publy-landing-05-a` so nothing here can reach
    the product or the other explorations. Imported from app.css.
 
-   This file starts as a byte-for-byte transposition of `landing-05.css` into
-   the 05-a scope, so the first commit renders identically to the direction the
-   owner chose; every later commit is a legible design decision on top of it.
+   THE ONE IDEA, so that every number below can be checked against it: the page
+   is a single day. It opens on a full screen of sky with one enormous
+   statement in it, crosses a hard horizon into a document that has no
+   atmosphere at all, and crosses a second horizon into a night that swallows
+   the closing argument and the footer together. The atmosphere is the page's
+   protagonist precisely because it is bounded — it starts, it stops, and you
+   can point at both places.
+
+   Three rules fall out of that, and nearly everything here is one of them:
+     1. Below the first horizon, the page draws with LINES and never with
+        FILLS. No section, cell, card or tray is filled. The only filled
+        things in the day are the primary buttons.
+     2. There is ONE alignment, and it is the reading column's left edge, from
+        the hero badge to the copyright line.
+     3. There is ONE raised object, and it is the product window.
 
    THE DESIGN-TOKEN SITUATION, read before touching anything here:
 
@@ -597,7 +609,7 @@
 
 	@media (min-width: 1280px) {
 		.publy-landing-05-a .publy-l05a-section-window {
-			padding-block-end: 160px;
+			padding-block-end: 144px;
 		}
 	}
 
@@ -628,7 +640,7 @@
 	@media (min-width: 1280px) {
 		.publy-landing-05-a .publy-l05a-section-closing {
 			padding-block-start: 160px;
-			padding-block-end: 144px;
+			padding-block-end: 96px;
 		}
 	}
 
@@ -709,22 +721,12 @@
 
 	/* ---- Elevation (todesktop-08 law: y = blur, blur halves per step,
 	   spread ≈ -blur/4, alpha flat at 3-5%, ring last; todesktop-09 tint).
-	   Budgeted: the window cascade is used EXACTLY ONCE (the product
-	   window), the panel cascade on pricing cards and the night band only,
-	   everything else stays on --publy-shadow-ring. */
-	.publy-landing-05-a .publy-l05a-shadow-panel {
-		box-shadow:
-			0 12px 12px -3px
-				color-mix(in srgb, var(--l05a-shadow-tint) 5%, transparent),
-			0 6px 6px -1.5px
-				color-mix(in srgb, var(--l05a-shadow-tint) 3%, transparent),
-			0 3px 3px -0.75px
-				color-mix(in srgb, var(--l05a-shadow-tint) 3%, transparent),
-			0 1px 1px -0.25px
-				color-mix(in srgb, var(--l05a-shadow-tint) 4%, transparent),
-			0 0 0 1px var(--publy-border);
-	}
-
+	   THE BUDGET IS NOW ONE. The window cascade is the page's only elevation:
+	   the panel cascade it used to share the page with was spent on the
+	   pricing trays and on the closing band, and both of those are gone —
+	   pricing is ruled cells and the closing band is a full-bleed region. A
+	   document drawn entirely in hairlines has exactly one raised object in
+	   it, which is the product. */
 	.publy-landing-05-a .publy-l05a-shadow-window {
 		box-shadow:
 			0 120px 80px -64px
@@ -737,19 +739,6 @@
 				color-mix(in srgb, var(--l05a-shadow-tint) 4%, transparent),
 			0 8px 8px -2px color-mix(in srgb, var(--l05a-shadow-tint) 4%, transparent),
 			0 4px 4px -1px color-mix(in srgb, var(--l05a-shadow-tint) 5%, transparent),
-			0 0 0 1px var(--publy-border);
-	}
-
-	html.dark .publy-landing-05-a .publy-l05a-shadow-panel {
-		box-shadow:
-			0 12px 12px -3px
-				color-mix(in srgb, var(--l05a-shadow-tint) 36%, transparent),
-			0 6px 6px -1.5px
-				color-mix(in srgb, var(--l05a-shadow-tint) 28%, transparent),
-			0 3px 3px -0.75px
-				color-mix(in srgb, var(--l05a-shadow-tint) 24%, transparent),
-			0 1px 1px -0.25px
-				color-mix(in srgb, var(--l05a-shadow-tint) 28%, transparent),
 			0 0 0 1px var(--publy-border);
 	}
 
@@ -852,37 +841,6 @@
 	.publy-landing-05-a .publy-l05a-underline:hover,
 	.publy-landing-05-a .publy-l05a-underline:focus-visible {
 		text-decoration-line: underline;
-	}
-
-	/* ---- The eyebrow chip (todesktop-06 form, attio-31 chip, repo colour):
-	   brand yellow at every section boundary without dominating any, and it
-	   keeps the eyebrow off the failing muted-on-bloom pair at the same
-	   time. Metrics come from the global `.publy-marketing-eyebrow` (13px /
-	   600 / 0.04em / uppercase); this class supplies only the chip. */
-	.publy-landing-05-a .publy-l05a-eyebrow-chip {
-		display: inline-flex;
-		align-items: center;
-		border-radius: var(--publy-radius-chip);
-		background: var(--publy-primary-soft);
-		color: var(--publy-primary-soft-foreground);
-		/* The chip needs an EDGE, not only a fill. `--publy-primary-soft` is
-		   #fffbeb, which on the dawn's own cream is a ~1-point step — the
-		   chip's shape vanished and what was left read as brown uppercase
-		   text with inexplicable padding. In dark it is #2a2400, which is
-		   *exactly* the dusk ramp's 34% stop, so on the bloom it disappeared
-		   completely. A hairline ring at 22% of the brand primary defines the
-		   object in both themes without adding a second fill, and stays in
-		   the yellow's own family rather than going grey on a warm field. */
-		box-shadow: 0 0 0 1px
-			color-mix(in srgb, var(--publy-primary) 22%, transparent);
-		padding-block: 4px;
-		/* Optically, not mathematically, symmetric. `.publy-marketing-eyebrow`
-		   opens uppercase at +0.04em, and letter-spacing is applied AFTER the
-		   last glyph as well as between glyphs — so at 13px the chip carries
-		   0.52px of dead air on its right that it does not carry on its left.
-		   10px leading / 9.5px trailing puts the same amount of light on both
-		   sides of the word. */
-		padding-inline: 10px 9.5px;
 	}
 
 	/* ---- THE MOTION SYSTEM: one curve, two durations, one entrance.
@@ -1044,7 +1002,7 @@
 	   real borders. */
 	@media (forced-colors: active) {
 		.publy-landing-05-a .publy-l05a-hero-badge,
-		.publy-landing-05-a .publy-l05a-eyebrow-chip,
+		.publy-landing-05-a .publy-l05a-eyebrow-chip-night,
 		.publy-landing-05-a .publy-l05a-ring-chip {
 			border: 1px solid ButtonBorder;
 		}

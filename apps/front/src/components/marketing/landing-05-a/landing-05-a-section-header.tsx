@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
  * to a 48px heading to a grid with no mid-tier for the eye to land on. One
  * component now owns the triple, which is what lets the spacing be stated
  * once and be optically rather than mathematically correct everywhere
- * (`landing-05-a.css`, "THE SPACING SCALE"): 20px chip→heading so the gap
+ * (`landing-05-a.css`, "THE SPACING SCALE"): 20px eyebrow→heading so the gap
  * reads as 24, 12px heading→dek because they are one utterance, and 48px to
  * the body so the triple reads as an object rather than as the grid's first
  * row.
@@ -40,7 +40,18 @@ export const Landing05ASectionHeader = ({
 
 	return (
 		<div>
-			<p className="publy-marketing-eyebrow publy-l05a-eyebrow-chip">
+			{/* THE EYEBROW IS TYPE, NOT A CHIP. Round one gave it a soft-yellow
+			    pill with a hairline ring, and the reason it gave was contrast:
+			    the muted step failed against the bloom the eyebrow used to sit
+			    on. There is no bloom under it any more — the day is paper — so
+			    the pill's only remaining job was to be yellow eight times on a
+			    page whose whole discipline is that nothing below the hero is
+			    filled. `--publy-marketing-eyebrow-accent` measures 5.05:1 on
+			    white, and the eyebrow now reads as what it is: a label, in the
+			    brand's own colour, at the top of a section. Chips still exist on
+			    this page — the hero badge and the closing eyebrow — and both are
+			    in the sky. Chips in the sky, type on the ground. */}
+			<p className="publy-marketing-eyebrow text-(--publy-marketing-eyebrow-accent)">
 				{t(eyebrowKey)}
 			</p>
 			<h2
