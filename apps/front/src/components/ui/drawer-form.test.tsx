@@ -203,6 +203,7 @@ import {
 	type JsxOpeningElement,
 	type JsxSelfClosingElement,
 	type LabeledStatement,
+	type MethodDeclaration,
 	type Node,
 	type ObjectLiteralExpression,
 	type PrefixUnaryExpression,
@@ -3274,6 +3275,120 @@ export const ParameterKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 24's BLOCKER 2a — an accessor pair with the SETTER declared FIRST.
+// `getProperty(memberName)` returns whichever accessor comes first in source,
+// so the setter-first pair read as a setter-only member ("value is undefined")
+// while property access INVOKES the getter and returns the drawer export. The
+// member must resolve through the GETTER.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_SETTER_GETTER_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r24-setter-getter-kit-fixture.tsx';
+const TEMPORARY_SETTER_GETTER_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_SETTER_GETTER_KIT_DRAWER_FILE,
+);
+const TEMPORARY_SETTER_GETTER_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const kit: DrawerKit = {
+	set Surface(value: typeof DrawerContent) {
+		void value;
+	},
+	get Surface() {
+		return DrawerContent;
+	},
+	set Form(value: typeof DrawerForm) {
+		void value;
+	},
+	get Form() {
+		return DrawerForm;
+	},
+	set Body(value: typeof DrawerBody) {
+		void value;
+	},
+	get Body() {
+		return DrawerBody;
+	},
+	set Footer(value: typeof DrawerFooter) {
+		void value;
+	},
+	get Footer() {
+		return DrawerFooter;
+	},
+};
+
+export const SetterGetterKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+`;
+
+// ---------------------------------------------------------------------------
+// Round 24's BLOCKER 2b — a METHOD-valued dotted member. `Surface(props) {
+// return createElement(DrawerContent, props); }` used as `<kit.Surface>` is
+// INVOKED and renders the real drawer. The old rule read a method reference as
+// "the member's value IS the function, therefore not a drawer" — the method
+// body's return value is what the tag actually renders.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_METHOD_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r24-method-kit-fixture.tsx';
+const TEMPORARY_METHOD_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_METHOD_KIT_DRAWER_FILE,
+);
+const TEMPORARY_METHOD_KIT_DRAWER_SOURCE = `import { createElement, type ComponentProps } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const kit = {
+	Surface(props: ComponentProps<typeof DrawerContent>) {
+		return createElement(DrawerContent, props);
+	},
+	Form(props: ComponentProps<typeof DrawerForm>) {
+		return createElement(DrawerForm, props);
+	},
+	Body(props: ComponentProps<typeof DrawerBody>) {
+		return createElement(DrawerBody, props);
+	},
+	Footer(props: ComponentProps<typeof DrawerFooter>) {
+		return createElement(DrawerFooter, props);
+	},
+};
+
+export const MethodKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -3596,6 +3711,14 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_PARAMETER_KIT_DRAWER_FILE,
 		source: TEMPORARY_PARAMETER_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_SETTER_GETTER_KIT_DRAWER_FILE,
+		source: TEMPORARY_SETTER_GETTER_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_METHOD_KIT_DRAWER_FILE,
+		source: TEMPORARY_METHOD_KIT_DRAWER_SOURCE,
 	},
 ];
 
@@ -4064,6 +4187,19 @@ const resolveSymbolValue = (
 				seen,
 			);
 		}
+		if (declaration.getKind() === SyntaxKind.MethodDeclaration) {
+			// Round 24's BLOCKER 2b: a method-valued dotted member used as a
+			// tag is INVOKED (`<kit.Surface>` renders what the method body
+			// returns), so a method declaration is not evidence of absence the
+			// way a plain function reference is. Resolve the single-return
+			// body; anything else is UNVERIFIABLE.
+			return resolveMethodDeclarationValue(
+				declaration as MethodDeclaration,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
 	}
 
 	// Round 18: NOT KNOWING IS UNVERIFIABLE. Every declaration kind that is
@@ -4201,6 +4337,34 @@ const resolveValueIdentity = (
 			// drawer symbol — a real component, never the drawer module's
 			// own export.
 			return null;
+		}
+		// Round 24's BLOCKER 2b: `createElement(DrawerContent, props)` (the
+		// reviewer's method-kit reproduction) IS the `DrawerContent` export —
+		// the first argument is what `React.createElement` renders. The
+		// string/intrinsic form (`createElement('div')`) is a real DOM
+		// element; an unresolvable first argument is UNVERIFIABLE.
+		const calleeText = call.getExpression().getText();
+		if (
+			calleeText === 'createElement' ||
+			calleeText.endsWith('.createElement')
+		) {
+			const firstArgument = call.getArguments()[0];
+			if (!firstArgument) {
+				return UNVERIFIABLE_TAG;
+			}
+			const firstUnwrapped = unwrapExpression(firstArgument);
+			if (
+				firstUnwrapped.getKind() === SyntaxKind.StringLiteral ||
+				firstUnwrapped.getKind() === SyntaxKind.NoSubstitutionTemplateLiteral
+			) {
+				return null;
+			}
+			return resolveValueIdentity(
+				firstUnwrapped,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
 		}
 		return UNVERIFIABLE_TAG;
 	}
@@ -4418,6 +4582,41 @@ const resolveGetAccessorValue = (
 };
 
 /**
+ * Resolves a METHOD member's rendered value — round 24's BLOCKER 2b. A method
+ * reference is not "the member's value IS the function" for the guard's
+ * question: used as a tag (`<kit.Surface>`), the method is INVOKED and renders
+ * whatever its body returns. `Surface(props) { return createElement(
+ * DrawerContent, props); }` renders the real drawer. A single, unconditional
+ * `return` statement is resolved through the same value grammar as a getter
+ * body; anything else (no return, multiple statements, a non-block body) is
+ * UNVERIFIABLE — not knowing what a method renders must redden, never silently
+ * read as a definite local value.
+ */
+const resolveMethodDeclarationValue = (
+	methodDeclaration: MethodDeclaration,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerTagNameResult => {
+	const body = methodDeclaration.getBody();
+	if (!body || body.getKind() !== SyntaxKind.Block) {
+		return UNVERIFIABLE_TAG;
+	}
+	const statements = (body as Block).getStatements();
+	if (
+		statements.length !== 1 ||
+		statements[0].getKind() !== SyntaxKind.ReturnStatement
+	) {
+		return UNVERIFIABLE_TAG;
+	}
+	const expression = (statements[0] as ReturnStatement).getExpression();
+	if (!expression) {
+		return UNVERIFIABLE_TAG;
+	}
+	return resolveValueIdentity(expression, project, reassignedNamesByFile, seen);
+};
+
+/**
  * Resolves a single member of an object literal that is a binding's VALUE
  * side — shared by the direct value-side walk below and by round 21's
  * array-iterable walk, where the "object literal" is one element of a
@@ -4441,7 +4640,30 @@ const resolveObjectLiteralMember = (
 	reassignedNamesByFile: Map<string, Set<string>>,
 	seen: Set<string>,
 ): DrawerTagNameResult => {
-	const property = objectLiteral.getProperty(memberName);
+	// Round 24's BLOCKER 2a: `getProperty(memberName)` returns whichever
+	// accessor is declared FIRST, so a setter declared before its getter made
+	// the guard read the pair as a setter-only member ("value is undefined")
+	// while property access INVOKES the getter. Scan every property matching
+	// the name and prefer the GetAccessor — the read value is the getter's.
+	const matchingProperties = objectLiteral
+		.getProperties()
+		.filter(
+			(candidate) =>
+				(candidate as { getName?: () => string }).getName?.() === memberName,
+		);
+	const getter = matchingProperties.find(
+		(candidate) => candidate.getKind() === SyntaxKind.GetAccessor,
+	);
+	if (getter) {
+		return resolveGetAccessorValue(
+			getter as GetAccessorDeclaration,
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
+	}
+	const property =
+		matchingProperties[0] ?? objectLiteral.getProperty(memberName);
 	if (property) {
 		const propertyKind = property.getKind();
 		if (propertyKind === SyntaxKind.PropertyAssignment) {
@@ -4472,21 +4694,23 @@ const resolveObjectLiteralMember = (
 				seen,
 			);
 		}
-		if (propertyKind === SyntaxKind.GetAccessor) {
-			return resolveGetAccessorValue(
-				property as GetAccessorDeclaration,
+		if (propertyKind === SyntaxKind.MethodDeclaration) {
+			// Round 24's BLOCKER 2b: a method member's value is the INVOCATION
+			// of the method, not the function reference — `Surface(props) {
+			// return createElement(DrawerContent, props); }` renders the real
+			// drawer when used as `<kit.Surface>`. A single-return method body
+			// is resolved through the same value grammar; anything else is
+			// UNVERIFIABLE, never "definitely not a drawer".
+			return resolveMethodDeclarationValue(
+				property as MethodDeclaration,
 				project,
 				reassignedNamesByFile,
 				seen,
 			);
 		}
-		if (
-			propertyKind === SyntaxKind.MethodDeclaration ||
-			propertyKind === SyntaxKind.SetAccessor
-		) {
-			// A method reference or a setter-only member — the member's value
-			// IS the function, or undefined (no getter to invoke), a real
-			// local value, never the drawer module's exported symbol.
+		if (propertyKind === SyntaxKind.SetAccessor) {
+			// A setter with no getter anywhere in the literal — reading the
+			// member yields undefined at runtime.
 			return null;
 		}
 		return UNVERIFIABLE_TAG;
@@ -8129,6 +8353,54 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_PARAMETER_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('an accessor pair with the setter declared first resolves through the getter and is rejected', () => {
+		// Round 24's BLOCKER 2a, verbatim: `getProperty(memberName)` returns
+		// whichever accessor is declared FIRST, so the setter-first pair was
+		// read as a setter-only member ("value is undefined") and the #990 div
+		// between the surface and the form shipped green — while property
+		// access INVOKES the getter and returns the real drawer export.
+		writeFileSync(
+			TEMPORARY_SETTER_GETTER_KIT_DRAWER_PATH,
+			TEMPORARY_SETTER_GETTER_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_SETTER_GETTER_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_SETTER_GETTER_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_SETTER_GETTER_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a method-valued dotted member whose body renders the real drawer is rejected, not read as a local function', () => {
+		// Round 24's BLOCKER 2b, verbatim: `Surface(props) { return
+		// createElement(DrawerContent, props); }` used as `<kit.Surface>` is
+		// INVOKED and renders the real drawer. A method declaration is not
+		// evidence of absence the way a plain function reference is — the
+		// single-return body resolves to the export and the #990 div reddens.
+		writeFileSync(
+			TEMPORARY_METHOD_KIT_DRAWER_PATH,
+			TEMPORARY_METHOD_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_METHOD_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_METHOD_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_METHOD_KIT_DRAWER_PATH);
 		}
 	});
 
