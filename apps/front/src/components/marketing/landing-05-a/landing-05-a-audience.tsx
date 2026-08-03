@@ -28,7 +28,15 @@ export const Landing05AAudience = () => {
 
 	return (
 		<div className="publy-marketing-hairline-grid publy-l05a-section-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-			<article className="relative overflow-hidden p-8 lg:col-span-2 lg:py-12 lg:pl-12">
+			{/* `lg:py-12` but NOT `lg:pl-12`. The lead cell is twice as wide as its
+			    neighbours and carries a pane, so it earns more vertical air — but
+			    its extra left padding put "Shared queue" 16px to the right of
+			    "Teams and agencies" directly beneath it, measured at 217 against
+			    201 at 1440. This page has ONE alignment; a 16px disagreement
+			    inside one grid, in one column, reads as a mistake rather than as
+			    emphasis. Horizontal padding is the grid's, vertical padding is
+			    the cell's. */}
+			<article className="relative overflow-hidden p-8 lg:col-span-2 lg:py-12">
 				<div className="lg:max-w-[440px]">
 					<h3 className="publy-type-sky-display-3 publy-l05a-optical-flush text-balance text-(--publy-foreground)">
 						{t('landing-bento-shared-queue-title')}

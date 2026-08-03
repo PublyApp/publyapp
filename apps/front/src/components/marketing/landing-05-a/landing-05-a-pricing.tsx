@@ -66,7 +66,16 @@ export const Landing05APricing = () => {
 							: 'shadow-[var(--publy-shadow-ring)]',
 					)}
 				>
-					<div className="flex flex-1 flex-col rounded-[var(--publy-radius-small-control)] bg-(--publy-surface) p-6">
+					{/* 28, not 24 or 32, and it is derived rather than picked. Every
+					    other object on this page insets its content 32px from the
+					    section's own edge — that is where the hairline grids put
+					    their cell copy, measured at 201 against a 169 heading. The
+					    plate spends 4 of those 32 on the concentric frame, so the
+					    card spends 28: 4 + 28 = 32, and the tier names land on the
+					    same left edge as every other object's content. Same
+					    arithmetic as the radius pair (14 − 4 = 10), applied to
+					    padding. The foot below carries `px-7` for the same reason. */}
+					<div className="flex flex-1 flex-col rounded-[var(--publy-radius-small-control)] bg-(--publy-surface) p-7">
 						{/* The reserved row is reserved only where there is a row to
 						    compare. Below `md` the trays stack, nothing sits beside
 						    anything, and a 28px void at the top of two of three
@@ -98,7 +107,7 @@ export const Landing05APricing = () => {
 							{t(`landing-pricing-${tier.id}-description`)}
 						</p>
 					</div>
-					<div className="px-6 pt-6 pb-6">
+					<div className="px-7 pt-6 pb-7">
 						<Link
 							to="/signup"
 							className={cn(
