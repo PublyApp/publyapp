@@ -146,16 +146,6 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front check:design-system."
 		},
-		"front-ci.yml::supply-chain::Cache Playwright browsers": {
-			"hash": "35a8c72a62e5ade9",
-			"mirror": null,
-			"reason": "Round 17: mirrors the identical cache step front-e2e.yml already runs, keyed the same way (runner.os + pnpm-lock.yaml hash), so the unit lane's Chromium install is a cache restore after the first run per lockfile hash instead of a full download every time. A cache restore step has no meaningful local mirror — locally the browser is already present in ~/.cache/ms-playwright."
-		},
-		"front-ci.yml::supply-chain::Install Playwright browser for the drawer-contrast guard": {
-			"hash": "0ea113ed64a18531",
-			"mirror": null,
-			"reason": "Round 15: the front unit suite (pnpm --filter front test) launches Chromium to measure the drawer-description paint, so CI must provision the same browser binary the e2e workflow installs (pnpm --filter front exec playwright install chromium --with-deps). Locally the browser is already present in ~/.cache/ms-playwright and the guard fails loudly with a clear launch error if it is ever missing; provisioning cannot be meaningfully mirrored by a local gate command (it would re-download the same binary)."
-		},
 		"front-ci.yml::supply-chain::Test front": {
 			"hash": "b0ae64935f5d9419",
 			"mirror": "just ci-front",
@@ -327,7 +317,7 @@
 			"reason": "GitHub-only actions/cache step; the local recipe has no separate browser-cache action or equivalent cache backend."
 		},
 		"front-e2e.yml::test::Run playwright browser tests": {
-			"hash": "e87798d9735f7ad3",
+			"hash": "3f90b9f665d4edab",
 			"mirror": "just ci-e2e-front",
 			"reason": "ci-e2e-front runs the same complete Playwright suite on one isolated local stack. CI partitions the non-counter projects across four isolated runners and runs the counter project alone after setup on shard 4; the local gate stays unsharded to preserve coverage without multiplying Docker stacks. It also drops --with-deps, which requires root; system libraries are a one-time developer setup. Round-5 BLOCKER fix: the run: body now starts with `set -euo pipefail`, so fail-fast is a property of the script itself rather than relying solely on the surrounding job/workflow's (unmirrored) shell default — a review round proved a `defaults: run: shell: bash {0}` override could otherwise mask a failed test command behind the trailing shard-selection `if`'s own exit code."
 		},

@@ -28,6 +28,14 @@ export default defineConfig({
 			},
 		},
 		include: ['src/**/*.{test.ts,test.tsx}'],
+		// Round 19 I3: the drawer-description contrast guard is the ONLY
+		// browser-launching test in the suite. It now runs in the e2e lane
+		// (which already provisions Chromium) via vitest.drawer.config.ts, so
+		// the ordinary `pnpm --filter front test` stays browser-free and no
+		// unit-lane contributor or CI run needs to install a browser for a
+		// synthetic guard the live e2e already bounds — see
+		// vitest.drawer.config.ts.
+		exclude: ['src/styles/drawer-description-contrast.test.ts'],
 		setupFiles: ['./vitest.setup.ts'],
 		// The default 5000ms per-test budget, combined with testing-library's
 		// default 1000ms waitFor/findBy* timeout, is tight enough to flake under

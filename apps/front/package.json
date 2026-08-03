@@ -15,6 +15,7 @@
 		"test:search-cancel-css": "node --test scripts/search-cancel-css-policy.test.mjs && node scripts/check-search-cancel-css.mjs",
 		"check:design-system": "node scripts/check-design-system.mjs",
 		"test:design-system-guard": "node --test scripts/check-design-system.test.mjs",
+		"test:drawer-contrast": "vitest run --config vitest.drawer.config.ts",
 		"smoke:start": "node scripts/smoke-start-server.mjs",
 		"test": "vitest run && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:design-system-guard && pnpm check:design-system"
 	},
