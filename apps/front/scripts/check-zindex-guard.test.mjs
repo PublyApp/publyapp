@@ -480,6 +480,87 @@ test('raw sinks (round 19 B1): a 131072-candidate rel that evaluates to styleshe
 	);
 });
 
+test('raw sinks (round 19 B1): an overflowing descriptor rel candidate space is unresolvable, not unknown', () => {
+	// The static link-descriptor object reader drops overflow the same way
+	// the JSX link reader used to: `staticStringValues(...)?.values ?? null`
+	// made an overflowing candidate space look like an ordinary unknown. A
+	// descriptor rel that overflows the work budget is provably static text
+	// the guard cannot enumerate, so it may be `stylesheet` — the value must
+	// fail loud by name.
+	const flags = [];
+	for (let index = 0; index < 20; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 20; index += 1) {
+		substitutions.push(`\${f${index} ? 'stylesheet' : 'a'}`);
+	}
+	const content = [
+		`export const probe = (${flags.join(', ')}) => ({`,
+		'  links: [{',
+		`    rel: \`${substitutions.join('')}\`,`,
+		"    href: 'data:text/css,.x%7Bz-index%3A99%7D',",
+		'  }],',
+		'});',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-static-candidate-overflow'],
+		'an overflowing descriptor rel candidate space must fail loud by name',
+	);
+});
+
+test('raw sinks (round 19 B1): an overflowing registerProperty name candidate space is unresolvable, not unknown', () => {
+	// The CSS.registerProperty() name reader used to drop overflow the same
+	// way: `nameResult.values` was null on overflow, so the name silently
+	// resolved to nothing — but an over-budget static name may be a reserved
+	// `--publy-z-*` token. The unresolvable candidate space must fail loud by
+	// name (round-19 B1, "every consumer").
+	const flags = [];
+	for (let index = 0; index < 20; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 20; index += 1) {
+		substitutions.push(`\${f${index} ? '--publy-z-' : 'a'}`);
+	}
+	const content = [
+		`export const probe = (${flags.join(', ')}) => CSS.registerProperty({`,
+		`  name: \`${substitutions.join('')}\`,`,
+		'  inherits: false,',
+		'});',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-static-candidate-overflow'],
+		'an overflowing registerProperty name must fail loud by name',
+	);
+});
+
+test('raw sinks (round 19 B1): an overflowing setProperty key candidate space is unresolvable, not unknown', () => {
+	// The scale-token-write reader (`recordScaleTokenDefinitionCandidates`)
+	// used to drop overflow the same way: `.values ?? null` made an over-budget
+	// key look like an ordinary unknown. An over-budget static key may write
+	// the reserved `--publy-z-*` namespace, so the unresolvable candidate
+	// space must fail loud by name (round-19 B1, "every consumer").
+	const flags = [];
+	for (let index = 0; index < 20; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 20; index += 1) {
+		substitutions.push(`\${f${index} ? '--publy-z-' : 'a'}`);
+	}
+	const content = [
+		`export const probe = (${flags.join(', ')}) => element.style.setProperty(\`${substitutions.join('')}\`, '10');`,
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-static-candidate-overflow'],
+		'an overflowing setProperty key must fail loud by name',
+	);
+});
+
 test('evasion: script cannot register a reserved scale token', () => {
 	for (const content of [
 		"CSS.registerProperty({ name: '--publy-z-raised', syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
