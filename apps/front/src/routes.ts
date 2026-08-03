@@ -9,11 +9,6 @@ export const routes = rootRoute('__root.tsx', [
 	route('/reset-password', 'reset-password.tsx'),
 	route('/accept-invitation', 'accept-invitation.tsx'),
 	route('/field-validation', 'field-validation.tsx'),
-	route('/temp/landing-05', 'temp/landing-05.tsx'),
-	route('/temp/landing-05-a', 'temp/landing-05-a.tsx'),
-	route('/temp/landing-06', 'temp/landing-06.tsx'),
-	route('/temp/landing-07', 'temp/landing-07.tsx'),
-	route('/temp/landing-08', 'temp/landing-08.tsx'),
 	layout('authed-layout', 'authed/layout.tsx', [
 		route('/staff', 'authed/staff.tsx'),
 		route('/staff/dashboard', 'authed/staff/dashboard.tsx', [

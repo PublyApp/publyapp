@@ -98,6 +98,37 @@ const frFutureMarkers = [
 	/\b(?:pas|aucun(?:e|s)?)\b[^.!?;·]{0,80}\bencore\b/i,
 ];
 
+/**
+ * The copy a visitor actually READS on a marketing surface, regardless of which
+ * namespace ships it. The landing page's own copy lives in `landing`; the
+ * marketing shell's header, nav, social-proof caption and closing CTA band live
+ * in `common` under the `marketing-*` prefix.
+ *
+ * The guards below are about claims the product must be able to honour, so they
+ * have to see both. Pointing them at a single namespace is what makes them stop
+ * inspecting anything the day the copy moves — which is exactly what happened
+ * when the landing page was promoted from `/temp/landing-05-a` to `/` and its
+ * copy left `common` for its own namespace. The liveness pins in each guard
+ * caught it; this merge is what keeps them pointed at the artifact.
+ */
+const marketingCopy = (bundle: {
+	common: Record<string, string>;
+	landing: Record<string, string>;
+}): Record<string, string> => ({ ...bundle.common, ...bundle.landing });
+
+const enMarketing = marketingCopy(
+	en as unknown as {
+		common: Record<string, string>;
+		landing: Record<string, string>;
+	},
+);
+const frMarketing = marketingCopy(
+	fr as unknown as {
+		common: Record<string, string>;
+		landing: Record<string, string>;
+	},
+);
+
 describe('front locale manifests', () => {
 	test('publish every registered namespace in registry order', () => {
 		expect(Object.keys(en)).toEqual([...I18N_NAMESPACES]);
@@ -112,6 +143,19 @@ describe('front locale manifests', () => {
 		}
 	});
 
+	// A key present in BOTH namespaces would be silently shadowed by the spread in
+	// `marketingCopy`, hiding one of the two strings from every guard below — a
+	// false negative that no count canary can see, because the count stays right.
+	test('never ships the same key in both marketing namespaces', () => {
+		for (const [common, landing] of [
+			[en.common, en.landing],
+			[fr.common, fr.landing],
+		] as const) {
+			const overlap = Object.keys(landing).filter((key) => key in common);
+			expect(overlap).toEqual([]);
+		}
+	});
+
 	// The invariant is "no pricing surface promises a trial", not "these two keys
 	// hold these two strings". Pinning literals covered only the tiers that
 	// happened to be wrong, left other pricing copy free to regress, and would
@@ -121,8 +165,8 @@ describe('front locale manifests', () => {
 	test('no pricing surface promises a trial, in either locale', () => {
 		// The imported bundles are typed as exact object literals, so they cannot
 		// be indexed by a computed key without widening them first.
-		const enCommon: Record<string, string> = en.common;
-		const frCommon: Record<string, string> = fr.common;
+		const enCommon = enMarketing;
+		const frCommon = frMarketing;
 
 		const pricingKeys = Object.keys(enCommon).filter((key) =>
 			key.startsWith('landing-pricing-'),
@@ -143,11 +187,11 @@ describe('front locale manifests', () => {
 	test('frames every landing-page trial claim as future-facing', () => {
 		const localeCases = [
 			{
-				common: en.common as Record<string, string>,
+				common: enMarketing,
 				futureMarkers: enFutureMarkers,
 			},
 			{
-				common: fr.common as Record<string, string>,
+				common: frMarketing,
 				futureMarkers: frFutureMarkers,
 			},
 		] as const;
@@ -396,11 +440,11 @@ describe('front locale manifests', () => {
 	test('keeps the trial timeline free of invented day counts', () => {
 		const localeCases = [
 			{
-				common: en.common as Record<string, string>,
+				common: enMarketing,
 				dayCount: /\b(?:day\s+\d+|\d+\s*-?\s*days?)\b/i,
 			},
 			{
-				common: fr.common as Record<string, string>,
+				common: frMarketing,
 				dayCount: /\b(?:jour\s+\d+|\d+\s*-?\s*jours?)\b/i,
 			},
 		] as const;

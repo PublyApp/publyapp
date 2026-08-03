@@ -323,12 +323,21 @@ export const isAuthedSurface = (pathname: string): boolean => {
 };
 
 /**
- * The `/temp/landing-*` routes are throwaway design explorations (#1082). Each
- * one renders its own shell, so the root must not give it a second one. Removed
- * with the explorations themselves.
+ * Routes that render their own complete page shell, and must therefore NOT be
+ * wrapped in `MarketingLayout` — doing so would give them a second header and
+ * a second footer.
+ *
+ * Today that is exactly one route: the landing page at `/`. Its header and
+ * footer are part of the design rather than chrome around it (see
+ * `routes/index.tsx`), which is why it opts out of the shared marketing shell
+ * every other marketing route uses. It began as the `/temp/landing-*`
+ * exploration exemption (#1082) and became permanent when that exploration was
+ * promoted to `/`.
+ *
+ * An exact match, not a prefix: `/` as a prefix matches every path there is.
  */
-export const isLandingExplorationPath = (pathname: string): boolean =>
-	pathname.startsWith('/temp/landing-');
+export const isSelfShelledPath = (pathname: string): boolean =>
+	pathname === '/';
 
 export const resolveRouteSurface = (pathname: string): RouteSurface => {
 	if (isAuthPath(pathname)) {
@@ -578,12 +587,10 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 				<AuthLayout brand={brand}>{children}</AuthLayout>
 			</AuthBrandProvider>
 		);
-	} else if (isLandingExplorationPath(pathname)) {
-		// The /temp landing explorations each own their entire page chrome —
-		// header, navigation and footer are part of the design being evaluated,
-		// so wrapping them in MarketingLayout would render a second header and
-		// a second footer around them. Delete this branch together with the
-		// /temp routes once a direction is chosen (#1082).
+	} else if (isSelfShelledPath(pathname)) {
+		// The landing page owns its entire page chrome — header, navigation and
+		// footer are part of the design, not chrome around it — so wrapping it
+		// in MarketingLayout would render a second header and a second footer.
 		shellContent = children;
 	} else {
 		shellContent = (

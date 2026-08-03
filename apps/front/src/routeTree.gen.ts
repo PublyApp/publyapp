@@ -18,11 +18,6 @@ import { Route as fieldValidationRouteImport } from './routes/field-validation'
 import { Route as acceptInvitationRouteImport } from './routes/accept-invitation'
 import { Route as authedLayoutRouteImport } from './routes/authed/layout'
 import { Route as indexRouteImport } from './routes/index'
-import { Route as tempLanding08RouteImport } from './routes/temp/landing-08'
-import { Route as tempLanding07RouteImport } from './routes/temp/landing-07'
-import { Route as tempLanding06RouteImport } from './routes/temp/landing-06'
-import { Route as tempLanding05ARouteImport } from './routes/temp/landing-05-a'
-import { Route as tempLanding05RouteImport } from './routes/temp/landing-05'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffRouteImport } from './routes/authed/staff'
 import { Route as authedStaffInvitationsIndexRouteImport } from './routes/authed/staff/invitations/index'
@@ -103,31 +98,6 @@ const authedLayoutRoute = authedLayoutRouteImport.update({
 const indexRoute = indexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const tempLanding08Route = tempLanding08RouteImport.update({
-  id: '/temp/landing-08',
-  path: '/temp/landing-08',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const tempLanding07Route = tempLanding07RouteImport.update({
-  id: '/temp/landing-07',
-  path: '/temp/landing-07',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const tempLanding06Route = tempLanding06RouteImport.update({
-  id: '/temp/landing-06',
-  path: '/temp/landing-06',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const tempLanding05ARoute = tempLanding05ARouteImport.update({
-  id: '/temp/landing-05-a',
-  path: '/temp/landing-05-a',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const tempLanding05Route = tempLanding05RouteImport.update({
-  id: '/temp/landing-05',
-  path: '/temp/landing-05',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authedTenantRoute = authedTenantRouteImport.update({
@@ -356,11 +326,6 @@ export interface FileRoutesByFullPath {
   '/verify-email': typeof verifyEmailRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
-  '/temp/landing-05': typeof tempLanding05Route
-  '/temp/landing-05-a': typeof tempLanding05ARoute
-  '/temp/landing-06': typeof tempLanding06Route
-  '/temp/landing-07': typeof tempLanding07Route
-  '/temp/landing-08': typeof tempLanding08Route
   '/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
@@ -408,11 +373,6 @@ export interface FileRoutesByTo {
   '/verify-email': typeof verifyEmailRoute
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRoute
-  '/temp/landing-05': typeof tempLanding05Route
-  '/temp/landing-05-a': typeof tempLanding05ARoute
-  '/temp/landing-06': typeof tempLanding06Route
-  '/temp/landing-07': typeof tempLanding07Route
-  '/temp/landing-08': typeof tempLanding08Route
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
@@ -459,11 +419,6 @@ export interface FileRoutesById {
   '/verify-email': typeof verifyEmailRoute
   '/_authed-layout/staff': typeof authedStaffRoute
   '/_authed-layout/tenant': typeof authedTenantRoute
-  '/temp/landing-05': typeof tempLanding05Route
-  '/temp/landing-05-a': typeof tempLanding05ARoute
-  '/temp/landing-06': typeof tempLanding06Route
-  '/temp/landing-07': typeof tempLanding07Route
-  '/temp/landing-08': typeof tempLanding08Route
   '/_authed-layout/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
   '/_authed-layout/staff/profiles': typeof authedStaffProfilesRoute
   '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
@@ -513,11 +468,6 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/staff'
     | '/tenant'
-    | '/temp/landing-05'
-    | '/temp/landing-05-a'
-    | '/temp/landing-06'
-    | '/temp/landing-07'
-    | '/temp/landing-08'
     | '/staff/dashboard'
     | '/staff/profiles'
     | '/staff/staff-users'
@@ -565,11 +515,6 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/staff'
     | '/tenant'
-    | '/temp/landing-05'
-    | '/temp/landing-05-a'
-    | '/temp/landing-06'
-    | '/temp/landing-07'
-    | '/temp/landing-08'
     | '/staff/profiles'
     | '/staff/staff-users'
     | '/staff/tenants'
@@ -615,11 +560,6 @@ export interface FileRouteTypes {
     | '/verify-email'
     | '/_authed-layout/staff'
     | '/_authed-layout/tenant'
-    | '/temp/landing-05'
-    | '/temp/landing-05-a'
-    | '/temp/landing-06'
-    | '/temp/landing-07'
-    | '/temp/landing-08'
     | '/_authed-layout/staff/dashboard'
     | '/_authed-layout/staff/profiles'
     | '/_authed-layout/staff/staff-users'
@@ -667,11 +607,6 @@ export interface RootRouteChildren {
   resetPasswordRoute: typeof resetPasswordRoute
   signupRoute: typeof signupRoute
   verifyEmailRoute: typeof verifyEmailRoute
-  tempLanding05Route: typeof tempLanding05Route
-  tempLanding05ARoute: typeof tempLanding05ARoute
-  tempLanding06Route: typeof tempLanding06Route
-  tempLanding07Route: typeof tempLanding07Route
-  tempLanding08Route: typeof tempLanding08Route
 }
 
 declare module '@tanstack/react-router' {
@@ -737,41 +672,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof indexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/temp/landing-08': {
-      id: '/temp/landing-08'
-      path: '/temp/landing-08'
-      fullPath: '/temp/landing-08'
-      preLoaderRoute: typeof tempLanding08RouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/temp/landing-07': {
-      id: '/temp/landing-07'
-      path: '/temp/landing-07'
-      fullPath: '/temp/landing-07'
-      preLoaderRoute: typeof tempLanding07RouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/temp/landing-06': {
-      id: '/temp/landing-06'
-      path: '/temp/landing-06'
-      fullPath: '/temp/landing-06'
-      preLoaderRoute: typeof tempLanding06RouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/temp/landing-05-a': {
-      id: '/temp/landing-05-a'
-      path: '/temp/landing-05-a'
-      fullPath: '/temp/landing-05-a'
-      preLoaderRoute: typeof tempLanding05ARouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/temp/landing-05': {
-      id: '/temp/landing-05'
-      path: '/temp/landing-05'
-      fullPath: '/temp/landing-05'
-      preLoaderRoute: typeof tempLanding05RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authed-layout/tenant': {
@@ -1182,11 +1082,6 @@ const rootRouteChildren: RootRouteChildren = {
   resetPasswordRoute: resetPasswordRoute,
   signupRoute: signupRoute,
   verifyEmailRoute: verifyEmailRoute,
-  tempLanding05Route: tempLanding05Route,
-  tempLanding05ARoute: tempLanding05ARoute,
-  tempLanding06Route: tempLanding06Route,
-  tempLanding07Route: tempLanding07Route,
-  tempLanding08Route: tempLanding08Route,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
