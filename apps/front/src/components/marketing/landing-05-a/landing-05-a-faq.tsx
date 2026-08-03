@@ -15,23 +15,21 @@ const FAQ_ITEMS = ['0', '1', '2', '3'] as const;
  * where opening one item moved another item's position without touching it —
  * which a single reading order removes structurally rather than patches.
  *
- * COMPOSITIONAL BREAK 2 OF 2 lives in the route, not here: from 1024 up, this
- * list sits in a 7-of-12 column offset by one track, with the section header
- * in a 4-of-12 rail beside it. It was the page's weakest use of space — a
- * 66ch list under a full-width heading, with 40% of the section empty on its
- * right for no reason. Turning that dead space into the header's own column
- * makes the emptiness structural instead of accidental, and it is the page's
- * only asymmetric section.
+ * ONE COLUMN, at every breakpoint. The heading sits above the questions, full
+ * width, exactly like every other section's. There is no side rail, no split
+ * and no offset: an FAQ is a single reading order and any second column —
+ * even one that only holds the heading — makes the reader choose where to
+ * start. The empty right half of a 66ch list is not dead space to be filled,
+ * it is the margin a long-measure answer needs.
  *
- * `first:pt-0` is the optical half of that: with no top padding on the first
- * item, the first question's cap sits on the same line as the header's
- * eyebrow rather than 32px below it, so the two columns start together.
+ * `first:pt-0` keeps the first question's cap on the section-body gap rather
+ * than 32px below it, so the list starts where the header's dek says it does.
  */
 export const Landing05AFaq = () => {
 	const { t } = useTranslation('landing-05-a');
 
 	return (
-		<div className="publy-l05a-section-body flex max-w-[66ch] flex-col lg:mt-0">
+		<div className="publy-l05a-section-body flex max-w-[66ch] flex-col">
 			{FAQ_ITEMS.map((item) => (
 				<div
 					key={item}

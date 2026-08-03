@@ -257,7 +257,9 @@ function LandingExploration05A() {
 						<Landing05APricing />
 					</Landing05ASection>
 
-					{/* §8 — FAQ (todesktop-33, two columns). */}
+					{/* §8 — FAQ: ONE COLUMN, like every other section on the page.
+					    The heading sits above the questions, full width; there is
+					    no side rail, no split and no offset. */}
 					<Landing05ASection
 						reveal
 						ruled
@@ -265,25 +267,13 @@ function LandingExploration05A() {
 						anchor
 						labelledBy="landing-05-a-faq-heading"
 					>
-						{/* Compositional break 2 of 2: the page's one asymmetric
-						    section. The header takes a 4-of-12 rail and the
-						    answers a 7-of-12 column offset by one track, so the
-						    empty right half a 66ch list used to leave becomes
-						    structure. Stays inside the reading column — only §4
-						    leaves it. */}
-						<div className="lg:grid lg:grid-cols-12 lg:gap-8">
-							<div className="lg:col-span-4">
-								<Landing05ASectionHeader
-									headingId="landing-05-a-faq-heading"
-									eyebrowKey="landing-faq-eyebrow"
-									titleKey="landing-faq-title"
-									dekKey="landing-faq-dek"
-								/>
-							</div>
-							<div className="lg:col-span-7 lg:col-start-6">
-								<Landing05AFaq />
-							</div>
-						</div>
+						<Landing05ASectionHeader
+							headingId="landing-05-a-faq-heading"
+							eyebrowKey="landing-faq-eyebrow"
+							titleKey="landing-faq-title"
+							dekKey="landing-faq-dek"
+						/>
+						<Landing05AFaq />
 					</Landing05ASection>
 
 					{/* §9 — The two flag-gated bands: restyled onto the attio-15

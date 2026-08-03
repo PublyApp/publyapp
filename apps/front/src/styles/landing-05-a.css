@@ -628,51 +628,16 @@
 		}
 	}
 
-	/* ---- COMPOSITIONAL BREAK 1 OF 2: the one section that leaves the column.
+	/* ---- NOTHING LEAVES THE COLUMN.
 
-	   Ten sections in one 1152px column is coherent and, over a 9000px page,
-	   monotonous — every section the same width, the same shape, the same
-	   distance from the reader. This is the single place the column breaks
-	   its own rule, and the section chosen is the one whose subject IS
-	   breadth: six product surfaces, the page's densest and most factual
-	   band. Width carries the argument, so the reader feels the product's
-	   surface area before reading a word of it.
+	   The page is one reading column between two mullions, and every section
+	   is inside it — including the six-fact strip, which used to run to the
+	   viewport edges. A ledger whose densest row is the one that stops being
+	   a ledger is not a composition, it is an exception. Variety on this page
+	   is carried by what a section IS (a statement, a grid, a list, a band),
+	   never by how wide it is.
 
-	   Only the BODY leaves the column. The section's top rule and its header
-	   triple stay exactly where every other section's are, so the page's left
-	   edge is never broken and the heading is still one of eight in a
-	   sequence — what widens is the argument underneath it. That is what
-	   keeps the move reading as a wider row of the same ledger rather than as
-	   a different page, and it is why the mullions pass behind the grid
-	   instead of stopping at it.
-
-	   Two moments in a page is a composition; five is a scrapbook. The other
-	   moment is the FAQ's asymmetric split, which stays inside the column
-	   entirely — so nothing else on the page leaves it.
-
-	   The 9px inset is the scrollbar guarantee the sky no longer needs: a
-	   classic (non-overlay) scrollbar is at most 17px, and 9 > 17/2, so
-	   `50% - 50vw + 9px` can never open a horizontal scrollbar of its own. */
-	.publy-landing-05-a .publy-l05a-bleed {
-		margin-inline: calc(50% - 50vw + 9px);
-		padding-inline: 16px;
-	}
-
-	@media (min-width: 640px) {
-		.publy-landing-05-a .publy-l05a-bleed {
-			padding-inline: 24px;
-		}
-	}
-
-	/* Past the reading column's own width the band gets a real gutter, so its
-	   first and last cells are never glued to the viewport edge. */
-	@media (min-width: 1280px) {
-		.publy-landing-05-a .publy-l05a-bleed {
-			padding-inline: 48px;
-		}
-	}
-
-	/* ---- A HAIRLINE RING, NOT A BORDER.
+	   ---- A HAIRLINE RING, NOT A BORDER.
 
 	   A 1px solid border reads as a box: it is part of the box model, it
 	   changes layout when it appears or disappears, and at a corner it meets
@@ -1207,6 +1172,16 @@
 		border-block-start: 1px solid var(--publy-border);
 	}
 
+	/* The two column dividers. They are inset 32px from the grid's own top
+	   and bottom — the cells' own `py-8` — rather than pinned to a measured
+	   pixel height, so the rule always stops level with the first cell's icon
+	   and the last cell's final line, in every locale and at every cell
+	   height. The pinned 198px it replaces was measured against one locale's
+	   line count and silently wrong in the other. */
+	.publy-landing-05-a .publy-l05a-fact-divider {
+		inset-block: 32px;
+	}
+
 	.publy-landing-05-a
 		.publy-l05a-fact-grid
 		> .publy-l05a-fact-cell:first-child {
@@ -1241,6 +1216,28 @@
 		color: var(--l05a-night-foreground);
 		padding-block: 4px;
 		padding-inline: 10px;
+	}
+
+	/* ---- §5 / §6: THE PAGE DRAWS WITH LINES, IT DOES NOT DRAW WITH FILLS.
+
+	   `.publy-marketing-hairline-grid` works by painting the grid container
+	   in `--publy-border` and every cell in a surface colour, so the 1px gaps
+	   read as hairlines. The shared class fills its cells with
+	   `--publy-surface-raised`, which on this page is a grey slab: the two
+	   sections that use it (who it is for, the planned trial) became the only
+	   filled rectangles on a page made of hairlines, and the field stopped
+	   passing behind them.
+
+	   The cells are re-pointed at `--publy-surface` — identical to
+	   `--publy-background` in both themes — so what is left is the hairline
+	   ruling and nothing else, and the section reads as ruled paper rather
+	   than as a tray of cards. This is the page's standing rule below the
+	   hero: an object may have an EDGE, never a FILL, and the only filled
+	   things on the whole document are the primary buttons and the closing
+	   night. Scoped to this page, so the shared class is untouched for
+	   `landing-05` and the other explorations. */
+	.publy-landing-05-a .publy-marketing-hairline-grid > * {
+		background: var(--publy-surface);
 	}
 
 	/* ---- §8 FAQ: a ruled list, not an accordion. Four short answers read
