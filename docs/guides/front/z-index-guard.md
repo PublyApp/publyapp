@@ -66,8 +66,15 @@ modules `vite:asset` did not claim — separating the raw-export shape `vite:ass
 same shape an ordinary module wrote). The file part is Vite's own `cleanUrl` semantics — strip from
 the first `?` or `#` — so a legal specifier containing another query separator (`./x.txt?v=1?raw`)
 is raw because Vite transformed it as raw, never because a hand-written parser said so. The fixture
-suite scans the guard's own source and fails if query parsing appears anywhere outside that one
-function, so a second classifier cannot come back. The script pass asks the recorded build
+suite asserts this behaviourally rather than by scanning the guard's source for query-parsing
+spellings (a source-regex stand-in can be out-spelled, and it cannot tell a query parse that
+*classifies* from a query extraction that *reconstructs a module ID for a per-ID membership
+lookup*): both ID shapes of one file (`?raw`, `?url`, `?v=1?raw`) feed the real classification
+path and classify exactly as Vite observes them, and the script pass resolves a specifier to its
+full module ID (path + query) and consults the build's per-ID record — a `?url` ID for a file the
+build also recorded as `?raw` is a distinct Vite module and provably not raw text, so no second
+hand-written classifier can diverge from the build without the behavioural assertion reddening.
+The script pass asks the recorded build
 provenance: an import binding exists only when its resolved file is in the recorded `?raw` set,
 never by re-classifying the specifier text. The script pass records every
 binding a static import can introduce — the default clause, the namespace clause, `{ default as x }`
@@ -105,14 +112,20 @@ and every string it can provably be is walked; static text beside a runtime chil
 it is walked individually (a `+` whose other operand is runtime still ships its static operand —
 as a provable *substring*, which the payload walk scans but which never doubles as a member
 identity), and a purely runtime payload stays in the declared runtime bucket. A payload whose
-provable candidates exceed 100 000 cannot be enumerated at all — the Cartesian bound is a resource
-ceiling (the candidates are CSS payload strings bounded in length by the source expression), not a
-statement about how many candidates a payload may legitimately have: thirteen independent binary
-choices (8192 candidates) enumerate comfortably. Beyond the bound the payload is unresolvable, and
-it is a named `z-index-static-candidate-overflow` diagnostic rather than a hang or a silent green,
-and overflow is monotone through every expression-family combinator — an overflowing branch nested
-in a conditional, template substitution, `+` operand, member read, or const alias keeps the whole
-enclosing payload loud by name.
+enumerated work — the total characters across the produced candidates, i.e. candidate count times
+candidate length — exceeds the work budget cannot be enumerated at all. The budget is a resource
+ceiling (the candidates are CSS payload strings bounded in length by the source expression,
+checked *before* the next candidate is allocated, so the guard never over-allocates past the
+ceiling), not a statement about how many candidates a payload may legitimately have: 131,072 short
+candidates — a round-19 reproduction that the previous count cap of 100,000 wrongly rejected —
+enumerate comfortably, because each candidate is short. Beyond the budget the payload is
+unresolvable, and it is a named `z-index-static-candidate-overflow` diagnostic rather than a hang
+or a silent green, and overflow is monotone through every expression-family combinator — an
+overflowing branch nested in a conditional, template substitution, `+` operand, member read, or
+const alias keeps the whole enclosing payload loud by name, and the JSX `<link>` rel/href reader,
+link-descriptor reader, `CSS.registerProperty()` name, and scale-token-write key each report the
+same named diagnostic for an unresolvable candidate space instead of treating it as an ordinary
+unknown that resolves to a compliant default.
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -213,10 +226,13 @@ Five components:
      `?inline`/`?raw` CSS as the inlined export-default shape), the `vite:asset` marker Vite records
      on `?url` modules, and the ids this guard's post-order `load` hook observed (exactly the
      modules `vite:asset` did not claim) — across Vite's own CSS-language set and, for `?raw`,
-     every module the build transforms regardless of extension. The fixture suite scans the guard's
-     own source so query parsing cannot reappear outside that one function, and the script pass
+     every module the build transforms regardless of extension. The fixture suite asserts this
+     behaviourally — both ID shapes feed the real classification path and classify exactly as Vite
+     observes them, and the per-ID script-pass answer is pinned — and the script pass
      never re-classifies a specifier: an import binding exists only when the build's recorded set
-     contains the specifier's resolved file. A raw payload is walked only when the import binding reaches
+     contains the specifier's resolved file, and with per-ID provenance it contains the specifier's
+     *full module ID* (path + query), so a `?url` ID for a file the build also recorded as `?raw` is
+     a distinct module and provably not raw text. A raw payload is walked only when the import binding reaches
      a style-capable sink (a `<style>` element's children or a `dangerouslySetInnerHTML` payload, the
      binding tracked unshadowed from its import declaration through module-scope `const` alias chains,
      the transparent expression family — object-member reads through const object literals,
@@ -317,11 +333,14 @@ gaps, each with its current evidence:
   unresolvable payload expression. Source-order last-write-wins
   is still mirrored: a later spread may carry any property, so it shadows static facts established
   before it, and a later explicit member or static literal spread re-establishes them. Assigning a
-  complete style string through `cssText`, `setAttribute('style', ...)`, or raw HTML at **runtime**
-  has the same data-flow boundary; a **static literal** `dangerouslySetInnerHTML` payload is closed
-  instead — the script pass scans its `<style>`/`<link rel="stylesheet">` fragments exactly like the
-  JSX routes. Literal object properties in scanned source remain red even when that object is later
-  spread.
+complete style string through `cssText`, `setAttribute('style', ...)`, or raw HTML at **runtime**
+   has the same data-flow boundary; a **static literal** `dangerouslySetInnerHTML` payload is closed
+   instead — the script pass scans its `<style>`/`<link rel="stylesheet">` fragments exactly like the
+   JSX routes, and a `<style>` element with no closing tag is walked too, because browser fragment
+   parsing closes an open raw-text style element at EOF and applies its declarations (an
+   unterminated `<style>` is never silently treated as compliant). Literal object properties in
+   scanned source remain red even when that object is later
+   spread.
 - **A class assembled by `+` string concatenation (`'z-' + 5`).** It produces no extractor candidate,
   so on its own it ships no rule and paints at `auto` — it is dead text. It becomes load-bearing only
   **in combination with** a route that generates a rule for that class (`@source inline("z-5")`,

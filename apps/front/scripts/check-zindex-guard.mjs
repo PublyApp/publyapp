@@ -3104,7 +3104,11 @@ const resolveRawSpecifierId = (specifier, importerRelativePath, root) => {
 // a file path through the single classifier, and the binding exists only when
 // the build's provenance record contains that path — `?v=1?raw` is raw
 // because the build transformed it as raw and recorded the file, exactly like
-// any other spelling. `kind` tells the walk what each binding provably ships:
+// any other spelling. With per-ID provenance (round-19 I1) the record
+// contains the full module ID — path plus query — and the binding exists only
+// when that exact ID is recorded, so a `?url` sibling of a `?raw` module for
+// the same file is a distinct module and provably not raw text. `kind` tells
+// the walk what each binding provably ships:
 // the default text, a namespace object readable through `.default`, or — for
 // a named element that is not `default` — nothing at all (undefined on a raw
 // module, recorded by name so shadowing resolution stays exact, green by name
