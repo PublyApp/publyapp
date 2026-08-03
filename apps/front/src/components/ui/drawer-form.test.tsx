@@ -3389,6 +3389,73 @@ export const MethodKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 24's BLOCKER 3 — a traced array whose literal initializer names four
+// LOCAL components, then a later `push` appends the real drawer kit. The
+// `.map()` callback reads the array AFTER the mutation; classifying the
+// literal initializer as "the array's definite contents" is the same mistake
+// as trusting a reassigned variable's initializer. The array must be UNVERIFIABLE
+// when the guard cannot prove it unmutated.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r24-mutated-array-kit-fixture.tsx';
+const TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_FILE,
+);
+const TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const LocalSurface = (() => <div />) as typeof DrawerContent;
+const LocalForm = (({ methods: _methods }: { methods: UseFormReturn<FieldValues> }) => {
+	void _methods;
+	return <form />;
+}) as typeof DrawerForm;
+const LocalBody = (() => <div />) as typeof DrawerBody;
+const LocalFooter = (() => <div />) as typeof DrawerFooter;
+
+const kits: DrawerKit[] = [
+	{
+		Surface: LocalSurface,
+		Form: LocalForm,
+		Body: LocalBody,
+		Footer: LocalFooter,
+	},
+];
+kits.push({
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+});
+
+export const MutatedArrayKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<>
+		{kits.map((kit) => (
+			<kit.Surface>
+				<div className="p-4">
+					<kit.Form methods={methods}>
+						<kit.Body />
+						<kit.Footer />
+					</kit.Form>
+				</div>
+			</kit.Surface>
+		))}
+	</>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -3719,6 +3786,10 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_METHOD_KIT_DRAWER_FILE,
 		source: TEMPORARY_METHOD_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_FILE,
+		source: TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
 	},
 ];
 
@@ -4730,6 +4801,92 @@ const resolveObjectLiteralMember = (
 
 const ITERATION_CALLBACK_METHOD_NAMES = new Set(['map', 'forEach', 'flatMap']);
 
+// The array methods that MUTATE their receiver in place — a traced array whose
+// literal initializer is only its first value cannot be classified from that
+// initializer when a later call writes to it (round 24's BLOCKER 3).
+const MUTATING_ARRAY_METHOD_NAMES = new Set([
+	'push',
+	'pop',
+	'shift',
+	'unshift',
+	'splice',
+	'sort',
+	'reverse',
+	'fill',
+	'copyWithin',
+]);
+
+/**
+ * True when the file mutates `name` after its declaration — an in-place array
+ * method call (`kits.push(...)`, `kits.splice(...)`, ...), an element write
+ * (`kits[i] = ...`) or a `.length` write. Round 24's BLOCKER 3: an array
+ * literal traced to its initializer is only safe to classify from that
+ * initializer when the guard ALSO proves the array is not mutated. A variable
+ * binding reassignment (`kits = [...]`) is already handled by `isReassigned`;
+ * this helper covers the ELEMENT writes a literal initializer cannot see.
+ */
+const isArrayBindingMutated = (
+	sourceFile: SourceFile,
+	name: string,
+): boolean => {
+	for (const call of sourceFile.getDescendantsOfKind(
+		SyntaxKind.CallExpression,
+	)) {
+		const callee = (call as CallExpression).getExpression();
+		if (callee.getKind() !== SyntaxKind.PropertyAccessExpression) {
+			continue;
+		}
+		const propertyAccess = callee as PropertyAccessExpression;
+		if (!MUTATING_ARRAY_METHOD_NAMES.has(propertyAccess.getName())) {
+			continue;
+		}
+		const base = unwrapExpression(propertyAccess.getExpression());
+		if (base.getKind() === SyntaxKind.Identifier && base.getText() === name) {
+			return true;
+		}
+	}
+	for (const binary of sourceFile.getDescendantsOfKind(
+		SyntaxKind.BinaryExpression,
+	)) {
+		const binaryExpression = binary as BinaryExpression;
+		if (
+			binaryExpression.getOperatorToken().getKind() !== SyntaxKind.EqualsToken
+		) {
+			continue;
+		}
+		const left = binaryExpression.getLeft();
+		if (left.getKind() === SyntaxKind.ElementAccessExpression) {
+			const elementBase = unwrapExpression(
+				(
+					left as unknown as {
+						getExpression(): Node;
+					}
+				).getExpression(),
+			);
+			if (
+				elementBase.getKind() === SyntaxKind.Identifier &&
+				elementBase.getText() === name
+			) {
+				return true;
+			}
+		}
+		if (left.getKind() === SyntaxKind.PropertyAccessExpression) {
+			const propertyAccess = left as PropertyAccessExpression;
+			if (propertyAccess.getName() !== 'length') {
+				continue;
+			}
+			const elementBase = unwrapExpression(propertyAccess.getExpression());
+			if (
+				elementBase.getKind() === SyntaxKind.Identifier &&
+				elementBase.getText() === name
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
+};
+
 /**
  * The array a `.map()`/`.forEach()`/`.flatMap()` callback's ELEMENT
  * parameter draws its values from — round 21's BLOCKER 1: `kit` in
@@ -4820,6 +4977,19 @@ const resolveIterableParameterMember = (
 	);
 	if (!arrayLiteral) {
 		return undefined;
+	}
+	// Round 24's BLOCKER 3: the literal initializer is only the array's FIRST
+	// value. If the same array is mutated afterwards (`kits.push(...)`,
+	// `kits[i] = ...`), the traced elements are not what the callback sees, so
+	// the literal cannot be trusted — the member is UNVERIFIABLE, never a
+	// definite non-drawer.
+	if (
+		isArrayBindingMutated(
+			unwrappedReceiver.getSourceFile(),
+			unwrappedReceiver.getText(),
+		)
+	) {
+		return UNVERIFIABLE_TAG;
 	}
 	const elements = arrayLiteral.getElements();
 	if (elements.length === 0) {
@@ -8401,6 +8571,32 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_METHOD_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a traced array literal that is later mutated is unverifiable and rejected', () => {
+		// Round 24's BLOCKER 3, verbatim: `const kits: DrawerKit[] =
+		// [LocalKit]; kits.push(DrawerKit);` then `kits.map((kit) => ...)`. The
+		// literal initializer is only the array's FIRST value; the walk used to
+		// classify it as "definitely not a drawer" because the traced elements
+		// were all local, while the pushed element — the real drawer kit — is
+		// what the callback actually sees. The mutation must make the array
+		// UNVERIFIABLE, never a definite non-drawer.
+		writeFileSync(
+			TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_PATH,
+			TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_PATH);
 		}
 	});
 
