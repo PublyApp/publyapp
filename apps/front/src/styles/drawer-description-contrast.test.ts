@@ -497,6 +497,33 @@ type CallSite = {
 	file: string;
 	line: number;
 	className: string | null;
+	/** Round 19 I2: the literal `data-*`/`aria-*` attributes the call site
+	 * writes on the description element (e.g. `data-contrast-probe="low"`).
+	 * These are REAL static attributes — part of the element's contract, not
+	 * ephemeral Base UI state — so the probe renders them and the state-
+	 * attribute exemption never hides a rule keyed on one. */
+	attributes: Record<string, string>;
+};
+
+/** Round 19 I2: the literal `data-*`/`aria-*` attributes the call site writes
+ * on the description element. An attribute's NAME is the contract — whether
+ * its value is a literal string or a runtime expression, the element carries
+ * it at rest, so a selector keyed on that name must be measured, never
+ * silently exempted as ephemeral state. Only literal string values are
+ * captured for the probe (an expression value's exact value is unknowable, so
+ * the attribute is reserved by name but rendered without a value). The
+ * lookbehind excludes a `data-*`/`aria-*` token that is itself inside a
+ * quoted attribute VALUE (e.g. `title="data-flag='x'"`). */
+export const extractLiteralStateAttributes = (
+	attributes: string,
+): Record<string, string> => {
+	const found: Record<string, string> = {};
+	for (const match of attributes.matchAll(
+		/(?<![a-zA-Z0-9_"'=])((?:data|aria)-[\w-]+)\s*=\s*("([^"]*)"|'([^']*)')/g,
+	)) {
+		found[match[1]] = match[3] ?? match[4] ?? '';
+	}
+	return found;
 };
 
 // Round 8 M3: the module matcher used to gate on
@@ -594,6 +621,7 @@ const findDrawerDescriptionCallSites = (): CallSite[] => {
 					file,
 					line,
 					className: extractClassName(attributes, file, line),
+					attributes: extractLiteralStateAttributes(attributes),
 				});
 			}
 		}
@@ -2812,6 +2840,34 @@ describe('drawer description text contrast (#1043)', () => {
 		).toBe('x');
 	});
 
+	// Round 19 I2: literal `data-*`/`aria-*` attributes the call site writes
+	// are part of the element's real contract — the parser must capture them so
+	// the probe renders them and the state-attribute exemption never hides a
+	// static rule keyed on one. A `data-*` spell inside a quoted attribute
+	// VALUE is not a real attribute and must be ignored. If the parser is
+	// reverted to nothing, this test reds — the round-18 review's static
+	// attribute (`data-contrast-probe="low"`) would silently pass through the
+	// guard as an ephemeral state variant.
+	test('extractLiteralStateAttributes captures literal data-*/aria-* attributes (round 19 I2)', () => {
+		expect(
+			extractLiteralStateAttributes(
+				' className="publy-r18-static" data-contrast-probe="low"',
+			),
+		).toEqual({ 'data-contrast-probe': 'low' });
+		expect(
+			extractLiteralStateAttributes(
+				" className='x' aria-label='desc' data-mode=\"on\"",
+			),
+		).toEqual({ 'aria-label': 'desc', 'data-mode': 'on' });
+		// A data-* spell inside a quoted value is text, not an attribute; and
+		// an expression-valued attribute is not a literal string.
+		expect(
+			extractLiteralStateAttributes(
+				` title="data-flag='x'" data-open={isOpen}`,
+			),
+		).toEqual({});
+	});
+
 	// Round 5 I6: the app compiles CSS with @tailwindcss/vite's pinned
 	// `tailwindcss`, while the guard compiles with apps/front's direct devDep.
 	// Nothing may let those two drift apart — a vite bump without a matching
@@ -3043,6 +3099,49 @@ describe('drawer description text contrast (#1043)', () => {
 			expect(light.color).toEqual(resolveColor(primitiveToken, 'light'));
 		},
 	);
+
+	// Round 19 I2, the RED half of the paired proof: a rule keyed on a static
+	// `data-*` attribute the call site WRITES (`data-contrast-probe="low"` —
+	// the round-18 reviewer's exact reproduction) is part of the element's
+	// real contract, not ephemeral Base UI state. The probe renders the
+	// attribute, the rule MATCHES it, and the 2.51:1 paint is measured and
+	// caught. Reverting the probe to ignore the call site's attributes (the
+	// round-17 behaviour) makes the rule stop matching: the guard falls back
+	// to the primitive's compliant default and this assertion fails — a static
+	// real attribute silently bypasses the guard again.
+	test('a static literal data-* attribute on the call site is measured, never exempted (round 19 I2)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.publy-r18-static[data-contrast-probe='low'] { color: var(--publy-foreground-subtle); }`,
+			['publy-r18-static'],
+			{ attributes: { 'data-contrast-probe': 'low' } },
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Round 19 I2, the reservation half of the pairing: the state-attribute
+	// exemption is for attributes PROVEN absent at rest (Base UI's runtime
+	// state). An attribute the call site writes is present at rest, so a rule
+	// keyed on a DIFFERENT value of it is a genuinely non-applying resting
+	// declaration — never "ephemeral state". The class's only declaration sits
+	// behind `[data-shade='dark']` while the element carries `data-shade=
+	// "light"`, so the guard must fail loud by name. Reverting the reservation
+	// (treating every non-slot data-* as ephemeral, the round-17 behaviour)
+	// exempts the rule and reports the compliant primitive instead — the exact
+	// false negative IMPORTANT 2 exists to close.
+	test('a static data-* attribute is not exempted as ephemeral state and fails loud when its value never rests (round 19 I2)', async () => {
+		await expect(async () =>
+			resolveFixturePaint(
+				`.publy-r18-shade[data-shade='dark'] { color: var(--publy-foreground-subtle); }`,
+				['publy-r18-shade'],
+				{ attributes: { 'data-shade': 'light' } },
+			),
+		).rejects.toThrow(/No resting colour for publy-r18-shade/);
+	});
 
 	// Round 8 I1 said "a @supports-nested rule never supplies the resting
 	// colour" — that was the model's blindness: it could not evaluate the
@@ -3533,7 +3632,9 @@ describe('drawer description text contrast (#1043)', () => {
 							'publy-drawer-description',
 							...callSite.className.split(/\s+/).filter((u) => u !== ''),
 						];
-			const { light, dark } = await resolveClassPaint(utilities);
+			const { light, dark } = await resolveClassPaint(utilities, {
+				attributes: callSite.attributes,
+			});
 
 			for (const [theme, paint] of [
 				['light', light],
