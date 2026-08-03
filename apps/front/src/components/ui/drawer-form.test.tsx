@@ -3216,6 +3216,64 @@ export const ContentsWrapperCleanDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 24's BLOCKER 1 — components-as-props. A component passes the four
+// drawer exports into a CHILD as a prop (`kit={{ Surface: DrawerContent,
+// Form: DrawerForm, Body: DrawerBody, Footer: DrawerFooter }}`), and the child
+// authors the broken `Surface > div > Form > Body/Footer` chain through
+// `<kit.Surface>` etc. `kit` is a plain Parameter the resolver cannot trace to
+// a value side, so the member value is NOT proved — round 24 makes it
+// UNVERIFIABLE (fail closed) rather than the old "definitely not a drawer".
+// The member base is typed `typeof DrawerContent` (repo-local), so the
+// type-based NOT_DRAWER proof does not apply: the file must redden.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_PARAMETER_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r24-parameter-kit-fixture.tsx';
+const TEMPORARY_PARAMETER_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_PARAMETER_KIT_DRAWER_FILE,
+);
+const TEMPORARY_PARAMETER_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type KitProps = {
+	kit: {
+		Surface: typeof DrawerContent;
+		Form: typeof DrawerForm;
+		Body: typeof DrawerBody;
+		Footer: typeof DrawerFooter;
+	};
+	methods: UseFormReturn<FieldValues>;
+};
+
+const DrawerFromKit = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+
+export const ParameterKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerFromKit
+		methods={methods}
+		kit={{
+			Surface: DrawerContent,
+			Form: DrawerForm,
+			Body: DrawerBody,
+			Footer: DrawerFooter,
+		}}
+	/>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -3534,6 +3592,10 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CONTENTS_WRAPPER_CLEAN_FILE,
 		source: TEMPORARY_CONTENTS_WRAPPER_CLEAN_SOURCE,
+	},
+	{
+		file: TEMPORARY_PARAMETER_KIT_DRAWER_FILE,
+		source: TEMPORARY_PARAMETER_KIT_DRAWER_SOURCE,
 	},
 ];
 
@@ -4593,6 +4655,62 @@ const resolveIterableParameterMember = (
  *    cannot be resolved, or a traced array's elements disagree on the
  *    member. Not knowing must redden.
  */
+/**
+ * Decides whether a MEMBER ACCESS'S declared TYPE is provably external to the
+ * repo — round 24's BLOCKER 1. The old fallback returned "definitely not a
+ * drawer" for any member of a Parameter/BindingElement base, but that is not
+ * proved: a components-as-props kit (`kit={{ Surface: DrawerContent, ... }}`)
+ * passes the real drawer exports into a plain parameter, and `<kit.Surface>`
+ * resolved to a definite non-drawer with the exact #990 break green. The
+ * three-valued rule says "not proved" is UNVERIFIABLE — EXCEPT when the
+ * member's declared type itself proves it is not the drawer module's export.
+ *
+ * The drawer module is a repo file, so an export's type is a repo declaration.
+ * If the member's type resolves (through any type-alias chain) to a type whose
+ * declarations all live OUTSIDE the repo (node_modules, ambient lib), the
+ * member cannot be the same symbol as a drawer export — identity disproof, the
+ * same cut `resolveSymbolValue` applies to a whole external symbol. `item.Icon`
+ * (`TablerIcon` from `@tabler/icons-react`) and `option.Icon` (`Icon`) are
+ * provably external; `kit.Surface` typed `typeof DrawerContent` is not. When
+ * the type is not decidable (null symbol, `any`, a union, a repo-typed
+ * member), the result is NOT provably external — the caller must fail closed.
+ */
+const isMemberTypeProvablyExternal = (
+	propertyAccess: PropertyAccessExpression,
+	project: Project,
+): boolean => {
+	const checker = project.getTypeChecker();
+	const type = checker.getTypeAtLocation(propertyAccess);
+	let symbol = type.getSymbol() ?? type.getAliasSymbol();
+	if (!symbol) {
+		return false;
+	}
+	let current: TsMorphSymbol | null = symbol;
+	let guard = 0;
+	while (
+		current &&
+		(current.getFlags() & ts.SymbolFlags.Alias) !== 0 &&
+		guard < 16
+	) {
+		const aliased = current.getAliasedSymbol();
+		if (!aliased || aliased === current) {
+			break;
+		}
+		current = aliased;
+		guard += 1;
+	}
+	if (!current) {
+		return false;
+	}
+	const declarations = current.getDeclarations();
+	if (declarations.length === 0) {
+		return false;
+	}
+	return declarations.every(
+		(declaration) => !isRepoFilePath(declaration.getSourceFile().getFilePath()),
+	);
+};
+
 const resolveTypeSideMemberValue = (
 	propertyAccess: PropertyAccessExpression,
 	project: Project,
@@ -4664,21 +4782,21 @@ const resolveTypeSideMemberValue = (
 				declaration.getKind() === SyntaxKind.BindingElement,
 		)
 	) {
-		// A base binding whose value IS the symbol — a parameter with no
-		// traceable iterable, a destructured prop (a BindingElement), a
-		// local function/class, a namespace import. Its member belongs to
-		// that definite local value, never to the drawer module's exports.
-		// This is the round-19 BLOCKER 1 paired proof: `option.Icon` (a
-		// `.map` callback parameter whose iterable resolves to real local
-		// values) and `const Icon = item.Icon` with `item` a destructured
-		// typed prop (the shipped app-shell.tsx shape, which has no
-		// iterable to trace — `item` is a component prop, not a callback's
-		// own element parameter) must not become unverifiable in files that
-		// legitimately render them. BindingElement is deliberately absent
-		// from the DEFINITE set itself — a destructured binding USED AS THE
-		// TAG'S VALUE is round 18's fail-closed default — but as a member
-		// BASE it is a definite local value like any parameter.
-		return null;
+		// Round 24's BLOCKER 1: a Parameter/BindingElement member base is NOT
+		// a definite non-drawer — a components-as-props kit can hold the real
+		// drawer exports (`kit={{ Surface: DrawerContent, ... }}` passed into
+		// a plain parameter). The base's declared member TYPE is the only
+		// evidence that either proves it outside the repo or leaves it
+		// unverifiable: `item.Icon` (`TablerIcon` from `@tabler/icons-react`)
+		// and `option.Icon` are provably external and stay "definitely not a
+		// drawer" (the round-19 BLOCKER 1 paired proof — the shipped
+		// app-shell.tsx and icon-color-picker.tsx shapes); `kit.Surface`
+		// typed `typeof DrawerContent` is not, so it must fail closed as
+		// UNVERIFIABLE, never silently read as a non-drawer.
+		if (isMemberTypeProvablyExternal(propertyAccess, project)) {
+			return null;
+		}
+		return UNVERIFIABLE_TAG;
 	}
 	return UNVERIFIABLE_TAG;
 };
@@ -7983,6 +8101,34 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_PROPSIG_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose four parts are passed into a child component as a prop is discovered and rejected', () => {
+		// Round 24's BLOCKER 1, verbatim: the drawer exports flow into a
+		// PARAMETER (`kit={{ Surface: DrawerContent, ... }}`) and the child
+		// authors the broken #990 chain through `<kit.Surface>` etc. The
+		// resolver cannot trace `kit` to a value side, so the member value is
+		// not proved — the old fallback read "a parameter is definitely not a
+		// drawer" and the break shipped green. Round 24 makes the untraceable
+		// Parameter member UNVERIFIABLE (the member type `typeof DrawerContent`
+		// is repo-local, so the type-based NOT_DRAWER proof does not apply), so
+		// the file is discovered and reddens.
+		writeFileSync(
+			TEMPORARY_PARAMETER_KIT_DRAWER_PATH,
+			TEMPORARY_PARAMETER_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_PARAMETER_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_PARAMETER_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_PARAMETER_KIT_DRAWER_PATH);
 		}
 	});
 
