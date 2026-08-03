@@ -42,13 +42,17 @@ const DRAWER_VIEWPORTS = [
 	// `@media (max-width: 639px)`), so any such narrow-breakpoint rule is live
 	// here and the computed-style assertions below would see it.
 	{ name: 'narrow', width: 600, height: 560 },
-	// Round 21's IMPORTANT 3: the source-level CSS guard cannot decide, from
-	// static analysis alone, which rule wins the cascade at a viewport where
-	// a `min-width`-gated rule becomes active — that depends on the real
-	// viewport, not the source. 1024px sits above every `min-width` app.css
-	// currently declares for the drawer, so a future higher-specificity rule
-	// scoped to a wide breakpoint is live here and the computed-style
-	// assertions below would see it override the geometry.
+	// Round 21's IMPORTANT 3 + round 24's IMPORTANT 4: the source-level CSS
+	// guard ranks only the UNCONDITIONAL selectors — which rule a
+	// `min-width`-gated rule wins inside its viewport depends on the real
+	// viewport, not the source. Round 24 closes the conditional side BY
+	// CONSTRUCTION at the source lane (see `findConditionalDrawerFormGeometryRules`
+	// in drawer-form.test.tsx: a conditional rule that changes the drawer
+	// form's geometry is a violation regardless of which widths this lane
+	// samples), so this spec verifies the real computed geometry rather than
+	// chasing ever-more breakpoints. The 1024px sample sits above every
+	// `min-width` app.css currently declares for the drawer, so a wide-
+	// breakpoint rule that somehow shipped would be live here too.
 	{ name: 'wide', width: 1024, height: 700 },
 ] as const;
 

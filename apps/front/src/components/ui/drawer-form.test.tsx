@@ -7324,6 +7324,81 @@ const isNestedInConditionalAtRule = (rule: Rule): boolean => {
 	return false;
 };
 
+// The declarations that restore the broken #990 geometry when a conditional
+// rule overrides the form — the flex/layout properties the unconditional
+// `.publy-drawer-form` rule owns. A conditional rule that sets any of these on
+// the drawer form is a geometry override the source lane cannot resolve (it
+// only applies inside its own viewport condition), so it must be reported.
+const DRAWER_FORM_GEOMETRY_PROPERTIES = new Set([
+	'display',
+	'flex',
+	'flex-direction',
+	'min-height',
+	'overflow',
+	'overflow-x',
+	'overflow-y',
+]);
+
+/**
+ * Round 24's IMPORTANT 4 — the conditional-CSS blind spot. The source guard
+ * ranks only UNCONDITIONAL selectors (a conditional rule's win depends on the
+ * real viewport, which is not decidable from source), and the browser lane
+ * samples a finite list of widths — so a `@media (min-width: 1025px)` rule
+ * that turns the drawer form back into a block escaped both lanes: the
+ * source lane excluded it, and every sampled width was below 1025px. Adding a
+ * width just moved the escape. This closes the hole BY CONSTRUCTION: any
+ * conditional rule whose selector targets the drawer form and whose
+ * declarations change its geometry is reported as a violation, regardless of
+ * which widths the browser lane samples. A human cannot add a width piecemeal
+ * to chase a rule they did not even know was there.
+ */
+const findConditionalDrawerFormGeometryRules = (
+	cssSource: string,
+): Array<{ atRule: string; selector: string }> => {
+	const root = postcss.parse(cssSource);
+	const found: Array<{ atRule: string; selector: string }> = [];
+	root.walkAtRules((atRule) => {
+		if (atRule.name !== 'media' && atRule.name !== 'supports') {
+			return;
+		}
+		atRule.walkRules((rule) => {
+			if (!isNestedInConditionalAtRule(rule)) {
+				return;
+			}
+			const targetsForm = (rule.selectors ?? []).some((selector) =>
+				selector.includes('.publy-drawer-form'),
+			);
+			if (!targetsForm) {
+				return;
+			}
+			const changesGeometry = (rule.nodes ?? []).some((node) => {
+				if (node.type === 'decl') {
+					return DRAWER_FORM_GEOMETRY_PROPERTIES.has(node.prop);
+				}
+				if (node.type === 'atrule' && node.name === 'apply') {
+					const params = (node.params ?? '').trim().split(/\s+/);
+					return params.some((token) =>
+						DRAWER_FORM_GEOMETRY_PROPERTIES.has(token),
+					);
+				}
+				return false;
+			});
+			if (!changesGeometry) {
+				return;
+			}
+			for (const selector of rule.selectors ?? []) {
+				if (selector.includes('.publy-drawer-form')) {
+					found.push({
+						atRule: `@${atRule.name} ${atRule.params}`,
+						selector,
+					});
+				}
+			}
+		});
+	});
+	return found;
+};
+
 type MatchingSelector = {
 	rule: Rule;
 	selector: string;
@@ -9383,21 +9458,30 @@ describe('drawer surface flex chain guard (#990)', () => {
 		// Round 21's IMPORTANT 3: specificity decides the cascade winner, not
 		// source order — a `.publy-drawer .publy-drawer-form` compound
 		// declared BEFORE the plain `.publy-drawer-form` rule would still win,
-		// and the old "last matching rule" assumption missed exactly that. A
-		// rule nested in `@media`/`@supports` only applies within its own
+		// and the old "last matching rule" assumption missed exactly that. The
+		// ranking below stays scoped to the ALWAYS-applying selectors (a rule
+		// nested in `@media`/`@supports` only applies within its own
 		// condition, which is not decidable from source alone — see
-		// `isNestedInConditionalAtRule` above; the ranking is deliberately
-		// scoped to the ALWAYS-applying selectors, and the e2e spec
-		// (`e2e/drawer-form-scroll-geometry.spec.ts`) is what closes the
-		// conditional side, by sampling a viewport inside every conditional
-		// range app.css declares for the drawer (currently a 1024px sample,
-		// above every `min-width` this file uses).
+		// `isNestedInConditionalAtRule`).
+		//
+		// Round 24's IMPORTANT 4 closes the conditional side BY CONSTRUCTION
+		// at the source lane instead of sampling ever-more widths: a
+		// conditional rule that targets the drawer form and changes its
+		// geometry is a violation no matter which widths the browser lane
+		// samples. The e2e spec (`e2e/drawer-form-scroll-geometry.spec.ts`)
+		// verifies the real geometry at sampled viewports; this assertion
+		// makes a new conditional override redden in the same run CI runs,
+		// without a human remembering to add another width.
 		const geometryEntry = findCascadeWinningSelector(
 			appCssSource,
 			'.publy-drawer-form',
 		);
 		expect(geometryEntry).not.toBeNull();
 		expect(geometryEntry?.selector).toBe('.publy-drawer-form');
+
+		const conditionalGeometryRules =
+			findConditionalDrawerFormGeometryRules(appCssSource);
+		expect(conditionalGeometryRules).toEqual([]);
 
 		const applyParams = (geometryEntry?.rule.nodes ?? [])
 			.filter(
@@ -9414,6 +9498,47 @@ describe('drawer surface flex chain guard (#990)', () => {
 		expect(
 			requiredUtilities.every((utility) => applyParams.includes(utility)),
 		).toBe(true);
+	});
+
+	test('a conditional rule that changes the drawer form geometry is a violation at any width', () => {
+		// Round 24's IMPORTANT 4 paired proof: the reviewer's exact escape —
+		// `@media (min-width: 1025px) { .publy-drawer .publy-drawer-form {
+		// display: block; } }` — is inactive at every committed browser sample
+		// (600/900/1024) and higher-specificity at 1025px+, so a finite width
+		// list can never cover it. The source lane closes it by construction:
+		// the conditional geometry rule is detected and the fixture-style
+		// assertion reddens. The control proves a conditional rule that does
+		// NOT touch the geometry (padding only) is not a false positive.
+		const breakingSource = `
+@media (min-width: 1025px) {
+	.publy-drawer .publy-drawer-form {
+		display: block;
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		expect(findConditionalDrawerFormGeometryRules(breakingSource)).toEqual([
+			{
+				atRule: '@media (min-width: 1025px)',
+				selector: '.publy-drawer .publy-drawer-form',
+			},
+		]);
+
+		const harmlessSource = `
+@media (max-width: 639px) {
+	.publy-drawer-form {
+		padding: 0 10px;
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		expect(findConditionalDrawerFormGeometryRules(harmlessSource)).toEqual([]);
 	});
 
 	test('a higher-specificity unconditional rule declared earlier still wins the cascade ranking', () => {
