@@ -4,8 +4,11 @@ import { fileURLToPath } from 'node:url';
 
 import { chromium, type Page } from '@playwright/test';
 import postcss from 'postcss';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { compile } from 'tailwindcss';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { Drawer, DrawerDescription } from '~/components/ui/drawer';
 
 import { resolveEffectiveDeclarations } from './css-cascade-test-support';
 import {
@@ -47,6 +50,43 @@ const SURFACE_TOKENS = [
 // fires is a class with no resting colour at the measured viewport (fail
 // loud — never the primitive's compliant default).
 const MEASURED_VIEWPORT = { width: 1280, height: 720 } as const;
+
+// Round 19 I1: the probe element is not a made-up `<div>` — it is the REAL
+// host element the shipping `DrawerDescription` wrapper emits. Base UI 1.3.0's
+// `Dialog.Description` calls `useRenderElement('p', ...)` and stamps a
+// generated `id`; the wrapper stamps `data-slot="drawer-description"`. Derive
+// that contract by RENDERING the shipped component (react-dom/server), never
+// by copying a literal into a second fixture: the strings `p` and
+// `drawer-description` appear exactly once each, in the contract pin below,
+// and the probe markup (askEngine) is built from these derived values. If Base
+// UI ever changes the host element, or drawer.tsx changes the slot, the
+// contract pin reds AND the probe starts rendering the new contract — the
+// probe's element identity is the real primitive's, not a parallel model of
+// it.
+const DESCRIPTION_HOST_CONTRACT = (() => {
+	const html = renderToStaticMarkup(
+		createElement(
+			Drawer,
+			null,
+			createElement(DrawerDescription, null, 'probe contract'),
+		),
+	);
+	const tagMatch = /^<([a-zA-Z][\w-]*)(\s|\/?>)/.exec(html);
+	if (tagMatch === null) {
+		throw new Error(
+			`Cannot read the DrawerDescription host element from rendered HTML: ${html}`,
+		);
+	}
+	const slotMatch = /data-slot="([^"]*)"/.exec(html);
+	if (slotMatch === null) {
+		throw new Error(`DrawerDescription no longer renders a data-slot: ${html}`);
+	}
+	return {
+		elementType: tagMatch[1],
+		dataSlot: slotMatch[1],
+		hasId: /\sid=/.test(html),
+	};
+})();
 
 type Rgba = { r: number; g: number; b: number; a: number };
 
@@ -1053,17 +1093,26 @@ const attributedElementClasses = (
 };
 
 /** Attribute names the probe fixture explicitly stamps on the target element
- * itself, matching the real `DrawerDescription` contract (`drawer.tsx`) — a
- * rule keyed on one of these can trust `element.matches()` as ground truth,
- * the same as a class. */
-const MODELED_ATTRIBUTE_NAMES = new Set(['data-slot']);
+ * itself, matching the real `DrawerDescription` contract (`drawer.tsx` plus
+ * Base UI's generated `id`) — a rule keyed on one of these can trust
+ * `element.matches()` as ground truth, the same as a class. The literal
+ * `data-*`/`aria-*` attributes each call site writes are added PER CALL SITE
+ * (round 19 I2) via the `elementAttributeNames` argument — an attribute a
+ * call site actually writes is part of the real element's static contract,
+ * exactly like `data-slot`, and may never be treated as ephemeral state. */
+const MODELED_ATTRIBUTE_NAMES = new Set(['data-slot', 'id']);
 
 /** `data-*`/`aria-*` are Base UI's and the app's vocabulary for ephemeral
  * interaction state (`data-state`, `data-open`, `data-starting-style`,
  * `aria-hidden`, …) — ATTRIBUTES the probe's static markup can no more
  * reproduce than it can a `:hover`. Round 17 I4 folds a selector keyed on one
  * of these (other than the modeled contract above) into the same
- * never-throw treatment as a pseudo-class state variant. */
+ * never-throw treatment as a pseudo-class state variant. Round 19 I2: an
+ * attribute the CALL SITE actually writes as a literal (`data-contrast-
+ * probe="low"`) is NOT ephemeral — it is a real static attribute the probe
+ * renders and `element.matches()` can decide, so it must be excluded from the
+ * state exemption (which would otherwise hide a static rule that paints the
+ * real element). */
 const STATE_ATTRIBUTE_PREFIXES = ['data-', 'aria-'];
 
 const attributeNameOf = (attributeToken: string): string => {
@@ -1071,9 +1120,13 @@ const attributeNameOf = (attributeToken: string): string => {
 	return (match?.[1] ?? attributeToken).toLowerCase();
 };
 
-const isStateAttributeToken = (token: CompoundToken): boolean =>
+const isStateAttributeToken = (
+	token: CompoundToken,
+	elementAttributeNames: ReadonlySet<string>,
+): boolean =>
 	token.kind === 'attribute' &&
 	!MODELED_ATTRIBUTE_NAMES.has(attributeNameOf(token.name)) &&
+	!elementAttributeNames.has(attributeNameOf(token.name)) &&
 	STATE_ATTRIBUTE_PREFIXES.some((prefix) =>
 		attributeNameOf(token.name).startsWith(prefix),
 	);
@@ -1093,7 +1146,10 @@ const isStateAttributeToken = (token: CompoundToken): boolean =>
  * colour) and must never trip the "no resting colour" fail-loud. The browser
  * decides applicability (`element.matches`); this flag only feeds the
  * fail-loud exception. */
-const hasStateVariant = (selector: string): boolean => {
+const hasStateVariant = (
+	selector: string,
+	elementAttributeNames: ReadonlySet<string>,
+): boolean => {
 	const visitCompound = (compound: string): boolean => {
 		for (const token of tokenizeCompound(compound)) {
 			if (
@@ -1102,7 +1158,7 @@ const hasStateVariant = (selector: string): boolean => {
 			) {
 				return true;
 			}
-			if (isStateAttributeToken(token)) {
+			if (isStateAttributeToken(token, elementAttributeNames)) {
 				return true;
 			}
 			if (
@@ -1133,41 +1189,52 @@ const hasStateVariant = (selector: string): boolean => {
 	return false;
 };
 
-/** Round 17 I1: a non-class simple selector in a rule's SUBJECT compound that
- * the probe fixture cannot faithfully reproduce — an id or (non-universal)
- * type selector (the probe never models either; `*` matches trivially and
- * needs no modeling — it is how Tailwind spells an `:is(.ancestor *)`
- * ancestor gate, e.g. `dark:`), or an attribute selector outside both the
- * modeled contract and the state-attribute exemption above. `false` from
- * `element.matches()` on such a token is not ground truth: the probe's
- * absence of the attribute/id/type cannot be told apart from the app
+/** Round 17 I1 + round 19: a non-class simple selector in a rule's SUBJECT
+ * compound that the probe fixture cannot faithfully reproduce — an id the
+ * probe does not carry, a type selector that is not the real host element
+ * (`*` matches trivially and needs no modeling — it is how Tailwind spels an
+ * `:is(.ancestor *)` ancestor gate), or an attribute selector outside both
+ * the modeled contract and the state-attribute exemption. Round 19: the probe
+ * now RENDERS the real host element type (`p`, from the rendered primitive)
+ * and its generated `id`, so a type equal to the real element's or an `id`
+ * presence is no longer unmodeled — a `p[data-slot='drawer-description']`
+ * rule is measured, never reported uncertain. `false` from
+ * `element.matches()` on a genuinely unmodeled token is not ground truth: the
+ * probe's absence of the attribute/type cannot be told apart from the app
  * genuinely never carrying it, so it must be reported as UNCERTAIN, never
  * silently resolved to "does not apply". */
 const isUnmodeledToken = (
 	token: CompoundToken,
+	elementAttributeNames: ReadonlySet<string>,
+	elementType: string,
 ): token is Extract<CompoundToken, { kind: 'id' | 'type' | 'attribute' }> => {
 	if (token.kind === 'id') {
 		return true;
 	}
 	if (token.kind === 'type') {
-		return token.name !== '*';
+		return token.name !== '*' && token.name !== elementType;
 	}
 	if (token.kind !== 'attribute') {
 		return false;
 	}
 	return (
 		!MODELED_ATTRIBUTE_NAMES.has(attributeNameOf(token.name)) &&
-		!isStateAttributeToken(token)
+		!elementAttributeNames.has(attributeNameOf(token.name)) &&
+		!isStateAttributeToken(token, elementAttributeNames)
 	);
 };
 
 /** The unmodeled tokens (see `isUnmodeledToken`) in a selector's subject
  * compounds. */
-const unmodeledSubjectTokens = (selector: string): string[] => {
+const unmodeledSubjectTokens = (
+	selector: string,
+	elementAttributeNames: ReadonlySet<string>,
+	elementType: string,
+): string[] => {
 	const found: string[] = [];
 	for (const compound of subjectCompoundsOf(selector)) {
 		for (const token of tokenizeCompound(compound)) {
-			if (isUnmodeledToken(token)) {
+			if (isUnmodeledToken(token, elementAttributeNames, elementType)) {
 				found.push(token.name);
 			}
 		}
@@ -1185,6 +1252,14 @@ type RecordedDeclaration = {
 	selector: string;
 	/** The rule's attributed element classes (escaped, e.g. `.sm\:text-x`). */
 	attributed: string[];
+	/** Round 19 I1: whether the rule's SUBJECT compound references the probe
+	 * element's identity at all — an element class, the real host element
+	 * type, or a modeled attribute it carries (`data-slot`, `id`, or a literal
+	 * call-site `data-*`/`aria-*`). Attribution alone is blind to a rule that
+	 * targets the element by type+slot (e.g. `p[data-slot='drawer-
+	 * description']`) — such a rule has no attributed class, yet it is
+	 * exactly the input whose faithfulness the unmodeled sweep must police. */
+	relevant: boolean;
 	/** The rule's selector carries a non-rest pseudo-class. */
 	stateVariant: boolean;
 	prop: string;
@@ -1196,19 +1271,56 @@ type RecordedDeclaration = {
 
 const CONDITIONAL_AT_RULES = new Set(['media', 'supports', 'container']);
 
-/** Walks the compiled CSS once, recording every relevant declaration under
- * every rule whose subject compound carries one of the element classes, with
- * its flattened selector, attribution, state-variant flag and conditional
- * at-rule chain. */
+/** Whether a flattened selector's SUBJECT compound references the element's
+ * identity — at least one token the probe genuinely renders (an element
+ * class, the real host element type, or a modeled attribute name). This is
+ * the relevance test for the unmodeled sweep: a rule whose subject carries
+ * the element type or slot but no class is still a rule that hits the real
+ * element, and its unresolved tokens must fail loud instead of being skipped
+ * (round 19 I1). */
+const isSubjectRelevantToElement = (
+	selector: string,
+	elementClasses: ReadonlySet<string>,
+	elementType: string,
+	elementAttributeNames: ReadonlySet<string>,
+): boolean => {
+	for (const compound of subjectCompoundsOf(selector)) {
+		for (const token of tokenizeCompound(compound)) {
+			if (token.kind === 'class' && elementClasses.has(token.name)) {
+				return true;
+			}
+			if (token.kind === 'type' && token.name === elementType) {
+				return true;
+			}
+			if (
+				token.kind === 'attribute' &&
+				(MODELED_ATTRIBUTE_NAMES.has(attributeNameOf(token.name)) ||
+					elementAttributeNames.has(attributeNameOf(token.name)))
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
+};
+
+/** Walks the compiled CSS once, recording every declaration (under any rule
+ * whose subject compound carries one of the element classes — or references
+ * the element by its real host type / modeled attributes, round 19 I1) with
+ * its flattened selector, attribution, relevance flag, state-variant flag and
+ * conditional at-rule chain. */
 const collectRecordedDeclarations = (
 	root: postcss.Root,
 	elementClasses: Set<string>,
+	elementAttributeNames: ReadonlySet<string>,
+	elementType: string,
 ): RecordedDeclaration[] => {
 	const recorded: RecordedDeclaration[] = [];
 
 	const walkDeclarations = (
 		selector: string,
 		attributed: string[],
+		relevant: boolean,
 		stateVariant: boolean,
 		container: postcss.Container,
 		conditions: ConditionSpec[],
@@ -1224,6 +1336,7 @@ const collectRecordedDeclarations = (
 				walkDeclarations(
 					selector,
 					attributed,
+					relevant,
 					stateVariant,
 					child,
 					condition === null ? conditions : [...conditions, condition],
@@ -1233,6 +1346,7 @@ const collectRecordedDeclarations = (
 					recorded.push({
 						selector,
 						attributed,
+						relevant,
 						stateVariant,
 						prop: child.prop,
 						value: child.value.trim(),
@@ -1270,10 +1384,17 @@ const collectRecordedDeclarations = (
 			} else if (child instanceof postcss.Rule) {
 				const selector = flattenSelector(child.selector, parentSelector);
 				const attributed = attributedElementClasses(selector, elementClasses);
-				const stateVariant = hasStateVariant(selector);
+				const relevant = isSubjectRelevantToElement(
+					selector,
+					elementClasses,
+					elementType,
+					elementAttributeNames,
+				);
+				const stateVariant = hasStateVariant(selector, elementAttributeNames);
 				walkDeclarations(
 					selector,
 					attributed,
+					relevant,
 					stateVariant,
 					child,
 					ancestorConditions,
@@ -1307,7 +1428,11 @@ const buildQuestions = (recorded: RecordedDeclaration[]): EngineQuestions => {
 	const values: { prop: string; value: string }[] = [];
 	const valueIndex = new Map<string, number>();
 	for (const declaration of recorded) {
-		if (declaration.attributed.length === 0) {
+		// Round 19 I1: relevance, not attribution — a rule that targets the
+		// element by real host type + slot (`p[data-slot='drawer-description']`)
+		// has no attributed class but genuinely applies to the element, so the
+		// browser must answer its match for the no-resting-colour accounting.
+		if (!declaration.relevant) {
 			continue;
 		}
 		if (!selectorIndex.has(declaration.selector)) {
@@ -1354,6 +1479,22 @@ type EngineFacts = {
 
 let probePage: Page;
 
+/** Round 19 I1: the extra static attributes the call site writes on the
+ * drawer description (literal `data-*`/`aria-*`, e.g.
+ * `data-contrast-probe="low"`) — rendered on the probe so a rule keyed on one
+ * is MEASURED by `element.matches()`, and reserved from the state-attribute
+ * exemption (round 19 I2). */
+type ProbeAttributes = Record<string, string>;
+
+/** The shape every probe-rendering entry point accepts: the :has() descendant
+ * configuration, an optional ancestor class, and the call site's literal
+ * `data-*`/`aria-*` attributes. */
+type ProbeSpec = {
+	children?: string[];
+	ancestorClass?: string | null;
+	attributes?: ProbeAttributes;
+};
+
 /** One browser round trip per (cssText, theme): renders the real drawer
  * markup with the element's classes inside, injects the compiled CSS, and
  * answers every cascade question the source side cannot — selector matches,
@@ -1363,11 +1504,20 @@ const askEngine = async (
 	cssText: string,
 	elementClasses: string[],
 	theme: 'light' | 'dark',
-	probe: { children?: string[]; ancestorClass?: string | null },
+	probe: ProbeSpec,
 	questions: EngineQuestions,
 ): Promise<EngineFacts> => {
 	await probePage.evaluate(
-		({ cssText, elementClasses, theme, children, ancestorClass }) => {
+		({
+			cssText,
+			elementClasses,
+			theme,
+			children,
+			ancestorClass,
+			attributes,
+			descriptionTag,
+			descriptionDataSlot,
+		}) => {
 			document.documentElement.classList.toggle('dark', theme === 'dark');
 			let style = document.getElementById('publy-probe-style');
 			if (style === null) {
@@ -1382,16 +1532,33 @@ const askEngine = async (
 			}
 			const hostEl = document.createElement('div');
 			hostEl.id = 'publy-probe-host';
+			// Round 17 I1: `.app-shell-workspace` is an EMPTY sibling, not an
+			// ancestor — `DrawerContent` renders through `DialogPrimitive.Portal`,
+			// so the real drawer is a child of `<body>`, never nested inside the
+			// workspace shell. The sibling still satisfies `body:has(.app-shell-
+			// workspace)` (app.css:947). Every slot the real primitive stamps
+			// (`drawer.tsx`) carries its `data-slot` here too, so a rule keyed on
+			// the attribute — the idiom already used 42 times elsewhere in
+			// app.css — is visible to `element.matches()` instead of silently
+			// answered "false".
+			// Round 19 I1: the description's host ELEMENT (and its data-slot) come
+			// from the RENDERED primitive contract (`DESCRIPTION_HOST_CONTRACT`),
+			// not a hard-coded `<div>` — Base UI's `Dialog.Description` is a `<p>`
+			// with a generated `id`, so `p[data-slot='drawer-description']` — a
+			// selector that matches the real element by type and slot alone —
+			// matches the probe too and is measured. The call site's literal
+			// `data-*`/`aria-*` attributes are stamped as-is (round 19 I2).
+			const descriptionAttributes = Object.entries(attributes ?? {})
+				.map(
+					([name, value]) =>
+						` ${name}="${String(value).replace(/"/g, '&quot;')}"`,
+				)
+				.join('');
+			const descriptionMarkup =
+				`<${descriptionTag} id="publy-probe-description" data-slot="` +
+				descriptionDataSlot +
+				`"${descriptionAttributes} class="${elementClasses.join(' ')}">probe`;
 			hostEl.innerHTML =
-				// Round 17 I1: `.app-shell-workspace` is an EMPTY sibling, not an
-				// ancestor — `DrawerContent` renders through `DialogPrimitive.Portal`,
-				// so the real drawer is a child of `<body>`, never nested inside the
-				// workspace shell. The sibling still satisfies `body:has(.app-shell-
-				// workspace)` (app.css:947). Every slot the real primitive stamps
-				// (`drawer.tsx`) carries its `data-slot` here too, so a rule keyed on
-				// the attribute — the idiom already used 42 times elsewhere in
-				// app.css — is visible to `element.matches()` instead of silently
-				// answered "false".
 				'<div class="app-shell-workspace"></div>' +
 				'<div class="publy-overlay-backdrop"></div>' +
 				'<div data-slot="drawer" class="publy-drawer">' +
@@ -1399,9 +1566,9 @@ const askEngine = async (
 				(ancestorClass === null ? '' : `<div class="${ancestorClass}">`) +
 				'<div class="flex min-w-0 flex-col gap-[3px]">' +
 				'<div data-slot="drawer-title" class="publy-drawer-title">Title</div>' +
-				`<div id="publy-probe-description" data-slot="drawer-description" class="${elementClasses.join(' ')}">probe` +
+				descriptionMarkup +
 				children.map((child) => `<span class="${child}"></span>`).join('') +
-				'</div></div>' +
+				`</${descriptionTag}></div>` +
 				(ancestorClass === null ? '' : '</div>') +
 				'</div></div>';
 			document.body.appendChild(hostEl);
@@ -1412,6 +1579,9 @@ const askEngine = async (
 			theme,
 			children: probe.children ?? [],
 			ancestorClass: probe.ancestorClass ?? null,
+			attributes: probe.attributes ?? {},
+			descriptionTag: DESCRIPTION_HOST_CONTRACT.elementType,
+			descriptionDataSlot: DESCRIPTION_HOST_CONTRACT.dataSlot,
 		},
 	);
 
@@ -1649,6 +1819,8 @@ const assertVerifiable = (
 	root: postcss.Root,
 	recorded: RecordedDeclaration[],
 	utilities: string[],
+	elementAttributeNames: ReadonlySet<string>,
+	elementType: string,
 	// Round 17 I2: one entry per `:has()`-descendant probe variant (child
 	// present / child absent) — value support and applicability are unioned
 	// across all of them, since a `:has()`-gated declaration is only
@@ -1673,20 +1845,39 @@ const assertVerifiable = (
 		}
 	}
 
-	// UNMODELED SELECTOR (round 17 I1).
+	// UNMODELED SELECTOR (round 17 I1, round 19 I1).
+	//
+	// Round 19 I1: the sweep must police every selector that is RELEVANT to
+	// the element — including one that targets it by type + slot alone and
+	// carries NO attributed class. A `p[data-slot='drawer-description']`
+	// style rule is exactly the input whose faithfulness matters most: the
+	// probe now renders the real `<p data-slot="drawer-description">`, so a
+	// rule of that shape is measured, but a rule that ALSO carries a token the
+	// probe cannot reproduce (an unmodeled attribute, a different type, an id)
+	// is unresolvable input and must redden — `element.matches()` returning
+	// `false` for a token the fixture never modeled is not ground truth, and
+	// skipping it would silently leave the compliant primitive paint in place
+	// (the reviewer's four-line reproduction). A selector that is not
+	// relevant at all (no element class, no host type, no modeled attribute)
+	// cannot hit the element and is not the sweep's concern.
 	const uncertainSelectors = new Set<string>();
 	for (const declaration of recorded) {
-		if (
-			declaration.attributed.length === 0 ||
-			uncertainSelectors.has(declaration.selector)
-		) {
+		if (!declaration.relevant || uncertainSelectors.has(declaration.selector)) {
 			continue;
 		}
-		const unmodeled = unmodeledSubjectTokens(declaration.selector);
+		const unmodeled = unmodeledSubjectTokens(
+			declaration.selector,
+			elementAttributeNames,
+			elementType,
+		);
 		if (unmodeled.length > 0) {
 			uncertainSelectors.add(declaration.selector);
+			const name =
+				declaration.attributed.length > 0
+					? attributedUtilityName(declaration, utilities)
+					: declaration.selector;
 			throw new Error(
-				`Unverifiable selector for ${attributedUtilityName(declaration, utilities)}: ` +
+				`Unverifiable selector for ${name}: ` +
 					`${declaration.selector} — the probe fixture cannot represent ` +
 					`${unmodeled.join(', ')}; render it explicitly in the probe markup ` +
 					'(askEngine) or narrow the rule to a token the guard models.',
@@ -1951,13 +2142,27 @@ const worseOf = (paints: EnginePaint[]): EnginePaint => {
 const resolvePaintFromCss = async (
 	cssText: string,
 	utilities: string[],
-	probe: { children?: string[]; ancestorClass?: string | null } = {},
+	probe: ProbeSpec = {},
 ): Promise<{ light: EnginePaint; dark: EnginePaint }> => {
 	const root = postcss.parse(cssText, { from: undefined });
 	const elementClasses = new Set(
 		utilities.map((utility) => `.${escapeClassName(utility)}`),
 	);
-	const recorded = collectRecordedDeclarations(root, elementClasses);
+	// Round 19 I2: the literal `data-*`/`aria-*` attributes the call site
+	// writes are part of the element's real contract — reserved from the
+	// state-attribute exemption so a static rule keyed on one must be MEASURED,
+	// exactly like `data-slot`.
+	const elementAttributeNames = new Set<string>();
+	for (const name of Object.keys(probe.attributes ?? {})) {
+		elementAttributeNames.add(name.toLowerCase());
+	}
+	const elementType = DESCRIPTION_HOST_CONTRACT.elementType;
+	const recorded = collectRecordedDeclarations(
+		root,
+		elementClasses,
+		elementAttributeNames,
+		elementType,
+	);
 	const questions = buildQuestions(recorded);
 
 	const childVariants: string[][] =
@@ -1978,7 +2183,11 @@ const resolvePaintFromCss = async (
 				cssText,
 				utilities,
 				'light',
-				{ children, ancestorClass: probe.ancestorClass ?? null },
+				{
+					children,
+					ancestorClass: probe.ancestorClass ?? null,
+					attributes: probe.attributes,
+				},
 				questions,
 			),
 		);
@@ -1987,7 +2196,11 @@ const resolvePaintFromCss = async (
 				cssText,
 				utilities,
 				'dark',
-				{ children, ancestorClass: probe.ancestorClass ?? null },
+				{
+					children,
+					ancestorClass: probe.ancestorClass ?? null,
+					attributes: probe.attributes,
+				},
 				questions,
 			),
 		);
@@ -1996,6 +2209,8 @@ const resolvePaintFromCss = async (
 		root,
 		recorded,
 		utilities,
+		elementAttributeNames,
+		elementType,
 		factsLightVariants,
 		factsDarkVariants,
 		questions,
@@ -2016,7 +2231,7 @@ const resolvePaintFromCss = async (
  * compiles the real stylesheet, then measures. */
 const resolveClassPaint = async (
 	utilities: string[],
-	probe: { children?: string[]; ancestorClass?: string | null } = {},
+	probe: ProbeSpec = {},
 ): Promise<{ light: EnginePaint; dark: EnginePaint }> =>
 	resolvePaintFromCss(await compiledCssFor(utilities), utilities, probe);
 
@@ -2028,7 +2243,7 @@ const resolveClassPaint = async (
 const resolveFixturePaint = async (
 	fixtureCss: string,
 	fixtureClasses: string[],
-	probe: { children?: string[]; ancestorClass?: string | null } = {},
+	probe: ProbeSpec = {},
 ): Promise<{ light: EnginePaint; dark: EnginePaint }> => {
 	const baseCss = await compiledCssFor(['publy-drawer-description']);
 	return resolvePaintFromCss(
@@ -2052,6 +2267,47 @@ describe('drawer description text contrast (#1043)', () => {
 		if (probePage !== undefined) {
 			await probePage.context().browser()?.close();
 		}
+	});
+
+	// ---- The probe's element identity comes from the real primitive -------
+	//
+	// Round 19 I1: the probe is not a hard-coded `<div>` — it renders the REAL
+	// host element the shipping `DrawerDescription` emits. `DESCRIPTION_HOST_
+	// CONTRACT` is derived by rendering that component (react-dom/server), so
+	// the strings `p` and `drawer-description` appear exactly once each — in
+	// the two assertions below — and the probe markup (askEngine) is built
+	// from the derived values. If Base UI ever changes the host element type,
+	// or drawer.tsx changes the slot, one of these reds AND the probe starts
+	// measuring the new contract. The mutation that counts keeps this test
+	// green while restoring the #1043 break: reverting the probe to a made-up
+	// `<div>` leaves the element type below still `p` (it is derived from the
+	// primitive, not the markup), so the probe's identity is pinned to the
+	// artifact, not to a copy of it.
+	test('the probe element is the real DrawerDescription host contract, not a made-up div (round 19 I1)', () => {
+		expect(DESCRIPTION_HOST_CONTRACT.elementType).toBe('p');
+		expect(DESCRIPTION_HOST_CONTRACT.dataSlot).toBe('drawer-description');
+		expect(DESCRIPTION_HOST_CONTRACT.hasId).toBe(true);
+	});
+
+	// The pin that makes the probe's identity non-vacuous: a rule that matches
+	// the REAL element by type + slot alone (`p[data-slot='drawer-description']`)
+	// — the reviewer's four-line reproduction, which kept the old probe green
+	// because it was a made-up `<div>` — must PAINT the probe. If the probe
+	// markup is ever reverted to a `<div>`, this rule stops matching it, the
+	// probe falls back to the compliant primitive paint, and the first
+	// assertion below fails. This is the mutation that counts: it keeps this
+	// test red while restoring the #1043 break.
+	test('a type+slot rule targeting the real element paints the probe (round 19 I1)', async () => {
+		const { light } = await resolveFixturePaint(
+			`p[data-slot='drawer-description'] { color: var(--publy-foreground-subtle); }`,
+			[],
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
 	});
 
 	// ---- The real stylesheet, measured by the engine -----------------------
