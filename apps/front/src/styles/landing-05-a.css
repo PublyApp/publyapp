@@ -835,16 +835,29 @@
 	   in-app card, and 14px on a ~1100px band reads as an accident.
 	   Geometry is theme-invariant, so no dark counterpart is needed. Pairs
 	   per todesktop-22 (outer - padding = inner): 24 - 4 = 20 (night band
-	   inner), 24 - 12 = 12 (window pane inside its bracket) and 14 - 4 = 10
-	   (pricing card inner) — all three EXACT. The bracket's desktop offset
-	   moved from 10px to 12px for that reason: at 10px the pair was 24 - 10 =
-	   14 against a 12px pane, a 2px error the transposition knowingly carried
-	   and rounded to the nearest token. A concentric pair that is off by 2px
-	   has a gap that varies around the corner, which the eye reads as a
-	   mistake even when it cannot name it, so the offset was changed to fit
-	   the tokens instead of the tokens being rounded to fit the offset. */
+	   inner) and 14 - 4 = 10 (pricing card inner) — both EXACT.
+
+	   THE BRACKET IS THE OWNER'S CALL, AND ITS RADIUS FOLLOWS THE GAP.
+	   He asked for a narrower gap between the bracket and the window, so the
+	   offset went 12px -> 8px on desktop and 6px -> 4px below `md`. The pane
+	   radius is fixed at `--publy-radius-medium-control` (12px), so holding
+	   the concentric pair exact means the BRACKET's radius moves with the
+	   offset rather than staying at the band's 24: 12 + 8 = 20 at >=md,
+	   12 + 4 = 16 below it. Two values, both exact, because a concentric pair
+	   that is off by even 2px has a gap that varies around the corner — the
+	   eye reads that as a mistake even when it cannot name it. (The previous
+	   single 24px was exact on desktop and off by 6 on mobile; narrowing the
+	   gap is what made the mobile error worth fixing rather than carrying.)
+	   The night band keeps 24 — it is a different object and no gap of its
+	   own depends on this value. */
 	.publy-landing-05-a .publy-l05a-radius-band {
-		border-radius: 24px;
+		border-radius: 16px;
+	}
+
+	@media (min-width: 768px) {
+		.publy-landing-05-a .publy-l05a-radius-band {
+			border-radius: 20px;
+		}
 	}
 
 	/* ---- Focus (prompt §7): `Button`/`buttonVariants` elements already ship
@@ -956,33 +969,41 @@
 		transition-duration: var(--publy-landing-05-a-motion-press);
 	}
 
-	/* ---- Entrance: attio-21's blur-in. 1.5px is below the threshold where
-	   blur is consciously seen, so the element reads as FOCUSING rather than
-	   as appearing. 560ms is a third duration and it earns its comment: it is
-	   an entrance, not a transition — a state change wants to be over before
-	   you can attend to it, an arrival wants to be watched — and at the house
-	   curve 240ms is visibly abrupt for an 8px translate plus a blur, while
-	   600ms starts to read as a page that is loading. It is used by exactly
-	   two mechanisms: this one, and the scroll reveal below, which share it
-	   so the page has one arrival feel rather than two.
+	/* ---- Entrance: a fade and an 8px rise, and NO BLUR.
+
+	   This began as attio-21's blur-in — a 1.5px gaussian, chosen because it
+	   sits below the threshold where blur is consciously seen, so an element
+	   reads as FOCUSING rather than as appearing. The owner removed it. The
+	   effect it buys is subliminal by construction, and what it costs is not:
+	   `filter` promotes every animating element to its own composited layer
+	   and re-rasterizes text for the length of the animation, which is the one
+	   thing on this page that can make a 104px headline arrive soft on a
+	   mid-range machine. A rise and a fade say the same thing and cost a
+	   transform.
+
+	   560ms is kept, and still earns its comment: it is an entrance, not a
+	   transition — a state change wants to be over before you can attend to
+	   it, an arrival wants to be watched — and at the house curve 240ms is
+	   visibly abrupt for an 8px translate while 600ms starts to read as a page
+	   that is loading. Used by exactly two mechanisms, this one and the scroll
+	   reveal below, which share it so the page has one arrival feel rather
+	   than two.
 
 	   Above the fold it fires on the hero H1 and the product window only. */
 	.publy-landing-05-a .publy-sky-a-focus-in {
 		animation: publy-l05a-focus-in var(--publy-landing-05-a-motion-entrance)
 			var(--publy-motion-ease) both;
-		will-change: filter, opacity;
+		will-change: transform, opacity;
 	}
 
 	@keyframes publy-l05a-focus-in {
 		from {
 			opacity: 0;
-			filter: blur(1.5px);
 			transform: translateY(8px);
 		}
 
 		to {
 			opacity: 1;
-			filter: blur(0);
 			transform: translateY(0);
 		}
 	}
