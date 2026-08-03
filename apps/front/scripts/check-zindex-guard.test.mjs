@@ -2435,17 +2435,18 @@ test('e2e (round 13 B2): static style text beside runtime children still ships a
 test('e2e (round 15 M2): an uncapped Cartesian product is a named diagnostic, not a hang', async () => {
 	// cartesianStringJoin multiplies substitution candidate sets without a
 	// bound, so a template with several multi-candidate substitutions would
-	// hang the guard. The product is capped; a payload whose product is
-	// unresolvable — 2^17 = 131072 candidates, past the round-17 resource
-	// bound of 100 000 — is provably static text the guard cannot enumerate,
-	// so it fails loud by name instead of silently dropping into the runtime
-	// bucket.
+	// hang the guard. The product has a *work* budget (round-19 I2): a
+	// payload whose total candidate characters exceed the budget is provably
+	// static text the guard cannot enumerate, so it fails loud by name
+	// instead of silently dropping into the runtime bucket — and never hangs.
+	// 2^20 = 1,048,576 candidates of ~40 characters each is ~42M characters,
+	// well past the 20M budget.
 	const flags = [];
-	for (let index = 0; index < 17; index += 1) {
+	for (let index = 0; index < 20; index += 1) {
 		flags.push(`f${index}: boolean`);
 	}
 	const substitutions = [];
-	for (let index = 0; index < 17; index += 1) {
+	for (let index = 0; index < 20; index += 1) {
 		substitutions.push(`\${f${index} ? 'a' : 'b'}`);
 	}
 	const { violations } = await runFixtureGuard(
@@ -2467,12 +2468,15 @@ test('e2e (round 15 M2): an uncapped Cartesian product is a named diagnostic, no
 test('e2e (round 17 I2): the Cartesian bound gates the work, not the legitimacy', async () => {
 	// Round-16 I2: the 4096 cap reddened harmless, valid CSS at 13
 	// independent binary choices (2^13 = 8192 candidates) — a bound that
-	// reddens real code is a false positive. The cap is a resource ceiling,
-	// and a payload the guard cannot enumerate is an unresolvable payload
-	// that fails loud by name — a diagnostic the author can act on. Paired
-	// valid-CSS proofs immediately below and above the chosen boundary: a
-	// 16-choice payload (2^16 = 65536 candidates) with nothing but harmless
-	// CSS stays green, and the 17-choice payload reds by name.
+	// reddens real code is a false positive. The round-19 I2 fix replaces the
+	// count cap with a *work* budget (total candidate characters, checked
+	// before allocation), so a payload with many short candidates is
+	// enumerable and stays green even at 131,072 candidates, and only a
+	// payload whose enumeration would genuinely exceed the work budget is an
+	// unresolvable payload that fails loud by name. Paired valid-CSS proofs:
+	// a 16-choice (65536 candidates), a 17-choice (131072 candidates), and a
+	// 20-choice (2^20 = 1,048,576 candidates, ~42M characters — past the
+	// 20M work budget) payload, each with nothing but harmless CSS.
 	const build = (count, cssText) => {
 		const flags = [];
 		for (let index = 0; index < count; index += 1) {
@@ -2492,21 +2496,31 @@ test('e2e (round 17 I2): the Cartesian bound gates the work, not the legitimacy'
 			["import { probe } from './probe';"],
 		);
 	};
-	// Below the bound: every candidate is valid CSS with no z-index — the
-	// enumeration is the work, the payload is legitimate, and it stays green.
+	// Well under the budget: every candidate is valid CSS with no z-index —
+	// the enumeration is the work, the payload is legitimate, and it stays
+	// green.
 	const { violations: below } = await build(16, 'color: red;');
 	assert.deepEqual(
 		below,
 		[],
 		`a 65536-candidate harmless payload must stay green: ${JSON.stringify(below)}`,
 	);
-	// Above the bound: the same legitimate shape is an unresolvable payload —
+	// The round-19 I2 boundary: 131,072 candidates of short payloads sum to
+	// ~5M characters, well under the 20M work budget, so the same legitimate
+	// shape enumerates and stays green — the old count cap reddened it.
+	const { violations: mid } = await build(17, 'color: red;');
+	assert.deepEqual(
+		mid,
+		[],
+		`a 131072-candidate harmless payload must stay green: ${JSON.stringify(mid)}`,
+	);
+	// Past the budget: the same legitimate shape is an unresolvable payload —
 	// the named diagnostic, never a silent pass and never a hang.
-	const { violations: above } = await build(17, 'color: red;');
+	const { violations: above } = await build(20, 'color: red;');
 	assert.deepEqual(
 		above.map((violation) => violation.ruleId),
 		['z-index-static-candidate-overflow'],
-		`a 131072-candidate payload must fail loud by name: ${JSON.stringify(above)}`,
+		`a 1048576-candidate payload must fail loud by name: ${JSON.stringify(above)}`,
 	);
 	assert.match(above[0].message, /unresolvable payload/);
 });
@@ -2536,9 +2550,9 @@ test('e2e (round 17 B2): overflow is monotone through every expression-family co
 		}
 		return substitutions;
 	};
-	// 17 independent binary choices: 2^17 = 131072 candidates, past every
-	// Cartesian bound the guard has shipped (4096 and the round-17 bound).
-	const substitutionCount = 17;
+	// 20 independent binary choices: 2^20 = 1,048,576 candidates of ~22
+	// characters each is ~23M characters, past the round-19 20M work budget.
+	const substitutionCount = 20;
 	const flags = buildFlags(substitutionCount, 'f');
 	const subs = buildSubstitutions(substitutionCount, 'f');
 	const bigPayload = `\`x${subs.join('')}y\``;

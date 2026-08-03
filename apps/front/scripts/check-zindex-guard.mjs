@@ -292,30 +292,36 @@ const asciiLowerCase = (text) =>
 // evaluate a template literal (static parts × substitution sets) or a `+` of
 // two static operands to every string the expression can provably be.
 //
-// The product is capped to bound the *work*, not the *legitimacy* (round-16
+// The product has a *work* budget, not a legitimacy cap (round-16 I2, round-19
 // I2): several multi-candidate substitutions multiply without bound, and a
-// pathological template would otherwise hang the guard instead of failing.
-// The cap is a resource ceiling — the candidates are CSS payload strings
-// bounded in length by the source expression, so 100 000 of them are tens of
-// megabytes transient, still far from a hang — not a statement about how
-// many candidates a payload may legitimately have. Thirteen independent
-// binary choices (8192 candidates, the round-16 I2 reproduction) enumerate
-// comfortably; only a payload whose product truly cannot be enumerated fails,
-// and it fails loud by name: beyond the cap the join is unresolvable, so the
-// function returns null and the caller reports the named diagnostic — a
+// pathological template would otherwise hang the guard instead of failing. The
+// budget measures the actual job — the total characters allocated across the
+// produced candidates, which is the allocation/parsing cost the enumeration
+// pays (candidate count multiplied by candidate length) — and is checked
+// *before* the next candidate is allocated, so the guard never over-allocates
+// the way a post-push count check does. It is a resource ceiling, not a
+// statement about how many candidates a payload may legitimately have: a
+// 131,072-candidate rel (2^17, the round-19 B1 reproduction) and a
+// 131,072-candidate harmless CSS payload enumerate comfortably, because their
+// candidates are short. Only a product whose work truly cannot be paid fails,
+// and it fails loud by name: beyond the budget the join is unresolvable, so the
+// function returns null and every caller reports the named diagnostic — a
 // static payload the guard cannot enumerate may ship unread, exactly like an
 // unparseable one; it is never silently dropped into the runtime bucket.
-export const CARTESIAN_PRODUCT_CAP = 100_000;
+export const CARTESIAN_WORK_BUDGET = 20_000_000;
 const cartesianStringJoin = (sets) => {
 	let results = [''];
+	let work = 0;
 	for (const set of sets) {
 		const next = [];
 		for (const prefix of results) {
 			for (const value of set) {
-				next.push(prefix + value);
-				if (next.length > CARTESIAN_PRODUCT_CAP) {
+				const candidateLength = prefix.length + value.length;
+				if (work + candidateLength > CARTESIAN_WORK_BUDGET) {
 					return null;
 				}
+				work += candidateLength;
+				next.push(prefix + value);
 			}
 		}
 		results = next;
@@ -1415,6 +1421,12 @@ export const scanZIndexFile = ({
 			// static object-literal spread, or a later explicit
 			// re-establishment, and an opaque spread after the last static
 			// fact makes the final value unprovable (round-16 I1).
+			// `overflow` says the candidate set itself exceeded the work
+			// budget (round-19 B1): the value is provably static text the
+			// guard cannot enumerate, so the caller must fail loud by name
+			// instead of treating the overflow as an ordinary unknown — the
+			// analyser's inability to resolve is an unresolvable input, never
+			// a compliant default.
 			const occurrence = lastJsxAttributeValueNode(attributes, attributeName);
 			const result =
 				occurrence.valueNode == null
@@ -1422,6 +1434,7 @@ export const scanZIndexFile = ({
 					: staticStringValues(occurrence.valueNode);
 			return {
 				values: occurrence.unresolved || result == null ? null : result.values,
+				overflow: result?.overflow ?? false,
 				unresolved: occurrence.unresolved,
 				opaqueOnly: occurrence.opaqueOnly,
 				opaqueSpreadNode: occurrence.opaqueSpreadNode,
@@ -1646,9 +1659,14 @@ export const scanZIndexFile = ({
 			// as the JSX link rule). Only literal attribute values are read, so
 			// runtime-assembled HTML stays in the declared runtime bucket. A
 			// payload the declaration walk cannot parse is reported as opaque —
-			// never a crash, never a silent pass.
+			// never a crash, never a silent pass. A `<style>` element closes at
+			// its `</style>` OR at EOF (browser fragment parsing closes an open
+			// raw-text style element at the end of the input), so an unterminated
+			// `<style>` still ships its CSS and must be walked — an unparseable
+			// or partial static payload is never treated as compliant
+			// (round-19 B3).
 			const escapes = [];
-			const stylePattern = /<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi;
+			const stylePattern = /<style\b[^>]*>([\s\S]*?)(?:<\/style\s*>|$)/gi;
 			let match;
 			while ((match = stylePattern.exec(html))) {
 				const css = match[1];
@@ -2125,9 +2143,10 @@ export const scanZIndexFile = ({
 				violations.push({
 					ruleId: 'z-index-static-candidate-overflow',
 					message:
-						`static <style> payload has more than ${CARTESIAN_PRODUCT_CAP} ` +
-						'provable candidates — an unresolvable payload the guard ' +
-						'cannot enumerate; simplify the payload or import the ' +
+						`static <style> payload exceeds the guard's work budget of ` +
+						`${CARTESIAN_WORK_BUDGET} candidate characters — ` +
+						'an unresolvable payload the guard cannot enumerate; ' +
+						'simplify the payload or import the ' +
 						'stylesheet through the build graph.',
 					file: relativePath,
 					line: lineForOffset(content, node.getStart(sourceFile)),
@@ -2252,11 +2271,11 @@ export const scanZIndexFile = ({
 						violations.push({
 							ruleId: 'z-index-static-candidate-overflow',
 							message:
-								`static dangerouslySetInnerHTML payload has more than ` +
-								`${CARTESIAN_PRODUCT_CAP} provable candidates — an ` +
-								'unresolvable payload the guard cannot enumerate; ' +
-								'simplify the payload or import the stylesheet ' +
-								'through the build graph.',
+								'static dangerouslySetInnerHTML payload exceeds the ' +
+								`guard's work budget of ${CARTESIAN_WORK_BUDGET} ` +
+								'candidate characters — an unresolvable payload the ' +
+								'guard cannot enumerate; simplify the payload or ' +
+								'import the stylesheet through the build graph.',
 							file: relativePath,
 							line: lineForOffset(content, node.getStart(sourceFile)),
 							source: node.getText(sourceFile),
@@ -2311,7 +2330,26 @@ export const scanZIndexFile = ({
 					hrefResult.unresolved || hrefResult.values == null
 						? null
 						: hrefResult.values;
-				if (relResult.unresolved || hrefResult.unresolved) {
+				if (relResult.overflow || hrefResult.overflow) {
+					// The rel/href candidate set overflowed the work budget:
+					// the value is provably static text the guard cannot
+					// enumerate, so it might be `stylesheet` pointing at a
+					// data URL — an unresolvable input that must fail loud by
+					// name, never resolve to a compliant default (round-19
+					// B1).
+					violations.push({
+						ruleId: 'z-index-static-candidate-overflow',
+						message:
+							`static <link> rel/href candidate space exceeds the guard's ` +
+							`work budget of ${CARTESIAN_WORK_BUDGET} candidate ` +
+							'characters — an unresolvable payload the guard cannot ' +
+							'enumerate; simplify the rel/href expression or import ' +
+							'the stylesheet through the build graph.',
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+						source: node.getText(sourceFile),
+					});
+				} else if (relResult.unresolved || hrefResult.unresolved) {
 					unresolvedSpreadViolation(
 						node,
 						relResult.opaqueSpreadNode ?? hrefResult.opaqueSpreadNode,
@@ -2327,16 +2365,34 @@ export const scanZIndexFile = ({
 				// opaque-only spread stays in the runtime bucket: this object
 				// literal is not provably a link descriptor, so the spread
 				// cannot be policed as one (that is what the `{...props}`
-				// green proof pins).
-				relValues =
+				// green proof pins). An overflowing candidate set of either
+				// member is the same unresolvable input the JSX link branch
+				// reports by name (round-19 B1).
+				const relStringResult =
 					relResult.unresolved || relResult.node == null
 						? null
-						: (staticStringValues(relResult.node)?.values ?? null);
-				hrefValues =
+						: staticStringValues(relResult.node);
+				const hrefStringResult =
 					hrefResult.unresolved || hrefResult.node == null
 						? null
-						: (staticStringValues(hrefResult.node)?.values ?? null);
-				if (relResult.unresolved || hrefResult.unresolved) {
+						: staticStringValues(hrefResult.node);
+				relValues = relStringResult?.values ?? null;
+				hrefValues = hrefStringResult?.values ?? null;
+				if (relStringResult?.overflow || hrefStringResult?.overflow) {
+					violations.push({
+						ruleId: 'z-index-static-candidate-overflow',
+						message:
+							`static link-descriptor rel/href candidate space exceeds ` +
+							`the guard's work budget of ${CARTESIAN_WORK_BUDGET} ` +
+							'candidate characters — an unresolvable payload the ' +
+							'guard cannot enumerate; simplify the rel/href ' +
+							'expression or import the stylesheet through the build ' +
+							'graph.',
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+						source: node.getText(sourceFile),
+					});
+				} else if (relResult.unresolved || hrefResult.unresolved) {
 					unresolvedSpreadViolation(
 						node,
 						relResult.opaqueSpreadNode ?? hrefResult.opaqueSpreadNode,
@@ -2389,22 +2445,43 @@ export const scanZIndexFile = ({
 						propertyResult.node == null
 							? null
 							: staticStringValues(propertyResult.node);
-					const nameCandidates = nameResult == null ? null : nameResult.values;
-					if (nameCandidates != null) {
-						const reservedName = [...nameCandidates].find((name) =>
-							name.startsWith('--publy-z-'),
-						);
-						if (reservedName != null) {
-							violations.push({
-								ruleId: 'z-index-scale-token-registered',
-								message:
-									`script registration of reserved scale token \`${reservedName}\` can ` +
-									'replace its inherited tier value — the --publy-z-* namespace ' +
-									'must not be registered with CSS.registerProperty().',
-								file: relativePath,
-								line: lineForOffset(content, node.getStart(sourceFile)),
-								source: `CSS.registerProperty(${reservedName})`,
-							});
+					if (nameResult?.overflow) {
+						// The name candidate space overflowed the work budget:
+						// the name is provably static text the guard cannot
+						// enumerate, so it may be a reserved `--publy-z-*`
+						// token — an unresolvable input that must fail loud by
+						// name (round-19 B1).
+						violations.push({
+							ruleId: 'z-index-static-candidate-overflow',
+							message:
+								`static CSS.registerProperty() name candidate space ` +
+								`exceeds the guard's work budget of ` +
+								`${CARTESIAN_WORK_BUDGET} candidate characters — ` +
+								'an unresolvable payload the guard cannot ' +
+								'enumerate; simplify the name expression.',
+							file: relativePath,
+							line: lineForOffset(content, node.getStart(sourceFile)),
+							source: node.getText(sourceFile),
+						});
+					} else {
+						const nameCandidates =
+							nameResult == null ? null : nameResult.values;
+						if (nameCandidates != null) {
+							const reservedName = [...nameCandidates].find((name) =>
+								name.startsWith('--publy-z-'),
+							);
+							if (reservedName != null) {
+								violations.push({
+									ruleId: 'z-index-scale-token-registered',
+									message:
+										`script registration of reserved scale token \`${reservedName}\` can ` +
+										'replace its inherited tier value — the --publy-z-* namespace ' +
+										'must not be registered with CSS.registerProperty().',
+									file: relativePath,
+									line: lineForOffset(content, node.getStart(sourceFile)),
+									source: `CSS.registerProperty(${reservedName})`,
+								});
+							}
 						}
 					}
 				}
@@ -2428,10 +2505,29 @@ export const scanZIndexFile = ({
 				source: name,
 			});
 		};
-		const recordScaleTokenDefinitionCandidates = (nameValues, node) => {
+		const recordScaleTokenDefinitionCandidates = (nameResult, node) => {
 			// Any provable candidate key is a possible reserved-token write:
 			// `setProperty(cond ? '--publy-z-a' : 'color')` may write the
-			// reserved token, so the first reserved candidate reds.
+			// reserved token, so the first reserved candidate reds. An
+			// overflowing candidate space is the same unresolvable input: the
+			// key is provably static text the guard cannot enumerate, so it
+			// may write the reserved namespace and the guard fails loud by
+			// name instead of assuming compliant (round-19 B1).
+			if (nameResult?.overflow) {
+				violations.push({
+					ruleId: 'z-index-static-candidate-overflow',
+					message:
+						`static scale-token write candidate space exceeds the guard's ` +
+						`work budget of ${CARTESIAN_WORK_BUDGET} candidate ` +
+						'characters — an unresolvable payload the guard cannot ' +
+						'enumerate; simplify the property-name expression.',
+					file: relativePath,
+					line: lineForOffset(content, node.getStart(sourceFile)),
+					source: node.getText(sourceFile),
+				});
+				return;
+			}
+			const nameValues = nameResult?.values ?? null;
 			if (nameValues == null) {
 				return;
 			}
@@ -2450,7 +2546,7 @@ export const scanZIndexFile = ({
 					// the partial key, so the first reserved candidate reds
 					// even though the key never resolves to one exact name.
 					recordScaleTokenDefinitionCandidates(
-						staticStringValues(node.name.expression)?.values ?? null,
+						staticStringValues(node.name.expression),
 						node,
 					);
 				} else {
@@ -2462,7 +2558,7 @@ export const scanZIndexFile = ({
 				node.expression.name.text === 'setProperty'
 			) {
 				recordScaleTokenDefinitionCandidates(
-					staticStringValues(node.arguments[0])?.values ?? null,
+					staticStringValues(node.arguments[0]),
 					node,
 				);
 			}
