@@ -2310,6 +2310,24 @@ describe('drawer description text contrast (#1043)', () => {
 		);
 	});
 
+	// The unmodeled-sweep pin (round 19 I1): a rule that is RELEVANT to the
+	// element (it targets the real host type + slot) but ALSO carries a token
+	// the probe cannot reproduce — a non-`data-*`/`aria-*` attribute the probe
+	// does not stamp — is unresolvable input. `element.matches()` answers
+	// `false` for it, but that `false` is not ground truth: the probe's absence
+	// of the attribute cannot be told apart from the app genuinely never
+	// carrying it. The sweep must fail LOUD by name, never silently leave the
+	// compliant primitive paint in place. Disabling the sweep (the round-18
+	// reviewer's `Number.MAX_SAFE_INTEGER` mutation) leaves this test red.
+	test('a relevant rule with an unmodeled attribute fails loud by name (round 19 I1)', async () => {
+		await expect(async () =>
+			resolveFixturePaint(
+				`p[data-slot='drawer-description'][role='note'] { color: var(--publy-foreground-subtle); }`,
+				[],
+			),
+		).rejects.toThrow(/Unverifiable selector for .*role/);
+	});
+
 	// ---- The real stylesheet, measured by the engine -----------------------
 
 	test('the primitive paint clears the floor on the composited drawer surface in both themes', async () => {
