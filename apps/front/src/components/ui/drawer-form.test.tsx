@@ -3217,6 +3217,40 @@ export const ContentsWrapperCleanDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 24's IMPORTANT 5 — the `contents` token must be ESTABLISHED, not
+// spelled. `display: contents` only wins at a width where no *other* display
+// utility is active. `className="contents min-[1100px]:block"` still contains
+// the `contents` token but becomes a block at 1100px+, so it is NOT boxless at
+// every width that matters — the wrapper must be treated as a real element.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_CONTENTS_BOX_RESTORING_FILE =
+	'src/components/ui/_drawer-surface-r24-contents-box-restoring-fixture.tsx';
+const TEMPORARY_CONTENTS_BOX_RESTORING_PATH = fixturePath(
+	TEMPORARY_CONTENTS_BOX_RESTORING_FILE,
+);
+const TEMPORARY_CONTENTS_BOX_RESTORING_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ContentsBoxRestoringDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r24-contents-box-restoring">
+		<div className="contents min-[1100px]:block">
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // Round 24's BLOCKER 1 — components-as-props. A component passes the four
 // drawer exports into a CHILD as a prop (`kit={{ Surface: DrawerContent,
 // Form: DrawerForm, Body: DrawerBody, Footer: DrawerFooter }}`), and the child
@@ -3774,6 +3808,10 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CONTENTS_WRAPPER_CLEAN_FILE,
 		source: TEMPORARY_CONTENTS_WRAPPER_CLEAN_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_BOX_RESTORING_FILE,
+		source: TEMPORARY_CONTENTS_BOX_RESTORING_SOURCE,
 	},
 	{
 		file: TEMPORARY_PARAMETER_KIT_DRAWER_FILE,
@@ -5584,7 +5622,36 @@ const isNodelessReactWrapper = (
 		);
 };
 
-const CONTENTS_CLASS_TOKEN = /(?:^|\s)contents(?:\s|$)/;
+// Tailwind display utilities that generate a principal box (or otherwise stop
+// `display: contents` from winning). A class list that contains BOTH `contents`
+// and one of these — at any breakpoint, e.g. `min-[1100px]:block` — is not
+// statically `display: contents` at every width that matters, so it is not
+// established boxless (round 24's IMPORTANT 5).
+const DISPLAY_RESTORING_UTILITIES = new Set([
+	'block',
+	'inline-block',
+	'inline',
+	'flex',
+	'inline-flex',
+	'grid',
+	'inline-grid',
+	'table',
+	'inline-table',
+	'flow-root',
+	'hidden',
+]);
+
+/**
+ * Whether a class list token is a display utility that would restore a box at
+ * the width that token applies to. A Tailwind utility token is a bare utility
+ * (`block`) or a variant-prefixed one (`md:block`, `min-[1100px]:block`); the
+ * variant is stripped to the leaf utility, which is what each such utility
+ * actually sets.
+ */
+const isDisplayRestoringUtilityToken = (token: string): boolean => {
+	const leaf = token.slice(token.lastIndexOf(':') + 1);
+	return DISPLAY_RESTORING_UTILITIES.has(leaf);
+};
 
 /**
  * A `className`/`style` value that statically resolves to `display:
@@ -5596,6 +5663,13 @@ const CONTENTS_CLASS_TOKEN = /(?:^|\s)contents(?:\s|$)/;
  * `contents` utility class and a literal `style={{ display: 'contents' }}`
  * are recognized — a computed or conditional class/style is not statically
  * decidable and is NOT treated as boxless (fail closed).
+ *
+ * Round 24's IMPORTANT 5: merely CONTAINING the `contents` token is not
+ * enough — a responsive utility that restores a box at a larger width
+ * (`contents min-[1100px]:block`) still contains the token but is not
+ * `display: contents` everywhere. A class list that mixes `contents` with a
+ * box-restoring utility at any breakpoint is not established boxless, so it
+ * is treated as a real element (a violation when it breaks the chain).
  */
 const isBoxlessWrapperElement = (
 	openingElement: JsxOpeningElement | JsxSelfClosingElement,
@@ -5612,12 +5686,23 @@ const isBoxlessWrapperElement = (
 		}
 		if (
 			attributeName === 'className' &&
-			initializer.getKind() === SyntaxKind.StringLiteral &&
-			CONTENTS_CLASS_TOKEN.test(
-				` ${(initializer as StringLiteral).getLiteralValue()} `,
-			)
+			initializer.getKind() === SyntaxKind.StringLiteral
 		) {
-			return true;
+			const classList = (initializer as StringLiteral)
+				.getLiteralValue()
+				.trim()
+				.split(/\s+/)
+				.filter((token) => token.length > 0);
+			const hasContents = classList.some((token) => token === 'contents');
+			if (hasContents) {
+				const hasBoxRestoringToken = classList.some(
+					(token) =>
+						token !== 'contents' && isDisplayRestoringUtilityToken(token),
+				);
+				if (!hasBoxRestoringToken) {
+					return true;
+				}
+			}
 		}
 		if (
 			attributeName === 'style' &&
@@ -8844,6 +8929,33 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_CONTENTS_WRAPPER_CLEAN_PATH);
+		}
+	});
+
+	test('a contents wrapper that restores a box above a breakpoint is not established boxless and is rejected', () => {
+		// Round 24's IMPORTANT 5 paired proof: `className="contents
+		// min-[1100px]:block"` still contains the `contents` token but becomes
+		// a block at 1100px+, so it is NOT `display: contents` at every width
+		// that matters. The old "contains the token" rule accepted it and the
+		// #990 geometry restored above 1100px shipped green (all committed
+		// browser samples are below that threshold). The fix must establish
+		// `display: contents` actually wins — this wrapper is treated as a
+		// real element and the broken chain reddens.
+		writeFileSync(
+			TEMPORARY_CONTENTS_BOX_RESTORING_PATH,
+			TEMPORARY_CONTENTS_BOX_RESTORING_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_BOX_RESTORING_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_BOX_RESTORING_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_BOX_RESTORING_PATH);
 		}
 	});
 
