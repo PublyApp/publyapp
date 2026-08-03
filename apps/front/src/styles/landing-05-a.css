@@ -969,41 +969,41 @@
 		transition-duration: var(--publy-landing-05-a-motion-press);
 	}
 
-	/* ---- Entrance: a fade and an 8px rise, and NO BLUR.
+	/* ---- Entrance: attio-21's blur-in. 1.5px is below the threshold where
+	   blur is consciously seen, so the element reads as FOCUSING rather than
+	   as appearing. 560ms is a third duration and it earns its comment: it is
+	   an entrance, not a transition — a state change wants to be over before
+	   you can attend to it, an arrival wants to be watched — and at the house
+	   curve 240ms is visibly abrupt for an 8px translate plus a blur, while
+	   600ms starts to read as a page that is loading. It is used by exactly
+	   two mechanisms: this one, and the scroll reveal below, which share it
+	   so the page has one arrival feel rather than two.
 
-	   This began as attio-21's blur-in — a 1.5px gaussian, chosen because it
-	   sits below the threshold where blur is consciously seen, so an element
-	   reads as FOCUSING rather than as appearing. The owner removed it. The
-	   effect it buys is subliminal by construction, and what it costs is not:
-	   `filter` promotes every animating element to its own composited layer
-	   and re-rasterizes text for the length of the animation, which is the one
-	   thing on this page that can make a 104px headline arrive soft on a
-	   mid-range machine. A rise and a fade say the same thing and cost a
-	   transform.
+	   Above the fold it fires on the hero H1 and the product window only.
 
-	   560ms is kept, and still earns its comment: it is an entrance, not a
-	   transition — a state change wants to be over before you can attend to
-	   it, an arrival wants to be watched — and at the house curve 240ms is
-	   visibly abrupt for an 8px translate while 600ms starts to read as a page
-	   that is loading. Used by exactly two mechanisms, this one and the scroll
-	   reveal below, which share it so the page has one arrival feel rather
-	   than two.
-
-	   Above the fold it fires on the hero H1 and the product window only. */
+	   The blur was removed once, on 2026-08-03, and the owner restored it
+	   after seeing the page without it — so it is a deliberate keep, not an
+	   oversight. The argument against it was cost, not taste: `filter`
+	   promotes each animating element to its own composited layer and
+	   re-rasterizes text for the length of the animation. Worth re-measuring
+	   on a mid-range machine if the 104px hero ever arrives visibly soft, but
+	   do not remove it again on that reasoning alone. */
 	.publy-landing-05-a .publy-sky-a-focus-in {
 		animation: publy-l05a-focus-in var(--publy-landing-05-a-motion-entrance)
 			var(--publy-motion-ease) both;
-		will-change: transform, opacity;
+		will-change: filter, opacity;
 	}
 
 	@keyframes publy-l05a-focus-in {
 		from {
 			opacity: 0;
+			filter: blur(1.5px);
 			transform: translateY(8px);
 		}
 
 		to {
 			opacity: 1;
+			filter: blur(0);
 			transform: translateY(0);
 		}
 	}
