@@ -390,6 +390,10 @@ ci-e2e-front:
   docker compose -f apps/front/docker-compose.test.yml up -d --build --wait --wait-timeout 180
   pnpm --filter front exec playwright install chromium
   pnpm --filter front exec playwright test
+  # Round 19 I3: the drawer-description contrast source guard launches
+  # Chromium itself, so it runs in this browser-provisioned lane exactly as CI
+  # runs it (front-e2e.yml shard 4) — through the same package script.
+  pnpm --filter front test:drawer-contrast
   docker compose -f apps/front/docker-compose.test.yml down -v
 
 # old-front e2e characterization: docker stack + playwright

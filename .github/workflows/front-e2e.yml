@@ -311,9 +311,11 @@ jobs:
             # runs here, once per run, in the lane that already installs the
             # Chromium the guard launches itself — the same lane that gates
             # the real drawer spec, so the synthetic guard cannot be
-            # provisioned cheaper anywhere else. Fails the job on any
-            # drawer-contrast regression.
-            pnpm --filter front exec vitest run --config vitest.drawer.config.ts
+            # provisioned cheaper anywhere else. Round 21: run through the
+            # `test:drawer-contrast` package script so CI and the local gate
+            # (`just ci-e2e-front`) invoke the identical command. Fails the
+            # job on any drawer-contrast regression.
+            pnpm --filter front test:drawer-contrast
           fi
 
       - name: Upload playwright report
