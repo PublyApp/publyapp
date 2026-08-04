@@ -3493,6 +3493,70 @@ export const MutatedArrayKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 26's BLOCKER 1 — a structurally-typed member that can hold the real
+// drawer exports. The reviewer's exact reproduction: the kit members are typed
+// with React's EXTERNAL `FC<any>`, so the value is passed through a parameter
+// whose declared type looks external. Round 24's type-shaped disproof
+// (`isMemberTypeProvablyExternal`) read that external type as an identity
+// proof and returned a definite NOT_DRAWER for every `<kit.Surface>` etc. —
+// shipping the exact #990 break green with typecheck clean. TypeScript member
+// types are structural, not nominal: a repo-local `DrawerContent` can legally
+// inhabit `FC<any>`. The disproof must be about the VALUE's symbol, so a
+// parameter member with no traceable value side is UNVERIFIABLE — and this
+// drawer, which imports the drawer module and passes the real exports into the
+// kit, is discovered and reddened.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r26-external-typed-kit-fixture.tsx';
+const TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_FILE,
+);
+const TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type ExternalTypedKit = {
+	Surface: FC<any>;
+	Form: FC<any>;
+	Body: FC<any>;
+	Footer: FC<any>;
+};
+
+type KitProps = {
+	kit: ExternalTypedKit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+const DrawerFromKit = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+
+export const ExternalTypedKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerFromKit
+		methods={methods}
+		kit={{
+			Surface: DrawerContent,
+			Form: DrawerForm,
+			Body: DrawerBody,
+			Footer: DrawerFooter,
+		}}
+	/>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -3831,6 +3895,10 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_FILE,
 		source: TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_FILE,
+		source: TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_SOURCE,
 	},
 ];
 
@@ -5091,60 +5159,66 @@ const resolveIterableParameterMember = (
  *    member. Not knowing must redden.
  */
 /**
- * Decides whether a MEMBER ACCESS'S declared TYPE is provably external to the
- * repo — round 24's BLOCKER 1. The old fallback returned "definitely not a
- * drawer" for any member of a Parameter/BindingElement base, but that is not
- * proved: a components-as-props kit (`kit={{ Surface: DrawerContent, ... }}`)
- * passes the real drawer exports into a plain parameter, and `<kit.Surface>`
- * resolved to a definite non-drawer with the exact #990 break green. The
- * three-valued rule says "not proved" is UNVERIFIABLE — EXCEPT when the
- * member's declared type itself proves it is not the drawer module's export.
+ * Round 26's BLOCKER 1 — the disproof of a member of a Parameter/BindingElement
+ * base must be about the VALUE's symbol, never the member's DECLARED TYPE. A
+ * declared type is structural, not nominal: a repo-local `DrawerContent` can
+ * legally inhabit a property declared `FC<any>` (React's external type), so
+ * round 24's `isMemberTypeProvablyExternal()` — which proved only that the
+ * declared type came from outside the repo — turned a real drawer export into
+ * a definite NOT_DRAWER and shipped the exact #990 break green with typecheck
+ * clean. The rule below is the value-shaped replacement: a member of a
+ * Parameter/BindingElement base is NOT_DRAWER only when the guard can follow
+ * the VALUE it names to a symbol that is not one of the four drawer exports.
+ * When it cannot follow the value — the ordinary case for a parameter — the
+ * answer is UNVERIFIABLE, whatever the declared type says.
  *
- * The drawer module is a repo file, so an export's type is a repo declaration.
- * If the member's type resolves (through any type-alias chain) to a type whose
- * declarations all live OUTSIDE the repo (node_modules, ambient lib), the
- * member cannot be the same symbol as a drawer export — identity disproof, the
- * same cut `resolveSymbolValue` applies to a whole external symbol. `item.Icon`
- * (`TablerIcon` from `@tabler/icons-react`) and `option.Icon` (`Icon`) are
- * provably external; `kit.Surface` typed `typeof DrawerContent` is not. When
- * the type is not decidable (null symbol, `any`, a union, a repo-typed
- * member), the result is NOT provably external — the caller must fail closed.
+ * The two shipped consumers that round 24's type-shaped rule kept green by
+ * accident (`app-shell.tsx`'s `item.Icon`, `icon-color-picker.tsx`'s
+ * `option.Icon`) are NOT covered by a value proof here — their member values
+ * are genuine untraceable parameters, so they now resolve UNVERIFIABLE. They
+ * are kept green by an explicit, narrow, documented allowance (see
+ * NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES) that names the file and the member
+ * and gives the value-level reason it is safe. It is a reviewed list, not a
+ * second type-shaped rule: it cannot generalise to a new shape, and it cannot
+ * silently keep a fresh broken drawer green.
  */
-const isMemberTypeProvablyExternal = (
-	propertyAccess: PropertyAccessExpression,
-	project: Project,
-): boolean => {
-	const checker = project.getTypeChecker();
-	const type = checker.getTypeAtLocation(propertyAccess);
-	let symbol = type.getSymbol() ?? type.getAliasSymbol();
-	if (!symbol) {
-		return false;
-	}
-	let current: TsMorphSymbol | null = symbol;
-	let guard = 0;
-	while (
-		current &&
-		(current.getFlags() & ts.SymbolFlags.Alias) !== 0 &&
-		guard < 16
-	) {
-		const aliased = current.getAliasedSymbol();
-		if (!aliased || aliased === current) {
-			break;
-		}
-		current = aliased;
-		guard += 1;
-	}
-	if (!current) {
-		return false;
-	}
-	const declarations = current.getDeclarations();
-	if (declarations.length === 0) {
-		return false;
-	}
-	return declarations.every(
-		(declaration) => !isRepoFilePath(declaration.getSourceFile().getFilePath()),
+const NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES: ReadonlyArray<{
+	file: string;
+	member: string;
+	reason: string;
+}> = [
+	{
+		file: 'src/components/app-shell/app-shell.tsx',
+		member: 'Icon',
+		reason:
+			'Every `item.Icon` is drawn from the @tabler/icons-react collection the ' +
+			'app-shell nav model declares (`Icon: TablerIcon`); the nav arrays are ' +
+			"literals of tabler icon components, and the drawer module's exports are " +
+			'never a member of that model. The `<Icon>` tag is a nav glyph, never a ' +
+			"drawer part, and the file's real drawer anchors are walked and judged " +
+			'independently of this allowance.',
+	},
+	{
+		file: 'src/components/ui/icon-color-picker.tsx',
+		member: 'Icon',
+		reason:
+			'Every `option.Icon` comes from `ICON_COLOR_PICKER_OPTIONS`, built ' +
+			'entirely from @tabler/icons-react components (see ' +
+			"icon-color-picker-options.ts); the drawer module's exports are never " +
+			'an element of that array. The `<option.Icon>` tag is a palette glyph, ' +
+			'never a drawer part.',
+	},
+];
+
+const isAllowedNonDrawerParameterMember = (
+	filePath: string,
+	memberName: string,
+): boolean =>
+	NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES.some(
+		(allowance) =>
+			toPortableSourcePath(filePath) === allowance.file &&
+			memberName === allowance.member,
 	);
-};
 
 const resolveTypeSideMemberValue = (
 	propertyAccess: PropertyAccessExpression,
@@ -5217,18 +5291,25 @@ const resolveTypeSideMemberValue = (
 				declaration.getKind() === SyntaxKind.BindingElement,
 		)
 	) {
-		// Round 24's BLOCKER 1: a Parameter/BindingElement member base is NOT
-		// a definite non-drawer — a components-as-props kit can hold the real
-		// drawer exports (`kit={{ Surface: DrawerContent, ... }}` passed into
-		// a plain parameter). The base's declared member TYPE is the only
-		// evidence that either proves it outside the repo or leaves it
-		// unverifiable: `item.Icon` (`TablerIcon` from `@tabler/icons-react`)
-		// and `option.Icon` are provably external and stay "definitely not a
-		// drawer" (the round-19 BLOCKER 1 paired proof — the shipped
-		// app-shell.tsx and icon-color-picker.tsx shapes); `kit.Surface`
-		// typed `typeof DrawerContent` is not, so it must fail closed as
-		// UNVERIFIABLE, never silently read as a non-drawer.
-		if (isMemberTypeProvablyExternal(propertyAccess, project)) {
+		// Round 24's BLOCKER 1, round 26's re-proof: a Parameter/BindingElement
+		// member base is NOT a definite non-drawer — a components-as-props kit
+		// can hold the real drawer exports (`kit={{ Surface: DrawerContent,
+		// ... }}` passed into a plain parameter). The only sound NOT_DRAWER
+		// exception is when the guard can follow the member's VALUE to a
+		// symbol that is not a drawer export — the shipped `app-shell.tsx`
+		// (`item.Icon`) and `icon-color-picker.tsx` (`option.Icon`) shapes are
+		// allowed through that way, enumerated by file + member in
+		// NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES with the value-level reason
+		// each is safe. A member type declared `FC<any>` is NOT a disproof —
+		// a repo-local DrawerContent can legally inhabit React's external
+		// type, so a structurally-typed member with no value trace fails
+		// closed as UNVERIFIABLE, never silently null.
+		if (
+			isAllowedNonDrawerParameterMember(
+				propertyAccess.getSourceFile().getFilePath(),
+				propertyAccess.getName(),
+			)
+		) {
 			return null;
 		}
 		return UNVERIFIABLE_TAG;
@@ -8687,6 +8768,113 @@ describe('drawer surface flex chain guard (#990)', () => {
 		} finally {
 			unlinkSync(TEMPORARY_PARAMETER_KIT_DRAWER_PATH);
 		}
+	});
+
+	test('a drawer whose four parts are passed through a structurally-typed FC<any> member is discovered and rejected', () => {
+		// Round 26's BLOCKER 1, verbatim: the kit members are typed with React's
+		// external `FC<any>`, so the member's DECLARED TYPE is external even
+		// though the runtime value is the repo-local drawer export. TypeScript
+		// member types are structural, not nominal — a repo-local DrawerContent
+		// can legally inhabit `FC<any>` — so the type-shaped disproof (round 24's
+		// `isMemberTypeProvablyExternal`) is not an identity proof and shipped
+		// this exact #990 break green with typecheck clean. The disproof must be
+		// about the VALUE's symbol: a parameter member with no traceable value
+		// side is UNVERIFIABLE, whatever its declared type says. This fixture
+		// imports the drawer module and passes the real exports into the kit, so
+		// the unverifiable markers make it discovered and reddened.
+		writeFileSync(
+			TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_PATH,
+			TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('the shipped app-shell and icon-color-picker member tags resolve through the documented allowance, not a type-shaped disproof', () => {
+		// Round 26's BLOCKER 1 paired proof — the legitimate case stays green:
+		// `app-shell.tsx`'s `item.Icon` and `icon-color-picker.tsx`'s
+		// `option.Icon` are members of genuine untraceable parameters, so they
+		// now resolve UNVERIFIABLE by the value rule; they are kept out of the
+		// inventory ONLY by the explicit, narrow, value-level allowance in
+		// NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES (which names the file, the
+		// member, and the value-level reason — the icons come from @tabler/
+		// icons-react, never from the drawer module). Resolve the real tags and
+		// assert they are definite nulls, and assert neither file surfaces in
+		// the scan.
+		const project = getScanProject();
+		const reassignedNamesByFile = new Map<string, Set<string>>();
+		const resolvedByRelPath = new Map<string, DrawerTagNameResult>();
+
+		const appShell = project.getSourceFile(
+			path.join(FRONT_ROOT, 'src/components/app-shell/app-shell.tsx'),
+		);
+		expect(appShell).not.toBeNull();
+		if (appShell) {
+			for (const node of [
+				...appShell.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+				...appShell.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+			]) {
+				const text = node.getTagNameNode().getText();
+				if (resolvedByRelPath.has(text)) {
+					continue;
+				}
+				resolvedByRelPath.set(
+					text,
+					resolveDrawerTagName(
+						node.getTagNameNode(),
+						project,
+						reassignedNamesByFile,
+					),
+				);
+			}
+			expect(resolvedByRelPath.get('DrawerContent')).toBe('DrawerContent');
+			expect(resolvedByRelPath.get('Icon')).toBe(null);
+		}
+
+		const colorPicker = project.getSourceFile(
+			path.join(FRONT_ROOT, 'src/components/ui/icon-color-picker.tsx'),
+		);
+		expect(colorPicker).not.toBeNull();
+		if (colorPicker) {
+			for (const node of [
+				...colorPicker.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+				...colorPicker.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+			]) {
+				const text = node.getTagNameNode().getText();
+				if (text !== 'option.Icon') {
+					continue;
+				}
+				expect(
+					resolveDrawerTagName(
+						node.getTagNameNode(),
+						project,
+						reassignedNamesByFile,
+					),
+				).toBe(null);
+			}
+		}
+
+		const scan = scanDrawerSurfaces();
+		expect(scan.discovered).toContain('src/components/app-shell/app-shell.tsx');
+		expect(scan.violations).not.toContain(
+			'src/components/app-shell/app-shell.tsx',
+		);
+		expect(scan.discovered).not.toContain(
+			'src/components/ui/icon-color-picker.tsx',
+		);
+		expect(scan.violations).not.toContain(
+			'src/components/ui/icon-color-picker.tsx',
+		);
 	});
 
 	test('an accessor pair with the setter declared first resolves through the getter and is rejected', () => {
