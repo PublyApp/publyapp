@@ -213,7 +213,15 @@ Five components:
    build-reachable project script recorded by Vite—including a project module outside Tailwind's
    source root—the script AST pass also reports literal `--publy-z-*` object properties and
    `setProperty()` calls, plus direct keys resolved through an unshadowed module-scope `const` bound
-   to a string literal. Unimported script samples are not runtime code and stay green. The same pass
+   to a string literal. A `setProperty` call is recognised from its **receiver**, not its spelling
+   (round-21 I1): only calls that provably reach a `CSSStyleDeclaration` count — spelled by dot,
+   bracket, an aliased receiver (`const s = element.style; s.setProperty(...)`), or a destructured
+   method (`const { setProperty } = element.style; setProperty(...)`) — while a method merely *named*
+   `setProperty` on an unrelated object, or `.style` on a provably plain object literal (an ordinary
+   data property, not the CSSOM accessor), reds nothing. An unresolvable receiver stays in the same
+   helper-mediated data-flow boundary as a parameter-carried key, and a method-name candidate space
+   the guard cannot enumerate is a named `z-index-static-candidate-overflow` diagnostic because the
+   write cannot be ruled out. Unimported script samples are not runtime code and stay green. The same pass
    rejects native JSX stylesheet links and static link-descriptor objects when the `rel` token list
    and `href` are static, including `.jsx`, `.tsx`, `.mts`, and `.cts` modules and values wrapped in
    transparent TypeScript syntax such as `as const`, `satisfies`, non-null, or parentheses. Static

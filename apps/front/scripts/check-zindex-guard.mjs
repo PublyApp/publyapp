@@ -2669,6 +2669,197 @@ export const scanZIndexFile = ({
 		if (checkBuildReachableScript) {
 			visitStaticStyleEscapes(sourceFile);
 		}
+		// --- CSSOM receiver semantics (round-21 I1) --------------------------
+		// `setProperty` is a CSSOM write only when it provably reaches a
+		// `CSSStyleDeclaration`. The guard decides that from the receiver, not
+		// from the call's spelling: a dot or bracket call, an aliased receiver,
+		// or a destructured method all count — and a method merely *named*
+		// `setProperty` on an unrelated object counts for nothing. The static
+		// signal that a receiver is a CSSStyleDeclaration is that it is (or
+		// represents) a `.style` member access of an element, and that the
+		// owner of that `.style` is not provably a plain object literal (which
+		// would make `.style` an ordinary data property, not the CSSOM
+		// accessor). Resolving a static object to a plain object literal uses
+		// the same transparent wrapper + alias-chain model as the rest of the
+		// guard.
+		const resolvedStaticObject = (node, visited = new Set()) => {
+			const expression = unwrapTransparentExpression(node);
+			if (expression != null && ts.isObjectLiteralExpression(expression)) {
+				return expression;
+			}
+			if (expression != null && ts.isIdentifier(expression)) {
+				if (visited.has(expression.text)) {
+					return null;
+				}
+				const next = new Set(visited);
+				next.add(expression.text);
+				const binding = nearestBinding(expression, expression.text);
+				if (
+					binding != null &&
+					ts.isVariableDeclaration(binding) &&
+					binding.initializer != null
+				) {
+					return resolvedStaticObject(binding.initializer, next);
+				}
+			}
+			return null;
+		};
+		// The guard's `nearestBinding` resolves a destructure target to the whole
+		// `VariableDeclaration`, so the recognizer digs into the object pattern
+		// for the exact binding element that carries the identifier.
+		const findBindingElement = (pattern, name) => {
+			for (const element of pattern.elements) {
+				if (
+					ts.isBindingElement(element) &&
+					element.name.kind === ts.SyntaxKind.Identifier &&
+					element.name.text === name
+				) {
+					return element;
+				}
+				if (element.name.kind !== ts.SyntaxKind.Identifier) {
+					const nested = findBindingElement(element.name, name);
+					if (nested != null) {
+						return nested;
+					}
+				}
+			}
+			return null;
+		};
+		// The receiver of a call — `element.style`, `el['style']`, `s`, `{ style }`
+		// — is a CSSStyleDeclaration when its final member is `style` and the
+		// owner is not provably a plain object literal. Returns 'style-decl',
+		// 'plain-object', or 'other'.
+		const styleDeclarationReceiverKind = (node, visited = new Set()) => {
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
+				return 'other';
+			}
+			if (
+				ts.isPropertyAccessExpression(expression) ||
+				ts.isElementAccessExpression(expression)
+			) {
+				const memberName = ts.isPropertyAccessExpression(expression)
+					? expression.name.text
+					: (() => {
+							const key = staticString(expression.argumentExpression);
+							return key.kind === 'value' ? key.value : null;
+						})();
+				if (memberName !== 'style') {
+					return 'other';
+				}
+				const owner = unwrapTransparentExpression(expression.expression);
+				if (owner != null) {
+					const resolvedOwner = resolvedStaticObject(owner);
+					if (
+						resolvedOwner != null &&
+						ts.isObjectLiteralExpression(resolvedOwner)
+					) {
+						return 'plain-object';
+					}
+				}
+				return 'style-decl';
+			}
+			if (ts.isIdentifier(expression)) {
+				if (visited.has(expression.text)) {
+					return 'other';
+				}
+				const next = new Set(visited);
+				next.add(expression.text);
+				const binding = nearestBinding(expression, expression.text);
+				if (binding != null && ts.isVariableDeclaration(binding)) {
+					if (ts.isObjectBindingPattern(binding.name)) {
+						const element = findBindingElement(binding.name, expression.text);
+						// `const { style } = X;` — the receiver is `X.style`.
+						if (element != null) {
+							const memberName =
+								element.propertyName?.text ??
+								(element.name.kind === ts.SyntaxKind.Identifier
+									? element.name.text
+									: null);
+							if (memberName !== 'style') {
+								return 'other';
+							}
+							const resolvedOwner = resolvedStaticObject(binding.initializer);
+							if (
+								resolvedOwner != null &&
+								ts.isObjectLiteralExpression(resolvedOwner)
+							) {
+								return 'plain-object';
+							}
+							return 'style-decl';
+						}
+						return 'other';
+					}
+					if (binding.initializer != null) {
+						return styleDeclarationReceiverKind(binding.initializer, next);
+					}
+				}
+				return 'other';
+			}
+			return 'other';
+		};
+		// Classifies a `setProperty` call's callee over the aliased/destructured
+		// spellings. Returns 'style-decl' (a real CSSStyleDeclaration write),
+		// 'plain-object' (provably an unrelated object's method — not a write),
+		// 'overflow' (the method name is unresolvable — the receiver is a style
+		// declaration, so the write cannot be ruled out), or 'other'.
+		const cssStyleSetterCallKind = (node, visited = new Set()) => {
+			const callee = unwrapTransparentExpression(node);
+			if (callee == null) {
+				return 'other';
+			}
+			if (ts.isPropertyAccessExpression(callee)) {
+				if (callee.name.text !== 'setProperty') {
+					return 'other';
+				}
+				return styleDeclarationReceiverKind(callee.expression, visited);
+			}
+			if (ts.isElementAccessExpression(callee)) {
+				const key = staticString(callee.argumentExpression);
+				if (key.kind === 'overflow') {
+					const receiverKind = styleDeclarationReceiverKind(
+						callee.expression,
+						visited,
+					);
+					return receiverKind === 'style-decl' ? 'overflow' : 'other';
+				}
+				if (key.kind !== 'value' || key.value !== 'setProperty') {
+					return 'other';
+				}
+				return styleDeclarationReceiverKind(callee.expression, visited);
+			}
+			if (ts.isIdentifier(callee)) {
+				if (visited.has(callee.text)) {
+					return 'other';
+				}
+				const next = new Set(visited);
+				next.add(callee.text);
+				const binding = nearestBinding(callee, callee.text);
+				if (binding != null && ts.isVariableDeclaration(binding)) {
+					if (ts.isObjectBindingPattern(binding.name)) {
+						const element = findBindingElement(binding.name, callee.text);
+						// `const { setProperty } = X.style;` — the destructured
+						// method of a style declaration.
+						if (element != null) {
+							const boundMember =
+								element.propertyName?.text ??
+								(element.name.kind === ts.SyntaxKind.Identifier
+									? element.name.text
+									: null);
+							if (boundMember === 'setProperty') {
+								return styleDeclarationReceiverKind(binding.initializer, next);
+							}
+						}
+						return 'other';
+					}
+					if (binding.initializer != null) {
+						return cssStyleSetterCallKind(binding.initializer, next);
+					}
+				}
+				return 'other';
+			}
+			return 'other';
+		};
 		const recordScaleTokenDefinition = (name, node) => {
 			if (name == null || !name.startsWith('--publy-z-')) {
 				return;
@@ -2730,15 +2921,35 @@ export const scanZIndexFile = ({
 				} else {
 					recordScaleTokenDefinition(propertyName(node.name), node);
 				}
-			} else if (
-				ts.isCallExpression(node) &&
-				ts.isPropertyAccessExpression(node.expression) &&
-				node.expression.name.text === 'setProperty'
-			) {
-				recordScaleTokenDefinitionCandidates(
-					staticStringValues(node.arguments[0]),
-					node,
-				);
+			} else if (ts.isCallExpression(node)) {
+				const setterKind = cssStyleSetterCallKind(node.expression);
+				if (setterKind === 'style-decl') {
+					// A CSSOM write, however it is spelled — dot, bracket,
+					// aliased receiver, or destructured method (round-21 I1).
+					recordScaleTokenDefinitionCandidates(
+						staticStringValues(node.arguments[0]),
+						node,
+					);
+				} else if (setterKind === 'overflow') {
+					// The receiver provably reaches a CSSStyleDeclaration and
+					// the method name cannot be enumerated — it may be
+					// `setProperty`, so the write cannot be ruled out
+					// (round-21 B1).
+					violations.push({
+						ruleId: 'z-index-static-candidate-overflow',
+						message:
+							`static CSSOM write's method name candidate space exceeds ` +
+							`the guard's work budget of ${CARTESIAN_WORK_BUDGET} ` +
+							'candidate characters — it may be `setProperty` on a ' +
+							'CSSStyleDeclaration; simplify the method-name expression.',
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+						source: node.getText(sourceFile),
+					});
+				}
+				// 'plain-object' (an unrelated object's method, provably not a
+				// CSSOM write) and 'other' (not identified as a setProperty
+				// call) stay green — the spelling alone reds nothing.
 			}
 			node.forEachChild(visitScaleTokenDefinitions);
 		};

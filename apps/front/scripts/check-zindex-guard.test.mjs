@@ -616,6 +616,92 @@ test('pair (round 21 B1): a runtime computed key stays in the declared runtime b
 	assertClean('fixture.tsx', content);
 });
 
+test('evasion (round 21 I1): bracket-spelled setProperty on a style declaration is red', () => {
+	// Review-r20 I1's false-negative direction: the pre-fix matcher accepted
+	// only `PropertyAccessExpression`, so `element?.style['setProperty'](...)`
+	// walked straight past it and COMPUTED_Z became 2147483647 while the guard
+	// printed OK. The receiver is the same CSSStyleDeclaration, so the write
+	// must red however it is spelled.
+	assert.deepEqual(
+		violationsFor(
+			'fixture.tsx',
+			"export const probe = (element: HTMLElement) => element?.style['setProperty']('--publy-z-raised', '2147483647');",
+		).map((violation) => violation.ruleId),
+		['z-index-scale-token-redefined'],
+	);
+});
+
+test('pair (round 21 I1): a method merely named setProperty on an unrelated object stays green', () => {
+	// Review-r20 I1's false-positive direction: an ordinary metadata recorder
+	// whose method is merely *named* setProperty is not a CSSOM write, because
+	// its receiver never reaches a CSSStyleDeclaration. The matcher must read
+	// the receiver, not the name — both directions are otherwise unstable.
+	const content = [
+		'const r21MetadataRecorder = { setProperty: (key: string, value: string) => [key, value] };',
+		"export const probe = r21MetadataRecorder.setProperty('--publy-z-raised', 'not CSS');",
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
+test('pair (round 21 I1): a plain object .style member is data, not the CSSOM accessor', () => {
+	// The same receiver principle one level deeper: `.style` on a provably
+	// plain object literal is an ordinary property, never the CSSOM accessor,
+	// so its setProperty is not a real write.
+	const content = [
+		'const r21Recorder = { style: { setProperty: (k: string, v: string) => [k, v] } };',
+		"export const probe = r21Recorder.style.setProperty('--publy-z-raised', 'not CSS');",
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
+test('evasion (round 21 I1): an aliased style-declaration receiver is still red', () => {
+	// The module-scope const alias spelling: `const s = element.style` then
+	// `s.setProperty(...)` reaches the same CSSStyleDeclaration.
+	const content = [
+		'const r21Style = element.style;',
+		"export const probe = () => r21Style.setProperty('--publy-z-raised', '2147483647');",
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-scale-token-redefined'],
+	);
+});
+
+test('evasion (round 21 I1): a function-local aliased receiver is still red', () => {
+	const content = [
+		'export const probe = (element: HTMLElement) => {',
+		'	const style = element.style;',
+		"	style.setProperty('--publy-z-raised', '2147483647');",
+		'};',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-scale-token-redefined'],
+	);
+});
+
+test('evasion (round 21 I1): a destructured setProperty of a style declaration is red', () => {
+	const content = [
+		'const { setProperty } = element.style;',
+		"export const probe = () => setProperty('--publy-z-raised', '2147483647');",
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-scale-token-redefined'],
+	);
+});
+
+test('pair (round 21 I1): an unresolvable receiver is not reported from its spelling alone', () => {
+	// The opposite direction of the metadata recorder: a setProperty call on a
+	// receiver the guard cannot tie to any `.style` accessor is not provably a
+	// CSSOM write, so it stays green (a helper-mediated write is the declared
+	// data-flow boundary).
+	const content = [
+		"export const probe = (handle: unknown) => handle.setProperty('--publy-z-raised', '2147483647');",
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
 test('evasion: script cannot register a reserved scale token', () => {
 	for (const content of [
 		"CSS.registerProperty({ name: '--publy-z-raised', syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
