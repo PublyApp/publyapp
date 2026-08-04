@@ -45,7 +45,14 @@ arbitrary-property shim such as `[z-index:5]` (it ships `z-index: 5` and is repo
 and in the compiled CSS), any dynamic assembly (`z-${…}` across a template substitution), any local
 redefinition of a reserved `--publy-z-*` token, and a native JSX `<link rel="stylesheet">` or static
 link-descriptor object whose `rel` and `href` resolve to literals or module-scope string constants.
-The descriptor rule covers framework head APIs that render a link later through `<HeadContent>`.
+The descriptor rule covers framework head APIs that render a link later through `<HeadContent>`, and
+it is gated on a **reachable sink**, not on object shape (round-21 I2): a standalone object literal
+that merely has `rel`/`href` keys establishes nothing about `<HeadContent>`, a links API, or the DOM,
+so it is neither a violation nor declared a safe descriptor — only an object provably sitting in the
+framework `head: () => ({ links: [...] })` config slot is policed by the literal rules. An
+overflowing `href` on a JSX `<link>` whose `rel` is provably free of the `stylesheet` token
+(`<link rel="icon">`) is inert and stays green; the overflow rule fires only when the link could
+actually load a stylesheet.
 The same "declarative payload that never becomes an emitted asset" logic covers a native JSX
 `<style>` element whose children are static text (the declaration walk runs over the payload, so a
 raw `z-index:` inside it reds) and CSS files imported with `?inline` (their authored file is

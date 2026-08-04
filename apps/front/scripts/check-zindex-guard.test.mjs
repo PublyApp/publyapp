@@ -299,19 +299,19 @@ test('evasion: literal stylesheet links cannot ship opaque CSS', () => {
 			"const HREF = 'data:text/css,.x%7Bz-index%3A99%7D';",
 			'<link rel={REL} href={HREF} />;',
 		].join('\n'),
-		"const head = { links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
+		"const head = { head: () => ({ links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] }) };",
 		[
 			"const REL = 'stylesheet';",
 			"const HREF = 'https://cdn.example/theme.css';",
-			'const head = { links: [{ rel: REL, href: HREF }] };',
+			'const head = { head: () => ({ links: [{ rel: REL, href: HREF }] }) };',
 		].join('\n'),
 		[
 			"const rel = 'stylesheet';",
 			"const href = 'https://cdn.example/theme.css';",
-			'const head = { links: [{ rel, href }] };',
+			'const head = { head: () => ({ links: [{ rel, href }] }) };',
 		].join('\n'),
 		"<link rel={'stylesheet' as const} href={('https://cdn.example/theme.css')} />",
-		"const head = { links: [{ rel: ('stylesheet' satisfies string), href: 'https://cdn.example/theme.css' as const }] };",
+		"const head = { head: () => ({ links: [{ rel: ('stylesheet' satisfies string), href: 'https://cdn.example/theme.css' as const }] }) };",
 	]) {
 		const violations = violationsFor('fixture.tsx', content);
 		assert.deepEqual(
@@ -486,7 +486,10 @@ test('raw sinks (round 19 B1): an overflowing descriptor rel candidate space is 
 	// made an overflowing candidate space look like an ordinary unknown. A
 	// descriptor rel that overflows the work budget is provably static text
 	// the guard cannot enumerate, so it may be `stylesheet` — the value must
-	// fail loud by name.
+	// fail loud by name. The descriptor is a REAL consumer proof (round-21
+	// I2): it sits in the framework `head: () => ({ links: [...] })` config
+	// slot that `<HeadContent>` renders, the reachability the literal rules
+	// require.
 	const flags = [];
 	for (let index = 0; index < 20; index += 1) {
 		flags.push(`f${index}: boolean`);
@@ -497,16 +500,106 @@ test('raw sinks (round 19 B1): an overflowing descriptor rel candidate space is 
 	}
 	const content = [
 		`export const probe = (${flags.join(', ')}) => ({`,
-		'  links: [{',
-		`    rel: \`${substitutions.join('')}\`,`,
-		"    href: 'data:text/css,.x%7Bz-index%3A99%7D',",
-		'  }],',
+		'  head: () => ({',
+		'    links: [{',
+		`      rel: \`${substitutions.join('')}\`,`,
+		"      href: 'data:text/css,.x%7Bz-index%3A99%7D',",
+		'    }],',
+		'  }),',
 		'});',
 	].join('\n');
 	assert.deepEqual(
 		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
 		['z-index-static-candidate-overflow'],
 		'an overflowing descriptor rel candidate space must fail loud by name',
+	);
+});
+
+test('pair (round 21 I2): an ordinary metadata factory with a rel and no consumer stays green', () => {
+	// Review-r20 I2's false-positive direction: an ordinary metadata factory
+	// with a 20-choice static `rel`, `payload: 42`, no `href`, and no
+	// consumer is not a link descriptor — it never reaches `<HeadContent>`,
+	// a links API, or the DOM. The pre-fix branch scanned every object with a
+	// `rel`/`href` property and reddened it from its shape alone; an object
+	// that merely has those keys establishes nothing about a sink.
+	const flags = [];
+	for (let index = 0; index < 20; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 20; index += 1) {
+		substitutions.push(`\${f${index} ? 'stylesheet' : 'a'}`);
+	}
+	const content = [
+		`export const probe = (${flags.join(', ')}) => ({`,
+		`  rel: \`${substitutions.join('')}\`,`,
+		'  payload: 42,',
+		'});',
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
+test('pair (round 21 I2): a standalone descriptor object with a literal stylesheet href and no sink stays green', () => {
+	// The definite-non-consumer pair for the literal rule: the same
+	// rel/href keys, but no provable framework head sink, so the object is
+	// not policed as a descriptor at all.
+	const content = [
+		"const head = { links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
+test('pair (round 21 I2): a head-consumed descriptor with a non-stylesheet rel stays green', () => {
+	const content = [
+		"const head = { head: () => ({ links: [{ rel: 'icon', href: 'data:text/plain,x' }] }) };",
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
+test('pair (round 21 I2): an overflowing href on <link rel="icon"> is inert', () => {
+	// The reviewer's I2 aside: an overflowing href on a link whose rel is
+	// provably `icon` cannot load a stylesheet, so it must stay green —
+	// the overflow rule fires only when the rel is not provably free of the
+	// `stylesheet` token.
+	const flags = [];
+	for (let index = 0; index < 20; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 20; index += 1) {
+		substitutions.push(`\${f${index} ? 'a' : 'b'}`);
+	}
+	const content = [
+		`export const probe = (${flags.join(', ')}) => <link`,
+		'  rel="icon"',
+		`  href={\`x${substitutions.join('')}y\`}`,
+		'/>;',
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
+test('evasion (round 21 I2): an overflowing href on a stylesheet-capable rel still reds', () => {
+	// The gating control: rel carries the `stylesheet` token, so the
+	// overflowing href is not inert — the link may point at a raw CSS data
+	// URL, and the overflow fails loud.
+	const flags = [];
+	for (let index = 0; index < 20; index += 1) {
+		flags.push(`f${index}: boolean`);
+	}
+	const substitutions = [];
+	for (let index = 0; index < 20; index += 1) {
+		substitutions.push(`\${f${index} ? 'a' : 'b'}`);
+	}
+	const content = [
+		`export const probe = (${flags.join(', ')}) => <link`,
+		'  rel="icon stylesheet"',
+		`  href={\`x${substitutions.join('')}y\`}`,
+		'/>;',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-static-candidate-overflow'],
+		'an overflowing href on a stylesheet-capable rel must fail loud by name',
 	);
 });
 
@@ -3563,10 +3656,10 @@ test('e2e (round 7 audit): a static literal spread cannot smuggle a style payloa
 	const { violations: descriptorViolations } = await runFixtureGuard(
 		{
 			'probe.tsx': [
-				'export const probe = { links: [{',
+				'export const probe = { head: () => ({ links: [{',
 				"  ...{ rel: 'stylesheet' },",
 				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
-				'}] };',
+				'}] }) };',
 			].join('\n'),
 		},
 		'',
@@ -3697,11 +3790,11 @@ test('e2e (round 8 I4): descriptor spreads obey source-order last-write-wins', a
 		{
 			'probe.tsx': [
 				"const runtimeLinkProps = { rel: 'preload' as const };",
-				'export const probe = { links: [{',
+				'export const probe = { head: () => ({ links: [{',
 				"  rel: 'stylesheet' as const,",
 				'  ...runtimeLinkProps,',
 				"  href: 'data:text/css,.probe%7Bz-index%3A2147483647%7D',",
-				'}] };',
+				'}] }) };',
 			].join('\n'),
 		},
 		'',
@@ -3712,11 +3805,11 @@ test('e2e (round 8 I4): descriptor spreads obey source-order last-write-wins', a
 		{
 			'probe.tsx': [
 				"const runtimeLinkProps = { rel: 'preload' as const };",
-				'export const probe = { links: [{',
+				'export const probe = { head: () => ({ links: [{',
 				'  ...runtimeLinkProps,',
 				"  rel: 'stylesheet' as const,",
 				"  href: 'data:text/css,.probe%7Bz-index%3A2147483647%7D',",
-				'}] };',
+				'}] }) };',
 			].join('\n'),
 		},
 		'',
@@ -3785,11 +3878,11 @@ test('e2e (round 11 B1): a descriptor with a resolvable const spread stays red',
 		{
 			'probe.tsx': [
 				'const runtime = { id: 1 };',
-				'export const probe = { links: [{',
+				'export const probe = { head: () => ({ links: [{',
 				"  rel: 'stylesheet' as const,",
 				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
 				'  ...runtime,',
-				'}] };',
+				'}] }) };',
 			].join('\n'),
 		},
 		'',
@@ -3826,11 +3919,11 @@ test('e2e (round 11 B1): an unresolvable spread shadowing static facts is a name
 			name: 'link descriptor',
 			files: {
 				'probe.tsx': [
-					'export const probe = (props: any) => ({ links: [{',
+					'export const probe = (props: any) => ({ head: () => ({ links: [{',
 					"  rel: 'stylesheet' as const,",
 					"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
 					'  ...props,',
-					'}] });',
+					'}] }) });',
 				].join('\n'),
 			},
 			expected: ['z-index-unresolved-spread-shadow'],
@@ -3892,11 +3985,11 @@ test('e2e (round 11 B1): an opaque spread before an explicit member stays red wi
 	const { violations } = await runFixtureGuard(
 		{
 			'probe.tsx': [
-				'export const probe = (props: any) => ({ links: [{',
+				'export const probe = (props: any) => ({ head: () => ({ links: [{',
 				'  ...props,',
 				"  rel: 'stylesheet' as const,",
 				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
-				'}] });',
+				'}] }) });',
 			].join('\n'),
 		},
 		'',
@@ -4303,7 +4396,7 @@ test('e2e (round 5 audit): build-reachable static script escapes are red', async
 	const { violations } = await runFixtureGuard(
 		{
 			'../shared/escape.ts': [
-				"export const head = { links: [{ rel: 'stylesheet' as const, href: 'data:text/css,.x%7Bz-index%3A99%7D' }] };",
+				"export const head = { head: () => ({ links: [{ rel: 'stylesheet' as const, href: 'data:text/css,.x%7Bz-index%3A99%7D' }] }) };",
 				"globalThis.CSS.registerProperty({ name: '--publy-z-raised' as const, inherits: false, initialValue: '99' });",
 			].join('\n'),
 		},

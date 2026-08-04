@@ -2229,6 +2229,99 @@ export const scanZIndexFile = ({
 				...base,
 			});
 		};
+		// A link descriptor object is policed only when it provably reaches the
+		// framework head API — the `head:` route-config slot whose `links` array
+		// `<HeadContent>` renders, e.g. TanStack Router's
+		// `head: () => ({ meta: [...], links: [...] })` (round-21 I2). An object
+		// literal that merely has `rel`/`href` keys establishes nothing about a
+		// sink: the literal rules must have a real consumer to police, so a
+		// standalone object — a metadata factory, a dead `const` — is neither a
+		// violation nor declared a safe descriptor.
+		const isHeadPropertyAssignment = (node) =>
+			node != null &&
+			ts.isPropertyAssignment(node) &&
+			propertyName(node.name) === 'head';
+		// Walks past parentheses that wrap a node (`({...})`), returning the
+		// node's effective parent.
+		const transparentWrapperParent = (node) => {
+			let current = node;
+			while (
+				current != null &&
+				current.parent != null &&
+				ts.isParenthesizedExpression(current.parent) &&
+				current.parent.expression === current
+			) {
+				current = current.parent;
+			}
+			return current.parent;
+		};
+		const isHeadConfigObject = (configObject) => {
+			const parent = transparentWrapperParent(configObject);
+			if (parent == null) {
+				return false;
+			}
+			if (ts.isArrowFunction(parent) || ts.isFunctionExpression(parent)) {
+				return isHeadPropertyAssignment(parent.parent);
+			}
+			if (ts.isReturnStatement(parent)) {
+				// A block-bodied head function: `head: () => { return {...}; }`.
+				const block = parent.parent;
+				if (block != null && ts.isBlock(block)) {
+					let cursor = block.parent;
+					while (cursor != null && !ts.isFunctionLike(cursor)) {
+						cursor = cursor.parent;
+					}
+					return (
+						cursor != null &&
+						(ts.isArrowFunction(cursor) || ts.isFunctionExpression(cursor)) &&
+						isHeadPropertyAssignment(cursor.parent)
+					);
+				}
+			}
+			return false;
+		};
+		const isHeadConfiguredLinkDescriptor = (node) => {
+			const arrayNode = node.parent;
+			if (arrayNode == null || !ts.isArrayLiteralExpression(arrayNode)) {
+				return false;
+			}
+			if (
+				arrayNode.parent == null ||
+				!ts.isPropertyAssignment(arrayNode.parent) ||
+				propertyName(arrayNode.parent.name) !== 'links'
+			) {
+				return false;
+			}
+			const linksOwnerObject = arrayNode.parent.parent;
+			return (
+				linksOwnerObject != null &&
+				ts.isObjectLiteralExpression(linksOwnerObject) &&
+				isHeadConfigObject(linksOwnerObject)
+			);
+		};
+		const relTokenValues = (values) => {
+			if (values == null) {
+				return null;
+			}
+			const tokens = new Set();
+			for (const value of values) {
+				for (const token of value.split(/[\t\n\f\r ]+/).filter(Boolean)) {
+					tokens.add(asciiLowerCase(token));
+				}
+			}
+			return tokens;
+		};
+		// A rel candidate set that is provably free of the `stylesheet` token
+		// (every enumerable candidate lacks it) cannot load a stylesheet, so an
+		// overflowing or static `href` on such a link is inert — `<link
+		// rel="icon">` with an overflowing href must stay green (round-21 I2).
+		const relProvablyNotStylesheet = (values) => {
+			if (values == null) {
+				return false;
+			}
+			const tokens = relTokenValues(values);
+			return tokens != null && !tokens.has('stylesheet');
+		};
 		const visitStaticStyleEscapes = (node) => {
 			const styleResult = staticStyleElementCss(node);
 			const styleCssCandidates = styleResult == null ? null : styleResult.css;
@@ -2467,10 +2560,11 @@ export const scanZIndexFile = ({
 						? null
 						: hrefResult.values;
 				if (
-					relResult.overflow ||
-					hrefResult.overflow ||
-					relResult.overflowKeys ||
-					hrefResult.overflowKeys
+					!relProvablyNotStylesheet(relValues) &&
+					(relResult.overflow ||
+						hrefResult.overflow ||
+						relResult.overflowKeys ||
+						hrefResult.overflowKeys)
 				) {
 					// The rel/href candidate set overflowed the work budget, or
 					// an attribute spread carries a computed member key the
@@ -2478,7 +2572,10 @@ export const scanZIndexFile = ({
 					// provably static text the guard cannot enumerate, so it
 					// might be `stylesheet` pointing at a data URL — an
 					// unresolvable input that must fail loud by name, never
-					// resolve to a compliant default (round-19 B1).
+					// resolve to a compliant default (round-19 B1). A link
+					// whose rel is provably free of `stylesheet` cannot load a
+					// stylesheet, so an overflowing href on it is inert
+					// (round-21 I2).
 					violations.push({
 						ruleId: 'z-index-static-candidate-overflow',
 						message:
@@ -2498,7 +2595,14 @@ export const scanZIndexFile = ({
 						'a <link> element',
 					);
 				}
-			} else if (ts.isObjectLiteralExpression(node)) {
+			} else if (
+				ts.isObjectLiteralExpression(node) &&
+				isHeadConfiguredLinkDescriptor(node)
+			) {
+				// Only a descriptor that provably reaches the framework head
+				// API (`head: () => ({ links: [...] })`) is policed by the
+				// literal rules; an object that merely has `rel`/`href` keys
+				// establishes no sink and is not a violation (round-21 I2).
 				const relResult = staticObjectProperty(node, 'rel');
 				const hrefResult = staticObjectProperty(node, 'href');
 				// An unresolved spread may override the member, so the value is
@@ -2520,7 +2624,13 @@ export const scanZIndexFile = ({
 						: staticStringValues(hrefResult.node);
 				relValues = relStringResult?.values ?? null;
 				hrefValues = hrefStringResult?.values ?? null;
-				if (relStringResult?.overflow || hrefStringResult?.overflow) {
+				if (
+					!relProvablyNotStylesheet(relValues) &&
+					(relStringResult?.overflow ||
+						hrefStringResult?.overflow ||
+						relResult.overflowKeys ||
+						hrefResult.overflowKeys)
+				) {
 					violations.push({
 						ruleId: 'z-index-static-candidate-overflow',
 						message:
