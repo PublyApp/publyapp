@@ -128,7 +128,11 @@ ceiling (the candidates are CSS payload strings bounded in length by the source 
 checked *before* the next candidate is allocated, so the guard never over-allocates past the
 ceiling), not a statement about how many candidates a payload may legitimately have: 131,072 short
 candidates — a round-19 reproduction that the previous count cap of 100,000 wrongly rejected —
-enumerate comfortably, because each candidate is short. Beyond the budget the payload is
+enumerate comfortably, because each candidate is short. The 20,000,000-character ceiling is
+measured, not arbitrary (round-21 I4): the guard walks every enumerated candidate through a PostCSS
+parse (~3µs/candidate), so a payload at the budget is ~2 seconds of this guard's work, and one past
+it costs many seconds and tens of megabytes for a single static payload — more than the rest of the
+run combined. Beyond the budget the payload is
 unresolvable, and it is a named `z-index-static-candidate-overflow` diagnostic rather than a hang
 or a silent green, and overflow is monotone through every expression-family combinator — an
 overflowing branch nested in a conditional, template substitution, `+` operand, member read, or

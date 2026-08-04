@@ -2972,7 +2972,16 @@ test('e2e (round 17 I2): the Cartesian bound gates the work, not the legitimacy'
 		`a 131072-candidate harmless payload must stay green: ${JSON.stringify(mid)}`,
 	);
 	// Past the budget: the same legitimate shape is an unresolvable payload —
-	// the named diagnostic, never a silent pass and never a hang.
+	// the named diagnostic, never a silent pass and never a hang. This is the
+	// honest boundary (round-21 I4): the 20M-character ceiling is a measured
+	// resource ceiling, not a legitimacy cap. The guard walks every enumerated
+	// candidate through a PostCSS parse (~3µs/candidate measured), so a payload
+	// at the budget costs ~2s and one past it costs many seconds to minutes and
+	// tens of megabytes for a single static payload — more than the rest of the
+	// run combined. Exceeding a resource ceiling does not make the payload
+	// compliant; per round-21 B1 the give-up reports by name, so a legitimately
+	// harmless payload that exceeds the ceiling fails loud rather than passing
+	// unread. Real code (a handful of flag substitutions) is microseconds.
 	const { violations: above } = await build(20, 'color: red;');
 	assert.deepEqual(
 		above.map((violation) => violation.ruleId),
