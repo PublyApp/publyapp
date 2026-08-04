@@ -125,7 +125,13 @@ overflowing branch nested in a conditional, template substitution, `+` operand, 
 const alias keeps the whole enclosing payload loud by name, and the JSX `<link>` rel/href reader,
 link-descriptor reader, `CSS.registerProperty()` name, and scale-token-write key each report the
 same named diagnostic for an unresolvable candidate space instead of treating it as an ordinary
-unknown that resolves to a compliant default.
+unknown that resolves to a compliant default. "Member read" includes an **element-access key whose
+candidate space overflows** (`<style>{styles[key]}</style>` where `key` is a 20-choice static
+template): the key is provably static text the guard cannot enumerate, so the member identity is
+UNRESOLVED and the enclosing payload stays loud by name — an unenumerable computed key is a
+different outcome from a provably runtime one, which alone resolves no member and stays in the
+declared runtime bucket. The distinction is deliberate: "too many possibilities" is not "nothing
+to check".
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links

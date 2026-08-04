@@ -1002,38 +1002,68 @@ export const scanZIndexFile = ({
 		// Resolves a chain of property/element accesses rooted in module-scope
 		// consts to the value node it provably reads: `a.b.c` where `a` is a
 		// const object literal resolves through member `b` to the node `c`
-		// reads. Returns null when any hop is unprovable (absent member,
-		// opaque spread, non-const root).
+		// reads. Returns `{ node, overflow }`: `node` null when any hop is
+		// unprovable (absent member, opaque spread, non-const root), and
+		// `overflow` true when an element-access key is provably static text
+		// whose candidate space is too large to enumerate (round-21 B1) — the
+		// member identity is unresolvable, so the consumer must not treat the
+		// read as a benign runtime value, and callers that reach a CSS sink
+		// fail loud by name.
 		const resolveMemberChain = (node, visitedConsts = new Set()) => {
 			const unwrapped = unwrapTransparentExpression(node);
 			if (unwrapped == null) {
-				return null;
+				return { node: null, overflow: false };
 			}
 			if (ts.isPropertyAccessExpression(unwrapped)) {
-				const ownerNode = resolveMemberChain(
+				const ownerResult = resolveMemberChain(
 					unwrapped.expression,
 					visitedConsts,
 				);
-				if (ownerNode == null || !ts.isObjectLiteralExpression(ownerNode)) {
-					return null;
+				if (ownerResult.overflow) {
+					return { node: null, overflow: true };
 				}
-				return staticObjectMemberNode(ownerNode, unwrapped.name.text).node;
+				if (
+					ownerResult.node == null ||
+					!ts.isObjectLiteralExpression(ownerResult.node)
+				) {
+					return { node: null, overflow: false };
+				}
+				return {
+					node: staticObjectMemberNode(ownerResult.node, unwrapped.name.text)
+						.node,
+					overflow: false,
+				};
 			}
 			if (ts.isElementAccessExpression(unwrapped)) {
 				const key = staticString(unwrapped.argumentExpression);
-				if (key == null) {
-					return null;
+				if (key.kind === 'overflow') {
+					return { node: null, overflow: true };
 				}
-				const ownerNode = resolveMemberChain(
+				if (key.kind !== 'value') {
+					return { node: null, overflow: false };
+				}
+				const ownerResult = resolveMemberChain(
 					unwrapped.expression,
 					visitedConsts,
 				);
-				if (ownerNode == null || !ts.isObjectLiteralExpression(ownerNode)) {
-					return null;
+				if (ownerResult.overflow) {
+					return { node: null, overflow: true };
 				}
-				return staticObjectMemberNode(ownerNode, key).node;
+				if (
+					ownerResult.node == null ||
+					!ts.isObjectLiteralExpression(ownerResult.node)
+				) {
+					return { node: null, overflow: false };
+				}
+				return {
+					node: staticObjectMemberNode(ownerResult.node, key.value).node,
+					overflow: false,
+				};
 			}
-			return resolveModuleConstFixpoint(unwrapped, visitedConsts);
+			return {
+				node: resolveModuleConstFixpoint(unwrapped, visitedConsts),
+				overflow: false,
+			};
 		};
 		// `String(x)` preserves the imported bytes exactly; only the unshadowed
 		// global spelling counts (a locally shadowed `String` is not a
@@ -1147,17 +1177,22 @@ export const scanZIndexFile = ({
 				}
 				return { values: joined, partial };
 			}
-			if (ts.isPropertyAccessExpression(expression)) {
-				const memberNode = resolveMemberChain(expression, visitedConsts);
-				return memberNode == null
+			if (
+				ts.isPropertyAccessExpression(expression) ||
+				ts.isElementAccessExpression(expression)
+			) {
+				const memberResult = resolveMemberChain(expression, visitedConsts);
+				// Overflow is monotone through a member read (round-21 B1): an
+				// element-access key whose candidate space is unenumerable
+				// makes the read unresolvable, so the enclosing payload must
+				// stay loud by name — the sibling's value must never replace
+				// the overflowing branch as the complete answer.
+				if (memberResult.overflow) {
+					return { values: null, partial: false, overflow: true };
+				}
+				return memberResult.node == null
 					? null
-					: staticStringValues(memberNode, visitedConsts);
-			}
-			if (ts.isElementAccessExpression(expression)) {
-				const memberNode = resolveMemberChain(expression, visitedConsts);
-				return memberNode == null
-					? null
-					: staticStringValues(memberNode, visitedConsts);
+					: staticStringValues(memberResult.node, visitedConsts);
 			}
 			if (
 				ts.isBinaryExpression(expression) &&
@@ -1198,27 +1233,34 @@ export const scanZIndexFile = ({
 		};
 		// A single-value projection of the family: used where exactly one
 		// static string is required (computed property names, `?raw` element
-		// keys). A conditional or concatenation that can evaluate to several
-		// distinct strings is not single-valued and stays unprovable here, as
-		// do a partial set and an overflowing one — a member identity cannot
-		// be derived from a provable substring (round-15 B1), and an
-		// unenumerable candidate space cannot name a member at all; the
-		// style-sink callers use `staticStringValues` directly.
+		// keys). Returns a discriminated result so every caller can tell the
+		// three outcomes apart (round-21 B1): `kind: 'value'` is a resolved
+		// singleton, `kind: 'not-static'` is provably not a single static
+		// string (a runtime value, a multi-candidate set, or a provable
+		// substring), and `kind: 'overflow'` is UNRESOLVED — a statically
+		// string-valued expression whose candidate space is too large to
+		// enumerate. The pre-fix single `null` conflated the last two, so an
+		// overflowing element-access key read as "runtime value, not our
+		// business" and the enclosing CSS-sink consumer printed OK. Overflow
+		// is never survivable by a caller that reaches a CSS sink: it must
+		// report by name, exactly like an unparseable payload.
 		const staticString = (node) => {
 			const result = staticStringValues(node);
-			if (
-				result == null ||
-				result.overflow ||
-				result.partial ||
-				result.values.size !== 1
-			) {
-				return null;
+			if (result == null) {
+				return { kind: 'not-static' };
 			}
-			return [...result.values][0];
+			if (result.overflow) {
+				return { kind: 'overflow' };
+			}
+			if (result.partial || result.values.size !== 1) {
+				return { kind: 'not-static' };
+			}
+			return { kind: 'value', value: [...result.values][0] };
 		};
 		const propertyName = (name) => {
 			if (ts.isComputedPropertyName(name)) {
-				return staticString(name.expression);
+				const key = staticString(name.expression);
+				return key.kind === 'value' ? key.value : null;
 			}
 			if (ts.isIdentifier(name)) {
 				return name.text;
@@ -1274,6 +1316,7 @@ export const scanZIndexFile = ({
 					unresolved: false,
 					opaqueOnly: true,
 					opaqueSpreadNode: null,
+					overflowKeys: false,
 				};
 			}
 			const nextVisitedObjects = new Set(visitedObjects);
@@ -1282,10 +1325,25 @@ export const scanZIndexFile = ({
 			let lastOccurrenceIndex = -1;
 			let lastOpaqueSpreadIndex = -1;
 			let opaqueSpreadNode = null;
+			let overflowKeys = false;
 			for (let index = 0; index < object.properties.length; index += 1) {
 				const candidate = object.properties[index];
 				let valueNode = null;
 				if (ts.isPropertyAssignment(candidate)) {
+					if (ts.isComputedPropertyName(candidate.name)) {
+						// An overflowing computed key (round-21 B1) is an
+						// occurrence that may carry the requested name: the
+						// member identity is unresolvable, so it shadows
+						// static facts exactly like an opaque spread, and
+						// `overflowKeys` lets a style-capable caller name the
+						// unresolvable input precisely.
+						const key = staticString(candidate.name.expression);
+						if (key.kind === 'overflow') {
+							overflowKeys = true;
+							lastOpaqueSpreadIndex = index;
+							opaqueSpreadNode = candidate;
+						}
+					}
 					if (propertyName(candidate.name) === name) {
 						valueNode = candidate.initializer;
 						lastOccurrenceIndex = index;
@@ -1306,6 +1364,9 @@ export const scanZIndexFile = ({
 							name,
 							nextVisitedObjects,
 						);
+						if (nested.overflowKeys) {
+							overflowKeys = true;
+						}
 						if (nested.node != null) {
 							valueNode = nested.node;
 							lastOccurrenceIndex = index;
@@ -1331,6 +1392,7 @@ export const scanZIndexFile = ({
 					lastOpaqueSpreadIndex >= lastOccurrenceIndex,
 				opaqueOnly: lastOpaqueSpreadIndex >= 0 && lastOccurrenceIndex < 0,
 				opaqueSpreadNode,
+				overflowKeys,
 			};
 		};
 		const staticObjectProperty = (object, name) => {
@@ -1340,6 +1402,7 @@ export const scanZIndexFile = ({
 				unresolved: member.unresolved,
 				opaqueOnly: member.opaqueOnly,
 				opaqueSpreadNode: member.opaqueSpreadNode,
+				overflowKeys: member.overflowKeys,
 			};
 		};
 		// The shared source-ordered reader for a JSX attribute list: the last
@@ -1361,6 +1424,7 @@ export const scanZIndexFile = ({
 			let lastOccurrenceIndex = -1;
 			let lastOpaqueSpreadIndex = -1;
 			let opaqueSpreadNode = null;
+			let overflowKeys = false;
 			for (let index = 0; index < attributes.properties.length; index += 1) {
 				const property = attributes.properties[index];
 				if (ts.isJsxAttribute(property)) {
@@ -1393,6 +1457,9 @@ export const scanZIndexFile = ({
 						valueNode = member.node;
 						lastOccurrenceIndex = index;
 					}
+					if (member.overflowKeys) {
+						overflowKeys = true;
+					}
 					if (member.unresolved || member.opaqueOnly) {
 						lastOpaqueSpreadIndex = index;
 						opaqueSpreadNode = property;
@@ -1413,6 +1480,7 @@ export const scanZIndexFile = ({
 				unresolved,
 				opaqueOnly: lastOpaqueSpreadIndex >= 0 && lastOccurrenceIndex < 0,
 				opaqueSpreadNode,
+				overflowKeys,
 			};
 		};
 		const staticJsxAttributeValues = (attributes, attributeName) => {
@@ -1441,6 +1509,7 @@ export const scanZIndexFile = ({
 				unresolved: occurrence.unresolved,
 				opaqueOnly: occurrence.opaqueOnly,
 				opaqueSpreadNode: occurrence.opaqueSpreadNode,
+				overflowKeys: occurrence.overflowKeys,
 			};
 		};
 		const dangerousHtmlPayloadObject = (attributes) => {
@@ -1475,17 +1544,32 @@ export const scanZIndexFile = ({
 				unresolved: occurrence.unresolved,
 				opaqueOnly: occurrence.opaqueOnly,
 				opaqueSpreadNode: occurrence.opaqueSpreadNode,
+				overflowKeys: occurrence.overflowKeys,
 			};
 		};
 		const staticMember = (expression) => {
 			const member = unwrapTransparentExpression(expression);
 			if (member != null && ts.isPropertyAccessExpression(member)) {
-				return { owner: member.expression, name: member.name.text };
-			}
-			if (member != null && ts.isElementAccessExpression(member)) {
 				return {
 					owner: member.expression,
-					name: staticString(member.argumentExpression),
+					name: member.name.text,
+					overflow: false,
+				};
+			}
+			if (member != null && ts.isElementAccessExpression(member)) {
+				const key = staticString(member.argumentExpression);
+				// An overflowing element-access method name cannot name the
+				// method at all (round-21 B1): the receiver is a member read
+				// the guard cannot pin, so recognition callers must treat it
+				// as UNRESOLVED and fail loud instead of concluding the
+				// method is not the one under test.
+				if (key.kind === 'overflow') {
+					return { owner: member.expression, name: null, overflow: true };
+				}
+				return {
+					owner: member.expression,
+					name: key.kind === 'value' ? key.value : null,
+					overflow: false,
 				};
 			}
 			return null;
@@ -1875,7 +1959,19 @@ export const scanZIndexFile = ({
 					? { specifiers: [ownerEntry.specifier], unresolved: false }
 					: { specifiers: [], unresolved: false };
 			}
-			const ownerChain = resolveMemberChain(owner, visitedConsts);
+			const ownerChainResult = resolveMemberChain(owner, visitedConsts);
+			// An unresolvable owner chain — including an element-access key
+			// whose candidate space overflowed — is the same data-flow
+			// boundary as an unresolvable owner: the raw bytes may ship under
+			// the member, so `unresolved` mirrors what a raw binding inside
+			// the expression would donate (round-21 B1 explicit handle).
+			if (ownerChainResult.overflow) {
+				return {
+					specifiers: [],
+					unresolved: expressionContainsRawBinding(owner, visitedConsts),
+				};
+			}
+			const ownerChain = ownerChainResult.node;
 			if (ownerChain != null && ts.isObjectLiteralExpression(ownerChain)) {
 				const member = staticObjectMemberNode(ownerChain, name);
 				if (member.node != null) {
@@ -1965,13 +2061,17 @@ export const scanZIndexFile = ({
 			}
 			if (ts.isElementAccessExpression(expression)) {
 				const key = staticString(expression.argumentExpression);
-				if (key != null) {
+				if (key.kind === 'value') {
 					return rawSpecifiersForNamedMemberAccess(
 						expression.expression,
-						key,
+						key.value,
 						visitedConsts,
 					);
 				}
+				// An overflowing key (round-21 B1) is handled exactly like a
+				// provably-incomplete one: the member cannot be named, so the
+				// raw-byte question is decided by whether a recorded raw
+				// binding is reachable inside the expression.
 				return {
 					specifiers: [],
 					unresolved: expressionContainsRawBinding(expression, visitedConsts),
@@ -2219,6 +2319,22 @@ export const scanZIndexFile = ({
 				elementAttributes == null
 					? null
 					: dangerousHtmlPayloadObject(elementAttributes);
+			if (isStyleElement && payload?.overflowKeys) {
+				// A spread descriptor with an unenumerable computed member may
+				// carry `dangerouslySetInnerHTML` on this provably
+				// style-capable element (round-21 B1).
+				violations.push({
+					ruleId: 'z-index-static-candidate-overflow',
+					message:
+						`static <style> element's attribute spread has a computed ` +
+						'member key the guard cannot enumerate — it may carry ' +
+						'`dangerouslySetInnerHTML`; simplify the key or import the ' +
+						'stylesheet through the build graph.',
+					file: relativePath,
+					line: lineForOffset(content, node.getStart(sourceFile)),
+					source: node.getText(sourceFile),
+				});
+			}
 			if (isStyleElement && (payload?.unresolved || payload?.opaqueOnly)) {
 				// An unresolvable spread on a `<style>` element may carry
 				// `dangerouslySetInnerHTML` — the payload could be anything,
@@ -2257,7 +2373,23 @@ export const scanZIndexFile = ({
 			const payloadObject = payload == null ? null : payload.payloadObject;
 			if (payloadObject != null) {
 				const member = staticObjectMemberNode(payloadObject, '__html');
-				if (member.unresolved || member.opaqueOnly) {
+				if (member.overflowKeys) {
+					// A computed member key whose candidate space overflows
+					// (round-21 B1) may BE the `__html` the guard must read —
+					// the payload object is provably a dSIH payload, so the
+					// unresolvable member fails loud by name.
+					violations.push({
+						ruleId: 'z-index-static-candidate-overflow',
+						message:
+							`static dangerouslySetInnerHTML payload has a computed ` +
+							`member key the guard cannot enumerate — it may be ` +
+							`\`__html\`; simplify the key or import the stylesheet ` +
+							'through the build graph.',
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+						source: node.getText(sourceFile),
+					});
+				} else if (member.unresolved || member.opaqueOnly) {
 					// `{ __html: …, ...opaque }` or `{ ...opaque }` — the
 					// spread may override or supply the payload the guard
 					// would otherwise inspect. The payload object is provably
@@ -2334,13 +2466,19 @@ export const scanZIndexFile = ({
 					hrefResult.unresolved || hrefResult.values == null
 						? null
 						: hrefResult.values;
-				if (relResult.overflow || hrefResult.overflow) {
-					// The rel/href candidate set overflowed the work budget:
-					// the value is provably static text the guard cannot
-					// enumerate, so it might be `stylesheet` pointing at a
-					// data URL — an unresolvable input that must fail loud by
-					// name, never resolve to a compliant default (round-19
-					// B1).
+				if (
+					relResult.overflow ||
+					hrefResult.overflow ||
+					relResult.overflowKeys ||
+					hrefResult.overflowKeys
+				) {
+					// The rel/href candidate set overflowed the work budget, or
+					// an attribute spread carries a computed member key the
+					// guard cannot enumerate (round-21 B1): the value is
+					// provably static text the guard cannot enumerate, so it
+					// might be `stylesheet` pointing at a data URL — an
+					// unresolvable input that must fail loud by name, never
+					// resolve to a compliant default (round-19 B1).
 					violations.push({
 						ruleId: 'z-index-static-candidate-overflow',
 						message:
@@ -2428,14 +2566,50 @@ export const scanZIndexFile = ({
 			const registrationMember = ts.isCallExpression(node)
 				? staticMember(node.expression)
 				: null;
+			// An overflowing method name on a call whose owner is provably the
+			// CSS global may BE `registerProperty` (round-21 B1): the guard
+			// cannot rule out a registration, so it fails loud by name.
 			if (
+				ts.isCallExpression(node) &&
+				registrationMember?.overflow &&
+				isDirectGlobalCss(registrationMember.owner) &&
+				ts.isObjectLiteralExpression(node.arguments[0])
+			) {
+				violations.push({
+					ruleId: 'z-index-static-candidate-overflow',
+					message:
+						`static CSS registration call's method name candidate space ` +
+						`exceeds the guard's work budget of ` +
+						`${CARTESIAN_WORK_BUDGET} candidate characters — it may be ` +
+						'`CSS.registerProperty()`; simplify the method-name ' +
+						'expression.',
+					file: relativePath,
+					line: lineForOffset(content, node.getStart(sourceFile)),
+					source: node.getText(sourceFile),
+				});
+			} else if (
 				ts.isCallExpression(node) &&
 				registrationMember?.name === 'registerProperty' &&
 				isDirectGlobalCss(registrationMember.owner) &&
 				ts.isObjectLiteralExpression(node.arguments[0])
 			) {
 				const propertyResult = staticObjectProperty(node.arguments[0], 'name');
-				if (propertyResult.unresolved || propertyResult.opaqueOnly) {
+				if (propertyResult.overflowKeys) {
+					// A computed descriptor key the guard cannot enumerate may
+					// BE `name` — the descriptor object is provably a
+					// registerProperty descriptor, so it fails loud (round-21
+					// B1).
+					violations.push({
+						ruleId: 'z-index-static-candidate-overflow',
+						message:
+							`static CSS.registerProperty() descriptor has a computed ` +
+							'member key the guard cannot enumerate — it may be ' +
+							'`name`; simplify the key expression.',
+						file: relativePath,
+						line: lineForOffset(content, node.getStart(sourceFile)),
+						source: node.getText(sourceFile),
+					});
+				} else if (propertyResult.unresolved || propertyResult.opaqueOnly) {
 					// An opaque spread may supply or override `name`. The
 					// argument object is provably a registerProperty
 					// descriptor, so the opaque-only spread fails loud.

@@ -561,6 +561,61 @@ test('raw sinks (round 19 B1): an overflowing setProperty key candidate space is
 	);
 });
 
+test('blocker (round 21 B1): an overflowing computed element-access key is unresolvable, not unknown', () => {
+	// The review-r20 B1 reproduction. The computed key is a 20-choice static
+	// template whose candidate space (2^20 strings of ~23 characters each) is
+	// past the work budget, so `staticString` cannot name a member. The
+	// pre-fix reader collapsed that "gave up" into an ordinary `null` and the
+	// `<style>` consumer printed OK while the page painted the raw value.
+	// UNRESOLVED must now fail loud by name — the key is provably static text
+	// whose member read may ship raw CSS.
+	const decls = [];
+	for (let index = 0; index < 20; index += 1) {
+		decls.push(`const g${index} = true;`);
+	}
+	const substitutions = ["${g0 ? 'css' : 'x'}"];
+	for (let index = 1; index < 20; index += 1) {
+		substitutions.push(`\${g${index} ? 'a' : 'b'}`);
+	}
+	const content = [
+		...decls,
+		"const r21Styles: Record<string, string> = { css: '.r21-overflow-key { z-index: 2147483569; }' };",
+		`const r21Key = \`x${substitutions.join('')}y\`;`,
+		'export const probe = () => <><style>{r21Styles[r21Key]}</style><div className="r21-overflow-key" /></>;',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-static-candidate-overflow'],
+		'an overflowing computed element-access key must fail loud by name',
+	);
+});
+
+test('pair (round 21 B1): a resolvable element-access key still reads the member and still reds on raw CSS', () => {
+	// The positive control for the B1 fix: an ordinary static key is NOT an
+	// overflow, so the member read must behave exactly as before — the raw
+	// declaration walks as shipped CSS.
+	const content = [
+		"const r21Styles: Record<string, string> = { css: '.r21-control { z-index: 2147483569; }' };",
+		"const r21Key = 'css';",
+		'export const probe = () => <><style>{r21Styles[r21Key]}</style></>;',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-style-element-shipped'],
+		'a static element-access key must still resolve the raw member',
+	);
+});
+
+test('pair (round 21 B1): a runtime computed key stays in the declared runtime bucket', () => {
+	// The green pair: a genuinely runtime key (a parameter — provably not a
+	// static string, not an overflow) resolves no member and stays green,
+	// exactly as #987's runtime bucket declares.
+	const content = [
+		'export const probe = (key: string) => <><style>{styles[key]}</style></>;',
+	].join('\n');
+	assertClean('fixture.tsx', content);
+});
+
 test('evasion: script cannot register a reserved scale token', () => {
 	for (const content of [
 		"CSS.registerProperty({ name: '--publy-z-raised', syntax: '<integer>', inherits: false, initialValue: '2147483647' });",
