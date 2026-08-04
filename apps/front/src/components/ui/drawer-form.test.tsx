@@ -3493,6 +3493,76 @@ export const MutatedArrayKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 26's BLOCKER 3 — the array-alias residual. The mutation scan used to
+// match only writes whose receiver TEXT was the traced binding's name
+// (`kits.push(...)`), so a write through a second binding that ALIASES the
+// same array (`const alias = kits; alias.push(...)`) was invisible: the
+// callback was classified from the old local-only literal, every member read
+// definite NOT_DRAWER, and the appended real drawer kit disappeared. The
+// receiver must be resolved through the value side to the array's literal
+// identity — not its spelling — so an alias mutation is caught too.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r26-aliased-mutated-array-kit-fixture.tsx';
+const TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_FILE,
+);
+const TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const LocalSurface = (() => <div />) as typeof DrawerContent;
+const LocalForm = (({ methods: _methods }: { methods: UseFormReturn<FieldValues> }) => {
+	void _methods;
+	return <form />;
+}) as typeof DrawerForm;
+const LocalBody = (() => <div />) as typeof DrawerBody;
+const LocalFooter = (() => <div />) as typeof DrawerFooter;
+
+const kits: DrawerKit[] = [
+	{
+		Surface: LocalSurface,
+		Form: LocalForm,
+		Body: LocalBody,
+		Footer: LocalFooter,
+	},
+];
+const alias = kits;
+alias.push({
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+});
+
+export const AliasedMutatedArrayKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<>
+		{kits.map((kit) => (
+			<kit.Surface>
+				<div className="p-4">
+					<kit.Form methods={methods}>
+						<kit.Body />
+						<kit.Footer />
+					</kit.Form>
+				</div>
+			</kit.Surface>
+		))}
+	</>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // Round 26's BLOCKER 1 — a structurally-typed member that can hold the real
 // drawer exports. The reviewer's exact reproduction: the kit members are typed
 // with React's EXTERNAL `FC<any>`, so the value is passed through a parameter
@@ -4036,6 +4106,10 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_FILE,
 		source: TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_FILE,
+		source: TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
 	},
 	{
 		file: TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_FILE,
@@ -5083,70 +5157,93 @@ const MUTATING_ARRAY_METHOD_NAMES = new Set([
 ]);
 
 /**
- * True when the file mutates `name` after its declaration — an in-place array
- * method call (`kits.push(...)`, `kits.splice(...)`, ...), an element write
- * (`kits[i] = ...`) or a `.length` write. Round 24's BLOCKER 3: an array
- * literal traced to its initializer is only safe to classify from that
- * initializer when the guard ALSO proves the array is not mutated. A variable
- * binding reassignment (`kits = [...]`) is already handled by `isReassigned`;
- * this helper covers the ELEMENT writes a literal initializer cannot see.
+ * True when a mutation writes into the traced array — an in-place array
+ * method call (`kits.push(...)`, `alias.splice(...)`, ...), an element write
+ * (`kits[i] = ...`, `alias[0] = ...`) or a `.length` write, where the
+ * receiver resolves through the value side to the SAME array literal the
+ * walk traced. Round 24's BLOCKER 3: an array literal traced to its
+ * initializer is only safe to classify from that initializer when the guard
+ * ALSO proves the array is not mutated. A variable binding reassignment
+ * (`kits = [...]`) is already handled by `isReassigned`; this helper covers
+ * the ELEMENT writes a literal initializer cannot see, including a mutation
+ * through a second binding that aliases the same array (`const alias = kits;
+ * alias.push(...)` — round 26's BLOCKER 3), by resolving each mutation
+ * receiver's symbol through `findArrayLiteralValueSide` and comparing the
+ * literal reached to the traced one. A receiver that does not resolve to the
+ * traced literal is a DIFFERENT array — its write proves nothing about ours.
  */
 const isArrayBindingMutated = (
-	sourceFile: SourceFile,
-	name: string,
+	tracedArrayLiteral: ArrayLiteralExpression,
+	receiverSourceFile: SourceFile,
+	reassignedNamesByFile: Map<string, Set<string>>,
 ): boolean => {
-	for (const call of sourceFile.getDescendantsOfKind(
-		SyntaxKind.CallExpression,
-	)) {
-		const callee = (call as CallExpression).getExpression();
-		if (callee.getKind() !== SyntaxKind.PropertyAccessExpression) {
-			continue;
+	const sourceFiles = new Set<SourceFile>([
+		receiverSourceFile,
+		tracedArrayLiteral.getSourceFile(),
+	]);
+	const writesToTracedArray = (receiver: Node): boolean => {
+		if (receiver.getKind() !== SyntaxKind.Identifier) {
+			return false;
 		}
-		const propertyAccess = callee as PropertyAccessExpression;
-		if (!MUTATING_ARRAY_METHOD_NAMES.has(propertyAccess.getName())) {
-			continue;
+		const symbol = (receiver as Identifier).getSymbol();
+		if (!symbol) {
+			return false;
 		}
-		const base = unwrapExpression(propertyAccess.getExpression());
-		if (base.getKind() === SyntaxKind.Identifier && base.getText() === name) {
-			return true;
-		}
-	}
-	for (const binary of sourceFile.getDescendantsOfKind(
-		SyntaxKind.BinaryExpression,
-	)) {
-		const binaryExpression = binary as BinaryExpression;
-		if (
-			binaryExpression.getOperatorToken().getKind() !== SyntaxKind.EqualsToken
-		) {
-			continue;
-		}
-		const left = binaryExpression.getLeft();
-		if (left.getKind() === SyntaxKind.ElementAccessExpression) {
-			const elementBase = unwrapExpression(
-				(
-					left as unknown as {
-						getExpression(): Node;
-					}
-				).getExpression(),
-			);
-			if (
-				elementBase.getKind() === SyntaxKind.Identifier &&
-				elementBase.getText() === name
-			) {
-				return true;
-			}
-		}
-		if (left.getKind() === SyntaxKind.PropertyAccessExpression) {
-			const propertyAccess = left as PropertyAccessExpression;
-			if (propertyAccess.getName() !== 'length') {
+		return (
+			findArrayLiteralValueSide(symbol, reassignedNamesByFile, new Set()) ===
+			tracedArrayLiteral
+		);
+	};
+	for (const sourceFile of sourceFiles) {
+		for (const call of sourceFile.getDescendantsOfKind(
+			SyntaxKind.CallExpression,
+		)) {
+			const callee = (call as CallExpression).getExpression();
+			if (callee.getKind() !== SyntaxKind.PropertyAccessExpression) {
 				continue;
 			}
-			const elementBase = unwrapExpression(propertyAccess.getExpression());
+			const propertyAccess = callee as PropertyAccessExpression;
+			if (!MUTATING_ARRAY_METHOD_NAMES.has(propertyAccess.getName())) {
+				continue;
+			}
 			if (
-				elementBase.getKind() === SyntaxKind.Identifier &&
-				elementBase.getText() === name
+				writesToTracedArray(unwrapExpression(propertyAccess.getExpression()))
 			) {
 				return true;
+			}
+		}
+		for (const binary of sourceFile.getDescendantsOfKind(
+			SyntaxKind.BinaryExpression,
+		)) {
+			const binaryExpression = binary as BinaryExpression;
+			if (
+				binaryExpression.getOperatorToken().getKind() !== SyntaxKind.EqualsToken
+			) {
+				continue;
+			}
+			const left = binaryExpression.getLeft();
+			if (left.getKind() === SyntaxKind.ElementAccessExpression) {
+				const elementBase = unwrapExpression(
+					(
+						left as unknown as {
+							getExpression(): Node;
+						}
+					).getExpression(),
+				);
+				if (writesToTracedArray(elementBase)) {
+					return true;
+				}
+			}
+			if (left.getKind() === SyntaxKind.PropertyAccessExpression) {
+				const propertyAccess = left as PropertyAccessExpression;
+				if (propertyAccess.getName() !== 'length') {
+					continue;
+				}
+				if (
+					writesToTracedArray(unwrapExpression(propertyAccess.getExpression()))
+				) {
+					return true;
+				}
 			}
 		}
 	}
@@ -5248,11 +5345,15 @@ const resolveIterableParameterMember = (
 	// value. If the same array is mutated afterwards (`kits.push(...)`,
 	// `kits[i] = ...`), the traced elements are not what the callback sees, so
 	// the literal cannot be trusted — the member is UNVERIFIABLE, never a
-	// definite non-drawer.
+	// definite non-drawer. Round 26's BLOCKER 3: the mutation receiver is
+	// resolved through the value side, so a write through a second alias of the
+	// same array (`const alias = kits; alias.push(...)`) is caught too — the
+	// array's literal identity, not the receiver's spelling, is what decides.
 	if (
 		isArrayBindingMutated(
+			arrayLiteral,
 			unwrappedReceiver.getSourceFile(),
-			unwrappedReceiver.getText(),
+			reassignedNamesByFile,
 		)
 	) {
 		return UNVERIFIABLE_TAG;
@@ -9505,6 +9606,34 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_MUTATED_ARRAY_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a traced array literal mutated through a second alias is unverifiable and rejected', () => {
+		// Round 26's BLOCKER 3, verbatim: `const alias = kits; alias.push(
+		// DrawerKit);` then `kits.map((kit) => ...)`. The mutation scan matched
+		// only writes whose receiver TEXT was the traced binding's name, so the
+		// write through `alias` was invisible — the callback was classified from
+		// the old local-only literal, every member read definite NOT_DRAWER, and
+		// the appended real drawer kit disappeared. The receiver must be
+		// resolved through the value side to the array's literal identity, not
+		// its spelling, so an alias write is caught and the array is
+		// UNVERIFIABLE.
+		writeFileSync(
+			TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_PATH,
+			TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_PATH);
 		}
 	});
 
