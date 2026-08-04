@@ -497,33 +497,165 @@ type CallSite = {
 	file: string;
 	line: number;
 	className: string | null;
-	/** Round 19 I2: the literal `data-*`/`aria-*` attributes the call site
-	 * writes on the description element (e.g. `data-contrast-probe="low"`).
-	 * These are REAL static attributes — part of the element's contract, not
-	 * ephemeral Base UI state — so the probe renders them and the state-
-	 * attribute exemption never hides a rule keyed on one. */
-	attributes: Record<string, string>;
+	/** Round 21: the `data-*`/`aria-*` attributes the call site writes on the
+	 * description element, with their value resolution. These are REAL static
+	 * attributes — part of the element's contract, not ephemeral Base UI state
+	 * — so the probe renders them and the state-attribute exemption never hides
+	 * a rule keyed on one. Every written NAME is retained whatever its value
+	 * expression; a value the guard cannot enumerate is UNRESOLVABLE and fails
+	 * loud in `findDrawerDescriptionCallSites` (never silently absent). */
+	stateAttributes: Record<string, StateAttributeResolution>;
 };
 
-/** Round 19 I2: the literal `data-*`/`aria-*` attributes the call site writes
- * on the description element. An attribute's NAME is the contract — whether
- * its value is a literal string or a runtime expression, the element carries
- * it at rest, so a selector keyed on that name must be measured, never
- * silently exempted as ephemeral state. Only literal string values are
- * captured for the probe (an expression value's exact value is unknowable, so
- * the attribute is reserved by name but rendered without a value). The
- * lookbehind excludes a `data-*`/`aria-*` token that is itself inside a
- * quoted attribute VALUE (e.g. `title="data-flag='x'"`). */
-export const extractLiteralStateAttributes = (
+/** The value of a call-site `data-*`/`aria-*` attribute. Either the guard
+ * knows every runtime value the expression can produce (a quoted literal, or
+ * a ternary whose branches are quoted literals) and must measure ALL of them,
+ * or the value expression cannot be enumerated and the call site fails loud. */
+type StateAttributeResolution =
+	| { status: 'resolved'; values: string[] }
+	| { status: 'unresolvable' };
+
+/** Resolves a single `{expr}` attribute value to its proven runtime values.
+ * A quoted literal is a single value; a ternary whose branches are both quoted
+ * literals is the two values of the union. The condition is constrained to
+ * contain no `?` so a nested ternary falls through to UNRESOLVABLE (failing
+ * loud) rather than silently enumerating only the last split — the safe,
+ * fail-closed direction. Any other expression — a bare variable, a template
+ * literal, a call — is UNRESOLVABLE. */
+const resolveStateAttributeExpression = (
+	expression: string,
+): StateAttributeResolution => {
+	const trimmed = expression.trim();
+	const literal = /^"([^"]*)"$|^'([^']*)'$/.exec(trimmed);
+	if (literal !== null) {
+		return { status: 'resolved', values: [literal[1] ?? literal[2] ?? ''] };
+	}
+	const ternary =
+		/^([^?]*?)\s*\?\s*("([^"]*)"|'([^']*)')\s*:\s*("([^"]*)"|'([^']*)')$/.exec(
+			trimmed,
+		);
+	if (ternary !== null) {
+		return {
+			status: 'resolved',
+			values: [ternary[3] ?? ternary[4] ?? '', ternary[6] ?? ternary[7] ?? ''],
+		};
+	}
+	return { status: 'unresolvable' };
+};
+
+/** Round 21: the `data-*`/`aria-*` attributes the call site writes on the
+ * description element, whatever the shape of their value. Every written NAME
+ * is retained — the element carries it at rest, so a selector keyed on that
+ * name must be measured, never silently exempted as ephemeral state. Each
+ * value is then RESOLVED (to every proven runtime value) or UNRESOLVABLE. A
+ * `data-*`/`aria-*` spell inside a quoted attribute VALUE (e.g.
+ * `title="data-flag='x'"`) is text, not a real attribute, and is ignored. */
+export const extractStateAttributes = (
 	attributes: string,
-): Record<string, string> => {
-	const found: Record<string, string> = {};
-	for (const match of attributes.matchAll(
-		/(?<![a-zA-Z0-9_"'=])((?:data|aria)-[\w-]+)\s*=\s*("([^"]*)"|'([^']*)')/g,
-	)) {
-		found[match[1]] = match[3] ?? match[4] ?? '';
+): Record<string, StateAttributeResolution> => {
+	const found: Record<string, StateAttributeResolution> = {};
+	const n = attributes.length;
+	let i = 0;
+	while (i < n) {
+		while (i < n && /\s/.test(attributes[i])) {
+			i++;
+		}
+		if (i >= n) {
+			break;
+		}
+		const nameStart = i;
+		while (i < n && /[A-Za-z0-9_-]/.test(attributes[i])) {
+			i++;
+		}
+		const name = attributes.slice(nameStart, i);
+		if (name === '') {
+			// Not an attribute name (a spread or expression). Skip one character
+			// and keep scanning — a spread carrying a data-* is already caught
+			// fail-loud by the className guard.
+			i++;
+			continue;
+		}
+		const isState = /^(?:data|aria)-/.test(name);
+		while (i < n && /\s/.test(attributes[i])) {
+			i++;
+		}
+		if (i >= n || attributes[i] !== '=') {
+			if (isState) {
+				found[name] = { status: 'resolved', values: ['true'] };
+			}
+			continue;
+		}
+		i++;
+		while (i < n && /\s/.test(attributes[i])) {
+			i++;
+		}
+		if (i >= n) {
+			break;
+		}
+		const char = attributes[i];
+		let resolution: StateAttributeResolution | null = null;
+		if (char === '"' || char === "'") {
+			const close = attributes.indexOf(char, i + 1);
+			if (close === -1) {
+				break;
+			}
+			resolution = {
+				status: 'resolved',
+				values: [attributes.slice(i + 1, close)],
+			};
+			i = close + 1;
+		} else if (char === '{') {
+			let depth = 0;
+			let scan = i;
+			for (; scan < n; scan++) {
+				if (attributes[scan] === '{') {
+					depth++;
+				} else if (attributes[scan] === '}') {
+					depth--;
+					if (depth === 0) {
+						break;
+					}
+				}
+			}
+			const expression = attributes.slice(i + 1, scan);
+			resolution = resolveStateAttributeExpression(expression);
+			i = scan + 1;
+		} else {
+			const valueStart = i;
+			while (i < n && !/\s/.test(attributes[i])) {
+				i++;
+			}
+			resolution = {
+				status: 'resolved',
+				values: [attributes.slice(valueStart, i)],
+			};
+		}
+		if (isState) {
+			found[name] = resolution;
+		}
 	}
 	return found;
+};
+
+/** A call-site `data-*`/`aria-*` attribute whose value the guard cannot
+ * enumerate must fail loud — the same fail-closed shape as a spread or a
+ * non-literal className — naming the file, the line and the attribute. Never
+ * a silent absence from the reservation set. */
+const assertCallSiteAttributesResolvable = (
+	stateAttributes: Record<string, StateAttributeResolution>,
+	file: string,
+	line: number,
+): void => {
+	for (const [name, resolution] of Object.entries(stateAttributes)) {
+		if (resolution.status === 'unresolvable') {
+			throw new Error(
+				`DrawerDescription at ${file}:${line} sets ${name} to a value expression ` +
+					'the contrast guard cannot resolve — inline a string-literal value (or a ' +
+					'ternary of string literals) so every proven runtime value can be ' +
+					'verified against the 4.5:1 floor.',
+			);
+		}
+	}
 };
 
 // Round 8 M3: the module matcher used to gate on
@@ -617,11 +749,14 @@ const findDrawerDescriptionCallSites = (): CallSite[] => {
 			for (const match of source.matchAll(tagPattern)) {
 				const attributes = match[1];
 				const line = source.slice(0, match.index).split('\n').length;
+				const className = extractClassName(attributes, file, line);
+				const stateAttributes = extractStateAttributes(attributes);
+				assertCallSiteAttributesResolvable(stateAttributes, file, line);
 				callSites.push({
 					file,
 					line,
-					className: extractClassName(attributes, file, line),
-					attributes: extractLiteralStateAttributes(attributes),
+					className,
+					stateAttributes,
 				});
 			}
 		}
@@ -1123,11 +1258,12 @@ const attributedElementClasses = (
 /** Attribute names the probe fixture explicitly stamps on the target element
  * itself, matching the real `DrawerDescription` contract (`drawer.tsx` plus
  * Base UI's generated `id`) — a rule keyed on one of these can trust
- * `element.matches()` as ground truth, the same as a class. The literal
- * `data-*`/`aria-*` attributes each call site writes are added PER CALL SITE
- * (round 19 I2) via the `elementAttributeNames` argument — an attribute a
- * call site actually writes is part of the real element's static contract,
- * exactly like `data-slot`, and may never be treated as ephemeral state. */
+ * `element.matches()` as ground truth, the same as a class. The `data-*`/
+ * `aria-*` attributes each call site writes are added PER CALL SITE (round 19
+ * I2, round 21 I1: every written NAME, whatever its value expression) via the
+ * `elementAttributeNames` argument — an attribute a call site actually writes
+ * is part of the real element's static contract, exactly like `data-slot`,
+ * and may never be treated as ephemeral state. */
 const MODELED_ATTRIBUTE_NAMES = new Set(['data-slot', 'id']);
 
 /** `data-*`/`aria-*` are Base UI's and the app's vocabulary for ephemeral
@@ -1135,12 +1271,12 @@ const MODELED_ATTRIBUTE_NAMES = new Set(['data-slot', 'id']);
  * `aria-hidden`, …) — ATTRIBUTES the probe's static markup can no more
  * reproduce than it can a `:hover`. Round 17 I4 folds a selector keyed on one
  * of these (other than the modeled contract above) into the same
- * never-throw treatment as a pseudo-class state variant. Round 19 I2: an
- * attribute the CALL SITE actually writes as a literal (`data-contrast-
- * probe="low"`) is NOT ephemeral — it is a real static attribute the probe
- * renders and `element.matches()` can decide, so it must be excluded from the
- * state exemption (which would otherwise hide a static rule that paints the
- * real element). */
+ * never-throw treatment as a pseudo-class state variant. Round 19 I2 + round
+ * 21 I1: an attribute the CALL SITE actually writes (whatever its value
+ * expression) is NOT ephemeral — the element carries it at rest, so the
+ * probe renders it and `element.matches()` can decide, and it must be
+ * excluded from the state exemption (which would otherwise hide a static
+ * rule that paints the real element). */
 const STATE_ATTRIBUTE_PREFIXES = ['data-', 'aria-'];
 
 const attributeNameOf = (attributeToken: string): string => {
@@ -1507,20 +1643,43 @@ type EngineFacts = {
 
 let probePage: Page;
 
-/** Round 19 I1: the extra static attributes the call site writes on the
- * drawer description (literal `data-*`/`aria-*`, e.g.
- * `data-contrast-probe="low"`) — rendered on the probe so a rule keyed on one
- * is MEASURED by `element.matches()`, and reserved from the state-attribute
- * exemption (round 19 I2). */
+/** One concrete attribute configuration rendered on the probe element:
+ * a fixed value for each written `data-*`/`aria-*` attribute. A call site
+ * whose value is RESOLVED to several possible values is measured once per
+ * configuration, and the WORSE paint wins (round 21 I1). */
 type ProbeAttributes = Record<string, string>;
 
 /** The shape every probe-rendering entry point accepts: the :has() descendant
- * configuration, an optional ancestor class, and the call site's literal
- * `data-*`/`aria-*` attributes. */
+ * configuration, an optional ancestor class, and one concrete `data-*`/`aria-*`
+ * attribute configuration (round 19 I2). */
 type ProbeSpec = {
 	children?: string[];
 	ancestorClass?: string | null;
 	attributes?: ProbeAttributes;
+};
+
+/** Every proven runtime attribute configuration of a call site: the cartesian
+ * product of each RESOLVED attribute's value set. An attribute with several
+ * values (a ternary of literals) produces as many configurations as it has
+ * proven values, so the guard measures EVERY one and keeps the worse — never
+ * an arbitrary single branch. */
+const attributeConfigurationsOf = (
+	stateAttributes: Record<string, StateAttributeResolution>,
+): ProbeAttributes[] => {
+	let configurations: ProbeAttributes[] = [{}];
+	for (const [name, resolution] of Object.entries(stateAttributes)) {
+		if (resolution.status !== 'resolved') {
+			continue;
+		}
+		const next: ProbeAttributes[] = [];
+		for (const configuration of configurations) {
+			for (const value of resolution.values) {
+				next.push({ ...configuration, [name]: value });
+			}
+		}
+		configurations = next;
+	}
+	return configurations;
 };
 
 /** One browser round trip per (cssText, theme): renders the real drawer
@@ -2171,18 +2330,27 @@ const resolvePaintFromCss = async (
 	cssText: string,
 	utilities: string[],
 	probe: ProbeSpec = {},
+	// Round 21 I1: one attribute configuration per proven runtime value set —
+	// the caller (the call-site guard) passes every configuration a RESOLVED
+	// ternary/value union can produce, and every one is measured. Defaults to
+	// the single explicit `probe.attributes` when the caller rendered an exact
+	// configuration.
+	attributeConfigurations: ProbeAttributes[] = [probe.attributes ?? {}],
 ): Promise<{ light: EnginePaint; dark: EnginePaint }> => {
 	const root = postcss.parse(cssText, { from: undefined });
 	const elementClasses = new Set(
 		utilities.map((utility) => `.${escapeClassName(utility)}`),
 	);
-	// Round 19 I2: the literal `data-*`/`aria-*` attributes the call site
-	// writes are part of the element's real contract — reserved from the
-	// state-attribute exemption so a static rule keyed on one must be MEASURED,
-	// exactly like `data-slot`.
+	// Round 19 I2 + round 21 I1: every `data-*`/`aria-*` attribute NAME the
+	// call site writes is part of the element's real contract — the union
+	// across all proven runtime configurations is reserved from the state-
+	// attribute exemption so a rule keyed on one must be MEASURED, exactly
+	// like `data-slot`.
 	const elementAttributeNames = new Set<string>();
-	for (const name of Object.keys(probe.attributes ?? {})) {
-		elementAttributeNames.add(name.toLowerCase());
+	for (const configuration of attributeConfigurations) {
+		for (const name of Object.keys(configuration)) {
+			elementAttributeNames.add(name.toLowerCase());
+		}
 	}
 	const elementType = DESCRIPTION_HOST_CONTRACT.elementType;
 	const recorded = collectRecordedDeclarations(
@@ -2202,36 +2370,40 @@ const resolvePaintFromCss = async (
 				})();
 
 	// One page, so variants run sequentially — never Promise.all, which would
-	// race concurrent mutations of the single shared probePage.
+	// race concurrent mutations of the single shared probePage. Each `:has()`
+	// child variant is crossed with each attribute configuration, so a rule
+	// gated on either is measured, never discarded.
 	const factsLightVariants: EngineFacts[] = [];
 	const factsDarkVariants: EngineFacts[] = [];
 	for (const children of childVariants) {
-		factsLightVariants.push(
-			await askEngine(
-				cssText,
-				utilities,
-				'light',
-				{
-					children,
-					ancestorClass: probe.ancestorClass ?? null,
-					attributes: probe.attributes,
-				},
-				questions,
-			),
-		);
-		factsDarkVariants.push(
-			await askEngine(
-				cssText,
-				utilities,
-				'dark',
-				{
-					children,
-					ancestorClass: probe.ancestorClass ?? null,
-					attributes: probe.attributes,
-				},
-				questions,
-			),
-		);
+		for (const attributes of attributeConfigurations) {
+			factsLightVariants.push(
+				await askEngine(
+					cssText,
+					utilities,
+					'light',
+					{
+						children,
+						ancestorClass: probe.ancestorClass ?? null,
+						attributes,
+					},
+					questions,
+				),
+			);
+			factsDarkVariants.push(
+				await askEngine(
+					cssText,
+					utilities,
+					'dark',
+					{
+						children,
+						ancestorClass: probe.ancestorClass ?? null,
+						attributes,
+					},
+					questions,
+				),
+			);
+		}
 	}
 	assertVerifiable(
 		root,
@@ -2260,8 +2432,14 @@ const resolvePaintFromCss = async (
 const resolveClassPaint = async (
 	utilities: string[],
 	probe: ProbeSpec = {},
+	attributeConfigurations: ProbeAttributes[] = [probe.attributes ?? {}],
 ): Promise<{ light: EnginePaint; dark: EnginePaint }> =>
-	resolvePaintFromCss(await compiledCssFor(utilities), utilities, probe);
+	resolvePaintFromCss(
+		await compiledCssFor(utilities),
+		utilities,
+		probe,
+		attributeConfigurations,
+	);
 
 /** The synthetic-CSS entry point for the policy pins: the fixture is appended
  * to the REAL compiled app.css (so the primitive, the drawer markup and every
@@ -2272,12 +2450,14 @@ const resolveFixturePaint = async (
 	fixtureCss: string,
 	fixtureClasses: string[],
 	probe: ProbeSpec = {},
+	attributeConfigurations: ProbeAttributes[] = [probe.attributes ?? {}],
 ): Promise<{ light: EnginePaint; dark: EnginePaint }> => {
 	const baseCss = await compiledCssFor(['publy-drawer-description']);
 	return resolvePaintFromCss(
 		`${baseCss}\n${fixtureCss}`,
 		['publy-drawer-description', ...fixtureClasses],
 		probe,
+		attributeConfigurations,
 	);
 };
 
@@ -2840,32 +3020,93 @@ describe('drawer description text contrast (#1043)', () => {
 		).toBe('x');
 	});
 
-	// Round 19 I2: literal `data-*`/`aria-*` attributes the call site writes
-	// are part of the element's real contract — the parser must capture them so
-	// the probe renders them and the state-attribute exemption never hides a
-	// static rule keyed on one. A `data-*` spell inside a quoted attribute
-	// VALUE is not a real attribute and must be ignored. If the parser is
-	// reverted to nothing, this test reds — the round-18 review's static
-	// attribute (`data-contrast-probe="low"`) would silently pass through the
-	// guard as an ephemeral state variant.
-	test('extractLiteralStateAttributes captures literal data-*/aria-* attributes (round 19 I2)', () => {
+	// Round 19 I2 + round 21 I1: written `data-*`/`aria-*` attributes are part
+	// of the element's real contract — the parser must retain every NAME,
+	// whatever the value expression, and resolve each value or mark it
+	// unresolvable. Round 19's parser blessed `data-open={isOpen}` as `{}` (no
+	// attribute), silently exempting the rule keyed on the name as ephemeral
+	// state while the real browser painted 2.51:1 — the round-20 reviewer's
+	// reproduction. A `data-*` spell inside a quoted attribute VALUE (e.g.
+	// `title="data-flag='x'"`) is still text, not a real attribute, and must
+	// be ignored. If the parser is reverted to nothing, this test reds.
+	test('extractStateAttributes retains every written data-*/aria-* name and resolves or flags each value (round 19 I2 + round 21 I1)', () => {
 		expect(
-			extractLiteralStateAttributes(
+			extractStateAttributes(
 				' className="publy-r18-static" data-contrast-probe="low"',
 			),
-		).toEqual({ 'data-contrast-probe': 'low' });
+		).toEqual({
+			'data-contrast-probe': { status: 'resolved', values: ['low'] },
+		});
 		expect(
-			extractLiteralStateAttributes(
+			extractStateAttributes(
 				" className='x' aria-label='desc' data-mode=\"on\"",
 			),
-		).toEqual({ 'aria-label': 'desc', 'data-mode': 'on' });
-		// A data-* spell inside a quoted value is text, not an attribute; and
-		// an expression-valued attribute is not a literal string.
+		).toEqual({
+			'aria-label': { status: 'resolved', values: ['desc'] },
+			'data-mode': { status: 'resolved', values: ['on'] },
+		});
+		// A data-* spell inside a quoted value is text, not an attribute.
+		expect(extractStateAttributes(` title="data-flag='x'"`)).toEqual({});
+		// A ternary of string literals is RESOLVED to BOTH proven values — the
+		// guard must measure every configuration, never an arbitrary one.
 		expect(
-			extractLiteralStateAttributes(
-				` title="data-flag='x'" data-open={isOpen}`,
+			extractStateAttributes(` data-contrast-probe={isOpen ? 'low' : 'high'}`),
+		).toEqual({
+			'data-contrast-probe': { status: 'resolved', values: ['low', 'high'] },
+		});
+		// Bare variables and template literals are UNRESOLVABLE — the NAME is
+		// retained (never silently dropped from the reservation set) and the
+		// value reported unresolvable, which fails the call site loud.
+		expect(extractStateAttributes(` data-open={isOpen}`)).toEqual({
+			'data-open': { status: 'unresolvable' },
+		});
+		expect(
+			extractStateAttributes(
+				` data-contrast-probe={\`\${isOpen ? 'low' : 'high'}\`}`,
 			),
-		).toEqual({});
+		).toEqual({ 'data-contrast-probe': { status: 'unresolvable' } });
+	});
+
+	// Round 21 I1: an UNRESOLVABLE attribute value must fail loud naming the
+	// file, the line and the attribute — the same fail-closed contract as a
+	// spread or a non-literal className. Round 20's escape was a bare
+	// variable, and it silently reported compliant.
+	test('an unresolvable data-*/aria-* value fails loud by file, line and attribute (round 21 I1)', () => {
+		expect(() =>
+			assertCallSiteAttributesResolvable(
+				{ 'data-open': { status: 'unresolvable' } },
+				'network/_component.tsx',
+				42,
+			),
+		).toThrow(
+			/DrawerDescription at network\/_component\.tsx:42 sets data-open to a value expression the contrast guard cannot resolve/,
+		);
+	});
+
+	// Round 21 I1, the RED half of the ternary paired proof: the round-20
+	// reviewer's exact reproduction — a rule keyed on the LOW branch of a
+	// ternary (`data-contrast-probe={isOpen ? 'low' : 'high'}`) paints 2.51:1
+	// while the HIGH branch stays compliant. The guard renders BOTH proven
+	// configurations and keeps the worse, so the low branch must be caught.
+	// Reverting to single-configuration rendering (round-20's arbitrary branch
+	// or no attribute at all) measures only the compliant branch and this
+	// assertion fails — the 2.51:1 paint silently passes again.
+	test('a ternary data-* value is measured in BOTH proven configurations and the low branch is caught (round 21 I1)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.publy-r21-ternary[data-contrast-probe='low'] { color: var(--publy-foreground-subtle); }`,
+			['publy-r21-ternary'],
+			{},
+			attributeConfigurationsOf({
+				'data-contrast-probe': { status: 'resolved', values: ['low', 'high'] },
+			}),
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		// The reviewer's own number: 2.51:1 at the e2e's viewport.
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
 	});
 
 	// Round 5 I6: the app compiles CSS with @tailwindcss/vite's pinned
@@ -3632,9 +3873,11 @@ describe('drawer description text contrast (#1043)', () => {
 							'publy-drawer-description',
 							...callSite.className.split(/\s+/).filter((u) => u !== ''),
 						];
-			const { light, dark } = await resolveClassPaint(utilities, {
-				attributes: callSite.attributes,
-			});
+			const { light, dark } = await resolveClassPaint(utilities, {}, [
+				// Round 21 I1: every proven attribute value set is its own probe
+				// configuration — a ternary writes two, and both are measured.
+				...attributeConfigurationsOf(callSite.stateAttributes),
+			]);
 
 			for (const [theme, paint] of [
 				['light', light],
