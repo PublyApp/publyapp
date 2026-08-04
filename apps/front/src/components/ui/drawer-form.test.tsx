@@ -3557,6 +3557,147 @@ export const ExternalTypedKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 26's BLOCKER 2 — the ordinary components-as-props SPLIT across files.
+// The child writes `<kit.Surface>` etc. with NO drawer import of its own; the
+// parent imports the four drawer exports and passes them into the child as a
+// prop. Neither file alone satisfies round 15's same-file discriminator
+// (`importsDrawerModule && hasUnverifiableTag`): the child has unverifiable
+// tags but no import, the parent has the import but no opaque tags — so the
+// whole #990 construction dropped out of discovery. Discovery must reason
+// across the module graph: the child is a candidate (unresolved drawer-shaped
+// tags) regardless of where the imports live, the parent is the anchor (it
+// passes drawer exports into another component), and the pair fails closed.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_CROSSFILE_KIT_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r26-crossfile-kit-child.tsx';
+const TEMPORARY_CROSSFILE_KIT_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_KIT_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_KIT_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CrossFileKitDrawer = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_CROSSFILE_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r26-crossfile-kit-drawer.tsx';
+const TEMPORARY_CROSSFILE_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_KIT_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { CrossFileKitDrawer } from './_drawer-surface-r26-crossfile-kit-child';
+
+export const CrossFileParameterKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<CrossFileKitDrawer
+		methods={methods}
+		kit={{
+			Surface: DrawerContent,
+			Form: DrawerForm,
+			Body: DrawerBody,
+			Footer: DrawerFooter,
+		}}
+	/>
+);
+`;
+
+// The BLOCKER 2 control: the SAME cross-file split, but the parent passes only
+// real local components into the child — no drawer export flows across the
+// module graph, so the child's opaque `kit.*` tags are never anchored and the
+// pair stays out of the inventory entirely.
+const TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r26-crossfile-kit-clean-child.tsx';
+const TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CleanCrossFileKitDrawer = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<kit.Form methods={methods}>
+			<kit.Body />
+			<kit.Footer />
+		</kit.Form>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r26-crossfile-kit-clean-drawer.tsx';
+const TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { CleanCrossFileKitDrawer } from './_drawer-surface-r26-crossfile-kit-clean-child';
+
+const LocalSurface = () => <div data-testid="r26-clean-surface" />;
+const LocalForm = ({
+	methods,
+	children,
+}: {
+	methods: UseFormReturn<FieldValues>;
+	children: React.ReactNode;
+}) => <form data-testid="r26-clean-form">{children}</form>;
+const LocalBody = () => <div data-testid="r26-clean-body" />;
+const LocalFooter = () => <div data-testid="r26-clean-footer" />;
+
+export const CleanCrossFileParameterKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<CleanCrossFileKitDrawer
+		methods={methods}
+		kit={{
+			Surface: LocalSurface,
+			Form: LocalForm,
+			Body: LocalBody,
+			Footer: LocalFooter,
+		}}
+	/>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -3899,6 +4040,22 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_FILE,
 		source: TEMPORARY_EXTERNAL_TYPED_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_KIT_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_KIT_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_KIT_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_SOURCE,
 	},
 ];
 
@@ -5220,6 +5377,267 @@ const isAllowedNonDrawerParameterMember = (
 			memberName === allowance.member,
 	);
 
+/**
+ * True when `expression` (a JSX attribute value) references a drawer-module
+ * export — directly (`<X surface={DrawerContent} />`), through an object
+ * literal that carries one (`kit={{ Surface: DrawerContent, ... }}`), through
+ * an array literal, or through a conditional that carries one on any branch.
+ * This is round 26's BLOCKER 2 anchor probe: a component reference whose prop
+ * value is a drawer export is a file "passing drawer exports into another
+ * component", and the component's definition file is the pair it anchors.
+ * Only a resolver-confirmed drawer symbol counts — an unverifiable or local
+ * value does not, so a legit `<X icon={SomeIcon} />` prop is not an anchor.
+ */
+const expressionReferencesDrawerExport = (
+	expression: Node,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): boolean => {
+	const unwrapped = unwrapExpression(expression);
+	const kind = unwrapped.getKind();
+	if (
+		kind === SyntaxKind.Identifier ||
+		kind === SyntaxKind.PropertyAccessExpression ||
+		kind === SyntaxKind.CallExpression ||
+		kind === SyntaxKind.ConditionalExpression
+	) {
+		return (
+			typeof resolveValueIdentity(
+				unwrapped,
+				project,
+				reassignedNamesByFile,
+				seen,
+			) === 'string'
+		);
+	}
+	if (kind === SyntaxKind.ObjectLiteralExpression) {
+		return (unwrapped as ObjectLiteralExpression)
+			.getProperties()
+			.some((prop) => {
+				if (prop.getKind() === SyntaxKind.PropertyAssignment) {
+					const initializer = (prop as PropertyAssignment).getInitializer();
+					return initializer
+						? expressionReferencesDrawerExport(
+								initializer,
+								project,
+								reassignedNamesByFile,
+								seen,
+							)
+						: false;
+				}
+				if (prop.getKind() === SyntaxKind.ShorthandPropertyAssignment) {
+					const valueSymbol = project
+						.getTypeChecker()
+						.getShorthandAssignmentValueSymbol(
+							prop as ShorthandPropertyAssignment,
+						);
+					return valueSymbol
+						? typeof resolveSymbolValue(
+								valueSymbol,
+								project,
+								reassignedNamesByFile,
+								seen,
+							) === 'string'
+						: false;
+				}
+				if (prop.getKind() === SyntaxKind.SpreadAssignment) {
+					const argument = (
+						prop as unknown as { getExpression(): Node }
+					).getExpression();
+					return argument
+						? expressionReferencesDrawerExport(
+								argument,
+								project,
+								reassignedNamesByFile,
+								seen,
+							)
+						: false;
+				}
+				return false;
+			});
+	}
+	if (kind === SyntaxKind.ArrayLiteralExpression) {
+		return (unwrapped as ArrayLiteralExpression)
+			.getElements()
+			.some((element) =>
+				expressionReferencesDrawerExport(
+					element,
+					project,
+					reassignedNamesByFile,
+					seen,
+				),
+			);
+	}
+	return false;
+};
+
+/**
+ * Round 26's BLOCKER 2 — the module-graph discovery pass. UNVERIFIABLE is
+ * computed per file, but the ordinary components-as-props split puts the
+ * drawer imports in one file and the opaque `<kit.*>` tags in another: neither
+ * file alone satisfies round 15's `importsDrawerModule && hasUnverifiableTag`
+ * discriminator, so the whole construction dropped out of discovery. This pass
+ * walks the module graph instead of the single file:
+ *
+ *  - `drawerPassers` — files that pass a drawer export as a prop value into a
+ *    component reference (the ANCHOR);
+ *  - for every anchor, the referenced component's DEFINITION file is a
+ *    "drawer-export receiver";
+ *  - a receiver that itself passes drawer exports onward is a transitively
+ *    anchored file, so a chain `parent -> wrapper -> opaque-kit` stays closed.
+ *
+ * The result is a set of portable file paths that are drawer-anchored from the
+ * module-graph side, plus the set of files that both pass drawer exports and
+ * feed them into a file with unverifiable tags (the pair-anchor half, which
+ * reddens on its own).
+ */
+const buildDrawerPassGraph = (
+	desiredFilePaths: Set<string>,
+	project: Project,
+	moduleResolution: ModuleResolution,
+	moduleCache: Map<string, string | null>,
+	declaredNamesByFile: Map<string, Set<string>>,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	drawerTagName: (tagNameNode: Node) => DrawerTagNameResult,
+): {
+	anchoredReceivers: Set<string>;
+	pairAnchors: Set<string>;
+	unverifiableByFile: Set<string>;
+	importsDrawerByFile: Set<string>;
+} => {
+	const passesInto = new Map<string, Set<string>>();
+	const unverifiableByFile = new Set<string>();
+	const importsDrawerByFile = new Set<string>();
+
+	for (const filePath of desiredFilePaths) {
+		const sourceFile = project.getSourceFile(filePath);
+		if (!sourceFile || /\.(?:spec|test)\.tsx$/.test(path.basename(filePath))) {
+			continue;
+		}
+		const portable = toPortableSourcePath(sourceFile.getFilePath());
+		if (fileImportsDrawerModule(sourceFile, project, reassignedNamesByFile)) {
+			importsDrawerByFile.add(portable);
+		}
+		const jsxTags = [
+			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+			...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+		];
+		if (
+			jsxTags.some(
+				(node) => drawerTagName(node.getTagNameNode()) === UNVERIFIABLE_TAG,
+			)
+		) {
+			unverifiableByFile.add(portable);
+		}
+		const walkContext: WalkContext = {
+			moduleResolution,
+			project,
+			moduleCache,
+			declaredNamesByFile,
+			reassignedNamesByFile,
+			drawerTagName,
+			definitionCache: new Map(),
+		};
+		for (const tag of jsxTags) {
+			const tagNameNode = tag.getTagNameNode();
+			const tagText = tagNameNode.getText();
+			// Intrinsic lowercase tags and drawer-module elements themselves do
+			// not "pass drawer exports into another component" — only a
+			// component reference whose prop value IS a drawer export does.
+			if (
+				tagNameNode.getKind() === SyntaxKind.Identifier &&
+				/^[a-z]/.test(tagText)
+			) {
+				continue;
+			}
+			if (typeof drawerTagName(tagNameNode) === 'string') {
+				continue;
+			}
+			let passesDrawerExport = false;
+			for (const attribute of tag.getAttributes()) {
+				if (attribute.getKind() !== SyntaxKind.JsxAttribute) {
+					continue;
+				}
+				const initializer = (attribute as JsxAttribute).getInitializer();
+				if (!initializer) {
+					continue;
+				}
+				const expression =
+					initializer.getKind() === SyntaxKind.JsxExpression
+						? (initializer as JsxExpression).getExpression()
+						: null;
+				if (
+					expression &&
+					expressionReferencesDrawerExport(
+						expression,
+						project,
+						reassignedNamesByFile,
+						new Set(),
+					)
+				) {
+					passesDrawerExport = true;
+					break;
+				}
+			}
+			if (!passesDrawerExport) {
+				continue;
+			}
+			const definition = resolveComponentDefinitionCached(
+				sourceFile,
+				tagText,
+				walkContext,
+			);
+			if (!definition) {
+				continue;
+			}
+			const definitionPortable = toPortableSourcePath(
+				definition.file.getFilePath(),
+			);
+			const passers = passesInto.get(definitionPortable) ?? new Set<string>();
+			passers.add(portable);
+			passesInto.set(definitionPortable, passers);
+		}
+	}
+
+	// Transitive closure: a file is drawer-anchored if it imports the drawer
+	// module, or receives drawer exports from a file that is itself anchored.
+	const anchoredReceivers = new Set(importsDrawerByFile);
+	let changed = true;
+	while (changed) {
+		changed = false;
+		for (const [receiver, passers] of passesInto) {
+			if (anchoredReceivers.has(receiver)) {
+				continue;
+			}
+			if ([...passers].some((passer) => anchoredReceivers.has(passer))) {
+				anchoredReceivers.add(receiver);
+				changed = true;
+			}
+		}
+	}
+
+	// The pair-anchor half: a file that passes drawer exports into a component
+	// whose definition has unverifiable tags is itself an unverified drawer
+	// construction — it routes real drawer exports into an opaque consumer.
+	const pairAnchors = new Set<string>();
+	for (const [receiver, passers] of passesInto) {
+		if (!unverifiableByFile.has(receiver)) {
+			continue;
+		}
+		for (const passer of passers) {
+			pairAnchors.add(passer);
+		}
+	}
+
+	return {
+		anchoredReceivers,
+		pairAnchors,
+		unverifiableByFile,
+		importsDrawerByFile,
+	};
+};
+
 const resolveTypeSideMemberValue = (
 	propertyAccess: PropertyAccessExpression,
 	project: Project,
@@ -6271,10 +6689,15 @@ const collectStatementReturns = (
 			}
 			const finallyBlock = tryStatement.getFinallyBlock();
 			if (finallyBlock) {
+				// `getFinallyBlock()` returns a `Block` node directly (not a
+				// wrapper with a `getBlock()`), so the statements are read off
+				// the block itself. The old `.getBlock()` cast crashed on any
+				// component whose body contained a `try { } finally { }` —
+				// throw instead of recovering, which my round-26 graph pass
+				// exposed by resolving more expressions than the per-file walk
+				// did.
 				const finallyCollected = collectStatementReturns(
-					(finallyBlock as unknown as { getBlock(): Block })
-						.getBlock()
-						.getStatements(),
+					finallyBlock.getStatements(),
 				);
 				if (finallyCollected === null) {
 					return null;
@@ -7115,6 +7538,21 @@ const scanDrawerSurfaces = (): {
 	const violations: string[] = [];
 	const formBearing: string[] = [];
 
+	// Round 26's BLOCKER 2: the UNVERIFIABLE surface must not depend on the
+	// opaque tags and the drawer imports living in the SAME file. The pass
+	// graph below walks the module graph so a file with unresolved drawer-shaped
+	// tags is a candidate regardless of where the imports live, and a file that
+	// passes drawer exports into another component is the anchor.
+	const passGraph = buildDrawerPassGraph(
+		desiredFilePaths,
+		project,
+		moduleResolution,
+		moduleCache,
+		declaredNamesByFile,
+		reassignedNamesByFile,
+		drawerTagName,
+	);
+
 	for (const filePath of desiredFilePaths) {
 		const sourceFile = project.getSourceFile(filePath);
 		if (!sourceFile || /\.(?:spec|test)\.tsx$/.test(path.basename(filePath))) {
@@ -7283,11 +7721,26 @@ const scanDrawerSurfaces = (): {
 		// signal is an opaque marker is discovered and reddened instead of
 		// being silently green — the discriminator (the drawer-module import)
 		// is what the no-signal file lacks, so the inventory does not flood.
+		// Round 26's BLOCKER 2: the discriminator is no longer required to live
+		// in the SAME file. A file whose opaque tags are anchored by the module
+		// graph (another file passes drawer exports into a component it
+		// defines, directly or transitively) is a candidate too — "fail closed
+		// on the pair, not on a single file's coincidence". And a file that
+		// PASSES drawer exports into a file with unverifiable tags is itself
+		// an unverified drawer construction. The no-signal flood guard holds:
+		// a file with unverifiable tags and no anchor anywhere still carries no
+		// drawer signal and stays out.
+		const portablePath = toPortableSourcePath(sourceFile.getFilePath());
+		const drawerAnchoredFromGraph =
+			passGraph.anchoredReceivers.has(portablePath);
+		const pairAnchor = passGraph.pairAnchors.has(portablePath);
 		if (
 			anchorElements.length === 0 &&
 			callSitePartNodes.length === 0 &&
 			callSiteFormNodes.length === 0 &&
-			!(importsDrawerModule && hasUnverifiableTag)
+			!(importsDrawerModule && hasUnverifiableTag) &&
+			!(drawerAnchoredFromGraph && hasUnverifiableTag) &&
+			!pairAnchor
 		) {
 			continue;
 		}
@@ -7312,6 +7765,7 @@ const scanDrawerSurfaces = (): {
 			formLinkBroken ||
 			walkState.unverifiable ||
 			hasUnverifiableTag ||
+			pairAnchor ||
 			walkPartBroken ||
 			walkFormBroken
 		) {
@@ -8875,6 +9329,109 @@ describe('drawer surface flex chain guard (#990)', () => {
 		expect(scan.violations).not.toContain(
 			'src/components/ui/icon-color-picker.tsx',
 		);
+	});
+
+	test('a drawer whose opaque kit tags and drawer imports are split across two files is discovered and both files are rejected', () => {
+		// Round 26's BLOCKER 2, verbatim: the ordinary components-as-props SPLIT
+		// — the child authors `<kit.Surface>` etc. with NO drawer import, the
+		// parent imports the four drawer exports and passes them into the child.
+		// Round 15's discriminator required the opaque tags and the imports in
+		// the SAME file, so both files dropped out of discovery and the #990
+		// break shipped green. Discovery must reason across the module graph:
+		// the child is a candidate (unresolved drawer-shaped tags) regardless of
+		// where the imports live, and the parent is the anchor (it passes drawer
+		// exports into another component). Both files fail closed — discovered
+		// AND reddened.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_KIT_CHILD_PATH,
+			TEMPORARY_CROSSFILE_KIT_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_KIT_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const project = getScanProject();
+			const reassignedNamesByFile = new Map<string, Set<string>>();
+			const child = project.getSourceFile(
+				fixturePath(TEMPORARY_CROSSFILE_KIT_CHILD_FILE),
+			);
+			expect(child).not.toBeNull();
+			if (child) {
+				for (const node of [
+					...child.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+					...child.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+				]) {
+					const text = node.getTagNameNode().getText();
+					if (text.startsWith('kit.')) {
+						expect(
+							resolveDrawerTagName(
+								node.getTagNameNode(),
+								project,
+								reassignedNamesByFile,
+							),
+						).toBe(UNVERIFIABLE_TAG);
+					}
+				}
+			}
+
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_CHILD_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_CHILD_FILE),
+			);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_KIT_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a cross-file pair whose parent passes only local components produces no drawer noise', () => {
+		// The control for BLOCKER 2: the pair rule must not redden a split where
+		// the parent passes only real LOCAL components into the child. The child
+		// still authors `kit.*` tags on an untraceable parameter (UNVERIFIABLE
+		// under the fail-closed rule), but its tags carry no drawer signal: the
+		// parent is not a drawer passer (none of its prop values resolve to a
+		// drawer export), so the child is never anchored and neither file is
+		// discovered. A reader who expects the anchor to be anything-drawer-
+		// shaped would redden this exact pair — the anchor must be a REAL drawer
+		// export flowing across the module graph, not a coincidence of shapes.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_PATH,
+			TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_PATH);
+		}
 	});
 
 	test('an accessor pair with the setter declared first resolves through the getter and is rejected', () => {
