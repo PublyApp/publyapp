@@ -4794,7 +4794,15 @@ test('e2e (round 3 audit): escaped and spaced safe values stay clean', async () 
 	);
 });
 
-test('e2e (innocent): innocent constructs through the production scanner', async () => {
+test('e2e (innocent #987 scoping): component 1 stays green on the innocent constructs; their shipped pollution is a compiled-gate true positive', async () => {
+	// Issue #987's "no false positive on the innocent case" acceptance is
+	// scoped to the SOURCE pass, and the round-21 report must say so (I5): a
+	// `z-50` literal in a type literal, a `data-example` attribute, or a
+	// comparand still makes the production scanner emit a `.z-50` rule into
+	// the shipped stylesheet, because the extractor is blind to context. That
+	// pollution is a true positive at the compiled gate, not a false positive
+	// on the source construct — the test keeps this expectation explicit so
+	// "innocent" never again implies "fully green end to end".
 	const innocentFiles = {
 		'type-literal.d.ts': `export type Layer = 'z-50';`,
 		'data-example.tsx':

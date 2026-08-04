@@ -389,10 +389,13 @@ scale (the current inline consumers already do).
 One deliberate interaction to understand: an innocent-looking string that _literally contains_ a
 z-index utility (a `data-*` attribute value, a type literal, a test comment) still makes the
 extractor emit that utility into the built stylesheet when it sits under `src/`, because the
-production scanner is blind to context. Component 4 therefore turns red on it — the fixture suite
-proves this end to end through the production scanner, and also proves the emitted rule is **not**
-silently exempted by the allowlist (it is reported, not swallowed). That red is a true positive — the
-shipped CSS is polluted — not a false positive on the source construct; component 1 stays green on all
-of the innocent constructs in the fixture suite. If you need such a literal under `src/`, break the
+production scanner is blind to context. This is the precise scope of issue #987's "no false positive
+on the innocent case" acceptance (round-21 I5): it is scoped to **component 1**, the source pass,
+which stays green on all of the innocent constructs in the fixture suite. Component 4 therefore turns
+red on such a literal — the fixture suite proves this end to end through the production scanner, and
+also proves the emitted rule is **not** silently exempted by the allowlist (it is reported, not
+swallowed). That red is a true positive — the shipped CSS is polluted — not a false positive on the
+source construct; the shipped stylesheet is worse for it even though no class is ever themed by that
+source position. If you need such a literal under `src/`, break the
 utility token so the scanner cannot see it (e.g. `z-[60]` → `z-\\[60\\]`, or spell it "a numeric
 stacking value"). The cleanest place for fixtures is `scripts/`, which the scanner never watches.
