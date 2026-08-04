@@ -2398,6 +2398,7 @@ test('structural (round 17 B1 → round 19 B2): the single classifier and per-ID
 	};
 	assert.equal(classifyModuleKind(`${txtPath}?raw`, rawShape).kind, 'raw');
 	assert.equal(classifyModuleKind(`${txtPath}?v=1?raw`, rawShape).kind, 'raw');
+	assert.equal(classifyModuleKind(`${txtPath}?v=2?raw`, rawShape).kind, 'raw');
 	assert.equal(
 		classifyModuleKind(`${txtPath}?url`, urlShape).kind,
 		'url-asset',
@@ -2424,6 +2425,46 @@ test('structural (round 17 B1 → round 19 B2): the single classifier and per-ID
 	});
 	assert.equal(bindings.get('rawText')?.kind, 'default');
 	assert.equal(bindings.has('assetUrl'), false);
+	// The round-19 B2 divergence: a hand-written classifier that re-maps only
+	// the `?v=2?raw` query (the exact mutation the review demonstrated) would
+	// reconstruct the module ID as `…?url` instead of `…?v=2?raw`, miss the
+	// recorded ID, and silently drop the raw binding. The per-ID membership is
+	// therefore pinned for that spelling too: the recorded `…?v=2?raw` ID must
+	// bind its default clause, exactly as Vite observes it.
+	const multiQuerySource = ts.createSourceFile(
+		'probe.tsx',
+		"import rawText from './named.txt?v=2?raw';",
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.TSX,
+	);
+	const multiQueryBindings = collectRawImportBindings(multiQuerySource, {
+		relativePath: 'probe.tsx',
+		baseDir,
+		rawTextPaths: new Set([path.join(baseDir, 'named.txt')]),
+		rawTextIds: new Set([`${path.join(baseDir, 'named.txt')}?v=2?raw`]),
+		queriedPaths: new Set([path.join(baseDir, 'named.txt')]),
+	});
+	assert.equal(
+		multiQueryBindings.get('rawText')?.kind,
+		'default',
+		'a recorded ?v=2?raw module ID must bind its default clause',
+	);
+	// And the green mirror: when the build records the file under a non-raw
+	// query only, the `?v=2?raw` specifier is not raw text — the per-ID record
+	// is the source of truth, never the specifier text.
+	const urlOnlyBindings = collectRawImportBindings(multiQuerySource, {
+		relativePath: 'probe.tsx',
+		baseDir,
+		rawTextPaths: new Set([path.join(baseDir, 'named.txt')]),
+		rawTextIds: new Set([`${path.join(baseDir, 'named.txt')}?url`]),
+		queriedPaths: new Set([path.join(baseDir, 'named.txt')]),
+	});
+	assert.equal(
+		urlOnlyBindings.has('rawText'),
+		false,
+		'a ?v=2?raw specifier whose file the build recorded only as ?url stays green',
+	);
 });
 
 test('structural (round 17 B1): the classifier reads Vite-observable signals, never query tokens', () => {

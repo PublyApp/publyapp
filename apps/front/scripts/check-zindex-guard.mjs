@@ -3471,10 +3471,17 @@ const collectCssPaths = async (
 // ---------------------------------------------------------------------------
 // THE single module classifier. Every "is this module id a raw/inline CSS
 // module, and which file is it" answer in the guard is decided here — and
-// nowhere else: the fixture suite's structural test scans this file's own
-// source and fails if query parsing appears outside this function, so a
-// second classifier cannot come back (round-16 B1, the third consecutive
-// round of "one mechanism decides").
+// nowhere else. The guarantee is structural — a second classifier would be a
+// second mechanism — but the fixture suite asserts it behaviourally, not by
+// scanning this file's source (round-16 B1, round-19 B2): both ID shapes of
+// one file (`?raw`, `?url`, `?v=1?raw`, `?v=2?raw`) feed the real
+// classification path and classify exactly as Vite observes them, and the
+// script pass maps a specifier to its recorded full module ID so a `?url`
+// sibling of a `?raw` module is provably a distinct Vite module. A behavioral
+// pin is finite: it proves the pinned shapes, never that every imaginable
+// second classifier reddens it — a divergence in an unexercised spelling that
+// changes a Vite-observable answer must be caught by adding that spelling to
+// the fixture suite, not by a source-regex stand-in (round-21 I3).
 //
 // The classification is not a re-implementation of Vite's raw rule. It reads
 // three things the build itself produced:

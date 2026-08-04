@@ -76,11 +76,14 @@ is raw because Vite transformed it as raw, never because a hand-written parser s
 suite asserts this behaviourally rather than by scanning the guard's source for query-parsing
 spellings (a source-regex stand-in can be out-spelled, and it cannot tell a query parse that
 *classifies* from a query extraction that *reconstructs a module ID for a per-ID membership
-lookup*): both ID shapes of one file (`?raw`, `?url`, `?v=1?raw`) feed the real classification
-path and classify exactly as Vite observes them, and the script pass resolves a specifier to its
-full module ID (path + query) and consults the build's per-ID record — a `?url` ID for a file the
-build also recorded as `?raw` is a distinct Vite module and provably not raw text, so no second
-hand-written classifier can diverge from the build without the behavioural assertion reddening.
+lookup*): both ID shapes of one file (`?raw`, `?url`, `?v=1?raw`, `?v=2?raw`) feed the real
+classification path and classify exactly as Vite observes them, and the script pass resolves a
+specifier to its full module ID (path + query) and consults the build's per-ID record — a `?url` ID
+for a file the build also recorded as `?raw` is a distinct Vite module and provably not raw text.
+The `?v=2?raw` per-ID shape is pinned because it is the exact spelling a hand-written re-classifier
+would remap (round-21 I3); a behavioral pin is finite — it proves the pinned shapes, and a
+divergence in an unexercised spelling that changes a Vite-observable answer must be added to the
+fixture suite, not claimed impossible by a source-regex stand-in.
 The script pass asks the recorded build
 provenance: an import binding exists only when its resolved file is in the recorded `?raw` set,
 never by re-classifying the specifier text. The script pass records every
