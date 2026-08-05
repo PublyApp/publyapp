@@ -8063,6 +8063,142 @@ const DRAWER_FORM_GEOMETRY_PROPERTIES = new Set([
 	'overflow-y',
 ]);
 
+// Round 26's IMPORTANT 4 — the `@apply` branch must compare LIKE WITH LIKE.
+// `@apply block` is Tailwind's UTILITY grammar (it sets `display: block`), so
+// testing the token against the CSS PROPERTY set made `block` invisible. The
+// maps below resolve a utility token to the CSS properties it actually sets;
+// the caller then compares properties against properties. The display set is
+// the complete static Tailwind display-utility list; the direction/shorthand
+// sets and the prefixes are the complete geometry-relevant Tailwind grammar.
+const TAILWIND_DISPLAY_UTILITIES = new Set([
+	'block',
+	'inline-block',
+	'inline',
+	'flex',
+	'inline-flex',
+	'table',
+	'inline-table',
+	'table-caption',
+	'table-cell',
+	'table-column',
+	'table-column-group',
+	'table-footer-group',
+	'table-header-group',
+	'table-row-group',
+	'table-row',
+	'flow-root',
+	'grid',
+	'inline-grid',
+	'contents',
+	'list-item',
+	'hidden',
+]);
+const TAILWIND_FLEX_DIRECTION_UTILITIES = new Set([
+	'flex-row',
+	'flex-row-reverse',
+	'flex-col',
+	'flex-col-reverse',
+]);
+const TAILWIND_FLEX_SHORTHAND_UTILITIES = new Set([
+	'flex-1',
+	'flex-auto',
+	'flex-initial',
+	'flex-none',
+]);
+// These would false-positive through the `flex-`/`overflow-` prefixes below,
+// so they are resolved explicitly as non-geometry first.
+const TAILWIND_NON_GEOMETRY_FLEX_TOKENS = new Set([
+	'flex-wrap',
+	'flex-nowrap',
+	'flex-wrap-reverse',
+]);
+const TAILWIND_NON_GEOMETRY_OVERFLOW_TOKENS = new Set([
+	'overflow-wrap-normal',
+	'overflow-wrap-break-word',
+	'overflow-wrap-anywhere',
+	'overflow-ellipsis',
+]);
+const TAILWIND_GEOMETRY_PREFIXES: ReadonlyArray<{
+	prefix: string;
+	property: string;
+}> = [
+	{ prefix: 'min-h-', property: 'min-height' },
+	{ prefix: 'overflow-x-', property: 'overflow' },
+	{ prefix: 'overflow-y-', property: 'overflow' },
+	{ prefix: 'overflow-', property: 'overflow' },
+	{ prefix: 'basis-', property: 'flex' },
+	{ prefix: 'grow-', property: 'flex' },
+	{ prefix: 'shrink-', property: 'flex' },
+	{ prefix: 'flex-', property: 'flex' },
+];
+
+/**
+ * Strips the outermost variant chain (`md:block` → `block`,
+ * `min-[1100px]:[display:block]` → `[display:block]`). Bracket-aware: a `:`
+ * inside an arbitrary-value bracket is not a variant separator.
+ */
+const stripTailwindVariants = (token: string): string => {
+	let lastSeparator = -1;
+	let bracketDepth = 0;
+	for (let index = 0; index < token.length; index += 1) {
+		const char = token[index];
+		if (char === '[') {
+			bracketDepth += 1;
+		} else if (char === ']') {
+			bracketDepth -= 1;
+		} else if (char === ':' && bracketDepth === 0) {
+			lastSeparator = index;
+		}
+	}
+	return lastSeparator === -1 ? token : token.slice(lastSeparator + 1);
+};
+
+/**
+ * The CSS properties an `@apply` utility token sets — the resolved form the
+ * caller compares against DRAWER_FORM_GEOMETRY_PROPERTIES (property against
+ * property, never utility against property). Arbitrary values
+ * (`[display:block]`) name their property directly. Unknown tokens resolve to
+ * nothing: the geometry side above is the complete standard-Tailwind grammar
+ * for the geometry properties, so a token outside it cannot set one — custom
+ * utilities (`@utility`) are outside this guard's boundary, the same way
+ * custom CSS classes are.
+ */
+const resolveApplyUtilityGeometryProperties = (
+	token: string,
+): ReadonlyArray<string> => {
+	const leaf = stripTailwindVariants(token).replace(/^!|!$/g, '');
+	if (leaf.startsWith('[') && leaf.endsWith(']')) {
+		const inner = leaf.slice(1, -1);
+		const property = inner.slice(0, inner.indexOf(':')).trim();
+		return DRAWER_FORM_GEOMETRY_PROPERTIES.has(property) ? [property] : [];
+	}
+	if (TAILWIND_DISPLAY_UTILITIES.has(leaf)) {
+		return ['display'];
+	}
+	if (TAILWIND_FLEX_DIRECTION_UTILITIES.has(leaf)) {
+		return ['flex-direction'];
+	}
+	if (
+		TAILWIND_FLEX_SHORTHAND_UTILITIES.has(leaf) ||
+		leaf === 'grow' ||
+		leaf === 'shrink'
+	) {
+		return ['flex'];
+	}
+	if (
+		TAILWIND_NON_GEOMETRY_FLEX_TOKENS.has(leaf) ||
+		TAILWIND_NON_GEOMETRY_OVERFLOW_TOKENS.has(leaf)
+	) {
+		return [];
+	}
+	for (const { prefix, property } of TAILWIND_GEOMETRY_PREFIXES) {
+		if (leaf.startsWith(prefix)) {
+			return [property];
+		}
+	}
+	return [];
+};
+
 /**
  * Round 24's IMPORTANT 4 — the conditional-CSS blind spot. The source guard
  * ranks only UNCONDITIONAL selectors (a conditional rule's win depends on the
@@ -8100,9 +8236,17 @@ const findConditionalDrawerFormGeometryRules = (
 					return DRAWER_FORM_GEOMETRY_PROPERTIES.has(node.prop);
 				}
 				if (node.type === 'atrule' && node.name === 'apply') {
+					// Round 26's IMPORTANT 4: `@apply block` sets `display:
+					// block` through the TAILWIND utility grammar, so the token
+					// must be resolved to the CSS property it sets before the
+					// comparison — never compared as a utility against the
+					// property set. Resolved against resolved is "like with
+					// like"; `block` and `p-4` can no longer be confused.
 					const params = (node.params ?? '').trim().split(/\s+/);
 					return params.some((token) =>
-						DRAWER_FORM_GEOMETRY_PROPERTIES.has(token),
+						resolveApplyUtilityGeometryProperties(token).some((property) =>
+							DRAWER_FORM_GEOMETRY_PROPERTIES.has(property),
+						),
 					);
 				}
 				return false;
@@ -10557,6 +10701,76 @@ describe('drawer surface flex chain guard (#990)', () => {
 @media (max-width: 639px) {
 	.publy-drawer-form {
 		padding: 0 10px;
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		expect(findConditionalDrawerFormGeometryRules(harmlessSource)).toEqual([]);
+	});
+
+	test('a conditional rule that @applies a display utility is a violation at any width', () => {
+		// Round 26's IMPORTANT 4, verbatim: the reviewer's mutation wrote
+		// `@apply block` inside the media query. Round 24's finder compared
+		// the @apply UTILITY tokens against CSS PROPERTY names — `block` is a
+		// display utility, not the `display` property — so the rule was
+		// invisible and the round-23 conditional escape shipped with the
+		// real-CSS assertion still green. The @apply branch must resolve what
+		// each utility actually sets (property against property), so
+		// `@apply block` — and the geometry families (flex-direction,
+		// min-height, overflow, flex) — redden, while a non-geometry utility
+		// (`p-4`) and the flex/overflow tokens that are not geometry
+		// (`flex-wrap`, `overflow-wrap-break-word`) stay green.
+		const breakingSource = `
+@media (min-width: 1025px) {
+	.publy-drawer .publy-drawer-form {
+		@apply block;
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		expect(findConditionalDrawerFormGeometryRules(breakingSource)).toEqual([
+			{
+				atRule: '@media (min-width: 1025px)',
+				selector: '.publy-drawer .publy-drawer-form',
+			},
+		]);
+
+		// The rest of the geometry families are caught through the same
+		// resolution, including an arbitrary-value utility, which names its
+		// property directly.
+		const geometryFamilySource = `
+@media (min-width: 1025px) {
+	.publy-drawer .publy-drawer-form {
+		@apply flex-col min-h-0 overflow-hidden flex-1 [display:block];
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		expect(
+			findConditionalDrawerFormGeometryRules(geometryFamilySource),
+		).toEqual([
+			{
+				atRule: '@media (min-width: 1025px)',
+				selector: '.publy-drawer .publy-drawer-form',
+			},
+		]);
+
+		// Non-geometry @apply utilities stay green — and the `flex-wrap`/
+		// `overflow-wrap-*` tokens are resolved explicitly so the
+		// `flex-`/`overflow-` prefixes do not false-positive on them.
+		const harmlessSource = `
+@media (max-width: 639px) {
+	.publy-drawer-form {
+		@apply p-4 flex-wrap overflow-wrap-break-word;
 	}
 }
 
