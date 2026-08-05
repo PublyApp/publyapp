@@ -3254,6 +3254,124 @@ export const ContentsBoxRestoringDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 26's IMPORTANT 5 — the WINNING display value, not the first evidence.
+// The inline `style` attribute beats the class cascade, so a `contents` class
+// with a later `style={{ display: 'block' }}` still generates a principal box
+// and restores the #990 break; the old early return accepted the wrapper on
+// the class evidence before ever reading the style. The clean control carries
+// `style={{ display: 'contents' }}`, which PROVES boxlessness; a style that
+// does not name display at all leaves the class cascade in charge; and a
+// style the guard cannot see (a dynamic object) is not established boxless.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_CONTENTS_STYLE_RESTORING_FILE =
+	'src/components/ui/_drawer-surface-r26-contents-style-restoring-fixture.tsx';
+const TEMPORARY_CONTENTS_STYLE_RESTORING_PATH = fixturePath(
+	TEMPORARY_CONTENTS_STYLE_RESTORING_FILE,
+);
+const TEMPORARY_CONTENTS_STYLE_RESTORING_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ContentsStyleRestoringDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r26-contents-style-restoring">
+		<div className="contents" style={{ display: 'block' }}>
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
+const TEMPORARY_CONTENTS_STYLE_CLEAN_FILE =
+	'src/components/ui/_drawer-surface-r26-contents-style-clean-fixture.tsx';
+const TEMPORARY_CONTENTS_STYLE_CLEAN_PATH = fixturePath(
+	TEMPORARY_CONTENTS_STYLE_CLEAN_FILE,
+);
+const TEMPORARY_CONTENTS_STYLE_CLEAN_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ContentsStyleCleanDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r26-contents-style-clean">
+		<div className="contents" style={{ display: 'contents' }}>
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
+const TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_FILE =
+	'src/components/ui/_drawer-surface-r26-contents-style-non-display-fixture.tsx';
+const TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_PATH = fixturePath(
+	TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_FILE,
+);
+const TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ContentsStyleNonDisplayDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r26-contents-style-non-display">
+		<div className="contents" style={{ padding: '1rem' }}>
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
+const TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_FILE =
+	'src/components/ui/_drawer-surface-r26-contents-style-undecidable-fixture.tsx';
+const TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_PATH = fixturePath(
+	TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_FILE,
+);
+const TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_SOURCE = `import type { CSSProperties } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const wrapperStyle: CSSProperties = { display: 'block' };
+
+export const ContentsStyleUndecidableDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r26-contents-style-undecidable">
+		<div className="contents" style={wrapperStyle}>
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // Round 24's BLOCKER 1 — components-as-props. A component passes the four
 // drawer exports into a CHILD as a prop (`kit={{ Surface: DrawerContent,
 // Form: DrawerForm, Body: DrawerBody, Footer: DrawerFooter }}`), and the child
@@ -4090,6 +4208,22 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CONTENTS_BOX_RESTORING_FILE,
 		source: TEMPORARY_CONTENTS_BOX_RESTORING_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_STYLE_RESTORING_FILE,
+		source: TEMPORARY_CONTENTS_STYLE_RESTORING_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_STYLE_CLEAN_FILE,
+		source: TEMPORARY_CONTENTS_STYLE_CLEAN_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_FILE,
+		source: TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_FILE,
+		source: TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_SOURCE,
 	},
 	{
 		file: TEMPORARY_PARAMETER_KIT_DRAWER_FILE,
@@ -6273,10 +6407,22 @@ const isDisplayRestoringUtilityToken = (token: string): boolean => {
  * `display: contents` everywhere. A class list that mixes `contents` with a
  * box-restoring utility at any breakpoint is not established boxless, so it
  * is treated as a real element (a violation when it breaks the chain).
+ *
+ * Round 26's IMPORTANT 5: the FIRST evidence is not the WINNING evidence.
+ * The inline `style` attribute beats the class cascade, so `className=
+ * "contents"` with a later `style={{ display: 'block' }}` still generates a
+ * box — the old early return accepted it on the class evidence alone. The
+ * guard must establish the winning value: the style disposition decides
+ * first (literal `contents` proves boxless, any other literal display value
+ * restores a box, an undecidable style fails closed), and the class list is
+ * consulted only when the style does not override display.
  */
 const isBoxlessWrapperElement = (
 	openingElement: JsxOpeningElement | JsxSelfClosingElement,
 ): boolean => {
+	let classNameIsBoxless = false;
+	let styleDisposition: 'absent' | 'contents' | 'restoring' | 'undecidable' =
+		'absent';
 	for (const attribute of openingElement.getAttributes()) {
 		if (attribute.getKind() !== SyntaxKind.JsxAttribute) {
 			continue;
@@ -6302,43 +6448,57 @@ const isBoxlessWrapperElement = (
 					(token) =>
 						token !== 'contents' && isDisplayRestoringUtilityToken(token),
 				);
-				if (!hasBoxRestoringToken) {
-					return true;
-				}
+				classNameIsBoxless = !hasBoxRestoringToken;
 			}
 		}
-		if (
-			attributeName === 'style' &&
-			initializer.getKind() === SyntaxKind.JsxExpression
-		) {
-			const expression = (initializer as JsxExpression).getExpression();
-			if (
-				expression &&
-				expression.getKind() === SyntaxKind.ObjectLiteralExpression
-			) {
-				const displayProperty = (
-					expression as ObjectLiteralExpression
-				).getProperty('display');
+		if (attributeName === 'style') {
+			if (initializer.getKind() === SyntaxKind.JsxExpression) {
+				const expression = (initializer as JsxExpression).getExpression();
 				if (
-					displayProperty &&
-					displayProperty.getKind() === SyntaxKind.PropertyAssignment
+					expression &&
+					expression.getKind() === SyntaxKind.ObjectLiteralExpression
 				) {
-					const displayInitializer = (
-						displayProperty as PropertyAssignment
-					).getInitializer();
+					const displayProperty = (
+						expression as ObjectLiteralExpression
+					).getProperty('display');
 					if (
-						displayInitializer &&
-						displayInitializer.getKind() === SyntaxKind.StringLiteral &&
-						(displayInitializer as StringLiteral).getLiteralValue() ===
-							'contents'
+						displayProperty &&
+						displayProperty.getKind() === SyntaxKind.PropertyAssignment
 					) {
-						return true;
+						const displayInitializer = (
+							displayProperty as PropertyAssignment
+						).getInitializer();
+						if (
+							displayInitializer &&
+							displayInitializer.getKind() === SyntaxKind.StringLiteral
+						) {
+							styleDisposition =
+								(displayInitializer as StringLiteral).getLiteralValue() ===
+								'contents'
+									? 'contents'
+									: 'restoring';
+						} else {
+							styleDisposition = 'undecidable';
+						}
 					}
+				} else {
+					// A style that is not a literal object may contain a
+					// display value the guard cannot see — not established.
+					styleDisposition = 'undecidable';
 				}
 			}
 		}
 	}
-	return false;
+	// The inline style wins the cascade over the class list, so it decides
+	// first. A style that does not name display at all leaves the class
+	// cascade in charge.
+	if (styleDisposition === 'contents') {
+		return true;
+	}
+	if (styleDisposition === 'restoring' || styleDisposition === 'undecidable') {
+		return false;
+	}
+	return classNameIsBoxless;
 };
 
 /**
@@ -10014,6 +10174,104 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_CONTENTS_BOX_RESTORING_PATH);
+		}
+	});
+
+	test('a contents wrapper whose inline style restores a box is not established boxless and is rejected', () => {
+		// Round 26's IMPORTANT 5, verbatim: the reviewer's mutation of the
+		// clean round-21 fixture — `<div className="contents" style={{
+		// display: 'block' }}>`. The inline style beats the class cascade, so
+		// the wrapper generates a real `display: block` box and restores the
+		// #990 break. The old guard accepted it on the FIRST evidence (the
+		// class list) and never read the later style attribute; the winning
+		// value must be established instead. A style that proves `contents`
+		// stays boxless, a style that does not name display leaves the class
+		// cascade in charge, and a style the guard cannot see (a dynamic
+		// object) fails closed.
+		writeFileSync(
+			TEMPORARY_CONTENTS_STYLE_RESTORING_PATH,
+			TEMPORARY_CONTENTS_STYLE_RESTORING_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_RESTORING_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_RESTORING_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_STYLE_RESTORING_PATH);
+		}
+	});
+
+	test('a contents wrapper with a style that proves display: contents stays green', () => {
+		// The legitimate half of IMPORTANT 5: the inline style wins the
+		// cascade and PROVES boxlessness at every width — even though the
+		// class list would be the only evidence the old guard consulted, the
+		// style is the stronger proof and the clean chain must stay green.
+		writeFileSync(
+			TEMPORARY_CONTENTS_STYLE_CLEAN_PATH,
+			TEMPORARY_CONTENTS_STYLE_CLEAN_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_CLEAN_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_CLEAN_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_STYLE_CLEAN_PATH);
+		}
+	});
+
+	test('a contents wrapper whose inline style does not name display stays green', () => {
+		// The non-geometry control: `style={{ padding: '1rem' }}` does not
+		// override the display property, so the class cascade's `contents`
+		// still wins. The winning-value rule must not redden a style that
+		// never touches display.
+		writeFileSync(
+			TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_PATH,
+			TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_STYLE_NON_DISPLAY_PATH);
+		}
+	});
+
+	test('a contents wrapper with a style the guard cannot see fails closed and is rejected', () => {
+		// The fail-closed control for IMPORTANT 5: `style={wrapperStyle}` is
+		// not statically decidable, so the guard cannot establish that the
+		// wrapper is boxless — the same "not established" rule that governs
+		// computed class lists. It is treated as a real element and reddens.
+		writeFileSync(
+			TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_PATH,
+			TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_PATH);
 		}
 	});
 
