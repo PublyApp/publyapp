@@ -7,6 +7,29 @@ import postcss from 'postcss';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { compile } from 'tailwindcss';
+import {
+	Project,
+	ScriptKind,
+	SyntaxKind,
+	VariableDeclarationKind,
+	ts as tsCompiler,
+} from 'ts-morph';
+import type {
+	ConditionalExpression,
+	Expression,
+	FunctionLikeDeclaration,
+	JsxAttribute,
+	JsxExpression,
+	JsxOpeningElement,
+	JsxSelfClosingElement,
+	Node,
+	ObjectBindingPattern,
+	ObjectLiteralExpression,
+	PropertyAccessExpression,
+	PropertyAssignment,
+	SourceFile,
+	StringLiteral,
+} from 'ts-morph';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { Drawer, DrawerDescription } from '~/components/ui/drawer';
 
@@ -450,191 +473,627 @@ const walkTsxFiles = (dir: string): string[] => {
 	return files;
 };
 
-export const extractClassName = (
-	attributes: string,
-	file: string,
-	line: number,
-): string | null => {
-	// Round 5 I3: an inline `style` that sets `color` is invisible to the
-	// source model, even when a literal className is also present (the style
-	// wins in the cascade). Non-colour styles (spacing, alignment) do not
-	// change contrast, so only a `style` whose value names `color` fails closed.
-	if (/\bstyle\s*=/.test(attributes) && /\bcolor\s*:/.test(attributes)) {
-		throw new Error(
-			`DrawerDescription at ${file}:${line} sets an inline style with a colour ` +
-				'that the contrast guard cannot resolve — move the colour to a ' +
-				'string-literal className so it can be verified against the 4.5:1 floor.',
-		);
-	}
+// Round 23 I1: the call-site model is ONE TypeScript AST walk (ts-morph, an
+// app dependency) — the opening-tag regex and the hand-written attribute
+// scanner are gone. The defect they shared was the wrong default: characters
+// the lexer did not capture were concluded "not written", and characters
+// between two quotes were concluded to BE the runtime value. The AST is the
+// program: every JSX opening/self-closing element and every attribute node
+// exists as a node, and each node kind below is handled explicitly or
+// reported UNRESOLVABLE by name and location — never "nothing here". If a
+// future TypeScript adds a syntax this model has never seen, the guard goes
+// red, not green.
+const tsxProject = new Project({ useInMemoryFileSystem: true });
 
-	const literalMatch = /className\s*=\s*("([^"]*)"|'([^']*)')/.exec(attributes);
-	if (literalMatch) {
-		return literalMatch[2] ?? literalMatch[3];
-	}
-	if (/className\s*=/.test(attributes)) {
+/** Parses one TSX source file through the TypeScript AST and fails loud on
+ * any parse error — an unparseable file must never silently lose its call
+ * sites. */
+const parseTsxSource = (source: string, file: string): SourceFile => {
+	const sourceFile = tsxProject.createSourceFile(file, source, {
+		overwrite: true,
+		scriptKind: ScriptKind.TSX,
+	});
+	const parseDiagnostics =
+		(
+			sourceFile.compilerNode as unknown as {
+				parseDiagnostics?: tsCompiler.Diagnostic[];
+			}
+		).parseDiagnostics ?? [];
+	if (parseDiagnostics.length > 0) {
 		throw new Error(
-			`DrawerDescription at ${file}:${line} passes a non-literal className that ` +
-				'the contrast guard cannot resolve — inline a string literal so an ' +
-				'override can be verified against the 4.5:1 floor.',
+			`Contrast guard cannot parse ${file}: ` +
+				parseDiagnostics
+					.map((diagnostic) =>
+						tsCompiler.flattenDiagnosticMessageText(
+							diagnostic.messageText,
+							'\n',
+						),
+					)
+					.join('; '),
 		);
 	}
-	// Round 5 I2: a className smuggled through a prop spread (e.g.
-	// `{...{ className: 'text-primary' }}` or `{...props}`) matches neither the
-	// literal regex nor `/className\s*=/`. The guard already fails loudly on a
-	// braces-wrapped literal, so this is the same fail-closed intent — a spread
-	// can carry a colour override the source guard cannot see.
-	if (attributes.includes('{...')) {
+	return sourceFile;
+};
+
+/** Parses an attribute-fragment test fixture as a real self-closing element,
+ * so the pin tests exercise the same AST walk as the real call sites. */
+const syntheticElementFor = (attributes: string): JsxSelfClosingElement => {
+	const sourceFile = parseTsxSource(`<div ${attributes} />`, '_synthetic.tsx');
+	const element = sourceFile.getDescendantsOfKind(
+		SyntaxKind.JsxSelfClosingElement,
+	)[0];
+	if (element === undefined) {
 		throw new Error(
-			`DrawerDescription at ${file}:${line} passes props through a spread that ` +
-				'the contrast guard cannot resolve — inline a string-literal className ' +
-				'so an override can be verified against the 4.5:1 floor.',
+			`Contrast guard fixture did not parse as a JSX element: ${attributes}`,
 		);
 	}
-	return null;
+	return element;
 };
 
 type CallSite = {
 	file: string;
 	line: number;
 	className: string | null;
-	/** Round 21: the `data-*`/`aria-*` attributes the call site writes on the
-	 * description element, with their value resolution. These are REAL static
-	 * attributes — part of the element's contract, not ephemeral Base UI state
-	 * — so the probe renders them and the state-attribute exemption never hides
-	 * a rule keyed on one. Every written NAME is retained whatever its value
-	 * expression; a value the guard cannot enumerate is UNRESOLVABLE and fails
-	 * loud in `findDrawerDescriptionCallSites` (never silently absent). */
+	/** Round 21 + round 23 I1: the `data-*`/`aria-*` attributes the call site
+	 * writes on the description element, with their value resolution. These
+	 * are REAL static attributes — part of the element's contract, not
+	 * ephemeral Base UI state — so the probe renders them and the
+	 * state-attribute exemption never hides a rule keyed on one. Every
+	 * written NAME is retained whatever its value expression; a value the
+	 * guard cannot evaluate is UNRESOLVABLE and fails loud (never silently
+	 * absent). */
 	stateAttributes: Record<string, StateAttributeResolution>;
 };
 
 /** The value of a call-site `data-*`/`aria-*` attribute. Either the guard
  * knows every runtime value the expression can produce (a quoted literal, or
  * a ternary whose branches are quoted literals) and must measure ALL of them,
- * or the value expression cannot be enumerated and the call site fails loud. */
+ * or the value expression cannot be evaluated and the call site fails loud. */
 type StateAttributeResolution =
 	| { status: 'resolved'; values: string[] }
 	| { status: 'unresolvable' };
 
-/** Resolves a single `{expr}` attribute value to its proven runtime values.
- * A quoted literal is a single value; a ternary whose branches are both quoted
- * literals is the two values of the union. The condition is constrained to
- * contain no `?` so a nested ternary falls through to UNRESOLVABLE (failing
- * loud) rather than silently enumerating only the last split — the safe,
- * fail-closed direction. Any other expression — a bare variable, a template
- * literal, a call — is UNRESOLVABLE. */
-const resolveStateAttributeExpression = (
-	expression: string,
-): StateAttributeResolution => {
-	const trimmed = expression.trim();
-	const literal = /^"([^"]*)"$|^'([^']*)'$/.exec(trimmed);
-	if (literal !== null) {
-		return { status: 'resolved', values: [literal[1] ?? literal[2] ?? ''] };
-	}
-	const ternary =
-		/^([^?]*?)\s*\?\s*("([^"]*)"|'([^']*)')\s*:\s*("([^"]*)"|'([^']*)')$/.exec(
-			trimmed,
-		);
-	if (ternary !== null) {
-		return {
-			status: 'resolved',
-			values: [ternary[3] ?? ternary[4] ?? '', ternary[6] ?? ternary[7] ?? ''],
-		};
-	}
-	return { status: 'unresolvable' };
+/** The two JSX element forms that can carry attributes: `<X …>` and
+ * `<X … />`. Both expose the tag node and the attribute nodes. */
+type JsxElementLike = JsxOpeningElement | JsxSelfClosingElement;
+
+/** The attribute model of one element: the literal className (null when
+ * absent — a non-literal or unverifiable one throws in the walk), plus every
+ * written `data-*`/`aria-*` name with its value resolution. */
+type ElementAttributeModel = {
+	className: string | null;
+	stateAttributes: Record<string, StateAttributeResolution>;
 };
 
-/** Round 21: the `data-*`/`aria-*` attributes the call site writes on the
- * description element, whatever the shape of their value. Every written NAME
- * is retained — the element carries it at rest, so a selector keyed on that
- * name must be measured, never silently exempted as ephemeral state. Each
- * value is then RESOLVED (to every proven runtime value) or UNRESOLVABLE. A
- * `data-*`/`aria-*` spell inside a quoted attribute VALUE (e.g.
- * `title="data-flag='x'"`) is text, not a real attribute, and is ignored. */
-export const extractStateAttributes = (
-	attributes: string,
-): Record<string, StateAttributeResolution> => {
-	const found: Record<string, StateAttributeResolution> = {};
-	const n = attributes.length;
-	let i = 0;
-	while (i < n) {
-		while (i < n && /\s/.test(attributes[i])) {
-			i++;
-		}
-		if (i >= n) {
-			break;
-		}
-		const nameStart = i;
-		while (i < n && /[A-Za-z0-9_-]/.test(attributes[i])) {
-			i++;
-		}
-		const name = attributes.slice(nameStart, i);
-		if (name === '') {
-			// Not an attribute name (a spread or expression). Skip one character
-			// and keep scanning — a spread carrying a data-* is already caught
-			// fail-loud by the className guard.
-			i++;
-			continue;
-		}
-		const isState = /^(?:data|aria)-/.test(name);
-		while (i < n && /\s/.test(attributes[i])) {
-			i++;
-		}
-		if (i >= n || attributes[i] !== '=') {
-			if (isState) {
-				found[name] = { status: 'resolved', values: ['true'] };
-			}
-			continue;
-		}
-		i++;
-		while (i < n && /\s/.test(attributes[i])) {
-			i++;
-		}
-		if (i >= n) {
-			break;
-		}
-		const char = attributes[i];
-		let resolution: StateAttributeResolution | null = null;
-		if (char === '"' || char === "'") {
-			const close = attributes.indexOf(char, i + 1);
-			if (close === -1) {
-				break;
-			}
-			resolution = {
-				status: 'resolved',
-				values: [attributes.slice(i + 1, close)],
-			};
-			i = close + 1;
-		} else if (char === '{') {
-			let depth = 0;
-			let scan = i;
-			for (; scan < n; scan++) {
-				if (attributes[scan] === '{') {
-					depth++;
-				} else if (attributes[scan] === '}') {
-					depth--;
-					if (depth === 0) {
+/** Every attribute of the element, walked as a REAL AST node. The node kinds
+ * are enumerated exhaustively — `JsxAttribute` with an identifier name,
+ * `JsxAttribute` with a namespaced name, `JsxSpreadAttribute` — each is
+ * handled explicitly or reported UNRESOLVABLE by name and location; the
+ * fallback is a `default:` that reports, never one that returns "nothing
+ * here". A `data-*` spell inside a quoted attribute VALUE is a string, not
+ * an attribute node, and cannot confuse the walk — round 22's `>`-in-title
+ * truncation and namespace-name mis-lexing cannot happen, because there is
+ * no text capture at all. */
+const walkElementAttributes = (
+	element: JsxElementLike,
+	file: string,
+	line: number,
+): ElementAttributeModel => {
+	let className: string | null = null;
+	const stateAttributes: Record<string, StateAttributeResolution> = {};
+
+	for (const attribute of element.getAttributes()) {
+		switch (attribute.getKind()) {
+			case SyntaxKind.JsxAttribute: {
+				const jsxAttribute = attribute as JsxAttribute;
+				const nameNode = jsxAttribute.getNameNode();
+				let name: string;
+				switch (nameNode.getKind()) {
+					case SyntaxKind.Identifier:
+						name = nameNode.getText();
 						break;
+					case SyntaxKind.JsxNamespacedName:
+						// `data-probe:mode="low"` — the full namespaced name IS
+						// the attribute name the DOM carries (round 22 I1); it
+						// must never collapse into the bare namespace part.
+						name = nameNode.getText();
+						break;
+					default:
+						throw new Error(
+							`DrawerDescription at ${file}:${line} uses an attribute ` +
+								`name node kind the contrast guard does not model ` +
+								`(${nameNode.getKindName()}) — extend the model or make ` +
+								'the call site plain.',
+						);
+				}
+				const initializer = jsxAttribute.getInitializer();
+				if (name === 'className') {
+					if (classNameValueOf(initializer) === null) {
+						throw new Error(
+							`DrawerDescription at ${file}:${line} passes a non-literal ` +
+								'className that the contrast guard cannot resolve — ' +
+								'inline a string literal so an override can be verified ' +
+								'against the 4.5:1 floor.',
+						);
+					}
+					className = classNameValueOf(initializer);
+					continue;
+				}
+				if (name === 'style') {
+					assertStyleResolvable(jsxAttribute, file, line);
+					continue;
+				}
+				if (/^(?:data|aria)-/.test(name)) {
+					stateAttributes[name] =
+						initializer === undefined
+							? { status: 'resolved', values: ['true'] }
+							: resolveAttributeValue(initializer, file, line);
+				}
+				// Every other attribute name (title, id, role, …) has no
+				// colour or state effect — explicitly ignored, not unmodeled.
+				continue;
+			}
+			case SyntaxKind.JsxSpreadAttribute:
+				// A spread can carry a className or a data-*/aria-* name the
+				// walk cannot see — the same fail-closed contract as round 5
+				// I2 (round 22 I1: `{...{ ['data-contrast-probe']: 'low' }}`).
+				throw new Error(
+					`DrawerDescription at ${file}:${line} passes props through a ` +
+						'spread that the contrast guard cannot resolve — inline a ' +
+						'string-literal className and literal data-*/aria-* ' +
+						'attributes so every override can be verified against the ' +
+						'4.5:1 floor.',
+				);
+			default:
+				// A future TypeScript adds an attribute node kind: report by
+				// name and location, never "nothing here".
+				throw new Error(
+					`DrawerDescription at ${file}:${line} uses a JSX attribute node ` +
+						`kind the contrast guard does not model ` +
+						`(${attribute.getKindName()}) — extend the model or make ` +
+						'the call site plain.',
+				);
+		}
+	}
+	return { className, stateAttributes };
+};
+
+/** The literal className value of an initializer node, or null when it is
+ * not a string literal (a bare `className`, an expression — all fail loud in
+ * the walk). */
+const classNameValueOf = (initializer: Node | undefined): string | null => {
+	if (initializer?.getKind() !== SyntaxKind.StringLiteral) {
+		return null;
+	}
+	return rawSpellingOf(initializer as StringLiteral);
+};
+
+/** An inline `style` that sets `color` is invisible to the source model and
+ * must fail closed (round 5 I3). The style value must be an inspectable
+ * object literal: a literal without a `color` property is safe; any other
+ * value (a variable, a call, a bare `style`, a spread inside the object) may
+ * carry a colour and is unresolvable. */
+const assertStyleResolvable = (
+	attribute: JsxAttribute,
+	file: string,
+	line: number,
+): void => {
+	const initializer = attribute.getInitializer();
+	if (initializer === undefined) {
+		throw new Error(
+			`DrawerDescription at ${file}:${line} passes a non-literal style that ` +
+				'the contrast guard cannot resolve — inline the style object so a ' +
+				'colour override can be verified against the 4.5:1 floor.',
+		);
+	}
+	const object = styleObjectOf(initializer);
+	if (object === null) {
+		throw new Error(
+			`DrawerDescription at ${file}:${line} passes a non-literal style that ` +
+				'the contrast guard cannot resolve — inline the style object so a ' +
+				'colour override can be verified against the 4.5:1 floor.',
+		);
+	}
+	for (const property of object.getProperties()) {
+		if (property.getKind() !== SyntaxKind.PropertyAssignment) {
+			// a spread inside the style object can carry `color` — unresolvable
+			throw new Error(
+				`DrawerDescription at ${file}:${line} sets an inline style with a ` +
+					'colour that the contrast guard cannot resolve — move the colour ' +
+					'to a string-literal className so it can be verified against ' +
+					'the 4.5:1 floor.',
+			);
+		}
+		if (
+			(property as PropertyAssignment).getNameNode().getText().toLowerCase() ===
+			'color'
+		) {
+			throw new Error(
+				`DrawerDescription at ${file}:${line} sets an inline style with a ` +
+					'colour that the contrast guard cannot resolve — move the colour ' +
+					'to a string-literal className so it can be verified against ' +
+					'the 4.5:1 floor.',
+			);
+		}
+	}
+};
+
+/** The style value as an inspectable object literal, or null. */
+const styleObjectOf = (initializer: Node): ObjectLiteralExpression | null => {
+	if (initializer.getKind() !== SyntaxKind.JsxExpression) {
+		return null;
+	}
+	const expression = (initializer as JsxExpression).getExpression();
+	if (expression?.getKind() !== SyntaxKind.ObjectLiteralExpression) {
+		return null;
+	}
+	return expression as ObjectLiteralExpression;
+};
+
+/** The raw source spelling of a string literal between its quotes. (Round 23
+ * I2 replaces this spelling with the cooked constant — RESOLVED must mean an
+ * evaluated value, and `'\x6cow'` is the runtime string `low`, not six
+ * characters.) */
+const rawSpellingOf = (literal: StringLiteral): string => {
+	const text = literal.getText();
+	return text.slice(1, -1);
+};
+
+/** Resolves a state-attribute value from its AST initializer node. A quoted
+ * literal is a single value; a ternary whose branches are both quoted
+ * literals is the two values of the union (the condition is free-form — the
+ * branches are still exactly the possible runtime values). Any other
+ * expression is UNRESOLVABLE and fails the call site loud. */
+const resolveAttributeValue = (
+	initializer: Node,
+	file: string,
+	line: number,
+): StateAttributeResolution => {
+	switch (initializer.getKind()) {
+		case SyntaxKind.StringLiteral:
+			return {
+				status: 'resolved',
+				values: [rawSpellingOf(initializer as StringLiteral)],
+			};
+		case SyntaxKind.JsxExpression: {
+			const expression = (initializer as JsxExpression).getExpression();
+			if (expression === undefined) {
+				// `data-x={}` — the expression container is empty; the runtime
+				// value is undefined and cannot be enumerated.
+				return { status: 'unresolvable' };
+			}
+			switch (expression.getKind()) {
+				case SyntaxKind.StringLiteral:
+					return {
+						status: 'resolved',
+						values: [rawSpellingOf(expression as StringLiteral)],
+					};
+				case SyntaxKind.ConditionalExpression: {
+					const conditional = expression as ConditionalExpression;
+					const whenTrue = conditional.getWhenTrue();
+					const whenFalse = conditional.getWhenFalse();
+					if (
+						whenTrue.getKind() !== SyntaxKind.StringLiteral ||
+						whenFalse.getKind() !== SyntaxKind.StringLiteral
+					) {
+						return { status: 'unresolvable' };
+					}
+					return {
+						status: 'resolved',
+						values: [
+							rawSpellingOf(whenTrue as StringLiteral),
+							rawSpellingOf(whenFalse as StringLiteral),
+						],
+					};
+				}
+				default:
+					return { status: 'unresolvable' };
+			}
+		}
+		default:
+			// A future TypeScript adds an initializer kind: report by name and
+			// location, never "nothing here".
+			throw new Error(
+				`DrawerDescription at ${file}:${line} uses an attribute value node ` +
+					`kind the contrast guard does not model (${initializer.getKindName()}) ` +
+					'— extend the model or make the call site plain.',
+			);
+	}
+};
+
+export const extractClassName = (
+	attributes: string,
+	file: string,
+	line: number,
+): string | null => {
+	const { className } = walkElementAttributes(
+		syntheticElementFor(attributes),
+		file,
+		line,
+	);
+	return className;
+};
+
+/** The local JSX names that can refer to the drawer description in one file.
+ * Round 23 I1: resolved from the AST import declarations (named specifiers
+ * with aliases, namespace imports, default imports) plus local `const`
+ * aliases and drawer-module destructuring — the round-7 M4 alias/namespace
+ * semantics, now total: an import form the model does not enumerate cannot
+ * silently lose a tag. */
+type DrawerLocalTags = {
+	/** Local identifiers bound to the drawer description element. */
+	identifiers: Set<string>;
+	/** Local identifiers bound to the drawer MODULE (a namespace or default
+	 * import, or a `const` alias of one) — the root of `<Root.DrawerDescription>`. */
+	moduleNames: Set<string>;
+};
+
+/** The leftmost identifier of a property-access chain (`a.b.c` → `a`), or
+ * null when the root is not an identifier (`this.x`, a call, …). */
+const rootIdentifierOf = (expression: Expression): string | null => {
+	let node: Expression = expression;
+	while (node.getKind() === SyntaxKind.PropertyAccessExpression) {
+		node = (node as PropertyAccessExpression).getExpression();
+	}
+	return node.getKind() === SyntaxKind.Identifier ? node.getText() : null;
+};
+
+/** Every identifier a binding node introduces — a plain name, or every
+ * element of a destructuring pattern (`const { a: b, c }` → `b`, `c`). */
+const collectBindingNames = (nameNode: Node, names: Set<string>): void => {
+	switch (nameNode.getKind()) {
+		case SyntaxKind.Identifier:
+			names.add(nameNode.getText());
+			return;
+		case SyntaxKind.ObjectBindingPattern:
+		case SyntaxKind.ArrayBindingPattern:
+			for (const element of (nameNode as ObjectBindingPattern).getElements()) {
+				collectBindingNames(element.getNameNode(), names);
+			}
+			return;
+		default:
+			return;
+	}
+};
+
+const FUNCTION_LIKE_KINDS = new Set([
+	SyntaxKind.FunctionDeclaration,
+	SyntaxKind.FunctionExpression,
+	SyntaxKind.ArrowFunction,
+	SyntaxKind.MethodDeclaration,
+	SyntaxKind.Constructor,
+	SyntaxKind.GetAccessor,
+	SyntaxKind.SetAccessor,
+]);
+
+/** Whether a JSX tag identifier is bound to a parameter of any enclosing
+ * function — the classic render-prop channel. Such a tag cannot be
+ * attributed to any module: the caller may pass the drawer description
+ * component itself, so it reports UNRESOLVABLE by name and location instead
+ * of silently passing as "not a drawer description" (round 23 I1). */
+const isBoundToFunctionParameter = (tagNode: Node): boolean => {
+	const name = tagNode.getText();
+	for (
+		let ancestor = tagNode.getFirstAncestor();
+		ancestor !== undefined;
+		ancestor = ancestor.getFirstAncestor()
+	) {
+		if (!FUNCTION_LIKE_KINDS.has(ancestor.getKind())) {
+			continue;
+		}
+		for (const parameter of (
+			ancestor as unknown as FunctionLikeDeclaration
+		).getParameters()) {
+			const names = new Set<string>();
+			collectBindingNames(parameter.getNameNode(), names);
+			if (names.has(name)) {
+				return true;
+			}
+		}
+	}
+	return false;
+};
+
+/** Every local tag name that refers to the drawer description: named imports
+ * of the primitive (with aliases), namespace/default imports of the module,
+ * and local `const` aliases (`const X = DrawerDescription`,
+ * `const X = Drawer.DrawerDescription`, `const X = Drawer`, and
+ * `const { DrawerDescription: X } = Drawer` — including alias chains, to a
+ * fixpoint). `let`/`var` bindings are not modelled: they can be reassigned,
+ * so the binding is not statically attributable. */
+const localDrawerTags = (
+	sourceFile: SourceFile,
+	file: string,
+): DrawerLocalTags => {
+	const tags: DrawerLocalTags = {
+		identifiers: new Set<string>(),
+		moduleNames: new Set<string>(),
+	};
+	for (const declaration of sourceFile.getImportDeclarations()) {
+		if (!isDrawerModuleImport(declaration.getModuleSpecifierValue(), file)) {
+			continue;
+		}
+		const namespaceImport = declaration.getNamespaceImport();
+		if (namespaceImport !== undefined) {
+			tags.moduleNames.add(namespaceImport.getText());
+		}
+		const defaultImport = declaration.getDefaultImport();
+		if (defaultImport !== undefined) {
+			tags.moduleNames.add(defaultImport.getText());
+		}
+		for (const specifier of declaration.getNamedImports()) {
+			if (specifier.getName() !== 'DrawerDescription') {
+				continue;
+			}
+			tags.identifiers.add(
+				specifier.getAliasNode()?.getText() ?? specifier.getName(),
+			);
+		}
+	}
+	const declarations = sourceFile.getVariableDeclarations();
+	for (let pass = 0; pass < declarations.length; pass++) {
+		let grew = false;
+		for (const declaration of declarations) {
+			if (
+				declaration.getVariableStatement()?.getDeclarationKind() !==
+				VariableDeclarationKind.Const
+			) {
+				continue;
+			}
+			const nameNode = declaration.getNameNode();
+			if (nameNode.getKind() === SyntaxKind.Identifier) {
+				const name = nameNode.getText();
+				const initializer = declaration.getInitializer();
+				if (initializer?.getKind() === SyntaxKind.Identifier) {
+					const sourceName = initializer.getText();
+					if (tags.identifiers.has(sourceName) && !tags.identifiers.has(name)) {
+						tags.identifiers.add(name);
+						grew = true;
+					}
+					if (tags.moduleNames.has(sourceName) && !tags.moduleNames.has(name)) {
+						tags.moduleNames.add(name);
+						grew = true;
+					}
+				}
+				if (initializer?.getKind() === SyntaxKind.PropertyAccessExpression) {
+					const root = rootIdentifierOf(initializer);
+					if (
+						root !== null &&
+						tags.moduleNames.has(root) &&
+						(initializer as PropertyAccessExpression)
+							.getNameNode()
+							.getText() === 'DrawerDescription' &&
+						!tags.identifiers.has(name)
+					) {
+						tags.identifiers.add(name);
+						grew = true;
+					}
+				}
+			} else if (nameNode.getKind() === SyntaxKind.ObjectBindingPattern) {
+				// `const { DrawerDescription: X } = Drawer` — destructuring the
+				// primitive off a drawer-module binding.
+				const initializer = declaration.getInitializer();
+				if (
+					initializer?.getKind() !== SyntaxKind.Identifier ||
+					!tags.moduleNames.has(initializer.getText())
+				) {
+					continue;
+				}
+				for (const element of (
+					nameNode as ObjectBindingPattern
+				).getElements()) {
+					const propertyName =
+						element.getPropertyNameNode()?.getText() ?? element.getName();
+					if (propertyName !== 'DrawerDescription') {
+						continue;
+					}
+					const boundName = element.getName();
+					if (!tags.identifiers.has(boundName)) {
+						tags.identifiers.add(boundName);
+						grew = true;
 					}
 				}
 			}
-			const expression = attributes.slice(i + 1, scan);
-			resolution = resolveStateAttributeExpression(expression);
-			i = scan + 1;
-		} else {
-			const valueStart = i;
-			while (i < n && !/\s/.test(attributes[i])) {
-				i++;
-			}
-			resolution = {
-				status: 'resolved',
-				values: [attributes.slice(valueStart, i)],
-			};
 		}
-		if (isState) {
-			found[name] = resolution;
+		if (!grew) {
+			break;
 		}
 	}
-	return found;
+	return tags;
+};
+
+// Round 7 M4: the local JSX tag names that refer to `DrawerDescription` in a
+// file — the plain named import plus every alias (`DrawerDescription as
+// Description`) and the namespace of `import * as Drawer` (used as
+// `<Drawer.DrawerDescription>`). Round 8 M3: relative specifiers are
+// resolved against the importing file, not matched literally. Round 23 I1:
+// resolved from the AST — imports, aliases and local `const` bindings — so a
+// form the model does not enumerate cannot silently lose a tag.
+export const drawerDescriptionTagNames = (
+	source: string,
+	file: string,
+): string[] => {
+	const tags = localDrawerTags(parseTsxSource(source, file), file);
+	return [
+		...tags.identifiers,
+		...[...tags.moduleNames].map((name) => `${name}.DrawerDescription`),
+	];
+};
+
+/** Whether a JSX element's tag resolves to the drawer description. The tag
+ * node kinds are enumerated exhaustively; the only unresolvable verdict is
+ * the render-prop channel (`<Description />` where `Description` is a
+ * function parameter), which REPORTS by name and location — a call site
+ * whose tag the model cannot attribute is never automatically "not a drawer
+ * description" (round 23 I1). */
+const isDrawerDescriptionElement = (
+	element: JsxElementLike,
+	tags: DrawerLocalTags,
+	file: string,
+	line: number,
+): boolean => {
+	const tagNode = element.getTagNameNode();
+	switch (tagNode.getKind()) {
+		case SyntaxKind.Identifier:
+			if (tags.identifiers.has(tagNode.getText())) {
+				return true;
+			}
+			if (isBoundToFunctionParameter(tagNode)) {
+				throw new Error(
+					`DrawerDescription guard cannot attribute the JSX tag ` +
+						`${tagNode.getText()} at ${file}:${line} — it is bound to a ` +
+						'function parameter, so a caller may pass the drawer ' +
+						'description component; render the primitive directly or ' +
+						'rename the binding.',
+				);
+			}
+			// Any other identifier is a different component or a JSX
+			// intrinsic — an explicit verdict, not an unmodeled default.
+			return false;
+		case SyntaxKind.ThisKeyword:
+		case SyntaxKind.JsxNamespacedName:
+			// `<this.X>` and namespaced element tags (`<svg:path>`) can never
+			// be the imported primitive.
+			return false;
+		case SyntaxKind.PropertyAccessExpression: {
+			// `<Root.Member>` — the drawer description only when Root is a
+			// drawer-module binding and Member is the primitive; any other
+			// root is a different component (`<Field.Email>`), explicitly.
+			const chain = tagNode as PropertyAccessExpression;
+			const root = rootIdentifierOf(chain);
+			if (root === null || !tags.moduleNames.has(root)) {
+				return false;
+			}
+			return chain.getNameNode().getText() === 'DrawerDescription';
+		}
+		default:
+			// A future TypeScript adds a tag node kind: report by name and
+			// location, never "nothing here".
+			throw new Error(
+				`DrawerDescription guard cannot resolve the JSX tag kind ` +
+					`${tagNode.getKindName()} at ${file}:${line} — extend the model ` +
+					'or report it.',
+			);
+	}
+};
+
+/** Round 21 + round 23 I1: the `data-*`/`aria-*` attributes the call site
+ * writes on the description element, whatever the shape of their value. Every
+ * written NAME is retained — the element carries it at rest, so a selector
+ * keyed on that name must be measured, never silently exempted as ephemeral
+ * state. Each value is then RESOLVED (to every proven runtime value) or
+ * UNRESOLVABLE. The walk sees AST attribute nodes, so a `data-*` spell inside
+ * a quoted attribute VALUE (e.g. `title="data-flag='x'"`) is a string, not an
+ * attribute. */
+export const extractStateAttributes = (
+	attributes: string,
+): Record<string, StateAttributeResolution> => {
+	const { stateAttributes } = walkElementAttributes(
+		syntheticElementFor(attributes),
+		'<fixture>',
+		1,
+	);
+	return stateAttributes;
 };
 
 /** A call-site `data-*`/`aria-*` attribute whose value the guard cannot
@@ -656,6 +1115,50 @@ const assertCallSiteAttributesResolvable = (
 			);
 		}
 	}
+};
+
+/** Every `<DrawerDescription>` call site in one source file, discovered from
+ * the AST — JSX opening AND self-closing elements whose tag resolves to the
+ * primitive, with every attribute walked as a real node (round 23 I1). */
+export const callSitesInSource = (source: string, file: string): CallSite[] => {
+	const sourceFile = parseTsxSource(source, file);
+	const tags = localDrawerTags(sourceFile, file);
+	const callSites: CallSite[] = [];
+	for (const element of jsxElementsOf(sourceFile)) {
+		const line = element.getStartLineNumber();
+		if (!isDrawerDescriptionElement(element, tags, file, line)) {
+			continue;
+		}
+		const { className, stateAttributes } = walkElementAttributes(
+			element,
+			file,
+			line,
+		);
+		assertCallSiteAttributesResolvable(stateAttributes, file, line);
+		callSites.push({ file, line, className, stateAttributes });
+	}
+	return callSites;
+};
+
+const jsxElementsOf = (sourceFile: SourceFile): JsxElementLike[] => [
+	...sourceFile.getDescendantsOfKind(SyntaxKind.JsxOpeningElement),
+	...sourceFile.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement),
+];
+
+const findDrawerDescriptionCallSites = (): CallSite[] => {
+	const srcRoot = path.resolve(process.cwd(), 'src');
+	const callSites: CallSite[] = [];
+	for (const file of walkTsxFiles(srcRoot)) {
+		const source = readFileSync(file, 'utf8');
+		// Sound pre-filter: importing the drawer module, aliasing it, or
+		// rendering its primitive necessarily writes the word "drawer"; a
+		// file that does not mention it anywhere cannot be a call site.
+		if (!source.includes('drawer')) {
+			continue;
+		}
+		callSites.push(...callSitesInSource(source, file));
+	}
+	return callSites;
 };
 
 // Round 8 M3: the module matcher used to gate on
@@ -691,77 +1194,6 @@ const isDrawerModuleImport = (
 		path.posix.join(path.posix.dirname(posixImporter), specifier),
 	);
 	return /\/components\/ui\/drawer(?:\.tsx)?$/.test(resolved);
-};
-
-// Round 7 M4: the local JSX tag names that refer to `DrawerDescription` in a
-// file — the plain named import plus every alias (`DrawerDescription as
-// Description`) and the namespace of `import * as Drawer` (used as
-// `<Drawer.DrawerDescription>`). Before this, an aliased import escaped the
-// enumeration entirely: no source coverage, no inventory entry, no browser
-// case — which is what turned the I1/I2 source-guard gaps into full escapes
-// instead of browser-bounded ones. Round 8 M3: relative specifiers are
-// resolved against the importing file, not matched literally.
-export const drawerDescriptionTagNames = (
-	source: string,
-	file: string,
-): string[] => {
-	const tagNames = new Set<string>();
-
-	for (const match of source.matchAll(
-		/import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g,
-	)) {
-		const modulePath = match[2];
-		if (!isDrawerModuleImport(modulePath, file)) {
-			continue;
-		}
-		for (const specifier of match[1].split(',')) {
-			const imported = specifier.trim().replace(/^type\s+/, '');
-			const aliasMatch = /^DrawerDescription\s+as\s+([A-Za-z_$][\w$]*)$/.exec(
-				imported,
-			);
-			if (aliasMatch) {
-				tagNames.add(aliasMatch[1]);
-			} else if (/^DrawerDescription$/.test(imported)) {
-				tagNames.add('DrawerDescription');
-			}
-		}
-	}
-
-	for (const match of source.matchAll(
-		/import\s*\*\s*as\s+([A-Za-z_$][\w$]*)\s*from\s*['"]([^'"]+)['"]/g,
-	)) {
-		if (isDrawerModuleImport(match[2], file)) {
-			tagNames.add(`${match[1]}.DrawerDescription`);
-		}
-	}
-
-	return [...tagNames];
-};
-
-const findDrawerDescriptionCallSites = (): CallSite[] => {
-	const srcRoot = path.resolve(process.cwd(), 'src');
-	const callSites: CallSite[] = [];
-	for (const file of walkTsxFiles(srcRoot)) {
-		const source = readFileSync(file, 'utf8');
-		for (const tagName of drawerDescriptionTagNames(source, file)) {
-			const escapedTagName = tagName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-			const tagPattern = new RegExp(`<${escapedTagName}\\b([^>]*)(\\/?)>`, 'g');
-			for (const match of source.matchAll(tagPattern)) {
-				const attributes = match[1];
-				const line = source.slice(0, match.index).split('\n').length;
-				const className = extractClassName(attributes, file, line);
-				const stateAttributes = extractStateAttributes(attributes);
-				assertCallSiteAttributesResolvable(stateAttributes, file, line);
-				callSites.push({
-					file,
-					line,
-					className,
-					stateAttributes,
-				});
-			}
-		}
-	}
-	return callSites;
 };
 
 // Round 10 M4 + round 14 M2: the inventory keys are forward-slash repository
@@ -3029,7 +3461,13 @@ describe('drawer description text contrast (#1043)', () => {
 	// reproduction. A `data-*` spell inside a quoted attribute VALUE (e.g.
 	// `title="data-flag='x'"`) is still text, not a real attribute, and must
 	// be ignored. If the parser is reverted to nothing, this test reds.
-	test('extractStateAttributes retains every written data-*/aria-* name and resolves or flags each value (round 19 I2 + round 21 I1)', () => {
+	// Round 23 I1: the walk is AST-backed, so the round-22 spelling escapes
+	// are structurally impossible — a `>` inside an earlier quoted VALUE
+	// (`title="safe > truncates"`) cannot terminate the element scan, a
+	// namespaced name (`data-probe:mode`) is retained whole instead of
+	// collapsing to the bare namespace part, a boolean attribute is the
+	// runtime value `true`, and a spread fails loud instead of disappearing.
+	test('extractStateAttributes retains every written data-*/aria-* name and resolves or flags each value (round 19 I2 + round 21 I1 + round 23 I1)', () => {
 		expect(
 			extractStateAttributes(
 				' className="publy-r18-static" data-contrast-probe="low"',
@@ -3065,6 +3503,32 @@ describe('drawer description text contrast (#1043)', () => {
 				` data-contrast-probe={\`\${isOpen ? 'low' : 'high'}\`}`,
 			),
 		).toEqual({ 'data-contrast-probe': { status: 'unresolvable' } });
+		// Round 22 I1, the `>`-in-title spelling: a legal `>` inside an earlier
+		// quoted value used to terminate the opening-tag regex and drop every
+		// later attribute; the AST walk sees the real attribute node.
+		expect(
+			extractStateAttributes(
+				' title="safe > truncates the source regex" data-contrast-probe="low"',
+			),
+		).toEqual({
+			'data-contrast-probe': { status: 'resolved', values: ['low'] },
+		});
+		// Round 22 I1, the namespaced-name spelling: `data-probe:mode="low"`
+		// used to lex as the boolean attribute `data-probe`; the DOM carries
+		// the full namespaced name, so the full name is the retained name.
+		expect(extractStateAttributes(' data-probe:mode="low"')).toEqual({
+			'data-probe:mode': { status: 'resolved', values: ['low'] },
+		});
+		// A boolean attribute (no `=`) is the runtime value `true`.
+		expect(extractStateAttributes(' data-bool')).toEqual({
+			'data-bool': { status: 'resolved', values: ['true'] },
+		});
+		// Round 22 I1, the spread spelling: `{...{ ['data-contrast-probe']:
+		// 'low' }}` used to disappear entirely from the captured text; a
+		// spread can carry any data-*/aria-* name, so it fails loud.
+		expect(() => extractStateAttributes(' {...props}')).toThrow(
+			/cannot resolve/,
+		);
 	});
 
 	// Round 21 I1: an UNRESOLVABLE attribute value must fail loud naming the
@@ -3081,6 +3545,66 @@ describe('drawer description text contrast (#1043)', () => {
 		).toThrow(
 			/DrawerDescription at network\/_component\.tsx:42 sets data-open to a value expression the contrast guard cannot resolve/,
 		);
+	});
+
+	// ---- Round 23 I1: the element side of the AST model ---------------------
+	//
+	// A call site whose tag the model cannot resolve to `DrawerDescription`
+	// is never automatically "not a drawer description". The channels that
+	// CAN carry the primitive are enumerated from the AST (imports, aliases,
+	// destructuring); the render-prop channel (a tag bound to a function
+	// parameter) reports by name and location instead of vanishing.
+
+	test('a local const alias of the primitive is still enumerated (round 23 I1)', () => {
+		const source = [
+			"import { DrawerDescription } from '~/components/ui/drawer';",
+			'const Description = DrawerDescription;',
+			'export const C = () => <Description />;',
+		].join('\n');
+		const sites = callSitesInSource(source, 'src/routes/_fixture.tsx');
+		expect(sites.map((site) => site.line)).toEqual([3]);
+	});
+
+	test('a destructured drawer-module binding is enumerated (round 23 I1)', () => {
+		const source = [
+			"import * as Drawer from '~/components/ui/drawer';",
+			'const { DrawerDescription: Description } = Drawer;',
+			'export const C = () => <Description />;',
+		].join('\n');
+		const sites = callSitesInSource(source, 'src/routes/_fixture.tsx');
+		expect(sites.map((site) => site.line)).toEqual([3]);
+	});
+
+	test('a namespace member that is not the primitive is not a drawer description (round 23 I1)', () => {
+		const source = [
+			"import * as Drawer from '~/components/ui/drawer';",
+			'export const C = () => <Drawer.Body />;',
+		].join('\n');
+		expect(callSitesInSource(source, 'src/routes/_fixture.tsx')).toEqual([]);
+	});
+
+	test('a tag bound to a function parameter reports unresolvable, never absent (round 23 I1)', () => {
+		const source =
+			'export const C = ({ Description }: { Description: unknown }) => ' +
+			'<Description />;';
+		expect(() => callSitesInSource(source, 'src/routes/_fixture.tsx')).toThrow(
+			/cannot attribute the JSX tag Description .* bound to a function parameter/,
+		);
+	});
+
+	test('a self-closing drawer description is enumerated (round 23 I1)', () => {
+		const source = [
+			"import { DrawerDescription } from '~/components/ui/drawer';",
+			'export const C = () => <DrawerDescription />;',
+		].join('\n');
+		const sites = callSitesInSource(source, 'src/routes/_fixture.tsx');
+		expect(sites.map((site) => site.line)).toEqual([2]);
+	});
+
+	test('an unparseable file fails loud instead of silently losing its call sites (round 23 I1)', () => {
+		expect(() =>
+			callSitesInSource('export function broken( {', 'src/routes/_fixture.tsx'),
+		).toThrow(/Contrast guard cannot parse/);
 	});
 
 	// Round 21 I1, the RED half of the ternary paired proof: the round-20
