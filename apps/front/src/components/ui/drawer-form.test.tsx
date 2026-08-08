@@ -3253,6 +3253,36 @@ export const ContentsBoxRestoringDrawerFixture = ({
 );
 `;
 
+// Round 28's IMPORTANT 5 — the recognizer's display set is the canonical
+// list, not a hand-written subset. Round 27 found `table-cell` and
+// `list-item` missing, so a wrapper that restores a box with either of them
+// above a breakpoint was accepted as established boxless.
+const TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_FILE =
+	'src/components/ui/_drawer-surface-r28-contents-box-restoring-table-cell-fixture.tsx';
+const TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_PATH = fixturePath(
+	TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_FILE,
+);
+const TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+export const ContentsBoxRestoringTableCellDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r28-contents-box-restoring-table-cell">
+		<div className="contents min-[1100px]:table-cell">
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
 // ---------------------------------------------------------------------------
 // Round 26's IMPORTANT 5 — the WINNING display value, not the first evidence.
 // The inline `style` attribute beats the class cascade, so a `contents` class
@@ -4788,6 +4818,10 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CONTENTS_BOX_RESTORING_FILE,
 		source: TEMPORARY_CONTENTS_BOX_RESTORING_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_FILE,
+		source: TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_SOURCE,
 	},
 	{
 		file: TEMPORARY_CONTENTS_STYLE_RESTORING_FILE,
@@ -7417,24 +7451,48 @@ const isNodelessReactWrapper = (
 		);
 };
 
-// Tailwind display utilities that generate a principal box (or otherwise stop
-// `display: contents` from winning). A class list that contains BOTH `contents`
-// and one of these — at any breakpoint, e.g. `min-[1100px]:block` — is not
-// statically `display: contents` at every width that matters, so it is not
-// established boxless (round 24's IMPORTANT 5).
-const DISPLAY_RESTORING_UTILITIES = new Set([
+// The complete static Tailwind display-utility list — the canonical set both
+// the class-list recognizer and the @apply resolver work from, so the two can
+// never disagree about what restores a box. `contents` is the boxless one;
+// every other display utility generates a principal box (or none at all —
+// `hidden` — but a class list mixing `contents` and `hidden` is not
+// statically `display: contents`, so it is treated as restoring).
+const TAILWIND_DISPLAY_UTILITIES = new Set([
 	'block',
 	'inline-block',
 	'inline',
 	'flex',
 	'inline-flex',
-	'grid',
-	'inline-grid',
 	'table',
 	'inline-table',
+	'table-caption',
+	'table-cell',
+	'table-column',
+	'table-column-group',
+	'table-footer-group',
+	'table-header-group',
+	'table-row-group',
+	'table-row',
 	'flow-root',
+	'grid',
+	'inline-grid',
+	'contents',
+	'list-item',
 	'hidden',
 ]);
+
+// Tailwind display utilities that generate a principal box (or otherwise stop
+// `display: contents` from winning). A class list that contains BOTH `contents`
+// and one of these — at any breakpoint, e.g. `min-[1100px]:block` — is not
+// statically `display: contents` at every width that matters, so it is not
+// established boxless (round 24's IMPORTANT 5). Round 28's IMPORTANT 5: the
+// set is DERIVED from the canonical display list (everything except
+// `contents`) instead of hand-maintained — round 27 found the hand-written
+// list missing `table-cell` and `list-item`, so
+// `contents min-[1100px]:table-cell` was accepted as established boxless.
+const DISPLAY_RESTORING_UTILITIES = new Set(
+	[...TAILWIND_DISPLAY_UTILITIES].filter((utility) => utility !== 'contents'),
+);
 
 /**
  * Whether a class list token is a display utility that would restore a box at
@@ -9348,32 +9406,12 @@ const DRAWER_FORM_GEOMETRY_PROPERTIES = new Set([
 // `@apply block` is Tailwind's UTILITY grammar (it sets `display: block`), so
 // testing the token against the CSS PROPERTY set made `block` invisible. The
 // maps below resolve a utility token to the CSS properties it actually sets;
-// the caller then compares properties against properties. The display set is
-// the complete static Tailwind display-utility list; the direction/shorthand
-// sets and the prefixes are the complete geometry-relevant Tailwind grammar.
-const TAILWIND_DISPLAY_UTILITIES = new Set([
-	'block',
-	'inline-block',
-	'inline',
-	'flex',
-	'inline-flex',
-	'table',
-	'inline-table',
-	'table-caption',
-	'table-cell',
-	'table-column',
-	'table-column-group',
-	'table-footer-group',
-	'table-header-group',
-	'table-row-group',
-	'table-row',
-	'flow-root',
-	'grid',
-	'inline-grid',
-	'contents',
-	'list-item',
-	'hidden',
-]);
+// the caller then compares properties against properties.
+// TAILWIND_DISPLAY_UTILITIES (the canonical display list above) is shared
+// with the class-list recognizer — round 28's IMPORTANT 5 — so the two can
+// never disagree about which utilities establish or restore a box; the
+// direction/shorthand sets and the prefixes are the complete
+// geometry-relevant Tailwind grammar.
 const TAILWIND_FLEX_DIRECTION_UTILITIES = new Set([
 	'flex-row',
 	'flex-row-reverse',
@@ -11573,6 +11611,34 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_CONTENTS_BOX_RESTORING_PATH);
+		}
+	});
+
+	test('a contents wrapper that restores a box with a less common display utility is not established boxless and is rejected', () => {
+		// Round 28's IMPORTANT 5, verbatim: the reviewer's mutation changed
+		// `min-[1100px]:block` to `min-[1100px]:table-cell`. The recognizer's
+		// hand-maintained display set omitted `table-cell` (and `list-item`),
+		// so the wrapper was accepted as established boxless even though it
+		// restores a real box above the breakpoint. The recognizer now works
+		// from the SAME canonical display list as the @apply resolver —
+		// everything except `contents` restores a box — so this wrapper is
+		// treated as a real element and the broken chain reddens, without
+		// reopening the `contents md:block` hole round 24 closed.
+		writeFileSync(
+			TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_PATH,
+			TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_BOX_RESTORING_TABLE_CELL_PATH);
 		}
 	});
 
