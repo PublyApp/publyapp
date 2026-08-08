@@ -664,13 +664,16 @@ const walkElementAttributes = (
 /** The literal className value of an initializer node, or null when it is
  * not a constant string (a bare `className`, an expression, a ternary — all
  * fail loud in the walk; a className must be ONE string for the guard to
- * compile and measure). */
+ * compile and measure). Round 25 I2: a JSX string-literal className is
+ * character-reference-decoded (`className="c&#108;s"` is `cls` after the
+ * transform); a className through a JsxExpression is a JavaScript literal
+ * and is not. */
 const classNameValueOf = (initializer: Node | undefined): string | null => {
 	if (initializer === undefined) {
 		return null;
 	}
 	if (initializer.getKind() === SyntaxKind.StringLiteral) {
-		return (initializer as StringLiteral).getLiteralValue();
+		return decodeJsxEntities((initializer as StringLiteral).getLiteralValue());
 	}
 	if (initializer.getKind() !== SyntaxKind.JsxExpression) {
 		return null;
@@ -752,7 +755,15 @@ const styleObjectOf = (initializer: Node): ObjectLiteralExpression | null => {
  * evaluated value, never a captured spelling (round 23 I2). A ternary
  * evaluates BOTH branches separately and returns the union of their values;
  * a branch the evaluator cannot reduce to a constant makes the whole
- * expression unresolvable. */
+ * expression unresolvable.
+ *
+ * Every StringLiteral reached through this function sits inside a
+ * JsxExpression container, so it is a JAVASCRIPT literal: the transform does
+ * not decode HTML character references in it (`{'a&amp;b'}` reaches React as
+ * the seven characters `a&amp;b`, esbuild 0.28.1), so the guard must NOT
+ * decode either — only the direct JSX attribute-literal case decodes (round
+ * 25 I2). ts-morph already applies the backslash-escape axis in both
+ * contexts; this split is only the entity axis. */
 const evaluateConstantStrings = (expression: Expression): string[] | null => {
 	switch (expression.getKind()) {
 		case SyntaxKind.StringLiteral:
@@ -781,13 +792,366 @@ const evaluateConstantStrings = (expression: Expression): string[] | null => {
 	}
 };
 
+/** The exact named character references esbuild 0.28.1 (the transform Vite
+ * runs) decodes in a JSX attribute string literal — copied from
+ * `internal/js_lexer/tables.go` at the 0.28.1 tag, which credits
+ * TypeScript's `src/compiler/transformers/jsx.ts`. Verified empirically
+ * against the installed 0.28.1 binary: the table is case-sensitive
+ * (`&AMP;`, `&Amp;` stay verbatim), a name not in it stays verbatim
+ * (`&bogus;`), and every entry requires the trailing `;`. The emitted
+ * string for each entry is the exact esbuild decode. */
+const JSX_NAMED_ENTITIES: Readonly<Record<string, string>> = {
+	quot: '\u0022',
+	amp: '\u0026',
+	apos: '\u0027',
+	lt: '\u003C',
+	gt: '\u003E',
+	nbsp: '\u00A0',
+	iexcl: '\u00A1',
+	cent: '\u00A2',
+	pound: '\u00A3',
+	curren: '\u00A4',
+	yen: '\u00A5',
+	brvbar: '\u00A6',
+	sect: '\u00A7',
+	uml: '\u00A8',
+	copy: '\u00A9',
+	ordf: '\u00AA',
+	laquo: '\u00AB',
+	not: '\u00AC',
+	shy: '\u00AD',
+	reg: '\u00AE',
+	macr: '\u00AF',
+	deg: '\u00B0',
+	plusmn: '\u00B1',
+	sup2: '\u00B2',
+	sup3: '\u00B3',
+	acute: '\u00B4',
+	micro: '\u00B5',
+	para: '\u00B6',
+	middot: '\u00B7',
+	cedil: '\u00B8',
+	sup1: '\u00B9',
+	ordm: '\u00BA',
+	raquo: '\u00BB',
+	frac14: '\u00BC',
+	frac12: '\u00BD',
+	frac34: '\u00BE',
+	iquest: '\u00BF',
+	Agrave: '\u00C0',
+	Aacute: '\u00C1',
+	Acirc: '\u00C2',
+	Atilde: '\u00C3',
+	Auml: '\u00C4',
+	Aring: '\u00C5',
+	AElig: '\u00C6',
+	Ccedil: '\u00C7',
+	Egrave: '\u00C8',
+	Eacute: '\u00C9',
+	Ecirc: '\u00CA',
+	Euml: '\u00CB',
+	Igrave: '\u00CC',
+	Iacute: '\u00CD',
+	Icirc: '\u00CE',
+	Iuml: '\u00CF',
+	ETH: '\u00D0',
+	Ntilde: '\u00D1',
+	Ograve: '\u00D2',
+	Oacute: '\u00D3',
+	Ocirc: '\u00D4',
+	Otilde: '\u00D5',
+	Ouml: '\u00D6',
+	times: '\u00D7',
+	Oslash: '\u00D8',
+	Ugrave: '\u00D9',
+	Uacute: '\u00DA',
+	Ucirc: '\u00DB',
+	Uuml: '\u00DC',
+	Yacute: '\u00DD',
+	THORN: '\u00DE',
+	szlig: '\u00DF',
+	agrave: '\u00E0',
+	aacute: '\u00E1',
+	acirc: '\u00E2',
+	atilde: '\u00E3',
+	auml: '\u00E4',
+	aring: '\u00E5',
+	aelig: '\u00E6',
+	ccedil: '\u00E7',
+	egrave: '\u00E8',
+	eacute: '\u00E9',
+	ecirc: '\u00EA',
+	euml: '\u00EB',
+	igrave: '\u00EC',
+	iacute: '\u00ED',
+	icirc: '\u00EE',
+	iuml: '\u00EF',
+	eth: '\u00F0',
+	ntilde: '\u00F1',
+	ograve: '\u00F2',
+	oacute: '\u00F3',
+	ocirc: '\u00F4',
+	otilde: '\u00F5',
+	ouml: '\u00F6',
+	divide: '\u00F7',
+	oslash: '\u00F8',
+	ugrave: '\u00F9',
+	uacute: '\u00FA',
+	ucirc: '\u00FB',
+	uuml: '\u00FC',
+	yacute: '\u00FD',
+	thorn: '\u00FE',
+	yuml: '\u00FF',
+	OElig: '\u0152',
+	oelig: '\u0153',
+	Scaron: '\u0160',
+	scaron: '\u0161',
+	Yuml: '\u0178',
+	fnof: '\u0192',
+	circ: '\u02C6',
+	tilde: '\u02DC',
+	Alpha: '\u0391',
+	Beta: '\u0392',
+	Gamma: '\u0393',
+	Delta: '\u0394',
+	Epsilon: '\u0395',
+	Zeta: '\u0396',
+	Eta: '\u0397',
+	Theta: '\u0398',
+	Iota: '\u0399',
+	Kappa: '\u039A',
+	Lambda: '\u039B',
+	Mu: '\u039C',
+	Nu: '\u039D',
+	Xi: '\u039E',
+	Omicron: '\u039F',
+	Pi: '\u03A0',
+	Rho: '\u03A1',
+	Sigma: '\u03A3',
+	Tau: '\u03A4',
+	Upsilon: '\u03A5',
+	Phi: '\u03A6',
+	Chi: '\u03A7',
+	Psi: '\u03A8',
+	Omega: '\u03A9',
+	alpha: '\u03B1',
+	beta: '\u03B2',
+	gamma: '\u03B3',
+	delta: '\u03B4',
+	epsilon: '\u03B5',
+	zeta: '\u03B6',
+	eta: '\u03B7',
+	theta: '\u03B8',
+	iota: '\u03B9',
+	kappa: '\u03BA',
+	lambda: '\u03BB',
+	mu: '\u03BC',
+	nu: '\u03BD',
+	xi: '\u03BE',
+	omicron: '\u03BF',
+	pi: '\u03C0',
+	rho: '\u03C1',
+	sigmaf: '\u03C2',
+	sigma: '\u03C3',
+	tau: '\u03C4',
+	upsilon: '\u03C5',
+	phi: '\u03C6',
+	chi: '\u03C7',
+	psi: '\u03C8',
+	omega: '\u03C9',
+	thetasym: '\u03D1',
+	upsih: '\u03D2',
+	piv: '\u03D6',
+	ensp: '\u2002',
+	emsp: '\u2003',
+	thinsp: '\u2009',
+	zwnj: '\u200C',
+	zwj: '\u200D',
+	lrm: '\u200E',
+	rlm: '\u200F',
+	ndash: '\u2013',
+	mdash: '\u2014',
+	lsquo: '\u2018',
+	rsquo: '\u2019',
+	sbquo: '\u201A',
+	ldquo: '\u201C',
+	rdquo: '\u201D',
+	bdquo: '\u201E',
+	dagger: '\u2020',
+	Dagger: '\u2021',
+	bull: '\u2022',
+	hellip: '\u2026',
+	permil: '\u2030',
+	prime: '\u2032',
+	Prime: '\u2033',
+	lsaquo: '\u2039',
+	rsaquo: '\u203A',
+	oline: '\u203E',
+	frasl: '\u2044',
+	euro: '\u20AC',
+	image: '\u2111',
+	weierp: '\u2118',
+	real: '\u211C',
+	trade: '\u2122',
+	alefsym: '\u2135',
+	larr: '\u2190',
+	uarr: '\u2191',
+	rarr: '\u2192',
+	darr: '\u2193',
+	harr: '\u2194',
+	crarr: '\u21B5',
+	lArr: '\u21D0',
+	uArr: '\u21D1',
+	rArr: '\u21D2',
+	dArr: '\u21D3',
+	hArr: '\u21D4',
+	forall: '\u2200',
+	part: '\u2202',
+	exist: '\u2203',
+	empty: '\u2205',
+	nabla: '\u2207',
+	isin: '\u2208',
+	notin: '\u2209',
+	ni: '\u220B',
+	prod: '\u220F',
+	sum: '\u2211',
+	minus: '\u2212',
+	lowast: '\u2217',
+	radic: '\u221A',
+	prop: '\u221D',
+	infin: '\u221E',
+	ang: '\u2220',
+	and: '\u2227',
+	or: '\u2228',
+	cap: '\u2229',
+	cup: '\u222A',
+	int: '\u222B',
+	there4: '\u2234',
+	sim: '\u223C',
+	cong: '\u2245',
+	asymp: '\u2248',
+	ne: '\u2260',
+	equiv: '\u2261',
+	le: '\u2264',
+	ge: '\u2265',
+	sub: '\u2282',
+	sup: '\u2283',
+	nsub: '\u2284',
+	sube: '\u2286',
+	supe: '\u2287',
+	oplus: '\u2295',
+	otimes: '\u2297',
+	perp: '\u22A5',
+	sdot: '\u22C5',
+	lceil: '\u2308',
+	rceil: '\u2309',
+	lfloor: '\u230A',
+	rfloor: '\u230B',
+	lang: '\u2329',
+	rang: '\u232A',
+	loz: '\u25CA',
+	spades: '\u2660',
+	clubs: '\u2663',
+	hearts: '\u2665',
+	diams: '\u2666',
+};
+
+/** Mirrors esbuild's `decodeJSXEntities` (internal/js_lexer/js_lexer.go at
+ * 0.28.1) exactly: scan for `&`, take the FIRST `;` after it, and decode a
+ * numeric reference — `&#<decimal>;` or `&#x<hex>;`, lowercase `x` only,
+ * int32 range, single pass — or a named entity from the table above.
+ * Anything else (`&bogus;`, `&AMP;`, `&#X6C;`, a bare `&`, a missing or
+ * immediate `;`) stays literal. A decoded `&` is never rescanned
+ * (`&amp;amp;` is `&amp;`, not `&`). */
+const decodeJsxEntities = (text: string): string => {
+	let decoded = '';
+	let cursor = 0;
+	while (cursor < text.length) {
+		const ampersand = text.indexOf('&', cursor);
+		if (ampersand < 0) {
+			decoded += text.slice(cursor);
+			break;
+		}
+		decoded += text.slice(cursor, ampersand);
+		const semicolon = text.indexOf(';', ampersand + 1);
+		let replaced = false;
+		if (semicolon > ampersand + 1) {
+			const entity = text.slice(ampersand + 1, semicolon);
+			if (entity.startsWith('#')) {
+				let number = entity.slice(1);
+				let base: 10 | 16 = 10;
+				if (number.length > 1 && number.startsWith('x')) {
+					number = number.slice(1);
+					base = 16;
+				}
+				const value = parseJsxEntityNumber(number, base);
+				if (value !== null) {
+					decoded += jsxRuneToUtf16(value);
+					cursor = semicolon + 1;
+					replaced = true;
+				}
+			} else {
+				const value = JSX_NAMED_ENTITIES[entity];
+				if (value !== undefined) {
+					decoded += value;
+					cursor = semicolon + 1;
+					replaced = true;
+				}
+			}
+		}
+		if (!replaced) {
+			decoded += '&';
+			cursor = ampersand + 1;
+		}
+	}
+	return decoded;
+};
+
+/** Go's `strconv.ParseInt(number, base, 32)` as esbuild calls it: an
+ * optional sign, digits valid for the base, and the value must fit in an
+ * int32 — anything else is not a reference and stays literal. */
+const parseJsxEntityNumber = (number: string, base: 10 | 16): number | null => {
+	const pattern = base === 10 ? /^[+-]?[0-9]+$/ : /^[+-]?[0-9a-fA-F]+$/;
+	if (!pattern.test(number)) {
+		return null;
+	}
+	const value = Number.parseInt(number, base);
+	if (value < -2147483648 || value > 2147483647) {
+		return null;
+	}
+	return value;
+};
+
+/** A decoded rune as UTF-16, exactly like esbuild's append: BMP runes as one
+ * code unit (negative values wrap through uint16 — `&#-1;` is U+FFFF), and
+ * anything above as a surrogate pair, including out-of-range input wrapping
+ * the same way (`&#1114112;` is U+10000). */
+const jsxRuneToUtf16 = (rune: number): string => {
+	if (rune <= 0xffff) {
+		return String.fromCharCode(rune);
+	}
+	const shifted = rune - 0x10000;
+	return String.fromCharCode(
+		0xd800 + ((shifted >> 10) & 0x3ff),
+		0xdc00 + (shifted & 0x3ff),
+	);
+};
+
 /** Resolves a state-attribute value from its AST initializer node. A
  * constant string expression is a single value (with escapes processed); a
  * ternary whose branches are both constant strings is the two values of the
  * union (the condition is free-form — the branches are still exactly the
  * possible runtime values). Any other expression — a bare variable, a
  * template literal with a substitution, a call — is UNRESOLVABLE and fails
- * the call site loud. */
+ * the call site loud.
+ *
+ * Round 25 I2: the entity axis is split by context. A StringLiteral
+ * initializer (`data-x="a&amp;b"`) is a JSX attribute literal — the
+ * transform decodes its HTML character references, so the guard decodes
+ * before declaring RESOLVED. A StringLiteral reached through a
+ * JsxExpression is a JavaScript literal — the transform passes it verbatim,
+ * so evaluateConstantStrings must not decode. ts-morph already applies the
+ * backslash-escape axis in both contexts. */
 const resolveAttributeValue = (
 	initializer: Node,
 	file: string,
@@ -797,7 +1161,9 @@ const resolveAttributeValue = (
 		case SyntaxKind.StringLiteral:
 			return {
 				status: 'resolved',
-				values: [(initializer as StringLiteral).getLiteralValue()],
+				values: [
+					decodeJsxEntities((initializer as StringLiteral).getLiteralValue()),
+				],
 			};
 		case SyntaxKind.JsxExpression: {
 			const expression = (initializer as JsxExpression).getExpression();
@@ -3717,6 +4083,146 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(extractStateAttributes(' data-x={true}')).toEqual({
 			'data-x': { status: 'unresolvable' },
 		});
+	});
+
+	// Round 25 I2, the JSX-ATTRIBUTE-LITERAL context (the reader half of the
+	// round-24 BLOCKER): the transform decodes HTML character references in a
+	// string-literal attribute value, so the guard must decode before
+	// declaring RESOLVED. Every expected value below is what esbuild 0.28.1
+	// (the transform Vite runs) actually emitted for the same attribute —
+	// verbatim probe transcripts are in .dump/report-fix-r25.md. Before this
+	// fix the reader under-decoded here (`&#108;ow` stayed verbatim) and the
+	// writer re-decoded through innerHTML, the two errors cancelling for
+	// literals and un-hiding for expression containers. Reverting the decode
+	// makes THESE fixtures red against the esbuild-emitted values.
+	test('a JSX string-literal data-* value is decoded exactly as esbuild decodes it (round 25 I2)', () => {
+		// esbuild: `data-contrast-probe="a&amp;b"` → `"a&b"`.
+		expect(extractStateAttributes(' data-contrast-probe="a&amp;b"')).toEqual({
+			'data-contrast-probe': { status: 'resolved', values: ['a&b'] },
+		});
+		// Decimal and hex numeric references decode (`&#108;` is `l`,
+		// `&#x6c;` is `l`, `&#x78;` is `x`); `&#76;` is capital `L`.
+		expect(
+			extractStateAttributes(
+				' data-y="&#108;ow" data-n="&#x6c;ow" ' +
+					'data-xdup="&#x78;" data-m="&#76;ow"',
+			),
+		).toEqual({
+			'data-y': { status: 'resolved', values: ['low'] },
+			'data-n': { status: 'resolved', values: ['low'] },
+			'data-xdup': { status: 'resolved', values: ['x'] },
+			'data-m': { status: 'resolved', values: ['Low'] },
+		});
+		// The named-entity table decodes `&amp;`, `&lt;`, `&gt;`, `&quot;`,
+		// `&apos;`, `&nbsp;`, `&copy;` and the rest of the 253-entry table —
+		// and NOTHING else: `&bogus;` and uppercase `&AMP;` stay verbatim.
+		expect(
+			extractStateAttributes(
+				' data-q="&amp;" data-apos="&apos;x" data-quot="a&quot;b" ' +
+					'data-lt="a&lt;b" data-gt="a&gt;b" data-nb="a&nbsp;b" ' +
+					'data-cp="&copy;" data-bogus="&bogus;" data-up="&AMP;"',
+			),
+		).toEqual({
+			'data-q': { status: 'resolved', values: ['&'] },
+			'data-apos': { status: 'resolved', values: ["'x"] },
+			'data-quot': { status: 'resolved', values: ['a"b'] },
+			'data-lt': { status: 'resolved', values: ['a<b'] },
+			'data-gt': { status: 'resolved', values: ['a>b'] },
+			'data-nb': { status: 'resolved', values: ['a\u00A0b'] },
+			'data-cp': { status: 'resolved', values: ['\u00A9'] },
+			'data-bogus': { status: 'resolved', values: ['&bogus;'] },
+			'data-up': { status: 'resolved', values: ['&AMP;'] },
+		});
+		// A bare `&` without a valid reference, a missing semicolon, an
+		// uppercase `X` in a hex reference, an empty `&#x;` and a `&;` all
+		// stay verbatim — esbuild emits each of these unchanged.
+		expect(
+			extractStateAttributes(
+				' data-bare="a&b" data-nosemi="&#108ow" data-upper="&#X6C;ow" ' +
+					'data-emptyhex="&#x;" data-empty="a&;b"',
+			),
+		).toEqual({
+			'data-bare': { status: 'resolved', values: ['a&b'] },
+			'data-nosemi': { status: 'resolved', values: ['&#108ow'] },
+			'data-upper': { status: 'resolved', values: ['&#X6C;ow'] },
+			'data-emptyhex': { status: 'resolved', values: ['&#x;'] },
+			'data-empty': { status: 'resolved', values: ['a&;b'] },
+		});
+		// Decoding is single-pass: `&amp;amp;` is `&amp;`, never re-decoded
+		// to `&`; the scan takes the FIRST `;` after an `&`.
+		expect(extractStateAttributes(' data-double="&amp;amp;"')).toEqual({
+			'data-double': { status: 'resolved', values: ['&amp;'] },
+		});
+		expect(extractStateAttributes(' data-hash="a&#38;b"')).toEqual({
+			'data-hash': { status: 'resolved', values: ['a&b'] },
+		});
+		// Astral and control references emit exactly what esbuild emits.
+		expect(
+			extractStateAttributes(' data-astral="&#x1F600;" data-tab="&#x9;"'),
+		).toEqual({
+			'data-astral': { status: 'resolved', values: ['\u{1F600}'] },
+			'data-tab': { status: 'resolved', values: ['\t'] },
+		});
+		// The className axis is the same JSX literal: `className="c&#108;s"`
+		// is `cls` after the transform.
+		expect(extractClassName(' className="c&#108;s"', 'a.tsx', 3)).toBe('cls');
+	});
+
+	// Round 25 I2, the EXPRESSION-CONTAINER context: a StringLiteral inside a
+	// JsxExpression is a JavaScript literal, and esbuild passes it through
+	// VERBATIM — `{'a&amp;b'}` reaches React as the seven characters
+	// `a&amp;b` — so the guard must not decode. This is the context the
+	// round-24 reviewer reproduced (the false negative AND the false
+	// positive), where the old reader was already right and only the writer
+	// was wrong.
+	test('an expression-container data-* value is passed through verbatim, exactly as esbuild passes it (round 25 I2)', () => {
+		// esbuild: `data-contrast-probe={'a&amp;b'}` → `"a&amp;b"`.
+		expect(extractStateAttributes(` data-contrast-probe={'a&amp;b'}`)).toEqual({
+			'data-contrast-probe': { status: 'resolved', values: ['a&amp;b'] },
+		});
+		// esbuild: `data-expr2={'&#108;ow'}` → `"&#108;ow"`.
+		expect(extractStateAttributes(` data-expr2={'&#108;ow'}`)).toEqual({
+			'data-expr2': { status: 'resolved', values: ['&#108;ow'] },
+		});
+		// The backslash-escape axis is untouched in this context — the
+		// round-23 I2 fix still evaluates `'\x6cow'` to `low`.
+		expect(extractStateAttributes(` data-x={'\\x6cow'}`)).toEqual({
+			'data-x': { status: 'resolved', values: ['low'] },
+		});
+		// A no-substitution template literal is a JS string too — verbatim.
+		expect(extractStateAttributes(' data-t={`a&amp;b`}')).toEqual({
+			'data-t': { status: 'resolved', values: ['a&amp;b'] },
+		});
+		// The className axis follows the same split: an expression-container
+		// className stays verbatim (`className={'c&#108;s'}` → `c&#108;s`).
+		expect(extractClassName(` className={'c&#108;s'}`, 'a.tsx', 3)).toBe(
+			'c&#108;s',
+		);
+	});
+
+	// Round 25 I3, the literal-context half of the reader/writer pin: the
+	// reader decodes a JSX string-literal value to `a&b` — exactly what
+	// esbuild emits and React writes — the writer must render `a&b`, and a
+	// rule keyed on `a&b` must match. If either side carried the source
+	// spelling `a&amp;b`, the rule could not match and the low paint would
+	// be measured as the compliant default; the byte-identity assertion
+	// inside askEngine throws on the writer side, and this paint assertion
+	// proves the selector matched the probe.
+	test('a JSX-literal data-* value with a character reference is decoded, rendered and matched by the rule keyed on the runtime value (round 25 I3)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.publy-r25-lit[data-contrast-probe='a&b'] { color: var(--publy-foreground-subtle); }`,
+			['publy-r25-lit'],
+			{},
+			attributeConfigurationsOf(
+				extractStateAttributes(' data-contrast-probe="a&amp;b"'),
+			),
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
 	});
 
 	// Round 21 I1, the RED half of the ternary paired proof: the round-20
