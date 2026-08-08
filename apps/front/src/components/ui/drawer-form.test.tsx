@@ -9476,17 +9476,51 @@ const stripTailwindVariants = (token: string): string => {
  * The CSS properties an `@apply` utility token sets — the resolved form the
  * caller compares against DRAWER_FORM_GEOMETRY_PROPERTIES (property against
  * property, never utility against property). Arbitrary values
- * (`[display:block]`) name their property directly. Unknown tokens resolve to
- * nothing: the geometry side above is the complete standard-Tailwind grammar
- * for the geometry properties, so a token outside it cannot set one — custom
- * utilities (`@utility`) are outside this guard's boundary, the same way
- * custom CSS classes are.
+ * (`[display:block]`) name their property directly. Round 28's IMPORTANT 6:
+ * the result is THREE-VALUED like everything else in the guard. A token the
+ * resolver knows resolves to its properties (possibly none — provably
+ * non-geometry: an explicitly named non-geometry property in an arbitrary
+ * value, the resolved `flex-wrap`/`overflow-wrap-*` tokens, or the padding/
+ * margin families, whose Tailwind grammar is exactly these prefixes and sets
+ * only padding/margin). A token the resolver does NOT know is
+ * UNRESOLVED_APPLY_UTILITY — `sr-only` sets `overflow: hidden` (geometry),
+ * and a repository `@utility` may set anything, so "cannot resolve" must
+ * never read as "sets nothing relevant".
  */
+const UNRESOLVED_APPLY_UTILITY = Symbol('drawer-apply-utility-unresolved');
+
+// The Tailwind padding and margin grammar is exactly these prefixes, and
+// each sets only padding/margin properties — none of which the drawer
+// geometry owns — so a token under them is provably non-geometry.
+const NON_GEOMETRY_SPACING_PREFIXES = [
+	'p-',
+	'px-',
+	'py-',
+	'ps-',
+	'pe-',
+	'pt-',
+	'pr-',
+	'pb-',
+	'pl-',
+	'm-',
+	'mx-',
+	'my-',
+	'ms-',
+	'me-',
+	'mt-',
+	'mr-',
+	'mb-',
+	'ml-',
+];
+
 const resolveApplyUtilityGeometryProperties = (
 	token: string,
-): ReadonlyArray<string> => {
+): ReadonlyArray<string> | typeof UNRESOLVED_APPLY_UTILITY => {
 	const leaf = stripTailwindVariants(token).replace(/^!|!$/g, '');
 	if (leaf.startsWith('[') && leaf.endsWith(']')) {
+		// An arbitrary value names its property directly — exactly
+		// resolvable: geometry if the property is geometry, provably
+		// non-geometry otherwise.
 		const inner = leaf.slice(1, -1);
 		const property = inner.slice(0, inner.indexOf(':')).trim();
 		return DRAWER_FORM_GEOMETRY_PROPERTIES.has(property) ? [property] : [];
@@ -9515,7 +9549,10 @@ const resolveApplyUtilityGeometryProperties = (
 			return [property];
 		}
 	}
-	return [];
+	if (NON_GEOMETRY_SPACING_PREFIXES.some((prefix) => leaf.startsWith(prefix))) {
+		return [];
+	}
+	return UNRESOLVED_APPLY_UTILITY;
 };
 
 /**
@@ -9561,12 +9598,20 @@ const findConditionalDrawerFormGeometryRules = (
 					// comparison — never compared as a utility against the
 					// property set. Resolved against resolved is "like with
 					// like"; `block` and `p-4` can no longer be confused.
+					// Round 28's IMPORTANT 6: a token the resolver cannot
+					// resolve (`sr-only` sets `overflow: hidden`, a repo
+					// `@utility` may set anything) is a REPORT, never a
+					// clearance — unresolved is unknown, not harmless.
 					const params = (node.params ?? '').trim().split(/\s+/);
-					return params.some((token) =>
-						resolveApplyUtilityGeometryProperties(token).some((property) =>
+					return params.some((token) => {
+						const resolved = resolveApplyUtilityGeometryProperties(token);
+						if (resolved === UNRESOLVED_APPLY_UTILITY) {
+							return true;
+						}
+						return resolved.some((property) =>
 							DRAWER_FORM_GEOMETRY_PROPERTIES.has(property),
-						),
-					);
+						);
+					});
 				}
 				return false;
 			});
@@ -12494,6 +12539,53 @@ describe('drawer surface flex chain guard (#990)', () => {
 @media (max-width: 639px) {
 	.publy-drawer-form {
 		@apply p-4 flex-wrap overflow-wrap-break-word;
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		expect(findConditionalDrawerFormGeometryRules(harmlessSource)).toEqual([]);
+	});
+
+	test('a conditional rule that @applies an unresolvable utility is a violation at any width', () => {
+		// Round 28's IMPORTANT 6, verbatim: the reviewer's mutation wrote
+		// `@apply sr-only` inside the media query. `sr-only` sets
+		// `overflow: hidden` (and other layout properties), and
+		// DRAWER_FORM_GEOMETRY_PROPERTIES includes `overflow` — but the
+		// resolver returned `[]` for every token it did not recognize, so an
+		// undecidable geometry fact read as "harmless" and the rule was
+		// invisible. Resolution is now three-valued: a token the resolver
+		// cannot resolve is a REPORT, while a token it can prove
+		// non-geometry (an arbitrary value naming a non-geometry property,
+		// `flex-wrap`, `overflow-wrap-*`, the padding/margin families) stays
+		// green.
+		const breakingSource = `
+@media (min-width: 1025px) {
+	.publy-drawer .publy-drawer-form {
+		@apply sr-only;
+	}
+}
+
+.publy-drawer-form {
+	@apply flex min-h-0 flex-1 flex-col;
+}
+`;
+		expect(findConditionalDrawerFormGeometryRules(breakingSource)).toEqual([
+			{
+				atRule: '@media (min-width: 1025px)',
+				selector: '.publy-drawer .publy-drawer-form',
+			},
+		]);
+
+		// Provably non-geometry utilities stay green: an arbitrary value
+		// names its property directly, the explicit non-geometry tokens are
+		// resolved, and the padding/margin families set only padding/margin.
+		const harmlessSource = `
+@media (max-width: 639px) {
+	.publy-drawer-form {
+		@apply p-4 px-2 flex-wrap overflow-wrap-break-word [text-align:center];
 	}
 }
 
