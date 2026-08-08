@@ -1035,30 +1035,35 @@ export const scanZIndexFile = ({
 				};
 			}
 			if (ts.isElementAccessExpression(unwrapped)) {
-				const key = staticString(unwrapped.argumentExpression);
-				if (key.kind === 'overflow') {
-					return { node: null, overflow: true };
-				}
-				if (key.kind !== 'value') {
-					return { node: null, overflow: false };
-				}
-				const ownerResult = resolveMemberChain(
-					unwrapped.expression,
-					visitedConsts,
+				// All three outcomes are named (round-23 B1): a resolved key
+				// reads the member; an overflowing key is UNRESOLVED — the
+				// member cannot be ruled out — and stays loud; a provably
+				// runtime key resolves no member, exactly as #987's runtime
+				// bucket declares.
+				return staticString(
+					unwrapped.argumentExpression,
+					(value) => {
+						const ownerResult = resolveMemberChain(
+							unwrapped.expression,
+							visitedConsts,
+						);
+						if (ownerResult.overflow) {
+							return { node: null, overflow: true };
+						}
+						if (
+							ownerResult.node == null ||
+							!ts.isObjectLiteralExpression(ownerResult.node)
+						) {
+							return { node: null, overflow: false };
+						}
+						return {
+							node: staticObjectMemberNode(ownerResult.node, value).node,
+							overflow: false,
+						};
+					},
+					() => ({ node: null, overflow: true }),
+					() => ({ node: null, overflow: false }),
 				);
-				if (ownerResult.overflow) {
-					return { node: null, overflow: true };
-				}
-				if (
-					ownerResult.node == null ||
-					!ts.isObjectLiteralExpression(ownerResult.node)
-				) {
-					return { node: null, overflow: false };
-				}
-				return {
-					node: staticObjectMemberNode(ownerResult.node, key.value).node,
-					overflow: false,
-				};
 			}
 			return {
 				node: resolveModuleConstFixpoint(unwrapped, visitedConsts),
@@ -1244,7 +1249,13 @@ export const scanZIndexFile = ({
 		// business" and the enclosing CSS-sink consumer printed OK. Overflow
 		// is never survivable by a caller that reaches a CSS sink: it must
 		// report by name, exactly like an unparseable payload.
-		const staticString = (node) => {
+		//
+		// This projection is PRIVATE: the only permitted caller is the
+		// `staticString` funnel below. The mechanical test enumerates every
+		// call site of this function in the guard script and fails when a new
+		// consumption bypasses the funnel (round-23 B1 — a hand-written audit
+		// of the consumers failed once on this exact property).
+		const staticStringRaw = (node) => {
 			const result = staticStringValues(node);
 			if (result == null) {
 				return { kind: 'not-static' };
@@ -1257,10 +1268,50 @@ export const scanZIndexFile = ({
 			}
 			return { kind: 'value', value: [...result.values][0] };
 		};
+		// One funnel for every `staticString()` consumption (round-23 B1).
+		// The raw projection answers a three-valued question, and every
+		// consumer must declare what all three outcomes mean for its own rule
+		// by passing handlers — `onValue(value)`, `onOverflow()`, and
+		// `onNotStatic()`. There is no default: omitting a handler throws, so
+		// an UNRESOLVED outcome can never be silently coerced into a benign
+		// `null` by a `?? null` or a truthiness-guarded `.value` read at a
+		// future call site. The mechanical test verifies that every call site
+		// names all three outcomes.
+		const staticString = (node, onValue, onOverflow, onNotStatic) => {
+			if (
+				typeof onValue !== 'function' ||
+				typeof onOverflow !== 'function' ||
+				typeof onNotStatic !== 'function'
+			) {
+				throw new Error(
+					'staticString requires handlers for all three outcomes: ' +
+						'resolved value, UNRESOLVED overflow, and provably-not-static.',
+				);
+			}
+			const kind = staticStringRaw(node);
+			if (kind.kind === 'value') {
+				return onValue(kind.value);
+			}
+			if (kind.kind === 'overflow') {
+				return onOverflow();
+			}
+			return onNotStatic();
+		};
 		const propertyName = (name) => {
 			if (ts.isComputedPropertyName(name)) {
-				const key = staticString(name.expression);
-				return key.kind === 'value' ? key.value : null;
+				// A computed key goes through the funnel with all three
+				// outcomes named (round-23 B1). An unnameable key (overflow
+				// or runtime) reads as no name here, but it is not a silent
+				// drop: the occurrence-level object walk separately flags an
+				// overflowing computed key (`overflowKeys`) at every position
+				// that may carry the requested member name, and style-capable
+				// callers turn that into the named diagnostic.
+				return staticString(
+					name.expression,
+					(value) => value,
+					() => null,
+					() => null,
+				);
 			}
 			if (ts.isIdentifier(name)) {
 				return name.text;
@@ -1336,13 +1387,21 @@ export const scanZIndexFile = ({
 						// member identity is unresolvable, so it shadows
 						// static facts exactly like an opaque spread, and
 						// `overflowKeys` lets a style-capable caller name the
-						// unresolvable input precisely.
-						const key = staticString(candidate.name.expression);
-						if (key.kind === 'overflow') {
-							overflowKeys = true;
-							lastOpaqueSpreadIndex = index;
-							opaqueSpreadNode = candidate;
-						}
+						// unresolvable input precisely. The funnel names all
+						// three outcomes (round-23 B1); only overflow shadows
+						// the occurrence — a provably runtime key cannot
+						// establish a member here, and a resolved key is
+						// matched by the `propertyName` check below.
+						staticString(
+							candidate.name.expression,
+							() => {},
+							() => {
+								overflowKeys = true;
+								lastOpaqueSpreadIndex = index;
+								opaqueSpreadNode = candidate;
+							},
+							() => {},
+						);
 					}
 					if (propertyName(candidate.name) === name) {
 						valueNode = candidate.initializer;
@@ -1557,20 +1616,30 @@ export const scanZIndexFile = ({
 				};
 			}
 			if (member != null && ts.isElementAccessExpression(member)) {
-				const key = staticString(member.argumentExpression);
 				// An overflowing element-access method name cannot name the
 				// method at all (round-21 B1): the receiver is a member read
 				// the guard cannot pin, so recognition callers must treat it
 				// as UNRESOLVED and fail loud instead of concluding the
-				// method is not the one under test.
-				if (key.kind === 'overflow') {
-					return { owner: member.expression, name: null, overflow: true };
-				}
-				return {
-					owner: member.expression,
-					name: key.kind === 'value' ? key.value : null,
-					overflow: false,
-				};
+				// method is not the one under test. The funnel names all
+				// three outcomes (round-23 B1).
+				return staticString(
+					member.argumentExpression,
+					(value) => ({
+						owner: member.expression,
+						name: value,
+						overflow: false,
+					}),
+					() => ({
+						owner: member.expression,
+						name: null,
+						overflow: true,
+					}),
+					() => ({
+						owner: member.expression,
+						name: null,
+						overflow: false,
+					}),
+				);
 			}
 			return null;
 		};
@@ -2060,22 +2129,29 @@ export const scanZIndexFile = ({
 				);
 			}
 			if (ts.isElementAccessExpression(expression)) {
-				const key = staticString(expression.argumentExpression);
-				if (key.kind === 'value') {
-					return rawSpecifiersForNamedMemberAccess(
-						expression.expression,
-						key.value,
-						visitedConsts,
-					);
-				}
-				// An overflowing key (round-21 B1) is handled exactly like a
-				// provably-incomplete one: the member cannot be named, so the
-				// raw-byte question is decided by whether a recorded raw
-				// binding is reachable inside the expression.
-				return {
-					specifiers: [],
-					unresolved: expressionContainsRawBinding(expression, visitedConsts),
-				};
+				// The funnel names all three outcomes (round-23 B1): a
+				// resolved key reads the named member; an overflowing key is
+				// handled exactly like a provably-incomplete one — the member
+				// cannot be named, so the raw-byte question is decided by
+				// whether a recorded raw binding is reachable inside the
+				// expression.
+				return staticString(
+					expression.argumentExpression,
+					(value) =>
+						rawSpecifiersForNamedMemberAccess(
+							expression.expression,
+							value,
+							visitedConsts,
+						),
+					() => ({
+						specifiers: [],
+						unresolved: expressionContainsRawBinding(expression, visitedConsts),
+					}),
+					() => ({
+						specifiers: [],
+						unresolved: expressionContainsRawBinding(expression, visitedConsts),
+					}),
+				);
 			}
 			if (ts.isIdentifier(expression)) {
 				// The direct binding, or a module-scope const alias chain that
@@ -2835,10 +2911,35 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		// Shared member-name decision for both spellings of a `.style`
+		// member read: a resolved member that is not `style` is provably not
+		// the CSSOM accessor, and a `style` member whose owner is provably a
+		// plain object literal is ordinary data, never the CSSOM accessor.
+		const styleDeclarationReceiverKindForMember = (
+			memberName,
+			expression,
+			visited,
+		) => {
+			if (memberName !== 'style') {
+				return 'other';
+			}
+			const owner = unwrapTransparentExpression(expression.expression);
+			if (owner != null) {
+				const resolvedOwner = resolvedStaticObject(owner);
+				if (
+					resolvedOwner != null &&
+					ts.isObjectLiteralExpression(resolvedOwner)
+				) {
+					return 'plain-object';
+				}
+			}
+			return 'style-decl';
+		};
 		// The receiver of a call — `element.style`, `el['style']`, `s`, `{ style }`
 		// — is a CSSStyleDeclaration when its final member is `style` and the
 		// owner is not provably a plain object literal. Returns 'style-decl',
-		// 'plain-object', or 'other'.
+		// 'plain-object', 'unresolved' (a computed member key the guard cannot
+		// enumerate may be `style` — round-23 B1), or 'other'.
 		const styleDeclarationReceiverKind = (node, visited = new Set()) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
@@ -2848,26 +2949,31 @@ export const scanZIndexFile = ({
 				ts.isPropertyAccessExpression(expression) ||
 				ts.isElementAccessExpression(expression)
 			) {
-				const memberName = ts.isPropertyAccessExpression(expression)
-					? expression.name.text
-					: (() => {
-							const key = staticString(expression.argumentExpression);
-							return key.kind === 'value' ? key.value : null;
-						})();
-				if (memberName !== 'style') {
-					return 'other';
+				if (ts.isPropertyAccessExpression(expression)) {
+					return styleDeclarationReceiverKindForMember(
+						expression.name.text,
+						expression,
+						visited,
+					);
 				}
-				const owner = unwrapTransparentExpression(expression.expression);
-				if (owner != null) {
-					const resolvedOwner = resolvedStaticObject(owner);
-					if (
-						resolvedOwner != null &&
-						ts.isObjectLiteralExpression(resolvedOwner)
-					) {
-						return 'plain-object';
-					}
-				}
-				return 'style-decl';
+				// A computed `.style` member goes through the funnel with all
+				// three outcomes named (round-23 B1). An overflowing key is
+				// UNRESOLVED: it is provably static text the guard cannot
+				// enumerate, the member may be `style`, and the receiver may
+				// be a CSSStyleDeclaration — the call cannot be waved through
+				// as an ordinary unknown. A provably runtime key is the same
+				// unprovable member question: it may be `style` at runtime.
+				return staticString(
+					expression.argumentExpression,
+					(memberName) =>
+						styleDeclarationReceiverKindForMember(
+							memberName,
+							expression,
+							visited,
+						),
+					() => 'unresolved',
+					() => 'unresolved',
+				);
 			}
 			if (ts.isIdentifier(expression)) {
 				if (visited.has(expression.text)) {
@@ -2925,18 +3031,29 @@ export const scanZIndexFile = ({
 				return styleDeclarationReceiverKind(callee.expression, visited);
 			}
 			if (ts.isElementAccessExpression(callee)) {
-				const key = staticString(callee.argumentExpression);
-				if (key.kind === 'overflow') {
-					const receiverKind = styleDeclarationReceiverKind(
-						callee.expression,
-						visited,
-					);
-					return receiverKind === 'style-decl' ? 'overflow' : 'other';
-				}
-				if (key.kind !== 'value' || key.value !== 'setProperty') {
-					return 'other';
-				}
-				return styleDeclarationReceiverKind(callee.expression, visited);
+				// The funnel names all three outcomes (round-23 B1): a
+				// resolved method name decides the receiver; an overflowing
+				// method name on a receiver the guard cannot rule out as a
+				// style declaration stays loud; a provably runtime method
+				// name stays in the declared runtime bucket.
+				return staticString(
+					callee.argumentExpression,
+					(key) =>
+						key !== 'setProperty'
+							? 'other'
+							: styleDeclarationReceiverKind(callee.expression, visited),
+					() => {
+						const receiverKind = styleDeclarationReceiverKind(
+							callee.expression,
+							visited,
+						);
+						return receiverKind === 'style-decl' ||
+							receiverKind === 'unresolved'
+							? 'overflow'
+							: 'other';
+					},
+					() => 'other',
+				);
 			}
 			if (ts.isIdentifier(callee)) {
 				if (visited.has(callee.text)) {
@@ -2985,13 +3102,10 @@ export const scanZIndexFile = ({
 			});
 		};
 		const recordScaleTokenDefinitionCandidates = (nameResult, node) => {
-			// Any provable candidate key is a possible reserved-token write:
-			// `setProperty(cond ? '--publy-z-a' : 'color')` may write the
-			// reserved token, so the first reserved candidate reds. An
-			// overflowing candidate space is the same unresolvable input: the
-			// key is provably static text the guard cannot enumerate, so it
-			// may write the reserved namespace and the guard fails loud by
-			// name instead of assuming compliant (round-19 B1).
+			// Returns whether a violation was recorded, so a caller that must
+			// also be loud when nothing here fires (an UNRESOLVED receiver at
+			// a setProperty sink, round-23 B1) knows the key analysis found
+			// nothing to report.
 			if (nameResult?.overflow) {
 				violations.push({
 					ruleId: 'z-index-static-candidate-overflow',
@@ -3004,18 +3118,19 @@ export const scanZIndexFile = ({
 					line: lineForOffset(content, node.getStart(sourceFile)),
 					source: node.getText(sourceFile),
 				});
-				return;
+				return true;
 			}
 			const nameValues = nameResult?.values ?? null;
 			if (nameValues == null) {
-				return;
+				return false;
 			}
 			for (const name of nameValues) {
 				if (name.startsWith('--publy-z-')) {
 					recordScaleTokenDefinition(name, node);
-					return;
+					return true;
 				}
 			}
+			return false;
 		};
 		const visitScaleTokenDefinitions = (node) => {
 			if (ts.isPropertyAssignment(node)) {
@@ -3033,13 +3148,37 @@ export const scanZIndexFile = ({
 				}
 			} else if (ts.isCallExpression(node)) {
 				const setterKind = cssStyleSetterCallKind(node.expression);
-				if (setterKind === 'style-decl') {
-					// A CSSOM write, however it is spelled — dot, bracket,
-					// aliased receiver, or destructured method (round-21 I1).
-					recordScaleTokenDefinitionCandidates(
+				if (setterKind === 'style-decl' || setterKind === 'unresolved') {
+					// A CSSOM write — however it is spelled (dot, bracket,
+					// aliased receiver, or destructured method, round-21 I1)
+					// — or a receiver the guard cannot rule out as one
+					// (round-23 B1): the key is still a possible reserved
+					// scale-token write.
+					const reported = recordScaleTokenDefinitionCandidates(
 						staticStringValues(node.arguments[0]),
 						node,
 					);
+					if (setterKind === 'unresolved' && !reported) {
+						// An UNRESOLVED receiver reached a setProperty sink
+						// and the key analysis found nothing to report: the
+						// call cannot be proven a CSSOM write and cannot be
+						// proven not to be, so it must fail loud by name
+						// instead of resolving to a compliant default
+						// (round-23 B1 — absence of proof is not proof of
+						// absence).
+						violations.push({
+							ruleId: 'z-index-cssom-write-unresolved',
+							message:
+								'a setProperty call receiver cannot be proven to be a ' +
+								'CSSStyleDeclaration or proven not to be — the write ' +
+								'cannot be ruled out; make the receiver provably ' +
+								'ordinary data (a plain object or class field) or ' +
+								'provably the DOM accessor.',
+							file: relativePath,
+							line: lineForOffset(content, node.getStart(sourceFile)),
+							source: node.getText(sourceFile),
+						});
+					}
 				} else if (setterKind === 'overflow') {
 					// The receiver provably reaches a CSSStyleDeclaration and
 					// the method name cannot be enumerated — it may be

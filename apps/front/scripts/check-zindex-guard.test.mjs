@@ -172,6 +172,109 @@ const assertClean = (relativePath, content) => {
 	);
 };
 
+test('guard structure (round 23 B1): every staticString() consumption routes through the three-outcome funnel', async () => {
+	// Round 21's "every call site was audited" claim failed because an audit
+	// cannot hold a property the code does not enforce: a consumer added
+	// after the audit dropped `staticString()` overflow back onto the benign
+	// default (`?? null` → "ordinary unknown"). This check is mechanical,
+	// not a hand-written list: it parses the guard script and enumerates the
+	// call sites itself.
+	//   - The raw projection (`staticStringRaw`) must be reachable only from
+	//     inside the `staticString` funnel.
+	//   - Every funnel call must name all three outcomes (a node plus three
+	//     handlers). A new consumer that calls the raw projection directly,
+	//     or a funnel call that omits a handler, fails here.
+	const script = await readFile(
+		path.join(scriptsDir, 'check-zindex-guard.mjs'),
+		'utf8',
+	);
+	const sourceFile = ts.createSourceFile(
+		'check-zindex-guard.mjs',
+		script,
+		ts.ScriptTarget.Latest,
+		true,
+		ts.ScriptKind.JS,
+	);
+	const funnelCalls = [];
+	const rawCalls = [];
+	let funnelArrow = null;
+	const visit = (node) => {
+		if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+			if (node.expression.text === 'staticStringRaw') {
+				rawCalls.push(node);
+			} else if (node.expression.text === 'staticString') {
+				funnelCalls.push(node);
+			}
+		}
+		if (
+			funnelArrow == null &&
+			ts.isVariableDeclaration(node) &&
+			ts.isIdentifier(node.name) &&
+			node.name.text === 'staticString' &&
+			node.initializer != null &&
+			ts.isArrowFunction(node.initializer)
+		) {
+			funnelArrow = node.initializer;
+		}
+		node.forEachChild(visit);
+	};
+	visit(sourceFile);
+	assert.ok(funnelArrow != null, 'the staticString funnel must exist');
+	// The funnel itself must dispatch on all three outcomes — a rewrite that
+	// folds overflow back into the benign branch is a B1 regression.
+	const funnelText = funnelArrow.getText(sourceFile);
+	for (const marker of ["kind.kind === 'value'", "kind.kind === 'overflow'"]) {
+		assert.ok(
+			funnelText.includes(marker),
+			`the funnel must explicitly handle ${marker}: ${funnelText}`,
+		);
+	}
+	assert.ok(funnelCalls.length >= 7, 'every consumer must use the funnel');
+	// Every raw-projection call site must sit inside the funnel body.
+	const enclosingFunction = (call) => {
+		let cursor = call.parent;
+		while (cursor != null) {
+			if (
+				ts.isArrowFunction(cursor) ||
+				ts.isFunctionExpression(cursor) ||
+				ts.isFunctionDeclaration(cursor) ||
+				ts.isMethodDeclaration(cursor)
+			) {
+				return cursor;
+			}
+			cursor = cursor.parent;
+		}
+		return null;
+	};
+	const isFunnel = (fn) =>
+		fn === funnelArrow ||
+		(fn != null &&
+			ts.isArrowFunction(fn) &&
+			ts.isVariableDeclaration(fn.parent) &&
+			ts.isIdentifier(fn.parent.name) &&
+			fn.parent.name.text === 'staticString');
+	for (const call of rawCalls) {
+		assert.ok(
+			isFunnel(enclosingFunction(call)),
+			`staticStringRaw must only be called inside the funnel: ${call.getText(
+				sourceFile,
+			)}`,
+		);
+	}
+	// Every funnel call must name all three outcomes — no `?? null`, no
+	// truthiness-guarded `.value` read, no default that maps a non-value
+	// result onto a benign kind.
+	for (const call of funnelCalls) {
+		assert.equal(
+			call.arguments.length,
+			4,
+			`staticString() must receive a node and onValue/onOverflow/onNotStatic handlers: ${call.getText(
+				sourceFile,
+			)}`,
+		);
+	}
+});
+
 // Compiled-gate violations come from the emitted assets of the real build
 // (`emitted/<relative>` display paths, since the guard-owned output directory
 // lives in the OS temp root) or from an override fixture under `dist/`.
