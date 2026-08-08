@@ -217,6 +217,7 @@ const buildRouteFixture = async ({
 	emitKeepMap = false,
 	keepMapContentEqualsChunkMap = false,
 	replaceOwnedMapAsset = false,
+	renameModuleCallee = false,
 }) => {
 	let buildOptions = '';
 	if (groupProbeModules) {
@@ -321,6 +322,26 @@ const buildRouteFixture = async ({
 						},`
 							: ''
 					}
+						${
+							renameModuleCallee
+								? `{
+						name: 'r26-rename-module-callee',
+						applyToEnvironment: (environment) => environment.name === 'client',
+						generateBundle(_options, bundle) {
+							for (const chunk of Object.values(bundle)) {
+								if (chunk.type !== 'chunk') continue;
+								for (const [moduleId, rendered] of Object.entries(chunk.modules)) {
+									if (typeof rendered.code !== 'string') continue;
+									chunk.modules[moduleId] = {
+										...rendered,
+										code: rendered.code.replace(/\\bcreateStrictContext\\b/g, 'm').replace(/\\bcreateContext\\b/g, 'c'),
+									};
+								}
+							}
+						},
+					},`
+								: ''
+						}
 					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { const chunks = Object.values(bundle).filter((output) => output.type === 'chunk'); writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(chunks.map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); mkdirSync(path.join(rootDirectory, 'chunk-maps'), { recursive: true }); for (const chunk of chunks) { if (chunk.map) writeFileSync(path.join(rootDirectory, 'chunk-maps', \`\${chunk.fileName.replaceAll('/', '_')}.json\`), JSON.stringify({ fileName: chunk.fileName, map: chunk.map }, null, 2)); } } },
 					${
 						replaceOwnedMapAsset
@@ -3840,6 +3861,73 @@ void test('fails closed when a wrong map lands a forged generated position insid
 	);
 });
 
+void test('treats a mint-callee string in a copy as inert — the string is never minting evidence', () => {
+	// Round 25's R25_STRING_CALLEE false positive: the old spelling
+	// classifier read the *string* "createStrictContext(" in a copy's
+	// rendered code as a mint and failed the build on it. The single
+	// classifier never looks at the rendered text: the emitted-call scanner
+	// skips strings, and the copy below is unverifiable for the same reason
+	// the identical copy without the string is — its map ties its emitted
+	// call to no recorded mint span. Both shapes throw the same fail-closed
+	// error; the string changes nothing.
+	const sourceFile = path.join(
+		frontDirectory,
+		'src/routes/field-validation.tsx',
+	);
+	const splitModule = `${sourceFile}?tsr-split=component`;
+	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
+	const stringCopyCode = 'var s="createStrictContext("; otherHelper(null);';
+	const plainCopyCode = 'var otherHelper = null; otherHelper(null);';
+
+	for (const splitCopyCode of [stringCopyCode, plainCopyCode]) {
+		assert.throws(
+			() =>
+				findContextChunkIsolationViolations(
+					[
+						{
+							name: '<anonymous context>',
+							sourceFile,
+							mintSpans: [mintSpan],
+						},
+					],
+					[
+						chunkWithCode(
+							'assets/route.js',
+							'var contexts={probe:m(null)};',
+							{ [sourceFile]: { code: 'var contexts={probe:m(null)};' } },
+							[
+								{
+									source: sourceFile,
+									origLine: 0,
+									origCol: 17,
+									genLine: 0,
+									genCol: 42,
+								},
+							],
+						),
+						chunkWithCode(
+							'assets/route-component.js',
+							splitCopyCode,
+							{ [splitModule]: { code: splitCopyCode } },
+							[
+								{
+									source: splitModule,
+									origLine: 0,
+									origCol: 40,
+									genLine: 0,
+									genCol: 29,
+								},
+							],
+						),
+					],
+					frontDirectory,
+				),
+			/cannot classify how <anonymous context> .* is created/i,
+			`split copy ${JSON.stringify(splitCopyCode)} must fail closed`,
+		);
+	}
+});
+
 void test('deletes only the forced map the guard owns, never an exact-name unrelated asset', () => {
 	// Round 25's R25_FORCED_NAME_COLLISION: the round-24 cleanup deleted
 	// every asset at `chunk.name + '.map'` because a mapped chunk shared the
@@ -5952,6 +6040,82 @@ void test(
 			assert.ok(
 				parsed.sources?.length > 0,
 				'the asset carried a real chunk map',
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'fails a real TanStack route build closed when the per-module rendered mint identifier is renamed and the split map hides the mint',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 25's R25_MINIFIED_CALLEE through a real build: the split
+		// copy's map hides the mint (its segments resolve outside the
+		// recorded span) while minification renames the per-module rendered
+		// mint identifier, so a name-based non-minting verdict would declare
+		// the genuinely minting copy "provably non-minting" and ship the
+		// duplicated mint green. The single emitted-call classifier never
+		// reads the rendered text: it fails closed on the unverifiable copy.
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const ProbeContext = createStrictContext<null>(null);
+					export const useProbe = () => useContext(ProbeContext);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+			forgeSplitMap: true,
+			renameModuleCallee: true,
+		});
+
+		try {
+			const renamedCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (moduleId.includes('/src/routes/probe.tsx')) {
+						renamedCopies.push(`${chunk.fileName} :: ${moduleId} :: ${code}`);
+					}
+				}
+			}
+			assert.ok(
+				renamedCopies.length >= 2,
+				`SPLIT ${JSON.stringify(renamedCopies, null, 2)}`,
+			);
+			assert.ok(
+				renamedCopies.every(
+					(location) => !/create(?:Strict)?Context\s*\(/.test(location),
+				),
+				`the mint must be renamed away from the source spelling in every rendered module: ${JSON.stringify(renamedCopies, null, 2)}`,
+			);
+			assert.ok(
+				renamedCopies.some((location) =>
+					/\b[cm][^a-zA-Z0-9_$]*\(null\)/.test(location),
+				),
+				`the renamed mint call must still execute in a rendered module: ${JSON.stringify(renamedCopies, null, 2)}`,
+			);
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/cannot classify how ProbeContext in src\/routes\/probe\.tsx is created/i,
 			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
