@@ -17,6 +17,18 @@ import { toastVariantClassNames } from '../src/components/ui/toast-variants';
 // the runner).
 test.use({ deviceScaleFactor: 2 });
 
+// The suite's own leg under genuine contention is 19.9-24.0s of measurement
+// work against the shipped 30s test timeout (round-15 I2, four legs at
+// load 64-68 on 12 cores — ~80% occupancy, the round-13 flake). The
+// `data-hydrated` wait is NOT the binding cost: it measured 0.31-1.20s in
+// the same runs. This spec raises its own test timeout to 60s — 2.5x the
+// measured leg, the cost that actually binds — and bounds the hydration
+// wait at 30s in `openToastFixture`: a reachable bound, whose exhaustion
+// surfaces as the locator's own diagnostic ~29s before the test timeout
+// instead of the bare "Test timeout exceeded" that the 30s test timeout
+// made of round 14's unreachable 30s attribute wait.
+test.setTimeout(60_000);
+
 /**
  * #998 browser-side toast contrast guard.
  *
@@ -2269,19 +2281,16 @@ const openToastFixture = async (
 	// the fixture's own `data-hydrated` attribute, which the page sets in a
 	// post-hydration effect, before the first click.
 	//
-	// The wait is bounded by 30s — the suite's own test timeout — not the 5s
-	// expect default, because hydration here is a COLD load with no faster
-	// path to wait on: every test opens a fresh context (no HTTP cache, so
-	// the route's whole client bundle is fetched again — and this is the
-	// suite's heaviest route: zod + react-hook-form + Base UI Select + i18n
-	// in one chunk graph) in a fresh browser process (no V8 code cache), and
-	// the review's round-13 evidence shows the settled cost on a contended
-	// host stretching past 5s (two identical targeted runs died at the
-	// attribute wait; an identical rerun passed; this round also saw a cold
-	// `goto` stall past 30s under load). Measured idle on this host: the
-	// fixture hydrates 2.1-2.8s after navigation, so 5s is simply the wrong
-	// bound for a cold, contended load; 30s can still fail before the toast
-	// work itself would.
+	// The bound is 30s, argued against the cost that actually binds
+	// (round-15 IMPORTANT 2): the attribute wait itself is cheap — it
+	// measured 0.31-1.20s across the four legs under load 64-68 on 12 cores
+	// — while the whole LEG is the binding cost (19.9-24.0s of sequential
+	// measurement against the shipped 30s test timeout, the round-13
+	// flake). The spec's own `test.setTimeout(60_000)` above gives the leg
+	// ~2.5x headroom, and this 30s attribute bound is reachable inside it:
+	// a hydration failure exhausts here with the locator's own diagnostic
+	// instead of a bare test timeout (round 14's 30s bound could never be
+	// reached — the 30s test timeout that contains it swallowed it first).
 	const fixture = page.getByTestId('toast-contrast-fixture');
 	await expect(fixture).toBeVisible();
 	await expect(fixture).toHaveAttribute('data-hydrated', 'true', {
