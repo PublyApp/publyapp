@@ -2855,19 +2855,30 @@ export const scanZIndexFile = ({
 		if (checkBuildReachableScript) {
 			visitStaticStyleEscapes(sourceFile);
 		}
-		// --- CSSOM receiver semantics (round-21 I1) --------------------------
+		// --- CSSOM receiver semantics (round-21 I1, round-23 identity) -------
 		// `setProperty` is a CSSOM write only when it provably reaches a
-		// `CSSStyleDeclaration`. The guard decides that from the receiver, not
-		// from the call's spelling: a dot or bracket call, an aliased receiver,
-		// or a destructured method all count — and a method merely *named*
-		// `setProperty` on an unrelated object counts for nothing. The static
-		// signal that a receiver is a CSSStyleDeclaration is that it is (or
-		// represents) a `.style` member access of an element, and that the
-		// owner of that `.style` is not provably a plain object literal (which
-		// would make `.style` an ordinary data property, not the CSSOM
-		// accessor). Resolving a static object to a plain object literal uses
-		// the same transparent wrapper + alias-chain model as the rest of the
-		// guard.
+		// `CSSStyleDeclaration`. The guard decides that from the receiver's
+		// identity, not from the call's spelling: a dot or bracket call, a
+		// bound method alias, or a destructured method all reduce to the same
+		// question — is the eventual `this` a CSSStyleDeclaration? — and a
+		// method merely *named* `setProperty` on an unrelated object counts
+		// for nothing.
+		//
+		// Identity is a three-way fact (round-23 I1):
+		//   - PROVEN CSSOM — the receiver is a `.style` member of a value the
+		//     source types as a DOM element, or a value typed
+		//     `CSSStyleDeclaration` itself. A type annotation is a static fact
+		//     of the source, the same class of proof as an object literal.
+		//   - PROVEN NOT CSSOM — the `.style` owner is a plain object literal
+		//     or a class instance (a `new Class()` never yields the DOM
+		//     accessor unless the class extends a DOM element), or the method
+		//     is unbound-destructured (a bare destructured Web-IDL method
+		//     raises `TypeError: Illegal invocation` and writes nothing).
+		//   - UNRESOLVED — a parameter without a DOM/CSSOM annotation, an
+		//     import, a global, a function result: absence of proof is not
+		//     proof of absence, so the write fails loud by name at the sink.
+		// Resolving a static object to a plain object literal uses the same
+		// transparent wrapper + alias-chain model as the rest of the guard.
 		const resolvedStaticObject = (node, visited = new Set()) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression != null && ts.isObjectLiteralExpression(expression)) {
@@ -2911,35 +2922,160 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		// The named type references of a parameter/const annotation, unwrapped
+		// through nullable unions: `HTMLElement`, `HTMLElement | null`, and
+		// `CSSStyleDeclaration` are the identities this guard can prove. An
+		// empty list means the annotation (if any) names nothing the guard
+		// understands — the identity is unprovable.
+		const namedTypeCandidates = (type) => {
+			if (type == null) {
+				return [];
+			}
+			if (ts.isTypeReferenceNode(type)) {
+				return ts.isIdentifier(type.typeName) ? [type.typeName.text] : [];
+			}
+			if (ts.isUnionTypeNode(type) || ts.isIntersectionTypeNode(type)) {
+				return type.types.flatMap(namedTypeCandidates);
+			}
+			return [];
+		};
+		// The two provable receiver identities a type annotation can carry
+		// (round-23 I1):
+		//   - a CSSStyleDeclaration-typed value is the accessor itself;
+		//   - a DOM-element-typed value carries the accessor under `.style`
+		//     and has no `setProperty` member of its own — a direct call on
+		//     it is provably not a write.
+		const receiverIdentityFromTypeNames = (names) => {
+			if (
+				names.some(
+					(name) =>
+						name === 'CSSStyleDeclaration' || name.endsWith('StyleDeclaration'),
+				)
+			) {
+				return 'style-decl';
+			}
+			if (
+				names.some((name) => name === 'Element' || name.endsWith('Element'))
+			) {
+				return 'element';
+			}
+			return null;
+		};
+		const typeAnnotationNames = (node) => {
+			// The named types of the nearest annotated binding of a value
+			// expression (a parameter or a variable declaration).
+			if (!ts.isIdentifier(node)) {
+				return [];
+			}
+			const binding = nearestBinding(node, node.text);
+			if (binding == null) {
+				return [];
+			}
+			if (ts.isParameter(binding) || ts.isVariableDeclaration(binding)) {
+				return namedTypeCandidates(binding.type);
+			}
+			return [];
+		};
+		// Resolves a `.style` owner to a class instance it provably is — a
+		// `new X()` through identifier/alias chains — returning the class
+		// declaration, or null when the owner is not provably a class
+		// instance (an import, a parameter, a function result).
+		const classInstanceOwner = (node, visited = new Set()) => {
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
+				return null;
+			}
+			if (ts.isNewExpression(expression)) {
+				const callee = unwrapTransparentExpression(expression.expression);
+				if (callee != null && ts.isIdentifier(callee)) {
+					const binding = nearestBinding(callee, callee.text);
+					if (binding != null && ts.isClassDeclaration(binding)) {
+						return binding;
+					}
+				}
+				return null;
+			}
+			if (ts.isIdentifier(expression)) {
+				if (visited.has(expression.text)) {
+					return null;
+				}
+				const next = new Set(visited);
+				next.add(expression.text);
+				const binding = nearestBinding(expression, expression.text);
+				if (
+					binding != null &&
+					ts.isVariableDeclaration(binding) &&
+					binding.initializer != null
+				) {
+					return classInstanceOwner(binding.initializer, next);
+				}
+			}
+			return null;
+		};
+		const classExtendsDomElement = (classDeclaration) => {
+			// A class extending a DOM element (`class Panel extends
+			// HTMLElement`) inherits the real CSSOM accessor, so its
+			// instances are not provable data carriers.
+			for (const clause of classDeclaration.heritageClauses ?? []) {
+				if (clause.token !== ts.SyntaxKind.ExtendsKeyword) {
+					continue;
+				}
+				for (const heritageType of clause.types) {
+					const expression = unwrapTransparentExpression(
+						heritageType.expression,
+					);
+					if (
+						expression != null &&
+						ts.isIdentifier(expression) &&
+						(expression.text === 'Element' ||
+							expression.text.endsWith('Element'))
+					) {
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+		// The identity of a `.style` member's owner (round-23 I1): a plain
+		// object literal or an ordinary class instance is provably data; a
+		// DOM-element-typed value is provably the CSSOM accessor; everything
+		// else — a parameter, an import, a function result — is UNRESOLVED.
+		const styleMemberOwnerKind = (owner) => {
+			const resolvedOwner = resolvedStaticObject(owner);
+			if (
+				resolvedOwner != null &&
+				ts.isObjectLiteralExpression(resolvedOwner)
+			) {
+				return 'plain-object';
+			}
+			const classDeclaration = classInstanceOwner(owner);
+			if (
+				classDeclaration != null &&
+				!classExtendsDomElement(classDeclaration)
+			) {
+				return 'plain-object';
+			}
+			const identity = receiverIdentityFromTypeNames(
+				typeAnnotationNames(owner),
+			);
+			return identity == null ? 'unresolved' : 'style-decl';
+		};
 		// Shared member-name decision for both spellings of a `.style`
 		// member read: a resolved member that is not `style` is provably not
-		// the CSSOM accessor, and a `style` member whose owner is provably a
-		// plain object literal is ordinary data, never the CSSOM accessor.
-		const styleDeclarationReceiverKindForMember = (
-			memberName,
-			expression,
-			visited,
-		) => {
+		// the CSSOM accessor; a `style` member's identity belongs to its
+		// owner.
+		const styleDeclarationReceiverKindForMember = (memberName, expression) => {
 			if (memberName !== 'style') {
 				return 'other';
 			}
-			const owner = unwrapTransparentExpression(expression.expression);
-			if (owner != null) {
-				const resolvedOwner = resolvedStaticObject(owner);
-				if (
-					resolvedOwner != null &&
-					ts.isObjectLiteralExpression(resolvedOwner)
-				) {
-					return 'plain-object';
-				}
-			}
-			return 'style-decl';
+			return styleMemberOwnerKind(expression.expression);
 		};
 		// The receiver of a call — `element.style`, `el['style']`, `s`, `{ style }`
-		// — is a CSSStyleDeclaration when its final member is `style` and the
-		// owner is not provably a plain object literal. Returns 'style-decl',
-		// 'plain-object', 'unresolved' (a computed member key the guard cannot
-		// enumerate may be `style` — round-23 B1), or 'other'.
+		// — is a CSSStyleDeclaration only when its identity is proven.
+		// Returns 'style-decl' (proven CSSOM), 'plain-object' (proven
+		// ordinary data), 'unresolved' (a computed member key the guard
+		// cannot enumerate may be `style`, or the receiver's identity cannot
+		// be proven either way — round-23 B1/I1), or 'other'.
 		const styleDeclarationReceiverKind = (node, visited = new Set()) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
@@ -2953,7 +3089,6 @@ export const scanZIndexFile = ({
 					return styleDeclarationReceiverKindForMember(
 						expression.name.text,
 						expression,
-						visited,
 					);
 				}
 				// A computed `.style` member goes through the funnel with all
@@ -2966,18 +3101,16 @@ export const scanZIndexFile = ({
 				return staticString(
 					expression.argumentExpression,
 					(memberName) =>
-						styleDeclarationReceiverKindForMember(
-							memberName,
-							expression,
-							visited,
-						),
+						styleDeclarationReceiverKindForMember(memberName, expression),
 					() => 'unresolved',
 					() => 'unresolved',
 				);
 			}
 			if (ts.isIdentifier(expression)) {
 				if (visited.has(expression.text)) {
-					return 'other';
+					// An alias cycle is unprovable, not provably benign
+					// (round-23 I1).
+					return 'unresolved';
 				}
 				const next = new Set(visited);
 				next.add(expression.text);
@@ -2995,34 +3128,120 @@ export const scanZIndexFile = ({
 							if (memberName !== 'style') {
 								return 'other';
 							}
-							const resolvedOwner = resolvedStaticObject(binding.initializer);
-							if (
-								resolvedOwner != null &&
-								ts.isObjectLiteralExpression(resolvedOwner)
-							) {
-								return 'plain-object';
-							}
-							return 'style-decl';
+							return binding.initializer == null
+								? 'unresolved'
+								: styleMemberOwnerKind(binding.initializer);
 						}
 						return 'other';
 					}
 					if (binding.initializer != null) {
 						return styleDeclarationReceiverKind(binding.initializer, next);
 					}
+					return 'unresolved';
 				}
-				return 'other';
+				if (binding != null && ts.isParameter(binding)) {
+					const identity = receiverIdentityFromTypeNames(
+						namedTypeCandidates(binding.type),
+					);
+					if (identity === 'style-decl') {
+						return 'style-decl';
+					}
+					if (identity === 'element') {
+						// A DOM-element value has no `.style` chain question
+						// here — the receiver itself is the value, and an
+						// element is provably not a style declaration.
+						return 'other';
+					}
+					return 'unresolved';
+				}
+				// An import or a global: identity unprovable either way.
+				return 'unresolved';
 			}
 			return 'other';
 		};
-		// Classifies a `setProperty` call's callee over the aliased/destructured
-		// spellings. Returns 'style-decl' (a real CSSStyleDeclaration write),
-		// 'plain-object' (provably an unrelated object's method — not a write),
-		// 'overflow' (the method name is unresolvable — the receiver is a style
+		// The method side of `X.bind(thisArg)` (round-23 I1): is X provably
+		// `setProperty`? Returns 'setter-method' (the member is provably
+		// `setProperty`), 'unresolved-method' (the member identity is
+		// unprovable — the bound call may be a write), or 'other-method'.
+		const cssSetterMethodKind = (node, visited = new Set()) => {
+			const expression = unwrapTransparentExpression(node);
+			if (expression == null) {
+				return 'other-method';
+			}
+			if (ts.isPropertyAccessExpression(expression)) {
+				return expression.name.text === 'setProperty'
+					? 'setter-method'
+					: 'other-method';
+			}
+			if (ts.isElementAccessExpression(expression)) {
+				return staticString(
+					expression.argumentExpression,
+					(key) => (key === 'setProperty' ? 'setter-method' : 'other-method'),
+					() => 'unresolved-method',
+					() => 'unresolved-method',
+				);
+			}
+			if (ts.isIdentifier(expression)) {
+				if (visited.has(expression.text)) {
+					return 'unresolved-method';
+				}
+				const next = new Set(visited);
+				next.add(expression.text);
+				const binding = nearestBinding(expression, expression.text);
+				if (binding != null && ts.isVariableDeclaration(binding)) {
+					if (ts.isObjectBindingPattern(binding.name)) {
+						const element = findBindingElement(binding.name, expression.text);
+						const boundMember =
+							element?.propertyName?.text ??
+							(element != null && element.name.kind === ts.SyntaxKind.Identifier
+								? element.name.text
+								: null);
+						return boundMember === 'setProperty'
+							? 'setter-method'
+							: 'other-method';
+					}
+					if (binding.initializer != null) {
+						return cssSetterMethodKind(binding.initializer, next);
+					}
+				}
+				return 'unresolved-method';
+			}
+			return 'other-method';
+		};
+		// Classifies a `setProperty` call's callee over the aliased,
+		// destructured, and bound spellings. Returns 'style-decl' (a real
+		// CSSStyleDeclaration write), 'plain-object' (provably an unrelated
+		// object's method — not a write), 'unresolved' (the receiver's
+		// identity cannot be proven either way — loud at the sink), 'overflow'
+		// (the method name is unresolvable — the receiver is a style
 		// declaration, so the write cannot be ruled out), or 'other'.
 		const cssStyleSetterCallKind = (node, visited = new Set()) => {
 			const callee = unwrapTransparentExpression(node);
 			if (callee == null) {
 				return 'other';
+			}
+			if (ts.isCallExpression(callee)) {
+				// A bound method alias: `X.bind(thisArg)`. The eventual
+				// write's receiver is `thisArg` — the write reaches CSSOM
+				// when `thisArg` is a style declaration, exactly as the
+				// direct spelling does (round-23 I1; Chromium measured the
+				// bound alias performing the real write).
+				const boundAccess = unwrapTransparentExpression(callee.expression);
+				if (
+					boundAccess == null ||
+					!ts.isPropertyAccessExpression(boundAccess) ||
+					boundAccess.name.text !== 'bind'
+				) {
+					return 'other';
+				}
+				const methodKind = cssSetterMethodKind(boundAccess.expression, visited);
+				if (methodKind === 'other-method') {
+					return 'other';
+				}
+				if (methodKind === 'unresolved-method') {
+					return 'unresolved';
+				}
+				return styleDeclarationReceiverKind(callee.arguments[0], visited);
 			}
 			if (ts.isPropertyAccessExpression(callee)) {
 				if (callee.name.text !== 'setProperty') {
@@ -3064,25 +3283,35 @@ export const scanZIndexFile = ({
 				const binding = nearestBinding(callee, callee.text);
 				if (binding != null && ts.isVariableDeclaration(binding)) {
 					if (ts.isObjectBindingPattern(binding.name)) {
-						const element = findBindingElement(binding.name, callee.text);
-						// `const { setProperty } = X.style;` — the destructured
-						// method of a style declaration.
-						if (element != null) {
-							const boundMember =
-								element.propertyName?.text ??
-								(element.name.kind === ts.SyntaxKind.Identifier
-									? element.name.text
-									: null);
-							if (boundMember === 'setProperty') {
-								return styleDeclarationReceiverKind(binding.initializer, next);
-							}
-						}
+						// `const { setProperty } = X;` — the destructured
+						// method, UNBOUND: a bare call of a Web-IDL method
+						// raises `TypeError: Illegal invocation` in the
+						// browser and writes nothing, whatever X is, and a
+						// data object's method writes to that object, never
+						// to CSSOM (round-23 I1 — Chromium measured the
+						// unbound destructured call throwing).
 						return 'other';
 					}
 					if (binding.initializer != null) {
 						return cssStyleSetterCallKind(binding.initializer, next);
 					}
+					return 'other';
 				}
+				if (binding != null && ts.isParameter(binding)) {
+					const identity = receiverIdentityFromTypeNames(
+						namedTypeCandidates(binding.type),
+					);
+					if (identity === 'style-decl') {
+						return 'style-decl';
+					}
+				}
+				// The callee's identity is unproven — a parameter, an import,
+				// or a global like `String(...)`: the call is not provably
+				// `setProperty` at all, so it is not provably a write. The
+				// UNRESOLVED-loud rule applies to the *receiver* of a proven
+				// `setProperty` member call (`handle.setProperty(...)`), not
+				// to a bare identifier whose method identity the guard
+				// cannot establish (round-23 I1).
 				return 'other';
 			}
 			return 'other';

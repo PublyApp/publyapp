@@ -876,26 +876,160 @@ test('evasion (round 21 I1): a function-local aliased receiver is still red', ()
 	);
 });
 
-test('evasion (round 21 I1): a destructured setProperty of a style declaration is red', () => {
-	const content = [
-		'const { setProperty } = element.style;',
-		"export const probe = () => setProperty('--publy-z-raised', '2147483647');",
-	].join('\n');
+test('pair (round 23 I1): an unbound destructured setProperty never reaches CSSOM', () => {
+	// Round-21 asserted the destructured spelling red: `const { setProperty }
+	// = element.style` then `setProperty('--publy-z-raised', '2147483647')`.
+	// That assertion pinned a binding-pattern descriptor, not a runtime
+	// fact — a Web-IDL method called bare raises `TypeError: Illegal
+	// invocation` in Chromium (measured; the computed z-index stays `auto`),
+	// so the call never reaches CSSOM, and a data object's destructured
+	// method writes to that object. The assertion is corrected to match the
+	// measured runtime behaviour: the guard stays silent on the unbound
+	// spelling (round-23 I1).
+	assertClean(
+		'fixture.tsx',
+		[
+			'const { setProperty } = element.style;',
+			"export const probe = () => setProperty('--publy-z-raised', '2147483647');",
+		].join('\n'),
+	);
+});
+
+test('evasion (round 23 I1): a bound setProperty alias reaches CSSOM and is not silent', () => {
+	// The false-negative direction the round-21 classifier left open: a bound
+	// method alias (`element.style.setProperty.bind(element.style)`) is a
+	// real CSSOM write — Chromium measured the computed z-index moving to
+	// 2147483643 for the same call. The receiver of the eventual write is the
+	// bind's `thisArg`, so the alias is policed exactly like the direct
+	// spelling (round-23 I1). The `element` global's identity is unprovable,
+	// so the receiver is UNRESOLVED; the reserved key makes the write red by
+	// name instead of silent.
+	const spellings = [
+		[
+			'const setter = element.style.setProperty.bind(element.style);',
+			"export const probe = () => setter('--publy-z-raised', '2147483647');",
+		].join('\n'),
+		"export const probe = () => element.style.setProperty.bind(element.style)('--publy-z-raised', '2147483647');",
+	];
+	for (const content of spellings) {
+		assert.deepEqual(
+			violationsFor('fixture.tsx', content).map(
+				(violation) => violation.ruleId,
+			),
+			['z-index-scale-token-redefined'],
+			content,
+		);
+	}
+});
+
+test('pair (round 23 I1): a bound setProperty alias with a non-reserved key fails loud unresolved', () => {
+	// The same UNRESOLVED receiver with a provably non-reserved key: the key
+	// analysis reports nothing, so the write cannot be waved through — the
+	// named cssom-write-unresolved diagnostic carries the case (round-23
+	// B1/I1: absence of proof is not proof of absence).
 	assert.deepEqual(
-		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		violationsFor(
+			'fixture.tsx',
+			[
+				'const setter = element.style.setProperty.bind(element.style);',
+				"export const probe = () => setter('color', 'red');",
+			].join('\n'),
+		).map((violation) => violation.ruleId),
+		['z-index-cssom-write-unresolved'],
+	);
+});
+
+test('evasion (round 23 I1): a destructured-then-bound setProperty alias is red', () => {
+	// The bound spelling restores the write after the unbound destructure:
+	// `setProperty.bind(element.style)` sets the Web-IDL `this`, so the call
+	// reaches CSSOM exactly like the direct member spelling.
+	assert.deepEqual(
+		violationsFor(
+			'fixture.tsx',
+			[
+				'const { setProperty } = element.style;',
+				'const boundSetter = setProperty.bind(element.style);',
+				"export const probe = () => boundSetter('--publy-z-raised', '2147483647');",
+			].join('\n'),
+		).map((violation) => violation.ruleId),
 		['z-index-scale-token-redefined'],
 	);
 });
 
-test('pair (round 21 I1): an unresolvable receiver is not reported from its spelling alone', () => {
-	// The opposite direction of the metadata recorder: a setProperty call on a
-	// receiver the guard cannot tie to any `.style` accessor is not provably a
-	// CSSOM write, so it stays green (a helper-mediated write is the declared
-	// data-flow boundary).
-	const content = [
-		"export const probe = (handle: unknown) => handle.setProperty('--publy-z-raised', '2147483647');",
-	].join('\n');
-	assertClean('fixture.tsx', content);
+test('pair (round 23 I1): a class instance .style member is data, not the CSSOM accessor', () => {
+	// The reviewer's I1 false positive: `class Recorder { style = {...} }`
+	// then `recorder.style.setProperty(...)` is a data write on an ordinary
+	// class instance — `new Recorder()` never yields the DOM accessor — so
+	// the guard must stay silent, not redden from the `.style` spelling
+	// (round-23 I1).
+	assertClean(
+		'fixture.tsx',
+		[
+			'class Recorder {',
+			'	style = { setProperty: (key: string, value: string) => [key, value] };',
+			'}',
+			'const recorder = new Recorder();',
+			"export const probe = recorder.style.setProperty('--publy-z-raised', 'not CSS');",
+		].join('\n'),
+	);
+});
+
+test('evasion (round 23 I1): a CSSStyleDeclaration-typed parameter receiver is provably CSSOM', () => {
+	// A type annotation is a static fact of the source: a parameter typed
+	// `CSSStyleDeclaration` is the accessor itself, so its setProperty write
+	// reds exactly like the direct member spelling (round-23 I1).
+	assert.deepEqual(
+		violationsFor(
+			'fixture.tsx',
+			"export const probe = (style: CSSStyleDeclaration) => style.setProperty('--publy-z-raised', '2147483647');",
+		).map((violation) => violation.ruleId),
+		['z-index-scale-token-redefined'],
+	);
+});
+
+test('pair (round 23 I1): a DOM-element-typed .style receiver with a benign key stays green', () => {
+	// The provable-CSSOM direction must not redden legitimate writes: a
+	// parameter typed `HTMLElement` carries the real accessor under `.style`,
+	// and a non-reserved key is not a scale-token write — green (round-23
+	// I1). The unannotated-parameter spelling of the same call cannot prove
+	// the accessor identity and fails loud instead.
+	assertClean(
+		'fixture.tsx',
+		"export const probe = (element: HTMLElement) => element.style.setProperty('color', 'red');",
+	);
+	assert.deepEqual(
+		violationsFor(
+			'fixture.tsx',
+			"export const probe = (element) => element.style.setProperty('color', 'red');",
+		).map((violation) => violation.ruleId),
+		['z-index-cssom-write-unresolved'],
+	);
+});
+
+test('evasion (round 23 I1): an unresolvable receiver is UNRESOLVED, not a benign default', () => {
+	// Round-21 stayed green on `(handle: unknown) =>
+	// handle.setProperty('--publy-z-raised', ...)` — the receiver's identity
+	// could not be tied to a `.style` accessor, so the call was waved
+	// through. Round-23's rule is that absence of proof is not proof of
+	// absence: a parameter without a DOM/CSSOM annotation is exactly the
+	// identity the guard cannot prove either way, so the reserved-key write
+	// reds by name, and a non-reserved key on the same unprovable receiver
+	// fails loud with the named unresolved diagnostic instead of staying
+	// green (round-23 I1).
+	assert.deepEqual(
+		violationsFor(
+			'fixture.tsx',
+			"export const probe = (handle: unknown) => handle.setProperty('--publy-z-raised', '2147483647');",
+		).map((violation) => violation.ruleId),
+		['z-index-scale-token-redefined'],
+	);
+	assert.deepEqual(
+		violationsFor(
+			'fixture.tsx',
+			"export const probe = (handle: unknown) => handle.setProperty('color', 'red');",
+		).map((violation) => violation.ruleId),
+		['z-index-cssom-write-unresolved'],
+	);
 });
 
 test('evasion: script cannot register a reserved scale token', () => {
