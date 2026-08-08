@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 
 import { SyntaxKind } from 'typescript/unstable/ast';
 import {
@@ -1311,20 +1312,41 @@ export const contextChunkIsolationPlugin = ({
 			// and must not ship with the output: 'hidden' already omits the
 			// sourceMappingURL comment, and removing the map assets keeps the
 			// artifact byte-for-byte what it would have been without the
-			// guard's internal sourcemap requirement. The assets are removed
-			// by the exact filename the guard forced for them — the config
-			// hook pinned `sourcemapFileNames` to `[name].map`, so the guarded
-			// map for a chunk sits at `chunk.name + '.map'` — so an
-			// unrelated asset that merely shares a `.map` suffix or the bytes
-			// of a chunk map (a plugin or application asset) survives.
+			// guard's internal sourcemap requirement. The guard deletes an
+			// asset only when it can prove ownership of it: the config hook
+			// pinned the forced map naming to `[name].map`, so the guard's
+			// own map for a chunk sits at the exact key `chunk.name + '.map'`
+			// with the bundler's serialization of that chunk's map object —
+			// the two identity facts the guard captured when it forced the
+			// map. An asset at the same exact key with any other content (a
+			// plugin's own asset, whatever its suffix or bytes) is not the
+			// guard's map and survives untouched. The comparison is over the
+			// fields the bundler serialized (Rolldown's in-memory map object
+			// also carries non-serialized members such as toUrl/toString).
 			if (forcedSourcemap) {
-				const forcedMapFilenames = new Set(
-					chunks
-						.filter((chunk) => chunk.map !== undefined && chunk.map !== null)
-						.map((chunk) => `${chunk.name}.map`),
-				);
-				for (const fileName of forcedMapFilenames) {
-					if (bundle[fileName]?.type === 'asset') {
+				for (const chunk of chunks) {
+					if (chunk.map === undefined || chunk.map === null) {
+						continue;
+					}
+					const fileName = `${chunk.name}.map`;
+					const asset = bundle[fileName];
+					if (asset?.type !== 'asset' || typeof asset.source !== 'string') {
+						continue;
+					}
+					let owned = false;
+					try {
+						const parsed = JSON.parse(asset.source);
+						owned =
+							typeof parsed === 'object' &&
+							parsed !== null &&
+							Object.keys(parsed).length > 0 &&
+							Object.keys(parsed).every((key) =>
+								isDeepStrictEqual(parsed[key], chunk.map[key]),
+							);
+					} catch {
+						owned = false;
+					}
+					if (owned) {
 						delete bundle[fileName];
 					}
 				}

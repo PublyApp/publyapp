@@ -216,6 +216,7 @@ const buildRouteFixture = async ({
 	forgeSplitMapInCall = false,
 	emitKeepMap = false,
 	keepMapContentEqualsChunkMap = false,
+	replaceOwnedMapAsset = false,
 }) => {
 	let buildOptions = '';
 	if (groupProbeModules) {
@@ -321,6 +322,22 @@ const buildRouteFixture = async ({
 							: ''
 					}
 					{ applyToEnvironment: (environment) => environment.name === 'client', generateBundle(_options, bundle) { const chunks = Object.values(bundle).filter((output) => output.type === 'chunk'); writeFileSync(path.join(rootDirectory, 'bundle-map.json'), JSON.stringify(chunks.map((chunk) => ({ fileName: chunk.fileName, modules: Object.fromEntries(Object.entries(chunk.modules).map(([id, rendered]) => [id, rendered.code])) })), null, 2)); mkdirSync(path.join(rootDirectory, 'chunk-maps'), { recursive: true }); for (const chunk of chunks) { if (chunk.map) writeFileSync(path.join(rootDirectory, 'chunk-maps', \`\${chunk.fileName.replaceAll('/', '_')}.json\`), JSON.stringify({ fileName: chunk.fileName, map: chunk.map }, null, 2)); } } },
+					${
+						replaceOwnedMapAsset
+							? `{
+						name: 'r26-replace-owned-map-asset',
+						applyToEnvironment: (environment) => environment.name === 'client',
+						generateBundle(_options, bundle) {
+							for (const chunk of Object.values(bundle)) {
+								if (chunk.type !== 'chunk' || chunk.map === undefined || chunk.map === null) continue;
+								const fileName = \`\${chunk.name}.map\`;
+								this.emitFile({ type: 'asset', fileName, source: '{"version":3,"sources":[],"mappings":"","foreign":true}' });
+								break;
+							}
+						},
+					},`
+							: ''
+					}
 					contextChunkIsolationPlugin({
 						contextInventory: ${JSON.stringify(inventory)},
 						tsconfigPath: path.join(rootDirectory, 'tsconfig.json'),
@@ -3823,6 +3840,59 @@ void test('fails closed when a wrong map lands a forged generated position insid
 	);
 });
 
+void test('deletes only the forced map the guard owns, never an exact-name unrelated asset', () => {
+	// Round 25's R25_FORCED_NAME_COLLISION: the round-24 cleanup deleted
+	// every asset at `chunk.name + '.map'` because a mapped chunk shared the
+	// name, so a plugin's unrelated `index.map` asset was swept away. The
+	// guard now deletes an asset only when its content is the bundler's own
+	// serialization of that chunk's map object — the identity the guard
+	// captured when it forced the map — so the same-key unrelated asset
+	// survives. Both halves are driven through the production plugin hooks.
+	const mappedChunk = {
+		type: 'chunk',
+		fileName: 'assets/index.js',
+		name: 'index',
+		code: 'm(null)',
+		modules: {},
+		map: {
+			version: 3,
+			sources: [],
+			mappings: '',
+		},
+	};
+	const run = (assetSource) => {
+		const plugin = contextChunkIsolationPlugin({
+			contextInventory: [],
+			tsconfigPath: path.join(frontDirectory, 'tsconfig.json'),
+			workspaceDirectory: frontDirectory,
+		});
+		plugin.config.call({}, { environments: { client: { build: {} } } });
+		const bundle = {
+			'assets/index.js': mappedChunk,
+			'index.map': {
+				type: 'asset',
+				fileName: 'index.map',
+				name: 'index.map',
+				source: assetSource,
+			},
+		};
+		plugin.generateBundle.call({ error() {} }, {}, bundle);
+		return bundle['index.map'];
+	};
+
+	// The unrelated asset that merely occupies the pinned key survives
+	// byte-for-byte.
+	const unrelated = run('{"version":3,"sources":[],"mappings":"AAAA"}');
+	assert.equal(
+		unrelated.source,
+		'{"version":3,"sources":[],"mappings":"AAAA"}',
+		'the exact-name unrelated asset must survive',
+	);
+	// An asset whose content is the bundler's serialization of the chunk's
+	// own map object is the map the guard forced, and is removed.
+	assert.equal(run(JSON.stringify(mappedChunk.map)), undefined);
+});
+
 void test('type-checks the hand-written declaration file against the current runtime API', async () => {
 	// The .d.mts is hand-maintained and can drift from the runtime API; the
 	// probe below uses the current API (mintSpans, chunk maps, the output
@@ -5882,6 +5952,72 @@ void test(
 			assert.ok(
 				parsed.sources?.length > 0,
 				'the asset carried a real chunk map',
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'survives an exact-name map asset a plugin places at a forced map key in a real build',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 25's R25_FORCED_NAME_COLLISION through a complete Vite
+		// build: a plugin replaces the guard's own map asset at the exact
+		// pinned key (`chunk.name + '.map'`) with unrelated content before
+		// the guard's generateBundle runs. The guard must delete only the
+		// maps it caused — content-identical to the chunk's own map object —
+		// so the plugin's same-key asset survives byte-for-byte while every
+		// other forced map is still stripped.
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
+				`,
+			},
+			inventory,
+			replaceOwnedMapAsset: true,
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+			const clientDirectory = path.join(
+				result.fixtureDirectory,
+				'dist',
+				'client',
+			);
+			const clientFiles = await readdir(clientDirectory, { recursive: true });
+			const mapFiles = clientFiles.filter((file) => file.endsWith('.map'));
+			// Exactly one map asset survives: the unrelated one the fixture
+			// plugin placed at the first mapped chunk's pinned key.
+			assert.equal(mapFiles.length, 1, `MAPS ${JSON.stringify(mapFiles)}`);
+			const foreignMap = await readFile(
+				path.join(clientDirectory, mapFiles[0]),
+				'utf8',
+			);
+			assert.equal(
+				foreignMap,
+				'{"version":3,"sources":[],"mappings":"","foreign":true}',
+				'the exact-name unrelated asset must survive byte-for-byte',
 			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
