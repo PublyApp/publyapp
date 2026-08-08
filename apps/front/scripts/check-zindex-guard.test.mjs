@@ -221,14 +221,22 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 	visit(sourceFile);
 	assert.ok(funnelArrow != null, 'the staticString funnel must exist');
 	// The funnel itself must dispatch on all three outcomes — a rewrite that
-	// folds overflow back into the benign branch is a B1 regression.
+	// folds overflow back into the benign branch is a B1 regression. The
+	// markers are anchored to the dispatch statements, not the outcome kind
+	// text: `false && kind.kind === 'overflow'` still contains the old marker
+	// string, and a disabled dispatch is exactly the round-21 conflation this
+	// check exists to catch (round-23 mutation evidence).
 	const funnelText = funnelArrow.getText(sourceFile);
-	for (const marker of ["kind.kind === 'value'", "kind.kind === 'overflow'"]) {
-		assert.ok(
-			funnelText.includes(marker),
-			`the funnel must explicitly handle ${marker}: ${funnelText}`,
-		);
-	}
+	assert.ok(
+		funnelText.includes("if (kind.kind === 'value') {"),
+		`the funnel must dispatch the resolved-value outcome: ${funnelText}`,
+	);
+	assert.ok(
+		funnelText.includes("if (kind.kind === 'overflow') {") &&
+			funnelText.includes('return onOverflow();'),
+		`the funnel must dispatch UNRESOLVED overflow to its own handler, ` +
+			`never folding it onto the not-static branch: ${funnelText}`,
+	);
 	assert.ok(funnelCalls.length >= 7, 'every consumer must use the funnel');
 	// Every raw-projection call site must sit inside the funnel body.
 	const enclosingFunction = (call) => {

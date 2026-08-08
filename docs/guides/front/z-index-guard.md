@@ -46,10 +46,16 @@ and in the compiled CSS), any dynamic assembly (`z-${…}` across a template sub
 redefinition of a reserved `--publy-z-*` token, and a native JSX `<link rel="stylesheet">` or static
 link-descriptor object whose `rel` and `href` resolve to literals or module-scope string constants.
 The descriptor rule covers framework head APIs that render a link later through `<HeadContent>`, and
-it is gated on a **reachable sink**, not on object shape (round-21 I2): a standalone object literal
-that merely has `rel`/`href` keys establishes nothing about `<HeadContent>`, a links API, or the DOM,
-so it is neither a violation nor declared a safe descriptor — only an object provably sitting in the
-framework `head: () => ({ links: [...] })` config slot is policed by the literal rules. An
+it is gated on **proven reachability to a route creator**, not on object shape (round-23 I2): a
+standalone object literal that merely has `rel`/`href` keys — or a `head:`-shaped object no route
+consumes — establishes nothing about `<HeadContent>`, a links API, or the DOM, so it is neither a
+violation nor declared a safe descriptor. The literal rules police a descriptor only when its
+containing config object provably reaches a TanStack route creator call — `createRootRoute`,
+`createRoute`, or their `WithContext` forms, including the `createRootRouteWithContext<...>()({...})`
+chain the app's own root route uses — directly or through a module-scope const alias, and the head
+function is followed when supplied by identifier (`head: routeHead` is a normal, genuine route path,
+not an exotic one), block-bodied or expression-bodied, so the routeHead spelling is policed exactly
+like the inline one. An
 overflowing `href` on a JSX `<link>` whose `rel` is provably free of the `stylesheet` token
 (`<link rel="icon">`) is inert and stays green; the overflow rule fires only when the link could
 actually load a stylesheet.
@@ -134,18 +140,26 @@ parse (~3µs/candidate), so a payload at the budget is ~2 seconds of this guard'
 it costs many seconds and tens of megabytes for a single static payload — more than the rest of the
 run combined. Beyond the budget the payload is
 unresolvable, and it is a named `z-index-static-candidate-overflow` diagnostic rather than a hang
-or a silent green, and overflow is monotone through every expression-family combinator — an
+or a silent green, and overflow propagates through the whole expression-family — an
 overflowing branch nested in a conditional, template substitution, `+` operand, member read, or
-const alias keeps the whole enclosing payload loud by name, and the JSX `<link>` rel/href reader,
-link-descriptor reader, `CSS.registerProperty()` name, and scale-token-write key each report the
-same named diagnostic for an unresolvable candidate space instead of treating it as an ordinary
-unknown that resolves to a compliant default. "Member read" includes an **element-access key whose
+const alias keeps the whole enclosing payload loud by name. The propagation is enforced, not
+audited: every `staticString()` consumption must name all three outcomes — a resolved value,
+UNRESOLVED overflow, and provably-not-static — and a guard-structure test mechanically enumerates
+every call site in the guard script, so a future consumer that drops overflow or coerces it onto
+the benign default fails the suite (round-23 B1; round 21 shipped exactly such a dropped consumer
+after a hand-written "every call site" audit). At each CSS sink the unresolvable candidate space
+is reported by name instead of being treated as an ordinary unknown that resolves to a compliant
+default: the JSX `<link>` rel/href reader, link-descriptor reader, `CSS.registerProperty()` name,
+scale-token-write key, `<style>` payload, and the computed member/receiver keys of the script
+pass. "Member read" includes an **element-access key whose
 candidate space overflows** (`<style>{styles[key]}</style>` where `key` is a 20-choice static
 template): the key is provably static text the guard cannot enumerate, so the member identity is
 UNRESOLVED and the enclosing payload stays loud by name — an unenumerable computed key is a
 different outcome from a provably runtime one, which alone resolves no member and stays in the
 declared runtime bucket. The distinction is deliberate: "too many possibilities" is not "nothing
-to check".
+to check". An overflowing computed key on a CSSOM receiver is the same unresolvable member
+question — the member may be `style`, so the call stays loud instead of reading as an ordinary
+unknown (round-23 B1).
 New tiers belong in the global `:root` scale; otherwise a local `--publy-z-raised: 999` could make an
 apparently scale-routed declaration compute to an arbitrary value. Stylesheets belong in the Vite
 import graph so the emitted gate can inspect them; data, remote, and local literal stylesheet links
@@ -227,13 +241,20 @@ Five components:
    build-reachable project script recorded by Vite—including a project module outside Tailwind's
    source root—the script AST pass also reports literal `--publy-z-*` object properties and
    `setProperty()` calls, plus direct keys resolved through an unshadowed module-scope `const` bound
-   to a string literal. A `setProperty` call is recognised from its **receiver**, not its spelling
-   (round-21 I1): only calls that provably reach a `CSSStyleDeclaration` count — spelled by dot,
-   bracket, an aliased receiver (`const s = element.style; s.setProperty(...)`), or a destructured
-   method (`const { setProperty } = element.style; setProperty(...)`) — while a method merely *named*
-   `setProperty` on an unrelated object, or `.style` on a provably plain object literal (an ordinary
-   data property, not the CSSOM accessor), reds nothing. An unresolvable receiver stays in the same
-   helper-mediated data-flow boundary as a parameter-carried key, and a method-name candidate space
+   to a string literal. A `setProperty` call is recognised from its **receiver identity**, not its
+   spelling (round-23 I1), and identity is a three-way fact: **proven CSSOM** (a `.style` member of a
+   value the source types as a DOM element, or a value typed `CSSStyleDeclaration`) reports; **proven
+   not CSSOM** (a plain object literal, a class instance, or an unbound destructured method — a bare
+   Web-IDL call raises `TypeError: Illegal invocation` in the browser and writes nothing) stays
+   silent; and **UNRESOLVED** — a parameter without a DOM/CSSOM annotation, an import, a global —
+   fails loud by name (`z-index-cssom-write-unresolved` for a benign key, the reserved-token finding
+   for a `--publy-z-*` key), because absence of proof is not proof of absence. All spellings reduce
+   to the same question — dot, bracket, an aliased receiver (`const s = element.style;
+   s.setProperty(...)`), a bound method alias (`element.style.setProperty.bind(element.style)` — the
+   eventual write's receiver is the bind's `thisArg`, and Chromium measures the real write), or a
+   destructured method — while a method merely *named* `setProperty` on an unrelated object, or
+   `.style` on a provably plain object literal or class instance (an ordinary data property, never
+   the CSSOM accessor), reds nothing. A method-name candidate space
    the guard cannot enumerate is a named `z-index-static-candidate-overflow` diagnostic because the
    write cannot be ruled out. Unimported script samples are not runtime code and stay green. The same pass
    rejects native JSX stylesheet links and static link-descriptor objects when the `rel` token list
