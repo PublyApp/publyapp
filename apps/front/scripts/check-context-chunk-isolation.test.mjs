@@ -352,7 +352,15 @@ const buildRouteFixture = async ({
 							for (const chunk of Object.values(bundle)) {
 								if (chunk.type !== 'chunk' || chunk.map === undefined || chunk.map === null) continue;
 								const fileName = \`\${chunk.name}.map\`;
-								this.emitFile({ type: 'asset', fileName, source: '{"version":3,"sources":[],"mappings":"","foreign":true}' });
+								const source = ${
+									replaceOwnedMapAsset === 'trimmed'
+										? 'JSON.stringify({ ...chunk.map, sourcesContent: undefined })'
+										: replaceOwnedMapAsset === 'stub'
+											? '\'{"version":3}\''
+											: '\'{"version":3,"sources":[],"mappings":"","foreign":true}\''
+								};
+								this.emitFile({ type: 'asset', fileName, source });
+								writeFileSync(path.join(rootDirectory, 'replaced-chunk.json'), JSON.stringify({ fileName, source }));
 								break;
 							}
 						},
@@ -3932,9 +3940,9 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 	// Round 25's R25_FORCED_NAME_COLLISION: the round-24 cleanup deleted
 	// every asset at `chunk.name + '.map'` because a mapped chunk shared the
 	// name, so a plugin's unrelated `index.map` asset was swept away. The
-	// guard now deletes an asset only when its content is the bundler's own
+	// guard now deletes an asset only when its bytes are the bundler's own
 	// serialization of that chunk's map object — the identity the guard
-	// captured when it forced the map — so the same-key unrelated asset
+	// recorded when it forced the map — so the same-key unrelated asset
 	// survives. Both halves are driven through the production plugin hooks.
 	const mappedChunk = {
 		type: 'chunk',
@@ -3945,6 +3953,7 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 		map: {
 			version: 3,
 			sources: [],
+			sourcesContent: [''],
 			mappings: '',
 		},
 	};
@@ -3968,17 +3977,29 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 		return bundle['index.map'];
 	};
 
-	// The unrelated asset that merely occupies the pinned key survives
-	// byte-for-byte.
-	const unrelated = run('{"version":3,"sources":[],"mappings":"AAAA"}');
-	assert.equal(
-		unrelated.source,
-		'{"version":3,"sources":[],"mappings":"AAAA"}',
-		'the exact-name unrelated asset must survive',
-	);
 	// An asset whose content is the bundler's serialization of the chunk's
 	// own map object is the map the guard forced, and is removed.
 	assert.equal(run(JSON.stringify(mappedChunk.map)), undefined);
+	// An asset whose bytes are only a strict subset of that serialization —
+	// the minimal `{"version":3}` stub, or the realistic "ship maps without
+	// embedded sources" artifact (the chunk's own map with `sourcesContent`
+	// stripped) — is not the map the guard wrote and survives byte-for-byte
+	// (round 27's data-loss reproduction at the hook boundary).
+	const stub = run('{"version":3}');
+	assert.equal(stub.source, '{"version":3}', 'the version stub must survive');
+	const trimmedSource = JSON.stringify({
+		...mappedChunk.map,
+		sourcesContent: undefined,
+	});
+	const trimmed = run(trimmedSource);
+	assert.equal(
+		trimmed.source,
+		trimmedSource,
+		'the sourcesContent-stripped map must survive',
+	);
+	// The unrelated asset that merely occupies the pinned key survives
+	// byte-for-byte.
+	const unrelated = run('{"version":3,"sources":[],"mappings":"AAAA"}');
 });
 
 void test('type-checks the hand-written declaration file against the current runtime API', async () => {
@@ -6182,6 +6203,159 @@ void test(
 				foreignMap,
 				'{"version":3,"sources":[],"mappings":"","foreign":true}',
 				'the exact-name unrelated asset must survive byte-for-byte',
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'survives a real-build map asset at a forced key whose sourcesContent is stripped, while the guard still strips its own maps',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 27's IMPORTANT reproduction in a complete build: a "ship
+		// maps without embedded sources" plugin rewrites the chunk's own map
+		// at the pinned key with `sourcesContent` stripped. Its bytes are
+		// not the serialization the guard recorded when it forced the map,
+		// so the guard must leave it untouched — and still strip every map
+		// it did force from the output.
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
+				`,
+			},
+			inventory,
+			replaceOwnedMapAsset: 'trimmed',
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+			const clientDirectory = path.join(
+				result.fixtureDirectory,
+				'dist',
+				'client',
+			);
+			const clientFiles = await readdir(clientDirectory, { recursive: true });
+			const mapFiles = clientFiles.filter((file) => file.endsWith('.map'));
+			// Exactly one map asset survives: the trimmed one the fixture
+			// plugin placed at the first mapped chunk's pinned key. Every
+			// map the guard forced is still stripped.
+			assert.equal(mapFiles.length, 1, `MAPS ${JSON.stringify(mapFiles)}`);
+			const replaced = JSON.parse(
+				await readFile(
+					path.join(result.fixtureDirectory, 'replaced-chunk.json'),
+					'utf8',
+				),
+			);
+			assert.equal(mapFiles[0], replaced.fileName);
+			const trimmedMap = await readFile(
+				path.join(clientDirectory, mapFiles[0]),
+				'utf8',
+			);
+			assert.equal(
+				trimmedMap,
+				replaced.source,
+				'the sourcesContent-stripped map must survive byte-for-byte',
+			);
+			const parsed = JSON.parse(trimmedMap);
+			assert.equal(parsed.version, 3);
+			assert.ok(
+				parsed.sources?.length > 0,
+				'the survivor must be the chunk\u2019s own map, not a stub',
+			);
+			assert.ok(
+				!('sourcesContent' in parsed),
+				'the survivor must be the realistic stripped-map artifact',
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
+	'survives a minimal {"version":3} stub at a forced map key in a real build while the guard still strips its own maps',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 27's boundary probe, pinned in a complete build: a stub
+		// whose fields are a strict subset of the chunk map's serialization
+		// is not the map the guard recorded, so it survives untouched while
+		// the guard still strips every map it did force.
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
+				`,
+			},
+			inventory,
+			replaceOwnedMapAsset: 'stub',
+		});
+
+		try {
+			assert.equal(result.status, 0, result.output);
+			const clientDirectory = path.join(
+				result.fixtureDirectory,
+				'dist',
+				'client',
+			);
+			const clientFiles = await readdir(clientDirectory, { recursive: true });
+			const mapFiles = clientFiles.filter((file) => file.endsWith('.map'));
+			// Exactly one map asset survives: the stub the fixture plugin
+			// placed at the first mapped chunk's pinned key.
+			assert.equal(mapFiles.length, 1, `MAPS ${JSON.stringify(mapFiles)}`);
+			const replaced = JSON.parse(
+				await readFile(
+					path.join(result.fixtureDirectory, 'replaced-chunk.json'),
+					'utf8',
+				),
+			);
+			assert.equal(mapFiles[0], replaced.fileName);
+			const stubMap = await readFile(
+				path.join(clientDirectory, mapFiles[0]),
+				'utf8',
+			);
+			assert.equal(
+				stubMap,
+				'{"version":3}',
+				'the minimal stub must survive byte-for-byte',
 			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });

@@ -73,10 +73,12 @@ The guard deliberately throws instead of passing when it cannot attribute render
   the user did not configure any, reads them at `generateBundle`, and strips the map assets from
   the output before they can ship. When the guard forces the maps it also pins the map asset
   naming to `[name].map`, so its own map for a chunk sits at the exact key `chunk.name + '.map'`
-  with the bundler's serialization of that chunk's map object — the two identity facts the guard
-  captured when it forced the map — and it deletes an asset only when its parsed content matches
-  that chunk map on every serialized field. An unrelated asset at the same exact key with any
-  other content (a plugin's own asset, whatever its suffix or bytes) survives untouched. The
+  holding the bundler's serialization of that chunk's map object — the two identity facts the
+  guard recorded when it forced the map. The guard deletes an asset only when its bytes are
+  exactly that serialization (`JSON.stringify(chunk.map)`), an equality pinned by the real-build
+  suite against the bundler's writer. Any other bytes — a strict subset of fields such as a
+  `sourcesContent`-stripped map, an extra field, a reordered or reformatted key, any differing
+  value — are not the guard's map and survive untouched. The
   source scan records the argument-list extent of every minting call; a rendered copy of the
   module is attributed a mint when the bundler's own map places an emitted token **strictly
   inside** one of those extents in that exact module copy (the map's resolved source id must

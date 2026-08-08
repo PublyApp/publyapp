@@ -1,5 +1,4 @@
 import path from 'node:path';
-import { isDeepStrictEqual } from 'node:util';
 
 import { SyntaxKind } from 'typescript/unstable/ast';
 import {
@@ -1313,16 +1312,21 @@ export const contextChunkIsolationPlugin = ({
 			// sourceMappingURL comment, and removing the map assets keeps the
 			// artifact byte-for-byte what it would have been without the
 			// guard's internal sourcemap requirement. The guard deletes an
-			// asset only when it can prove ownership of it: the config hook
+			// asset only when it can prove ownership of it, and ownership is
+			// a fact the guard recorded when it forced the map, not
+			// something inferred from the asset's shape: the config hook
 			// pinned the forced map naming to `[name].map`, so the guard's
 			// own map for a chunk sits at the exact key `chunk.name + '.map'`
-			// with the bundler's serialization of that chunk's map object —
-			// the two identity facts the guard captured when it forced the
-			// map. An asset at the same exact key with any other content (a
-			// plugin's own asset, whatever its suffix or bytes) is not the
-			// guard's map and survives untouched. The comparison is over the
-			// fields the bundler serialized (Rolldown's in-memory map object
-			// also carries non-serialized members such as toUrl/toString).
+			// holding the bundler's serialization of that chunk's map object
+			// — the exact object the guard still holds. The guard therefore
+			// deletes an asset only when its bytes equal that serialization
+			// (`JSON.stringify(chunk.map)`), pinned by the real-build suite
+			// against the bundler's writer. Any other bytes — a strict
+			// subset of fields such as a `sourcesContent`-stripped map, an
+			// extra field, a reordered or reformatted key, any differing
+			// value — are not the guard's map and survive untouched. The
+			// disclosed residual is a foreign asset byte-identical to the
+			// full serialization, which no comparison can distinguish.
 			if (forcedSourcemap) {
 				for (const chunk of chunks) {
 					if (chunk.map === undefined || chunk.map === null) {
@@ -1333,20 +1337,7 @@ export const contextChunkIsolationPlugin = ({
 					if (asset?.type !== 'asset' || typeof asset.source !== 'string') {
 						continue;
 					}
-					let owned = false;
-					try {
-						const parsed = JSON.parse(asset.source);
-						owned =
-							typeof parsed === 'object' &&
-							parsed !== null &&
-							Object.keys(parsed).length > 0 &&
-							Object.keys(parsed).every((key) =>
-								isDeepStrictEqual(parsed[key], chunk.map[key]),
-							);
-					} catch {
-						owned = false;
-					}
-					if (owned) {
+					if (asset.source === JSON.stringify(chunk.map)) {
 						delete bundle[fileName];
 					}
 				}
