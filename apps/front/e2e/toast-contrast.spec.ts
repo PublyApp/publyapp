@@ -40,19 +40,23 @@ test.use({ deviceScaleFactor: 2 });
  * THE CONTRAST NUMBER IS MEASURED, NOT MODELLED. It comes from the rendered
  * pixels of the screenshot: the surface is the modal colour of the target's
  * box (text targets) or of the ring immediately around the glyphs (glyph
- * targets), the ink is the glyph-area pixel cluster with the strongest
- * contrast to that surface AMONG those that are spatially distributed like
- * glyph paint (fragmentary across a large share of the glyph area's rows
- * and columns — see `INK_SPATIAL_FRACTION`/`INK_THIN_BAND_DENSITY`), and the
- * WCAG ratio is computed between those two measured colours. The ink is
- * thereby tied to the glyphs, not to "whatever contrasts most inside the
- * rectangle": a contrast-donating overlay (a 1px bar across the glyph rows)
- * is rejected as ink and the washed glyphs measure at their real 1.4:1
- * (round-11 B1). A wash matching the modelled surface cannot inflate the
- * number, because there is no modelled surface in the measurement: the wash
- * drags the measured ink to its real contrast (round 9's α-sweep measured
- * 1.36:1 at α 0.85, 1.03:1 at α 0.99 while the model reported 15.64:1), and
- * the guard fails it.
+ * targets), and the ink is the glyph-area pixel cluster with the strongest
+ * contrast to that surface AMONG the pixels inside a reference glyph mask.
+ * The mask is a reference render the browser itself paints: the target's own
+ * text nodes re-rendered with the same computed font and letter-spacing into
+ * an off-screen canvas (text targets), or the SVG's own markup re-rasterized
+ * with its paint forced opaque (glyph targets). The mask answers the only
+ * question the guard must ask — where does this pixel come from — by
+ * provenance instead of shape: ink is what falls inside the mask, and any
+ * paint outside it is not ink, however dense or fragmented it looks. A
+ * contrast-donating overlay (one 1px bar, or two separated scanlines) is
+ * foreign paint the moment it leaves the mask, and a thin legitimately
+ * thin glyph — a title that is an em dash — is ink because the mask says so
+ * (round-13 B1's false negative and false positive both die here). A wash
+ * matching the modelled surface cannot inflate the number, because there is
+ * no modelled surface in the measurement: the wash drags the measured ink to
+ * its real contrast (round 9's α-sweep measured 1.36:1 at α 0.85, 1.03:1 at
+ * α 0.99 while the model reported 15.64:1), and the guard fails it.
  *
  * The guard fails loudly, by element name, when it cannot determine the
  * painted result: opacity, filter, backdrop-filter or mix-blend-mode other
@@ -83,27 +87,30 @@ test.use({ deviceScaleFactor: 2 });
  *
  * What still escapes — declared, so the boundary is not mistaken for a
  * guarantee:
- * - Partial occlusion is bounded, not prohibited: an overlay that leaves
- *   the glyphs mostly legible passes (the explained and pure-ink shares of
- *   the glyph area must stay within the measured pristine bounds, which sit
- *   at half the weakest pristine share of each kind — the message and
- *   semantic-glyph ink therefore tolerate up to about two thirds erased
- *   before their pure-ink floor fires, see the floor comment below), while
- *   an overlay that occludes most or all of the ink fails — at its real
- *   measured contrast.
+ * - Partial occlusion is bounded, not prohibited: an overlay that leaves the
+ *   glyphs mostly legible passes, and the bound is a stated requirement, not
+ *   a measured calibration — at least half of the glyph's OWN pixels (the
+ *   strict reference mask, not the surrounding rectangle) must still show
+ *   ink (`INK_SHARE_FLOOR`). A surface-coloured block that erases up to that
+ *   bound still measures the surviving ink at its real ratio; WCAG says
+ *   nothing about occlusion, so the ink share is the guard's own boundary
+ *   and is declared as such, while the contrast RATIO stays the WCAG-derived
+ *   legibility requirement.
  * - Pseudo-elements are resolved for background paint only; one that paints
  *   only glyphs or text without a background is not detected.
  * - `elementsFromPoint` cannot report pseudo-element boxes, so pseudo paint
  *   is read from resolved styles instead of hit tests; a positioned pseudo
  *   whose painted box cannot be resolved from computed styles fails loudly.
- * - The pixel reading measures a single ink cluster (the strongest-contrast
- *   one that is spatially distributed like glyph paint); a target whose
- *   glyphs genuinely paint in more than one colour with differing contrast
- *   is measured at its strongest and needs its own measurement. The spatial
- *   filter is deliberately not a foolproof glyph detector: a contrast donor
- *   that is itself fragmented and spread across the glyph area (a sparse
- *   stipple arrangement, say) would still be adopted as the ink; the rule
- *   closes the solid-bar/block donor, which is the round-11 vector.
+ * - The mask is only as faithful as the reference render: ink-coloured paint
+ *   that lies exactly on the mask's own pixels is indistinguishable from the
+ *   ink (which is also what legibility requires — the pixels the glyphs
+ *   occupy, in the ink colour). A text configuration the reference cannot
+ *   reproduce — non-normal `word-spacing`, a `text-transform` beyond
+ *   uppercase/lowercase, an un-rasterizable SVG — fails loudly rather than
+ *   measure, and the strongest-contrast rule still picks ONE ink cluster, so
+ *   a target whose glyphs genuinely paint in more than one colour with
+ *   differing contrast is measured at its strongest and needs its own
+ *   measurement.
  * - Only mounted, opaque toasts are measured; enter/exit and hover
  *   intermediate states are out of scope.
  * - Text painted with `background-clip: text` resolves to a transparent
@@ -112,58 +119,41 @@ test.use({ deviceScaleFactor: 2 });
 
 const TEXT_CONTRAST_FLOOR = 4.5;
 const GLYPH_CONTRAST_FLOOR = 3;
-// Pixel-reading bounds, measured on the pristine production fixture at the
-// pinned render scale (deviceScaleFactor 2) across all four theme/viewport
-// legs; the fontless-fallback readings (the one flake vector the pixel
-// reading adds) are in parentheses:
-//   text    explained 24.4-25.9 % (22.0 %), pure ink 9.5-12.7 % (6.9 %);
-//   glyph   explained 40.8-45.9 %,        pure ink 14.2-22.2 %.
-// The floors sit at HALF the weakest pristine measurement of each kind —
-// and because each kind's single weakest target (description, close glyph)
-// sets the floor, "half" is exact ONLY on those two targets. The targets
-// that measure strongest tolerate more before their floor fires, so the
-// guard's real boundary is a range, measured on the pristine fixture:
-//   ink floors let description (0.0945 -> 0.045) and close glyph
-//   (0.1420 -> 0.07) erase just past half (52 % / 51 %), while message
-//   (0.1246 -> 0.045) and semantic glyph (0.2119 -> 0.07) can lose up to
-//   about two thirds (64 % / 67 %) before the pure-ink floor fires;
-//   explained floors fail between 51 % (description 0.2439 -> 0.12, close
-//   glyph 0.4083 -> 0.20) and 54-56 % (semantic glyph 0.4331 -> 0.20,
-//   message 0.2560 -> 0.12) of the explained share erased.
-// So an exact "the guard fails once more than half the ink is erased" only
-// holds for the description and close-glyph targets; on the message and
-// semantic-glyph targets the ink can be better than two thirds gone before
-// their pure-ink floor fires (the ratio floor and the explained-share
-// floors are the other mechanisms standing between those targets and a
-// washed-away ink). The ceilings sit ~1.5x above the strongest, so a solid
-// block of any explained colour fails.
-// The explained share is ink+blend (a block of the surface colour erases
-// it); the pure-ink share is the pixels that match the measured ink cluster
-// (a wash of the surface colour with only a sliver of pristine ink leaves
-// it, even though the washed ink still counts as explained paint).
+// Ink attribution and the occlusion bound, in the same order the reading
+// applies them:
+//
+// `MASK_INK_ALPHA`: the reference render's pixels at or above this opacity
+// (0.5) are the glyph's OWN pixels — the stroke core, not the painter's
+// antialiasing halo. The count of them is the denominator the ink share is
+// measured against.
+//
+// `MASK_DILATION` (device px): the reference mask is dilated by this many
+// device pixels before it decides what may be ink and what must be foreign,
+// so the browser's own rasterization jitter (DOM text vs canvas text, the
+// same font through two painters) never turns a pristine glyph edge into
+// foreign paint. One device pixel at the pinned 2x scale is half a CSS
+// pixel — enough slack for antialiasing drift, not enough to claim a
+// neighbouring contrast-donating bar as glyph.
+//
+// `INK_SHARE_FLOOR`: the share of the glyph's OWN pixels that must still be
+// ink — "ink" meaning on the ink side of the midpoint between the two
+// measured colours (the antialiasing edge counts, a wash pushing toward the
+// surface does not). This is a stated occlusion requirement, not a
+// calibration from today's pixels and not a WCAG number (WCAG is silent on
+// occlusion): "the glyph must still be more ink than erased". A wash of the
+// surface colour, or a surface-coloured block, erases mask pixels
+// one-for-one, so the share fires the moment more than half of a glyph's
+// own pixels stop being ink. It is deliberately not a legibility floor —
+// the contrast RATIO above is the legibility floor; this number only bounds
+// how much of the glyph may be occluded before the reading refuses to
+// report the survivor.
+const MASK_INK_ALPHA = 0.5;
+const MASK_DILATION = 1;
+const INK_SHARE_FLOOR = 0.5;
+
 const PIXEL_MATCH_TOLERANCE = 3;
 const BLEND_MARGIN = 6;
 const SURFACE_BAND_MARGIN = 4;
-// A pixel cluster is only meaningfully "the ink" when it is not a solid
-// thin band of contrasting paint. Glyph ink is FRAGMENTED (strokes with
-// holes); a contrast-donating overlay (the round-11 1px donor bar) is a
-// SOLID band that fills its own bounding box. `INK_SPATIAL_FRACTION` is the
-// share of the glyph area's rows/columns a cluster must span to count as
-// glyph-shaped on that axis; `INK_THIN_BAND_DENSITY` is the fill ratio at
-// which a thin cluster is a solid band rather than fragmentary glyph
-// strokes. Both are calibrated against the pristine fixture (real text ink
-// spans 0.60/0.63+ of the two axes at density ~0.28; the donor bar spans
-// 0.06 of its rows at density ~1.0; a surviving sliver of washed glyph ink
-// is thin but sparse). See measurePaintedContrast.
-const INK_SPATIAL_FRACTION = 0.35;
-const INK_THIN_BAND_DENSITY = 0.7;
-const TEXT_EXPLAINED_MAX = 0.4;
-const TEXT_EXPLAINED_MIN = 0.12;
-const TEXT_INK_MIN = 0.045;
-const GLYPH_EXPLAINED_MAX = 0.7;
-const GLYPH_EXPLAINED_MIN = 0.2;
-const GLYPH_INK_MIN = 0.07;
-
 const THEMES = ['light', 'dark'] as const;
 const VARIANTS = ['success', 'error', 'warning', 'info'] as const;
 const VIEWPORTS = [
@@ -1270,37 +1260,38 @@ const rgbaLabel = ({ r, g, b, a }: Rgba): string =>
  * surface is the modal colour of the target's box (text targets) or of the
  * ring immediately around the glyph area (glyph targets, whose box can be
  * dominated by the glyph itself); the ink is the glyph-area pixel cluster
- * with the strongest contrast to that surface AMONG those whose pixels are
- * spread across a large share of the glyph area's rows AND columns (see
- * `INK_SPATIAL_FRACTION`) — the ink is tied to the glyphs by their spatial
- * distribution, not to whatever contrasts most inside the rectangle, so a
+ * with the strongest contrast to that surface AMONG the pixels inside the
+ * reference glyph mask (see `paintReferenceMask` below) — the ink is tied to
+ * the glyphs by provenance, not by shape: the mask is the browser's own
+ * render of the same text in the same font, or of the SVG's own markup, so a
  * contrast-donating overlay (a 1px bar over the glyph rows, which the
- * strongest-contrast rule would otherwise adopt as the ink) is rejected and
- * the washed glyphs become the measured ink at their real 1.4:1. The WCAG
- * ratio is computed between the two measured colours. The model's only role
- * is to say which element and which region to measure — it never asserts a
- * colour, so a wash matching any modelled surface cannot inflate the number:
- * the wash drags the measured ink to its real contrast and the guard fails
- * it (round-9 B1, round-11 B1).
+ * strongest-contrast rule would otherwise adopt as the ink) is foreign paint
+ * the moment it leaves the mask, and a legitimately thin glyph (an em dash
+ * title) is ink because the mask claims its pixels. The WCAG ratio is
+ * computed between the two measured colours. The model's only role is to say
+ * which element and which region to measure — it never asserts a colour, so
+ * a wash matching any modelled surface cannot inflate the number: the wash
+ * drags the measured ink to its real contrast and the guard fails it
+ * (round-9 B1, round-11 B1, round-13 B1).
  *
  * Every glyph-area pixel is then classified against the MEASURED pair:
  * surface, ink, blend (per-channel between the two, widened by the
  * antialiasing fuzz the browser's own text edges produce — measured at ±6
  * on the shipped fixture), or foreign. A single foreign pixel fails the
  * guard by name — it is paint an overlay put there (the outset-shadow
- * vector, invisible to every model reading). Four bounds keep the reading
+ * vector, invisible to every model reading). Three bounds keep the reading
  * honest at the ends:
- * - the measured contrast must stay above the target's legibility floor;
- * - the pure-ink share must stay above its floor (half the weakest pristine
- *   measurement of its kind) — a wash of the surface colour with only a
- *   sliver of pristine ink keeps the explained share at pristine and the
- *   ratio at 15.6:1, but erases the ink;
- * - the explained share must stay above its floor (half the weakest
- *   pristine measurement of its kind) — a block of the surface colour
- *   erases it while the surviving ink still measures 15.6:1;
- * - the explained share must stay below the ceiling — a solid block of any
- *   explained colour (surface, ink or a blend) would otherwise pass while
- *   swallowing every glyph.
+ * - any pixel inside the mask that is neither surface, nor ink, nor a
+ *   blend of the two — and any pixel OUTSIDE the mask that is not surface —
+ *   is foreign, whatever its shape (the masked reading replaces the shape
+ *   heuristic: the two-scanline donor and the single bar both red, the em
+ *   dash stays green);
+ * - the ink share — ink pixels over the glyph's OWN mask pixels — must stay
+ *   at or above `INK_SHARE_FLOOR` (a stated occlusion requirement: a wash of
+ *   the surface colour, or a surface-coloured block, erases mask pixels
+ *   one-for-one, so more than half of a glyph's own pixels erased fires
+ *   this bound even though the surviving ink still measures 15.6:1);
+ * - the measured contrast must stay above the target's legibility floor.
  */
 const measurePaintedContrast = async (
 	target: Locator,
@@ -1319,14 +1310,12 @@ const measurePaintedContrast = async (
 				bandMargin,
 				blendMargin,
 				dataUrl,
+				dilation,
 				floor,
-				inkSpatialFraction,
-				inkThinBandDensity,
 				kind,
 				label,
-				maxExplained,
-				minExplained,
-				minInk,
+				maskInkAlpha,
+				minInkShare,
 				tolerance,
 			},
 		) => {
@@ -1385,6 +1374,8 @@ const measurePaintedContrast = async (
 			};
 			const within = (a: number[], b: number[]): boolean =>
 				a.every((channel, index) => Math.abs(channel - b[index]) <= tolerance);
+			const rgbLabel = (channels: number[]): string =>
+				`rgb(${Math.round(channels[0])}, ${Math.round(channels[1])}, ${Math.round(channels[2])})`;
 
 			const dpr = devicePixelRatio;
 			const elementBox = element.getBoundingClientRect();
@@ -1539,10 +1530,328 @@ const measurePaintedContrast = async (
 				surface = modalColours(band)[0].average;
 			}
 
-			// The ink: the glyph-area pixel cluster with the strongest
-			// contrast to the measured surface (blends of the pair have lower
-			// contrast than the ink they come from, so the cluster with the
-			// strongest contrast is the glyph core colour).
+			/**
+			 * The reference glyph mask: the browser re-paints the target's
+			 * own glyphs in a known configuration, and the result says which
+			 * pixels the glyphs occupy. Text targets are re-rendered into an
+			 * off-screen canvas — the target's own text nodes, same computed
+			 * font, same letter-spacing, drawn at the line boxes' own
+			 * positions (baseline resolved from the font's own ascent
+			 * metrics), so wrapping, alignment and indentation are absorbed:
+			 * only the glyph rasterization itself must match the painted
+			 * page, and it is the same font through the same rasterizer.
+			 * Glyph targets are re-stroked into the same canvas from the
+			 * SVG's own shapes (its `path`/`line`/`circle`/… geometry, its
+			 * computed stroke width, caps and joins, mapped through its own
+			 * viewBox) — the browser's canvas rasterizer paints them, and it
+			 * is the same rasterizer the DOM used for the live icon. The
+			 * reference's pixels at or above `MASK_INK_ALPHA` opacity are the
+			 * glyph's own pixels (the denominator of the ink share); the
+			 * full alpha>0 paint, dilated by `MASK_DILATION`, is the
+			 * occupancy mask that decides what may be ink and what is
+			 * foreign. When a configuration cannot be reproduced faithfully —
+			 * non-normal `word-spacing`, a `text-transform` beyond
+			 * uppercase/lowercase, an SVG shape the canvas cannot stroke —
+			 * the guard fails loud rather than attribute pixels by guesswork.
+			 * Round 13 showed both ways a shape heuristic lies; this replaces
+			 * the heuristic with provenance.
+			 */
+			const paintReferenceMask = async (): Promise<{
+				dilated: Uint8Array;
+				strict: Uint8Array;
+				strictCount: number;
+			}> => {
+				const maskCanvas = document.createElement('canvas');
+				maskCanvas.width = canvas.width;
+				maskCanvas.height = canvas.height;
+				const maskContext = maskCanvas.getContext('2d');
+				if (!maskContext) {
+					throw new Error('Browser canvas colour resolver is unavailable');
+				}
+				maskContext.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+				if (kind === 'text') {
+					maskContext.fillStyle = '#000';
+					maskContext.textBaseline = 'alphabetic';
+					const textNodesIn = (candidate: Element): Node[] => {
+						const nodes: Node[] = [];
+						for (const node of candidate.childNodes) {
+							if (node.nodeType === Node.TEXT_NODE) {
+								nodes.push(node);
+							}
+						}
+						return nodes;
+					};
+					const canvasFont = (style: CSSStyleDeclaration): string =>
+						`${style.fontStyle} ${style.fontVariant} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+					const nodes: Node[] = [...textNodesIn(element)];
+					for (const descendant of element.querySelectorAll('*')) {
+						nodes.push(...textNodesIn(descendant));
+					}
+					for (const node of nodes) {
+						const text = node.textContent ?? '';
+						if (text.trim() === '') {
+							continue;
+						}
+						const painter = node.parentElement;
+						if (!painter) {
+							continue;
+						}
+						const style = getComputedStyle(painter);
+						if (style.display === 'none' || style.visibility === 'hidden') {
+							continue;
+						}
+						if (style.wordSpacing !== 'normal' && style.wordSpacing !== '0px') {
+							throw new Error(
+								`${label}: cannot attribute text with word-spacing ${style.wordSpacing}`,
+							);
+						}
+						if (
+							style.textTransform !== 'none' &&
+							style.textTransform !== 'uppercase' &&
+							style.textTransform !== 'lowercase'
+						) {
+							throw new Error(
+								`${label}: cannot attribute text with text-transform ${style.textTransform}`,
+							);
+						}
+						let transformed = text;
+						if (style.textTransform === 'uppercase') {
+							transformed = text.toUpperCase();
+						} else if (style.textTransform === 'lowercase') {
+							transformed = text.toLowerCase();
+						}
+						maskContext.font = canvasFont(style);
+						if ('letterSpacing' in maskContext) {
+							maskContext.letterSpacing = style.letterSpacing;
+						}
+						const metrics = maskContext.measureText(transformed);
+						const fontSize = Number.parseFloat(style.fontSize);
+						const ascent = metrics.fontBoundingBoxAscent ?? fontSize * 0.8;
+						const descent = metrics.fontBoundingBoxDescent ?? fontSize * 0.2;
+						const range = document.createRange();
+						range.selectNodeContents(node);
+						for (const textRect of range.getClientRects()) {
+							if (textRect.width === 0 || textRect.height === 0) {
+								continue;
+							}
+							const halfLeading = (textRect.height - ascent - descent) / 2;
+							const alignRight = style.direction === 'rtl';
+							maskContext.textAlign = alignRight ? 'right' : 'left';
+							const originX = alignRight
+								? textRect.right - elementBox.left
+								: textRect.left - elementBox.left;
+							maskContext.fillText(
+								transformed,
+								originX,
+								textRect.top - elementBox.top + halfLeading + ascent,
+							);
+						}
+					}
+				} else {
+					const svg =
+						element.tagName === 'svg'
+							? (element as SVGSVGElement)
+							: element.querySelector('svg');
+					if (!svg) {
+						throw new Error(`${label} has no svg to reference-render`);
+					}
+					const paintedRect = svg.getBoundingClientRect();
+					const viewBox =
+						svg.viewBox.baseVal.width > 0 ? svg.viewBox.baseVal : null;
+					maskContext.save();
+					maskContext.translate(
+						paintedRect.left - elementBox.left,
+						paintedRect.top - elementBox.top,
+					);
+					if (viewBox) {
+						maskContext.scale(
+							paintedRect.width / viewBox.width,
+							paintedRect.height / viewBox.height,
+						);
+						maskContext.translate(-viewBox.x, -viewBox.y);
+					}
+					for (const shape of svg.querySelectorAll(
+						'path, circle, ellipse, line, polyline, polygon, rect, text',
+					)) {
+						const style = getComputedStyle(shape);
+						const fills = style.fill !== 'none';
+						const strokes = style.stroke !== 'none';
+						if (!fills && !strokes) {
+							continue;
+						}
+						if (strokes) {
+							maskContext.strokeStyle = '#000';
+							const strokeWidth = Number.parseFloat(style.strokeWidth);
+							maskContext.lineWidth = Number.isFinite(strokeWidth)
+								? strokeWidth
+								: 1;
+							maskContext.lineCap = style.strokeLinecap as CanvasLineCap;
+							maskContext.lineJoin = style.strokeLinejoin as CanvasLineJoin;
+						}
+						if (fills) {
+							maskContext.fillStyle = '#000';
+						}
+						const path = ((): Path2D | null => {
+							const tag = shape.tagName;
+							if (tag === 'path' && shape.getAttribute('d')) {
+								try {
+									return new Path2D(shape.getAttribute('d') ?? '');
+								} catch {
+									return null;
+								}
+							}
+							const built = new Path2D();
+							if (tag === 'line') {
+								built.moveTo(
+									Number(shape.getAttribute('x1')),
+									Number(shape.getAttribute('y1')),
+								);
+								built.lineTo(
+									Number(shape.getAttribute('x2')),
+									Number(shape.getAttribute('y2')),
+								);
+								return built;
+							}
+							if (tag === 'circle') {
+								built.arc(
+									Number(shape.getAttribute('cx')),
+									Number(shape.getAttribute('cy')),
+									Number(shape.getAttribute('r')),
+									0,
+									Math.PI * 2,
+								);
+								return built;
+							}
+							if (tag === 'ellipse') {
+								built.ellipse(
+									Number(shape.getAttribute('cx')),
+									Number(shape.getAttribute('cy')),
+									Number(shape.getAttribute('rx')),
+									Number(shape.getAttribute('ry')),
+									0,
+									0,
+									Math.PI * 2,
+								);
+								return built;
+							}
+							if (tag === 'rect') {
+								built.rect(
+									Number(shape.getAttribute('x') ?? 0),
+									Number(shape.getAttribute('y') ?? 0),
+									Number(shape.getAttribute('width')),
+									Number(shape.getAttribute('height')),
+								);
+								return built;
+							}
+							if (tag === 'polyline' || tag === 'polygon') {
+								const points = (shape.getAttribute('points') ?? '')
+									.trim()
+									.split(/[\s,]+/u)
+									.map(Number);
+								for (let index = 0; index + 1 < points.length; index += 2) {
+									const px = points[index];
+									const py = points[index + 1];
+									if (index === 0) {
+										built.moveTo(px, py);
+									} else {
+										built.lineTo(px, py);
+									}
+								}
+								if (tag === 'polygon') {
+									built.closePath();
+								}
+								return built;
+							}
+							return null;
+						})();
+						if (!path) {
+							continue;
+						}
+						if (fills) {
+							maskContext.fill(path);
+						}
+						if (strokes) {
+							maskContext.stroke(path);
+						}
+					}
+					maskContext.restore();
+				}
+
+				const maskPixels = maskContext.getImageData(
+					0,
+					0,
+					maskCanvas.width,
+					maskCanvas.height,
+				).data;
+				// The reference's pixels at or above half opacity are the
+				// glyph's OWN pixels (the antialiasing halo below that is the
+				// painter's edge fuzz, not the glyph); the count of them is
+				// the denominator the ink share is measured against.
+				const strict = new Uint8Array(canvas.width * canvas.height);
+				const inkAlpha = Math.round(maskInkAlpha * 255);
+				for (let index = 0; index < maskPixels.length; index += 4) {
+					if (maskPixels[index + 3] >= inkAlpha) {
+						strict[index / 4] = 1;
+					}
+				}
+				let strictCount = 0;
+				for (
+					let y = Math.floor(glyphArea.top);
+					y <= Math.ceil(glyphArea.bottom);
+					y += 1
+				) {
+					for (
+						let x = Math.floor(glyphArea.left);
+						x <= Math.ceil(glyphArea.right);
+						x += 1
+					) {
+						if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+							continue;
+						}
+						if (strict[y * canvas.width + x] === 1) {
+							strictCount += 1;
+						}
+					}
+				}
+				if (strictCount === 0) {
+					throw new Error(
+						`${label}: the reference glyph render produced no ink — cannot attribute the measured pixels`,
+					);
+				}
+				const dilated = new Uint8Array(strict.length);
+				for (let y = 0; y < canvas.height; y += 1) {
+					for (let x = 0; x < canvas.width; x += 1) {
+						if (strict[y * canvas.width + x] !== 1) {
+							continue;
+						}
+						for (let dy = -dilation; dy <= dilation; dy += 1) {
+							for (let dx = -dilation; dx <= dilation; dx += 1) {
+								const px = x + dx;
+								const py = y + dy;
+								if (
+									px < 0 ||
+									px >= canvas.width ||
+									py < 0 ||
+									py >= canvas.height
+								) {
+									continue;
+								}
+								dilated[py * canvas.width + px] = 1;
+							}
+						}
+					}
+				}
+				return { dilated, strict, strictCount };
+			};
+			const { dilated: mask, strictCount } = await paintReferenceMask();
+
+			// The ink: the strongest-contrast pixel cluster INSIDE the
+			// reference mask (blends of the pair have lower contrast than the
+			// ink they come from, so the cluster with the strongest contrast
+			// is the glyph core colour). Pixels the mask does not claim are
+			// never ink candidates, however dense or fragmented they look —
+			// that is the whole of the round-13 fix.
 			const candidates: { colour: number[]; x: number; y: number }[] = [];
 			for (
 				let y = Math.floor(glyphArea.top);
@@ -1557,6 +1866,9 @@ const measurePaintedContrast = async (
 					if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
 						continue;
 					}
+					if (mask[y * canvas.width + x] !== 1) {
+						continue;
+					}
 					const pixel = pixelAt(x, y);
 					if (!within(pixel, surface)) {
 						candidates.push({ colour: pixel, x, y });
@@ -1566,8 +1878,6 @@ const measurePaintedContrast = async (
 			type Cluster = {
 				average: number[];
 				count: number;
-				rows: Set<number>;
-				cols: Set<number>;
 			};
 			const clusters: Cluster[] = [];
 			for (const candidate of candidates) {
@@ -1584,83 +1894,43 @@ const measurePaintedContrast = async (
 							(match.count + 1),
 					);
 					match.count += 1;
-					match.rows.add(candidate.y);
-					match.cols.add(candidate.x);
 				} else {
 					clusters.push({
 						average: [...candidate.colour],
 						count: 1,
-						rows: new Set([candidate.y]),
-						cols: new Set([candidate.x]),
 					});
 				}
 			}
-			const glyphRows =
-				Math.ceil(glyphArea.bottom) - Math.floor(glyphArea.top) + 1;
-			const glyphCols =
-				Math.ceil(glyphArea.right) - Math.floor(glyphArea.left) + 1;
-			const distribution = (
-				cluster: Cluster,
-			): {
-				rows: number;
-				cols: number;
-				rowFrac: number;
-				colFrac: number;
-				density: number;
-			} => {
-				const bboxRows =
-					Math.max(...cluster.rows) - Math.min(...cluster.rows) + 1;
-				const bboxCols =
-					Math.max(...cluster.cols) - Math.min(...cluster.cols) + 1;
-				return {
-					rows: cluster.rows.size,
-					cols: cluster.cols.size,
-					rowFrac: cluster.rows.size / glyphRows,
-					colFrac: cluster.cols.size / glyphCols,
-					density: cluster.count / (bboxRows * bboxCols),
-				};
-			};
-			// The ink must be tied to the GLYPHS, not to "whatever contrasts
-			// most inside the glyph rectangle". Glyph paint is FRAGMENTED —
-			// strokes with holes between and inside them — while the round-11
-			// escape's donor is a SOLID 1px band of the ink colour across the
-			// glyph rows. The two are told apart by their shape together:
-			// - a cluster that spans a large share of BOTH axes (text spans
-			//   >= 0.60/0.63, glyphs ~0.92+ of the glyph area, measured on the
-			//   pristine fixture across all four legs) is glyph paint;
-			// - a cluster that is thin on one axis is fine ONLY if it is
-			//   fragmentary rather than solid — a surviving sliver of washed
-			//   glyph ink is thin (few columns) but sparse (density ~0.3, the
-			//   glyph strokes within), while a solid bar is thin AND dense
-			//   (the 1px donor fills its whole bounding box, density ~1.0).
-			//   A thin-dense cluster is a contrast-donating overlay, never
-			//   glyph ink, and is rejected before the strongest is chosen.
-			//   A thick-dense cluster (a solid block over the glyphs) is
-			//   still coherent ink and stays measured so the explained ceiling
-			//   can fire (round-7's outset-shadow test needs exactly that).
-			const spatiallyGlyphLike = (cluster: Cluster): boolean => {
-				const { rowFrac, colFrac, density } = distribution(cluster);
-				const thinOnAnAxis =
-					rowFrac < inkSpatialFraction || colFrac < inkSpatialFraction;
-				const solidBand = thinOnAnAxis && density > inkThinBandDensity;
-				return !solidBand;
-			};
-			const strongest = [...clusters]
-				.filter(spatiallyGlyphLike)
-				.sort((a, b) => {
-					const ratio =
-						contrast(b.average, surface) - contrast(a.average, surface);
-					return ratio !== 0 ? ratio : b.count - a.count;
-				})[0];
+			const strongest = [...clusters].sort((a, b) => {
+				const ratio =
+					contrast(b.average, surface) - contrast(a.average, surface);
+				return ratio !== 0 ? ratio : b.count - a.count;
+			})[0];
 			const ink = strongest?.average;
 			const ratio = ink ? contrast(ink, surface) : 0;
+			if (!ink) {
+				throw new Error(
+					`${label}: no ink candidate inside the glyph mask — all ` +
+						`${strictCount} glyph pixels match the measured surface ` +
+						`${rgbLabel(surface)} — the ink has been entirely washed away ` +
+						`or occluded`,
+				);
+			}
 
 			// Classification against the measured pair: surface, ink, blend,
-			// then foreign.
-			let surfacePixels = 0;
-			let inkPixels = 0;
-			let blendPixels = 0;
+			// then foreign — with the mask deciding which side a pixel is on:
+			// inside the mask, surface is erased ink, ink is the glyph, a
+			// blend is an antialiased edge — and the ink SHARE counts only
+			// the pixels on the ink side of the midpoint between the two
+			// measured colours (strictly closer to the ink than to the
+			// surface), so a wash that pushes the glyph's pixels toward the
+			// surface drops the share even though every pixel still lies
+			// between the pair; OUTSIDE the mask, only the surface may
+			// appear, so any paint there is an overlay by name.
+			let inkSidePixels = 0;
 			let foreignPixels = 0;
+			let foreignInsideMask = 0;
+			let foreignOutsideMask = 0;
 			let total = 0;
 			let firstForeign: [number, number, number] | undefined;
 			for (
@@ -1678,24 +1948,42 @@ const measurePaintedContrast = async (
 					}
 					total += 1;
 					const pixel = pixelAt(x, y);
+					const insideMask = mask[y * canvas.width + x] === 1;
 					if (within(pixel, surface)) {
-						surfacePixels += 1;
-					} else if (ink && within(pixel, ink)) {
-						inkPixels += 1;
-					} else if (ink) {
+						// Inside the mask this is an erased glyph pixel: the
+						// ink was washed or occluded to the surface colour;
+						// the ink-share bound below decides whether the glyph
+						// survives. Outside the mask it is plain background.
+						continue;
+					}
+					if (insideMask) {
+						if (within(pixel, ink)) {
+							inkSidePixels += 1;
+							continue;
+						}
 						const blend = pixel.every((channel, index) => {
 							const low = Math.min(ink[index], surface[index]) - blendMargin;
 							const high = Math.max(ink[index], surface[index]) + blendMargin;
 							return low <= channel && channel <= high;
 						});
 						if (blend) {
-							blendPixels += 1;
-						} else {
-							foreignPixels += 1;
-							firstForeign ??= [pixel[0], pixel[1], pixel[2]];
+							let distanceToInk = 0;
+							let distanceToSurface = 0;
+							for (let index = 0; index < pixel.length; index += 1) {
+								distanceToInk += Math.abs(pixel[index] - ink[index]);
+								distanceToSurface += Math.abs(pixel[index] - surface[index]);
+							}
+							if (distanceToInk < distanceToSurface) {
+								inkSidePixels += 1;
+							}
+							continue;
 						}
+						foreignPixels += 1;
+						foreignInsideMask += 1;
+						firstForeign ??= [pixel[0], pixel[1], pixel[2]];
 					} else {
 						foreignPixels += 1;
+						foreignOutsideMask += 1;
 						firstForeign ??= [pixel[0], pixel[1], pixel[2]];
 					}
 				}
@@ -1706,40 +1994,22 @@ const measurePaintedContrast = async (
 				);
 			}
 
-			const rgbLabel = (channels: number[]): string =>
-				`rgb(${Math.round(channels[0])}, ${Math.round(channels[1])}, ${Math.round(channels[2])})`;
-			const inkFraction = inkPixels / total;
-			const explainedFraction = (inkPixels + blendPixels) / total;
 			if (foreignPixels > 0) {
 				throw new Error(
 					`${label}: the glyph area contains ${foreignPixels} pixel(s) of paint ` +
 						`the measured surface and ink did not produce — neither the measured ` +
-						`surface ${rgbLabel(surface)} nor the measured ink ${rgbLabel(ink ?? [])} ` +
+						`surface ${rgbLabel(surface)} nor the measured ink ${rgbLabel(ink)} ` +
 						`nor a blend of the two (nearest foreign colour ` +
-						`rgb(${firstForeign?.join(', ') ?? '?'}))`,
+						`${rgbLabel(firstForeign ?? [])}; ${foreignInsideMask} inside and ` +
+						`${foreignOutsideMask} outside the reference glyph mask)`,
 				);
 			}
-			if (inkFraction < minInk) {
+			const inkShare = inkSidePixels / strictCount;
+			if (inkShare < minInkShare) {
 				throw new Error(
 					`${label}: no legible glyph ink in the glyph area — only ` +
-						`${inkFraction.toFixed(3)} of ${total} glyph-area pixels match the ` +
-						`measured ink — the ink has been washed away`,
-				);
-			}
-			if (explainedFraction < minExplained) {
-				throw new Error(
-					`${label}: no legible glyph ink in the glyph area — only ` +
-						`${explainedFraction.toFixed(3)} of ${total} glyph-area pixels are ` +
-						`explained paint (surface ${surfacePixels}, ink ${inkPixels}, blends ` +
-						`${blendPixels}) — the surface colour may have erased the ink`,
-				);
-			}
-			if (explainedFraction > maxExplained) {
-				throw new Error(
-					`${label}: ${explainedFraction.toFixed(3)} of ${total} glyph-area pixels ` +
-						`are explained paint — a solid block of an explained colour (surface, ` +
-						`text colour or a blend) is covering the glyphs (ink ${inkPixels}, ` +
-						`blends ${blendPixels}, surface ${surfacePixels})`,
+						`${inkShare.toFixed(3)} of ${strictCount} glyph pixels still match ` +
+						`the measured ink — the ink has been washed away or occluded`,
 				);
 			}
 			if (ratio < floor) {
@@ -1757,9 +2027,9 @@ const measurePaintedContrast = async (
 					a: 1,
 				},
 				foreground: {
-					r: ink ? Math.round(ink[0]) : 0,
-					g: ink ? Math.round(ink[1]) : 0,
-					b: ink ? Math.round(ink[2]) : 0,
+					r: Math.round(ink[0]),
+					g: Math.round(ink[1]),
+					b: Math.round(ink[2]),
 					a: 1,
 				},
 				ratio,
@@ -1769,14 +2039,12 @@ const measurePaintedContrast = async (
 			bandMargin: SURFACE_BAND_MARGIN,
 			blendMargin: BLEND_MARGIN,
 			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			dilation: MASK_DILATION,
 			floor,
-			inkSpatialFraction: INK_SPATIAL_FRACTION,
-			inkThinBandDensity: INK_THIN_BAND_DENSITY,
 			kind,
 			label,
-			maxExplained: kind === 'text' ? TEXT_EXPLAINED_MAX : GLYPH_EXPLAINED_MAX,
-			minExplained: kind === 'text' ? TEXT_EXPLAINED_MIN : GLYPH_EXPLAINED_MIN,
-			minInk: kind === 'text' ? TEXT_INK_MIN : GLYPH_INK_MIN,
+			maskInkAlpha: MASK_INK_ALPHA,
+			minInkShare: INK_SHARE_FLOOR,
 			tolerance: PIXEL_MATCH_TOLERANCE,
 		},
 	);
@@ -2357,8 +2625,8 @@ test('a hit-testable overlay away from the glyphs stays measured', async ({
  * not a background (so the click-through scan skips it) and sits outside
  * the hit stack at the ink (only the element's own box hit-tests, not its
  * shadow) — the model cannot see it at all. Only the pixel check can, and
- * it must, by name: the shadowed glyphs are a solid block of an explained
- * colour.
+ * it must, by name: the block paints the foreground colour over the glyphs,
+ * and outside the reference glyph mask that is foreign paint.
  */
 test('an outset shadow from a neighbouring element over the glyphs fails the guard', async ({
 	page,
@@ -2377,7 +2645,9 @@ test('an outset shadow from a neighbouring element over the glyphs fails the gua
 			target: toast.locator('.publy-toast-title'),
 			testInfo,
 		}),
-	).rejects.toThrow(/solid block of an explained colour/);
+	).rejects.toThrow(
+		/pixel\(s\) of paint the measured surface and ink did not produce/,
+	);
 });
 
 /**
@@ -2390,14 +2660,15 @@ test('an outset shadow from a neighbouring element over the glyphs fails the gua
  * paint-order model), so it is the exact case where a modelled ink and the
  * measured ink genuinely differ. The wash is delivered by the fixture h1's
  * box-shadow. On the measured guard the washed glyphs become the measured
- * ink (they are spatially fragmentary, so `INK_SPATIAL_FRACTION` keeps them),
- * the ratio is ~1.4:1, and the RATIO floor fires — the assertion below names
- * the ratio diagnostic, so if the ink ever stops being measured (round-9's
- * defect: ink read from `getComputedStyle(...).color`), the pure-ink floor
- * fires "no legible glyph ink" instead, the message no longer matches, and
- * the test goes red on the right reason. The α values are those that keep
- * the washed glyphs distinct from the surface (α < ~0.99), so the ratio
- * branch — not the pure-ink branch — is the one that fires.
+ * ink (they lie inside the reference glyph mask, so the masked reading keeps
+ * them), the ratio is ~1.4:1, and the RATIO floor fires — the assertion below
+ * names the ratio diagnostic, so if the ink ever stops being measured
+ * (round-9's defect: ink read from `getComputedStyle(...).color`), the
+ * washed pixels no longer match it, the ink-share floor fires "no legible
+ * glyph ink" instead, the message no longer matches, and the test goes red
+ * on the right reason. The α values are those that keep the washed glyphs
+ * distinct from the surface (α < ~0.99), so the ratio branch — not the
+ * ink-share branch — is the one that fires.
  */
 test('a translucent wash of the toast surface erases the text at a ratio the model cannot see', async ({
 	page,
@@ -2432,15 +2703,15 @@ test('a translucent wash of the toast surface erases the text at a ratio the mod
  * (via `spread: -9.5px`) — plus a wash that erases every glyph donates a
  * healthy ratio to the strongest-contrast rule: the round-11 reviewer erased
  * 100 % of the title's glyphs (real measured contrast 1.22:1-1.53:1) and the
- * guard reported 15.60:1-15.70:1, green, with `foreign = 0`. The spatial
- * filter (`INK_SPATIAL_FRACTION`/`INK_THIN_BAND_DENSITY`) rejects the solid
- * thin bar as ink, the washed glyphs (fragmentary, so accepted) become the
- * measured ink, and the bar is left as FOREIGN paint — the assertion names
- * the foreign diagnostic, so deleting the spatial filter alone restores the
- * escape (the bar becomes the ink, no pixel is foreign, 15.60:1, green) and
- * this test goes red. The donor is the same delivery vector the shipped
- * suite uses in four of its own tests: invisible to hit testing, to the
- * click-through scan and to the paint-order model.
+ * guard reported 15.60:1-15.70:1, green, with `foreign = 0`. The reference
+ * glyph mask replaces the old spatial filter: the bar is ink only where it
+ * overlaps the mask's own pixels, and everywhere else — the word gaps, the
+ * columns between strokes, the run past the glyphs' extent — it is FOREIGN
+ * paint. The assertion names the foreign diagnostic, so deleting the mask
+ * alone restores the escape (the bar becomes the ink, no pixel is foreign,
+ * 15.60:1, green) and this test goes red. The donor is the same delivery
+ * vector the shipped suite uses in four of its own tests: invisible to hit
+ * testing, to the click-through scan and to the paint-order model.
  */
 test('a contrast-donating bar plus a wash over the glyphs cannot keep the guard green', async ({
 	page,
@@ -2472,13 +2743,15 @@ test('a contrast-donating bar plus a wash over the glyphs cannot keep the guard 
 });
 
 /**
- * Round-9 B2's explained-share floor, pinned: a block of the TOAST SURFACE
- * colour over most of the glyphs erases the ink while the surviving ink
- * still measures 15.6:1 — only the explained-share floor can see it. The
- * block is an outset shadow of the measured surface colour (invisible to
- * every model reading) covering ~59 % of the title's glyph area, which
- * leaves the pure-ink share above its own floor; the floor that fires is
- * the explained one, so deleting that branch alone greens this test.
+ * Round-9 B2's occlusion bound, re-pinned on the mask: a block of the TOAST
+ * SURFACE colour over most of the glyphs erases the ink while the surviving
+ * ink still measures 15.6:1 — only the ink-share bound can see it. The block
+ * is an outset shadow of the measured surface colour (invisible to every
+ * model reading) covering ~59 % of the title's glyph area; the mask pixels
+ * under it stop being ink, so the ink share drops below `INK_SHARE_FLOOR`
+ * (the stated "at least half of the glyph's own pixels must still be ink"
+ * requirement), and the floor that fires is the ink-share one — deleting
+ * that branch alone greens this test.
  */
 test('a block of the toast surface colour over most of the glyphs fails the guard', async ({
 	page,
@@ -2500,17 +2773,17 @@ test('a block of the toast surface colour over most of the glyphs fails the guar
 			'text',
 			TEXT_CONTRAST_FLOOR,
 		),
-	).rejects.toThrow(/are explained paint/);
+	).rejects.toThrow(/match the measured ink/);
 });
 
 /**
- * Round-9 B2's pure-ink floor, pinned: a wash of the surface colour that
+ * Round-9 B2's ink-share bound, pinned: a wash of the surface colour that
  * leaves a sliver of pristine ink measures 15.6:1 on the survivor (so the
- * ratio floor passes) and keeps the explained share at pristine (the washed
- * ink classifies as a blend), yet erases 73 % of the ink — only the
- * pure-ink floor can see it. The two washes are outset shadows of the
+ * ratio floor passes) yet erases 73 % of the ink — only the ink-share bound
+ * can see it, because the sliver is only ~27 % of the glyph's own mask
+ * pixels, below `INK_SHARE_FLOOR`. The two washes are outset shadows of the
  * measured surface colour with a 12px gap over the middle of the glyphs;
- * deleting the pure-ink branch alone greens this test.
+ * deleting the ink-share branch alone greens this test.
  */
 test('a wash of the surface colour leaving only a sliver of pristine ink fails the guard', async ({
 	page,
@@ -2542,7 +2815,7 @@ test('a wash of the surface colour leaving only a sliver of pristine ink fails t
  * glyph floor, so only the foreign branch can fire — over part of the
  * glyphs must fail the guard by name. The block is an outset shadow
  * (invisible to every model reading) covering ~39 % of the glyph area,
- * which leaves the explained and pure-ink shares above their floors.
+ * which leaves the ink share above its floor.
  */
 test('a foreign-colour block over part of the glyphs fails the guard by name', async ({
 	page,
