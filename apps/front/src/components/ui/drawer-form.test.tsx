@@ -4332,6 +4332,140 @@ export const CleanCrossFileDefaultKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 28's BLOCKER 4 — array mutation through a helper parameter. The
+// round-26 receiver change resolved a mutation receiver only when the
+// receiver itself followed to the traced array literal; a helper parameter
+// has no such initializer, so `appendDrawerKit(alias)` (whose body pushes
+// the real drawer kit) was invisible — the callback was classified from the
+// old local-only literal, every member read definite NOT_DRAWER, and the
+// appended real drawer kit disappeared. Passing the array into a helper is
+// exactly where the writes cannot be seen, so the escape makes the literal
+// unsafe to classify: UNVERIFIABLE, not "unmutated".
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-helper-mutated-array-kit-fixture.tsx';
+const TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_FILE,
+);
+const TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const LocalSurface = (() => <div />) as typeof DrawerContent;
+const LocalForm = (({ methods: _methods }: { methods: UseFormReturn<FieldValues> }) => {
+	void _methods;
+	return <form />;
+}) as typeof DrawerForm;
+const LocalBody = (() => <div />) as typeof DrawerBody;
+const LocalFooter = (() => <div />) as typeof DrawerFooter;
+
+const kits: DrawerKit[] = [
+	{
+		Surface: LocalSurface,
+		Form: LocalForm,
+		Body: LocalBody,
+		Footer: LocalFooter,
+	},
+];
+const alias = kits;
+
+const appendDrawerKit = (target: DrawerKit[]) =>
+	target.push({
+		Surface: DrawerContent,
+		Form: DrawerForm,
+		Body: DrawerBody,
+		Footer: DrawerFooter,
+	});
+
+appendDrawerKit(alias);
+
+export const HelperMutatedArrayKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<>
+		{kits.map((kit) => (
+			<kit.Surface>
+				<div className="p-4">
+					<kit.Form methods={methods}>
+						<kit.Body />
+						<kit.Footer />
+					</kit.Form>
+				</div>
+			</kit.Surface>
+		))}
+	</>
+);
+`;
+
+// The BLOCKER 4 control: the SAME helper-escape shape, but the helper
+// receives a DIFFERENT array — the traced `kits` array never escapes, so its
+// literal stays trustworthy, the real drawer exports resolve, and the broken
+// chain is discovered and rejected for its own structural reason.
+const TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-helper-other-array-kit-fixture.tsx';
+const TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_FILE,
+);
+const TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+type DrawerKit = {
+	Surface: typeof DrawerContent;
+	Form: typeof DrawerForm;
+	Body: typeof DrawerBody;
+	Footer: typeof DrawerFooter;
+};
+
+const kits: DrawerKit[] = [
+	{
+		Surface: DrawerContent,
+		Form: DrawerForm,
+		Body: DrawerBody,
+		Footer: DrawerFooter,
+	},
+];
+
+const other: DrawerKit[] = [];
+const appendDrawerKit = (target: DrawerKit[]) =>
+	target.push({
+		Surface: DrawerContent,
+		Form: DrawerForm,
+		Body: DrawerBody,
+		Footer: DrawerFooter,
+	});
+
+appendDrawerKit(other);
+
+export const HelperOtherArrayKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<>
+		{kits.map((kit) => (
+			<kit.Surface>
+				<div className="p-4">
+					<kit.Form methods={methods}>
+						<kit.Body />
+						<kit.Footer />
+					</kit.Form>
+				</div>
+			</kit.Surface>
+		))}
+	</>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -4758,6 +4892,14 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_FILE,
 		source: TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_FILE,
+		source: TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_FILE,
+		source: TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_SOURCE,
 	},
 ];
 
@@ -5840,22 +5982,30 @@ const MUTATING_ARRAY_METHOD_NAMES = new Set([
 ]);
 
 /**
- * True when a mutation writes into the traced array — an in-place array
- * method call (`kits.push(...)`, `alias.splice(...)`, ...), an element write
+ * True when a traced array literal cannot be trusted as its initializer —
+ * either a mutation writes into it (an in-place array method call
+ * (`kits.push(...)`, `alias.splice(...)`, ...), an element write
  * (`kits[i] = ...`, `alias[0] = ...`) or a `.length` write, where the
  * receiver resolves through the value side to the SAME array literal the
- * walk traced. Round 24's BLOCKER 3: an array literal traced to its
- * initializer is only safe to classify from that initializer when the guard
- * ALSO proves the array is not mutated. A variable binding reassignment
- * (`kits = [...]`) is already handled by `isReassigned`; this helper covers
- * the ELEMENT writes a literal initializer cannot see, including a mutation
- * through a second binding that aliases the same array (`const alias = kits;
- * alias.push(...)` — round 26's BLOCKER 3), by resolving each mutation
- * receiver's symbol through `findArrayLiteralValueSide` and comparing the
- * literal reached to the traced one. A receiver that does not resolve to the
- * traced literal is a DIFFERENT array — its write proves nothing about ours.
+ * walk traced), or the array ESCAPES into a call the guard cannot see
+ * through (round 28's BLOCKER 4: `appendDrawerKit(alias)` may push the real
+ * drawer kit into the array — a helper parameter is exactly where the
+ * writes are invisible). Round 24's BLOCKER 3: an array literal traced to
+ * its initializer is only safe to classify from that initializer when the
+ * guard ALSO proves the array is not mutated. A variable binding
+ * reassignment (`kits = [...]`) is already handled by `isReassigned`; this
+ * helper covers the ELEMENT writes a literal initializer cannot see,
+ * including a mutation through a second binding that aliases the same array
+ * (`const alias = kits; alias.push(...)` — round 26's BLOCKER 3), by
+ * resolving each mutation receiver's symbol through
+ * `findArrayLiteralValueSide` and comparing the literal reached to the
+ * traced one. A receiver that does not resolve to the traced literal is a
+ * DIFFERENT array — its write proves nothing about ours. Only the known
+ * non-mutating iteration methods (`map`/`forEach`/`flatMap`) are exempt
+ * from the escape rule — they do not mutate the array themselves, and their
+ * callbacks' own writes are caught by the receiver-identity scans.
  */
-const isArrayBindingMutated = (
+const isTracedArrayLiteralUnsafe = (
 	tracedArrayLiteral: ArrayLiteralExpression,
 	receiverSourceFile: SourceFile,
 	reassignedNamesByFile: Map<string, Set<string>>,
@@ -5877,21 +6027,94 @@ const isArrayBindingMutated = (
 			tracedArrayLiteral
 		);
 	};
+	// Round 28's BLOCKER 4: the array escaping into a call argument — a
+	// helper parameter, directly or nested in an object/array argument —
+	// means writes the guard cannot see. A property-access callee that is
+	// one of the iteration methods is exempt (the array is the receiver of
+	// `.map`/`.forEach`/`.flatMap`, which do not mutate it).
+	const argumentReferencesTracedArray = (node: Node): boolean => {
+		const unwrapped = unwrapExpression(node);
+		const nodeKind = unwrapped.getKind();
+		if (nodeKind === SyntaxKind.Identifier) {
+			const symbol = (unwrapped as Identifier).getSymbol();
+			if (!symbol) {
+				return false;
+			}
+			return (
+				findArrayLiteralValueSide(symbol, reassignedNamesByFile, new Set()) ===
+				tracedArrayLiteral
+			);
+		}
+		if (nodeKind === SyntaxKind.ObjectLiteralExpression) {
+			return (unwrapped as ObjectLiteralExpression)
+				.getProperties()
+				.some((prop) => {
+					if (prop.getKind() === SyntaxKind.PropertyAssignment) {
+						const initializer = (prop as PropertyAssignment).getInitializer();
+						return initializer
+							? argumentReferencesTracedArray(initializer)
+							: false;
+					}
+					if (prop.getKind() === SyntaxKind.ShorthandPropertyAssignment) {
+						return argumentReferencesTracedArray(
+							(prop as ShorthandPropertyAssignment).getNameNode(),
+						);
+					}
+					if (prop.getKind() === SyntaxKind.SpreadAssignment) {
+						return argumentReferencesTracedArray(
+							(
+								prop as unknown as {
+									getExpression(): Node;
+								}
+							).getExpression(),
+						);
+					}
+					return false;
+				});
+		}
+		if (nodeKind === SyntaxKind.ArrayLiteralExpression) {
+			return (unwrapped as ArrayLiteralExpression)
+				.getElements()
+				.some((element) => argumentReferencesTracedArray(element));
+		}
+		return false;
+	};
+	const escapesIntoCallee = (call: CallExpression): boolean => {
+		const callee = call.getExpression();
+		if (callee.getKind() === SyntaxKind.PropertyAccessExpression) {
+			const propertyAccess = callee as PropertyAccessExpression;
+			if (ITERATION_CALLBACK_METHOD_NAMES.has(propertyAccess.getName())) {
+				return false;
+			}
+		}
+		return call
+			.getArguments()
+			.some((argument) => argumentReferencesTracedArray(argument));
+	};
 	for (const sourceFile of sourceFiles) {
 		for (const call of sourceFile.getDescendantsOfKind(
 			SyntaxKind.CallExpression,
 		)) {
-			const callee = (call as CallExpression).getExpression();
+			const callExpression = call as CallExpression;
+			const callee = callExpression.getExpression();
 			if (callee.getKind() !== SyntaxKind.PropertyAccessExpression) {
+				// A plain callee that receives the array (`appendDrawerKit(
+				// alias)`).
+				if (escapesIntoCallee(callExpression)) {
+					return true;
+				}
 				continue;
 			}
 			const propertyAccess = callee as PropertyAccessExpression;
-			if (!MUTATING_ARRAY_METHOD_NAMES.has(propertyAccess.getName())) {
+			if (MUTATING_ARRAY_METHOD_NAMES.has(propertyAccess.getName())) {
+				if (
+					writesToTracedArray(unwrapExpression(propertyAccess.getExpression()))
+				) {
+					return true;
+				}
 				continue;
 			}
-			if (
-				writesToTracedArray(unwrapExpression(propertyAccess.getExpression()))
-			) {
+			if (escapesIntoCallee(callExpression)) {
 				return true;
 			}
 		}
@@ -6032,8 +6255,12 @@ const resolveIterableParameterMember = (
 	// resolved through the value side, so a write through a second alias of the
 	// same array (`const alias = kits; alias.push(...)`) is caught too — the
 	// array's literal identity, not the receiver's spelling, is what decides.
+	// Round 28's BLOCKER 4: the array ESCAPING into a helper (`appendDrawerKit(
+	// alias)` — the write happens inside the helper, where the guard cannot
+	// see it) is the same unproven-mutation case, so it is unsafe to classify
+	// from the initializer too.
 	if (
-		isArrayBindingMutated(
+		isTracedArrayLiteralUnsafe(
 			arrayLiteral,
 			unwrappedReceiver.getSourceFile(),
 			reassignedNamesByFile,
@@ -11057,6 +11284,59 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_ALIASED_MUTATED_ARRAY_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a traced array literal mutated through a helper parameter is unverifiable and rejected', () => {
+		// Round 28's BLOCKER 4, verbatim: `appendDrawerKit(alias)` where the
+		// helper's body pushes the real drawer kit. The round-26 receiver
+		// resolution only followed receivers with a readable value side; a
+		// helper PARAMETER has no initializer, so the write inside the helper
+		// was invisible and the array was classified from its old local-only
+		// literal — every member definite NOT_DRAWER, the appended real kit
+		// gone. Passing the array into a call is exactly where the guard
+		// cannot see the writes: the literal is unsafe to classify and the
+		// file becomes UNVERIFIABLE.
+		writeFileSync(
+			TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_PATH,
+			TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_HELPER_MUTATED_ARRAY_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a helper that receives a different array leaves the traced array trustworthy', () => {
+		// The BLOCKER 4 control: the traced `kits` array never escapes into
+		// the helper — only `other` does — so its literal stays trustworthy,
+		// the members resolve to the REAL drawer exports, and the broken
+		// chain is discovered and rejected for its own structural reason.
+		// The escape rule must be about the traced array's literal identity,
+		// not about the mere existence of a helper call.
+		writeFileSync(
+			TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_PATH,
+			TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_HELPER_OTHER_ARRAY_KIT_DRAWER_PATH);
 		}
 	});
 
