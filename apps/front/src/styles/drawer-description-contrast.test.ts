@@ -15,6 +15,7 @@ import {
 	ts as tsCompiler,
 } from 'ts-morph';
 import type {
+	AsExpression,
 	ConditionalExpression,
 	Expression,
 	FunctionLikeDeclaration,
@@ -23,8 +24,10 @@ import type {
 	JsxOpeningElement,
 	JsxSelfClosingElement,
 	Node,
+	NoSubstitutionTemplateLiteral,
 	ObjectBindingPattern,
 	ObjectLiteralExpression,
+	ParenthesizedExpression,
 	PropertyAccessExpression,
 	PropertyAssignment,
 	SourceFile,
@@ -659,13 +662,25 @@ const walkElementAttributes = (
 };
 
 /** The literal className value of an initializer node, or null when it is
- * not a string literal (a bare `className`, an expression — all fail loud in
- * the walk). */
+ * not a constant string (a bare `className`, an expression, a ternary — all
+ * fail loud in the walk; a className must be ONE string for the guard to
+ * compile and measure). */
 const classNameValueOf = (initializer: Node | undefined): string | null => {
-	if (initializer?.getKind() !== SyntaxKind.StringLiteral) {
+	if (initializer === undefined) {
 		return null;
 	}
-	return rawSpellingOf(initializer as StringLiteral);
+	if (initializer.getKind() === SyntaxKind.StringLiteral) {
+		return (initializer as StringLiteral).getLiteralValue();
+	}
+	if (initializer.getKind() !== SyntaxKind.JsxExpression) {
+		return null;
+	}
+	const expression = (initializer as JsxExpression).getExpression();
+	if (expression === undefined) {
+		return null;
+	}
+	const constants = evaluateConstantStrings(expression);
+	return constants !== null && constants.length === 1 ? constants[0] : null;
 };
 
 /** An inline `style` that sets `color` is invisible to the source model and
@@ -730,20 +745,49 @@ const styleObjectOf = (initializer: Node): ObjectLiteralExpression | null => {
 	return expression as ObjectLiteralExpression;
 };
 
-/** The raw source spelling of a string literal between its quotes. (Round 23
- * I2 replaces this spelling with the cooked constant — RESOLVED must mean an
- * evaluated value, and `'\x6cow'` is the runtime string `low`, not six
- * characters.) */
-const rawSpellingOf = (literal: StringLiteral): string => {
-	const text = literal.getText();
-	return text.slice(1, -1);
+/** Evaluates an expression to the compile-time constant strings it can
+ * produce, or null when it cannot be reduced to constants. JavaScript escape
+ * processing is applied — the AST's cooked literal value, so `'\x6cow'` IS
+ * the runtime string `low` — and RESOLVED therefore always means an
+ * evaluated value, never a captured spelling (round 23 I2). A ternary
+ * evaluates BOTH branches separately and returns the union of their values;
+ * a branch the evaluator cannot reduce to a constant makes the whole
+ * expression unresolvable. */
+const evaluateConstantStrings = (expression: Expression): string[] | null => {
+	switch (expression.getKind()) {
+		case SyntaxKind.StringLiteral:
+			return [(expression as StringLiteral).getLiteralValue()];
+		case SyntaxKind.NoSubstitutionTemplateLiteral:
+			return [(expression as NoSubstitutionTemplateLiteral).getLiteralValue()];
+		case SyntaxKind.ParenthesizedExpression:
+			return evaluateConstantStrings(
+				(expression as ParenthesizedExpression).getExpression(),
+			);
+		case SyntaxKind.AsExpression:
+			return evaluateConstantStrings(
+				(expression as AsExpression).getExpression(),
+			);
+		case SyntaxKind.ConditionalExpression: {
+			const conditional = expression as ConditionalExpression;
+			const whenTrue = evaluateConstantStrings(conditional.getWhenTrue());
+			const whenFalse = evaluateConstantStrings(conditional.getWhenFalse());
+			if (whenTrue === null || whenFalse === null) {
+				return null;
+			}
+			return [...whenTrue, ...whenFalse];
+		}
+		default:
+			return null;
+	}
 };
 
-/** Resolves a state-attribute value from its AST initializer node. A quoted
- * literal is a single value; a ternary whose branches are both quoted
- * literals is the two values of the union (the condition is free-form — the
- * branches are still exactly the possible runtime values). Any other
- * expression is UNRESOLVABLE and fails the call site loud. */
+/** Resolves a state-attribute value from its AST initializer node. A
+ * constant string expression is a single value (with escapes processed); a
+ * ternary whose branches are both constant strings is the two values of the
+ * union (the condition is free-form — the branches are still exactly the
+ * possible runtime values). Any other expression — a bare variable, a
+ * template literal with a substitution, a call — is UNRESOLVABLE and fails
+ * the call site loud. */
 const resolveAttributeValue = (
 	initializer: Node,
 	file: string,
@@ -753,7 +797,7 @@ const resolveAttributeValue = (
 		case SyntaxKind.StringLiteral:
 			return {
 				status: 'resolved',
-				values: [rawSpellingOf(initializer as StringLiteral)],
+				values: [(initializer as StringLiteral).getLiteralValue()],
 			};
 		case SyntaxKind.JsxExpression: {
 			const expression = (initializer as JsxExpression).getExpression();
@@ -762,33 +806,11 @@ const resolveAttributeValue = (
 				// value is undefined and cannot be enumerated.
 				return { status: 'unresolvable' };
 			}
-			switch (expression.getKind()) {
-				case SyntaxKind.StringLiteral:
-					return {
-						status: 'resolved',
-						values: [rawSpellingOf(expression as StringLiteral)],
-					};
-				case SyntaxKind.ConditionalExpression: {
-					const conditional = expression as ConditionalExpression;
-					const whenTrue = conditional.getWhenTrue();
-					const whenFalse = conditional.getWhenFalse();
-					if (
-						whenTrue.getKind() !== SyntaxKind.StringLiteral ||
-						whenFalse.getKind() !== SyntaxKind.StringLiteral
-					) {
-						return { status: 'unresolvable' };
-					}
-					return {
-						status: 'resolved',
-						values: [
-							rawSpellingOf(whenTrue as StringLiteral),
-							rawSpellingOf(whenFalse as StringLiteral),
-						],
-					};
-				}
-				default:
-					return { status: 'unresolvable' };
+			const constants = evaluateConstantStrings(expression);
+			if (constants === null) {
+				return { status: 'unresolvable' };
 			}
+			return { status: 'resolved', values: constants };
 		}
 		default:
 			// A future TypeScript adds an initializer kind: report by name and
@@ -3605,6 +3627,61 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(() =>
 			callSitesInSource('export function broken( {', 'src/routes/_fixture.tsx'),
 		).toThrow(/Contrast guard cannot parse/);
+	});
+
+	// Round 23 I2: RESOLVED means an EVALUATED value, never a captured
+	// spelling. The round-22 reviewer's mutation was `data-contrast-probe=
+	// {'\x6cow'}` — the runtime value is the three characters `low` (Node:
+	// `'\x6cow' === 'low'` is true), but the old evaluator stamped the six
+	// source characters, the probe rendered `data-contrast-probe="\x6cow"`,
+	// and a rule keyed on `[data-contrast-probe='low']` never matched — the
+	// 2.51:1 low paint came back while all 100 tests stayed green. The
+	// escaped string must now evaluate to `low` and be measured. Reverting
+	// the evaluator to raw source capture makes THIS test red.
+	test('RESOLVED is an evaluated constant with escape processing, never a captured spelling (round 23 I2)', () => {
+		// The reviewer's exact mutation: `'\x6cow'` is the runtime string
+		// `low`.
+		expect(extractStateAttributes(` data-contrast-probe={'\\x6cow'}`)).toEqual({
+			'data-contrast-probe': { status: 'resolved', values: ['low'] },
+		});
+		// Unicode escapes are processed too (`'\u0042'` is `B`).
+		expect(
+			extractStateAttributes(` data-contrast-probe={'a\\u0042c'}`),
+		).toEqual({
+			'data-contrast-probe': { status: 'resolved', values: ['aBc'] },
+		});
+		// A no-substitution template literal is a constant string.
+		expect(extractStateAttributes(' data-x={`low`}')).toEqual({
+			'data-x': { status: 'resolved', values: ['low'] },
+		});
+		// Transparent wrappers (parentheses, `as`) do not stop evaluation.
+		expect(extractStateAttributes(` data-x={('low')}`)).toEqual({
+			'data-x': { status: 'resolved', values: ['low'] },
+		});
+		expect(extractStateAttributes(` data-x={'low' as const}`)).toEqual({
+			'data-x': { status: 'resolved', values: ['low'] },
+		});
+		// A nested ternary is the union of every branch value — each branch
+		// is separately evaluated, never the old "condition contains `?` →
+		// unresolvable" regex artefact.
+		expect(
+			extractStateAttributes(` data-x={a ? (b ? 'low' : 'high') : 'mid'}`),
+		).toEqual({
+			'data-x': { status: 'resolved', values: ['low', 'high', 'mid'] },
+		});
+		// A ternary with a non-constant branch is unresolvable as a whole.
+		expect(extractStateAttributes(` data-x={a ? 'low' : theme}`)).toEqual({
+			'data-x': { status: 'unresolvable' },
+		});
+		// Escape processing applies inside ternary branches too.
+		expect(extractStateAttributes(` data-x={a ? '\\x6cow' : 'high'}`)).toEqual({
+			'data-x': { status: 'resolved', values: ['low', 'high'] },
+		});
+		// A constant that is not a string (a boolean literal) stays
+		// unresolvable — RESOLVED means a constant STRING.
+		expect(extractStateAttributes(' data-x={true}')).toEqual({
+			'data-x': { status: 'unresolvable' },
+		});
 	});
 
 	// Round 21 I1, the RED half of the ternary paired proof: the round-20
