@@ -4190,6 +4190,148 @@ export const CleanCrossFileForwardedKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 28's BLOCKER 3 — a default-imported component definition. The import
+// loop in resolveComponentDefinition read only named imports, so a child that
+// exports its kit drawer as `export default` and a parent that imports it
+// default-style produced NO edge: the pair's halves each lacked the
+// same-file discriminator and both fell through the silent gate. A default
+// import is a normal in-repo arrangement — the definition must resolve
+// through the same module machinery, including `export default <local
+// binding>`.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-default-child.tsx';
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CrossFileDefaultKitDrawer = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+
+export default CrossFileDefaultKitDrawer;
+`;
+
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-default-drawer.tsx';
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import CrossFileDefaultKitDrawer from './_drawer-surface-r28-crossfile-kit-default-child';
+
+export const CrossFileDefaultKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<CrossFileDefaultKitDrawer
+		methods={methods}
+		kit={{
+			Surface: DrawerContent,
+			Form: DrawerForm,
+			Body: DrawerBody,
+			Footer: DrawerFooter,
+		}}
+	/>
+);
+`;
+
+// The BLOCKER 3 control: the SAME default-export/default-import arrangement
+// with only real local components flowing across — no drawer signal, so the
+// pair stays out of the inventory.
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-default-clean-child.tsx';
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CleanCrossFileDefaultKitDrawer = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<kit.Form methods={methods}>
+			<kit.Body />
+			<kit.Footer />
+		</kit.Form>
+	</kit.Surface>
+);
+
+export default CleanCrossFileDefaultKitDrawer;
+`;
+
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-default-clean-drawer.tsx';
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import CleanCrossFileDefaultKitDrawer from './_drawer-surface-r28-crossfile-kit-default-clean-child';
+
+const LocalSurface = () => <div data-testid="r28-default-clean-surface" />;
+const LocalForm = ({
+	methods,
+	children,
+}: {
+	methods: UseFormReturn<FieldValues>;
+	children: React.ReactNode;
+}) => <form data-testid="r28-default-clean-form">{children}</form>;
+const LocalBody = () => <div data-testid="r28-default-clean-body" />;
+const LocalFooter = () => <div data-testid="r28-default-clean-footer" />;
+
+export const CleanCrossFileDefaultKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<CleanCrossFileDefaultKitDrawer
+		methods={methods}
+		kit={{
+			Surface: LocalSurface,
+			Form: LocalForm,
+			Body: LocalBody,
+			Footer: LocalFooter,
+		}}
+	/>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -4600,6 +4742,22 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_FILE,
 		source: TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_SOURCE,
 	},
 ];
 
@@ -7741,7 +7899,18 @@ const findLocalExportInModule = (
 	if (name === 'default') {
 		const exportAssignment = file.getExportAssignments()[0];
 		if (exportAssignment) {
-			return exportAssignment.getExpression();
+			const expression = unwrapExpression(exportAssignment.getExpression());
+			// Round 28's BLOCKER 3: `export default CrossFileKitDrawer;` names
+			// a local binding — follow it to its declaration so the walk can
+			// extract the component body; a bare identifier would resolve to
+			// no body and silently drop the definition.
+			if (expression.getKind() === SyntaxKind.Identifier) {
+				const local = findLocalComponentDeclaration(file, expression.getText());
+				if (local) {
+					return local;
+				}
+			}
+			return expression;
 		}
 		for (const declaration of file.getFunctions()) {
 			if (declaration.isDefaultExport()) {
@@ -8040,6 +8209,40 @@ const resolveComponentDefinition = (
 		return body ? { body, file: sourceFile } : null;
 	}
 	for (const declaration of sourceFile.getImportDeclarations()) {
+		// Round 28's BLOCKER 3: a DEFAULT import is a normal in-repo component
+		// arrangement — `import CrossFileKitDrawer from './child'` against a
+		// child that does `export default CrossFileKitDrawer`. The import loop
+		// used to read only named imports, so the default-imported
+		// component's definition never resolved and the anchor edge across
+		// the pair silently disappeared. The default name resolves through
+		// the same machinery as every other export, including the
+		// `export default <local binding>` indirection.
+		const defaultImport = declaration.getDefaultImport();
+		if (defaultImport && defaultImport.getText() === tagText) {
+			const modulePath = resolveModuleFilePath(
+				sourceFile.getFilePath(),
+				declaration.getModuleSpecifierValue(),
+				moduleResolution,
+				moduleCache,
+			);
+			if (!modulePath || isNodeModulesFilePath(modulePath)) {
+				return null;
+			}
+			const result = resolveNamedExport(
+				modulePath,
+				'default',
+				moduleResolution,
+				project,
+				moduleCache,
+				new Set(),
+				0,
+			);
+			if (!result) {
+				return null;
+			}
+			const body = extractComponentBody(result.node);
+			return body ? { body, file: result.file } : null;
+		}
 		for (const namedImport of declaration.getNamedImports()) {
 			const localName =
 				namedImport.getAliasNode()?.getText() ?? namedImport.getName();
@@ -10678,6 +10881,80 @@ describe('drawer surface flex chain guard (#990)', () => {
 		} finally {
 			unlinkSync(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_PATH);
 			unlinkSync(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose opaque child is default-imported is discovered and both files are rejected', () => {
+		// Round 28's BLOCKER 3, verbatim: the child does `export default
+		// CrossFileDefaultKitDrawer;` and the parent imports it default-style.
+		// The import loop in resolveComponentDefinition read only NAMED
+		// imports, so the default-imported tag never resolved to its
+		// definition — no edge, and both files fell through the silent gate
+		// while the child rendered the exact broken chain. The default import
+		// must resolve through the same module machinery (including the
+		// `export default <local binding>` indirection) so the pair surfaces
+		// and both files redden.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_PATH,
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_FILE),
+			);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_DEFAULT_KIT_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_DEFAULT_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a cross-file default-import pair whose parent passes only local components produces no drawer noise', () => {
+		// The BLOCKER 3 control: the SAME default-export/default-import
+		// arrangement, but only real local components flow across the module
+		// graph. The default import resolves (the definition is reachable),
+		// the edge classifies as a definite non-reference, and the pair stays
+		// out of the inventory.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_PATH,
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_DEFAULT_KIT_CLEAN_DRAWER_PATH);
 		}
 	});
 
