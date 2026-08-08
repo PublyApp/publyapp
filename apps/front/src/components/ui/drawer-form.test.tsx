@@ -3401,6 +3401,40 @@ export const ContentsStyleUndecidableDrawerFixture = ({
 );
 `;
 
+// Round 28's IMPORTANT 7 — an inline style SPREAD does not establish the
+// winning display value. `{ display: 'contents', ...wrapperStyle }` with
+// `wrapperStyle = { display: 'block' as const }` is a real block at runtime
+// (the later spread wins ordinary object construction); the old resolver
+// found the direct `display: 'contents'` property and declared the wrapper
+// boxless.
+const TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_FILE =
+	'src/components/ui/_drawer-surface-r28-contents-style-spread-restoring-fixture.tsx';
+const TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_PATH = fixturePath(
+	TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_FILE,
+);
+const TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+
+const wrapperStyle = { display: 'block' as const };
+
+export const ContentsStyleSpreadRestoringDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<DrawerContent data-testid="r28-contents-style-spread-restoring">
+		<div className="contents" style={{ display: 'contents', ...wrapperStyle }}>
+			<DrawerForm methods={methods}>
+				<DrawerBody />
+				<DrawerFooter>
+					<button type="submit" />
+				</DrawerFooter>
+			</DrawerForm>
+		</div>
+	</DrawerContent>
+);
+`;
+
 // ---------------------------------------------------------------------------
 // Round 24's BLOCKER 1 — components-as-props. A component passes the four
 // drawer exports into a CHILD as a prop (`kit={{ Surface: DrawerContent,
@@ -4838,6 +4872,10 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_FILE,
 		source: TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_SOURCE,
+	},
+	{
+		file: TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_FILE,
+		source: TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_SOURCE,
 	},
 	{
 		file: TEMPORARY_PARAMETER_KIT_DRAWER_FILE,
@@ -7532,6 +7570,12 @@ const isDisplayRestoringUtilityToken = (token: string): boolean => {
  * first (literal `contents` proves boxless, any other literal display value
  * restores a box, an undecidable style fails closed), and the class list is
  * consulted only when the style does not override display.
+ *
+ * Round 28's IMPORTANT 7: a SPREAD in the style object makes the winning
+ * value unestablished even when a direct `display: 'contents'` is present —
+ * `{ display: 'contents', ...wrapperStyle }` with `wrapperStyle = {
+ * display: 'block' }` is a real block at runtime. Spreads are treated like
+ * any other undecidable style: fail closed, never conclude boxless.
  */
 const isBoxlessWrapperElement = (
 	openingElement: JsxOpeningElement | JsxSelfClosingElement,
@@ -7574,27 +7618,43 @@ const isBoxlessWrapperElement = (
 					expression &&
 					expression.getKind() === SyntaxKind.ObjectLiteralExpression
 				) {
-					const displayProperty = (
-						expression as ObjectLiteralExpression
-					).getProperty('display');
+					const styleObject = expression as ObjectLiteralExpression;
+					// Round 28's IMPORTANT 7: a SPREAD can supply or override
+					// `display` — `{ display: 'contents', ...wrapperStyle }`
+					// with `wrapperStyle = { display: 'block' as const }` is a
+					// real block (the later spread wins ordinary object
+					// construction), and `{ ...base }` may carry any display
+					// value. The winning value is not statically established
+					// when the style object contains a spread, so the wrapper
+					// is not boxless — the same fail-closed answer as a
+					// dynamic style object.
 					if (
-						displayProperty &&
-						displayProperty.getKind() === SyntaxKind.PropertyAssignment
+						styleObject
+							.getProperties()
+							.some((prop) => prop.getKind() === SyntaxKind.SpreadAssignment)
 					) {
-						const displayInitializer = (
-							displayProperty as PropertyAssignment
-						).getInitializer();
+						styleDisposition = 'undecidable';
+					} else {
+						const displayProperty = styleObject.getProperty('display');
 						if (
-							displayInitializer &&
-							displayInitializer.getKind() === SyntaxKind.StringLiteral
+							displayProperty &&
+							displayProperty.getKind() === SyntaxKind.PropertyAssignment
 						) {
-							styleDisposition =
-								(displayInitializer as StringLiteral).getLiteralValue() ===
-								'contents'
-									? 'contents'
-									: 'restoring';
-						} else {
-							styleDisposition = 'undecidable';
+							const displayInitializer = (
+								displayProperty as PropertyAssignment
+							).getInitializer();
+							if (
+								displayInitializer &&
+								displayInitializer.getKind() === SyntaxKind.StringLiteral
+							) {
+								styleDisposition =
+									(displayInitializer as StringLiteral).getLiteralValue() ===
+									'contents'
+										? 'contents'
+										: 'restoring';
+							} else {
+								styleDisposition = 'undecidable';
+							}
 						}
 					}
 				} else {
@@ -11782,6 +11842,35 @@ describe('drawer surface flex chain guard (#990)', () => {
 			);
 		} finally {
 			unlinkSync(TEMPORARY_CONTENTS_STYLE_UNDECIDABLE_PATH);
+		}
+	});
+
+	test('a contents wrapper whose inline style spread restores a box is not established boxless and is rejected', () => {
+		// Round 28's IMPORTANT 7, verbatim: `style={{ display: 'contents',
+		// ...wrapperStyle }}` with `wrapperStyle = { display: 'block' as
+		// const }`. A later spread wins ordinary JavaScript object
+		// construction, so the real winning display is `block` — but the
+		// resolver found the direct `display: 'contents'` property and
+		// declared the wrapper boxless. A spread can supply or override
+		// `display`, so the winning value is not statically established and
+		// the wrapper is treated as a real element: the broken chain
+		// reddens. The direct `style={{ display: 'contents' }}` control
+		// stays green (no spread, fully established).
+		writeFileSync(
+			TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_PATH,
+			TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CONTENTS_STYLE_SPREAD_RESTORING_PATH);
 		}
 	});
 
