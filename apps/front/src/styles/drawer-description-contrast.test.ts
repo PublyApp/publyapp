@@ -1282,6 +1282,79 @@ const isBoundToFunctionParameter = (tagNode: Node): boolean => {
 	return false;
 };
 
+/** Whether a JSX tag identifier is bound to a local `let`/`var` whose
+ * initializer refers to the drawer description — `let X = DrawerDescription`,
+ * `let X = Drawer.DrawerDescription`, `let X = Drawer`, or
+ * `let { DrawerDescription: X } = Drawer`. `localDrawerTags` deliberately
+ * models only `const` bindings because a mutable binding can be reassigned
+ * and is not statically attributable (round 23 I1); this is the reporting
+ * half of that decision (round 25 MINOR 1): the tag is reported by name and
+ * location instead of silently answering "not a drawer description" and
+ * leaving a second description to hide behind the one-call-site-per-file
+ * inventory count (round 25 MINOR 2). */
+const isBoundToMutableDrawerBinding = (
+	tagNode: Node,
+	tags: DrawerLocalTags,
+): boolean => {
+	const name = tagNode.getText();
+	for (const declaration of tagNode.getSourceFile().getVariableDeclarations()) {
+		if (
+			declaration.getVariableStatement()?.getDeclarationKind() ===
+			VariableDeclarationKind.Const
+		) {
+			continue;
+		}
+		const nameNode = declaration.getNameNode();
+		if (nameNode.getKind() === SyntaxKind.Identifier) {
+			if (nameNode.getText() !== name) {
+				continue;
+			}
+			const initializer = declaration.getInitializer();
+			if (initializer?.getKind() === SyntaxKind.Identifier) {
+				const sourceName = initializer.getText();
+				if (
+					tags.identifiers.has(sourceName) ||
+					tags.moduleNames.has(sourceName)
+				) {
+					return true;
+				}
+			}
+			if (initializer?.getKind() === SyntaxKind.PropertyAccessExpression) {
+				const root = rootIdentifierOf(initializer);
+				if (
+					root !== null &&
+					tags.moduleNames.has(root) &&
+					(initializer as PropertyAccessExpression).getNameNode().getText() ===
+						'DrawerDescription'
+				) {
+					return true;
+				}
+			}
+		} else if (nameNode.getKind() === SyntaxKind.ObjectBindingPattern) {
+			// `let { DrawerDescription: X } = Drawer` — the same hazard, the
+			// same report.
+			const initializer = declaration.getInitializer();
+			if (
+				initializer?.getKind() !== SyntaxKind.Identifier ||
+				!tags.moduleNames.has(initializer.getText())
+			) {
+				continue;
+			}
+			for (const element of (nameNode as ObjectBindingPattern).getElements()) {
+				const propertyName =
+					element.getPropertyNameNode()?.getText() ?? element.getName();
+				if (
+					propertyName === 'DrawerDescription' &&
+					element.getName() === name
+				) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+};
+
 /** Every local tag name that refers to the drawer description: named imports
  * of the primitive (with aliases), namespace/default imports of the module,
  * and local `const` aliases (`const X = DrawerDescription`,
@@ -1409,11 +1482,12 @@ export const drawerDescriptionTagNames = (
 };
 
 /** Whether a JSX element's tag resolves to the drawer description. The tag
- * node kinds are enumerated exhaustively; the only unresolvable verdict is
+ * node kinds are enumerated exhaustively; the only unresolvable verdicts are
  * the render-prop channel (`<Description />` where `Description` is a
- * function parameter), which REPORTS by name and location — a call site
- * whose tag the model cannot attribute is never automatically "not a drawer
- * description" (round 23 I1). */
+ * function parameter) and a `let`/`var`-bound alias of the primitive — both
+ * REPORT by name and location — a call site whose tag the model cannot
+ * attribute is never automatically "not a drawer description" (round 23 I1,
+ * round 25 MINOR 1). */
 const isDrawerDescriptionElement = (
 	element: JsxElementLike,
 	tags: DrawerLocalTags,
@@ -1433,6 +1507,15 @@ const isDrawerDescriptionElement = (
 						'function parameter, so a caller may pass the drawer ' +
 						'description component; render the primitive directly or ' +
 						'rename the binding.',
+				);
+			}
+			if (isBoundToMutableDrawerBinding(tagNode, tags)) {
+				throw new Error(
+					`DrawerDescription guard cannot attribute the JSX tag ` +
+						`${tagNode.getText()} at ${file}:${line} — it is bound to a ` +
+						'let/var local of the drawer description, which can be ' +
+						'reassigned after the binding is created; declare it with ' +
+						'const or render the primitive directly.',
 				);
 			}
 			// Any other identifier is a different component or a JSX
@@ -4013,6 +4096,54 @@ describe('drawer description text contrast (#1043)', () => {
 		expect(() => callSitesInSource(source, 'src/routes/_fixture.tsx')).toThrow(
 			/cannot attribute the JSX tag Description .* bound to a function parameter/,
 		);
+	});
+
+	// Round 25 MINOR 1: a `let`-bound alias of the primitive is not
+	// statically attributable (the binding can be reassigned), so the element
+	// axis must REPORT it by name and location — the same treatment the
+	// parameter channel gets — instead of silently answering "not a drawer
+	// description" and leaving the report to a list-diff of the inventory
+	// (the round-24 `expected [ …(5) ] to deeply equal [ …(6) ]` message,
+	// which only says "this file lost its call site"). Reverting the report
+	// channel makes THIS test red with the old list-diff failure.
+	test('a tag bound to a let/var local of the drawer description reports unresolvable by name and location (round 25 MINOR 1)', () => {
+		const source = [
+			"import { DrawerDescription } from '~/components/ui/drawer';",
+			'let Description = DrawerDescription;',
+			'export const C = () => <Description />;',
+		].join('\n');
+		expect(() => callSitesInSource(source, 'src/routes/_fixture.tsx')).toThrow(
+			/cannot attribute the JSX tag Description .* let\/var local of the drawer description/,
+		);
+		// The same report for the module-member spelling and the
+		// destructuring spelling.
+		const moduleSource = [
+			"import * as Drawer from '~/components/ui/drawer';",
+			'var Description = Drawer.DrawerDescription;',
+			'export const C = () => <Description />;',
+		].join('\n');
+		expect(() =>
+			callSitesInSource(moduleSource, 'src/routes/_fixture.tsx'),
+		).toThrow(/cannot attribute the JSX tag Description .* let\/var local/);
+		const destructuredSource = [
+			"import * as Drawer from '~/components/ui/drawer';",
+			'let { DrawerDescription: Description } = Drawer;',
+			'export const C = () => <Description />;',
+		].join('\n');
+		expect(() =>
+			callSitesInSource(destructuredSource, 'src/routes/_fixture.tsx'),
+		).toThrow(/cannot attribute the JSX tag Description .* let\/var local/);
+		// A `const` alias is still enumerated, never reported.
+		const constSource = [
+			"import { DrawerDescription } from '~/components/ui/drawer';",
+			'const Description = DrawerDescription;',
+			'export const C = () => <Description />;',
+		].join('\n');
+		expect(
+			callSitesInSource(constSource, 'src/routes/_fixture.tsx').map(
+				(site) => site.line,
+			),
+		).toEqual([3]);
 	});
 
 	test('a self-closing drawer description is enumerated (round 23 I1)', () => {
