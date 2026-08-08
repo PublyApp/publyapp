@@ -2189,16 +2189,10 @@ const askEngine = async (
 			// selector that matches the real element by type and slot alone —
 			// matches the probe too and is measured. The call site's literal
 			// `data-*`/`aria-*` attributes are stamped as-is (round 19 I2).
-			const descriptionAttributes = Object.entries(attributes ?? {})
-				.map(
-					([name, value]) =>
-						` ${name}="${String(value).replace(/"/g, '&quot;')}"`,
-				)
-				.join('');
 			const descriptionMarkup =
 				`<${descriptionTag} id="publy-probe-description" data-slot="` +
 				descriptionDataSlot +
-				`"${descriptionAttributes} class="${elementClasses.join(' ')}">probe`;
+				`">probe`;
 			hostEl.innerHTML =
 				'<div class="app-shell-workspace"></div>' +
 				'<div class="publy-overlay-backdrop"></div>' +
@@ -2212,6 +2206,47 @@ const askEngine = async (
 				`</${descriptionTag}></div>` +
 				(ancestorClass === null ? '' : '</div>') +
 				'</div></div>';
+			// Round 25 I1: the resolved `data-*`/`aria-*` values and the class
+			// list are written with setAttribute AFTER the markup exists, never
+			// by string interpolation into innerHTML. innerHTML parses character
+			// references, so `&amp;` in a resolved value became `&` on the probe
+			// element — while React passes an expression-container value through
+			// verbatim — and the probe measured a different attribute than the
+			// browser paints, in both directions (round 24 BLOCKER 1). The class
+			// attribute was built by the same unescaped interpolation two lines
+			// later and had the identical defect; both go through the same
+			// structural setAttribute here, in one place. Every written value is
+			// then re-read with getAttribute and asserted BYTE-IDENTICAL to the
+			// resolved value: the reader/writer pin. A future writer that
+			// serializes a resolved value through markup again makes the DOM
+			// value differ from the guard's resolution on the first `&`, and the
+			// probe fails loud instead of measuring the wrong string.
+			document.body.appendChild(hostEl);
+			const descriptionElement = document.getElementById(
+				'publy-probe-description',
+			);
+			if (descriptionElement === null) {
+				throw new Error('Probe description element is missing');
+			}
+			const className = elementClasses.join(' ');
+			descriptionElement.setAttribute('class', className);
+			for (const [name, value] of Object.entries(attributes ?? {})) {
+				descriptionElement.setAttribute(name, String(value));
+			}
+			if (descriptionElement.getAttribute('class') !== className) {
+				throw new Error(
+					'Probe class attribute is not byte-identical to the resolved ' +
+						'class list',
+				);
+			}
+			for (const [name, value] of Object.entries(attributes ?? {})) {
+				if (descriptionElement.getAttribute(name) !== String(value)) {
+					throw new Error(
+						`Probe attribute ${name} is not byte-identical to the ` +
+							`resolved value ${JSON.stringify(String(value))}`,
+					);
+				}
+			}
 			document.body.appendChild(hostEl);
 		},
 		{
@@ -3956,6 +3991,38 @@ describe('drawer description text contrast (#1043)', () => {
 			`.publy-r18-static[data-contrast-probe='low'] { color: var(--publy-foreground-subtle); }`,
 			['publy-r18-static'],
 			{ attributes: { 'data-contrast-probe': 'low' } },
+		);
+		expect(light.color).toEqual(
+			resolveColor('--publy-foreground-subtle', 'light'),
+		);
+		expect(contrastRatio(light.color, light.background)).toBeLessThan(
+			SMALL_TEXT_CONTRAST_FLOOR,
+		);
+	});
+
+	// Round 25 I3, the reader/writer pin: the probe must carry the EXACT
+	// string the guard resolved. The round-24 reviewer's reproduction was an
+	// expression-container value containing a character reference: esbuild
+	// 0.28.1 (the transform Vite runs) passes `{'a&amp;b'}` through verbatim,
+	// so React writes the seven characters `a&amp;b`. The old writer
+	// serialized the value into innerHTML, where the HTML parser decoded it to
+	// `a&b` — the probe measured a different attribute than the browser
+	// paints, in both directions (a green suite over a genuine 2.51:1 paint,
+	// and a safe call site reddened). askEngine now writes every attribute
+	// with setAttribute and asserts getAttribute(name) is byte-identical to
+	// the resolved value on every render; here a rule keyed on the seven
+	// characters must match the probe — if the probe carried anything else,
+	// the pin throws and the rule cannot match. This assertion pins the
+	// reader against the writer instead of either against itself, so a future
+	// compensating pair of bugs cannot cancel out and hide.
+	test('the probe renders the resolved attribute value byte-identically — a rule keyed on the characters React writes must match (round 25 I3)', async () => {
+		const { light } = await resolveFixturePaint(
+			`.publy-r25-pin[data-contrast-probe='a&amp;b'] { color: var(--publy-foreground-subtle); }`,
+			['publy-r25-pin'],
+			{},
+			attributeConfigurationsOf({
+				'data-contrast-probe': { status: 'resolved', values: ['a&amp;b'] },
+			}),
 		);
 		expect(light.color).toEqual(
 			resolveColor('--publy-foreground-subtle', 'light'),
