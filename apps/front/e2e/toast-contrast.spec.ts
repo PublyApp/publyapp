@@ -72,10 +72,14 @@ test.use({ deviceScaleFactor: 2 });
  * or `scale`), whose painted box cannot be resolved from computed styles; a
  * click-through overlay (`pointer-events: none`) that paints a background,
  * is stacked above the opaque surface and intersects the glyph area; and
- * the pixel reading itself: any glyph-area pixel that is neither the
- * measured surface, nor the measured ink, nor a blend of the two is paint
- * an overlay put there and fails by name, and the measured contrast must
- * stay above the legibility floor. The click-through scan and the pixel
+ *  the pixel reading itself: any glyph-area pixel that is neither the
+ *  measured surface, nor the measured ink, nor a blend of the two is
+ *  foreign paint — foreign pixels INSIDE the reference glyph mask, where
+ *  the glyphs themselves paint, are an overlay and fail by name; foreign
+ *  pixels that all fall OUTSIDE the mask mean the reference render and the
+ *  paint disagree, and the guard says it cannot conclude rather than
+ *  accusing an overlay (round-15 IMPORTANT 1 and MINOR 1). The measured
+ *  contrast must stay above the legibility floor. The click-through scan and the pixel
  * reading are the checks that do not model the paint: the scan walks the
  * DOM unconditionally for overlays that hit testing cannot see at all, and
  * the pixel reading screenshots the target's box, decodes it in the page
@@ -105,12 +109,13 @@ test.use({ deviceScaleFactor: 2 });
  *   that lies exactly on the mask's own pixels is indistinguishable from the
  *   ink (which is also what legibility requires — the pixels the glyphs
  *   occupy, in the ink colour). A text configuration the reference cannot
- *   reproduce — non-normal `word-spacing`, a `text-transform` beyond
- *   uppercase/lowercase, an un-rasterizable SVG — fails loudly rather than
- *   measure, and the strongest-contrast rule still picks ONE ink cluster, so
- *   a target whose glyphs genuinely paint in more than one colour with
- *   differing contrast is measured at its strongest and needs its own
- *   measurement.
+ *   reproduce is detected, not enumerated: the paint and the mask disagree,
+ *   the foreign pixels all fall outside the mask, and the guard reports the
+ *   disagreement as an UNMODELLED outcome with the likely causes named,
+ *   instead of asserting an overlay exists. The strongest-contrast rule
+ *   still picks ONE ink cluster, so a target whose glyphs genuinely paint
+ *   in more than one colour with differing contrast is measured at its
+ *   strongest and needs its own measurement.
  * - Only mounted, opaque toasts are measured; enter/exit and hover
  *   intermediate states are out of scope.
  * - Text painted with `background-clip: text` resolves to a transparent
@@ -1552,10 +1557,12 @@ const measurePaintedContrast = async (
 			 * glyph's own pixels (the denominator of the ink share); the
 			 * full alpha>0 paint, dilated by `MASK_DILATION`, is the
 			 * occupancy mask that decides what may be ink and what is
-			 * foreign. When a configuration cannot be reproduced faithfully —
-			 * non-normal `word-spacing`, a `text-transform` beyond
-			 * uppercase/lowercase, an SVG shape the canvas cannot stroke —
-			 * the guard fails loud rather than attribute pixels by guesswork.
+			 * foreign. A configuration the reference cannot reproduce does not
+			 * need to be enumerated: the mask and the paint simply disagree,
+			 * the foreign pixels all fall outside the mask, and the guard
+			 * reports the disagreement as an UNMODELLED outcome (naming the
+			 * likely causes) rather than attributing pixels by guesswork or
+			 * accusing an overlay (round-15 MINOR 1).
 			 * Round 13 showed both ways a shape heuristic lies; this replaces
 			 * the heuristic with provenance.
 			 */
@@ -1603,20 +1610,6 @@ const measurePaintedContrast = async (
 						const style = getComputedStyle(painter);
 						if (style.display === 'none' || style.visibility === 'hidden') {
 							continue;
-						}
-						if (style.wordSpacing !== 'normal' && style.wordSpacing !== '0px') {
-							throw new Error(
-								`${label}: cannot attribute text with word-spacing ${style.wordSpacing}`,
-							);
-						}
-						if (
-							style.textTransform !== 'none' &&
-							style.textTransform !== 'uppercase' &&
-							style.textTransform !== 'lowercase'
-						) {
-							throw new Error(
-								`${label}: cannot attribute text with text-transform ${style.textTransform}`,
-							);
 						}
 						let transformed = text;
 						if (style.textTransform === 'uppercase') {
@@ -1973,8 +1966,14 @@ const measurePaintedContrast = async (
 			// measured colours (strictly closer to the ink than to the
 			// surface), so a wash that pushes the glyph's pixels toward the
 			// surface drops the share even though every pixel still lies
-			// between the pair; OUTSIDE the mask, only the surface may
-			// appear, so any paint there is an overlay by name.
+			// between the pair. OUTSIDE the mask, only the surface may
+			// appear. Foreign paint is then judged by WHERE it lies: inside
+			// the mask, where the glyphs themselves paint, it is an overlay;
+			// when every foreign pixel lies outside the mask, the reference
+			// render and the paint disagree and the guard cannot conclude —
+			// an UNMODELLED outcome (round-15 MINOR 1: a transformed toast,
+			// or a wrapping the reference could not reproduce, must not be
+			// named an overlay).
 			let inkSidePixels = 0;
 			let foreignPixels = 0;
 			let foreignInsideMask = 0;
@@ -2043,13 +2042,37 @@ const measurePaintedContrast = async (
 			}
 
 			if (foreignPixels > 0) {
+				if (foreignInsideMask > 0) {
+					// Foreign paint INSIDE the reference glyph mask — where
+					// the glyphs themselves paint — is an overlay the page
+					// put there: an OVERLAY verdict (round-15 MINOR 1).
+					throw new Error(
+						`${label}: the glyph area contains ${foreignPixels} pixel(s) of paint ` +
+							`the measured surface and ink did not produce — ${foreignInsideMask} ` +
+							`of them lie INSIDE the reference glyph mask, where the glyphs ` +
+							`themselves paint: that is an overlay (nearest foreign colour ` +
+							`${rgbLabel(firstForeign ?? [])}; ${foreignInsideMask} inside and ` +
+							`${foreignOutsideMask} outside the mask)`,
+					);
+				}
+				// Every foreign pixel lies OUTSIDE the mask, where the
+				// reference render claims no glyph: the reference render and
+				// the paint disagree, and the guard cannot conclude. That is
+				// an UNMODELLED outcome — a loud refusal that names the
+				// likely causes instead of asserting an overlay exists (the
+				// round-15 misattribution: a wrapping the reference could
+				// not reproduce, or a transformed toast, was reported as
+				// overlay paint).
 				throw new Error(
 					`${label}: the glyph area contains ${foreignPixels} pixel(s) of paint ` +
-						`the measured surface and ink did not produce — neither the measured ` +
-						`surface ${rgbLabel(surface)} nor the measured ink ${rgbLabel(ink)} ` +
-						`nor a blend of the two (nearest foreign colour ` +
-						`${rgbLabel(firstForeign ?? [])}; ${foreignInsideMask} inside and ` +
-						`${foreignOutsideMask} outside the reference glyph mask)`,
+						`the measured surface and ink did not produce — ${foreignInsideMask} ` +
+						`inside and ${foreignOutsideMask} outside the reference glyph mask, ` +
+						`with every one of them where the mask claims no glyph: the reference ` +
+						`render and the paint disagree, so the guard cannot conclude. Possible ` +
+						`causes: a text configuration the reference does not model ` +
+						`(word-spacing, text-transform), a transform or scale on the toast or ` +
+						`an ancestor, or a glyph layout the reference render cannot reproduce ` +
+						`— this is an UNMODELLED outcome, not an overlay verdict`,
 				);
 			}
 			const inkShare = inkSidePixels / strictCount;
@@ -2694,7 +2717,11 @@ test('a hit-testable overlay away from the glyphs stays measured', async ({
  * the hit stack at the ink (only the element's own box hit-tests, not its
  * shadow) — the model cannot see it at all. Only the pixel check can, and
  * it must, by name: the block paints the foreground colour over the glyphs,
- * and outside the reference glyph mask that is foreign paint.
+ * and outside the reference glyph mask that is foreign paint. Because the
+ * block is the ink colour, its pixels over the mask read as ink, so the
+ * foreign pixels all fall OUTSIDE the mask and the guard refuses with the
+ * UNMODELLED outcome (round-16) rather than asserting an overlay — the
+ * refusal is what this test pins.
  */
 test('an outset shadow from a neighbouring element over the glyphs fails the guard', async ({
 	page,
@@ -2775,7 +2802,10 @@ test('a translucent wash of the toast surface erases the text at a ratio the mod
  * glyph mask replaces the old spatial filter: the bar is ink only where it
  * overlaps the mask's own pixels, and everywhere else — the word gaps, the
  * columns between strokes, the run past the glyphs' extent — it is FOREIGN
- * paint. The assertion names the foreign diagnostic, so deleting the mask
+ * paint. The bar's pixels avoid the mask entirely (0 inside), so the guard
+ * refuses with the UNMODELLED outcome (round-16) rather than an overlay
+ * verdict — the refusal is what this test pins. The assertion names the
+ * foreign diagnostic, so deleting the mask
  * alone restores the escape (the bar becomes the ink, no pixel is foreign,
  * 15.60:1, green) and this test goes red. The donor is the same delivery
  * vector the shipped suite uses in four of its own tests: invisible to hit
