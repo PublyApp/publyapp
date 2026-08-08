@@ -3886,6 +3886,140 @@ export const CleanCrossFileParameterKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 28's BLOCKER 1 — the identifier-initialised kit. The anchor probe
+// used to read only INLINE prop values, so moving the very same object to a
+// `const kit = { ... }` binding and passing `kit={kit}` made the edge from
+// the parent to the opaque child disappear: classification said the binding
+// is a real local value (true — an object literal is never the drawer
+// module's symbol) and the graph recorded "no edge", so both files fell
+// through the silent gate while the child rendered the exact broken chain.
+// The probe now follows the binding's VALUE SIDE — the object literal — and
+// classifies its properties like the inline form, so `const kit` passes the
+// same verdict as the literal it holds.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_CROSSFILE_CONST_KIT_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-const-child.tsx';
+const TEMPORARY_CROSSFILE_CONST_KIT_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_CONST_KIT_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_CONST_KIT_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CrossFileConstKitDrawer = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-const-drawer.tsx';
+const TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { CrossFileConstKitDrawer } from './_drawer-surface-r28-crossfile-kit-const-child';
+
+const kit = {
+	Surface: DrawerContent,
+	Form: DrawerForm,
+	Body: DrawerBody,
+	Footer: DrawerFooter,
+};
+
+export const CrossFileConstKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => <CrossFileConstKitDrawer methods={methods} kit={kit} />;
+`;
+
+// The BLOCKER 1 control: the SAME const-kit spelling with only real local
+// components — no drawer export flows across the module graph, so the pair
+// stays out of the inventory entirely.
+const TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-const-clean-child.tsx';
+const TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CleanCrossFileConstKitDrawer = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<kit.Form methods={methods}>
+			<kit.Body />
+			<kit.Footer />
+		</kit.Form>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-const-clean-drawer.tsx';
+const TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { CleanCrossFileConstKitDrawer } from './_drawer-surface-r28-crossfile-kit-const-clean-child';
+
+const LocalSurface = () => <div data-testid="r28-const-clean-surface" />;
+const LocalForm = ({
+	methods,
+	children,
+}: {
+	methods: UseFormReturn<FieldValues>;
+	children: React.ReactNode;
+}) => <form data-testid="r28-const-clean-form">{children}</form>;
+const LocalBody = () => <div data-testid="r28-const-clean-body" />;
+const LocalFooter = () => <div data-testid="r28-const-clean-footer" />;
+
+const kit = {
+	Surface: LocalSurface,
+	Form: LocalForm,
+	Body: LocalBody,
+	Footer: LocalFooter,
+};
+
+export const CleanCrossFileConstKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => <CleanCrossFileConstKitDrawer methods={methods} kit={kit} />;
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -4265,6 +4399,22 @@ const FIXTURE_FILES: ReadonlyArray<{
 		file: TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_FILE,
 		source: TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_SOURCE,
 	},
+	{
+		file: TEMPORARY_CROSSFILE_CONST_KIT_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_CONST_KIT_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_SOURCE,
+	},
 ];
 
 for (const fixture of FIXTURE_FILES) {
@@ -4361,10 +4511,36 @@ const walkCurrentFixtureFiles = (): string[] => {
 // are simply not visited.
 const sourceFileFreshness = new Map<string, { stamp: string; text: string }>();
 
+// Round 28's BLOCKERs 1-3 make the anchor probe three-valued, which turns
+// the per-tag component-definition resolution from a rarity (only props that
+// provably carried a drawer export) into the ordinary case (every prop the
+// probe cannot follow). The old per-scan definition cache paid the full
+// lookup on every one of the suite's ~60 scans, blowing the first scan past
+// the 30s test timeout. The definition of a tag in a file depends only on
+// the ASTs, which are stable until a file's content actually changes
+// (refreshChangedSourceFiles re-reads only changed files and rebuilds the
+// checker) — so the cache lives at module scope and is dropped wholesale
+// when any file refreshes, because a refreshed file gives every node new
+// identity and anything that resolved through it is stale.
+const sharedDefinitionCache = new Map<
+	string,
+	Map<string, DrawerSectionDefinition | null>
+>();
+
+// The same stability argument memoizes the per-file local-declaration map
+// (name -> declaration) that findLocalComponentDeclaration walks.
+const localDeclarationsByFile = new Map<string, Map<string, Node>>();
+
+// ts.resolveModuleName performs file-system lookups; the (file, specifier)
+// answer is deterministic for the fixed tsconfig, so it is cached at module
+// scope too and dropped with the other caches on any refresh.
+const sharedModuleResolutionCache = new Map<string, string | null>();
+
 const refreshChangedSourceFiles = (
 	project: Project,
 	desiredFilePaths: Set<string>,
 ): void => {
+	let refreshedAny = false;
 	for (const filePath of desiredFilePaths) {
 		const stat = statSync(filePath, { bigint: true });
 		const stamp = `${stat.size}:${stat.mtimeNs}`;
@@ -4384,6 +4560,12 @@ const refreshChangedSourceFiles = (
 			project.addSourceFileAtPathIfExists(filePath);
 		}
 		sourceFileFreshness.set(filePath, { stamp, text: diskText });
+		refreshedAny = true;
+	}
+	if (refreshedAny) {
+		sharedDefinitionCache.clear();
+		localDeclarationsByFile.clear();
+		sharedModuleResolutionCache.clear();
 	}
 };
 
@@ -4776,6 +4958,29 @@ const resolveSymbolValue = (
 			.every((declaration) =>
 				DEFINITE_LOCAL_DECLARATION_KINDS.has(declaration.getKind()),
 			)
+	) {
+		return null;
+	}
+	// Round 28's BLOCKERs 1-3: a bare tag bound to a Parameter/BindingElement
+	// whose value the guard cannot follow is normally UNVERIFIABLE (not
+	// knowing must redden) — except for the shipped `state-surface.tsx`
+	// `<Icon>` glyph, whose binding defaults to and is only ever passed
+	// @tabler/icons-react components. The allowance names the exact file and
+	// tag and gives the value-level reason, so it cannot generalise to a new
+	// shape the way a type-based disproof could.
+	if (
+		symbol.getDeclarations().length > 0 &&
+		symbol
+			.getDeclarations()
+			.every(
+				(declaration) =>
+					declaration.getKind() === SyntaxKind.Parameter ||
+					declaration.getKind() === SyntaxKind.BindingElement,
+			) &&
+		isAllowedNonDrawerTagBinding(
+			symbol.getDeclarations()[0].getSourceFile().getFilePath(),
+			symbol.getName(),
+		)
 	) {
 		return null;
 	}
@@ -5569,19 +5774,33 @@ const resolveIterableParameterMember = (
  * `option.Icon`) are NOT covered by a value proof here — their member values
  * are genuine untraceable parameters, so they now resolve UNVERIFIABLE. They
  * are kept green by an explicit, narrow, documented allowance (see
- * NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES) that names the file and the member
- * and gives the value-level reason it is safe. It is a reviewed list, not a
- * second type-shaped rule: it cannot generalise to a new shape, and it cannot
- * silently keep a fresh broken drawer green.
+ * NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES) that names the file, the binding
+ * base and the member and gives the value-level reason it is safe. It is a
+ * reviewed list, not a second type-shaped rule: it cannot generalise to a
+ * new shape, and it cannot silently keep a fresh broken drawer green.
+ *
+ * Round 28's BLOCKERs 1-3 make the anchor probe three-valued, which anchored
+ * two more real receivers: `icon-color-picker.tsx`'s `activeIconOption.Icon`
+ * (the base is the Tabler-only catalog lookup, not a parameter, so the
+ * parameter-member allowance never fired) and `state-surface.tsx`'s bare
+ * `<Icon>` (a destructured parameter binding with a Tabler icon default).
+ * Both are the same Tabler-only value story the existing entries document —
+ * the drawer module's exports are never members of the @tabler/icons-react
+ * collection — so the allowance list grows by the same value-shaped entries,
+ * one naming the new base, one naming the bare tag. A drawer-importing file
+ * that passes data props into either component is then no longer an
+ * unresolved-edge pairAnchor of an unverifiable receiver.
  */
 const NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES: ReadonlyArray<{
 	file: string;
 	member: string;
+	base?: string;
 	reason: string;
 }> = [
 	{
 		file: 'src/components/app-shell/app-shell.tsx',
 		member: 'Icon',
+		base: 'item',
 		reason:
 			'Every `item.Icon` is drawn from the @tabler/icons-react collection the ' +
 			'app-shell nav model declares (`Icon: TablerIcon`); the nav arrays are ' +
@@ -5593,6 +5812,7 @@ const NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES: ReadonlyArray<{
 	{
 		file: 'src/components/ui/icon-color-picker.tsx',
 		member: 'Icon',
+		base: 'option',
 		reason:
 			'Every `option.Icon` comes from `ICON_COLOR_PICKER_OPTIONS`, built ' +
 			'entirely from @tabler/icons-react components (see ' +
@@ -5600,111 +5820,295 @@ const NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES: ReadonlyArray<{
 			'an element of that array. The `<option.Icon>` tag is a palette glyph, ' +
 			'never a drawer part.',
 	},
+	{
+		file: 'src/components/ui/icon-color-picker.tsx',
+		member: 'Icon',
+		base: 'activeIconOption',
+		reason:
+			'`activeIconOption` is `getIconColorPickerOption(value.icon) ?? ' +
+			'DEFAULT_ICON_COLOR_PICKER_OPTION` — both sides resolve into ' +
+			'ICON_COLOR_PICKER_OPTIONS, the @tabler/icons-react-only catalog (see ' +
+			'icon-color-picker-options.ts), so `activeIconOption.Icon` carries a ' +
+			'palette glyph, never a drawer part, for the same value-level reason ' +
+			'the `option.Icon` allowance documents.',
+	},
 ];
 
 const isAllowedNonDrawerParameterMember = (
 	filePath: string,
 	memberName: string,
+	baseName: string,
 ): boolean =>
 	NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES.some(
 		(allowance) =>
 			toPortableSourcePath(filePath) === allowance.file &&
-			memberName === allowance.member,
+			memberName === allowance.member &&
+			(allowance.base === undefined || allowance.base === baseName),
+	);
+
+// Round 28's BLOCKERs 1-3: the bare-tag half of the same value-shaped
+// allowance. `state-surface.tsx`'s `<Icon>` is a destructured parameter
+// binding (`icon: Icon = IconInbox`) — the value rule cannot follow it, but
+// the binding's TYPE and every default are @tabler/icons-react glyphs, and
+// the call sites pass Tabler icons only. A bare tag allowance names the
+// file and the tag and gives the value-level reason, exactly like the
+// member allowances above.
+const NON_DRAWER_TAG_ALLOWANCES: ReadonlyArray<{
+	file: string;
+	tag: string;
+	reason: string;
+}> = [
+	{
+		file: 'src/components/ui/state-surface.tsx',
+		tag: 'Icon',
+		reason:
+			'The `icon` prop is typed `TablerIcon` and the destructured binding ' +
+			'falls back to @tabler/icons-react defaults (`IconInbox`, ' +
+			'`IconAlertCircle`, `IconSearchOff`); every call site passes a ' +
+			"Tabler glyph or nothing, and the drawer module's exports are never " +
+			'members of that collection. The `<Icon>` tag is a state glyph, never ' +
+			'a drawer part.',
+	},
+];
+
+const isAllowedNonDrawerTagBinding = (
+	filePath: string,
+	tagName: string,
+): boolean =>
+	NON_DRAWER_TAG_ALLOWANCES.some(
+		(allowance) =>
+			toPortableSourcePath(filePath) === allowance.file &&
+			tagName === allowance.tag,
 	);
 
 /**
- * True when `expression` (a JSX attribute value) references a drawer-module
- * export — directly (`<X surface={DrawerContent} />`), through an object
- * literal that carries one (`kit={{ Surface: DrawerContent, ... }}`), through
- * an array literal, or through a conditional that carries one on any branch.
- * This is round 26's BLOCKER 2 anchor probe: a component reference whose prop
- * value is a drawer export is a file "passing drawer exports into another
- * component", and the component's definition file is the pair it anchors.
- * Only a resolver-confirmed drawer symbol counts — an unverifiable or local
- * value does not, so a legit `<X icon={SomeIcon} />` prop is not an anchor.
+ * Round 28's BLOCKERs 1-3: edge resolution gets the same three outcomes as
+ * classification. The anchor probe below answers "does this prop value
+ * reference a drawer export?" with REFERENCES (resolved, and it is),
+ * DOES_NOT_REFERENCE (resolved, provably not), or UNRESOLVED (could not be
+ * followed — an identifier-initialised object, a parameter whose value comes
+ * from call sites, an unverifiable binding). Round 27's four blockers were
+ * all the same two-valued default — "I could not follow this reference" was
+ * recorded as "there is no such reference" — so the probe's verdicts feed
+ * the module graph in three lanes instead of one, and an UNRESOLVED edge
+ * from an anchored file forces the pair to surface instead of falling out of
+ * discovery.
  */
-const expressionReferencesDrawerExport = (
+type DrawerExportReferenceResult =
+	| 'references'
+	| 'does-not-reference'
+	| 'unresolved';
+
+const referenceResultFromSymbolValue = (
+	result: DrawerTagNameResult,
+): DrawerExportReferenceResult => {
+	if (typeof result === 'string') {
+		return 'references';
+	}
+	if (result === UNVERIFIABLE_TAG) {
+		return 'unresolved';
+	}
+	return 'does-not-reference';
+};
+
+/**
+ * Classifies the properties of an object literal for the anchor probe. Any
+ * property that provably carries a drawer export wins; otherwise a property
+ * the probe cannot follow (a spread of an unresolvable value) makes the
+ * literal UNRESOLVED — the object COULD carry drawer exports the probe
+ * cannot see; otherwise it is a definite non-reference.
+ */
+const classifyObjectLiteralReference = (
+	objectLiteral: ObjectLiteralExpression,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerExportReferenceResult => {
+	let anyUnresolved = false;
+	for (const prop of objectLiteral.getProperties()) {
+		if (prop.getKind() === SyntaxKind.PropertyAssignment) {
+			const initializer = (prop as PropertyAssignment).getInitializer();
+			if (!initializer) {
+				anyUnresolved = true;
+				continue;
+			}
+			const verdict = classifyDrawerExportReference(
+				initializer,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+			if (verdict === 'references') {
+				return 'references';
+			}
+			if (verdict === 'unresolved') {
+				anyUnresolved = true;
+			}
+			continue;
+		}
+		if (prop.getKind() === SyntaxKind.ShorthandPropertyAssignment) {
+			const valueSymbol = project
+				.getTypeChecker()
+				.getShorthandAssignmentValueSymbol(prop as ShorthandPropertyAssignment);
+			if (!valueSymbol) {
+				anyUnresolved = true;
+				continue;
+			}
+			const verdict = referenceResultFromSymbolValue(
+				resolveSymbolValue(valueSymbol, project, reassignedNamesByFile, seen),
+			);
+			if (verdict === 'references') {
+				return 'references';
+			}
+			if (verdict === 'unresolved') {
+				anyUnresolved = true;
+			}
+			continue;
+		}
+		if (prop.getKind() === SyntaxKind.SpreadAssignment) {
+			const argument = (
+				prop as unknown as { getExpression(): Node }
+			).getExpression();
+			if (!argument) {
+				anyUnresolved = true;
+				continue;
+			}
+			const verdict = classifyDrawerExportReference(
+				argument,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+			if (verdict === 'references') {
+				return 'references';
+			}
+			if (verdict === 'unresolved') {
+				anyUnresolved = true;
+			}
+		}
+	}
+	return anyUnresolved ? 'unresolved' : 'does-not-reference';
+};
+
+/**
+ * Classifies an array literal for the anchor probe with the same
+ * any-reference-wins, else any-unresolved, else-none semantics.
+ */
+const classifyArrayLiteralReference = (
+	arrayLiteral: ArrayLiteralExpression,
+	project: Project,
+	reassignedNamesByFile: Map<string, Set<string>>,
+	seen: Set<string>,
+): DrawerExportReferenceResult => {
+	let anyUnresolved = false;
+	for (const element of arrayLiteral.getElements()) {
+		const verdict = classifyDrawerExportReference(
+			element,
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
+		if (verdict === 'references') {
+			return 'references';
+		}
+		if (verdict === 'unresolved') {
+			anyUnresolved = true;
+		}
+	}
+	return anyUnresolved ? 'unresolved' : 'does-not-reference';
+};
+
+/**
+ * Classifies `expression` (a JSX attribute value) for the module graph:
+ * REFERENCES — it provably carries a drawer-module export (directly
+ * (`<X surface={DrawerContent} />`), through an object literal
+ * (`kit={{ Surface: DrawerContent, ... }}`), an array literal, a conditional
+ * branch, or a binding whose value side is one of those literals — round
+ * 28's BLOCKER 1: `const kit = {...}; <X kit={kit} />`); DOES_NOT_REFERENCE —
+ * resolved and provably not; UNRESOLVED — the probe could not follow the
+ * value (an unverifiable binding, or a parameter whose value comes from call
+ * sites — round 28's BLOCKER 2). This is round 26's BLOCKER 2 anchor probe,
+ * now three-valued: a component reference whose prop value carries drawer
+ * exports anchors the component's definition file, and a prop the probe
+ * cannot follow is an unresolved edge, never "no edge".
+ */
+const classifyDrawerExportReference = (
 	expression: Node,
 	project: Project,
 	reassignedNamesByFile: Map<string, Set<string>>,
 	seen: Set<string>,
-): boolean => {
+): DrawerExportReferenceResult => {
 	const unwrapped = unwrapExpression(expression);
 	const kind = unwrapped.getKind();
+	if (kind === SyntaxKind.Identifier) {
+		const symbol = (unwrapped as Identifier).getSymbol();
+		if (!symbol) {
+			return 'unresolved';
+		}
+		// Round 28's BLOCKER 1: a binding whose VALUE SIDE is an object or
+		// array literal is followed through that literal — classification
+		// answers "is this value the drawer module's symbol?" (an object
+		// literal is a real local value), but the anchor probe asks "could
+		// drawer exports flow through this value?", so the literal's own
+		// properties are walked instead of stopping at the null verdict.
+		const objectLiteral = findObjectLiteralValueSide(
+			symbol,
+			reassignedNamesByFile,
+			new Set(seen),
+		);
+		if (objectLiteral) {
+			return classifyObjectLiteralReference(
+				objectLiteral,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		const arrayLiteral = findArrayLiteralValueSide(
+			symbol,
+			reassignedNamesByFile,
+			new Set(seen),
+		);
+		if (arrayLiteral) {
+			return classifyArrayLiteralReference(
+				arrayLiteral,
+				project,
+				reassignedNamesByFile,
+				seen,
+			);
+		}
+		return referenceResultFromSymbolValue(
+			resolveSymbolValue(symbol, project, reassignedNamesByFile, seen),
+		);
+	}
 	if (
-		kind === SyntaxKind.Identifier ||
 		kind === SyntaxKind.PropertyAccessExpression ||
 		kind === SyntaxKind.CallExpression ||
 		kind === SyntaxKind.ConditionalExpression
 	) {
-		return (
-			typeof resolveValueIdentity(
-				unwrapped,
-				project,
-				reassignedNamesByFile,
-				seen,
-			) === 'string'
+		return referenceResultFromSymbolValue(
+			resolveValueIdentity(unwrapped, project, reassignedNamesByFile, seen),
 		);
 	}
 	if (kind === SyntaxKind.ObjectLiteralExpression) {
-		return (unwrapped as ObjectLiteralExpression)
-			.getProperties()
-			.some((prop) => {
-				if (prop.getKind() === SyntaxKind.PropertyAssignment) {
-					const initializer = (prop as PropertyAssignment).getInitializer();
-					return initializer
-						? expressionReferencesDrawerExport(
-								initializer,
-								project,
-								reassignedNamesByFile,
-								seen,
-							)
-						: false;
-				}
-				if (prop.getKind() === SyntaxKind.ShorthandPropertyAssignment) {
-					const valueSymbol = project
-						.getTypeChecker()
-						.getShorthandAssignmentValueSymbol(
-							prop as ShorthandPropertyAssignment,
-						);
-					return valueSymbol
-						? typeof resolveSymbolValue(
-								valueSymbol,
-								project,
-								reassignedNamesByFile,
-								seen,
-							) === 'string'
-						: false;
-				}
-				if (prop.getKind() === SyntaxKind.SpreadAssignment) {
-					const argument = (
-						prop as unknown as { getExpression(): Node }
-					).getExpression();
-					return argument
-						? expressionReferencesDrawerExport(
-								argument,
-								project,
-								reassignedNamesByFile,
-								seen,
-							)
-						: false;
-				}
-				return false;
-			});
+		return classifyObjectLiteralReference(
+			unwrapped as ObjectLiteralExpression,
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
 	}
 	if (kind === SyntaxKind.ArrayLiteralExpression) {
-		return (unwrapped as ArrayLiteralExpression)
-			.getElements()
-			.some((element) =>
-				expressionReferencesDrawerExport(
-					element,
-					project,
-					reassignedNamesByFile,
-					seen,
-				),
-			);
+		return classifyArrayLiteralReference(
+			unwrapped as ArrayLiteralExpression,
+			project,
+			reassignedNamesByFile,
+			seen,
+		);
 	}
-	return false;
+	// A string, a number, a template — a value that cannot be the drawer
+	// module's export or carry one.
+	return 'does-not-reference';
 };
 
 /**
@@ -5726,6 +6130,19 @@ const expressionReferencesDrawerExport = (
  * module-graph side, plus the set of files that both pass drawer exports and
  * feed them into a file with unverifiable tags (the pair-anchor half, which
  * reddens on its own).
+ *
+ * Round 28's BLOCKERs 1-3 make the edge itself three-valued: `passesInto`
+ * carries the REFERENCES edges (a drawer export provably flows across), and
+ * `unresolvedPassesInto` carries the edges the probe could not follow (an
+ * identifier-initialised object is now followed to its literal — BLOCKER 1 —
+ * but a parameter forwarded onward stays UNRESOLVED — BLOCKER 2 — and a
+ * default-imported component whose definition the walk cannot resolve
+ * produces no edge at all — BLOCKER 3). An UNRESOLVED edge from an ANCHORED
+ * passer into a receiver with drawer-shaped opaque tags forces the receiver
+ * to surface (UNVERIFIABLE — the mechanism classification already has), and
+ * the passer is that receiver's anchor: "an unresolved edge anywhere in the
+ * pair's chain forces the pair to surface" instead of both halves silently
+ * falling out of discovery.
  */
 const buildDrawerPassGraph = (
 	desiredFilePaths: Set<string>,
@@ -5738,10 +6155,12 @@ const buildDrawerPassGraph = (
 ): {
 	anchoredReceivers: Set<string>;
 	pairAnchors: Set<string>;
+	unresolvedAnchoredReceivers: Set<string>;
 	unverifiableByFile: Set<string>;
 	importsDrawerByFile: Set<string>;
 } => {
 	const passesInto = new Map<string, Set<string>>();
+	const unresolvedPassesInto = new Map<string, Set<string>>();
 	const unverifiableByFile = new Set<string>();
 	const importsDrawerByFile = new Set<string>();
 
@@ -5772,7 +6191,6 @@ const buildDrawerPassGraph = (
 			declaredNamesByFile,
 			reassignedNamesByFile,
 			drawerTagName,
-			definitionCache: new Map(),
 		};
 		for (const tag of jsxTags) {
 			const tagNameNode = tag.getTagNameNode();
@@ -5789,7 +6207,7 @@ const buildDrawerPassGraph = (
 			if (typeof drawerTagName(tagNameNode) === 'string') {
 				continue;
 			}
-			let passesDrawerExport = false;
+			let edgeVerdict: DrawerExportReferenceResult | null = null;
 			for (const attribute of tag.getAttributes()) {
 				if (attribute.getKind() !== SyntaxKind.JsxAttribute) {
 					continue;
@@ -5802,20 +6220,24 @@ const buildDrawerPassGraph = (
 					initializer.getKind() === SyntaxKind.JsxExpression
 						? (initializer as JsxExpression).getExpression()
 						: null;
-				if (
-					expression &&
-					expressionReferencesDrawerExport(
-						expression,
-						project,
-						reassignedNamesByFile,
-						new Set(),
-					)
-				) {
-					passesDrawerExport = true;
+				if (!expression) {
+					continue;
+				}
+				const verdict = classifyDrawerExportReference(
+					expression,
+					project,
+					reassignedNamesByFile,
+					new Set(),
+				);
+				if (verdict === 'references') {
+					edgeVerdict = 'references';
 					break;
 				}
+				if (verdict === 'unresolved') {
+					edgeVerdict = 'unresolved';
+				}
 			}
-			if (!passesDrawerExport) {
+			if (!edgeVerdict) {
 				continue;
 			}
 			const definition = resolveComponentDefinitionCached(
@@ -5829,9 +6251,11 @@ const buildDrawerPassGraph = (
 			const definitionPortable = toPortableSourcePath(
 				definition.file.getFilePath(),
 			);
-			const passers = passesInto.get(definitionPortable) ?? new Set<string>();
+			const edgeLane =
+				edgeVerdict === 'references' ? passesInto : unresolvedPassesInto;
+			const passers = edgeLane.get(definitionPortable) ?? new Set<string>();
 			passers.add(portable);
-			passesInto.set(definitionPortable, passers);
+			edgeLane.set(definitionPortable, passers);
 		}
 	}
 
@@ -5865,9 +6289,33 @@ const buildDrawerPassGraph = (
 		}
 	}
 
+	// Round 28's BLOCKER 2: an UNRESOLVED edge from an ANCHORED passer into a
+	// receiver with drawer-shaped opaque tags is the same "could be a drawer
+	// kit" signal one hop further — the receiver is a file the guard could
+	// not clear and must surface as UNVERIFIABLE, and the passer is that
+	// receiver's anchor. An unresolved edge from a passer that is NOT
+	// anchored carries no drawer signal at all (an ordinary parameter
+	// forwarded onward), so it stays silent — the "what is intentionally not
+	// a finding" shape.
+	const unresolvedAnchoredReceivers = new Set<string>();
+	for (const [receiver, passers] of unresolvedPassesInto) {
+		if (!unverifiableByFile.has(receiver)) {
+			continue;
+		}
+		for (const passer of passers) {
+			if (!anchoredReceivers.has(passer)) {
+				continue;
+			}
+			unresolvedAnchoredReceivers.add(receiver);
+			pairAnchors.add(passer);
+			break;
+		}
+	}
+
 	return {
 		anchoredReceivers,
 		pairAnchors,
+		unresolvedAnchoredReceivers,
 		unverifiableByFile,
 		importsDrawerByFile,
 	};
@@ -5951,7 +6399,7 @@ const resolveTypeSideMemberValue = (
 		// exception is when the guard can follow the member's VALUE to a
 		// symbol that is not a drawer export — the shipped `app-shell.tsx`
 		// (`item.Icon`) and `icon-color-picker.tsx` (`option.Icon`) shapes are
-		// allowed through that way, enumerated by file + member in
+		// allowed through that way, enumerated by file + base + member in
 		// NON_DRAWER_PARAMETER_MEMBER_ALLOWANCES with the value-level reason
 		// each is safe. A member type declared `FC<any>` is NOT a disproof —
 		// a repo-local DrawerContent can legally inhabit React's external
@@ -5961,11 +6409,28 @@ const resolveTypeSideMemberValue = (
 			isAllowedNonDrawerParameterMember(
 				propertyAccess.getSourceFile().getFilePath(),
 				propertyAccess.getName(),
+				base.getText(),
 			)
 		) {
 			return null;
 		}
 		return UNVERIFIABLE_TAG;
+	}
+	// Round 28's BLOCKERs 1-3: the same value-shaped allowance applies to a
+	// member of a base the probe cannot otherwise follow — `icon-color-
+	// picker.tsx`'s `activeIconOption.Icon` (the base is the Tabler-only
+	// catalog lookup `getIconColorPickerOption(...) ?? DEFAULT_...`). With
+	// the three-valued anchor probe the unresolved pair would otherwise
+	// surface; the allowance names the exact base + member and gives the
+	// value-level reason, so it cannot generalise to a new shape.
+	if (
+		isAllowedNonDrawerParameterMember(
+			propertyAccess.getSourceFile().getFilePath(),
+			propertyAccess.getName(),
+			base.getText(),
+		)
+	) {
+		return null;
 	}
 	return UNVERIFIABLE_TAG;
 };
@@ -6642,7 +7107,6 @@ type WalkContext = {
 	declaredNamesByFile: Map<string, Set<string>>;
 	reassignedNamesByFile: Map<string, Set<string>>;
 	drawerTagName: (tagNameNode: Node) => DrawerTagNameResult;
-	definitionCache: Map<string, Map<string, DrawerSectionDefinition | null>>;
 };
 
 const isNodeModulesFilePath = (filePath: string): boolean =>
@@ -6654,8 +7118,12 @@ const resolveModuleFilePath = (
 	moduleResolution: ModuleResolution,
 	moduleCache: Map<string, string | null>,
 ): string | null => {
+	// Round 28: the per-scan cache is a view over the module-scope cache,
+	// which survives the suite's repeated scans (the resolution answer is
+	// deterministic for the fixed tsconfig) and is dropped on any content
+	// refresh. Writing through the shared map keeps both consistent.
 	const cacheKey = `${fromFilePath}|${moduleSpecifier}`;
-	let resolved = moduleCache.get(cacheKey);
+	let resolved = sharedModuleResolutionCache.get(cacheKey);
 	if (resolved === undefined) {
 		resolved =
 			ts.resolveModuleName(
@@ -6664,8 +7132,9 @@ const resolveModuleFilePath = (
 				moduleResolution.compilerOptions,
 				moduleResolution.host,
 			).resolvedModule?.resolvedFileName ?? null;
-		moduleCache.set(cacheKey, resolved);
+		sharedModuleResolutionCache.set(cacheKey, resolved);
 	}
+	moduleCache.set(cacheKey, resolved);
 	return resolved;
 };
 
@@ -7036,22 +7505,25 @@ const findLocalComponentDeclaration = (
 	sourceFile: SourceFile,
 	name: string,
 ): Node | null => {
-	for (const declaration of sourceFile.getFunctions()) {
-		if (declaration.getName() === name) {
-			return declaration;
+	// Round 28: memoized at module scope — the per-file declaration lists are
+	// stable until a content refresh drops the map, and the old per-call
+	// triple walk made the now-common definition resolution quadratic in the
+	// file's declaration count.
+	let byName = localDeclarationsByFile.get(sourceFile.getFilePath());
+	if (!byName) {
+		byName = new Map<string, Node>();
+		for (const declaration of sourceFile.getFunctions()) {
+			byName.set(declaration.getName() ?? '', declaration);
 		}
-	}
-	for (const declaration of sourceFile.getClasses()) {
-		if (declaration.getName() === name) {
-			return declaration;
+		for (const declaration of sourceFile.getClasses()) {
+			byName.set(declaration.getName() ?? '', declaration);
 		}
-	}
-	for (const declaration of sourceFile.getVariableDeclarations()) {
-		if (declaration.getName() === name) {
-			return declaration;
+		for (const declaration of sourceFile.getVariableDeclarations()) {
+			byName.set(declaration.getName(), declaration);
 		}
+		localDeclarationsByFile.set(sourceFile.getFilePath(), byName);
 	}
-	return null;
+	return byName.get(name) ?? null;
 };
 
 const findLocalExportInModule = (
@@ -7399,11 +7871,15 @@ const resolveComponentDefinitionCached = (
 	tagText: string,
 	context: WalkContext,
 ): DrawerSectionDefinition | null => {
+	// Round 28: the definition cache is module-scoped (see
+	// sharedDefinitionCache) — the per-scan cache paid the full lookup on
+	// every one of the suite's scans once the three-valued anchor probe made
+	// the lookup the ordinary case.
 	const filePath = sourceFile.getFilePath();
-	let byName = context.definitionCache.get(filePath);
+	let byName = sharedDefinitionCache.get(filePath);
 	if (!byName) {
 		byName = new Map<string, DrawerSectionDefinition | null>();
-		context.definitionCache.set(filePath, byName);
+		sharedDefinitionCache.set(filePath, byName);
 	}
 	if (!byName.has(tagText)) {
 		byName.set(
@@ -7902,7 +8378,6 @@ const scanDrawerSurfaces = (): {
 				declaredNamesByFile,
 				reassignedNamesByFile,
 				drawerTagName,
-				definitionCache: new Map(),
 			};
 			for (const anchor of anchorElements) {
 				for (const child of anchor.getJsxChildren()) {
@@ -7994,6 +8469,8 @@ const scanDrawerSurfaces = (): {
 		const portablePath = toPortableSourcePath(sourceFile.getFilePath());
 		const drawerAnchoredFromGraph =
 			passGraph.anchoredReceivers.has(portablePath);
+		const unresolvedAnchored =
+			passGraph.unresolvedAnchoredReceivers.has(portablePath);
 		const pairAnchor = passGraph.pairAnchors.has(portablePath);
 		if (
 			anchorElements.length === 0 &&
@@ -8001,6 +8478,11 @@ const scanDrawerSurfaces = (): {
 			callSiteFormNodes.length === 0 &&
 			!(importsDrawerModule && hasUnverifiableTag) &&
 			!(drawerAnchoredFromGraph && hasUnverifiableTag) &&
+			// Round 28's BLOCKER 2: a receiver whose chain carries an
+			// UNRESOLVED edge from an anchored passer cannot be cleared by
+			// the guard — it surfaces like any other unverifiable file
+			// instead of both halves of the pair falling out of discovery.
+			!unresolvedAnchored &&
 			!pairAnchor
 		) {
 			continue;
@@ -8026,6 +8508,7 @@ const scanDrawerSurfaces = (): {
 			formLinkBroken ||
 			walkState.unverifiable ||
 			hasUnverifiableTag ||
+			unresolvedAnchored ||
 			pairAnchor ||
 			walkPartBroken ||
 			walkFormBroken
@@ -9836,6 +10319,82 @@ describe('drawer surface flex chain guard (#990)', () => {
 		} finally {
 			unlinkSync(TEMPORARY_CROSSFILE_KIT_CLEAN_CHILD_PATH);
 			unlinkSync(TEMPORARY_CROSSFILE_KIT_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose kit is built as a const object and passed by reference is discovered and rejected', () => {
+		// Round 28's BLOCKER 1, verbatim: `const kit = { Surface:
+		// DrawerContent, ... }; <CrossFileConstKitDrawer kit={kit} />`. The
+		// anchor probe used to read only INLINE prop values — an identifier
+		// resolved to a definite local value (the object literal is never
+		// the drawer module's symbol, which is true but beside the point),
+		// so the edge from the parent to the opaque child disappeared and
+		// the gate silently dropped both files while the child rendered the
+		// exact broken chain. The probe must follow the binding's VALUE
+		// SIDE — the object literal — and classify its properties like the
+		// inline form: the pair surfaces and both files redden.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_CONST_KIT_CHILD_PATH,
+			TEMPORARY_CROSSFILE_CONST_KIT_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_CHILD_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_CHILD_FILE),
+			);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_CONST_KIT_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_CONST_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a cross-file const-kit pair whose kit holds only local components produces no drawer noise', () => {
+		// The BLOCKER 1 control: the SAME `const kit` spelling, but every
+		// property is a real local component. The value-side walk resolves
+		// them as definite non-references, so no drawer export flows across
+		// the module graph and the pair stays out of the inventory — the
+		// identifier follow must not have widened the anchor into
+		// anything-object-shaped.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_PATH,
+			TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_PATH);
 		}
 	});
 
