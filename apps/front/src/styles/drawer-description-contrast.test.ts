@@ -4146,6 +4146,27 @@ describe('drawer description text contrast (#1043)', () => {
 		).toEqual([3]);
 	});
 
+	// Round 25 MINOR 2: the shared inventory pins ONE call site per file, so
+	// a SECOND low-contrast description added to an already-inventoried file
+	// through the `let` channel used to leave the count at 1 and the suite
+	// green — the element axis silently answered "not a drawer description"
+	// and the inventory diff had nothing to miss. The round-25 MINOR 1
+	// report channel closes it: the `let`-bound element now throws by name
+	// and location before any count is taken. This is the reviewer's exact
+	// scenario encoded as a regression test — reverting the MINOR 1 report
+	// makes this test fail with the old silent absence.
+	test('a second description through the let channel inside an already-inventoried file is backstopped by the same report (round 25 MINOR 2)', () => {
+		const source = [
+			"import { DrawerDescription } from '~/components/ui/drawer';",
+			'const Description = DrawerDescription;',
+			'let SecondDescription = DrawerDescription;',
+			'export const C = () => <><Description /><SecondDescription /></>;',
+		].join('\n');
+		expect(() => callSitesInSource(source, 'src/routes/_fixture.tsx')).toThrow(
+			/cannot attribute the JSX tag SecondDescription .* let\/var local of the drawer description/,
+		);
+	});
+
 	test('a self-closing drawer description is enumerated (round 23 I1)', () => {
 		const source = [
 			"import { DrawerDescription } from '~/components/ui/drawer';",
