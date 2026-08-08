@@ -402,19 +402,32 @@ test('evasion: literal stylesheet links cannot ship opaque CSS', () => {
 			"const HREF = 'data:text/css,.x%7Bz-index%3A99%7D';",
 			'<link rel={REL} href={HREF} />;',
 		].join('\n'),
-		"const head = { head: () => ({ links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] }) };",
+		"<link rel={'stylesheet' as const} href={('https://cdn.example/theme.css')} />",
+	]) {
+		const violations = violationsFor('fixture.tsx', content);
+		assert.deepEqual(
+			violations.map((violation) => violation.ruleId),
+			['z-index-opaque-stylesheet-link'],
+			content,
+		);
+	}
+	// The framework-head spellings of the same evasion. A head slot is a
+	// link-descriptor sink only when its config object provably reaches a
+	// route creator (round-23 I2), so each shape here is a real
+	// `createRootRoute(...)` consumer — never a dead object.
+	for (const content of [
+		"const head = createRootRoute({ head: () => ({ links: [{ rel: 'stylesheet', href: 'data:text/css,.x%7Bz-index%3A99%7D' }] }) });",
 		[
 			"const REL = 'stylesheet';",
 			"const HREF = 'https://cdn.example/theme.css';",
-			'const head = { head: () => ({ links: [{ rel: REL, href: HREF }] }) };',
+			'const head = createRootRoute({ head: () => ({ links: [{ rel: REL, href: HREF }] }) });',
 		].join('\n'),
 		[
 			"const rel = 'stylesheet';",
 			"const href = 'https://cdn.example/theme.css';",
-			'const head = { head: () => ({ links: [{ rel, href }] }) };',
+			'const head = createRootRoute({ head: () => ({ links: [{ rel, href }] }) });',
 		].join('\n'),
-		"<link rel={'stylesheet' as const} href={('https://cdn.example/theme.css')} />",
-		"const head = { head: () => ({ links: [{ rel: ('stylesheet' satisfies string), href: 'https://cdn.example/theme.css' as const }] }) };",
+		"const head = createRootRoute({ head: () => ({ links: [{ rel: ('stylesheet' satisfies string), href: 'https://cdn.example/theme.css' as const }] }) });",
 	]) {
 		const violations = violationsFor('fixture.tsx', content);
 		assert.deepEqual(
@@ -589,10 +602,10 @@ test('raw sinks (round 19 B1): an overflowing descriptor rel candidate space is 
 	// made an overflowing candidate space look like an ordinary unknown. A
 	// descriptor rel that overflows the work budget is provably static text
 	// the guard cannot enumerate, so it may be `stylesheet` — the value must
-	// fail loud by name. The descriptor is a REAL consumer proof (round-21
-	// I2): it sits in the framework `head: () => ({ links: [...] })` config
-	// slot that `<HeadContent>` renders, the reachability the literal rules
-	// require.
+	// fail loud by name. This fixture is a REAL consumer proof (round-23 I2):
+	// it invokes `createRootRoute({ head: ... })`, the route-config slot that
+	// `<HeadContent>` renders — the reachability the literal rules require,
+	// not just the head-shaped object shape the round-21 test asserted.
 	const flags = [];
 	for (let index = 0; index < 20; index += 1) {
 		flags.push(`f${index}: boolean`);
@@ -602,7 +615,7 @@ test('raw sinks (round 19 B1): an overflowing descriptor rel candidate space is 
 		substitutions.push(`\${f${index} ? 'stylesheet' : 'a'}`);
 	}
 	const content = [
-		`export const probe = (${flags.join(', ')}) => ({`,
+		`export const probe = (${flags.join(', ')}) => createRootRoute({`,
 		'  head: () => ({',
 		'    links: [{',
 		`      rel: \`${substitutions.join('')}\`,`,
@@ -615,6 +628,97 @@ test('raw sinks (round 19 B1): an overflowing descriptor rel candidate space is 
 		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
 		['z-index-static-candidate-overflow'],
 		'an overflowing descriptor rel candidate space must fail loud by name',
+	);
+});
+
+test('evasion (round 23 I2): an identifier-supplied head function is a genuine route path', () => {
+	// The reviewer's genuine direction: `head: routeHead` — a head function
+	// supplied by identifier, a module-scope const arrow — is a normal
+	// TanStack route path, not an exotic one. The guard must follow the
+	// identifier to the head function and redden the stylesheet link it
+	// returns; the dead head-shaped object in the same fixture must stay
+	// green because no route consumes it (round-23 I2).
+	const content = [
+		'const routeHead = () => ({',
+		"	links: [{ rel: 'stylesheet', href: 'data:text/css,.r23-head%7Bz-index%3A2147483645%7D' }],",
+		'});',
+		'export const Route = createRootRoute({ head: routeHead });',
+		'const dead = { head: () => ({',
+		"	links: [{ rel: 'stylesheet', href: 'data:text/css,.r23-dead%7Bz-index%3A2147483644%7D' }],",
+		'}) };',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		'an identifier-supplied head reaching createRootRoute must red, a dead head-shaped object must not',
+	);
+});
+
+test('evasion (round 23 I2): a block-bodied identifier head function is a genuine route path', () => {
+	// The same genuine path through a block-bodied function declaration —
+	// `function routeHead() { return {...}; }` — and a const-config object
+	// handed to the route creator by identifier.
+	const content = [
+		'function routeHead() {',
+		'	return {',
+		"		links: [{ rel: 'stylesheet', href: 'data:text/css,.r23-fn%7Bz-index%3A2147483646%7D' }],",
+		'	};',
+		'}',
+		'const config = { head: routeHead };',
+		'export const Route = createRootRoute(config);',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', content).map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		'a function-declaration head through a const config must red',
+	);
+});
+
+test('evasion (round 23 I2): createRootRouteWithContext config slots are policed like createRootRoute', () => {
+	// The real-tree spelling: `createRootRouteWithContext<...>()({...})` — the
+	// config object sits in the outer call of the creator chain, and
+	// `<HeadContent>` renders its links exactly as for `createRootRoute`.
+	assert.deepEqual(
+		violationsFor(
+			'fixture.tsx',
+			[
+				'export const Route = createRootRouteWithContext<{ queryClient: unknown }>()({',
+				"	head: () => ({ links: [{ rel: 'stylesheet', href: 'data:text/css,.r23-ctx%7Bz-index%3A2147483647%7D' }] }),",
+				'});',
+			].join('\n'),
+		).map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		'a createRootRouteWithContext head slot must red',
+	);
+});
+
+test('pair (round 23 I2): a dead head-shaped config object no route consumes stays green', () => {
+	// The reviewer's false-positive direction: an object with a `head:` slot
+	// that is never handed to a route creator is dead — Chromium measured
+	// `deadLinkCount: 0`. Shape under a property named `head` proves nothing;
+	// the guard must not report it (round-23 I2). The same object becomes a
+	// real descriptor the moment a route creator consumes it.
+	const dead = [
+		'const config = { head: () => ({',
+		"	links: [{ rel: 'stylesheet', href: 'data:text/css,.r23-dead%7Bz-index%3A99%7D' }],",
+		'}) };',
+		'export const probe = config;',
+	].join('\n');
+	assertClean('fixture.tsx', dead);
+	assertClean(
+		'fixture.tsx',
+		'export const probe = { head: () => ({ links: [{ rel: "stylesheet", href: "data:text/css,.r23-dead%7Bz-index%3A99%7D" }] }) };',
+	);
+	const consumed = [
+		'const config = { head: () => ({',
+		"	links: [{ rel: 'stylesheet', href: 'data:text/css,.r23-dead%7Bz-index%3A99%7D' }],",
+		'}) };',
+		'export const Route = createRootRoute(config);',
+	].join('\n');
+	assert.deepEqual(
+		violationsFor('fixture.tsx', consumed).map((violation) => violation.ruleId),
+		['z-index-opaque-stylesheet-link'],
+		'the same config consumed by createRootRoute must red',
 	);
 });
 
@@ -3943,10 +4047,10 @@ test('e2e (round 7 audit): a static literal spread cannot smuggle a style payloa
 	const { violations: descriptorViolations } = await runFixtureGuard(
 		{
 			'probe.tsx': [
-				'export const probe = { head: () => ({ links: [{',
+				'export const probe = createRootRoute({ head: () => ({ links: [{',
 				"  ...{ rel: 'stylesheet' },",
 				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
-				'}] }) };',
+				'}] }) });',
 			].join('\n'),
 		},
 		'',
@@ -4077,11 +4181,11 @@ test('e2e (round 8 I4): descriptor spreads obey source-order last-write-wins', a
 		{
 			'probe.tsx': [
 				"const runtimeLinkProps = { rel: 'preload' as const };",
-				'export const probe = { head: () => ({ links: [{',
+				'export const probe = createRootRoute({ head: () => ({ links: [{',
 				"  rel: 'stylesheet' as const,",
 				'  ...runtimeLinkProps,',
 				"  href: 'data:text/css,.probe%7Bz-index%3A2147483647%7D',",
-				'}] }) };',
+				'}] }) });',
 			].join('\n'),
 		},
 		'',
@@ -4092,11 +4196,11 @@ test('e2e (round 8 I4): descriptor spreads obey source-order last-write-wins', a
 		{
 			'probe.tsx': [
 				"const runtimeLinkProps = { rel: 'preload' as const };",
-				'export const probe = { head: () => ({ links: [{',
+				'export const probe = createRootRoute({ head: () => ({ links: [{',
 				'  ...runtimeLinkProps,',
 				"  rel: 'stylesheet' as const,",
 				"  href: 'data:text/css,.probe%7Bz-index%3A2147483647%7D',",
-				'}] }) };',
+				'}] }) });',
 			].join('\n'),
 		},
 		'',
@@ -4165,11 +4269,11 @@ test('e2e (round 11 B1): a descriptor with a resolvable const spread stays red',
 		{
 			'probe.tsx': [
 				'const runtime = { id: 1 };',
-				'export const probe = { head: () => ({ links: [{',
+				'export const probe = createRootRoute({ head: () => ({ links: [{',
 				"  rel: 'stylesheet' as const,",
 				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
 				'  ...runtime,',
-				'}] }) };',
+				'}] }) });',
 			].join('\n'),
 		},
 		'',
@@ -4206,7 +4310,7 @@ test('e2e (round 11 B1): an unresolvable spread shadowing static facts is a name
 			name: 'link descriptor',
 			files: {
 				'probe.tsx': [
-					'export const probe = (props: any) => ({ head: () => ({ links: [{',
+					'export const probe = (props: any) => createRootRoute({ head: () => ({ links: [{',
 					"  rel: 'stylesheet' as const,",
 					"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
 					'  ...props,',
@@ -4272,7 +4376,7 @@ test('e2e (round 11 B1): an opaque spread before an explicit member stays red wi
 	const { violations } = await runFixtureGuard(
 		{
 			'probe.tsx': [
-				'export const probe = (props: any) => ({ head: () => ({ links: [{',
+				'export const probe = (props: any) => createRootRoute({ head: () => ({ links: [{',
 				'  ...props,',
 				"  rel: 'stylesheet' as const,",
 				"  href: 'data:text/css,.x%7Bz-index%3A99%7D',",
@@ -4683,7 +4787,7 @@ test('e2e (round 5 audit): build-reachable static script escapes are red', async
 	const { violations } = await runFixtureGuard(
 		{
 			'../shared/escape.ts': [
-				"export const head = { head: () => ({ links: [{ rel: 'stylesheet' as const, href: 'data:text/css,.x%7Bz-index%3A99%7D' }] }) };",
+				"export const head = createRootRoute({ head: () => ({ links: [{ rel: 'stylesheet' as const, href: 'data:text/css,.x%7Bz-index%3A99%7D' }] }) });",
 				"globalThis.CSS.registerProperty({ name: '--publy-z-raised' as const, inherits: false, initialValue: '99' });",
 			].join('\n'),
 		},

@@ -2308,11 +2308,15 @@ export const scanZIndexFile = ({
 		// A link descriptor object is policed only when it provably reaches the
 		// framework head API — the `head:` route-config slot whose `links` array
 		// `<HeadContent>` renders, e.g. TanStack Router's
-		// `head: () => ({ meta: [...], links: [...] })` (round-21 I2). An object
-		// literal that merely has `rel`/`href` keys establishes nothing about a
-		// sink: the literal rules must have a real consumer to police, so a
-		// standalone object — a metadata factory, a dead `const` — is neither a
-		// violation nor declared a safe descriptor.
+		// `head: () => ({ meta: [...], links: [...] })` (round-21 I2, round-23
+		// I2). An object literal that merely has `rel`/`href` keys establishes
+		// nothing about a sink — and neither does an object whose `head` slot
+		// is only *shaped* like a route config: the literal rules must prove
+		// the containing config object actually reaches a TanStack route
+		// creator call (`createRootRoute({ head: ... })`, `createRoute(...)`),
+		// directly or through a module-scope const alias. A standalone object
+		// — a metadata factory, a dead `const` — is neither a violation nor
+		// declared a safe descriptor.
 		const isHeadPropertyAssignment = (node) =>
 			node != null &&
 			ts.isPropertyAssignment(node) &&
@@ -2331,15 +2335,126 @@ export const scanZIndexFile = ({
 			}
 			return current.parent;
 		};
+		// The TanStack route-creator family whose config argument `<HeadContent>`
+		// renders. `createRootRouteWithContext<...>()({...})` is the outer call
+		// of a call chain; every call chain unwraps to one of these names.
+		const routeCreatorNames = new Set([
+			'createRootRoute',
+			'createRootRouteWithContext',
+			'createRoute',
+			'createRouteWithContext',
+		]);
+		const isRouteCreatorCall = (node) => {
+			if (!ts.isCallExpression(node)) {
+				return false;
+			}
+			let callee = unwrapTransparentExpression(node.expression);
+			while (callee != null && ts.isCallExpression(callee)) {
+				callee = unwrapTransparentExpression(callee.expression);
+			}
+			if (callee == null) {
+				return false;
+			}
+			if (ts.isIdentifier(callee)) {
+				return routeCreatorNames.has(callee.text);
+			}
+			if (ts.isPropertyAccessExpression(callee)) {
+				return routeCreatorNames.has(callee.name.text);
+			}
+			return false;
+		};
+		// Computed once per file: every object literal that provably serves as
+		// a route config — the config argument of a route-creator call,
+		// directly or through a module-scope const alias chain (`const config
+		// = {...}; createRootRoute(config)`). A `head:` slot inside one of
+		// these literals is the only shape the literal rules police
+		// (round-23 I2 — reachability, not shape).
+		const routeConfigObjectLiterals = new Set();
+		{
+			const recordRouteConfigArgument = (argument) => {
+				const unwrapped = unwrapTransparentExpression(argument);
+				if (unwrapped == null) {
+					return;
+				}
+				if (ts.isObjectLiteralExpression(unwrapped)) {
+					routeConfigObjectLiterals.add(unwrapped);
+					return;
+				}
+				if (ts.isIdentifier(unwrapped)) {
+					const fixpoint = resolveModuleConstFixpoint(unwrapped);
+					if (fixpoint != null && ts.isObjectLiteralExpression(fixpoint)) {
+						routeConfigObjectLiterals.add(fixpoint);
+					}
+				}
+			};
+			const visitForRouteConfigs = (node) => {
+				if (ts.isCallExpression(node) && isRouteCreatorCall(node)) {
+					for (const argument of node.arguments) {
+						recordRouteConfigArgument(argument);
+					}
+				}
+				node.forEachChild(visitForRouteConfigs);
+			};
+			visitForRouteConfigs(sourceFile);
+		}
+		// The head function a `head:` value provably is: an inline arrow or
+		// function expression, a module-scope const chain resolving to one
+		// (`head: routeHead` — a normal, genuine route path), or a function
+		// declaration. Returns null when the value's identity is unprovable.
+		const headFunctionValueOf = (valueNode) => {
+			const unwrapped = unwrapTransparentExpression(valueNode);
+			if (unwrapped == null) {
+				return null;
+			}
+			if (ts.isArrowFunction(unwrapped) || ts.isFunctionExpression(unwrapped)) {
+				return unwrapped;
+			}
+			if (ts.isIdentifier(unwrapped)) {
+				const fixpoint = resolveModuleConstFixpoint(unwrapped);
+				if (
+					fixpoint != null &&
+					(ts.isArrowFunction(fixpoint) || ts.isFunctionExpression(fixpoint))
+				) {
+					return fixpoint;
+				}
+				const binding = nearestBinding(unwrapped, unwrapped.text);
+				if (binding != null && ts.isFunctionDeclaration(binding)) {
+					return binding;
+				}
+			}
+			return null;
+		};
+		// Computed once per file: every `head:` property assignment mapped to
+		// the head function its value provably is (null when unprovable).
+		const headFunctionByConfigObject = new Map();
+		{
+			const visitForHeadSlots = (node) => {
+				if (ts.isPropertyAssignment(node) && isHeadPropertyAssignment(node)) {
+					const configObject = node.parent;
+					if (ts.isObjectLiteralExpression(configObject)) {
+						headFunctionByConfigObject.set(
+							configObject,
+							headFunctionValueOf(node.initializer),
+						);
+					}
+				}
+				node.forEachChild(visitForHeadSlots);
+			};
+			visitForHeadSlots(sourceFile);
+		}
+		// The object containing the `links:` array must be the returned object
+		// of the head function — inline, block-bodied, or supplied by
+		// identifier — and that head function must sit in a `head:` slot of a
+		// route config object the file provably hands to a route creator.
 		const isHeadConfigObject = (configObject) => {
 			const parent = transparentWrapperParent(configObject);
 			if (parent == null) {
 				return false;
 			}
+			let headFunctionNode = null;
 			if (ts.isArrowFunction(parent) || ts.isFunctionExpression(parent)) {
-				return isHeadPropertyAssignment(parent.parent);
-			}
-			if (ts.isReturnStatement(parent)) {
+				headFunctionNode = parent;
+			} else if (ts.isReturnStatement(parent)) {
 				// A block-bodied head function: `head: () => { return {...}; }`.
 				const block = parent.parent;
 				if (block != null && ts.isBlock(block)) {
@@ -2347,11 +2462,29 @@ export const scanZIndexFile = ({
 					while (cursor != null && !ts.isFunctionLike(cursor)) {
 						cursor = cursor.parent;
 					}
-					return (
-						cursor != null &&
-						(ts.isArrowFunction(cursor) || ts.isFunctionExpression(cursor)) &&
-						isHeadPropertyAssignment(cursor.parent)
-					);
+					headFunctionNode = cursor;
+				}
+			}
+			if (headFunctionNode == null) {
+				return false;
+			}
+			// The inline spelling: the head function is the value of a
+			// `head:` slot directly.
+			const slotParent = transparentWrapperParent(headFunctionNode);
+			if (isHeadPropertyAssignment(slotParent)) {
+				return routeConfigObjectLiterals.has(slotParent.parent);
+			}
+			// The identifier spelling: a `head:` slot elsewhere in the file
+			// whose value resolves to this head function.
+			for (const [
+				candidateConfig,
+				headFunction,
+			] of headFunctionByConfigObject) {
+				if (
+					headFunction === headFunctionNode &&
+					routeConfigObjectLiterals.has(candidateConfig)
+				) {
+					return true;
 				}
 			}
 			return false;
