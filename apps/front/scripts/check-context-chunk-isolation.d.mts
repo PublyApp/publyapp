@@ -10,12 +10,6 @@ export type SourceSpan = {
 export type ContextDeclaration = {
 	name: string;
 	sourceFile: string;
-	/** The final emitted component of the minting call's callee name
-	 *  (`createContext`, `createStrictContext`, …), preserved in the copy's
-	 *  own rendered module code. The guard verifies a copy's mint status
-	 *  against that rendered code by this name; an unknown callee makes a
-	 *  copy's non-minting verdict unverifiable and the build fails closed. */
-	callee?: string;
 	/** The exact source spans of the calls that mint this context, in the
 	 *  TypeScript scan's 0-based line and UTF-16 column coordinates. Each
 	 *  span is the call's *argument-list* extent (open paren through close

@@ -1694,7 +1694,7 @@ void test('fails closed when a dynamic object-holder access could be React creat
 	}
 });
 
-void test('does not flag a chunk copy that references a context without minting it', () => {
+void test('fails closed when a consumer copy references a context without minting it', () => {
 	const sourceFile = path.join(frontDirectory, 'src/lib/shared-context.tsx');
 	const sourceText = `
 		const Ctx = createContext(null);
@@ -1703,47 +1703,52 @@ void test('does not flag a chunk copy that references a context without minting 
 	const mintSpan = mintSpanOfText(sourceText, 'createContext(null)');
 	const referenceSpan = mintSpanOfText(sourceText, 'useContext(Ctx)');
 
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: 'Ctx',
-					sourceFile,
-					callee: 'createContext',
-					mintSpans: [mintSpan],
-				},
-			],
-			[
-				chunkWithMap(
-					'assets/a.js',
-					{ [sourceFile]: { code: 'const Ctx = createContext(null);' } },
-					[
-						{
-							source: sourceFile,
-							origLine: mintSpan.startLine,
-							origCol: mintSpan.startCol + 5,
-							genLine: 0,
-							genCol: 4,
-						},
-					],
-				),
-				chunkWithMap(
-					'assets/b.js',
-					{ [sourceFile]: { code: 'const value = useContext(Ctx);' } },
-					[
-						{
-							source: sourceFile,
-							origLine: referenceSpan.startLine,
-							origCol: referenceSpan.startCol,
-							genLine: 0,
-							genCol: 4,
-						},
-					],
-				),
-			],
-			frontDirectory,
-		),
-		[],
+	// The second copy consumes the context (`useContext(Ctx)`) and never
+	// executes the mint. Its map ties its emitted call to the consumption
+	// span, outside the mint span — the same observable shape as a forged map
+	// hiding a mint, so the single emitted-call classifier cannot verify the
+	// copy and the build fails closed instead of trusting a spelling.
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
+					{
+						name: 'Ctx',
+						sourceFile,
+						mintSpans: [mintSpan],
+					},
+				],
+				[
+					chunkWithMap(
+						'assets/a.js',
+						{ [sourceFile]: { code: 'const Ctx = createContext(null);' } },
+						[
+							{
+								source: sourceFile,
+								origLine: mintSpan.startLine,
+								origCol: mintSpan.startCol + 5,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+					chunkWithMap(
+						'assets/b.js',
+						{ [sourceFile]: { code: 'const value = useContext(Ctx);' } },
+						[
+							{
+								source: sourceFile,
+								origLine: referenceSpan.startLine,
+								origCol: referenceSpan.startCol,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how Ctx .* is created/i,
 	);
 });
 
@@ -2100,7 +2105,6 @@ void test('fails closed when no rendered copy of a holder-mint module is attribu
 					{
 						name: '<anonymous context>',
 						sourceFile,
-						callee: 'createStrictContext',
 						mintSpans: [mintSpan],
 					},
 				],
@@ -2229,7 +2233,7 @@ void test('passes a single delivered copy of a holder-position mint when no rend
 	);
 });
 
-void test('passes when one rendered copy of a split module mints while the other only holds the route shim', () => {
+void test('fails closed when one rendered copy of a split module mints while the other only holds the route shim', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -2237,51 +2241,59 @@ void test('passes when one rendered copy of a split module mints while the other
 	const splitModule = `${sourceFile}?tsr-split=component`;
 	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					callee: 'createStrictContext',
-					mintSpans: [mintSpan],
-				},
-			],
-			[
-				chunkWithMap(
-					'assets/route.js',
-					{ [sourceFile]: { code: 'var route = {};' } },
-					[
-						{
-							source: sourceFile,
-							origLine: 5,
-							origCol: 17,
-							genLine: 0,
-							genCol: 4,
-						},
-					],
-				),
-				chunkWithMap(
-					'assets/route-component.js',
+	// The split copy mints (its map ties its call to the mint span); the
+	// reference copy is the genuine TanStack route shim and never executes the
+	// mint. Its map ties its call to a position outside the mint span — the
+	// same observable shape as a forged map, so the single emitted-call
+	// classifier cannot verify the shim copy and the build fails closed. A
+	// name-based check would have called the shim "provably non-minting", but
+	// a minifier renames the mint to `m(null)` and the same check declares a
+	// genuinely minting copy non-minting — the round-25 bypass.
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
 					{
-						[splitModule]: {
-							code: 'var contexts = { probe: createStrictContext(null) };',
-						},
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
 					},
-					[
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
+						{ [sourceFile]: { code: 'var route = {};' } },
+						[
+							{
+								source: sourceFile,
+								origLine: 5,
+								origCol: 17,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
 						{
-							source: splitModule,
-							origLine: 0,
-							origCol: 17,
-							genLine: 0,
-							genCol: 4,
+							[splitModule]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
 						},
-					],
-				),
-			],
-			frontDirectory,
-		),
-		[],
+						[
+							{
+								source: splitModule,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -2407,7 +2419,7 @@ void test('attributes a rendered IIFE holder mint at its recorded source positio
 	);
 });
 
-void test('does not attribute a rendered holder call that is not at a recorded source position', () => {
+void test('fails closed when a rendered copy ties its calls only outside the recorded mint positions', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -2415,63 +2427,65 @@ void test('does not attribute a rendered holder call that is not at a recorded s
 	const splitModule = `${sourceFile}?tsr-split=component`;
 	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 	// Same line as the mint, but a column outside the recorded span: an
-	// unrelated call that happens to be emitted near the mint must not be
-	// attributed to it.
+	// unrelated call that happens to be emitted near the mint is not
+	// attributed to it — and a copy whose map ties only to that unrelated
+	// position cannot be verified non-minting, so the build fails closed
+	// instead of trusting a rendered-code spelling.
 	const unrelatedSpan = { startLine: 0, startCol: 40, endLine: 0, endCol: 60 };
 
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					callee: 'createStrictContext',
-					mintSpans: [mintSpan],
-				},
-			],
-			[
-				chunkWithMap(
-					'assets/route.js',
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
 					{
-						[sourceFile]: {
-							code: 'var contexts = { probe: createStrictContext(null) };',
-						},
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
 					},
-					[
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
 						{
-							source: sourceFile,
-							origLine: 0,
-							origCol: 17,
-							genLine: 0,
-							genCol: 4,
+							[sourceFile]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
 						},
-					],
-				),
-				chunkWithMap(
-					'assets/route-component.js',
-					{
-						[splitModule]: {
-							code: 'var contexts = { probe: otherHelper(null) };',
-						},
-					},
-					[
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
 						{
-							source: splitModule,
-							origLine: 0,
-							origCol: unrelatedSpan.startCol,
-							genLine: 0,
-							genCol: 4,
+							[splitModule]: {
+								code: 'var contexts = { probe: otherHelper(null) };',
+							},
 						},
-					],
-				),
-			],
-			frontDirectory,
-		),
-		[],
+						[
+							{
+								source: splitModule,
+								origLine: 0,
+								origCol: unrelatedSpan.startCol,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
-void test('does not attribute a segment at the call start without an emitted call', () => {
+void test('fails closed when a copy ties a segment only to the mint call start', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -2482,56 +2496,58 @@ void test('does not attribute a segment at the call start without an emitted cal
 	// The split copy emits only the callee *start* position (a callee
 	// reference or a map that anchors there); the call's argument extent is
 	// not emitted. The callee start alone must not count as an emitted mint:
-	// only a segment strictly inside the call's extent proves the call.
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					callee: 'createStrictContext',
-					mintSpans: [mintSpan],
-				},
-			],
-			[
-				chunkWithMap(
-					'assets/route.js',
+	// only a segment strictly inside the call's extent proves the call. A
+	// copy whose map ties only to the start boundary is unverifiable, so the
+	// build fails closed instead of trusting a rendered-code spelling.
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
 					{
-						[sourceFile]: {
-							code: 'var contexts = { probe: createStrictContext(null) };',
-						},
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
 					},
-					[
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
 						{
-							source: sourceFile,
-							origLine: 0,
-							origCol: 17,
-							genLine: 0,
-							genCol: 4,
+							[sourceFile]: {
+								code: 'var contexts = { probe: createStrictContext(null) };',
+							},
 						},
-					],
-				),
-				chunkWithMap(
-					'assets/route-component.js',
-					{
-						[splitModule]: {
-							code: 'var contexts = { probe: otherHelper(null) };',
-						},
-					},
-					[
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
 						{
-							source: splitModule,
-							origLine: 0,
-							origCol: mintSpan.startCol,
-							genLine: 0,
-							genCol: 4,
+							[splitModule]: {
+								code: 'var contexts = { probe: otherHelper(null) };',
+							},
 						},
-					],
-				),
-			],
-			frontDirectory,
-		),
-		[],
+						[
+							{
+								source: splitModule,
+								origLine: 0,
+								origCol: mintSpan.startCol,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -2824,7 +2840,7 @@ void test('attributes a rendered holder mint through a nested property chain', (
 	);
 });
 
-void test('does not attribute a same-named helper call held at the same property of another holder', () => {
+void test('fails closed when a same-named helper call of another holder cannot be verified', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -2833,65 +2849,67 @@ void test('does not attribute a same-named helper call held at the same property
 	const mintSpan = { startLine: 0, startCol: 8, endLine: 0, endCol: 24 };
 	// The unrelated helper lives at its own source position — the same
 	// rendered property name and callee name cannot move it into the mint
-	// span, because the bundler's map says it originated elsewhere.
+	// span, because the bundler's map says it originated elsewhere. A copy
+	// whose map ties only to that other position is unverifiable, so the
+	// build fails closed instead of trusting a rendered-code spelling.
 	const helperSpan = { startLine: 1, startCol: 8, endLine: 1, endCol: 24 };
 
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					callee: 'createStrictContext',
-					mintSpans: [mintSpan],
-				},
-			],
-			[
-				chunkWithMap(
-					'assets/route.js',
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
 					{
-						[sourceFile]: {
-							code: 'var contexts = { probe: make_context_default(null) };\nvar unrelatedHolder = { probe: mkDefault("sentinel") };',
-						},
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
 					},
-					[
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
 						{
-							source: sourceFile,
-							origLine: 0,
-							origCol: 17,
-							genLine: 0,
-							genCol: 4,
+							[sourceFile]: {
+								code: 'var contexts = { probe: make_context_default(null) };\nvar unrelatedHolder = { probe: mkDefault("sentinel") };',
+							},
 						},
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 4,
+							},
+							{
+								source: sourceFile,
+								origLine: 1,
+								origCol: 17,
+								genLine: 0,
+								genCol: 40,
+							},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
 						{
-							source: sourceFile,
-							origLine: 1,
-							origCol: 17,
-							genLine: 0,
-							genCol: 40,
+							[splitModule]: {
+								code: 'var unrelatedHolder = { probe: mkDefault("sentinel") };',
+							},
 						},
-					],
-				),
-				chunkWithMap(
-					'assets/route-component.js',
-					{
-						[splitModule]: {
-							code: 'var unrelatedHolder = { probe: mkDefault("sentinel") };',
-						},
-					},
-					[
-						{
-							source: splitModule,
-							origLine: helperSpan.startLine,
-							origCol: helperSpan.startCol,
-							genLine: 0,
-							genCol: 4,
-						},
-					],
-				),
-			],
-			frontDirectory,
-		),
-		[],
+						[
+							{
+								source: splitModule,
+								origLine: helperSpan.startLine,
+								origCol: helperSpan.startCol,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -3200,16 +3218,14 @@ void test('scans emitted call argument lists without inventing or missing calls'
 	assert.deepEqual(inside('(0,a.b)(x)'), [{ startCol: 7, endCol: 10 }]);
 });
 
-void test('does not count a segment in the mint callee text as the emitted call', () => {
+void test('fails closed when a segment lies in the mint callee text and the copy cannot be verified', () => {
 	// Round 23 §127: the recorded mint span is the call's *argument-list*
 	// extent. A segment whose original position lies inside the callee text —
 	// e.g. a property reference to `createContext` mapping back to the callee
-	// — must not be accepted as "the call was emitted": it is outside the
-	// argument list, so it cannot be the call's own emission. The split copy
-	// below genuinely does not mint (its rendered code never calls the mint
-	// callee), so the build with one minting copy stays green; under the old
-	// whole-call span the callee-text segment made the split copy a false
-	// creator and the build shipped red with a phantom duplicate.
+	// — is outside the argument list, so it cannot be the call's own emission
+	// and is never accepted as a mint. A copy whose map ties only to the
+	// callee text is unverifiable, so the build fails closed instead of
+	// trusting a rendered-code spelling.
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -3227,55 +3243,55 @@ void test('does not count a segment in the mint callee text as the emitted call'
 		endCol: 13,
 	};
 
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					callee: 'createContext',
-					mintSpans: [argListSpan],
-				},
-			],
-			[
-				chunkWithMap(
-					'assets/route.js',
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
 					{
-						[sourceFile]: {
-							code: 'var contexts = { probe: createContext(null) };',
-						},
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [argListSpan],
 					},
-					[
+				],
+				[
+					chunkWithMap(
+						'assets/route.js',
 						{
-							source: sourceFile,
-							origLine: 0,
-							origCol: 15,
-							genLine: 0,
-							genCol: 4,
+							[sourceFile]: {
+								code: 'var contexts = { probe: createContext(null) };',
+							},
 						},
-					],
-				),
-				chunkWithMap(
-					'assets/route-component.js',
-					{
-						[splitModule]: {
-							code: 'var other = { probe: h(null) };',
-						},
-					},
-					[
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 15,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+					chunkWithMap(
+						'assets/route-component.js',
 						{
-							source: splitModule,
-							origLine: calleeTextPosition.startLine,
-							origCol: calleeTextPosition.startCol,
-							genLine: 0,
-							genCol: 4,
+							[splitModule]: {
+								code: 'var other = { probe: h(null) };',
+							},
 						},
-					],
-				),
-			],
-			frontDirectory,
-		),
-		[],
+						[
+							{
+								source: splitModule,
+								origLine: calleeTextPosition.startLine,
+								origCol: calleeTextPosition.startCol,
+								genLine: 0,
+								genCol: 4,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -3640,7 +3656,7 @@ void test('fails closed when a map places no position inside a call the copy emi
 	);
 });
 
-void test('keeps a non-minting copy attributable when its map covers the call it emits', () => {
+void test('fails closed when a non-minting copy covers the call it emits but ties to no recorded span', () => {
 	const sourceFile = path.join(
 		frontDirectory,
 		'src/routes/field-validation.tsx',
@@ -3651,59 +3667,61 @@ void test('keeps a non-minting copy attributable when its map covers the call it
 	// The split copy emits an unrelated call (`otherHelper(null)` at
 	// generated columns 28-34) and its map attributes that call's argument
 	// extent to a position outside the mint span. The map ties its positions
-	// to a call the copy actually emits, so the copy is attributable as
-	// non-minting and the build with a single minting copy stays green.
-	assert.deepEqual(
-		findContextChunkIsolationViolations(
-			[
-				{
-					name: '<anonymous context>',
-					sourceFile,
-					callee: 'createStrictContext',
-					mintSpans: [mintSpan],
-				},
-			],
-			[
-				chunkWithCode(
-					'assets/route.js',
-					'var contexts={probe:createStrictContext(null)};',
+	// to a call the copy actually emits — but that is also exactly what a
+	// forged map looks like when it hides a real mint, so the copy is
+	// unverifiable and the build fails closed instead of trusting a
+	// rendered-code spelling.
+	assert.throws(
+		() =>
+			findContextChunkIsolationViolations(
+				[
 					{
-						[sourceFile]: {
-							code: 'var contexts={probe:createStrictContext(null)};',
-						},
+						name: '<anonymous context>',
+						sourceFile,
+						mintSpans: [mintSpan],
 					},
-					[
+				],
+				[
+					chunkWithCode(
+						'assets/route.js',
+						'var contexts={probe:createStrictContext(null)};',
 						{
-							source: sourceFile,
-							origLine: 0,
-							origCol: 17,
-							genLine: 0,
-							genCol: 42,
+							[sourceFile]: {
+								code: 'var contexts={probe:createStrictContext(null)};',
+							},
 						},
-					],
-				),
-				chunkWithCode(
-					'assets/route-component.js',
-					'var other={probe:otherHelper(null)};',
-					{
-						[splitModule]: {
-							code: 'var other={probe:otherHelper(null)};',
-						},
-					},
-					[
+						[
+							{
+								source: sourceFile,
+								origLine: 0,
+								origCol: 17,
+								genLine: 0,
+								genCol: 42,
+							},
+						],
+					),
+					chunkWithCode(
+						'assets/route-component.js',
+						'var other={probe:otherHelper(null)};',
 						{
-							source: splitModule,
-							origLine: 0,
-							origCol: 40,
-							genLine: 0,
-							genCol: 31,
+							[splitModule]: {
+								code: 'var other={probe:otherHelper(null)};',
+							},
 						},
-					],
-				),
-			],
-			frontDirectory,
-		),
-		[],
+						[
+							{
+								source: splitModule,
+								origLine: 0,
+								origCol: 40,
+								genLine: 0,
+								genCol: 31,
+							},
+						],
+					),
+				],
+				frontDirectory,
+			),
+		/cannot classify how <anonymous context> .* is created/i,
 	);
 });
 
@@ -4428,7 +4446,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when split groups consume one shared context',
+	'fails a real TanStack route build closed when split groups consume one shared context',
 	{ timeout: 120_000 },
 	async () => {
 		const inventory = [
@@ -4453,7 +4471,14 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			// The reference shim copy never executes the mint and its map ties
+			// to no recorded span — indistinguishable from a forged map hiding
+			// a mint — so the single emitted-call classifier fails closed.
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4461,7 +4486,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when its reference module consumes a shared context',
+	'fails a real TanStack route build closed when its reference module consumes a shared context',
 	{ timeout: 120_000 },
 	async () => {
 		const inventory = [
@@ -4488,7 +4513,15 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			// The reference copy keeps the shared-context consumption while
+			// the mint survives only in the split copy; the reference copy's
+			// map ties to no recorded span, so the single emitted-call
+			// classifier fails closed instead of trusting a spelling.
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4496,7 +4529,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when its context is used only by the split component',
+	'fails a real TanStack route build closed when its context is used only by the split component',
 	{ timeout: 120_000 },
 	async () => {
 		const inventory = [
@@ -4519,7 +4552,14 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			// The split copy mints; the reference copy is the route shim and
+			// its map ties to no recorded span — indistinguishable from a
+			// forged map hiding a mint, so the guard fails closed.
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4663,7 +4703,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when a renamed-imported holder mint survives only in the split copy',
+	'fails a real TanStack route build closed when a renamed-imported holder mint survives only in the split copy',
 	{ timeout: 120_000 },
 	async () => {
 		const result = await buildRouteFixture({
@@ -4677,7 +4717,14 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			// The split copy mints; the reference shim copy's map ties to no
+			// recorded span — indistinguishable from a forged map hiding a
+			// mint, so the single emitted-call classifier fails closed.
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4685,7 +4732,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when a default-imported holder mint survives only in the split copy',
+	'fails a real TanStack route build closed when a default-imported holder mint survives only in the split copy',
 	{ timeout: 120_000 },
 	async () => {
 		const result = await buildRouteFixture({
@@ -4698,7 +4745,11 @@ void test(
 			inventory: holderInventory,
 		});
 		try {
-			assert.equal(result.status, 0, result.output);
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4706,7 +4757,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when a named-default-factory holder mint survives only in the split copy',
+	'fails a real TanStack route build closed when a named-default-factory holder mint survives only in the split copy',
 	{ timeout: 120_000 },
 	async () => {
 		const result = await buildRouteFixture({
@@ -4732,7 +4783,11 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4740,7 +4795,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when an IIFE-wrapped holder mint survives only in the split copy',
+	'fails a real TanStack route build closed when an IIFE-wrapped holder mint survives only in the split copy',
 	{ timeout: 120_000 },
 	async () => {
 		const result = await buildRouteFixture({
@@ -4754,7 +4809,11 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4762,7 +4821,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when a comma-chain holder mint survives only in the split copy',
+	'fails a real TanStack route build closed when a comma-chain holder mint survives only in the split copy',
 	{ timeout: 120_000 },
 	async () => {
 		const result = await buildRouteFixture({
@@ -4776,7 +4835,11 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -4854,7 +4917,7 @@ void test(
 );
 
 void test(
-	'passes a real TanStack route build when a split route owns an anonymous context used only by the split component',
+	'fails a real TanStack route build closed when a split route owns an anonymous context used only by the split component',
 	{ timeout: 120_000 },
 	async () => {
 		const inventory = [
@@ -4877,7 +4940,14 @@ void test(
 		});
 
 		try {
-			assert.equal(result.status, 0, result.output);
+			// The split copy mints; the reference shim copy's map ties to no
+			// recorded span — indistinguishable from a forged map hiding a
+			// mint — so the single emitted-call classifier fails closed.
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/<anonymous context> in src\/routes\/probe\.tsx is created: the build emits no source map for a client chunk delivering its source, or a delivered copy's map does not resolve precise original positions for it/i,
+			);
 		} finally {
 			await rm(result.fixtureDirectory, { force: true, recursive: true });
 		}
@@ -5529,9 +5599,11 @@ void test(
 					import { createFileRoute } from '@tanstack/react-router';
 					import { useContext } from 'react';
 					import { createStrictContext } from '../make-context';
-					const contexts = { probe: createStrictContext<null>(null) };
-					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
-					export const Route = createFileRoute('/probe')({ component: Probe });
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
 				`,
 			},
 			inventory,
@@ -5610,9 +5682,11 @@ void test(
 					import { createFileRoute } from '@tanstack/react-router';
 					import { useContext } from 'react';
 					import { createStrictContext } from '../make-context';
-					const contexts = { probe: createStrictContext<null>(null) };
-					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
-					export const Route = createFileRoute('/probe')({ component: Probe });
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
 				`,
 			},
 			inventory,
@@ -5695,9 +5769,11 @@ void test(
 					import { createFileRoute } from '@tanstack/react-router';
 					import { useContext } from 'react';
 					import { createStrictContext } from '../make-context';
-					const contexts = { probe: createStrictContext<null>(null) };
-					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
-					export const Route = createFileRoute('/probe')({ component: Probe });
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
 				`,
 			},
 			inventory,
@@ -5762,9 +5838,11 @@ void test(
 					import { createFileRoute } from '@tanstack/react-router';
 					import { useContext } from 'react';
 					import { createStrictContext } from '../make-context';
-					const contexts = { probe: createStrictContext<null>(null) };
-					const Probe = () => <contexts.probe.Provider value={null}>{String(useContext(contexts.probe))}</contexts.probe.Provider>;
-					export const Route = createFileRoute('/probe')({ component: Probe });
+					const loaderContexts = { probe: createStrictContext<null>(null) };
+					const loader = () => ({ context: String(loaderContexts.probe) });
+					const componentContexts = { probe: createStrictContext<null>(null) };
+					const Probe = () => <componentContexts.probe.Provider value={null}>{String(useContext(componentContexts.probe))}</componentContexts.probe.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe, loader });
 				`,
 			},
 			inventory,

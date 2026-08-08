@@ -739,29 +739,6 @@ const mintCallSpan = (sourceFile, node) => {
 	};
 };
 
-// The rendered per-module code keeps the mint callee's name (only the final
-// minified chunk renames it), so the guard verifies a copy's mint status
-// against its own rendered code by this name. The name is the callee's final
-// emitted component: `createContext`, `React.createContext`, `React['...']`
-// and alias forms all render to their lifted property name.
-const mintCalleeName = (node) => {
-	if (!isCallExpression(node)) {
-		return undefined;
-	}
-	const mint = innermostMintCall(node);
-	if (isPropertyAccessExpression(mint.expression)) {
-		return mint.expression.name.text;
-	}
-	if (isElementAccessExpression(mint.expression)) {
-		const key = mint.expression.argumentExpression;
-		return isStringLiteral(key) ? key.text : undefined;
-	}
-	if (isIdentifier(mint.expression)) {
-		return mint.expression.text;
-	}
-	return undefined;
-};
-
 const spanKey = (span) =>
 	`${span.startLine}:${span.startCol}:${span.endLine}:${span.endCol}`;
 
@@ -872,14 +849,9 @@ export const findReactContextDeclarations = (
 									reactCreateContext,
 								),
 						);
-						const callee =
-							mintingCalls.length > 0
-								? mintCalleeName(mintingCalls[0])
-								: undefined;
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
-							callee,
 							mintSpans: uniqueSpans(
 								mintingCalls.map((call) => mintCallSpan(sourceFile, call)),
 							),
@@ -899,7 +871,6 @@ export const findReactContextDeclarations = (
 						contexts.push({
 							name: binding.name,
 							sourceFile: normalizeModuleId(sourceFile.fileName),
-							callee: mintCalleeName(binding.initializer),
 							mintSpans: [mintCallSpan(sourceFile, binding.initializer)],
 						});
 					}
@@ -930,7 +901,6 @@ export const findReactContextDeclarations = (
 							contexts.push({
 								name: '<anonymous context>',
 								sourceFile: normalizeModuleId(sourceFile.fileName),
-								callee: mintCalleeName(node),
 								mintSpans: [mintCallSpan(sourceFile, node)],
 							});
 						} else if (!isHolderPosition) {
@@ -948,7 +918,6 @@ export const findReactContextDeclarations = (
 								contexts.push({
 									name: contextNameForCall(node),
 									sourceFile: normalizeModuleId(sourceFile.fileName),
-									callee: mintCalleeName(node),
 									mintSpans: [mintCallSpan(sourceFile, node)],
 								});
 							}
@@ -1080,17 +1049,9 @@ export const findContextChunkIsolationViolations = (
 		const allMintSpans = moduleContexts.flatMap(
 			(context) => context.mintSpans ?? [],
 		);
-		// The callees that execute any mint in this module; a copy's own
-		// rendered code provably lacks a mint when it contains none of these.
-		const moduleCallees = [
-			...new Set(
-				moduleContexts.map((context) => context.callee).filter(Boolean),
-			),
-		];
 
 		// Per delivered module copy, the facts shared by every context of the
-		// module: the map's precision, the mint spans the copy ties to, and
-		// whether the copy's own rendered code executes any mint call.
+		// module: the map's precision, and the mint spans the copy ties to.
 		const moduleCopies = [];
 		for (const [moduleId, moduleChunks] of chunksForSource) {
 			const isSourceModule = moduleId === sourceFile;
@@ -1125,21 +1086,9 @@ export const findContextChunkIsolationViolations = (
 					allMintSpans,
 					chunkAnalysis.emittedCallExtents,
 				);
-				const renderedCode = moduleChunk.renderedModule?.code;
-				const mintPresence =
-					moduleCallees.length > 0 &&
-					typeof renderedCode === 'string' &&
-					renderedCode.length > 0
-						? moduleCallees.some((callee) =>
-								new RegExp(
-									`\\b${callee.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`,
-								).test(renderedCode),
-							)
-						: undefined;
 				moduleCopies.push({
 					chunkName: moduleChunk.chunkName,
 					hasMap: chunkAnalysis.hasMap,
-					mintPresence,
 					precise,
 					tiedSpanKeys,
 				});
@@ -1161,19 +1110,16 @@ export const findContextChunkIsolationViolations = (
 				const minted =
 					copy.precise &&
 					[...copy.tiedSpanKeys].some((key) => contextSpanKeys.has(key));
-				// A copy is verifiably non-minting for this context when its own
-				// rendered code provably executes no mint call at all, or when
+				// A copy is verifiably non-minting for this context only when
 				// every mint call its map ties to belongs to some *other*
 				// context's span (so this context's mint cannot be the one the
-				// copy executes). Anything else — the copy executes a mint call
-				// its map cannot tie to any span, or the map is unverifiable —
-				// is unverifiable and fails closed.
+				// copy executes). Anything else — the copy ties to no span at
+				// all (it may mint with a map that hides the mint), or the map
+				// is unverifiable — is unverifiable and fails closed.
 				const verifiablyNonMinting =
 					!minted &&
-					(copy.mintPresence === false ||
-						(copy.mintPresence !== false &&
-							copy.tiedSpanKeys.size > 0 &&
-							![...copy.tiedSpanKeys].some((key) => contextSpanKeys.has(key))));
+					copy.tiedSpanKeys.size > 0 &&
+					![...copy.tiedSpanKeys].some((key) => contextSpanKeys.has(key));
 				return {
 					attributable: minted || verifiablyNonMinting,
 					chunkName: copy.chunkName,
