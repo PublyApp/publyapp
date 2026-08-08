@@ -168,11 +168,13 @@ export const renderedSegmentMatchesCallEmission = (segment, span) => {
 // such as this/super/import, or a closing bracket, paren or brace) starts a
 // call, and the matching close paren ends it. A function *declaration*'s
 // parameter list is excluded (the paren follows the name of a `function`
-// declaration), and `if`/`for`/`while`/`switch`/`catch`/`with` parens are
-// excluded because their leading keyword is not an expression end. Strings,
-// comments, template literals (including `${…}` interpolation) and regex
-// literals are skipped as opaque tokens so their contents never register as
-// calls.
+// declaration), a parameter list whose close paren is directly followed by a
+// body brace — a class or object-literal method (`method(value) {`, `get x()
+// {`, `async m(v) {`) — is excluded the same way, and
+// `if`/`for`/`while`/`switch`/`catch`/`with` parens are excluded because
+// their leading keyword is not an expression end. Strings, comments, template
+// literals (including `${…}` interpolation) and regex literals are skipped as
+// opaque tokens so their contents never register as calls.
 //
 // The scan is a single bounded pass with no backtracking; a malformed or
 // truncated construct (an unterminated string or template) simply terminates
@@ -471,14 +473,31 @@ export const findEmittedCallExtents = (code) => {
 		if (character === ')') {
 			const open = parenStack.pop();
 			if (open && open.isCall && parenStack.length === 0) {
-				const startPosition = positionOf(open.start);
-				const endPosition = positionOf(index + 1);
-				extents.push({
-					endCol: endPosition.col,
-					endLine: endPosition.line,
-					startCol: startPosition.col,
-					startLine: startPosition.line,
-				});
+				// A parameter list whose close paren is followed by a body
+				// brace — `method(value) {`, `get x() {` — is a method
+				// declaration, not a call. A call expression cannot be
+				// followed by a brace in JavaScript, so the brace check
+				// cannot exclude a real call.
+				let after = index + 1;
+				while (
+					after < code.length &&
+					(code[after] === ' ' ||
+						code[after] === '\t' ||
+						code[after] === '\r' ||
+						code[after] === '\n')
+				) {
+					after++;
+				}
+				if (code[after] !== '{') {
+					const startPosition = positionOf(open.start);
+					const endPosition = positionOf(index + 1);
+					extents.push({
+						endCol: endPosition.col,
+						endLine: endPosition.line,
+						startCol: startPosition.col,
+						startLine: startPosition.line,
+					});
+				}
 			}
 			previousToken = ')';
 			continue;

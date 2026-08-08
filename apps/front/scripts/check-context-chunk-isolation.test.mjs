@@ -3216,6 +3216,19 @@ void test('scans emitted call argument lists without inventing or missing calls'
 	// A call whose callee is a parenthesized expression (`(0,a.b)(x)`) is a
 	// call on the outer parens, not the wrapper.
 	assert.deepEqual(inside('(0,a.b)(x)'), [{ startCol: 7, endCol: 10 }]);
+	// A class or object-literal method's parameter list is not a call: the
+	// close paren is followed by the body brace. Real calls after the method
+	// body are still calls.
+	assert.deepEqual(inside('class A { method(value) { return value } }'), []);
+	assert.deepEqual(inside('class A { get value() { return 1 } }'), []);
+	assert.deepEqual(
+		inside('class A { async load(value) { return value } }'),
+		[],
+	);
+	assert.deepEqual(
+		inside('const holder = { m(value) { return value } }; holder.m(1);'),
+		[{ startCol: 54, endCol: 57 }],
+	);
 });
 
 void test('fails closed when a segment lies in the mint callee text and the copy cannot be verified', () => {
