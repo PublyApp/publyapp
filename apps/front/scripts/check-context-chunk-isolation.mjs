@@ -946,14 +946,13 @@ export const findContextChunkIsolationViolations = (
 	const chunksForSource = new Map();
 
 	for (const chunk of chunks) {
-		for (const [moduleId, renderedModule] of Object.entries(chunk.modules)) {
+		for (const moduleId of Object.keys(chunk.modules)) {
 			const normalizedModuleId = normalizeModuleId(moduleId);
 			const moduleChunks = chunksForSource.get(normalizedModuleId) ?? [];
 			moduleChunks.push({
 				chunk,
 				chunkName: chunk.fileName,
 				moduleId: normalizedModuleId,
-				renderedModule,
 			});
 			chunksForSource.set(normalizedModuleId, moduleChunks);
 		}
