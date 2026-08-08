@@ -6145,6 +6145,82 @@ void test(
 );
 
 void test(
+	'fails a real TanStack route build when the per-module rendered mint identifier is renamed and the map stays honest',
+	{ timeout: 120_000 },
+	async () => {
+		// Round 27's R27_MIN_POSITIVE, pinned permanently: the fail-closed
+		// half of minification tolerance is pinned by the sibling test
+		// above, but the positive half — the guard still *reports* a
+		// duplication when the rendered mint identifier is renamed — was
+		// only ever demonstrated by a probe. An honest map (no
+		// forgeSplitMap) ties the renamed mint's emitted call back to the
+		// recorded span, so the verdict must fire. This test dies if the
+		// spelling dependency ever returns to the classifier.
+		const inventory = [
+			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: 'ProbeContext', sourceFile: 'src/routes/probe.tsx' },
+			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
+			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
+		];
+		const result = await buildRouteFixture({
+			files: {
+				'src/make-context.ts': `
+					import { createContext } from 'react';
+					export const createStrictContext = <T,>(fallback: T) => createContext(fallback);
+				`,
+				'src/routes/probe.tsx': `
+					import { createFileRoute } from '@tanstack/react-router';
+					import { useContext } from 'react';
+					import { createStrictContext } from '../make-context';
+					const ProbeContext = createStrictContext<null>(null);
+					export const useProbe = () => useContext(ProbeContext);
+					const Probe = () => <ProbeContext.Provider value={null}>probe</ProbeContext.Provider>;
+					export const Route = createFileRoute('/probe')({ component: Probe });
+				`,
+			},
+			inventory,
+			rootImportsProbe: true,
+			renameModuleCallee: true,
+		});
+
+		try {
+			const renamedCopies = [];
+			for (const chunk of JSON.parse(result.trace)) {
+				for (const [moduleId, code] of Object.entries(chunk.modules)) {
+					if (moduleId.includes('/src/routes/probe.tsx')) {
+						renamedCopies.push(`${chunk.fileName} :: ${moduleId} :: ${code}`);
+					}
+				}
+			}
+			assert.ok(
+				renamedCopies.length >= 2,
+				`SPLIT ${JSON.stringify(renamedCopies, null, 2)}`,
+			);
+			assert.ok(
+				renamedCopies.every(
+					(location) => !/create(?:Strict)?Context\s*\(/.test(location),
+				),
+				`the mint must be renamed away from the source spelling in every rendered module: ${JSON.stringify(renamedCopies, null, 2)}`,
+			);
+			assert.ok(
+				renamedCopies.some((location) =>
+					/\b[cm][^a-zA-Z0-9_$]*\(null\)/.test(location),
+				),
+				`the renamed mint call must still execute in a rendered module: ${JSON.stringify(renamedCopies, null, 2)}`,
+			);
+			assert.notEqual(result.status, 0, result.output);
+			assert.match(
+				result.output,
+				/ProbeContext in src\/routes\/probe\.tsx is present in multiple client chunks: assets\/index-[a-zA-Z0-9_-]+\.js, assets\/probe-[a-zA-Z0-9_-]+\.js/i,
+			);
+		} finally {
+			await rm(result.fixtureDirectory, { force: true, recursive: true });
+		}
+	},
+);
+
+void test(
 	'survives an exact-name map asset a plugin places at a forced map key in a real build',
 	{ timeout: 120_000 },
 	async () => {
