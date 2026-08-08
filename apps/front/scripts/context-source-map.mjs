@@ -475,9 +475,12 @@ export const findEmittedCallExtents = (code) => {
 			if (open && open.isCall && parenStack.length === 0) {
 				// A parameter list whose close paren is followed by a body
 				// brace — `method(value) {`, `get x() {` — is a method
-				// declaration, not a call. A call expression cannot be
-				// followed by a brace in JavaScript, so the brace check
-				// cannot exclude a real call.
+				// declaration, not a call. An expression statement followed
+				// by a block (`f()\n{ … }`) is only reachable through
+				// automatic semicolon insertion, which minifiers do not
+				// emit; and excluding a brace-followed extent only removes
+				// ties, which can only reduce attributability in the
+				// fail-closed direction, never mint a pass.
 				let after = index + 1;
 				while (
 					after < code.length &&
