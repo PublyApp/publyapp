@@ -2197,9 +2197,25 @@ const openToastFixture = async (
 	// leg for reasons unrelated to contrast (round-7 IMPORTANT I1). Wait on
 	// the fixture's own `data-hydrated` attribute, which the page sets in a
 	// post-hydration effect, before the first click.
+	//
+	// The wait is bounded by 30s — the suite's own test timeout — not the 5s
+	// expect default, because hydration here is a COLD load with no faster
+	// path to wait on: every test opens a fresh context (no HTTP cache, so
+	// the route's whole client bundle is fetched again — and this is the
+	// suite's heaviest route: zod + react-hook-form + Base UI Select + i18n
+	// in one chunk graph) in a fresh browser process (no V8 code cache), and
+	// the review's round-13 evidence shows the settled cost on a contended
+	// host stretching past 5s (two identical targeted runs died at the
+	// attribute wait; an identical rerun passed; this round also saw a cold
+	// `goto` stall past 30s under load). Measured idle on this host: the
+	// fixture hydrates 2.1-2.8s after navigation, so 5s is simply the wrong
+	// bound for a cold, contended load; 30s can still fail before the toast
+	// work itself would.
 	const fixture = page.getByTestId('toast-contrast-fixture');
 	await expect(fixture).toBeVisible();
-	await expect(fixture).toHaveAttribute('data-hydrated', 'true');
+	await expect(fixture).toHaveAttribute('data-hydrated', 'true', {
+		timeout: 30_000,
+	});
 	await setTheme(page, theme);
 };
 
@@ -2229,13 +2245,17 @@ const dismissToast = async (toast: Locator): Promise<void> => {
 // toast. Every measurement of a toast's targets — and the whole leg's
 // dismiss — must complete inside that window, or the toast vanishes
 // mid-measurement and the next `toHaveAttribute('data-mounted')`/`toHaveCSS`
-// wait reds for reasons unrelated to contrast. The one measurement the
-// guard makes is a full screenshot decode plus a two-pass pixel scan, which
-// is why the round-10 report's "nothing moved a timing boundary" was wrong
-// in kind: the work got heavier. The flake closure itself survives (the
-// reviewer's three loaded runs here, plus round 9's, are consecutive
-// greens), but the binding constraint is the Sonner auto-dismiss, not the
-// waits.
+// wait reds for reasons unrelated to contrast. Each toast is measured
+// SEQUENTIALLY and more than once: the default toast takes three
+// measurements (message, description, close glyph) and every semantic toast
+// takes FOUR (message, description, semantic glyph, close glyph — see the
+// matrix test below), so the 4 s window holds one toast's whole set, not a
+// single reading. Each reading is a full screenshot decode plus the
+// reference-mask render and a pixel scan — which is why the round-10
+// report's "nothing moved a timing boundary" was wrong in kind: the work
+// got heavier. The flake closure itself survives (the reviewer's three
+// loaded runs here, plus round 9's, are consecutive greens), but the
+// binding constraint is the Sonner auto-dismiss, not the waits.
 
 const TEXT_TARGETS = [
 	{
