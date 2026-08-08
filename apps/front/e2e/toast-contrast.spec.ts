@@ -1537,9 +1537,12 @@ const measurePaintedContrast = async (
 			 * off-screen canvas — the target's own text nodes, same computed
 			 * font, same letter-spacing, drawn at the line boxes' own
 			 * positions (baseline resolved from the font's own ascent
-			 * metrics), so wrapping, alignment and indentation are absorbed:
-			 * only the glyph rasterization itself must match the painted
-			 * page, and it is the same font through the same rasterizer.
+			 * metrics) with each line box carrying only the text that line
+			 * actually paints: the node is walked character by character, so
+			 * the browser's own wrap decisions segment the string, and
+			 * wrapping, alignment and indentation are absorbed: only the
+			 * glyph rasterization itself must match the painted page, and it
+			 * is the same font through the same rasterizer.
 			 * Glyph targets are re-stroked into the same canvas from the
 			 * SVG's own shapes (its `path`/`line`/`circle`/… geometry, its
 			 * computed stroke width, caps and joins, mapped through its own
@@ -1631,10 +1634,55 @@ const measurePaintedContrast = async (
 						const descent = metrics.fontBoundingBoxDescent ?? fontSize * 0.2;
 						const range = document.createRange();
 						range.selectNodeContents(node);
+						// A node that wraps has one client rect PER LINE, and the
+						// line boxes' origins are all the node string's own — so
+						// drawing the whole string at every rect paints mask
+						// glyphs at line 2's origin that the DOM does not paint
+						// there, and the real line-2 glyphs fall outside the mask
+						// and measure as foreign (round-15 IMPORTANT 1: the
+						// wrapped title read 1584 foreign pixels, 0 inside the
+						// mask). Walk the node character by character — the
+						// browser's own layout, wrap decisions included — to
+						// recover which characters each line box actually
+						// contains, and draw only that substring at that line's
+						// origin.
+						const charRects: { offset: number; rect: DOMRect }[] = [];
+						for (let offset = 0; offset < text.length; offset += 1) {
+							const charRange = document.createRange();
+							charRange.setStart(node, offset);
+							charRange.setEnd(node, offset + 1);
+							const charBoxes = charRange.getClientRects();
+							if (charBoxes.length === 0) {
+								// A character the DOM does not paint — a newline
+								// or a control character: it contributes no mask
+								// pixels, and canvas `fillText` renders nothing
+								// for it either.
+								continue;
+							}
+							charRects.push({ offset, rect: charBoxes[0] });
+						}
 						for (const textRect of range.getClientRects()) {
 							if (textRect.width === 0 || textRect.height === 0) {
 								continue;
 							}
+							let first = -1;
+							let last = -1;
+							for (const { offset, rect } of charRects) {
+								if (
+									rect.top < textRect.top - 0.5 ||
+									rect.top > textRect.bottom + 0.5
+								) {
+									continue;
+								}
+								if (first === -1) {
+									first = offset;
+								}
+								last = offset;
+							}
+							if (first === -1) {
+								continue;
+							}
+							const lineText = transformed.slice(first, last + 1);
 							const halfLeading = (textRect.height - ascent - descent) / 2;
 							const alignRight = style.direction === 'rtl';
 							maskContext.textAlign = alignRight ? 'right' : 'left';
@@ -1642,7 +1690,7 @@ const measurePaintedContrast = async (
 								? textRect.right - elementBox.left
 								: textRect.left - elementBox.left;
 							maskContext.fillText(
-								transformed,
+								lineText,
 								originX,
 								textRect.top - elementBox.top + halfLeading + ascent,
 							);
