@@ -4020,6 +4020,176 @@ export const CleanCrossFileConstKitDrawerFixture = ({
 `;
 
 // ---------------------------------------------------------------------------
+// Round 28's BLOCKER 2 — parameter forwarding. The graph comments claimed
+// transitive closure, but a component parameter was classified as a definite
+// local value, so `({ kit }) => <CrossFileKitDrawer kit={kit} />` lost the
+// forwarder-to-child edge: the parent-to-forwarder edge was recorded, the
+// forwarder-to-opaque-child edge was not, and both files fell through the
+// silent gate. A parameter's value comes from call sites — the honest probe
+// answer is UNRESOLVED — and the unresolved edge from the anchored forwarder
+// forces the child to surface.
+// ---------------------------------------------------------------------------
+
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-forwarded-child.tsx';
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CrossFileForwardedKitDrawer = ({ kit, methods }: KitProps) => (
+	<kit.Surface>
+		<div className="p-4">
+			<kit.Form methods={methods}>
+				<kit.Body />
+				<kit.Footer />
+			</kit.Form>
+		</div>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-forwarded-drawer.tsx';
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { DrawerBody, DrawerContent, DrawerFooter, DrawerForm } from '~/components/ui/drawer';
+import { CrossFileForwardedKitDrawer } from './_drawer-surface-r28-crossfile-kit-forwarded-child';
+
+type ForwardedKitProps = {
+	kit: {
+		Surface: typeof DrawerContent;
+		Form: typeof DrawerForm;
+		Body: typeof DrawerBody;
+		Footer: typeof DrawerFooter;
+	};
+	methods: UseFormReturn<FieldValues>;
+};
+
+const ForwardedKitDrawer = ({ kit, methods }: ForwardedKitProps) => (
+	<CrossFileForwardedKitDrawer methods={methods} kit={kit} />
+);
+
+export const CrossFileForwardedKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<ForwardedKitDrawer
+		methods={methods}
+		kit={{
+			Surface: DrawerContent,
+			Form: DrawerForm,
+			Body: DrawerBody,
+			Footer: DrawerFooter,
+		}}
+	/>
+);
+`;
+
+// The BLOCKER 2 control: the SAME forwarding shape, but the call site passes
+// only real local components. The forwarder still forwards a parameter
+// (UNRESOLVED), but nothing anchors it — the forwarder never receives drawer
+// exports — so the pair stays out of the inventory entirely.
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-forwarded-clean-child.tsx';
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_FILE,
+);
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_SOURCE = `import type { FC } from 'react';
+import type { FieldValues, UseFormReturn } from 'react-hook-form';
+
+type Kit = {
+	Surface: FC;
+	Form: FC;
+	Body: FC;
+	Footer: FC;
+};
+
+type KitProps = {
+	kit: Kit;
+	methods: UseFormReturn<FieldValues>;
+};
+
+export const CleanCrossFileForwardedKitDrawer = ({
+	kit,
+	methods,
+}: KitProps) => (
+	<kit.Surface>
+		<kit.Form methods={methods}>
+			<kit.Body />
+			<kit.Footer />
+		</kit.Form>
+	</kit.Surface>
+);
+`;
+
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_FILE =
+	'src/components/ui/_drawer-surface-r28-crossfile-kit-forwarded-clean-drawer.tsx';
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_PATH = fixturePath(
+	TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_FILE,
+);
+const TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_SOURCE = `import type { FieldValues, UseFormReturn } from 'react-hook-form';
+import { CleanCrossFileForwardedKitDrawer } from './_drawer-surface-r28-crossfile-kit-forwarded-clean-child';
+
+const LocalSurface = () => <div data-testid="r28-forwarded-clean-surface" />;
+const LocalForm = ({
+	methods,
+	children,
+}: {
+	methods: UseFormReturn<FieldValues>;
+	children: React.ReactNode;
+}) => <form data-testid="r28-forwarded-clean-form">{children}</form>;
+const LocalBody = () => <div data-testid="r28-forwarded-clean-body" />;
+const LocalFooter = () => <div data-testid="r28-forwarded-clean-footer" />;
+
+type ForwardedKitProps = {
+	kit: {
+		Surface: typeof LocalSurface;
+		Form: typeof LocalForm;
+		Body: typeof LocalBody;
+		Footer: typeof LocalFooter;
+	};
+	methods: UseFormReturn<FieldValues>;
+};
+
+const ForwardedKitDrawer = ({ kit, methods }: ForwardedKitProps) => (
+	<CleanCrossFileForwardedKitDrawer methods={methods} kit={kit} />
+);
+
+export const CleanCrossFileForwardedKitDrawerFixture = ({
+	methods,
+}: {
+	methods: UseFormReturn<FieldValues>;
+}) => (
+	<ForwardedKitDrawer
+		methods={methods}
+		kit={{
+			Surface: LocalSurface,
+			Form: LocalForm,
+			Body: LocalBody,
+			Footer: LocalFooter,
+		}}
+	/>
+);
+`;
+
+// ---------------------------------------------------------------------------
 // The fixture registry. The round-16 scan loads ONE ts-morph project once
 // (see getScanProject below) with every file it can ever touch, so every
 // fixture the suite will write must already exist on disk before the first
@@ -4414,6 +4584,22 @@ const FIXTURE_FILES: ReadonlyArray<{
 	{
 		file: TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_FILE,
 		source: TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_FILE,
+		source: TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_SOURCE,
+	},
+	{
+		file: TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_FILE,
+		source: TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_SOURCE,
 	},
 ];
 
@@ -6076,6 +6262,28 @@ const classifyDrawerExportReference = (
 				reassignedNamesByFile,
 				seen,
 			);
+		}
+		// Round 28's BLOCKER 2: a parameter's value comes from its call
+		// sites, so a prop that forwards a parameter is NOT a definite
+		// non-reference — `({ kit, methods }) => <CrossFileKitDrawer kit={
+		// kit } />` forwards whatever the caller passed, possibly the real
+		// drawer kit. Classification is right to call the parameter itself a
+		// definite local value (the parameter IS not the drawer module's
+		// symbol); the anchor probe asks whether drawer exports can FLOW
+		// through it, and the honest answer for an unfollowed parameter is
+		// UNRESOLVED. The unresolved edge then surfaces the pair through
+		// the module graph instead of silently dropping it.
+		if (
+			symbol.getDeclarations().length > 0 &&
+			symbol
+				.getDeclarations()
+				.every(
+					(declaration) =>
+						declaration.getKind() === SyntaxKind.Parameter ||
+						declaration.getKind() === SyntaxKind.BindingElement,
+				)
+		) {
+			return 'unresolved';
 		}
 		return referenceResultFromSymbolValue(
 			resolveSymbolValue(symbol, project, reassignedNamesByFile, seen),
@@ -10395,6 +10603,81 @@ describe('drawer surface flex chain guard (#990)', () => {
 		} finally {
 			unlinkSync(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_CHILD_PATH);
 			unlinkSync(TEMPORARY_CROSSFILE_CONST_KIT_CLEAN_DRAWER_PATH);
+		}
+	});
+
+	test('a drawer whose kit is forwarded through a component parameter is discovered and rejected', () => {
+		// Round 28's BLOCKER 2, verbatim: `({ kit, methods }) =>
+		// <CrossFileForwardedKitDrawer kit={kit} />` forwards the parameter
+		// onward. The parameter was classified as a definite local value, so
+		// the forwarder-to-child edge was lost — the parent-to-forwarder edge
+		// alone cannot reach the child, and both files fell through the
+		// silent gate. A parameter's value comes from call sites: the probe
+		// answers UNRESOLVED, the forwarder (anchored by the inline drawer
+		// exports at its call site) is that unresolved edge's anchor, and
+		// the child surfaces as UNVERIFIABLE — both files redden.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_PATH,
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_FILE),
+			);
+			expect(scan.discovered).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_FILE),
+			);
+			expect(scan.violations).toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_FORWARDED_KIT_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_FORWARDED_KIT_DRAWER_PATH);
+		}
+	});
+
+	test('a cross-file forwarded-kit pair whose call site passes only local components produces no drawer noise', () => {
+		// The BLOCKER 2 control: the forwarder still forwards a parameter
+		// (an UNRESOLVED edge either way), but the call site passes only real
+		// local components — the forwarder is never anchored, so the child's
+		// opaque tags carry no drawer signal and the pair stays out of the
+		// inventory. An unresolved edge from an UNANCHORED passer is the
+		// ordinary parameter-forwarding shape and must not redden.
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_PATH,
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_SOURCE,
+		);
+		writeFileSync(
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_PATH,
+			TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_SOURCE,
+		);
+
+		try {
+			const scan = scanDrawerSurfaces();
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_FILE),
+			);
+			expect(scan.discovered).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_FILE),
+			);
+			expect(scan.violations).not.toContain(
+				fixtureRel(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_FILE),
+			);
+		} finally {
+			unlinkSync(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_CHILD_PATH);
+			unlinkSync(TEMPORARY_CROSSFILE_FORWARDED_KIT_CLEAN_DRAWER_PATH);
 		}
 	});
 
