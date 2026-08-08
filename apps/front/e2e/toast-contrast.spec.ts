@@ -1897,7 +1897,7 @@ const measurePaintedContrast = async (
 				}
 				return { dilated, strict, strictCount };
 			};
-			const { dilated: mask, strictCount } = await paintReferenceMask();
+			const { dilated: mask, strict, strictCount } = await paintReferenceMask();
 
 			// The ink: the strongest-contrast pixel cluster INSIDE the
 			// reference mask (blends of the pair have lower contrast than the
@@ -1973,13 +1973,20 @@ const measurePaintedContrast = async (
 			// Classification against the measured pair: surface, ink, blend,
 			// then foreign — with the mask deciding which side a pixel is on:
 			// inside the mask, surface is erased ink, ink is the glyph, a
-			// blend is an antialiased edge — and the ink SHARE counts only
-			// the pixels on the ink side of the midpoint between the two
-			// measured colours (strictly closer to the ink than to the
-			// surface), so a wash that pushes the glyph's pixels toward the
-			// surface drops the share even though every pixel still lies
-			// between the pair. OUTSIDE the mask, only the surface may
-			// appear. Foreign paint is then judged by WHERE it lies: inside
+			// blend is an antialiased edge. OUTSIDE the mask, only the
+			// surface may appear. The ink SHARE counts only the glyph's OWN
+			// pixels — the STRICT mask, not the dilated one — on the ink
+			// side of the midpoint between the two measured colours
+			// (strictly closer to the ink than to the surface), so a wash
+			// that pushes the glyph's pixels toward the surface drops the
+			// share even though every pixel still lies between the pair;
+			// the dilated-but-not-strict halo is the painter's antialiasing
+			// fuzz, which belongs to the glyph's edge but is not one of its
+			// own pixels — it counts in neither the numerator nor the
+			// denominator (round-15 MINOR 2: the numerator used to be the
+			// DILATED mask, which is how a pristine share measured 1.008,
+			// above 1 — arithmetically impossible for a ratio of a subset).
+			// Foreign paint is then judged by WHERE it lies: inside
 			// the mask, where the glyphs themselves paint, it is an overlay;
 			// when every foreign pixel lies outside the mask, the reference
 			// render and the paint disagree and the guard cannot conclude —
@@ -2015,36 +2022,47 @@ const measurePaintedContrast = async (
 						// survives. Outside the mask it is plain background.
 						continue;
 					}
-					if (insideMask) {
-						if (within(pixel, ink)) {
-							inkSidePixels += 1;
-							continue;
-						}
-						const blend = pixel.every((channel, index) => {
-							const low = Math.min(ink[index], surface[index]) - blendMargin;
-							const high = Math.max(ink[index], surface[index]) + blendMargin;
-							return low <= channel && channel <= high;
-						});
-						if (blend) {
-							let distanceToInk = 0;
-							let distanceToSurface = 0;
-							for (let index = 0; index < pixel.length; index += 1) {
-								distanceToInk += Math.abs(pixel[index] - ink[index]);
-								distanceToSurface += Math.abs(pixel[index] - surface[index]);
-							}
-							if (distanceToInk < distanceToSurface) {
-								inkSidePixels += 1;
-							}
-							continue;
-						}
-						foreignPixels += 1;
-						foreignInsideMask += 1;
-						firstForeign ??= [pixel[0], pixel[1], pixel[2]];
-					} else {
+					if (!insideMask) {
 						foreignPixels += 1;
 						foreignOutsideMask += 1;
 						firstForeign ??= [pixel[0], pixel[1], pixel[2]];
+						continue;
 					}
+					const inStrict = strict[y * canvas.width + x] === 1;
+					const isInk = within(pixel, ink);
+					const blend = pixel.every((channel, index) => {
+						const low = Math.min(ink[index], surface[index]) - blendMargin;
+						const high = Math.max(ink[index], surface[index]) + blendMargin;
+						return low <= channel && channel <= high;
+					});
+					if (!inStrict && (isInk || blend)) {
+						// The painter's halo: a pixel the reference paints at
+						// less than MASK_INK_ALPHA opacity — the glyph's own
+						// antialiasing edge. It belongs to the glyph (ink or
+						// blend, never foreign) but is not one of the
+						// glyph's OWN pixels, so it counts in neither the
+						// share numerator nor its denominator.
+						continue;
+					}
+					if (isInk) {
+						inkSidePixels += 1;
+						continue;
+					}
+					if (blend) {
+						let distanceToInk = 0;
+						let distanceToSurface = 0;
+						for (let index = 0; index < pixel.length; index += 1) {
+							distanceToInk += Math.abs(pixel[index] - ink[index]);
+							distanceToSurface += Math.abs(pixel[index] - surface[index]);
+						}
+						if (distanceToInk < distanceToSurface) {
+							inkSidePixels += 1;
+						}
+						continue;
+					}
+					foreignPixels += 1;
+					foreignInsideMask += 1;
+					firstForeign ??= [pixel[0], pixel[1], pixel[2]];
 				}
 			}
 			if (total === 0) {
