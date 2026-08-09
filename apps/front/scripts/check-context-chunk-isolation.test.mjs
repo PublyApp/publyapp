@@ -353,11 +353,12 @@ const buildRouteFixture = async ({
 								if (chunk.type !== 'chunk' || chunk.map === undefined || chunk.map === null) continue;
 								const fileName = \`\${chunk.name}.map\`;
 								const source = ${
-									replaceOwnedMapAsset === 'trimmed'
-										? 'JSON.stringify({ ...chunk.map, sourcesContent: undefined })'
-										: replaceOwnedMapAsset === 'stub'
-											? '\'{"version":3}\''
-											: '\'{"version":3,"sources":[],"mappings":"","foreign":true}\''
+									{
+										trimmed:
+											'JSON.stringify({ ...chunk.map, sourcesContent: undefined })',
+										stub: '\'{"version":3}\'',
+									}[replaceOwnedMapAsset] ??
+									'\'{"version":3,"sources":[],"mappings":"","foreign":true}\''
 								};
 								this.emitFile({ type: 'asset', fileName, source });
 								writeFileSync(path.join(rootDirectory, 'replaced-chunk.json'), JSON.stringify({ fileName, source }));
