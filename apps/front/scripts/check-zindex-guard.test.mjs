@@ -2571,6 +2571,56 @@ test('e2e (round 15 B1): a partial element-access key never reads a member the c
 	);
 });
 
+test('e2e (review B1): a conditional element-access key with a runtime branch never resolves only the static member', async () => {
+	// Round-15 taught the one-sided `+` spelling that a partial key must not
+	// resolve its static member. The conditional spelling had the same hole:
+	// `styles[flag ? 'safe' : runtimeKey]` returned the static branch as a
+	// complete singleton, so the guard read member `safe`, found it clean,
+	// and printed OK while the runtime branch selected a member whose bytes
+	// are a recorded `?raw` import carrying a raw z-index. A conditional with
+	// a runtime branch is a partial key: the member cannot be named, so the
+	// sink fails loud by name whenever a recorded raw binding is reachable,
+	// exactly like the fully runtime key control.
+	const { violations } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				"const styles = { safe: '.probe-safe { color: red; }', other: rawCss };",
+				"export const probe = (flag: boolean, runtimeKey: string) => <style>{styles[flag ? 'safe' : runtimeKey]}</style>;",
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483647; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		violations.map((violation) => violation.ruleId),
+		['z-index-unresolved-raw-expression'],
+		`a conditional key with a runtime branch over a recorded raw binding must fail loud: ${JSON.stringify(violations)}`,
+	);
+	// The fully static conditional key keeps its own semantics: two static
+	// branches still name no single member, and the reachable raw binding
+	// still fails loud by name — the fix must not fold the runtime-branch
+	// rule onto the both-static spelling.
+	const { violations: staticKey } = await runFixtureGuard(
+		{
+			'probe.tsx': [
+				`import rawCss from './overlay.txt?raw';`,
+				"const styles = { safe: '.probe-safe { color: red; }', other: rawCss };",
+				"export const probe = (flag: boolean) => <style>{styles[flag ? 'safe' : 'other']}</style>;",
+			].join('\n'),
+			'overlay.txt': '.overlay { z-index: 2147483646; }',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		staticKey.map((violation) => violation.ruleId),
+		['z-index-unresolved-raw-expression'],
+		`a fully static conditional key over a recorded raw binding must still fail loud: ${JSON.stringify(staticKey)}`,
+	);
+});
+
 test('e2e (round 15 B2/B3): every import binding shape of a ?raw module is recorded and resolved', async () => {
 	// Round-14 B2: rawImportBindings recorded only the default clause or the
 	// namespace clause (an else-if), so `{ default as x }` — the default

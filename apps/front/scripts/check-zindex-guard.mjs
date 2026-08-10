@@ -1146,13 +1146,24 @@ export const scanZIndexFile = ({
 				if (whenTrue?.overflow || whenFalse?.overflow) {
 					return { values: null, partial: false, overflow: true };
 				}
+				// A runtime branch (a branch that is not statically string-valued)
+				// makes the conditional a *partial* set, exactly like the static
+				// operand of a one-sided `+`: the static branch's candidates
+				// still ship, so they are returned, but the complete value is
+				// unprovable — `styles[flag ? 'safe' : runtimeKey]` must never
+				// read member `safe` as if the runtime branch did not exist
+				// (review B1). The style-payload walk scans the returned
+				// candidates; identity consumers reject the partial set.
 				return {
 					values: new Set([
 						...(whenTrue?.values ?? []),
 						...(whenFalse?.values ?? []),
 					]),
 					partial:
-						(whenTrue?.partial ?? false) || (whenFalse?.partial ?? false),
+						whenTrue == null ||
+						whenFalse == null ||
+						(whenTrue?.partial ?? false) ||
+						(whenFalse?.partial ?? false),
 				};
 			}
 			if (isStringCoercion(expression)) {
