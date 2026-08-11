@@ -5,6 +5,9 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import viteReact from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
+import { contextChunkIsolationPlugin } from './scripts/check-context-chunk-isolation.mjs';
+import { contextChunkIsolationInventory } from './scripts/context-chunk-isolation.inventory.mjs';
+
 const workspaceRootDir = fileURLToPath(new URL('../..', import.meta.url));
 
 export default defineConfig(({ mode }) => {
@@ -32,6 +35,13 @@ export default defineConfig(({ mode }) => {
 			noExternal: ['@org/client-ts', '@org/shared-ts'],
 		},
 		plugins: [
+			contextChunkIsolationPlugin({
+				contextInventory: contextChunkIsolationInventory,
+				tsconfigPath: fileURLToPath(
+					new URL('./tsconfig.json', import.meta.url),
+				),
+				workspaceDirectory: workspaceRootDir,
+			}),
 			tailwindcss(),
 			tanstackStart({
 				srcDirectory: 'src',

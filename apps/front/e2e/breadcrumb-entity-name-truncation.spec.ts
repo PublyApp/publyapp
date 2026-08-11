@@ -127,6 +127,16 @@ const LONG_NAME =
 	'Acme Corporation International Holdings & Subsidiaries Consolidated Group Worldwide Ltd.';
 const SHORT_NAME = 'Acme';
 
+// This proof deliberately pays a real production build cost: the first
+// `readCompiledAppCss()` call in each worker runs a full `pnpm run build`
+// (client + SSR) inside the test — see helpers/compiled-app-css.ts. CI
+// measures ~30s for that build alone, so the default 30s test timeout
+// kills both tests mid-build (the killed build never sets the helper's
+// "already built" flag, so the second test pays it again). Budget this
+// file's own bounded timeout; ordinary browser-test defaults in
+// playwright.config.ts stay unchanged.
+test.setTimeout(180_000);
+
 /** Runs the full set of real-browser truncation assertions against whatever
  * CSS the caller has already loaded into `page`. */
 const assertLongNameClipsAndShortNameDoesNot = async (
