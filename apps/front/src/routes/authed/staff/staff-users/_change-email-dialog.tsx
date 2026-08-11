@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { Field, Form } from '~/components/field';
+import { Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -13,6 +13,7 @@ import {
 	DrawerContent,
 	DrawerDescription,
 	DrawerFooter,
+	DrawerForm,
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
@@ -163,7 +164,7 @@ export const ChangeStaffUserEmailDialog = ({
 							{t('change-staff-user-email-description')}
 						</DrawerDescription>
 					</DrawerHeader>
-					<Form methods={methods} onSubmit={onSubmit}>
+					<DrawerForm methods={methods} onSubmit={onSubmit}>
 						<DrawerBody className="space-y-4">
 							<Field.Email
 								name="email"
@@ -190,7 +191,7 @@ export const ChangeStaffUserEmailDialog = ({
 								{t('common:save-changes')}
 							</Button>
 						</DrawerFooter>
-					</Form>
+					</DrawerForm>
 				</DrawerContent>
 			</Drawer>
 			<ConfirmDialog

@@ -1748,6 +1748,16 @@ html.dark {
 		border-top: 1px solid var(--publy-row-border);
 	}
 
+	/* The form that carries a drawer's body+footer must participate in the
+	 * drawer's flex column: as an item it shrinks to the leftover height
+	 * (min-h-0 flex-1) and as a container it lets the body's own
+	 * min-h-0 flex-1 overflow-y-auto become the single scroll region while
+	 * the footer stays pinned. A plain block form here pins the footer below
+	 * the viewport edge (fix/990). */
+	.publy-drawer-form {
+		@apply flex min-h-0 flex-1 flex-col;
+	}
+
 	/* ---- Form pages: centered column + sticky action bar (handoff 2d/3c/6a) ---- */
 
 	.publy-form-page {
