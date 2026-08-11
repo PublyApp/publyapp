@@ -99,11 +99,12 @@ const resolveMessage = (intent: MutationFeedbackIntent): string | undefined => {
 	return intent.fallbackMessage;
 };
 
-type ToastMethod = 'error' | 'info' | 'success' | 'warning';
+export type ToastMethod = 'default' | 'error' | 'info' | 'success' | 'warning';
 
 const displayToast = async (
 	method: ToastMethod,
 	message: string,
+	description?: string,
 ): Promise<void> => {
 	const sonner = await loadSonner();
 	if (!sonner) {
@@ -111,7 +112,17 @@ const displayToast = async (
 	}
 
 	try {
-		sonner.toast[method](message);
+		if (method === 'default') {
+			if (description === undefined) {
+				sonner.toast(message);
+			} else {
+				sonner.toast(message, { description });
+			}
+		} else if (description === undefined) {
+			sonner.toast[method](message);
+		} else {
+			sonner.toast[method](message, { description });
+		}
 	} catch (error) {
 		logger.error('[Mutation Toast Error]', { error });
 	}
@@ -151,17 +162,38 @@ export const displayLocalMutationFailure = async (
 	);
 };
 
+/**
+ * Local, message-only toasts for inline mutation feedback. The optional
+ * `description` parameter and the `default` variant are the toast-contrast
+ * fixture's way of raising a described neutral toast through the real
+ * product API (routes/field-validation.tsx) — that fixture is their only
+ * consumer today; every product call site passes a single message string.
+ *
+ * `satisfies Record<ToastMethod, …>` pins this object to the `ToastMethod`
+ * union: the toast-contrast guard's type-level equality check ties this
+ * adapter's keys to the measured variant classes
+ * (e2e/toast-contrast.spec.ts), so growing a method here without measuring
+ * a toast for it fails the guard, and the `loading` method is deliberately
+ * absent — `loading` toasts are not raisable, which is the reason the
+ * guard excludes that class.
+ */
 export const toastLocalMutationResult = {
-	success(message: string): void {
-		void displayToast('success', message);
+	default(message: string, description?: string): void {
+		void displayToast('default', message, description);
 	},
-	error(message: string): void {
-		void displayToast('error', message);
+	success(message: string, description?: string): void {
+		void displayToast('success', message, description);
 	},
-	warning(message: string): void {
-		void displayToast('warning', message);
+	error(message: string, description?: string): void {
+		void displayToast('error', message, description);
 	},
-	info(message: string): void {
-		void displayToast('info', message);
+	warning(message: string, description?: string): void {
+		void displayToast('warning', message, description);
 	},
-};
+	info(message: string, description?: string): void {
+		void displayToast('info', message, description);
+	},
+} satisfies Record<
+	ToastMethod,
+	(message: string, description?: string) => void
+>;

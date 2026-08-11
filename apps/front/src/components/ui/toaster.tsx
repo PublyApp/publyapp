@@ -8,6 +8,8 @@ import {
 import type { CSSProperties } from 'react';
 import { Toaster, type ToasterProps } from 'sonner';
 
+import { toastVariantClassNames } from './toast-variants';
+
 const toastClassNames = {
 	toast: 'publy-toast',
 	title: 'publy-toast-title',
@@ -16,14 +18,9 @@ const toastClassNames = {
 	closeButton: 'publy-toast-close-button',
 	cancelButton: 'publy-toast-cancel-button',
 	actionButton: 'publy-toast-action-button',
-	success: 'publy-toast-success',
-	error: 'publy-toast-error',
-	info: 'publy-toast-info',
-	warning: 'publy-toast-warning',
-	loading: 'publy-toast-loading',
-	default: 'publy-toast-default',
 	content: 'publy-toast-content',
 	icon: 'publy-toast-icon',
+	...toastVariantClassNames,
 } satisfies NonNullable<
 	NonNullable<ToasterProps['toastOptions']>['classNames']
 >;

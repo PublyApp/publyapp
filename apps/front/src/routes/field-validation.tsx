@@ -18,14 +18,28 @@ import {
 	SelectValue,
 } from '~/components/ui/select';
 import { Textarea } from '~/components/ui/textarea';
+import { toastVariantClassNames } from '~/components/ui/toast-variants';
 import { FEATURES } from '~/lib/flags';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
+import { toastLocalMutationResult } from '~/lib/mutation-toast';
 
 type FieldValidationValues = {
 	email: string;
 };
 
+/** Every toast the product can raise except the loading spinner, whose
+ * message-bearing siblings the contrast fixture already covers. Derived from
+ * the product's variant class names so a new variant appears here the moment
+ * it appears in `toast-variants.ts`. */
+const toastContrastFixtures = (
+	Object.keys(toastVariantClassNames) as Array<
+		keyof typeof toastVariantClassNames
+	>
+).filter((type) => type !== 'loading');
+
 const FieldValidationRoute = () => {
 	const { t } = useTranslation('common');
+	const isHydrated = useHydrated();
 	const resolver = zodResolver(
 		z.object({
 			email: z.string().email(),
@@ -39,6 +53,11 @@ const FieldValidationRoute = () => {
 		},
 	});
 	const [status, setStatus] = useState('');
+	const showToastContrastFixture = (
+		type: (typeof toastContrastFixtures)[number],
+	): void => {
+		toastLocalMutationResult[type](t('active'), t('description'));
+	};
 
 	const onSubmit: SubmitHandler<FieldValidationValues> = (values) => {
 		setStatus(t('field-validation-submitted-value', { email: values.email }));
@@ -52,6 +71,26 @@ const FieldValidationRoute = () => {
 			>
 				{t('field-validation-demo')}
 			</h1>
+			<Card
+				className="space-y-3 p-4"
+				data-testid="toast-contrast-fixture"
+				data-hydrated={isHydrated || undefined}
+			>
+				<p className="text-sm font-medium">{t('field-validation-demo')}</p>
+				<div className="flex flex-wrap gap-2">
+					{toastContrastFixtures.map((type) => (
+						<Button
+							key={type}
+							type="button"
+							variant="outline"
+							data-testid={`toast-contrast-${type}`}
+							onClick={() => showToastContrastFixture(type)}
+						>
+							{type}
+						</Button>
+					))}
+				</div>
+			</Card>
 			<Card className="space-y-4 p-4">
 				<Form methods={methods} onSubmit={methods.handleSubmit(onSubmit)}>
 					<Field.Email
