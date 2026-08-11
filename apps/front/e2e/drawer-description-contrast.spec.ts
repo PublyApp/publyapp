@@ -351,7 +351,7 @@ const openAssignMembersDrawer = async (page: Page): Promise<void> => {
 
 const openCookiePrefsDrawer = async (page: Page): Promise<void> => {
 	await page.goto('/');
-	await page.getByTestId('marketing-manage-cookies').click();
+	await page.getByTestId('cookie-band-customize').click();
 	await expect(page.getByTestId('cookie-prefs-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
