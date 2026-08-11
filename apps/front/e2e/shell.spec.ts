@@ -169,34 +169,24 @@ const getRealStaffUserDetailPath = async (page: Page): Promise<string> => {
 	return new URL(page.url()).pathname;
 };
 
-test('renders the marketing shell', async ({ page }) => {
+test('renders the landing page', async ({ page }) => {
 	const getHydrationConsoleErrors = trackHydrationConsoleErrors(page);
 
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
 
+	// THE SKY owns its whole shell — no shared MarketingLayout chrome (see
+	// isSelfShelledPath in __root.tsx) — so the page itself, its header and
+	// its footer are the structure under test.
+	await expect(page.getByTestId('landing-page')).toBeVisible();
 	await expect(page.getByTestId('landing-hero-title')).toBeVisible();
-	await expect(page.getByTestId('marketing-shell')).toBeVisible();
-	await expect(page.getByTestId('marketing-shell')).toHaveAttribute(
-		'data-mode',
-		'marketing',
-	);
-	await expect(page.getByTestId('marketing-header')).toBeVisible();
-	await expect(page.getByTestId('marketing-footer')).toBeVisible();
-	await expect(page.getByTestId('marketing-mobile-nav-toggle')).toBeVisible();
-
-	// Below 1024 the theme toggle moves into the drawer with Log in (#1038
-	// breakpoint table); the header row keeps only wordmark + CTA + hamburger.
-	// Both locators are scoped: once the drawer is open the header's own
-	// (hidden) toggle and the drawer's are both in the DOM, and an unscoped
-	// test id would resolve to two elements.
+	// The hero's primary CTA is the first "Sign up free" link in the
+	// document; the closing band repeats the same label below the fold.
 	await expect(
-		page.getByTestId('marketing-header').getByTestId(THEME_TOGGLE_TEST_ID),
-	).toBeHidden();
-	await page.getByTestId('marketing-mobile-nav-toggle').click();
-	await expect(
-		page.getByTestId('marketing-mobile-nav').getByTestId(THEME_TOGGLE_TEST_ID),
+		page.getByRole('link', { name: 'Sign up free' }).first(),
 	).toBeVisible();
+	await expect(page.getByTestId('landing-header')).toBeVisible();
+	await expect(page.getByTestId('landing-footer')).toBeVisible();
 
 	expect(getHydrationConsoleErrors()).toEqual([]);
 });
@@ -604,9 +594,7 @@ test('no bottom rail on mobile and rail-hidden behavior is preserved', async ({
 	await expect(page.getByTestId('app-shell-topbar')).toBeVisible();
 });
 
-test('marketing mobile drawer is keyboard and route-aware', async ({
-	page,
-}) => {
+test('landing navigation is responsive and route-aware', async ({ page }) => {
 	// The default project starts with a staff-admin session, but this transition
 	// must exercise the anonymous auth route instead of its authenticated-user
 	// redirect guard.
@@ -614,24 +602,30 @@ test('marketing mobile drawer is keyboard and route-aware', async ({
 	await page.setViewportSize({ width: 390, height: 812 });
 	await page.goto('/');
 
-	await page.getByTestId('marketing-mobile-nav-toggle').click();
-	const drawer = page.getByTestId('marketing-mobile-nav');
-	await expect(drawer).toBeVisible();
-	await expect(drawer.getByRole('link', { name: 'Log in' })).toBeVisible();
+	const header = page.getByTestId('landing-header');
+	await expect(header).toBeVisible();
 
-	await page.keyboard.press('Escape');
-	await expect(drawer).toBeHidden();
+	// Below lg (1024px) the section nav and the theme toggle leave the
+	// header; the row keeps only the wordmark and the Sign up CTA.
+	await expect(
+		page.getByRole('navigation', { name: 'Page sections' }),
+	).toBeHidden();
+	await expect(header.getByTestId(THEME_TOGGLE_TEST_ID)).toBeHidden();
+	await expect(header.getByRole('link', { name: 'Sign up' })).toBeVisible();
 
-	await page.getByTestId('marketing-mobile-nav-toggle').click();
-	await page
-		.getByTestId('marketing-mobile-nav')
-		.getByRole('link', { name: 'Log in' })
-		.click();
+	// At desktop width the section nav and theme toggle return.
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await expect(
+		page.getByRole('navigation', { name: 'Page sections' }),
+	).toBeVisible();
+	await expect(header.getByTestId(THEME_TOGGLE_TEST_ID)).toBeVisible();
+
+	await header.getByRole('link', { name: 'Sign up' }).click();
 
 	// The auth surface is a standalone split-brand layout, not the marketing
 	// or app shell — see docs/guides/front/conventions.md.
-	await expect(page).toHaveURL('/login');
+	await expect(page).toHaveURL('/signup');
 	await expect(page.getByTestId('auth-layout')).toBeVisible();
-	await expect(page.getByTestId('marketing-shell')).toHaveCount(0);
+	await expect(page.getByTestId('landing-page')).toHaveCount(0);
 	await expect(page.getByTestId('app-shell-shell')).toHaveCount(0);
 });

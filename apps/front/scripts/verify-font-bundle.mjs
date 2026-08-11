@@ -14,6 +14,41 @@ const DEFAULT_LOCALES_DIR = resolve(process.cwd(), 'src/i18n/locales');
 const DEFAULT_FONTS_DIR = 'client/fonts/geist';
 const WOFF2_SIGNATURE = 0x774f4632;
 
+// Codepoints above 0xFF that carry no ink: a font that omits them renders advance
+// width or nothing at all, never a .notdef box, so requiring a glyph for them says
+// nothing about whether the text is legible. French copy legitimately uses U+202F
+// (narrow no-break space) before high punctuation — ? ! ; : » — and that must not
+// force the subset to grow.
+//
+// This list is deliberately explicit and closed. Do NOT relax it into a general
+// "skip anything that looks like a space" test: U+1680 OGHAM SPACE MARK is a
+// whitespace character that DOES draw a visible line, and a category-based rule
+// would silently stop requiring it. Any codepoint not named here still needs a
+// glyph.
+const INKLESS_CODEPOINTS = new Set([
+	0x2000,
+	0x2001,
+	0x2002,
+	0x2003,
+	0x2004,
+	0x2005,
+	0x2006,
+	0x2007,
+	0x2008,
+	0x2009,
+	0x200a, // EN QUAD .. HAIR SPACE
+	0x200b, // ZERO WIDTH SPACE
+	0x200c, // ZERO WIDTH NON-JOINER
+	0x200d, // ZERO WIDTH JOINER
+	0x2028, // LINE SEPARATOR
+	0x2029, // PARAGRAPH SEPARATOR
+	0x202f, // NARROW NO-BREAK SPACE
+	0x205f, // MEDIUM MATHEMATICAL SPACE
+	0x2060, // WORD JOINER
+	0x3000, // IDEOGRAPHIC SPACE
+	0xfeff, // ZERO WIDTH NO-BREAK SPACE (BOM)
+]);
+
 const KNOWN_TABLE_TAGS = {
 	0: 'cmap',
 	1: 'head',
@@ -148,7 +183,7 @@ const parseLocaleCodepoints = () => {
 		if (typeof value === 'string') {
 			for (const rune of value) {
 				const cp = rune.codePointAt(0);
-				if (cp !== undefined && cp > 0xff) {
+				if (cp !== undefined && cp > 0xff && !INKLESS_CODEPOINTS.has(cp)) {
 					out.add(cp);
 				}
 			}

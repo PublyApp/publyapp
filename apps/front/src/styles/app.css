@@ -2,6 +2,10 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* The landing page. Scoped under its own `.publy-landing` root class and
+   inert on every other route. */
+@import './landing.css';
+
 @custom-variant dark (&:is(.dark *));
 
 /* Geist static font fallbacks (self-hosted, woff2 only).
@@ -354,6 +358,27 @@
 	--publy-profile-tone-6-fg: #15803d;
 	--publy-profile-tone-7-bg: #eff6ff;
 	--publy-profile-tone-7-fg: #1d4ed8;
+
+	/* The landing page — the two durations the house motion scale lacks.
+	   Theme-invariant (durations carry no colour), so no html.dark
+	   counterpart is required or wanted.
+
+	   -motion-press: the system ships one duration per property class
+	   (--publy-motion-fast 120ms for colour, --publy-motion-medium 240ms for
+	   layout) but none per DIRECTION, so a press and its release are
+	   necessarily the same length. 50ms is below the ~100ms threshold at
+	   which onset delay becomes perceptible, which is what makes a press feel
+	   like direct manipulation rather than a request.
+
+	   -motion-entrance: an entrance is not a transition. A state change wants
+	   to be over before you can attend to it; an arrival wants to be watched.
+	   At the house curve, 240ms is visibly abrupt for an 8px translate plus a
+	   1.5px blur, and 600ms starts to read as a page still loading. Both of
+	   the page's two entrance mechanisms — the hero/window blur-in and the
+	   scroll reveal — share this one value, so the page has a single arrival
+	   feel rather than two. */
+	--publy-landing-motion-press: 50ms;
+	--publy-landing-motion-entrance: 560ms;
 }
 
 html.dark {

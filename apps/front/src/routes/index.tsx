@@ -1,204 +1,32 @@
-import {
-	IconArrowRight,
-	IconCalendar,
-	IconChevronRight,
-	IconFileDescription,
-	IconLayoutDashboard,
-	IconPencil,
-	IconShieldCheck,
-	IconStack2,
-	IconUsers,
-	IconUsersGroup,
-	IconSparkles,
-	IconBuilding,
-} from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { type KeyboardEvent, type ReactElement, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CookiePrefsDrawer } from '~/components/marketing/cookie-prefs-drawer';
+import { LandingAudience } from '~/components/marketing/landing/landing-audience';
+import { LandingCapabilities } from '~/components/marketing/landing/landing-capabilities';
+import { LandingClaims } from '~/components/marketing/landing/landing-claims';
+import { LandingCookieBand } from '~/components/marketing/landing/landing-cookie-band';
+import { LandingFaq } from '~/components/marketing/landing/landing-faq';
+import { LandingFooter } from '~/components/marketing/landing/landing-footer';
+import { LandingHeader } from '~/components/marketing/landing/landing-header';
+import { LandingPricing } from '~/components/marketing/landing/landing-pricing';
+import {
+	LandingDawn,
+	LandingDay,
+	LandingNight,
+} from '~/components/marketing/landing/landing-regions';
+import { LandingSection } from '~/components/marketing/landing/landing-section';
+import { LandingSectionHeader } from '~/components/marketing/landing/landing-section-header';
+import { LandingTour } from '~/components/marketing/landing/landing-tour';
+import { LandingTrial } from '~/components/marketing/landing/landing-trial';
+import { useLandingReveal } from '~/components/marketing/landing/use-landing-reveal';
+import { buttonVariants } from '~/components/ui/button';
 import { FEATURES } from '~/lib/flags';
+import { createI18nFromResources } from '~/lib/i18n.shared';
+import { cn } from '~/lib/utils';
 
-type TabId = 'calendar' | 'composer' | 'approvals' | 'profiles' | 'dashboards';
-
-type TourTab = {
-	id: TabId;
-	labelKey: string;
-	titleKey: string;
-	descriptionKey: string;
-	icon: ReactElement;
-};
-
-type TrialStep = {
-	titleKey: string;
-	labelKey: string;
-	descriptionKey: string;
-};
-
-type ClaimCard = {
-	key: string;
-	valueKey: string;
-	icon: ReactElement;
-};
-
-type BentoCard = {
-	key: string;
-	watermark: ReactElement;
-};
-
-type FaqItem = {
-	questionKey: string;
-	answerKey: string;
-};
-
-const TOUR_TABS: readonly TourTab[] = [
-	{
-		id: 'calendar',
-		labelKey: 'landing-tour-tab-calendar-label',
-		titleKey: 'landing-tour-tab-calendar-title',
-		descriptionKey: 'landing-tour-tab-calendar-description',
-		icon: <IconCalendar className="size-4" />,
-	},
-	{
-		id: 'composer',
-		labelKey: 'landing-tour-tab-composer-label',
-		titleKey: 'landing-tour-tab-composer-title',
-		descriptionKey: 'landing-tour-tab-composer-description',
-		icon: <IconPencil className="size-4" />,
-	},
-	{
-		id: 'approvals',
-		labelKey: 'landing-tour-tab-approvals-label',
-		titleKey: 'landing-tour-tab-approvals-title',
-		descriptionKey: 'landing-tour-tab-approvals-description',
-		icon: <IconShieldCheck className="size-4" />,
-	},
-	{
-		id: 'profiles',
-		labelKey: 'landing-tour-tab-profiles-label',
-		titleKey: 'landing-tour-tab-profiles-title',
-		descriptionKey: 'landing-tour-tab-profiles-description',
-		icon: <IconUsersGroup className="size-4" />,
-	},
-	{
-		id: 'dashboards',
-		labelKey: 'landing-tour-tab-dashboards-label',
-		titleKey: 'landing-tour-tab-dashboards-title',
-		descriptionKey: 'landing-tour-tab-dashboards-description',
-		icon: <IconLayoutDashboard className="size-4" />,
-	},
-];
-
-const CLAIM_TRIO: readonly ClaimCard[] = [
-	{
-		key: 'landing-claim-plan',
-		valueKey: 'landing-claim-plan-value',
-		icon: <IconCalendar className="size-6" />,
-	},
-	{
-		key: 'landing-claim-teamwork',
-		valueKey: 'landing-claim-teamwork-value',
-		icon: <IconUsers className="size-6" />,
-	},
-	{
-		key: 'landing-claim-traceability',
-		valueKey: 'landing-claim-traceability-value',
-		icon: <IconFileDescription className="size-6" />,
-	},
-];
-
-const BENTO_TILES: readonly BentoCard[] = [
-	{
-		key: 'landing-bento-shared-queue',
-		watermark: <IconStack2 className="size-[175px]" />,
-	},
-	{
-		key: 'landing-bento-role-access',
-		watermark: <IconShieldCheck className="size-[175px]" />,
-	},
-	{
-		key: 'landing-bento-teams-agencies',
-		watermark: <IconBuilding className="size-[175px]" />,
-	},
-	{
-		key: 'landing-bento-inhouse-operations',
-		watermark: <IconUsers className="size-[175px]" />,
-	},
-	{
-		key: 'landing-bento-small-studios',
-		watermark: <IconSparkles className="size-[175px]" />,
-	},
-];
-
-const TRIAL_STEPS: readonly TrialStep[] = [
-	{
-		titleKey: 'landing-timeline-step-1-title',
-		labelKey: 'landing-timeline-step-1-label',
-		descriptionKey: 'landing-timeline-step-1-description',
-	},
-	{
-		titleKey: 'landing-timeline-step-2-title',
-		labelKey: 'landing-timeline-step-2-label',
-		descriptionKey: 'landing-timeline-step-2-description',
-	},
-	{
-		titleKey: 'landing-timeline-step-3-title',
-		labelKey: 'landing-timeline-step-3-label',
-		descriptionKey: 'landing-timeline-step-3-description',
-	},
-];
-
-const FAQ_ITEMS: readonly FaqItem[] = [
-	{
-		questionKey: 'landing-faq-0-question',
-		answerKey: 'landing-faq-0-answer',
-	},
-	{
-		questionKey: 'landing-faq-1-question',
-		answerKey: 'landing-faq-1-answer',
-	},
-	{
-		questionKey: 'landing-faq-2-question',
-		answerKey: 'landing-faq-2-answer',
-	},
-	{
-		questionKey: 'landing-faq-3-question',
-		answerKey: 'landing-faq-3-answer',
-	},
-] as const;
-
-type PricingTier = {
-	id: 'studio' | 'agency' | 'network';
-	nameKey: string;
-	priceKey: string;
-	descriptionKey: string;
-	ctaKey: string;
-	badgeKey?: string;
-};
-
-const PRICING_TIERS: readonly PricingTier[] = [
-	{
-		id: 'studio',
-		nameKey: 'landing-pricing-studio-name',
-		priceKey: 'landing-pricing-studio-price',
-		descriptionKey: 'landing-pricing-studio-description',
-		ctaKey: 'landing-pricing-studio-cta',
-	},
-	{
-		id: 'agency',
-		nameKey: 'landing-pricing-agency-name',
-		priceKey: 'landing-pricing-agency-price',
-		descriptionKey: 'landing-pricing-agency-description',
-		ctaKey: 'landing-pricing-agency-cta',
-		badgeKey: 'landing-pricing-agency-badge',
-	},
-	{
-		id: 'network',
-		nameKey: 'landing-pricing-network-name',
-		priceKey: 'landing-pricing-network-price',
-		descriptionKey: 'landing-pricing-network-description',
-		ctaKey: 'landing-pricing-network-cta',
-	},
-];
-
+/* §9 — the two flag-gated bands: restyled onto the shared attio-15 hairline
+   grid, flags left off in every released image (no Dockerfile ARG exists). */
 const CUSTOMER_LOGO_KEYS = [
 	'landing-customer-logo-northbeam',
 	'landing-customer-logo-halcyon',
@@ -214,439 +42,356 @@ const SOCIAL_PROOF_KEYS = [
 	'landing-social-proof-setup',
 ] as const;
 
-export const IndexRoute = () => {
-	const { t } = useTranslation('common');
-	const [activeTab, setActiveTab] = useState<TabId>('calendar');
-	const activeTabIndex = TOUR_TABS.findIndex((tab) => tab.id === activeTab);
+export const Route = createFileRoute('/')({
+	component: LandingPage,
+	staticData: { i18nNamespaces: ['landing'], crumbs: 'shell' },
+	/**
+	 * The document title and description, resolved in the reader's own
+	 * locale.
+	 *
+	 * The root route declares only `charSet` and `viewport`, so every landing
+	 * exploration inherits the app's default title — the last detail of a page
+	 * a reader sees is the browser tab, and it was unset. `head` runs with the
+	 * match's context, which is where the root's `beforeLoad` has already put
+	 * the resolved locale and the loaded i18n resources, so the title and the
+	 * description come out of the same bundle the page's copy does rather
+	 * than out of a second, English-only source that would silently drift.
+	 */
+	head: ({ match }) => {
+		const { locale, namespaces, resources } = match.context;
+		const t = createI18nFromResources(locale, namespaces, resources).getFixedT(
+			locale,
+			'landing',
+		);
 
-	const handleTourKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-		let nextIndex = activeTabIndex;
+		return {
+			meta: [
+				{ title: t('landing-meta-title') },
+				{ name: 'description', content: t('landing-meta-description') },
+			],
+		};
+	},
+});
 
-		switch (event.key) {
-			case 'ArrowRight':
-				event.preventDefault();
-				nextIndex = (activeTabIndex + 1) % TOUR_TABS.length;
-				break;
-			case 'ArrowLeft':
-				event.preventDefault();
-				nextIndex = (activeTabIndex - 1 + TOUR_TABS.length) % TOUR_TABS.length;
-				break;
-			case 'Home':
-				event.preventDefault();
-				nextIndex = 0;
-				break;
-			case 'End':
-				event.preventDefault();
-				nextIndex = TOUR_TABS.length - 1;
-				break;
-			default:
-				return;
-		}
+/**
+ * THE LANDING PAGE — "THE DAY": header through the footer.
+ *
+ * Chosen out of four explorations (#1082) and promoted to `/` from
+ * `/temp/landing-05-a`; the other three directions and the whole `/temp/`
+ * tree were deleted in the same change.
+ *
+ * IT OWNS ITS ENTIRE SHELL, and `__root.tsx` gives it none. Every other
+ * marketing route is wrapped in `MarketingLayout` (shared header, footer and
+ * container inset); this page is not, because its header and footer are part
+ * of the design rather than chrome around it — `LandingHeader` and
+ * `LandingFooter` (own files, own `.publy-landing`-scoped styling) bracket a
+ * `<main>` built from three regions and the two horizons between them, see
+ * `landing-regions.tsx`. That exemption lives in `__root.tsx` as
+ * `isSelfShelledPath`; if this page ever adopts the shared shell, delete the
+ * exemption rather than leaving it to match nothing.
+ *
+ * DAWN holds the hero and nothing else, for a full screen. The first HORIZON
+ * is the dawn's own bottom edge, a hairline running the full width of the
+ * viewport; the product window is pulled up by exactly the height of its
+ * title bar so that the bar stands above the line and the horizon runs
+ * straight out of it in both directions. DAY is paper: no field, one ruled
+ * column, the entire argument, deliberately the flattest part of the page.
+ * The second HORIZON opens NIGHT, which takes the closing argument and the
+ * footer together and runs off the bottom of the document.
+ */
+function LandingPage() {
+	const { t } = useTranslation('landing');
+	const [isCookiePrefsOpen, setIsCookiePrefsOpen] = useState(false);
+	const mainRef = useRef<HTMLElement>(null);
 
-		setActiveTab(TOUR_TABS[nextIndex].id);
-	};
+	// Below-the-fold reveal. Enhancement only: the server render is complete
+	// and visible, and under reduced motion this attributes nothing at all.
+	useLandingReveal(mainRef);
 
 	return (
-		<div className="space-y-0">
-			<section className="text-center pt-[clamp(52px,9.5cqw,116px)]">
-				<div className="mx-auto max-w-[44ch]">
-					<p
-						className="publy-marketing-eyebrow publy-marketing-fade-up"
-						data-stagger="1"
-					>
-						{t('landing-hero-eyebrow')}
-					</p>
-					<h1
-						data-testid="landing-hero-title"
-						className="mt-4 text-[clamp(38px,7.2cqw,72px)] leading-[1.02] tracking-[-0.04em]"
-						data-stagger="2"
-					>
-						{t('landing-hero-title')}
-					</h1>
-					<p
-						className="mx-auto mt-[18px] max-w-[55ch] text-[16px] leading-[1.65] text-(--publy-foreground-secondary)"
-						data-stagger="3"
-					>
-						{t('landing-hero-description')}
-					</p>
-					<div
-						className="mt-9 flex flex-wrap justify-center gap-3"
-						data-stagger="4"
-					>
-						<Link
-							to="/signup"
-							className="inline-flex h-11 items-center rounded-[var(--publy-radius-control)] bg-(--publy-foreground) px-6 text-sm font-semibold tracking-[0.01em] text-(--publy-background)"
-						>
-							{t('landing-hero-primary-cta')}
-						</Link>
-						<a
-							href="#product-tour"
-							className="inline-flex h-11 items-center rounded-[var(--publy-radius-control)] border border-(--publy-border) px-5 text-sm font-semibold tracking-[0.01em] text-(--publy-foreground)"
-						>
-							<IconChevronRight className="size-4" />
-							{t('landing-hero-secondary-cta')}
-						</a>
-					</div>
-				</div>
-			</section>
-
-			<section className="pt-[clamp(34px,6cqw,88px)]">
-				<div className="mx-auto w-full rounded-[var(--publy-radius-control)] border border-(--publy-border) bg-(--publy-surface-raised) shadow-[var(--publy-shadow-ring)]">
-					<div className="flex h-10 items-center gap-3 border-b border-(--publy-border) px-3.5">
-						<div className="flex gap-1.5">
-							<span className="size-2 rounded-[var(--publy-radius-circular)] bg-(--publy-border-strong)" />
-							<span className="size-2 rounded-[var(--publy-radius-circular)] bg-(--publy-border-strong)" />
-							<span className="size-2 rounded-[var(--publy-radius-circular)] bg-(--publy-border-strong)" />
-						</div>
-						<div className="mx-auto flex flex-1 justify-center">
-							<div className="inline-flex h-6 min-w-[min(220px,55%)] items-center justify-center rounded-[var(--publy-radius-small-control)] border border-(--publy-border) bg-(--publy-background) px-3 text-[11px] leading-none text-(--publy-foreground-muted)">
-								{t('landing-hero-frame-url')}
-							</div>
-						</div>
-						<div className="size-9 shrink-0" />
-					</div>
-					<div className="aspect-[16/9] bg-(--publy-row-border)" />
-				</div>
-			</section>
-
-			<section className="pt-[clamp(70px,9.5cqw,150px)]">
-				<div className="grid gap-[clamp(24px,3.5cqw,56px)] grid-cols-[repeat(auto-fit,minmax(210px,1fr))] text-center">
-					{CLAIM_TRIO.map((card) => (
-						<article key={card.key} className="publy-marketing-fade-up">
-							<div className="mb-3 flex justify-center text-(--publy-marketing-eyebrow-accent)">
-								{card.icon}
-							</div>
-							<p className="text-[13px] font-semibold uppercase tracking-[0.04em] text-(--publy-marketing-eyebrow-accent)">
-								{t(`${card.key}-title`)}
+		<div
+			data-testid="landing-page"
+			className="publy-landing relative isolate flex min-h-dvh flex-col"
+		>
+			{/* Keyboard order is skip link → header → main → footer. Invisible
+			    until focused; a keyboard user tabbing in from the address bar
+			    can jump straight past the header/nav repetition. */}
+			<a
+				href="#landing-main"
+				className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-3 focus-visible:left-3 focus-visible:z-(--publy-z-toast) focus-visible:rounded-[var(--publy-radius-small-control)] focus-visible:bg-(--publy-surface) focus-visible:px-4 focus-visible:py-2 focus-visible:text-(--publy-foreground) focus-visible:no-underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring"
+			>
+				{t('landing-skip-to-content')}
+			</a>
+			<LandingHeader />
+			<main
+				ref={mainRef}
+				id="landing-main"
+				// -1: not in the tab order, but programmatically focusable so
+				// the skip link above actually moves focus here rather than
+				// only scrolling — a hash jump to a non-focusable target
+				// leaves focus stranded at the top of the document.
+				tabIndex={-1}
+				className="relative flex-1 overflow-x-clip outline-none"
+			>
+				{/* ---- DAWN. One statement, one screen, nothing else in it. The
+				    hero is left-flush against the reading column's own edge, and
+				    the right half of the sky is left empty on purpose: it is the
+				    only place on the page where emptiness is the composition
+				    rather than a gap between two things. */}
+				<LandingDawn>
+					<div className="publy-landing-ruled-column">
+						<LandingSection variant="hero" labelledBy="landing-hero-heading">
+							<p className="publy-landing-hero-badge mb-7">
+								{t('landing-hero-badge')}
 							</p>
-							<p className="mt-2 text-[clamp(34px,5.2cqw,57px)] font-semibold leading-tight tracking-[-0.04em] text-(--publy-foreground)">
-								{t(card.valueKey)}
-							</p>
-							<p className="mt-2.5 px-1 text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
-								{t(`${card.key}-details`)}
-							</p>
-						</article>
-					))}
-				</div>
-			</section>
-
-			<section id="product-tour" className="pt-[clamp(74px,10.5cqw,156px)]">
-				<div className="mx-auto max-w-[48ch] text-center">
-					<p className="publy-marketing-eyebrow">{t('landing-tour-eyebrow')}</p>
-					<h2 className="mt-3 text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
-						{t('landing-tour-title')}
-					</h2>
-					<p className="mx-auto mt-4 max-w-[58ch] text-[16px] leading-[1.68] text-(--publy-foreground-secondary)">
-						{t('landing-tour-description')}
-					</p>
-				</div>
-				<div
-					className="mt-8 flex flex-wrap items-start justify-center gap-2"
-					role="tablist"
-					aria-label={t('landing-tour-tablist-aria')}
-				>
-					{TOUR_TABS.map((tab) => (
-						<button
-							type="button"
-							id={`tour-tab-${tab.id}`}
-							onClick={() => setActiveTab(tab.id)}
-							onKeyDown={handleTourKeyDown}
-							role="tab"
-							aria-selected={activeTab === tab.id}
-							aria-controls={`tour-panel-${tab.id}`}
-							tabIndex={activeTab === tab.id ? 0 : -1}
-							className={`inline-flex items-center gap-2 rounded-[var(--publy-radius-small-control)] px-4 py-2.5 text-sm font-semibold transition-colors ${
-								activeTab === tab.id
-									? 'bg-(--publy-foreground) text-(--publy-background)'
-									: 'border border-(--publy-border) bg-(--publy-background) text-(--publy-foreground-secondary)'
-							}`}
-						>
-							<span className="text-(--publy-foreground)" aria-hidden="true">
-								{tab.icon}
-							</span>
-							{t(tab.labelKey)}
-						</button>
-					))}
-				</div>
-				<div className="mt-8 flex flex-col gap-6 rounded-[var(--publy-radius-control)] lg:flex-row lg:items-start">
-					<div className="min-w-0 flex-1">
-						{TOUR_TABS.map((tab, index) => (
-							<div
-								key={tab.id}
-								id={`tour-panel-${tab.id}`}
-								role="tabpanel"
-								aria-labelledby={`tour-tab-${tab.id}`}
-								hidden={activeTabIndex !== index}
-								aria-hidden={activeTabIndex !== index}
+							<h1
+								id="landing-hero-heading"
+								data-testid="landing-hero-title"
+								className="publy-type-sky-display-1 publy-sky-focus-in publy-landing-optical-flush max-w-[15ch] text-balance text-(--publy-foreground)"
 							>
-								<h3 className="text-[clamp(28px,3.4cqw,42px)] leading-[1.12] tracking-[-0.035em]">
-									{t(tab.titleKey)}
-								</h3>
-								<p className="mt-4 max-w-[52ch] text-[16px] leading-[1.68] text-(--publy-foreground-secondary)">
-									{t(tab.descriptionKey)}
-								</p>
-								<a
-									href="/signup"
-									className="mt-5 inline-flex items-center gap-1.5 text-[15px] font-semibold text-(--publy-foreground)"
+								{t('landing-hero-title')}
+							</h1>
+							<p className="publy-type-sky-lead mt-8 max-w-[46ch] text-pretty text-(--publy-foreground-secondary)">
+								{t('landing-hero-description')}
+							</p>
+							<div className="mt-10 flex flex-wrap gap-3">
+								<Link
+									to="/signup"
+									className={cn(
+										buttonVariants({ variant: 'default', size: 'lg' }),
+										'publy-landing-pressable',
+									)}
 								>
-									{t('landing-tour-learn-more')}
-									<IconArrowRight className="size-3.5" />
+									{t('landing-hero-primary-cta')}
+								</Link>
+								<a
+									href="#product-window"
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'lg' }),
+										'publy-landing-pressable',
+									)}
+								>
+									{t('landing-hero-secondary-cta')}
 								</a>
 							</div>
-						))}
+						</LandingSection>
 					</div>
-					<div className="relative min-h-0 min-w-[min(100%,640px)] flex-1 overflow-hidden rounded-[var(--publy-radius-control)] border border-(--publy-border) bg-(--publy-row-border) aspect-[16/10]">
-						{TOUR_TABS.map((tab, index) => (
-							<div
-								key={tab.id}
-								className="absolute inset-0 bg-(--publy-row-border)"
-								// Deliberately not a `tabpanel`: a tab owns exactly one panel, and
-								// each tab's `aria-controls` already names the copy panel above.
-								// Marking this plate as a second tabpanel left an orphan region
-								// that no tab controlled. It still toggles with the active tab so
-								// only the live plate is exposed.
-								hidden={activeTabIndex !== index}
-								aria-hidden={activeTabIndex !== index}
-							>
-								<span className="sr-only">
-									{t(tab.labelKey)} {t('landing-tour-plate-placeholder')}
-								</span>
-							</div>
-						))}
-					</div>
-				</div>
-			</section>
+				</LandingDawn>
 
-			<section className="pt-[clamp(74px,10.5cqw,156px)]">
-				<div className="mx-auto max-w-[52ch] text-center">
-					<p className="publy-marketing-eyebrow">
-						{t('landing-bento-eyebrow')}
-					</p>
-					<h2 className="mt-3 text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
-						{t('landing-bento-title')}
-					</h2>
-				</div>
-				<div className="mt-10 flex flex-col gap-4">
-					<div className="flex flex-wrap gap-4">
-						{BENTO_TILES.slice(0, 2).map((tile) => (
-							<article
-								key={tile.key}
-								className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[var(--publy-radius-control)] border border-(--publy-border) bg-(--publy-background) p-6"
+				{/* ---- DAY. Paper. The whole argument, in one ruled column, with
+				    no field behind it. */}
+				<LandingDay>
+					<div className="publy-landing-ruled-column">
+						{/* §2 — The product window. It is the first thing below the
+						    horizon and it is pulled up through it: `publy-landing-cross`
+						    lifts the section by exactly the 40px of the window's own
+						    title bar, so the bar stands in the dawn and the horizon
+						    runs out of its bottom edge to both viewport edges. Also
+						    the hero secondary CTA's anchor target. */}
+						<LandingSection
+							variant="window"
+							id="product-window"
+							anchor
+							labelledBy="landing-tour-heading"
+						>
+							<LandingTour />
+						</LandingSection>
+
+						{/* §3 — Three claims (attio-29 stat blocks). */}
+						<LandingSection reveal ruled labelledBy="landing-claim-heading">
+							<LandingSectionHeader
+								headingId="landing-claim-heading"
+								eyebrowKey="landing-claim-eyebrow"
+								titleKey="landing-claim-title"
+								dekKey="landing-claim-dek"
+							/>
+							<LandingClaims />
+						</LandingSection>
+
+						{/* §4 — What ships today: the six-fact strip (todesktop-31). */}
+						<LandingSection
+							reveal
+							ruled
+							labelledBy="landing-capability-heading"
+						>
+							<LandingSectionHeader
+								headingId="landing-capability-heading"
+								eyebrowKey="landing-capability-eyebrow"
+								titleKey="landing-capability-title"
+								dekKey="landing-capability-dek"
+							/>
+							<LandingCapabilities />
+						</LandingSection>
+
+						{/* §5 — Who it is for (attio-15 hairline grid + one side-pane slot). */}
+						<LandingSection reveal ruled labelledBy="landing-audience-heading">
+							<LandingSectionHeader
+								headingId="landing-audience-heading"
+								eyebrowKey="landing-bento-eyebrow"
+								titleKey="landing-bento-title"
+								dekKey="landing-bento-dek"
+							/>
+							<LandingAudience />
+						</LandingSection>
+
+						{/* §6 — The planned trial: claim-gated, three steps. */}
+						<LandingSection reveal ruled labelledBy="landing-timeline-heading">
+							<LandingSectionHeader
+								headingId="landing-timeline-heading"
+								eyebrowKey="landing-timeline-eyebrow"
+								titleKey="landing-timeline-title"
+								dekKey="landing-trial-plan-note"
+								dekTestId="landing-trial-plan-note"
+							/>
+							<LandingTrial />
+						</LandingSection>
+
+						{/* §7 — Pricing: struck through, beta-noted, todesktop-23 framed. */}
+						<LandingSection
+							reveal
+							ruled
+							id="pricing"
+							anchor
+							testId="landing-pricing"
+							labelledBy="landing-pricing-heading"
+						>
+							<LandingSectionHeader
+								headingId="landing-pricing-heading"
+								eyebrowKey="landing-pricing-eyebrow"
+								titleKey="landing-pricing-title"
+								dekKey="landing-pricing-subtitle"
+							/>
+							<LandingPricing />
+						</LandingSection>
+
+						{/* §8 — FAQ: ONE COLUMN, like every other section on the page.
+					    The heading sits above the questions, full width; there is
+					    no side rail, no split and no offset. */}
+						<LandingSection
+							reveal
+							ruled
+							id="faq"
+							anchor
+							labelledBy="landing-faq-heading"
+						>
+							<LandingSectionHeader
+								headingId="landing-faq-heading"
+								eyebrowKey="landing-faq-eyebrow"
+								titleKey="landing-faq-title"
+								dekKey="landing-faq-dek"
+							/>
+							<LandingFaq />
+						</LandingSection>
+
+						{/* §9 — The two flag-gated bands: restyled onto the attio-15
+					    hairline grid, flags stay off in every released image (no
+					    Dockerfile ARG exists). */}
+						{FEATURES.marketing.customerLogos ? (
+							<LandingSection
+								reveal
+								ruled
+								testId="landing-customer-logos"
+								labelledBy="landing-logos-heading"
 							>
-								<div className="pointer-events-none absolute -right-12 -top-10 text-(--publy-foreground-muted)">
-									{tile.watermark}
+								<h2
+									id="landing-logos-heading"
+									className="publy-type-sky-display-3 mx-auto max-w-[58ch] text-center text-balance text-(--publy-foreground)"
+								>
+									{t('landing-customer-logos-title')}
+								</h2>
+								<div className="publy-marketing-hairline-grid mt-7 grid grid-cols-2 sm:grid-cols-3">
+									{CUSTOMER_LOGO_KEYS.map((logoKey) => (
+										<div
+											key={logoKey}
+											className="flex min-h-16 items-center justify-center bg-(--publy-surface) px-4 text-center"
+										>
+											<span className="publy-type-sky-label text-(--publy-foreground-secondary)">
+												{t(logoKey)}
+											</span>
+										</div>
+									))}
 								</div>
-								<h3 className="relative text-[clamp(22px,2.4cqw,30px)] leading-[1.15] font-semibold tracking-[-0.03em] text-(--publy-foreground)">
-									{t(`${tile.key}-title`)}
-								</h3>
-								<p className="relative mt-2.5 max-w-[44ch] text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
-									{t(`${tile.key}-body`)}
-								</p>
-								<div className="relative z-10 mt-5 rounded-[var(--publy-radius-small-control)] border border-(--publy-border) bg-(--publy-surface-raised) aspect-[16/9]" />
-							</article>
-						))}
-					</div>
-					<div className="flex flex-col gap-4 md:flex-row">
-						{BENTO_TILES.slice(2, 5).map((tile) => (
-							<article
-								key={tile.key}
-								className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-[var(--publy-radius-control)] border border-(--publy-border) bg-(--publy-background) p-6"
+							</LandingSection>
+						) : null}
+						{FEATURES.marketing.socialProof ? (
+							<section
+								data-testid="landing-social-proof"
+								className="publy-landing-section publy-landing-section-ruled"
 							>
-								<div className="pointer-events-none absolute -right-12 -top-10 text-(--publy-foreground-muted)">
-									{tile.watermark}
+								<div className="publy-marketing-hairline-grid grid grid-cols-1 sm:grid-cols-3">
+									{SOCIAL_PROOF_KEYS.map((proofKey) => (
+										<p
+											key={proofKey}
+											className="publy-type-sky-label bg-(--publy-surface) px-6 py-5 text-center text-(--publy-foreground-secondary)"
+										>
+											{t(proofKey)}
+										</p>
+									))}
 								</div>
-								<h3 className="relative text-[clamp(22px,2.4cqw,30px)] leading-[1.15] font-semibold tracking-[-0.03em] text-(--publy-foreground)">
-									{t(`${tile.key}-title`)}
-								</h3>
-								<p className="relative mt-2.5 max-w-[44ch] text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
-									{t(`${tile.key}-body`)}
-								</p>
-								<div className="relative z-10 mt-5 rounded-[var(--publy-radius-small-control)] border border-(--publy-border) bg-(--publy-surface-raised) aspect-[16/9]" />
-							</article>
-						))}
+							</section>
+						) : null}
 					</div>
-				</div>
-			</section>
+				</LandingDay>
 
-			<section className="pt-[clamp(74px,10.5cqw,156px)]">
-				<div className="mx-auto max-w-[760px] text-center">
-					<p className="publy-marketing-eyebrow">
-						{t('landing-timeline-eyebrow')}
-					</p>
-					<h2 className="mt-3 text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
-						{t('landing-timeline-title')}
-					</h2>
-					<p
-						data-testid="landing-trial-plan-note"
-						className="mx-auto mt-3 max-w-[58ch] text-xs leading-[1.6] text-(--publy-foreground-secondary)"
-					>
-						{t('landing-trial-plan-note')}
-					</p>
-				</div>
-				<div className="publy-marketing-hairline-grid mt-8 grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
-					{TRIAL_STEPS.map((step) => (
-						<article key={step.titleKey} className="px-6 py-7 sm:px-8">
-							<p className="text-sm font-semibold tracking-[0.01em] text-(--publy-marketing-eyebrow-accent)">
-								{t(step.labelKey)}
-							</p>
-							<p className="mt-1 text-[18px] font-semibold leading-tight tracking-[-0.02em] text-(--publy-foreground)">
-								{t(step.titleKey)}
-							</p>
-							<p className="mt-3 text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
-								{t(step.descriptionKey)}
-							</p>
-						</article>
-					))}
-				</div>
-			</section>
+				{/* ---- NIGHT, and the page's second horizon. The closing argument
+				    used to be a 24px-radius box floating inside the column with
+				    the footer on paper beneath it — a dark card, not an ending.
+				    It is now the region itself: full-bleed, no radius, no
+				    bracket, opening on the horizon rule and running off the
+				    bottom of the document. The footer picks the same ramp up
+				    where this hands it over, so the last thousand pixels of the
+				    page are one object.
 
-			<section
-				data-testid="landing-pricing"
-				className="pt-[clamp(74px,10.5cqw,156px)]"
-			>
-				<div className="mx-auto max-w-[760px] text-center">
-					<h2 className="text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
-						{t('landing-pricing-title')}
-					</h2>
-					<p className="mx-auto mt-4 max-w-[58ch] text-[16px] leading-[1.68] text-(--publy-foreground-secondary)">
-						{t('landing-pricing-subtitle')}
-					</p>
-				</div>
-				<div className="mt-8 grid gap-4 md:grid-cols-3">
-					{PRICING_TIERS.map((tier) => (
-						<article
-							key={tier.id}
-							data-testid={`landing-pricing-${tier.id}`}
-							className="flex flex-col rounded-[var(--publy-radius-control)] border border-(--publy-border) bg-(--publy-surface-raised) p-6"
+				    Left-flush, like everything above it. Centring the closing
+				    band was the page's last disagreement with its own alignment:
+				    a reader who has read one left edge for seven thousand pixels
+				    does not want the final sentence somewhere else. */}
+				<LandingNight>
+					<div className="publy-landing-ruled-column">
+						<LandingSection
+							reveal
+							variant="closing"
+							labelledBy="landing-closing-heading"
 						>
-							{tier.badgeKey ? (
-								<span className="self-start rounded-[var(--publy-radius-small-control)] border border-(--publy-border) px-2.5 py-1 text-xs font-semibold text-(--publy-foreground-secondary)">
-									{t(tier.badgeKey)}
-								</span>
-							) : null}
-							<h3 className="mt-4 text-[22px] font-semibold tracking-[-0.03em] text-(--publy-foreground)">
-								{t(tier.nameKey)}
-							</h3>
-							<div className="mt-5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-								<span className="text-[34px] font-semibold tracking-[-0.04em] text-(--publy-foreground)">
-									<del>{t(tier.priceKey)}</del>
-								</span>
-								<span className="text-sm text-(--publy-foreground-secondary)">
-									{t('landing-pricing-per-month')}
-								</span>
-								<span className="text-xs text-(--publy-foreground-secondary)">
-									{t('landing-pricing-beta-note')}
-								</span>
+							<p className="publy-marketing-eyebrow publy-landing-eyebrow-chip-night w-fit">
+								{t('landing-closing-eyebrow')}
+							</p>
+							<h2
+								id="landing-closing-heading"
+								className="publy-type-sky-display-2 publy-landing-optical-flush mt-7 max-w-[16ch] text-balance text-(--publy-foreground)"
+							>
+								{t('landing-closing-title')}
+							</h2>
+							<p className="publy-type-sky-lead mt-6 max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">
+								{t('landing-closing-description')}
+							</p>
+							<div className="mt-10 flex flex-wrap gap-3">
+								<Link
+									to="/signup"
+									className={cn(
+										buttonVariants({ variant: 'default', size: 'lg' }),
+										'publy-landing-pressable',
+									)}
+								>
+									{t('landing-closing-primary-cta')}
+								</Link>
+								<Link
+									to="/login"
+									className="publy-landing-pressable publy-landing-focus-ring inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] border border-(--publy-border) px-6 text-sm font-medium text-(--publy-foreground) no-underline"
+								>
+									{t('landing-closing-secondary-cta')}
+								</Link>
 							</div>
-							<p className="mt-4 min-h-[78px] text-[15px] leading-[1.65] text-(--publy-foreground-secondary)">
-								{t(tier.descriptionKey)}
-							</p>
-							<Link
-								to="/signup"
-								className="mt-7 inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] bg-(--publy-foreground) px-5 text-sm font-semibold text-(--publy-background)"
-							>
-								{t(tier.ctaKey)}
-							</Link>
-						</article>
-					))}
-				</div>
-			</section>
-
-			{FEATURES.marketing.customerLogos ? (
-				<section
-					data-testid="landing-customer-logos"
-					className="pt-[clamp(52px,7cqw,96px)]"
-				>
-					<h2 className="mx-auto max-w-[58ch] text-center text-[clamp(22px,2.8cqw,34px)] leading-[1.15] tracking-[-0.03em]">
-						{t('landing-customer-logos-title')}
-					</h2>
-					<div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3">
-						{CUSTOMER_LOGO_KEYS.map((logoKey) => (
-							<div
-								key={logoKey}
-								className="flex min-h-16 items-center justify-center rounded-[var(--publy-radius-small-control)] border border-(--publy-border) bg-(--publy-background) px-4 text-center text-sm font-semibold tracking-[0.02em] text-(--publy-foreground-secondary)"
-							>
-								{t(logoKey)}
-							</div>
-						))}
+						</LandingSection>
 					</div>
-				</section>
-			) : null}
-
-			{FEATURES.marketing.socialProof ? (
-				<section
-					data-testid="landing-social-proof"
-					className="pt-[clamp(52px,7cqw,96px)]"
-				>
-					<div className="grid grid-cols-1 divide-y divide-(--publy-border) border-y border-(--publy-border) sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-						{SOCIAL_PROOF_KEYS.map((proofKey) => (
-							<p
-								key={proofKey}
-								className="px-6 py-5 text-center text-[15px] font-semibold leading-[1.4] text-(--publy-foreground-secondary)"
-							>
-								{t(proofKey)}
-							</p>
-						))}
-					</div>
-				</section>
-			) : null}
-
-			<section className="pt-[clamp(74px,10.5cqw,156px)]" id="faq">
-				<div className="mx-auto max-w-[760px] text-center">
-					<p className="publy-marketing-eyebrow">{t('landing-faq-eyebrow')}</p>
-					<h2 className="mt-3 text-[clamp(32px,4.2cqw,52px)] leading-[1.08] tracking-[-0.035em]">
-						{t('landing-faq-title')}
-					</h2>
-				</div>
-				<div className="mx-auto mt-8 max-w-[760px]">
-					{FAQ_ITEMS.map((item, index) => (
-						<div
-							key={item.questionKey}
-							className={`border-t border-(--publy-border) py-6${
-								index === FAQ_ITEMS.length - 1 ? ' border-b' : ''
-							}`}
-						>
-							<h3 className="text-[20px] leading-[1.2] font-semibold tracking-[-0.02em] text-(--publy-foreground)">
-								{t(item.questionKey)}
-							</h3>
-							<p className="mt-2 text-[15.5px] leading-[1.7] text-(--publy-foreground-secondary)">
-								{t(item.answerKey)}
-							</p>
-						</div>
-					))}
-				</div>
-			</section>
-
-			<section className="pt-[clamp(74px,10.5cqw,156px)] pb-[clamp(52px,9cqw,124px)]">
-				<div className="rounded-[28px] bg-(--publy-foreground) px-[clamp(24px,4cqw,56px)] py-[clamp(42px,8cqw,100px)] text-center">
-					<h2 className="mx-auto max-w-[18ch] text-[clamp(34px,5cqw,60px)] leading-[1.07] font-semibold tracking-[-0.035em] text-(--publy-background)">
-						{t('landing-closing-title')}
-					</h2>
-					<p className="mx-auto mt-4 max-w-[54ch] text-[17px] leading-[1.67] text-(--publy-background)">
-						{t('landing-closing-description')}
-					</p>
-					<div className="mt-8 flex flex-wrap justify-center gap-3">
-						<Link
-							to="/signup"
-							className="inline-flex h-[48px] items-center rounded-[var(--publy-radius-control)] bg-(--publy-background) px-6 text-[16px] font-semibold tracking-[0.01em] text-(--publy-foreground)"
-						>
-							{t('landing-closing-primary-cta')}
-						</Link>
-						<a
-							href="#product-tour"
-							className="inline-flex h-[48px] items-center rounded-[var(--publy-radius-control)] border border-(--publy-border) px-6 text-[16px] font-semibold tracking-[0.01em] text-(--publy-background)"
-						>
-							<IconChevronRight className="size-4" />
-							{t('landing-closing-secondary-cta')}
-						</a>
-					</div>
-				</div>
-			</section>
+				</LandingNight>
+			</main>
+			<LandingFooter />
+			<LandingCookieBand onCustomize={() => setIsCookiePrefsOpen(true)} />
+			<CookiePrefsDrawer
+				open={isCookiePrefsOpen}
+				onOpenChange={setIsCookiePrefsOpen}
+			/>
 		</div>
 	);
-};
-
-export const Route = createFileRoute('/')({
-	staticData: { crumbs: 'shell' },
-	component: IndexRoute,
-});
+}
