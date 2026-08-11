@@ -1757,9 +1757,13 @@ html.dark {
 		color: var(--publy-foreground);
 	}
 
+	/* `--publy-foreground-secondary`, not `-subtle`: the subtle step measures
+	   ~2.6:1 on the white/elevated surfaces this text sits on — under the
+	   4.5:1 small-text floor (the same call toast-description documents for
+	   the toast surface). */
 	.publy-drawer-description {
 		font-size: 13px;
-		color: var(--publy-foreground-subtle);
+		color: var(--publy-foreground-secondary);
 	}
 
 	.publy-drawer-body {
@@ -1897,9 +1901,12 @@ html.dark {
 		color: var(--publy-foreground);
 	}
 
+	/* `--publy-foreground-secondary`, not `-subtle`: these rows render on the
+	   white/overlay surfaces where the subtle step lands under the 4.5:1
+	   small-text floor (see the toast-description note for the rationale). */
 	.publy-field-switch-description {
 		@apply text-xs;
-		color: var(--publy-foreground-subtle);
+		color: var(--publy-foreground-secondary);
 	}
 
 	/* ---- Detail page measure (owner decision R2-4, 2026-07-10) ---- */
@@ -1971,9 +1978,12 @@ html.dark {
 		color: var(--publy-foreground);
 	}
 
+	/* `--publy-foreground-secondary`, not `-subtle`: the row description sits
+	   on the danger-zone card's white surface, where the subtle step measures
+	   under the 4.5:1 small-text floor (see the toast-description note). */
 	.publy-danger-zone-row-description {
 		@apply text-xs;
-		color: var(--publy-foreground-subtle);
+		color: var(--publy-foreground-secondary);
 	}
 
 	/* ---- Tenant identity brand tile (handoff 2c/3b) ---- */

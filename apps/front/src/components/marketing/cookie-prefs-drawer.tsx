@@ -75,11 +75,17 @@ export const CookiePrefsDrawer = ({
 			>
 				<DrawerHeader>
 					<DrawerTitle>{t('marketing-cookies-title')}</DrawerTitle>
-					{/* The shared drawer-description style is the subtle
-					    foreground step, which measures 2.56:1 on white — below
-					    AA at this size. Stepped up to the muted foreground here;
-					    the primitive-wide fix is reported separately rather than
-					    changed under this PR's feet. */}
+					{/* The shared drawer-description style now uses the
+					    secondary foreground step and passes AA at this size
+					    (#1043). This surface still steps up one more to the
+					    muted foreground, the marketing AA-floor step the shell
+					    spec reserves for marketing surfaces (same choice as
+					    .publy-marketing-eyebrow), so the cookie drawer
+					    description reads at the same weight as the rest of
+					    the marketing copy it sits among. This is the one
+					    override that sits closest to the 4.5:1 floor (round 5
+					    M8) — deliberate, and pinned by both the source guard
+					    and the browser spec. */}
 					<DrawerDescription className="text-(--publy-foreground-muted)">
 						{t('marketing-cookies-policy-version', {
 							version: COOKIE_CONSENT_POLICY_VERSION,

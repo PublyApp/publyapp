@@ -25,6 +25,7 @@ import { toastLocalMutationResult } from '~/lib/mutation-toast';
 
 type FieldValidationValues = {
 	email: string;
+	statusEnabled: boolean;
 };
 
 /** Every toast the product can raise except the loading spinner, whose
@@ -43,6 +44,7 @@ const FieldValidationRoute = () => {
 	const resolver = zodResolver(
 		z.object({
 			email: z.string().email(),
+			statusEnabled: z.boolean(),
 		}),
 	);
 
@@ -50,6 +52,7 @@ const FieldValidationRoute = () => {
 		resolver,
 		defaultValues: {
 			email: '',
+			statusEnabled: true,
 		},
 	});
 	const [status, setStatus] = useState('');
@@ -98,6 +101,18 @@ const FieldValidationRoute = () => {
 						label={t('email')}
 						placeholder={t('email-placeholder')}
 						required
+					/>
+					{/* E2E fixture (round 5 M12): this Field.Switch exists so the
+					    drawer-contrast browser spec can measure a real
+					    `.publy-field-switch-description` element. It is also a
+					    legitimate demo of the switch-field pattern, so it earns
+					    its place in this dev-only route — but the route is
+					    forced on for the e2e image, so keep this block's
+					    description text real (not placeholder copy). */}
+					<Field.Switch
+						name="statusEnabled"
+						label={t('status')}
+						description={t('description')}
 					/>
 					<Button
 						type="submit"

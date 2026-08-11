@@ -16,6 +16,7 @@
 		"test:context-chunk-isolation": "node --test scripts/check-context-chunk-isolation.test.mjs",
 		"check:design-system": "node scripts/check-design-system.mjs",
 		"test:design-system-guard": "node --test scripts/check-design-system.test.mjs",
+		"test:drawer-contrast": "vitest run --config vitest.drawer.config.ts",
 		"smoke:start": "node scripts/smoke-start-server.mjs",
 		"test": "vitest run && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:design-system-guard && pnpm check:design-system"
 	},
@@ -62,6 +63,7 @@
 		"jsdom": "29.1.1",
 		"postcss": "8.5.25",
 		"shadcn": "4.1.2",
+		"tailwindcss": "4.3.1",
 		"ts-morph": "28.0.0",
 		"typescript": "7.0.2",
 		"vite": "8.1.5",

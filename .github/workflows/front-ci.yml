@@ -203,6 +203,13 @@ jobs:
       - name: Check front design system
         run: pnpm --filter front check:design-system
 
+      # Round 19 I3: the drawer-description contrast guard is the ONLY
+      # browser-launching test in the front unit suite. It no longer runs in
+      # this lane — the ordinary suite is browser-free, so no unit-lane
+      # contributor or CI run must provision Chromium for a synthetic guard
+      # the live e2e already bounds. The guard runs in the e2e lane
+      # (front-e2e.yml, once-only shard-4 block), which already installs the
+      # same Chromium and gates the real drawer spec.
       - name: Test front
         run: pnpm --filter front test
 

@@ -20,7 +20,7 @@ resets and stays under budget, **this gate is the pre-merge net** — see issue 
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec | yes | yes |
 | `ci-migration-expand-contract` | yes | yes |
 | **Full API test suite** (`just test-api`) | yes | yes |
-| front e2e (docker compose + Playwright) | no | yes |
+| front e2e (docker compose + Playwright + drawer-contrast Vitest guard) | no | yes |
 | old-front e2e characterization (docker compose + Playwright) | no | yes |
 
 `just ci` is the everyday loop. Run `just ci-full` before merging anything that touches
@@ -255,7 +255,7 @@ substantially slower — the first `ci-full` pays several minutes to build the e
 | Target | Time | Notes |
 | --- | --- | --- |
 | `just ci` | ~4m 20s | of which `just test-api` is ~1m 45s (1,158 tests) |
-| `just ci-e2e-front` | ~8m 15s | 180 Playwright tests + docker stack |
+| `just ci-e2e-front` | ~8m 15s | 180 Playwright tests + the 107-test drawer-contrast Vitest source guard + docker stack |
 | `just ci-e2e-old-front` | ~8m | 13 Playwright tests; mostly docker build |
 | `just ci-full` | ~21m | the two e2e suites are ~80% of it |
 
