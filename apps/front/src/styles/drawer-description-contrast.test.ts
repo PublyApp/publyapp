@@ -1,4 +1,16 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	realpathSync,
+	rmSync,
+	statSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -1725,7 +1737,7 @@ const tailwindIndexPath = fileURLToPath(
 	import.meta.resolve('tailwindcss/index.css'),
 );
 
-const appStylesDirectory = path.dirname(appCssPath);
+const appStylesDirectory = realpathSync(path.dirname(appCssPath));
 
 const resolveAppStylesheetImport = (
 	id: string,
@@ -1750,18 +1762,23 @@ const resolveAppStylesheetImport = (
 	}
 
 	if (id.startsWith('./') || id.startsWith('../')) {
-		const candidate = path.resolve(base, id);
-		const relativePath = path.relative(appStylesDirectory, candidate);
-		const isInsideStylesDirectory =
-			relativePath !== '..' &&
-			!relativePath.startsWith(`..${path.sep}`) &&
-			!path.isAbsolute(relativePath);
-		if (
-			isInsideStylesDirectory &&
-			path.extname(candidate) === '.css' &&
-			existsSync(candidate)
-		) {
-			return candidate;
+		try {
+			const candidate = realpathSync(path.resolve(base, id));
+			const relativePath = path.relative(appStylesDirectory, candidate);
+			const isInsideStylesDirectory =
+				relativePath !== '..' &&
+				!relativePath.startsWith(`..${path.sep}`) &&
+				!path.isAbsolute(relativePath);
+			if (
+				isInsideStylesDirectory &&
+				path.extname(candidate) === '.css' &&
+				statSync(candidate).isFile()
+			) {
+				return candidate;
+			}
+		} catch {
+			// Missing, broken, or unreadable paths fail through to the explicit
+			// contrast-guard error below.
 		}
 	}
 
@@ -4454,13 +4471,134 @@ describe('drawer description text contrast (#1043)', () => {
 		);
 	});
 
-	test('fails closed when a local stylesheet import cannot be resolved', () => {
-		expect(() =>
-			resolveAppStylesheetImport('./missing-drawer-contrast-fixture.css'),
-		).toThrow(
-			'Contrast guard cannot resolve stylesheet import ' +
-				'./missing-drawer-contrast-fixture.css in app.css',
-		);
+	describe('local stylesheet import confinement', () => {
+		let fixtureDirectory: string;
+		let nestedDirectory: string;
+		let outsideDirectory: string;
+
+		beforeAll(() => {
+			fixtureDirectory = mkdtempSync(
+				path.join(appStylesDirectory, '.drawer-contrast-import-'),
+			);
+			nestedDirectory = path.join(fixtureDirectory, 'nested');
+			outsideDirectory = mkdtempSync(
+				path.join(tmpdir(), 'publy-drawer-contrast-import-'),
+			);
+			mkdirSync(nestedDirectory);
+			writeFileSync(
+				path.join(fixtureDirectory, 'root.css'),
+				'.internal-root {}',
+			);
+			writeFileSync(path.join(nestedDirectory, 'leaf.css'), '.nested-leaf {}');
+			writeFileSync(
+				path.join(nestedDirectory, 'bad-contrast.css'),
+				'.publy-imported-low-contrast { ' +
+					'color: var(--publy-foreground-subtle); }',
+			);
+			writeFileSync(
+				path.join(fixtureDirectory, 'entry.css'),
+				"@import './nested/bad-contrast.css';\n@import '../app.css';",
+			);
+			writeFileSync(path.join(fixtureDirectory, 'not-css.txt'), '.not-css {}');
+			mkdirSync(path.join(fixtureDirectory, 'directory.css'));
+			writeFileSync(path.join(outsideDirectory, 'outside.css'), '.outside {}');
+			symlinkSync(
+				outsideDirectory,
+				path.join(fixtureDirectory, 'outside-link'),
+				process.platform === 'win32' ? 'junction' : 'dir',
+			);
+			symlinkSync(
+				nestedDirectory,
+				path.join(fixtureDirectory, 'inside-link'),
+				process.platform === 'win32' ? 'junction' : 'dir',
+			);
+		});
+
+		afterAll(() => {
+			rmSync(fixtureDirectory, { recursive: true, force: true });
+			rmSync(outsideDirectory, { recursive: true, force: true });
+		});
+
+		test('resolves a nested relative import from the importer directory', () => {
+			expect(resolveAppStylesheetImport('./leaf.css', nestedDirectory)).toBe(
+				path.join(nestedDirectory, 'leaf.css'),
+			);
+		});
+
+		test('resolves an internal parent-directory import', () => {
+			expect(resolveAppStylesheetImport('../root.css', nestedDirectory)).toBe(
+				path.join(fixtureDirectory, 'root.css'),
+			);
+		});
+
+		test('returns the canonical target for an internal symlink', () => {
+			expect(
+				resolveAppStylesheetImport('./inside-link/leaf.css', fixtureDirectory),
+			).toBe(path.join(nestedDirectory, 'leaf.css'));
+		});
+
+		test('rejects traversal to a stylesheet outside the styles directory', () => {
+			const outsideImport = path.relative(
+				nestedDirectory,
+				path.join(outsideDirectory, 'outside.css'),
+			);
+			expect(() =>
+				resolveAppStylesheetImport(outsideImport, nestedDirectory),
+			).toThrow(/Contrast guard cannot resolve stylesheet import/);
+		});
+
+		test('rejects an internal symlink whose target is outside the styles directory', () => {
+			expect(() =>
+				resolveAppStylesheetImport(
+					'./outside-link/outside.css',
+					fixtureDirectory,
+				),
+			).toThrow(/Contrast guard cannot resolve stylesheet import/);
+		});
+
+		test('rejects an existing local file whose canonical extension is not CSS', () => {
+			expect(() =>
+				resolveAppStylesheetImport('./not-css.txt', fixtureDirectory),
+			).toThrow(/Contrast guard cannot resolve stylesheet import/);
+		});
+
+		test('rejects a directory whose name ends in CSS', () => {
+			expect(() =>
+				resolveAppStylesheetImport('./directory.css', fixtureDirectory),
+			).toThrow(/Contrast guard cannot resolve stylesheet import/);
+		});
+
+		test('fails closed when a local stylesheet import is absent', () => {
+			expect(() =>
+				resolveAppStylesheetImport('./missing.css', fixtureDirectory),
+			).toThrow(
+				'Contrast guard cannot resolve stylesheet import ./missing.css in app.css',
+			);
+		});
+
+		test('detects a low-contrast rule loaded through nested relative imports', async () => {
+			const compiler = await compile(
+				`@import './${path.basename(fixtureDirectory)}/entry.css';`,
+				{
+					base: appStylesDirectory,
+					loadStylesheet: async (id, base) => loadAppStylesheet(id, base),
+				},
+			);
+			const utilities = [
+				'publy-drawer-description',
+				'publy-imported-low-contrast',
+			];
+			const { light } = await resolvePaintFromCss(
+				compiler.build(utilities),
+				utilities,
+			);
+			expect(light.color).toEqual(
+				resolveColor('--publy-foreground-subtle', 'light'),
+			);
+			expect(contrastRatio(light.color, light.background)).toBeLessThan(
+				SMALL_TEXT_CONTRAST_FLOOR,
+			);
+		});
 	});
 
 	// Round 16 MINOR 4: `resolveAppStylesheetImport('tailwindcss')` used to
