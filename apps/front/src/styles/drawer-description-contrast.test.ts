@@ -1725,7 +1725,12 @@ const tailwindIndexPath = fileURLToPath(
 	import.meta.resolve('tailwindcss/index.css'),
 );
 
-const resolveAppStylesheetImport = (id: string): string => {
+const appStylesDirectory = path.dirname(appCssPath);
+
+const resolveAppStylesheetImport = (
+	id: string,
+	base = appStylesDirectory,
+): string => {
 	if (id === 'tailwindcss') {
 		return tailwindIndexPath;
 	}
@@ -1744,6 +1749,22 @@ const resolveAppStylesheetImport = (id: string): string => {
 		return path.join(findPackageRoot('shadcn'), 'dist', 'tailwind.css');
 	}
 
+	if (id.startsWith('./') || id.startsWith('../')) {
+		const candidate = path.resolve(base, id);
+		const relativePath = path.relative(appStylesDirectory, candidate);
+		const isInsideStylesDirectory =
+			relativePath !== '..' &&
+			!relativePath.startsWith(`..${path.sep}`) &&
+			!path.isAbsolute(relativePath);
+		if (
+			isInsideStylesDirectory &&
+			path.extname(candidate) === '.css' &&
+			existsSync(candidate)
+		) {
+			return candidate;
+		}
+	}
+
 	throw new Error(
 		`Contrast guard cannot resolve stylesheet import ${id} in app.css`,
 	);
@@ -1751,8 +1772,9 @@ const resolveAppStylesheetImport = (id: string): string => {
 
 const loadAppStylesheet = async (
 	id: string,
+	base: string,
 ): Promise<{ path: string; base: string; content: string }> => {
-	const resolved = resolveAppStylesheetImport(id);
+	const resolved = resolveAppStylesheetImport(id, base);
 	return {
 		path: resolved,
 		base: path.dirname(resolved),
@@ -1804,7 +1826,7 @@ const getCompiler = (): Promise<Awaited<ReturnType<typeof compile>>> => {
 	if (compilerPromise === null) {
 		compilerPromise = compile(tailwindCompilerInput, {
 			base: path.resolve(process.cwd(), 'src/styles'),
-			loadStylesheet: async (id) => loadAppStylesheet(id),
+			loadStylesheet: async (id, base) => loadAppStylesheet(id, base),
 		});
 	}
 	return compilerPromise;
@@ -4424,6 +4446,21 @@ describe('drawer description text contrast (#1043)', () => {
 			),
 		) as { dependencies: { tailwindcss: string } };
 		expect(directVersion).toBe(vitePackageJson.dependencies.tailwindcss);
+	});
+
+	test('resolves the local landing stylesheet from app.css', () => {
+		expect(resolveAppStylesheetImport('./landing.css')).toBe(
+			path.resolve(path.dirname(appCssPath), 'landing.css'),
+		);
+	});
+
+	test('fails closed when a local stylesheet import cannot be resolved', () => {
+		expect(() =>
+			resolveAppStylesheetImport('./missing-drawer-contrast-fixture.css'),
+		).toThrow(
+			'Contrast guard cannot resolve stylesheet import ' +
+				'./missing-drawer-contrast-fixture.css in app.css',
+		);
 	});
 
 	// Round 16 MINOR 4: `resolveAppStylesheetImport('tailwindcss')` used to
