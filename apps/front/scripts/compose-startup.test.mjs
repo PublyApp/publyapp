@@ -15,28 +15,46 @@ const composePath = path.join(
 	'docker-compose.test.yml',
 );
 
-test('frontend E2E Compose gates startup on authenticated PostgreSQL SQL readiness', () => {
-	const compose = parse(readFileSync(composePath, 'utf8'));
+const expectedPostgresHealthcheck = {
+	test: [
+		'CMD-SHELL',
+		'PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc \'SELECT 1\' | grep -qx 1',
+	],
+	interval: '5s',
+	timeout: '5s',
+	retries: 20,
+};
+
+export const assertComposeStartupContract = (compose) => {
 	const services = compose.services;
-	const postgresHealthcheck = services.postgres.healthcheck;
-	const healthCommand = postgresHealthcheck.test;
-
-	assert.ok(Array.isArray(healthCommand));
-	assert.equal(healthCommand[0], 'CMD-SHELL');
-	assert.equal(typeof healthCommand[1], 'string');
-	assert.match(healthCommand[1], /PGPASSWORD="\$\$\{POSTGRES_PASSWORD\}"/);
-	assert.match(healthCommand[1], /\bpsql\b/);
-	assert.match(healthCommand[1], /-h 127\.0\.0\.1/);
-	assert.match(healthCommand[1], /-U "\$\$\{POSTGRES_USER\}"/);
-	assert.match(healthCommand[1], /-d "\$\$\{POSTGRES_DB\}"/);
-	assert.match(healthCommand[1], /SELECT 1/);
-
-	assert.equal(
-		services.migrate.depends_on.postgres.condition,
-		'service_healthy',
+	assert.deepEqual(
+		services.postgres.healthcheck,
+		expectedPostgresHealthcheck,
+		'PostgreSQL healthcheck must remain the authenticated TCP SELECT 1 probe with its timing contract',
 	);
-	assert.equal(
-		services.api.depends_on.migrate.condition,
-		'service_completed_successfully',
-	);
+	assert.deepEqual(services.migrate.depends_on, {
+		postgres: { condition: 'service_healthy' },
+	});
+	assert.deepEqual(services.api.depends_on.migrate, {
+		condition: 'service_completed_successfully',
+	});
+};
+
+test('frontend E2E Compose gates startup on authenticated PostgreSQL SQL readiness', () => {
+	assertComposeStartupContract(parse(readFileSync(composePath, 'utf8')));
+});
+
+test('contract rejects a healthcheck mutation that can hide SQL failure', () => {
+	const compose = parse(readFileSync(composePath, 'utf8'));
+	compose.services.postgres.healthcheck.test[1] =
+		'PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc \'SELECT 1\' || true';
+
+	assert.throws(() => assertComposeStartupContract(compose), /healthcheck/);
+});
+
+test('contract rejects a dependency-condition mutation that races migration', () => {
+	const compose = parse(readFileSync(composePath, 'utf8'));
+	compose.services.migrate.depends_on.postgres.condition = 'service_started';
+
+	assert.throws(() => assertComposeStartupContract(compose), /service_healthy/);
 });
