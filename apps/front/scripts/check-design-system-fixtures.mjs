@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-const fixtureParentPrefix = 'front2-design-guard-';
+const ownedRootPrefix = 'front2-design-guard-run-';
+let ownedRootPromise;
 let fixtureParentPromise;
 const ownedFixtureRoots = new Set();
 let cleanupPromise;
@@ -10,9 +11,25 @@ let signalCleanupStarted = false;
 
 const getFixtureParent = () => {
 	if (fixtureParentPromise === undefined) {
-		fixtureParentPromise = mkdtemp(path.join(os.tmpdir(), fixtureParentPrefix));
+		fixtureParentPromise = getOwnedRoot().then((root) =>
+			mkdtemp(path.join(root, 'fixture-parent-')),
+		);
 	}
 	return fixtureParentPromise;
+};
+
+const getOwnedRoot = () => {
+	if (ownedRootPromise === undefined) {
+		ownedRootPromise = mkdtemp(path.join(os.tmpdir(), ownedRootPrefix));
+	}
+	return ownedRootPromise;
+};
+
+export const getOwnedRootPath = async () => getOwnedRoot();
+
+export const makeOwnedTempDirectory = async (prefix) => {
+	const root = await getOwnedRoot();
+	return mkdtemp(path.join(root, `${prefix}-`));
 };
 
 export const getFixtureParentPath = async () => getFixtureParent();
@@ -32,13 +49,13 @@ export const makeFixture = async (files) => {
 export const cleanupFixtures = async () => {
 	if (cleanupPromise === undefined) {
 		cleanupPromise = (async () => {
-			if (fixtureParentPromise !== undefined) {
-				const parent = await fixtureParentPromise;
+			if (ownedRootPromise !== undefined) {
+				const root = await ownedRootPromise;
 				const delay = Number(process.env.FRONT2_DESIGN_GUARD_CLEANUP_DELAY_MS);
 				if (Number.isFinite(delay) && delay > 0) {
 					await new Promise((resolve) => setTimeout(resolve, delay));
 				}
-				await rm(parent, { recursive: true, force: true });
+				await rm(root, { recursive: true, force: true });
 			}
 			ownedFixtureRoots.clear();
 		})();
