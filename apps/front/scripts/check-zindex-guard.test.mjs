@@ -341,6 +341,42 @@ test('classifier: scale-routed and inert utilities are allowed', () => {
 	}
 });
 
+test('classifier: unknown scale token is raw outside the canonical app.css scale', () => {
+	const canonicalScaleTokens = new Set(['--publy-z-raised']);
+	assert.equal(
+		classifyZUtility('z-(--publy-z-raised)', canonicalScaleTokens),
+		'allowed',
+	);
+	assert.equal(
+		classifyZUtility('z-(--publy-z-not-declared)', canonicalScaleTokens),
+		'raw',
+	);
+});
+
+test('e2e: unknown scale utility is rejected while canonical utility stays green', async () => {
+	const { violations } = await runFixtureGuard({
+		'probe.tsx':
+			'export const view = <div className="z-(--publy-z-raised) ' +
+			'z-(--publy-z-not-declared)" />;',
+	});
+	assert.ok(
+		violations.some(
+			({ file, ruleId, source }) =>
+				file.endsWith('probe.tsx') &&
+				ruleId === 'z-index-utility-not-on-scale' &&
+				source === 'z-(--publy-z-not-declared)',
+		),
+		`expected the unknown source utility to red: ${JSON.stringify(violations)}`,
+	);
+	assert.ok(
+		!violations.some(
+			({ file, source }) =>
+				file.endsWith('probe.tsx') && source === 'z-(--publy-z-raised)',
+		),
+		`expected the canonical source utility to stay green: ${JSON.stringify(violations)}`,
+	);
+});
+
 test('classifier: non-utilities are null', () => {
 	for (const candidate of [
 		'z-index',
@@ -1357,6 +1393,24 @@ test('compiled-CSS gate: scale-routed, inert, and important-spelled declarations
 		':root { --publy-z-menu: 100; }',
 	].join('\n');
 	assert.deepEqual(checkCompiledCssZIndex(css), []);
+});
+
+test('compiled-CSS gate: unknown scale token references are not on the canonical scale', () => {
+	const violations = checkCompiledCssZIndex(
+		'.probe { z-index: var(--publy-z-not-declared); }',
+		KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		'fixture.css',
+		{ canonicalScaleTokens: new Set(['--publy-z-raised']) },
+	);
+	assert.deepEqual(
+		violations.map(({ ruleId, source }) => ({ ruleId, source })),
+		[
+			{
+				ruleId: 'z-index-declaration-not-on-scale',
+				source: 'z-index: var(--publy-z-not-declared)',
+			},
+		],
+	);
 });
 
 test('compiled-CSS gate: raw numeric declarations are flagged', () => {
@@ -4893,6 +4947,10 @@ test('e2e (round 5 minor 2): identical authored text cannot hide a distinct ship
 		[
 			{ file: 'app.css', source },
 			{ file: 'dist/fixture.css', source },
+			{
+				file: 'dist/fixture.css',
+				source: 'z-index: var(--publy-z-suppression)',
+			},
 		],
 	);
 });
@@ -5088,6 +5146,7 @@ test('e2e (round 3 audit): local scale-token definitions cannot smuggle raw stac
 			'--publy-z-rogue: 998',
 			'--publy-z-raised: 999',
 			'--publy-z-rogue: 998',
+			'z-index: var(--publy-z-rogue)',
 		],
 		`local scale-token definitions must red: ${JSON.stringify(violations)}`,
 	);

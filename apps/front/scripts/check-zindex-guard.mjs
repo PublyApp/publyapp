@@ -386,20 +386,25 @@ const canonicaliseCssProperty = (raw) =>
 const isNonStackingKeyword = (value) =>
 	NON_STACKING_KEYWORDS.has(canonicaliseCssProperty(value.trim()));
 
-const isScaleVarReference = (value) => {
+const scaleVarReferenceToken = (value) => {
 	const trimmed = value.trim();
 	const openParen = trimmed.indexOf('(');
 	if (openParen <= 0 || !trimmed.endsWith(')')) {
-		return false;
+		return null;
 	}
 	const propertyName = decodeCssIdentifier(
 		trimmed.slice(openParen + 1, -1).trim(),
 	);
-	return (
+	if (
 		canonicaliseCssProperty(trimmed.slice(0, openParen)) === 'var' &&
 		/^--publy-z-[\w-]+$/.test(propertyName)
-	);
+	) {
+		return propertyName;
+	}
+	return null;
 };
+
+const isScaleVarReference = (value) => scaleVarReferenceToken(value) != null;
 
 // First top-level `:` — the property/value separator. `:` inside parentheses,
 // brackets, strings, or escapes never counts, so `url(http://…)` and
@@ -458,13 +463,43 @@ const arbitraryPropertyValue = (utility) => {
 	return inner.slice(colon + 1).trim();
 };
 
-const isAllowedZIndexUtility = (utility) => {
+const scaleTokenFromUtility = (utility) => {
+	const directReference = /^z-\((--publy-z-[\w-]+)\)$/.exec(utility);
+	if (directReference != null) {
+		return directReference[1];
+	}
+	const bracketReference = /^z-\[--publy-z-([\w-]+)\]$/.exec(utility);
+	if (bracketReference != null) {
+		return `--publy-z-${bracketReference[1]}`;
+	}
+	if (isZIndexArbitraryProperty(utility)) {
+		return scaleVarReferenceToken(arbitraryPropertyValue(utility));
+	}
+	if (utility.startsWith('z-[') && utility.endsWith(']')) {
+		return scaleVarReferenceToken(utility.slice(3, -1));
+	}
+	return null;
+};
+
+const isAllowedScaleToken = (utility, canonicalScaleTokens) => {
+	if (canonicalScaleTokens == null) {
+		return true;
+	}
+	const token = scaleTokenFromUtility(utility);
+	return token == null || canonicalScaleTokens.has(token);
+};
+
+const isAllowedZIndexUtility = (utility, canonicalScaleTokens = null) => {
 	if (isZIndexArbitraryProperty(utility)) {
 		// Only a pure scale reference (`var(--publy-z-…)`) or a non-stacking
 		// keyword may ship through an arbitrary-property shim. A bare custom
 		// property (`[z-index:--publy-z-menu]`) emits invalid CSS and stays raw.
 		const value = arbitraryPropertyValue(utility);
-		return isNonStackingKeyword(value) || isScaleVarReference(value);
+		return (
+			isNonStackingKeyword(value) ||
+			(isScaleVarReference(value) &&
+				isAllowedScaleToken(utility, canonicalScaleTokens))
+		);
 	}
 	if (utility === 'z-auto') {
 		return true;
@@ -477,32 +512,34 @@ const isAllowedZIndexUtility = (utility) => {
 		return true;
 	}
 	if (/^z-\(--publy-z-[\w-]+\)$/.test(utility)) {
-		return true;
+		return isAllowedScaleToken(utility, canonicalScaleTokens);
 	}
 	// Arbitrary values are only permitted when they are a pure scale reference
 	// (`z-[var(--publy-z-menu)]`, `z-[--publy-z-menu]`). Anything else —
 	// including a scale reference carrying a raw fallback such as
 	// `z-[var(--publy-z-menu,50)]` — stays raw and is reported.
 	if (/^z-\[--publy-z-[\w-]+\]$/.test(utility)) {
-		return true;
+		return isAllowedScaleToken(utility, canonicalScaleTokens);
 	}
 	if (
 		utility.startsWith('z-[') &&
 		utility.endsWith(']') &&
 		isScaleVarReference(utility.slice(3, -1))
 	) {
-		return true;
+		return isAllowedScaleToken(utility, canonicalScaleTokens);
 	}
 	return false;
 };
 
 // Returns 'allowed' | 'raw' | null (null = not a z-index candidate).
-export const classifyZUtility = (candidate) => {
+export const classifyZUtility = (candidate, canonicalScaleTokens = null) => {
 	const utility = splitUtilityPart(candidate);
 	if (!isZIndexUtility(utility)) {
 		return null;
 	}
-	return isAllowedZIndexUtility(utility) ? 'allowed' : 'raw';
+	return isAllowedZIndexUtility(utility, canonicalScaleTokens)
+		? 'allowed'
+		: 'raw';
 };
 
 // ---------------------------------------------------------------------------
@@ -631,6 +668,7 @@ export const scanZIndexFile = ({
 	// disk-mode for CSS files, so when the set is provided a candidate is only
 	// reported if production would actually recognise it.
 	productionCandidates = null,
+	canonicalScaleTokens = null,
 	checkBuildReachableScript = true,
 	checkClassDelivery = true,
 	// Raw-sink provenance: `baseDir` roots specifier resolution,
@@ -672,7 +710,7 @@ export const scanZIndexFile = ({
 	for (const { candidate, position } of checkClassDelivery
 		? withPositions
 		: []) {
-		if (classifyZUtility(candidate) !== 'raw') {
+		if (classifyZUtility(candidate, canonicalScaleTokens) !== 'raw') {
 			continue;
 		}
 		// Content-mode extraction (`getCandidatesWithPositions`) is a superset
@@ -713,7 +751,7 @@ export const scanZIndexFile = ({
 					.slice(applyMatch.index, applyMatch.index + applyMatch[0].length)
 					.indexOf(directive);
 			for (const token of directive.split(/\s+/).filter(Boolean)) {
-				if (classifyZUtility(token) !== 'raw') {
+				if (classifyZUtility(token, canonicalScaleTokens) !== 'raw') {
 					continue;
 				}
 				violations.push({
@@ -1839,7 +1877,14 @@ export const scanZIndexFile = ({
 				const css = match[1];
 				let escape;
 				try {
-					if (checkCompiledCssZIndex(css).length === 0) {
+					if (
+						checkCompiledCssZIndex(
+							css,
+							KNOWN_RAW_Z_INDEX_DECLARATIONS,
+							'compiled stylesheet',
+							{ canonicalScaleTokens },
+						).length === 0
+					) {
 						continue;
 					}
 					escape = {
@@ -2256,6 +2301,7 @@ export const scanZIndexFile = ({
 							text,
 							KNOWN_RAW_Z_INDEX_DECLARATIONS,
 							base.file,
+							{ canonicalScaleTokens },
 						),
 					);
 				}
@@ -2578,18 +2624,21 @@ export const scanZIndexFile = ({
 				};
 				let cssViolations;
 				try {
-					cssViolations = checkCompiledCssZIndex(cssCandidate).map(
-						(violation) => ({
-							ruleId: 'z-index-style-element-shipped',
-							message:
-								'static <style> element ships CSS that never becomes an ' +
-								'emitted asset — ' +
-								`\`${violation.source}\` does not resolve through ` +
-								'var(--publy-z-…); route every z-index through the ' +
-								'scale or import the stylesheet through the build ' +
-								'graph.',
-						}),
-					);
+					cssViolations = checkCompiledCssZIndex(
+						cssCandidate,
+						KNOWN_RAW_Z_INDEX_DECLARATIONS,
+						'compiled stylesheet',
+						{ canonicalScaleTokens },
+					).map((violation) => ({
+						ruleId: 'z-index-style-element-shipped',
+						message:
+							'static <style> element ships CSS that never becomes an ' +
+							'emitted asset — ' +
+							`\`${violation.source}\` does not resolve through ` +
+							'var(--publy-z-…); route every z-index through the ' +
+							'scale or import the stylesheet through the build ' +
+							'graph.',
+					}));
 				} catch (error) {
 					// A payload the walk cannot parse is a violation, not a
 					// crash and not a silent pass — the CSS ships unread.
@@ -3816,7 +3865,11 @@ export const checkCompiledCssZIndex = (
 		}
 		const value = stripImportant(declaration.value);
 		const shipped = `z-index: ${value}`;
-		if (isScaleVarReference(value)) {
+		const scaleToken = scaleVarReferenceToken(value);
+		if (
+			scaleToken != null &&
+			(canonicalScaleTokens == null || canonicalScaleTokens.has(scaleToken))
+		) {
 			continue;
 		}
 		if (isNonStackingKeyword(value)) {
@@ -4466,6 +4519,7 @@ export const runZIndexGuard = async ({
 			);
 		}
 		const violations = [];
+		const canonicalScaleTokens = findCanonicalScaleTokens(css);
 		const productionCandidates = new Set(allCandidates);
 		for (const file of scanner.files) {
 			const content = await readFile(file, 'utf8');
@@ -4476,6 +4530,7 @@ export const runZIndexGuard = async ({
 					relativePath,
 					content,
 					productionCandidates,
+					canonicalScaleTokens,
 					checkBuildReachableScript: false,
 				}),
 			);
@@ -4517,6 +4572,7 @@ export const runZIndexGuard = async ({
 					relativePath: path.relative(baseDir, scriptPath),
 					content,
 					productionCandidates,
+					canonicalScaleTokens,
 					checkBuildReachableScript: true,
 					checkClassDelivery: false,
 					baseDir,
@@ -4562,6 +4618,7 @@ export const runZIndexGuard = async ({
 					content,
 					KNOWN_RAW_Z_INDEX_DECLARATIONS,
 					relativePath,
+					{ canonicalScaleTokens },
 				);
 			} catch (error) {
 				inlineViolations = [
@@ -4591,7 +4648,6 @@ export const runZIndexGuard = async ({
 		const emittedCssAssets = [];
 		const emittedScaleDefinitionCounts = new Map();
 		const emittedAllowlistCounts = new Map();
-		const canonicalScaleTokens = findCanonicalScaleTokens(css);
 		for (const cssPath of emittedCssPaths) {
 			const content = await readFile(cssPath, 'utf8');
 			const relativePath = buildAssetDisplayPath(
