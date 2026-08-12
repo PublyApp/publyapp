@@ -1,21 +1,149 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { readFile, readdir, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after, before } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { findSuppressionSitesInSource } from '../src/lib/suppression-reason.ts';
+import {
+	cleanupFixtures,
+	makeFixture,
+	registerFixtureSignalHandlers,
+} from './check-design-system-fixtures.mjs';
 import { scanFront2DesignSystem } from './check-design-system.mjs';
 
-const makeFixture = async (files) => {
-	const root = await mkdtemp(path.join(os.tmpdir(), 'front2-design-guard-'));
-	for (const [relativePath, content] of Object.entries(files)) {
-		const absolutePath = path.join(root, relativePath);
-		await mkdir(path.dirname(absolutePath), { recursive: true });
-		await writeFile(absolutePath, content);
+const fixtureDirectoryPrefix = 'front2-design-guard-';
+const testFilePath = fileURLToPath(import.meta.url);
+const fixtureDirectoryNamesBefore = new Set();
+
+const listFixtureDirectories = async () =>
+	(await readdir(os.tmpdir())).filter((entry) =>
+		entry.startsWith(fixtureDirectoryPrefix),
+	);
+
+before(async () => {
+	for (const entry of await listFixtureDirectories()) {
+		fixtureDirectoryNamesBefore.add(entry);
 	}
-	return root;
+});
+
+registerFixtureSignalHandlers();
+
+after(async () => {
+	await cleanupFixtures();
+	const leakedDirectories = (await listFixtureDirectories()).filter(
+		(entry) => !fixtureDirectoryNamesBefore.has(entry),
+	);
+	assert.deepEqual(
+		leakedDirectories,
+		[],
+		`fixture directories leaked: ${leakedDirectories.join(', ')}`,
+	);
+});
+
+const startFixtureProbe = (mode) => {
+	const child = spawn(
+		process.execPath,
+		[
+			fileURLToPath(
+				new URL('./check-design-system-fixtures.mjs', import.meta.url),
+			),
+		],
+		{
+			cwd: path.dirname(testFilePath),
+			env: {
+				...process.env,
+				FRONT2_DESIGN_GUARD_FIXTURE_PROBE: mode,
+			},
+			stdio: ['ignore', 'pipe', 'pipe'],
+		},
+	);
+	let output = '';
+	const marker = new Promise((resolve, reject) => {
+		const timeout = setTimeout(() => {
+			reject(new Error(`fixture probe did not start:\n${output}`));
+		}, 20_000);
+		const handleOutput = (chunk) => {
+			output += chunk.toString();
+			const match = output.match(/^FIXTURE_DIRECTORY=(.+)$/m);
+			if (match) {
+				clearTimeout(timeout);
+				resolve(match[1]);
+			}
+		};
+		child.stdout.on('data', handleOutput);
+		child.stderr.on('data', handleOutput);
+		child.once('error', (error) => {
+			clearTimeout(timeout);
+			reject(error);
+		});
+		child.once('exit', () => {
+			if (!output.match(/^FIXTURE_DIRECTORY=(.+)$/m)) {
+				clearTimeout(timeout);
+				reject(new Error(`fixture probe exited before starting:\n${output}`));
+			}
+		});
+	});
+	const exit = new Promise((resolve, reject) => {
+		child.once('error', reject);
+		child.once('exit', (code, signal) => resolve({ code, signal }));
+	});
+	return { child, exit, marker };
 };
+
+for (const [mode, signal, expectedCode] of [
+	['SIGINT', 'SIGINT', 130],
+	['SIGTERM', 'SIGTERM', 143],
+]) {
+	test(`fixture cleanup handles ${signal} in a child process`, async () => {
+		const probe = startFixtureProbe(mode);
+		let fixtureDirectory;
+		try {
+			fixtureDirectory = await probe.marker;
+			const fixtureParent = path.dirname(fixtureDirectory);
+			probe.child.kill(signal);
+			const result = await probe.exit;
+			assert.equal(result.code, expectedCode);
+			assert.equal(result.signal, null);
+			assert.equal(
+				(await listFixtureDirectories()).includes(path.basename(fixtureParent)),
+				false,
+			);
+		} finally {
+			if (fixtureDirectory) {
+				await rm(path.dirname(fixtureDirectory), {
+					recursive: true,
+					force: true,
+				});
+			}
+		}
+	});
+}
+
+test('fixture cleanup handles a failing child process', async () => {
+	const probe = startFixtureProbe('error');
+	let fixtureDirectory;
+	try {
+		fixtureDirectory = await probe.marker;
+		const fixtureParent = path.dirname(fixtureDirectory);
+		const result = await probe.exit;
+		assert.notEqual(result.code, 0);
+		assert.equal(result.signal, null);
+		assert.equal(
+			(await listFixtureDirectories()).includes(path.basename(fixtureParent)),
+			false,
+		);
+	} finally {
+		if (fixtureDirectory) {
+			await rm(path.dirname(fixtureDirectory), {
+				recursive: true,
+				force: true,
+			});
+		}
+	}
+});
 
 const scanStatusFixture = async (source) => {
 	const root = await makeFixture({
