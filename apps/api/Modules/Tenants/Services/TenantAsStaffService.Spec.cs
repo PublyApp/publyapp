@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
-using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Tenants.Entities;
@@ -28,14 +27,13 @@ public sealed class TenantAsStaffServiceSpec
 	}
 
 	[Fact]
-	public async Task ItShouldStillReturnSuccessWhenLogoReferenceCheckFailsAfterSave() {
+	public async Task ItShouldRetainReplacedLogoWithoutAnInlineReferenceCheck() {
 		var initialLogoUrl = "/files/uploads/2026/07/11111111-2222-3333-4444-555555555555.png";
 		var replacementLogoUrl = "https://cdn.example.com/replaced-logo.png";
 
 		var tenantId = await SeedTenantAsync(initialLogoUrl);
 		var connectionString = await GetConnectionStringAsync();
 		var interceptor = new FailingLogoReferenceCheckAfterUpdateInterceptor();
-		var fileStorage = new TrackingFileStorage();
 
 		await using var serviceDbContext = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
@@ -46,7 +44,6 @@ public sealed class TenantAsStaffServiceSpec
 
 		var service = new TenantAsStaffService(
 			serviceDbContext,
-			fileStorage,
 			new InvitationEmailOutboxSignal(),
 			NullLogger<TenantAsStaffService>.Instance
 		);
@@ -70,8 +67,7 @@ public sealed class TenantAsStaffServiceSpec
 
 		var success = result.Should().BeOfType<UpdateTenantResult.Success>().Subject;
 		success.Tenant.LogoUrl.Should().Be(replacementLogoUrl);
-		interceptor.HasFailed.Should().BeTrue();
-		fileStorage.DeleteAsyncInvocations.Should().Be(0);
+		interceptor.HasFailed.Should().BeFalse();
 
 		await using var verifyScope =
 			_fixture.Factory.Services.CreateAsyncScope();
@@ -238,7 +234,6 @@ public sealed class TenantAsStaffServiceSpec
 
 		var service = new TenantAsStaffService(
 			serviceDbContext,
-			new TrackingFileStorage(),
 			fakeOutboxSignal,
 			NullLogger<TenantAsStaffService>.Instance
 		);
@@ -302,31 +297,4 @@ public sealed class TenantAsStaffServiceSpec
 		}
 	}
 
-	private sealed class TrackingFileStorage : IFileStorage {
-		private int _deleteAsyncInvocations;
-
-		public string RootPath {
-			get { return "/tmp"; }
-		}
-
-		public int DeleteAsyncInvocations {
-			get { return _deleteAsyncInvocations; }
-		}
-
-		public Task<string> SaveAsync(
-			Stream content,
-			string extension,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult($"saved{extension}");
-		}
-
-		public Task DeleteAsync(
-			string relativePath,
-			CancellationToken cancellationToken = default
-		) {
-			_deleteAsyncInvocations += 1;
-			return Task.CompletedTask;
-		}
-	}
 }

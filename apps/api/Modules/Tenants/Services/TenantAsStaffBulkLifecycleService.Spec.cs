@@ -9,7 +9,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
-using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Tenants.Entities;
 
@@ -276,7 +275,6 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		var dbContext = new AppDbContext(options);
 		var service = new TenantAsStaffService(
 			dbContext,
-			new NoopFileStorage(),
 			new InvitationEmailOutboxSignal(),
 			NullLogger<TenantAsStaffService>.Instance
 		);
@@ -384,24 +382,4 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		}
 	}
 
-	private sealed class NoopFileStorage : IFileStorage {
-		public string RootPath {
-			get { return "/tmp"; }
-		}
-
-		public Task<string> SaveAsync(
-			Stream content,
-			string extension,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.FromResult($"unused{extension}");
-		}
-
-		public Task DeleteAsync(
-			string relativePath,
-			CancellationToken cancellationToken = default
-		) {
-			return Task.CompletedTask;
-		}
-	}
 }

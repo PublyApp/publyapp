@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
-using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
@@ -228,18 +227,15 @@ public interface ITenantAsStaffService {
 [Service(ServiceLifetime.Scoped)]
 public class TenantAsStaffService : ITenantAsStaffService {
 	private readonly AppDbContext _dbContext;
-	private readonly IFileStorage _fileStorage;
 	private readonly IInvitationEmailOutboxSignal _outboxSignal;
 	private readonly ILogger<TenantAsStaffService> _logger;
 
 	public TenantAsStaffService(
 		AppDbContext dbContext,
-		IFileStorage fileStorage,
 		IInvitationEmailOutboxSignal outboxSignal,
 		ILogger<TenantAsStaffService> logger
 	) {
 		_dbContext = dbContext;
-		_fileStorage = fileStorage;
 		_outboxSignal = outboxSignal;
 		_logger = logger;
 	}
@@ -828,8 +824,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new UpdateTenantResult.MaxUsersBelowCurrentCount();
 		}
 
-		// Captured before mutation so a replaced/cleared logoUrl can have its old
-		// blob deleted after the update commits (see DeleteReplacedLogoBlobAsync).
+		// Captured before mutation so a replaced/cleared logoUrl can be recorded as
+		// a deferred cleanup candidate after the update commits.
 		var previousLogoUrl = tenant.LogoUrl;
 
 		// Mutate tracked entity
@@ -870,22 +866,22 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		if (args.LogoUrl.IsPresent) {
-			await DeleteReplacedLogoBlobAsync(
-				tenantId, previousLogoUrl, tenant.LogoUrl, cancellationToken
+			DeferReplacedLogoBlobCleanup(
+				tenantId, previousLogoUrl, tenant.LogoUrl
 			);
 		}
 
 		return new UpdateTenantResult.Success(tenant, currentUserCount);
 	}
 
-	// Best-effort cleanup of the blob a logoUrl replace/clear leaves behind.
-	// Runs after the update has already committed, so a failure here must never
-	// surface as a request failure — it only risks a harmless orphaned file.
-	private async Task DeleteReplacedLogoBlobAsync(
+	// Phase 1 deliberately leaves replaced logo blobs in place. A durable asset
+	// lifecycle with ownership/reference transitions and grace-period cleanup is
+	// phase 2 of #807; an inline delete or an in-memory/no-op queue would recreate
+	// the TOCTOU race or falsely imply cross-process durability.
+	private void DeferReplacedLogoBlobCleanup(
 		Guid tenantId,
 		string? previousLogoUrl,
-		string? newLogoUrl,
-		CancellationToken cancellationToken
+		string? newLogoUrl
 	) {
 		if (
 			previousLogoUrl is null
@@ -895,24 +891,10 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return;
 		}
 
-		try {
-			var stillReferenced = await _dbContext.Tenant
-				.AnyAsync(
-					t => t.Id != tenantId
-						&& !t.IsDeleted
-						&& t.LogoUrl == previousLogoUrl,
-					cancellationToken
-				);
-			if (stillReferenced) {
-				return;
-			}
-
-			var relativePath = previousLogoUrl["/files/".Length..];
-			await _fileStorage.DeleteAsync(relativePath, cancellationToken);
-		} catch (Exception ex) {
-			_logger.LogWarning(
-				ex,
-				"Failed to clean up replaced logo blob {PreviousLogoUrl} for tenant {TenantId}",
+		if (_logger.IsEnabled(LogLevel.Information)) {
+			_logger.LogInformation(
+				"Deferring cleanup of replaced logo blob {PreviousLogoUrl} for tenant {TenantId} "
+				+ "until the phase-2 asset lifecycle is available",
 				previousLogoUrl,
 				tenantId
 			);
