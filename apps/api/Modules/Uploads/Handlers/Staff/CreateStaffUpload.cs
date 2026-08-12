@@ -114,10 +114,19 @@ public sealed class CreateStaffUpload {
 					),
 					cancellationToken
 				);
-			} catch {
-				if (relativePath.Length > 0) {
+			} catch (Exception exception) {
+				var cleanupConfirmed = exception is StorageWriteException {
+					CleanupConfirmed: true
+				};
+				if (exception is StorageWriteException storageWriteException) {
+					relativePath = storageWriteException.RelativePath;
+				}
+				if (relativePath.Length > 0 && !cleanupConfirmed) {
 					try {
-						await fileStorage.DeleteAsync(relativePath, CancellationToken.None);
+						cleanupConfirmed = await fileStorage.DeleteAsync(
+							relativePath,
+							CancellationToken.None
+						);
 					} catch (Exception cleanupException) {
 						logger.LogWarning(
 							cleanupException,
@@ -125,6 +134,13 @@ public sealed class CreateStaffUpload {
 							relativePath
 						);
 					}
+				}
+				if (cleanupConfirmed) {
+					uploadAdmissionService.Release(reservation);
+				} else {
+					// A blob may still exist. Keep its bytes accounted for rather than
+					// admitting more storage than this process can safely bound.
+					uploadAdmissionService.Commit(reservation);
 				}
 
 				throw;

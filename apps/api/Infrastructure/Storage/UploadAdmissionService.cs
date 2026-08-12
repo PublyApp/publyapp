@@ -80,6 +80,12 @@ public sealed class UploadAdmissionService : IUploadAdmissionService {
 				"The per-staff upload budget must be positive."
 			);
 		}
+		if (globalMaxBytes < perStaffMaxBytes) {
+			throw new ArgumentException(
+				"The global upload budget must be greater than or equal to the per-staff budget.",
+				nameof(globalMaxBytes)
+			);
+		}
 
 		_globalMaxBytes = globalMaxBytes;
 		_perStaffMaxBytes = perStaffMaxBytes;

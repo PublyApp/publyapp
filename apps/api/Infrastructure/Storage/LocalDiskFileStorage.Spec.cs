@@ -104,13 +104,26 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 	public async Task ItShouldNotLeaveAPartialFileWhenTheSourceStreamThrows() {
 		using var content = new ThrowingStream();
 
-		var act = async () => await _storage.SaveAsync(content, ".png");
-
-		await act.Should().ThrowAsync<InvalidOperationException>();
+		var exception = await Assert.ThrowsAsync<StorageWriteException>(
+			() => _storage.SaveAsync(content, ".png")
+		);
+		exception.CleanupConfirmed.Should().BeTrue();
 
 		GetSavedFilePaths().Should().BeEmpty(
 			"a failed save must not leave a partial blob on disk"
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldReportConfirmedCleanupForAFailedWrite() {
+		using var content = new ThrowingStream();
+
+		var exception = await Assert.ThrowsAsync<StorageWriteException>(
+			() => _storage.SaveAsync(content, ".png")
+		);
+
+		exception.CleanupConfirmed.Should().BeTrue();
+		exception.RelativePath.Should().StartWith("uploads/");
 	}
 
 	[Fact]
@@ -119,9 +132,11 @@ public sealed class LocalDiskFileStorageSpec : IDisposable {
 		using var cts = new CancellationTokenSource();
 		cts.Cancel();
 
-		var act = async () => await _storage.SaveAsync(content, ".png", cts.Token);
-
-		await act.Should().ThrowAsync<OperationCanceledException>();
+		var exception = await Assert.ThrowsAsync<StorageWriteException>(
+			() => _storage.SaveAsync(content, ".png", cts.Token)
+		);
+		exception.CleanupConfirmed.Should().BeTrue();
+		exception.InnerException.Should().BeOfType<TaskCanceledException>();
 
 		GetSavedFilePaths().Should().BeEmpty(
 			"a cancelled save must not leave a partial blob on disk"

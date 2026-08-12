@@ -73,4 +73,29 @@ public sealed class UploadAdmissionServiceSpec {
 
 		act.Should().Throw<ArgumentOutOfRangeException>();
 	}
+
+	[Fact]
+	public async Task ItShouldNeverAdmitConcurrentReservationsPastEitherBudget() {
+		var service = new UploadAdmissionService(100, 60);
+		var userId = Guid.NewGuid();
+		var attempts = Enumerable.Range(0, 20)
+			.Select(_ => Task.Run(() => service.TryReserve(userId, 10)))
+			.ToArray();
+
+		var results = await Task.WhenAll(attempts);
+		var accepted = results.OfType<UploadAdmissionResult.Accepted>().ToList();
+
+		accepted.Should().HaveCount(6);
+		foreach (var result in accepted) {
+			service.Commit(result.Reservation);
+		}
+		service.TryReserve(userId, 1).Should().BeOfType<UploadAdmissionResult.Rejected>();
+	}
+
+	[Fact]
+	public void ItShouldRejectAGlobalBudgetSmallerThanPerStaffBudget() {
+		var act = () => new UploadAdmissionService(9, 10);
+
+		act.Should().Throw<ArgumentException>();
+	}
 }
