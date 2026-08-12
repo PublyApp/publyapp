@@ -14,6 +14,12 @@ type ComputedControlStyle = {
 	borderColor: string;
 	boxShadow: string;
 };
+type ControlGeometry = {
+	height: number;
+	width: number;
+	x: number;
+	y: number;
+};
 
 const CONTROL_FIXTURES: readonly ControlFixture[] = [
 	'outline-input',
@@ -46,6 +52,20 @@ const readControlStyle = (control: Locator): Promise<ComputedControlStyle> =>
 			backgroundColor: style.backgroundColor,
 			borderColor: style.borderColor,
 			boxShadow: style.boxShadow,
+		};
+	});
+
+const readControlGeometry = (control: Locator): Promise<ControlGeometry> =>
+	control.evaluate((element) => {
+		if (!(element instanceof HTMLElement)) {
+			throw new TypeError('Expected an HTML form control');
+		}
+
+		return {
+			height: element.offsetHeight,
+			width: element.offsetWidth,
+			x: element.offsetLeft,
+			y: element.offsetTop,
 		};
 	});
 
@@ -164,12 +184,11 @@ test('shared controls match the Gray UI outline treatment in light and dark them
 
 		for (const fixture of CONTROL_FIXTURES) {
 			const control = page.getByTestId(fixture);
-			const beforeFocus = await control.boundingBox();
-			expect(beforeFocus).not.toBeNull();
+			const beforeFocus = await readControlGeometry(control);
 
 			await control.focus();
 			await expect(control).toBeFocused();
-			const afterFocus = await control.boundingBox();
+			const afterFocus = await readControlGeometry(control);
 			expect(afterFocus).toEqual(beforeFocus);
 
 			const expectedFocus = await readExpectedStyle(page, false);
@@ -184,7 +203,7 @@ test('shared controls match the Gray UI outline treatment in light and dark them
 			});
 			await expect(control).toHaveAttribute('aria-invalid', 'true');
 			await expect(control).toBeFocused();
-			const invalidFocusBox = await control.boundingBox();
+			const invalidFocusBox = await readControlGeometry(control);
 			expect(invalidFocusBox).toEqual(beforeFocus);
 
 			const expectedInvalid = await readExpectedStyle(page, true);
