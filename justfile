@@ -303,6 +303,7 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
   pnpm test:ci-drift
+  node --test ./scripts/lint-front.test.mjs
   node ./scripts/check-ci-drift.mjs
   node --test ./scripts/ci-changed-paths.test.mjs
   node --test ./scripts/ci-gate-bootstrap.test.mjs
@@ -348,7 +349,7 @@ ci-format: format
 # docs/guides/local-ci-gate.md.
 ci-lint:
   @echo "=== [gate] lint ==="
-  npx oxlint --quiet apps/front packages/shared-ts scripts
+  node scripts/lint-front.mjs --quiet
   pnpm lint:disables
   pnpm check:frontend-barrels
 

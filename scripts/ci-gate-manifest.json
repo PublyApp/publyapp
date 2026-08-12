@@ -137,9 +137,9 @@
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
 		"front-ci.yml::supply-chain::Lint front": {
-			"hash": "8c1b8445cc7839d4",
+			"hash": "10b3742162e63363",
 			"mirror": "just ci-lint",
-			"reason": "ci-lint runs the same three commands with the same oxlint scope, now including scripts (#1017 closed the gap where scripts/ had no CI lint coverage at all). Issue #803 owns broadening the gate to repo-wide oxlint and resolving the remaining pre-existing warnings."
+			"reason": "ci-lint runs the same wrapper and two follow-up guards over apps/front, packages/shared-ts, and scripts; the wrapper keeps type-aware TypeScript separate from syntax-only JavaScript."
 		},
 		"front-ci.yml::supply-chain::Check front design system": {
 			"hash": "f127d0fbdc110a85",
@@ -172,9 +172,9 @@
 			"reason": "Identical install command to front-ci.yml::supply-chain's own install step; local development already runs pnpm install as part of `just install`."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "686dec31a3a8e53c",
+			"hash": "538622d8a952cf49",
 			"mirror": "just ci-drift",
-			"reason": "IMPORTANT fix: the four #1017 gate test suites and check-ci-gate-structure.mjs were reachable only through local `just ci-drift` — no workflow ran them, so every guard #1017 added was unenforced on the server. This step runs the identical six commands `just ci-drift` runs (pnpm test:ci-drift, check-ci-drift.mjs, the three ci-gate-*.test.mjs suites, ci-changed-paths.test.mjs, check-ci-gate-structure.test.mjs, and check-ci-gate-structure.mjs itself), server-side, gated by the same relevance classifier as this job's siblings (widened to wake for a change to any of the four gate workflow files, pinned by scripts/check-ci-gate-structure.mjs's selfTestCoverage check) and folded into front-ci-gate's needs so it cannot silently stop being required."
+			"reason": "The CI gate guard suites, deterministic frontend-lint regression, and check-ci-gate-structure.mjs run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI."
 		},
 		"front-ci.yml::gate::Checkout": {
 			"hash": "8ead663cb8da335d",

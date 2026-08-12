@@ -196,7 +196,7 @@ jobs:
 
       - name: Lint front
         run: |
-          npx oxlint --quiet apps/front packages/shared-ts scripts
+          node scripts/lint-front.mjs --quiet
           pnpm lint:disables
           pnpm check:frontend-barrels
 
@@ -250,6 +250,7 @@ jobs:
       - name: Run CI gate guard tests (mirrors `just ci-drift`)
         run: |
           node --test ./scripts/check-ci-drift.test.mjs
+          node --test ./scripts/lint-front.test.mjs
           node ./scripts/check-ci-drift.mjs
           node --test ./scripts/ci-changed-paths.test.mjs
           node --test ./scripts/ci-gate-bootstrap.test.mjs
