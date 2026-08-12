@@ -20,6 +20,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// </summary>
 public sealed class ApiFixture : IAsyncLifetime {
 	private readonly string _testDbName;
+	private readonly string _storageRoot;
 	private DatabaseTemplateManager? _dbManager;
 	private string _testDbConnectionString = string.Empty;
 	private ApiFactory? _factory;
@@ -55,6 +56,10 @@ public sealed class ApiFixture : IAsyncLifetime {
 
 	public ApiFixture() {
 		_testDbName = $"publyapp_api_test_{Guid.NewGuid():N}";
+		_storageRoot = Path.Combine(
+			Path.GetTempPath(),
+			$"publyapp-api-storage-{Guid.NewGuid():N}"
+		);
 	}
 
 	/// <summary>
@@ -83,7 +88,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 				_testDbName
 			);
 
-		Factory = new ApiFactory(_testDbConnectionString);
+		Factory = new ApiFactory(_testDbConnectionString, _storageRoot);
 
 		// Cookies disabled to prevent cross-test session
 		// state leakage via cookie jar
@@ -137,6 +142,14 @@ public sealed class ApiFixture : IAsyncLifetime {
 			} catch (Exception ex) {
 				errors.Add(ex);
 			}
+		}
+
+		try {
+			if (Directory.Exists(_storageRoot)) {
+				Directory.Delete(_storageRoot, recursive: true);
+			}
+		} catch (Exception ex) {
+			errors.Add(ex);
 		}
 
 		if (errors.Count > 0) {
