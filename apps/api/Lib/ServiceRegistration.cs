@@ -156,6 +156,12 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IFileStorage>(
 			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)
 		);
+		builder.Services.AddSingleton<IUploadAdmissionService>(
+			_ => new UploadAdmissionService(
+				AppEnvironment.Instance.UPLOAD_GLOBAL_MAX_BYTES,
+				AppEnvironment.Instance.UPLOAD_PER_STAFF_MAX_BYTES
+			)
+		);
 
 		// Durable invitation email outbox — PRODUCER half only (design §3.2, C5/R2-6).
 		// The signal is not a hosted service: it is the wake handle the invitation-writing

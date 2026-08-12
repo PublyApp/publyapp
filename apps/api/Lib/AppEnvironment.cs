@@ -60,6 +60,8 @@ public class AppEnvironment {
 	public int TENANT_ACTIVITY_THROTTLE_MINUTES { get; }
 	public string FILE_STORAGE_ROOT { get; }
 	public int UPLOAD_MAX_BYTES { get; }
+	public long UPLOAD_GLOBAL_MAX_BYTES { get; }
+	public long UPLOAD_PER_STAFF_MAX_BYTES { get; }
 	public IReadOnlyList<string> TRUSTED_PROXY_CIDRS { get; }
 	public int ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT { get; }
 	public int ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS { get; }
@@ -271,6 +273,8 @@ public class AppEnvironment {
 		int tenantActivityThrottleMinutes,
 		string fileStorageRoot,
 		int uploadMaxBytes,
+		long uploadGlobalMaxBytes,
+		long uploadPerStaffMaxBytes,
 		IReadOnlyList<string> trustedProxyCidrs,
 		int anonAuthIpRateLimitPermitLimit,
 		int anonAuthIpRateLimitWindowSeconds,
@@ -337,6 +341,8 @@ public class AppEnvironment {
 		TENANT_ACTIVITY_THROTTLE_MINUTES = tenantActivityThrottleMinutes;
 		FILE_STORAGE_ROOT = fileStorageRoot;
 		UPLOAD_MAX_BYTES = uploadMaxBytes;
+		UPLOAD_GLOBAL_MAX_BYTES = uploadGlobalMaxBytes;
+		UPLOAD_PER_STAFF_MAX_BYTES = uploadPerStaffMaxBytes;
 		TRUSTED_PROXY_CIDRS = trustedProxyCidrs;
 		ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT = anonAuthIpRateLimitPermitLimit;
 		ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS = anonAuthIpRateLimitWindowSeconds;
@@ -449,6 +455,14 @@ public class AppEnvironment {
 				// with no repo-root lookup needed.
 				fileStorageRoot: GetOptionalString(nameof(FILE_STORAGE_ROOT), ".artifacts/storage"),
 				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
+				uploadGlobalMaxBytes: GetOptionalLong(
+					nameof(UPLOAD_GLOBAL_MAX_BYTES),
+					1_073_741_824
+				),
+				uploadPerStaffMaxBytes: GetOptionalLong(
+					nameof(UPLOAD_PER_STAFF_MAX_BYTES),
+					104_857_600
+				),
 				trustedProxyCidrs: GetOptionalCsvList(
 					nameof(TRUSTED_PROXY_CIDRS),
 					["127.0.0.1/32", "::1/128"]
@@ -665,6 +679,26 @@ public class AppEnvironment {
 		)) {
 			throw new InvalidOperationException(
 				$"Environment variable '{name}' must be a valid integer, got '{value.Trim()}'");
+		}
+
+		return result;
+	}
+
+	private static long GetOptionalLong(string name, long defaultValue) {
+		var value = Environment.GetEnvironmentVariable(name);
+		if (string.IsNullOrWhiteSpace(value)) {
+			return defaultValue;
+		}
+
+		if (!long.TryParse(
+			value.Trim(),
+			NumberStyles.Integer,
+			CultureInfo.InvariantCulture,
+			out var result
+		)) {
+			throw new InvalidOperationException(
+				$"Environment variable '{name}' must be a valid integer, got '{value.Trim()}'"
+			);
 		}
 
 		return result;
@@ -943,6 +977,20 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 		RuleFor(x => x.UPLOAD_MAX_BYTES)
 			.InclusiveBetween(1, 100_000_000)
 			.WithMessage("UPLOAD_MAX_BYTES must be between 1 and 100000000");
+
+		RuleFor(x => x.UPLOAD_GLOBAL_MAX_BYTES)
+			.GreaterThan(0)
+			.WithMessage("UPLOAD_GLOBAL_MAX_BYTES must be positive");
+
+		RuleFor(x => x.UPLOAD_PER_STAFF_MAX_BYTES)
+			.GreaterThan(0)
+			.WithMessage("UPLOAD_PER_STAFF_MAX_BYTES must be positive");
+
+		RuleFor(x => x.UPLOAD_GLOBAL_MAX_BYTES)
+			.GreaterThanOrEqualTo(x => x.UPLOAD_PER_STAFF_MAX_BYTES)
+			.WithMessage(
+				"UPLOAD_GLOBAL_MAX_BYTES must be greater than or equal to UPLOAD_PER_STAFF_MAX_BYTES"
+			);
 
 		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
 			.Must(cidr => IPNetwork.TryParse(cidr, out _))
