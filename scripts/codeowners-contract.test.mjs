@@ -21,13 +21,22 @@ test('CI controls are owned by the repository owner', () => {
 
 	for (const [pattern, ...owners] of entries) {
 		assert.ok(owners.length > 0, `${pattern} must have at least one owner`);
-		assert.ok(!owners.includes('*'), `${pattern} must not grant ownership to *`);
+		assert.ok(
+			!owners.includes('*'),
+			`${pattern} must not grant ownership to *`,
+		);
 	}
 
 	for (const pattern of requiredPatterns) {
-		const matchingEntries = entries.filter(([entryPattern]) => entryPattern === pattern);
+		const matchingEntries = entries.filter(
+			([entryPattern]) => entryPattern === pattern,
+		);
 
-		assert.equal(matchingEntries.length, 1, `${pattern} must have exactly one rule`);
+		assert.equal(
+			matchingEntries.length,
+			1,
+			`${pattern} must have exactly one rule`,
+		);
 		assert.ok(
 			matchingEntries[0].includes('@radandevist'),
 			`${pattern} must be owned by @radandevist`,
