@@ -18,7 +18,7 @@ overrides:
   fast-uri: ^3.1.4
   '@hono/node-server': ^2.0.5
   brace-expansion: ^5.0.8
-  postcss: ^8.5.18
+  postcss: ^8.5.25
   qs: ^6.15.2
   uuid: ^13.0.1
   yaml: ^2.8.3
@@ -203,6 +203,12 @@ importers:
       '@playwright/test':
         specifier: 1.61.0
         version: 1.61.0
+      '@tailwindcss/node':
+        specifier: 4.3.1
+        version: 4.3.1
+      '@tailwindcss/oxide':
+        specifier: 4.3.1
+        version: 4.3.1
       '@tailwindcss/vite':
         specifier: 4.3.1
         version: 4.3.1(vite@8.1.5(@types/node@22.19.21)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
@@ -231,7 +237,7 @@ importers:
         specifier: 29.1.1
         version: 29.1.1
       postcss:
-        specifier: ^8.5.18
+        specifier: ^8.5.25
         version: 8.5.25
       shadcn:
         specifier: 4.1.2
@@ -1327,9 +1333,6 @@ packages:
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
     engines: {node: '>=6.0.0'}
-
-  '@jridgewell/sourcemap-codec@1.5.4':
-    resolution: {integrity: sha512-VT2+G1VQs/9oz078bLrYbecdZKs912zQlkelYpuf+SXF+QvZDYJlbx/LSx+meSAwdDFnF8FVXW92AVjjkVmgFw==}
 
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
@@ -7679,7 +7682,7 @@ snapshots:
 
   '@jridgewell/gen-mapping@0.3.12':
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.4
+      '@jridgewell/sourcemap-codec': 1.5.5
       '@jridgewell/trace-mapping': 0.3.29
 
   '@jridgewell/remapping@2.3.5':
@@ -7689,14 +7692,12 @@ snapshots:
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
-  '@jridgewell/sourcemap-codec@1.5.4': {}
-
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@jridgewell/trace-mapping@0.3.29':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.4
+      '@jridgewell/sourcemap-codec': 1.5.5
 
   '@microsoft/kiota-abstractions@1.0.0-preview.102':
     dependencies:
