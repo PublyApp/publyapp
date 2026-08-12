@@ -15,6 +15,8 @@ const getFixtureParent = () => {
 	return fixtureParentPromise;
 };
 
+export const getFixtureParentPath = async () => getFixtureParent();
+
 export const makeFixture = async (files) => {
 	const parent = await getFixtureParent();
 	const root = await mkdtemp(path.join(parent, 'fixture-'));
@@ -32,6 +34,10 @@ export const cleanupFixtures = async () => {
 		cleanupPromise = (async () => {
 			if (fixtureParentPromise !== undefined) {
 				const parent = await fixtureParentPromise;
+				const delay = Number(process.env.FRONT2_DESIGN_GUARD_CLEANUP_DELAY_MS);
+				if (Number.isFinite(delay) && delay > 0) {
+					await new Promise((resolve) => setTimeout(resolve, delay));
+				}
 				await rm(parent, { recursive: true, force: true });
 			}
 			ownedFixtureRoots.clear();
@@ -42,7 +48,7 @@ export const cleanupFixtures = async () => {
 
 export const registerFixtureSignalHandlers = () => {
 	for (const signal of ['SIGINT', 'SIGTERM']) {
-		process.once(signal, () => {
+		process.on(signal, () => {
 			if (signalCleanupStarted) {
 				return;
 			}
@@ -55,26 +61,3 @@ export const registerFixtureSignalHandlers = () => {
 		});
 	}
 };
-
-const probeMode = process.env.FRONT2_DESIGN_GUARD_FIXTURE_PROBE;
-if (
-	probeMode === 'error' ||
-	probeMode === 'SIGINT' ||
-	probeMode === 'SIGTERM'
-) {
-	registerFixtureSignalHandlers();
-	try {
-		const root = await makeFixture({
-			'probe.ts': 'export const probe = true;',
-		});
-		process.stdout.write(`FIXTURE_DIRECTORY=${root}\n`);
-		if (probeMode === 'error') {
-			throw new Error('fixture cleanup probe failure');
-		}
-		setInterval(() => {}, 1_000);
-		await new Promise(() => {});
-	} catch {
-		await cleanupFixtures();
-		process.exitCode = 1;
-	}
-}

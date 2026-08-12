@@ -1,54 +1,45 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFile, readdir, rm } from 'node:fs/promises';
+import { access, mkdir, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test, { after, before } from 'node:test';
+import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { findSuppressionSitesInSource } from '../src/lib/suppression-reason.ts';
 import {
 	cleanupFixtures,
+	getFixtureParentPath,
 	makeFixture,
 	registerFixtureSignalHandlers,
 } from './check-design-system-fixtures.mjs';
 import { scanFront2DesignSystem } from './check-design-system.mjs';
 
-const fixtureDirectoryPrefix = 'front2-design-guard-';
 const testFilePath = fileURLToPath(import.meta.url);
-const fixtureDirectoryNamesBefore = new Set();
-
-const listFixtureDirectories = async () =>
-	(await readdir(os.tmpdir())).filter((entry) =>
-		entry.startsWith(fixtureDirectoryPrefix),
-	);
-
-before(async () => {
-	for (const entry of await listFixtureDirectories()) {
-		fixtureDirectoryNamesBefore.add(entry);
-	}
-});
+let fixtureParent;
 
 registerFixtureSignalHandlers();
 
 after(async () => {
+	fixtureParent = await getFixtureParentPath();
 	await cleanupFixtures();
-	const leakedDirectories = (await listFixtureDirectories()).filter(
-		(entry) => !fixtureDirectoryNamesBefore.has(entry),
-	);
-	assert.deepEqual(
-		leakedDirectories,
-		[],
-		`fixture directories leaked: ${leakedDirectories.join(', ')}`,
-	);
+	await assert.rejects(access(fixtureParent), { code: 'ENOENT' });
 });
 
 const startFixtureProbe = (mode) => {
+	const reportDirectory = path.join(
+		os.tmpdir(),
+		`front2-design-guard-report-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+	);
+	const reportPath = path.join(reportDirectory, 'parent');
 	const child = spawn(
 		process.execPath,
 		[
 			fileURLToPath(
-				new URL('./check-design-system-fixtures.mjs', import.meta.url),
+				new URL(
+					'./check-design-system-fixture-probe.test.mjs',
+					import.meta.url,
+				),
 			),
 		],
 		{
@@ -56,41 +47,38 @@ const startFixtureProbe = (mode) => {
 			env: {
 				...process.env,
 				FRONT2_DESIGN_GUARD_FIXTURE_PROBE: mode,
+				FRONT2_DESIGN_GUARD_CLEANUP_DELAY_MS: '250',
+				FRONT2_DESIGN_GUARD_PARENT_REPORT: reportPath,
 			},
 			stdio: ['ignore', 'pipe', 'pipe'],
 		},
 	);
 	let output = '';
-	const marker = new Promise((resolve, reject) => {
+	const marker = (async () => {
+		await mkdir(reportDirectory, { recursive: true });
 		const timeout = setTimeout(() => {
-			reject(new Error(`fixture probe did not start:\n${output}`));
+			throw new Error(`fixture probe did not start:\n${output}`);
 		}, 20_000);
-		const handleOutput = (chunk) => {
-			output += chunk.toString();
-			const match = output.match(/^FIXTURE_DIRECTORY=(.+)$/m);
-			if (match) {
+		while (true) {
+			try {
+				const parent = await readFile(reportPath, 'utf8');
 				clearTimeout(timeout);
-				resolve(match[1]);
+				return parent;
+			} catch (error) {
+				if (error.code !== 'ENOENT') throw error;
+				await new Promise((resolve) => setTimeout(resolve, 25));
 			}
-		};
-		child.stdout.on('data', handleOutput);
-		child.stderr.on('data', handleOutput);
-		child.once('error', (error) => {
-			clearTimeout(timeout);
-			reject(error);
-		});
-		child.once('exit', () => {
-			if (!output.match(/^FIXTURE_DIRECTORY=(.+)$/m)) {
-				clearTimeout(timeout);
-				reject(new Error(`fixture probe exited before starting:\n${output}`));
-			}
-		});
-	});
+		}
+	})();
 	const exit = new Promise((resolve, reject) => {
 		child.once('error', reject);
 		child.once('exit', (code, signal) => resolve({ code, signal }));
 	});
-	return { child, exit, marker };
+	return { child, exit, marker, reportDirectory };
+};
+
+const assertParentGone = async (parent) => {
+	await assert.rejects(access(parent), { code: 'ENOENT' });
 };
 
 for (const [mode, signal, expectedCode] of [
@@ -99,49 +87,39 @@ for (const [mode, signal, expectedCode] of [
 ]) {
 	test(`fixture cleanup handles ${signal} in a child process`, async () => {
 		const probe = startFixtureProbe(mode);
-		let fixtureDirectory;
+		let fixtureParent;
 		try {
-			fixtureDirectory = await probe.marker;
-			const fixtureParent = path.dirname(fixtureDirectory);
+			fixtureParent = await probe.marker;
+			probe.child.kill(signal);
 			probe.child.kill(signal);
 			const result = await probe.exit;
 			assert.equal(result.code, expectedCode);
 			assert.equal(result.signal, null);
-			assert.equal(
-				(await listFixtureDirectories()).includes(path.basename(fixtureParent)),
-				false,
-			);
+			await assertParentGone(fixtureParent);
 		} finally {
-			if (fixtureDirectory) {
-				await rm(path.dirname(fixtureDirectory), {
-					recursive: true,
-					force: true,
-				});
-			}
+			if (fixtureParent)
+				await rm(fixtureParent, { recursive: true, force: true });
+			await rm(probe.reportDirectory, { recursive: true, force: true });
 		}
 	});
 }
 
-test('fixture cleanup handles a failing child process', async () => {
-	const probe = startFixtureProbe('error');
-	let fixtureDirectory;
+test('fixture cleanup handles a failing node:test child process', async () => {
+	const probes = [startFixtureProbe('error'), startFixtureProbe('error')];
+	const parents = [];
 	try {
-		fixtureDirectory = await probe.marker;
-		const fixtureParent = path.dirname(fixtureDirectory);
-		const result = await probe.exit;
-		assert.notEqual(result.code, 0);
-		assert.equal(result.signal, null);
-		assert.equal(
-			(await listFixtureDirectories()).includes(path.basename(fixtureParent)),
-			false,
-		);
-	} finally {
-		if (fixtureDirectory) {
-			await rm(path.dirname(fixtureDirectory), {
-				recursive: true,
-				force: true,
-			});
+		for (const probe of probes) parents.push(await probe.marker);
+		const results = await Promise.all(probes.map((probe) => probe.exit));
+		for (const result of results) {
+			assert.notEqual(result.code, 0);
+			assert.equal(result.signal, null);
 		}
+		for (const parent of parents) await assertParentGone(parent);
+	} finally {
+		for (const parent of parents)
+			await rm(parent, { recursive: true, force: true });
+		for (const probe of probes)
+			await rm(probe.reportDirectory, { recursive: true, force: true });
 	}
 });
 
