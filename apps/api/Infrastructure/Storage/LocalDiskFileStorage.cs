@@ -73,7 +73,8 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 				FileShare.None
 			);
 			await content.CopyToAsync(fileStream, cancellationToken);
-		} catch {
+		} catch (Exception exception) {
+			var cleanupConfirmed = false;
 			// The stream may be partially written (cancellation, a throwing source
 			// stream, or a full disk) — never leave a partial, anonymously-served
 			// blob behind. Best-effort: deletion failure must not mask the original.
@@ -81,16 +82,17 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 				if (File.Exists(fullPath)) {
 					File.Delete(fullPath);
 				}
+				cleanupConfirmed = !File.Exists(fullPath);
 			} catch {
 				// Best-effort cleanup only; the original exception is what matters.
 			}
-			throw;
+			throw new StorageWriteException(relativePath, cleanupConfirmed, exception);
 		}
 
 		return relativePath;
 	}
 
-	public Task DeleteAsync(
+	public Task<bool> DeleteAsync(
 		string relativePath,
 		CancellationToken cancellationToken = default
 	) {
@@ -98,7 +100,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		if (File.Exists(fullPath)) {
 			File.Delete(fullPath);
 		}
-		return Task.CompletedTask;
+		return Task.FromResult(!File.Exists(fullPath));
 	}
 
 	private string ResolveFullPath(string relativePath) {

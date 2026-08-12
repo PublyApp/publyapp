@@ -37,10 +37,12 @@ public sealed class CreateStaffUpload {
 	public static async Task<Results<
 		Created<StaffUploadCreated>,
 		AppValidationProblemHttpResult,
-		AppPayloadTooLargeHttpResult
+		AppPayloadTooLargeHttpResult,
+		AppTooManyRequestsHttpResult
 	>> Handle(
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IFileStorage fileStorage,
+		[FromServices] IUploadAdmissionService uploadAdmissionService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<CreateStaffUpload> logger,
 		IFormFile? file,
@@ -83,35 +85,75 @@ public sealed class CreateStaffUpload {
 		uploadStream.Position = 0;
 
 		var (contentType, extension) = sniffed.Value;
-		var relativePath = await fileStorage.SaveAsync(
-			uploadStream, extension, cancellationToken
-		);
-		var url = $"/files/{relativePath}";
-
-		try {
-			await auditLogService.LogAsync(
-				new CreateAuditLogArgs(
-					UserId: account.UserId,
-					Action: AuditActions.UploadCreated,
-					TargetId: null,
-					Details: new {
-						Path = relativePath,
-						SizeBytes = file.Length,
-						ContentType = contentType
-					}
-				),
-				cancellationToken
+		var admission = uploadAdmissionService.TryReserve(account.UserId, file.Length);
+		if (admission is UploadAdmissionResult.Rejected) {
+			return TypedProblems.TooManyRequests(
+				"Upload storage capacity is temporarily exhausted. Please try again later.",
+				ResponseKeys.TooManyRequests
 			);
-		} catch (Exception ex) {
-			logger.LogError(ex, "Failed to write audit log for upload {Path}", relativePath);
 		}
 
-		return TypedResults.Created((string?)null, new StaffUploadCreated {
-			Url = url,
-			Path = relativePath,
-			SizeBytes = file.Length,
-			ContentType = contentType
-		});
+		var reservation = ((UploadAdmissionResult.Accepted)admission).Reservation;
+		using (reservation) {
+			var relativePath = string.Empty;
+			try {
+				relativePath = await fileStorage.SaveAsync(
+					uploadStream, extension, cancellationToken
+				);
+
+				await auditLogService.LogAsync(
+					new CreateAuditLogArgs(
+						UserId: account.UserId,
+						Action: AuditActions.UploadCreated,
+						TargetId: null,
+						Details: new {
+							Path = relativePath,
+							SizeBytes = file.Length,
+							ContentType = contentType
+						}
+					),
+					cancellationToken
+				);
+			} catch (Exception exception) {
+				var cleanupConfirmed = exception is StorageWriteException {
+					CleanupConfirmed: true
+				};
+				if (exception is StorageWriteException storageWriteException) {
+					relativePath = storageWriteException.RelativePath;
+				}
+				if (relativePath.Length > 0 && !cleanupConfirmed) {
+					try {
+						cleanupConfirmed = await fileStorage.DeleteAsync(
+							relativePath,
+							CancellationToken.None
+						);
+					} catch (Exception cleanupException) {
+						logger.LogWarning(
+							cleanupException,
+							"Failed to clean up upload blob {Path} after a failed upload operation",
+							relativePath
+						);
+					}
+				}
+				if (cleanupConfirmed) {
+					uploadAdmissionService.Release(reservation);
+				} else {
+					// A blob may still exist. Keep its bytes accounted for rather than
+					// admitting more storage than this process can safely bound.
+					uploadAdmissionService.Commit(reservation);
+				}
+
+				throw;
+			}
+
+			uploadAdmissionService.Commit(reservation);
+			return TypedResults.Created((string?)null, new StaffUploadCreated {
+				Url = $"/files/{relativePath}",
+				Path = relativePath,
+				SizeBytes = file.Length,
+				ContentType = contentType
+			});
+		}
 	}
 
 	private static AppValidationProblemHttpResult ValidationFailure(

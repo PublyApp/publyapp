@@ -236,7 +236,7 @@ public sealed class UpdateTenantAsStaffSpec
 
 	[Fact]
 	public async Task
-	ItShouldDeleteThePreviousUploadedLogoBlobWhenLogoUrlIsReplaced() {
+	ItShouldRetainThePreviousUploadedLogoBlobWhenLogoUrlIsReplaced() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var seededTenant =
@@ -262,14 +262,14 @@ public sealed class UpdateTenantAsStaffSpec
 			);
 		replaceResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeFalse(
-			"replacing a served-upload logoUrl must delete the blob it pointed at"
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeTrue(
+			"phase 1 must retain replaced blobs until durable asset lifecycle cleanup exists"
 		);
 	}
 
 	[Fact]
 	public async Task
-	ItShouldDeleteThePreviousUploadedLogoBlobWhenLogoUrlIsCleared() {
+	ItShouldRetainThePreviousUploadedLogoBlobWhenLogoUrlIsCleared() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();
 		var seededTenant =
@@ -296,8 +296,8 @@ public sealed class UpdateTenantAsStaffSpec
 		using var clearResponse = await _http.SendAsync(clearRequest);
 		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeFalse(
-			"clearing a served-upload logoUrl must delete the blob it pointed at"
+		File.Exists(GetStorageFilePath(uploaded.Path)).Should().BeTrue(
+			"phase 1 must retain cleared blobs until durable asset lifecycle cleanup exists"
 		);
 	}
 

@@ -11,12 +11,13 @@ using Microsoft.Extensions.Logging;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fakes;
 
 namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// <summary>
 /// Custom WebApplicationFactory for integration testing.
-/// Replaces DbContext connection string and email service.
+/// Replaces DbContext connection string, file storage, and email service.
 ///
 /// NOTE: AppEnvironment.Instance.POSTGRES_CONNECTION_STRING
 /// still points to the admin/template DB (process-wide).
@@ -24,13 +25,23 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// overridden below to use the test-specific connection).
 /// Any code that reads POSTGRES_CONNECTION_STRING directly
 /// will NOT see the test DB.
+/// File storage is also isolated per fixture so upload tests cannot race over
+/// blobs created by another test class.
 /// </summary>
 public sealed class ApiFactory
 	: WebApplicationFactory<Program> {
 	private readonly string _dbConnectionString;
+	private readonly string _storageRoot;
+	private readonly IUploadAdmissionService? _uploadAdmissionService;
 
-	public ApiFactory(string dbConnectionString) {
+	public ApiFactory(
+		string dbConnectionString,
+		string storageRoot,
+		IUploadAdmissionService? uploadAdmissionService = null
+	) {
 		_dbConnectionString = dbConnectionString;
+		_storageRoot = storageRoot;
+		_uploadAdmissionService = uploadAdmissionService;
 	}
 
 	protected override void ConfigureWebHost(
@@ -66,6 +77,15 @@ public sealed class ApiFactory
 				},
 				ServiceLifetime.Scoped
 			);
+
+			services.RemoveAll<IFileStorage>();
+			services.AddSingleton<IFileStorage>(
+				_ => new LocalDiskFileStorage(_storageRoot)
+			);
+			if (_uploadAdmissionService is not null) {
+				services.RemoveAll<IUploadAdmissionService>();
+				services.AddSingleton(_uploadAdmissionService);
+			}
 
 			// 2) Replace email sender with fake
 			//    (captures emails)

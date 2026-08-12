@@ -23,7 +23,22 @@ public interface IFileStorage {
 	/// otherwise. Used to remove a previously-served upload blob when it is
 	/// replaced or its owning entity is deleted.
 	/// </summary>
-	Task DeleteAsync(
+	Task<bool> DeleteAsync(
 		string relativePath,
 		CancellationToken cancellationToken = default);
+}
+
+public sealed class StorageWriteException : InvalidOperationException {
+	public StorageWriteException(
+		string relativePath,
+		bool cleanupConfirmed,
+		Exception innerException
+	) : base("The upload could not be written safely.", innerException) {
+		RelativePath = relativePath;
+		CleanupConfirmed = cleanupConfirmed;
+	}
+
+	public string RelativePath { get; }
+
+	public bool CleanupConfirmed { get; }
 }

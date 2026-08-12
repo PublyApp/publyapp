@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fakes;
 
 using Xunit;
@@ -20,10 +21,12 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// </summary>
 public sealed class ApiFixture : IAsyncLifetime {
 	private readonly string _testDbName;
+	private readonly string _storageRoot;
 	private DatabaseTemplateManager? _dbManager;
 	private string _testDbConnectionString = string.Empty;
 	private ApiFactory? _factory;
 	private HttpClient? _httpClient;
+	private readonly List<ApiFactory> _additionalFactories = [];
 
 	public ApiFactory Factory {
 		get {
@@ -55,6 +58,10 @@ public sealed class ApiFixture : IAsyncLifetime {
 
 	public ApiFixture() {
 		_testDbName = $"publyapp_api_test_{Guid.NewGuid():N}";
+		_storageRoot = Path.Combine(
+			Path.GetTempPath(),
+			$"publyapp-api-storage-{Guid.NewGuid():N}"
+		);
 	}
 
 	/// <summary>
@@ -63,6 +70,20 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// </summary>
 	public HttpClient CreateClient() {
 		return Factory.CreateClient(
+			new WebApplicationFactoryClientOptions {
+				HandleCookies = false
+			}
+		);
+	}
+
+	public HttpClient CreateClient(IUploadAdmissionService uploadAdmissionService) {
+		var factory = new ApiFactory(
+			_testDbConnectionString,
+			_storageRoot,
+			uploadAdmissionService
+		);
+		_additionalFactories.Add(factory);
+		return factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false
 			}
@@ -83,7 +104,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 				_testDbName
 			);
 
-		Factory = new ApiFactory(_testDbConnectionString);
+		Factory = new ApiFactory(_testDbConnectionString, _storageRoot);
 
 		// Cookies disabled to prevent cross-test session
 		// state leakage via cookie jar
@@ -131,12 +152,28 @@ public sealed class ApiFixture : IAsyncLifetime {
 			}
 		}
 
+		foreach (var factory in _additionalFactories) {
+			try {
+				await factory.DisposeAsync();
+			} catch (Exception ex) {
+				errors.Add(ex);
+			}
+		}
+
 		if (_dbManager is not null) {
 			try {
 				await _dbManager.DropDatabaseAsync(_testDbName);
 			} catch (Exception ex) {
 				errors.Add(ex);
 			}
+		}
+
+		try {
+			if (Directory.Exists(_storageRoot)) {
+				Directory.Delete(_storageRoot, recursive: true);
+			}
+		} catch (Exception ex) {
+			errors.Add(ex);
 		}
 
 		if (errors.Count > 0) {
