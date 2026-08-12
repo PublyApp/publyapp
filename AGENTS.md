@@ -47,11 +47,12 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 - Repo-root `.env.example` is the committed template; copy it to `.env.development` for local
   development. The API loads only `.env.development`, when the host environment is `Development`
   (and, for config values only, when it is unset), then validates the resulting environment
-  variables. A local `.env.production` would be **gitignored** but is not consumed; production
-  variables come from Dokploy's environment management. Real env files must never be committed —
-  keep the committed template in sync when you add a variable.
+  variables. A local `.env.production` may be **gitignored** as a manually imported personal
+  reference, but the application does not consume it. Deployed variables come from the active PaaS
+  configuration/secrets service (Dokploy today). Real env files must never be committed — keep the
+  committed template in sync when you add a variable.
 - `dotnet build` runs the app during OpenAPI document generation. When `ASPNETCORE_ENVIRONMENT`/`DOTNET_ENVIRONMENT` are unset, the host environment resolves to **Production**, where `APP_ROLE` is required and a missing value fails fast — loading `.env.development` supplies config values but does **not** change that classification. So a bare `dotnet build` requires `APP_ROLE=api`; always build through the pinned `just` recipes (`just build-api`, `just generate-client`, `just db-*`), which export `APP_ROLE=api`.
-- Keep secrets out of the repo: `.env.example` carries placeholder values only; real values live in your local `.env.development`, in the deployment platform's env management, or in CI secrets.
+- Keep secrets out of the repo: `.env.example` carries placeholders for genuine secrets and safe defaults for local Compose; real values live in your local `.env.development`, in the deployment platform's env management, or in CI secrets.
 
 ### Building
 
@@ -432,8 +433,9 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 **Local access:** Frontend `localhost:5050` | API `localhost:5000` | Scalar docs `localhost:5000/scalar/v1` | Postgres `localhost:5454`
 **Env vars:** `.env.example` is the only committed env file (the template).
 `.env.development` is **gitignored**, is the only env file the API loads, and is used only for
-Development or an unset host environment. `.env.production` would also be gitignored but is not
-consumed; production variables come from Dokploy. Real env files must never be committed.
+Development or an unset host environment. `.env.production` may also be gitignored as a manually
+imported personal reference, but is not consumed; deployed variables come from the active PaaS
+configuration/secrets service (Dokploy today). Real env files must never be committed.
 `AppEnvironment.Initialize()` validates the resulting runtime environment variables.
 **.NET artifacts:** New .NET projects must output under a local `.artifacts/` directory.
 Set `DotNetArtifactsRoot` in a project-area `Directory.Build.props` before importing the repo
