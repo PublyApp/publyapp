@@ -67,6 +67,28 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 		(await CountUploadAuditsAsync()).Should().Be(auditCountBefore);
 	}
 
+	[Fact]
+	public async Task ItShouldRejectTheRequestAfterActualUploadsFillTheConfiguredBudget() {
+		using var http = _fixture.CreateClient(
+			new UploadAdmissionService(PngBytes.Length * 2L, PngBytes.Length * 2L)
+		);
+		var authClient = new TestAuthClient(http);
+		var token = await authClient.LoginAsStaffAdminAsync();
+		var storage = _fixture.Factory.Services.GetRequiredService<IFileStorage>();
+		var filesBefore = GetStoredFiles(storage.RootPath);
+		var auditsBefore = await CountUploadAuditsAsync();
+
+		for (var index = 0; index < 2; index += 1) {
+			using var accepted = await http.SendAsync(BuildUploadRequest(token));
+			accepted.StatusCode.Should().Be(HttpStatusCode.Created);
+		}
+
+		using var rejected = await http.SendAsync(BuildUploadRequest(token));
+		rejected.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+		GetStoredFiles(storage.RootPath).Count.Should().Be(filesBefore.Count + 2);
+		(await CountUploadAuditsAsync()).Should().Be(auditsBefore + 2);
+	}
+
 	private static void FillGlobalBudget(IUploadAdmissionService admission) {
 		var remaining = AppEnvironment.Instance.UPLOAD_GLOBAL_MAX_BYTES;
 		var chunk = AppEnvironment.Instance.UPLOAD_PER_STAFF_MAX_BYTES;

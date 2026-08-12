@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fakes;
 
 using Xunit;
@@ -25,6 +26,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 	private string _testDbConnectionString = string.Empty;
 	private ApiFactory? _factory;
 	private HttpClient? _httpClient;
+	private readonly List<ApiFactory> _additionalFactories = [];
 
 	public ApiFactory Factory {
 		get {
@@ -68,6 +70,20 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// </summary>
 	public HttpClient CreateClient() {
 		return Factory.CreateClient(
+			new WebApplicationFactoryClientOptions {
+				HandleCookies = false
+			}
+		);
+	}
+
+	public HttpClient CreateClient(IUploadAdmissionService uploadAdmissionService) {
+		var factory = new ApiFactory(
+			_testDbConnectionString,
+			_storageRoot,
+			uploadAdmissionService
+		);
+		_additionalFactories.Add(factory);
+		return factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false
 			}
@@ -131,6 +147,14 @@ public sealed class ApiFixture : IAsyncLifetime {
 		if (_factory is not null) {
 			try {
 				await _factory.DisposeAsync();
+			} catch (Exception ex) {
+				errors.Add(ex);
+			}
+		}
+
+		foreach (var factory in _additionalFactories) {
+			try {
+				await factory.DisposeAsync();
 			} catch (Exception ex) {
 				errors.Add(ex);
 			}

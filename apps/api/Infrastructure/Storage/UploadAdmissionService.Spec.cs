@@ -93,6 +93,37 @@ public sealed class UploadAdmissionServiceSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldBoundConcurrentReservationsAcrossDistinctUsersByGlobalBudget() {
+		var service = new UploadAdmissionService(100, 60);
+		var attempts = Enumerable.Range(0, 20)
+			.Select(index => Task.Run(() => service.TryReserve(Guid.NewGuid(), 10)))
+			.ToArray();
+
+		var results = await Task.WhenAll(attempts);
+		var accepted = results.OfType<UploadAdmissionResult.Accepted>().ToList();
+
+		accepted.Should().HaveCount(10);
+		foreach (var result in accepted) {
+			service.Commit(result.Reservation);
+		}
+		service.TryReserve(Guid.NewGuid(), 1).Should().BeOfType<UploadAdmissionResult.Rejected>();
+	}
+
+	[Fact]
+	public void ItShouldStartFreshProcessLocalAccountingAfterRestart() {
+		var firstProcess = new UploadAdmissionService(10, 10);
+		var reservation = firstProcess.TryReserve(Guid.NewGuid(), 10)
+			.Should().BeOfType<UploadAdmissionResult.Accepted>().Subject;
+		firstProcess.Commit(reservation.Reservation);
+
+		// Phase 1 is deliberately process-local; a process restart starts a fresh
+		// counter. Durable cross-replica accounting belongs to phase 2.
+		var restartedProcess = new UploadAdmissionService(10, 10);
+		restartedProcess.TryReserve(Guid.NewGuid(), 10)
+			.Should().BeOfType<UploadAdmissionResult.Accepted>();
+	}
+
+	[Fact]
 	public void ItShouldRejectAGlobalBudgetSmallerThanPerStaffBudget() {
 		var act = () => new UploadAdmissionService(9, 10);
 

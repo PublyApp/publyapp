@@ -32,10 +32,16 @@ public sealed class ApiFactory
 	: WebApplicationFactory<Program> {
 	private readonly string _dbConnectionString;
 	private readonly string _storageRoot;
+	private readonly IUploadAdmissionService? _uploadAdmissionService;
 
-	public ApiFactory(string dbConnectionString, string storageRoot) {
+	public ApiFactory(
+		string dbConnectionString,
+		string storageRoot,
+		IUploadAdmissionService? uploadAdmissionService = null
+	) {
 		_dbConnectionString = dbConnectionString;
 		_storageRoot = storageRoot;
+		_uploadAdmissionService = uploadAdmissionService;
 	}
 
 	protected override void ConfigureWebHost(
@@ -76,6 +82,10 @@ public sealed class ApiFactory
 			services.AddSingleton<IFileStorage>(
 				_ => new LocalDiskFileStorage(_storageRoot)
 			);
+			if (_uploadAdmissionService is not null) {
+				services.RemoveAll<IUploadAdmissionService>();
+				services.AddSingleton(_uploadAdmissionService);
+			}
 
 			// 2) Replace email sender with fake
 			//    (captures emails)
