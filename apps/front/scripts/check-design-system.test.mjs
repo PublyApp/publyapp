@@ -1,21 +1,191 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { spawn } from 'node:child_process';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { findSuppressionSitesInSource } from '../src/lib/suppression-reason.ts';
+import {
+	cleanupFixtures,
+	getOwnedRootPath,
+	getFixtureParentPath,
+	makeOwnedTempDirectory,
+	makeFixture,
+	registerFixtureSignalHandlers,
+} from './check-design-system-fixtures.mjs';
 import { scanFront2DesignSystem } from './check-design-system.mjs';
 
-const makeFixture = async (files) => {
-	const root = await mkdtemp(path.join(os.tmpdir(), 'front2-design-guard-'));
-	for (const [relativePath, content] of Object.entries(files)) {
-		const absolutePath = path.join(root, relativePath);
-		await mkdir(path.dirname(absolutePath), { recursive: true });
-		await writeFile(absolutePath, content);
+const testFilePath = fileURLToPath(import.meta.url);
+let fixtureParent;
+
+if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
+	test('runner interruption probe leaves an active owned fixture', async () => {
+		const root = await makeFixture({
+			'probe.ts': 'export const probe = true;',
+		});
+		const ownedRoot = await getOwnedRootPath();
+		const reportDirectory = await makeOwnedTempDirectory('runner-report');
+		await writeFile(
+			path.join(reportDirectory, 'owned'),
+			`${ownedRoot}\n${root}`,
+		);
+		process.stdout.write(`RUNNER_OWNED_ROOT=${ownedRoot}\n`);
+		setInterval(() => {}, 1_000);
+		await new Promise(() => {});
+	});
+}
+
+test('the real node:test runner cleans its owned root when interrupted', async (t) => {
+	if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
+		t.skip('probe runs only in a child process');
+		return;
 	}
-	return root;
+	const child = spawn(
+		process.execPath,
+		[
+			fileURLToPath(
+				new URL('./check-design-system-runner-probe.mjs', import.meta.url),
+			),
+		],
+		{
+			env: {
+				...process.env,
+				FRONT2_DESIGN_GUARD_RUNNER_PROBE: '1',
+			},
+			stdio: ['ignore', 'pipe', 'pipe'],
+		},
+	);
+	let output = '';
+	const probe = await new Promise((resolve, reject) => {
+		const timeout = setTimeout(
+			() => reject(new Error(`runner probe did not start:\n${output}`)),
+			20_000,
+		);
+		const onData = (chunk) => {
+			output += chunk.toString();
+			const match = output.match(/^RUNNER_PID=(\d+)\nRUNNER_OWNED_ROOT=(.+)$/m);
+			if (match) {
+				clearTimeout(timeout);
+				resolve({ pid: Number(match[1]), root: match[2] });
+			}
+		};
+		child.stdout.on('data', onData);
+		child.stderr.on('data', onData);
+		child.once('error', reject);
+	});
+	process.kill(probe.pid, 'SIGINT');
+	const result = await new Promise((resolve) =>
+		child.once('exit', (code, signal) => resolve({ code, signal })),
+	);
+	assert.notEqual(result.code, 0);
+	await assert.rejects(access(probe.root), { code: 'ENOENT' });
+});
+
+registerFixtureSignalHandlers();
+
+after(async () => {
+	fixtureParent = await getFixtureParentPath();
+	await cleanupFixtures();
+	await assert.rejects(access(fixtureParent), { code: 'ENOENT' });
+});
+
+const startFixtureProbe = async (mode) => {
+	const reportDirectory = await makeOwnedTempDirectory('probe-report');
+	const reportPath = path.join(reportDirectory, 'parent');
+	const child = spawn(
+		process.execPath,
+		[
+			fileURLToPath(
+				new URL(
+					'./check-design-system-fixture-probe.test.mjs',
+					import.meta.url,
+				),
+			),
+		],
+		{
+			cwd: path.dirname(testFilePath),
+			env: {
+				...process.env,
+				FRONT2_DESIGN_GUARD_FIXTURE_PROBE: mode,
+				FRONT2_DESIGN_GUARD_CLEANUP_DELAY_MS: '250',
+				FRONT2_DESIGN_GUARD_PARENT_REPORT: reportPath,
+			},
+			stdio: ['ignore', 'pipe', 'pipe'],
+		},
+	);
+	let output = '';
+	const marker = (async () => {
+		await mkdir(reportDirectory, { recursive: true });
+		const timeout = setTimeout(() => {
+			throw new Error(`fixture probe did not start:\n${output}`);
+		}, 20_000);
+		while (true) {
+			try {
+				const parent = await readFile(reportPath, 'utf8');
+				clearTimeout(timeout);
+				return parent;
+			} catch (error) {
+				if (error.code !== 'ENOENT') throw error;
+				await new Promise((resolve) => setTimeout(resolve, 25));
+			}
+		}
+	})();
+	const exit = new Promise((resolve, reject) => {
+		child.once('error', reject);
+		child.once('exit', (code, signal) => resolve({ code, signal }));
+	});
+	return { child, exit, marker, reportDirectory };
 };
+
+const assertParentGone = async (parent) => {
+	await assert.rejects(access(parent), { code: 'ENOENT' });
+};
+
+for (const [mode, signal, expectedCode] of [
+	['SIGINT', 'SIGINT', 130],
+	['SIGTERM', 'SIGTERM', 143],
+]) {
+	test(`fixture cleanup handles ${signal} in a child process`, async () => {
+		const probe = await startFixtureProbe(mode);
+		let fixtureParent;
+		try {
+			fixtureParent = await probe.marker;
+			probe.child.kill(signal);
+			probe.child.kill(signal);
+			const result = await probe.exit;
+			assert.equal(result.code, expectedCode);
+			assert.equal(result.signal, null);
+			await assertParentGone(fixtureParent);
+		} finally {
+			if (fixtureParent)
+				await rm(fixtureParent, { recursive: true, force: true });
+			await rm(probe.reportDirectory, { recursive: true, force: true });
+		}
+	});
+}
+
+test('fixture cleanup handles a failing node:test child process', async () => {
+	const probes = await Promise.all([
+		startFixtureProbe('error'),
+		startFixtureProbe('error'),
+	]);
+	const parents = [];
+	try {
+		for (const probe of probes) parents.push(await probe.marker);
+		const results = await Promise.all(probes.map((probe) => probe.exit));
+		for (const result of results) {
+			assert.notEqual(result.code, 0);
+			assert.equal(result.signal, null);
+		}
+		for (const parent of parents) await assertParentGone(parent);
+	} finally {
+		for (const parent of parents)
+			await rm(parent, { recursive: true, force: true });
+		for (const probe of probes)
+			await rm(probe.reportDirectory, { recursive: true, force: true });
+	}
+});
 
 const scanStatusFixture = async (source) => {
 	const root = await makeFixture({
