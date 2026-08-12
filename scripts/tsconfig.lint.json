@@ -1,0 +1,20 @@
+{
+	"extends": "../packages/_tsconfig/tsconfig.base.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": false,
+		"declaration": false,
+		"module": "ESNext",
+		"noEmit": true,
+		"target": "ES2022",
+		"types": ["node"]
+	},
+	"include": [
+		"./**/*.js",
+		"./**/*.mjs",
+		"./**/*.cjs",
+		"./**/*.ts",
+		"./**/*.tsx"
+	],
+	"exclude": ["node_modules"]
+}
