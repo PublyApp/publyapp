@@ -1,0 +1,5 @@
+# CI controls are governance-protected: a green pull_request workflow is not proof against a hostile branch author. See #1022.
+/.github/workflows/** @radandevist
+/scripts/ci-*.mjs @radandevist
+/scripts/check-ci-gate-structure.mjs @radandevist
+/scripts/ci-gate-manifest.json @radandevist
