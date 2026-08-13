@@ -172,9 +172,9 @@
 			"reason": "Identical install command to front-ci.yml::supply-chain's own install step; local development already runs pnpm install as part of `just install`."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "4dff80ef4415ae60",
+			"hash": "74bec4a17a120bb2",
 			"mirror": "just ci-drift",
-			"reason": "The CODEOWNERS contract, CI gate guard suites, deterministic frontend-lint regression, and check-ci-gate-structure.mjs run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI."
+			"reason": "The CODEOWNERS contract and CI gate guard suites (including scripts/ci-e2e-rerun-guard.test.mjs since #1063), deterministic frontend-lint regression, and check-ci-gate-structure.mjs run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI."
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"hash": "efdabfd7485185e8",
@@ -330,6 +330,11 @@
 			"hash": "9df914ae9012c7d8",
 			"mirror": null,
 			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
+		},
+		"front-e2e.yml::test::Detect partial re-run before pull": {
+			"hash": "1e549d69381e2ec7",
+			"mirror": null,
+			"reason": "GitHub-only (partial re-run of failed jobs is a GitHub Actions feature): #1063 guard that fails the step loudly BEFORE pulling when needs.build.outputs.tag (E2E_IMAGE_TAG) does not match this attempt's per-run tag ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}, i.e. when the build job was not re-run and the cleanup job already deleted the previous attempt's images (a pull would fail with 'manifest unknown'). Locally there is no build/push/cleanup split or re-run concept to mirror; scripts/ci-e2e-rerun-guard.test.mjs extracts and executes this exact run: body against the fresh-run, full-rerun, and partial-rerun scenarios."
 		},
 		"front-e2e.yml::test::Tear down front stack": {
 			"hash": "2734400400ad3ba7",
