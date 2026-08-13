@@ -182,8 +182,16 @@ function assertLocalConfigShape(config) {
 	assert.ok(Array.isArray(config.closure_acceptance_commands));
 	assert.ok(Array.isArray(config.ci_required_checks));
 	assert.equal(
-		JSON.stringify([...config.ci_required_checks].sort((left, right) => left.localeCompare(right))),
-		JSON.stringify(expectedCiRequiredChecks.slice().sort((left, right) => left.localeCompare(right))),
+		JSON.stringify(
+			[...config.ci_required_checks].sort((left, right) =>
+				left.localeCompare(right),
+			),
+		),
+		JSON.stringify(
+			expectedCiRequiredChecks
+				.slice()
+				.sort((left, right) => left.localeCompare(right)),
+		),
 	);
 	assert.equal(typeof config.closure_state_dir, 'string');
 }
