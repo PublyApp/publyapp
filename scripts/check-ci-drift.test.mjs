@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { parse } from 'yaml';
 
 import { findCiDrift } from './check-ci-drift.mjs';
 
@@ -196,4 +199,87 @@ test('fails closed when two steps in a job share an identity', async () => {
 
 test("the repo's own workflows are fully reconciled with the local gate", async () => {
 	assert.deepEqual(await findCiDrift({ rootDir: repoRoot }), []);
+});
+
+// The CODEOWNERS contract must stay wired into `just ci-drift` and its
+// server mirror (`front-ci.yml::gate-selftest`). Those wiring facts are
+// asserted HERE as well as inside codeowners-contract.test.mjs, because the
+// CODEOWNERS suite cannot be the only witness to its own wiring: it is
+// itself invoked by the exact recipe line the assertion protects, so
+// commenting that line out removes the detector together with the command
+// it guards and the gate goes green on a CODEOWNERS rule mutation. This
+// suite is invoked by a different `ci-drift` recipe line (`pnpm
+// test:ci-drift`), so the wiring check survives the removal and fails the
+// gate.
+const codeownersInvocation =
+	'node --test ./scripts/codeowners-contract.test.mjs';
+
+const ciDriftRecipe = readFileSync(
+	path.join(repoRoot, 'justfile'),
+	'utf8',
+).match(/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m)?.[1];
+
+const gateSelftestRunBlock = parse(
+	readFileSync(path.join(repoRoot, '.github/workflows/front-ci.yml'), 'utf8'),
+).jobs['gate-selftest']?.steps.find(
+	(step) => step.name === 'Run CI gate guard tests (mirrors `just ci-drift`)',
+)?.run;
+
+const executableLines = (block) =>
+	block
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => line !== '' && !line.startsWith('#'));
+
+const assertRunsCodeownersContract = (block, where) => {
+	assert.ok(
+		executableLines(block).includes(codeownersInvocation),
+		`${where} must run the CODEOWNERS contract from an executable line: \`${codeownersInvocation}\``,
+	);
+};
+
+test('the local ci-drift recipe runs the CODEOWNERS contract', () => {
+	assert.ok(ciDriftRecipe, 'justfile must define the ci-drift recipe');
+	assertRunsCodeownersContract(ciDriftRecipe, 'ci-drift');
+});
+
+test('a commented-out ci-drift invocation fails this independent wiring check', () => {
+	assert.ok(ciDriftRecipe, 'justfile must define the ci-drift recipe');
+	assert.throws(
+		() =>
+			assertRunsCodeownersContract(
+				ciDriftRecipe.replace(
+					codeownersInvocation,
+					`# ${codeownersInvocation}`,
+				),
+				'ci-drift',
+			),
+		/ci-drift must run the CODEOWNERS contract from an executable line/,
+	);
+});
+
+test('the gate-selftest server mirror runs the CODEOWNERS contract', () => {
+	assert.ok(
+		typeof gateSelftestRunBlock === 'string',
+		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+	);
+	assertRunsCodeownersContract(gateSelftestRunBlock, 'gate-selftest');
+});
+
+test('a commented-out gate-selftest invocation fails this independent wiring check', () => {
+	assert.ok(
+		typeof gateSelftestRunBlock === 'string',
+		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+	);
+	assert.throws(
+		() =>
+			assertRunsCodeownersContract(
+				gateSelftestRunBlock.replace(
+					codeownersInvocation,
+					`# ${codeownersInvocation}`,
+				),
+				'gate-selftest',
+			),
+		/gate-selftest must run the CODEOWNERS contract from an executable line/,
+	);
 });
