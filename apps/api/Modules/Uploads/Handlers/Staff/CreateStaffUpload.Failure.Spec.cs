@@ -13,6 +13,7 @@ using Xunit;
 namespace PublyApp.Api.Modules.Uploads.Handlers.Staff;
 
 public sealed class CreateStaffUploadFailureSpec {
+	private const string UploadRelativePath = "uploads/failure.png";
 	private static readonly byte[] PngBytes = [
 		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
 		0x00, 0x00, 0x00, 0x0D, 0x00, 0x00
@@ -29,6 +30,7 @@ public sealed class CreateStaffUploadFailureSpec {
 		admission.TryReserve(Guid.NewGuid(), PngBytes.Length)
 			.Should().BeOfType<UploadAdmissionResult.Accepted>();
 		storage.DeleteCalls.Should().Be(1);
+		storage.DeletedPaths.Should().ContainSingle().Which.Should().Be(UploadRelativePath);
 	}
 
 	[Theory]
@@ -52,6 +54,7 @@ public sealed class CreateStaffUploadFailureSpec {
 		admission.TryReserve(Guid.NewGuid(), PngBytes.Length)
 			.Should().BeOfType<UploadAdmissionResult.Rejected>();
 		storage.DeleteCalls.Should().Be(1);
+		storage.DeletedPaths.Should().ContainSingle().Which.Should().Be(UploadRelativePath);
 	}
 
 	[Fact]
@@ -59,7 +62,7 @@ public sealed class CreateStaffUploadFailureSpec {
 		var admission = new UploadAdmissionService(PngBytes.Length, PngBytes.Length);
 		var storage = new FakeStorage {
 			SaveException = new StorageWriteException(
-				"uploads/failure.png",
+				UploadRelativePath,
 				cleanupConfirmed: false,
 				new IOException("partial write")
 			),
@@ -74,6 +77,7 @@ public sealed class CreateStaffUploadFailureSpec {
 
 		await act.Should().ThrowAsync<StorageWriteException>();
 		storage.DeleteCalls.Should().Be(1);
+		storage.DeletedPaths.Should().ContainSingle().Which.Should().Be(UploadRelativePath);
 		admission.TryReserve(Guid.NewGuid(), PngBytes.Length)
 			.Should().BeOfType<UploadAdmissionResult.Rejected>();
 	}
@@ -83,7 +87,7 @@ public sealed class CreateStaffUploadFailureSpec {
 		var admission = new UploadAdmissionService(PngBytes.Length, PngBytes.Length);
 		var storage = new FakeStorage {
 			SaveException = new StorageWriteException(
-				"uploads/failure.png",
+				UploadRelativePath,
 				cleanupConfirmed: false,
 				new IOException("partial write")
 			),
@@ -98,6 +102,7 @@ public sealed class CreateStaffUploadFailureSpec {
 
 		await act.Should().ThrowAsync<StorageWriteException>();
 		storage.DeleteCalls.Should().Be(1);
+		storage.DeletedPaths.Should().ContainSingle().Which.Should().Be(UploadRelativePath);
 		admission.TryReserve(Guid.NewGuid(), PngBytes.Length)
 			.Should().BeOfType<UploadAdmissionResult.Accepted>();
 	}
@@ -167,6 +172,7 @@ public sealed class CreateStaffUploadFailureSpec {
 		public bool ThrowOnDelete { get; init; }
 		public Exception? SaveException { get; init; }
 		public int DeleteCalls { get; private set; }
+		public List<string> DeletedPaths { get; } = [];
 
 		public Task<string> SaveAsync(
 			Stream content,
@@ -185,6 +191,7 @@ public sealed class CreateStaffUploadFailureSpec {
 			CancellationToken cancellationToken = default
 		) {
 			DeleteCalls += 1;
+			DeletedPaths.Add(relativePath);
 			if (ThrowOnDelete) {
 				throw new IOException("delete failed");
 			}

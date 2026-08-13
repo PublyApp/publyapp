@@ -19,9 +19,7 @@ public sealed class
 		string name,
 		string? value
 	) {
-		var defaultValue = name == nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES)
-			? AppEnvironment.DefaultUploadGlobalMaxBytes
-			: AppEnvironment.DefaultUploadPerStaffMaxBytes;
+		var defaultValue = GetUploadBudgetDefault(name);
 
 		AppEnvironment.ParseOptionalLong(
 			name,
@@ -44,7 +42,7 @@ public sealed class
 		var act = () => AppEnvironment.ParseOptionalLong(
 			name,
 			value,
-			1_073_741_824L
+			GetUploadBudgetDefault(name)
 		);
 
 		act.Should().Throw<InvalidOperationException>()
@@ -170,5 +168,19 @@ public sealed class
 		field.Should().NotBeNull();
 		Assert.NotNull(field);
 		field.SetValue(environment, value);
+	}
+
+	private static long GetUploadBudgetDefault(string name) {
+		return name switch {
+			nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES) => AppEnvironment
+				.DefaultUploadGlobalMaxBytes,
+			nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES) => AppEnvironment
+				.DefaultUploadPerStaffMaxBytes,
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(name),
+				name,
+				"Unknown upload budget setting"
+			),
+		};
 	}
 }
