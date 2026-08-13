@@ -522,3 +522,14 @@ apps/api/
 | Run specific method | `dotnet test ... --filter "MethodName"` |
 | Build test project only | `cd apps/api && dotnet build Tests/PublyApp.Api.Tests.csproj -c Test` |
 | Pull Postgres image | `docker pull postgres:18-alpine` |
+
+For the phase-1 upload-admission and budget-configuration matrix, run the storage,
+handler-failure, and environment-security specs together:
+
+```bash
+dotnet test apps/api/Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PublyApp.Api.Infrastructure.Storage.UploadAdmissionServiceSpec|FullyQualifiedName~PublyApp.Api.Modules.Uploads.Handlers.Staff.CreateStaffUploadFailureSpec|FullyQualifiedName~PublyApp.Api.Lib.AppEnvironmentRateLimitSecuritySpec"
+```
+
+This covers reservation release after a failed write whose cleanup is confirmed by a
+successful deletion, retention when cleanup cannot be confirmed, and absent/blank,
+invalid, non-numeric, overflowing, and cross-budget configuration values.

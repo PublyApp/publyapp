@@ -78,6 +78,30 @@ public sealed class CreateStaffUploadFailureSpec {
 			.Should().BeOfType<UploadAdmissionResult.Rejected>();
 	}
 
+	[Fact]
+	public async Task ItShouldReleaseAdmissionWhenStorageFailureCleanupSucceeds() {
+		var admission = new UploadAdmissionService(PngBytes.Length, PngBytes.Length);
+		var storage = new FakeStorage {
+			SaveException = new StorageWriteException(
+				"uploads/failure.png",
+				cleanupConfirmed: false,
+				new IOException("partial write")
+			),
+			DeleteResult = true
+		};
+
+		var act = () => InvokeHandlerAsync(
+			admission,
+			storage,
+			new ThrowingAuditLogService()
+		);
+
+		await act.Should().ThrowAsync<StorageWriteException>();
+		storage.DeleteCalls.Should().Be(1);
+		admission.TryReserve(Guid.NewGuid(), PngBytes.Length)
+			.Should().BeOfType<UploadAdmissionResult.Accepted>();
+	}
+
 	private static async Task InvokeAndExpectAuditFailure(
 		IUploadAdmissionService admission,
 		FakeStorage storage,

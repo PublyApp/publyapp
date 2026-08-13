@@ -9,6 +9,49 @@ namespace PublyApp.Api.Lib;
 public sealed class
 	AppEnvironmentRateLimitSecuritySpec {
 	[Theory]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), null)]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "   ")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), null)]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "   ")]
+	public void ItShouldUseTheUploadBudgetDefaultWhenTheEnvironmentValueIsAbsentOrBlank(
+		string name,
+		string? value
+	) {
+		var defaultValue = name == nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES)
+			? AppEnvironment.DefaultUploadGlobalMaxBytes
+			: AppEnvironment.DefaultUploadPerStaffMaxBytes;
+
+		AppEnvironment.ParseOptionalLong(
+			name,
+			value,
+			defaultValue
+		).Should().Be(defaultValue);
+	}
+
+	[Theory]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "not-a-number")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "9223372036854775808")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "-9223372036854775809")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "not-a-number")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "9223372036854775808")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "-9223372036854775809")]
+	public void ItShouldRejectNonNumericAndOverflowingUploadBudgetValues(
+		string name,
+		string value
+	) {
+		var act = () => AppEnvironment.ParseOptionalLong(
+			name,
+			value,
+			1_073_741_824L
+		);
+
+		act.Should().Throw<InvalidOperationException>()
+			.WithMessage($"*{name}*");
+	}
+
+	[Theory]
 	[InlineData(0, 10, "UPLOAD_GLOBAL_MAX_BYTES must be positive")]
 	[InlineData(10, 0, "UPLOAD_PER_STAFF_MAX_BYTES must be positive")]
 	[InlineData(-1, 10, "UPLOAD_GLOBAL_MAX_BYTES must be positive")]
