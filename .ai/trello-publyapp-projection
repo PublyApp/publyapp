@@ -46,6 +46,7 @@ STATE_TARGETS = {
     "FOLLOW_UP_FILING": "EN COURS",
     "UNVERIFIED": "EN COURS",
     "STALLED": "EN COURS",
+    "NEEDS_RESOLUTION": "EN COURS",
     "NEEDS_OWNER": "EN PAUSE (bloqué ailleurs)",
     "APPROVED": "APPROUVÉ, PRÊT À MERGER",
     "APPROVED_WITH_FOLLOW_UPS": "APPROUVÉ, PRÊT À MERGER",
@@ -82,14 +83,33 @@ def load_json(path: str) -> dict:
 def require_delivery_sections(description: object) -> str:
     if not isinstance(description, str) or not description.strip():
         raise InputError("delivery card description is empty")
-    missing = [
-        section
-        for section in REQUIRED_SECTIONS
-        if not re.search(rf"(?im)^\s*#+\s*{re.escape(section)}\s*$", description)
-    ]
+    heading = re.compile(r"^\s*#+\s*(?P<title>.+?)\s*$")
+    lines = description.splitlines()
+    positions = {}
+    for index, line in enumerate(lines):
+        match = heading.match(line)
+        if match is not None:
+            title = match.group("title").strip()
+            if title in REQUIRED_SECTIONS and title not in positions:
+                positions[title] = index
+    missing = [section for section in REQUIRED_SECTIONS if section not in positions]
     if missing:
         raise InputError(
             "delivery card is incomplete; missing sections: " + ", ".join(missing)
+        )
+    empty = []
+    for section in REQUIRED_SECTIONS:
+        start = positions[section] + 1
+        end = len(lines)
+        for index in range(start, len(lines)):
+            if heading.match(lines[index]) is not None:
+                end = index
+                break
+        if not any(line.strip() for line in lines[start:end]):
+            empty.append(section)
+    if empty:
+        raise InputError(
+            "delivery card sections must have a nonblank body: " + ", ".join(empty)
         )
     return description
 
@@ -154,8 +174,32 @@ def credentials() -> tuple[str, str]:
     return key, token
 
 
-def request(method: str, path: str, params: dict, key: str, token: str) -> object:
-    base = os.environ.get("TRELLO_PROJECTION_API_BASE", DEFAULT_API_BASE).rstrip("/")
+def api_base() -> str:
+    raw = os.environ.get("TRELLO_PROJECTION_API_BASE", "").strip()
+    if not raw:
+        return DEFAULT_API_BASE
+    if os.environ.get("TRELLO_PROJECTION_TEST_MODE") != "1":
+        raise InputError(
+            "TRELLO_PROJECTION_API_BASE requires explicit test mode"
+        )
+    parsed = urllib.parse.urlparse(raw)
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise InputError(
+            "TRELLO_PROJECTION_API_BASE is allowed only for a loopback test server"
+        )
+    return raw.rstrip("/")
+
+
+def request(
+    method: str, path: str, params: dict, key: str, token: str, base: str
+) -> object:
     query = {**params, "key": key, "token": token}
     url = f"{base}{path}?{urllib.parse.urlencode(query)}"
     try:
@@ -185,6 +229,10 @@ def live_card(card: object, entry: dict) -> dict:
         raise SourceError("Trello card response is malformed")
     if card.get("id") != entry["id"] or card.get("name") != entry["name"]:
         raise SourceError("live Trello card does not match the durable card map")
+    if card.get("idBoard") != BOARD_ID:
+        raise SourceError(
+            f"live Trello card board mismatch: expected {BOARD_ID} got {card.get('idBoard')}"
+        )
     require_delivery_sections(card.get("desc"))
     if not isinstance(card.get("idList"), str):
         raise SourceError("live Trello card has no list binding")
@@ -224,15 +272,32 @@ def main() -> int:
         if args.mode == "dry-run":
             result(False, f"would move the mapped delivery card to {target!r}")
             return 0
+        base = api_base()
         key, token = credentials()
-        lists = request("GET", f"/boards/{BOARD_ID}/lists", {"fields": "name"}, key, token)
+        lists = request(
+            "GET", f"/boards/{BOARD_ID}/lists", {"fields": "name"}, key, token, base
+        )
         target_list = exact_list(lists, target)
         card = live_card(
-            request("GET", f"/cards/{entry['id']}", {"fields": "name,idList,desc"}, key, token),
+            request(
+                "GET",
+                f"/cards/{entry['id']}",
+                {"fields": "name,idList,desc,idBoard"},
+                key,
+                token,
+                base,
+            ),
             entry,
         )
         if card["idList"] != target_list["id"]:
-            request("PUT", f"/cards/{entry['id']}", {"idList": target_list["id"]}, key, token)
+            request(
+                "PUT",
+                f"/cards/{entry['id']}",
+                {"idList": target_list["id"]},
+                key,
+                token,
+                base,
+            )
             result(True, f"moved the mapped delivery card to {target!r}")
         else:
             result(True, "mapped delivery card already has the derived workflow list")
