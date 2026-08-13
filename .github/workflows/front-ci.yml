@@ -118,7 +118,7 @@ jobs:
           CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
+          node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -257,6 +257,12 @@ jobs:
           node --test ./scripts/ci-gate-aggregation.test.mjs
           node --test ./scripts/check-ci-gate-structure.test.mjs
           node ./scripts/check-ci-gate-structure.mjs
+          pnpm test:project-closure-adapter
+
+      # This must run in a required-check dependency, not only locally: the
+      # projection protects closure evidence and Trello delivery-card updates.
+      - name: Run project closure adapter tests
+        run: pnpm test:project-closure-adapter
 
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always

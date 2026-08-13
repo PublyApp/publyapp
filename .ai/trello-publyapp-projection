@@ -17,7 +17,6 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 
 PROJECT = "publyapp"
 MAPPING = "trello:publyapp"
@@ -152,22 +151,9 @@ def load_card_map(path: str, pr: int) -> dict:
 
 
 def credentials() -> tuple[str, str]:
+    # Credentials are sourced only from TRELLO_API_KEY and TRELLO_TOKEN.
     key = os.environ.get("TRELLO_API_KEY", "").strip()
     token = os.environ.get("TRELLO_TOKEN", "").strip()
-    if not key or not token:
-        env_file = os.environ.get("TRELLO_PROJECTION_ENV_FILE", "").strip()
-        if env_file:
-            try:
-                lines = Path(env_file).read_text(encoding="utf-8").splitlines()
-            except OSError as error:
-                raise SourceError(f"cannot read Trello credential file: {error}") from error
-            for line in lines:
-                name, separator, value = line.partition("=")
-                if separator and name.strip() in {"TRELLO_API_KEY", "TRELLO_TOKEN"}:
-                    if name.strip() == "TRELLO_API_KEY":
-                        key = value.strip().strip("'\"")
-                    else:
-                        token = value.strip().strip("'\"")
     missing = [name for name, value in (("TRELLO_API_KEY", key), ("TRELLO_TOKEN", token)) if not value]
     if missing:
         raise SourceError("Trello credentials missing: " + ", ".join(missing))

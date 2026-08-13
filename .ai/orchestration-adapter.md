@@ -30,7 +30,7 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 |---|---|
 | `closure_config` | `/home/radan/Projects/PublyApp/publyapp/.ai/project-closure-v1.json` |
 | `closure_gate` | `/home/radan/ai-orchestration-playbook/tools/pr-closure` (shared dependency; PublyApp does not reimplement the state machine) |
-| `review_record_schema` | `1`; schema file: `/home/radan/ai-orchestration-playbook/tools/schemas/review-record-v1.json` |
+| `review_schema` | `1`; schema file: `/home/radan/ai-orchestration-playbook/tools/schemas/review-record-v1.json` |
 | `ci_status_cmd` | `gh pr view <pr-number> --repo radandevist/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,state,isDraft,mergeable,mergeStateStatus,url` |
 | `ci_rerun_cmd` | `gh run rerun <run-id> --failed --repo radandevist/publyapp` (only for a proven infrastructure failure; bounded by `closure_config.infra_retry_budget`) |
 | `local_review_ready_commands` | `closure_config.local_review_ready_commands` (all commands must pass at the exact pushed tip) |
@@ -44,7 +44,7 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 | `infra_retry_budget` | `closure_config.infra_retry_budget` = `1` |
 | `stagnation_budget_minutes` | `closure_config.stagnation_budget_minutes` = `240` |
 | `lane_liveness_cmd` | `test -n "$LANE_PID" && ps -o pid=,etime=,time=,stat=,cmd= -p "$LANE_PID"` (qualifying progress requires advancing CPU time or independently observed output growth) |
-| `lane_output_floor` | `200` bytes minimum and a valid review-record schema `1`; empty, marker-only, or malformed output is failure |
+| `lane_output_floor` | `200` bytes minimum and a valid review_schema `1`; empty, marker-only, or malformed output is failure |
 | `heavy_job_limit` | `closure_config.heavy_job_limit` = `1` (serialize full builds, API suites, and e2e) |
 | `central_claim_rules` | Never defer a branch-caused CI failure, unmet issue acceptance requirement, API-contract/client drift, auth/tenant isolation/security/privacy/data-integrity uncertainty, a guard that cannot detect its intended defect, a dirty/unpushed/re-tipped worktree, a reviewed-tip mismatch, or a repeated root cause. |
 

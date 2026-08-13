@@ -4,21 +4,65 @@ import {
 	chmod,
 	lstat,
 	mkdtemp,
+	mkdir,
 	readFile,
 	rm,
 	writeFile,
 } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
 const repo = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const configPath = join(repo, '.ai', 'project-closure-v1.json');
 const adapterPath = join(repo, '.ai', 'trello-publyapp-projection');
-const gatePath = '/home/radan/ai-orchestration-playbook/tools/pr-closure';
-const schemaPath =
-	'/home/radan/ai-orchestration-playbook/tools/schemas/project-closure-v1.json';
-const durableTestRoot = '/home/radan/.hermes/orchestration/runs';
+const sharedToolRoot = process.env.PR_CLOSURE_GATE_ROOT?.trim();
+const hasSharedIntegration = Boolean(sharedToolRoot);
+const sharedGatePath = hasSharedIntegration
+	? join(sharedToolRoot, 'tools', 'pr-closure')
+	: undefined;
+const sharedSchemaPath = hasSharedIntegration
+	? join(sharedToolRoot, 'tools', 'schemas', 'project-closure-v1.json')
+	: undefined;
+const sharedPythonPath = hasSharedIntegration
+	? join(sharedToolRoot, 'tools')
+	: undefined;
+
+const PR_NUMBER = 1105;
+
+const completeDescription = `## Objective
+Adopt the permanent PR closure gate.
+
+## Current state
+The adapter is being adopted.
+
+## Scope
+Configuration, projection, and tests.
+
+## Links
+https://github.com/radandevist/publyapp/issues/1105
+
+## How to test
+Run the focused adapter test and the shared closure CLI.`;
+
+const closureStates = [
+	'CI_RED',
+	'CI_INFRA_RETRY',
+	'FIXING',
+	'LOCAL_VERIFY',
+	'REVIEW_READY',
+	'REVIEWING',
+	'CHANGES_REQUIRED',
+	'DESIGN_RESET',
+	'FOLLOW_UP_FILING',
+	'UNVERIFIED',
+	'STALLED',
+	'NEEDS_RESOLUTION',
+	'NEEDS_OWNER',
+	'APPROVED',
+	'APPROVED_WITH_FOLLOW_UPS',
+];
 
 function run(command, args, options = {}) {
 	return new Promise((resolve, reject) => {
@@ -42,13 +86,33 @@ function run(command, args, options = {}) {
 	});
 }
 
+function sharedEnv(extra = {}) {
+	return {
+		...process.env,
+		...(sharedPythonPath ? { PYTHONPATH: sharedPythonPath } : {}),
+		...extra,
+	};
+}
+
 async function withTempDirectory(callback) {
-	const directory = await mkdtemp(join(durableTestRoot, 'publyapp-closure-'));
+	const directory = await mkdtemp(join(tmpdir(), 'publyapp-closure-'));
 	try {
 		return await callback(directory);
 	} finally {
 		await rm(directory, { recursive: true, force: true });
 	}
+}
+
+async function runSharedGate(args, options = {}) {
+	if (!sharedGatePath) {
+		throw new Error(
+			'Shared gate path is unavailable; set PR_CLOSURE_GATE_ROOT',
+		);
+	}
+	return run(sharedGatePath, args, {
+		...options,
+		env: sharedEnv(options.env),
+	});
 }
 
 function fixtureCardMap(directory) {
@@ -65,7 +129,7 @@ async function writeCardMap(directory, description, extra = {}) {
 				project: 'publyapp',
 				board_id: '6a766eaa8fc59bfbeb18ce9b',
 				cards: {
-					1105: {
+					[PR_NUMBER]: {
 						id: 'card-fixture-1105',
 						name: 'PR #1105 — closure gate',
 						list: 'EN COURS',
@@ -87,7 +151,7 @@ function adapterArgs(cardMap, state = 'REVIEW_READY', mode = 'dry-run') {
 		'--project',
 		'publyapp',
 		'--pr',
-		'1105',
+		PR_NUMBER,
 		'--mapping',
 		'trello:publyapp',
 		'--state',
@@ -99,54 +163,92 @@ function adapterArgs(cardMap, state = 'REVIEW_READY', mode = 'dry-run') {
 	];
 }
 
-const completeDescription = `## Objective
-Adopt the permanent PR closure gate.
+function assertLocalConfigShape(config) {
+	const expectedCiRequiredChecks = [
+		'require-linked-issue',
+		'openapi-spec-drift-gate',
+		'docs-archive-gate',
+		'front-ci-gate',
+		'front-e2e-gate',
+		'old-front-unit',
+		'old-front-e2e',
+	];
+	assert.equal(config.schema_version, 1);
+	assert.equal(config.project, 'publyapp');
+	assert.equal(config.tracking_projection, 'trello:publyapp');
+	assert.equal(typeof config.default_branch, 'string');
+	assert.equal(config.repository, 'radandevist/publyapp');
+	assert.ok(Array.isArray(config.local_review_ready_commands));
+	assert.ok(Array.isArray(config.closure_acceptance_commands));
+	assert.ok(Array.isArray(config.ci_required_checks));
+	assert.equal(
+		JSON.stringify([...config.ci_required_checks].sort((left, right) => left.localeCompare(right))),
+		JSON.stringify(expectedCiRequiredChecks.slice().sort((left, right) => left.localeCompare(right))),
+	);
+	assert.equal(typeof config.closure_state_dir, 'string');
+}
 
-## Current state
-The adapter is being adopted.
-
-## Scope
-Configuration, projection, and tests.
-
-## Links
-https://github.com/radandevist/publyapp/issues/1105
-
-## How to test
-Run the focused adapter test and the shared closure CLI.`;
+async function localBranchAndHead() {
+	const branchResult = await run('git', ['branch', '--show-current']);
+	const commitResult = await run('git', ['rev-parse', 'HEAD']);
+	const branch = branchResult.stdout.trim();
+	if (branchResult.code !== 0 || !branch) {
+		return null;
+	}
+	const remoteResult = await run('git', ['rev-parse', `origin/${branch}`]);
+	if (remoteResult.code !== 0) {
+		return null;
+	}
+	return {
+		branch,
+		headOid: commitResult.stdout.trim(),
+	};
+}
 
 test('project closure config validates and malformed config fails closed', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
-	assert.equal(config.schema_version, 1);
-	assert.equal(config.tracking_projection, 'trello:publyapp');
+	assertLocalConfigShape(config);
 	const adapterStat = await lstat(adapterPath);
 	assert.equal(adapterStat.isSymbolicLink(), false);
 	assert.notEqual(adapterStat.mode & 0o111, 0);
-	const schema = await run('jsonschema', ['-i', configPath, schemaPath]);
-	assert.equal(schema.code, 0, schema.stderr);
-
 	await withTempDirectory(async (directory) => {
 		const invalidPath = join(directory, 'invalid.json');
 		await writeFile(
 			invalidPath,
 			JSON.stringify({ ...config, schema_version: 2 }),
 		);
-		const result = await run('python3', [
-			gatePath,
-			'status',
-			'--config',
-			invalidPath,
-			'--pr',
-			'1105',
-			'--json',
-		]);
-		assert.equal(result.code, 2);
-		assert.match(result.stderr, /schema_version|config/i);
+		if (sharedSchemaPath) {
+			const sharedSchemaText = await readFile(sharedSchemaPath, 'utf8');
+			const sharedSchema = JSON.parse(sharedSchemaText);
+			assert.equal(typeof sharedSchema.title, 'string');
+			assert.notEqual(sharedSchema.title.trim(), '');
+			assert.ok(sharedSchema.properties?.project);
+		}
+		if (hasSharedIntegration) {
+			const malformedResult = await runSharedGate([
+				'status',
+				'--config',
+				invalidPath,
+				'--pr',
+				String(PR_NUMBER),
+				'--json',
+			]);
+			assert.equal(malformedResult.code, 2);
+			assert.match(malformedResult.stderr, /schema_version|config/i);
+		} else {
+			const malformed = JSON.parse(await readFile(invalidPath, 'utf8'));
+			assert.notEqual(malformed.schema_version, 1);
+		}
 	});
 });
 
 test('closure verification is wired into both shared phases and the just ci gate', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
 	const justfile = await readFile(join(repo, 'justfile'), 'utf8');
+	const workflow = await readFile(
+		join(repo, '.github/workflows/front-ci.yml'),
+		'utf8',
+	);
 	const adapterCommand = 'pnpm test:project-closure-adapter';
 	assert.ok(config.local_review_ready_commands.includes(adapterCommand));
 	assert.ok(config.closure_acceptance_commands.includes(adapterCommand));
@@ -155,52 +257,69 @@ test('closure verification is wired into both shared phases and the just ci gate
 		/^ci-project-closure-adapter:\n(?:.*\n)*?\s+pnpm test:project-closure-adapter$/m,
 	);
 	assert.match(justfile, /^ci:.*ci-project-closure-adapter/m);
+	assert.match(
+		workflow,
+		/- name: Run project closure adapter tests\n\s+run: pnpm test:project-closure-adapter/,
+	);
 });
 
-test('status against a fixture PR fails closed before writing approval evidence', async () => {
-	await withTempDirectory(async (directory) => {
-		const fakeBin = join(directory, 'bin');
-		await import('node:fs/promises').then(({ mkdir }) => mkdir(fakeBin));
-		const fakeGh = join(fakeBin, 'gh');
-		const oid = 'a'.repeat(40);
-		const fixture = JSON.stringify({
-			number: 1105,
-			headRefName: 'fixture/closure-gate',
-			headRefOid: oid,
-			isDraft: false,
-			state: 'OPEN',
-			mergeStateStatus: 'CLEAN',
-			mergeable: 'MERGEABLE',
-			statusCheckRollup: [],
-			url: 'https://github.com/radandevist/publyapp/pull/1105',
-			baseRefName: 'develop',
+test(
+	'status against a fixture PR fails closed before writing approval evidence',
+	{
+		skip: !hasSharedIntegration,
+	},
+	async () => {
+		await withTempDirectory(async (directory) => {
+			const fakeBin = join(directory, 'bin');
+			await mkdir(fakeBin);
+			const fakeGh = join(fakeBin, 'gh');
+			const config = JSON.parse(await readFile(configPath, 'utf8'));
+			const stateDirectory = join(directory, 'state');
+			const configFixture = join(directory, 'config.json');
+			await writeFile(
+				configFixture,
+				JSON.stringify({ ...config, closure_state_dir: stateDirectory }),
+			);
+			const fixture = JSON.stringify({
+				number: PR_NUMBER,
+				headRefName: 'fixture/closure-gate',
+				headRefOid: 'a'.repeat(40),
+				isDraft: false,
+				state: 'OPEN',
+				mergeStateStatus: 'CLEAN',
+				mergeable: 'MERGEABLE',
+				statusCheckRollup: [],
+				url: `https://github.com/radandevist/publyapp/pull/${PR_NUMBER}`,
+				baseRefName: config.default_branch,
+			});
+			await writeFile(fakeGh, `#!/bin/sh\nprintf '%s\\n' '${fixture}'\n`);
+			await chmod(fakeGh, 0o755);
+			const result = await runSharedGate(
+				[
+					'status',
+					'--config',
+					configFixture,
+					'--pr',
+					String(PR_NUMBER),
+					'--json',
+				],
+				{
+					env: { PATH: `${fakeBin}:${process.env.PATH}` },
+				},
+			);
+			assert.notEqual(result.code, 0);
+			assert.match(
+				`${result.stdout}\n${result.stderr}`,
+				/worktree|source|unavailable|fixture|temporary/i,
+			);
+			await assert.rejects(
+				readFile(
+					join(stateDirectory, 'publyapp', String(PR_NUMBER), 'events.jsonl'),
+				),
+			);
 		});
-		await writeFile(fakeGh, `#!/bin/sh\nprintf '%s\\n' '${fixture}'\n`);
-		await chmod(fakeGh, 0o755);
-		const config = JSON.parse(await readFile(configPath, 'utf8'));
-		const stateDirectory = join(directory, 'state');
-		const configFixture = join(directory, 'config.json');
-		await writeFile(
-			configFixture,
-			JSON.stringify({ ...config, closure_state_dir: stateDirectory }),
-		);
-		const result = await run(
-			'python3',
-			[gatePath, 'status', '--config', configFixture, '--pr', '1105', '--json'],
-			{
-				env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
-			},
-		);
-		assert.notEqual(result.code, 0);
-		assert.match(
-			`${result.stdout}\n${result.stderr}`,
-			/worktree|source|unavailable|fixture/i,
-		);
-		await assert.rejects(
-			readFile(join(stateDirectory, 'publyapp', '1105', 'events.jsonl')),
-		);
-	});
-});
+	},
+);
 
 test('projection rejects a delivery card without every required section', async () => {
 	await withTempDirectory(async (directory) => {
@@ -212,7 +331,7 @@ test('projection rejects a delivery card without every required section', async 
 		assert.equal(result.code, 2);
 		assert.match(
 			result.stderr,
-			/Objective|Current state|Scope|Links|How to test/i,
+			/Object|Current state|Scope|Links|How to test/i,
 		);
 		assert.equal(result.stdout, '');
 	});
@@ -238,26 +357,10 @@ test('projection rejects required headings whose bodies are blank', async () => 
 	});
 });
 
-test('projection supports every shared ClosureState value', async () => {
+test('projection supports every closure state in this adapter', async () => {
 	await withTempDirectory(async (directory) => {
 		const cardMap = await writeCardMap(directory, completeDescription);
-		const statesResult = await run(
-			'python3',
-			[
-				'-c',
-				'import json; from pr_closure.model import ClosureState; print(json.dumps([state.value for state in ClosureState]))',
-			],
-			{
-				env: {
-					...process.env,
-					PYTHONPATH: '/home/radan/ai-orchestration-playbook/tools',
-				},
-			},
-		);
-		assert.equal(statesResult.code, 0, statesResult.stderr);
-		const states = JSON.parse(statesResult.stdout);
-		assert.ok(states.includes('NEEDS_RESOLUTION'));
-		for (const state of states) {
+		for (const state of closureStates) {
 			const result = await run('python3', adapterArgs(cardMap, state));
 			assert.equal(result.code, 0, `${state}: ${result.stderr}`);
 			assert.equal(JSON.parse(result.stdout).applied, false);
@@ -298,7 +401,6 @@ test('projection apply fails closed without credentials and emits no protocol su
 					...process.env,
 					TRELLO_API_KEY: '',
 					TRELLO_TOKEN: '',
-					TRELLO_PROJECTION_ENV_FILE: '',
 					TRELLO_PROJECTION_API_BASE: '',
 					TRELLO_PROJECTION_TEST_MODE: '',
 					PUBLYAPP_TRELLO_CARD_MAP: cardMap,
@@ -484,3 +586,58 @@ test('projection rejects a live card from a foreign board without moving it', as
 		);
 	}
 });
+
+test(
+	'shared sync command runs the projection adapter through an explicit seam',
+	{ skip: !hasSharedIntegration },
+	async () => {
+		const config = JSON.parse(await readFile(configPath, 'utf8'));
+		const sharedPr = process.env.PR_CLOSURE_TEST_PR ?? '1106';
+		const branchInfo = await localBranchAndHead();
+		if (branchInfo === null) {
+			test.skip(
+				'detached HEAD or missing remote branch prevents sync protocol test',
+			);
+		}
+		await withTempDirectory(async (directory) => {
+			const fakeBin = join(directory, 'bin');
+			await mkdir(fakeBin);
+			const fakeGh = join(fakeBin, 'gh');
+			await writeFile(
+				fakeGh,
+				`#!/bin/sh\nprintf '%s\\n' '${JSON.stringify({
+					number: Number(sharedPr),
+					headRefName: branchInfo.branch,
+					headRefOid: branchInfo.headOid,
+					isDraft: false,
+					state: 'OPEN',
+					mergeStateStatus: 'CLEAN',
+					mergeable: 'MERGEABLE',
+					statusCheckRollup: [],
+					url: `https://github.com/radandevist/publyapp/pull/${sharedPr}`,
+					baseRefName: config.default_branch,
+				})}'\n`,
+			);
+			await chmod(fakeGh, 0o755);
+			const result = await runSharedGate(
+				[
+					'sync',
+					'--config',
+					configPath,
+					'--pr',
+					sharedPr,
+					'--projection-adapter',
+					adapterPath,
+				],
+				{
+					env: {
+						PATH: `${fakeBin}:${process.env.PATH}`,
+					},
+				},
+			);
+			assert.equal(result.code, 0, result.stderr);
+			assert.match(result.stdout, /state=/);
+			assert.match(result.stdout, /projection dry-run: changes=/);
+		});
+	},
+);

@@ -72,7 +72,7 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-ci.yml::changes::Check whether front-ci paths changed": {
-			"hash": "7aefc654171ae3c7",
+			"hash": "1df2fbe342c84abb",
 			"mirror": "node --test scripts/ci-gate-bootstrap.test.mjs",
 			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. scripts/ci-gate-bootstrap.test.mjs parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.mjs. The live gh api calls remain GitHub-only and unmirrored. Round-4 update: the pattern now also matches the other three #1017 gate workflow files (front-e2e.yml, openapi-spec-drift.yml, docs-archive.yml), so the new gate-selftest job wakes for a change to any of them; scripts/check-ci-gate-structure.mjs's selfTestCoverage check pins that this pattern keeps matching all four. Round-6 update (hash bump reviewed against the real step): the workflow-file alternation `\\.github/workflows/(front-ci|front-e2e|openapi-spec-drift|docs-archive)\\.yml$` is replaced by the prefix `\\.github/workflows/`. Nothing else in the step changed. Required because check-ci-gate-structure.mjs's new required-context uniqueness scan asserts against EVERY workflow in the repository, and under the old alternation an edit to a non-gate workflow (the reviewer's reproduction made old-front-characterization.yml report `docs-archive-gate`) classified as irrelevant, so both jobs that run the scan server-side were skipped. selfTestCoverage now lists every workflow file plus one path for a workflow file that does not exist, so the pattern cannot narrow back to an enumerated list."
 		},
@@ -172,9 +172,14 @@
 			"reason": "Identical install command to front-ci.yml::supply-chain's own install step; local development already runs pnpm install as part of `just install`."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "538622d8a952cf49",
+			"hash": "428c0bdff9019cf9",
 			"mirror": "just ci-drift",
 			"reason": "The CI gate guard suites, deterministic frontend-lint regression, and check-ci-gate-structure.mjs run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI."
+		},
+		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
+			"hash": "efdabfd7485185e8",
+			"mirror": "just ci-project-closure-adapter",
+			"reason": "The required front-ci dependency runs the same focused project-closure adapter suite as the local ci sub-gate, so config, Trello projection, and fail-closed security checks are enforced on the server."
 		},
 		"front-ci.yml::gate::Checkout": {
 			"hash": "8ead663cb8da335d",
