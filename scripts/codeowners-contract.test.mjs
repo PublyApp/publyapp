@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import { parse } from 'yaml';
+
 const codeownersPath = new URL('../.github/CODEOWNERS', import.meta.url);
 const justfilePath = new URL('../justfile', import.meta.url);
 const frontCiWorkflowPath = new URL(
@@ -88,6 +90,32 @@ const validContents = readFileSync(codeownersPath, 'utf8');
 const justfileContents = readFileSync(justfilePath, 'utf8');
 const frontCiWorkflowContents = readFileSync(frontCiWorkflowPath, 'utf8');
 
+const codeownersInvocation =
+	'node --test ./scripts/codeowners-contract.test.mjs';
+
+const localCiDrift = justfileContents.match(
+	/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m,
+)?.[1];
+
+const gateSelftestRunBlock = parse(frontCiWorkflowContents).jobs[
+	'gate-selftest'
+]?.steps.find(
+	(step) => step.name === 'Run CI gate guard tests (mirrors `just ci-drift`)',
+)?.run;
+
+const executableLines = (block) =>
+	block
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => line !== '' && !line.startsWith('#'));
+
+const assertRunsInvocation = (block, where) => {
+	assert.ok(
+		executableLines(block).includes(codeownersInvocation),
+		`${where} must run the CODEOWNERS contract from an executable line: \`${codeownersInvocation}\``,
+	);
+};
+
 test('CI controls are owned by the repository owner', () => {
 	assertCodeownersContract(validContents);
 });
@@ -114,27 +142,44 @@ test('a CI ownership rule cannot grant an additional owner', () => {
 });
 
 test('the normal local CI gate runs the CODEOWNERS contract', () => {
-	const localCiDrift = justfileContents.match(
-		/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m,
-	)?.[1];
-
 	assert.ok(localCiDrift, 'justfile must define the ci-drift recipe');
-	assert.match(
-		localCiDrift,
-		/node --test \.\/scripts\/codeowners-contract\.test\.mjs/,
-		'ci-drift must run the CODEOWNERS contract before just ci can pass',
+	assertRunsInvocation(localCiDrift, 'ci-drift');
+});
+
+test('a commented-out ci-drift invocation fails the local wiring check', () => {
+	assert.ok(localCiDrift, 'justfile must define the ci-drift recipe');
+	assert.throws(
+		() =>
+			assertRunsInvocation(
+				localCiDrift.replace(codeownersInvocation, `# ${codeownersInvocation}`),
+				'ci-drift',
+			),
+		/ci-drift must run the CODEOWNERS contract from an executable line/,
 	);
 });
 
 test('the required GitHub gate runs the CODEOWNERS contract', () => {
-	const gateSelftest = frontCiWorkflowContents.match(
-		/\n  gate-selftest:\n[\s\S]*?\n  # Required status check:/,
-	)?.[0];
+	assert.ok(
+		typeof gateSelftestRunBlock === 'string',
+		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+	);
+	assertRunsInvocation(gateSelftestRunBlock, 'gate-selftest');
+});
 
-	assert.ok(gateSelftest, 'front-ci.yml must define the gate-selftest job');
-	assert.match(
-		gateSelftest,
-		/node --test \.\/scripts\/codeowners-contract\.test\.mjs/,
-		'gate-selftest must run the CODEOWNERS contract before front-ci-gate can pass',
+test('a commented-out gate-selftest invocation fails the workflow wiring check', () => {
+	assert.ok(
+		typeof gateSelftestRunBlock === 'string',
+		'front-ci.yml must define the gate-selftest run step that mirrors `just ci-drift`',
+	);
+	assert.throws(
+		() =>
+			assertRunsInvocation(
+				gateSelftestRunBlock.replace(
+					codeownersInvocation,
+					`# ${codeownersInvocation}`,
+				),
+				'gate-selftest',
+			),
+		/gate-selftest must run the CODEOWNERS contract from an executable line/,
 	);
 });
