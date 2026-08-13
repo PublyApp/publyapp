@@ -15,6 +15,7 @@
 		<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
 		<PackageReference Include="Testcontainers" />
 		<PackageReference Include="Testcontainers.PostgreSql" />
+		<PackageReference Include="SSH.NET" />
 		<PackageReference Include="FluentAssertions" />
 		<!-- Lexer for the JobEnqueueBoundary architecture guard: Roslyn's own C#
 		     scanner produces the literal-masked view (version pinned centrally in
