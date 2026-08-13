@@ -26,6 +26,7 @@ DEFAULT_CARD_MAP = os.path.expanduser(
     "~/.hermes/orchestration/projects/card-maps/publyapp.json"
 )
 DEFAULT_API_BASE = "https://api.trello.com/1"
+TRUSTED_API_BASE = "https://api.trello.com/1"
 REQUIRED_SECTIONS = ("Objective", "Current state", "Scope", "Links", "How to test")
 
 LIST_NAMES = {
@@ -163,7 +164,9 @@ def credentials() -> tuple[str, str]:
 def api_base() -> str:
     raw = os.environ.get("TRELLO_PROJECTION_API_BASE", "").strip()
     if not raw:
-        return DEFAULT_API_BASE
+        if DEFAULT_API_BASE != TRUSTED_API_BASE:
+            raise InputError("built-in Trello API base does not match the trusted endpoint")
+        return TRUSTED_API_BASE
     if os.environ.get("TRELLO_PROJECTION_TEST_MODE") != "1":
         raise InputError(
             "TRELLO_PROJECTION_API_BASE requires explicit test mode"
@@ -219,7 +222,10 @@ def live_card(card: object, entry: dict) -> dict:
         raise SourceError(
             f"live Trello card board mismatch: expected {BOARD_ID} got {card.get('idBoard')}"
         )
-    require_delivery_sections(card.get("desc"))
+    try:
+        require_delivery_sections(card.get("desc"))
+    except InputError as error:
+        raise SourceError("live Trello card description is incomplete") from error
     if not isinstance(card.get("idList"), str):
         raise SourceError("live Trello card has no list binding")
     return card

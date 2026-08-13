@@ -257,7 +257,6 @@ jobs:
           node --test ./scripts/ci-gate-aggregation.test.mjs
           node --test ./scripts/check-ci-gate-structure.test.mjs
           node ./scripts/check-ci-gate-structure.mjs
-          pnpm test:project-closure-adapter
 
       # This must run in a required-check dependency, not only locally: the
       # projection protects closure evidence and Trello delivery-card updates.

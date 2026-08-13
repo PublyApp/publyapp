@@ -63,6 +63,44 @@ const closureStates = [
 	'APPROVED',
 	'APPROVED_WITH_FOLLOW_UPS',
 ];
+const expectedStateTargets = {
+	CI_RED: 'EN COURS',
+	CI_INFRA_RETRY: 'EN COURS',
+	FIXING: 'EN COURS',
+	LOCAL_VERIFY: 'EN COURS',
+	REVIEW_READY: 'EN COURS',
+	REVIEWING: 'EN COURS',
+	CHANGES_REQUIRED: 'EN COURS',
+	DESIGN_RESET: 'EN COURS',
+	FOLLOW_UP_FILING: 'EN COURS',
+	UNVERIFIED: 'EN COURS',
+	STALLED: 'EN COURS',
+	NEEDS_RESOLUTION: 'EN COURS',
+	NEEDS_OWNER: 'EN PAUSE (bloqué ailleurs)',
+	APPROVED: 'APPROUVÉ, PRÊT À MERGER',
+	APPROVED_WITH_FOLLOW_UPS: 'APPROUVÉ, PRÊT À MERGER',
+};
+const requiredClosureFields = [
+	'closure_config',
+	'closure_gate',
+	'review_schema',
+	'ci_status_cmd',
+	'ci_rerun_cmd',
+	'local_review_ready_commands',
+	'closure_acceptance_commands',
+	'closure_state_dir',
+	'ci_required_checks',
+	'review_publication_cmd',
+	'follow_up_issue_cmd',
+	'tracking_projection',
+	'projection_adapter',
+	'infra_retry_budget',
+	'stagnation_budget_minutes',
+	'lane_liveness_cmd',
+	'lane_output_floor',
+	'heavy_job_limit',
+	'central_claim_rules',
+];
 
 function run(command, args, options = {}) {
 	return new Promise((resolve, reject) => {
@@ -145,6 +183,12 @@ async function writeCardMap(directory, description, extra = {}) {
 	return path;
 }
 
+async function mutateCardMap(path, mutate) {
+	const cardMap = JSON.parse(await readFile(path, 'utf8'));
+	mutate(cardMap);
+	await writeFile(path, JSON.stringify(cardMap, null, 2));
+}
+
 function adapterArgs(cardMap, state = 'REVIEW_READY', mode = 'dry-run') {
 	return [
 		adapterPath,
@@ -164,6 +208,22 @@ function adapterArgs(cardMap, state = 'REVIEW_READY', mode = 'dry-run') {
 }
 
 function assertLocalConfigShape(config) {
+	const expectedConfigKeys = [
+		'ci_required_checks',
+		'closure_acceptance_commands',
+		'closure_state_dir',
+		'default_branch',
+		'heavy_job_limit',
+		'infra_retry_budget',
+		'local_review_ready_commands',
+		'project',
+		'repo_path',
+		'repository',
+		'schema_version',
+		'stagnation_budget_minutes',
+		'tracking_projection',
+		'verification_command_timeout_seconds',
+	];
 	const expectedCiRequiredChecks = [
 		'require-linked-issue',
 		'openapi-spec-drift-gate',
@@ -176,10 +236,35 @@ function assertLocalConfigShape(config) {
 	assert.equal(config.schema_version, 1);
 	assert.equal(config.project, 'publyapp');
 	assert.equal(config.tracking_projection, 'trello:publyapp');
-	assert.equal(typeof config.default_branch, 'string');
+	assert.equal(config.default_branch, 'develop');
 	assert.equal(config.repository, 'radandevist/publyapp');
-	assert.ok(Array.isArray(config.local_review_ready_commands));
-	assert.ok(Array.isArray(config.closure_acceptance_commands));
+	assert.deepEqual(Object.keys(config).sort(), expectedConfigKeys);
+	for (const pathKey of ['repo_path', 'closure_state_dir']) {
+		assert.equal(typeof config[pathKey], 'string');
+		assert.match(config[pathKey], /^\/(?!tmp(?:\/|$))/);
+	}
+	for (const commandKey of [
+		'local_review_ready_commands',
+		'closure_acceptance_commands',
+	]) {
+		assert.ok(Array.isArray(config[commandKey]));
+		assert.ok(config[commandKey].length > 0);
+		assert.ok(
+			config[commandKey].every(
+				(command) => typeof command === 'string' && command.trim(),
+			),
+		);
+	}
+	for (const integerKey of [
+		'infra_retry_budget',
+		'stagnation_budget_minutes',
+		'heavy_job_limit',
+		'verification_command_timeout_seconds',
+	]) {
+		assert.equal(Number.isInteger(config[integerKey]), true);
+		assert.ok(config[integerKey] > 0);
+	}
+	assert.equal(config.heavy_job_limit, 1);
 	assert.ok(Array.isArray(config.ci_required_checks));
 	assert.equal(
 		JSON.stringify(
@@ -193,7 +278,13 @@ function assertLocalConfigShape(config) {
 				.sort((left, right) => left.localeCompare(right)),
 		),
 	);
-	assert.equal(typeof config.closure_state_dir, 'string');
+}
+
+function assertAdapterClosureFields(adapter) {
+	for (const field of requiredClosureFields) {
+		assert.match(adapter, new RegExp('\\| `' + field + '` \\|'));
+	}
+	assert.match(adapter, /\| `review_schema` \| `1`;/);
 }
 
 async function localBranchAndHead() {
@@ -221,6 +312,17 @@ test('project closure config validates and malformed config fails closed', async
 	assert.notEqual(adapterStat.mode & 0o111, 0);
 	const adapterSource = await readFile(adapterPath, 'utf8');
 	assert.doesNotMatch(adapterSource, /TRELLO_PROJECTION_ENV_FILE/);
+	assert.match(
+		adapterSource,
+		/DEFAULT_API_BASE = "https:\/\/api\.trello\.com\/1"/,
+	);
+	assert.match(
+		adapterSource,
+		/TRUSTED_API_BASE = "https:\/\/api\.trello\.com\/1"/,
+	);
+	assertAdapterClosureFields(
+		await readFile(join(repo, '.ai/orchestration-adapter.md'), 'utf8'),
+	);
 	await withTempDirectory(async (directory) => {
 		const invalidPath = join(directory, 'invalid.json');
 		await writeFile(
@@ -252,6 +354,25 @@ test('project closure config validates and malformed config fails closed', async
 	});
 });
 
+test('portable closure contract rejects unsafe config and renamed adapter fields', async () => {
+	const config = JSON.parse(await readFile(configPath, 'utf8'));
+	assert.throws(() =>
+		assertLocalConfigShape({ ...config, repo_path: '/tmp/publyapp' }),
+	);
+	const missingBudget = { ...config };
+	delete missingBudget.infra_retry_budget;
+	assert.throws(() => assertLocalConfigShape(missingBudget));
+	const adapter = await readFile(
+		join(repo, '.ai/orchestration-adapter.md'),
+		'utf8',
+	);
+	assert.throws(() =>
+		assertAdapterClosureFields(
+			adapter.replace('`review_schema`', '`review_record_schema`'),
+		),
+	);
+});
+
 test('closure verification is wired into both shared phases and the just ci gate', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
 	const justfile = await readFile(join(repo, 'justfile'), 'utf8');
@@ -271,6 +392,7 @@ test('closure verification is wired into both shared phases and the just ci gate
 		workflow,
 		/- name: Run project closure adapter tests\n\s+run: pnpm test:project-closure-adapter/,
 	);
+	assert.equal(workflow.match(/pnpm test:project-closure-adapter/g)?.length, 1);
 });
 
 test(
@@ -373,8 +495,38 @@ test('projection supports every closure state in this adapter', async () => {
 		for (const state of closureStates) {
 			const result = await run('python3', adapterArgs(cardMap, state));
 			assert.equal(result.code, 0, `${state}: ${result.stderr}`);
-			assert.equal(JSON.parse(result.stdout).applied, false);
+			const protocol = JSON.parse(result.stdout);
+			assert.equal(protocol.applied, false);
+			assert.ok(
+				protocol.changes[0].summary.includes(expectedStateTargets[state]),
+			);
 		}
+	});
+});
+
+test('projection rejects invalid durable card-map controls before any Trello call', async () => {
+	await withTempDirectory(async (directory) => {
+		for (const mutate of [
+			(cardMap) => {
+				cardMap.board_id = 'foreign-board';
+			},
+			(cardMap) => {
+				cardMap.cards[PR_NUMBER].list = 'BACKLOG';
+			},
+		]) {
+			const cardMap = await writeCardMap(directory, completeDescription);
+			await mutateCardMap(cardMap, mutate);
+			const result = await run('python3', adapterArgs(cardMap));
+			assert.equal(result.code, 2);
+			assert.equal(result.stdout, '');
+		}
+		const unknownState = await writeCardMap(directory, completeDescription);
+		const stateResult = await run(
+			'python3',
+			adapterArgs(unknownState, 'NOT_A_STATE'),
+		);
+		assert.equal(stateResult.code, 2);
+		assert.equal(stateResult.stdout, '');
 	});
 });
 
@@ -447,6 +599,61 @@ test('projection rejects a non-loopback API base before attaching credentials', 
 		assert.equal(result.stdout, '');
 		assert.match(result.stderr, /loopback|API base|test mode/i);
 	});
+});
+
+test('projection rejects a mutated built-in API base before credentials can be used', async () => {
+	const result = await run('python3', [
+		'-c',
+		[
+			'import os, sys',
+			'module = {"__name__": "projection_test"}',
+			'exec(compile(open(sys.argv[1], encoding="utf-8").read(), sys.argv[1], "exec"), module)',
+			'module["DEFAULT_API_BASE"] = "https://evil.example/1"',
+			'os.environ.pop("TRELLO_PROJECTION_API_BASE", None)',
+			'try:',
+			'    module["api_base"]()',
+			'except module["InputError"]:',
+			'    raise SystemExit(0)',
+			'raise SystemExit(1)',
+		].join('\n'),
+		adapterPath,
+	]);
+	assert.equal(result.code, 0, result.stderr);
+});
+
+test('projection rejects even a loopback override without explicit test mode before requests', async () => {
+	const requests = [];
+	const server = createServer((request, response) => {
+		requests.push(request.url);
+		response.end('{}');
+	});
+	await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+	try {
+		await withTempDirectory(async (directory) => {
+			const cardMap = await writeCardMap(directory, completeDescription);
+			const address = server.address();
+			assert.ok(address && typeof address === 'object');
+			const result = await run(
+				'python3',
+				adapterArgs(cardMap, 'APPROVED', 'apply'),
+				{
+					env: {
+						...process.env,
+						TRELLO_API_KEY: 'fixture-key',
+						TRELLO_TOKEN: 'fixture-token',
+						TRELLO_PROJECTION_API_BASE: `http://127.0.0.1:${address.port}/1`,
+						TRELLO_PROJECTION_TEST_MODE: '',
+					},
+				},
+			);
+			assert.equal(result.code, 2);
+			assert.equal(requests.length, 0);
+		});
+	} finally {
+		await new Promise((resolve, reject) =>
+			server.close((error) => (error ? reject(error) : resolve())),
+		);
+	}
 });
 
 test('projection apply verifies the live delivery card before moving it', async () => {
@@ -595,6 +802,86 @@ test('projection rejects a live card from a foreign board without moving it', as
 		await new Promise((resolve, reject) =>
 			server.close((error) => (error ? reject(error) : resolve())),
 		);
+	}
+});
+
+test('projection fails closed without a PUT for invalid live Trello controls', async () => {
+	const cases = [
+		{
+			name: 'duplicate target list',
+			lists: [
+				{ id: 'list-approved-a', name: 'APPROUVÉ, PRÊT À MERGER' },
+				{ id: 'list-approved-b', name: 'APPROUVÉ, PRÊT À MERGER' },
+			],
+			card: {},
+		},
+		{
+			name: 'live name mismatch',
+			lists: [{ id: 'list-approved', name: 'APPROUVÉ, PRÊT À MERGER' }],
+			card: { name: 'different card title' },
+		},
+		{
+			name: 'malformed live description',
+			lists: [{ id: 'list-approved', name: 'APPROUVÉ, PRÊT À MERGER' }],
+			card: { desc: '## Objective\nOnly one heading.' },
+		},
+	];
+	for (const fixture of cases) {
+		const requests = [];
+		const server = createServer((request, response) => {
+			requests.push({ method: request.method, url: request.url });
+			response.setHeader('content-type', 'application/json');
+			if (request.method === 'GET' && request.url.includes('/lists')) {
+				response.end(JSON.stringify(fixture.lists));
+				return;
+			}
+			if (request.method === 'GET' && request.url.includes('/cards/')) {
+				response.end(
+					JSON.stringify({
+						id: 'card-fixture-1105',
+						idBoard: '6a766eaa8fc59bfbeb18ce9b',
+						idList: 'list-in-progress',
+						name: 'PR #1105 — closure gate',
+						desc: completeDescription,
+						...fixture.card,
+					}),
+				);
+				return;
+			}
+			response.statusCode = 500;
+			response.end('{}');
+		});
+		await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+		try {
+			await withTempDirectory(async (directory) => {
+				const cardMap = await writeCardMap(directory, completeDescription);
+				const address = server.address();
+				assert.ok(address && typeof address === 'object');
+				const result = await run(
+					'python3',
+					adapterArgs(cardMap, 'APPROVED', 'apply'),
+					{
+						env: {
+							...process.env,
+							TRELLO_API_KEY: 'fixture-key',
+							TRELLO_TOKEN: 'fixture-token',
+							TRELLO_PROJECTION_API_BASE: `http://127.0.0.1:${address.port}/1`,
+							TRELLO_PROJECTION_TEST_MODE: '1',
+						},
+					},
+				);
+				assert.equal(result.code, 3, fixture.name);
+				assert.equal(result.stdout, '');
+				assert.equal(
+					requests.filter(({ method }) => method === 'PUT').length,
+					0,
+				);
+			});
+		} finally {
+			await new Promise((resolve, reject) =>
+				server.close((error) => (error ? reject(error) : resolve())),
+			);
+		}
 	}
 });
 
