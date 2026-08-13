@@ -9,22 +9,29 @@ resets and stays under budget, **this gate is the pre-merge net** — see issue 
 
 ## The two targets
 
-| | `just ci` | `just ci-full` |
-| --- | --- | --- |
-| Workflow drift guard | yes | yes |
-| Exact-pin + frozen-lockfile install | yes | yes |
-| `pnpm format` (repo-wide oxfmt) | yes | yes |
-| Lint (oxlint scope CI uses, disables audit, barrel check) | yes | yes |
-| front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes | yes |
-| old-front unit characterization + typecheck | yes | yes |
-| `openapi.json` / `client-ts` drift + OpenAPI contract spec | yes | yes |
-| `ci-migration-expand-contract` | yes | yes |
-| **Full API test suite** (`just test-api`) | yes | yes |
-| front e2e (docker compose + Playwright + drawer-contrast Vitest guard) | no | yes |
-| old-front e2e characterization (docker compose + Playwright) | no | yes |
+|                                                                                                   | `just ci` | `just ci-full` |
+| ------------------------------------------------------------------------------------------------- | --------- | -------------- |
+| Workflow drift guard                                                                              | yes       | yes            |
+| Exact-pin + frozen-lockfile install                                                               | yes       | yes            |
+| `pnpm format` (repo-wide oxfmt)                                                                   | yes       | yes            |
+| Lint (oxlint scope CI uses, disables audit, barrel check)                                         | yes       | yes            |
+| front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes       | yes            |
+| old-front unit characterization + typecheck                                                       | yes       | yes            |
+| `openapi.json` / `client-ts` drift + OpenAPI contract spec                                        | yes       | yes            |
+| `ci-migration-expand-contract`                                                                    | yes       | yes            |
+| Project PR-closure adapter contract (`pnpm test:project-closure-adapter`)                         | yes       | yes            |
+| **Full API test suite** (`just test-api`)                                                         | yes       | yes            |
+| front e2e (docker compose + Playwright + drawer-contrast Vitest guard)                            | no        | yes            |
+| old-front e2e characterization (docker compose + Playwright)                                      | no        | yes            |
 
 `just ci` is the everyday loop. Run `just ci-full` before merging anything that touches
 frontend behaviour, since that is where the e2e suites earn their runtime.
+
+`pnpm test:project-closure-adapter` is now a permanent subgate of `front-ci`.
+It runs in `front-ci.yml::gate-selftest` and is mirrored by
+`ci-project-closure-adapter` in `just ci` and required during PR closure in
+`.ai/project-closure-v1.json` (`local_review_ready_commands` and
+`closure_acceptance_commands`).
 
 Sub-gates are ordinary recipes (`just ci-drift`, `just ci-front`, …), so you can run one
 in isolation while iterating. `just` stops at the first failing recipe and names it:
@@ -78,12 +85,12 @@ It parses every `.github/workflows/*.yml` and content-addresses each step — th
 
 The gate fails on:
 
-| Finding | Meaning |
-| --- | --- |
-| `NEW STEP` | CI grew a step nothing here accounts for. |
-| `CHANGED` | A reconciled step's command, inputs, env, condition, or continue-on-error flag changed. |
-| `STALE` | The manifest reconciles a step that no longer exists. |
-| shape error | An entry with no `mirror`, or a `reason` under 24 characters. |
+| Finding     | Meaning                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------- |
+| `NEW STEP`  | CI grew a step nothing here accounts for.                                               |
+| `CHANGED`   | A reconciled step's command, inputs, env, condition, or continue-on-error flag changed. |
+| `STALE`     | The manifest reconciles a step that no longer exists.                                   |
+| shape error | An entry with no `mirror`, or a `reason` under 24 characters.                           |
 
 It also fails closed when two steps in a job share an identity, since one could otherwise
 hide behind the other's entry forever.
@@ -159,7 +166,7 @@ own steps):
   name only for `pull_request` and `merge_group`, and to a non-required `<workflow>-push-check`
   name for any other event. A gate workflow's `on:` may additionally declare only `push`; any other
   event is rejected outright. Both halves matter: an earlier `github.event_name == 'push' && … || …`
-  form resolved to the *required* name for every non-push event, so simply adding
+  form resolved to the _required_ name for every non-push event, so simply adding
   `workflow_dispatch:` produced a second reporter (a manual run takes a branch/tag ref and uses its
   last commit as `GITHUB_SHA`).
 - The guard scans **every job in every workflow in the repository** and requires each of the eight
@@ -252,12 +259,12 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
 Measured on a warm Linux checkout with warm docker layers. A cold run is
 substantially slower — the first `ci-full` pays several minutes to build the e2e images.
 
-| Target | Time | Notes |
-| --- | --- | --- |
-| `just ci` | ~4m 20s | of which `just test-api` is ~1m 45s (1,158 tests) |
-| `just ci-e2e-front` | ~8m 15s | 180 Playwright tests + the 107-test drawer-contrast Vitest source guard + docker stack |
-| `just ci-e2e-old-front` | ~8m | 13 Playwright tests; mostly docker build |
-| `just ci-full` | ~21m | the two e2e suites are ~80% of it |
+| Target                  | Time    | Notes                                                                                  |
+| ----------------------- | ------- | -------------------------------------------------------------------------------------- |
+| `just ci`               | ~4m 20s | of which `just test-api` is ~1m 45s (1,158 tests)                                      |
+| `just ci-e2e-front`     | ~8m 15s | 180 Playwright tests + the 107-test drawer-contrast Vitest source guard + docker stack |
+| `just ci-e2e-old-front` | ~8m     | 13 Playwright tests; mostly docker build                                               |
+| `just ci-full`          | ~21m    | the two e2e suites are ~80% of it                                                      |
 
 That split is the reason `ci` and `ci-full` are separate targets: the everyday loop stays
 in the 4-minute range, and you pay the 20 minutes only when frontend behaviour changed.

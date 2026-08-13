@@ -328,6 +328,12 @@ ci-docs-archive-records:
   node --test ./scripts/check-archive-records.test.mjs
   node ./scripts/check-archive-records.mjs
 
+# Ensure the shared PR-closure projection cannot drift from the project's
+# durable config, board contract, or fail-closed security rules.
+ci-project-closure-adapter:
+  @echo "=== [gate] project closure adapter ==="
+  pnpm test:project-closure-adapter
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -404,7 +410,7 @@ ci-e2e-old-front:
   pnpm --filter old-front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-install ci-format ci-lint ci-front ci-old-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-front ci-old-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

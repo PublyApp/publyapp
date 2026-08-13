@@ -1,0 +1,304 @@
+#!/usr/bin/env python3
+"""Fail-closed PublyApp Trello projection for the shared PR closure gate.
+
+The state machine remains in the shared playbook. This executable only binds
+the PublyApp board, validates a durable card projection, and optionally moves
+that exact card through Trello's API. Dry-runs use the card-map snapshot and
+never need credentials; apply re-reads the card and list from Trello before a
+move. A card cannot create approval evidence: the only write is ``idList``.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+
+PROJECT = "publyapp"
+MAPPING = "trello:publyapp"
+BOARD_ID = "6a766eaa8fc59bfbeb18ce9b"
+SCHEMA_VERSION = 1
+DEFAULT_CARD_MAP = os.path.expanduser(
+    "~/.hermes/orchestration/projects/card-maps/publyapp.json"
+)
+DEFAULT_API_BASE = "https://api.trello.com/1"
+TRUSTED_API_BASE = "https://api.trello.com/1"
+REQUIRED_SECTIONS = ("Objective", "Current state", "Scope", "Links", "How to test")
+
+LIST_NAMES = {
+    "EN COURS": "EN COURS",
+    "EN PAUSE (bloqué ailleurs)": "EN PAUSE (bloqué ailleurs)",
+    "APPROUVÉ, PRÊT À MERGER": "APPROUVÉ, PRÊT À MERGER",
+}
+STATE_TARGETS = {
+    "CI_RED": "EN COURS",
+    "CI_INFRA_RETRY": "EN COURS",
+    "FIXING": "EN COURS",
+    "LOCAL_VERIFY": "EN COURS",
+    "REVIEW_READY": "EN COURS",
+    "REVIEWING": "EN COURS",
+    "CHANGES_REQUIRED": "EN COURS",
+    "DESIGN_RESET": "EN COURS",
+    "FOLLOW_UP_FILING": "EN COURS",
+    "UNVERIFIED": "EN COURS",
+    "STALLED": "EN COURS",
+    "NEEDS_RESOLUTION": "EN COURS",
+    "NEEDS_OWNER": "EN PAUSE (bloqué ailleurs)",
+    "APPROVED": "APPROUVÉ, PRÊT À MERGER",
+    "APPROVED_WITH_FOLLOW_UPS": "APPROUVÉ, PRÊT À MERGER",
+}
+CARD_MAP_KEYS = {"schema_version", "project", "board_id", "cards"}
+CARD_KEYS = {"id", "name", "list", "description"}
+ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+
+
+class InputError(Exception):
+    """The adapter input is malformed; exit 2."""
+
+
+class SourceError(Exception):
+    """Trello or credential reads failed; exit 3."""
+
+
+def fail(message: str, code: int) -> int:
+    print(message, file=sys.stderr)
+    return code
+
+
+def load_json(path: str) -> dict:
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            value = json.load(handle)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise InputError(f"cannot read card map: {error}") from error
+    if not isinstance(value, dict):
+        raise InputError("card map must be a JSON object")
+    return value
+
+
+def require_delivery_sections(description: object) -> str:
+    if not isinstance(description, str) or not description.strip():
+        raise InputError("delivery card description is empty")
+    heading = re.compile(r"^\s*#+\s*(?P<title>.+?)\s*$")
+    lines = description.splitlines()
+    positions = {}
+    for index, line in enumerate(lines):
+        match = heading.match(line)
+        if match is not None:
+            title = match.group("title").strip()
+            if title in REQUIRED_SECTIONS and title not in positions:
+                positions[title] = index
+    missing = [section for section in REQUIRED_SECTIONS if section not in positions]
+    if missing:
+        raise InputError(
+            "delivery card is incomplete; missing sections: " + ", ".join(missing)
+        )
+    empty = []
+    for section in REQUIRED_SECTIONS:
+        start = positions[section] + 1
+        end = len(lines)
+        for index in range(start, len(lines)):
+            if heading.match(lines[index]) is not None:
+                end = index
+                break
+        if not any(line.strip() for line in lines[start:end]):
+            empty.append(section)
+    if empty:
+        raise InputError(
+            "delivery card sections must have a nonblank body: " + ", ".join(empty)
+        )
+    return description
+
+
+def load_card_map(path: str, pr: int) -> dict:
+    value = load_json(path)
+    unknown = sorted(set(value) - CARD_MAP_KEYS)
+    if unknown:
+        raise InputError("card map has unknown keys: " + ", ".join(unknown))
+    if value.get("schema_version") != SCHEMA_VERSION:
+        raise InputError("card map schema_version must be 1")
+    if value.get("project") != PROJECT:
+        raise InputError(f"card map project must be {PROJECT!r}")
+    if value.get("board_id") != BOARD_ID:
+        raise InputError("card map board_id does not match the PublyApp board")
+    cards = value.get("cards")
+    if not isinstance(cards, dict):
+        raise InputError("card map cards must be an object")
+    entry = cards.get(str(pr))
+    if not isinstance(entry, dict):
+        raise InputError(f"card map has no exact entry for PR #{pr}")
+    if set(entry) != CARD_KEYS:
+        missing = sorted(CARD_KEYS - set(entry))
+        unknown_entry = sorted(set(entry) - CARD_KEYS)
+        details = []
+        if missing:
+            details.append("missing " + ", ".join(missing))
+        if unknown_entry:
+            details.append("unknown " + ", ".join(unknown_entry))
+        raise InputError("card map entry is malformed: " + "; ".join(details))
+    if not isinstance(entry["id"], str) or ID_RE.fullmatch(entry["id"]) is None:
+        raise InputError("card map entry id is malformed")
+    for field in ("name", "list"):
+        if not isinstance(entry[field], str) or not entry[field].strip():
+            raise InputError(f"card map entry {field} must be non-empty")
+    require_delivery_sections(entry["description"])
+    if entry["list"] not in LIST_NAMES:
+        raise InputError(f"card map entry list is not a PublyApp workflow list: {entry['list']!r}")
+    return entry
+
+
+def credentials() -> tuple[str, str]:
+    # Credentials are sourced only from TRELLO_API_KEY and TRELLO_TOKEN.
+    key = os.environ.get("TRELLO_API_KEY", "").strip()
+    token = os.environ.get("TRELLO_TOKEN", "").strip()
+    missing = [name for name, value in (("TRELLO_API_KEY", key), ("TRELLO_TOKEN", token)) if not value]
+    if missing:
+        raise SourceError("Trello credentials missing: " + ", ".join(missing))
+    return key, token
+
+
+def api_base() -> str:
+    raw = os.environ.get("TRELLO_PROJECTION_API_BASE", "").strip()
+    if not raw:
+        if DEFAULT_API_BASE != TRUSTED_API_BASE:
+            raise InputError("built-in Trello API base does not match the trusted endpoint")
+        return TRUSTED_API_BASE
+    if os.environ.get("TRELLO_PROJECTION_TEST_MODE") != "1":
+        raise InputError(
+            "TRELLO_PROJECTION_API_BASE requires explicit test mode"
+        )
+    parsed = urllib.parse.urlparse(raw)
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise InputError(
+            "TRELLO_PROJECTION_API_BASE is allowed only for a loopback test server"
+        )
+    return raw.rstrip("/")
+
+
+def request(
+    method: str, path: str, params: dict, key: str, token: str, base: str
+) -> object:
+    query = {**params, "key": key, "token": token}
+    url = f"{base}{path}?{urllib.parse.urlencode(query)}"
+    try:
+        req = urllib.request.Request(url, method=method, data=b"" if method != "GET" else None)
+        with urllib.request.urlopen(req, timeout=15) as response:
+            raw = response.read().decode("utf-8")
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as error:
+        raise SourceError(f"Trello API {method} {path} failed") from error
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise SourceError(f"Trello API {method} {path} returned malformed JSON") from error
+    return value
+
+
+def exact_list(lists: object, name: str) -> dict:
+    if not isinstance(lists, list):
+        raise SourceError("Trello board lists response is malformed")
+    matches = [item for item in lists if isinstance(item, dict) and item.get("name") == name]
+    if len(matches) != 1 or not isinstance(matches[0].get("id"), str):
+        raise SourceError(f"Trello board must contain exactly one list named {name!r}")
+    return matches[0]
+
+
+def live_card(card: object, entry: dict) -> dict:
+    if not isinstance(card, dict):
+        raise SourceError("Trello card response is malformed")
+    if card.get("id") != entry["id"] or card.get("name") != entry["name"]:
+        raise SourceError("live Trello card does not match the durable card map")
+    if card.get("idBoard") != BOARD_ID:
+        raise SourceError(
+            f"live Trello card board mismatch: expected {BOARD_ID} got {card.get('idBoard')}"
+        )
+    try:
+        require_delivery_sections(card.get("desc"))
+    except InputError as error:
+        raise SourceError("live Trello card description is incomplete") from error
+    if not isinstance(card.get("idList"), str):
+        raise SourceError("live Trello card has no list binding")
+    return card
+
+
+def result(applied: bool, summary: str) -> None:
+    print(json.dumps({
+        "schema_version": SCHEMA_VERSION,
+        "applied": applied,
+        "changes": [{"type": "card_move", "summary": summary}],
+    }, ensure_ascii=False, separators=(",", ":")))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--project", required=True)
+    parser.add_argument("--pr", required=True, type=int)
+    parser.add_argument("--mapping", required=True)
+    parser.add_argument("--state", required=True)
+    parser.add_argument("--mode", choices=("dry-run", "apply"), required=True)
+    parser.add_argument("--card-map", default=os.environ.get("PUBLYAPP_TRELLO_CARD_MAP", DEFAULT_CARD_MAP))
+    args = parser.parse_args()
+    try:
+        if args.project != PROJECT:
+            raise InputError(f"project must be {PROJECT!r}")
+        if args.mapping != MAPPING:
+            raise InputError(f"mapping must be {MAPPING!r}")
+        if args.pr < 1:
+            raise InputError("PR number must be positive")
+        target = STATE_TARGETS.get(args.state)
+        if target is None:
+            raise InputError(f"unsupported closure state: {args.state!r}")
+        entry = load_card_map(args.card_map, args.pr)
+        # The snapshot is only enough for a dry-run. It is never an approval
+        # source, and the adapter emits only a list-move operation.
+        if args.mode == "dry-run":
+            result(False, f"would move the mapped delivery card to {target!r}")
+            return 0
+        base = api_base()
+        key, token = credentials()
+        lists = request(
+            "GET", f"/boards/{BOARD_ID}/lists", {"fields": "name"}, key, token, base
+        )
+        target_list = exact_list(lists, target)
+        card = live_card(
+            request(
+                "GET",
+                f"/cards/{entry['id']}",
+                {"fields": "name,idList,desc,idBoard"},
+                key,
+                token,
+                base,
+            ),
+            entry,
+        )
+        if card["idList"] != target_list["id"]:
+            request(
+                "PUT",
+                f"/cards/{entry['id']}",
+                {"idList": target_list["id"]},
+                key,
+                token,
+                base,
+            )
+            result(True, f"moved the mapped delivery card to {target!r}")
+        else:
+            result(True, "mapped delivery card already has the derived workflow list")
+        return 0
+    except InputError as error:
+        return fail(str(error), 2)
+    except SourceError as error:
+        return fail(str(error), 3)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
