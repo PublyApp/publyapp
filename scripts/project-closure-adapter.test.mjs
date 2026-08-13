@@ -219,6 +219,8 @@ test('project closure config validates and malformed config fails closed', async
 	const adapterStat = await lstat(adapterPath);
 	assert.equal(adapterStat.isSymbolicLink(), false);
 	assert.notEqual(adapterStat.mode & 0o111, 0);
+	const adapterSource = await readFile(adapterPath, 'utf8');
+	assert.doesNotMatch(adapterSource, /TRELLO_PROJECTION_ENV_FILE/);
 	await withTempDirectory(async (directory) => {
 		const invalidPath = join(directory, 'invalid.json');
 		await writeFile(
@@ -409,6 +411,7 @@ test('projection apply fails closed without credentials and emits no protocol su
 					...process.env,
 					TRELLO_API_KEY: '',
 					TRELLO_TOKEN: '',
+					TRELLO_PROJECTION_ENV_FILE: '',
 					TRELLO_PROJECTION_API_BASE: '',
 					TRELLO_PROJECTION_TEST_MODE: '',
 					PUBLYAPP_TRELLO_CARD_MAP: cardMap,
