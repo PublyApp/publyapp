@@ -223,14 +223,8 @@ just dev-api
 pnpm --filter front dev
 ```
 
-Before migrating, edit `.env.development` so its database connection matches the local container:
-
-```dotenv
-POSTGRES_CONNECTION_STRING="Host=localhost;Port=5454;Database=publyapp_db;Username=postgres;Password=password"
-```
-
-The committed template deliberately contains placeholders; its database name and password do not
-match `docker-compose.services.yml`.
+The copied template already targets the local Compose database. Keep its local development values
+unless you intentionally run a different local database.
 
 > **Heads-up on legacy frontend recipes.** `dev-old-front`, `build-old-front`, `build-deploy`,
 > `deploy-old-front`, `deploy`, `start-old-front`, `tsc-old-front`, `ci-old-front`, `ci-e2e-old-front`, and
@@ -254,9 +248,11 @@ match `docker-compose.services.yml`.
 
 Local development configuration lives in `.env.development`. It is the only env file the API loads,
 and only when the host environment is Development or unset; the API throws at startup or during
-build-time initialization when the file is required but absent. `.env.production` is gitignored but
-is not consumed — production variables come from Dokploy. Real env files must never be committed;
-`AppEnvironment` validates the resulting runtime environment variables at startup.
+build-time initialization when the file is required but absent. Deployed configuration comes from
+the active PaaS configuration/secrets service (Dokploy today), never from an application-loaded
+`.env` file. A local `.env.production` may be an ignored, manually imported personal reference, but
+the application never loads it. Real env files must never be committed; `AppEnvironment` validates
+the resulting runtime environment variables at startup.
 
 <!-- markdownlint-enable MD013 MD060 -->
 
