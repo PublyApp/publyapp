@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.CompilerServices;
 
 using FluentAssertions;
@@ -8,24 +9,64 @@ namespace PublyApp.Api.Lib;
 
 public sealed class
 	AppEnvironmentRateLimitSecuritySpec {
-	[Theory]
-	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), null)]
-	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "")]
-	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "   ")]
-	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), null)]
-	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "")]
-	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "   ")]
-	public void ItShouldUseTheUploadBudgetDefaultWhenTheEnvironmentValueIsAbsentOrBlank(
-		string name,
-		string? value
-	) {
-		var defaultValue = GetUploadBudgetDefault(name);
+	// Environment variables are process-wide and xUnit schedules test classes
+	// in parallel, so every test that mutates an env var below serializes on
+	// this lock and restores the previous value in a finally block.
+	private static readonly Lock EnvLock = new();
 
-		AppEnvironment.ParseOptionalLong(
-			name,
-			value,
-			defaultValue
-		).Should().Be(defaultValue);
+	[Theory]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), "2048")]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), "2048")]
+	public void ItShouldReadTheUploadBudgetFromTheProcessEnvironment(
+		string name,
+		string value
+	) {
+		lock (EnvLock) {
+			var previous = Environment.GetEnvironmentVariable(name);
+			try {
+				Environment.SetEnvironmentVariable(name, value);
+
+				AppEnvironment.GetOptionalLong(name, 0)
+					.Should().Be(long.Parse(
+						value,
+						NumberStyles.Integer,
+						CultureInfo.InvariantCulture
+					));
+			} finally {
+				Environment.SetEnvironmentVariable(name, previous);
+			}
+		}
+	}
+
+	[Theory]
+	[InlineData(nameof(AppEnvironment.UPLOAD_GLOBAL_MAX_BYTES), 1_073_741_824L)]
+	[InlineData(nameof(AppEnvironment.UPLOAD_PER_STAFF_MAX_BYTES), 104_857_600L)]
+	public void
+	ItShouldFallBackToTheLiteralUploadBudgetDefaultWhenTheEnvironmentIsAbsentOrBlank(
+		string name,
+		long literalDefault
+	) {
+		lock (EnvLock) {
+			var previous = Environment.GetEnvironmentVariable(name);
+			try {
+				foreach (var absentValue in new string?[] { null, "", "   " }) {
+					Environment.SetEnvironmentVariable(name, absentValue);
+
+					AppEnvironment.GetOptionalLong(
+						name,
+						GetUploadBudgetDefault(name)
+					).Should().Be(literalDefault);
+				}
+			} finally {
+				Environment.SetEnvironmentVariable(name, previous);
+			}
+		}
+	}
+
+	[Fact]
+	public void ItShouldPinTheUploadBudgetDefaultsToTheirLiteralValues() {
+		AppEnvironment.DefaultUploadGlobalMaxBytes.Should().Be(1_073_741_824L);
+		AppEnvironment.DefaultUploadPerStaffMaxBytes.Should().Be(104_857_600L);
 	}
 
 	[Theory]
@@ -39,14 +80,22 @@ public sealed class
 		string name,
 		string value
 	) {
-		var act = () => AppEnvironment.ParseOptionalLong(
-			name,
-			value,
-			GetUploadBudgetDefault(name)
-		);
+		lock (EnvLock) {
+			var previous = Environment.GetEnvironmentVariable(name);
+			try {
+				Environment.SetEnvironmentVariable(name, value);
 
-		act.Should().Throw<InvalidOperationException>()
-			.WithMessage($"*{name}*");
+				var act = () => AppEnvironment.GetOptionalLong(
+					name,
+					GetUploadBudgetDefault(name)
+				);
+
+				act.Should().Throw<InvalidOperationException>()
+					.WithMessage($"*{name}*");
+			} finally {
+				Environment.SetEnvironmentVariable(name, previous);
+			}
+		}
 	}
 
 	[Theory]

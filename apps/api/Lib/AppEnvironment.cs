@@ -687,7 +687,7 @@ public class AppEnvironment {
 		return result;
 	}
 
-	private static long GetOptionalLong(string name, long defaultValue) {
+	internal static long GetOptionalLong(string name, long defaultValue) {
 		return ParseOptionalLong(
 			name,
 			Environment.GetEnvironmentVariable(name),
