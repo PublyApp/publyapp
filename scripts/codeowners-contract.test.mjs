@@ -3,6 +3,11 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const codeownersPath = new URL('../.github/CODEOWNERS', import.meta.url);
+const justfilePath = new URL('../justfile', import.meta.url);
+const frontCiWorkflowPath = new URL(
+	'../.github/workflows/front-ci.yml',
+	import.meta.url,
+);
 const requiredPatterns = [
 	'/.github/workflows/**',
 	'/scripts/ci-*.mjs',
@@ -80,6 +85,8 @@ const assertCodeownersContract = (contents) => {
 };
 
 const validContents = readFileSync(codeownersPath, 'utf8');
+const justfileContents = readFileSync(justfilePath, 'utf8');
+const frontCiWorkflowContents = readFileSync(frontCiWorkflowPath, 'utf8');
 
 test('CI controls are owned by the repository owner', () => {
 	assertCodeownersContract(validContents);
@@ -103,5 +110,31 @@ test('a CI ownership rule cannot grant an additional owner', () => {
 				),
 			),
 		/must resolve to exactly @radandevist/,
+	);
+});
+
+test('the normal local CI gate runs the CODEOWNERS contract', () => {
+	const localCiDrift = justfileContents.match(
+		/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m,
+	)?.[1];
+
+	assert.ok(localCiDrift, 'justfile must define the ci-drift recipe');
+	assert.match(
+		localCiDrift,
+		/node --test \.\/scripts\/codeowners-contract\.test\.mjs/,
+		'ci-drift must run the CODEOWNERS contract before just ci can pass',
+	);
+});
+
+test('the required GitHub gate runs the CODEOWNERS contract', () => {
+	const gateSelftest = frontCiWorkflowContents.match(
+		/\n  gate-selftest:\n[\s\S]*?\n  # Required status check:/,
+	)?.[0];
+
+	assert.ok(gateSelftest, 'front-ci.yml must define the gate-selftest job');
+	assert.match(
+		gateSelftest,
+		/node --test \.\/scripts\/codeowners-contract\.test\.mjs/,
+		'gate-selftest must run the CODEOWNERS contract before front-ci-gate can pass',
 	);
 });

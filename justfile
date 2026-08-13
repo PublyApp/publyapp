@@ -302,6 +302,7 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 # #1017 requires.
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
+  node --test ./scripts/codeowners-contract.test.mjs
   pnpm test:ci-drift
   node --test ./scripts/lint-front.test.mjs
   node ./scripts/check-ci-drift.mjs

@@ -12,6 +12,7 @@ resets and stays under budget, **this gate is the pre-merge net** — see issue 
 |                                                                                                   | `just ci` | `just ci-full` |
 | ------------------------------------------------------------------------------------------------- | --------- | -------------- |
 | Workflow drift guard                                                                              | yes       | yes            |
+| CODEOWNERS contract (including protected-rule mutation proofs)                                    | yes       | yes            |
 | Exact-pin + frozen-lockfile install                                                               | yes       | yes            |
 | `pnpm format` (repo-wide oxfmt)                                                                   | yes       | yes            |
 | Lint (oxlint scope CI uses, disables audit, barrel check)                                         | yes       | yes            |
