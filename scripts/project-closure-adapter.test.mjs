@@ -218,9 +218,9 @@ test('projection dry-run is credential-free and cannot create approval evidence'
 		]);
 		assert.equal(protocol.schema_version, 1);
 		assert.equal(protocol.applied, false);
-		assert.equal(protocol.changes[0].type, 'move_card');
+		assert.equal(protocol.changes[0].type, 'card_move');
 		assert.equal(
-			protocol.changes.some(({ type }) => type === 'approve'),
+			protocol.changes.some(({ type }) => type === 'card_update'),
 			false,
 		);
 		assert.equal(result.stderr, '');

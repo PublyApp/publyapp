@@ -195,7 +195,7 @@ def result(applied: bool, summary: str) -> None:
     print(json.dumps({
         "schema_version": SCHEMA_VERSION,
         "applied": applied,
-        "changes": [{"type": "move_card", "summary": summary}],
+        "changes": [{"type": "card_move", "summary": summary}],
     }, ensure_ascii=False, separators=(",", ":")))
 
 
