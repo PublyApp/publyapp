@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "project": "publyapp",
+  "repository": "radandevist/publyapp",
+  "repo_path": "/home/radan/Projects/PublyApp/publyapp",
+  "default_branch": "develop",
+  "closure_state_dir": "/home/radan/.hermes/orchestration/closure",
+  "local_review_ready_commands": [
+    "eval \"$(fnm env)\" && fnm use 24 && pnpm --filter front typecheck",
+    "eval \"$(fnm env)\" && fnm use 24 && pnpm --filter front test"
+  ],
+  "closure_acceptance_commands": [
+    "export TRUSTED_PROXY_CIDRS='127.0.0.1/32,::1/128'; eval \"$(fnm env)\" && fnm use 24 && just ci",
+    "export TRUSTED_PROXY_CIDRS='127.0.0.1/32,::1/128'; eval \"$(fnm env)\" && fnm use 24 && just ci-full"
+  ],
+  "infra_retry_budget": 1,
+  "stagnation_budget_minutes": 240,
+  "heavy_job_limit": 1,
+  "verification_command_timeout_seconds": 2700,
+  "ci_required_checks": [
+    "require-linked-issue",
+    "openapi-spec-drift-gate",
+    "docs-archive-gate",
+    "front-ci-gate",
+    "front-e2e-gate",
+    "old-front-unit",
+    "old-front-e2e"
+  ],
+  "tracking_projection": "trello:publyapp"
+}

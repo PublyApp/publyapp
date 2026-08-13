@@ -24,6 +24,37 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 | `dump_dir` | `.dump/` for run artifacts, briefs, review output, squash bodies, and handoffs. |
 | `issue_hierarchy` | Front-2 Phase 1 epic: `#700`. M1 tracking issue: `#707`; M1 PR must include plain-text `Closes #707`. Every PR needs a linked issue and `closingIssuesReferences` verification. Never merge without explicit per-PR confirmation from Radan. |
 
+## PR closure fields (playbook §2.6 — mandatory)
+
+| Field | Value |
+|---|---|
+| `closure_config` | `/home/radan/Projects/PublyApp/publyapp/.ai/project-closure-v1.json` |
+| `closure_gate` | `/home/radan/ai-orchestration-playbook/tools/pr-closure` (shared dependency; PublyApp does not reimplement the state machine) |
+| `review_record_schema` | `1`; schema file: `/home/radan/ai-orchestration-playbook/tools/schemas/review-record-v1.json` |
+| `ci_status_cmd` | `gh pr view <pr-number> --repo radandevist/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,state,isDraft,mergeable,mergeStateStatus,url` |
+| `ci_rerun_cmd` | `gh run rerun <run-id> --failed --repo radandevist/publyapp` (only for a proven infrastructure failure; bounded by `closure_config.infra_retry_budget`) |
+| `local_review_ready_commands` | `closure_config.local_review_ready_commands` (all commands must pass at the exact pushed tip) |
+| `closure_acceptance_commands` | `closure_config.closure_acceptance_commands` (run one heavy command at a time) |
+| `closure_state_dir` | `closure_config.closure_state_dir` (`/home/radan/.hermes/orchestration/closure`, durable and outside temporary session paths) |
+| `ci_required_checks` | `closure_config.ci_required_checks` (the exact required contexts; unknown, missing, or red is not approval) |
+| `review_publication_cmd` | `gh pr comment <pr-number> --repo radandevist/publyapp --body-file <compact-review-summary.md>` |
+| `follow_up_issue_cmd` | `gh issue create --repo radandevist/publyapp --title <title> --body-file <body-containing-Follow-up-to-#pr-number.md>` then verify with `gh issue view <issue-number> --repo radandevist/publyapp --json number,state,url,body` |
+| `tracking_projection` | `closure_config.tracking_projection` = `trello:publyapp` (the PublyApp board is selected by this explicit mapping, never by the active Trello board) |
+| `projection_adapter` | `/home/radan/Projects/PublyApp/publyapp/.ai/trello-publyapp-projection` (regular executable, never a symlink; accepts `PUBLYAPP_TRELLO_CARD_MAP` and environment-supplied `TRELLO_API_KEY`/`TRELLO_TOKEN`) |
+| `infra_retry_budget` | `closure_config.infra_retry_budget` = `1` |
+| `stagnation_budget_minutes` | `closure_config.stagnation_budget_minutes` = `240` |
+| `lane_liveness_cmd` | `test -n "$LANE_PID" && ps -o pid=,etime=,time=,stat=,cmd= -p "$LANE_PID"` (qualifying progress requires advancing CPU time or independently observed output growth) |
+| `lane_output_floor` | `200` bytes minimum and a valid review-record schema `1`; empty, marker-only, or malformed output is failure |
+| `heavy_job_limit` | `closure_config.heavy_job_limit` = `1` (serialize full builds, API suites, and e2e) |
+| `central_claim_rules` | Never defer a branch-caused CI failure, unmet issue acceptance requirement, API-contract/client drift, auth/tenant isolation/security/privacy/data-integrity uncertainty, a guard that cannot detect its intended defect, a dirty/unpushed/re-tipped worktree, a reviewed-tip mismatch, or a repeated root cause. |
+
+The shared gate is the only authority for closure state and transition checks. A PR is not
+approved from a Trello card, a chat summary, or an unbound review. Every state-changing action
+must first pass `check-transition` against the same pushed commit; projection failure never
+changes authoritative evidence. The projection adapter verifies the delivery-card sections
+`Objective`, `Current state`, `Scope`, `Links`, and `How to test` before it can plan or apply a
+list move, and it has no operation that can create approval evidence.
+
 ## M1 Run Binding
 
 - Integration branch: `feat/front-2-phase-1-m1`.
