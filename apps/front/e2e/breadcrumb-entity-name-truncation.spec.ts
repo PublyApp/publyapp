@@ -130,12 +130,14 @@ const SHORT_NAME = 'Acme';
 // This proof pays a real production-build cost: `readCompiledAppCss()` performs a
 // build (client + SSR) the first time any test in this file's dedicated
 // `chromium-hermetic-source` Playwright project calls it, and with that project
-// configured at `workers: 1` this means both tests share one process and one
-// build. Measured around 30s for that build on CI runners at the time this
-// was written; a 180s timeout intentionally keeps 6× headroom so the spec
-// fails on hung builds rather than merely slower ones. The default 30s test
-// timeout is therefore too small for this spec; budget its own bounded timeout
-// here. Global browser-test defaults in playwright.config.ts stay unchanged.
+// configured at `workers: 1` this means that on the passing path both tests share
+// one process and one build. A failure in the first test can trigger a worker
+// restart on the same file, so the second test may rebuild. Measured around 30s
+// for that build on CI runners at the time this was written; a 180s timeout
+// intentionally keeps 6× headroom so the spec fails on hung builds rather than
+// merely slower ones. The default 30s test timeout is therefore too small for this
+// spec; budget its own bounded timeout here. Global browser-test defaults in
+// playwright.config.ts stay unchanged.
 test.setTimeout(180_000);
 
 /** Runs the full set of real-browser truncation assertions against whatever
