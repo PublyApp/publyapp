@@ -44,7 +44,10 @@ import {
 } from '~/lib/i18n.shared';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
-import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
+import {
+	hasExactAuthedRouteMatch,
+	isTenantPortalPath,
+} from '~/lib/route-shell';
 import { ServerFailure } from '~/lib/server/server-failure';
 import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
@@ -562,8 +565,14 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// 404 instead of crashing on a missing provider.
 	let shellContent: React.ReactNode;
 	if (location.hasAuthedRouteMatch) {
-		const isTenantPortalRoot = pathname.replace(/\/+$/, '') === '/tenant';
-		if (isTenantPortalRoot) {
+		// Only the exact `/tenant` portal root renders bare (no AppShell): the
+		// picker is its own SimpleLayout surface. Every `/tenant/*` CHILD path
+		// mounts inside the authed shell like any staff surface — the
+		// resolved workspace gets the rail (`TENANT_ROUTES`), topbar, user
+		// menu and exactly one `<main>`; an unresolved child redirects to
+		// `/tenant`, so the AppShell never wraps the picker itself (PR #1131
+		// round 4).
+		if (isTenantPortalPath(pathname)) {
 			shellContent = children;
 		} else if (!canRenderAuthenticatedChrome) {
 			shellContent = (

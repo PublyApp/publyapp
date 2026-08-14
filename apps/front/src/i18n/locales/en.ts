@@ -1,5 +1,6 @@
 import sharedEn from '@org/shared-ts/lib/i18n/locales/en';
 
+import account from './en/account.json';
 import auth from './en/auth.json';
 import common from './en/common.json';
 import landing from './en/landing.json';
@@ -13,6 +14,7 @@ const resourceEN = {
 	zod: sharedEn.zod,
 	'response-message': sharedEn['response-message'],
 	auth,
+	account,
 	'staff-tenant-profiles': staffTenantProfiles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,

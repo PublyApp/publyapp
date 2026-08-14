@@ -1251,5 +1251,12 @@
 	"marketing-cookies-marketing-description": "Mesurent quelles campagnes amènent des équipes vers PublyApp. Désactivés par défaut.",
 	"marketing-cookies-close-note": "Fermer ce panneau sans enregistrer laisse tout désactivé, sauf les cookies essentiels.",
 	"marketing-cookies-save": "Enregistrer les préférences",
-	"marketing-announcement-label": "Annonce"
+	"marketing-announcement-label": "Annonce",
+	"account": "Compte",
+	"settings": "Paramètres",
+	"stub-settings-description": "Les paramètres de l'organisation — membres, rôles, facturation et intégrations — arrivent bientôt.",
+	"stub-posts-description": "L'espace publications — calendrier, file d'attente, brouillons et historique — arrive bientôt.",
+	"stub-organizations-description": "La gestion des organisations de cet espace de travail arrive bientôt.",
+	"read-only": "Lecture seule",
+	"not-available-yet": "Pas encore disponible"
 }

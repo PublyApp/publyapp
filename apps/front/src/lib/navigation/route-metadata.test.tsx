@@ -18,15 +18,28 @@ describe('front route metadata', () => {
 		]);
 	});
 
-	test('tenant scope has no rail items — only /tenant is registered so far', () => {
-		expect(getRailItems('tenant')).toEqual([]);
+	test('tenant rail entries are the four workspace sections', () => {
+		expect(getRailItems('tenant').map((route) => route.labelKey)).toEqual([
+			'account',
+			'settings',
+			'posts',
+			'organizations',
+		]);
 	});
 
 	test('rail items for scope are derived from pathname', () => {
 		expect(
 			getRailItemsForPath('/staff/staff-users').map((route) => route.id),
 		).toEqual(['dashboard', 'tenants', 'staff']);
-		expect(getRailItemsForPath('/tenant')).toEqual([]);
+		expect(getRailItemsForPath('/tenant').map((route) => route.id)).toEqual([
+			'account',
+			'settings',
+			'posts',
+			'organizations',
+		]);
+		expect(
+			getRailItemsForPath('/tenant/account').map((route) => route.id),
+		).toEqual(['account', 'settings', 'posts', 'organizations']);
 	});
 
 	test('staff dashboard panel items are exact', () => {
@@ -61,9 +74,65 @@ describe('front route metadata', () => {
 		]);
 	});
 
-	test('tenant root resolves to no active rail item (no tenant routes registered yet)', () => {
+	test('tenant root resolves to no active rail item — the picker has no module', () => {
 		expect(getActiveRailItem('/tenant')).toBeUndefined();
 		expect(getSecondaryPanelItems('/tenant')).toEqual([]);
+	});
+
+	test('tenant child routes resolve to their workspace module', () => {
+		expect(getActiveRailItem('/tenant/account')?.id).toBe('account');
+		expect(getActiveRailItem('/tenant/account/security')?.id).toBe('account');
+		expect(getActiveRailItem('/tenant/account/notifications')?.id).toBe(
+			'account',
+		);
+		expect(getActiveRailItem('/tenant/settings')?.id).toBe('settings');
+		expect(getActiveRailItem('/tenant/posts')?.id).toBe('posts');
+		expect(getActiveRailItem('/tenant/organizations')?.id).toBe(
+			'organizations',
+		);
+	});
+
+	test('tenant account panel items are exact', () => {
+		expect(
+			getSecondaryPanelItems('/tenant/account').map((item) => item.labelKey),
+		).toEqual(['profile', 'security', 'notifications']);
+	});
+
+	test('tenant account panel: only the deepest matching row is active', () => {
+		const [profile, security, notifications] =
+			getSecondaryPanelItems('/tenant/account');
+		if (!profile || !security || !notifications) {
+			throw new Error('expected all three account panel items to exist');
+		}
+
+		expect(isSecondaryPanelItemActive(profile, '/tenant/account', {})).toBe(
+			true,
+		);
+		expect(isSecondaryPanelItemActive(security, '/tenant/account', {})).toBe(
+			false,
+		);
+		expect(
+			isSecondaryPanelItemActive(notifications, '/tenant/account', {}),
+		).toBe(false);
+
+		// The Profile row matches `/tenant/account` by prefix — `matchExact`
+		// must keep it off its children's routes.
+		expect(
+			isSecondaryPanelItemActive(profile, '/tenant/account/security', {}),
+		).toBe(false);
+		expect(
+			isSecondaryPanelItemActive(security, '/tenant/account/security', {}),
+		).toBe(true);
+		expect(
+			isSecondaryPanelItemActive(security, '/tenant/account/notifications', {}),
+		).toBe(false);
+		expect(
+			isSecondaryPanelItemActive(
+				notifications,
+				'/tenant/account/notifications',
+				{},
+			),
+		).toBe(true);
 	});
 
 	test('secondary panel is shown on the staff dashboard (three destinations)', () => {
@@ -73,6 +142,21 @@ describe('front route metadata', () => {
 				viewportWidth: 1280,
 			}),
 		).toBe(true);
+	});
+
+	test('secondary panel is shown on the tenant account module but not on single-page sections', () => {
+		expect(
+			shouldShowSecondaryPanel('/tenant/account', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(true);
+		expect(
+			shouldShowSecondaryPanel('/tenant/settings', {
+				sidebarOpen: true,
+				viewportWidth: 1280,
+			}),
+		).toBe(false);
 	});
 
 	test('staff users panel destinations keep the secondary panel visible', () => {

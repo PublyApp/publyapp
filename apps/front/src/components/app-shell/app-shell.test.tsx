@@ -316,7 +316,7 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 		cleanup();
 	});
 
-	test('the rail renders only routes that actually exist — no audit-logs, no tenant rail', () => {
+	test('the rail renders only routes that actually exist — no audit-logs', () => {
 		const { container } = render(
 			<AppShell mode="authed" pathname={LIST_ROUTE}>
 				content
@@ -330,14 +330,23 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 		expect(railItemIds).toEqual(['dashboard', 'tenants', 'staff']);
 	});
 
-	test('the tenant scope rail has no items (only /tenant is registered)', () => {
+	test('the tenant scope rail renders the four workspace modules', () => {
 		const { container } = render(
-			<AppShell mode="authed" pathname="/tenant">
+			<AppShell mode="authed" pathname="/tenant/account">
 				content
 			</AppShell>,
 		);
 
-		expect(container.querySelectorAll('[data-rail-item]').length).toBe(0);
+		const railItemIds = Array.from(
+			container.querySelectorAll('[data-rail-item]'),
+		).map((el) => el.getAttribute('data-rail-item'));
+
+		expect(railItemIds).toEqual([
+			'account',
+			'settings',
+			'posts',
+			'organizations',
+		]);
 	});
 
 	test('no secondary-nav item ever renders a count badge', () => {

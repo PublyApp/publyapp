@@ -26,8 +26,10 @@ test('a single-active-tenant user skips the picker entirely', async ({
 }) => {
 	await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
 
-	await expect(page).toHaveURL(/\/tenant$/);
-	await expect(page.getByTestId('tenant-workspace-placeholder')).toBeVisible();
+	// The single active tenant auto-resolves to the workspace and the
+	// root redirects to `/tenant/account` (the picker never renders).
+	await expect(page).toHaveURL(/\/tenant\/account/);
+	await expect(page.getByTestId('tenant-workspace-shell')).toBeVisible();
 	await expect(page.getByTestId('tenant-portal-picker')).toHaveCount(0);
 });
 
@@ -44,7 +46,9 @@ test('a multi-active-tenant user sees the picker and can select an organization'
 
 	await rows.first().click();
 
-	await expect(page.getByTestId('tenant-workspace-placeholder')).toBeVisible();
+	// Selecting a tenant resolves the workspace; the child redirects to
+	// `/tenant/account` where the AppShell-mounted shell renders.
+	await expect(page.getByTestId('tenant-workspace-shell')).toBeVisible();
 	await expect(page.getByTestId('tenant-portal-picker')).toHaveCount(0);
 });
 
@@ -54,6 +58,9 @@ test('logging out from the picker returns to login', async ({ page }) => {
 	await expect(page.getByTestId('tenant-portal-picker')).toBeVisible();
 	await page.getByTestId('tenant-portal-logout-button').click();
 
-	await expect(page).toHaveURL(/\/login$/);
+	// The central logout flow redirects to /login, carrying the rto
+	// (redirect-to) parameter naming the origin path — same contract as
+	// ssr-auth-shell.spec.ts.
+	await expect(page).toHaveURL(/\/login(\?rto=.*)?$/);
 	await expect(page.getByTestId('auth-login-form')).toBeVisible();
 });

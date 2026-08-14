@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
+import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/selected-tenant-storage';
 
 const mocks = vi.hoisted(() => ({
 	query: {
@@ -19,10 +20,66 @@ const mocks = vi.hoisted(() => ({
 	logout: vi.fn(),
 	isLoggingOut: false,
 	shouldLogoutForFailure: vi.fn(() => false),
+	navigate: vi.fn(),
+	pathname: '/tenant',
 }));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createRootRouteWithContext: () => () => ({}),
+	Link: ({
+		to,
+		children,
+		...props
+	}: {
+		to: string;
+		children: ReactNode;
+		[key: string]: unknown;
+	}) => (
+		<a href={to} {...props}>
+			{children}
+		</a>
+	),
+	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
+	useMatches: ({ select }: { select?: (matches: unknown[]) => unknown }) =>
+		select?.([
+			{
+				routeId: '/_authed-layout',
+				pathname: '/',
+				params: {},
+				staticData: { crumbs: 'shell' },
+			},
+			{
+				routeId: '/_authed-layout/tenant',
+				pathname: '/tenant',
+				params: {},
+				staticData: { crumbs: 'shell' },
+			},
+			{
+				routeId: '/_authed-layout/tenant/account',
+				pathname: mocks.pathname,
+				params: {},
+				staticData: { crumbs: 'shell' },
+			},
+		]),
+	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
+		select?.({ location: { pathname: mocks.pathname } }),
+	useNavigate: () => mocks.navigate,
+}));
+
+// RoutedShell (the shell decision in `../__root`) needs a resolved surface
+// session query to consider a session validated — only reached when the path
+// is a tenant path, where the tenant branch renders before it is consulted.
+vi.mock('@tanstack/react-query', () => ({
+	useQuery: () => ({
+		data: 'tenant' as string | null,
+		error: undefined,
+		status: 'success' as const,
+	}),
+}));
+
+vi.mock('~/lib/hooks/use-hydrated', () => ({
+	useHydrated: () => true,
 }));
 
 vi.mock('~/layouts/simple-layout', () => ({
@@ -57,6 +114,13 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));
 
+// The child-path tests mount under the real RoutedShell, which wraps them in
+// the real AppShell — keep its user menu out of scope here (shell-continuity
+// tests own the chrome assertions).
+vi.mock('~/components/app-shell/user-menu', () => ({
+	AppShellUserMenu: () => <div data-testid="user-menu-stub" />,
+}));
+
 const EN_LABELS: Record<string, string> = {
 	'select-organization': 'Select Organization',
 	'select-organization-description':
@@ -69,7 +133,7 @@ const EN_LABELS: Record<string, string> = {
 	suspended: 'Suspended',
 	'log-out': 'Log out',
 	'common-loading': 'Loading...',
-	tenant: 'Tenant',
+	'unnamed-tenant': 'Unnamed tenant',
 };
 
 vi.mock('react-i18next', () => ({
@@ -112,14 +176,40 @@ const setQuery = (overrides: Partial<typeof mocks.query>) => {
 };
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import { RoutedShell } from '../__root';
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './tenant';
 
 const TenantPortalRoute = (Route as unknown as { component: ComponentType })
 	.component;
 
+const resolveSingleActiveTenant = () => {
+	setQuery({
+		data: {
+			tenants: [activeTenant('t-1', 'Acme')],
+			activeCount: 1,
+			totalCount: 1,
+			hasSuspendedTenants: false,
+		},
+	});
+};
+
+const setTwoActiveTenants = () => {
+	setQuery({
+		data: {
+			tenants: [activeTenant('t-1', 'Acme'), activeTenant('t-2', 'TechStart')],
+			activeCount: 2,
+			totalCount: 2,
+			hasSuspendedTenants: false,
+		},
+	});
+};
+
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	window.localStorage.clear();
+	mocks.pathname = '/tenant';
 });
 
 describe('TenantPortalRoute', () => {
@@ -171,17 +261,15 @@ describe('TenantPortalRoute', () => {
 		expect(screen.getByText('No organizations found')).toBeTruthy();
 	});
 
-	test('auto-resolves straight to the workspace when exactly one tenant is active', () => {
-		setQuery({
-			data: {
-				tenants: [activeTenant('t-1', 'Acme')],
-				activeCount: 1,
-				totalCount: 1,
-				hasSuspendedTenants: false,
-			},
-		});
+	test('the workspace root redirects to the first section once a workspace resolves', () => {
+		resolveSingleActiveTenant();
 		render(<TenantPortalRoute />);
-		expect(screen.getByTestId('tenant-workspace-placeholder')).toBeTruthy();
+
+		expect(screen.getByTestId('tenant-portal-redirecting')).toBeTruthy();
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant/account',
+			replace: true,
+		});
 		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
 	});
 
@@ -197,23 +285,81 @@ describe('TenantPortalRoute', () => {
 				hasSuspendedTenants: true,
 			},
 		});
+		mocks.pathname = '/tenant/account';
 		render(<TenantPortalRoute />);
-		expect(screen.getByTestId('tenant-workspace-placeholder')).toBeTruthy();
+		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
 		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
 	});
 
-	test('shows the picker list with 2+ active tenants, no suspended banner when none are suspended', () => {
-		setQuery({
-			data: {
-				tenants: [
-					activeTenant('t-1', 'Acme'),
-					activeTenant('t-2', 'TechStart'),
-				],
-				activeCount: 2,
-				totalCount: 2,
-				hasSuspendedTenants: false,
-			},
+	test('a child route resolves straight to the workspace shell without redirecting', () => {
+		resolveSingleActiveTenant();
+		mocks.pathname = '/tenant/account';
+		render(<TenantPortalRoute />);
+
+		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+	});
+
+	test('the workspace shell shows the resolved tenant identity and no duplicate chrome', () => {
+		resolveSingleActiveTenant();
+		mocks.pathname = '/tenant/account';
+		render(<TenantPortalRoute />);
+
+		expect(screen.getByTestId('tenant-workspace-tenant-name').textContent).toBe(
+			'Acme',
+		);
+		expect(screen.getByTestId('tenant-workspace-tenant-code').textContent).toBe(
+			't-1-code',
+		);
+		// The AppShell owns the chrome (rail, topbar, user-menu logout) — the
+		// shell must not duplicate any of it.
+		expect(screen.queryByTestId('tenant-workspace-logout-button')).toBeNull();
+		expect(screen.queryByTestId('tenant-workspace-nav')).toBeNull();
+	});
+
+	test('the workspace shell fits the AppShell content model: no main landmark, no forced viewport height', () => {
+		resolveSingleActiveTenant();
+		mocks.pathname = '/tenant/account';
+		const { container } = render(<TenantPortalRoute />);
+
+		expect(container.querySelectorAll('main')).toHaveLength(0);
+		expect(
+			screen.getByTestId('tenant-workspace-shell').className,
+		).not.toContain('min-h-svh');
+	});
+
+	test('a deep link to a child route resolves through the persisted tenant selection', () => {
+		window.localStorage.setItem(SELECTED_TENANT_STORAGE_KEY, 't-1');
+		mocks.pathname = '/tenant/account';
+		setTwoActiveTenants();
+		render(<TenantPortalRoute />);
+
+		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
+		expect(screen.getByTestId('tenant-workspace-tenant-name').textContent).toBe(
+			'Acme',
+		);
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+	});
+
+	test('a stored tenant that no longer resolves redirects a child deep link to the picker root', () => {
+		window.localStorage.setItem(SELECTED_TENANT_STORAGE_KEY, 't-9');
+		mocks.pathname = '/tenant/account';
+		setTwoActiveTenants();
+		render(<TenantPortalRoute />);
+
+		// The child path never renders the picker itself: it redirects to
+		// `/tenant`, where the bare picker is the single unresolved surface.
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant',
+			replace: true,
 		});
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+		expect(screen.queryByTestId('tenant-workspace-shell')).toBeNull();
+	});
+
+	test('shows the picker list with 2+ active tenants, no suspended banner when none are suspended', () => {
+		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 		expect(screen.getByTestId('tenant-portal-picker')).toBeTruthy();
 		expect(screen.getAllByTestId('tenant-portal-row')).toHaveLength(2);
@@ -251,46 +397,81 @@ describe('TenantPortalRoute', () => {
 		expect(activeRow?.tagName).toBe('BUTTON');
 	});
 
-	test('selecting an active tenant transitions from the list to the workspace', () => {
-		setQuery({
-			data: {
-				tenants: [
-					activeTenant('t-1', 'Acme'),
-					activeTenant('t-2', 'TechStart'),
-				],
-				activeCount: 2,
-				totalCount: 2,
-				hasSuspendedTenants: false,
-			},
-		});
+	test('selecting an active tenant persists the choice and resolves the workspace', () => {
+		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 
 		const rows = screen.getAllByTestId('tenant-portal-row');
-		const firstRow = rows[0];
-		if (!firstRow) {
-			throw new Error('expected at least one tenant row');
-		}
-		fireEvent.click(firstRow);
+		fireEvent.click(rows[0]);
 
-		expect(screen.getByTestId('tenant-workspace-placeholder')).toBeTruthy();
-		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+		expect(window.localStorage.getItem(SELECTED_TENANT_STORAGE_KEY)).toBe(
+			't-1',
+		);
+		expect(screen.getByTestId('tenant-portal-redirecting')).toBeTruthy();
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant/account',
+			replace: true,
+		});
 	});
 
 	test('wires the log-out button to useLogout', () => {
-		setQuery({
-			data: {
-				tenants: [
-					activeTenant('t-1', 'Acme'),
-					activeTenant('t-2', 'TechStart'),
-				],
-				activeCount: 2,
-				totalCount: 2,
-				hasSuspendedTenants: false,
-			},
-		});
+		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 
 		fireEvent.click(screen.getByTestId('tenant-portal-logout-button'));
 		expect(mocks.logout).toHaveBeenCalledTimes(1);
+	});
+
+	test('regression: an unresolved child path never nests the picker in the AppShell — it redirects to `/tenant` (PR #1131 round 3 finding 1)', () => {
+		// Cold load of `/tenant/account`: the tenants query is still pending,
+		// so the route shows a neutral redirect spinner — never the
+		// SimpleLayout picker, which must not sit inside the AppShell that
+		// wraps child paths (round 4 restores the AppShell for children and
+		// moves the unresolved surface to the bare `/tenant` root).
+		setQuery({ isSuccess: false, isPending: true, isLoading: true });
+		mocks.pathname = '/tenant/account';
+
+		const view = render(
+			<RoutedShell>
+				<TenantPortalRoute />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('tenant-portal-redirecting')).toBeTruthy();
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+		expect(screen.queryByTestId('simple-layout-stub')).toBeNull();
+		// The child path mounts inside the AppShell (round 4) — the chrome is
+		// present, but the unresolved branch inside it is a neutral spinner,
+		// never the SimpleLayout picker.
+		expect(screen.getByTestId('app-shell-shell')).toBeTruthy();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+
+		// Once the query settles with no resolvable workspace (2+ actives,
+		// no valid stored selection), the child path redirects to `/tenant` —
+		// the bare picker becomes the single unresolved surface.
+		setQuery({
+			data: {
+				tenants: [
+					activeTenant('t-1', 'Acme'),
+					activeTenant('t-2', 'TechStart'),
+				],
+				activeCount: 2,
+				totalCount: 2,
+				hasSuspendedTenants: false,
+			},
+		});
+		view.rerender(
+			<RoutedShell>
+				<TenantPortalRoute />
+			</RoutedShell>,
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant',
+			replace: true,
+		});
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+		expect(screen.queryByTestId('tenant-workspace-shell')).toBeNull();
+		expect(screen.queryByTestId('simple-layout-stub')).toBeNull();
 	});
 });
