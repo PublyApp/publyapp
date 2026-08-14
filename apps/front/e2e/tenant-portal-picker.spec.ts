@@ -58,6 +58,9 @@ test('logging out from the picker returns to login', async ({ page }) => {
 	await expect(page.getByTestId('tenant-portal-picker')).toBeVisible();
 	await page.getByTestId('tenant-portal-logout-button').click();
 
-	await expect(page).toHaveURL(/\/login$/);
+	// The central logout flow redirects to /login, carrying the rto
+	// (redirect-to) parameter naming the origin path — same contract as
+	// ssr-auth-shell.spec.ts.
+	await expect(page).toHaveURL(/\/login(\?rto=.*)?$/);
 	await expect(page.getByTestId('auth-login-form')).toBeVisible();
 });
