@@ -180,11 +180,20 @@ test('renders the landing page', async ({ page }) => {
 	// its footer are the structure under test.
 	await expect(page.getByTestId('landing-page')).toBeVisible();
 	await expect(page.getByTestId('landing-hero-title')).toBeVisible();
-	// The hero's primary CTA is the first "Sign up free" link in the
-	// document; the closing band repeats the same label below the fold.
+	// The promoted landing owns its shell. It must never be wrapped by the
+	// shared marketing chrome, and it must render exactly one of each designed
+	// landing header/footer.
+	await expect(page.getByTestId('marketing-shell')).toHaveCount(0);
+	await expect(page.getByTestId('marketing-header')).toHaveCount(0);
+	await expect(page.getByTestId('marketing-footer')).toHaveCount(0);
+	await expect(page.getByTestId('landing-header')).toHaveCount(1);
+	await expect(page.getByTestId('landing-footer')).toHaveCount(1);
+	const hero = page
+		.getByTestId('landing-hero-title')
+		.locator('xpath=ancestor::section[1]');
 	await expect(
-		page.getByRole('link', { name: 'Sign up free' }).first(),
-	).toBeVisible();
+		hero.getByRole('link', { name: 'Sign up free' }),
+	).toHaveAttribute('href', '/signup');
 	await expect(page.getByTestId('landing-header')).toBeVisible();
 	await expect(page.getByTestId('landing-footer')).toBeVisible();
 

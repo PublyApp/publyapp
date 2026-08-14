@@ -241,7 +241,6 @@ function LandingPage() {
 								eyebrowKey="landing-timeline-eyebrow"
 								titleKey="landing-timeline-title"
 								dekKey="landing-trial-plan-note"
-								dekTestId="landing-trial-plan-note"
 							/>
 							<LandingTrial />
 						</LandingSection>
@@ -377,7 +376,10 @@ function LandingPage() {
 								</Link>
 								<Link
 									to="/login"
-									className="publy-landing-pressable publy-landing-focus-ring inline-flex h-11 items-center justify-center rounded-[var(--publy-radius-control)] border border-(--publy-border) px-6 text-sm font-medium text-(--publy-foreground) no-underline"
+									className={cn(
+										buttonVariants({ variant: 'outline', size: 'lg' }),
+										'publy-landing-pressable',
+									)}
 								>
 									{t('landing-closing-secondary-cta')}
 								</Link>

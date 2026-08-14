@@ -1,6 +1,6 @@
 import { IconArrowRight, IconChevronDown } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import { type KeyboardEvent, useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MarketingImageSlot } from '~/components/marketing/marketing-image-slot';
 import { cn } from '~/lib/utils';
@@ -47,6 +47,9 @@ export const LandingTour = () => {
 	const { t } = useTranslation('landing');
 	const [activeTab, setActiveTab] = useState<TourTabId>('calendar');
 	const [ringPulsing, setRingPulsing] = useState(false);
+	const tabRefs = useRef<Partial<Record<TourTabId, HTMLButtonElement | null>>>(
+		{},
+	);
 	const activeIndex = TOUR_TABS.findIndex((tab) => tab.id === activeTab);
 
 	useEffect(() => {
@@ -79,7 +82,9 @@ export const LandingTour = () => {
 				return;
 		}
 
-		setActiveTab(TOUR_TABS[nextIndex].id);
+		const nextTab = TOUR_TABS[nextIndex];
+		setActiveTab(nextTab.id);
+		tabRefs.current[nextTab.id]?.focus();
 	};
 
 	return (
@@ -130,6 +135,9 @@ export const LandingTour = () => {
 									<button
 										key={tab.id}
 										type="button"
+										ref={(element) => {
+											tabRefs.current[tab.id] = element;
+										}}
 										id={`tour-tab-${tab.id}`}
 										role="tab"
 										aria-selected={isActive}
@@ -245,6 +253,8 @@ export const LandingTour = () => {
 								id={`tour-accordion-panel-${tab.id}`}
 								role="region"
 								aria-labelledby={`tour-accordion-tab-${tab.id}`}
+								aria-hidden={!isOpen}
+								hidden={!isOpen}
 								className={cn(
 									'publy-landing-accordion-panel',
 									isOpen && 'publy-landing-accordion-panel-open',

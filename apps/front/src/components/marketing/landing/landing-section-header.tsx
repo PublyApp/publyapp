@@ -19,22 +19,17 @@ import { useTranslation } from 'react-i18next';
  * as a display statement; at 24ch every section heading on the page becomes
  * a one- or two-line block with a deliberate rag, in both locales.
  *
- * `dekTestId` exists for one caller: the planned-trial section's plan note is
- * both its dek and the claim the page is gated on, and a unit test asserts
- * that note sits inside that section.
  */
 export const LandingSectionHeader = ({
 	headingId,
 	eyebrowKey,
 	titleKey,
 	dekKey,
-	dekTestId,
 }: {
 	headingId: string;
 	eyebrowKey: string;
 	titleKey: string;
 	dekKey?: string;
-	dekTestId?: string;
 }) => {
 	const { t } = useTranslation('landing');
 
@@ -61,10 +56,7 @@ export const LandingSectionHeader = ({
 				{t(titleKey)}
 			</h2>
 			{dekKey === undefined ? null : (
-				<p
-					data-testid={dekTestId}
-					className="publy-type-sky-lead publy-landing-header-dek max-w-[52ch] text-pretty text-(--publy-foreground-secondary)"
-				>
+				<p className="publy-type-sky-lead publy-landing-header-dek max-w-[52ch] text-pretty text-(--publy-foreground-secondary)">
 					{t(dekKey)}
 				</p>
 			)}
