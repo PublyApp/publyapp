@@ -116,3 +116,17 @@ test('rejection names the failing font file when the table directory is truncate
 	assert.match(stderr, /table directory truncated/);
 	assert.doesNotMatch(stderr, /Font file\s{2}/);
 });
+
+test('rejection names the failing locale file when its JSON is malformed', async () => {
+	const { distDir, localesDir } = createFixture(
+		buildOverlongCompressedSizeHeader(),
+	);
+	writeFileSync(path.join(localesDir, 'fr.json'), '{"greeting": "salut",');
+
+	const { status, stderr } = await runVerifier({ distDir, localesDir });
+
+	assert.equal(status, 1);
+	assert.match(stderr, /fr\.json/);
+	assert.match(stderr, /is not valid JSON/);
+	assert.doesNotMatch(stderr, /Locale file\s{2}/);
+});

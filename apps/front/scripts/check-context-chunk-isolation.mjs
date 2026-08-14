@@ -97,6 +97,7 @@ const assertStaticReactElementAccess = (
 	checker,
 	expression,
 	reactCreateContext,
+	sourceFileName,
 ) => {
 	if (
 		isElementAccessExpression(expression) &&
@@ -109,7 +110,7 @@ const assertStaticReactElementAccess = (
 			))
 	) {
 		throw new Error(
-			'Context chunk isolation guard cannot prove a dynamic React element access is not createContext.',
+			`Context chunk isolation guard cannot prove a dynamic React element access in ${sourceFileName} is not createContext.`,
 		);
 	}
 };
@@ -824,6 +825,7 @@ export const findReactContextDeclarations = (
 					project.checker,
 					node,
 					reactCreateContext,
+					normalizeModuleId(sourceFileName),
 				);
 
 				const binding = declarationBinding(project.checker, node);
@@ -1072,7 +1074,7 @@ export const findContextChunkIsolationViolations = (
 				const chunkAnalysis = chunkAnalyses.get(moduleChunk.chunk);
 				if (!chunkAnalysis) {
 					throw new Error(
-						'Context chunk isolation guard did not analyze a chunk delivering a context source module.',
+						`Context chunk isolation guard did not analyze a chunk delivering a context source module: ${moduleChunk.chunk.fileName}.`,
 					);
 				}
 				const copySegments = chunkAnalysis.hasMap
