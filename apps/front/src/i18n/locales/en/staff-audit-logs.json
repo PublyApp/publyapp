@@ -1,0 +1,16 @@
+{
+	"all-actions": "All actions",
+	"actor-avatar-label": "Actor",
+	"audit-logs-page-description": "Review the activity trail across the workspace, filter by action or date, and export what you need.",
+	"audit-logs-page-title": "Audit logs",
+	"back-to-audit-logs": "Back to audit logs",
+	"event": "Event",
+	"export": "Export",
+	"export-audit-logs-current-filters": "Export all audit logs matching the current filters.",
+	"exporting": "Exporting…",
+	"format": "Format",
+	"loading-actions": "Loading actions…",
+	"no-audit-logs-match-description": "No audit logs match your current filters.",
+	"no-audit-logs-match-title": "No matching audit logs",
+	"payload-region-label": "Audit log payload"
+}

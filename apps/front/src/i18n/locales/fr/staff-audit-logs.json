@@ -1,0 +1,16 @@
+{
+	"all-actions": "Toutes les actions",
+	"actor-avatar-label": "Acteur",
+	"audit-logs-page-description": "Consultez la trace d'activité de l'espace de travail, filtrez par action ou par date et exportez ce dont vous avez besoin.",
+	"audit-logs-page-title": "Journaux d'audit",
+	"back-to-audit-logs": "Retour aux journaux d'audit",
+	"event": "Événement",
+	"export": "Exporter",
+	"export-audit-logs-current-filters": "Exporter tous les journaux d'audit correspondant aux filtres actuels.",
+	"exporting": "Exportation…",
+	"format": "Format",
+	"loading-actions": "Chargement des actions…",
+	"no-audit-logs-match-description": "Aucun journal d'audit ne correspond à vos filtres actuels.",
+	"no-audit-logs-match-title": "Aucun journal d'audit correspondant",
+	"payload-region-label": "Contenu du journal d'audit"
+}
