@@ -25,6 +25,28 @@ export interface AcceptInvitationBody extends AdditionalDataHolder, Parsable {
 export type AcceptInvitationBody_useExistingAccount = AcceptInvitationBody_useExistingAccountMember1 | JsonElement;
 export interface AcceptInvitationBody_useExistingAccountMember1 extends AdditionalDataHolder, Parsable {
 }
+export interface AccountProfileResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The avatarUrl property
+     */
+    avatarUrl?: string | null;
+    /**
+     * The email property
+     */
+    email?: string | null;
+    /**
+     * The firstName property
+     */
+    firstName?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The lastName property
+     */
+    lastName?: string | null;
+}
 export interface ActiveSystemNotice extends AdditionalDataHolder, Parsable {
     /**
      * The expiresAt property
@@ -520,6 +542,15 @@ export function createAcceptInvitationBody_useExistingAccountMember1FromDiscrimi
 // @ts-ignore
 export function createAcceptInvitationBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoAcceptInvitationBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AccountProfileResult}
+ */
+// @ts-ignore
+export function createAccountProfileResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAccountProfileResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2210,6 +2241,15 @@ export function createUnassignStaffProfileUsersBodyFromDiscriminatorValue(parseN
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateAccountProfileBody}
+ */
+// @ts-ignore
+export function createUpdateAccountProfileBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateAccountProfileBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {UpdateStaffProfileBody}
  */
 // @ts-ignore
@@ -2502,6 +2542,21 @@ export function deserializeIntoAcceptInvitationBody_useExistingAccount(acceptInv
 // @ts-ignore
 export function deserializeIntoAcceptInvitationBody_useExistingAccountMember1(acceptInvitationBody_useExistingAccountMember1: Partial<AcceptInvitationBody_useExistingAccountMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AccountProfileResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAccountProfileResult(accountProfileResult: Partial<AccountProfileResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "avatarUrl": n => { accountProfileResult.avatarUrl = n.getStringValue(); },
+        "email": n => { accountProfileResult.email = n.getStringValue(); },
+        "firstName": n => { accountProfileResult.firstName = n.getStringValue(); },
+        "id": n => { accountProfileResult.id = n.getGuidValue(); },
+        "lastName": n => { accountProfileResult.lastName = n.getStringValue(); },
     }
 }
 /**
@@ -4641,6 +4696,19 @@ export function deserializeIntoUnassignStaffProfileUsersBody(unassignStaffProfil
 }
 /**
  * The deserialization information for the current model
+ * @param UpdateAccountProfileBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateAccountProfileBody(updateAccountProfileBody: Partial<UpdateAccountProfileBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "avatarUrl": n => { updateAccountProfileBody.avatarUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "firstName": n => { updateAccountProfileBody.firstName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "lastName": n => { updateAccountProfileBody.lastName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param UpdateStaffProfileBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5712,6 +5780,22 @@ export function serializeAcceptInvitationBody_useExistingAccount(writer: Seriali
 export function serializeAcceptInvitationBody_useExistingAccountMember1(writer: SerializationWriter, acceptInvitationBody_useExistingAccountMember1: Partial<AcceptInvitationBody_useExistingAccountMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!acceptInvitationBody_useExistingAccountMember1 || isSerializingDerivedType) { return; }
     writer.writeAdditionalData(acceptInvitationBody_useExistingAccountMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AccountProfileResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAccountProfileResult(writer: SerializationWriter, accountProfileResult: Partial<AccountProfileResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!accountProfileResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("avatarUrl", accountProfileResult.avatarUrl);
+    writer.writeStringValue("email", accountProfileResult.email);
+    writer.writeStringValue("firstName", accountProfileResult.firstName);
+    writer.writeGuidValue("id", accountProfileResult.id);
+    writer.writeStringValue("lastName", accountProfileResult.lastName);
+    writer.writeAdditionalData(accountProfileResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7979,6 +8063,20 @@ export function serializeUnassignStaffProfileUsersBody(writer: SerializationWrit
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateAccountProfileBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateAccountProfileBody(writer: SerializationWriter, updateAccountProfileBody: Partial<UpdateAccountProfileBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateAccountProfileBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("avatarUrl", updateAccountProfileBody.avatarUrl);
+    writer.writeObjectValue("firstName", updateAccountProfileBody.firstName);
+    writer.writeObjectValue("lastName", updateAccountProfileBody.lastName);
+    writer.writeAdditionalData(updateAccountProfileBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param UpdateStaffProfileBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -9139,6 +9237,20 @@ export interface UnassignStaffProfileUsersBody extends AdditionalDataHolder, Par
      * The userIds property
      */
     userIds?: UntypedNode | null;
+}
+export interface UpdateAccountProfileBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The avatarUrl property
+     */
+    avatarUrl?: UntypedNode | null;
+    /**
+     * The firstName property
+     */
+    firstName?: UntypedNode | null;
+    /**
+     * The lastName property
+     */
+    lastName?: UntypedNode | null;
 }
 export interface UpdateStaffProfileBody extends AdditionalDataHolder, Parsable {
     /**

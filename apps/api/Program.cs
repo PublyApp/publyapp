@@ -10,6 +10,7 @@ using PublyApp.Api.Lib.Filters;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Seeding;
+using PublyApp.Api.Modules.Account.Endpoints;
 using PublyApp.Api.Modules.AuditLogs.Endpoints;
 using PublyApp.Api.Modules.Auth.Endpoints;
 using PublyApp.Api.Modules.Invitations.Endpoints;
@@ -230,8 +231,10 @@ public class Program {
 		staffGroup.MapAuditLogEndpointsForStaff();
 		staffGroup.MapUploadEndpointsForStaff();
 
-		// TODO: once we have a tenant endpoint, we can remove this
-		tenantGroup.MapGet("/test", () => "Hello, World!");
+		// First real tenant-scoped surface (root `/`): the signed-in user's
+		// own account profile. The /test stub below it was removed when this
+		// shipped (TenantAuthFilter.Spec.cs now probes the real endpoint).
+		tenantGroup.MapAccountEndpointsForTenant();
 
 		// Testing-only scaffold: never registered outside the Testing environment,
 		// so it never reaches openapi.json / the production Kiota client. Use host

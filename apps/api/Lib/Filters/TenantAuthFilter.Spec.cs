@@ -37,9 +37,16 @@ public class AcmeTenantMutationCollection;
 [Collection("AcmeTenantMutation")]
 public sealed class TenantAuthFilterSpec
 	: IClassFixture<ApiFixture> {
-	// The /test endpoint is behind tenantGroup
-	// which applies session + tenant header + tenant auth
-	private const string TestEndpoint = "/test";
+	// The real tenant-scoped profile endpoint sits behind tenantGroup,
+	// which applies session + tenant header + tenant auth. Probing it keeps
+	// this spec honest: a real handler answers, not a stub.
+	private static string GetTestEndpoint() {
+		return PathUtils.Join(
+			AppRoutes.Tenant.Root,
+			AppRoutes.Account.ForTenant.Root,
+			AppRoutes.Account.ForTenant.Profile
+		);
+	}
 
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -72,7 +79,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -111,7 +118,7 @@ public sealed class TenantAuthFilterSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				TestEndpoint
+				GetTestEndpoint()
 			)
 				.WithSessionToken(acmeAdminToken)
 				.WithTenantId(acmeId);
@@ -158,7 +165,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken(techStartAdminToken)
 			.WithTenantId(acmeId);
@@ -195,7 +202,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken(staffToken)
 			.WithTenantId(acmeId);
@@ -223,7 +230,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		).WithSessionToken(acmeAdminToken);
 		// Deliberately NOT setting tenant header
 
@@ -251,7 +258,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		).WithSessionToken(acmeAdminToken);
 
 		request.Headers.TryAddWithoutValidation(
@@ -287,7 +294,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		).WithTenantId(acmeId);
 		// Deliberately NOT setting session token
 
@@ -312,7 +319,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken("invalid-token")
 			.WithTenantId(acmeId);
@@ -362,7 +369,7 @@ public sealed class TenantAuthFilterSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				TestEndpoint
+				GetTestEndpoint()
 			)
 				.WithSessionToken(acmeAdminToken)
 				.WithTenantId(acmeId);
@@ -407,7 +414,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -446,7 +453,7 @@ public sealed class TenantAuthFilterSpec
 
 		using (var firstRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId)) {
@@ -462,7 +469,7 @@ public sealed class TenantAuthFilterSpec
 
 		using (var secondRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId)) {
@@ -583,7 +590,7 @@ public sealed class TenantAuthFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			GetTestEndpoint()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);

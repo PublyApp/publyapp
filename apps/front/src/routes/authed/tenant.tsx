@@ -11,11 +11,10 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { SimpleLayout } from '~/layouts/simple-layout';
 import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
-import type {
-	TenantForPickerRow,
-	TenantsForPickerData,
+import {
+	resolveWorkspaceTenant,
+	type TenantForPickerRow,
 } from '~/lib/query/tenants-for-picker';
-import { isActiveTenantForPicker } from '~/lib/query/tenants-for-picker';
 import {
 	readSelectedTenantId,
 	writeSelectedTenantId,
@@ -40,35 +39,6 @@ export const Route = createFileRoute('/_authed-layout/tenant')({
 	staticData: { crumbs: () => [] },
 	component: TenantPortalRoute,
 });
-
-/**
- * Resolves the workspace tenant. `selectedTenantId` wins when it names an
- * ACTIVE tenant in the user's list (a stored id can point at a tenant that
- * has since been suspended/removed — that is a genuine no-resolution, so the
- * picker shows); otherwise exactly one ACTIVE tenant auto-resolves, mirroring
- * the backend's GetRedirectCode rule. A suspended sibling never forces the
- * picker open.
- */
-const resolveWorkspaceTenant = (
-	data: TenantsForPickerData,
-	selectedTenantId: string | null,
-): TenantForPickerRow | undefined => {
-	if (selectedTenantId) {
-		const selected = data.tenants.find(
-			(tenant) =>
-				tenant.id === selectedTenantId && isActiveTenantForPicker(tenant),
-		);
-		if (selected) {
-			return selected;
-		}
-	}
-
-	if (data.activeCount === 1) {
-		return data.tenants.find(isActiveTenantForPicker);
-	}
-
-	return undefined;
-};
 
 /**
  * The tenant workspace shell: rendered by the resolved branch of

@@ -1,17 +1,34 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { CurrentUser } from '~/lib/query/auth';
 
 const mocks = vi.hoisted(() => ({
-	currentUserQuery: {
+	profileQuery: {
 		data: undefined as unknown,
 		isLoading: false,
 		isError: false,
 		refetch: vi.fn(),
+	},
+	workspaceTenantId: 'tenant-1',
+	mutation: {
+		mutateAsync: vi.fn(),
+		isPending: false,
+	},
+	invalidateAccountProfileQuery: vi.fn(),
+	displayLocalMutationFailure: vi.fn(),
+	toastLocalMutationResult: {
+		success: vi.fn(),
+		error: vi.fn(),
 	},
 }));
 
@@ -19,27 +36,46 @@ vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
 }));
 
-vi.mock('~/lib/query/auth', async () => {
-	const actual =
-		await vi.importActual<typeof import('~/lib/query/auth')>(
-			'~/lib/query/auth',
-		);
+vi.mock('~/lib/query/tenants-for-picker', async () => {
+	const actual = await vi.importActual<
+		typeof import('~/lib/query/tenants-for-picker')
+	>('~/lib/query/tenants-for-picker');
 
 	return {
 		...actual,
-		useCurrentUserQuery: () => mocks.currentUserQuery,
+		useResolvedWorkspaceTenantId: () => mocks.workspaceTenantId,
 	};
 });
+
+vi.mock('~/lib/query/tenant-account-profile', async () => {
+	const actual = await vi.importActual<
+		typeof import('~/lib/query/tenant-account-profile')
+	>('~/lib/query/tenant-account-profile');
+
+	return {
+		...actual,
+		useAccountProfileQuery: () => mocks.profileQuery,
+		useUpdateAccountProfileMutation: () => mocks.mutation,
+		invalidateAccountProfileQuery: mocks.invalidateAccountProfileQuery,
+	};
+});
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: mocks.toastLocalMutationResult,
+}));
 
 const EN_LABELS: Record<string, string> = {
 	profile: 'Profile',
 	'personal-information': 'Personal information',
 	preferences: 'Preferences',
 	firstname: 'First name',
+	'first-name': 'First name',
 	lastname: 'Last name',
+	'last-name': 'Last name',
 	email: 'Email',
-	bio: 'Bio',
-	'bio-description': 'Brief description for your profile',
+	'email-address': 'Email address',
+	'avatar-url': 'Avatar URL',
 	language: 'Language',
 	'language-description': 'Preferred language for your account',
 	timezone: 'Timezone',
@@ -50,7 +86,11 @@ const EN_LABELS: Record<string, string> = {
 	'failed-to-load-profile': 'Failed to load profile',
 	'failed-to-load-profile-description':
 		'Your profile information could not be loaded. Try again.',
-	retry: 'retry',
+	retry: 'Retry',
+	'save-changes': 'Save changes',
+	'profile-updated-success': 'Profile updated successfully',
+	'invalid-avatar-url': 'Enter a valid http(s) URL',
+	'unknown-error': 'Unknown error',
 };
 
 vi.mock('react-i18next', () => ({
@@ -66,13 +106,21 @@ import { Route } from './profile';
 const AccountProfilePage = (Route as unknown as { component: ComponentType })
 	.component;
 
-const currentUser: CurrentUser = {
+const profileData = {
 	id: 'user-1',
 	email: 'jason@studio.io',
 	firstName: 'Jason',
 	lastName: 'Tatum',
 	avatarUrl: null,
-	displayName: 'Jason Tatum',
+};
+
+const renderPage = () => {
+	const queryClient = new QueryClient();
+	return render(
+		<QueryClientProvider client={queryClient}>
+			<AccountProfilePage />
+		</QueryClientProvider>,
+	);
 };
 
 afterEach(() => {
@@ -81,89 +129,192 @@ afterEach(() => {
 });
 
 describe('AccountProfilePage', () => {
-	test('renders the read-only profile surface with the real signed-in identity', () => {
-		mocks.currentUserQuery = {
-			data: currentUser,
+	test('renders an editable form pre-filled from the tenant-scoped profile', () => {
+		mocks.profileQuery = {
+			data: profileData,
 			isLoading: false,
 			isError: false,
-			refetch: mocks.currentUserQuery.refetch,
+			refetch: mocks.profileQuery.refetch,
 		};
-		render(<AccountProfilePage />);
+		renderPage();
 
 		expect(screen.getByRole('heading', { name: 'Profile' })).toBeTruthy();
-		expect(screen.getAllByTestId('account-read-only-badge')).toHaveLength(2);
 		expect(screen.getByText('Jason Tatum')).toBeTruthy();
-		// The email appears in the identity block and in the email field row.
-		expect(screen.getAllByText('jason@studio.io').length).toBeGreaterThan(0);
-		expect(screen.getByText('Jason')).toBeTruthy();
-		expect(screen.getByText('Tatum')).toBeTruthy();
+		expect(
+			(screen.getByLabelText('First name') as HTMLInputElement).value,
+		).toBe('Jason');
+		expect((screen.getByLabelText('Last name') as HTMLInputElement).value).toBe(
+			'Tatum',
+		);
+		expect(
+			(screen.getByLabelText('Avatar URL') as HTMLInputElement).value,
+		).toBe('');
+		expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy();
+		// The editable identity card no longer carries the read-only badge;
+		// the preferences card (no backend yet) still does.
+		expect(screen.getAllByTestId('account-read-only-badge')).toHaveLength(1);
 	});
 
-	test('renders a muted placeholder for fields with no API yet', () => {
-		mocks.currentUserQuery = {
-			data: currentUser,
+	test('submits only the dirty fields through the tenant-scoped PATCH', async () => {
+		mocks.profileQuery = {
+			data: profileData,
 			isLoading: false,
 			isError: false,
-			refetch: mocks.currentUserQuery.refetch,
+			refetch: mocks.profileQuery.refetch,
 		};
-		render(<AccountProfilePage />);
+		mocks.mutation.mutateAsync.mockResolvedValue({
+			...profileData,
+			firstName: 'Jay',
+		});
+		renderPage();
 
-		// Bio and timezone both have no API yet.
-		expect(screen.getAllByText('Not available yet')).toHaveLength(2);
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Jay' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() => {
+			expect(mocks.mutation.mutateAsync).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.mutation.mutateAsync).toHaveBeenCalledWith({
+			tenantId: 'tenant-1',
+			firstName: 'Jay',
+		});
+		expect(mocks.invalidateAccountProfileQuery).toHaveBeenCalledWith(
+			expect.anything(),
+			'tenant-1',
+		);
+		expect(mocks.toastLocalMutationResult.success).toHaveBeenCalledWith(
+			'Profile updated successfully',
+		);
 	});
 
-	test('shows the current language and leaves timezone unavailable', () => {
-		mocks.currentUserQuery = {
-			data: currentUser,
+	test('clears a field by submitting null when the input is emptied', async () => {
+		mocks.profileQuery = {
+			data: { ...profileData, avatarUrl: 'https://cdn.example.test/a.png' },
 			isLoading: false,
 			isError: false,
-			refetch: mocks.currentUserQuery.refetch,
+			refetch: mocks.profileQuery.refetch,
 		};
-		render(<AccountProfilePage />);
+		mocks.mutation.mutateAsync.mockResolvedValue({
+			...profileData,
+			avatarUrl: null,
+		});
+		renderPage();
 
-		expect(screen.getByText('English')).toBeTruthy();
+		fireEvent.change(screen.getByLabelText('Avatar URL'), {
+			target: { value: '' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() => {
+			expect(mocks.mutation.mutateAsync).toHaveBeenCalledWith({
+				tenantId: 'tenant-1',
+				avatarUrl: null,
+			});
+		});
 	});
 
-	test('never renders a save or update mutation control', () => {
-		mocks.currentUserQuery = {
-			data: currentUser,
+	test('does not submit when nothing changed', async () => {
+		mocks.profileQuery = {
+			data: profileData,
 			isLoading: false,
 			isError: false,
-			refetch: mocks.currentUserQuery.refetch,
+			refetch: mocks.profileQuery.refetch,
 		};
-		render(<AccountProfilePage />);
+		renderPage();
 
-		expect(screen.queryAllByRole('button')).toHaveLength(0);
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(mocks.mutation.mutateAsync).not.toHaveBeenCalled();
 	});
 
-	test('falls back to skeletons while the identity query is loading', () => {
-		mocks.currentUserQuery = {
+	test('shows a local failure message when the PATCH fails', async () => {
+		mocks.profileQuery = {
+			data: profileData,
+			isLoading: false,
+			isError: false,
+			refetch: mocks.profileQuery.refetch,
+		};
+		const failure = new Error('network down');
+		mocks.mutation.mutateAsync.mockRejectedValue(failure);
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('First name'), {
+			target: { value: 'Jay' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() => {
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+				failure,
+				'Unknown error',
+			);
+		});
+		expect(screen.getByRole('alert')).toBeTruthy();
+		expect(mocks.invalidateAccountProfileQuery).not.toHaveBeenCalled();
+	});
+
+	test('blocks an invalid avatar URL client-side without calling the PATCH', async () => {
+		mocks.profileQuery = {
+			data: profileData,
+			isLoading: false,
+			isError: false,
+			refetch: mocks.profileQuery.refetch,
+		};
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Avatar URL'), {
+			target: { value: 'not-a-url' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await screen.findByText('Enter a valid http(s) URL');
+		expect(mocks.mutation.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('falls back to skeletons while the profile query is loading', () => {
+		mocks.profileQuery = {
 			data: undefined,
 			isLoading: true,
 			isError: false,
-			refetch: mocks.currentUserQuery.refetch,
+			refetch: mocks.profileQuery.refetch,
 		};
-		const { container } = render(<AccountProfilePage />);
+		const { container } = renderPage();
 
 		expect(
 			container.querySelectorAll('[data-slot="skeleton"]').length,
 		).toBeGreaterThan(0);
 	});
 
-	test('shows an error state with a retry action when the identity query fails', () => {
-		mocks.currentUserQuery = {
+	test('shows an error state with a retry action when the profile query fails', () => {
+		mocks.profileQuery = {
 			data: undefined,
 			isLoading: false,
 			isError: true,
-			refetch: mocks.currentUserQuery.refetch,
+			refetch: mocks.profileQuery.refetch,
 		};
-		render(<AccountProfilePage />);
+		renderPage();
 
 		expect(screen.getByTestId('tenant-account-profile-error')).toBeTruthy();
 		expect(screen.getByText('Failed to load profile')).toBeTruthy();
-		expect(screen.queryByText('Unnamed')).toBeNull();
 
-		fireEvent.click(screen.getByRole('button', { name: 'retry' }));
-		expect(mocks.currentUserQuery.refetch).toHaveBeenCalledTimes(1);
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+		expect(mocks.profileQuery.refetch).toHaveBeenCalledTimes(1);
+	});
+
+	test('keeps the read-only affordance only for fields with no backend', () => {
+		mocks.profileQuery = {
+			data: profileData,
+			isLoading: false,
+			isError: false,
+			refetch: mocks.profileQuery.refetch,
+		};
+		renderPage();
+
+		// Timezone still has no API.
+		expect(screen.getByText('Not available yet')).toBeTruthy();
+		expect(screen.getByText('English')).toBeTruthy();
 	});
 });
