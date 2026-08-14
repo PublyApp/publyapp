@@ -2735,7 +2735,6 @@ const askEngine = async (
 					);
 				}
 			}
-			document.body.appendChild(hostEl);
 		},
 		{
 			cssText,
@@ -4279,13 +4278,21 @@ describe('drawer description text contrast (#1043)', () => {
 	// Round 25 I2, the JSX-ATTRIBUTE-LITERAL context (the reader half of the
 	// round-24 BLOCKER): the transform decodes HTML character references in a
 	// string-literal attribute value, so the guard must decode before
-	// declaring RESOLVED. Every expected value below is what esbuild 0.28.1
-	// (the transform Vite runs) actually emitted for the same attribute —
-	// verbatim probe transcripts are in .dump/report-fix-r25.md. Before this
-	// fix the reader under-decoded here (`&#108;ow` stayed verbatim) and the
+	// declaring RESOLVED. Every expected value in the fixtures below is a
+	// VERBATIM esbuild 0.28.1 transform output — the version Vite runs,
+	// pinned by the root package.json `pnpm.overrides` entry
+	// `esbuild@>=0.27.3 <0.28.1: ^0.28.1`. The transform decodes the named
+	// entity table and decimal/hex numeric references once, in a single
+	// pass, in string-literal attribute values only; expression-container
+	// values pass through verbatim. To regenerate the fixtures, run the
+	// same attribute strings through esbuild 0.28.1's JSX transform
+	// (e.g. `pnpm dlx esbuild@0.28.1` on a file of JSX attribute literals,
+	// or `transformSync` with `loader: 'jsx'`) and diff the emitted
+	// attribute values against the expected values below. Before this fix
+	// the reader under-decoded here (`&#108;ow` stayed verbatim) and the
 	// writer re-decoded through innerHTML, the two errors cancelling for
-	// literals and un-hiding for expression containers. Reverting the decode
-	// makes THESE fixtures red against the esbuild-emitted values.
+	// literals and un-hiding for expression containers. Reverting the
+	// decode makes THESE fixtures red against the esbuild-emitted values.
 	test('a JSX string-literal data-* value is decoded exactly as esbuild decodes it (round 25 I2)', () => {
 		// esbuild: `data-contrast-probe="a&amp;b"` → `"a&b"`.
 		expect(extractStateAttributes(' data-contrast-probe="a&amp;b"')).toEqual({
