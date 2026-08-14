@@ -2281,6 +2281,27 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 	// shadowed tag was classified as NOT String.raw — the declared runtime
 	// bucket. Any recognition-widening regression resolves the shadowed
 	// tag too, doubling the violations and reddening this assertion.
+	//
+	// Which check each shape pins (verified empirically — dropping the
+	// check reddens the fixture; both mutations were reverted, leaving the
+	// guard byte-identical):
+	// - every shadowing-binding shape (param, function-scope const,
+	//   function-scope let) pins the `nearestBinding` re-check at every
+	//   alias hop in `resolveModuleConstFixpoint`: the module-scope
+	//   `const R = String.raw` alias EXISTS in the map, and only that
+	//   check keeps the shadowed tag in the runtime bucket;
+	// - the locally shadowed `String` pins the `nearestBinding(...) ==
+	//   null` check in `isDirectGlobalString`: the module-scope `const
+	//   String` IS a recorded module const, but the tag is a member read,
+	//   so the hop check is never consulted for it.
+	// A module-level `let R` (no shadowing binding) is NOT a shape: it is
+	// rejected before any check by the NodeFlags.Const gate while the
+	// alias map is built, so dropping the hop check cannot redden it. An
+	// object-property tag (`tags.raw`) is NOT a shape either:
+	// `isStringRawTag` rejects every non-identifier candidate at its
+	// member branch, so no check the guard contains is ever consulted for
+	// it — only a NEW resolution feature (member reads through const
+	// object literals) could make it red, and that is out of scope.
 	const shapes = [
 		[
 			'param-shadowed R',
@@ -2300,11 +2321,14 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 		],
 		[
 			'function-scope const R',
-			// A `const R = String.raw` inside a function is not a
-			// module-scope const: `moduleConstInitializers` records only
-			// source-file statements. Removing the module-scope filter
-			// would resolve the local tag.
+			// The module-scope `const R = String.raw` alias exists in the
+			// map, but the function-scope `const R = String.raw` shadows it
+			// at the tag site. The alias-hop `nearestBinding` check must
+			// reject the tag (its nearest binding is the inner const, not
+			// the module alias); dropping the check would resolve it to the
+			// module alias.
 			[
+				'const R = String.raw;',
 				'export const probe = () => {',
 				'  const R = String.raw;',
 				'  return (',
@@ -2317,18 +2341,28 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 			].join('\n'),
 		],
 		[
-			'module-level let R',
-			// `let` is reassignable — the alias chain must reject it. The
-			// module-const map records only `const` declarations; dropping
-			// the NodeFlags.Const gate would resolve `let R`.
+			'function-scope let R',
+			// Same shadow shape with a `let`-declared shadowing binding:
+			// the module-scope `const R = String.raw` alias exists, but the
+			// function-scope `let R = String.raw` shadows it at the tag
+			// site. A reassignable binding is a shadow like any other, so
+			// the alias-hop `nearestBinding` check must reject the tag;
+			// dropping the check would resolve it to the module alias. (A
+			// module-level `let R` never reaches this check — the alias map
+			// excludes non-const declarations at build time — so it would
+			// pin nothing; the shadowed spelling is the shape that
+			// exercises the mechanism.)
 			[
-				'let R = String.raw;',
-				'export const probe = (',
-				'  <>',
-				'    <style>{R`.r1120-let-shadow { z-index: 2147483643; }`}</style>',
-				'    <style>{String.raw`.r1120-let-control { z-index: 2147483642; }`}</style>',
-				'  </>',
-				');',
+				'const R = String.raw;',
+				'export const probe = () => {',
+				'  let R = String.raw;',
+				'  return (',
+				'    <>',
+				'      <style>{R`.r1120-let-shadow { z-index: 2147483643; }`}</style>',
+				'      <style>{String.raw`.r1120-let-control { z-index: 2147483642; }`}</style>',
+				'    </>',
+				'  );',
+				'};',
 			].join('\n'),
 		],
 		[
@@ -2345,22 +2379,6 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 				'  <>',
 				'    <style>{String.raw`.r1120-string-shadow { z-index: 2147483641; }`}</style>',
 				'    <style>{globalThis.String.raw`.r1120-string-control { z-index: 2147483640; }`}</style>',
-				'  </>',
-				');',
-			].join('\n'),
-		],
-		[
-			'object-property tag',
-			// `tags.raw` is a member read, not a resolvable binding: tag
-			// recognition follows module-scope const *identifier* alias
-			// chains only. Resolving member reads through const object
-			// literals in `isStringRawTag` would widen recognition.
-			[
-				'const tags = { raw: String.raw };',
-				'export const probe = (',
-				'  <>',
-				'    <style>{tags.raw`.r1120-property-shadow { z-index: 2147483639; }`}</style>',
-				'    <style>{String.raw`.r1120-property-control { z-index: 2147483638; }`}</style>',
 				'  </>',
 				');',
 			].join('\n'),
