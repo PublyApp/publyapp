@@ -15,8 +15,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	profileQuery: {
 		data: undefined as unknown,
-		isLoading: false,
+		isPending: false,
 		isError: false,
+		isSuccess: false,
 		refetch: vi.fn(),
 	},
 	workspaceTenantId: 'tenant-1',
@@ -116,11 +117,12 @@ const profileData = {
 
 const renderPage = () => {
 	const queryClient = new QueryClient();
-	return render(
+	const view = render(
 		<QueryClientProvider client={queryClient}>
 			<AccountProfilePage />
 		</QueryClientProvider>,
 	);
+	return { queryClient, view };
 };
 
 afterEach(() => {
@@ -132,8 +134,9 @@ describe('AccountProfilePage', () => {
 	test('renders an editable form pre-filled from the tenant-scoped profile', () => {
 		mocks.profileQuery = {
 			data: profileData,
-			isLoading: false,
+			isPending: false,
 			isError: false,
+			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		renderPage();
@@ -158,8 +161,9 @@ describe('AccountProfilePage', () => {
 	test('submits only the dirty fields through the tenant-scoped PATCH', async () => {
 		mocks.profileQuery = {
 			data: profileData,
-			isLoading: false,
+			isPending: false,
 			isError: false,
+			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		mocks.mutation.mutateAsync.mockResolvedValue({
@@ -192,8 +196,9 @@ describe('AccountProfilePage', () => {
 	test('clears a field by submitting null when the input is emptied', async () => {
 		mocks.profileQuery = {
 			data: { ...profileData, avatarUrl: 'https://cdn.example.test/a.png' },
-			isLoading: false,
+			isPending: false,
 			isError: false,
+			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		mocks.mutation.mutateAsync.mockResolvedValue({
@@ -218,8 +223,9 @@ describe('AccountProfilePage', () => {
 	test('does not submit when nothing changed', async () => {
 		mocks.profileQuery = {
 			data: profileData,
-			isLoading: false,
+			isPending: false,
 			isError: false,
+			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		renderPage();
@@ -233,8 +239,9 @@ describe('AccountProfilePage', () => {
 	test('shows a local failure message when the PATCH fails', async () => {
 		mocks.profileQuery = {
 			data: profileData,
-			isLoading: false,
+			isPending: false,
 			isError: false,
+			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		const failure = new Error('network down');
@@ -259,8 +266,9 @@ describe('AccountProfilePage', () => {
 	test('blocks an invalid avatar URL client-side without calling the PATCH', async () => {
 		mocks.profileQuery = {
 			data: profileData,
-			isLoading: false,
+			isPending: false,
 			isError: false,
+			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		renderPage();
@@ -274,25 +282,71 @@ describe('AccountProfilePage', () => {
 		expect(mocks.mutation.mutateAsync).not.toHaveBeenCalled();
 	});
 
-	test('falls back to skeletons while the profile query is loading', () => {
+	test('falls back to skeletons while the profile query is pending', () => {
 		mocks.profileQuery = {
 			data: undefined,
-			isLoading: true,
+			isPending: true,
 			isError: false,
+			isSuccess: false,
 			refetch: mocks.profileQuery.refetch,
 		};
-		const { container } = renderPage();
+		const { view } = renderPage();
 
 		expect(
-			container.querySelectorAll('[data-slot="skeleton"]').length,
+			view.container.querySelectorAll('[data-slot="skeleton"]').length,
 		).toBeGreaterThan(0);
+	});
+
+	test('hydrates the form when the query resolves after mount', async () => {
+		// Render while the query is still unresolved (disabled tenant / first
+		// fetch): the page must not paint an empty "loaded" form yet.
+		mocks.profileQuery = {
+			data: undefined,
+			isPending: true,
+			isError: false,
+			isSuccess: false,
+			refetch: mocks.profileQuery.refetch,
+		};
+		const { queryClient, view } = renderPage();
+		expect(screen.queryByLabelText('First name')).toBeNull();
+
+		// The query resolves; the form must now hydrate from the loaded data
+		// even though useForm captured its defaultValues at mount time.
+		mocks.profileQuery = {
+			data: profileData,
+			isPending: false,
+			isError: false,
+			isSuccess: true,
+			refetch: mocks.profileQuery.refetch,
+		};
+		view.rerender(
+			<QueryClientProvider client={queryClient}>
+				<AccountProfilePage />
+			</QueryClientProvider>,
+		);
+
+		await waitFor(() => {
+			expect(
+				(screen.getByLabelText('First name') as HTMLInputElement).value,
+			).toBe('Jason');
+		});
+		expect((screen.getByLabelText('Last name') as HTMLInputElement).value).toBe(
+			'Tatum',
+		);
+		expect(
+			(screen.getByLabelText('Avatar URL') as HTMLInputElement).value,
+		).toBe('');
+		expect(
+			(screen.getByLabelText('Email address') as HTMLInputElement).value,
+		).toBe('jason@studio.io');
 	});
 
 	test('shows an error state with a retry action when the profile query fails', () => {
 		mocks.profileQuery = {
 			data: undefined,
-			isLoading: false,
+			isPending: false,
 			isError: true,
+			isSuccess: false,
 			refetch: mocks.profileQuery.refetch,
 		};
 		renderPage();
@@ -307,8 +361,9 @@ describe('AccountProfilePage', () => {
 	test('keeps the read-only affordance only for fields with no backend', () => {
 		mocks.profileQuery = {
 			data: profileData,
-			isLoading: false,
+			isPending: false,
 			isError: false,
+			isSuccess: true,
 			refetch: mocks.profileQuery.refetch,
 		};
 		renderPage();

@@ -1,9 +1,29 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import {
 	buildUpdateAccountProfileBody,
 	toAccountProfile,
 } from './tenant-account-profile';
+
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateClient: vi.fn(),
+	}),
+	resolveApiBaseUrl: () => 'https://api.example.test',
+}));
+
+const unwrapUntyped = (value: unknown): unknown => {
+	if (
+		typeof value === 'object' &&
+		value !== null &&
+		'getValue' in value &&
+		typeof (value as { getValue: unknown }).getValue === 'function'
+	) {
+		return (value as { getValue: () => unknown }).getValue();
+	}
+
+	return value;
+};
 
 describe('toAccountProfile', () => {
 	test('normalizes a full profile result', () => {
@@ -57,6 +77,29 @@ describe('buildUpdateAccountProfileBody', () => {
 			firstName: expect.anything(),
 			avatarUrl: null,
 		});
+	});
+
+	test('strips the API origin off a same-origin /files/ avatar before sending', () => {
+		expect(
+			unwrapUntyped(
+				buildUpdateAccountProfileBody({
+					tenantId: 't-1',
+					avatarUrl:
+						'https://api.example.test/files/uploads/2026/08/11111111-2222-3333-4444-555555555555.png',
+				}).avatarUrl,
+			),
+		).toBe('/files/uploads/2026/08/11111111-2222-3333-4444-555555555555.png');
+	});
+
+	test('leaves an externally hosted avatar URL untouched', () => {
+		expect(
+			unwrapUntyped(
+				buildUpdateAccountProfileBody({
+					tenantId: 't-1',
+					avatarUrl: 'https://cdn.example.com/avatar.png',
+				}).avatarUrl,
+			),
+		).toBe('https://cdn.example.com/avatar.png');
 	});
 
 	test('trims whitespace-only values down to a clear', () => {

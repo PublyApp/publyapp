@@ -11,6 +11,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Account.Services;
+using PublyApp.Api.Modules.Account.Validation;
 
 namespace PublyApp.Api.Modules.Account.Handlers.Tenant;
 
@@ -96,7 +97,7 @@ public class UpdateAccountProfileBodyValidator
 			.MustBePatchFieldString("LastName");
 
 		RuleFor(x => x.AvatarUrl)
-			.MustBePatchFieldUrl("AvatarUrl");
+			.MustBePatchFieldAvatarUrl("AvatarUrl");
 	}
 }
 
@@ -164,6 +165,16 @@ public sealed class UpdateAccountProfileForTenant {
 			);
 		}
 
-		return TypedResults.Ok(profile);
+		return TypedResults.Ok(ToResult(profile));
+	}
+
+	private static AccountProfileResult ToResult(AccountProfileData profile) {
+		return new AccountProfileResult {
+			Id = profile.Id,
+			Email = profile.Email,
+			FirstName = profile.FirstName,
+			LastName = profile.LastName,
+			AvatarUrl = profile.AvatarUrl,
+		};
 	}
 }

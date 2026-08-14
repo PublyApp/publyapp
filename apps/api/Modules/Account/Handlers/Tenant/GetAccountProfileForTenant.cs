@@ -59,6 +59,16 @@ public sealed class GetAccountProfileForTenant {
 			);
 		}
 
-		return TypedResults.Ok(profile);
+		return TypedResults.Ok(ToResult(profile));
+	}
+
+	private static AccountProfileResult ToResult(AccountProfileData profile) {
+		return new AccountProfileResult {
+			Id = profile.Id,
+			Email = profile.Email,
+			FirstName = profile.FirstName,
+			LastName = profile.LastName,
+			AvatarUrl = profile.AvatarUrl,
+		};
 	}
 }

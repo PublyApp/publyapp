@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -91,7 +91,7 @@ function AccountProfilePage() {
 	const { t, i18n } = useTranslation(['account', 'common']);
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
-	const { data, isLoading, isError, refetch } =
+	const { data, isPending, isError, isSuccess, refetch } =
 		useAccountProfileQuery(tenantId);
 	const profile = toAccountProfile(data);
 	const updateProfile = useUpdateAccountProfileMutation();
@@ -116,7 +116,30 @@ function AccountProfilePage() {
 
 	const {
 		formState: { dirtyFields, isSubmitting },
+		reset,
 	} = methods;
+
+	// `useForm` captures defaultValues at first render, when the query is still
+	// unresolved (skeletons are showing), so the fields would otherwise stay
+	// empty forever. Hydrate the form from the loaded query exactly once per
+	// resolved tenant, mirroring the staff user-edit form idiom
+	// ($userId-edit.tsx) — never on background refetches, and never over an
+	// in-flight edit on the same tenant.
+	const hydratedTenantIdRef = useRef<string | null>(null);
+
+	useEffect(() => {
+		if (!isSuccess || !profile || hydratedTenantIdRef.current === tenantId) {
+			return;
+		}
+
+		reset({
+			firstName: profile.firstName ?? '',
+			lastName: profile.lastName ?? '',
+			avatarUrl: profile.avatarUrl ?? '',
+			email: profile.email,
+		});
+		hydratedTenantIdRef.current = tenantId;
+	}, [isSuccess, profile, tenantId, reset]);
 
 	const isSubmittingForm = isSubmitting || updateProfile.isPending;
 
@@ -212,7 +235,7 @@ function AccountProfilePage() {
 							<CardTitle>{t('personal-information')}</CardTitle>
 						</CardHeader>
 						<CardContent>
-							{isLoading ? (
+							{isPending ? (
 								<div className="space-y-4">
 									<div className="flex items-center gap-4">
 										<Skeleton className="size-14 rounded-[10px]" />

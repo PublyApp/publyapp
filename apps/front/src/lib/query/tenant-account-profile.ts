@@ -2,7 +2,10 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
-import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
+import {
+	normalizeNullableFileUrl,
+	toRootRelativeApiFileUrl,
+} from '~/lib/api-client/resolve-api-file-url';
 
 import type {
 	AccountProfileResult,
@@ -119,7 +122,10 @@ export const buildUpdateAccountProfileBody = (
 	}
 
 	if (avatarUrl !== undefined) {
-		body.avatarUrl = avatarUrl === null ? null : createUntypedString(avatarUrl);
+		body.avatarUrl =
+			avatarUrl === null
+				? null
+				: createUntypedString(toRootRelativeApiFileUrl(avatarUrl));
 	}
 
 	return body;

@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
-using PublyApp.Api.Modules.Account.Handlers.Tenant;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Account.Services;
@@ -16,13 +15,26 @@ public record UpdateAccountProfileArgs(
 	PatchField<string?> AvatarUrl
 );
 
+/// <summary>
+/// Service-layer projection of the tenant user's own profile. Handlers map
+/// this to the wire <c>AccountProfileResult</c>, keeping the service layer
+/// free of handler types.
+/// </summary>
+public sealed record AccountProfileData(
+	Guid Id,
+	string Email,
+	string? FirstName,
+	string? LastName,
+	string? AvatarUrl
+);
+
 public interface IAccountProfileService {
-	Task<AccountProfileResult?> GetAccountProfileAsync(
+	Task<AccountProfileData?> GetAccountProfileAsync(
 		Guid userId,
 		Guid tenantId,
 		CancellationToken cancellationToken = default
 	);
-	Task<AccountProfileResult?> UpdateAccountProfileAsync(
+	Task<AccountProfileData?> UpdateAccountProfileAsync(
 		UpdateAccountProfileArgs args,
 		CancellationToken cancellationToken = default
 	);
@@ -36,7 +48,7 @@ public class AccountProfileService : IAccountProfileService {
 		_dbContext = dbContext;
 	}
 
-	public async Task<AccountProfileResult?> GetAccountProfileAsync(
+	public async Task<AccountProfileData?> GetAccountProfileAsync(
 		Guid userId,
 		Guid tenantId,
 		CancellationToken cancellationToken = default
@@ -50,7 +62,7 @@ public class AccountProfileService : IAccountProfileService {
 		return user is null ? null : ToResult(user);
 	}
 
-	public async Task<AccountProfileResult?> UpdateAccountProfileAsync(
+	public async Task<AccountProfileData?> UpdateAccountProfileAsync(
 		UpdateAccountProfileArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -105,13 +117,13 @@ public class AccountProfileService : IAccountProfileService {
 		).FirstOrDefaultAsync(cancellationToken);
 	}
 
-	private static AccountProfileResult ToResult(User user) {
-		return new AccountProfileResult {
-			Id = user.GetRequiredId(),
-			Email = user.Email,
-			FirstName = user.FirstName,
-			LastName = user.LastName,
-			AvatarUrl = user.AvatarUrl,
-		};
+	private static AccountProfileData ToResult(User user) {
+		return new AccountProfileData(
+			user.GetRequiredId(),
+			user.Email,
+			user.FirstName,
+			user.LastName,
+			user.AvatarUrl
+		);
 	}
 }

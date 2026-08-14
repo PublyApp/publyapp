@@ -92,7 +92,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 
 	[Fact]
 	public async Task
-	ItShouldClearAFieldWhenThePatchValueIsNull() {
+	ItShouldClearTheAvatarAndLeaveAbsentFieldsUntouched() {
 		var (token, userId, acmeId, original) =
 			await PrepareAcmeAdminAsync();
 
@@ -115,10 +115,54 @@ public sealed class UpdateAccountProfileForTenantSpec
 				.ReadFromJsonAsync<AccountProfileResult>();
 			result.Should().NotBeNull();
 			Assert.NotNull(result);
+			// Absent field = untouched: firstName/lastName were omitted from
+			// the PATCH, so they must survive exactly as they were.
 			result.AvatarUrl.Should().BeNull();
+			result.FirstName.Should().Be(original.FirstName);
+			result.LastName.Should().Be(original.LastName);
 
 			var persisted = await GetUserRowAsync(userId);
 			persisted.AvatarUrl.Should().BeNull();
+			persisted.FirstName.Should().Be(original.FirstName);
+			persisted.LastName.Should().Be(original.LastName);
+		} finally {
+			await RestoreProfileAsync(userId, original);
+		}
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAcceptARootRelativeServedUploadAvatarUrl() {
+		var (token, userId, acmeId, original) =
+			await PrepareAcmeAdminAsync();
+		const string servedUploadUrl =
+			"/files/uploads/2026/08/11111111-2222-3333-4444-555555555555.png";
+
+		try {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Patch,
+				GetUrl()
+			)
+				.WithSessionToken(token)
+				.WithTenantId(acmeId);
+
+			request.Content = JsonContent.Create(new {
+				avatarUrl = servedUploadUrl,
+			});
+
+			using var response = await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var result = await response.Content
+				.ReadFromJsonAsync<AccountProfileResult>();
+			result.Should().NotBeNull();
+			Assert.NotNull(result);
+			// The root-relative served-upload form is persisted as-is, so the
+			// stored value never bakes in today's API origin.
+			result.AvatarUrl.Should().Be(servedUploadUrl);
+
+			var persisted = await GetUserRowAsync(userId);
+			persisted.AvatarUrl.Should().Be(servedUploadUrl);
 		} finally {
 			await RestoreProfileAsync(userId, original);
 		}

@@ -26,9 +26,6 @@ test
 **/test
 **/tests
 
-# Keep client-ts fixture imported by generated API client code.
-!packages/client-ts/src/test
-
 # IDE files
 .vscode/
 .idea/
