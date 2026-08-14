@@ -299,6 +299,50 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			body: JSON.stringify({ data: [], nextCursor: null }),
 		});
 	});
+
+	await page.route('**/staff/audit-logs**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		// The list endpoint carries cursor/sort/filter query params; the
+		// actions endpoint is a plain GET. Match by path (isApiPath with a
+		// trailing-slash-tolerant comparison), returning an empty page for
+		// the list and an empty action set for the filter.
+		if (/\/staff\/audit-logs\/actions(\?|$)/.test(url)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ actions: [] }),
+			});
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ data: [], nextCursor: null }),
+		});
+	});
+};
+
+const openAuditLogExportDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockDrawerDependencies(page);
+	await page.goto('/staff/audit-logs');
+	await expect(page.getByTestId('staff-audit-logs-export-trigger')).toBeVisible(
+		{
+			timeout: 10_000,
+		},
+	);
+	await page.getByTestId('staff-audit-logs-export-trigger').click();
+	await expect(page.getByTestId('audit-log-export-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
 };
 
 const openProfileCreateDrawer = async (page: Page): Promise<void> => {
@@ -692,6 +736,10 @@ const DRAWER_OPENERS: Record<
 	'profile-edit-details-drawer': {
 		name: 'edit profile',
 		open: openProfileEditDrawer,
+	},
+	'audit-log-export-drawer': {
+		name: 'export audit logs',
+		open: openAuditLogExportDrawer,
 	},
 };
 
