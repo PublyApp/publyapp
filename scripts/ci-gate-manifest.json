@@ -172,9 +172,9 @@
 			"reason": "Identical install command to front-ci.yml::supply-chain's own install step; local development already runs pnpm install as part of `just install`."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "538622d8a952cf49",
+			"hash": "4dff80ef4415ae60",
 			"mirror": "just ci-drift",
-			"reason": "The CI gate guard suites, deterministic frontend-lint regression, and check-ci-gate-structure.mjs run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI."
+			"reason": "The CODEOWNERS contract, CI gate guard suites, deterministic frontend-lint regression, and check-ci-gate-structure.mjs run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI."
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"hash": "efdabfd7485185e8",

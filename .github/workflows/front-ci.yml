@@ -249,6 +249,7 @@ jobs:
 
       - name: Run CI gate guard tests (mirrors `just ci-drift`)
         run: |
+          node --test ./scripts/codeowners-contract.test.mjs
           node --test ./scripts/check-ci-drift.test.mjs
           node --test ./scripts/lint-front.test.mjs
           node ./scripts/check-ci-drift.mjs
