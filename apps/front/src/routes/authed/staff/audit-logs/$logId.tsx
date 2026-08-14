@@ -10,7 +10,12 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
 import { Button, buttonVariants } from '~/components/ui/button';
-import { useStaffAuditLogDetailsQuery } from '~/lib/query/staff-audit-logs';
+import { Skeleton } from '~/components/ui/skeleton';
+import {
+	selectStaffAuditLogCrumbName,
+	staffAuditLogCrumbQuery,
+	useStaffAuditLogDetailsQuery,
+} from '~/lib/query/staff-audit-logs';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -47,15 +52,15 @@ const isProblemStatus = (
 
 const AuditLogDetailsLoading = () => (
 	<div className="space-y-4" data-testid="staff-audit-log-details-loading">
-		<div className="h-6 w-40 animate-pulse rounded bg-muted" />
-		<div className="h-24 animate-pulse rounded bg-muted" />
+		<Skeleton className="h-6 w-40" />
+		<Skeleton className="h-24 w-full" />
 		<div className="grid gap-3 md:grid-cols-2">
-			<div className="h-20 animate-pulse rounded bg-muted" />
-			<div className="h-20 animate-pulse rounded bg-muted" />
-			<div className="h-20 animate-pulse rounded bg-muted" />
-			<div className="h-20 animate-pulse rounded bg-muted" />
+			<Skeleton className="h-20 w-full" />
+			<Skeleton className="h-20 w-full" />
+			<Skeleton className="h-20 w-full" />
+			<Skeleton className="h-20 w-full" />
 		</div>
-		<div className="h-40 animate-pulse rounded bg-muted" />
+		<Skeleton className="h-40 w-full" />
 	</div>
 );
 
@@ -135,7 +140,11 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 					labelKey: 'nav-staff-audit-logs',
 					to: AUDIT_LOGS_LIST_PATH,
 				},
-				{ kind: 'label', labelKey: 'common:details' },
+				{
+					kind: 'entity',
+					query: staffAuditLogCrumbQuery,
+					select: selectStaffAuditLogCrumbName,
+				},
 			],
 		},
 		component: StaffAuditLogDetailsRoute,

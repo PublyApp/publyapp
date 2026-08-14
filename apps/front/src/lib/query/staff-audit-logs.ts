@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/src/apiClient';
@@ -85,6 +86,27 @@ const normalizeDate = (value: Date | null | undefined): Date | null => {
 const isPositiveSafeInteger = (value: number | undefined): value is number =>
 	typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
+const END_OF_DAY_SUFFIX = 'T23:59:59';
+
+/** The API parses `end_date` with `DateTime.TryParse` (RoundtripKind), so a
+ * bare `YYYY-MM-DD` resolves to midnight and the `CreatedAt <= endDate`
+ * predicate excludes the whole end day. Send end-of-day instead; only bare
+ * dates are rewritten — an already-qualified timestamp passes through. */
+const normalizeEndDate = (
+	value: string | null | undefined,
+): string | undefined => {
+	const normalized = normalizeString(value);
+	if (!normalized) {
+		return undefined;
+	}
+
+	if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+		return normalized;
+	}
+
+	return `${normalized}${END_OF_DAY_SUFFIX}`;
+};
+
 const normalizeActions = (
 	actions: string[] | undefined,
 ): string[] | undefined => {
@@ -127,7 +149,7 @@ export const buildFindStaffAuditLogsQueryParameters = (
 		// handler's AuditLogActionsCsv).
 		actions: actions?.join(','),
 		startDate: normalizeString(variables.startDate),
-		endDate: normalizeString(variables.endDate),
+		endDate: normalizeEndDate(variables.endDate),
 		sortId: normalizeString(variables.sortId),
 		sortOrder: variables.sortOrder,
 		cursor: normalizeString(variables.cursor),
@@ -162,7 +184,7 @@ export const toStaffAuditLogRows = (
 	return rows;
 };
 
-const staffAuditLogsQueryOptions = buildStaffQueryOptions<
+export const staffAuditLogsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindAuditLogsResponse,
 	StaffAuditLogsQueryVariables
@@ -184,7 +206,7 @@ const staffAuditLogsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffAuditLogActionsQueryOptions = buildStaffQueryOptions<
+export const staffAuditLogActionsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetAuditLogActionsResponse,
 	Record<string, never>
@@ -204,7 +226,7 @@ const staffAuditLogActionsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffAuditLogDetailsQueryOptions = buildStaffQueryOptions<
+export const staffAuditLogDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	AuditLogDetail,
 	StaffAuditLogDetailsQueryVariables
@@ -226,7 +248,7 @@ const staffAuditLogDetailsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const exportStaffAuditLogsMutationOptions = buildStaffMutationOptions<
+export const exportStaffAuditLogsMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	ArrayBuffer | undefined,
 	StaffAuditLogExportInput
@@ -241,7 +263,7 @@ const exportStaffAuditLogsMutationOptions = buildStaffMutationOptions<
 					format: variables.format,
 					actions: actions?.join(','),
 					startDate: normalizeString(variables.startDate),
-					endDate: normalizeString(variables.endDate),
+					endDate: normalizeEndDate(variables.endDate),
 				},
 			});
 		},
@@ -257,6 +279,28 @@ export const useStaffAuditLogsQuery = (
 		queryKey: staffAuditLogsQueryOptions.queryKey(variables),
 		queryFn: () => staffAuditLogsQueryOptions.fetcher(variables),
 	});
+
+/** Entity-crumb query for the `/staff/audit-logs/$logId` detail route — same
+ * query key as `useStaffAuditLogDetailsQuery`, so TanStack Query dedupes and
+ * a cached log paints the crumb instantly. */
+export const staffAuditLogCrumbQuery = (
+	params: Record<string, string>,
+): EntityCrumbQuery => ({
+	queryKey: staffAuditLogDetailsQueryOptions.queryKey({
+		logId: params.logId,
+	}),
+	queryFn: () =>
+		staffAuditLogDetailsQueryOptions.fetcher({ logId: params.logId }),
+});
+
+/** The audit log's crumb name is its action key (the only stable human-
+ * readable identifier an audit row carries). */
+export const selectStaffAuditLogCrumbName = (
+	data: unknown,
+): string | undefined =>
+	normalizeNullableString(
+		(data as AuditLogDetail | null | undefined)?.action,
+	) ?? undefined;
 
 export const useAuditLogActionsQuery = () =>
 	useQuery({

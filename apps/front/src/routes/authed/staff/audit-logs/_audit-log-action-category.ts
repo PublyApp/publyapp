@@ -16,6 +16,47 @@ export type AuditActionCategory = {
 // AuditActionsRegistry stays the source of truth for which actions exist.
 const DESTRUCTIVE_VERBS = new Set(['deleted', 'removed', 'revoked']);
 
+// Stable machine-kind → i18n-key mapping for the kinds this heuristic can
+// produce from the known backend action domains; unknown (new backend
+// domain) kinds return no key and fall back to the raw kind at render time.
+// A switch (not a `*_KEYS` object literal) so the i18n-key-coverage guard's
+// lookup-table extractor doesn't misattribute these staff-audit-logs keys to
+// this file's namespace-less default.
+export const auditActionKindTranslationKey = (
+	kind: string,
+): string | undefined => {
+	switch (kind) {
+		case 'Auth':
+			return 'action-kind-auth';
+		case 'Event':
+			return 'action-kind-event';
+		case 'Impersonation':
+			return 'action-kind-impersonation';
+		case 'Invitation':
+			return 'action-kind-invitation';
+		case 'Staff':
+			return 'action-kind-staff';
+		case 'System':
+			return 'action-kind-system';
+		case 'Tenant':
+			return 'action-kind-tenant';
+		case 'Upload':
+			return 'action-kind-upload';
+		case 'User':
+			return 'action-kind-user';
+		default:
+			return undefined;
+	}
+};
+
+export const auditActionKindLabel = (
+	t: (key: string, options?: Record<string, unknown>) => string,
+	kind: string,
+): string => {
+	const key = auditActionKindTranslationKey(kind);
+	return key === undefined ? kind : t(key);
+};
+
 export const categorizeAuditAction = (
 	action: string | null | undefined,
 ): AuditActionCategory => {

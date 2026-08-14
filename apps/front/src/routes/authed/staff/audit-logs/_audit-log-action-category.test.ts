@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
-import { categorizeAuditAction } from './_audit-log-action-category';
+import {
+	auditActionKindLabel,
+	auditActionKindTranslationKey,
+	categorizeAuditAction,
+} from './_audit-log-action-category';
 
 describe('categorizeAuditAction', () => {
 	test('falls back to a neutral Event for an empty action', () => {
@@ -73,5 +77,39 @@ describe('categorizeAuditAction', () => {
 			kind: 'Post',
 			tone: 'neutral',
 		});
+	});
+});
+
+describe('auditActionKindTranslationKey', () => {
+	test('maps every known kind to a stable staff-audit-logs i18n key', () => {
+		expect(auditActionKindTranslationKey('User')).toBe('action-kind-user');
+		expect(auditActionKindTranslationKey('Auth')).toBe('action-kind-auth');
+		expect(auditActionKindTranslationKey('System')).toBe('action-kind-system');
+		expect(auditActionKindTranslationKey('Tenant')).toBe('action-kind-tenant');
+		expect(auditActionKindTranslationKey('Staff')).toBe('action-kind-staff');
+		expect(auditActionKindTranslationKey('Invitation')).toBe(
+			'action-kind-invitation',
+		);
+		expect(auditActionKindTranslationKey('Upload')).toBe('action-kind-upload');
+		expect(auditActionKindTranslationKey('Impersonation')).toBe(
+			'action-kind-impersonation',
+		);
+		expect(auditActionKindTranslationKey('Event')).toBe('action-kind-event');
+	});
+
+	test('returns no key for unknown (new backend domain) kinds', () => {
+		expect(auditActionKindTranslationKey('Post')).toBeUndefined();
+	});
+});
+
+describe('auditActionKindLabel', () => {
+	const t = (key: string): string => `translated:${key}`;
+
+	test('translates known kinds through t()', () => {
+		expect(auditActionKindLabel(t, 'User')).toBe('translated:action-kind-user');
+	});
+
+	test('falls back to the raw kind when no translation key exists', () => {
+		expect(auditActionKindLabel(t, 'Post')).toBe('Post');
 	});
 });

@@ -5,10 +5,14 @@ import { CopyButton } from '~/components/ui/copy-button';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
+import { cn } from '~/lib/utils';
 
 import type { AuditLogDetail } from '@org/client-ts/src/models/index.js';
 
-import { categorizeAuditAction } from './_audit-log-action-category';
+import {
+	auditActionKindLabel,
+	categorizeAuditAction,
+} from './_audit-log-action-category';
 
 export const AuditLogDetailHero = ({
 	auditLog,
@@ -17,12 +21,14 @@ export const AuditLogDetailHero = ({
 	auditLog: AuditLogDetail;
 	locale: string;
 }) => {
+	const { t } = useTranslation(['staff-audit-logs', 'common']);
 	const { kind, tone } = categorizeAuditAction(auditLog.action);
 
 	return (
 		<div className="space-y-3">
-			<StatusPill tone={tone}>{kind}</StatusPill>
+			<StatusPill tone={tone}>{auditActionKindLabel(t, kind)}</StatusPill>
 			<p className="break-all font-mono text-xl leading-snug text-foreground">
+				{/* data-honesty-ignore: a legacy audit row's missing action key renders as a no-value dash, not fabricated identity data */}
 				{auditLog.action || '-'}
 			</p>
 			{auditLog.createdAt ? (
@@ -48,9 +54,11 @@ export const AuditLogActor = ({ auditLog }: { auditLog: AuditLogDetail }) => {
 				/>
 				<div className="min-w-0">
 					<p className="truncate text-sm font-medium text-foreground">
+						{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
 						{auditLog.userName || '-'}
 					</p>
 					<p className="truncate text-xs text-muted-foreground">
+						{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
 						{auditLog.userEmail || '-'}
 					</p>
 				</div>
@@ -78,10 +86,10 @@ export const AuditLogContextCell = ({
 		</p>
 		<div className="flex min-w-0 items-center gap-1.5">
 			<span
-				className={[
+				className={cn(
 					'min-w-0 truncate text-sm',
 					mono ? 'font-mono text-muted-foreground' : 'text-foreground',
-				].join(' ')}
+				)}
 				data-testid={testId}
 			>
 				{value}

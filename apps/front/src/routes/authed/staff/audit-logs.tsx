@@ -1,10 +1,12 @@
 import {
 	IconActivity,
+	IconAlertCircle,
 	IconCalendarClock,
 	IconChevronDown,
 	IconDownload,
 	IconEye,
 	IconFilter,
+	IconRefresh,
 	IconTarget,
 	IconUser,
 	IconWorld,
@@ -27,7 +29,7 @@ import {
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { Input } from '~/components/ui/input';
-import { PageHeader } from '~/components/ui/product-page';
+import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
 	toStaffAuditLogRows,
@@ -37,6 +39,10 @@ import {
 } from '~/lib/query/staff-audit-logs';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
+import {
+	auditActionKindLabel,
+	categorizeAuditAction,
+} from './audit-logs/_audit-log-action-category';
 import { AuditLogExportDrawer } from './audit-logs/_audit-log-export-drawer';
 import {
 	buildAuditLogsCursorResetKey,
@@ -60,24 +66,32 @@ export const makeAuditLogColumns = (
 		header: t('common:event'),
 		enableSorting: false,
 		meta: { headerIcon: <IconActivity />, width: '240px' },
-		cell: ({ row }) => (
-			<div className="min-w-0">
-				<Link
-					to="/staff/audit-logs/$logId"
-					params={{ logId: row.original.id }}
-					className="publy-record-link block truncate font-mono text-[13px] font-medium no-underline"
-					title={row.original.action ?? undefined}
-				>
-					{row.original.action || '-'}
-				</Link>
-				<span
-					className="block truncate font-mono text-xs text-muted-foreground"
-					title={row.original.id}
-				>
-					{row.original.id}
-				</span>
-			</div>
-		),
+		cell: ({ row }) => {
+			const { kind, tone } = categorizeAuditAction(row.original.action);
+
+			return (
+				<div className="min-w-0">
+					<div className="mb-1">
+						<StatusPill tone={tone}>{auditActionKindLabel(t, kind)}</StatusPill>
+					</div>
+					<Link
+						to="/staff/audit-logs/$logId"
+						params={{ logId: row.original.id }}
+						className="publy-record-link block truncate font-mono text-[13px] font-medium no-underline"
+						title={row.original.action ?? undefined}
+					>
+						{/* data-honesty-ignore: a legacy audit row's missing action key renders as a no-value dash, not fabricated identity data */}
+						{row.original.action || '-'}
+					</Link>
+					<span
+						className="block truncate font-mono text-xs text-muted-foreground"
+						title={row.original.id}
+					>
+						{row.original.id}
+					</span>
+				</div>
+			);
+		},
 	},
 	{
 		id: 'user',
@@ -90,12 +104,14 @@ export const makeAuditLogColumns = (
 					className="block truncate font-normal"
 					title={row.original.userName ?? undefined}
 				>
+					{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
 					{row.original.userName || '-'}
 				</span>
 				<span
 					className="block truncate text-xs text-muted-foreground"
 					title={row.original.userEmail ?? undefined}
 				>
+					{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
 					{row.original.userEmail || '-'}
 				</span>
 			</div>
@@ -114,6 +130,7 @@ export const makeAuditLogColumns = (
 					className="block max-w-35 truncate font-mono text-xs text-muted-foreground"
 					title={targetId ?? undefined}
 				>
+					{/* data-honesty-ignore: target id is a documented OPTIONAL field — an event without a target has none, not fabricated identity data */}
 					{targetId || '-'}
 				</span>
 			);
@@ -127,6 +144,7 @@ export const makeAuditLogColumns = (
 		meta: { headerIcon: <IconWorld />, width: '140px', hideBelow: 768 },
 		cell: ({ getValue }) => (
 			<span className="block truncate font-mono text-xs text-muted-foreground">
+				{/* data-honesty-ignore: ip address is a documented OPTIONAL field — a server-side event has none, not fabricated identity data */}
 				{getValue<string | null>() || '-'}
 			</span>
 		),
@@ -340,18 +358,40 @@ function StaffAuditLogsPage() {
 								>
 									{t('all-actions')}
 								</DropdownMenuCheckboxItem>
-								{actionsOptions.map((action) => (
-									<DropdownMenuCheckboxItem
-										key={action}
-										checked={selectedActions.includes(action)}
-										closeOnClick={false}
-										showCheckbox
-										data-testid={`staff-audit-logs-actions-filter-${action}`}
-										onCheckedChange={() => toggleAction(action)}
-									>
-										<span className="font-mono text-[13px]">{action}</span>
-									</DropdownMenuCheckboxItem>
-								))}
+								{actionsQuery.isError ? (
+									<>
+										<div
+											className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-destructive"
+											data-testid="staff-audit-logs-actions-filter-error"
+										>
+											<IconAlertCircle
+												aria-hidden="true"
+												className="size-4 shrink-0"
+											/>
+											<span>{t('actions-filter-error')}</span>
+										</div>
+										<DropdownMenuItem
+											data-testid="staff-audit-logs-actions-filter-retry"
+											onClick={() => void actionsQuery.refetch()}
+										>
+											<IconRefresh aria-hidden="true" className="size-4" />
+											{t('common:try-again')}
+										</DropdownMenuItem>
+									</>
+								) : (
+									actionsOptions.map((action) => (
+										<DropdownMenuCheckboxItem
+											key={action}
+											checked={selectedActions.includes(action)}
+											closeOnClick={false}
+											showCheckbox
+											data-testid={`staff-audit-logs-actions-filter-${action}`}
+											onCheckedChange={() => toggleAction(action)}
+										>
+											<span className="font-mono text-[13px]">{action}</span>
+										</DropdownMenuCheckboxItem>
+									))
+								)}
 								<DropdownMenuSeparator />
 								<DropdownMenuItem onClick={() => setActionsFilter([])}>
 									{t('common:clear')}

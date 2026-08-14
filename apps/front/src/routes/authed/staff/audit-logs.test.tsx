@@ -7,6 +7,8 @@ vi.mock('@tanstack/react-router', () => ({
 	Link: (props: { children?: ReactNode }) => props.children ?? null,
 }));
 
+import { render, screen } from '@testing-library/react';
+
 import { makeAuditLogColumns } from './audit-logs';
 
 const t = (key: string): string => key;
@@ -47,5 +49,33 @@ describe('staff audit logs column grid', () => {
 			.map((column) => column.id);
 
 		expect(hidden.sort()).toEqual(['ip-address', 'target-id', 'user']);
+	});
+
+	test('renders the translated action-category badge above the event link', () => {
+		const translate = (key: string): string =>
+			key === 'action-kind-user' ? 'User category' : key;
+		const columns = makeAuditLogColumns(translate, 'en');
+		const eventCell = columns[0].cell as unknown as
+			| ((context: { row: { original: Record<string, unknown> } }) => ReactNode)
+			| undefined;
+
+		render(
+			eventCell?.({
+				row: {
+					original: {
+						id: 'log-1',
+						action: 'user.created',
+						userName: null,
+						userEmail: null,
+						ipAddress: null,
+						targetId: null,
+						createdAt: null,
+					},
+				},
+			}) ?? null,
+		);
+
+		expect(screen.getByText('User category')).toBeTruthy();
+		expect(screen.getByText('user.created')).toBeTruthy();
 	});
 });
