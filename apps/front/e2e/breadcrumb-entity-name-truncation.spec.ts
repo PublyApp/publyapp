@@ -26,8 +26,8 @@ import {
  * `feat/ui-profile-batch`'s `profile-icon-picker-pin-geometry.spec.ts` (read
  * as reference, not modified — see `chromium-hermetic-source` below), it
  * renders a `page.setContent()` page built from the REAL compiled
- * production CSS (`dist/client/assets/app-*.css`, built on demand if
- * missing or stale — see `helpers/compiled-app-css.ts`) plus:
+ * production CSS (`dist/client/assets/app-*.css`, built once per process by the
+ * helper — see `helpers/compiled-app-css.ts`) plus:
  *  - hand-authored markup mirroring the topbar shell chrome around the
  *    breadcrumb (`app-shell.tsx`'s `.app-shell-workspace` grid,
  *    `.app-shell-topbar` flex row, `.app-shell-topbar-left` / `-right`,
@@ -127,12 +127,15 @@ const LONG_NAME =
 	'Acme Corporation International Holdings & Subsidiaries Consolidated Group Worldwide Ltd.';
 const SHORT_NAME = 'Acme';
 
-// This proof pays a real production-build cost: `readCompiledAppCss()`
-// performs a build (client + SSR) the first time it is called in a process
-// (see helpers/compiled-app-css.ts), and CI observes ~30s for that build
-// alone, more under contention. The default 30s test timeout is therefore
-// too small for this spec; budget its own bounded timeout here. Global
-// browser-test defaults in playwright.config.ts stay unchanged.
+// This proof pays a real production-build cost: `readCompiledAppCss()` performs a
+// build (client + SSR) the first time any test in this file's dedicated
+// `chromium-hermetic-source` Playwright project calls it, and with that project
+// configured at `workers: 1` this means both tests share one process and one
+// build. Measured around 30s for that build on CI runners at the time this
+// was written; a 180s timeout intentionally keeps 6× headroom so the spec
+// fails on hung builds rather than merely slower ones. The default 30s test
+// timeout is therefore too small for this spec; budget its own bounded timeout
+// here. Global browser-test defaults in playwright.config.ts stay unchanged.
 test.setTimeout(180_000);
 
 /** Runs the full set of real-browser truncation assertions against whatever
