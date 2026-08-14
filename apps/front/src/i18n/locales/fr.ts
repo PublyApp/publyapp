@@ -1,6 +1,7 @@
 import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 
 import type { LooseResource } from './en';
+import account from './fr/account.json';
 import auth from './fr/auth.json';
 import common from './fr/common.json';
 import landing from './fr/landing.json';
@@ -14,6 +15,7 @@ const resourceFR = {
 	zod: sharedFr.zod,
 	'response-message': sharedFr['response-message'],
 	auth,
+	account,
 	'staff-tenant-profiles': staffTenantProfiles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,
