@@ -228,25 +228,27 @@ const addRangeCodepoints = (start, end, callback) => {
 	}
 };
 
-const readUIntBase128 = (buffer, state) => {
+const readUIntBase128 = (buffer, state, file) => {
 	let value = 0;
 	for (let i = 0; i < 5; i += 1) {
 		if (state.offset >= buffer.length) {
 			throw new Error(
-				'WOFF2 table directory truncated while reading base-128 length.',
+				`Font file ${file} WOFF2 table directory truncated while reading base-128 length.`,
 			);
 		}
 		const byte = buffer[state.offset];
 		state.offset += 1;
 		if (i === 0 && byte === 0x80) {
-			throw new Error('WOFF2 base-128 length has invalid leading zero.');
+			throw new Error(
+				`Font file ${file} WOFF2 base-128 length has invalid leading zero.`,
+			);
 		}
 		value = value * 128 + (byte & 0x7f);
 		if ((byte & 0x80) === 0) {
 			return value;
 		}
 	}
-	throw new Error('WOFF2 base-128 length is too long.');
+	throw new Error(`Font file ${file} WOFF2 base-128 length is too long.`);
 };
 
 const parseCmapSubtable = (subtable) => {
@@ -419,7 +421,7 @@ const parseWoff2CmapCodepoints = (file) => {
 		}
 
 		const lengthState = { offset: cursor };
-		const origLength = readUIntBase128(buffer, lengthState);
+		const origLength = readUIntBase128(buffer, lengthState, file);
 		cursor = lengthState.offset;
 
 		const tagNeedsTransformLength =
@@ -428,7 +430,7 @@ const parseWoff2CmapCodepoints = (file) => {
 		let transformLength;
 		if (tagNeedsTransformLength) {
 			const transformState = { offset: cursor };
-			transformLength = readUIntBase128(buffer, transformState);
+			transformLength = readUIntBase128(buffer, transformState, file);
 			cursor = transformState.offset;
 		}
 
@@ -443,11 +445,11 @@ const parseWoff2CmapCodepoints = (file) => {
 
 	const compressedEnd = cursor + totalCompressedSize;
 	if (compressedEnd < cursor) {
-		throw new Error(`Font file  has invalid compressed data offsets.`);
+		throw new Error(`Font file ${file} has invalid compressed data offsets.`);
 	}
 	if (compressedEnd > totalLength) {
 		throw new Error(
-			`Font file  declares compressed data longer than file length.`,
+			`Font file ${file} declares compressed data longer than file length.`,
 		);
 	}
 	const compressedData = buffer.subarray(cursor, compressedEnd);
