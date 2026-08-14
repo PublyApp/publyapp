@@ -2298,10 +2298,12 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 	// rejected before any check by the NodeFlags.Const gate while the
 	// alias map is built, so dropping the hop check cannot redden it. An
 	// object-property tag (`tags.raw`) is NOT a shape either:
-	// `isStringRawTag` rejects every non-identifier candidate at its
-	// member branch, so no check the guard contains is ever consulted for
-	// it — only a NEW resolution feature (member reads through const
-	// object literals) could make it red, and that is out of scope.
+	// `isStringRawTag` rejects unmatched non-identifier candidates (such
+	// as `tags.raw`) at its member branch, so no check the guard contains
+	// is ever consulted for them — only a NEW resolution feature (member
+	// reads through const object literals) could make them red, and that
+	// is out of scope. (Recognized `String.raw` and prefixed globals are
+	// also non-identifier candidates, but those are handled, not rejected.)
 	const shapes = [
 		[
 			'param-shadowed R',
