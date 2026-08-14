@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdirSync,
+	mkdtempSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
@@ -115,4 +121,38 @@ test('rejection names the failing font file when the table directory is truncate
 	assert.match(stderr, /Geist-Regular\.woff2/);
 	assert.match(stderr, /table directory truncated/);
 	assert.doesNotMatch(stderr, /Font file\s{2}/);
+});
+
+test('rejection names the failing locale file when its JSON is malformed', async () => {
+	const { distDir, localesDir } = createFixture(
+		buildOverlongCompressedSizeHeader(),
+	);
+	writeFileSync(path.join(localesDir, 'fr.json'), '{"greeting": "salut",');
+
+	const { status, stderr } = await runVerifier({ distDir, localesDir });
+
+	assert.equal(status, 1);
+	assert.match(stderr, /fr\.json/);
+	assert.match(stderr, /is not valid JSON/);
+	assert.doesNotMatch(stderr, /Locale file\s{2}/);
+});
+
+test('rejection surfaces a locale file read failure as a read error, not a JSON error', async () => {
+	const { distDir, localesDir } = createFixture(
+		buildOverlongCompressedSizeHeader(),
+	);
+	// A broken symlink keeps the .json entry visible to readdirSync while
+	// making readFileSync fail: the verifier must surface that as a
+	// file-naming read error, never relabel it as malformed JSON.
+	symlinkSync(
+		path.join(localesDir, 'missing-target.json'),
+		path.join(localesDir, 'fr.json'),
+	);
+
+	const { status, stderr } = await runVerifier({ distDir, localesDir });
+
+	assert.equal(status, 1);
+	assert.match(stderr, /fr\.json/);
+	assert.match(stderr, /ENOENT: no such file or directory/);
+	assert.doesNotMatch(stderr, /is not valid JSON/);
 });

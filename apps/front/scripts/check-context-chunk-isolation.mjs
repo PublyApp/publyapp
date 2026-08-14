@@ -97,6 +97,7 @@ const assertStaticReactElementAccess = (
 	checker,
 	expression,
 	reactCreateContext,
+	sourceFileName,
 ) => {
 	if (
 		isElementAccessExpression(expression) &&
@@ -109,12 +110,12 @@ const assertStaticReactElementAccess = (
 			))
 	) {
 		throw new Error(
-			'Context chunk isolation guard cannot prove a dynamic React element access is not createContext.',
+			`Context chunk isolation guard cannot prove a dynamic React element access in ${sourceFileName} is not createContext.`,
 		);
 	}
 };
 
-const findReactContextSymbols = (program, checker) => {
+const findReactContextSymbols = (program, checker, tsconfigPath) => {
 	const reactDeclaration = program
 		.getSourceFileNames()
 		.map((fileName) => program.getSourceFile(fileName))
@@ -122,7 +123,7 @@ const findReactContextSymbols = (program, checker) => {
 
 	if (!reactDeclaration) {
 		throw new Error(
-			'Context chunk isolation guard could not find React type declarations.',
+			`Context chunk isolation guard could not find React type declarations (@types/react/index.d.ts) in the program for ${tsconfigPath}.`,
 		);
 	}
 
@@ -136,14 +137,14 @@ const findReactContextSymbols = (program, checker) => {
 
 	if (!createContext) {
 		throw new Error(
-			'Context chunk isolation guard could not resolve React.createContext.',
+			`Context chunk isolation guard could not resolve React.createContext in ${reactDeclaration.fileName}.`,
 		);
 	}
 
 	const contextType = reactExports.find((symbol) => symbol.name === 'Context');
 	if (!contextType) {
 		throw new Error(
-			"Context chunk isolation guard could not resolve React's Context type.",
+			`Context chunk isolation guard could not resolve React's Context type in ${reactDeclaration.fileName}.`,
 		);
 	}
 
@@ -793,7 +794,7 @@ export const findReactContextDeclarations = (
 		}
 
 		const { contextType: reactContextType, createContext: reactCreateContext } =
-			findReactContextSymbols(project.program, project.checker);
+			findReactContextSymbols(project.program, project.checker, tsconfigPath);
 		onProgramSourceFiles(
 			new Set(
 				project.program
@@ -824,6 +825,7 @@ export const findReactContextDeclarations = (
 					project.checker,
 					node,
 					reactCreateContext,
+					normalizeModuleId(sourceFileName),
 				);
 
 				const binding = declarationBinding(project.checker, node);
@@ -1072,7 +1074,7 @@ export const findContextChunkIsolationViolations = (
 				const chunkAnalysis = chunkAnalyses.get(moduleChunk.chunk);
 				if (!chunkAnalysis) {
 					throw new Error(
-						'Context chunk isolation guard did not analyze a chunk delivering a context source module.',
+						`Context chunk isolation guard did not analyze a chunk delivering a context source module: ${moduleChunk.chunk.fileName}.`,
 					);
 				}
 				const copySegments = chunkAnalysis.hasMap

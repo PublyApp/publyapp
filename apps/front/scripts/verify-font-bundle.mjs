@@ -163,6 +163,17 @@ const isAccessible = (path) => {
 	}
 };
 
+const parseLocaleJson = (filePath) => {
+	const content = readFileSync(filePath, 'utf8');
+	try {
+		return JSON.parse(content);
+	} catch (error) {
+		throw new Error(
+			`Locale file ${filePath} is not valid JSON: ${error.message}.`,
+		);
+	}
+};
+
 const parseLocaleCodepoints = () => {
 	const walk = (dir, out) => {
 		for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -174,7 +185,7 @@ const parseLocaleCodepoints = () => {
 			if (!entry.name.endsWith('.json')) {
 				continue;
 			}
-			const value = JSON.parse(readFileSync(path, 'utf8'));
+			const value = parseLocaleJson(path);
 			collectFromValue(value, out);
 		}
 	};

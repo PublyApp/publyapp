@@ -1684,7 +1684,14 @@ void test('fails closed for a dynamic React element access', async () => {
 				findReactContextDeclarations(
 					path.join(fixtureDirectory, 'tsconfig.json'),
 				),
-			/cannot prove a dynamic React element access/i,
+			(error) => {
+				assert.match(
+					error.message,
+					/cannot prove a dynamic React element access/i,
+				);
+				assert.match(error.message, /dynamic-element-access\.ts/);
+				return true;
+			},
 		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
@@ -1707,7 +1714,14 @@ void test('fails closed when a dynamic React element access is hoisted before th
 				findReactContextDeclarations(
 					path.join(fixtureDirectory, 'tsconfig.json'),
 				),
-			/cannot prove a dynamic React element access/i,
+			(error) => {
+				assert.match(
+					error.message,
+					/cannot prove a dynamic React element access/i,
+				);
+				assert.match(error.message, /hoisted-dynamic-element-access\.ts/);
+				return true;
+			},
 		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
@@ -1734,7 +1748,14 @@ void test('fails closed when a dynamic object-holder access could be React creat
 				findReactContextDeclarations(
 					path.join(fixtureDirectory, 'tsconfig.json'),
 				),
-			/cannot prove a dynamic React element access/i,
+			(error) => {
+				assert.match(
+					error.message,
+					/cannot prove a dynamic React element access/i,
+				);
+				assert.match(error.message, /dynamic-object-holder\.ts/);
+				return true;
+			},
 		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
