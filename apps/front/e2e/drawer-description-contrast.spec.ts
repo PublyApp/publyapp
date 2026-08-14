@@ -304,16 +304,17 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 		const request = route.request();
 		const url = request.url();
 
+		// Origin guard, same as every sibling handler: only intercept API
+		// calls to the real backend origin, never the front-origin document
+		// navigation that `page.goto('/staff/audit-logs')` issues. Without
+		// this the mock would fulfill the HTML page request with JSON and the
+		// export trigger would never render.
 		if (request.method() !== 'GET') {
 			await route.fallback();
 			return;
 		}
 
-		// The list endpoint carries cursor/sort/filter query params; the
-		// actions endpoint is a plain GET. Match by path (isApiPath with a
-		// trailing-slash-tolerant comparison), returning an empty page for
-		// the list and an empty action set for the filter.
-		if (/\/staff\/audit-logs\/actions(\?|$)/.test(url)) {
+		if (isApiPath(url, '/staff/audit-logs/actions')) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -322,11 +323,18 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			return;
 		}
 
-		await route.fulfill({
-			status: 200,
-			contentType: 'application/json',
-			body: JSON.stringify({ data: [], nextCursor: null }),
-		});
+		// The list endpoint carries cursor/sort/filter query params; match
+		// the bare path so the empty page response covers every variant.
+		if (isApiPath(url, '/staff/audit-logs')) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ data: [], nextCursor: null }),
+			});
+			return;
+		}
+
+		await route.fallback();
 	});
 };
 
