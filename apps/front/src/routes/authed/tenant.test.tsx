@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createRootRouteWithContext: () => () => ({}),
 	Link: ({
 		to,
 		children,
@@ -40,9 +41,34 @@ vi.mock('@tanstack/react-router', () => ({
 		</a>
 	),
 	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
+	useMatches: ({ select }: { select?: (matches: unknown[]) => unknown }) =>
+		select?.([
+			{ routeId: '/_authed-layout', pathname: '/', params: {} },
+			{ routeId: '/_authed-layout/tenant', pathname: '/tenant', params: {} },
+			{
+				routeId: '/_authed-layout/tenant/account',
+				pathname: mocks.pathname,
+				params: {},
+			},
+		]),
 	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
 		select?.({ location: { pathname: mocks.pathname } }),
 	useNavigate: () => mocks.navigate,
+}));
+
+// RoutedShell (the shell decision in `../__root`) needs a resolved surface
+// session query to consider a session validated — only reached when the path
+// is a tenant path, where the tenant branch renders before it is consulted.
+vi.mock('@tanstack/react-query', () => ({
+	useQuery: () => ({
+		data: 'tenant' as string | null,
+		error: undefined,
+		status: 'success' as const,
+	}),
+}));
+
+vi.mock('~/lib/hooks/use-hydrated', () => ({
+	useHydrated: () => true,
 }));
 
 vi.mock('~/layouts/simple-layout', () => ({
@@ -131,6 +157,8 @@ const setQuery = (overrides: Partial<typeof mocks.query>) => {
 	});
 };
 
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import { RoutedShell } from '../__root';
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './tenant';
 
@@ -368,5 +396,31 @@ describe('TenantPortalRoute', () => {
 
 		fireEvent.click(screen.getByTestId('tenant-portal-logout-button'));
 		expect(mocks.logout).toHaveBeenCalledTimes(1);
+	});
+
+	test('regression: the unresolved branch at a tenant child path renders bare — never nested inside the AppShell (PR #1131 round 3 finding 1)', () => {
+		// Cold load of `/tenant/account`: the tenants query is still pending,
+		// so the route shows the unresolved branch (SimpleLayout + loading).
+		// Mounted under the REAL RoutedShell (the component that decides bare
+		// vs AppShell wrapping), the shell must pass the tenant subtree
+		// through untouched — previously only the exact `/tenant` path was
+		// bared, so this first paint was AppShell -> SimpleLayout -> content
+		// with double chrome and a nested <main>.
+		setQuery({ isSuccess: false, isPending: true, isLoading: true });
+		mocks.pathname = '/tenant/account';
+
+		render(
+			<RoutedShell>
+				<TenantPortalRoute />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('simple-layout-stub')).toBeTruthy();
+		expect(screen.getByTestId('tenant-portal-loading')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
+		expect(screen.queryByTestId('app-shell-topbar')).toBeNull();
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
 	});
 });

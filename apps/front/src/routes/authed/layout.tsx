@@ -17,7 +17,10 @@ import { View404 } from '~/components/error-views/View404';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
-import { hasExactAuthedRouteMatch } from '~/lib/route-shell';
+import {
+	hasExactAuthedRouteMatch,
+	isTenantPortalPath,
+} from '~/lib/route-shell';
 import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
 import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-context';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
@@ -46,9 +49,12 @@ const getFailureStatus = (error: unknown): number | undefined => {
 const AuthedRoutePendingSkeleton = () => {
 	const location = useLocation();
 	const pathname = location.pathname ?? '';
-	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
 
-	if (isTenantPortalRoot) {
+	// The whole tenant portal subtree renders bare (RoutedShell bypasses the
+	// AppShell for every `/tenant/*` path — see `isTenantPortalPath`), so a
+	// pending surface under it is a full-viewport centered loader, never the
+	// AppShell-shaped content skeleton (PR #1131 round 3 finding 1).
+	if (isTenantPortalPath(pathname)) {
 		return (
 			<div className="flex min-h-svh items-center justify-center">
 				<IconLoader2
@@ -197,12 +203,6 @@ function AuthedRouteLayout() {
 		((isStaffSurface && query.data !== REDIRECT_CODE.STAFF) ||
 			(isTenantSurface && query.data === REDIRECT_CODE.STAFF));
 
-	// The tenant portal (post-login org picker) is a standalone SimpleLayout
-	// surface, not the workspace shell — see docs/front-migration P1. It
-	// manages its own chrome, so it renders bare here, ahead of `<Outlet />`
-	// being wrapped in the full authed app shell.
-	const isTenantPortalRoot = pathname.replace(/\/+$/, '') === TENANT_PATH;
-
 	if (hasQueryError) {
 		if (query.error && shouldLogoutForFailure(query.error)) {
 			return <LogoutRedirect />;
@@ -237,7 +237,12 @@ function AuthedRouteLayout() {
 	}
 
 	if (query.isLoading) {
-		if (isTenantPortalRoot) {
+		// The whole tenant portal subtree renders bare (RoutedShell bypasses
+		// the AppShell for every `/tenant/*` path — see `isTenantPortalPath`
+		// in route-shell), so its loading surface is a full-viewport centered
+		// loader, never the AppShell-shaped content skeleton (PR #1131 round 3
+		// finding 1).
+		if (isTenantPortalPath(pathname)) {
 			return (
 				<div className="flex min-h-svh items-center justify-center">
 					<IconLoader2

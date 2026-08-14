@@ -290,9 +290,17 @@ describe('BUG-2: pendingComponent closes the cold-boot blank window', () => {
 		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
 	});
 
-	test('renders the tenant-portal spinner (not the workspace shell) for the tenant root', () => {
+	test('renders the tenant-portal spinner (not the workspace shell) across the whole tenant subtree', () => {
 		mocks.location = { pathname: '/tenant', search: {} };
-		render(<AuthedRoutePendingSkeleton />);
+		const view = render(<AuthedRoutePendingSkeleton />);
+
+		expect(screen.queryByTestId('authed-route-content-skeleton')).toBeNull();
+
+		// A tenant CHILD path must show the same bare spinner, not the
+		// AppShell-shaped content skeleton: the whole subtree renders outside
+		// the AppShell (PR #1131 round 3 finding 1).
+		mocks.location = { pathname: '/tenant/account', search: {} };
+		view.rerender(<AuthedRoutePendingSkeleton />);
 
 		expect(screen.queryByTestId('authed-route-content-skeleton')).toBeNull();
 	});

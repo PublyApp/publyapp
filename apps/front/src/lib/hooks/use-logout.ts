@@ -4,6 +4,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { useCallback, useState } from 'react';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { resolveRouteRedirect } from '~/lib/safe-redirect-path';
+import { clearSelectedTenantId } from '~/lib/selected-tenant-storage';
 import { clearSession } from '~/lib/server/session-actions';
 import {
 	AUTH_SYNC_CHANNEL,
@@ -91,6 +92,17 @@ export const useLogout = () => {
 
 			clear()
 				.then(() => {
+					// Drop the persisted tenant selection together with the
+					// session: localStorage is origin-wide, so one removal
+					// clears it for every tab on this browser. Without it, the
+					// next user of a shared browser who happens to share a
+					// tenant silently lands in the previous user's workspace
+					// instead of the picker (PR #1131 round 3 finding 2). A
+					// UI preference only, like the session cookie that actually
+					// authorizes requests — cleared here, after the server-side
+					// clear settles, so a failed logout leaves it intact.
+					clearSelectedTenantId();
+
 					// Broadcast only after the clear settles — the shared session
 					// cookie is guaranteed cleared by then, so other tabs never
 					// race the sender to /login while still authenticated.

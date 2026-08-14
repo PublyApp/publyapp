@@ -34,6 +34,8 @@ vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
 	logger: { error: vi.fn() },
 }));
 
+import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/selected-tenant-storage';
+
 import { __resetLogoutInFlightForTests, useLogout } from './use-logout';
 
 describe('useLogout', () => {
@@ -208,6 +210,33 @@ describe('useLogout', () => {
 		const broadcastOrder = mocks.postBroadcast.mock.invocationCallOrder[0];
 		const navigateOrder = mocks.navigate.mock.invocationCallOrder[0];
 		expect(broadcastOrder).toBeLessThan(navigateOrder);
+	});
+
+	test('clears the persisted tenant selection once the server-side session clear settles (shared-browser regression)', async () => {
+		let resolveClear: () => void = () => {};
+		mocks.clear.mockReturnValue(
+			new Promise<void>((resolve) => {
+				resolveClear = resolve;
+			}),
+		);
+		window.localStorage.setItem(SELECTED_TENANT_STORAGE_KEY, 't-1');
+
+		const { result } = renderHook(() => useLogout());
+
+		act(() => {
+			result.current.logout();
+		});
+
+		// The server clear has not settled yet: the selection must still be
+		// intact, so a failed logout does not lose the user's workspace.
+		expect(window.localStorage.getItem(SELECTED_TENANT_STORAGE_KEY)).toBe(
+			't-1',
+		);
+
+		resolveClear();
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+
+		expect(window.localStorage.getItem(SELECTED_TENANT_STORAGE_KEY)).toBeNull();
 	});
 
 	test('ignores a second logout call while the first is still in flight', async () => {

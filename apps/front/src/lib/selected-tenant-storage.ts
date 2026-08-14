@@ -39,3 +39,15 @@ export const writeSelectedTenantId = (tenantId: string): void => {
 		// no-op
 	}
 };
+
+export const clearSelectedTenantId = (): void => {
+	if (!isBrowser) {
+		return;
+	}
+
+	try {
+		window.localStorage.removeItem(SELECTED_TENANT_STORAGE_KEY);
+	} catch {
+		// no-op
+	}
+};

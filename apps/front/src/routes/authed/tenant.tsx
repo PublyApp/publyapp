@@ -31,11 +31,10 @@ import { TenantPortalPickerView } from './tenant/_tenant-picker-view';
 
 export const Route = createFileRoute('/_authed-layout/tenant')({
 	// `/tenant` is a redirect-only stub: it never renders chrome itself (the
-	// picker is a bare SimpleLayout surface — see `isTenantPortalRoot` in
-	// `__root.tsx`), and once a workspace resolves it bounces to
-	// `/tenant/account`, mirroring `/staff` -> `/staff/staff-users`. Every
-	// child route declares its own trail, which is what the deepest match
-	// surfaces in the AppShell topbar.
+	// picker is a bare SimpleLayout surface — the whole `/tenant/*` subtree
+	// bypasses the AppShell, see `isTenantPortalPath` in `route-shell.ts`),
+	// and once a workspace resolves it bounces to
+	// `/tenant/account`, mirroring `/staff` -> `/staff/staff-users`.
 	staticData: { crumbs: () => [] },
 	component: TenantPortalRoute,
 });

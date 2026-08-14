@@ -53,31 +53,57 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 			// breadcrumb trail derivation (`deriveBreadcrumbTrail`) — this
 			// suite is about shell/outlet continuity, not breadcrumb content,
 			// so `'shell'` (no tail) is the correct, harmless default here.
-			const matches = mocks.matchedPathname.startsWith('/staff')
-				? [
-						{
-							routeId: '/_authed-layout',
-							pathname: '/',
-							params: {},
-							staticData: { crumbs: 'shell' },
-						},
-						{
-							routeId: '/_authed-layout/staff',
-							pathname: mocks.matchedPathname,
-							search: mocks.location.search,
-							params: {},
-							staticData: { crumbs: 'shell' },
-						},
-					]
-				: [
-						{
-							routeId: mocks.matchedPathname,
-							pathname: mocks.matchedPathname,
-							search: mocks.location.search,
-							params: {},
-							staticData: { crumbs: 'shell' },
-						},
-					];
+			let matches: unknown[];
+			if (mocks.matchedPathname.startsWith('/staff')) {
+				matches = [
+					{
+						routeId: '/_authed-layout',
+						pathname: '/',
+						params: {},
+						staticData: { crumbs: 'shell' },
+					},
+					{
+						routeId: '/_authed-layout/staff',
+						pathname: mocks.matchedPathname,
+						search: mocks.location.search,
+						params: {},
+						staticData: { crumbs: 'shell' },
+					},
+				];
+			} else if (mocks.matchedPathname.startsWith('/tenant')) {
+				matches = [
+					{
+						routeId: '/_authed-layout',
+						pathname: '/',
+						params: {},
+						staticData: { crumbs: 'shell' },
+					},
+					{
+						routeId: '/_authed-layout/tenant',
+						pathname: '/tenant',
+						search: mocks.location.search,
+						params: {},
+						staticData: { crumbs: 'shell' },
+					},
+					{
+						routeId: '/_authed-layout/tenant/account',
+						pathname: mocks.matchedPathname,
+						search: mocks.location.search,
+						params: {},
+						staticData: { crumbs: 'shell' },
+					},
+				];
+			} else {
+				matches = [
+					{
+						routeId: mocks.matchedPathname,
+						pathname: mocks.matchedPathname,
+						search: mocks.location.search,
+						params: {},
+						staticData: { crumbs: 'shell' },
+					},
+				];
+			}
 
 			return select(matches);
 		},
@@ -359,5 +385,78 @@ describe('authenticated shell continuity', () => {
 				replace: true,
 			});
 		});
+	});
+
+	test('renders the tenant portal root bare: no app shell chrome around the picker surface', () => {
+		mocks.location = {
+			pathname: '/tenant',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/tenant';
+		mocks.outletPhase = 'settled';
+
+		render(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('route-settled-content')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
+		expect(screen.queryByTestId('app-shell-topbar')).toBeNull();
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
+	});
+
+	test('renders every tenant child path bare — pending or validated session, never nested in a shell (cold-load regression)', () => {
+		mocks.location = {
+			pathname: '/tenant/account',
+			search: {},
+			searchStr: '',
+		};
+		mocks.resolvedLocation = mocks.location;
+		mocks.matchedPathname = '/tenant/account';
+
+		// A pending session validation at a tenant CHILD path must never paint
+		// the neutral authed shell around the tenant route — that was the
+		// three-layouts-deep first paint of the pre-fix shell (PR #1131 round
+		// 3 finding 1). The tenant route owns its chrome.
+		mocks.sessionQueryState = {
+			data: undefined,
+			error: undefined,
+			status: 'pending',
+		};
+
+		const view = render(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		expect(screen.getByTestId('route-loading-content')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
+
+		mocks.sessionQueryState = {
+			data: 'tenant',
+			error: undefined,
+			status: 'success',
+		};
+		view.rerender(
+			<RoutedShell>
+				<RouteContent />
+			</RoutedShell>,
+		);
+
+		// Once the session validates, staff paths would gain the full
+		// AppShell — tenant child paths must stay bare.
+		expect(screen.getByTestId('route-loading-content')).toBeTruthy();
+		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
+		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
 	});
 });
