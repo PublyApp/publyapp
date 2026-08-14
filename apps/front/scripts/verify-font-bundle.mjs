@@ -164,8 +164,9 @@ const isAccessible = (path) => {
 };
 
 const parseLocaleJson = (filePath) => {
+	const content = readFileSync(filePath, 'utf8');
 	try {
-		return JSON.parse(readFileSync(filePath, 'utf8'));
+		return JSON.parse(content);
 	} catch (error) {
 		throw new Error(
 			`Locale file ${filePath} is not valid JSON: ${error.message}.`,

@@ -115,7 +115,7 @@ const assertStaticReactElementAccess = (
 	}
 };
 
-const findReactContextSymbols = (program, checker) => {
+const findReactContextSymbols = (program, checker, tsconfigPath) => {
 	const reactDeclaration = program
 		.getSourceFileNames()
 		.map((fileName) => program.getSourceFile(fileName))
@@ -123,7 +123,7 @@ const findReactContextSymbols = (program, checker) => {
 
 	if (!reactDeclaration) {
 		throw new Error(
-			'Context chunk isolation guard could not find React type declarations.',
+			`Context chunk isolation guard could not find React type declarations (@types/react/index.d.ts) in the program for ${tsconfigPath}.`,
 		);
 	}
 
@@ -137,14 +137,14 @@ const findReactContextSymbols = (program, checker) => {
 
 	if (!createContext) {
 		throw new Error(
-			'Context chunk isolation guard could not resolve React.createContext.',
+			`Context chunk isolation guard could not resolve React.createContext in ${reactDeclaration.fileName}.`,
 		);
 	}
 
 	const contextType = reactExports.find((symbol) => symbol.name === 'Context');
 	if (!contextType) {
 		throw new Error(
-			"Context chunk isolation guard could not resolve React's Context type.",
+			`Context chunk isolation guard could not resolve React's Context type in ${reactDeclaration.fileName}.`,
 		);
 	}
 
@@ -794,7 +794,7 @@ export const findReactContextDeclarations = (
 		}
 
 		const { contextType: reactContextType, createContext: reactCreateContext } =
-			findReactContextSymbols(project.program, project.checker);
+			findReactContextSymbols(project.program, project.checker, tsconfigPath);
 		onProgramSourceFiles(
 			new Set(
 				project.program
