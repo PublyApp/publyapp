@@ -424,22 +424,37 @@ jobs:
           for package in "${packages[@]}"; do
             # Delete ONLY this run's tag. On success the tag is gone (GHCR
             # GCs the version once its last tag disappears); on failure,
-            # distinguish "tag already absent" (404 → no-op) from a real
-            # delete error (400 public-package limit → fail the job).
+            # distinguish "tag already absent" (HTTP 404 → no-op) from a
+            # real delete error (400 public-package limit, or any other
+            # failure → fail the job).
             if gh api --method DELETE \
               "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/tags/${E2E_IMAGE_TAG}" \
               --silent; then
               echo "::notice::Deleted GHCR tag ${E2E_IMAGE_TAG} for ${package}."
-            elif gh api "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/tags/${E2E_IMAGE_TAG}" \
-              --silent >/dev/null 2>&1; then
-              # The tag still exists (GET succeeded) but the DELETE failed:
-              # real error (likely the public >5000-downloads HTTP 400).
-              echo "::error::Could not delete GHCR tag ${E2E_IMAGE_TAG} for ${package}. Public GHCR packages past 5000 downloads refuse deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
-              cleanup_failed=true
             else
-              # GET failed too → tag absent (404): never pushed, or already
-              # cleaned by an earlier attempt. Not a failure.
-              echo "::notice::GHCR tag ${E2E_IMAGE_TAG} for ${package} not present; nothing to delete."
+              # The DELETE failed. Probe whether the tag still exists: the
+              # GET succeeding means the tag is still there, so the delete
+              # genuinely failed (likely the public >5000-downloads HTTP
+              # 400). The GET failing with HTTP 404 means the tag is absent
+              # (never pushed, or already cleaned) — a no-op. Any other GET
+              # failure (500, network, auth) must fail the job, not be
+              # mistaken for an absent tag.
+              if get_output="$(
+                gh api "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/tags/${E2E_IMAGE_TAG}" \
+                  --silent 2>&1
+              )"; then
+                echo "::error::Could not delete GHCR tag ${E2E_IMAGE_TAG} for ${package}. Public GHCR packages past 5000 downloads refuse deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
+                cleanup_failed=true
+              elif printf '%s' "$get_output" | grep -q "HTTP 404"; then
+                # Tag absent (404): never pushed, or already cleaned by an
+                # earlier attempt. Not a failure.
+                echo "::notice::GHCR tag ${E2E_IMAGE_TAG} for ${package} not present; nothing to delete."
+              else
+                # GET failed for a reason other than 404 (500/network/auth):
+                # do not mistake it for an absent tag — surface it.
+                echo "::error::Could not verify GHCR tag ${E2E_IMAGE_TAG} for ${package} after a failed delete: $get_output"
+                cleanup_failed=true
+              fi
             fi
           done
 

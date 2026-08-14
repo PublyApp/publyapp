@@ -267,7 +267,7 @@
 			"reason": "GitHub-only: pushes the four loaded, immutable per-run application images to GHCR for the matrix runners; local e2e builds never publish them."
 		},
 		"front-e2e.yml::cleanup::Delete run image tags": {
-			"hash": "fdeefce5ce843081",
+			"hash": "edc5e5f3c57c593f",
 			"mirror": null,
 			"reason": "GitHub-only: deletes this run's tag on the four ephemeral per-run GHCR images after every matrix outcome; local builds never publish them. #1018 reconciliation: the step no longer sets continue-on-error, so a failed cleanup now fails the job (and the required gate) instead of reporting green — a cleanup that cannot delete is a broken check. Each run deletes only ITS OWN tag (DELETE .../tags/{E2E_IMAGE_TAG}), never a version: content-stable images (request-counter) push an identical digest every run, so GHCR adds the run tag to a version other runs already share, and deleting that version would break every run still referencing the digest — deleting just this run's tag leaves those other tags intact and lets GHCR garbage-collect the version once its last tag is gone. A 404 on the tag is a no-op. Deleting public package versions past the 5000-download threshold is refused with HTTP 400; a delete-tag that fails for that reason surfaces as a ::error::, and the public → private visibility flip that would unblock deletion is a separate owner decision tracked in #1018. Mirror stays null: the whole job is GHCR-package manipulation that cannot run locally."
 		},
