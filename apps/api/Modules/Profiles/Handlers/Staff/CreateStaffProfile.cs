@@ -17,6 +17,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Profiles.Validation;
 
 namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
@@ -25,6 +26,8 @@ public record CreateStaffProfileBody {
 	public JsonElement? Description { get; init; }
 	public JsonElement? Permissions { get; init; }
 	public JsonElement? Emails { get; init; }
+	public JsonElement Icon { get; init; }
+	public JsonElement Tone { get; init; }
 
 	public string GetName() {
 		if (!Name.HasValue) {
@@ -51,6 +54,14 @@ public record CreateStaffProfileBody {
 		}
 
 		return Emails.Value.Deserialize<List<string>>() ?? [];
+	}
+
+	public string? GetIcon() {
+		return Icon.GetValueAsStringOrNull();
+	}
+
+	public string? GetTone() {
+		return Tone.GetValueAsStringOrNull();
 	}
 }
 
@@ -139,6 +150,18 @@ public partial class CreateStaffProfileBodyValidator
 				context.AddFailure("Emails must be a list of valid email addresses");
 			}
 		});
+
+		RuleFor(x => x.Icon)
+			.MustBePatchFieldStringInSet(
+				"Icon",
+				ProfileStyleValidationRules.Icons
+			);
+
+		RuleFor(x => x.Tone)
+			.MustBePatchFieldStringInSet(
+				"Tone",
+				ProfileStyleValidationRules.Tones
+			);
 	}
 
 	[GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
@@ -163,6 +186,8 @@ public sealed class CreateStaffProfile {
 		string? description = body.GetDescription();
 		List<string> permissions = body.GetPermissions();
 		List<string> emails = body.GetEmails();
+		string? icon = body.GetIcon();
+		string? tone = body.GetTone();
 
 		// Get current user ID for audit logging and invitations
 		if (authContext.AccountStaff is null) {
@@ -176,9 +201,11 @@ public sealed class CreateStaffProfile {
 		var args = new CreateStaffProfileArgs(
 			Name: name,
 			Description: description,
-			Permissions: permissions,
-			Emails: emails,
-			InvitedByUserId: currentUserId
+				Permissions: permissions,
+				Emails: emails,
+				InvitedByUserId: currentUserId,
+				Icon: icon,
+				Tone: tone
 		);
 		var result = await profileAsStaffService.CreateStaffProfileAsync(
 			args,

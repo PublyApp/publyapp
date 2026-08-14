@@ -10,11 +10,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Profiles.Entities;
 
 using Xunit;
 
@@ -128,5 +130,100 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 				StringComparison.Ordinal
 			)
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldCreateStaffProfileWithIconAndTone() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var name = $"Styled Staff Profile {Guid.NewGuid():N}";
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetCreateProfileUrl()
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(new {
+			name,
+			description = "Styled and persisted",
+			icon = "shield-check",
+			tone = "4",
+			permissions = new[] { AppPermissions.Staff.Profiles.GET_FOR_STAFF.Key },
+			emails = Array.Empty<string>(),
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var created = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
+		created.Should().NotBeNull();
+		Assert.NotNull(created);
+
+		var persistedProfile = await GetProfileByNameAsync(name);
+		persistedProfile.Should().NotBeNull();
+		Assert.NotNull(persistedProfile);
+		persistedProfile.Icon.Should().Be("shield-check");
+		persistedProfile.Tone.Should().Be("4");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidIcon() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var name = $"Staff Profile Invalid Icon {Guid.NewGuid():N}";
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetCreateProfileUrl()
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(new {
+			name,
+			icon = "not-an-icon",
+			permissions = new[] { AppPermissions.Staff.Profiles.GET_FOR_STAFF.Key },
+			emails = Array.Empty<string>(),
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Icon");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var name = $"Staff Profile Invalid Tone {Guid.NewGuid():N}";
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetCreateProfileUrl()
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(new {
+			name,
+			tone = "8",
+			permissions = new[] { AppPermissions.Staff.Profiles.GET_FOR_STAFF.Key },
+			emails = Array.Empty<string>(),
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Tone");
+	}
+
+	private async Task<Profile?> GetProfileByNameAsync(string name) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		return await dbContext.Profile
+			.AsNoTracking()
+			.FirstOrDefaultAsync(profile =>
+				profile.Scope == ProfileScope.Staff
+				&& !profile.IsDeleted
+				&& profile.Name == name
+			);
 	}
 }

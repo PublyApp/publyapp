@@ -42,7 +42,9 @@ public sealed record CreateStaffProfileArgs(
 	string? Description,
 	List<string> Permissions,
 	List<string> Emails,
-	Guid InvitedByUserId
+	Guid InvitedByUserId,
+	string? Icon,
+	string? Tone
 );
 
 public sealed record BulkDeleteStaffProfilesArgs(
@@ -293,6 +295,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		var permissions = args.Permissions;
 		var emails = args.Emails;
 		var invitedByUserId = args.InvitedByUserId;
+		var icon = args.Icon?.Trim();
+		var tone = args.Tone?.Trim();
 
 		// Normalize and validate inputs
 		var normalizedName = name.Trim();
@@ -354,6 +358,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 				normalizedName,
 				description?.Trim()
 			);
+			profile.Icon = icon;
+			profile.Tone = tone;
 
 			await _dbContext.Profile.AddAsync(profile, cancellationToken);
 			await _dbContext.SaveChangesAsync(cancellationToken);
