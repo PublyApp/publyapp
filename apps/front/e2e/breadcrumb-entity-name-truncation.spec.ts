@@ -127,14 +127,12 @@ const LONG_NAME =
 	'Acme Corporation International Holdings & Subsidiaries Consolidated Group Worldwide Ltd.';
 const SHORT_NAME = 'Acme';
 
-// This proof deliberately pays a real production build cost: the first
-// `readCompiledAppCss()` call in each worker runs a full `pnpm run build`
-// (client + SSR) inside the test — see helpers/compiled-app-css.ts. CI
-// measures ~30s for that build alone, so the default 30s test timeout
-// kills both tests mid-build (the killed build never sets the helper's
-// "already built" flag, so the second test pays it again). Budget this
-// file's own bounded timeout; ordinary browser-test defaults in
-// playwright.config.ts stay unchanged.
+// This proof pays a real production-build cost: `readCompiledAppCss()`
+// performs a build (client + SSR) the first time it is called in a process
+// (see helpers/compiled-app-css.ts), and CI observes ~30s for that build
+// alone, more under contention. The default 30s test timeout is therefore
+// too small for this spec; budget its own bounded timeout here. Global
+// browser-test defaults in playwright.config.ts stay unchanged.
 test.setTimeout(180_000);
 
 /** Runs the full set of real-browser truncation assertions against whatever
