@@ -7,7 +7,7 @@ const hermeticCounterSpecs = ['**/request-counter.spec.ts'];
 const authSetupSpecs = ['**/auth.setup.ts'];
 // #973 review round 3: this spec renders a real, app-independent
 // `page.setContent()` page — the REAL compiled production CSS
-// (`dist/client/assets/*.css`, built on demand if missing) plus markup
+// (`dist/client/assets/*.css`, built once per process) plus markup
 // mirroring the real app-shell/breadcrumb components' rendered classes — to
 // get a genuine Chromium `getComputedStyle()`/`scrollWidth`/`clientWidth`
 // reading without a live login, backend, or docker-compose stack. Same
@@ -82,6 +82,7 @@ export default defineConfig({
 			// able to run even when the docker-compose stack is down.
 			name: 'chromium-hermetic-source',
 			testMatch: hermeticSourceSpecs,
+			workers: 1,
 			use: {
 				...devices['Desktop Chrome'],
 			},

@@ -26,8 +26,8 @@ import {
  * `feat/ui-profile-batch`'s `profile-icon-picker-pin-geometry.spec.ts` (read
  * as reference, not modified — see `chromium-hermetic-source` below), it
  * renders a `page.setContent()` page built from the REAL compiled
- * production CSS (`dist/client/assets/app-*.css`, built on demand if
- * missing or stale — see `helpers/compiled-app-css.ts`) plus:
+ * production CSS (`dist/client/assets/app-*.css`, built once per process by the
+ * helper — see `helpers/compiled-app-css.ts`) plus:
  *  - hand-authored markup mirroring the topbar shell chrome around the
  *    breadcrumb (`app-shell.tsx`'s `.app-shell-workspace` grid,
  *    `.app-shell-topbar` flex row, `.app-shell-topbar-left` / `-right`,
@@ -127,13 +127,16 @@ const LONG_NAME =
 	'Acme Corporation International Holdings & Subsidiaries Consolidated Group Worldwide Ltd.';
 const SHORT_NAME = 'Acme';
 
-// This proof deliberately pays a real production build cost: the first
-// `readCompiledAppCss()` call in each worker runs a full `pnpm run build`
-// (client + SSR) inside the test — see helpers/compiled-app-css.ts. CI
-// measures ~30s for that build alone, so the default 30s test timeout
-// kills both tests mid-build (the killed build never sets the helper's
-// "already built" flag, so the second test pays it again). Budget this
-// file's own bounded timeout; ordinary browser-test defaults in
+// This proof pays a real production-build cost: `readCompiledAppCss()` performs a
+// build (client + SSR) the first time any test in this file's dedicated
+// `chromium-hermetic-source` Playwright project calls it, and with that project
+// configured at `workers: 1` this means that on the passing path both tests share
+// one process and one build. A failure in the first test can trigger a worker
+// restart on the same file, so the second test may rebuild. Measured around 30s
+// for that build on CI runners at the time this was written; a 180s timeout
+// intentionally keeps 6× headroom so the spec fails on hung builds rather than
+// merely slower ones. The default 30s test timeout is therefore too small for this
+// spec; budget its own bounded timeout here. Global browser-test defaults in
 // playwright.config.ts stay unchanged.
 test.setTimeout(180_000);
 
