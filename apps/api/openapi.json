@@ -11234,6 +11234,12 @@
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
+          },
+          "icon": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
@@ -13508,6 +13514,12 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "description": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "tone": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
