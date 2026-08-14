@@ -27,6 +27,10 @@ type NotificationPreference = {
 	descriptionKey: string;
 };
 
+// The preference LABELS resolve from the `common` bundle (i18next falls back
+// across namespaces at render time, exactly like `security-alerts`); the
+// `*-description` copy is account-surface-specific and lives in `account`.
+// Nothing here may duplicate a key already declared in `common.json`.
 const EMAIL_PREFERENCES: readonly NotificationPreference[] = [
 	{
 		labelKey: 'marketing-emails',
@@ -64,18 +68,21 @@ const DIGEST_PREFERENCES: readonly NotificationPreference[] = [
 function AccountNotificationsPage() {
 	const { t } = useTranslation(['account', 'common']);
 
+	// Card titles/descriptions are translated HERE (not passed as keys to
+	// renderCard) so the i18n-key-coverage guard sees the literals next to
+	// `t(`; the `common:` qualification matches where the keys actually live.
 	const renderCard = (
-		titleKey: string,
-		descriptionKey: string,
+		title: string,
+		description: string,
 		preferences: readonly NotificationPreference[],
 	) => (
 		<Card>
 			<CardHeader>
-				<CardTitle>{t(titleKey)}</CardTitle>
+				<CardTitle>{title}</CardTitle>
 				<ReadOnlyBadge />
 			</CardHeader>
 			<CardContent>
-				<p className="text-sm text-muted-foreground">{t(descriptionKey)}</p>
+				<p className="text-sm text-muted-foreground">{description}</p>
 				<div className="mt-2 space-y-1">
 					{preferences.map((preference) => (
 						<ReadOnlyFieldRow
@@ -96,18 +103,18 @@ function AccountNotificationsPage() {
 			<WorkspacePageHeader titleKey="notifications" />
 
 			{renderCard(
-				'email-notifications',
-				'manage-your-email-notification-preferences',
+				t('common:email-notifications'),
+				t('common:manage-your-email-notification-preferences'),
 				EMAIL_PREFERENCES,
 			)}
 			{renderCard(
-				'push-notifications',
-				'manage-your-push-notification-preferences',
+				t('common:push-notifications'),
+				t('common:manage-your-push-notification-preferences'),
 				PUSH_PREFERENCES,
 			)}
 			{renderCard(
-				'activity-digest',
-				'manage-your-activity-digest-preferences',
+				t('common:activity-digest'),
+				t('common:manage-your-activity-digest-preferences'),
 				DIGEST_PREFERENCES,
 			)}
 		</div>

@@ -108,7 +108,6 @@ export const routes = rootRoute('__root.tsx', [
 		route('/staff/audit-logs', 'authed/staff/audit-logs.tsx'),
 		route('/staff/audit-logs/$logId', 'authed/staff/audit-logs/$logId.tsx'),
 		route('/tenant', 'authed/tenant.tsx', [
-			index('authed/tenant/index.tsx'),
 			route('/account', 'authed/tenant/account.tsx', [
 				index('authed/tenant/account/profile.tsx'),
 				route('/security', 'authed/tenant/account/security.tsx'),

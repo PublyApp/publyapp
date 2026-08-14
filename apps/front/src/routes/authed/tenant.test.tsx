@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
+import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/selected-tenant-storage';
 
 const mocks = vi.hoisted(() => ({
 	query: {
@@ -19,6 +20,7 @@ const mocks = vi.hoisted(() => ({
 	logout: vi.fn(),
 	isLoggingOut: false,
 	shouldLogoutForFailure: vi.fn(() => false),
+	navigate: vi.fn(),
 	pathname: '/tenant',
 }));
 
@@ -40,6 +42,7 @@ vi.mock('@tanstack/react-router', () => ({
 	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
 	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
 		select?.({ location: { pathname: mocks.pathname } }),
+	useNavigate: () => mocks.navigate,
 }));
 
 vi.mock('~/layouts/simple-layout', () => ({
@@ -86,15 +89,6 @@ const EN_LABELS: Record<string, string> = {
 	suspended: 'Suspended',
 	'log-out': 'Log out',
 	'common-loading': 'Loading...',
-	tenant: 'Tenant',
-	account: 'Account',
-	settings: 'Settings',
-	posts: 'Posts',
-	organizations: 'Organizations',
-	'nav-tenant-workspace': 'Workspace navigation',
-	'tenant-workspace-home-title': 'Welcome to your workspace',
-	'tenant-workspace-home-description':
-		'Select a section from the navigation to get started.',
 	'unnamed-tenant': 'Unnamed tenant',
 };
 
@@ -143,13 +137,6 @@ import { Route } from './tenant';
 const TenantPortalRoute = (Route as unknown as { component: ComponentType })
 	.component;
 
-const WORKSPACE_NAV_DESTINATIONS = [
-	'/tenant/account',
-	'/tenant/settings',
-	'/tenant/posts',
-	'/tenant/organizations',
-];
-
 const resolveSingleActiveTenant = () => {
 	setQuery({
 		data: {
@@ -161,9 +148,21 @@ const resolveSingleActiveTenant = () => {
 	});
 };
 
+const setTwoActiveTenants = () => {
+	setQuery({
+		data: {
+			tenants: [activeTenant('t-1', 'Acme'), activeTenant('t-2', 'TechStart')],
+			activeCount: 2,
+			totalCount: 2,
+			hasSuspendedTenants: false,
+		},
+	});
+};
+
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	window.localStorage.clear();
 	mocks.pathname = '/tenant';
 });
 
@@ -216,13 +215,16 @@ describe('TenantPortalRoute', () => {
 		expect(screen.getByText('No organizations found')).toBeTruthy();
 	});
 
-	test('auto-resolves straight to the workspace shell when exactly one tenant is active', () => {
+	test('the workspace root redirects to the first section once a workspace resolves', () => {
 		resolveSingleActiveTenant();
 		render(<TenantPortalRoute />);
 
-		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
+		expect(screen.getByTestId('tenant-portal-redirecting')).toBeTruthy();
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant/account',
+			replace: true,
+		});
 		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
-		expect(screen.queryByTestId('tenant-workspace-placeholder')).toBeNull();
 	});
 
 	test('still auto-resolves with one active tenant even when a sibling tenant is suspended', () => {
@@ -237,13 +239,25 @@ describe('TenantPortalRoute', () => {
 				hasSuspendedTenants: true,
 			},
 		});
+		mocks.pathname = '/tenant/account';
 		render(<TenantPortalRoute />);
 		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
 		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
 	});
 
-	test('the workspace shell shows the resolved tenant identity and a log-out button', () => {
+	test('a child route resolves straight to the workspace shell without redirecting', () => {
 		resolveSingleActiveTenant();
+		mocks.pathname = '/tenant/account';
+		render(<TenantPortalRoute />);
+
+		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+	});
+
+	test('the workspace shell shows the resolved tenant identity and no duplicate chrome', () => {
+		resolveSingleActiveTenant();
+		mocks.pathname = '/tenant/account';
 		render(<TenantPortalRoute />);
 
 		expect(screen.getByTestId('tenant-workspace-tenant-name').textContent).toBe(
@@ -252,57 +266,48 @@ describe('TenantPortalRoute', () => {
 		expect(screen.getByTestId('tenant-workspace-tenant-code').textContent).toBe(
 			't-1-code',
 		);
-
-		fireEvent.click(screen.getByTestId('tenant-workspace-logout-button'));
-		expect(mocks.logout).toHaveBeenCalledTimes(1);
+		// The AppShell owns the chrome (rail, topbar, user-menu logout) — the
+		// shell must not duplicate any of it.
+		expect(screen.queryByTestId('tenant-workspace-logout-button')).toBeNull();
+		expect(screen.queryByTestId('tenant-workspace-nav')).toBeNull();
 	});
 
-	test('the workspace shell exposes all top-level nav destinations', () => {
+	test('the workspace shell fits the AppShell content model: no main landmark, no forced viewport height', () => {
 		resolveSingleActiveTenant();
-		render(<TenantPortalRoute />);
+		mocks.pathname = '/tenant/account';
+		const { container } = render(<TenantPortalRoute />);
 
-		const nav = screen.getByTestId('tenant-workspace-nav');
-		const links = nav.querySelectorAll(
-			'[data-testid="tenant-workspace-nav-link"]',
-		);
-		expect(links).toHaveLength(WORKSPACE_NAV_DESTINATIONS.length);
-
-		const destinations = Array.from(links).map((link) =>
-			link.getAttribute('data-nav-to'),
-		);
-		expect(destinations).toEqual(WORKSPACE_NAV_DESTINATIONS);
+		expect(container.querySelectorAll('main')).toHaveLength(0);
+		expect(
+			screen.getByTestId('tenant-workspace-shell').className,
+		).not.toContain('min-h-svh');
 	});
 
-	test('the workspace shell marks the nav item for the current child route as active', () => {
-		mocks.pathname = '/tenant/account/security';
-		resolveSingleActiveTenant();
+	test('a deep link to a child route resolves through the persisted tenant selection', () => {
+		window.localStorage.setItem(SELECTED_TENANT_STORAGE_KEY, 't-1');
+		mocks.pathname = '/tenant/account';
+		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 
-		const links = screen.getAllByTestId('tenant-workspace-nav-link');
-		const accountLink = links.find(
-			(link) => link.getAttribute('data-nav-to') === '/tenant/account',
+		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
+		expect(screen.getByTestId('tenant-workspace-tenant-name').textContent).toBe(
+			'Acme',
 		);
-		expect(accountLink?.getAttribute('data-active')).toBe('true');
-		expect(accountLink?.getAttribute('aria-current')).toBe('page');
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+	});
 
-		const settingsLink = links.find(
-			(link) => link.getAttribute('data-nav-to') === '/tenant/settings',
-		);
-		expect(settingsLink?.getAttribute('data-active')).toBeNull();
+	test('a stored tenant that no longer resolves sends the user to the picker', () => {
+		window.localStorage.setItem(SELECTED_TENANT_STORAGE_KEY, 't-9');
+		mocks.pathname = '/tenant/account';
+		setTwoActiveTenants();
+		render(<TenantPortalRoute />);
+
+		expect(screen.getByTestId('tenant-portal-picker')).toBeTruthy();
+		expect(screen.queryByTestId('tenant-workspace-shell')).toBeNull();
 	});
 
 	test('shows the picker list with 2+ active tenants, no suspended banner when none are suspended', () => {
-		setQuery({
-			data: {
-				tenants: [
-					activeTenant('t-1', 'Acme'),
-					activeTenant('t-2', 'TechStart'),
-				],
-				activeCount: 2,
-				totalCount: 2,
-				hasSuspendedTenants: false,
-			},
-		});
+		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 		expect(screen.getByTestId('tenant-portal-picker')).toBeTruthy();
 		expect(screen.getAllByTestId('tenant-portal-row')).toHaveLength(2);
@@ -340,43 +345,25 @@ describe('TenantPortalRoute', () => {
 		expect(activeRow?.tagName).toBe('BUTTON');
 	});
 
-	test('selecting an active tenant transitions from the list to the workspace shell', () => {
-		setQuery({
-			data: {
-				tenants: [
-					activeTenant('t-1', 'Acme'),
-					activeTenant('t-2', 'TechStart'),
-				],
-				activeCount: 2,
-				totalCount: 2,
-				hasSuspendedTenants: false,
-			},
-		});
+	test('selecting an active tenant persists the choice and resolves the workspace', () => {
+		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 
 		const rows = screen.getAllByTestId('tenant-portal-row');
-		const firstRow = rows[0];
-		if (!firstRow) {
-			throw new Error('expected at least one tenant row');
-		}
-		fireEvent.click(firstRow);
+		fireEvent.click(rows[0]);
 
-		expect(screen.getByTestId('tenant-workspace-shell')).toBeTruthy();
-		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+		expect(window.localStorage.getItem(SELECTED_TENANT_STORAGE_KEY)).toBe(
+			't-1',
+		);
+		expect(screen.getByTestId('tenant-portal-redirecting')).toBeTruthy();
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant/account',
+			replace: true,
+		});
 	});
 
 	test('wires the log-out button to useLogout', () => {
-		setQuery({
-			data: {
-				tenants: [
-					activeTenant('t-1', 'Acme'),
-					activeTenant('t-2', 'TechStart'),
-				],
-				activeCount: 2,
-				totalCount: 2,
-				hasSuspendedTenants: false,
-			},
-		});
+		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 
 		fireEvent.click(screen.getByTestId('tenant-portal-logout-button'));

@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { CurrentUser } from '~/lib/query/auth';
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 		data: undefined as unknown,
 		isLoading: false,
 		isError: false,
+		refetch: vi.fn(),
 	},
 }));
 
@@ -46,11 +47,15 @@ const EN_LABELS: Record<string, string> = {
 	'read-only': 'Read only',
 	'not-available-yet': 'Not available yet',
 	'un-named': 'Unnamed',
+	'failed-to-load-profile': 'Failed to load profile',
+	'failed-to-load-profile-description':
+		'Your profile information could not be loaded. Try again.',
+	retry: 'retry',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string) => EN_LABELS[key.replace(/^common:/, '')] ?? key,
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -81,6 +86,7 @@ describe('AccountProfilePage', () => {
 			data: currentUser,
 			isLoading: false,
 			isError: false,
+			refetch: mocks.currentUserQuery.refetch,
 		};
 		render(<AccountProfilePage />);
 
@@ -98,6 +104,7 @@ describe('AccountProfilePage', () => {
 			data: currentUser,
 			isLoading: false,
 			isError: false,
+			refetch: mocks.currentUserQuery.refetch,
 		};
 		render(<AccountProfilePage />);
 
@@ -110,6 +117,7 @@ describe('AccountProfilePage', () => {
 			data: currentUser,
 			isLoading: false,
 			isError: false,
+			refetch: mocks.currentUserQuery.refetch,
 		};
 		render(<AccountProfilePage />);
 
@@ -121,6 +129,7 @@ describe('AccountProfilePage', () => {
 			data: currentUser,
 			isLoading: false,
 			isError: false,
+			refetch: mocks.currentUserQuery.refetch,
 		};
 		render(<AccountProfilePage />);
 
@@ -132,11 +141,29 @@ describe('AccountProfilePage', () => {
 			data: undefined,
 			isLoading: true,
 			isError: false,
+			refetch: mocks.currentUserQuery.refetch,
 		};
 		const { container } = render(<AccountProfilePage />);
 
 		expect(
 			container.querySelectorAll('[data-slot="skeleton"]').length,
 		).toBeGreaterThan(0);
+	});
+
+	test('shows an error state with a retry action when the identity query fails', () => {
+		mocks.currentUserQuery = {
+			data: undefined,
+			isLoading: false,
+			isError: true,
+			refetch: mocks.currentUserQuery.refetch,
+		};
+		render(<AccountProfilePage />);
+
+		expect(screen.getByTestId('tenant-account-profile-error')).toBeTruthy();
+		expect(screen.getByText('Failed to load profile')).toBeTruthy();
+		expect(screen.queryByText('Unnamed')).toBeNull();
+
+		fireEvent.click(screen.getByRole('button', { name: 'retry' }));
+		expect(mocks.currentUserQuery.refetch).toHaveBeenCalledTimes(1);
 	});
 });

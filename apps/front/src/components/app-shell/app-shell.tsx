@@ -28,6 +28,7 @@ import {
 	getActiveRailItem,
 	getRailItemsForPath,
 	getSecondaryPanelItems,
+	getShellScope,
 	isSecondaryPanelItemActive,
 	shouldShowSecondaryPanel,
 } from '../../lib/navigation/route-metadata';
@@ -166,6 +167,11 @@ const AuthedWorkspaceShell = ({
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
+	// The logo is the scope home: a tenant user must never land on a staff
+	// destination (review #1131 round 2 — MAJOR). `/tenant` re-resolves the
+	// workspace (or shows the picker), so it is the tenant scope's root.
+	const homePath =
+		getShellScope(pathname) === 'tenant' ? '/tenant' : '/staff/staff-users';
 	// The trail is a pure function of the current matches (i.e. of the URL),
 	// never of fetched data — every dynamic path param the deepest match's
 	// route declares MUST resolve to a named entity crumb (#973), and the
@@ -244,7 +250,7 @@ const AuthedWorkspaceShell = ({
 				data-testid="app-shell-rail"
 			>
 				<Link
-					to="/staff/staff-users"
+					to={homePath}
 					className="app-shell-rail-logo"
 					aria-label={t('nav-workspace-home')}
 				>

@@ -41,7 +41,7 @@ const EN_LABELS: Record<string, string> = {
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string) => EN_LABELS[key.replace(/^common:/, '')] ?? key,
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));

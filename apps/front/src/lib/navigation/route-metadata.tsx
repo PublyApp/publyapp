@@ -1,14 +1,18 @@
 import {
 	IconActivity,
+	IconBell,
 	IconBuilding,
+	IconCalendarEvent,
 	IconClipboardList,
 	IconClock,
 	IconHistory,
 	IconLayoutDashboard,
 	IconMail,
 	IconReportAnalytics,
+	IconSettings,
 	IconShieldCheck,
 	IconShieldLock,
+	IconUserCircle,
 	IconUsers,
 } from '@tabler/icons-react';
 import type { TablerIcon } from '@tabler/icons-react';
@@ -30,9 +34,21 @@ export type SecondaryPanelItem = {
 	Icon: TablerIcon;
 	/** Search params the link must set (and that isActive must match), e.g. a status filter. */
 	search?: SecondaryPanelItemSearch;
+	/** Match the pathname EXACTLY instead of by prefix — for a panel row whose
+	 * path is a prefix of a sibling row's path (the account module's Profile
+	 * row at `/tenant/account` would otherwise stay lit on
+	 * `/tenant/account/security`). */
+	matchExact?: boolean;
 };
 
-export type RouteId = 'dashboard' | 'tenants' | 'staff';
+export type RouteId =
+	| 'dashboard'
+	| 'tenants'
+	| 'staff'
+	| 'account'
+	| 'settings'
+	| 'posts'
+	| 'organizations';
 
 export type AppRouteMetadata = {
 	id: RouteId;
@@ -169,10 +185,70 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 	},
 ];
 
-// The tenant workspace has exactly one registered route (`/tenant`, the
-// tenant picker) — there is no tenant rail/panel to describe yet. Add entries
-// here only once their routes exist in src/routes.ts.
-const TENANT_ROUTES: AppRouteMetadata[] = [];
+const ACCOUNT_MODULE_ITEMS: SecondaryPanelItem[] = [
+	{
+		id: 'account-profile',
+		labelKey: 'profile',
+		path: '/tenant/account',
+		Icon: IconUserCircle,
+		matchExact: true,
+	},
+	{
+		id: 'account-security',
+		labelKey: 'security',
+		path: '/tenant/account/security',
+		Icon: IconShieldLock,
+	},
+	{
+		id: 'account-notifications',
+		labelKey: 'notifications',
+		path: '/tenant/account/notifications',
+		Icon: IconBell,
+	},
+];
+
+// The tenant workspace sections — the rail's primary entries for tenant
+// users. Their child routes (e.g. the account sections) are covered by the
+// module's matchPrefixes; the account module also carries its children as
+// secondary panel rows, mirroring the staff modules.
+const TENANT_ROUTES: AppRouteMetadata[] = [
+	{
+		id: 'account',
+		labelKey: 'account',
+		scope: 'tenant',
+		path: '/tenant/account',
+		Icon: IconUserCircle,
+		matchPrefixes: ['/tenant/account'],
+		secondaryItems: ACCOUNT_MODULE_ITEMS,
+	},
+	{
+		id: 'settings',
+		labelKey: 'settings',
+		scope: 'tenant',
+		path: '/tenant/settings',
+		Icon: IconSettings,
+		matchPrefixes: ['/tenant/settings'],
+		secondaryItems: [],
+	},
+	{
+		id: 'posts',
+		labelKey: 'posts',
+		scope: 'tenant',
+		path: '/tenant/posts',
+		Icon: IconCalendarEvent,
+		matchPrefixes: ['/tenant/posts'],
+		secondaryItems: [],
+	},
+	{
+		id: 'organizations',
+		labelKey: 'organizations',
+		scope: 'tenant',
+		path: '/tenant/organizations',
+		Icon: IconBuilding,
+		matchPrefixes: ['/tenant/organizations'],
+		secondaryItems: [],
+	},
+];
 
 const isPathPrefix = (pathname: string, prefix: string): boolean =>
 	pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -228,13 +304,17 @@ export function getSecondaryPanelItems(pathname: string): SecondaryPanelItem[] {
  * A panel item is active when its pathname matches AND its declared search
  * (e.g. a status filter) matches the current search — so "All tenants" (no
  * search) and "Active" (status=active) never both light up for the same URL.
+ * `matchExact` narrows a nested row (e.g. the account Profile row) to an
+ * exact pathname match so it does not stay lit on its children's routes.
  */
 export function isSecondaryPanelItemActive(
 	item: SecondaryPanelItem,
 	pathname: string,
 	search: Record<string, unknown>,
 ): boolean {
-	const matchesPath = isPathPrefix(pathname, item.path);
+	const matchesPath = item.matchExact
+		? pathname === item.path
+		: isPathPrefix(pathname, item.path);
 	const itemStatus = item.search?.status;
 	const currentStatus =
 		typeof search.status === 'string' ? search.status : undefined;

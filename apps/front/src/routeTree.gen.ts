@@ -21,7 +21,6 @@ import { Route as indexRouteImport } from './routes/index'
 import { Route as authedTenantRouteImport } from './routes/authed/tenant'
 import { Route as authedStaffRouteImport } from './routes/authed/staff'
 import { Route as authedStaffInvitationsIndexRouteImport } from './routes/authed/staff/invitations/index'
-import { Route as authedTenantIndexRouteImport } from './routes/authed/tenant/index'
 import { Route as authedTenantSettingsRouteImport } from './routes/authed/tenant/settings'
 import { Route as authedTenantPostsRouteImport } from './routes/authed/tenant/posts'
 import { Route as authedTenantOrganizationsRouteImport } from './routes/authed/tenant/organizations'
@@ -126,11 +125,6 @@ const authedStaffInvitationsIndexRoute =
     path: '/staff/invitations',
     getParentRoute: () => authedLayoutRoute,
   } as any)
-const authedTenantIndexRoute = authedTenantIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => authedTenantRoute,
-} as any)
 const authedTenantSettingsRoute = authedTenantSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -400,7 +394,6 @@ export interface FileRoutesByFullPath {
   '/tenant/organizations': typeof authedTenantOrganizationsRoute
   '/tenant/posts': typeof authedTenantPostsRoute
   '/tenant/settings': typeof authedTenantSettingsRoute
-  '/tenant/': typeof authedTenantIndexRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/tenant/account/': typeof authedTenantAccountProfileRoute
   '/staff/audit-logs/$logId': typeof authedStaffAuditLogsLogIdRoute
@@ -447,6 +440,7 @@ export interface FileRoutesByTo {
   '/signup': typeof signupRoute
   '/verify-email': typeof verifyEmailRoute
   '/staff': typeof authedStaffRoute
+  '/tenant': typeof authedTenantRouteWithChildren
   '/staff/audit-logs': typeof authedStaffAuditLogsRoute
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
@@ -454,7 +448,6 @@ export interface FileRoutesByTo {
   '/tenant/organizations': typeof authedTenantOrganizationsRoute
   '/tenant/posts': typeof authedTenantPostsRoute
   '/tenant/settings': typeof authedTenantSettingsRoute
-  '/tenant': typeof authedTenantIndexRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/tenant/account': typeof authedTenantAccountProfileRoute
   '/staff/audit-logs/$logId': typeof authedStaffAuditLogsLogIdRoute
@@ -511,7 +504,6 @@ export interface FileRoutesById {
   '/_authed-layout/tenant/organizations': typeof authedTenantOrganizationsRoute
   '/_authed-layout/tenant/posts': typeof authedTenantPostsRoute
   '/_authed-layout/tenant/settings': typeof authedTenantSettingsRoute
-  '/_authed-layout/tenant/': typeof authedTenantIndexRoute
   '/_authed-layout/staff/invitations': typeof authedStaffInvitationsIndexRoute
   '/_authed-layout/tenant/account/': typeof authedTenantAccountProfileRoute
   '/_authed-layout/staff/audit-logs/$logId': typeof authedStaffAuditLogsLogIdRoute
@@ -570,7 +562,6 @@ export interface FileRouteTypes {
     | '/tenant/organizations'
     | '/tenant/posts'
     | '/tenant/settings'
-    | '/tenant/'
     | '/staff/invitations'
     | '/tenant/account/'
     | '/staff/audit-logs/$logId'
@@ -617,6 +608,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/verify-email'
     | '/staff'
+    | '/tenant'
     | '/staff/audit-logs'
     | '/staff/profiles'
     | '/staff/staff-users'
@@ -624,7 +616,6 @@ export interface FileRouteTypes {
     | '/tenant/organizations'
     | '/tenant/posts'
     | '/tenant/settings'
-    | '/tenant'
     | '/staff/invitations'
     | '/tenant/account'
     | '/staff/audit-logs/$logId'
@@ -680,7 +671,6 @@ export interface FileRouteTypes {
     | '/_authed-layout/tenant/organizations'
     | '/_authed-layout/tenant/posts'
     | '/_authed-layout/tenant/settings'
-    | '/_authed-layout/tenant/'
     | '/_authed-layout/staff/invitations'
     | '/_authed-layout/tenant/account/'
     | '/_authed-layout/staff/audit-logs/$logId'
@@ -815,13 +805,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/staff/invitations'
       preLoaderRoute: typeof authedStaffInvitationsIndexRouteImport
       parentRoute: typeof authedLayoutRoute
-    }
-    '/_authed-layout/tenant/': {
-      id: '/_authed-layout/tenant/'
-      path: '/'
-      fullPath: '/tenant/'
-      preLoaderRoute: typeof authedTenantIndexRouteImport
-      parentRoute: typeof authedTenantRoute
     }
     '/_authed-layout/tenant/settings': {
       id: '/_authed-layout/tenant/settings'
@@ -1147,7 +1130,6 @@ interface authedTenantRouteChildren {
   authedTenantOrganizationsRoute: typeof authedTenantOrganizationsRoute
   authedTenantPostsRoute: typeof authedTenantPostsRoute
   authedTenantSettingsRoute: typeof authedTenantSettingsRoute
-  authedTenantIndexRoute: typeof authedTenantIndexRoute
 }
 
 const authedTenantRouteChildren: authedTenantRouteChildren = {
@@ -1155,7 +1137,6 @@ const authedTenantRouteChildren: authedTenantRouteChildren = {
   authedTenantOrganizationsRoute: authedTenantOrganizationsRoute,
   authedTenantPostsRoute: authedTenantPostsRoute,
   authedTenantSettingsRoute: authedTenantSettingsRoute,
-  authedTenantIndexRoute: authedTenantIndexRoute,
 }
 
 const authedTenantRouteWithChildren = authedTenantRoute._addFileChildren(

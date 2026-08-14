@@ -1,23 +1,26 @@
-import { IconBuilding, IconLoader2, IconLogout } from '@tabler/icons-react';
+import { IconBuilding, IconLoader2 } from '@tabler/icons-react';
 import {
 	createFileRoute,
-	Link,
 	Outlet,
+	useNavigate,
 	useRouterState,
 } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
-import { Button } from '~/components/ui/button';
 import { SimpleLayout } from '~/layouts/simple-layout';
-import { useLogout } from '~/lib/hooks/use-logout';
-import type { AppRoutePath } from '~/lib/navigation/route-metadata';
 import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
-import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
+import type {
+	TenantForPickerRow,
+	TenantsForPickerData,
+} from '~/lib/query/tenants-for-picker';
 import { isActiveTenantForPicker } from '~/lib/query/tenants-for-picker';
+import {
+	readSelectedTenantId,
+	writeSelectedTenantId,
+} from '~/lib/selected-tenant-storage';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-import { cn } from '~/lib/utils';
 
 import {
 	TenantPortalEmptyState,
@@ -27,31 +30,36 @@ import {
 import { TenantPortalPickerView } from './tenant/_tenant-picker-view';
 
 export const Route = createFileRoute('/_authed-layout/tenant')({
-	// `/tenant` is the workspace root itself (RoutedShell renders it without
-	// the AppShell workspace chrome at all — see `isTenantPortalRoot`), so an
-	// empty tail is correct: the scope root crumb ("Workspace") is the whole
-	// trail. Each child route (account/settings/posts/organizations) declares
-	// its own trail, which is what the deepest match actually surfaces.
+	// `/tenant` is a redirect-only stub: it never renders chrome itself (the
+	// picker is a bare SimpleLayout surface — see `isTenantPortalRoot` in
+	// `__root.tsx`), and once a workspace resolves it bounces to
+	// `/tenant/account`, mirroring `/staff` -> `/staff/staff-users`. Every
+	// child route declares its own trail, which is what the deepest match
+	// surfaces in the AppShell topbar.
 	staticData: { crumbs: () => [] },
 	component: TenantPortalRoute,
 });
 
-const WORKSPACE_NAV_ITEMS: readonly { labelKey: string; to: AppRoutePath }[] = [
-	{ labelKey: 'account', to: '/tenant/account' },
-	{ labelKey: 'settings', to: '/tenant/settings' },
-	{ labelKey: 'posts', to: '/tenant/posts' },
-	{ labelKey: 'organizations', to: '/tenant/organizations' },
-];
-
-const isWorkspaceNavItemActive = (pathname: string, to: string): boolean =>
-	pathname === to || pathname.startsWith(`${to}/`);
-
+/**
+ * Resolves the workspace tenant. `selectedTenantId` wins when it names an
+ * ACTIVE tenant in the user's list (a stored id can point at a tenant that
+ * has since been suspended/removed — that is a genuine no-resolution, so the
+ * picker shows); otherwise exactly one ACTIVE tenant auto-resolves, mirroring
+ * the backend's GetRedirectCode rule. A suspended sibling never forces the
+ * picker open.
+ */
 const resolveWorkspaceTenant = (
 	data: TenantsForPickerData,
 	selectedTenantId: string | null,
-): TenantsForPickerData['tenants'][number] | undefined => {
+): TenantForPickerRow | undefined => {
 	if (selectedTenantId) {
-		return data.tenants.find((tenant) => tenant.id === selectedTenantId);
+		const selected = data.tenants.find(
+			(tenant) =>
+				tenant.id === selectedTenantId && isActiveTenantForPicker(tenant),
+		);
+		if (selected) {
+			return selected;
+		}
 	}
 
 	if (data.activeCount === 1) {
@@ -63,133 +71,97 @@ const resolveWorkspaceTenant = (
 
 /**
  * The tenant workspace shell: rendered by the resolved branch of
- * `TenantPortalRoute` for every `/tenant/*` route. It carries the tenant
- * identity (resolved by the picker) and the top-level workspace navigation
- * (Account / Settings / Posts / Organizations); child routes render in the
- * `<Outlet />`. It is self-contained chrome because the portal root renders
- * bare in `RoutedShell` (no AppShell) — at child routes the platform AppShell
- * topbar wraps it.
+ * `TenantPortalRoute` for every `/tenant/*` route. It renders INSIDE the
+ * platform AppShell (rail + topbar + user menu, which own navigation and
+ * logout), so it contributes only the tenant identity the shared chrome
+ * cannot know — the resolved tenant's name and code — and the child route.
+ * Deliberately no `<main>` (the AppShell owns the landmark), no full-viewport
+ * height, no logout button: one nav layer and one logout affordance per
+ * tenant route.
  */
-const TenantWorkspaceShell = ({
-	data,
-	selectedTenantId,
-}: {
-	data: TenantsForPickerData;
-	selectedTenantId: string | null;
-}) => {
+const TenantWorkspaceShell = ({ tenant }: { tenant: TenantForPickerRow }) => {
 	const { t } = useTranslation('common');
-	const { logout, isLoggingOut } = useLogout();
-	const pathname = useRouterState({
-		select: (state) => state.location.pathname,
-	});
-	const tenant = resolveWorkspaceTenant(data, selectedTenantId);
-	const tenantName = tenant?.name ?? t('unnamed-tenant');
+	const tenantName = tenant.name ?? t('unnamed-tenant');
 
 	return (
-		<div
-			className="flex min-h-svh flex-col bg-background"
-			data-testid="tenant-workspace-shell"
-		>
-			<header className="border-b border-border">
-				<div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
-					<div className="flex min-w-0 items-center gap-3">
-						<div
-							className="flex size-10 shrink-0 items-center justify-center rounded-[var(--publy-radius-input)] bg-muted"
-							aria-hidden="true"
-							data-testid="tenant-workspace-identity-icon"
-						>
-							<IconBuilding className="size-5 text-muted-foreground" />
-						</div>
-						<div className="min-w-0">
-							<p
-								className="truncate text-sm font-medium text-foreground"
-								data-testid="tenant-workspace-tenant-name"
-							>
-								{tenantName}
-							</p>
-							{tenant?.code ? (
-								<p
-									className="truncate font-mono text-xs text-muted-foreground"
-									data-testid="tenant-workspace-tenant-code"
-								>
-									{tenant.code}
-								</p>
-							) : null}
-						</div>
-					</div>
-					<Button
-						variant="ghost"
-						disabled={isLoggingOut}
-						onClick={() => logout()}
-						className="shrink-0 text-muted-foreground"
-						data-testid="tenant-workspace-logout-button"
-					>
-						{isLoggingOut ? (
-							<IconLoader2 aria-hidden="true" className="size-4 animate-spin" />
-						) : (
-							<IconLogout aria-hidden="true" className="size-4" />
-						)}
-						{t('log-out')}
-					</Button>
-				</div>
-				<nav
-					aria-label={t('nav-tenant-workspace')}
-					className="flex gap-1 overflow-x-auto px-4 pb-1 sm:px-6"
-					data-testid="tenant-workspace-nav"
+		<div className="flex min-w-0 flex-col" data-testid="tenant-workspace-shell">
+			<div className="flex items-center gap-3 border-b border-border pb-4">
+				<div
+					className="flex size-10 shrink-0 items-center justify-center rounded-[var(--publy-radius-input)] bg-muted"
+					aria-hidden="true"
+					data-testid="tenant-workspace-identity-icon"
 				>
-					{WORKSPACE_NAV_ITEMS.map((item) => {
-						const isActive = isWorkspaceNavItemActive(pathname, item.to);
-
-						return (
-							<Link
-								key={item.to}
-								to={item.to}
-								aria-current={isActive ? 'page' : undefined}
-								className={cn(
-									'shrink-0 border-b-2 border-transparent px-1 pb-2 pt-1 text-[13px] font-medium whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
-									isActive && 'border-primary text-foreground',
-								)}
-								data-testid="tenant-workspace-nav-link"
-								data-nav-to={item.to}
-								data-active={isActive ? 'true' : undefined}
-							>
-								{t(item.labelKey)}
-							</Link>
-						);
-					})}
-				</nav>
-			</header>
-			<main className="flex-1 px-4 py-6 sm:px-6">
-				<div className="mx-auto w-full max-w-5xl">
-					<Outlet />
+					<IconBuilding className="size-5 text-muted-foreground" />
 				</div>
-			</main>
+				<div className="min-w-0">
+					<p
+						className="truncate text-sm font-medium text-foreground"
+						data-testid="tenant-workspace-tenant-name"
+					>
+						{tenantName}
+					</p>
+					{tenant.code ? (
+						<p
+							className="truncate font-mono text-xs text-muted-foreground"
+							data-testid="tenant-workspace-tenant-code"
+						>
+							{tenant.code}
+						</p>
+					) : null}
+				</div>
+			</div>
+			<div className="mx-auto mt-6 w-full min-w-0 max-w-5xl">
+				<Outlet />
+			</div>
 		</div>
 	);
 };
 
 function TenantPortalRoute() {
 	const query = useTenantsForPickerQuery();
-	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+	const navigate = useNavigate();
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(() =>
+		readSelectedTenantId(),
+	);
+	const isTenantRoot = pathname.replace(/\/+$/, '') === '/tenant';
+	const resolvedTenant = query.isSuccess
+		? resolveWorkspaceTenant(query.data, selectedTenantId)
+		: undefined;
+	const isResolvedToWorkspace = resolvedTenant !== undefined;
+
+	// The workspace root never hosts the shell: the shell only renders inside
+	// the AppShell (whose rail is the workspace navigation), and the root
+	// renders bare for the picker. Once a workspace resolves, bounce to the
+	// first section — the same shape as `/staff` -> `/staff/staff-users`.
+	useEffect(() => {
+		if (isTenantRoot && isResolvedToWorkspace) {
+			void navigate({ to: '/tenant/account', replace: true });
+		}
+	}, [isTenantRoot, isResolvedToWorkspace, navigate]);
 
 	if (query.isError && shouldLogoutForFailure(query.error)) {
 		return <LogoutRedirect />;
 	}
 
-	// Mirrors the backend's GetRedirectCode rule: exactly one ACTIVE tenant
-	// auto-resolves regardless of hasSuspendedTenants (a suspended sibling
-	// tenant never forces the picker open).
-	const isResolvedToWorkspace =
-		query.isSuccess &&
-		(query.data.activeCount === 1 || selectedTenantId !== null);
+	if (isResolvedToWorkspace) {
+		if (isTenantRoot) {
+			return (
+				<div
+					className="flex min-h-svh items-center justify-center"
+					data-testid="tenant-portal-redirecting"
+				>
+					<IconLoader2
+						aria-hidden="true"
+						className="size-8 animate-spin text-muted-foreground"
+					/>
+				</div>
+			);
+		}
 
-	if (query.isSuccess && isResolvedToWorkspace) {
-		return (
-			<TenantWorkspaceShell
-				data={query.data}
-				selectedTenantId={selectedTenantId}
-			/>
-		);
+		return <TenantWorkspaceShell tenant={resolvedTenant} />;
 	}
 
 	return (
@@ -205,7 +177,10 @@ function TenantPortalRoute() {
 					) : (
 						<TenantPortalPickerView
 							data={data}
-							onSelect={setSelectedTenantId}
+							onSelect={(tenantId) => {
+								setSelectedTenantId(tenantId);
+								writeSelectedTenantId(tenantId);
+							}}
 						/>
 					)
 				}
