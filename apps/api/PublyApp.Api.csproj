@@ -52,8 +52,8 @@
 	<ItemGroup>
 		<EmbeddedResource
 			Include="../../packages/shared-ts/lib/profile-style/tenant-profile-icons.json"
-			Link="Resources/tenant-profile-icons.json"
-			LogicalName="PublyApp.TenantProfileIcons.json" />
+			Link="Resources/profile-icons.json"
+			LogicalName="PublyApp.ProfileIcons.json" />
 	</ItemGroup>
 
 	<!-- Wire the analyzer assembly into the API build without making it a runtime dependency.

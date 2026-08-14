@@ -96,13 +96,13 @@ public class CreateTenantProfileAsStaffBodyValidator
 		RuleFor(x => x.Icon)
 			.MustBePatchFieldStringInSet(
 				"Icon",
-				TenantProfileStyleValidationRules.Icons
+				ProfileStyleValidationRules.Icons
 			);
 
 		RuleFor(x => x.Tone)
 			.MustBePatchFieldStringInSet(
 				"Tone",
-				TenantProfileStyleValidationRules.Tones
+				ProfileStyleValidationRules.Tones
 			);
 
 		RuleFor(x => x.PermissionKeys).Custom((element, context) => {
