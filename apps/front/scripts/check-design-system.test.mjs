@@ -97,10 +97,7 @@ const startFixtureProbe = async (mode) => {
 		process.execPath,
 		[
 			fileURLToPath(
-				new URL(
-					'./check-design-system-fixture-probe.test.mjs',
-					import.meta.url,
-				),
+				new URL('./check-design-system-fixture-probe.mjs', import.meta.url),
 			),
 		],
 		{
