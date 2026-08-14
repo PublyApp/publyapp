@@ -2265,6 +2265,124 @@ test('e2e (round 2): String.raw scans raw template text, not cooked text', async
 	);
 });
 
+test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucket — fail-closed through the real guard', async () => {
+	// PR #1118 taught the guard to recognize String.raw through
+	// globalThis/window/self prefixes and module-scope const alias chains,
+	// with the nearestBinding shadow check re-applied at every hop. The
+	// FAIL-CLOSED side was unpinned: a refactor that drops a shadow check
+	// would silently WIDEN recognition — the shadowed spellings below would
+	// start reddening raw CSS they must not be treated as — without any
+	// test reddening. Each shape runs the REAL guard end to end
+	// (`runFixtureGuard` → `runZIndexGuard` over an isolated fixture tree,
+	// exactly like the round-2 positive tests above) and pairs the
+	// shadowed tag with a genuine String.raw control in the same file: the
+	// control keeps the payload walk provably live (the fixture is not
+	// green for the wrong reason), and EXACTLY ONE violation means the
+	// shadowed tag was classified as NOT String.raw — the declared runtime
+	// bucket. Any recognition-widening regression resolves the shadowed
+	// tag too, doubling the violations and reddening this assertion.
+	const shapes = [
+		[
+			'param-shadowed R',
+			// The function parameter `R` shadows the module-scope `const R
+			// = String.raw` alias. `resolveModuleConstFixpoint` re-applies
+			// `nearestBinding` at every hop; dropping that check would
+			// resolve the parameter's tag to the module const.
+			[
+				'const R = String.raw;',
+				'export const probe = (R: typeof String.raw) => (',
+				'  <>',
+				'    <style>{R`.r1120-param-shadow { z-index: 2147483647; }`}</style>',
+				'    <style>{String.raw`.r1120-param-control { z-index: 2147483646; }`}</style>',
+				'  </>',
+				');',
+			].join('\n'),
+		],
+		[
+			'function-scope const R',
+			// A `const R = String.raw` inside a function is not a
+			// module-scope const: `moduleConstInitializers` records only
+			// source-file statements. Removing the module-scope filter
+			// would resolve the local tag.
+			[
+				'export const probe = () => {',
+				'  const R = String.raw;',
+				'  return (',
+				'    <>',
+				'      <style>{R`.r1120-fn-shadow { z-index: 2147483645; }`}</style>',
+				'      <style>{String.raw`.r1120-fn-control { z-index: 2147483644; }`}</style>',
+				'    </>',
+				'  );',
+				'};',
+			].join('\n'),
+		],
+		[
+			'module-level let R',
+			// `let` is reassignable — the alias chain must reject it. The
+			// module-const map records only `const` declarations; dropping
+			// the NodeFlags.Const gate would resolve `let R`.
+			[
+				'let R = String.raw;',
+				'export const probe = (',
+				'  <>',
+				'    <style>{R`.r1120-let-shadow { z-index: 2147483643; }`}</style>',
+				'    <style>{String.raw`.r1120-let-control { z-index: 2147483642; }`}</style>',
+				'  </>',
+				');',
+			].join('\n'),
+		],
+		[
+			'locally shadowed String',
+			// A module-scope `const String` shadows the global; only the
+			// unshadowed spelling counts as a raw-tag owner. Dropping the
+			// `nearestBinding(...) == null` check in `isDirectGlobalString`
+			// would treat the local binding as the global — the control
+			// spells the real global through `globalThis.String.raw`,
+			// because bare `String.raw` IS the shadowed binding here.
+			[
+				'const String = { raw: (strings: TemplateStringsArray) => strings.join("") };',
+				'export const probe = (',
+				'  <>',
+				'    <style>{String.raw`.r1120-string-shadow { z-index: 2147483641; }`}</style>',
+				'    <style>{globalThis.String.raw`.r1120-string-control { z-index: 2147483640; }`}</style>',
+				'  </>',
+				');',
+			].join('\n'),
+		],
+		[
+			'object-property tag',
+			// `tags.raw` is a member read, not a resolvable binding: tag
+			// recognition follows module-scope const *identifier* alias
+			// chains only. Resolving member reads through const object
+			// literals in `isStringRawTag` would widen recognition.
+			[
+				'const tags = { raw: String.raw };',
+				'export const probe = (',
+				'  <>',
+				'    <style>{tags.raw`.r1120-property-shadow { z-index: 2147483639; }`}</style>',
+				'    <style>{String.raw`.r1120-property-control { z-index: 2147483638; }`}</style>',
+				'  </>',
+				');',
+			].join('\n'),
+		],
+	];
+	for (const [name, content] of shapes) {
+		const { violations } = await runFixtureGuard({ 'probe.tsx': content }, '', [
+			"import { probe } from './probe';",
+		]);
+		assert.deepEqual(
+			violations.map(({ ruleId }) => ruleId),
+			['z-index-style-element-shipped'],
+			`${name}: the shadowed tag must stay in the runtime bucket while the control reds: ${JSON.stringify(violations)}`,
+		);
+		assert.match(
+			violations[0].source,
+			/-control/,
+			`${name}: the single red must come from the control tag, not the shadowed one: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
 test('e2e (round 6 I1): ?inline CSS ships as JS and is red via the authored inline walk', async () => {
 	const { violations } = await runFixtureGuard(
 		{
