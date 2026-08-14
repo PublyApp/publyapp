@@ -388,21 +388,21 @@ jobs:
     steps:
       # #1018: a cleanup that cannot delete is a broken check, not a green one,
       # so there is NO continue-on-error here — any failure fails the job (and
-      # therefore the required gate). Each run deletes only ITS OWN tag
-      # (DELETE .../tags/{E2E_IMAGE_TAG}), never a version: content-stable
-      # images (request-counter) push an identical digest every run, so GHCR
-      # adds this run's tag to a version other runs already share — deleting
-      # the version would break every run still referencing the digest,
-      # whereas deleting just our tag leaves those other tags intact and lets
-      # GHCR garbage-collect the version once its last tag is gone. A 404 on
-      # the tag (never pushed, or already cleaned by an earlier attempt) is a
-      # no-op, not a failure. Deleting public package versions past the 5000-
-      # download threshold is refused with HTTP 400; a delete-tag that fails
-      # for that reason surfaces as ::error:: naming the package/tag and
-      # fails the job. The public → private visibility flip that would make
-      # version deletion possible is a separate owner decision, tracked in
-      # #1018.
-      - name: Delete run image tags
+      # therefore the required gate). GitHub's package API has no tag-level
+      # delete (DELETE .../tags/{tag} is not a real endpoint — 404 — and the
+      # GHCR registry rejects manifest deletes by tag — 405), so the only
+      # supported primitive is VERSION deletion. A version is deleted only
+      # when it is exclusively tagged by this run: content-stable images
+      # (request-counter) push an identical digest every run, so GHCR adds
+      # this run's tag to a version other runs already share — deleting that
+      # version would break every run still referencing the digest, so
+      # shared versions are skipped. Exclusivity is re-checked by re-reading
+      # each version immediately before its delete. Deleting public package
+      # versions past the 5000-download threshold is refused with HTTP 400;
+      # that surfaces as ::error:: and fails the job. The public → private
+      # visibility flip that would make deletion possible is a separate
+      # owner decision, tracked in #1018.
+      - name: Delete run image versions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -431,8 +431,9 @@ jobs:
             # so GHCR adds this run's tag to a version other runs already
             # share — deleting that version would break every run still
             # referencing the digest, so shared versions are SKIPPED with a
-            # notice. The tag list is re-read immediately before each delete
-            # to keep the list-then-delete window as small as possible.
+            # notice. Exclusivity is re-checked by re-reading each version
+            # immediately before its delete, so a tag added by a concurrent
+            # run after the listing is caught and the delete is skipped.
             if ! versions="$(
               gh api --paginate \
                 "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions?per_page=100" \
@@ -443,9 +444,40 @@ jobs:
               continue
             fi
 
+            # Materialize the candidate list BEFORE the loop so a jq failure
+            # here is caught by pipefail and fails the job, instead of
+            # silently skipping cleanup inside a process substitution.
+            if ! candidates="$(
+              printf '%s' "$versions" | jq -c '.[]'
+            )"; then
+              echo "::error::Could not parse GHCR version list for ${package}."
+              cleanup_failed=true
+              continue
+            fi
+
+            # Nothing carries this run's tag → nothing to delete; skip the
+            # loop entirely (a bare `<<< ""` would still run one iteration
+            # on an empty line and issue an invalid version GET).
+            if [ -z "$candidates" ]; then
+              continue
+            fi
+
             while IFS= read -r version; do
               version_id="$(printf '%s' "$version" | jq -r '.id')"
-              other_tags="$(printf '%s' "$version" | jq -r --arg run_tag "$E2E_IMAGE_TAG" '[.tags[] | select(. != $run_tag)] | join(", ")')"
+
+              # Re-read the version right before deleting: exclusivity must
+              # hold on the CURRENT tag list, not the listing snapshot.
+              if ! fresh="$(
+                gh api \
+                  "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}" \
+                  --jq "{id: .id, tags: .metadata.container.tags}"
+              )"; then
+                echo "::error::Could not re-read GHCR version ${version_id} for ${package}; skipping delete to avoid deleting a version a concurrent run may now share."
+                cleanup_failed=true
+                continue
+              fi
+
+              other_tags="$(printf '%s' "$fresh" | jq -r --arg run_tag "$E2E_IMAGE_TAG" '[.tags[] | select(. != $run_tag)] | join(", ")')"
 
               if [ -n "$other_tags" ]; then
                 echo "::notice::Skipping GHCR version ${version_id} for ${package}: tag ${E2E_IMAGE_TAG} was added to a version already shared with other run tags (${other_tags}) because this image's content is identical across runs. GitHub's package API cannot delete a single tag, and deleting the version would break every run still referencing that digest, so only versions exclusively tagged by this run are deleted."
@@ -457,7 +489,7 @@ jobs:
                 echo "::error::Could not delete GHCR version ${version_id} for ${package}. Public GHCR packages past 5000 downloads refuse version deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
                 cleanup_failed=true
               fi
-            done < <(printf '%s' "$versions" | jq -c '.[]')
+            done <<< "$candidates"
           done
 
           if [ "$cleanup_failed" = true ]; then
