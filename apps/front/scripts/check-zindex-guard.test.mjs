@@ -1424,6 +1424,66 @@ test('compiled-CSS gate: unknown scale token references are not on the canonical
 	);
 });
 
+test('compiled-CSS gate (round 2): omitted canonical set fails closed for tokens and declarations', () => {
+	const undeclaredDeclaration = checkCompiledCssZIndex(
+		'.probe { z-index: var(--publy-z-not-declared); }',
+	);
+	assert.deepEqual(
+		undeclaredDeclaration.map(({ ruleId, source }) => ({ ruleId, source })),
+		[
+			{
+				ruleId: 'z-index-declaration-not-on-scale',
+				source: 'z-index: var(--publy-z-not-declared)',
+			},
+		],
+	);
+	assert.deepEqual(
+		checkCompiledCssZIndex('.probe { z-index: var(--publy-z-raised); }'),
+		[],
+	);
+
+	const undeclaredDefinition = checkCompiledCssZIndex(
+		'@layer theme { :root,:host { --publy-z-not-declared: 2147483647; } }',
+		KNOWN_RAW_Z_INDEX_DECLARATIONS,
+		'fixture.css',
+		{ emitted: true },
+	);
+	assert.deepEqual(
+		undeclaredDefinition.map(({ ruleId, source }) => ({ ruleId, source })),
+		[
+			{
+				ruleId: 'z-index-scale-token-unowned',
+				source: '--publy-z-not-declared: 2147483647',
+			},
+		],
+	);
+	assert.deepEqual(
+		checkCompiledCssZIndex(
+			'@layer theme { :root,:host { --publy-z-raised: 10; } }',
+			KNOWN_RAW_Z_INDEX_DECLARATIONS,
+			'fixture.css',
+			{ emitted: true },
+		),
+		[],
+	);
+});
+
+test('source scan (round 2): static style payload uses the fail-closed canonical fallback', () => {
+	const red = violationsFor(
+		'fixture.tsx',
+		"export const probe = <style>{'.probe { z-index: var(--publy-z-not-declared); }'}</style>;",
+	);
+	assert.deepEqual(
+		red.map(({ ruleId }) => ruleId),
+		['z-index-style-element-shipped'],
+		`undeclared static style token must red: ${JSON.stringify(red)}`,
+	);
+	assertClean(
+		'fixture.tsx',
+		"export const probe = <style>{'.probe { z-index: var(--publy-z-raised); }'}</style>;",
+	);
+});
+
 test('compiled-CSS gate: raw numeric declarations are flagged', () => {
 	const css = '.a { z-index: 50; }\n.b { z-index: 10; }\n.c { z-index: 60; }';
 	const violations = checkCompiledCssZIndex(css);
@@ -2126,6 +2186,83 @@ test('e2e: static String.raw style payloads are scanned by the real guard', asyn
 			`static String.raw style payload must red: ${JSON.stringify(violations)}`,
 		);
 	}
+});
+
+test('e2e (round 2): prefixed globals and const aliases of String.raw are scanned', async () => {
+	const redSource = [
+		'const R = String.raw;',
+		'export const probe = <>',
+		'<style>{String.raw`.r2-direct { z-index: 2147483647; }`}</style>',
+		'<style>{globalThis.String.raw`.r2-global { z-index: 2147483646; }`}</style>',
+		'<style>{window.String.raw`.r2-window { z-index: 2147483645; }`}</style>',
+		'<style>{self.String.raw`.r2-self { z-index: 2147483644; }`}</style>',
+		'<style>{R`.r2-alias { z-index: 2147483643; }`}</style>',
+		'</>;',
+	].join('\n');
+	const { violations: redViolations } = await runFixtureGuard(
+		{ 'probe.tsx': redSource },
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		redViolations.map(({ ruleId }) => ruleId),
+		Array(5).fill('z-index-style-element-shipped'),
+		`prefixed and aliased String.raw payloads must red: ${JSON.stringify(redViolations)}`,
+	);
+
+	const greenSource = [
+		'const R = String.raw;',
+		'export const probe = <>',
+		'<style>{String.raw`.r2-direct { z-index: var(--publy-z-raised); }`}</style>',
+		'<style>{globalThis.String.raw`.r2-global { z-index: var(--publy-z-raised); }`}</style>',
+		'<style>{window.String.raw`.r2-window { z-index: var(--publy-z-raised); }`}</style>',
+		'<style>{self.String.raw`.r2-self { z-index: var(--publy-z-raised); }`}</style>',
+		'<style>{R`.r2-alias { z-index: var(--publy-z-raised); }`}</style>',
+		'</>;',
+	].join('\n');
+	const { violations: greenViolations } = await runFixtureGuard(
+		{ 'probe.tsx': greenSource },
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		greenViolations,
+		[],
+		`canonical prefixed and aliased String.raw payloads must stay green: ${JSON.stringify(greenViolations)}`,
+	);
+});
+
+test('e2e (round 2): String.raw scans raw template text, not cooked text', async () => {
+	const escapedSource = [
+		'export const probe = <style>{String.raw`.r2-escaped { z-ind\\',
+		'ex: 9; }`}</style>;',
+	].join('\n');
+	const { violations: escapedViolations } = await runFixtureGuard(
+		{ 'probe.tsx': escapedSource },
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		escapedViolations.filter(
+			({ ruleId }) => ruleId === 'z-index-style-element-shipped',
+		),
+		[],
+		`raw-only escaped newline payload must not red as shipped CSS: ${JSON.stringify(escapedViolations)}`,
+	);
+
+	const { violations: rawViolations } = await runFixtureGuard(
+		{
+			'probe.tsx':
+				'export const probe = <style>{String.raw`.r2-real { z-index: 2147483647; }`}</style>;',
+		},
+		'',
+		["import { probe } from './probe';"],
+	);
+	assert.deepEqual(
+		rawViolations.map(({ ruleId }) => ruleId),
+		['z-index-style-element-shipped'],
+		`real raw z-index payload must red: ${JSON.stringify(rawViolations)}`,
+	);
 });
 
 test('e2e (round 6 I1): ?inline CSS ships as JS and is red via the authored inline walk', async () => {

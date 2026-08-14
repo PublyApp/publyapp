@@ -1124,10 +1124,11 @@ export const scanZIndexFile = ({
 		};
 		// Static evaluation of the transparent expression family to the set of
 		// strings the expression can provably be: literals, const alias chains
-		// (fixpoint), both branches of a conditional, `String(...)`, member
-		// reads through const object literals, template literals whose every
-		// substitution is static (the product of their candidate sets), and
-		// `+` where both operands are static (the product of concatenations).
+		// (fixpoint), both branches of a conditional, `String(...)`, raw-text
+		// `String.raw` templates, member reads through const object literals,
+		// template literals whose every substitution is static (the product of
+		// their candidate sets), and `+` where both operands are static (the
+		// product of concatenations).
 		// Returns `{ values, partial, overflow }`: `values` is the candidate
 		// set, `partial` says the set contains provable *substrings* of the
 		// expression's possible values (the static operand of a one-sided
@@ -1207,7 +1208,10 @@ export const scanZIndexFile = ({
 				ts.isTaggedTemplateExpression(expression) &&
 				isStringRawTag(expression.tag)
 			) {
-				return staticStringValues(expression.template, visitedConsts);
+				return staticStringRawTemplateValues(
+					expression.template,
+					visitedConsts,
+				);
 			}
 			if (ts.isTemplateExpression(expression)) {
 				let sets = [new Set([expression.head.text])];
@@ -1286,6 +1290,33 @@ export const scanZIndexFile = ({
 				return null;
 			}
 			return null;
+		};
+		const staticStringRawTemplateValues = (
+			template,
+			visitedConsts = new Set(),
+		) => {
+			if (ts.isNoSubstitutionTemplateLiteral(template)) {
+				return { values: new Set([template.rawText]), partial: false };
+			}
+			let sets = [new Set([template.head.rawText])];
+			let partial = false;
+			for (const span of template.templateSpans) {
+				const substitution = staticStringValues(span.expression, visitedConsts);
+				if (substitution == null) {
+					return null;
+				}
+				if (substitution.overflow) {
+					return { values: null, partial: false, overflow: true };
+				}
+				sets.push(substitution.values);
+				partial = partial || substitution.partial;
+				sets.push(new Set([span.literal.rawText]));
+			}
+			const joined = cartesianStringJoin(sets);
+			if (joined == null) {
+				return { values: null, partial: false, overflow: true };
+			}
+			return { values: joined, partial };
 		};
 		// A single-value projection of the family: used where exactly one
 		// static string is required (computed property names, `?raw` element
@@ -1696,16 +1727,46 @@ export const scanZIndexFile = ({
 		};
 		const isDirectGlobalString = (candidate) => {
 			const expression = unwrapTransparentExpression(candidate);
-			return (
-				expression != null &&
-				ts.isIdentifier(expression) &&
-				expression.text === 'String' &&
-				nearestBinding(expression, expression.text) == null
-			);
+			if (expression == null) {
+				return false;
+			}
+			if (ts.isIdentifier(expression)) {
+				return (
+					expression.text === 'String' &&
+					nearestBinding(expression, expression.text) == null
+				);
+			}
+			const member = staticMember(expression);
+			const owner = unwrapTransparentExpression(member?.owner);
+			if (
+				member?.name !== 'String' ||
+				owner == null ||
+				!ts.isIdentifier(owner) ||
+				!['globalThis', 'window', 'self'].includes(owner.text)
+			) {
+				return false;
+			}
+			return nearestBinding(owner, owner.text) == null;
 		};
-		const isStringRawTag = (candidate) => {
+		const isStringRawTag = (candidate, visitedConsts = new Set()) => {
 			const member = staticMember(candidate);
-			return member?.name === 'raw' && isDirectGlobalString(member.owner);
+			if (member?.name === 'raw' && isDirectGlobalString(member.owner)) {
+				return true;
+			}
+			const expression = unwrapTransparentExpression(candidate);
+			if (
+				expression == null ||
+				!ts.isIdentifier(expression) ||
+				visitedConsts.has(expression.text)
+			) {
+				return false;
+			}
+			const resolved = resolveModuleConstFixpoint(expression, visitedConsts);
+			return (
+				resolved != null &&
+				resolved !== expression &&
+				isStringRawTag(resolved, new Set([...visitedConsts, expression.text]))
+			);
 		};
 		const isDirectGlobalCss = (candidate) => {
 			const expression = unwrapTransparentExpression(candidate);
@@ -3811,6 +3872,8 @@ export const checkCompiledCssZIndex = (
 		allowlistCounts = new Map(),
 	} = {},
 ) => {
+	const effectiveCanonicalScaleTokens =
+		canonicalScaleTokens ?? DEFAULT_CANONICAL_SCALE_TOKENS;
 	const root = postcss.parse(compiledCss, { from: undefined });
 	const violations = findReservedScaleTokenRegistrations(root, sourceName);
 	root.walkAtRules((atRule) => {
@@ -3843,10 +3906,7 @@ export const checkCompiledCssZIndex = (
 				});
 				continue;
 			}
-			if (
-				canonicalScaleTokens != null &&
-				!canonicalScaleTokens.has(declaration.decodedProperty)
-			) {
+			if (!effectiveCanonicalScaleTokens.has(declaration.decodedProperty)) {
 				violations.push({
 					ruleId: 'z-index-scale-token-unowned',
 					message:
@@ -3881,10 +3941,7 @@ export const checkCompiledCssZIndex = (
 		const value = stripImportant(declaration.value);
 		const shipped = `z-index: ${value}`;
 		const scaleToken = scaleVarReferenceToken(value);
-		if (
-			scaleToken != null &&
-			(canonicalScaleTokens == null || canonicalScaleTokens.has(scaleToken))
-		) {
+		if (scaleToken != null && effectiveCanonicalScaleTokens.has(scaleToken)) {
 			continue;
 		}
 		if (isNonStackingKeyword(value)) {
