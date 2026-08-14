@@ -422,40 +422,42 @@ jobs:
           cleanup_failed=false
 
           for package in "${packages[@]}"; do
-            # Delete ONLY this run's tag. On success the tag is gone (GHCR
-            # GCs the version once its last tag disappears); on failure,
-            # distinguish "tag already absent" (HTTP 404 → no-op) from a
-            # real delete error (400 public-package limit, or any other
-            # failure → fail the job).
-            if gh api --method DELETE \
-              "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/tags/${E2E_IMAGE_TAG}" \
-              --silent; then
-              echo "::notice::Deleted GHCR tag ${E2E_IMAGE_TAG} for ${package}."
-            else
-              # The DELETE failed. Probe whether the tag still exists: the
-              # GET succeeding means the tag is still there, so the delete
-              # genuinely failed (likely the public >5000-downloads HTTP
-              # 400). The GET failing with HTTP 404 means the tag is absent
-              # (never pushed, or already cleaned) — a no-op. Any other GET
-              # failure (500, network, auth) must fail the job, not be
-              # mistaken for an absent tag.
-              if get_output="$(
-                gh api "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/tags/${E2E_IMAGE_TAG}" \
-                  --silent 2>&1
-              )"; then
-                echo "::error::Could not delete GHCR tag ${E2E_IMAGE_TAG} for ${package}. Public GHCR packages past 5000 downloads refuse deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
-                cleanup_failed=true
-              elif printf '%s' "$get_output" | grep -q "HTTP 404"; then
-                # Tag absent (404): never pushed, or already cleaned by an
-                # earlier attempt. Not a failure.
-                echo "::notice::GHCR tag ${E2E_IMAGE_TAG} for ${package} not present; nothing to delete."
-              else
-                # GET failed for a reason other than 404 (500/network/auth):
-                # do not mistake it for an absent tag — surface it.
-                echo "::error::Could not verify GHCR tag ${E2E_IMAGE_TAG} for ${package} after a failed delete: $get_output"
+            # Delete the VERSION only when it is exclusively tagged by THIS
+            # run. GitHub's documented package API has no tag-level delete:
+            # DELETE .../tags/{tag} is not a real endpoint (404) and the
+            # GHCR registry rejects manifest deletes by tag (405), so the
+            # only supported primitive is version deletion. Content-stable
+            # images (request-counter) push an identical digest every run,
+            # so GHCR adds this run's tag to a version other runs already
+            # share — deleting that version would break every run still
+            # referencing the digest, so shared versions are SKIPPED with a
+            # notice. The tag list is re-read immediately before each delete
+            # to keep the list-then-delete window as small as possible.
+            if ! versions="$(
+              gh api --paginate \
+                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions?per_page=100" \
+                --jq "[.[] | select(.metadata.container.tags | index(\"${E2E_IMAGE_TAG}\")) | {id: .id, tags: .metadata.container.tags}]"
+            )"; then
+              echo "::warning::Could not list GHCR versions for ${package}."
+              cleanup_failed=true
+              continue
+            fi
+
+            while IFS= read -r version; do
+              version_id="$(printf '%s' "$version" | jq -r '.id')"
+              other_tags="$(printf '%s' "$version" | jq -r --arg run_tag "$E2E_IMAGE_TAG" '[.tags[] | select(. != $run_tag)] | join(", ")')"
+
+              if [ -n "$other_tags" ]; then
+                echo "::notice::Skipping GHCR version ${version_id} for ${package}: tag ${E2E_IMAGE_TAG} was added to a version already shared with other run tags (${other_tags}) because this image's content is identical across runs. GitHub's package API cannot delete a single tag, and deleting the version would break every run still referencing that digest, so only versions exclusively tagged by this run are deleted."
+                continue
+              fi
+
+              if ! gh api --method DELETE \
+                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}"; then
+                echo "::error::Could not delete GHCR version ${version_id} for ${package}. Public GHCR packages past 5000 downloads refuse version deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
                 cleanup_failed=true
               fi
-            fi
+            done < <(printf '%s' "$versions" | jq -c '.[]')
           done
 
           if [ "$cleanup_failed" = true ]; then
