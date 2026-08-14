@@ -1541,6 +1541,7 @@ const FORM_LESS_DRAWER_SURFACE_FILES = [
 	'src/components/app-shell/app-shell.tsx',
 	'src/components/marketing/cookie-prefs-drawer.tsx',
 	'src/components/marketing/marketing-mobile-nav.tsx',
+	'src/routes/authed/staff/audit-logs/_audit-log-export-drawer.tsx',
 	'src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx',
 ] as const;
 

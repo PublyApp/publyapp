@@ -46,6 +46,7 @@ import type {
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { AppShell } from '~/components/app-shell/app-shell';
+import { staffAuditLogCrumbQuery } from '~/lib/query/staff-audit-logs';
 import { staffInvitationCrumbQuery } from '~/lib/query/staff-invitations';
 import { staffProfileCrumbQuery } from '~/lib/query/staff-profiles';
 import { staffTenantProfileCrumbQuery } from '~/lib/query/staff-tenant-profiles';
@@ -188,6 +189,15 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 	{
 		query: staffInvitationCrumbQuery,
 		buildPayload: (marker) => ({ email: marker }),
+	},
+	{
+		query: staffAuditLogCrumbQuery,
+		buildPayload: (marker) => ({
+			id: 'probe-audit-log-id',
+			action: marker,
+			userName: null,
+			userEmail: null,
+		}),
 	},
 	{
 		query: staffTenantUserCrumbQuery,

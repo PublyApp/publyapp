@@ -67,4 +67,8 @@ export const DRAWER_DESCRIPTION_CONSUMERS = [
 		file: 'src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx',
 		testId: 'profile-edit-details-drawer',
 	},
+	{
+		file: 'src/routes/authed/staff/audit-logs/_audit-log-export-drawer.tsx',
+		testId: 'audit-log-export-drawer',
+	},
 ] as const satisfies readonly DrawerDescriptionConsumer[];

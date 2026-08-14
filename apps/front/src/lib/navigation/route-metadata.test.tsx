@@ -57,6 +57,7 @@ describe('front route metadata', () => {
 			'nav-staff-all-users',
 			'nav-staff-invitations',
 			'nav-staff-profiles',
+			'nav-staff-audit-logs',
 		]);
 	});
 

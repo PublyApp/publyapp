@@ -299,6 +299,58 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 			body: JSON.stringify({ data: [], nextCursor: null }),
 		});
 	});
+
+	await page.route('**/staff/audit-logs**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		// Origin guard, same as every sibling handler: only intercept API
+		// calls to the real backend origin, never the front-origin document
+		// navigation that `page.goto('/staff/audit-logs')` issues. Without
+		// this the mock would fulfill the HTML page request with JSON and the
+		// export trigger would never render.
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		if (isApiPath(url, '/staff/audit-logs/actions')) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ actions: [] }),
+			});
+			return;
+		}
+
+		// The list endpoint carries cursor/sort/filter query params; match
+		// the bare path so the empty page response covers every variant.
+		if (isApiPath(url, '/staff/audit-logs')) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ data: [], nextCursor: null }),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
+};
+
+const openAuditLogExportDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockDrawerDependencies(page);
+	await page.goto('/staff/audit-logs');
+	await expect(page.getByTestId('staff-audit-logs-export-trigger')).toBeVisible(
+		{
+			timeout: 10_000,
+		},
+	);
+	await page.getByTestId('staff-audit-logs-export-trigger').click();
+	await expect(page.getByTestId('audit-log-export-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
 };
 
 const openProfileCreateDrawer = async (page: Page): Promise<void> => {
@@ -692,6 +744,10 @@ const DRAWER_OPENERS: Record<
 	'profile-edit-details-drawer': {
 		name: 'edit profile',
 		open: openProfileEditDrawer,
+	},
+	'audit-log-export-drawer': {
+		name: 'export audit logs',
+		open: openAuditLogExportDrawer,
 	},
 };
 

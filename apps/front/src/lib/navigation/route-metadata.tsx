@@ -3,6 +3,7 @@ import {
 	IconBuilding,
 	IconClipboardList,
 	IconClock,
+	IconHistory,
 	IconLayoutDashboard,
 	IconMail,
 	IconReportAnalytics,
@@ -87,6 +88,12 @@ const STAFF_MODULE_ITEMS: SecondaryPanelItem[] = [
 		path: '/staff/profiles',
 		Icon: IconClipboardList,
 	},
+	{
+		id: 'staff-audit-logs',
+		labelKey: 'nav-staff-audit-logs',
+		path: '/staff/audit-logs',
+		Icon: IconHistory,
+	},
 ];
 
 const TENANTS_MODULE_ITEMS: SecondaryPanelItem[] = [
@@ -156,6 +163,7 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 			'/staff/staff-users',
 			'/staff/invitations',
 			'/staff/profiles',
+			'/staff/audit-logs',
 		],
 		secondaryItems: STAFF_MODULE_ITEMS,
 	},

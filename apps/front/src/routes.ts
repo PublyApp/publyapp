@@ -105,6 +105,8 @@ export const routes = rootRoute('__root.tsx', [
 			'/staff/invitations/$invitationId',
 			'authed/staff/invitations/$invitationId.tsx',
 		),
+		route('/staff/audit-logs', 'authed/staff/audit-logs.tsx'),
+		route('/staff/audit-logs/$logId', 'authed/staff/audit-logs/$logId.tsx'),
 		route('/tenant', 'authed/tenant.tsx'),
 	]),
 ]);
