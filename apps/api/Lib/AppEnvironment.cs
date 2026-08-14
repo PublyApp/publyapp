@@ -12,6 +12,9 @@ namespace PublyApp.Api.Lib;
 /// Call Initialize() once at startup before accessing properties.
 /// </summary>
 public class AppEnvironment {
+	internal const long DefaultUploadGlobalMaxBytes = 1_073_741_824;
+	internal const long DefaultUploadPerStaffMaxBytes = 104_857_600;
+
 	// Static accessor for use outside DI
 	private static AppEnvironment? _instance;
 	private static readonly Lock InitLock = new();
@@ -457,11 +460,11 @@ public class AppEnvironment {
 				uploadMaxBytes: GetOptionalInt(nameof(UPLOAD_MAX_BYTES), 2_000_000),
 				uploadGlobalMaxBytes: GetOptionalLong(
 					nameof(UPLOAD_GLOBAL_MAX_BYTES),
-					1_073_741_824
+					DefaultUploadGlobalMaxBytes
 				),
 				uploadPerStaffMaxBytes: GetOptionalLong(
 					nameof(UPLOAD_PER_STAFF_MAX_BYTES),
-					104_857_600
+					DefaultUploadPerStaffMaxBytes
 				),
 				trustedProxyCidrs: GetOptionalCsvList(
 					nameof(TRUSTED_PROXY_CIDRS),
@@ -684,8 +687,19 @@ public class AppEnvironment {
 		return result;
 	}
 
-	private static long GetOptionalLong(string name, long defaultValue) {
-		var value = Environment.GetEnvironmentVariable(name);
+	internal static long GetOptionalLong(string name, long defaultValue) {
+		return ParseOptionalLong(
+			name,
+			Environment.GetEnvironmentVariable(name),
+			defaultValue
+		);
+	}
+
+	internal static long ParseOptionalLong(
+		string name,
+		string? value,
+		long defaultValue
+	) {
 		if (string.IsNullOrWhiteSpace(value)) {
 			return defaultValue;
 		}
