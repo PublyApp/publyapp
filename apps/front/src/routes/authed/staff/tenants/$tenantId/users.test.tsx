@@ -365,6 +365,27 @@ describe('staff tenant users route', () => {
 		cleanup();
 	});
 
+	const chooseBulkAction = async (
+		actionName: 'Export selected users' | 'Remove selected from tenant',
+	) => {
+		const trigger = await screen.findByRole('button', {
+			name: 'More actions',
+			expanded: false,
+		});
+
+		// The floating trigger renders before Base UI wires its pointer props;
+		// a click dispatched into that window is swallowed. Gating on the settled
+		// closed state, then on the open state after the click, closes the race.
+		fireEvent.click(trigger);
+		await waitFor(() =>
+			expect(
+				trigger.getAttribute('aria-expanded'),
+				`bulk menu did not open for ${actionName}`,
+			).toBe('true'),
+		);
+		fireEvent.click(screen.getByRole('menuitem', { name: actionName }));
+	};
+
 	test('renders the shared tenant shell with users active, the members title, and the default list query state', () => {
 		renderPage();
 
@@ -956,19 +977,13 @@ describe('staff tenant users route', () => {
 	});
 
 	test('exports the selected users as a csv download', async () => {
-		const user = userEvent.setup();
 		const buffer = new ArrayBuffer(4);
 		mocks.exportMutation.mockResolvedValue(buffer);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', { name: 'Export selected users' }),
-		);
+		await chooseBulkAction('Export selected users');
 
 		await waitFor(() =>
 			expect(mocks.exportMutation).toHaveBeenCalledWith({
@@ -991,19 +1006,13 @@ describe('staff tenant users route', () => {
 	});
 
 	test('displays one local mutation failure when the export request rejects', async () => {
-		const user = userEvent.setup();
 		const error = new Error('request failed');
 		mocks.exportMutation.mockRejectedValue(error);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', { name: 'Export selected users' }),
-		);
+		await chooseBulkAction('Export selected users');
 
 		await waitFor(() =>
 			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce(),
@@ -1017,18 +1026,12 @@ describe('staff tenant users route', () => {
 	});
 
 	test('shows one export failure when the response has no data', async () => {
-		const user = userEvent.setup();
 		mocks.exportMutation.mockResolvedValue(undefined);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', { name: 'Export selected users' }),
-		);
+		await chooseBulkAction('Export selected users');
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
@@ -1037,7 +1040,6 @@ describe('staff tenant users route', () => {
 	});
 
 	test('shows one export failure when download post-processing throws', async () => {
-		const user = userEvent.setup();
 		mocks.exportMutation.mockResolvedValue(new ArrayBuffer(4));
 		mocks.downloadFile.mockImplementation(() => {
 			throw new Error('download failed');
@@ -1046,12 +1048,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', { name: 'Export selected users' }),
-		);
+		await chooseBulkAction('Export selected users');
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
@@ -1060,7 +1057,6 @@ describe('staff tenant users route', () => {
 	});
 
 	test('removes selected users after explicit confirmation and shows a success summary', async () => {
-		const user = userEvent.setup();
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 1,
 			failedCount: 0,
@@ -1070,14 +1066,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', {
-				name: 'Remove selected from tenant',
-			}),
-		);
+		await chooseBulkAction('Remove selected from tenant');
 
 		await waitFor(() =>
 			expect(
@@ -1103,7 +1092,6 @@ describe('staff tenant users route', () => {
 	});
 
 	test('reports a partial-success message when some bulk-removed users fail', async () => {
-		const user = userEvent.setup();
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 1,
 			failedCount: 1,
@@ -1113,14 +1101,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', {
-				name: 'Remove selected from tenant',
-			}),
-		);
+		await chooseBulkAction('Remove selected from tenant');
 
 		await waitFor(() =>
 			expect(
@@ -1137,7 +1118,6 @@ describe('staff tenant users route', () => {
 	});
 
 	test('reports a failure message when every bulk-removed user fails', async () => {
-		const user = userEvent.setup();
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 0,
 			failedCount: 1,
@@ -1147,14 +1127,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', {
-				name: 'Remove selected from tenant',
-			}),
-		);
+		await chooseBulkAction('Remove selected from tenant');
 
 		await waitFor(() =>
 			expect(
@@ -1170,21 +1143,13 @@ describe('staff tenant users route', () => {
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 	test('displays one local failure when bulk removal rejects', async () => {
-		const user = userEvent.setup();
 		const error = new Error('bulk request failed');
 		mocks.bulkRemoveMutation.mockRejectedValue(error);
 
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await user.click(
-			await screen.findByRole('button', { name: 'More actions' }),
-		);
-		await user.click(
-			await screen.findByRole('menuitem', {
-				name: 'Remove selected from tenant',
-			}),
-		);
+		await chooseBulkAction('Remove selected from tenant');
 		await screen.findByRole('heading', {
 			name: 'Remove selected from tenant',
 		});
