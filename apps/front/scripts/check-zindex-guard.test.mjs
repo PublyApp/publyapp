@@ -2265,6 +2265,144 @@ test('e2e (round 2): String.raw scans raw template text, not cooked text', async
 	);
 });
 
+test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucket — fail-closed through the real guard', async () => {
+	// PR #1118 taught the guard to recognize String.raw through
+	// globalThis/window/self prefixes and module-scope const alias chains,
+	// with the nearestBinding shadow check re-applied at every hop. The
+	// FAIL-CLOSED side was unpinned: a refactor that drops a shadow check
+	// would silently WIDEN recognition — the shadowed spellings below would
+	// start reddening raw CSS they must not be treated as — without any
+	// test reddening. Each shape runs the REAL guard end to end
+	// (`runFixtureGuard` → `runZIndexGuard` over an isolated fixture tree,
+	// exactly like the round-2 positive tests above) and pairs the
+	// shadowed tag with a genuine String.raw control in the same file: the
+	// control keeps the payload walk provably live (the fixture is not
+	// green for the wrong reason), and EXACTLY ONE violation means the
+	// shadowed tag was classified as NOT String.raw — the declared runtime
+	// bucket. Any recognition-widening regression resolves the shadowed
+	// tag too, doubling the violations and reddening this assertion.
+	//
+	// Which check each shape pins (verified empirically — dropping the
+	// check reddens the fixture; both mutations were reverted, leaving the
+	// guard byte-identical):
+	// - every shadowing-binding shape (param, function-scope const,
+	//   function-scope let) pins the `nearestBinding` re-check at every
+	//   alias hop in `resolveModuleConstFixpoint`: the module-scope
+	//   `const R = String.raw` alias EXISTS in the map, and only that
+	//   check keeps the shadowed tag in the runtime bucket;
+	// - the locally shadowed `String` pins the `nearestBinding(...) ==
+	//   null` check in `isDirectGlobalString`: the module-scope `const
+	//   String` IS a recorded module const, but the tag is a member read,
+	//   so the hop check is never consulted for it.
+	// A module-level `let R` (no shadowing binding) is NOT a shape: it is
+	// rejected before any check by the NodeFlags.Const gate while the
+	// alias map is built, so dropping the hop check cannot redden it. An
+	// object-property tag (`tags.raw`) is NOT a shape either:
+	// `isStringRawTag` rejects unmatched non-identifier candidates (such
+	// as `tags.raw`) at its member branch, so no check the guard contains
+	// is ever consulted for them — only a NEW resolution feature (member
+	// reads through const object literals) could make them red, and that
+	// is out of scope. (Recognized `String.raw` and prefixed globals are
+	// also non-identifier candidates, but those are handled, not rejected.)
+	const shapes = [
+		[
+			'param-shadowed R',
+			// The function parameter `R` shadows the module-scope `const R
+			// = String.raw` alias. `resolveModuleConstFixpoint` re-applies
+			// `nearestBinding` at every hop; dropping that check would
+			// resolve the parameter's tag to the module const.
+			[
+				'const R = String.raw;',
+				'export const probe = (R: typeof String.raw) => (',
+				'  <>',
+				'    <style>{R`.r1120-param-shadow { z-index: 2147483647; }`}</style>',
+				'    <style>{String.raw`.r1120-param-control { z-index: 2147483646; }`}</style>',
+				'  </>',
+				');',
+			].join('\n'),
+		],
+		[
+			'function-scope const R',
+			// The module-scope `const R = String.raw` alias exists in the
+			// map, but the function-scope `const R = String.raw` shadows it
+			// at the tag site. The alias-hop `nearestBinding` check must
+			// reject the tag (its nearest binding is the inner const, not
+			// the module alias); dropping the check would resolve it to the
+			// module alias.
+			[
+				'const R = String.raw;',
+				'export const probe = () => {',
+				'  const R = String.raw;',
+				'  return (',
+				'    <>',
+				'      <style>{R`.r1120-fn-shadow { z-index: 2147483645; }`}</style>',
+				'      <style>{String.raw`.r1120-fn-control { z-index: 2147483644; }`}</style>',
+				'    </>',
+				'  );',
+				'};',
+			].join('\n'),
+		],
+		[
+			'function-scope let R',
+			// Same shadow shape with a `let`-declared shadowing binding:
+			// the module-scope `const R = String.raw` alias exists, but the
+			// function-scope `let R = String.raw` shadows it at the tag
+			// site. A reassignable binding is a shadow like any other, so
+			// the alias-hop `nearestBinding` check must reject the tag;
+			// dropping the check would resolve it to the module alias. (A
+			// module-level `let R` never reaches this check — the alias map
+			// excludes non-const declarations at build time — so it would
+			// pin nothing; the shadowed spelling is the shape that
+			// exercises the mechanism.)
+			[
+				'const R = String.raw;',
+				'export const probe = () => {',
+				'  let R = String.raw;',
+				'  return (',
+				'    <>',
+				'      <style>{R`.r1120-let-shadow { z-index: 2147483643; }`}</style>',
+				'      <style>{String.raw`.r1120-let-control { z-index: 2147483642; }`}</style>',
+				'    </>',
+				'  );',
+				'};',
+			].join('\n'),
+		],
+		[
+			'locally shadowed String',
+			// A module-scope `const String` shadows the global; only the
+			// unshadowed spelling counts as a raw-tag owner. Dropping the
+			// `nearestBinding(...) == null` check in `isDirectGlobalString`
+			// would treat the local binding as the global — the control
+			// spells the real global through `globalThis.String.raw`,
+			// because bare `String.raw` IS the shadowed binding here.
+			[
+				'const String = { raw: (strings: TemplateStringsArray) => strings.join("") };',
+				'export const probe = (',
+				'  <>',
+				'    <style>{String.raw`.r1120-string-shadow { z-index: 2147483641; }`}</style>',
+				'    <style>{globalThis.String.raw`.r1120-string-control { z-index: 2147483640; }`}</style>',
+				'  </>',
+				');',
+			].join('\n'),
+		],
+	];
+	for (const [name, content] of shapes) {
+		const { violations } = await runFixtureGuard({ 'probe.tsx': content }, '', [
+			"import { probe } from './probe';",
+		]);
+		assert.deepEqual(
+			violations.map(({ ruleId }) => ruleId),
+			['z-index-style-element-shipped'],
+			`${name}: the shadowed tag must stay in the runtime bucket while the control reds: ${JSON.stringify(violations)}`,
+		);
+		assert.match(
+			violations[0].source,
+			/-control/,
+			`${name}: the single red must come from the control tag, not the shadowed one: ${JSON.stringify(violations)}`,
+		);
+	}
+});
+
 test('e2e (round 6 I1): ?inline CSS ships as JS and is red via the authored inline walk', async () => {
 	const { violations } = await runFixtureGuard(
 		{
