@@ -24,13 +24,13 @@ export const hasExactAuthedRouteMatch = (
 };
 
 /**
- * Every `/tenant` path — the portal root (org picker) and the whole
- * workspace subtree beneath it — renders bare: the picker is its own
- * SimpleLayout surface, and the resolved workspace shell owns the chrome
- * from inside the tenant route. The AppShell must be bypassed for the ENTIRE
- * subtree (not just the exact `/tenant` path), or an unresolved child path
- * like `/tenant/account` paints AppShell chrome around the picker (PR #1131
- * round 3 finding 1).
+ * Only the exact `/tenant` portal root renders bare: the org picker is its
+ * own SimpleLayout surface and must never sit inside AppShell chrome. Every
+ * `/tenant/*` CHILD path renders inside the AppShell (rail + topbar +
+ * logout, whose tenant metadata `TENANT_ROUTES` supplies the rail); an
+ * unresolved child path redirects to `/tenant` (see `TenantPortalRoute`),
+ * so the picker stays the single unresolved surface and the AppShell never
+ * wraps it.
  */
 export const isTenantPortalPath = (pathname: string): boolean =>
-	pathname === '/tenant' || pathname.startsWith('/tenant/');
+	normalizePathname(pathname) === '/tenant';

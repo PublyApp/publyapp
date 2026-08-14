@@ -565,12 +565,13 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// 404 instead of crashing on a missing provider.
 	let shellContent: React.ReactNode;
 	if (location.hasAuthedRouteMatch) {
-		// The tenant portal subtree renders bare (no AppShell): the picker at
-		// `/tenant` is its own SimpleLayout surface, and every child path
-		// (`/tenant/account*`, `/tenant/settings`, ...) renders the resolved
-		// workspace shell, which owns the chrome itself. Wrapping ANY tenant
-		// path in the authed shell would nest the picker's header inside the
-		// AppShell on the unresolved branch (PR #1131 round 3 finding 1).
+		// Only the exact `/tenant` portal root renders bare (no AppShell): the
+		// picker is its own SimpleLayout surface. Every `/tenant/*` CHILD path
+		// mounts inside the authed shell like any staff surface — the
+		// resolved workspace gets the rail (`TENANT_ROUTES`), topbar, user
+		// menu and exactly one `<main>`; an unresolved child redirects to
+		// `/tenant`, so the AppShell never wraps the picker itself (PR #1131
+		// round 4).
 		if (isTenantPortalPath(pathname)) {
 			shellContent = children;
 		} else if (!canRenderAuthenticatedChrome) {

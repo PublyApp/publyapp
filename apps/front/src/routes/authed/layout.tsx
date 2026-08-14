@@ -50,10 +50,10 @@ const AuthedRoutePendingSkeleton = () => {
 	const location = useLocation();
 	const pathname = location.pathname ?? '';
 
-	// The whole tenant portal subtree renders bare (RoutedShell bypasses the
-	// AppShell for every `/tenant/*` path — see `isTenantPortalPath`), so a
-	// pending surface under it is a full-viewport centered loader, never the
-	// AppShell-shaped content skeleton (PR #1131 round 3 finding 1).
+	// Only the exact `/tenant` portal root renders bare (RoutedShell bypasses
+	// the AppShell for it — see `isTenantPortalPath`), so its pending surface
+	// is a full-viewport centered loader. Tenant CHILD paths mount inside the
+	// AppShell and get the normal AppShell-shaped content skeleton.
 	if (isTenantPortalPath(pathname)) {
 		return (
 			<div className="flex min-h-svh items-center justify-center">
@@ -237,11 +237,11 @@ function AuthedRouteLayout() {
 	}
 
 	if (query.isLoading) {
-		// The whole tenant portal subtree renders bare (RoutedShell bypasses
-		// the AppShell for every `/tenant/*` path — see `isTenantPortalPath`
-		// in route-shell), so its loading surface is a full-viewport centered
-		// loader, never the AppShell-shaped content skeleton (PR #1131 round 3
-		// finding 1).
+		// Only the exact `/tenant` portal root renders bare (RoutedShell
+		// bypasses the AppShell for it — see `isTenantPortalPath` in
+		// route-shell), so its loading surface is a full-viewport centered
+		// loader. Tenant CHILD paths mount inside the AppShell and get the
+		// normal AppShell-shaped content skeleton.
 		if (isTenantPortalPath(pathname)) {
 			return (
 				<div className="flex min-h-svh items-center justify-center">

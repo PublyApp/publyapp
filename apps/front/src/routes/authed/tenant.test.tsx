@@ -43,12 +43,23 @@ vi.mock('@tanstack/react-router', () => ({
 	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
 	useMatches: ({ select }: { select?: (matches: unknown[]) => unknown }) =>
 		select?.([
-			{ routeId: '/_authed-layout', pathname: '/', params: {} },
-			{ routeId: '/_authed-layout/tenant', pathname: '/tenant', params: {} },
+			{
+				routeId: '/_authed-layout',
+				pathname: '/',
+				params: {},
+				staticData: { crumbs: 'shell' },
+			},
+			{
+				routeId: '/_authed-layout/tenant',
+				pathname: '/tenant',
+				params: {},
+				staticData: { crumbs: 'shell' },
+			},
 			{
 				routeId: '/_authed-layout/tenant/account',
 				pathname: mocks.pathname,
 				params: {},
+				staticData: { crumbs: 'shell' },
 			},
 		]),
 	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
@@ -101,6 +112,13 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
+}));
+
+// The child-path tests mount under the real RoutedShell, which wraps them in
+// the real AppShell — keep its user menu out of scope here (shell-continuity
+// tests own the chrome assertions).
+vi.mock('~/components/app-shell/user-menu', () => ({
+	AppShellUserMenu: () => <div data-testid="user-menu-stub" />,
 }));
 
 const EN_LABELS: Record<string, string> = {
@@ -324,13 +342,19 @@ describe('TenantPortalRoute', () => {
 		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
 	});
 
-	test('a stored tenant that no longer resolves sends the user to the picker', () => {
+	test('a stored tenant that no longer resolves redirects a child deep link to the picker root', () => {
 		window.localStorage.setItem(SELECTED_TENANT_STORAGE_KEY, 't-9');
 		mocks.pathname = '/tenant/account';
 		setTwoActiveTenants();
 		render(<TenantPortalRoute />);
 
-		expect(screen.getByTestId('tenant-portal-picker')).toBeTruthy();
+		// The child path never renders the picker itself: it redirects to
+		// `/tenant`, where the bare picker is the single unresolved surface.
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant',
+			replace: true,
+		});
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
 		expect(screen.queryByTestId('tenant-workspace-shell')).toBeNull();
 	});
 
@@ -398,29 +422,56 @@ describe('TenantPortalRoute', () => {
 		expect(mocks.logout).toHaveBeenCalledTimes(1);
 	});
 
-	test('regression: the unresolved branch at a tenant child path renders bare — never nested inside the AppShell (PR #1131 round 3 finding 1)', () => {
+	test('regression: an unresolved child path never nests the picker in the AppShell — it redirects to `/tenant` (PR #1131 round 3 finding 1)', () => {
 		// Cold load of `/tenant/account`: the tenants query is still pending,
-		// so the route shows the unresolved branch (SimpleLayout + loading).
-		// Mounted under the REAL RoutedShell (the component that decides bare
-		// vs AppShell wrapping), the shell must pass the tenant subtree
-		// through untouched — previously only the exact `/tenant` path was
-		// bared, so this first paint was AppShell -> SimpleLayout -> content
-		// with double chrome and a nested <main>.
+		// so the route shows a neutral redirect spinner — never the
+		// SimpleLayout picker, which must not sit inside the AppShell that
+		// wraps child paths (round 4 restores the AppShell for children and
+		// moves the unresolved surface to the bare `/tenant` root).
 		setQuery({ isSuccess: false, isPending: true, isLoading: true });
 		mocks.pathname = '/tenant/account';
 
-		render(
+		const view = render(
 			<RoutedShell>
 				<TenantPortalRoute />
 			</RoutedShell>,
 		);
 
-		expect(screen.getByTestId('simple-layout-stub')).toBeTruthy();
-		expect(screen.getByTestId('tenant-portal-loading')).toBeTruthy();
-		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
-		expect(screen.queryByTestId('app-shell-rail')).toBeNull();
-		expect(screen.queryByTestId('app-shell-topbar')).toBeNull();
-		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
-		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
+		expect(screen.getByTestId('tenant-portal-redirecting')).toBeTruthy();
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+		expect(screen.queryByTestId('simple-layout-stub')).toBeNull();
+		// The child path mounts inside the AppShell (round 4) — the chrome is
+		// present, but the unresolved branch inside it is a neutral spinner,
+		// never the SimpleLayout picker.
+		expect(screen.getByTestId('app-shell-shell')).toBeTruthy();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+
+		// Once the query settles with no resolvable workspace (2+ actives,
+		// no valid stored selection), the child path redirects to `/tenant` —
+		// the bare picker becomes the single unresolved surface.
+		setQuery({
+			data: {
+				tenants: [
+					activeTenant('t-1', 'Acme'),
+					activeTenant('t-2', 'TechStart'),
+				],
+				activeCount: 2,
+				totalCount: 2,
+				hasSuspendedTenants: false,
+			},
+		});
+		view.rerender(
+			<RoutedShell>
+				<TenantPortalRoute />
+			</RoutedShell>,
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant',
+			replace: true,
+		});
+		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
+		expect(screen.queryByTestId('tenant-workspace-shell')).toBeNull();
+		expect(screen.queryByTestId('simple-layout-stub')).toBeNull();
 	});
 });

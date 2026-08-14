@@ -411,7 +411,7 @@ describe('authenticated shell continuity', () => {
 		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
 	});
 
-	test('renders every tenant child path bare — pending or validated session, never nested in a shell (cold-load regression)', () => {
+	test('mounts tenant child paths inside the AppShell once the session validates (round 4)', () => {
 		mocks.location = {
 			pathname: '/tenant/account',
 			search: {},
@@ -420,10 +420,12 @@ describe('authenticated shell continuity', () => {
 		mocks.resolvedLocation = mocks.location;
 		mocks.matchedPathname = '/tenant/account';
 
-		// A pending session validation at a tenant CHILD path must never paint
-		// the neutral authed shell around the tenant route — that was the
-		// three-layouts-deep first paint of the pre-fix shell (PR #1131 round
-		// 3 finding 1). The tenant route owns its chrome.
+		// Pending session validation at a tenant CHILD path: like any staff
+		// path, the neutral shell preserves the AppShell geometry until the
+		// session validates — the unresolved branch inside the tenant route
+		// redirects to the bare `/tenant` root, so no chrome needs to be
+		// withheld from the subtree (PR #1131 round 3 finding 1 fixed at the
+		// unresolved branch, not at the shell).
 		mocks.sessionQueryState = {
 			data: undefined,
 			error: undefined,
@@ -437,8 +439,8 @@ describe('authenticated shell continuity', () => {
 		);
 
 		expect(screen.getByTestId('route-loading-content')).toBeTruthy();
+		expect(screen.getByTestId('neutral-authed-shell')).toBeTruthy();
 		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
-		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
 		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
 
 		mocks.sessionQueryState = {
@@ -452,11 +454,15 @@ describe('authenticated shell continuity', () => {
 			</RoutedShell>,
 		);
 
-		// Once the session validates, staff paths would gain the full
-		// AppShell — tenant child paths must stay bare.
-		expect(screen.getByTestId('route-loading-content')).toBeTruthy();
-		expect(screen.queryByTestId('app-shell-shell')).toBeNull();
+		// A validated session at a tenant child path renders the FULL AppShell
+		// chrome: one <main>, the rail (whose entries come from the
+		// TENANT_ROUTES metadata), the topbar, and the user menu with logout.
+		const shell = screen.getByTestId('app-shell-shell');
 		expect(screen.queryByTestId('neutral-authed-shell')).toBeNull();
-		expect(screen.queryByTestId('user-menu-stub')).toBeNull();
+		expect(shell.querySelectorAll('main')).toHaveLength(1);
+		expect(screen.getByTestId('app-shell-rail')).toBeTruthy();
+		expect(screen.getByTestId('app-shell-topbar')).toBeTruthy();
+		expect(screen.getByTestId('user-menu-stub')).toBeTruthy();
+		expect(screen.getByTestId('route-loading-content')).toBeTruthy();
 	});
 });
