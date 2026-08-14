@@ -30,8 +30,10 @@ Allowed spellings:
 - `z-(--publy-z-…)` and `z-[var(--publy-z-…)]` / `z-[--publy-z-…]`, with variants and `!`
   (e.g. `md:z-(--publy-z-menu)`, `!z-(--publy-z-raised)`, `z-(--publy-z-raised)!` — both
   `!`-placement spellings are accepted, and the compiled gate normalises the emitted
-  `!important`).
+  `!important`). Every referenced token must be declared in the canonical `:root` scale above;
+  matching the `--publy-z-` namespace alone is not sufficient.
 - Arbitrary-property shims whose value is a pure scale reference: `[z-index:var(--publy-z-…)]`.
+  Their `var(--publy-z-…)` reference must also name a declared canonical token.
 - `z-auto` and the other non-numeric CSS-wide keywords (`inherit`, `initial`, `unset`, `revert`,
   `revert-layer`) — these cannot participate in stacking, so no tier is needed. CSS keywords and
   function names are ASCII-case-insensitive, so arbitrary forms such as `z-[AUTO]`, `z-[InHeRiT]`,
@@ -61,7 +63,7 @@ overflowing `href` on a JSX `<link>` whose `rel` is provably free of the `styles
 actually load a stylesheet.
 The same "declarative payload that never becomes an emitted asset" logic covers a native JSX
 `<style>` element whose children are static text (the declaration walk runs over the payload, so a
-raw `z-index:` inside it reds) and CSS files imported with `?inline` (their authored file is
+raw `z-index:` inside it reds), including deterministic `String.raw` tagged-template payloads, and CSS files imported with `?inline` (their authored file is
 walked directly, so they cannot smuggle a raw declaration past the emitted gate). The `<style>` rule
 covers both JSX spellings — the element and the self-closing `<style … />` — including the
 `dangerouslySetInnerHTML` payload on either, and a payload the declaration walk cannot parse is
@@ -123,7 +125,8 @@ that key the same named diagnostic fires. The same bytes
 displayed through a text node are still just displayed text.
 The `<style>` payload walk evaluates the same transparent family for **static strings**: a
 conditional whose branches are static literals, `String('…')`, an object-member read, a template
-whose substitutions are static, or a `+` of two static operands is a static payload at any depth,
+whose substitutions are static, a deterministic `String.raw` tagged template, or a `+` of two static
+operands is a static payload at any depth,
 and every string it can provably be is walked; static text beside a runtime child still ships, so
 it is walked individually (a `+` whose other operand is runtime still ships its static operand —
 as a provable *substring*, which the payload walk scans but which never doubles as a member
@@ -285,7 +288,8 @@ Five components:
      a style-capable sink (a `<style>` element's children or a `dangerouslySetInnerHTML` payload, the
      binding tracked unshadowed from its import declaration through module-scope `const` alias chains,
      the transparent expression family — object-member reads through const object literals,
-     conditionals (both branches), `String(...)`, element access with a provably complete key — and
+    conditionals (both branches), `String(...)`, deterministic `String.raw` tagged templates,
+    element access with a provably complete key — and
      template-literal substitutions, including the `import * as raw … ?raw`
      namespace spelling through `.default` and the `{ default as x }` spelling as the same default
      binding), and a style-sink payload the declaration walk cannot
@@ -349,7 +353,8 @@ gaps, each with its current evidence:
 - **A `<style>` element whose children assemble the CSS across a template substitution with
   runtime data.** `<style>{`z-index: ${MAX}`}</style>` where `MAX` is a module-scope constant is
   read (the payload family evaluates every substitution that is static, and a conditional, a
-  `String(...)`, an object-member read, or a `+` of two static operands is equally transparent);
+  `String(...)`, a deterministic `String.raw` tagged template, an object-member read, or a `+` of
+  two static operands is equally transparent);
   a substitution supplied by runtime data — a parameter, a call, a state value — is the same
   boundary as the runtime-injection bullet: the raw value is supplied by data flow, not by a
   literal the guard sees. It is declared rather than silently grouped.

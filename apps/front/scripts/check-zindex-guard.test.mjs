@@ -353,6 +353,17 @@ test('classifier: unknown scale token is raw outside the canonical app.css scale
 	);
 });
 
+test('classifier: undeclared scale tokens are raw without an explicit token set', () => {
+	for (const candidate of [
+		'z-(--publy-z-not-declared)',
+		'z-[--publy-z-not-declared]',
+		'z-[var(--publy-z-not-declared)]',
+		'[z-index:var(--publy-z-not-declared)]',
+	]) {
+		assert.equal(classifyZUtility(candidate), 'raw', candidate);
+	}
+});
+
 test('e2e: unknown scale utility is rejected while canonical utility stays green', async () => {
 	const { violations } = await runFixtureGuard({
 		'probe.tsx':
@@ -2096,6 +2107,25 @@ test('e2e (round 6 I1): static <style> with harmless scale-routed CSS stays gree
 		["import { probe } from './probe';"],
 	);
 	assert.deepEqual(violations, []);
+});
+
+test('e2e: static String.raw style payloads are scanned by the real guard', async () => {
+	for (const payload of [
+		'export const probe = <style>{String.raw`.probe { z-index: 2147483647; }`}</style>;',
+		[
+			"const level = '2147483646';",
+			'export const probe = <style>{String.raw`.probe { z-index: ${level}; }`}</style>;',
+		].join('\n'),
+	]) {
+		const { violations } = await runFixtureGuard({ 'probe.tsx': payload }, '', [
+			"import { probe } from './probe';",
+		]);
+		assert.deepEqual(
+			violations.map(({ ruleId }) => ruleId),
+			['z-index-style-element-shipped'],
+			`static String.raw style payload must red: ${JSON.stringify(violations)}`,
+		);
+	}
 });
 
 test('e2e (round 6 I1): ?inline CSS ships as JS and is red via the authored inline walk', async () => {

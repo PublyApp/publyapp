@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -482,11 +483,11 @@ const scaleTokenFromUtility = (utility) => {
 };
 
 const isAllowedScaleToken = (utility, canonicalScaleTokens) => {
-	if (canonicalScaleTokens == null) {
+	const token = scaleTokenFromUtility(utility);
+	if (token == null) {
 		return true;
 	}
-	const token = scaleTokenFromUtility(utility);
-	return token == null || canonicalScaleTokens.has(token);
+	return (canonicalScaleTokens ?? DEFAULT_CANONICAL_SCALE_TOKENS).has(token);
 };
 
 const isAllowedZIndexUtility = (utility, canonicalScaleTokens = null) => {
@@ -1119,12 +1120,7 @@ export const scanZIndexFile = ({
 				return false;
 			}
 			const callee = unwrapTransparentExpression(expression.expression);
-			return (
-				callee != null &&
-				ts.isIdentifier(callee) &&
-				callee.text === 'String' &&
-				nearestBinding(callee, callee.text) == null
-			);
+			return isDirectGlobalString(callee);
 		};
 		// Static evaluation of the transparent expression family to the set of
 		// strings the expression can provably be: literals, const alias chains
@@ -1206,6 +1202,12 @@ export const scanZIndexFile = ({
 			}
 			if (isStringCoercion(expression)) {
 				return staticStringValues(expression.arguments[0], visitedConsts);
+			}
+			if (
+				ts.isTaggedTemplateExpression(expression) &&
+				isStringRawTag(expression.tag)
+			) {
+				return staticStringValues(expression.template, visitedConsts);
 			}
 			if (ts.isTemplateExpression(expression)) {
 				let sets = [new Set([expression.head.text])];
@@ -1691,6 +1693,19 @@ export const scanZIndexFile = ({
 				);
 			}
 			return null;
+		};
+		const isDirectGlobalString = (candidate) => {
+			const expression = unwrapTransparentExpression(candidate);
+			return (
+				expression != null &&
+				ts.isIdentifier(expression) &&
+				expression.text === 'String' &&
+				nearestBinding(expression, expression.text) == null
+			);
+		};
+		const isStringRawTag = (candidate) => {
+			const member = staticMember(candidate);
+			return member?.name === 'raw' && isDirectGlobalString(member.owner);
 		};
 		const isDirectGlobalCss = (candidate) => {
 			const expression = unwrapTransparentExpression(candidate);
@@ -3999,6 +4014,14 @@ const findCanonicalScaleTokens = (css) => {
 	});
 	return tokens;
 };
+
+// Helper-level scans are fail-closed too: when a caller does not provide a
+// build-specific set, use the canonical production scale rather than accepting
+// every spelling in the reserved namespace. Full guard runs still pass the
+// configured app.css set explicitly, which keeps isolated fixture roots exact.
+const DEFAULT_CANONICAL_SCALE_TOKENS = findCanonicalScaleTokens(
+	readFileSync(appCssPath, 'utf8'),
+);
 
 const collectCssPaths = async (
 	directory,
