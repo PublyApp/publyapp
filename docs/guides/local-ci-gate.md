@@ -255,6 +255,28 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
   the place to start — but it should get its own round of adversarial review before merging, not
   ride in in a rushed final commit of a five-round PR.
 
+## Partial re-run of failed `front-e2e` jobs (accepted, guarded)
+
+Re-running only the **failed jobs** of a `front-e2e` run ("Re-run failed jobs") can **never**
+succeed, no matter what caused the original failure — see issue #1063. The e2e images are
+per-run scratch, tagged `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}`, and the workflow's `cleanup`
+job runs with `if: always()`, so it deletes them even when the shards failed (correct: nothing
+should retain scratch images, and a partial re-run must not silently test the previous attempt's
+build). A partial re-run does not re-run the `build` job, so the shards would pull the previous
+attempt's tag, which no longer exists — the pull fails with `manifest unknown`, which looks like a
+registry problem and sends you diagnosing the wrong thing (observed on PR #1056).
+
+The `test` job's **"Detect partial re-run before pull"** step detects this *before* pulling: the
+per-run tag always embeds the current attempt number, so comparing `needs.build.outputs.tag`
+against `${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}` identifies a partial re-run (the build job was
+not re-run, the tag is stale) and fails the job with an explicit "a full workflow re-run is
+required" message. The only working retry is **"Re-run all jobs"**, which re-runs `build` and
+pushes a fresh image set.
+
+The guard's behavior is proven by `scripts/ci-e2e-rerun-guard.test.mjs` (executes the real
+`run:` body from the workflow against the fresh-run, full-rerun, and partial-rerun scenarios),
+which runs in `just ci-drift` and server-side in `front-ci.yml::gate-selftest`.
+
 ## Runtime
 
 Measured on a warm Linux checkout with warm docker layers. A cold run is

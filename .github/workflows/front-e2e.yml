@@ -1,5 +1,19 @@
 name: front e2e
 
+# Re-running the FAILED JOBS of this workflow ("Re-run failed jobs") can
+# never succeed. The e2e images are per-run scratch, tagged
+# ${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}, and the `cleanup` job (if:
+# always()) deletes them when an attempt finishes — including when the
+# shards failed, which is correct: nothing should retain scratch images, and
+# a partial re-run must not silently test the previous attempt's build.
+# Because "Re-run failed jobs" does not re-run the `build` job, the shards
+# would pull the previous attempt's tag, which no longer exists — the pull
+# fails with "manifest unknown", indistinguishable from a registry problem
+# (observed on PR #1056). The "Detect partial re-run before pull" step in
+# the `test` job detects this before pulling and fails loudly; the only
+# working retry is a FULL workflow re-run ("Re-run all jobs"), which re-runs
+# `build` and pushes a fresh image set. See docs/guides/local-ci-gate.md.
+
 on:
   pull_request:
   # Required so this required check can report for a merge-queue entry: a
@@ -199,6 +213,36 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+
+      # #1063 BLOCKER: on a partial re-run of failed jobs the `build` job is
+      # NOT re-run, so needs.build.outputs.tag (E2E_IMAGE_TAG) still holds the
+      # PREVIOUS attempt's tag — whose images the `cleanup` job already
+      # deleted (if: always()). The pull would then fail with "manifest
+      # unknown", indistinguishable from a registry problem (observed on PR
+      # #1056). The per-run tag always embeds the current attempt number, so
+      # comparing E2E_IMAGE_TAG against the current attempt's expected tag
+      # detects the partial re-run BEFORE any pull attempt: a fresh run and a
+      # full workflow re-run ("Re-run all jobs", which re-runs `build` and
+      # re-pushes a fresh image set) both match; a partial re-run does not.
+      # Fail loudly instead of attempting the pull. Scripts that run this
+      # exact step: scripts/ci-e2e-rerun-guard.test.mjs (executes this run:
+      # body against the three scenarios) and
+      # scripts/check-ci-drift.mjs (hashes this step into the manifest).
+      - name: Detect partial re-run before pull
+        run: |
+          set -euo pipefail
+
+          expected_tag="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          if [ -z "$E2E_IMAGE_TAG" ]; then
+            echo "::error::The build job did not emit an image tag (needs.build.outputs.tag is empty), so there is nothing to pull."
+            exit 1
+          fi
+
+          if [ "$E2E_IMAGE_TAG" != "$expected_tag" ]; then
+            echo "::error::The build job produced image tag ${E2E_IMAGE_TAG}, but this attempt (${GITHUB_RUN_ATTEMPT}) expects ${expected_tag} — the build job was NOT re-run for this attempt, which means this is a partial re-run of failed jobs. The e2e images are per-run scratch: the cleanup job deleted the previous attempt's images when it finished, so pulling can only fail with \"manifest unknown\". A FULL WORKFLOW RE-RUN is required — use \"Re-run all jobs\" (which re-runs the build job and pushes a fresh image set), not \"Re-run failed jobs\"."
+            exit 1
+          fi
 
       - name: Pull stack
         run: docker compose -f apps/front/docker-compose.test.yml pull
