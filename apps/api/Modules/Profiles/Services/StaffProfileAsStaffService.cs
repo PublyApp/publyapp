@@ -15,7 +15,9 @@ namespace PublyApp.Api.Modules.Profiles.Services;
 public sealed record UpdateStaffProfileArgs(
 	Guid ProfileId,
 	PatchField<string?> Name,
-	PatchField<string?> Description
+	PatchField<string?> Description,
+	PatchField<string?> Icon,
+	PatchField<string?> Tone
 );
 
 public abstract record UpdateStaffProfileResult {
@@ -188,6 +190,14 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 
 		if (args.Description.IsPresent) {
 			profile.Description = args.Description.Value?.Trim();
+		}
+
+		if (args.Icon.IsPresent) {
+			profile.Icon = args.Icon.Value?.Trim();
+		}
+
+		if (args.Tone.IsPresent) {
+			profile.Tone = args.Tone.Value?.Trim();
 		}
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
