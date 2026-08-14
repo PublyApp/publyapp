@@ -5,12 +5,17 @@ using System.Text;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Profiles.Entities;
 
 using Xunit;
 
@@ -18,10 +23,12 @@ namespace PublyApp.Api.Modules.Profiles.Handlers.Staff;
 
 public sealed class UpdateStaffProfileSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public UpdateStaffProfileSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
 	}
@@ -215,6 +222,108 @@ public sealed class UpdateStaffProfileSpec
 		updated.Profile.Description.Should().BeNull();
 	}
 
+	[Fact]
+	public async Task ItShouldSetIconAndTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var profileId = await CreateStaffProfileAsync(token, "Update Style");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUpdateProfileUrl(profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			icon = "users-group",
+			tone = "6",
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var updated = await response.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
+		updated.Should().NotBeNull();
+		Assert.NotNull(updated);
+
+		var persistedProfile = await GetProfileByIdAsync(updated.Profile.Id);
+		persistedProfile.Icon.Should().Be("users-group");
+		persistedProfile.Tone.Should().Be("6");
+	}
+
+	[Fact]
+	public async Task ItShouldClearIconAndToneWhenNullIsProvided() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var profileId = await CreateStaffProfileAsync(token, "Clear Style");
+
+		using (var setRequest = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUpdateProfileUrl(profileId)
+		).WithSessionToken(token)) {
+			setRequest.Content = JsonContent.Create(new {
+				icon = "shield-check",
+				tone = "2",
+			});
+
+			using var setResponse = await _http.SendAsync(setRequest);
+			setResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		using var clearRequest = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUpdateProfileUrl(profileId)
+		).WithSessionToken(token);
+		clearRequest.Content = new StringContent(
+			"{\"icon\":null,\"tone\":null}",
+			Encoding.UTF8,
+			"application/json"
+		);
+
+		using var clearResponse = await _http.SendAsync(clearRequest);
+		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var persistedProfile = await GetProfileByIdAsync(Guid.Parse(profileId));
+		persistedProfile.Icon.Should().BeNull();
+		persistedProfile.Tone.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidIcon() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var profileId = await CreateStaffProfileAsync(token, "Update Invalid Icon");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUpdateProfileUrl(profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { icon = "not-an-icon" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Icon");
+	}
+
+	[Fact]
+	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var profileId = await CreateStaffProfileAsync(token, "Update Invalid Tone");
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUpdateProfileUrl(profileId)
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new { tone = "8" });
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("Tone");
+	}
+
 	// -- Helpers --
 
 	private async Task<string> CreateStaffProfileAsync(
@@ -271,6 +380,15 @@ public sealed class UpdateStaffProfileSpec
 		}
 
 		return payload.Profile.Name;
+	}
+
+	private async Task<Profile> GetProfileByIdAsync(Guid profileId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		return await dbContext.Profile
+			.AsNoTracking()
+			.SingleAsync(profile => profile.Id == profileId);
 	}
 
 	// -- Response DTOs --

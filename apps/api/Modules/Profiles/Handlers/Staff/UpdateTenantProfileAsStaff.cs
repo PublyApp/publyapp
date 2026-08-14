@@ -119,13 +119,13 @@ public class UpdateTenantProfileAsStaffBodyValidator
 		RuleFor(x => x.Icon)
 			.MustBePatchFieldStringInSet(
 				"Icon",
-				TenantProfileStyleValidationRules.Icons
+				ProfileStyleValidationRules.Icons
 			);
 
 		RuleFor(x => x.Tone)
 			.MustBePatchFieldStringInSet(
 				"Tone",
-				TenantProfileStyleValidationRules.Tones
+				ProfileStyleValidationRules.Tones
 			);
 	}
 }

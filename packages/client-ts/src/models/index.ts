@@ -1734,6 +1734,10 @@ export interface CreateStaffProfileBody extends AdditionalDataHolder, Parsable {
      */
     emails?: CreateStaffProfileBody_emailsMember1 | JsonElement | null;
     /**
+     * The icon property
+     */
+    icon?: UntypedNode | null;
+    /**
      * The name property
      */
     name?: CreateStaffProfileBody_nameMember1 | JsonElement | null;
@@ -1741,6 +1745,10 @@ export interface CreateStaffProfileBody extends AdditionalDataHolder, Parsable {
      * The permissions property
      */
     permissions?: CreateStaffProfileBody_permissionsMember1 | JsonElement | null;
+    /**
+     * The tone property
+     */
+    tone?: UntypedNode | null;
 }
 export type CreateStaffProfileBody_description = CreateStaffProfileBody_descriptionMember1 | JsonElement;
 export interface CreateStaffProfileBody_descriptionMember1 extends AdditionalDataHolder, Parsable {
@@ -3029,8 +3037,10 @@ export function deserializeIntoCreateStaffProfileBody(createStaffProfileBody: Pa
     return {
         "description": n => { createStaffProfileBody.description = n.getObjectValue<CreateStaffProfileBody_descriptionMember1>(createCreateStaffProfileBody_descriptionMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
         "emails": n => { createStaffProfileBody.emails = n.getObjectValue<CreateStaffProfileBody_emailsMember1>(createCreateStaffProfileBody_emailsMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "icon": n => { createStaffProfileBody.icon = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { createStaffProfileBody.name = n.getObjectValue<CreateStaffProfileBody_nameMember1>(createCreateStaffProfileBody_nameMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
         "permissions": n => { createStaffProfileBody.permissions = n.getObjectValue<CreateStaffProfileBody_permissionsMember1>(createCreateStaffProfileBody_permissionsMember1FromDiscriminatorValue) ?? n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue); },
+        "tone": n => { createStaffProfileBody.tone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -4638,7 +4648,9 @@ export function deserializeIntoUnassignStaffProfileUsersBody(unassignStaffProfil
 export function deserializeIntoUpdateStaffProfileBody(updateStaffProfileBody: Partial<UpdateStaffProfileBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "description": n => { updateStaffProfileBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "icon": n => { updateStaffProfileBody.icon = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { updateStaffProfileBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "tone": n => { updateStaffProfileBody.tone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -6275,8 +6287,10 @@ export function serializeCreateStaffProfileBody(writer: SerializationWriter, cre
     if (!createStaffProfileBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue<CreateStaffProfileBody_descriptionMember1 | JsonElement>("description", createStaffProfileBody.description, serializeCreateStaffProfileBody_description);
     writer.writeObjectValue<CreateStaffProfileBody_emailsMember1 | JsonElement>("emails", createStaffProfileBody.emails, serializeCreateStaffProfileBody_emails);
+    writer.writeObjectValue("icon", createStaffProfileBody.icon);
     writer.writeObjectValue<CreateStaffProfileBody_nameMember1 | JsonElement>("name", createStaffProfileBody.name, serializeCreateStaffProfileBody_name);
     writer.writeObjectValue<CreateStaffProfileBody_permissionsMember1 | JsonElement>("permissions", createStaffProfileBody.permissions, serializeCreateStaffProfileBody_permissions);
+    writer.writeObjectValue("tone", createStaffProfileBody.tone);
     writer.writeAdditionalData(createStaffProfileBody.additionalData);
 }
 /**
@@ -7972,7 +7986,9 @@ export function serializeUnassignStaffProfileUsersBody(writer: SerializationWrit
 export function serializeUpdateStaffProfileBody(writer: SerializationWriter, updateStaffProfileBody: Partial<UpdateStaffProfileBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updateStaffProfileBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("description", updateStaffProfileBody.description);
+    writer.writeObjectValue("icon", updateStaffProfileBody.icon);
     writer.writeObjectValue("name", updateStaffProfileBody.name);
+    writer.writeObjectValue("tone", updateStaffProfileBody.tone);
     writer.writeAdditionalData(updateStaffProfileBody.additionalData);
 }
 /**
@@ -9130,9 +9146,17 @@ export interface UpdateStaffProfileBody extends AdditionalDataHolder, Parsable {
      */
     description?: UntypedNode | null;
     /**
+     * The icon property
+     */
+    icon?: UntypedNode | null;
+    /**
      * The name property
      */
     name?: UntypedNode | null;
+    /**
+     * The tone property
+     */
+    tone?: UntypedNode | null;
 }
 export interface UpdateStaffUserBody extends AdditionalDataHolder, Parsable {
     /**

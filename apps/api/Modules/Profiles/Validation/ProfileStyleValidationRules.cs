@@ -2,9 +2,9 @@ using System.Text.Json;
 
 namespace PublyApp.Api.Modules.Profiles.Validation;
 
-public static class TenantProfileStyleValidationRules {
+public static class ProfileStyleValidationRules {
 	private const string IconCatalogResourceName =
-		"PublyApp.TenantProfileIcons.json";
+		"PublyApp.ProfileIcons.json";
 
 	public static readonly IReadOnlySet<string> Icons =
 		LoadIconCatalog();
@@ -15,7 +15,7 @@ public static class TenantProfileStyleValidationRules {
 	);
 
 	private static IReadOnlySet<string> LoadIconCatalog() {
-		using var stream = typeof(TenantProfileStyleValidationRules)
+		using var stream = typeof(ProfileStyleValidationRules)
 			.Assembly
 			.GetManifestResourceStream(IconCatalogResourceName);
 		if (stream is null) {

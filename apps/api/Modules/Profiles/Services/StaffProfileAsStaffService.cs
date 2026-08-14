@@ -15,7 +15,9 @@ namespace PublyApp.Api.Modules.Profiles.Services;
 public sealed record UpdateStaffProfileArgs(
 	Guid ProfileId,
 	PatchField<string?> Name,
-	PatchField<string?> Description
+	PatchField<string?> Description,
+	PatchField<string?> Icon,
+	PatchField<string?> Tone
 );
 
 public abstract record UpdateStaffProfileResult {
@@ -42,7 +44,9 @@ public sealed record CreateStaffProfileArgs(
 	string? Description,
 	List<string> Permissions,
 	List<string> Emails,
-	Guid InvitedByUserId
+	Guid InvitedByUserId,
+	string? Icon,
+	string? Tone
 );
 
 public sealed record BulkDeleteStaffProfilesArgs(
@@ -188,6 +192,14 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			profile.Description = args.Description.Value?.Trim();
 		}
 
+		if (args.Icon.IsPresent) {
+			profile.Icon = args.Icon.Value?.Trim();
+		}
+
+		if (args.Tone.IsPresent) {
+			profile.Tone = args.Tone.Value?.Trim();
+		}
+
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
 		// Same response contract as tenant profiles: count active membership rows only.
@@ -293,6 +305,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		var permissions = args.Permissions;
 		var emails = args.Emails;
 		var invitedByUserId = args.InvitedByUserId;
+		var icon = args.Icon?.Trim();
+		var tone = args.Tone?.Trim();
 
 		// Normalize and validate inputs
 		var normalizedName = name.Trim();
@@ -354,6 +368,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 				normalizedName,
 				description?.Trim()
 			);
+			profile.Icon = icon;
+			profile.Tone = tone;
 
 			await _dbContext.Profile.AddAsync(profile, cancellationToken);
 			await _dbContext.SaveChangesAsync(cancellationToken);
