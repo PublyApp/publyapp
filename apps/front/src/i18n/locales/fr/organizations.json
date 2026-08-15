@@ -1,0 +1,9 @@
+{
+	"organizations-list": "Organisations de cet espace de travail",
+	"organizations-coming-later-title": "La liste des organisations arrive plus tard",
+	"organizations-coming-later-description": "Le passage entre les organisations dont vous faites partie sera possible ici dès que l'API des organisations sera disponible.",
+	"members-coming-later-title": "Les membres arrivent plus tard",
+	"members-coming-later-description": "Les personnes de cette organisation et leurs rôles apparaîtront ici dès que l'API des organisations sera disponible.",
+	"failed-to-load-organization": "Impossible de charger l'organisation",
+	"failed-to-load-organization-description": "Les détails de votre organisation n'ont pas pu être chargés. Réessayez."
+}

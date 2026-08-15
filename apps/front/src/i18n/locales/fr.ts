@@ -5,6 +5,8 @@ import account from './fr/account.json';
 import auth from './fr/auth.json';
 import common from './fr/common.json';
 import landing from './fr/landing.json';
+import organizations from './fr/organizations.json';
+import posts from './fr/posts.json';
 import settings from './fr/settings.json';
 import staffAuditLogs from './fr/staff-audit-logs.json';
 import staffInvitations from './fr/staff-invitations.json';
@@ -18,6 +20,8 @@ const resourceFR = {
 	auth,
 	account,
 	settings,
+	organizations,
+	posts,
 	'staff-tenant-profiles': staffTenantProfiles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,

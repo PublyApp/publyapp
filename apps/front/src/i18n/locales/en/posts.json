@@ -1,0 +1,10 @@
+{
+	"calendar-coming-later-title": "The calendar is coming later",
+	"calendar-coming-later-description": "Scheduled posts across your connected profiles will appear here once the posts API ships.",
+	"drafts-coming-later-title": "Drafts are coming later",
+	"drafts-coming-later-description": "Your draft posts will appear here once the posts API ships.",
+	"history-coming-later-title": "Post history is coming later",
+	"history-coming-later-description": "Published posts and their performance will appear here once the posts API ships.",
+	"queue-coming-later-title": "The posting queue is coming later",
+	"queue-coming-later-description": "Posts waiting to be published will appear here once the posts API ships."
+}

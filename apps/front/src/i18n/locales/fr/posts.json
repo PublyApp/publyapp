@@ -1,0 +1,10 @@
+{
+	"calendar-coming-later-title": "Le calendrier arrive plus tard",
+	"calendar-coming-later-description": "Les publications planifiées sur vos profils connectés apparaîtront ici dès que l'API des publications sera disponible.",
+	"drafts-coming-later-title": "Les brouillons arrivent plus tard",
+	"drafts-coming-later-description": "Vos brouillons de publications apparaîtront ici dès que l'API des publications sera disponible.",
+	"history-coming-later-title": "L'historique des publications arrive plus tard",
+	"history-coming-later-description": "Les publications envoyées et leurs performances apparaîtront ici dès que l'API des publications sera disponible.",
+	"queue-coming-later-title": "La file d'attente de publication arrive plus tard",
+	"queue-coming-later-description": "Les publications en attente d'envoi apparaîtront ici dès que l'API des publications sera disponible."
+}
