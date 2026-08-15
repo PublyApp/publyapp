@@ -32,6 +32,11 @@ vi.mock('@tanstack/react-router', () => ({
 const EN_LABELS: Record<string, string> = {
 	general: 'General',
 	security: 'Security',
+	members: 'Members',
+	workspaces: 'Workspaces',
+	'roles-and-permissions': 'Roles & permissions',
+	integrations: 'Integrations',
+	billing: 'Billing',
 };
 
 vi.mock('react-i18next', () => ({
@@ -49,7 +54,12 @@ const TenantSettingsLayout = (Route as unknown as { component: ComponentType })
 
 const TAB_DESTINATIONS = [
 	['/tenant/settings', 'General'],
+	['/tenant/settings/members', 'Members'],
+	['/tenant/settings/workspaces', 'Workspaces'],
+	['/tenant/settings/roles', 'Roles & permissions'],
 	['/tenant/settings/security', 'Security'],
+	['/tenant/settings/integrations', 'Integrations'],
+	['/tenant/settings/billing', 'Billing'],
 ] as const;
 
 afterEach(() => {
