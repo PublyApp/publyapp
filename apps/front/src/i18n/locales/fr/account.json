@@ -27,5 +27,9 @@
 	"weekly-digest-description": "Résumé de votre activité hebdomadaire",
 	"monthly-report-description": "Rapport mensuel de performance et d'analytique",
 	"failed-to-load-profile": "Échec du chargement du profil",
-	"failed-to-load-profile-description": "Vos informations de profil n'ont pas pu être chargées. Réessayez."
+	"failed-to-load-profile-description": "Vos informations de profil n'ont pas pu être chargées. Réessayez.",
+	"save-changes": "Enregistrer les modifications",
+	"profile-updated-success": "Profil mis à jour avec succès",
+	"invalid-avatar-url": "Saisissez une URL http(s) valide",
+	"unknown-error": "Erreur inconnue"
 }

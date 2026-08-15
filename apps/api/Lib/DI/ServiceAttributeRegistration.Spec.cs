@@ -6,6 +6,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Account.Services;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Auth.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
@@ -33,6 +34,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		Type ServiceType,
 		Type ImplementationType
 	)[] ExpectedServices = [
+		(typeof(IAccountProfileService), typeof(AccountProfileService)),
 		(typeof(IAccountService), typeof(AccountService)),
 		(typeof(IAuditLogQueryService), typeof(AuditLogQueryService)),
 		(typeof(IAuditLogService), typeof(AuditLogService)),

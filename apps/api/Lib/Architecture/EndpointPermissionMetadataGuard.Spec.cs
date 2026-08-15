@@ -133,13 +133,16 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 	private static readonly HashSet<string> BaselinedDriftRoutes = new(
 		StringComparer.OrdinalIgnoreCase
 	) {
-		// TODO(#534 ratchet): Tenant test/placeholder route at /test.
-		// This is a temporary "Hello, World!" route in Program.cs that was
-		// used to verify tenant group wiring before real tenant endpoints existed.
-		// It is tenant-authenticated (session + TenantAuthFilter runs) but carries
-		// no PermissionFilter. Remove or protect this route before the tenant
-		// surface ships publicly.
-		"GET /test",
+		// Tenant self-service profile routes (Account module, tranche 2 #1133).
+		// Any ACTIVE tenant member may read and edit their OWN profile — tenant
+		// membership (TenantAuthFilter on the tenant group) is the only
+		// authorization dimension, and the tenant permission vocabulary
+		// (modules.access_*) gates module surfaces, not self-service identity.
+		// A PermissionFilter here would either be a no-op for members or
+		// wrongly block members without a module permission. Baselined by
+		// design; revisit only if a "profile" tenant permission is introduced.
+		"GET /account/profile",
+		"PATCH /account/profile",
 	};
 
 	// ── Test factory (no real DB needed for route-metadata inspection) ──────

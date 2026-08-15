@@ -3,6 +3,7 @@ using System.Reflection;
 
 using FluentAssertions;
 
+using PublyApp.Api.Modules.Account.Services;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
@@ -132,6 +133,11 @@ public sealed class ServiceArgsRecordConventionSpec {
 		// Positive coverage retained from the original issue-specific guard: these
 		// methods already adopt args records, and we assert the exact parameter
 		// shape so a regression away from the record form is caught explicitly.
+		AssertMethodParameterTypeNames<IAccountProfileService>(
+			"UpdateAccountProfileAsync",
+			"UpdateAccountProfileArgs",
+			nameof(CancellationToken)
+		);
 		AssertMethodParameterTypeNames<IAuditLogService>(
 			"LogAsync",
 			"CreateAuditLogArgs",
