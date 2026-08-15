@@ -116,23 +116,21 @@ public class UpdateTenantUserAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantUserAsStaffBody> {
 	public UpdateTenantUserAsStaffBodyValidator() {
 		RuleFor(x => x.FirstName)
-			.MustBePatchFieldClearableStringWithLength(
+			.MustBePatchFieldStringWithMaxLength(
 				"FirstName",
-				1,
 				UserValidationRules.FirstNameMaxLength,
-				trim: true
+				trim: false
 			);
 
 		RuleFor(x => x.LastName)
-			.MustBePatchFieldClearableStringWithLength(
+			.MustBePatchFieldStringWithMaxLength(
 				"LastName",
-				1,
 				UserValidationRules.LastNameMaxLength,
-				trim: true
+				trim: false
 			);
 
 		RuleFor(x => x.AvatarUrl)
-			.MustBePatchFieldUrlWithLength(
+			.MustBePatchFieldUrl(
 				"AvatarUrl",
 				UserValidationRules.AvatarUrlMaxLength
 			);

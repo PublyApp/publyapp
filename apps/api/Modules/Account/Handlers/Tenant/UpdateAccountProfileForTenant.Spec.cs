@@ -250,6 +250,36 @@ public sealed class UpdateAccountProfileForTenantSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnUnprocessableEntityWhenSpacePaddedFirstNameExceedsMaxLength() {
+		// The bound must apply to the raw length: the getter persists the
+		// untrimmed value, so 1000 spaces + "a" (trimmed length 1) must still
+		// 422 rather than landing unbounded in the DB.
+		var (token, _, acmeId, _) =
+			await PrepareAcmeAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl()
+		)
+			.WithSessionToken(token)
+			.WithTenantId(acmeId);
+
+		request.Content = JsonContent.Create(new {
+			firstName = new string(' ', 1000) + "a",
+		});
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("FirstName");
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
 		var (token, _, acmeId, _) =
 			await PrepareAcmeAdminAsync();
