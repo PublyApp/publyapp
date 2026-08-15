@@ -1,34 +1,66 @@
-import { IconSettings } from '@tabler/icons-react';
-import { createFileRoute } from '@tanstack/react-router';
+import {
+	createFileRoute,
+	Link,
+	Outlet,
+	useRouterState,
+} from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { StateSurface } from '~/components/ui/state-surface';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 
-import { WorkspacePageHeader } from './_workspace-page-parts';
+const SETTINGS_TAB_ROUTE_SUFFIXES = ['security'] as const;
+type SettingsSection = 'general' | (typeof SETTINGS_TAB_ROUTE_SUFFIXES)[number];
+
+const getActiveSection = (pathname: string): SettingsSection => {
+	const match = SETTINGS_TAB_ROUTE_SUFFIXES.find((suffix) =>
+		pathname.endsWith(`/${suffix}`),
+	);
+
+	return match ?? 'general';
+};
 
 export const Route = createFileRoute('/_authed-layout/tenant/settings')({
+	// Always matched alongside a general/security child (never the deepest
+	// match on its own — see `deriveBreadcrumbTrail`), but the contract
+	// requires every route to declare its own trail.
 	staticData: {
 		crumbs: () => [{ kind: 'label', labelKey: 'settings' }],
+		i18nNamespaces: ['settings'],
 	},
-	component: TenantSettingsStubPage,
+	component: TenantSettingsLayout,
 });
 
 /**
- * Honest stub: the tenant settings surface (members, roles, billing,
- * integrations) ships in a later tranche — no fake CRUD against a
- * nonexistent backend.
+ * The tenant settings home: section tabs over the general and security
+ * pages. Both sections are read-only for now — no settings API exists, so
+ * every surface either shows the tenant identity the workspace shell already
+ * resolved or an honest coming-later state.
  */
-function TenantSettingsStubPage() {
+function TenantSettingsLayout() {
 	const { t } = useTranslation('common');
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	const activeSection = getActiveSection(pathname);
 
 	return (
 		<div className="space-y-5" data-testid="tenant-settings-page">
-			<WorkspacePageHeader titleKey="settings" />
-			<StateSurface
-				icon={IconSettings}
-				title={t('settings')}
-				description={t('stub-settings-description')}
-				testId="tenant-settings-stub"
-			/>
+			<Tabs value={activeSection}>
+				<TabsList variant="line">
+					<TabsTrigger value="general" render={<Link to="/tenant/settings" />}>
+						{t('general')}
+					</TabsTrigger>
+					<TabsTrigger
+						value="security"
+						render={<Link to="/tenant/settings/security" />}
+					>
+						{t('security')}
+					</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value={activeSection} className="mt-5">
+					<Outlet />
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

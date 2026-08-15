@@ -1,0 +1,18 @@
+{
+	"password-policy": "Politique de mot de passe",
+	"regional-and-contact-settings": "Régional et contact",
+	"date-format": "Format de date",
+	"contact-email": "Email de contact",
+	"regional-and-contact-coming-later-title": "Les paramètres régionaux et de contact arrivent plus tard",
+	"regional-and-contact-coming-later-description": "Le fuseau horaire, le format de date, la langue et l'email de contact apparaîtront ici une fois l'API des paramètres disponible.",
+	"danger-zone-coming-later-title": "La suppression de l'organisation arrivera plus tard",
+	"danger-zone-coming-later-description": "La suppression de cette organisation sera possible ici une fois l'API des paramètres disponible.",
+	"password-policy-coming-later-title": "La politique de mot de passe arrive plus tard",
+	"password-policy-coming-later-description": "La force minimale du mot de passe des membres sera configurable ici une fois l'API des paramètres disponible.",
+	"two-factor-coming-later-title": "L'authentification à deux facteurs arrive plus tard",
+	"two-factor-coming-later-description": "L'exigence de double authentification pour tous les membres sera configurable ici une fois l'API des paramètres disponible.",
+	"active-sessions-coming-later-title": "Les sessions actives arrivent plus tard",
+	"active-sessions-coming-later-description": "Les appareils et l'activité de connexion de votre organisation apparaîtront ici une fois l'API des sessions disponible.",
+	"failed-to-load-organization": "Échec du chargement de l'organisation",
+	"failed-to-load-organization-description": "Les détails de votre organisation n'ont pas pu être chargés. Réessayez."
+}
