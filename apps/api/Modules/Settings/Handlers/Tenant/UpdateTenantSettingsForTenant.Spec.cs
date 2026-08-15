@@ -177,6 +177,54 @@ public sealed class UpdateTenantSettingsForTenantSpec
 
 	[Fact]
 	public async Task
+	ItShouldRejectStaffOnlyFieldsAndLeaveTheRowUnchanged() {
+		// Staff-only fields (code/status/maxUsers/notes) must NOT be writable
+		// through the tenant self-service endpoint: a body carrying only
+		// staff-only keys must behave like an empty body (400, no write) so
+		// the tenant write surface can never silently widen.
+		var (acmeId, acmeAdminToken, original) =
+			await PrepareAcmeAdminAsync();
+
+		try {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Patch,
+				GetUrl()
+			)
+				.WithSessionToken(acmeAdminToken)
+				.WithTenantId(acmeId);
+
+			request.Content = JsonContent.Create(new {
+				maxUsers = 1,
+				code = "hacked-code",
+				notes = "tenant notes",
+			});
+
+			using var response = await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+			var problem = await response.Content
+				.ReadFromJsonAsync<AppProblemDetails>();
+			problem.Should().NotBeNull();
+			Assert.NotNull(problem);
+			problem.Detail.Should().Be("No fields to update");
+
+			var persisted = await GetTenantRowAsync(acmeId);
+			persisted.Name.Should().Be(original.Name);
+			persisted.LogoUrl.Should().Be(original.LogoUrl);
+			persisted.LegalName.Should().Be(original.LegalName);
+			persisted.Description.Should().Be(original.Description);
+			persisted.WebsiteUrl.Should().Be(original.WebsiteUrl);
+			persisted.BillingEmail.Should().Be(original.BillingEmail);
+			persisted.SupportEmail.Should().Be(original.SupportEmail);
+			persisted.DefaultLocale.Should().Be(original.DefaultLocale);
+			persisted.Timezone.Should().Be(original.Timezone);
+		} finally {
+			await RestoreTenantAsync(acmeId, original);
+		}
+	}
+
+	[Fact]
+	public async Task
 	ItShouldRejectANameShorterThanFiveCharacters() {
 		var (acmeId, acmeAdminToken, _) =
 			await PrepareAcmeAdminAsync();
