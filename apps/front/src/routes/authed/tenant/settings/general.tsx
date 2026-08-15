@@ -1,29 +1,42 @@
-import {
-	IconAlertCircle,
-	IconAlertTriangle,
-	IconClock,
-} from '@tabler/icons-react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { Field, Form, type FieldSelectOption } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Skeleton } from '~/components/ui/skeleton';
 import { ErrorStateSurface, StateSurface } from '~/components/ui/state-surface';
+import { LOCALE_LABELS } from '~/lib/i18n.shared';
 import {
-	resolveWorkspaceTenant,
-	useTenantsForPickerQuery,
-} from '~/lib/query/tenants-for-picker';
-import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
+	invalidateTenantSettingsGeneralQuery,
+	toTenantSettingsGeneral,
+	useTenantSettingsGeneralQuery,
+	useUpdateTenantSettingsGeneralMutation,
+	type TenantSettingsGeneralUpdateInput,
+} from '~/lib/query/tenant-settings-general';
+import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
-	WorkspacePageHeader,
-	ReadOnlyBadge,
-	ReadOnlyFieldRow,
-	ReadOnlyValue,
-} from '../_workspace-page-parts';
+	getFailureMessage,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import {
+	isAbsoluteHttpUrl,
+	isValidEmailAddress,
+} from '../../staff/tenants/tenant-organization-profile-fields';
+import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
 export const Route = createFileRoute('/_authed-layout/tenant/settings/')({
 	staticData: {
@@ -36,24 +49,244 @@ export const Route = createFileRoute('/_authed-layout/tenant/settings/')({
 	component: TenantSettingsGeneralPage,
 });
 
+const ALLOWED_LOGO_URL_PROTOCOLS = ['http:', 'https:'] as const;
+const API_FILES_PREFIX = '/files/';
+
+const getSettingsGeneralSchema = (t: (key: string) => string) =>
+	z.object({
+		name: z
+			.string()
+			.trim()
+			.min(5, { message: t('name-min-length') })
+			.max(256, { message: t('name-max-length') }),
+		logoUrl: z
+			.string()
+			.trim()
+			.max(2048, { message: t('logo-url-max-length') })
+			.refine((value) => {
+				if (!value) {
+					return true;
+				}
+
+				try {
+					return ALLOWED_LOGO_URL_PROTOCOLS.includes(
+						new URL(value)
+							.protocol as (typeof ALLOWED_LOGO_URL_PROTOCOLS)[number],
+					);
+				} catch {
+					// Root-relative served-upload paths are valid logo values.
+					return value.startsWith(API_FILES_PREFIX);
+				}
+			}, t('invalid-logo-url')),
+		legalName: z
+			.string()
+			.trim()
+			.max(256, { message: t('legal-name-max-length') })
+			.optional(),
+		description: z
+			.string()
+			.trim()
+			.max(1024, { message: t('description-max-length') })
+			.optional(),
+		websiteUrl: z
+			.string()
+			.trim()
+			.max(2048, { message: t('website-max-length') })
+			.optional()
+			.refine((value) => !value || isAbsoluteHttpUrl(value), {
+				message: t('invalid-website-url'),
+			}),
+		billingEmail: z
+			.string()
+			.trim()
+			.max(320, { message: t('email-max-length') })
+			.optional()
+			.refine((value) => !value || isValidEmailAddress(value), {
+				message: t('invalid-email'),
+			}),
+		supportEmail: z
+			.string()
+			.trim()
+			.max(320, { message: t('email-max-length') })
+			.optional()
+			.refine((value) => !value || isValidEmailAddress(value), {
+				message: t('invalid-email'),
+			}),
+		defaultLocale: z.string().optional(),
+		timezone: z.string().optional(),
+	});
+
+type SettingsGeneralValues = z.infer<
+	ReturnType<typeof getSettingsGeneralSchema>
+>;
+
+const EDITABLE_FIELDS = [
+	'name',
+	'logoUrl',
+	'legalName',
+	'description',
+	'websiteUrl',
+	'billingEmail',
+	'supportEmail',
+	'defaultLocale',
+	'timezone',
+] as const;
+
 /**
- * Read-only org settings. No settings API exists, so the only real values on
- * the page are the tenant identity the workspace shell already resolved
- * (name + slug, from the same picker query the shell uses); every other
- * field is an explicit "not available yet" or coming-later state — never
- * fabricated data, never a Save button that does nothing.
+ * Workspace general settings, editable through the real tenant-scoped
+ * endpoints (`GET/PATCH /settings/general`). Identity fields come from the
+ * settings query and are writable; the danger zone still has no backend and
+ * keeps the coming-later affordance.
  */
 function TenantSettingsGeneralPage() {
 	const { t } = useTranslation(['settings', 'common']);
-	const query = useTenantsForPickerQuery();
-	const [selectedTenantId] = useState<string | null>(() =>
-		readSelectedTenantId(),
-	);
-	const tenant = query.isSuccess
-		? resolveWorkspaceTenant(query.data, selectedTenantId)
-		: undefined;
+	const queryClient = useQueryClient();
+	const tenantId = useResolvedWorkspaceTenantId();
+	const { data, isPending, isError, isSuccess, refetch } =
+		useTenantSettingsGeneralQuery(tenantId);
+	const settings = toTenantSettingsGeneral(data);
+	const updateSettings = useUpdateTenantSettingsGeneralMutation();
+	const [serverError, setServerError] = useState('');
+	const [shouldLogout, setShouldLogout] = useState(false);
 
-	if (query.isError && shouldLogoutForFailure(query.error)) {
+	const localeOptions: FieldSelectOption[] = useMemo(
+		() => [
+			{ value: '', label: t('common:not-set') },
+			{ value: 'en', label: LOCALE_LABELS.en },
+			{ value: 'fr', label: LOCALE_LABELS.fr },
+		],
+		[t],
+	);
+
+	const timezoneOptions: FieldSelectOption[] = useMemo(() => {
+		const zones =
+			typeof Intl.supportedValuesOf === 'function'
+				? Intl.supportedValuesOf('timeZone')
+				: [];
+
+		return [
+			{ value: '', label: t('common:not-set') },
+			...zones.map((zone) => ({ value: zone, label: zone })),
+		];
+	}, [t]);
+
+	const methods = useForm<SettingsGeneralValues>({
+		resolver: zodResolver(getSettingsGeneralSchema(t)),
+		defaultValues: {
+			name: '',
+			logoUrl: '',
+			legalName: '',
+			description: '',
+			websiteUrl: '',
+			billingEmail: '',
+			supportEmail: '',
+			defaultLocale: '',
+			timezone: '',
+		},
+	});
+
+	const {
+		formState: { dirtyFields, isSubmitting },
+		reset,
+	} = methods;
+
+	// `useForm` captures defaultValues at first render, when the query is still
+	// unresolved (skeletons are showing), so the fields would otherwise stay
+	// empty forever. Hydrate the form from the loaded query exactly once per
+	// resolved tenant, mirroring the account profile page idiom — never on
+	// background refetches, and never over an in-flight edit.
+	const hydratedTenantIdRef = useRef<string | null>(null);
+
+	useEffect(() => {
+		if (!isSuccess || !settings || hydratedTenantIdRef.current === tenantId) {
+			return;
+		}
+
+		reset({
+			name: settings.name,
+			logoUrl: settings.logoUrl ?? '',
+			legalName: settings.legalName ?? '',
+			description: settings.description ?? '',
+			websiteUrl: settings.websiteUrl ?? '',
+			billingEmail: settings.billingEmail ?? '',
+			supportEmail: settings.supportEmail ?? '',
+			defaultLocale: settings.defaultLocale ?? '',
+			timezone: settings.timezone ?? '',
+		});
+		hydratedTenantIdRef.current = tenantId;
+	}, [isSuccess, settings, tenantId, reset]);
+
+	const isSubmittingForm = isSubmitting || updateSettings.isPending;
+
+	const onSubmit = methods.handleSubmit(async (values) => {
+		if (!tenantId) {
+			return;
+		}
+
+		const updateInput: TenantSettingsGeneralUpdateInput = {
+			tenantId,
+			...(dirtyFields.name ? { name: values.name } : {}),
+			...(dirtyFields.logoUrl
+				? { logoUrl: values.logoUrl.trim() || null }
+				: {}),
+			...(dirtyFields.legalName
+				? { legalName: (values.legalName ?? '').trim() || null }
+				: {}),
+			...(dirtyFields.description
+				? { description: (values.description ?? '').trim() || null }
+				: {}),
+			...(dirtyFields.websiteUrl
+				? { websiteUrl: (values.websiteUrl ?? '').trim() || null }
+				: {}),
+			...(dirtyFields.billingEmail
+				? { billingEmail: (values.billingEmail ?? '').trim() || null }
+				: {}),
+			...(dirtyFields.supportEmail
+				? { supportEmail: (values.supportEmail ?? '').trim() || null }
+				: {}),
+			...(dirtyFields.defaultLocale
+				? { defaultLocale: values.defaultLocale || null }
+				: {}),
+			...(dirtyFields.timezone ? { timezone: values.timezone || null } : {}),
+		};
+		const hasChanges = Object.keys(updateInput).length > 1;
+
+		if (!hasChanges) {
+			return;
+		}
+
+		setServerError('');
+
+		try {
+			await updateSettings.mutateAsync(updateInput);
+		} catch (error) {
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+
+			setServerError(
+				getFailureMessage(toApiFailure(error), {
+					fallback: t('unknown-error'),
+				}),
+			);
+			await displayLocalMutationFailure(error, t('unknown-error'));
+			return;
+		}
+
+		// The write is durable — mark only the committed fields clean at their
+		// new values so a retry cannot resend already-saved values, then
+		// refetch so the workspace header shows the updated values.
+		for (const field of EDITABLE_FIELDS) {
+			if (dirtyFields[field]) {
+				methods.resetField(field, { defaultValue: values[field] });
+			}
+		}
+		await invalidateTenantSettingsGeneralQuery(queryClient, tenantId);
+		toastLocalMutationResult.success(t('settings-updated-success'));
+	});
+
+	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
@@ -61,7 +294,7 @@ function TenantSettingsGeneralPage() {
 		<div className="space-y-5" data-testid="tenant-settings-general-page">
 			<WorkspacePageHeader titleKey="general" />
 
-			{query.isError ? (
+			{isError ? (
 				<Card>
 					<CardHeader>
 						<CardTitle>{t('common:organization-details')}</CardTitle>
@@ -69,14 +302,14 @@ function TenantSettingsGeneralPage() {
 					<CardContent>
 						<ErrorStateSurface
 							icon={IconAlertCircle}
-							title={t('failed-to-load-organization')}
-							description={t('failed-to-load-organization-description')}
+							title={t('failed-to-load-settings')}
+							description={t('failed-to-load-settings-description')}
 							testId="tenant-settings-general-error"
 							actions={
 								<Button
 									variant="default"
 									type="button"
-									onClick={() => void query.refetch()}
+									onClick={() => void refetch()}
 								>
 									{t('common:retry')}
 								</Button>
@@ -89,10 +322,9 @@ function TenantSettingsGeneralPage() {
 					<Card>
 						<CardHeader>
 							<CardTitle>{t('common:organization-details')}</CardTitle>
-							<ReadOnlyBadge />
 						</CardHeader>
 						<CardContent>
-							{query.isPending ? (
+							{isPending ? (
 								<div
 									className="space-y-4"
 									data-testid="tenant-settings-general-skeleton"
@@ -102,34 +334,64 @@ function TenantSettingsGeneralPage() {
 									<Skeleton className="h-9 w-full" />
 									<Skeleton className="h-9 w-full" />
 									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
 								</div>
 							) : (
-								<div className="space-y-1">
-									<ReadOnlyFieldRow
-										label={t('common:logo')}
-										description={t('common:logo-description')}
-									>
-										<ReadOnlyValue />
-									</ReadOnlyFieldRow>
-									<ReadOnlyFieldRow label={t('common:name')}>
-										<ReadOnlyValue>
-											{tenant?.name ?? t('common:unnamed-tenant')}
-										</ReadOnlyValue>
-									</ReadOnlyFieldRow>
-									<ReadOnlyFieldRow label={t('common:workspace-slug')}>
-										<ReadOnlyValue>{tenant?.code}</ReadOnlyValue>
-									</ReadOnlyFieldRow>
-									<ReadOnlyFieldRow label={t('common:description')}>
-										<ReadOnlyValue />
-									</ReadOnlyFieldRow>
-									<ReadOnlyFieldRow label={t('common:industry')}>
-										<ReadOnlyValue />
-									</ReadOnlyFieldRow>
-									<ReadOnlyFieldRow label={t('common:website')}>
-										<ReadOnlyValue />
-									</ReadOnlyFieldRow>
-								</div>
+								<>
+									{serverError ? (
+										<p
+											role="alert"
+											className="mb-4 rounded-[var(--publy-radius-input)] bg-destructive/10 px-3 py-2 text-sm text-destructive"
+										>
+											{serverError}
+										</p>
+									) : null}
+
+									<Form methods={methods} onSubmit={onSubmit}>
+										<div className="grid gap-4 md:grid-cols-2">
+											<Field.Text
+												name="name"
+												label={t('common:name')}
+												placeholder={t('common:name')}
+												isDisabled={isSubmittingForm}
+											/>
+											<Field.Text
+												name="logoUrl"
+												label={t('common:logo')}
+												helperText={t('common:logo-description')}
+												placeholder="https://example.com/logo.png"
+												isDisabled={isSubmittingForm}
+											/>
+											<Field.Text
+												name="legalName"
+												label={t('common:legal-name')}
+												placeholder={t('common:legal-name')}
+												isDisabled={isSubmittingForm}
+											/>
+											<Field.Text
+												name="websiteUrl"
+												label={t('common:website')}
+												placeholder="https://example.com"
+												isDisabled={isSubmittingForm}
+											/>
+										</div>
+										<Field.Textarea
+											name="description"
+											label={t('common:description')}
+											placeholder={t('common:description')}
+											isDisabled={isSubmittingForm}
+										/>
+
+										<div className="flex items-center gap-3 pt-2">
+											<Button
+												type="submit"
+												variant="default"
+												disabled={isSubmittingForm}
+											>
+												{t('common:save-changes')}
+											</Button>
+										</div>
+									</Form>
+								</>
 							)}
 						</CardContent>
 					</Card>
@@ -137,15 +399,55 @@ function TenantSettingsGeneralPage() {
 					<Card>
 						<CardHeader>
 							<CardTitle>{t('regional-and-contact-settings')}</CardTitle>
-							<ReadOnlyBadge />
 						</CardHeader>
 						<CardContent>
-							<StateSurface
-								icon={IconClock}
-								title={t('regional-and-contact-coming-later-title')}
-								description={t('regional-and-contact-coming-later-description')}
-								testId="tenant-settings-general-regional-empty"
-							/>
+							{isPending ? (
+								<div className="space-y-4">
+									<Skeleton className="h-9 w-full" />
+									<Skeleton className="h-9 w-full" />
+									<Skeleton className="h-9 w-full" />
+									<Skeleton className="h-9 w-full" />
+								</div>
+							) : (
+								<Form methods={methods} onSubmit={onSubmit}>
+									<div className="grid gap-4 md:grid-cols-2">
+										<Field.Select
+											name="defaultLocale"
+											label={t('common:default-locale')}
+											options={localeOptions}
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Select
+											name="timezone"
+											label={t('common:timezone')}
+											options={timezoneOptions}
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Email
+											name="billingEmail"
+											label={t('common:billing-email')}
+											placeholder="billing@example.com"
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Email
+											name="supportEmail"
+											label={t('common:support-email')}
+											placeholder="support@example.com"
+											isDisabled={isSubmittingForm}
+										/>
+									</div>
+
+									<div className="flex items-center gap-3 pt-2">
+										<Button
+											type="submit"
+											variant="default"
+											disabled={isSubmittingForm}
+										>
+											{t('common:save-changes')}
+										</Button>
+									</div>
+								</Form>
+							)}
 						</CardContent>
 					</Card>
 

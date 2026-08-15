@@ -10,6 +10,8 @@ import { InvitationsRequestBuilderNavigationMetadata, type InvitationsRequestBui
 // @ts-ignore
 import { NoticesRequestBuilderNavigationMetadata, type NoticesRequestBuilder } from './notices/index.js';
 // @ts-ignore
+import { SettingsRequestBuilderNavigationMetadata, type SettingsRequestBuilder } from './settings/index.js';
+// @ts-ignore
 import { StaffRequestBuilderNavigationMetadata, type StaffRequestBuilder } from './staff/index.js';
 // @ts-ignore
 import { apiClientProxifier, ParseNodeFactoryRegistry, SerializationWriterFactoryRegistry, type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type RequestAdapter } from '@microsoft/kiota-abstractions';
@@ -42,6 +44,10 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      * The notices property
      */
     get notices(): NoticesRequestBuilder;
+    /**
+     * The settings property
+     */
+    get settings(): SettingsRequestBuilder;
     /**
      * The staff property
      */
@@ -97,6 +103,9 @@ export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysTo
     },
     notices: {
         navigationMetadata: NoticesRequestBuilderNavigationMetadata,
+    },
+    settings: {
+        navigationMetadata: SettingsRequestBuilderNavigationMetadata,
     },
     staff: {
         navigationMetadata: StaffRequestBuilderNavigationMetadata,
