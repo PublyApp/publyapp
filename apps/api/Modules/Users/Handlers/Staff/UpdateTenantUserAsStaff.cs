@@ -14,6 +14,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
+using PublyApp.Api.Modules.Users.Validation;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -115,13 +116,26 @@ public class UpdateTenantUserAsStaffBodyValidator
 	: AbstractValidator<UpdateTenantUserAsStaffBody> {
 	public UpdateTenantUserAsStaffBodyValidator() {
 		RuleFor(x => x.FirstName)
-			.MustBePatchFieldString("FirstName");
+			.MustBePatchFieldClearableStringWithLength(
+				"FirstName",
+				1,
+				UserValidationRules.FirstNameMaxLength,
+				trim: true
+			);
 
 		RuleFor(x => x.LastName)
-			.MustBePatchFieldString("LastName");
+			.MustBePatchFieldClearableStringWithLength(
+				"LastName",
+				1,
+				UserValidationRules.LastNameMaxLength,
+				trim: true
+			);
 
 		RuleFor(x => x.AvatarUrl)
-			.MustBePatchFieldUrl("AvatarUrl");
+			.MustBePatchFieldUrlWithLength(
+				"AvatarUrl",
+				UserValidationRules.AvatarUrlMaxLength
+			);
 
 		RuleFor(x => x.Level).Custom((element, context) => {
 			if (element is null) {

@@ -337,6 +337,58 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates a non-nullable JsonElement URL field for PatchField pattern with
+	/// an upper length bound: Undefined OK (omit), null OK (clear), otherwise must
+	/// be a valid http(s) URL of at most <paramref name="maxLength"/> characters.
+	/// Unlike <see cref="MustBePatchFieldClearableUrl{T}"/>, blank input is not a
+	/// valid clear — use this for fields whose getter does no blank-to-null
+	/// normalization.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldUrlWithLength<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int maxLength
+	) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined) {
+					return true;
+				}
+				if (kind is JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var url = e.GetString();
+				if (string.IsNullOrWhiteSpace(url)) {
+					return false;
+				}
+				if (!Uri.TryCreate(
+					url, UriKind.Absolute, out var result
+				)) {
+					return false;
+				}
+				return result.Scheme == Uri.UriSchemeHttp
+					|| result.Scheme == Uri.UriSchemeHttps;
+			})
+			.WithMessage(
+				$"{fieldName} must be a string, null, or omitted"
+			)
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
+			);
+	}
+
+	/// <summary>
 	/// Validates a non-nullable JsonElement URL field for PatchField pattern where
 	/// blank/whitespace-only input is treated as a clear (valid), for fields whose
 	/// handler getter normalizes blank to null before persisting (e.g.
@@ -384,6 +436,59 @@ public static class JsonElementRules {
 			})
 			.WithMessage(
 				$"{fieldName} must be {maxLength} characters or less"
+			);
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement string field for PatchField pattern
+	/// with min/max length bounds: Undefined OK (omit), null OK (clear), otherwise
+	/// must be a non-empty string. Unlike
+	/// <see cref="MustBePatchFieldStringWithLength{T}"/>, JSON null is a valid clear —
+	/// use this for fields whose getter maps Null to <c>PatchField.Set(null)</c>.
+	/// Pass <paramref name="minLength"/> ≤ 1 to enforce only non-emptiness.
+	/// When <paramref name="trim"/> is <c>true</c>, the min/max checks use the
+	/// trimmed length; otherwise raw length is used (default).
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldClearableStringWithLength<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int minLength,
+			int maxLength,
+			bool trim = false
+	) {
+		return ruleBuilder
+			.Must(e => e.ValueKind
+				is JsonValueKind.Undefined
+				or JsonValueKind.Null
+				or JsonValueKind.String)
+			.WithMessage(
+				$"{fieldName} must be a non-empty string, null, or omitted"
+			)
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return !string.IsNullOrWhiteSpace(e.GetString());
+			})
+			.WithMessage($"{fieldName} cannot be empty")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String || minLength <= 1) {
+					return true;
+				}
+				return (trim ? (e.GetString()?.Trim().Length ?? 0) : (e.GetString()?.Length ?? 0)) >= minLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at least {minLength} characters long"
+			)
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (trim ? (e.GetString()?.Trim().Length ?? 0) : (e.GetString()?.Length ?? 0)) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
 			);
 	}
 

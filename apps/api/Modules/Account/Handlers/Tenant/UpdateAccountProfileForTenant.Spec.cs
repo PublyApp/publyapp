@@ -221,6 +221,60 @@ public sealed class UpdateAccountProfileForTenantSpec
 		problem.Errors.Should().ContainKey("AvatarUrl");
 	}
 
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
+		var (token, _, acmeId, _) =
+			await PrepareAcmeAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl()
+		)
+			.WithSessionToken(token)
+			.WithTenantId(acmeId);
+
+		request.Content = JsonContent.Create(new {
+			firstName = new string('a', 129),
+		});
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("FirstName");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
+		var (token, _, acmeId, _) =
+			await PrepareAcmeAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl()
+		)
+			.WithSessionToken(token)
+			.WithTenantId(acmeId);
+
+		request.Content = JsonContent.Create(new {
+			avatarUrl = $"https://example.com/{new string('a', 1025)}",
+		});
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("AvatarUrl");
+	}
+
 	// Same unreachable-through-HTTP reasoning as
 	// GetAccountProfileForTenantSpec.ItShouldReturnNullWhenTheTenantAccountIsMissing:
 	// the TenantAuthFilter answers 403 first, so the handler's NotFound branch

@@ -200,6 +200,81 @@ public sealed class UpdateTenantUserIdentityForStaffSpec
 
 	[Fact]
 	public async Task
+	ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+		var userId = await GetUserIdByEmailAsync(
+			_http,
+			staffToken,
+			tenantId,
+			TestConstants.AcmeUserEmail
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(userId)
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(
+			new { firstName = new string('a', 129) }
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("FirstName");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				_http,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+		var userId = await GetUserIdByEmailAsync(
+			_http,
+			staffToken,
+			tenantId,
+			TestConstants.AcmeUserEmail
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl(userId)
+		).WithSessionToken(staffToken);
+		request.Content = JsonContent.Create(
+			new {
+				avatarUrl =
+					$"https://example.com/{new string('a', 1025)}"
+			}
+		);
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("AvatarUrl");
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnBadRequestWhenUserIdIsMalformed() {
 		var staffToken =
 			await _authClient.LoginAsStaffAdminAsync();

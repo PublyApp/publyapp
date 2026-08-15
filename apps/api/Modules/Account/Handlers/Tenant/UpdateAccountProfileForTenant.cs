@@ -12,6 +12,7 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Account.Services;
 using PublyApp.Api.Modules.Account.Validation;
+using PublyApp.Api.Modules.Users.Validation;
 
 namespace PublyApp.Api.Modules.Account.Handlers.Tenant;
 
@@ -91,13 +92,26 @@ public class UpdateAccountProfileBodyValidator
 	: AbstractValidator<UpdateAccountProfileBody> {
 	public UpdateAccountProfileBodyValidator() {
 		RuleFor(x => x.FirstName)
-			.MustBePatchFieldString("FirstName");
+			.MustBePatchFieldClearableStringWithLength(
+				"FirstName",
+				1,
+				UserValidationRules.FirstNameMaxLength,
+				trim: true
+			);
 
 		RuleFor(x => x.LastName)
-			.MustBePatchFieldString("LastName");
+			.MustBePatchFieldClearableStringWithLength(
+				"LastName",
+				1,
+				UserValidationRules.LastNameMaxLength,
+				trim: true
+			);
 
 		RuleFor(x => x.AvatarUrl)
-			.MustBePatchFieldAvatarUrl("AvatarUrl");
+			.MustBePatchFieldAvatarUrl(
+				"AvatarUrl",
+				UserValidationRules.AvatarUrlMaxLength
+			);
 	}
 }
 
