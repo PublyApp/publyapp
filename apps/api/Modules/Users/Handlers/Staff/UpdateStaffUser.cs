@@ -95,17 +95,15 @@ public class UpdateStaffUserBodyValidator
 	: AbstractValidator<UpdateStaffUserBody> {
 	public UpdateStaffUserBodyValidator() {
 		RuleFor(x => x.LastName)
-			.MustBePatchFieldStringWithMaxLength(
+			.MustBePatchFieldString(
 				"LastName",
-				UserValidationRules.LastNameMaxLength,
-				trim: false
+				UserValidationRules.LastNameMaxLength
 			);
 
 		RuleFor(x => x.FirstName)
-			.MustBePatchFieldStringWithMaxLength(
+			.MustBePatchFieldString(
 				"FirstName",
-				UserValidationRules.FirstNameMaxLength,
-				trim: false
+				UserValidationRules.FirstNameMaxLength
 			);
 
 		RuleFor(x => x.AvatarUrl)

@@ -404,11 +404,14 @@ public static class JsonElementRules {
 	/// <summary>
 	/// Validates a non-nullable JsonElement string field for PatchField pattern:
 	/// Undefined OK (omit), null OK (clear), otherwise must be a non-empty string.
+	/// When <paramref name="maxLength"/> is set, the raw (untrimmed) length must
+	/// not exceed it.
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement>
 		MustBePatchFieldString<T>(
 			this IRuleBuilder<T, JsonElement> ruleBuilder,
-			string fieldName
+			string fieldName,
+			int? maxLength = null
 	) {
 		return ruleBuilder
 			.Must(e => {
@@ -427,6 +430,15 @@ public static class JsonElementRules {
 			})
 			.WithMessage(
 				$"{fieldName} must be a non-empty string, null, or omitted"
+			)
+			.Must(e => {
+				if (e.ValueKind is not JsonValueKind.String || maxLength is null) {
+					return true;
+				}
+				return (e.GetString()?.Length ?? 0) <= maxLength.Value;
+			})
+			.WithMessage(
+				$"{fieldName} must be at most {maxLength} characters long"
 			);
 	}
 
