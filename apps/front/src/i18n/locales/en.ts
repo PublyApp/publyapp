@@ -4,6 +4,8 @@ import account from './en/account.json';
 import auth from './en/auth.json';
 import common from './en/common.json';
 import landing from './en/landing.json';
+import organizations from './en/organizations.json';
+import posts from './en/posts.json';
 import settings from './en/settings.json';
 import staffAuditLogs from './en/staff-audit-logs.json';
 import staffInvitations from './en/staff-invitations.json';
@@ -17,6 +19,8 @@ const resourceEN = {
 	auth,
 	account,
 	settings,
+	organizations,
+	posts,
 	'staff-tenant-profiles': staffTenantProfiles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,

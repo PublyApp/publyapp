@@ -1,0 +1,9 @@
+{
+	"organizations-list": "Organizations in this workspace",
+	"organizations-coming-later-title": "The organization list is coming later",
+	"organizations-coming-later-description": "Switching between the organizations you belong to will be possible here once the organizations API ships.",
+	"members-coming-later-title": "Members are coming later",
+	"members-coming-later-description": "The people in this organization and their roles will appear here once the organizations API ships.",
+	"failed-to-load-organization": "Failed to load organization",
+	"failed-to-load-organization-description": "Your organization details could not be loaded. Try again."
+}

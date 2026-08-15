@@ -9,6 +9,8 @@ export const FEATURE_I18N_NAMESPACES = [
 	'auth',
 	'account',
 	'settings',
+	'organizations',
+	'posts',
 	'staff-tenant-profiles',
 	'staff-users',
 	'staff-invitations',

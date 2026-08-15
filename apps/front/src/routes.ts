@@ -117,7 +117,12 @@ export const routes = rootRoute('__root.tsx', [
 				index('authed/tenant/settings/general.tsx'),
 				route('/security', 'authed/tenant/settings/security.tsx'),
 			]),
-			route('/posts', 'authed/tenant/posts.tsx'),
+			route('/posts', 'authed/tenant/posts.tsx', [
+				index('authed/tenant/posts/calendar.tsx'),
+				route('/drafts', 'authed/tenant/posts/drafts.tsx'),
+				route('/history', 'authed/tenant/posts/history.tsx'),
+				route('/queue', 'authed/tenant/posts/queue.tsx'),
+			]),
 			route('/organizations', 'authed/tenant/organizations.tsx'),
 		]),
 	]),

@@ -2,17 +2,38 @@
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+	pathname: '/tenant/posts',
+}));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
+	Link: ({
+		to,
+		children,
+		...props
+	}: {
+		to: string;
+		children: ReactNode;
+		[key: string]: unknown;
+	}) => (
+		<a href={to} {...props}>
+			{children}
+		</a>
+	),
+	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
+	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
+		select?.({ location: { pathname: mocks.pathname } }),
 }));
 
 const EN_LABELS: Record<string, string> = {
-	posts: 'Posts',
-	'stub-posts-description':
-		'The posts workspace — calendar, queue, drafts, and history — is coming soon.',
+	calendar: 'Calendar',
+	drafts: 'Drafts',
+	history: 'History',
+	queue: 'Queue',
 };
 
 vi.mock('react-i18next', () => ({
@@ -25,19 +46,44 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './posts';
 
-const TenantPostsStubPage = (Route as unknown as { component: ComponentType })
+const TenantPostsLayout = (Route as unknown as { component: ComponentType })
 	.component;
+
+const TAB_DESTINATIONS = [
+	['/tenant/posts', 'Calendar'],
+	['/tenant/posts/drafts', 'Drafts'],
+	['/tenant/posts/history', 'History'],
+	['/tenant/posts/queue', 'Queue'],
+] as const;
 
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	mocks.pathname = '/tenant/posts';
 });
 
-describe('TenantPostsStubPage', () => {
-	test('renders the honest stub state', () => {
-		render(<TenantPostsStubPage />);
+describe('TenantPostsLayout', () => {
+	test('renders a tab for every posts section with the right destination', () => {
+		render(<TenantPostsLayout />);
 
-		expect(screen.getByRole('heading', { name: 'Posts' })).toBeTruthy();
-		expect(screen.getByTestId('tenant-posts-stub')).toBeTruthy();
+		for (const [to, label] of TAB_DESTINATIONS) {
+			const tab = screen.getByRole('tab', { name: label });
+			expect(tab.getAttribute('href')).toBe(to);
+		}
+	});
+
+	test('renders the child route through the outlet', () => {
+		render(<TenantPostsLayout />);
+		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
+	});
+
+	test('derives the active tab from the current pathname', () => {
+		mocks.pathname = '/tenant/posts/queue';
+		render(<TenantPostsLayout />);
+
+		const activeTab = screen
+			.getAllByRole('tab')
+			.find((tab) => tab.getAttribute('aria-selected') === 'true');
+		expect(activeTab?.textContent).toBe('Queue');
 	});
 });
