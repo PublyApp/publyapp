@@ -2160,6 +2160,15 @@ export function createTenantReactivatedResultFromDiscriminatorValue(parseNode: P
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantSettingsGeneralResult}
+ */
+// @ts-ignore
+export function createTenantSettingsGeneralResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantSettingsGeneralResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {TenantSuspendedResult}
  */
 // @ts-ignore
@@ -2426,6 +2435,15 @@ export function createUpdateTenantAsStaffBodyFromDiscriminatorValue(parseNode: P
 // @ts-ignore
 export function createUpdateTenantProfileAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoUpdateTenantProfileAsStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {UpdateTenantSettingsGeneralBody}
+ */
+// @ts-ignore
+export function createUpdateTenantSettingsGeneralBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoUpdateTenantSettingsGeneralBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -4562,6 +4580,27 @@ export function deserializeIntoTenantReactivatedResult(tenantReactivatedResult: 
 }
 /**
  * The deserialization information for the current model
+ * @param TenantSettingsGeneralResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantSettingsGeneralResult(tenantSettingsGeneralResult: Partial<TenantSettingsGeneralResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "billingEmail": n => { tenantSettingsGeneralResult.billingEmail = n.getStringValue(); },
+        "code": n => { tenantSettingsGeneralResult.code = n.getStringValue(); },
+        "defaultLocale": n => { tenantSettingsGeneralResult.defaultLocale = n.getStringValue(); },
+        "description": n => { tenantSettingsGeneralResult.description = n.getStringValue(); },
+        "id": n => { tenantSettingsGeneralResult.id = n.getGuidValue(); },
+        "legalName": n => { tenantSettingsGeneralResult.legalName = n.getStringValue(); },
+        "logoUrl": n => { tenantSettingsGeneralResult.logoUrl = n.getStringValue(); },
+        "name": n => { tenantSettingsGeneralResult.name = n.getStringValue(); },
+        "supportEmail": n => { tenantSettingsGeneralResult.supportEmail = n.getStringValue(); },
+        "timezone": n => { tenantSettingsGeneralResult.timezone = n.getStringValue(); },
+        "websiteUrl": n => { tenantSettingsGeneralResult.websiteUrl = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param TenantSuspendedResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4948,6 +4987,25 @@ export function deserializeIntoUpdateTenantProfileAsStaffBody(updateTenantProfil
         "icon": n => { updateTenantProfileAsStaffBody.icon = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "name": n => { updateTenantProfileAsStaffBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "tone": n => { updateTenantProfileAsStaffBody.tone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param UpdateTenantSettingsGeneralBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoUpdateTenantSettingsGeneralBody(updateTenantSettingsGeneralBody: Partial<UpdateTenantSettingsGeneralBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "billingEmail": n => { updateTenantSettingsGeneralBody.billingEmail = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "defaultLocale": n => { updateTenantSettingsGeneralBody.defaultLocale = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "description": n => { updateTenantSettingsGeneralBody.description = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "legalName": n => { updateTenantSettingsGeneralBody.legalName = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "logoUrl": n => { updateTenantSettingsGeneralBody.logoUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "name": n => { updateTenantSettingsGeneralBody.name = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "supportEmail": n => { updateTenantSettingsGeneralBody.supportEmail = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "timezone": n => { updateTenantSettingsGeneralBody.timezone = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "websiteUrl": n => { updateTenantSettingsGeneralBody.websiteUrl = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -7920,6 +7978,28 @@ export function serializeTenantReactivatedResult(writer: SerializationWriter, te
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantSettingsGeneralResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantSettingsGeneralResult(writer: SerializationWriter, tenantSettingsGeneralResult: Partial<TenantSettingsGeneralResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantSettingsGeneralResult || isSerializingDerivedType) { return; }
+    writer.writeStringValue("billingEmail", tenantSettingsGeneralResult.billingEmail);
+    writer.writeStringValue("code", tenantSettingsGeneralResult.code);
+    writer.writeStringValue("defaultLocale", tenantSettingsGeneralResult.defaultLocale);
+    writer.writeStringValue("description", tenantSettingsGeneralResult.description);
+    writer.writeGuidValue("id", tenantSettingsGeneralResult.id);
+    writer.writeStringValue("legalName", tenantSettingsGeneralResult.legalName);
+    writer.writeStringValue("logoUrl", tenantSettingsGeneralResult.logoUrl);
+    writer.writeStringValue("name", tenantSettingsGeneralResult.name);
+    writer.writeStringValue("supportEmail", tenantSettingsGeneralResult.supportEmail);
+    writer.writeStringValue("timezone", tenantSettingsGeneralResult.timezone);
+    writer.writeStringValue("websiteUrl", tenantSettingsGeneralResult.websiteUrl);
+    writer.writeAdditionalData(tenantSettingsGeneralResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param TenantSuspendedResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -8324,6 +8404,26 @@ export function serializeUpdateTenantProfileAsStaffBody(writer: SerializationWri
     writer.writeObjectValue("name", updateTenantProfileAsStaffBody.name);
     writer.writeObjectValue("tone", updateTenantProfileAsStaffBody.tone);
     writer.writeAdditionalData(updateTenantProfileAsStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param UpdateTenantSettingsGeneralBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeUpdateTenantSettingsGeneralBody(writer: SerializationWriter, updateTenantSettingsGeneralBody: Partial<UpdateTenantSettingsGeneralBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!updateTenantSettingsGeneralBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("billingEmail", updateTenantSettingsGeneralBody.billingEmail);
+    writer.writeObjectValue("defaultLocale", updateTenantSettingsGeneralBody.defaultLocale);
+    writer.writeObjectValue("description", updateTenantSettingsGeneralBody.description);
+    writer.writeObjectValue("legalName", updateTenantSettingsGeneralBody.legalName);
+    writer.writeObjectValue("logoUrl", updateTenantSettingsGeneralBody.logoUrl);
+    writer.writeObjectValue("name", updateTenantSettingsGeneralBody.name);
+    writer.writeObjectValue("supportEmail", updateTenantSettingsGeneralBody.supportEmail);
+    writer.writeObjectValue("timezone", updateTenantSettingsGeneralBody.timezone);
+    writer.writeObjectValue("websiteUrl", updateTenantSettingsGeneralBody.websiteUrl);
+    writer.writeAdditionalData(updateTenantSettingsGeneralBody.additionalData);
 }
 /**
  * Serializes information the current object
@@ -9041,6 +9141,52 @@ export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable 
      */
     tenantId?: Guid | null;
 }
+export interface TenantSettingsGeneralResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The billingEmail property
+     */
+    billingEmail?: string | null;
+    /**
+     * The code property
+     */
+    code?: string | null;
+    /**
+     * The defaultLocale property
+     */
+    defaultLocale?: string | null;
+    /**
+     * The description property
+     */
+    description?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The legalName property
+     */
+    legalName?: string | null;
+    /**
+     * The logoUrl property
+     */
+    logoUrl?: string | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The supportEmail property
+     */
+    supportEmail?: string | null;
+    /**
+     * The timezone property
+     */
+    timezone?: string | null;
+    /**
+     * The websiteUrl property
+     */
+    websiteUrl?: string | null;
+}
 export interface TenantSuspendedResult extends AdditionalDataHolder, Parsable {
     /**
      * The name property
@@ -9409,6 +9555,44 @@ export interface UpdateTenantProfileAsStaffBody extends AdditionalDataHolder, Pa
      * The tone property
      */
     tone?: UntypedNode | null;
+}
+export interface UpdateTenantSettingsGeneralBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The billingEmail property
+     */
+    billingEmail?: UntypedNode | null;
+    /**
+     * The defaultLocale property
+     */
+    defaultLocale?: UntypedNode | null;
+    /**
+     * The description property
+     */
+    description?: UntypedNode | null;
+    /**
+     * The legalName property
+     */
+    legalName?: UntypedNode | null;
+    /**
+     * The logoUrl property
+     */
+    logoUrl?: UntypedNode | null;
+    /**
+     * The name property
+     */
+    name?: UntypedNode | null;
+    /**
+     * The supportEmail property
+     */
+    supportEmail?: UntypedNode | null;
+    /**
+     * The timezone property
+     */
+    timezone?: UntypedNode | null;
+    /**
+     * The websiteUrl property
+     */
+    websiteUrl?: UntypedNode | null;
 }
 /**
  * Updates a tenant user's profile and/or account level.

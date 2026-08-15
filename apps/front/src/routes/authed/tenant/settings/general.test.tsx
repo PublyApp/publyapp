@@ -1,85 +1,113 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
 
-const mocks = vi.hoisted(() => {
-	const pickerData: TenantsForPickerData = {
-		tenants: [
-			{ id: 'tenant-1', name: 'Acme Inc.', code: 'acme', status: 'Active' },
-		],
-		activeCount: 1,
-		totalCount: 1,
-		hasSuspendedTenants: false,
-	};
-
-	return {
-		query: {
-			isPending: false,
-			isLoading: false,
-			isError: false,
-			isSuccess: true,
-			error: undefined as unknown,
-			data: pickerData,
-			refetch: vi.fn(),
-		},
-	};
-});
+const mocks = vi.hoisted(() => ({
+	settingsQuery: {
+		data: undefined as unknown,
+		isPending: false,
+		isError: false,
+		isSuccess: false,
+		refetch: vi.fn(),
+	},
+	workspaceTenantId: 'tenant-1',
+	mutation: {
+		mutateAsync: vi.fn(),
+		isPending: false,
+	},
+	invalidateTenantSettingsGeneralQuery: vi.fn(),
+	displayLocalMutationFailure: vi.fn(),
+	toastLocalMutationResult: {
+		success: vi.fn(),
+		error: vi.fn(),
+	},
+}));
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => options,
 }));
 
-vi.mock('@tanstack/react-query', () => ({
-	useQuery: () => mocks.query,
-}));
+vi.mock('~/lib/query/tenants-for-picker', async () => {
+	const actual = await vi.importActual<
+		typeof import('~/lib/query/tenants-for-picker')
+	>('~/lib/query/tenants-for-picker');
 
-vi.mock('~/lib/selected-tenant-storage', () => ({
-	readSelectedTenantId: () => 'tenant-1',
-}));
+	return {
+		...actual,
+		useResolvedWorkspaceTenantId: () => mocks.workspaceTenantId,
+	};
+});
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
-	shouldLogoutForFailure: () => false,
-}));
+vi.mock('~/lib/query/tenant-settings-general', async () => {
+	const actual = await vi.importActual<
+		typeof import('~/lib/query/tenant-settings-general')
+	>('~/lib/query/tenant-settings-general');
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
+	return {
+		...actual,
+		useTenantSettingsGeneralQuery: () => mocks.settingsQuery,
+		useUpdateTenantSettingsGeneralMutation: () => mocks.mutation,
+		invalidateTenantSettingsGeneralQuery:
+			mocks.invalidateTenantSettingsGeneralQuery,
+	};
+});
+
+vi.mock('~/lib/mutation-toast', () => ({
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
+	toastLocalMutationResult: mocks.toastLocalMutationResult,
 }));
 
 const EN_LABELS: Record<string, string> = {
 	general: 'General',
-	'common:organization-details': 'Organization details',
-	'common:logo': 'Logo',
-	'common:logo-description': '150x150px JPEG, PNG image',
-	'common:name': 'Name',
-	'common:workspace-slug': 'Workspace slug',
-	'common:description': 'Description',
-	'common:industry': 'Industry',
-	'common:website': 'Website',
-	'common:danger-zone': 'Danger zone',
-	'common:unnamed-tenant': 'Unnamed tenant',
-	'common:retry': 'Retry',
-	'read-only': 'Read only',
-	'not-available-yet': 'Not available yet',
-	'regional-and-contact-settings': 'Regional & contact',
-	'regional-and-contact-coming-later-title':
-		'Regional and contact settings are coming later',
-	'regional-and-contact-coming-later-description':
-		'Timezone, date format, language, and contact email will appear here once the settings API ships.',
+	'organization-details': 'Organization details',
+	logo: 'Logo',
+	'logo-description': '150x150px JPEG, PNG image',
+	name: 'Name',
+	'legal-name': 'Legal name',
+	website: 'Website',
+	description: 'Description',
+	'save-changes': 'Save changes',
+	'not-set': 'Not set',
+	'default-locale': 'Default locale',
+	timezone: 'Timezone',
+	'billing-email': 'Billing email',
+	'support-email': 'Support email',
+	'danger-zone': 'Danger zone',
+	retry: 'Retry',
 	'danger-zone-coming-later-title': 'Organization deletion is coming later',
 	'danger-zone-coming-later-description':
 		'Deleting this organization will be possible here once the settings API ships.',
-	'failed-to-load-organization': 'Failed to load organization',
-	'failed-to-load-organization-description':
-		'Your organization details could not be loaded. Try again.',
+	'regional-and-contact-settings': 'Regional & contact',
+	'failed-to-load-settings': 'Failed to load settings',
+	'failed-to-load-settings-description':
+		'Your workspace settings could not be loaded. Try again.',
+	'settings-updated-success': 'General settings updated successfully',
+	'unknown-error': 'Unknown error',
+	'name-min-length': 'Name must be at least 5 characters',
+	'name-max-length': 'Name must be 256 characters or less',
+	'logo-url-max-length': 'Logo URL must be 2048 characters or less',
+	'legal-name-max-length': 'Legal name must be 256 characters or less',
+	'description-max-length': 'Description must be 1024 characters or less',
+	'website-max-length': 'Website must be 2048 characters or less',
+	'email-max-length': 'Email must be 320 characters or less',
+	'invalid-logo-url': 'Enter a valid http(s) URL or /files/ upload path',
+	'invalid-website-url': 'Enter a valid http(s) URL',
+	'invalid-email': 'Enter a valid email address',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => EN_LABELS[key] ?? key,
+		t: (key: string) => EN_LABELS[key.replace(/^common:/, '')] ?? key,
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -91,85 +119,235 @@ const TenantSettingsGeneralPage = (
 	Route as unknown as { component: ComponentType }
 ).component;
 
+const settingsData = {
+	id: 'tenant-1',
+	code: 'acme-corp',
+	name: 'Acme Corporation',
+	logoUrl: 'https://cdn.example.test/logo.png',
+	legalName: 'Acme Corporation SA',
+	description: 'The Acme description',
+	websiteUrl: 'https://acme.example.com',
+	billingEmail: 'billing@acme.example.com',
+	supportEmail: 'support@acme.example.com',
+	defaultLocale: 'en',
+	timezone: 'Europe/Paris',
+};
+
+const renderPage = () => {
+	const queryClient = new QueryClient();
+	const view = render(
+		<QueryClientProvider client={queryClient}>
+			<TenantSettingsGeneralPage />
+		</QueryClientProvider>,
+	);
+	return { queryClient, view };
+};
+
+const markQueryLoaded = () => {
+	mocks.settingsQuery = {
+		data: settingsData,
+		isPending: false,
+		isError: false,
+		isSuccess: true,
+		refetch: mocks.settingsQuery.refetch,
+	};
+};
+
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
-	mocks.query.isPending = false;
-	mocks.query.isError = false;
-	mocks.query.isSuccess = true;
 });
 
 describe('TenantSettingsGeneralPage', () => {
-	test('shows the tenant identity from the picker query as real values', () => {
-		render(<TenantSettingsGeneralPage />);
+	test('renders an editable form pre-filled from the tenant-scoped settings', () => {
+		markQueryLoaded();
+		renderPage();
 
-		expect(screen.getByText('Acme Inc.')).toBeTruthy();
-		expect(screen.getByText('acme')).toBeTruthy();
-		expect(screen.getByText('Name')).toBeTruthy();
-		expect(screen.getByText('Workspace slug')).toBeTruthy();
+		expect(screen.getByRole('heading', { name: 'General' })).toBeTruthy();
+		expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+			'Acme Corporation',
+		);
+		expect(
+			(screen.getByLabelText('Legal name') as HTMLInputElement).value,
+		).toBe('Acme Corporation SA');
+		expect((screen.getByLabelText('Website') as HTMLInputElement).value).toBe(
+			'https://acme.example.com',
+		);
+		expect((screen.getByLabelText('Logo') as HTMLInputElement).value).toBe(
+			'https://cdn.example.test/logo.png',
+		);
+		expect(
+			(screen.getByLabelText('Billing email') as HTMLInputElement).value,
+		).toBe('billing@acme.example.com');
+		expect(
+			(screen.getByLabelText('Support email') as HTMLInputElement).value,
+		).toBe('support@acme.example.com');
+		expect(screen.getAllByRole('button', { name: 'Save changes' }).length).toBe(
+			2,
+		);
+		// The danger zone card still has no backend and keeps the read-only
+		// badge; the two editable cards no longer carry it.
+		expect(screen.getAllByTestId('account-read-only-badge')).toHaveLength(1);
 	});
 
-	test('never invents values for fields without an API', () => {
-		render(<TenantSettingsGeneralPage />);
+	test('submits only the dirty fields through the tenant-scoped PATCH', async () => {
+		markQueryLoaded();
+		mocks.mutation.mutateAsync.mockResolvedValue({
+			...settingsData,
+			name: 'Acme Corporation Updated',
+		});
+		renderPage();
 
-		// Logo, description, industry and website have no backend — they must
-		// all render the explicit "not available yet" placeholder, not fake
-		// values.
-		expect(screen.getAllByText('Not available yet').length).toBe(4);
+		fireEvent.change(screen.getByLabelText('Name'), {
+			target: { value: 'Acme Corporation Updated' },
+		});
+		fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0]);
+
+		await waitFor(() => {
+			expect(mocks.mutation.mutateAsync).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.mutation.mutateAsync).toHaveBeenCalledWith({
+			tenantId: 'tenant-1',
+			name: 'Acme Corporation Updated',
+		});
+		expect(mocks.invalidateTenantSettingsGeneralQuery).toHaveBeenCalledWith(
+			expect.anything(),
+			'tenant-1',
+		);
+		expect(mocks.toastLocalMutationResult.success).toHaveBeenCalledWith(
+			'General settings updated successfully',
+		);
 	});
 
-	test('shows the coming-later empty states and the read-only badge', () => {
-		render(<TenantSettingsGeneralPage />);
+	test('clears a field by submitting null when the input is emptied', async () => {
+		markQueryLoaded();
+		mocks.mutation.mutateAsync.mockResolvedValue({
+			...settingsData,
+			websiteUrl: null,
+		});
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Website'), {
+			target: { value: '' },
+		});
+		fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0]);
+
+		await waitFor(() => {
+			expect(mocks.mutation.mutateAsync).toHaveBeenCalledWith({
+				tenantId: 'tenant-1',
+				websiteUrl: null,
+			});
+		});
+	});
+
+	test('does not submit when nothing changed', async () => {
+		markQueryLoaded();
+		renderPage();
+
+		fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0]);
+
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(mocks.mutation.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('shows a local failure message when the PATCH fails', async () => {
+		markQueryLoaded();
+		const failure = new Error('network down');
+		mocks.mutation.mutateAsync.mockRejectedValue(failure);
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Name'), {
+			target: { value: 'Acme Corporation Updated' },
+		});
+		fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0]);
+
+		await waitFor(() => {
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+				failure,
+				'Unknown error',
+			);
+		});
+		expect(screen.getByRole('alert')).toBeTruthy();
+		expect(mocks.invalidateTenantSettingsGeneralQuery).not.toHaveBeenCalled();
+	});
+
+	test('blocks an invalid website URL client-side without calling the PATCH', async () => {
+		markQueryLoaded();
+		renderPage();
+
+		fireEvent.change(screen.getByLabelText('Website'), {
+			target: { value: 'not-a-url' },
+		});
+		fireEvent.click(screen.getAllByRole('button', { name: 'Save changes' })[0]);
+
+		await screen.findByText('Enter a valid http(s) URL');
+		expect(mocks.mutation.mutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('falls back to skeletons while the settings query is pending', () => {
+		mocks.settingsQuery = {
+			data: undefined,
+			isPending: true,
+			isError: false,
+			isSuccess: false,
+			refetch: mocks.settingsQuery.refetch,
+		};
+		const { view } = renderPage();
 
 		expect(
-			screen.getByTestId('tenant-settings-general-regional-empty'),
-		).toBeTruthy();
-		expect(
-			screen.getByTestId('tenant-settings-general-danger-empty'),
-		).toBeTruthy();
-		expect(
-			screen.getAllByTestId('account-read-only-badge').length,
+			view.container.querySelectorAll('[data-slot="skeleton"]').length,
 		).toBeGreaterThan(0);
 	});
 
-	test('renders no interactive controls on the read-only surface', () => {
-		render(<TenantSettingsGeneralPage />);
-
-		expect(screen.queryAllByRole('button').length).toBe(0);
-	});
-
-	test('falls back to the unnamed placeholder when the tenant has no code', () => {
-		mocks.query.data = {
-			tenants: [
-				{ id: 'tenant-1', name: 'Acme Inc.', code: null, status: 'Active' },
-			],
-			activeCount: 1,
-			totalCount: 1,
-			hasSuspendedTenants: false,
+	test('hydrates the form when the query resolves after mount', async () => {
+		// Render while the query is still unresolved (disabled tenant / first
+		// fetch): the page must not paint an empty "loaded" form yet.
+		mocks.settingsQuery = {
+			data: undefined,
+			isPending: true,
+			isError: false,
+			isSuccess: false,
+			refetch: mocks.settingsQuery.refetch,
 		};
+		const { queryClient, view } = renderPage();
+		expect(screen.queryByLabelText('Name')).toBeNull();
 
-		render(<TenantSettingsGeneralPage />);
+		// The query resolves; the form must now hydrate from the loaded data
+		// even though useForm captured its defaultValues at mount time.
+		markQueryLoaded();
+		view.rerender(
+			<QueryClientProvider client={queryClient}>
+				<TenantSettingsGeneralPage />
+			</QueryClientProvider>,
+		);
 
-		expect(screen.getByText('Acme Inc.')).toBeTruthy();
-		expect(screen.getAllByText('Not available yet').length).toBe(5);
+		await waitFor(() => {
+			expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+				'Acme Corporation',
+			);
+		});
+		expect(
+			(screen.getByLabelText('Description') as HTMLInputElement).value,
+		).toBe('The Acme description');
+		expect(
+			(screen.getByLabelText('Billing email') as HTMLInputElement).value,
+		).toBe('billing@acme.example.com');
 	});
 
-	test('shows a skeleton while the picker query is pending', () => {
-		mocks.query.isPending = true;
-		mocks.query.isSuccess = false;
-
-		render(<TenantSettingsGeneralPage />);
-
-		expect(screen.getByTestId('tenant-settings-general-skeleton')).toBeTruthy();
-	});
-
-	test('shows an error state with retry when the picker query fails', () => {
-		mocks.query.isError = true;
-		mocks.query.isSuccess = false;
-
-		render(<TenantSettingsGeneralPage />);
+	test('shows an error state with a retry action when the settings query fails', () => {
+		mocks.settingsQuery = {
+			data: undefined,
+			isPending: false,
+			isError: true,
+			isSuccess: false,
+			refetch: mocks.settingsQuery.refetch,
+		};
+		renderPage();
 
 		expect(screen.getByTestId('tenant-settings-general-error')).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+		expect(screen.getByText('Failed to load settings')).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+		expect(mocks.settingsQuery.refetch).toHaveBeenCalledTimes(1);
 	});
 });

@@ -16,6 +16,7 @@ using PublyApp.Api.Modules.Auth.Endpoints;
 using PublyApp.Api.Modules.Invitations.Endpoints;
 using PublyApp.Api.Modules.Permissions.Endpoints;
 using PublyApp.Api.Modules.Profiles.Endpoints;
+using PublyApp.Api.Modules.Settings.Endpoints;
 using PublyApp.Api.Modules.SystemNotices.Endpoints;
 using PublyApp.Api.Modules.Tenants.Endpoints;
 using PublyApp.Api.Modules.Uploads.Endpoints;
@@ -235,6 +236,7 @@ public class Program {
 		// own account profile. The /test stub below it was removed when this
 		// shipped (TenantAuthFilter.Spec.cs now probes the real endpoint).
 		tenantGroup.MapAccountEndpointsForTenant();
+		tenantGroup.MapSettingsEndpointsForTenant();
 
 		// Testing-only scaffold: never registered outside the Testing environment,
 		// so it never reaches openapi.json / the production Kiota client. Use host
