@@ -4,6 +4,7 @@ import account from './en/account.json';
 import auth from './en/auth.json';
 import common from './en/common.json';
 import landing from './en/landing.json';
+import settings from './en/settings.json';
 import staffAuditLogs from './en/staff-audit-logs.json';
 import staffInvitations from './en/staff-invitations.json';
 import staffTenantProfiles from './en/staff-tenant-profiles.json';
@@ -15,6 +16,7 @@ const resourceEN = {
 	'response-message': sharedEn['response-message'],
 	auth,
 	account,
+	settings,
 	'staff-tenant-profiles': staffTenantProfiles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,

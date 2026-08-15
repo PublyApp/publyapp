@@ -1,0 +1,18 @@
+{
+	"password-policy": "Password policy",
+	"regional-and-contact-settings": "Regional & contact",
+	"date-format": "Date format",
+	"contact-email": "Contact email",
+	"regional-and-contact-coming-later-title": "Regional and contact settings are coming later",
+	"regional-and-contact-coming-later-description": "Timezone, date format, language, and contact email will appear here once the settings API ships.",
+	"danger-zone-coming-later-title": "Organization deletion is coming later",
+	"danger-zone-coming-later-description": "Deleting this organization will be possible here once the settings API ships.",
+	"password-policy-coming-later-title": "Password policy is coming later",
+	"password-policy-coming-later-description": "Minimum password strength for members will be configurable here once the settings API ships.",
+	"two-factor-coming-later-title": "Two-factor authentication is coming later",
+	"two-factor-coming-later-description": "Requiring two-factor authentication for all members will be configurable here once the settings API ships.",
+	"active-sessions-coming-later-title": "Active sessions are coming later",
+	"active-sessions-coming-later-description": "Devices and sign-in activity across your organization will appear here once the session API ships.",
+	"failed-to-load-organization": "Failed to load organization",
+	"failed-to-load-organization-description": "Your organization details could not be loaded. Try again."
+}

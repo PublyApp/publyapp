@@ -113,7 +113,10 @@ export const routes = rootRoute('__root.tsx', [
 				route('/security', 'authed/tenant/account/security.tsx'),
 				route('/notifications', 'authed/tenant/account/notifications.tsx'),
 			]),
-			route('/settings', 'authed/tenant/settings.tsx'),
+			route('/settings', 'authed/tenant/settings.tsx', [
+				index('authed/tenant/settings/general.tsx'),
+				route('/security', 'authed/tenant/settings/security.tsx'),
+			]),
 			route('/posts', 'authed/tenant/posts.tsx'),
 			route('/organizations', 'authed/tenant/organizations.tsx'),
 		]),
