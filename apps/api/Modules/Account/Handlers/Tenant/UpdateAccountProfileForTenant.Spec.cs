@@ -221,6 +221,120 @@ public sealed class UpdateAccountProfileForTenantSpec
 		problem.Errors.Should().ContainKey("AvatarUrl");
 	}
 
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
+		var (token, _, acmeId, _) =
+			await PrepareAcmeAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl()
+		)
+			.WithSessionToken(token)
+			.WithTenantId(acmeId);
+
+		request.Content = JsonContent.Create(new {
+			firstName = new string('a', 129),
+		});
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("FirstName");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenFirstNameIsWhitespaceOnly() {
+		// MustBePatchFieldString keeps the non-empty (IsNullOrWhiteSpace)
+		// rejection even with the max-length bound — a whitespace-only name
+		// must not persist verbatim.
+		var (token, _, acmeId, _) =
+			await PrepareAcmeAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl()
+		)
+			.WithSessionToken(token)
+			.WithTenantId(acmeId);
+
+		request.Content = JsonContent.Create(new {
+			firstName = "   ",
+		});
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("FirstName");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenSpacePaddedFirstNameExceedsMaxLength() {
+		// The bound must apply to the raw length: the getter persists the
+		// untrimmed value, so 1000 spaces + "a" (trimmed length 1) must still
+		// 422 rather than landing unbounded in the DB.
+		var (token, _, acmeId, _) =
+			await PrepareAcmeAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl()
+		)
+			.WithSessionToken(token)
+			.WithTenantId(acmeId);
+
+		request.Content = JsonContent.Create(new {
+			firstName = new string(' ', 1000) + "a",
+		});
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("FirstName");
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
+		var (token, _, acmeId, _) =
+			await PrepareAcmeAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			GetUrl()
+		)
+			.WithSessionToken(token)
+			.WithTenantId(acmeId);
+
+		request.Content = JsonContent.Create(new {
+			avatarUrl = $"https://example.com/{new string('a', 1025)}",
+		});
+
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.Errors.Should().ContainKey("AvatarUrl");
+	}
+
 	// Same unreachable-through-HTTP reasoning as
 	// GetAccountProfileForTenantSpec.ItShouldReturnNullWhenTheTenantAccountIsMissing:
 	// the TenantAuthFilter answers 403 first, so the handler's NotFound branch

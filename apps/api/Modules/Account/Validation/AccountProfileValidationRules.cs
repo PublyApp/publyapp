@@ -42,12 +42,14 @@ public static partial class AccountProfileValidationRules {
 	/// Validates a non-nullable JsonElement avatarUrl field for PatchField
 	/// pattern: Undefined OK (omit), null OK (clear), otherwise must be either
 	/// a served-upload path (what CreateStaffUpload returns) or an absolute
-	/// http(s) URL.
+	/// http(s) URL of at most <paramref name="maxLength"/> characters when a
+	/// bound is given.
 	/// </summary>
 	public static IRuleBuilderOptions<T, JsonElement>
 		MustBePatchFieldAvatarUrl<T>(
 			this IRuleBuilder<T, JsonElement> ruleBuilder,
-			string fieldName
+			string fieldName,
+			int? maxLength = null
 		) {
 		return ruleBuilder
 			.Must(e => {
@@ -67,6 +69,15 @@ public static partial class AccountProfileValidationRules {
 			.WithMessage(
 				$"{fieldName} must be a served upload path or an absolute "
 				+ "http(s) URL, null, or omitted"
+			)
+			.Must(e => {
+				if (maxLength is null || e.ValueKind != JsonValueKind.String) {
+					return true;
+				}
+				return (e.GetString()?.Length ?? 0) <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be {maxLength} characters or less"
 			);
 	}
 }

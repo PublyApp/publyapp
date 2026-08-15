@@ -138,6 +138,14 @@ public sealed class JsonElementRulesSpec {
 		}
 	}
 
+	private class PatchFieldUrlMaxLengthValidator
+		: AbstractValidator<PatchFieldUrlModel> {
+		public PatchFieldUrlMaxLengthValidator() {
+			RuleFor(x => x.PatchFieldUrl)
+				.MustBePatchFieldUrl("TestField", 1024);
+		}
+	}
+
 	private class NullableClearableUrlValidator
 		: AbstractValidator<NullableClearableUrlModel> {
 		public NullableClearableUrlValidator() {
@@ -512,6 +520,40 @@ public sealed class JsonElementRulesSpec {
 			PatchFieldUrl = JsonSerializer.SerializeToElement(""),
 		};
 		var result = new PatchFieldUrlValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldUrlExactlyAtMaxBoundary() {
+		var model = new PatchFieldUrlModel {
+			PatchFieldUrl = JsonSerializer.SerializeToElement(
+				"https://example.com/" + new string('a', 1004)
+			),
+		};
+		var result = new PatchFieldUrlMaxLengthValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldUrlWhenOneOverMaxBoundary() {
+		var model = new PatchFieldUrlModel {
+			PatchFieldUrl = JsonSerializer.SerializeToElement(
+				"https://example.com/" + new string('a', 1005)
+			),
+		};
+		var result = new PatchFieldUrlMaxLengthValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldUrlWithMaxLengthWhenWhitespaceOnly() {
+		var model = new PatchFieldUrlModel {
+			PatchFieldUrl = JsonSerializer.SerializeToElement("   "),
+		};
+		var result = new PatchFieldUrlMaxLengthValidator()
 			.Validate(model);
 		_ = result.IsValid.Should().BeFalse();
 	}
@@ -1048,6 +1090,90 @@ public sealed class JsonElementRulesSpec {
 		};
 		var result = new PatchStringMaxLengthValidator().Validate(model);
 		_ = result.IsValid.Should().BeFalse();
+	}
+
+	private class PatchStringMaxLengthNoTrimValidator
+		: AbstractValidator<PatchStringMaxLengthModel> {
+		public PatchStringMaxLengthNoTrimValidator() {
+			RuleFor(x => x.Value)
+				.MustBePatchFieldStringWithMaxLength(
+					"Value", 128, trim: false);
+		}
+	}
+
+	private class PatchStringMaxLengthTrimValidator
+		: AbstractValidator<PatchStringMaxLengthModel> {
+		public PatchStringMaxLengthTrimValidator() {
+			RuleFor(x => x.Value)
+				.MustBePatchFieldStringWithMaxLength(
+					"Value", 128, trim: true);
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldStringWithMaxLengthWhenEmptyString() {
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement(""),
+		};
+		var result = new PatchStringMaxLengthValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldStringWithMaxLengthExactlyAtBoundary() {
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement(
+				new string('a', 128)
+			),
+		};
+		var result = new PatchStringMaxLengthNoTrimValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldStringWithMaxLengthWhenOneOverBoundary() {
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement(
+				new string('a', 129)
+			),
+		};
+		var result = new PatchStringMaxLengthNoTrimValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void
+	ItShouldFailPatchFieldStringWithMaxLengthWhenRawLengthExceedsBoundAfterTrim() {
+		// The getter persists the raw (untrimmed) value, so with trim: false
+		// a space-padded value is bounded by its raw length — a 129-char
+		// "    ...a" must 422 even though its trimmed length is 1 (the
+		// bypass the #1135 trim fix closes).
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement(
+				new string(' ', 128) + "a"
+			),
+		};
+		var result = new PatchStringMaxLengthNoTrimValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void
+	ItShouldPassPatchFieldStringWithMaxLengthWhenTrimmedLengthWithinBound() {
+		// Contrast: the same space-padded value passes with trim: true — the
+		// two flags genuinely differ, and call sites wanting a raw bound must
+		// keep the default trim: false.
+		var model = new PatchStringMaxLengthModel {
+			Value = JsonSerializer.SerializeToElement(
+				new string(' ', 128) + "a"
+			),
+		};
+		var result = new PatchStringMaxLengthTrimValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
 	}
 
 	// ============= MustBeRequiredIsoDateTime =============

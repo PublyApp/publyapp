@@ -11,6 +11,12 @@ namespace PublyApp.Api.Modules.Users.Validation;
 /// These rules depend on UserAccount and User entities.
 /// </summary>
 public static class UserValidationRules {
+	// Mirrors the front profile/identity forms' client-side caps:
+	// firstName/lastName ≤ 128 (after trim), avatarUrl ≤ 1024.
+	public const int FirstNameMaxLength = 128;
+	public const int LastNameMaxLength = 128;
+	public const int AvatarUrlMaxLength = 1024;
+
 	/// <summary>
 	/// Validates a required JsonElement account level field:
 	/// must be a string and parse via UserAccount.ParseLevel().

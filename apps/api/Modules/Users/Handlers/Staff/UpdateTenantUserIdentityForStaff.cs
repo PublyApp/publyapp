@@ -13,6 +13,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Users.Services;
+using PublyApp.Api.Modules.Users.Validation;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
@@ -92,13 +93,22 @@ public class UpdateTenantUserIdentityForStaffBodyValidator
 	: AbstractValidator<UpdateTenantUserIdentityForStaffBody> {
 	public UpdateTenantUserIdentityForStaffBodyValidator() {
 		RuleFor(x => x.FirstName)
-			.MustBePatchFieldString("FirstName");
+			.MustBePatchFieldString(
+				"FirstName",
+				UserValidationRules.FirstNameMaxLength
+			);
 
 		RuleFor(x => x.LastName)
-			.MustBePatchFieldString("LastName");
+			.MustBePatchFieldString(
+				"LastName",
+				UserValidationRules.LastNameMaxLength
+			);
 
 		RuleFor(x => x.AvatarUrl)
-			.MustBePatchFieldUrl("AvatarUrl");
+			.MustBePatchFieldUrl(
+				"AvatarUrl",
+				UserValidationRules.AvatarUrlMaxLength
+			);
 	}
 }
 

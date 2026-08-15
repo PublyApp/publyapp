@@ -307,6 +307,77 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 				.Be(HttpStatusCode.UnprocessableEntity);
 		}
 
+		[Fact]
+		public async Task
+		ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
+			string token =
+				await _authClient.LoginAsStaffAdminAsync();
+
+			string userId = await GetStaffUserIdByEmailAsync(
+				_http,
+				token,
+				TestConstants.StaffUserEmail
+			);
+
+			string url = GetUrl(userId);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Patch, url
+			).WithSessionToken(token);
+
+			request.Content = JsonContent.Create(
+				new { firstName = new string('a', 129) }
+			);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.UnprocessableEntity);
+
+			ValidationProblemDetails? problem = await response.Content
+				.ReadFromJsonAsync<ValidationProblemDetails>();
+			_ = problem.Should().NotBeNull();
+			Assert.NotNull(problem);
+			_ = problem.Errors.Should().ContainKey("FirstName");
+		}
+
+		[Fact]
+		public async Task
+		ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
+			string token =
+				await _authClient.LoginAsStaffAdminAsync();
+
+			string userId = await GetStaffUserIdByEmailAsync(
+				_http,
+				token,
+				TestConstants.StaffUserEmail
+			);
+
+			string url = GetUrl(userId);
+			HttpRequestMessage request = new HttpRequestMessage(
+				HttpMethod.Patch, url
+			).WithSessionToken(token);
+
+			request.Content = JsonContent.Create(
+				new {
+					avatarUrl =
+						$"https://example.com/{new string('a', 1025)}"
+				}
+			);
+
+			using HttpResponseMessage response =
+				await _http.SendAsync(request);
+
+			_ = response.StatusCode.Should()
+				.Be(HttpStatusCode.UnprocessableEntity);
+
+			ValidationProblemDetails? problem = await response.Content
+				.ReadFromJsonAsync<ValidationProblemDetails>();
+			_ = problem.Should().NotBeNull();
+			Assert.NotNull(problem);
+			_ = problem.Errors.Should().ContainKey("AvatarUrl");
+		}
+
 		// -- Helper methods --
 
 		private static async Task<string> GetStaffUserIdByEmailAsync(
