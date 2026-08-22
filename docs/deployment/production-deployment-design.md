@@ -28,6 +28,10 @@ declare the external network's driver.
 > describe Swarm (`dokploy.yml` above `publyapp-migrate` and `WorkerMigrationStartupGate`); those
 > contradictory comments require separate code/config follow-up and are not evidence of the live
 > mode.
+>
+> **SUPERSEDED (2026-08-22, #1147):** the follow-up has landed. Both comments have been corrected:
+> `WorkerMigrationStartupGate.cs` no longer references Swarm, and `dokploy.yml` now mentions Swarm
+> only as a documented, clearly marked, not-in-use contingency for true zero-downtime cutover.
 
 > **Migration gating — ratified approach A:** the deployed configuration does not use the
 > pre-deploy hook assumed by decision 3 below. The ratified and now shipped implementation is a
