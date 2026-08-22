@@ -178,18 +178,13 @@ react-doctor base="origin/develop":
 
 # NuGet vulnerability audit (issue #1187 rung 3). Mirrors
 # .github/workflows/quality-gate.yml::quality::Scan .NET packages for known
-# vulnerabilities: `dotnet list package --vulnerable` exits 0 even when
-# vulnerable packages are present, so we fail explicitly when the tool emits
-# "has the following vulnerable packages". Transitive packages are included
-# because a vulnerable transitive is still a shipped vulnerability.
+# vulnerabilities. Uses the machine-readable `--format json` output (not the
+# text format that TreatWarningsAsErrors breaks by converting NU1903 into an
+# error before the grep pattern can match). Scans EVERY .csproj (via
+# `git ls-files`), since PublyApp.slnx omits packages/lint-cs/* but the audit
+# scope covers all five projects.
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
-  dotnet list PublyApp.slnx package --vulnerable --include-transitive > .dump/nuget-audit.txt 2>&1 || true
-  cat .dump/nuget-audit.txt
-  @if grep -q "has the following vulnerable packages" .dump/nuget-audit.txt; then \
-    echo "::error::Vulnerable NuGet packages detected (see .dump/nuget-audit.txt). Bump to a patched version in Directory.Packages.props."; \
-    exit 1; \
-  fi
-  @echo "=== nuget-audit: no vulnerable packages ==="
+  node scripts/nuget-audit.mjs
 
 # =============================================================================
 # Database
@@ -413,7 +408,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
