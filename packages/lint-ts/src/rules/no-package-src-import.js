@@ -65,29 +65,58 @@ export const noPackageSrcImport = {
 			return {};
 		}
 
+		/** Check a source string node and report if it matches a banned prefix. */
+		const checkSource = (sourceNode) => {
+			const source = sourceNode?.value;
+
+			if (typeof source !== 'string') {
+				return;
+			}
+
+			const bannedPrefix = matchBannedPrefix(source);
+
+			if (bannedPrefix === null) {
+				return;
+			}
+
+			const pkg = bannedPrefix.startsWith('@org/client-ts/')
+				? 'client-ts'
+				: 'shared-ts';
+
+			context.report({
+				node: sourceNode,
+				messageId: 'banned',
+				data: { pkg },
+			});
+		};
+
 		return {
 			ImportDeclaration(node) {
-				const source = node.source?.value;
+				checkSource(node.source);
+			},
 
-				if (typeof source !== 'string') {
+			/** Dynamic import('…') expressions. */
+			ImportExpression(node) {
+				const source = node.source;
+
+				/** Literal strings have a `.value`; template literals and variables do not. */
+				if (source.type !== 'Literal' || typeof source.value !== 'string') {
 					return;
 				}
 
-				const bannedPrefix = matchBannedPrefix(source);
+				checkSource(source);
+			},
 
-				if (bannedPrefix === null) {
-					return;
+			/** export … from '…' (named re-exports). */
+			ExportNamedDeclaration(node) {
+				if (node.source) {
+					checkSource(node.source);
 				}
+			},
 
-				const pkg = bannedPrefix.startsWith('@org/client-ts/')
-					? 'client-ts'
-					: 'shared-ts';
-
-				context.report({
-					node: node.source,
-					messageId: 'banned',
-					data: { pkg },
-				});
+			/** export * from '…' (star re-exports). */
+			ExportAllDeclaration(node) {
+				checkSource(node.source);
 			},
 		};
 	},

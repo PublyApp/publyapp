@@ -1,6 +1,6 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import {
 	normalizeNullableFileUrl,
@@ -149,11 +149,18 @@ export const useAccountProfileQuery = (tenantId: string | null) =>
 		enabled: tenantId !== null,
 	});
 
-export const useUpdateAccountProfileMutation = () =>
-	useMutation({
+export const useUpdateAccountProfileMutation = () => {
+	const queryClient = useQueryClient();
+	return useMutation({
 		mutationKey: ['tenant', ...ACCOUNT_PROFILE_QUERY_KEY, 'update'],
 		mutationFn: updateAccountProfile,
+		onSuccess: (_data, variables) => {
+			void queryClient.invalidateQueries({
+				queryKey: ['tenant', ...ACCOUNT_PROFILE_QUERY_KEY, variables.tenantId],
+			});
+		},
 	});
+};
 
 export const invalidateAccountProfileQuery = async (
 	queryClient: QueryClient,

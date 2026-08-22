@@ -57,6 +57,39 @@ describe(`publy/${RULE_NAME} (via direct import)`, () => {
 				code: "import { Z } from '@org/client-ts/src/old';",
 				filename: 'docs/guides/architecture.md',
 			},
+			// Dynamic import() with an allowed path is fine.
+			{
+				code: "const m = import('@org/client-ts/apiClient');",
+				filename: 'apps/front/src/lib/query/auth.ts',
+			},
+			{
+				code: "const m = import('@org/shared-ts/lib/utils');",
+				filename: 'apps/front/src/routes/page.tsx',
+			},
+			// Dynamic import() with a variable (non-literal) is ignored.
+			{
+				code: 'const m = import(variable);',
+				filename: 'apps/front/src/lib/query/auth.ts',
+			},
+			// Dynamic import() with a template literal is ignored.
+			{
+				code: 'const m = import(`@org/client-ts/${path}`);',
+				filename: 'apps/front/src/lib/query/auth.ts',
+			},
+			// export … from with an allowed path is fine.
+			{
+				code: "export { ApiClient } from '@org/client-ts/apiClient';",
+				filename: 'apps/front/src/routes/page.tsx',
+			},
+			{
+				code: "export * from '@org/shared-ts/lib/utils';",
+				filename: 'apps/front/src/routes/page.tsx',
+			},
+			// export * from inside own package is fine.
+			{
+				code: "export * from './other';",
+				filename: 'packages/client-ts/src/models/index.ts',
+			},
 		],
 		invalid: [
 			{
@@ -86,6 +119,39 @@ describe(`publy/${RULE_NAME} (via direct import)`, () => {
 			},
 			{
 				code: "import { baz } from '@org/shared-ts/src/something';",
+				filename: 'apps/front/src/components/widget.tsx',
+				errors: [{ messageId: 'banned' }],
+			},
+			// Dynamic import() with a banned path.
+			{
+				code: "const m = import('@org/client-ts/src/apiClient');",
+				filename: 'apps/front/src/lib/query/auth.ts',
+				errors: [{ messageId: 'banned' }],
+			},
+			{
+				code: "const m = import('@org/shared-ts/src/lib/logger');",
+				filename: 'apps/front/src/components/widget.tsx',
+				errors: [{ messageId: 'banned' }],
+			},
+			// export … from with a banned path.
+			{
+				code: "export { ApiClient } from '@org/client-ts/src/apiClient';",
+				filename: 'apps/front/src/routes/page.tsx',
+				errors: [{ messageId: 'banned' }],
+			},
+			{
+				code: "export { foo } from '@org/shared-ts/src/lib/logger';",
+				filename: 'apps/front/src/lib/helper.ts',
+				errors: [{ messageId: 'banned' }],
+			},
+			// export * from with a banned path.
+			{
+				code: "export * from '@org/client-ts/src/apiClient';",
+				filename: 'apps/front/src/routes/page.tsx',
+				errors: [{ messageId: 'banned' }],
+			},
+			{
+				code: "export * from '@org/shared-ts/src/something';",
 				filename: 'apps/front/src/components/widget.tsx',
 				errors: [{ messageId: 'banned' }],
 			},
