@@ -1426,4 +1426,181 @@ public sealed class JsonElementRulesSpec {
 		var result = new PatchIsoDateTimeValidator().Validate(model);
 		_ = result.IsValid.Should().BeFalse();
 	}
+
+	// ============= MustBeNullableNonEmptyGuid =============
+
+	private class NullableNonEmptyGuidModel {
+		public JsonElement? Value { get; set; }
+	}
+
+	private class NullableNonEmptyGuidValidator
+		: AbstractValidator<NullableNonEmptyGuidModel> {
+		public NullableNonEmptyGuidValidator() {
+			RuleFor(x => x.Value)
+				.MustBeNullableNonEmptyGuid("ProjectId");
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassNullableNonEmptyGuidWhenWrapperNull() {
+		var model = new NullableNonEmptyGuidModel { Value = null };
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableNonEmptyGuidWhenJsonNull() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = JsonDocument.Parse("null").RootElement,
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableNonEmptyGuidWhenUndefined() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = (JsonElement?)new JsonElement(),
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassNullableNonEmptyGuidWhenValidGuid() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement(Guid.NewGuid().ToString()),
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableNonEmptyGuidWhenEmptyGuid() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement(Guid.Empty.ToString()),
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableNonEmptyGuidWhenGarbageString() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement("not-a-guid"),
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableNonEmptyGuidWhenEmptyString() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement(string.Empty),
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableNonEmptyGuidWhenNumber() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = JsonDocument.Parse("42").RootElement,
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailNullableNonEmptyGuidWhenObject() {
+		var model = new NullableNonEmptyGuidModel {
+			Value = JsonDocument.Parse("{\"a\":1}").RootElement,
+		};
+		var result = new NullableNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	// ============= MustBePatchFieldNonEmptyGuid =============
+
+	private class PatchFieldNonEmptyGuidModel {
+		public JsonElement Value { get; set; }
+	}
+
+	private class PatchFieldNonEmptyGuidValidator
+		: AbstractValidator<PatchFieldNonEmptyGuidModel> {
+		public PatchFieldNonEmptyGuidValidator() {
+			RuleFor(x => x.Value)
+				.MustBePatchFieldNonEmptyGuid("ProjectId");
+		}
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldNonEmptyGuidWhenUndefined() {
+		var model = new PatchFieldNonEmptyGuidModel { Value = default };
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldNonEmptyGuidWhenJsonNull() {
+		var model = new PatchFieldNonEmptyGuidModel {
+			Value = JsonDocument.Parse("null").RootElement,
+		};
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldPassPatchFieldNonEmptyGuidWhenValidGuid() {
+		var model = new PatchFieldNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement(Guid.NewGuid().ToString()),
+		};
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldNonEmptyGuidWhenEmptyGuid() {
+		var model = new PatchFieldNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement(Guid.Empty.ToString()),
+		};
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldNonEmptyGuidWhenGarbageString() {
+		var model = new PatchFieldNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement("not-a-guid"),
+		};
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldNonEmptyGuidWhenEmptyString() {
+		var model = new PatchFieldNonEmptyGuidModel {
+			Value = JsonSerializer.SerializeToElement(string.Empty),
+		};
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldNonEmptyGuidWhenNumber() {
+		var model = new PatchFieldNonEmptyGuidModel {
+			Value = JsonDocument.Parse("42").RootElement,
+		};
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailPatchFieldNonEmptyGuidWhenArray() {
+		var model = new PatchFieldNonEmptyGuidModel {
+			Value = JsonDocument.Parse("[1,2]").RootElement,
+		};
+		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+	}
 }
