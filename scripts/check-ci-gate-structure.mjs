@@ -319,6 +319,15 @@ const GATE_WORKFLOWS = [
 		relevanceGatedJobs: [{ id: 'docs-archive', needs: ['changes'] }],
 		alwaysJobs: [],
 	},
+	{
+		file: 'quality-gate.yml',
+		changesJob: 'changes',
+		gateJob: 'gate',
+		gateName: 'quality-gate',
+		pushCheckName: 'quality-gate-push-check',
+		relevanceGatedJobs: [{ id: 'quality', needs: ['changes'] }],
+		alwaysJobs: [],
+	},
 ];
 
 const toPosixPath = (value) => value.split(path.sep).join('/');

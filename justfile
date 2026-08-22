@@ -371,6 +371,25 @@ ci-front:
   pnpm --filter front check:design-system
   pnpm --filter front test
 
+# Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.
+# Mirrors .github/workflows/quality-gate.yml::quality — fails PRs on any oxlint diagnostic
+# (pnpm lint is repo-wide oxlint --quiet + lint:disables + frontend-barrels, pnpm format is
+# oxfmt --check) and on any .NET analyzer / code-style warning (Directory.Build.props sets
+# TreatWarningsAsErrors + EnforceCodeStyleInBuild, so a restore+build of PublyApp.slnx is the gate).
+ci-quality:
+  @echo "=== [gate] quality (lint + format + dotnet build + analyzers) ==="
+  pnpm format
+  pnpm lint
+  just ci-quality-dotnet
+  just test-analyzers
+
+# .NET solution build with warnings-as-errors (the quality gate's dotnet half).
+# APP_ROLE + TRUSTED_PROXY_CIDRS pinned for the same reason as build-api: `dotnet build`
+# boots the app to emit openapi.json and AppEnvironment requires APP_ROLE in Production.
+ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
+  dotnet restore PublyApp.slnx
+  dotnet build PublyApp.slnx --no-restore
+
 # old-front (legacy app): unit characterization + typecheck
 ci-old-front: tsc-old-front
   @echo "=== [gate] old-front unit characterization ==="
@@ -412,7 +431,7 @@ ci-e2e-old-front:
   pnpm --filter old-front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-front ci-old-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-old-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
