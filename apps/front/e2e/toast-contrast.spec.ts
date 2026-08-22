@@ -7,6 +7,11 @@ import {
 } from '@playwright/test';
 
 import { toastVariantClassNames } from '../src/components/ui/toast-variants';
+import {
+	BROWSER_SCREENSHOT_DECODER_SNIPPET,
+	BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET,
+	SCREENSHOT_DATA_URL_PREFIX,
+} from './helpers/toast-contrast-shared';
 
 // The pixel reading measures the composited glyphs; at the default 1x render
 // scale the fixture's 12px close glyph antialiases away its core colour and
@@ -241,990 +246,1138 @@ const readBrowserPaint = async (
 	target: Locator,
 	kind: TargetKind,
 ): Promise<void> =>
-	target.evaluate((element, targetKind) => {
-		const canvas = document.createElement('canvas');
-		canvas.width = 1;
-		canvas.height = 1;
-		const context = canvas.getContext('2d');
-		if (!context) {
-			throw new Error('Browser canvas colour resolver is unavailable');
-		}
-
-		const toSrgb = (color: string, source: string): string => {
-			if (!CSS.supports('color', color)) {
-				throw new Error(
-					`${source} is not a browser-parseable colour: ${color}`,
-				);
-			}
-			context.clearRect(0, 0, 1, 1);
-			context.fillStyle = color;
-			context.fillRect(0, 0, 1, 1);
-			const [r, g, b, alpha] = context.getImageData(0, 0, 1, 1).data;
-			return `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;
-		};
-
-		/**
-		 * The alpha of a raw computed colour. Every colour value is run
-		 * through `toSrgb` FIRST so the alpha is read from a normalised
-		 * `rgba(...)` string; indexing digits out of the raw value shifts on
-		 * any colour function whose name contains a digit
-		 * (`color(display-p3 1 0 0)` reads its blue channel as alpha) and
-		 * would silently treat opaque wide-gamut paint as transparent.
-		 * Unparseable values throw instead of reading as compliant.
-		 */
-		const paintAlpha = (color: string, source: string): number => {
-			const normalised = toSrgb(color, source);
-			const match = /^rgba\(\d+, \d+, \d+, ([\d.]+)\)$/u.exec(normalised);
-			if (!match) {
-				throw new Error(
-					`${source} is not the expected normalised colour: ${normalised}`,
-				);
-			}
-			return Number(match[1]);
-		};
-
-		const splitTopLevel = (value: string): string[] => {
-			const parts: string[] = [];
-			let depth = 0;
-			let start = 0;
-			for (let index = 0; index < value.length; index += 1) {
-				const character = value[index];
-				if (character === '(') {
-					depth += 1;
-				} else if (character === ')') {
-					depth -= 1;
-				} else if (character === ',' && depth === 0) {
-					parts.push(value.slice(start, index).trim());
-					start = index + 1;
-				}
-			}
-			parts.push(value.slice(start).trim());
-			return parts;
-		};
-
-		const colorFromStop = (stop: string): string => {
-			const openingParenthesis = stop.indexOf('(');
-			if (openingParenthesis === -1) {
-				return stop.split(/\s+/u)[0] ?? '';
+	target.evaluate(
+		(element, { classifierSnippet, targetKind }) => {
+			const canvas = document.createElement('canvas');
+			canvas.width = 1;
+			canvas.height = 1;
+			const context = canvas.getContext('2d');
+			if (!context) {
+				throw new Error('Browser canvas colour resolver is unavailable');
 			}
 
-			let depth = 0;
-			for (let index = openingParenthesis; index < stop.length; index += 1) {
-				const character = stop[index];
-				if (character === '(') {
-					depth += 1;
-				} else if (character === ')') {
-					depth -= 1;
-					if (depth === 0) {
-						return stop.slice(0, index + 1);
+			// #1089: undecidable text paint (background-clip:text / transparent-fill / masked / opacity 0)
+			// must fail BEFORE flat-tint or opacity measurements. Otherwise those generic messages win
+			// and the round-4 shard goes red on the wrong reason. This is the preferred fix per brief.
+			if (targetKind === 'text') {
+				const earlyName = (layer: Element): string => {
+					for (const [attr, fallback] of [
+						['data-slot', ''],
+						['data-testid', ''],
+						['data-type', ''],
+						['data-sonner-toast', 'toast'],
+						['data-title', 'title'],
+						['data-description', 'description'],
+						['data-content', 'content'],
+						['data-icon', 'icon'],
+						['data-close-button', 'close button'],
+						['data-button', 'button'],
+					] as const) {
+						if (layer.hasAttribute(attr))
+							return layer.getAttribute(attr) || fallback;
+					}
+					return layer.tagName.toLowerCase();
+				};
+				// eslint-disable-next-line no-new-func
+				const earlyAssert = new Function(
+					classifierSnippet + '\nreturn __publyAssertTextPaintIsMeasurable;',
+				)() as (s: Record<string, string | undefined>, l: string) => void;
+				const hasText = (c: Element): boolean =>
+					Array.from(c.childNodes).some(
+						(n) =>
+							n.nodeType === Node.TEXT_NODE &&
+							(n.textContent ?? '').trim() !== '',
+					);
+				const earlyPainters: Element[] = [element];
+				for (const d of element.querySelectorAll('*'))
+					if (hasText(d)) earlyPainters.push(d);
+				for (const painter of earlyPainters) {
+					const ps = getComputedStyle(painter);
+					if (ps.display === 'none' || ps.visibility === 'hidden') continue;
+					const label = earlyName(painter);
+					earlyAssert(
+						{
+							backgroundClip: ps.backgroundClip,
+							webkitBackgroundClip: (
+								ps as unknown as Record<string, string | undefined>
+							)['webkitBackgroundClip'],
+							webkitTextFillColor: (
+								ps as unknown as Record<string, string | undefined>
+							)['webkitTextFillColor'],
+							color: ps.color,
+							opacity: ps.opacity,
+							maskImage: (ps as unknown as Record<string, string | undefined>)[
+								'maskImage'
+							],
+							mask: (ps as unknown as Record<string, string | undefined>)[
+								'mask'
+							],
+						} as Record<string, string | undefined>,
+						label,
+					);
+					for (
+						let a: Element | null = painter.parentElement;
+						a !== null;
+						a = a.parentElement
+					) {
+						if (Number(getComputedStyle(a).opacity) === 0) {
+							throw new Error(
+								`${label} has undecidable text paint: transparent opacity 0 on ancestor ${earlyName(a)} — the glyphs are fully transparent and cannot be measured`,
+							);
+						}
+						// Only need ancestors up to the toast; beyond toaster is page chrome not relevant but harmless.
+						if (a === document.body) break;
 					}
 				}
 			}
 
-			throw new Error(`Unbalanced computed gradient colour stop: ${stop}`);
-		};
-
-		const flatGradientColor = (image: string, source: string): string => {
-			if (!image.startsWith('linear-gradient(') || !image.endsWith(')')) {
-				throw new Error(`${source} has unsupported background image: ${image}`);
-			}
-
-			const inner = image.slice('linear-gradient('.length, -1);
-			const colors: string[] = [];
-			for (const part of splitTopLevel(inner)) {
-				const candidate = colorFromStop(part);
-				if (CSS.supports('color', candidate)) {
-					colors.push(toSrgb(candidate, `${source} gradient stop`));
-				}
-			}
-
-			if (colors.length < 2) {
-				throw new Error(
-					`${source} gradient must have at least two parseable colour stops: ${image}`,
-				);
-			}
-			if (colors.some((color) => color !== colors[0])) {
-				throw new Error(
-					`${source} gradient is not a flat painted tint: ${image}`,
-				);
-			}
-
-			return colors[0];
-		};
-
-		/** Each comma-separated computed background-image layer, in paint order. */
-		const backgroundImageLayers = (image: string, source: string): string[] =>
-			image === 'none'
-				? []
-				: splitTopLevel(image).map((layer) => flatGradientColor(layer, source));
-
-		const elementName = (layer: Element): string => {
-			for (const [attribute, fallback] of [
-				['data-slot', ''],
-				['data-testid', ''],
-				['data-type', ''],
-				['data-sonner-toast', 'toast'],
-				['data-title', 'title'],
-				['data-description', 'description'],
-				['data-content', 'content'],
-				['data-icon', 'icon'],
-				['data-close-button', 'close button'],
-				['data-button', 'button'],
-			] as const) {
-				if (layer.hasAttribute(attribute)) {
-					return layer.getAttribute(attribute) || fallback;
-				}
-			}
-			return layer.tagName.toLowerCase();
-		};
-
-		/**
-		 * Whether an inset shadow's band can reach the sampled point. The
-		 * shadow paints the whole border box except its un-shadowed interior
-		 * (the border box translated by the shadow's offset and inset by its
-		 * spread), and the band's inner edge is blurred by `blur` — so the
-		 * point is reached when it lies inside the border box and either
-		 * outside the interior at all (the solid band) or within `blur` of
-		 * the interior's edge. A spread that inverts the interior
-		 * (`left > right` or `top > bottom`) makes the entire border box the
-		 * band, so it reaches any point inside the box.
-		 */
-		const insetShadowReachesPoint = (
-			pointX: number,
-			pointY: number,
-			borderBox: { bottom: number; left: number; right: number; top: number },
-			interior: { bottom: number; left: number; right: number; top: number },
-			blur: number,
-		): boolean => {
-			const insideBorderBox =
-				pointX >= borderBox.left &&
-				pointX <= borderBox.right &&
-				pointY >= borderBox.top &&
-				pointY <= borderBox.bottom;
-			if (!insideBorderBox) {
-				return false;
-			}
-			if (interior.left > interior.right || interior.top > interior.bottom) {
-				return true;
-			}
-			const outsideInterior =
-				pointX <= interior.left ||
-				pointX >= interior.right ||
-				pointY <= interior.top ||
-				pointY >= interior.bottom;
-			if (outsideInterior) {
-				return true;
-			}
-			return (
-				Math.min(
-					pointX - interior.left,
-					interior.right - pointX,
-					pointY - interior.top,
-					interior.bottom - pointY,
-				) < blur
-			);
-		};
-
-		/**
-		 * An inset shadow paints a band inside the box; it is rejected only
-		 * when the band could reach the sampled point. Anything else — the
-		 * ordinary menu shadow, an outset shadow, an edge highlight far from
-		 * the sample — is paint the midpoint provably does not see.
-		 */
-		const assertInsetShadowsAvoidPoint = (
-			style: CSSStyleDeclaration,
-			rect: DOMRect,
-			x: number,
-			y: number,
-			source: string,
-		): void => {
-			if (style.boxShadow === 'none') {
-				return;
-			}
-			for (const shadow of splitTopLevel(style.boxShadow)) {
-				if (!/\binset\b/u.test(shadow)) {
-					continue;
-				}
-				const lengths = [...shadow.matchAll(/-?\d+(?:\.\d+)?px/gu)].map(
-					(match) => Number(match[0].slice(0, -2)),
-				);
-				if (lengths.length < 4) {
+			const toSrgb = (color: string, source: string): string => {
+				if (!CSS.supports('color', color)) {
 					throw new Error(
-						`${source} has an unparseable inset shadow ${shadow}`,
+						`${source} is not a browser-parseable colour: ${color}`,
 					);
 				}
-				const [offsetX, offsetY, blur, spread] = lengths;
-				const interior = {
-					left: rect.left + offsetX + spread,
-					right: rect.right + offsetX - spread,
-					top: rect.top + offsetY + spread,
-					bottom: rect.bottom + offsetY - spread,
+				context.clearRect(0, 0, 1, 1);
+				context.fillStyle = color;
+				context.fillRect(0, 0, 1, 1);
+				const [r, g, b, alpha] = context.getImageData(0, 0, 1, 1).data;
+				return `rgba(${r}, ${g}, ${b}, ${alpha / 255})`;
+			};
+
+			/**
+			 * The alpha of a raw computed colour. Every colour value is run
+			 * through `toSrgb` FIRST so the alpha is read from a normalised
+			 * `rgba(...)` string; indexing digits out of the raw value shifts on
+			 * any colour function whose name contains a digit
+			 * (`color(display-p3 1 0 0)` reads its blue channel as alpha) and
+			 * would silently treat opaque wide-gamut paint as transparent.
+			 * Unparseable values throw instead of reading as compliant.
+			 */
+			const paintAlpha = (color: string, source: string): number => {
+				const normalised = toSrgb(color, source);
+				const match = /^rgba\(\d+, \d+, \d+, ([\d.]+)\)$/u.exec(normalised);
+				if (!match) {
+					throw new Error(
+						`${source} is not the expected normalised colour: ${normalised}`,
+					);
+				}
+				return Number(match[1]);
+			};
+
+			const splitTopLevel = (value: string): string[] => {
+				const parts: string[] = [];
+				let depth = 0;
+				let start = 0;
+				for (let index = 0; index < value.length; index += 1) {
+					const character = value[index];
+					if (character === '(') {
+						depth += 1;
+					} else if (character === ')') {
+						depth -= 1;
+					} else if (character === ',' && depth === 0) {
+						parts.push(value.slice(start, index).trim());
+						start = index + 1;
+					}
+				}
+				parts.push(value.slice(start).trim());
+				return parts;
+			};
+
+			const colorFromStop = (stop: string): string => {
+				const openingParenthesis = stop.indexOf('(');
+				if (openingParenthesis === -1) {
+					return stop.split(/\s+/u)[0] ?? '';
+				}
+
+				let depth = 0;
+				for (let index = openingParenthesis; index < stop.length; index += 1) {
+					const character = stop[index];
+					if (character === '(') {
+						depth += 1;
+					} else if (character === ')') {
+						depth -= 1;
+						if (depth === 0) {
+							return stop.slice(0, index + 1);
+						}
+					}
+				}
+
+				throw new Error(`Unbalanced computed gradient colour stop: ${stop}`);
+			};
+
+			const flatGradientColor = (image: string, source: string): string => {
+				if (!image.startsWith('linear-gradient(') || !image.endsWith(')')) {
+					throw new Error(
+						`${source} has unsupported background image: ${image}`,
+					);
+				}
+
+				const inner = image.slice('linear-gradient('.length, -1);
+				const colors: string[] = [];
+				for (const part of splitTopLevel(inner)) {
+					const candidate = colorFromStop(part);
+					if (CSS.supports('color', candidate)) {
+						colors.push(toSrgb(candidate, `${source} gradient stop`));
+					}
+				}
+
+				if (colors.length < 2) {
+					throw new Error(
+						`${source} gradient must have at least two parseable colour stops: ${image}`,
+					);
+				}
+				if (colors.some((color) => color !== colors[0])) {
+					throw new Error(
+						`${source} gradient is not a flat painted tint: ${image}`,
+					);
+				}
+
+				return colors[0];
+			};
+
+			/** Each comma-separated computed background-image layer, in paint order. */
+			const backgroundImageLayers = (image: string, source: string): string[] =>
+				image === 'none'
+					? []
+					: splitTopLevel(image).map((layer) =>
+							flatGradientColor(layer, source),
+						);
+
+			const elementName = (layer: Element): string => {
+				for (const [attribute, fallback] of [
+					['data-slot', ''],
+					['data-testid', ''],
+					['data-type', ''],
+					['data-sonner-toast', 'toast'],
+					['data-title', 'title'],
+					['data-description', 'description'],
+					['data-content', 'content'],
+					['data-icon', 'icon'],
+					['data-close-button', 'close button'],
+					['data-button', 'button'],
+				] as const) {
+					if (layer.hasAttribute(attribute)) {
+						return layer.getAttribute(attribute) || fallback;
+					}
+				}
+				return layer.tagName.toLowerCase();
+			};
+
+			/**
+			 * Whether an inset shadow's band can reach the sampled point. The
+			 * shadow paints the whole border box except its un-shadowed interior
+			 * (the border box translated by the shadow's offset and inset by its
+			 * spread), and the band's inner edge is blurred by `blur` — so the
+			 * point is reached when it lies inside the border box and either
+			 * outside the interior at all (the solid band) or within `blur` of
+			 * the interior's edge. A spread that inverts the interior
+			 * (`left > right` or `top > bottom`) makes the entire border box the
+			 * band, so it reaches any point inside the box.
+			 */
+			const insetShadowReachesPoint = (
+				pointX: number,
+				pointY: number,
+				borderBox: { bottom: number; left: number; right: number; top: number },
+				interior: { bottom: number; left: number; right: number; top: number },
+				blur: number,
+			): boolean => {
+				const insideBorderBox =
+					pointX >= borderBox.left &&
+					pointX <= borderBox.right &&
+					pointY >= borderBox.top &&
+					pointY <= borderBox.bottom;
+				if (!insideBorderBox) {
+					return false;
+				}
+				if (interior.left > interior.right || interior.top > interior.bottom) {
+					return true;
+				}
+				const outsideInterior =
+					pointX <= interior.left ||
+					pointX >= interior.right ||
+					pointY <= interior.top ||
+					pointY >= interior.bottom;
+				if (outsideInterior) {
+					return true;
+				}
+				return (
+					Math.min(
+						pointX - interior.left,
+						interior.right - pointX,
+						pointY - interior.top,
+						interior.bottom - pointY,
+					) < blur
+				);
+			};
+
+			/**
+			 * An inset shadow paints a band inside the box; it is rejected only
+			 * when the band could reach the sampled point. Anything else — the
+			 * ordinary menu shadow, an outset shadow, an edge highlight far from
+			 * the sample — is paint the midpoint provably does not see.
+			 */
+			const assertInsetShadowsAvoidPoint = (
+				style: CSSStyleDeclaration,
+				rect: DOMRect,
+				x: number,
+				y: number,
+				source: string,
+			): void => {
+				if (style.boxShadow === 'none') {
+					return;
+				}
+				for (const shadow of splitTopLevel(style.boxShadow)) {
+					if (!/\binset\b/u.test(shadow)) {
+						continue;
+					}
+					const lengths = [...shadow.matchAll(/-?\d+(?:\.\d+)?px/gu)].map(
+						(match) => Number(match[0].slice(0, -2)),
+					);
+					if (lengths.length < 4) {
+						throw new Error(
+							`${source} has an unparseable inset shadow ${shadow}`,
+						);
+					}
+					const [offsetX, offsetY, blur, spread] = lengths;
+					const interior = {
+						left: rect.left + offsetX + spread,
+						right: rect.right + offsetX - spread,
+						top: rect.top + offsetY + spread,
+						bottom: rect.bottom + offsetY - spread,
+					};
+					if (insetShadowReachesPoint(x, y, rect, interior, blur)) {
+						throw new Error(
+							`${source} has an inset shadow that can reach the sampled point: ${shadow}`,
+						);
+					}
+				}
+			};
+
+			const assertSupportedPaint = (
+				style: CSSStyleDeclaration,
+				rect: DOMRect,
+				x: number,
+				y: number,
+				source: string,
+			): void => {
+				if (style.opacity !== '1') {
+					throw new Error(`${source} has unsupported opacity ${style.opacity}`);
+				}
+				if (style.filter !== 'none' || style.backdropFilter !== 'none') {
+					throw new Error(
+						`${source} has unsupported filter paint (${style.filter}; ${style.backdropFilter})`,
+					);
+				}
+				if (style.mixBlendMode !== 'normal') {
+					throw new Error(
+						`${source} has unsupported mix-blend-mode ${style.mixBlendMode}`,
+					);
+				}
+				assertInsetShadowsAvoidPoint(style, rect, x, y, source);
+			};
+
+			/**
+			 * The pseudo-element's painted box in viewport coordinates, derived
+			 * from its resolved styles. An absolutely positioned pseudo resolves
+			 * against its originating element's containing block (its offset
+			 * parent, or the viewport); a fixed one against the nearest
+			 * transformed ancestor, or the viewport. An in-flow pseudo paints
+			 * within the originating element's box, so that box is the
+			 * conservative assumption — a backgrounded in-flow pseudo cannot be
+			 * proven to avoid the point from computed styles alone. Returns
+			 * `undefined` when a positioned pseudo's box is under-determined
+			 * (the caller fails loudly rather than assume).
+			 */
+			const pseudoElementBox = (
+				layer: Element,
+				style: CSSStyleDeclaration,
+			):
+				| { bottom: number; left: number; right: number; top: number }
+				| undefined => {
+				const asPixels = (value: string): number | undefined => {
+					if (value === 'auto') {
+						return undefined;
+					}
+					const match = /^-?\d+(?:\.\d+)?px$/u.exec(value);
+					return match ? Number(value.slice(0, -2)) : undefined;
 				};
-				if (insetShadowReachesPoint(x, y, rect, interior, blur)) {
-					throw new Error(
-						`${source} has an inset shadow that can reach the sampled point: ${shadow}`,
-					);
-				}
-			}
-		};
 
-		const assertSupportedPaint = (
-			style: CSSStyleDeclaration,
-			rect: DOMRect,
-			x: number,
-			y: number,
-			source: string,
-		): void => {
-			if (style.opacity !== '1') {
-				throw new Error(`${source} has unsupported opacity ${style.opacity}`);
-			}
-			if (style.filter !== 'none' || style.backdropFilter !== 'none') {
-				throw new Error(
-					`${source} has unsupported filter paint (${style.filter}; ${style.backdropFilter})`,
-				);
-			}
-			if (style.mixBlendMode !== 'normal') {
-				throw new Error(
-					`${source} has unsupported mix-blend-mode ${style.mixBlendMode}`,
-				);
-			}
-			assertInsetShadowsAvoidPoint(style, rect, x, y, source);
-		};
-
-		/**
-		 * The pseudo-element's painted box in viewport coordinates, derived
-		 * from its resolved styles. An absolutely positioned pseudo resolves
-		 * against its originating element's containing block (its offset
-		 * parent, or the viewport); a fixed one against the nearest
-		 * transformed ancestor, or the viewport. An in-flow pseudo paints
-		 * within the originating element's box, so that box is the
-		 * conservative assumption — a backgrounded in-flow pseudo cannot be
-		 * proven to avoid the point from computed styles alone. Returns
-		 * `undefined` when a positioned pseudo's box is under-determined
-		 * (the caller fails loudly rather than assume).
-		 */
-		const pseudoElementBox = (
-			layer: Element,
-			style: CSSStyleDeclaration,
-		):
-			| { bottom: number; left: number; right: number; top: number }
-			| undefined => {
-			const asPixels = (value: string): number | undefined => {
-				if (value === 'auto') {
-					return undefined;
-				}
-				const match = /^-?\d+(?:\.\d+)?px$/u.exec(value);
-				return match ? Number(value.slice(0, -2)) : undefined;
-			};
-
-			let containing: {
-				bottom: number;
-				left: number;
-				right: number;
-				top: number;
-			};
-			if (style.position === 'absolute') {
-				// An absolutely positioned pseudo's containing block is its
-				// originating element's padding box when that element is
-				// itself positioned, and only otherwise the nearest
-				// positioned ancestor (the offset parent). Round 6 resolved
-				// against the offset parent unconditionally, so a positioned
-				// origin's band painted somewhere else entirely than the
-				// resolved box said.
-				const originPosition = getComputedStyle(layer).position;
-				const offsetParent = (layer as HTMLElement).offsetParent;
-				if (originPosition !== 'static') {
-					containing = layer.getBoundingClientRect();
-				} else if (offsetParent === null) {
+				let containing: {
+					bottom: number;
+					left: number;
+					right: number;
+					top: number;
+				};
+				if (style.position === 'absolute') {
+					// An absolutely positioned pseudo's containing block is its
+					// originating element's padding box when that element is
+					// itself positioned, and only otherwise the nearest
+					// positioned ancestor (the offset parent). Round 6 resolved
+					// against the offset parent unconditionally, so a positioned
+					// origin's band painted somewhere else entirely than the
+					// resolved box said.
+					const originPosition = getComputedStyle(layer).position;
+					const offsetParent = (layer as HTMLElement).offsetParent;
+					if (originPosition !== 'static') {
+						containing = layer.getBoundingClientRect();
+					} else if (offsetParent === null) {
+						containing = {
+							left: 0,
+							right: innerWidth,
+							top: 0,
+							bottom: innerHeight,
+						};
+					} else {
+						containing = offsetParent.getBoundingClientRect();
+					}
+				} else if (style.position === 'fixed') {
 					containing = {
 						left: 0,
 						right: innerWidth,
 						top: 0,
 						bottom: innerHeight,
 					};
-				} else {
-					containing = offsetParent.getBoundingClientRect();
-				}
-			} else if (style.position === 'fixed') {
-				containing = {
-					left: 0,
-					right: innerWidth,
-					top: 0,
-					bottom: innerHeight,
-				};
-				for (
-					let candidate = layer.parentElement;
-					candidate !== null;
-					candidate = candidate.parentElement
-				) {
-					const candidateStyle = getComputedStyle(candidate);
-					if (
-						candidateStyle.transform !== 'none' ||
-						candidateStyle.filter !== 'none' ||
-						candidateStyle.backdropFilter !== 'none' ||
-						candidateStyle.perspective !== 'none'
+					for (
+						let candidate = layer.parentElement;
+						candidate !== null;
+						candidate = candidate.parentElement
 					) {
-						containing = candidate.getBoundingClientRect();
-						break;
+						const candidateStyle = getComputedStyle(candidate);
+						if (
+							candidateStyle.transform !== 'none' ||
+							candidateStyle.filter !== 'none' ||
+							candidateStyle.backdropFilter !== 'none' ||
+							candidateStyle.perspective !== 'none'
+						) {
+							containing = candidate.getBoundingClientRect();
+							break;
+						}
 					}
+				} else if (style.position === 'relative') {
+					// A relatively positioned pseudo paints the origin's box
+					// translated by its resolved offsets; when both inline
+					// offsets are set the direction decides which one wins.
+					const originRect = layer.getBoundingClientRect();
+					const direction = getComputedStyle(layer).direction;
+					const left = asPixels(style.left);
+					const right = asPixels(style.right);
+					const top = asPixels(style.top);
+					const bottom = asPixels(style.bottom);
+					let offsetX = 0;
+					if (
+						left !== undefined &&
+						(right === undefined || direction === 'ltr')
+					) {
+						offsetX = left;
+					} else if (right !== undefined) {
+						offsetX = -right;
+					}
+					let offsetY = 0;
+					if (top !== undefined) {
+						offsetY = top;
+					} else if (bottom !== undefined) {
+						offsetY = -bottom;
+					}
+					return {
+						left: originRect.left + offsetX,
+						right: originRect.right + offsetX,
+						top: originRect.top + offsetY,
+						bottom: originRect.bottom + offsetY,
+					};
+				} else {
+					return layer.getBoundingClientRect();
 				}
-			} else if (style.position === 'relative') {
-				// A relatively positioned pseudo paints the origin's box
-				// translated by its resolved offsets; when both inline
-				// offsets are set the direction decides which one wins.
-				const originRect = layer.getBoundingClientRect();
-				const direction = getComputedStyle(layer).direction;
+
 				const left = asPixels(style.left);
 				const right = asPixels(style.right);
 				const top = asPixels(style.top);
 				const bottom = asPixels(style.bottom);
-				let offsetX = 0;
-				if (
-					left !== undefined &&
-					(right === undefined || direction === 'ltr')
-				) {
-					offsetX = left;
-				} else if (right !== undefined) {
-					offsetX = -right;
+				const width = asPixels(style.width);
+				const height = asPixels(style.height);
+
+				let leftEdge: number | undefined;
+				let rightEdge: number | undefined;
+				if (left !== undefined && width !== undefined) {
+					leftEdge = containing.left + left;
+					rightEdge = leftEdge + width;
+				} else if (right !== undefined && width !== undefined) {
+					rightEdge = containing.right - right;
+					leftEdge = rightEdge - width;
+				} else if (left !== undefined && right !== undefined) {
+					leftEdge = containing.left + left;
+					rightEdge = containing.right - right;
 				}
-				let offsetY = 0;
-				if (top !== undefined) {
-					offsetY = top;
-				} else if (bottom !== undefined) {
-					offsetY = -bottom;
+				let topEdge: number | undefined;
+				let bottomEdge: number | undefined;
+				if (top !== undefined && height !== undefined) {
+					topEdge = containing.top + top;
+					bottomEdge = topEdge + height;
+				} else if (bottom !== undefined && height !== undefined) {
+					bottomEdge = containing.bottom - bottom;
+					topEdge = bottomEdge - height;
+				} else if (top !== undefined && bottom !== undefined) {
+					topEdge = containing.top + top;
+					bottomEdge = containing.bottom - bottom;
+				}
+				if (
+					leftEdge === undefined ||
+					rightEdge === undefined ||
+					topEdge === undefined ||
+					bottomEdge === undefined
+				) {
+					return undefined;
 				}
 				return {
-					left: originRect.left + offsetX,
-					right: originRect.right + offsetX,
-					top: originRect.top + offsetY,
-					bottom: originRect.bottom + offsetY,
+					left: leftEdge,
+					right: rightEdge,
+					top: topEdge,
+					bottom: bottomEdge,
 				};
-			} else {
-				return layer.getBoundingClientRect();
-			}
-
-			const left = asPixels(style.left);
-			const right = asPixels(style.right);
-			const top = asPixels(style.top);
-			const bottom = asPixels(style.bottom);
-			const width = asPixels(style.width);
-			const height = asPixels(style.height);
-
-			let leftEdge: number | undefined;
-			let rightEdge: number | undefined;
-			if (left !== undefined && width !== undefined) {
-				leftEdge = containing.left + left;
-				rightEdge = leftEdge + width;
-			} else if (right !== undefined && width !== undefined) {
-				rightEdge = containing.right - right;
-				leftEdge = rightEdge - width;
-			} else if (left !== undefined && right !== undefined) {
-				leftEdge = containing.left + left;
-				rightEdge = containing.right - right;
-			}
-			let topEdge: number | undefined;
-			let bottomEdge: number | undefined;
-			if (top !== undefined && height !== undefined) {
-				topEdge = containing.top + top;
-				bottomEdge = topEdge + height;
-			} else if (bottom !== undefined && height !== undefined) {
-				bottomEdge = containing.bottom - bottom;
-				topEdge = bottomEdge - height;
-			} else if (top !== undefined && bottom !== undefined) {
-				topEdge = containing.top + top;
-				bottomEdge = containing.bottom - bottom;
-			}
-			if (
-				leftEdge === undefined ||
-				rightEdge === undefined ||
-				topEdge === undefined ||
-				bottomEdge === undefined
-			) {
-				return undefined;
-			}
-			return {
-				left: leftEdge,
-				right: rightEdge,
-				top: topEdge,
-				bottom: bottomEdge,
 			};
-		};
 
-		/**
-		 * Pseudo-element paint is invisible to elementsFromPoint, so read the
-		 * resolved pseudo styles directly. A pseudo-element that paints a
-		 * background whose resolved box contains the sampled point would wash
-		 * out the measured text — but only when its paint order is at or
-		 * above the opaque surface that the point actually shows: a
-		 * backgrounded pseudo stacked BELOW that surface (a `z-index: -1`
-		 * decoration on an ancestor of the toast, say) changes no rendered
-		 * pixel and must not fail the guard. One whose box cannot be resolved
-		 * fails loudly rather than assume — including one whose paint is
-		 * relocated by `transform`/`translate`/`rotate`/`scale`, whose box
-		 * computed styles cannot describe (round-9 I1: a transform silently
-		 * relocated the paint back onto the ink while the resolved box sat
-		 * 400 px away and the guard substituted the compliant box). The
-		 * shipped float (`::before` on the title) and sonner's own
-		 * transparent hit-area pseudos pass, having no paint.
-		 */
-		const assertNoPseudoOverlay = (
-			layer: Element,
-			x: number,
-			y: number,
-			source: string,
-			opaqueElement: Element,
-		): void => {
-			for (const pseudo of ['::before', '::after'] as const) {
-				const style = getComputedStyle(layer, pseudo);
-				if (style.content === 'none') {
+			/**
+			 * Pseudo-element paint is invisible to elementsFromPoint, so read the
+			 * resolved pseudo styles directly. A pseudo-element that paints a
+			 * background whose resolved box contains the sampled point would wash
+			 * out the measured text — but only when its paint order is at or
+			 * above the opaque surface that the point actually shows: a
+			 * backgrounded pseudo stacked BELOW that surface (a `z-index: -1`
+			 * decoration on an ancestor of the toast, say) changes no rendered
+			 * pixel and must not fail the guard. One whose box cannot be resolved
+			 * fails loudly rather than assume — including one whose paint is
+			 * relocated by `transform`/`translate`/`rotate`/`scale`, whose box
+			 * computed styles cannot describe (round-9 I1: a transform silently
+			 * relocated the paint back onto the ink while the resolved box sat
+			 * 400 px away and the guard substituted the compliant box). The
+			 * shipped float (`::before` on the title) and sonner's own
+			 * transparent hit-area pseudos pass, having no paint.
+			 */
+			const assertNoPseudoOverlay = (
+				layer: Element,
+				x: number,
+				y: number,
+				source: string,
+				opaqueElement: Element,
+			): void => {
+				for (const pseudo of ['::before', '::after'] as const) {
+					const style = getComputedStyle(layer, pseudo);
+					if (style.content === 'none') {
+						continue;
+					}
+					const image = style.backgroundImage;
+					const backgroundColor = style.backgroundColor;
+					const paint =
+						image !== 'none' ||
+						paintAlpha(backgroundColor, `${source}${pseudo} background`) !== 0;
+					if (!paint) {
+						continue;
+					}
+					if (
+						!paintsAbove(
+							pseudoPaintChain(layer, style),
+							paintChain(opaqueElement),
+						)
+					) {
+						continue;
+					}
+					const relocated = (
+						[
+							['transform', style.transform],
+							['translate', style.translate],
+							['rotate', style.rotate],
+							['scale', style.scale],
+						] as const
+					).find(([, value]) => value !== 'none');
+					if (relocated) {
+						throw new Error(
+							`${source}${pseudo} paints a background whose painted box cannot be resolved from computed styles (${relocated[0]}: ${relocated[1]}; position ${style.position}, width ${style.width}, height ${style.height}, inset ${style.top} ${style.right} ${style.bottom} ${style.left})`,
+						);
+					}
+					const box = pseudoElementBox(layer, style);
+					if (box === undefined) {
+						throw new Error(
+							`${source}${pseudo} paints a background whose painted box cannot be resolved from computed styles (position ${style.position}, width ${style.width}, height ${style.height}, inset ${style.top} ${style.right} ${style.bottom} ${style.left})`,
+						);
+					}
+					if (
+						x >= box.left &&
+						x <= box.right &&
+						y >= box.top &&
+						y <= box.bottom
+					) {
+						throw new Error(
+							`${source}${pseudo} paints a background over the sampled point: ${image !== 'none' ? image : backgroundColor}`,
+						);
+					}
+				}
+			};
+
+			/**
+			 * Paint-order resolution. An overlay — a pseudo-element, or a
+			 * click-through element the scan finds — is only a defect when it is
+			 * stacked at or above the opaque surface the point actually shows; a
+			 * backgrounded decoration painted BELOW that surface changes no
+			 * rendered pixel. Both `assertNoPseudoOverlay` and the click-through
+			 * scan therefore compare stacking chains.
+			 *
+			 * A chain lists the element's own paint position and every
+			 * context-creating ancestor's, innermost first. Each record names the
+			 * stacking context the participant paints in (null = the root
+			 * context), the painting step within it (negative-z < in-flow <
+			 * positioned-auto < positive-z), the z-index and the DOM position.
+			 * The root record of every chain participates in the root context,
+			 * so two chains can be walked from the outside in; at the first
+			 * divergent record the step decides, then the z-index, then the DOM
+			 * position.
+			 *
+			 * When one chain is a proper prefix of the other (all of its records
+			 * matched), the remaining records are all inside the DOM subtree of
+			 * the element whose record just matched. Per the CSS painting
+			 * algorithm a stacking context paints its element's own background
+			 * first and everything else — including negative-z children — after
+			 * it, so the verdict depends on which side holds the deeper records:
+			 * - The overlay's chain still has records: the overlay paints inside
+			 *   the opaque element's own stacking context (or a descendant of
+			 *   it), hence over the surface's background — even at a negative
+			 *   z-index, which the algorithm places between the background and
+			 *   the in-flow content, exactly where it destroys text contrast.
+			 * - The opaque element's chain still has records: the overlay is
+			 *   itself a stacking-context ancestor of the surface, so its
+			 *   background paints below the surface's own background.
+			 */
+			type PaintStep = 'negative' | 'in-flow' | 'positioned-auto' | 'positive';
+			type PaintRecord = {
+				context: Element | null;
+				step: PaintStep;
+				z: number;
+				index: number;
+			};
+			const STEP_RANK: Record<PaintStep, number> = {
+				negative: -1,
+				'in-flow': 0,
+				'positioned-auto': 1,
+				positive: 2,
+			};
+
+			const paintStep = (position: string, zIndex: string): PaintStep => {
+				if (position === 'static') {
+					return 'in-flow';
+				}
+				if (zIndex === 'auto') {
+					return 'positioned-auto';
+				}
+				return Number(zIndex) < 0 ? 'negative' : 'positive';
+			};
+
+			const paintZ = (position: string, zIndex: string): number => {
+				if (position === 'static' || zIndex === 'auto') {
+					return 0;
+				}
+				return Number(zIndex);
+			};
+
+			const createsStackingContext = (layer: Element | null): boolean => {
+				if (layer === null) {
+					return false;
+				}
+				const style = getComputedStyle(layer);
+				if (style.position !== 'static' && style.zIndex !== 'auto') {
+					return true;
+				}
+				if (style.transform !== 'none') {
+					return true;
+				}
+				if (style.opacity !== '1') {
+					return true;
+				}
+				if (style.filter !== 'none' || style.backdropFilter !== 'none') {
+					return true;
+				}
+				if (style.perspective !== 'none') {
+					return true;
+				}
+				return style.mixBlendMode !== 'normal';
+			};
+
+			const nearestStackingContext = (
+				layer: Element | null,
+			): Element | null => {
+				for (
+					let current = layer;
+					current !== null;
+					current = current.parentElement
+				) {
+					if (createsStackingContext(current)) {
+						return current;
+					}
+				}
+				return null;
+			};
+
+			const indexInParent = (layer: Element): number => {
+				const parent = layer.parentElement;
+				if (parent === null) {
+					return -1;
+				}
+				return Array.prototype.indexOf.call(parent.children, layer);
+			};
+
+			const paintChain = (layer: Element): PaintRecord[] => {
+				const ownStyle = getComputedStyle(layer);
+				const records: PaintRecord[] = [
+					{
+						context: nearestStackingContext(layer.parentElement),
+						step: paintStep(ownStyle.position, ownStyle.zIndex),
+						z: paintZ(ownStyle.position, ownStyle.zIndex),
+						index: indexInParent(layer),
+					},
+				];
+				for (
+					let current = layer.parentElement;
+					current !== null;
+					current = current.parentElement
+				) {
+					if (!createsStackingContext(current)) {
+						continue;
+					}
+					const style = getComputedStyle(current);
+					records.push({
+						context: nearestStackingContext(current.parentElement),
+						step: paintStep(style.position, style.zIndex),
+						z: paintZ(style.position, style.zIndex),
+						index: indexInParent(current),
+					});
+				}
+				return records;
+			};
+
+			const pseudoPaintChain = (
+				origin: Element,
+				pseudoStyle: CSSStyleDeclaration,
+			): PaintRecord[] => {
+				const records: PaintRecord[] = [
+					{
+						context: createsStackingContext(origin)
+							? origin
+							: nearestStackingContext(origin.parentElement),
+						step: paintStep(pseudoStyle.position, pseudoStyle.zIndex),
+						z: paintZ(pseudoStyle.position, pseudoStyle.zIndex),
+						// A pseudo paints as the originating element's first child.
+						index: -1,
+					},
+				];
+				for (
+					let current: Element | null = origin;
+					current !== null;
+					current = current.parentElement
+				) {
+					if (!createsStackingContext(current)) {
+						continue;
+					}
+					const style = getComputedStyle(current);
+					records.push({
+						context: nearestStackingContext(current.parentElement),
+						step: paintStep(style.position, style.zIndex),
+						z: paintZ(style.position, style.zIndex),
+						index: indexInParent(current),
+					});
+				}
+				return records;
+			};
+
+			const paintsAbove = (a: PaintRecord[], b: PaintRecord[]): boolean => {
+				let aIndex = a.length - 1;
+				let bIndex = b.length - 1;
+				while (aIndex >= 0 && bIndex >= 0) {
+					const aRecord = a[aIndex];
+					const bRecord = b[bIndex];
+					if (
+						aRecord.context === bRecord.context &&
+						aRecord.step === bRecord.step &&
+						aRecord.z === bRecord.z &&
+						aRecord.index === bRecord.index
+					) {
+						aIndex -= 1;
+						bIndex -= 1;
+						continue;
+					}
+					if (STEP_RANK[aRecord.step] !== STEP_RANK[bRecord.step]) {
+						return STEP_RANK[aRecord.step] > STEP_RANK[bRecord.step];
+					}
+					if (aRecord.z !== bRecord.z) {
+						return aRecord.z > bRecord.z;
+					}
+					return aRecord.index > bRecord.index;
+				}
+				if (aIndex < 0 && bIndex < 0) {
+					return false;
+				}
+				if (aIndex >= 0) {
+					return true;
+				}
+				return false;
+			};
+
+			const rect = element.getBoundingClientRect();
+			if (rect.width === 0 || rect.height === 0) {
+				throw new Error('Contrast target has no painted box');
+			}
+
+			// The area the glyphs actually occupy: the text's own line boxes
+			// (Range rects of every non-empty text node), or the painted shapes'
+			// boxes. The model samples at ITS midpoint — a box midpoint can sit
+			// 100+ px away from where the text is, which is where every paint
+			// that matters would have to reach (round-7 B1), and the click-through
+			// scan and the pixel cross-check intersect the same area.
+			const glyphArea = ((): {
+				bottom: number;
+				left: number;
+				right: number;
+				top: number;
+			} => {
+				const rects: DOMRect[] = [];
+				if (targetKind === 'text') {
+					const textNodes: Node[] = [];
+					const collect = (candidate: Element): void => {
+						for (const node of candidate.childNodes) {
+							if (node.nodeType === Node.TEXT_NODE) {
+								textNodes.push(node);
+							}
+						}
+					};
+					collect(element);
+					for (const descendant of element.querySelectorAll('*')) {
+						collect(descendant);
+					}
+					for (const node of textNodes) {
+						if ((node.textContent ?? '').trim() === '') {
+							continue;
+						}
+						const range = document.createRange();
+						range.selectNodeContents(node);
+						for (const textRect of range.getClientRects()) {
+							rects.push(textRect);
+						}
+					}
+				} else {
+					for (const shape of element.querySelectorAll(
+						'path, circle, ellipse, line, polyline, polygon, rect',
+					)) {
+						rects.push(shape.getBoundingClientRect());
+					}
+				}
+				if (rects.length === 0) {
+					throw new Error(
+						`${elementName(element)} has no resolvable glyph area`,
+					);
+				}
+				return {
+					left: Math.min(...rects.map((textRect) => textRect.left)),
+					right: Math.max(...rects.map((textRect) => textRect.right)),
+					top: Math.min(...rects.map((textRect) => textRect.top)),
+					bottom: Math.max(...rects.map((textRect) => textRect.bottom)),
+				};
+			})();
+			const x = glyphArea.left + (glyphArea.right - glyphArea.left) / 2;
+			const y = glyphArea.top + (glyphArea.bottom - glyphArea.top) / 2;
+			const hitStack = document.elementsFromPoint(x, y);
+			const targetIndex = hitStack.indexOf(element);
+			if (targetIndex === -1) {
+				throw new Error(
+					'Contrast target is absent from its own painted hit stack',
+				);
+			}
+			// The opaque layer the point shows is resolved first: everything the
+			// pseudo checks and the click-through scan compare against is stacked
+			// relative to THIS surface. Walk the hit stack down and stop at the
+			// first element that paints an opaque background.
+			const seen = new Set<Element>();
+			const opaqueElement = ((): Element | null => {
+				for (const layer of hitStack.slice(targetIndex)) {
+					if (seen.has(layer)) {
+						continue;
+					}
+					seen.add(layer);
+
+					const name = elementName(layer);
+					const style = getComputedStyle(layer);
+					for (const layerColor of backgroundImageLayers(
+						style.backgroundImage,
+						name,
+					)) {
+						if (paintAlpha(layerColor, `${name} background-image`) === 1) {
+							return layer;
+						}
+					}
+
+					const backgroundColor = toSrgb(
+						style.backgroundColor,
+						`${name} background-color`,
+					);
+					if (paintAlpha(backgroundColor, `${name} background-color`) === 1) {
+						return layer;
+					}
+				}
+				return null;
+			})();
+
+			if (!opaqueElement) {
+				throw new Error(
+					'No opaque painted background found behind contrast target',
+				);
+			}
+
+			// The hit stack above the target: only a painted background that hit
+			// testing really sees can sit between the target and the surface.
+			for (const paintedAbove of hitStack.slice(0, targetIndex)) {
+				const aboveName = elementName(paintedAbove);
+				assertNoPseudoOverlay(paintedAbove, x, y, aboveName, opaqueElement);
+				if (element.contains(paintedAbove)) {
+					const aboveStyle = getComputedStyle(paintedAbove);
+					if (aboveStyle.backgroundImage !== 'none') {
+						throw new Error(
+							`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundImage}`,
+						);
+					}
+					if (
+						paintAlpha(
+							aboveStyle.backgroundColor,
+							`${aboveName} background`,
+						) !== 0
+					) {
+						throw new Error(
+							`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundColor}`,
+						);
+					}
+					continue;
+				}
+				throw new Error(
+					`${aboveName} unexpectedly paints above contrast target`,
+				);
+			}
+
+			// From the target down to the opaque layer, everything the point sees:
+			// assert the supported paint and the pseudo overlays of each layer.
+			for (const layer of hitStack.slice(targetIndex)) {
+				const name = elementName(layer);
+				const style = getComputedStyle(layer);
+				assertSupportedPaint(style, layer.getBoundingClientRect(), x, y, name);
+				assertNoPseudoOverlay(layer, x, y, name, opaqueElement);
+				if (layer === opaqueElement) {
+					break;
+				}
+			}
+
+			// Group compositing above the first opaque layer is invisible to the
+			// paint stack below it, so walk the whole ancestor chain and assert
+			// the properties that would composite the group over the page.
+			for (
+				let layer = element.parentElement;
+				layer !== null;
+				layer = layer.parentElement
+			) {
+				const name = elementName(layer);
+				assertSupportedPaint(
+					getComputedStyle(layer),
+					layer.getBoundingClientRect(),
+					x,
+					y,
+					name,
+				);
+				assertNoPseudoOverlay(layer, x, y, name, opaqueElement);
+			}
+
+			// The pixel reading decides the ink colour; the model's remaining job
+			// here is to fail loudly on paint that would corrupt the reading —
+			// opacity/filter/inset-shadow properties on every text-bearing
+			// painter, and a text shadow. An unparseable computed fill also fails
+			// loud (the pixels cannot be trusted to tell the story alone).
+			if (targetKind === 'text') {
+				const hasTextContent = (candidate: Element): boolean =>
+					Array.from(candidate.childNodes).some(
+						(node) =>
+							node.nodeType === Node.TEXT_NODE &&
+							(node.textContent ?? '').trim() !== '',
+					);
+
+				const textPainters: Element[] = [element];
+				for (const descendant of element.querySelectorAll('*')) {
+					if (hasTextContent(descendant)) {
+						textPainters.push(descendant);
+					}
+				}
+
+				// Shared classifier — browser twin injected via BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET.
+				// The snippet is evaluated inside the page context via the outer `classifierSnippet` string.
+				const evaluateClassifier = (
+					style: Record<string, string | undefined>,
+					label: string,
+				): void => {
+					// This closure runs inside page.evaluate — `classifierSnippet` is the outer arg.
+					// We eval it here to define __publyAssertTextPaintIsMeasurable in this scope.
+					// eslint-disable-next-line no-new-func
+					const defs = new Function(
+						classifierSnippet + '\nreturn __publyAssertTextPaintIsMeasurable;',
+					)() as (s: Record<string, string | undefined>, l: string) => void;
+					defs(style, label);
+				};
+				for (const painter of textPainters) {
+					const painterStyle = getComputedStyle(painter);
+					const painterName = elementName(painter);
+					if (
+						painterStyle.display === 'none' ||
+						painterStyle.visibility === 'hidden'
+					) {
+						continue;
+					}
+					assertSupportedPaint(
+						painterStyle,
+						painter.getBoundingClientRect(),
+						x,
+						y,
+						painterName,
+					);
+					evaluateClassifier(
+						{
+							backgroundClip: painterStyle.backgroundClip,
+							webkitBackgroundClip: (
+								painterStyle as unknown as Record<string, string | undefined>
+							)['webkitBackgroundClip'],
+							webkitTextFillColor: (
+								painterStyle as unknown as Record<string, string | undefined>
+							)['webkitTextFillColor'],
+							color: painterStyle.color,
+							opacity: painterStyle.opacity,
+							maskImage: (
+								painterStyle as unknown as Record<string, string | undefined>
+							)['maskImage'],
+							mask: (
+								painterStyle as unknown as Record<string, string | undefined>
+							)['mask'],
+						} as Record<string, string | undefined>,
+						painterName,
+					);
+					// Walk ancestors for opacity:0 — text inherits invisibility even if painter itself is opaque
+					for (
+						let ancestor: Element | null = painter.parentElement;
+						ancestor !== null;
+						ancestor = ancestor.parentElement
+					) {
+						const ancestorStyle = getComputedStyle(ancestor);
+						if (Number(ancestorStyle.opacity) === 0) {
+							throw new Error(
+								`${painterName} has undecidable text paint: transparent opacity 0 on ancestor ${elementName(ancestor)} — the glyphs are fully transparent and cannot be measured`,
+							);
+						}
+						if (ancestor === document.body) break;
+					}
+					if (painterStyle.textShadow !== 'none') {
+						throw new Error(
+							`${painterName} has unsupported text shadow ${painterStyle.textShadow}`,
+						);
+					}
+					toSrgb(
+						(painterStyle as unknown as Record<string, string | undefined>)[
+							'webkitTextFillColor'
+						] || painterStyle.color,
+						`${painterName} text fill colour`,
+					);
+				}
+			} else {
+				const shapes = element.querySelectorAll(
+					'path, circle, ellipse, line, polyline, polygon, rect',
+				);
+				let paintedShapes = 0;
+				for (const shape of shapes) {
+					const style = getComputedStyle(shape);
+					assertSupportedPaint(
+						style,
+						shape.getBoundingClientRect(),
+						x,
+						y,
+						`${elementName(element)} ${shape.tagName}`,
+					);
+					for (const property of ['fill', 'stroke'] as const) {
+						const paint = style[property];
+						if (paint === 'none') {
+							continue;
+						}
+						const paintOpacity =
+							property === 'fill' ? style.fillOpacity : style.strokeOpacity;
+						if (paintOpacity !== '1') {
+							throw new Error(
+								`${elementName(element)} ${shape.tagName} has unsupported ${property}-opacity ${paintOpacity}`,
+							);
+						}
+						toSrgb(
+							paint,
+							`${elementName(element)} ${shape.tagName} ${property}`,
+						);
+						paintedShapes += 1;
+					}
+				}
+				if (paintedShapes === 0) {
+					throw new Error(
+						`${elementName(element)} has no parseable painted glyph`,
+					);
+				}
+			}
+
+			// The click-through scan: elements with `pointer-events: none` are
+			// invisible to `elementsFromPoint` by definition, yet paint like any
+			// other element. Walk the whole DOM unconditionally — not only when
+			// another reading failed — for a click-through element that paints a
+			// background, is stacked at or above the opaque surface and
+			// intersects the glyph area computed above. Such an element is an
+			// occlusion the model cannot enumerate; it fails loud by name.
+			for (const candidate of document.querySelectorAll('body *')) {
+				const style = getComputedStyle(candidate);
+				if (style.pointerEvents !== 'none') {
+					continue;
+				}
+				if (style.display === 'none' || style.visibility === 'hidden') {
+					continue;
+				}
+				if (style.opacity === '0') {
+					continue;
+				}
+				const rect = candidate.getBoundingClientRect();
+				if (rect.width === 0 || rect.height === 0) {
+					continue;
+				}
+				if (
+					rect.left >= glyphArea.right ||
+					rect.right <= glyphArea.left ||
+					rect.top >= glyphArea.bottom ||
+					rect.bottom <= glyphArea.top
+				) {
 					continue;
 				}
 				const image = style.backgroundImage;
 				const backgroundColor = style.backgroundColor;
-				const paint =
+				const paints =
 					image !== 'none' ||
-					paintAlpha(backgroundColor, `${source}${pseudo} background`) !== 0;
-				if (!paint) {
+					paintAlpha(
+						backgroundColor,
+						`${elementName(candidate)} background`,
+					) !== 0;
+				if (!paints) {
 					continue;
 				}
-				if (
-					!paintsAbove(
-						pseudoPaintChain(layer, style),
-						paintChain(opaqueElement),
-					)
-				) {
-					continue;
-				}
-				const relocated = (
-					[
-						['transform', style.transform],
-						['translate', style.translate],
-						['rotate', style.rotate],
-						['scale', style.scale],
-					] as const
-				).find(([, value]) => value !== 'none');
-				if (relocated) {
+				if (paintsAbove(paintChain(candidate), paintChain(opaqueElement))) {
 					throw new Error(
-						`${source}${pseudo} paints a background whose painted box cannot be resolved from computed styles (${relocated[0]}: ${relocated[1]}; position ${style.position}, width ${style.width}, height ${style.height}, inset ${style.top} ${style.right} ${style.bottom} ${style.left})`,
-					);
-				}
-				const box = pseudoElementBox(layer, style);
-				if (box === undefined) {
-					throw new Error(
-						`${source}${pseudo} paints a background whose painted box cannot be resolved from computed styles (position ${style.position}, width ${style.width}, height ${style.height}, inset ${style.top} ${style.right} ${style.bottom} ${style.left})`,
-					);
-				}
-				if (
-					x >= box.left &&
-					x <= box.right &&
-					y >= box.top &&
-					y <= box.bottom
-				) {
-					throw new Error(
-						`${source}${pseudo} paints a background over the sampled point: ${image !== 'none' ? image : backgroundColor}`,
+						`${elementName(candidate)} is a click-through overlay painted above the toast surface and over the ${targetKind === 'text' ? 'text' : 'glyph'} area: ${image !== 'none' ? image : backgroundColor}`,
 					);
 				}
 			}
-		};
 
-		/**
-		 * Paint-order resolution. An overlay — a pseudo-element, or a
-		 * click-through element the scan finds — is only a defect when it is
-		 * stacked at or above the opaque surface the point actually shows; a
-		 * backgrounded decoration painted BELOW that surface changes no
-		 * rendered pixel. Both `assertNoPseudoOverlay` and the click-through
-		 * scan therefore compare stacking chains.
-		 *
-		 * A chain lists the element's own paint position and every
-		 * context-creating ancestor's, innermost first. Each record names the
-		 * stacking context the participant paints in (null = the root
-		 * context), the painting step within it (negative-z < in-flow <
-		 * positioned-auto < positive-z), the z-index and the DOM position.
-		 * The root record of every chain participates in the root context,
-		 * so two chains can be walked from the outside in; at the first
-		 * divergent record the step decides, then the z-index, then the DOM
-		 * position.
-		 *
-		 * When one chain is a proper prefix of the other (all of its records
-		 * matched), the remaining records are all inside the DOM subtree of
-		 * the element whose record just matched. Per the CSS painting
-		 * algorithm a stacking context paints its element's own background
-		 * first and everything else — including negative-z children — after
-		 * it, so the verdict depends on which side holds the deeper records:
-		 * - The overlay's chain still has records: the overlay paints inside
-		 *   the opaque element's own stacking context (or a descendant of
-		 *   it), hence over the surface's background — even at a negative
-		 *   z-index, which the algorithm places between the background and
-		 *   the in-flow content, exactly where it destroys text contrast.
-		 * - The opaque element's chain still has records: the overlay is
-		 *   itself a stacking-context ancestor of the surface, so its
-		 *   background paints below the surface's own background.
-		 */
-		type PaintStep = 'negative' | 'in-flow' | 'positioned-auto' | 'positive';
-		type PaintRecord = {
-			context: Element | null;
-			step: PaintStep;
-			z: number;
-			index: number;
-		};
-		const STEP_RANK: Record<PaintStep, number> = {
-			negative: -1,
-			'in-flow': 0,
-			'positioned-auto': 1,
-			positive: 2,
-		};
-
-		const paintStep = (position: string, zIndex: string): PaintStep => {
-			if (position === 'static') {
-				return 'in-flow';
-			}
-			if (zIndex === 'auto') {
-				return 'positioned-auto';
-			}
-			return Number(zIndex) < 0 ? 'negative' : 'positive';
-		};
-
-		const paintZ = (position: string, zIndex: string): number => {
-			if (position === 'static' || zIndex === 'auto') {
-				return 0;
-			}
-			return Number(zIndex);
-		};
-
-		const createsStackingContext = (layer: Element | null): boolean => {
-			if (layer === null) {
-				return false;
-			}
-			const style = getComputedStyle(layer);
-			if (style.position !== 'static' && style.zIndex !== 'auto') {
-				return true;
-			}
-			if (style.transform !== 'none') {
-				return true;
-			}
-			if (style.opacity !== '1') {
-				return true;
-			}
-			if (style.filter !== 'none' || style.backdropFilter !== 'none') {
-				return true;
-			}
-			if (style.perspective !== 'none') {
-				return true;
-			}
-			return style.mixBlendMode !== 'normal';
-		};
-
-		const nearestStackingContext = (layer: Element | null): Element | null => {
-			for (
-				let current = layer;
-				current !== null;
-				current = current.parentElement
-			) {
-				if (createsStackingContext(current)) {
-					return current;
-				}
-			}
-			return null;
-		};
-
-		const indexInParent = (layer: Element): number => {
-			const parent = layer.parentElement;
-			if (parent === null) {
-				return -1;
-			}
-			return Array.prototype.indexOf.call(parent.children, layer);
-		};
-
-		const paintChain = (layer: Element): PaintRecord[] => {
-			const ownStyle = getComputedStyle(layer);
-			const records: PaintRecord[] = [
-				{
-					context: nearestStackingContext(layer.parentElement),
-					step: paintStep(ownStyle.position, ownStyle.zIndex),
-					z: paintZ(ownStyle.position, ownStyle.zIndex),
-					index: indexInParent(layer),
-				},
-			];
-			for (
-				let current = layer.parentElement;
-				current !== null;
-				current = current.parentElement
-			) {
-				if (!createsStackingContext(current)) {
-					continue;
-				}
-				const style = getComputedStyle(current);
-				records.push({
-					context: nearestStackingContext(current.parentElement),
-					step: paintStep(style.position, style.zIndex),
-					z: paintZ(style.position, style.zIndex),
-					index: indexInParent(current),
-				});
-			}
-			return records;
-		};
-
-		const pseudoPaintChain = (
-			origin: Element,
-			pseudoStyle: CSSStyleDeclaration,
-		): PaintRecord[] => {
-			const records: PaintRecord[] = [
-				{
-					context: createsStackingContext(origin)
-						? origin
-						: nearestStackingContext(origin.parentElement),
-					step: paintStep(pseudoStyle.position, pseudoStyle.zIndex),
-					z: paintZ(pseudoStyle.position, pseudoStyle.zIndex),
-					// A pseudo paints as the originating element's first child.
-					index: -1,
-				},
-			];
-			for (
-				let current: Element | null = origin;
-				current !== null;
-				current = current.parentElement
-			) {
-				if (!createsStackingContext(current)) {
-					continue;
-				}
-				const style = getComputedStyle(current);
-				records.push({
-					context: nearestStackingContext(current.parentElement),
-					step: paintStep(style.position, style.zIndex),
-					z: paintZ(style.position, style.zIndex),
-					index: indexInParent(current),
-				});
-			}
-			return records;
-		};
-
-		const paintsAbove = (a: PaintRecord[], b: PaintRecord[]): boolean => {
-			let aIndex = a.length - 1;
-			let bIndex = b.length - 1;
-			while (aIndex >= 0 && bIndex >= 0) {
-				const aRecord = a[aIndex];
-				const bRecord = b[bIndex];
-				if (
-					aRecord.context === bRecord.context &&
-					aRecord.step === bRecord.step &&
-					aRecord.z === bRecord.z &&
-					aRecord.index === bRecord.index
-				) {
-					aIndex -= 1;
-					bIndex -= 1;
-					continue;
-				}
-				if (STEP_RANK[aRecord.step] !== STEP_RANK[bRecord.step]) {
-					return STEP_RANK[aRecord.step] > STEP_RANK[bRecord.step];
-				}
-				if (aRecord.z !== bRecord.z) {
-					return aRecord.z > bRecord.z;
-				}
-				return aRecord.index > bRecord.index;
-			}
-			if (aIndex < 0 && bIndex < 0) {
-				return false;
-			}
-			if (aIndex >= 0) {
-				return true;
-			}
-			return false;
-		};
-
-		const rect = element.getBoundingClientRect();
-		if (rect.width === 0 || rect.height === 0) {
-			throw new Error('Contrast target has no painted box');
-		}
-
-		// The area the glyphs actually occupy: the text's own line boxes
-		// (Range rects of every non-empty text node), or the painted shapes'
-		// boxes. The model samples at ITS midpoint — a box midpoint can sit
-		// 100+ px away from where the text is, which is where every paint
-		// that matters would have to reach (round-7 B1), and the click-through
-		// scan and the pixel cross-check intersect the same area.
-		const glyphArea = ((): {
-			bottom: number;
-			left: number;
-			right: number;
-			top: number;
-		} => {
-			const rects: DOMRect[] = [];
-			if (targetKind === 'text') {
-				const textNodes: Node[] = [];
-				const collect = (candidate: Element): void => {
-					for (const node of candidate.childNodes) {
-						if (node.nodeType === Node.TEXT_NODE) {
-							textNodes.push(node);
-						}
-					}
-				};
-				collect(element);
-				for (const descendant of element.querySelectorAll('*')) {
-					collect(descendant);
-				}
-				for (const node of textNodes) {
-					if ((node.textContent ?? '').trim() === '') {
-						continue;
-					}
-					const range = document.createRange();
-					range.selectNodeContents(node);
-					for (const textRect of range.getClientRects()) {
-						rects.push(textRect);
-					}
-				}
-			} else {
-				for (const shape of element.querySelectorAll(
-					'path, circle, ellipse, line, polyline, polygon, rect',
-				)) {
-					rects.push(shape.getBoundingClientRect());
-				}
-			}
-			if (rects.length === 0) {
-				throw new Error(`${elementName(element)} has no resolvable glyph area`);
-			}
-			return {
-				left: Math.min(...rects.map((textRect) => textRect.left)),
-				right: Math.max(...rects.map((textRect) => textRect.right)),
-				top: Math.min(...rects.map((textRect) => textRect.top)),
-				bottom: Math.max(...rects.map((textRect) => textRect.bottom)),
-			};
-		})();
-		const x = glyphArea.left + (glyphArea.right - glyphArea.left) / 2;
-		const y = glyphArea.top + (glyphArea.bottom - glyphArea.top) / 2;
-		const hitStack = document.elementsFromPoint(x, y);
-		const targetIndex = hitStack.indexOf(element);
-		if (targetIndex === -1) {
-			throw new Error(
-				'Contrast target is absent from its own painted hit stack',
-			);
-		}
-		// The opaque layer the point shows is resolved first: everything the
-		// pseudo checks and the click-through scan compare against is stacked
-		// relative to THIS surface. Walk the hit stack down and stop at the
-		// first element that paints an opaque background.
-		const seen = new Set<Element>();
-		const opaqueElement = ((): Element | null => {
-			for (const layer of hitStack.slice(targetIndex)) {
-				if (seen.has(layer)) {
-					continue;
-				}
-				seen.add(layer);
-
-				const name = elementName(layer);
-				const style = getComputedStyle(layer);
-				for (const layerColor of backgroundImageLayers(
-					style.backgroundImage,
-					name,
-				)) {
-					if (paintAlpha(layerColor, `${name} background-image`) === 1) {
-						return layer;
-					}
-				}
-
-				const backgroundColor = toSrgb(
-					style.backgroundColor,
-					`${name} background-color`,
-				);
-				if (paintAlpha(backgroundColor, `${name} background-color`) === 1) {
-					return layer;
-				}
-			}
-			return null;
-		})();
-
-		if (!opaqueElement) {
-			throw new Error(
-				'No opaque painted background found behind contrast target',
-			);
-		}
-
-		// The hit stack above the target: only a painted background that hit
-		// testing really sees can sit between the target and the surface.
-		for (const paintedAbove of hitStack.slice(0, targetIndex)) {
-			const aboveName = elementName(paintedAbove);
-			assertNoPseudoOverlay(paintedAbove, x, y, aboveName, opaqueElement);
-			if (element.contains(paintedAbove)) {
-				const aboveStyle = getComputedStyle(paintedAbove);
-				if (aboveStyle.backgroundImage !== 'none') {
-					throw new Error(
-						`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundImage}`,
-					);
-				}
-				if (
-					paintAlpha(aboveStyle.backgroundColor, `${aboveName} background`) !==
-					0
-				) {
-					throw new Error(
-						`${aboveName} paints a background over the sampled point: ${aboveStyle.backgroundColor}`,
-					);
-				}
-				continue;
-			}
-			throw new Error(`${aboveName} unexpectedly paints above contrast target`);
-		}
-
-		// From the target down to the opaque layer, everything the point sees:
-		// assert the supported paint and the pseudo overlays of each layer.
-		for (const layer of hitStack.slice(targetIndex)) {
-			const name = elementName(layer);
-			const style = getComputedStyle(layer);
-			assertSupportedPaint(style, layer.getBoundingClientRect(), x, y, name);
-			assertNoPseudoOverlay(layer, x, y, name, opaqueElement);
-			if (layer === opaqueElement) {
-				break;
-			}
-		}
-
-		// Group compositing above the first opaque layer is invisible to the
-		// paint stack below it, so walk the whole ancestor chain and assert
-		// the properties that would composite the group over the page.
-		for (
-			let layer = element.parentElement;
-			layer !== null;
-			layer = layer.parentElement
-		) {
-			const name = elementName(layer);
-			assertSupportedPaint(
-				getComputedStyle(layer),
-				layer.getBoundingClientRect(),
-				x,
-				y,
-				name,
-			);
-			assertNoPseudoOverlay(layer, x, y, name, opaqueElement);
-		}
-
-		// The pixel reading decides the ink colour; the model's remaining job
-		// here is to fail loudly on paint that would corrupt the reading —
-		// opacity/filter/inset-shadow properties on every text-bearing
-		// painter, and a text shadow. An unparseable computed fill also fails
-		// loud (the pixels cannot be trusted to tell the story alone).
-		if (targetKind === 'text') {
-			const hasTextContent = (candidate: Element): boolean =>
-				Array.from(candidate.childNodes).some(
-					(node) =>
-						node.nodeType === Node.TEXT_NODE &&
-						(node.textContent ?? '').trim() !== '',
-				);
-
-			const textPainters: Element[] = [element];
-			for (const descendant of element.querySelectorAll('*')) {
-				if (hasTextContent(descendant)) {
-					textPainters.push(descendant);
-				}
-			}
-
-			for (const painter of textPainters) {
-				const painterStyle = getComputedStyle(painter);
-				const painterName = elementName(painter);
-				if (
-					painterStyle.display === 'none' ||
-					painterStyle.visibility === 'hidden'
-				) {
-					continue;
-				}
-				assertSupportedPaint(
-					painterStyle,
-					painter.getBoundingClientRect(),
-					x,
-					y,
-					painterName,
-				);
-				if (painterStyle.textShadow !== 'none') {
-					throw new Error(
-						`${painterName} has unsupported text shadow ${painterStyle.textShadow}`,
-					);
-				}
-				toSrgb(
-					painterStyle.webkitTextFillColor || painterStyle.color,
-					`${painterName} text fill colour`,
-				);
-			}
-		} else {
-			const shapes = element.querySelectorAll(
-				'path, circle, ellipse, line, polyline, polygon, rect',
-			);
-			let paintedShapes = 0;
-			for (const shape of shapes) {
-				const style = getComputedStyle(shape);
-				assertSupportedPaint(
-					style,
-					shape.getBoundingClientRect(),
-					x,
-					y,
-					`${elementName(element)} ${shape.tagName}`,
-				);
-				for (const property of ['fill', 'stroke'] as const) {
-					const paint = style[property];
-					if (paint === 'none') {
-						continue;
-					}
-					const paintOpacity =
-						property === 'fill' ? style.fillOpacity : style.strokeOpacity;
-					if (paintOpacity !== '1') {
-						throw new Error(
-							`${elementName(element)} ${shape.tagName} has unsupported ${property}-opacity ${paintOpacity}`,
-						);
-					}
-					toSrgb(paint, `${elementName(element)} ${shape.tagName} ${property}`);
-					paintedShapes += 1;
-				}
-			}
-			if (paintedShapes === 0) {
-				throw new Error(
-					`${elementName(element)} has no parseable painted glyph`,
-				);
-			}
-		}
-
-		// The click-through scan: elements with `pointer-events: none` are
-		// invisible to `elementsFromPoint` by definition, yet paint like any
-		// other element. Walk the whole DOM unconditionally — not only when
-		// another reading failed — for a click-through element that paints a
-		// background, is stacked at or above the opaque surface and
-		// intersects the glyph area computed above. Such an element is an
-		// occlusion the model cannot enumerate; it fails loud by name.
-		for (const candidate of document.querySelectorAll('body *')) {
-			const style = getComputedStyle(candidate);
-			if (style.pointerEvents !== 'none') {
-				continue;
-			}
-			if (style.display === 'none' || style.visibility === 'hidden') {
-				continue;
-			}
-			if (style.opacity === '0') {
-				continue;
-			}
-			const rect = candidate.getBoundingClientRect();
-			if (rect.width === 0 || rect.height === 0) {
-				continue;
-			}
-			if (
-				rect.left >= glyphArea.right ||
-				rect.right <= glyphArea.left ||
-				rect.top >= glyphArea.bottom ||
-				rect.bottom <= glyphArea.top
-			) {
-				continue;
-			}
-			const image = style.backgroundImage;
-			const backgroundColor = style.backgroundColor;
-			const paints =
-				image !== 'none' ||
-				paintAlpha(backgroundColor, `${elementName(candidate)} background`) !==
-					0;
-			if (!paints) {
-				continue;
-			}
-			if (paintsAbove(paintChain(candidate), paintChain(opaqueElement))) {
-				throw new Error(
-					`${elementName(candidate)} is a click-through overlay painted above the toast surface and over the ${targetKind === 'text' ? 'text' : 'glyph'} area: ${image !== 'none' ? image : backgroundColor}`,
-				);
-			}
-		}
-
-		return undefined;
-	}, kind);
+			return undefined;
+		},
+		{
+			classifierSnippet: BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET,
+			targetKind: kind,
+		},
+	);
 
 const measureContrast = async (
 	target: Locator,
@@ -1327,6 +1480,7 @@ const measurePaintedContrast = async (
 				bandMargin,
 				blendMargin,
 				dataUrl,
+				decoderSnippet,
 				dilation,
 				floor,
 				kind,
@@ -1336,24 +1490,18 @@ const measurePaintedContrast = async (
 				tolerance,
 			},
 		) => {
-			const base64 = dataUrl.slice('data:image/png;base64,'.length);
-			const binary = atob(base64);
-			const bytes = new Uint8Array(binary.length);
-			for (let index = 0; index < binary.length; index += 1) {
-				bytes[index] = binary.charCodeAt(index);
-			}
-			const bitmap = await createImageBitmap(
-				new Blob([bytes], { type: 'image/png' }),
-			);
-			const canvas = document.createElement('canvas');
-			canvas.width = bitmap.width;
-			canvas.height = bitmap.height;
-			const context = canvas.getContext('2d');
-			if (!context) {
-				throw new Error('Browser canvas colour resolver is unavailable');
-			}
-			context.drawImage(bitmap, 0, 0);
-			const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+			// Shared browser decoder — BROWSER_SCREENSHOT_DECODER_SNIPPET is the single source.
+			// Keep decode in the browser (screenshot → browser canvas) so measured pixels are unchanged.
+			// eslint-disable-next-line no-new-func
+			const __publyDecodeScreenshot = new Function(
+				decoderSnippet + '\nreturn __publyDecodeScreenshot;',
+			)() as (d: string) => Promise<ImageData>;
+			const __publyImageData = await __publyDecodeScreenshot(dataUrl);
+			const canvas = {
+				width: __publyImageData.width,
+				height: __publyImageData.height,
+			} as unknown as HTMLCanvasElement;
+			const data = __publyImageData.data;
 
 			const luminance = ([r, g, b]: number[]): number => {
 				const linearize = (channel: number): number => {
@@ -2139,7 +2287,8 @@ const measurePaintedContrast = async (
 		{
 			bandMargin: SURFACE_BAND_MARGIN,
 			blendMargin: BLEND_MARGIN,
-			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			dataUrl: `${SCREENSHOT_DATA_URL_PREFIX}${screenshot.toString('base64')}`,
+			decoderSnippet: BROWSER_SCREENSHOT_DECODER_SNIPPET,
 			dilation: MASK_DILATION,
 			floor,
 			kind,
@@ -2190,25 +2339,14 @@ const assertPaintsPixels = async (
 ): Promise<void> => {
 	const screenshot = await target.screenshot();
 	const count = await target.evaluate(
-		async (_element, { dataUrl, rgb }) => {
-			const base64 = dataUrl.slice('data:image/png;base64,'.length);
-			const binary = atob(base64);
-			const bytes = new Uint8Array(binary.length);
-			for (let index = 0; index < binary.length; index += 1) {
-				bytes[index] = binary.charCodeAt(index);
-			}
-			const bitmap = await createImageBitmap(
-				new Blob([bytes], { type: 'image/png' }),
-			);
-			const canvas = document.createElement('canvas');
-			canvas.width = bitmap.width;
-			canvas.height = bitmap.height;
-			const context = canvas.getContext('2d');
-			if (!context) {
-				throw new Error('Browser canvas colour resolver is unavailable');
-			}
-			context.drawImage(bitmap, 0, 0);
-			const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+		async (_element, { dataUrl, decoderSnippet, rgb }) => {
+			// Shared browser decoder via BROWSER_SCREENSHOT_DECODER_SNIPPET (Node passes snippet as string).
+			// eslint-disable-next-line no-new-func
+			const __publyDecodeScreenshot = new Function(
+				decoderSnippet + '\nreturn __publyDecodeScreenshot;',
+			)() as (d: string) => Promise<ImageData>;
+			const imageData = await __publyDecodeScreenshot(dataUrl);
+			const data = imageData.data;
 			let count = 0;
 			for (let index = 0; index < data.length; index += 4) {
 				if (
@@ -2222,7 +2360,8 @@ const assertPaintsPixels = async (
 			return count;
 		},
 		{
-			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			dataUrl: `${SCREENSHOT_DATA_URL_PREFIX}${screenshot.toString('base64')}`,
+			decoderSnippet: BROWSER_SCREENSHOT_DECODER_SNIPPET,
 			rgb,
 		},
 	);
@@ -2986,4 +3125,284 @@ test('a transformed pseudo-element over the toast fails loudly', async ({
 			TEXT_CONTRAST_FLOOR,
 		),
 	).rejects.toThrow(/painted box cannot be resolved from computed styles/);
+});
+
+/** Stacked/expanded containing-block helpers — Sonner 2.0.6 visibleToasts=4, data-front/data-expanded. */
+const renderStackedToasts = async (page: Page): Promise<Locator[]> => {
+	const order: Array<Variant | 'default'> = [
+		'success',
+		'error',
+		'warning',
+		'info',
+	];
+	const toasts: Locator[] = [];
+	for (const variant of order) {
+		const toast = await renderToast(page, variant);
+		toasts.push(toast);
+	}
+	return toasts;
+};
+
+const dismissAllToasts = async (page: Page): Promise<void> => {
+	// Sonner stacks 4 toasts at same position; only front hit-tests. Plain click on back is intercepted.
+	let remaining = await page.locator('[data-sonner-toast]').count();
+	for (let attempt = 0; attempt < 8 && remaining > 0; attempt += 1) {
+		const buttons = page.locator(
+			'[data-sonner-toast] .publy-toast-close-button',
+		);
+		const count = await buttons.count();
+		if (count === 0) break;
+		await buttons.last().click({ force: true });
+		await page.waitForTimeout(150);
+		remaining = await page.locator('[data-sonner-toast]').count();
+	}
+	await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+};
+
+test('close button containing block holds in collapsed stacked state', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	const toasts = await renderStackedToasts(page);
+	await expect(
+		page.locator('[data-sonner-toast][data-mounted="true"]'),
+	).toHaveCount(4);
+	for (const toast of toasts) {
+		await assertCloseButtonContainingBlock(toast, 'light', VIEWPORTS[0]);
+	}
+	await dismissAllToasts(page);
+});
+
+test('close button containing block holds when stack is expanded on hover', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	const toasts = await renderStackedToasts(page);
+	await page
+		.locator('[data-sonner-toast][data-front="true"]')
+		.first()
+		.hover({ force: true });
+	await expect(
+		page.locator('[data-sonner-toast][data-expanded="true"]'),
+	).toHaveCount(4, { timeout: 5_000 });
+	for (const toast of toasts) {
+		await assertCloseButtonContainingBlock(toast, 'light', VIEWPORTS[0]);
+	}
+	await dismissAllToasts(page);
+});
+
+test('clipped text (background-clip:text) fails loudly', async ({ page }) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toast-title { background: linear-gradient(90deg, red, blue); -webkit-background-clip: text; background-clip: text; color: transparent; }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/background-clip:text/);
+});
+
+test('transparent text fill (-webkit-text-fill-color: transparent) fails loudly', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content: '.publy-toast-title { -webkit-text-fill-color: transparent; }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/transparent text fill/);
+});
+
+test('M1 duplicate success tint fails the guard', async ({ page }) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toast-success { --publy-toast-tint: var(--publy-foreground); }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate|undecidable/,
+	);
+});
+
+test('M2 higher-specificity toaster error competitor fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toaster .publy-toast-error { --publy-toast-tint: var(--publy-foreground); --publy-toast-accent: var(--publy-background); }',
+	});
+	const toast = await renderToast(page, 'error');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate/,
+	);
+});
+
+test('M3 redefined warning token fails the guard', async ({ page }) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content: ':root { --publy-alert-warning-bg: var(--publy-foreground); }',
+	});
+	const toast = await renderToast(page, 'warning');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate/,
+	);
+});
+
+test('M4 near-black success background with near-black text fails the guard (injected via addStyleTag)', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'[data-sonner-toast][data-type="success"] { background: hsl(0 0% 0%) !important; color: hsl(0 0% 10%) !important; }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+});
+
+test('M5 source reorder (error before base) fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		// Base first, then error with higher specificity so the wash wins (otherwise 16.96:1 false green).
+		content:
+			'.publy-toast { --publy-toast-tint: var(--publy-surface-raised); } .publy-toaster .publy-toast-error { --publy-toast-tint: var(--publy-foreground); }',
+	});
+	const toast = await renderToast(page, 'error');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate/,
+	);
+});
+
+/**
+ * R3 gap closures — browser-path (real artifact) tests for the classifier's
+ * gap branches. Each mutates the LIVE toast via addStyleTag (same hermetic
+ * project as M1-M5) and must make the guard THROW with the named reason.
+ * Follows the existing M1-M5 mutation pattern.
+ */
+test.describe('text-paint gap closures (browser artifact)', () => {
+	test.use({ deviceScaleFactor: 2 });
+
+	test('opacity 0 on the text node fails the guard', async ({ page }) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({ content: '.publy-toast-title { opacity: 0; }' });
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/transparent opacity 0/);
+	});
+
+	test('opacity 0 on an ancestor of the text node fails the guard', async ({
+		page,
+	}) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		// Ancestor opacity is walked explicitly in readBrowserPaint (contains check).
+		await page.addStyleTag({ content: '.publy-toast-content { opacity: 0; }' });
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/transparent opacity 0/);
+	});
+
+	test('mask-image linear-gradient on the text node fails the guard', async ({
+		page,
+	}) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({
+			content:
+				'.publy-toast-title { mask-image: linear-gradient(black, transparent); }',
+		});
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/masked text/);
+	});
+
+	test('mask shorthand on the text node fails the guard', async ({ page }) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({
+			content: '.publy-toast-title { mask: url(#mask); }',
+		});
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/masked text/);
+	});
+
+	test('color rgba(0,0,0,0) on the text node fails the guard', async ({
+		page,
+	}) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({
+			content: '.publy-toast-title { color: rgba(0, 0, 0, 0); }',
+		});
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/transparent text fill/);
+	});
 });

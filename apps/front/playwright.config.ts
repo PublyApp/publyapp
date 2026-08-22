@@ -5,6 +5,7 @@ import { STAFF_ADMIN_STORAGE_STATE } from './e2e/helpers/storage-state';
 const faultSpecs = ['**/auth-error.spec.ts', '**/log-leak.spec.ts'];
 const hermeticCounterSpecs = ['**/request-counter.spec.ts'];
 const authSetupSpecs = ['**/auth.setup.ts'];
+const helperSpecs = ['**/helpers/**'];
 // #973 review round 3: this spec renders a real, app-independent
 // `page.setContent()` page — the REAL compiled production CSS
 // (`dist/client/assets/*.css`, built once per process) plus markup
@@ -19,6 +20,7 @@ const isCiShard = process.env.PLAYWRIGHT_CI_SHARD === 'true';
 
 export default defineConfig({
 	testDir: './e2e',
+	testIgnore: helperSpecs,
 	timeout: 30_000,
 	expect: {
 		timeout: 5_000,
@@ -69,6 +71,7 @@ export default defineConfig({
 				...hermeticCounterSpecs,
 				...authSetupSpecs,
 				...hermeticSourceSpecs,
+				...helperSpecs,
 			],
 			dependencies: ['setup'],
 			use: {
@@ -81,6 +84,7 @@ export default defineConfig({
 			// these specs never log in or talk to a live stack, so they must be
 			// able to run even when the docker-compose stack is down.
 			name: 'chromium-hermetic-source',
+			testIgnore: helperSpecs,
 			testMatch: hermeticSourceSpecs,
 			workers: 1,
 			use: {
@@ -92,6 +96,7 @@ export default defineConfig({
 			// session paths directly — must start from a clean context, so no
 			// storageState and no dependency on `setup`.
 			name: 'chromium-faults',
+			testIgnore: helperSpecs,
 			testMatch: faultSpecs,
 			workers: 1,
 			use: {
@@ -113,6 +118,7 @@ export default defineConfig({
 			// shards the other projects across isolated stacks, then runs this
 			// project alone with `--no-deps` after an explicit setup invocation.
 			name: 'chromium-hermetic-counter',
+			testIgnore: helperSpecs,
 			testMatch: hermeticCounterSpecs,
 			workers: 1,
 			dependencies: ['setup', 'chromium', 'chromium-faults'],
