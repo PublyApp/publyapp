@@ -1,0 +1,245 @@
+name: React Doctor
+
+# HARD gate (docs/guides/react-doctor.md): a PR may not leave any React
+# Doctor finding in a file it changes. Scoped to the changed files
+# (--scope files) and blocking on warnings as well as errors. The version
+# is pinned for determinism -- bumping it is a deliberate PR per the
+# guide's "Updating React Doctor" section.
+
+on:
+  pull_request:
+  # Required so this required check can report for a merge-queue entry:
+  # a required Actions check missing this event waits forever once the
+  # entry reaches the queue (GitHub's documented behavior), reproducing
+  # the exact missing-check deadlock #1017 exists to remove -- just under
+  # a merge queue instead of an unfiltered pull_request trigger.
+  merge_group:
+  push:
+    branches: [develop]
+    paths:
+      - '.github/workflows/react-doctor.yml'
+      - 'apps/front/**'
+      - 'packages/shared-ts/**'
+      - 'packages/client-ts/**'
+      - 'packages/_tsconfig/**'
+      - 'scripts/**'
+      - 'turbo.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.npmrc'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: react-doctor-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  REACT_DOCTOR_VERSION: 0.9.12
+
+jobs:
+  # Cheap first job: the pull_request trigger above has no paths: filter
+  # (a path-filtered trigger never starts for an unrelated PR, so a
+  # required status check gated only by the trigger would hang forever --
+  # see #1017). This job always runs and decides whether the expensive
+  # job below should.
+  changes:
+    name: Determine changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      # Checked out from the BASE commit, not this pull request's own
+      # ref: this pins the classifier a pull request is being evaluated
+      # against so an accidental or careless edit (a rename, a bad
+      # rebase, editing the wrong copy) cannot silently change the
+      # relevance decision.
+      #
+      # This is NOT a defense against a pull request that deliberately
+      # tries to bypass its own gates. The changes job's YAML --
+      # including the invocation step below, and this comment -- is
+      # itself read from the pull request's merge commit, the same as
+      # every other job in this workflow. A pull request can already
+      # rewrite that step's run: to print relevant=true/false
+      # unconditionally, or delete this checkout, or anything else,
+      # exactly as freely as it could edit a separate script file.
+      # Pinning the classifier's SOURCE closes the narrower "an edit to
+      # ci-changed-paths.mjs itself is silently honored" gap; it does not
+      # and cannot close the wider gap that the workflow calling it is
+      # merge-commit-controlled. That wider gap is tracked in #1022,
+      # with the honest framing: these gates defend against mistakes, not
+      # a malicious author of a branch in this repository -- the real
+      # controls there are who can push branches and GitHub's
+      # fork-approval requirement.
+      #
+      # This checkout can legitimately produce nothing: the pull request
+      # that introduces this classifier (or a branch cut before it
+      # existed on the base branch) has no such file at its base commit.
+      # The invocation step below fails closed to relevant=true rather
+      # than crashing when that happens.
+      - name: Checkout classifier from the base commit (not the PR's own copy)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          sparse-checkout: |
+            scripts/ci-changed-paths.mjs
+          sparse-checkout-cone-mode: false
+          path: base-ref
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Check whether react-doctor paths changed
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+
+          if [ -f "$CLASSIFIER" ]; then
+            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|\.github/workflows/react-doctor\.yml$|turbo\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
+          else
+            echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong -- investigate, do not silence it."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  react-doctor:
+    name: No findings in changed files
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head (full history for diff)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Fetch base branch
+        run: git fetch --no-tags origin ${{ github.base_ref }}
+
+      - name: React Doctor -- changed files, blocking on warnings
+        working-directory: apps/front
+        run: >-
+          pnpm dlx react-doctor@${{ env.REACT_DOCTOR_VERSION }}
+          --scope files
+          --base origin/${{ github.base_ref }}
+          --blocking warning
+          --no-telemetry
+          --verbose
+
+  # Required status check: this is the one context that should be
+  # required on the branch ruleset instead of relying on the trigger. It
+  # always reports (if: always()), passes when upstream jobs succeeded or
+  # were skipped (irrelevant PR), and fails on any real failure or
+  # cancellation rather than treating either as "not applicable".
+  gate:
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'react-doctor-gate' || 'react-doctor-push-check' }}
+    if: always()
+    needs: [changes, react-doctor]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        id: check-required-jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        # Fail closed on anything outside the exact documented shape: a
+        # nonempty JSON object whose every entry's result is exactly
+        # "success" or "skipped" (GitHub documents only
+        # success/failure/cancelled/skipped for needs.<job>.result -- see
+        # scripts/ci-gate-aggregation.test.mjs). An empty object/array, a
+        # missing .result, or an unrecognized result value must never
+        # silently pass "nothing to flag" -- and neither may examining
+        # zero jobs.
+        #
+        # BLOCKER fix: treating every "skipped" result as a pass -- the
+        # original shape of this check -- let a review round prove
+        # changes=success with an absent/empty relevant output plus every
+        # heavy job skipped as green. This step now also asserts
+        # needs.changes.result == "success", requires
+        # needs.changes.outputs.relevant to be EXACTLY the string "true"
+        # or "false", and only allows a required job to be "skipped" when
+        # relevant is exactly "false".
+        run: |
+          if [ "$(echo "$NEEDS_JSON" | jq -r 'type')" != "object" ]; then
+            echo "::error::NEEDS_JSON is not a JSON object -- examining nothing must never pass."
+            exit 1
+          fi
+
+          if [ "$(echo "$NEEDS_JSON" | jq 'length')" -eq 0 ]; then
+            echo "::error::NEEDS_JSON has no entries -- examining zero jobs must never pass."
+            exit 1
+          fi
+
+          echo "Required jobs and their results:"
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "  \(.key): \(.value.result)"'
+
+          changes_result="$(echo "$NEEDS_JSON" | jq -r '.changes.result // "MISSING"')"
+
+          if [ "$changes_result" != "success" ]; then
+            echo "::error::needs.changes.result must be exactly \"success\" (found: \"$changes_result\"). Nothing downstream can be trusted if the changed-paths classifier itself did not run to completion."
+            exit 1
+          fi
+
+          relevant="$(echo "$NEEDS_JSON" | jq -r '.changes.outputs.relevant // "MISSING"')"
+
+          if [ "$relevant" != "true" ] && [ "$relevant" != "false" ]; then
+            echo "::error::needs.changes.outputs.relevant must be exactly the string \"true\" or \"false\" (found: \"$relevant\"). GitHub can omit a job output entirely -- including because it may contain a secret -- so an absent, empty, or otherwise malformed relevance signal must never be treated as license to accept skipped verification work."
+            exit 1
+          fi
+
+          if [ "$relevant" = "true" ]; then
+            bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select(.result != "success")] | length')"
+
+            if [ "$bad_count" -gt 0 ]; then
+              echo "::error::The changes classifier reported this change as relevant, so every required job must have actually run and succeeded (skipped is not acceptable) -- but one or more did not (see results above)."
+              exit 1
+            fi
+          else
+            bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select((.result == "success" or .result == "skipped") | not)] | length')"
+
+            if [ "$bad_count" -gt 0 ]; then
+              echo "::error::One or more required jobs did not report success or skipped (failure, cancelled, or an unrecognized result value)."
+              exit 1
+            fi
+          fi
+
+          echo "All required jobs passed, or were correctly skipped for a verified-irrelevant change."
+
+      # BLOCKER fix (round 5): continue-on-error: true added to the step
+      # above would make its reported CONCLUSION "success" even after it
+      # printed ::error:: and exited 1 -- masking a correctly-detected
+      # aggregation failure. GitHub computes a step's outcome BEFORE
+      # continue-on-error is applied (only conclusion is rewritten
+      # afterward), so reading steps.check-required-jobs.outcome here is
+      # not fooled by continue-on-error on that step.
+      - name: Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)
+        if: always()
+        run: |
+          outcome="${{ steps.check-required-jobs.outcome }}"
+
+          if [ "$outcome" != "success" ]; then
+            echo "::error::steps.check-required-jobs.outcome was \"$outcome\", not \"success\". continue-on-error can rewrite a step's CONCLUSION but not its OUTCOME, so a masked required-jobs check failure is still caught here."
+            exit 1
+          fi

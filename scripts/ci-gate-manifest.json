@@ -575,6 +575,61 @@
 			"hash": "953c8ab22f544443",
 			"mirror": null,
 			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. It stays a required GitHub check."
+		},
+		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
+			"hash": "a2484f63f18b023a",
+			"mirror": "node --test scripts/ci-gate-bootstrap.test.mjs",
+			"reason": "The step inlines the fallback directly (same pattern as the other gate workflows): if base-ref/scripts/ci-changed-paths.mjs exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true. scripts/ci-gate-bootstrap.test.mjs parses this exact run: block from the real workflow file and executes it directly against both cases."
+		},
+		"react-doctor.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"hash": "1b7e214faa101c26",
+			"mirror": null,
+			"reason": "GitHub-only: checks out the classifier script from the pull request's base commit into base-ref/ rather than its own merge commit. Locally the working tree already is the code under test."
+		},
+		"react-doctor.yml::changes::Setup Node": {
+			"hash": "b80a345620484c88",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available."
+		},
+		"react-doctor.yml::gate::Check required jobs": {
+			"hash": "7da9e657ec0b7038",
+			"mirror": null,
+			"reason": "GitHub-only: reads the needs context via toJSON(needs) across the workflow's other jobs. That context only exists inside a GitHub Actions run, so this step stays GitHub-only/unmirrored locally."
+		},
+		"react-doctor.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"hash": "4f03457ecbb68642",
+			"mirror": null,
+			"reason": "GitHub-only: reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied. That .outcome context only exists inside a real Actions run."
+		},
+		"react-doctor.yml::react-doctor::Checkout PR head (full history for diff)": {
+			"hash": "96138ccd5562c420",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo with fetch-depth: 0 for full diff history. Locally the working tree already is the code under test."
+		},
+		"react-doctor.yml::react-doctor::Fetch base branch": {
+			"hash": "3dc593764f7e5605",
+			"mirror": null,
+			"reason": "GitHub-only: fetches the base branch for diffing against. Locally origin/develop is already fetched."
+		},
+		"react-doctor.yml::react-doctor::Install (frozen lockfile)": {
+			"hash": "293f74eab0665ce4",
+			"mirror": "just ci-install",
+			"reason": "ci-install runs the equivalent pnpm install --frozen-lockfile --ignore-scripts. The CI step allows lifecycle scripts for react-doctor's npx resolution; the local mirror uses the stricter --ignore-scripts."
+		},
+		"react-doctor.yml::react-doctor::Install pnpm": {
+			"hash": "e582485ed32ac12b",
+			"mirror": null,
+			"reason": "GitHub-only pnpm setup. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"react-doctor.yml::react-doctor::React Doctor -- changed files, blocking on warnings": {
+			"hash": "57329f42bee84480",
+			"mirror": "just react-doctor",
+			"reason": "just react-doctor runs the identical pnpm dlx react-doctor@0.9.12 --scope files --base origin/<base> --blocking warning --no-telemetry --verbose from apps/front."
+		},
+		"react-doctor.yml::react-doctor::Setup Node": {
+			"hash": "b80a345620484c88",
+			"mirror": null,
+			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
 		}
 	}
 }
