@@ -125,4 +125,8 @@ public static class AuditActions {
 	public const string StaffUserEmailUpdated = "staff.user.email.updated";
 
 	public const string UploadCreated = "upload.created";
+
+	public const string PostCreated = "post.created";
+	public const string PostUpdated = "post.updated";
+	public const string PostDeleted = "post.deleted";
 }

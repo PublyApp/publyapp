@@ -173,6 +173,64 @@ public static class JsonElementExtensions {
 		return Guid.Parse(guidStr);
 	}
 
+	public static Guid? GetValueAsGuidOrNull(
+		this JsonElement element,
+		[CallerArgumentExpression(nameof(element))]
+		string? propertyName = null
+	) {
+		return element.ValueKind switch {
+			JsonValueKind.Undefined => null,
+			JsonValueKind.Null => null,
+			JsonValueKind.String => Guid.TryParse(
+				element.GetString(), out var guid
+			) ? guid : throw new InvalidOperationException(
+				$"{propertyName} must be a valid GUID"
+			),
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					$"{propertyName} must be a valid GUID or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element.ValueKind,
+				$"Unhandled JsonValueKind: {element.ValueKind}"
+			),
+		};
+	}
+
+	public static Guid? GetValueAsGuidOrNull(
+		this JsonElement? element,
+		[CallerArgumentExpression(nameof(element))]
+		string? propertyName = null
+	) {
+		return element?.ValueKind switch {
+			null => null,
+			JsonValueKind.Undefined => null,
+			JsonValueKind.Null => null,
+			JsonValueKind.String => element.Value.GetString()
+				is { } raw && Guid.TryParse(raw, out var guid)
+				? guid
+				: throw new InvalidOperationException(
+					$"{propertyName} must be a valid GUID"
+				),
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					$"{propertyName} must be a valid GUID or null"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(element),
+				element?.ValueKind,
+				$"Unhandled JsonValueKind: {element?.ValueKind}"
+			),
+		};
+	}
+
 	public static int GetValueAsInt32(this JsonElement element, [CallerArgumentExpression(nameof(element))] string? propertyName = null) {
 		return element.ValueKind switch {
 			JsonValueKind.Number => element.GetInt32(),
