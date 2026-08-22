@@ -3736,7 +3736,7 @@ export function deserializeIntoFindStaffInvitationsResult(findStaffInvitationsRe
 // @ts-ignore
 export function deserializeIntoFindStaffProfilePermissionsResult(findStaffProfilePermissionsResult: Partial<FindStaffProfilePermissionsResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "permissionKeys": n => { findStaffProfilePermissionsResult.permissionKeys = n.getCollectionOfPrimitiveValues<string>(); },
+        "permissionKeys": n => { findStaffProfilePermissionsResult.permissionKeys = n.getCollectionOfPrimitiveValues<string>("string"); },
     }
 }
 /**
@@ -3795,7 +3795,7 @@ export function deserializeIntoFindSystemNoticesResponse(findSystemNoticesRespon
 // @ts-ignore
 export function deserializeIntoFindTenantProfilePermissionsAsStaffResult(findTenantProfilePermissionsAsStaffResult: Partial<FindTenantProfilePermissionsAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "permissionKeys": n => { findTenantProfilePermissionsAsStaffResult.permissionKeys = n.getCollectionOfPrimitiveValues<string>(); },
+        "permissionKeys": n => { findTenantProfilePermissionsAsStaffResult.permissionKeys = n.getCollectionOfPrimitiveValues<string>("string"); },
     }
 }
 /**
@@ -3866,7 +3866,7 @@ export function deserializeIntoFindTenantUsersAsStaffResult(findTenantUsersAsSta
 // @ts-ignore
 export function deserializeIntoGetAuditLogActionsResponse(getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "actions": n => { getAuditLogActionsResponse.actions = n.getCollectionOfPrimitiveValues<string>(); },
+        "actions": n => { getAuditLogActionsResponse.actions = n.getCollectionOfPrimitiveValues<string>("string"); },
     }
 }
 /**
@@ -3894,7 +3894,7 @@ export function deserializeIntoGetScopeAuthDataTenant(getScopeAuthDataTenant: Pa
         "id": n => { getScopeAuthDataTenant.id = n.getGuidValue(); },
         "isAdmin": n => { getScopeAuthDataTenant.isAdmin = n.getBooleanValue(); },
         "name": n => { getScopeAuthDataTenant.name = n.getStringValue(); },
-        "permissions": n => { getScopeAuthDataTenant.permissions = n.getCollectionOfPrimitiveValues<string>(); },
+        "permissions": n => { getScopeAuthDataTenant.permissions = n.getCollectionOfPrimitiveValues<string>("string"); },
         "profiles": n => { getScopeAuthDataTenant.profiles = n.getCollectionOfObjectValues<ProfileItem>(createProfileItemFromDiscriminatorValue); },
     }
 }
@@ -4263,7 +4263,7 @@ export function deserializeIntoProfileItem(profileItem: Partial<ProfileItem> | u
     return {
         "id": n => { profileItem.id = n.getGuidValue(); },
         "name": n => { profileItem.name = n.getStringValue(); },
-        "permissions": n => { profileItem.permissions = n.getCollectionOfPrimitiveValues<string>(); },
+        "permissions": n => { profileItem.permissions = n.getCollectionOfPrimitiveValues<string>("string"); },
     }
 }
 /**
