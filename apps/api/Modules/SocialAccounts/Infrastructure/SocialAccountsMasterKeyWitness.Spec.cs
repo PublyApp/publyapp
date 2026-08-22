@@ -1,5 +1,7 @@
 using FluentAssertions;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
@@ -60,11 +62,15 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	/// <summary>Fake that throws on Protect (simulates missing key).</summary>
 	private sealed class ThrowingProtector(Exception exception)
 		: ICredentialProtector {
-		public string Protect(string plaintext, SocialProvider provider)
-			=> throw exception;
+		public string Protect(string plaintext, SocialProvider provider) {
+			throw exception;
+		}
+
 		public string? Unprotect(
 			string? protectedText, SocialProvider provider
-		) => throw exception;
+		) {
+			throw exception;
+		}
 	}
 
 	/// <summary>
@@ -72,12 +78,16 @@ public sealed class SocialAccountsMasterKeyWitnessSpec {
 	/// (simulates wrong-key ring).
 	/// </summary>
 	private sealed class UnprotectFailingProtector : ICredentialProtector {
-		public string Protect(string plaintext, SocialProvider provider)
-			=> $"protected:{plaintext}";
+		public string Protect(string plaintext, SocialProvider provider) {
+			return $"protected:{plaintext}";
+		}
+
 		public string? Unprotect(
 			string? protectedText, SocialProvider provider
-		) => throw new System.Security.Cryptography.CryptographicException(
-			"Key mismatch"
-		);
+		) {
+			throw new System.Security.Cryptography.CryptographicException(
+				"Key mismatch"
+			);
+		}
 	}
 }
