@@ -2103,7 +2103,7 @@ html.dark {
 	.publy-stat-card-value-suffix {
 		font-size: 15px;
 		font-weight: 500;
-		color: var(--publy-foreground-subtle);
+		color: var(--publy-foreground-muted);
 	}
 
 	.publy-stat-card-secondary {

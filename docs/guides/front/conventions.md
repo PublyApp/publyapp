@@ -467,6 +467,18 @@ new choice, decide in this spirit and add the rule here.
   defaults to `false` on `components/ui/select.tsx`'s `SelectContent` — do not flip it back to
   `true` for an individual usage without a documented exception here.
 
+### Subtle text token
+
+`--publy-foreground-subtle` (`#a1a1aa` light / `#71717a` dark) is ~2.5:1 against the white
+surface. It fails the 4.5:1 body-text floor and the 3:1 large-text floor, so it is only
+legitimate for non-text or deliberately de-emphasised roles: **placeholders**, **decorative icons**,
+**tiny eyebrows/labels/helpers** (≤12px, carrying context the user can ignore). It must never be
+used for body-size text (≥14px, normal weight, carrying content the user must read). Use
+`--publy-foreground-muted` for secondary body text and `--publy-foreground-secondary` where the text
+is real content. The pinned intentional consumers (`publy-type-helper`, `publy-field-helper`,
+`publy-type-eyebrow`) were validated by the contrast guard in
+`drawer-description-contrast.test.ts` and are not to be mechanically replaced.
+
 ## Marketing Surfaces (#1038)
 
 The marketing chrome lives in `apps/front/src/components/marketing/` and is mounted by
