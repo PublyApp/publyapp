@@ -406,6 +406,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 
 - Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
 - Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
+- **Transparent failure causes (owner product rule, 2026-08-22):** every failure the backend persists or returns carries a human-readable cause and, where one exists, the next action — a `Failed`/`Paused`/`NeedsReconnect` row stores a sanitised `LastError`/cause (never a secret, never a stack trace), a job failure records the provider's classified reason, and a problem response names what went wrong in plain words. Never `Failed` with an empty reason, never a generic "something went wrong". Spec: `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` §1.7; UI counterpart in `DESIGN.md` (error states).
 - Frontend/Node: use `logger` from `@org/shared-ts/lib/logger/iso-logger` (not `console.*`) (enforced by `publy/no-console-in-source`)
 - Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
 - Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site (enforced by `publy/no-manual-response-message-translation`)
