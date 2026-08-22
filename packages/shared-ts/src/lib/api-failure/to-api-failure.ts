@@ -7,14 +7,14 @@ import type {
 	ValidationFailure,
 } from './types';
 
-type RecordShape = Record<string, unknown>;
+type StringRecord = Record<string, unknown>;
 
-const asRecord = (value: unknown): RecordShape | undefined => {
+const asRecord = (value: unknown): StringRecord | undefined => {
 	if (!value || typeof value !== 'object') {
 		return undefined;
 	}
 
-	return value as RecordShape;
+	return value as StringRecord;
 };
 
 const toNumber = (value: unknown): number | undefined => {
@@ -61,7 +61,7 @@ const toRecordOfStringArrays = (
 		return undefined;
 	}
 
-	const rows = Object.entries(value as RecordShape);
+	const rows = Object.entries(value as StringRecord);
 	if (rows.length === 0) {
 		return undefined;
 	}
@@ -92,7 +92,7 @@ type ProblemLike = {
 	errors: Record<string, string[]> | undefined;
 };
 
-const hasMeaningfulProblemShape = (problem: ProblemLike): boolean =>
+const hasMeaningfulProblemDetails = (problem: ProblemLike): boolean =>
 	problem.status !== undefined ||
 	problem.responseStatusCode !== undefined ||
 	problem.title !== undefined ||
@@ -100,7 +100,7 @@ const hasMeaningfulProblemShape = (problem: ProblemLike): boolean =>
 	problem.translationKey !== undefined ||
 	(problem.errors !== undefined && Object.keys(problem.errors).length > 0);
 
-const readProblemShape = (value: unknown): ProblemLike | undefined => {
+const readProblemDetails = (value: unknown): ProblemLike | undefined => {
 	const candidate = asRecord(value);
 	if (!candidate) {
 		return undefined;
@@ -142,13 +142,13 @@ const parseProblem = (error: unknown): ParsedProblemLike | undefined => {
 	const bodyProblem = asRecord(errorRecord.body);
 	const nestedProblem = asRecord(errorRecord.error);
 
-	const root = readProblemShape(errorRecord);
-	const body = bodyProblem ? readProblemShape(bodyProblem) : undefined;
-	const nested = nestedProblem ? readProblemShape(nestedProblem) : undefined;
+	const root = readProblemDetails(errorRecord);
+	const body = bodyProblem ? readProblemDetails(bodyProblem) : undefined;
+	const nested = nestedProblem ? readProblemDetails(nestedProblem) : undefined;
 	const candidates = [body, nested, root];
 	const source = candidates.find(
 		(candidate): candidate is ProblemLike =>
-			candidate !== undefined && hasMeaningfulProblemShape(candidate),
+			candidate !== undefined && hasMeaningfulProblemDetails(candidate),
 	);
 
 	if (!source) {

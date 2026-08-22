@@ -189,7 +189,7 @@ const collectWorkflowSteps = async (rootDir) => {
  * Validates one manifest entry's shape. An entry that neither names a mirror
  * nor gives a reason is not a reconciliation, it is a rubber stamp.
  */
-const getEntryShapeProblem = (id, entry) => {
+const getEntryValidationProblem = (id, entry) => {
 	if (entry === null || typeof entry !== 'object') {
 		return `${manifestPath}: entry "${id}" must be an object.`;
 	}
@@ -244,10 +244,10 @@ export const findCiDrift = async ({ rootDir }) => {
 
 		seen.add(step.id);
 
-		const shapeProblem = getEntryShapeProblem(step.id, entry);
+		const validationProblem = getEntryValidationProblem(step.id, entry);
 
-		if (shapeProblem !== null) {
-			findings.push(shapeProblem);
+		if (validationProblem !== null) {
+			findings.push(validationProblem);
 			continue;
 		}
 

@@ -62,7 +62,7 @@ export const toServerFailurePayload = (
 /**
  * A real `Error` subclass carrying the same fields the plain-object failures
  * this module used to throw did — `toApiFailure`'s duck-typed
- * `readProblemShape` reads any object with these fields regardless of
+ * `readProblemDetails` reads any object with these fields regardless of
  * whether it's an `Error`, so this is a drop-in replacement that additionally
  * gets a stack trace and `instanceof Error` support.
  */

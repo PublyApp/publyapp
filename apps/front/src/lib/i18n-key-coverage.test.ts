@@ -581,13 +581,13 @@ const isMetaOrProblemDetailsDescriptor = (node: ts.Node): boolean => {
 	const hasMetaTagPair =
 		siblingNames.has('content') &&
 		[...META_TAG_PAIR_KEYS].some((key) => siblingNames.has(key));
-	const hasProblemDetailsShape =
+	const hasProblemDetailsSignature =
 		[...PROBLEM_DETAILS_CORE_KEYS].every((key) => siblingNames.has(key)) &&
 		[...PROBLEM_DETAILS_DISCRIMINATOR_KEYS].some((key) =>
 			siblingNames.has(key),
 		);
 
-	return hasRouteHeadOnlyMarker || hasMetaTagPair || hasProblemDetailsShape;
+	return hasRouteHeadOnlyMarker || hasMetaTagPair || hasProblemDetailsSignature;
 };
 
 // W5-HARDEN: imperative DOM property writes that land copy on-screen exactly

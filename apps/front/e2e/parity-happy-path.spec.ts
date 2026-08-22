@@ -171,7 +171,7 @@ const navigateToInviteUsersPage = async (
 	return profiles;
 };
 
-const assertColumnShape = (page: Page) =>
+const assertColumnHeaders = (page: Page) =>
 	Promise.all([
 		expect(
 			page.getByRole('columnheader', {
@@ -214,7 +214,7 @@ test.describe(
 			page,
 		}) => {
 			await loginAndWaitForSeededRows(page);
-			await assertColumnShape(page);
+			await assertColumnHeaders(page);
 			await assertSeededRowsVisible(page);
 		});
 

@@ -2304,7 +2304,7 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 	// reads through const object literals) could make them red, and that
 	// is out of scope. (Recognized `String.raw` and prefixed globals are
 	// also non-identifier candidates, but those are handled, not rejected.)
-	const shapes = [
+	const shadowTestCases = [
 		[
 			'param-shadowed R',
 			// The function parameter `R` shadows the module-scope `const R
@@ -2386,7 +2386,7 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 			].join('\n'),
 		],
 	];
-	for (const [name, content] of shapes) {
+	for (const [name, content] of shadowTestCases) {
 		const { violations } = await runFixtureGuard({ 'probe.tsx': content }, '', [
 			"import { probe } from './probe';",
 		]);
@@ -3144,21 +3144,30 @@ test('structural (round 17 B1 → round 19 B2): the single classifier and per-ID
 	//     specifier for a file the build also recorded as `?raw` is a distinct
 	//     module ID and provably not raw text, so it resolves to no binding.
 	const txtPath = '/probe/src/named.txt';
-	const rawShape = {
+	const rawModuleConfig = {
 		code: 'export default ".x"',
 		meta: {},
 		assetPluginLoad: new Set(),
 	};
-	const urlShape = {
+	const urlModuleConfig = {
 		code: 'export default "/assets/named.txt"',
 		meta: { 'vite:asset': true },
 		assetPluginLoad: new Set(),
 	};
-	assert.equal(classifyModuleKind(`${txtPath}?raw`, rawShape).kind, 'raw');
-	assert.equal(classifyModuleKind(`${txtPath}?v=1?raw`, rawShape).kind, 'raw');
-	assert.equal(classifyModuleKind(`${txtPath}?v=2?raw`, rawShape).kind, 'raw');
 	assert.equal(
-		classifyModuleKind(`${txtPath}?url`, urlShape).kind,
+		classifyModuleKind(`${txtPath}?raw`, rawModuleConfig).kind,
+		'raw',
+	);
+	assert.equal(
+		classifyModuleKind(`${txtPath}?v=1?raw`, rawModuleConfig).kind,
+		'raw',
+	);
+	assert.equal(
+		classifyModuleKind(`${txtPath}?v=2?raw`, rawModuleConfig).kind,
+		'raw',
+	);
+	assert.equal(
+		classifyModuleKind(`${txtPath}?url`, urlModuleConfig).kind,
 		'url-asset',
 	);
 	// A `?url` ID for a file the build also recorded as `?raw` is a distinct
