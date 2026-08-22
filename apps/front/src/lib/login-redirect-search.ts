@@ -23,12 +23,14 @@ type BuildLoginRedirectSearchArgs = {
 export const buildLoginRedirectSearch = ({
 	hadSession,
 	returnTo,
-}: BuildLoginRedirectSearchArgs): Record<string, string> => ({
-	...(hadSession
-		? {
-				[queryParamKey.login_page.redirect_cause]:
-					queryParamValue.login_page.redirect_cause.invalid_session,
-			}
-		: {}),
-	...(returnTo ? { [queryParamKey.login_page.redirect_to]: returnTo } : {}),
-});
+}: BuildLoginRedirectSearchArgs): Record<string, string> => {
+	const result: Record<string, string> = {};
+	if (hadSession) {
+		result[queryParamKey.login_page.redirect_cause] =
+			queryParamValue.login_page.redirect_cause.invalid_session;
+	}
+	if (returnTo) {
+		result[queryParamKey.login_page.redirect_to] = returnTo;
+	}
+	return result;
+};

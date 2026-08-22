@@ -53,15 +53,14 @@ export function MarketingImageSlot({
 	alt,
 	className,
 }: MarketingImageSlotProps): ReactElement {
-	const style: CSSProperties = {
-		...(ratio === undefined ? {} : { aspectRatio: ratio }),
-		...(tint
-			? {
-					backgroundColor:
-						'color-mix(in oklab, var(--publy-foreground) 3%, transparent)',
-				}
-			: {}),
-	};
+	const style: CSSProperties = {};
+	if (ratio !== undefined) {
+		style.aspectRatio = ratio;
+	}
+	if (tint) {
+		style.backgroundColor =
+			'color-mix(in oklab, var(--publy-foreground) 3%, transparent)';
+	}
 
 	return (
 		<div

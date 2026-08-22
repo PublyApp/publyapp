@@ -125,11 +125,14 @@ function run(command, args, options = {}) {
 }
 
 function sharedEnv(extra = {}) {
-	return {
-		...process.env,
-		...(sharedPythonPath ? { PYTHONPATH: sharedPythonPath } : {}),
-		...extra,
-	};
+	const env = { ...process.env };
+	if (sharedPythonPath) {
+		env.PYTHONPATH = sharedPythonPath;
+	}
+	for (const [key, value] of Object.entries(extra)) {
+		env[key] = value;
+	}
+	return env;
 }
 
 async function withTempDirectory(callback) {

@@ -3,7 +3,10 @@
 	"plugins": ["unicorn", "typescript", "oxc", "react"],
 	"jsPlugins": [
 		"./packages/lint-ts/src/index.js",
-		{ "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" }
+		{
+			"name": "anti-slop",
+			"specifier": "./tools/oxlint/anti-slop/index.ts"
+		}
 	],
 	"options": {
 		"typeAware": true
@@ -68,7 +71,7 @@
 		"publy/no-manual-response-message-translation": "error",
 		"publy/arrow-function-components": "off",
 		"anti-slop/no-chained-type-assertions": "off",
-		"anti-slop/no-conditional-empty-object-spread": "off",
+		"anti-slop/no-conditional-empty-object-spread": "error",
 		"anti-slop/no-known-value-widening": "off",
 		"anti-slop/no-module-mocking": "off",
 		"anti-slop/no-object-parameters": "off",

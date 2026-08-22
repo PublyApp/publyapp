@@ -414,21 +414,25 @@ function StaffUserEditPage() {
 	}
 
 	const onSubmit = methods.handleSubmit(async (values) => {
-		const updateInput = {
-			userId,
-			...(formState.dirtyFields.firstName
-				? { firstName: values.firstName?.trim() || null }
-				: {}),
-			...(formState.dirtyFields.lastName
-				? { lastName: values.lastName?.trim() || null }
-				: {}),
-			...(formState.dirtyFields.avatarUrl
-				? { avatarUrl: values.avatarUrl.trim() || null }
-				: {}),
-			...(formState.dirtyFields.accountLevel
-				? { accountLevel: values.accountLevel }
-				: {}),
-		};
+		const updateInput: {
+			userId: string;
+			firstName?: string | null;
+			lastName?: string | null;
+			avatarUrl?: string | null;
+			accountLevel?: StaffUserEditValues['accountLevel'];
+		} = { userId };
+		if (formState.dirtyFields.firstName) {
+			updateInput.firstName = values.firstName?.trim() || null;
+		}
+		if (formState.dirtyFields.lastName) {
+			updateInput.lastName = values.lastName?.trim() || null;
+		}
+		if (formState.dirtyFields.avatarUrl) {
+			updateInput.avatarUrl = values.avatarUrl.trim() || null;
+		}
+		if (formState.dirtyFields.accountLevel) {
+			updateInput.accountLevel = values.accountLevel;
+		}
 		const hasIdentityChanges = Object.keys(updateInput).length > 1;
 		const hasProfileChanges = Boolean(formState.dirtyFields.profileIds);
 

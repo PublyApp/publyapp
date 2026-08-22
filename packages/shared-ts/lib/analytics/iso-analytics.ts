@@ -167,12 +167,13 @@ export class IsoAnalytics implements IAnalytics {
 				return;
 			}
 			// Server-side: posthog-node IdentifyMessage format
-			const properties = {
-				...(params.properties ? { $set: params.properties } : {}),
-				...(params.propertiesSetOnce
-					? { $set_once: params.propertiesSetOnce }
-					: {}),
-			};
+			const properties: Record<string, unknown> = {};
+			if (params.properties) {
+				properties.$set = params.properties;
+			}
+			if (params.propertiesSetOnce) {
+				properties.$set_once = params.propertiesSetOnce;
+			}
 
 			const identifyMessage: IdentifyMessage = {
 				distinctId: params.distinctId,

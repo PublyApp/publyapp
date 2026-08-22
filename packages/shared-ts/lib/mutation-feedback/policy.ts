@@ -75,12 +75,14 @@ export const resolveMutationFailureIntent = (
 
 	const translationKey = getFailureTranslationKey(failure);
 	const fallbackMessage = getFailureFallbackMessage(failure);
-	return {
-		kind: 'error',
-		failure,
-		...(translationKey === undefined ? {} : { translationKey }),
-		...(fallbackMessage === undefined ? {} : { fallbackMessage }),
-	};
+	const failureIntent: MutationFeedbackIntent = { kind: 'error', failure };
+	if (translationKey !== undefined) {
+		failureIntent.translationKey = translationKey;
+	}
+	if (fallbackMessage !== undefined) {
+		failureIntent.fallbackMessage = fallbackMessage;
+	}
+	return failureIntent;
 };
 
 export const resolveMutationSuccessIntent = (
