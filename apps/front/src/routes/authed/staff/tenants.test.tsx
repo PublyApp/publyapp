@@ -10,6 +10,7 @@ import {
 import type { JSX, ReactNode } from 'react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 const mocks = vi.hoisted(() => ({
 	search: {} as Record<string, unknown>,
@@ -901,29 +902,6 @@ describe('staff tenants route', () => {
 	});
 
 	describe('bulk actions', () => {
-		const chooseBulkAction = async (
-			actionName:
-				| 'Suspend selected'
-				| 'Delete selected'
-				| 'Reactivate selected',
-		) => {
-			const trigger = await screen.findByRole('button', {
-				name: 'More actions',
-				expanded: false,
-			});
-
-			// The floating trigger renders before Base UI wires its pointer props;
-			// a click dispatched into that window is swallowed. Gating on the settled
-			// closed state, then on the open state after the click, closes the race.
-			fireEvent.click(trigger);
-			await waitFor(() =>
-				expect(
-					trigger.getAttribute('aria-expanded'),
-					`bulk menu did not open for ${actionName}`,
-				).toBe('true'),
-			);
-			fireEvent.click(screen.getByRole('menuitem', { name: actionName }));
-		};
 		const mixedStatusTenants = [
 			{
 				id: 'tenant-1',
