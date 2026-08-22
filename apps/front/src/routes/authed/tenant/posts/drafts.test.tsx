@@ -2,20 +2,92 @@
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+const mocks = vi.hoisted(() => ({
+	search: {} as Record<string, unknown>,
+	navigate: vi.fn(),
+	invalidateQueries: vi.fn(),
+	useTenantPostsQuery: vi.fn(() => ({
+		data: undefined,
+		isPending: true,
+		isError: false,
+		error: null,
+		refetch: vi.fn(),
+		isFetching: false,
+	})),
+	useDeleteTenantPostMutation: vi.fn(() => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	})),
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+	useQueryClient: () => ({
+		invalidateQueries: mocks.invalidateQueries,
+	}),
+}));
+
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		useNavigate: () => mocks.navigate,
+		useSearch: () => mocks.search,
+	}),
+	Link: ({
+		children,
+		to,
+		params,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		params?: Record<string, string>;
+	}) => {
+		let href = to;
+		for (const [key, value] of Object.entries(params ?? {})) {
+			href = href.replace(`$${key}`, value);
+		}
+		return (
+			<a href={href} {...props}>
+				{children}
+			</a>
+		);
+	},
+}));
+
+vi.mock('~/lib/query/tenant-posts', () => ({
+	useTenantPostsQuery: mocks.useTenantPostsQuery,
+	useDeleteTenantPostMutation: mocks.useDeleteTenantPostMutation,
+	toTenantPostRows: vi.fn(() => []),
+	invalidateTenantPosts: vi.fn(),
+}));
+
+vi.mock('./_create-post-drawer', () => ({
+	CreatePostDrawer: () => null,
+}));
+
+vi.mock('~/lib/should-logout-for-failure', () => ({
+	shouldLogoutForFailure: () => false,
+}));
+
+vi.mock('~/lib/query/tenants-for-picker', () => ({
+	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
 }));
 
 const EN_LABELS: Record<string, string> = {
-	drafts: 'Drafts',
-	'drafts-coming-later-title': 'Drafts are coming later',
-	'drafts-coming-later-description':
-		'Your draft posts will appear here once the posts API ships.',
-	'common:drafts': 'Drafts',
-	'read-only': 'Read only',
+	'posts:drafts': 'Drafts',
+	'posts:drafts-description': 'Your draft posts will appear here.',
+	'posts:new-post': 'New post',
+	'posts:body-label': 'Body',
+	'posts:move-to-bin': 'Move to bin',
+	'posts:move-to-bin-confirm': 'Are you sure?',
+	'common:actions': 'Actions',
+	'common:actions-for': 'Actions for {{name}}',
+	'common:updated-at': 'Updated at',
+	'common:edit': 'Edit',
+	'common:an-error-occurred': 'An error occurred',
 };
 
 vi.mock('react-i18next', () => ({
@@ -37,18 +109,17 @@ afterEach(() => {
 });
 
 describe('TenantPostsDraftsPage', () => {
-	test('renders the section heading and the honest coming-later state', () => {
+	test('renders the drafts heading and create button', () => {
 		render(<TenantPostsDraftsPage />);
 
 		expect(screen.getByRole('heading', { name: 'Drafts' })).toBeTruthy();
-		expect(screen.getByText('Drafts are coming later')).toBeTruthy();
-		expect(screen.getByTestId('tenant-posts-drafts-empty')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'New post' })).toBeTruthy();
 	});
 
-	test('shows the read-only badge and no fake draft rows or controls', () => {
+	test('shows the drafts table with test id', () => {
 		render(<TenantPostsDraftsPage />);
 
-		expect(screen.getByTestId('account-read-only-badge')).toBeTruthy();
-		expect(screen.queryAllByRole('button').length).toBe(0);
+		expect(screen.getByTestId('tenant-posts-drafts-page')).toBeTruthy();
+		expect(screen.getByTestId('tenant-posts-drafts-table')).toBeTruthy();
 	});
 });

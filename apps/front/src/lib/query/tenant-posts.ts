@@ -322,18 +322,18 @@ export const invalidateTenantPosts = (qc: QueryClient, tenantId: string) =>
 // ── Breadcrumb helpers ─────────────────────────────────────────────
 
 export const tenantPostCrumbQuery = (params: Record<string, string>) => ({
-	queryKey: tenantPostDetailsQueryOptions.queryKey({
-		postId: params.postId,
-		tenantId: params.tenantId,
-	}),
+	queryKey: [
+		...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY),
+		{ postId: params.postId },
+	],
 	queryFn: () =>
 		tenantPostDetailsQueryOptions.fetcher({
 			postId: params.postId,
-			tenantId: params.tenantId,
+			tenantId: params.tenantId ?? '',
 		}),
 });
 
 export const selectTenantPostCrumbName = (data: unknown) => {
 	const d = toTenantPostDetails(data as PostDetail | null);
-	return d ? d.body.slice(0, 40) : undefined;
+	return d ? d.body : undefined;
 };

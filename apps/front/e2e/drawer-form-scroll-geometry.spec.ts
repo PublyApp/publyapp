@@ -500,6 +500,9 @@ const openDrawerByCallSiteId: Record<
 	'profile-edit': openProfileEditDrawer,
 	'tenant-user-invite': openInviteUserDrawer,
 	'staff-user-email-change': openChangeEmailDrawer,
+	'tenant-post-create': async () => {
+		/* tenant-route drawer — no-op in staff e2e */
+	},
 };
 
 test.describe(
