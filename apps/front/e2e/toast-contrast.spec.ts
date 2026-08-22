@@ -3016,3 +3016,57 @@ test('a transformed pseudo-element over the toast fails loudly', async ({
 		),
 	).rejects.toThrow(/painted box cannot be resolved from computed styles/);
 });
+
+/** Stacked/expanded containing-block helpers — Sonner 2.0.6 visibleToasts=4, data-front/data-expanded. */
+const renderStackedToasts = async (page: Page): Promise<Locator[]> => {
+	const order: Array<Variant | 'default'> = [
+		'success',
+		'error',
+		'warning',
+		'info',
+	];
+	const toasts: Locator[] = [];
+	for (const variant of order) {
+		const toast = await renderToast(page, variant);
+		toasts.push(toast);
+	}
+	return toasts;
+};
+
+const dismissAllToasts = async (page: Page): Promise<void> => {
+	const toasts = page.locator('[data-sonner-toast][data-mounted="true"]');
+	const count = await toasts.count();
+	for (let index = count - 1; index >= 0; index -= 1) {
+		await toasts.nth(index).locator('.publy-toast-close-button').click();
+	}
+	await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+};
+
+test('close button containing block holds in collapsed stacked state', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	const toasts = await renderStackedToasts(page);
+	await expect(
+		page.locator('[data-sonner-toast][data-mounted="true"]'),
+	).toHaveCount(4);
+	for (const toast of toasts) {
+		await assertCloseButtonContainingBlock(toast, 'light', VIEWPORTS[0]);
+	}
+	await dismissAllToasts(page);
+});
+
+test('close button containing block holds when stack is expanded on hover', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	const toasts = await renderStackedToasts(page);
+	await page.locator('.publy-toaster').hover();
+	await expect(
+		page.locator('[data-sonner-toast][data-expanded="true"]'),
+	).toHaveCount(4, { timeout: 5_000 });
+	for (const toast of toasts) {
+		await assertCloseButtonContainingBlock(toast, 'light', VIEWPORTS[0]);
+	}
+	await dismissAllToasts(page);
+});
