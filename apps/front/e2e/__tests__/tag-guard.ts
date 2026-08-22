@@ -1,15 +1,21 @@
 /**
- * E2E tag guard — pure static analysis using a hand-written scanner.
+ * E2E tag guard — pure static analysis using a hand-written tokenizer.
  *
  * The scanner correctly handles:
  * - String literals (single/double quotes, with escapes)
  * - Template literals (with ${} expressions, tracking depth)
  * - Regex literals (distinguishes /regex/ from division)
  * - Single-line and multi-line comments
+ * - test.describe modifier chains (serial, parallel, only, skip, fixme)
+ * - Arrow function and function-expression callbacks
  *
- * Finds every `test.describe(` call and classifies each as "top-level"
- * (not nested inside another describe's callback body) by comparing
- * positional ranges.
+ * Finds every `test.describe[.modifier]*(` call and classifies each as
+ * "top-level" (not nested inside another describe's callback body) by
+ * comparing positional ranges.
+ *
+ * Any describe call whose callback shape the scanner does not understand
+ * (not an arrow and not a function expression) is reported as an error
+ * — it is never silently ignored.
  *
  * Closed-vocabulary rule: every @tag must be a known domain, @untracked,
  * or @<digits> (ticket). Anything else fails.
@@ -108,7 +114,11 @@ function tokenize(source: string): Token[] {
 			i++; // skip closing /
 			// flags
 			while (i < len && /[gimsuy]/.test(source[i]!)) i++;
-			tokens.push({ type: 'regex', text: source.slice(start, i), pos: start });
+			tokens.push({
+				type: 'regex',
+				text: source.slice(start, i),
+				pos: start,
+			});
 			regexAllowed = false;
 			continue;
 		}
@@ -123,7 +133,11 @@ function tokenize(source: string): Token[] {
 				i++;
 			}
 			i++; // skip closing quote
-			tokens.push({ type: 'string', text: source.slice(start, i), pos: start });
+			tokens.push({
+				type: 'string',
+				text: source.slice(start, i),
+				pos: start,
+			});
 			regexAllowed = false;
 			continue;
 		}
@@ -168,7 +182,11 @@ function tokenize(source: string): Token[] {
 				i++; // skip .
 				while (i < len && /[0-9]/.test(source[i]!)) i++;
 			}
-			tokens.push({ type: 'num', text: source.slice(start, i), pos: start });
+			tokens.push({
+				type: 'num',
+				text: source.slice(start, i),
+				pos: start,
+			});
 			regexAllowed = false;
 			continue;
 		}
@@ -247,12 +265,32 @@ export interface DescribeInfo {
 	title: string;
 	tags: string[];
 	topLevel: boolean;
+	describePos?: number;
+	error?: string;
 }
 
 /**
+ * Known Playwright test.describe modifiers.
+ * Only these (and chained forms like .serial.only) are consumed as
+ * describe variants.  Other method calls (e.g. test.describe.configure)
+ * are NOT matched.
+ */
+const DESCRIBE_MODIFIERS = new Set([
+	'serial',
+	'parallel',
+	'only',
+	'skip',
+	'fixme',
+]);
+
+/**
  * Analyze a spec file and return information about every `test.describe`
- * call, including whether it is top-level (not inside another describe's
- * callback body).
+ * call (including modifier variants like `test.describe.serial`), including
+ * whether it is top-level (not inside another describe's callback body).
+ *
+ * Recognized callback shapes: arrow (`() => {}`) and function expression
+ * (`function () {}`).  Unrecognized shapes produce an `error` field rather
+ * than being silently skipped.
  */
 export function analyzeFile(filePath: string): DescribeInfo[] {
 	const source = fs.readFileSync(filePath, 'utf8');
@@ -265,22 +303,36 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 		bodyEnd: number;
 		title: string;
 		tags: string[];
+		error?: string;
 	}
 
 	const records: DescribeRecord[] = [];
 
 	for (let i = 0; i < tokens.length; i++) {
-		// Match: test.describe(
+		// Match: test.describe[.modifier...](
 		if (
 			tokens[i]?.type === 'id' &&
 			tokens[i]!.text === 'test' &&
 			tokens[i + 1]?.type === '.' &&
 			tokens[i + 2]?.type === 'id' &&
-			tokens[i + 2]!.text === 'describe' &&
-			tokens[i + 3]?.type === '('
+			tokens[i + 2]!.text === 'describe'
 		) {
+			// Consume optional modifier chain: .serial, .parallel, .only,
+			// .skip, .fixme, and chained forms like .serial.only.
+			// Only the known modifier set is consumed; other method calls
+			// (e.g. test.describe.configure) do NOT match.
+			let parenIdx = i + 3;
+			while (
+				tokens[parenIdx]?.type === '.' &&
+				tokens[parenIdx + 1]?.type === 'id' &&
+				DESCRIBE_MODIFIERS.has(tokens[parenIdx + 1]!.text)
+			) {
+				parenIdx += 2;
+			}
+			if (tokens[parenIdx]?.type !== '(') continue;
+
 			const describePos = tokens[i]!.pos;
-			const callOpen = i + 3; // index of the opening (
+			const callOpen = parenIdx; // index of the opening (
 
 			// Find matching ) — track paren depth
 			let parenDepth = 0;
@@ -397,8 +449,10 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 				if (!tags.includes(tag)) tags.push(tag);
 			}
 
-			// Find callback body: scan inside (...) for => at depth 1
+			// Find callback body: scan inside (...) at depth 1
+			// for => (arrow) or function keyword
 			let arrowIdx = -1;
+			let funcIdx = -1;
 			{
 				let depth = 0;
 				for (let j = callOpen; j <= callClose; j++) {
@@ -407,43 +461,95 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 						depth--;
 						if (depth === 0) break;
 					}
-					// => at depth 1 means inside test.describe's parens
-					if (tokens[j]!.type === '=>' && depth === 1) {
-						arrowIdx = j;
+					// => or function at depth 1 means inside test.describe's parens
+					if (depth === 1) {
+						if (tokens[j]!.type === '=>') {
+							arrowIdx = j;
+						} else if (
+							tokens[j]!.type === 'id' &&
+							tokens[j]!.text === 'function' &&
+							funcIdx === -1
+						) {
+							funcIdx = j;
+						}
 					}
 				}
 			}
-			if (arrowIdx === -1) continue;
 
-			// Find the { after =>
-			let bodyOpen = -1;
-			for (let j = arrowIdx + 1; j < callClose; j++) {
-				if (tokens[j]!.type === '{') {
-					bodyOpen = j;
-					break;
-				}
-			}
-			if (bodyOpen === -1) continue;
-
-			// Find matching } of callback body
-			let braceDepth = 0;
+			let bodyStart = -1;
 			let bodyEnd = -1;
-			for (let j = bodyOpen; j < tokens.length; j++) {
-				if (tokens[j]!.type === '{') braceDepth++;
-				else if (tokens[j]!.type === '}') {
-					braceDepth--;
-					if (braceDepth === 0) {
-						bodyEnd = j;
+			let unsupportedShape = false;
+
+			if (arrowIdx !== -1) {
+				// Arrow callback: find { after =>
+				let bodyOpen = -1;
+				for (let j = arrowIdx + 1; j < callClose; j++) {
+					if (tokens[j]!.type === '{') {
+						bodyOpen = j;
 						break;
 					}
 				}
+				if (bodyOpen !== -1) {
+					let braceDepth = 0;
+					for (let j = bodyOpen; j < tokens.length; j++) {
+						if (tokens[j]!.type === '{') braceDepth++;
+						else if (tokens[j]!.type === '}') {
+							braceDepth--;
+							if (braceDepth === 0) {
+								bodyStart = tokens[bodyOpen]!.pos;
+								bodyEnd = tokens[j]!.pos + 1;
+								break;
+							}
+						}
+					}
+				}
+			} else if (funcIdx !== -1) {
+				// function callback: find { after function keyword
+				// (may have params in parens between function and {)
+				let bodyOpen = -1;
+				for (let j = funcIdx + 1; j < callClose; j++) {
+					if (tokens[j]!.type === '{') {
+						bodyOpen = j;
+						break;
+					}
+				}
+				if (bodyOpen !== -1) {
+					let braceDepth = 0;
+					for (let j = bodyOpen; j < tokens.length; j++) {
+						if (tokens[j]!.type === '{') braceDepth++;
+						else if (tokens[j]!.type === '}') {
+							braceDepth--;
+							if (braceDepth === 0) {
+								bodyStart = tokens[bodyOpen]!.pos;
+								bodyEnd = tokens[j]!.pos + 1;
+								break;
+							}
+						}
+					}
+				}
+			} else {
+				// Unsupported callback shape
+				unsupportedShape = true;
 			}
-			if (bodyEnd === -1) continue;
+
+			if (bodyStart === -1 || bodyEnd === -1) {
+				if (unsupportedShape) {
+					records.push({
+						describePos,
+						bodyStart: 0,
+						bodyEnd: 0,
+						title,
+						tags,
+						error: `unsupported describe shape at position ${describePos} in "${title || '(untitled)'}"`,
+					});
+				}
+				continue;
+			}
 
 			records.push({
 				describePos,
-				bodyStart: tokens[bodyOpen]!.pos,
-				bodyEnd: tokens[bodyEnd]!.pos + 1, // after the }
+				bodyStart,
+				bodyEnd,
 				title,
 				tags,
 			});
@@ -453,9 +559,20 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 	// Determine top-level: a describe is top-level if its describePos
 	// does NOT fall inside any other describe's callback body range.
 	for (const rec of records) {
+		if (rec.error) {
+			results.push({
+				title: rec.title,
+				tags: rec.tags,
+				topLevel: false,
+				describePos: rec.describePos,
+				error: rec.error,
+			});
+			continue;
+		}
 		const isNested = records.some(
 			(other) =>
 				other !== rec &&
+				!other.error &&
 				rec.describePos >= other.bodyStart &&
 				rec.describePos < other.bodyEnd,
 		);

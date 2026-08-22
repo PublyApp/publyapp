@@ -1,7 +1,9 @@
 # E2E Test Tags
 
 Every Playwright e2e test file **must** carry at least one `@domain` tag and one `@ticket`
-tag on **every** top-level `test.describe`. Playwright `--grep` filters on the full test title
+tag on **every** top-level `test.describe` — including the second, third, or any subsequent
+sequential top-level `test.describe` in the same file. Nested `test.describe` calls inherit
+tags from their parent and need none. Playwright `--grep` filters on the full test title
 plus tags; an untagged sibling `describe` is silently excluded. A Vitest guard
 (`e2e/__tests__/e2e-tag-guard.test.ts`) enforces this: the build breaks if any top-level
 describe is missing a domain tag, uses a domain outside the vocabulary, or lacks a ticket tag.

@@ -4,9 +4,10 @@
  * Any @tag that is not a known domain, @untracked, or @<digits> must
  * fail (closed vocabulary).
  *
- * Detection is AST-based (TypeScript compiler API) — not regex — so
- * indented/nested describes, template-literal titles, and for-loop
- * describes are all handled correctly.
+ * Detection uses a hand-written tokenizer that is string/template/regex/
+ * comment-aware with positional nesting — not a regex — so indented/
+ * nested describes, template-literal titles, and for-loop describes are
+ * all handled correctly.
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -26,9 +27,17 @@ describe('e2e tag coverage', () => {
 		.sort();
 
 	for (const file of specFiles) {
-		it(`${file}: every top-level describe has @domain and @ticket tags (AST)`, () => {
+		it(`${file}: every top-level describe has @domain and @ticket tags`, () => {
 			const filePath = path.join(E2E_DIR, file);
 			const describes = analyzeFile(filePath);
+
+			// Fail loud: any describe whose callback shape the scanner
+			// cannot parse must produce an error, never be silently skipped
+			const errors = describes.filter((d) => d.error);
+			expect(
+				errors.length,
+				`${file}: scanner could not parse ${errors.length} describe(s): ${errors.map((e) => `${JSON.stringify(e.title)} (pos ${e.describePos}): ${e.error}`).join('; ')}`,
+			).toBe(0);
 
 			const topLevel = describes.filter((d) => d.topLevel);
 
