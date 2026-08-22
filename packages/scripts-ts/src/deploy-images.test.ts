@@ -8,7 +8,7 @@ import { test } from 'vitest';
 import { parse } from 'yaml';
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(scriptsDirectory, '../..');
+const repositoryRoot = path.resolve(scriptsDirectory, '../../..');
 const script = path.join(scriptsDirectory, 'deploy-images.ts');
 const dokployComposePath = path.join(repositoryRoot, 'dokploy.yml');
 const deployImagesWorkflowPath = path.join(

@@ -39,7 +39,7 @@ import { parse } from 'yaml';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'..',
+	'../../..',
 );
 
 const workflowPath = path.join(repoRoot, '.github/workflows/front-e2e.yml');

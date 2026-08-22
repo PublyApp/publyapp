@@ -145,7 +145,9 @@ const toPosixPath = (value) => value.split(path.sep).join('/');
 
 const isDirectRun =
 	process.argv[1] &&
-	toPosixPath(process.argv[1]).endsWith('scripts/ci-changed-paths.mjs');
+	toPosixPath(process.argv[1]).endsWith(
+		'packages/scripts-ts/src/ci-changed-paths.ts',
+	);
 
 if (isDirectRun) {
 	const pattern = process.argv[2];

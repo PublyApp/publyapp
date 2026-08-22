@@ -12,7 +12,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryDirectory = path.resolve(scriptDirectory, '../..');
+const repositoryDirectory = path.resolve(scriptDirectory, '../../..');
 const ignoredDirectories = new Set([
 	'.git',
 	'.output',

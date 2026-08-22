@@ -351,7 +351,7 @@ test('parseChangedFilesTotal: a large but plausible total parses', () => {
 // ---------------------------------------------------------------------------
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(scriptsDirectory, '../..');
+const repositoryRoot = path.resolve(scriptsDirectory, '../../..');
 const cliScript = path.join(scriptsDirectory, 'ci-changed-paths.ts');
 
 /**

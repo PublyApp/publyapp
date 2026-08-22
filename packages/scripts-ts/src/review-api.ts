@@ -50,7 +50,7 @@ const REDACTED = '[REDACTED]';
 export const LAUNCHED_API_CHILD_PID_PREFIX = 'LAUNCHED_API_CHILD_PID:';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, '../..');
+const repoRoot = path.resolve(scriptDir, '../../..');
 const rootRepoCache = { path: null };
 const requestedArgs = process.argv.slice(2);
 const hasInteractiveTerminal = process.stdin.isTTY && process.stdout.isTTY;

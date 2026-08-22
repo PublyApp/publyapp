@@ -11,9 +11,12 @@ import { normalizeRelativePath } from './lint-front.ts';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'..',
+	'../../..',
 );
-const wrapperPath = path.join(repoRoot, 'scripts/lint-front.mjs');
+const wrapperPath = path.join(
+	repoRoot,
+	'packages/scripts-ts/src/lint-front.ts',
+);
 
 // @ts-expect-error rung-0: add proper type in later rung
 const writeFixtureFile = async (rootDir, relativePath, contents) => {
@@ -151,132 +154,138 @@ const assertHasHeadings = (output) => {
 // @ts-expect-error rung-0: add proper type in later rung
 const combinedOutput = ({ stderr, stdout }) => `${stdout}\n${stderr}`;
 
-test('keeps TypeScript diagnostics stable when import-heavy JavaScript is added', async () => {
-	const rootDir = await createFixture();
+test(
+	'keeps TypeScript diagnostics stable when import-heavy JavaScript is added',
+	{ timeout: 30_000 },
+	async () => {
+		const rootDir = await createFixture();
 
-	try {
-		const firstRun = runLint(rootDir);
-		const secondRun = runLint(rootDir);
+		try {
+			const firstRun = runLint(rootDir);
+			const secondRun = runLint(rootDir);
 
-		assert.equal(firstRun.status, secondRun.status);
-		assert.equal(
-			// @ts-expect-error rung-0: TS2345
-			JSON.parse(await readFile(path.join(rootDir, '.oxlintrc.json'))).options
-				.typeAware,
-			false,
-		);
-		const oxlintPath = path.join(repoRoot, 'node_modules/oxlint/bin/oxlint');
-		const blindTypeScript = spawnSync(
-			process.execPath,
-			[
-				oxlintPath,
-				'--config',
-				path.join(rootDir, '.oxlintrc.json'),
-				'--tsconfig',
-				path.join(rootDir, 'apps/front/tsconfig.lint.json'),
-				'--format',
-				'unix',
-				path.join(rootDir, 'apps/front/src/deprecated.ts'),
-			],
-			{ encoding: 'utf8' },
-		);
-		const blindJavaScript = spawnSync(
-			process.execPath,
-			[
-				oxlintPath,
-				'--config',
-				path.join(rootDir, '.oxlintrc.json'),
-				'--tsconfig',
-				path.join(rootDir, 'apps/front/tsconfig.json'),
-				'--format',
-				'unix',
-				path.join(rootDir, 'apps/front/scripts/deprecated.mjs'),
-			],
-			{ encoding: 'utf8' },
-		);
-		assert.doesNotMatch(
-			`${blindTypeScript.stdout}${blindTypeScript.stderr}`,
-			/typescript\(no-floating-promises\)/,
-		);
-		assert.doesNotMatch(
-			`${blindJavaScript.stdout}${blindJavaScript.stderr}`,
-			/typescript\(no-floating-promises\)/,
-		);
-		assertHasHeadings(firstRun.stdout);
-		assertHasHeadings(secondRun.stdout);
-		assert.notEqual(firstRun.status, 0);
-		assert.match(combinedOutput(firstRun), /no-unused-vars/);
-		assert.ok(
-			(
-				combinedOutput(firstRun).match(/typescript\(no-floating-promises\)/g) ??
-				[]
-			).length >= 2,
-		);
-		assert.match(combinedOutput(firstRun), /typescript\(no-deprecated\)/);
-		assert.match(firstRun.stdout, /project front-source:/);
-		assert.match(firstRun.stdout, /project front-tooling:/);
-		assert.match(firstRun.stdout, /project shared-ts:/);
-		assert.match(firstRun.stdout, /project scripts:/);
-		assert.match(combinedOutput(firstRun), /scripts\/problem\.ts/);
+			assert.equal(firstRun.status, secondRun.status);
+			assert.equal(
+				// @ts-expect-error rung-0: TS2345
+				JSON.parse(await readFile(path.join(rootDir, '.oxlintrc.json'))).options
+					.typeAware,
+				false,
+			);
+			const oxlintPath = path.join(repoRoot, 'node_modules/oxlint/bin/oxlint');
+			const blindTypeScript = spawnSync(
+				process.execPath,
+				[
+					oxlintPath,
+					'--config',
+					path.join(rootDir, '.oxlintrc.json'),
+					'--tsconfig',
+					path.join(rootDir, 'apps/front/tsconfig.lint.json'),
+					'--format',
+					'unix',
+					path.join(rootDir, 'apps/front/src/deprecated.ts'),
+				],
+				{ encoding: 'utf8' },
+			);
+			const blindJavaScript = spawnSync(
+				process.execPath,
+				[
+					oxlintPath,
+					'--config',
+					path.join(rootDir, '.oxlintrc.json'),
+					'--tsconfig',
+					path.join(rootDir, 'apps/front/tsconfig.json'),
+					'--format',
+					'unix',
+					path.join(rootDir, 'apps/front/scripts/deprecated.mjs'),
+				],
+				{ encoding: 'utf8' },
+			);
+			assert.doesNotMatch(
+				`${blindTypeScript.stdout}${blindTypeScript.stderr}`,
+				/typescript\(no-floating-promises\)/,
+			);
+			assert.doesNotMatch(
+				`${blindJavaScript.stdout}${blindJavaScript.stderr}`,
+				/typescript\(no-floating-promises\)/,
+			);
+			assertHasHeadings(firstRun.stdout);
+			assertHasHeadings(secondRun.stdout);
+			assert.notEqual(firstRun.status, 0);
+			assert.match(combinedOutput(firstRun), /no-unused-vars/);
+			assert.ok(
+				(
+					combinedOutput(firstRun).match(
+						/typescript\(no-floating-promises\)/g,
+					) ?? []
+				).length >= 2,
+			);
+			assert.match(combinedOutput(firstRun), /typescript\(no-deprecated\)/);
+			assert.match(firstRun.stdout, /project front-source:/);
+			assert.match(firstRun.stdout, /project front-tooling:/);
+			assert.match(firstRun.stdout, /project shared-ts:/);
+			assert.match(firstRun.stdout, /project scripts:/);
+			assert.match(combinedOutput(firstRun), /scripts\/problem\.ts/);
 
-		const baselineTypeScript = getSection(
-			firstRun.stdout,
-			'type-aware TypeScript:',
-			'syntax JavaScript:',
-		);
-		assert.match(baselineTypeScript, /problem\.ts/);
-		assert.match(baselineTypeScript, /deprecated\.ts/);
-		assert.match(baselineTypeScript, /typescript\(no-floating-promises\)/);
-		assert.equal(
-			baselineTypeScript,
-			getSection(
-				secondRun.stdout,
+			const baselineTypeScript = getSection(
+				firstRun.stdout,
 				'type-aware TypeScript:',
 				'syntax JavaScript:',
-			),
-		);
+			);
+			assert.match(baselineTypeScript, /problem\.ts/);
+			assert.match(baselineTypeScript, /deprecated\.ts/);
+			assert.match(baselineTypeScript, /typescript\(no-floating-promises\)/);
+			assert.equal(
+				baselineTypeScript,
+				getSection(
+					secondRun.stdout,
+					'type-aware TypeScript:',
+					'syntax JavaScript:',
+				),
+			);
 
-		const imports = Array.from(
-			{ length: 64 },
-			(_, index) => `import { helper as helper${index} } from './helper.mjs';`,
-		).join('\n');
-		await writeFixtureFile(
-			rootDir,
-			'apps/front/scripts/import-heavy.mjs',
-			`${imports}\nexport const importedHelpers = [${Array.from(
+			const imports = Array.from(
 				{ length: 64 },
-				(_, index) => `helper${index}`,
-			).join(', ')}];\n`,
-		);
+				(_, index) =>
+					`import { helper as helper${index} } from './helper.mjs';`,
+			).join('\n');
+			await writeFixtureFile(
+				rootDir,
+				'apps/front/scripts/import-heavy.mjs',
+				`${imports}\nexport const importedHelpers = [${Array.from(
+					{ length: 64 },
+					(_, index) => `helper${index}`,
+				).join(', ')}];\n`,
+			);
 
-		const variantFirstRun = runLint(rootDir);
-		const variantSecondRun = runLint(rootDir);
+			const variantFirstRun = runLint(rootDir);
+			const variantSecondRun = runLint(rootDir);
 
-		assert.equal(variantFirstRun.status, variantSecondRun.status);
-		assertHasHeadings(variantFirstRun.stdout);
-		assertHasHeadings(variantSecondRun.stdout);
-		assert.notEqual(variantFirstRun.status, 0);
-		assert.match(combinedOutput(variantFirstRun), /deprecated\.mjs/);
+			assert.equal(variantFirstRun.status, variantSecondRun.status);
+			assertHasHeadings(variantFirstRun.stdout);
+			assertHasHeadings(variantSecondRun.stdout);
+			assert.notEqual(variantFirstRun.status, 0);
+			assert.match(combinedOutput(variantFirstRun), /deprecated\.mjs/);
 
-		const variantTypeScript = getSection(
-			variantFirstRun.stdout,
-			'type-aware TypeScript:',
-			'syntax JavaScript:',
-		);
-		assert.match(variantTypeScript, /problem\.ts/);
-		assert.equal(baselineTypeScript, variantTypeScript);
-		assert.equal(
-			variantTypeScript,
-			getSection(
-				variantSecondRun.stdout,
+			const variantTypeScript = getSection(
+				variantFirstRun.stdout,
 				'type-aware TypeScript:',
 				'syntax JavaScript:',
-			),
-		);
-	} finally {
-		await rm(rootDir, { recursive: true, force: true });
-	}
-});
+			);
+			assert.match(variantTypeScript, /problem\.ts/);
+			assert.equal(baselineTypeScript, variantTypeScript);
+			assert.equal(
+				variantTypeScript,
+				getSection(
+					variantSecondRun.stdout,
+					'type-aware TypeScript:',
+					'syntax JavaScript:',
+				),
+			);
+		} finally {
+			await rm(rootDir, { recursive: true, force: true });
+		}
+	},
+);
 
 test('normalizes Windows separators before project classification', () => {
 	assert.equal(

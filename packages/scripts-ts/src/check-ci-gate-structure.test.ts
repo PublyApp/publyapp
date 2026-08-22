@@ -21,7 +21,7 @@ import {
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'..',
+	'../../..',
 );
 
 /** A minimal but real, correctly-shaped fixture workflow, as YAML text. */
@@ -1138,7 +1138,7 @@ const requiresSelfCheckConfig = [
 test('ROUND 5: a gate job that runs check-ci-gate-structure.mjs as one of its own steps satisfies requiresSelfCheck', async () => {
 	const withSelfCheck = goodWorkflow.replace(
 		'      - name: Check required jobs\n',
-		'      - name: Verify the aggregate-gate job graph from inside the required job itself\n        run: node ./scripts/check-ci-gate-structure.mjs\n      - name: Check required jobs\n',
+		'      - name: Verify the aggregate-gate job graph from inside the required job itself\n        run: node ./packages/scripts-ts/src/check-ci-gate-structure.ts\n      - name: Check required jobs\n',
 	);
 	const rootDir = await buildFixture(withSelfCheck);
 

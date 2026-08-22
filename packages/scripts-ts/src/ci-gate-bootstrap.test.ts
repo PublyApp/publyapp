@@ -48,7 +48,7 @@ import { classifyRelevance } from './ci-changed-paths.ts';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'../..',
+	'../../..',
 );
 const realClassifierPath = path.join(
 	repoRoot,
@@ -151,9 +151,9 @@ for (const file of workflowFiles) {
  */
 // @ts-expect-error rung-0: add proper type in later rung
 const writeStubClassifier = (cwd, { marker, relevant, exitCode }) => {
-	const dir = path.join(cwd, 'base-ref/scripts');
+	const dir = path.join(cwd, 'base-ref/packages/scripts-ts/src');
 	mkdirSync(dir, { recursive: true });
-	const stubPath = path.join(dir, 'ci-changed-paths.mjs');
+	const stubPath = path.join(dir, 'ci-changed-paths.ts');
 
 	const lines = [
 		"import { appendFileSync } from 'node:fs';",
@@ -328,10 +328,12 @@ for (const file of workflowFiles) {
 		const fakeGhDir = buildFakeGh({ total: '1\n', files: `${relevantFile}\n` });
 
 		try {
-			mkdirSync(path.join(cwd, 'base-ref/scripts'), { recursive: true });
+			mkdirSync(path.join(cwd, 'base-ref/packages/scripts-ts/src'), {
+				recursive: true,
+			});
 			copyFileSync(
 				realClassifierPath,
-				path.join(cwd, 'base-ref/scripts/ci-changed-paths.mjs'),
+				path.join(cwd, 'base-ref/packages/scripts-ts/src/ci-changed-paths.ts'),
 			);
 
 			const expected = classifyRelevance({
@@ -378,10 +380,12 @@ for (const file of workflowFiles) {
 		});
 
 		try {
-			mkdirSync(path.join(cwd, 'base-ref/scripts'), { recursive: true });
+			mkdirSync(path.join(cwd, 'base-ref/packages/scripts-ts/src'), {
+				recursive: true,
+			});
 			copyFileSync(
 				realClassifierPath,
-				path.join(cwd, 'base-ref/scripts/ci-changed-paths.mjs'),
+				path.join(cwd, 'base-ref/packages/scripts-ts/src/ci-changed-paths.ts'),
 			);
 
 			const expected = classifyRelevance({
@@ -437,10 +441,12 @@ for (const file of workflowFiles) {
 		);
 
 		try {
-			mkdirSync(path.join(cwd, 'base-ref/scripts'), { recursive: true });
+			mkdirSync(path.join(cwd, 'base-ref/packages/scripts-ts/src'), {
+				recursive: true,
+			});
 			copyFileSync(
 				realClassifierPath,
-				path.join(cwd, 'base-ref/scripts/ci-changed-paths.mjs'),
+				path.join(cwd, 'base-ref/packages/scripts-ts/src/ci-changed-paths.ts'),
 			);
 
 			const { status, stdout, output } = runInline(script, cwd, {

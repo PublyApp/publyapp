@@ -16,7 +16,7 @@ import { findCiDrift } from './check-ci-drift.ts';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'..',
+	'../../..',
 );
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -35,14 +35,16 @@ const buildFixture = async ({ manifestSteps, steps }) => {
 	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-ci-drift-'));
 
 	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
-	await mkdir(path.join(rootDir, 'scripts'), { recursive: true });
+	await mkdir(path.join(rootDir, 'packages/scripts-ts/src'), {
+		recursive: true,
+	});
 
 	await writeFile(
 		path.join(rootDir, '.github/workflows/fixture.yml'),
 		workflow(steps),
 	);
 	await writeFile(
-		path.join(rootDir, 'scripts/ci-gate-manifest.json'),
+		path.join(rootDir, 'packages/scripts-ts/src/ci-gate-manifest.json'),
 		JSON.stringify({ steps: manifestSteps }, null, '\t'),
 	);
 
@@ -215,7 +217,7 @@ test("the repo's own workflows are fully reconciled with the local gate", async 
 // test:ci-drift`), so the wiring check survives the removal and fails the
 // gate.
 const codeownersInvocation =
-	'node --test ./scripts/codeowners-contract.test.mjs';
+	'pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts';
 
 const ciDriftRecipe = readFileSync(
 	path.join(repoRoot, 'justfile'),

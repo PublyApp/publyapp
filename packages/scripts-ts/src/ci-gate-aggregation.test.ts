@@ -54,7 +54,7 @@ import { parse } from 'yaml';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'..',
+	'../../..',
 );
 
 const workflowsDirectory = path.join(repoRoot, '.github/workflows');
