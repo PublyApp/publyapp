@@ -17,6 +17,8 @@ public record CreatePostArgs(
 );
 
 public record UpdatePostArgs(
+	Guid TenantId,
+	Guid PostId,
 	PatchField<Guid?> ProjectId,
 	string? Body
 );
@@ -52,8 +54,6 @@ public interface IPostService {
 		CancellationToken cancellationToken = default);
 
 	Task<UpdatePostResult> UpdateForTenantAsync(
-		Guid tenantId,
-		Guid id,
 		UpdatePostArgs args,
 		CancellationToken cancellationToken = default);
 
@@ -303,11 +303,11 @@ public class PostService : IPostService {
 	}
 
 	public async Task<UpdatePostResult> UpdateForTenantAsync(
-		Guid tenantId,
-		Guid id,
 		UpdatePostArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var tenantId = args.TenantId;
+		var id = args.PostId;
 		var post = await GetByIdForTenantAsync(
 			tenantId, id, cancellationToken
 		);

@@ -150,12 +150,14 @@ public sealed class UpdatePostForTenant {
 		}
 
 		var args = new UpdatePostArgs(
+			TenantId: tenantId,
+			PostId: postIdGuid,
 			ProjectId: projectId,
 			Body: postBody
 		);
 
 		var result = await postService.UpdateForTenantAsync(
-			tenantId, postIdGuid, args, cancellationToken
+			args, cancellationToken
 		);
 
 		if (result is UpdatePostResult.NotFound) {
