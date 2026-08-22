@@ -26,10 +26,10 @@ just dev-front
 just dev-db
 ```
 
-**Frontend recipe naming:** these recipes directly build, run, deploy, type-check, or clean
-`apps/old-front`, the retired app: `dev-old-front`, `build-old-front`, `build-deploy`,
-`deploy-old-front`, `deploy`, `start-old-front`, `tsc-old-front`, `ci-old-front`,
-`ci-e2e-old-front`, and `clean-old-front`. The aggregate `ci` and `ci-full` gates intentionally
+**Frontend recipe naming:** these recipes directly build, run, type-check, or clean
+`apps/old-front`, the retired app: `dev-old-front`, `build-old-front`,
+`start-old-front`, `tsc-old-front`, `ci-old-front`, `ci-e2e-old-front`, and
+`clean-old-front`. The aggregate `ci` and `ci-full` gates intentionally
 include the retired app's characterization suites, and `clean` removes its artifacts along with the
 rest of the workspace. `dev-setup` and `quick-start` print `just dev-front`, which is correct for
 the shipped app. Drive `apps/front` — the app that actually ships — with `just dev-front`,
@@ -59,12 +59,11 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 ```bash
 just build-api                     # Build .NET API
 pnpm --filter front build          # Build the shipped frontend for production
-just build-deploy                  # Build legacy Dokploy-from-source API + apps/old-front artifacts
 just deploy-images                 # Build + push the three GHCR release images
 just build-old-front               # Builds apps/old-front (retired app) — not the release artifact
 ```
 
-`just build-deploy` does not build `front` or the migrator image. Releases use
+Releases use
 `just deploy-images` to build and push the `api`, `migrate`, and `front` images from a clean
 checkout.
 

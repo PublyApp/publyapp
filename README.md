@@ -226,9 +226,9 @@ pnpm --filter front dev
 The copied template already targets the local Compose database. Keep its local development values
 unless you intentionally run a different local database.
 
-> **Heads-up on legacy frontend recipes.** `dev-old-front`, `build-old-front`, `build-deploy`,
-> `deploy-old-front`, `deploy`, `start-old-front`, `tsc-old-front`, `ci-old-front`, `ci-e2e-old-front`, and
-> `clean-old-front` directly build, run, deploy, type-check, or clean `apps/old-front`, the **retired**
+> **Heads-up on legacy frontend recipes.** `dev-old-front`, `build-old-front`,
+> `start-old-front`, `tsc-old-front`, `ci-old-front`, `ci-e2e-old-front`, and
+> `clean-old-front` directly build, run, type-check, or clean `apps/old-front`, the **retired**
 > frontend. The aggregate `ci` and `ci-full` gates intentionally include its characterization
 > suites, and `clean` removes its artifacts with the rest of the workspace. Use
 > `pnpm --filter front <script>` or `just ci-front` for the frontend that actually ships.
@@ -301,7 +301,6 @@ authoritative reference — the highlights:
 | `just dev-db`            | Start PostgreSQL in Docker                            |
 | `just build-api`         | Build the .NET API                                    |
 | `pnpm --filter front build` | Build the frontend for production                |
-| `just build-deploy`      | Build legacy Dokploy-from-source API + retired-front artifacts |
 | `just db-migrate`        | Apply EF Core migrations                              |
 | `just db-add <Name>`     | Add a new migration                                   |
 | `just db-reset`          | Drop and recreate the database                        |
@@ -316,9 +315,6 @@ authoritative reference — the highlights:
 | `just deploy-images`     | Build + push GHCR deploy images from a clean checkout of a ref |
 
 <!-- markdownlint-enable MD013 MD060 -->
-
-`just build-deploy` does not build `front` or the migrator image. Releases use
-`just deploy-images` for the three GHCR images: `api`, `migrate`, and `front`.
 
 ---
 
