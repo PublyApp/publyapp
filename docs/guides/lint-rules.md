@@ -84,6 +84,7 @@ The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as
 | `anti-slop/no-reflect-get` | `error` | 0 | rung 2 |
 | `anti-slop/no-unknown-type-aliases` | `error` | 0 | rung 2 |
 | `anti-slop/no-widen-then-assert` | `error` | 0 | rung 2 |
+| `anti-slop/no-shape-in-symbol-names` | `error` | 69 (fixed) | rung 3 |
 
 ## Roslyn analyzers (`packages/lint-cs/`)
 
