@@ -2,8 +2,8 @@
  * Shared AST type guards for PublyApp lint rules.
  *
  * Imports the real ESTree node types from `@oxlint/plugins` and provides
- * narrowing helpers so rule code can navigate the AST without `as unknown as`
- * escape hatches.
+ * narrowing helpers so rule code can navigate the AST with proper types
+ * instead of escape hatches.
  */
 import type { ESTree } from '@oxlint/plugins';
 
