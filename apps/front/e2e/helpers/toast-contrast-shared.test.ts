@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, test } from 'vitest';
 
 import {
+	BROWSER_SCREENSHOT_DECODER_SNIPPET,
+	BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET,
 	SCREENSHOT_DATA_URL_PREFIX,
 	assertTextPaintIsMeasurable,
 	classifyTextPaint,
@@ -32,15 +37,48 @@ describe('decodeScreenshotDataUrl', () => {
 		);
 	});
 
-	test('browser helper snippet is available for evaluate-side reuse', async () => {
-		const { BROWSER_SCREENSHOT_DECODER_SNIPPET } =
-			await import('./toast-contrast-shared');
+	test('browser decoder snippet is available for evaluate-side reuse', async () => {
 		expect(BROWSER_SCREENSHOT_DECODER_SNIPPET).toContain('atob(base64)');
 		expect(BROWSER_SCREENSHOT_DECODER_SNIPPET).toContain('createImageBitmap');
+		expect(BROWSER_SCREENSHOT_DECODER_SNIPPET).toContain('new Blob([bytes]');
+	});
+
+	test('browser text-paint classifier snippet is available for evaluate-side reuse', () => {
+		expect(BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET).toContain(
+			'__publyClassifyTextPaint',
+		);
+		expect(BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET).toContain(
+			'__publyAssertTextPaintIsMeasurable',
+		);
+		expect(BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET).toContain(
+			'background-clip:text',
+		);
+	});
+
+	test('spec wires the shared decoder through BROWSER_SCREENSHOT_DECODER_SNIPPET', () => {
+		const specPath = fileURLToPath(
+			new URL('../toast-contrast.spec.ts', import.meta.url),
+		);
+		const spec = readFileSync(specPath, 'utf8');
+		expect(spec).toContain('BROWSER_SCREENSHOT_DECODER_SNIPPET');
+		expect(spec).toContain('decoderSnippet');
+		expect(spec).not.toMatch(/new Blob\(\[bytes\]/);
+	});
+
+	test('spec wires the shared classifier through BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET', () => {
+		const specPath = fileURLToPath(
+			new URL('../toast-contrast.spec.ts', import.meta.url),
+		);
+		const spec = readFileSync(specPath, 'utf8');
+		expect(spec).toContain('BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET');
+		expect(spec).toContain('classifierSnippet');
+		expect(spec).not.toMatch(
+			/clipValue && clipValue\.toLowerCase\(\)\.includes\('text'\)/,
+		);
 	});
 });
 
-describe('classifyTextPaint — clipped/transparent fail-loud', () => {
+describe('classifyTextPaint — clipped/transparent/masked fail-loud', () => {
 	test('opaque plain text passes', () => {
 		expect(
 			classifyTextPaint({
@@ -83,16 +121,101 @@ describe('classifyTextPaint — clipped/transparent fail-loud', () => {
 		).toBe('transparent-fill');
 	});
 
-	test('color transparent is undecidable', () => {
+	test('color transparent is undecidable regardless of background-clip', () => {
 		expect(
 			classifyTextPaint({
 				backgroundClip: 'border-box',
 				color: 'transparent',
 			}),
 		).toBe('transparent-fill');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgba(0, 0, 0, 0)',
+			}),
+		).toBe('transparent-fill');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgba(10, 20, 30, 0)',
+			}),
+		).toBe('transparent-fill');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'hsla(0, 0%, 0%, 0)',
+			}),
+		).toBe('transparent-fill');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'hsla(200, 50%, 50%, 0)',
+			}),
+		).toBe('transparent-fill');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgb(0 0 0 / 0)',
+			}),
+		).toBe('transparent-fill');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'hsl(0 0% 0% / 0)',
+			}),
+		).toBe('transparent-fill');
 	});
 
-	test('assertTextPaintIsMeasurable throws on clipped/transparent and passes on opaque', () => {
+	test('opacity 0 is undecidable', () => {
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgb(15, 23, 42)',
+				opacity: '0',
+			}),
+		).toBe('transparent-opacity');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgb(15, 23, 42)',
+				opacity: '0.0',
+			}),
+		).toBe('transparent-opacity');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgb(15, 23, 42)',
+				opacity: '1',
+			}),
+		).toBe('opaque');
+	});
+
+	test('mask-image / mask is undecidable', () => {
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgb(15, 23, 42)',
+				maskImage: 'linear-gradient(black, transparent)',
+			}),
+		).toBe('masked');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgb(15, 23, 42)',
+				mask: 'url(#mask)',
+			}),
+		).toBe('masked');
+		expect(
+			classifyTextPaint({
+				backgroundClip: 'border-box',
+				color: 'rgb(15, 23, 42)',
+				maskImage: 'none',
+				mask: 'none',
+			}),
+		).toBe('opaque');
+	});
+
+	test('assertTextPaintIsMeasurable throws on clipped/transparent/masked and passes on opaque', () => {
 		expect(() =>
 			assertTextPaintIsMeasurable(
 				{ backgroundClip: 'border-box', color: 'rgb(0,0,0)' },
@@ -112,6 +235,34 @@ describe('classifyTextPaint — clipped/transparent fail-loud', () => {
 					color: 'rgb(0,0,0)',
 					webkitTextFillColor: 'transparent',
 				},
+				'title',
+			),
+		).toThrow(/transparent text fill/i);
+		expect(() =>
+			assertTextPaintIsMeasurable(
+				{ backgroundClip: 'border-box', color: 'rgb(0,0,0)', opacity: '0' },
+				'title',
+			),
+		).toThrow(/transparent opacity 0/i);
+		expect(() =>
+			assertTextPaintIsMeasurable(
+				{
+					backgroundClip: 'border-box',
+					color: 'rgb(0,0,0)',
+					maskImage: 'linear-gradient(black, transparent)',
+				},
+				'title',
+			),
+		).toThrow(/masked text/i);
+		expect(() =>
+			assertTextPaintIsMeasurable(
+				{ backgroundClip: 'border-box', color: 'rgba(0, 0, 0, 0)' },
+				'title',
+			),
+		).toThrow(/transparent text fill/i);
+		expect(() =>
+			assertTextPaintIsMeasurable(
+				{ backgroundClip: 'border-box', color: 'hsla(0, 0%, 0%, 0)' },
 				'title',
 			),
 		).toThrow(/transparent text fill/i);
