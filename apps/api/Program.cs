@@ -70,12 +70,22 @@ public class Program {
 		if (role is AppRole.Worker) {
 			using var workerHost = CreateWorkerHostBuilder(args).Build();
 			workerHost.LogDiManifestIfPresent();
+			// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing/wrong.
+			Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness
+				.EnsureMasterKeyUsable(workerHost.Services);
 			workerHost.Run();
 			return;
 		}
 
 		var builder = CreateWebHostBuilder(args, role);
 		var app = builder.Build();
+
+		// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing/wrong (Epic C §4).
+		// The DataProtectionKeys table already exists here: migrations are applied by the
+		// separate `migrate` service (or `just db-migrate`) BEFORE api/worker boot, so the
+		// key ring is present when the witness round-trips the sentinel through it.
+		Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness
+			.EnsureMasterKeyUsable(app.Services);
 
 		app.LogDiManifestIfPresent();
 
