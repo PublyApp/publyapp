@@ -42,14 +42,14 @@ const runCases = (rule, label) => {
 					filename: 'apps/front\\src\\routes\\example\\example.test.jsx',
 				},
 				{
-					code: `${LOGGER_IMPORT}\n\nlogger.info('already using logger');`,
+					code: "console.log('not under front source - ignored');",
 					filename: 'apps/old-front/src/routes/example/example.ts',
 				},
 				{
 					code:
 						'const console = mockLogger;\n' +
 						'export const Example = () => console.log("x");',
-					filename: 'apps/old-front/src/routes/example/example.ts',
+					filename: 'apps/front/src/routes/example/example.ts',
 				},
 				{
 					code: "console.log('windows test file is ignored');",
@@ -57,21 +57,6 @@ const runCases = (rule, label) => {
 				},
 			],
 			invalid: [
-				{
-					code:
-						'export const Example = () => {\n' +
-						"\tconsole.log('rendered');\n" +
-						'\treturn null;\n' +
-						'};',
-					filename: 'apps/old-front/src/routes/example/example.tsx',
-					errors: [{ messageId: 'unexpected' }],
-					output:
-						`${LOGGER_IMPORT}\n` +
-						'export const Example = () => {\n' +
-						"\tlogger.log('rendered');\n" +
-						'\treturn null;\n' +
-						'};',
-				},
 				{
 					code: "export const warn = () => console.warn('deprecated');",
 					filename: 'packages/shared-ts/src/warn.ts',
@@ -120,6 +105,21 @@ const runCases = (rule, label) => {
 					errors: [{ messageId: 'unexpected' }],
 					output: `${LOGGER_IMPORT}\n` + "logger.log('front _components');",
 				},
+				{
+					code:
+						'export const Example = () => {\n' +
+						"\tconsole.log('rendered');\n" +
+						'\treturn null;\n' +
+						'};',
+					filename: 'apps/front/src/routes/example/example.tsx',
+					errors: [{ messageId: 'unexpected' }],
+					output:
+						`${LOGGER_IMPORT}\n` +
+						'export const Example = () => {\n' +
+						"\tlogger.log('rendered');\n" +
+						'\treturn null;\n' +
+						'};',
+				},
 			],
 		});
 	});
@@ -127,3 +127,19 @@ const runCases = (rule, label) => {
 
 runCases(noConsoleInSource, 'via direct import');
 runCases(plugin.rules[RULE_NAME], 'via plugin index export');
+
+describe('paired proof: old-front scope is gone (no-console-in-source)', () => {
+	ruleTester.run(RULE_NAME, noConsoleInSource, {
+		valid: [
+			{
+				code: "console.log('dead scope');",
+				filename: 'apps/old-front/src/routes/example/example.ts',
+			},
+			{
+				code: "console.log('dead scope tsx');",
+				filename: 'apps/old-front/src/components/example.tsx',
+			},
+		],
+		invalid: [],
+	});
+});
