@@ -72,3 +72,4 @@ apps/*/.artifacts/
 packages/*/.artifacts/
 packages/scripts-cs/bin/
 packages/scripts-cs/obj/
+.dump
