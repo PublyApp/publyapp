@@ -117,6 +117,14 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return Set<DataProtectionKey>(); }
 	}
 
+	// Social accounts (C1-bis)
+	public DbSet<Modules.SocialAccounts.Entities.SocialAccount> SocialAccount {
+		get { return Set<Modules.SocialAccounts.Entities.SocialAccount>(); }
+	}
+	public DbSet<Modules.SocialAccounts.Entities.SocialAccountProject> SocialAccountProject {
+		get { return Set<Modules.SocialAccounts.Entities.SocialAccountProject>(); }
+	}
+
 	public Guid? TenantId { get; set; }
 
 	public AppDbContext(DbContextOptions options) : base(options) {
@@ -252,6 +260,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			// Without this check, it would be processed as a regular INoTenantEntity (no filtering)
 			// or potentially cause duplicate entity configuration issues
 			if (entityType.ClrType == typeof(UserAccountProfile)) {
+				continue;
+			}
+
+			// DataProtectionKey (C1-bis) is managed by the Data Protection
+			// framework, not our tenant-convention model builder.
+			if (entityType.ClrType == typeof(Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey)) {
 				continue;
 			}
 
