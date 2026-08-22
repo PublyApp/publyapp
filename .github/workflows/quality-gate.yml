@@ -146,12 +146,12 @@ jobs:
           node-version: 24
 
       - name: Setup .NET (pinned for CI determinism)
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.102"
 
       - name: Setup just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
 
       - name: Assert exact pins
         run: node apps/front/scripts/assert-pinned.mjs
