@@ -388,6 +388,7 @@ public class PostService : IPostService {
 			return await (
 				from project in _dbContext.Project.AsNoTracking()
 				where project.Id == projectId
+					&& project.TenantId == tenantId
 					&& !project.IsDeleted
 				select project.Id
 			).AnyAsync(cancellationToken);

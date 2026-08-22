@@ -164,6 +164,28 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task
+	ItShouldReturn422WhenProjectDeletedOnCreate() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var deletedProjectId =
+			await CreateDeletedProjectForTenantAsync(tenantId);
+
+		using var request = new HttpRequestMessage(HttpMethod.Post, PostsUrl)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = JsonContent.Create(new {
+			body = "deleted project attempt on create",
+			projectId = deletedProjectId.ToString(),
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+		_ = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturn403WithoutCreatePermission() {
 		var tenantId = await GetAcmeIdAsync();
 		var token = await _authClient.LoginAsync(
@@ -448,6 +470,30 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task
+	ItShouldReturn422WhenProjectDeletedOnUpdate() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId =
+			await CreatePostViaApiAsync(tenantId, token, "update deleted");
+		var deletedProjectId =
+			await CreateDeletedProjectForTenantAsync(tenantId);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Patch,
+			PostByIdUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = JsonContent.Create(new {
+			projectId = deletedProjectId.ToString(),
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturn404WhenUpdatingOtherTenantsPost() {
 		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
 		var postId =
@@ -685,6 +731,20 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	private async Task<string> CreatePostAsAcmeAdminAsync(string body) {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 		return await CreatePostViaApiAsync(tenantId, token, body);
+	}
+
+	private async Task<Guid> CreateDeletedProjectForTenantAsync(
+		Guid tenantId
+	) {
+		var projectId = await CreateProjectForTenantAsync(tenantId);
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var project = await db.Project.FirstAsync(p => p.Id == projectId);
+		project.IsDeleted = true;
+		project.DeletedAt = DateTime.UtcNow;
+		await db.SaveChangesAsync();
+		return projectId;
 	}
 
 	private async Task<Guid> CreateProjectForTenantAsync(Guid tenantId) {
