@@ -3659,9 +3659,11 @@ describe('drawer description text contrast (#1043)', () => {
 	] as const)(
 		'resolves the real colour %s declares in app.css',
 		async (utility, token) => {
-			const { light } = await resolveClassPaint([utility]);
+			const { light, dark } = await resolveClassPaint([utility]);
 			expect(light.color).toEqual(resolveColor(token, 'light'));
 			expect(light.opacity).toBe(1);
+			expect(dark.color).toEqual(resolveColor(token, 'dark'));
+			expect(dark.opacity).toBe(1);
 		},
 	);
 
