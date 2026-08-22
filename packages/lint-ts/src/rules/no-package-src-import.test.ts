@@ -162,4 +162,7 @@ const runCases = (rule: typeof noPackageSrcImport, label: string) => {
 };
 
 runCases(noPackageSrcImport, 'via direct import');
-runCases(plugin.rules[RULE_NAME] as typeof noPackageSrcImport, 'via plugin index export');
+runCases(
+	plugin.rules[RULE_NAME] as typeof noPackageSrcImport,
+	'via plugin index export',
+);

@@ -35,8 +35,11 @@ const WORKSPACE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const OXLINTRC_PATH = fileURLToPath(
 	new URL('../../../../.oxlintrc.json', import.meta.url),
 );
-const REPO_ROOT = join(WORKSPACE_ROOT, '../..');
-const OXLINT_BIN = join(REPO_ROOT, 'node_modules/.bin/oxlint');
+// In a git worktree the workspace root sits inside the main repo, but in
+// CI (flat checkout) the workspace root IS the repo root.  Both environments
+// always have node_modules at the workspace root, so resolve the binary
+// there instead of two levels above (which escapes the checkout in CI).
+const OXLINT_BIN = join(WORKSPACE_ROOT, 'node_modules/.bin/oxlint');
 
 const ROOT_RULES = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8')).rules;
 
