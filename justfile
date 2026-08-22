@@ -176,6 +176,21 @@ knip:
 react-doctor base="origin/develop":
   cd {{front_dir}} && pnpm dlx react-doctor@0.9.12 --scope files --base {{base}} --blocking warning --no-telemetry --verbose
 
+# NuGet vulnerability audit (issue #1187 rung 3). Mirrors
+# .github/workflows/quality-gate.yml::quality::Scan .NET packages for known
+# vulnerabilities: `dotnet list package --vulnerable` exits 0 even when
+# vulnerable packages are present, so we fail explicitly when the tool emits
+# "has the following vulnerable packages". Transitive packages are included
+# because a vulnerable transitive is still a shipped vulnerability.
+nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
+  dotnet list PublyApp.slnx package --vulnerable --include-transitive > .dump/nuget-audit.txt 2>&1 || true
+  cat .dump/nuget-audit.txt
+  @if grep -q "has the following vulnerable packages" .dump/nuget-audit.txt; then \
+    echo "::error::Vulnerable NuGet packages detected (see .dump/nuget-audit.txt). Bump to a patched version in Directory.Packages.props."; \
+    exit 1; \
+  fi
+  @echo "=== nuget-audit: no vulnerable packages ==="
+
 # =============================================================================
 # Database
 # =============================================================================

@@ -516,6 +516,11 @@
 			"mirror": "just ci-quality",
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
 		},
+		"quality-gate.yml::quality::Scan .NET packages for known vulnerabilities": {
+			"hash": "6b74de61adf9448d",
+			"mirror": "just nuget-audit",
+			"reason": "just nuget-audit runs the identical dotnet list PublyApp.slnx package --vulnerable --include-transitive and fails with the same message when the tool emits 'has the following vulnerable packages' — the explicit fail-closed grep is the local mirror of the CI step, since dotnet list exits 0 regardless of vulnerabilities. Issue #1187 rung 3."
+		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"hash": "83841604495adffa",
 			"mirror": "just ci-quality",
