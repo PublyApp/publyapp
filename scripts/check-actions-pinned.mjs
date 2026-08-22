@@ -34,7 +34,9 @@ export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
 		const lines = content.split('\n');
 
 		for (let i = 0; i < lines.length; i++) {
-			const line = lines[i];
+			// Strip YAML comments (# preceded by whitespace or at line start)
+			// before matching, so commented-out uses: lines are not flagged.
+			const line = lines[i].replace(/#.*/, '');
 
 			// Match `uses:` — YAML indentation-insensitive
 			const match = line.match(/uses:\s*(\S+)/);

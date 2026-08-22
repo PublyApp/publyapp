@@ -134,3 +134,15 @@ test('revert restores green — proof of paired regression', async () => {
 	const revertedFindings = await findUnpinnedActions({ rootDir });
 	assert.deepStrictEqual(revertedFindings, []);
 });
+
+test('ignores commented-out uses: lines (YAML comments)', async () => {
+	const content = makeWorkflow(
+		'      # - uses: actions/checkout@v7\n' +
+		'      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n',
+	);
+
+	const rootDir = await buildFixture({ workflowContent: content });
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.deepStrictEqual(findings, []);
+});
