@@ -15,6 +15,7 @@ else in `docs/` is a **record** — accurate as of its date, not a standing inst
 | Normative | What it governs |
 | --- | --- |
 | [`AGENTS.md`](../AGENTS.md) (repo root) | The behavioural contract. Architecture and conventions for the whole repo. Wins over anything in `docs/`. |
+| [`DESIGN.md`](../DESIGN.md) (repo root) | The product design language: tokens, the `components/ui/*` layer, interaction conventions, dark mode, i18n/copy rules, and the guards that enforce them. The human/agent distillation of `AGENTS.md` and `docs/guides/front/conventions.md`. |
 | [`docs/guides/`](guides) | The guides `AGENTS.md` links to. These are the long-form version of its rules. |
 | [`docs/guides/front/`](guides/front) | The frontend. `apps/front` is the only frontend under development and the only one deployed. |
 | [`docs/deployment/`](deployment) | Live production operations — deployment design, migration gating, and the first-deploy runbook. Production has run on these since 2026-07-20. |
