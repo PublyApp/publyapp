@@ -1,12 +1,65 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for more information:
-# https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
-# https://containers.dev/guide/dependabot
+# Dependabot version updates.
+# npm at "/" covers the pnpm workspace (pnpm-lock.yaml at root) — GitHub maps
+# pnpm to the npm ecosystem (docs: package-ecosystem npm supports pnpm v7-10).
+# Evidence: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#package-ecosystem
+# gh api has no validator for this file — verified by inspection (no endpoint validates it).
+# Security updates remain enabled by default (no open-pull-requests-limit: 0).
 
 version: 2
 updates:
- - package-ecosystem: "devcontainers"
-   directory: "/"
-   schedule:
-     interval: weekly
+  - package-ecosystem: "devcontainers"
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels:
+      - "technical-debt"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    labels:
+      - "technical-debt"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  - package-ecosystem: "nuget"
+    directory: "/apps/api"
+    schedule:
+      interval: weekly
+    labels:
+      - "technical-debt"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  - package-ecosystem: "nuget"
+    directory: "/packages/scripts-cs"
+    schedule:
+      interval: weekly
+    labels:
+      - "technical-debt"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: weekly
+    labels:
+      - "technical-debt"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
