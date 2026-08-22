@@ -45,7 +45,10 @@ const createWorkspace = (files) => {
 	write('apps/front/server.mjs', 'export default {};\n');
 	write('apps/front/vite.config.ts', 'export default {};\n');
 	write('apps/front/scripts/placeholder.mjs', 'export const noop = 0;\n');
-	write('packages/shared-ts/src/lib/placeholder.ts', 'export const noop = 0;\n');
+	write(
+		'packages/shared-ts/src/lib/placeholder.ts',
+		'export const noop = 0;\n',
+	);
 	write('packages/client-ts/src/placeholder.ts', 'export const noop = 0;\n');
 
 	for (const [relativePath, contents] of Object.entries(files ?? {})) {
