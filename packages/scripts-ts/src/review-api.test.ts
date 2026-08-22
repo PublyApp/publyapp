@@ -35,11 +35,15 @@ const repoRoot = path.resolve(scriptDir, '../../..');
 // a malformed argument fails fast with no network/worktree dependency.
 // @ts-expect-error rung-0: add proper type in later rung
 const runCliArgs = (args) => {
-	const result = spawnSync('node', ['scripts/review-api.mjs', ...args], {
-		cwd: repoRoot,
-		encoding: 'utf8',
-		timeout: 10_000,
-	});
+	const result = spawnSync(
+		'node',
+		['packages/scripts-ts/src/review-api.ts', ...args],
+		{
+			cwd: repoRoot,
+			encoding: 'utf8',
+			timeout: 10_000,
+		},
+	);
 
 	return { status: result.status, stderr: String(result.stderr ?? '') };
 };
