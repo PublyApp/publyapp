@@ -17,16 +17,16 @@ import { parse } from 'yaml';
 // `*-[bot]` author) FAILS it. That is the load-bearing property — a mutation
 // that drops or loosens the waiver must not slip through green.
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	'..',
+);
 
 const workflowFile = '.github/workflows/require-linked-issue.yml';
 
 /** Extracts the single `run:` shell body of the verify step. */
 const readRunBody = async () => {
-	const raw = await readFile(
-		path.join(repoRoot, workflowFile),
-		'utf8',
-	);
+	const raw = await readFile(path.join(repoRoot, workflowFile), 'utf8');
 	const document = parse(raw);
 	const steps = document?.jobs?.['require-linked-issue']?.steps ?? [];
 	const step = steps.find((s) => typeof s?.run === 'string');
@@ -46,7 +46,11 @@ const readRunBody = async () => {
  */
 const assertExactlyDependabotBot = (runBody) => {
 	// The author must come from the PR's author login, never the runner actor.
-	if (!/PR_AUTHOR="\$\{\{ github\.event\.pull_request\.user\.login \}\}"/.test(runBody)) {
+	if (
+		!/PR_AUTHOR="\$\{\{ github\.event\.pull_request\.user\.login \}\}"/.test(
+			runBody,
+		)
+	) {
 		throw new Error(
 			'the waiver must read the PR author from github.event.pull_request.user.login, not github.actor',
 		);
@@ -89,7 +93,11 @@ const assertExactlyDependabotBot = (runBody) => {
 		);
 	}
 
-	if (!/dependabot PR — linked-issue requirement waived by policy #1240/.test(runBody)) {
+	if (
+		!/dependabot PR — linked-issue requirement waived by policy #1240/.test(
+			runBody,
+		)
+	) {
 		throw new Error(
 			'the waived branch must emit the exact plain-words log line for the #1240 waiver',
 		);
