@@ -6,7 +6,7 @@
 
 - Backend routes use kebab-case: `/staff/staff-users`
 - Route constants defined in `apps/api/Lib/RoutePath.cs`
-- Frontend route constants in `packages/shared-ts/lib/constants.ts`
+- Frontend route constants in `packages/shared-ts/src/lib/constants.ts`
 
 ## API Contract Naming
 
@@ -84,8 +84,8 @@ public record ApiResponse {
 
 - Backend: FluentValidation validators applied via filters
 - Frontend: Zod schemas with React Hook Form
-- Shared validation logic in `packages/shared-ts/lib/zod/`
-- Bulk-action endpoints cap input size via a shared constant: backend validators use `maxCount: 100` and the frontend mirrors it through `BULK_ACTION_MAX_COUNT` in `packages/shared-ts/lib/constants.ts`. Keep the two in sync when changing the cap.
+- Shared validation logic in `packages/shared-ts/src/lib/zod/`
+- Bulk-action endpoints cap input size via a shared constant: backend validators use `maxCount: 100` and the frontend mirrors it through `BULK_ACTION_MAX_COUNT` in `packages/shared-ts/src/lib/constants.ts`. Keep the two in sync when changing the cap.
 
 ## Error Handling
 
@@ -97,3 +97,4 @@ public record ApiResponse {
   - If a request/loader context provides a logger (e.g. React Router `args.context.logger` / `getServerLoader`), prefer `context.logger` over importing the global singleton so logs can be request-scoped
   - Avoid committing `console.*` in React components, hooks, libs, SSR entrypoints, etc.
   - **Exceptions:** scripts/build tooling/config where importing the iso-logger isn't feasible (e.g. `scripts/**`, `apps/*/_vite/**`, `*.config.*`, `*.mjs`, `server.js`), or intentionally user-facing CLI output
+put

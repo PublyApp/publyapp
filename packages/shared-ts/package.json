@@ -4,15 +4,15 @@
 	"exports": {
 		"./*": {
 			"types": [
-				"./*.ts"
+				"./src/*.ts"
 			],
 			"default": [
-				"./*.ts"
+				"./src/*.ts"
 			]
 		}
 	},
 	"scripts": {
-		"postinstall": "node scripts/generate-zod-i18n-map.mjs",
+		"postinstall": "node src/scripts/generate-zod-i18n-map.mjs",
 		"test": "vitest run"
 	},
 	"dependencies": {

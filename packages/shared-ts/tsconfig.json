@@ -10,6 +10,6 @@
 		"declarationMap": false,
 		"declaration": false
 	},
-	"include": ["."],
+	"include": ["src"],
 	"exclude": ["node_modules"]
 }

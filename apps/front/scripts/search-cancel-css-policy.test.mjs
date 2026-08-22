@@ -45,7 +45,7 @@ const createWorkspace = (files) => {
 	write('apps/front/server.mjs', 'export default {};\n');
 	write('apps/front/vite.config.ts', 'export default {};\n');
 	write('apps/front/scripts/placeholder.mjs', 'export const noop = 0;\n');
-	write('packages/shared-ts/lib/placeholder.ts', 'export const noop = 0;\n');
+	write('packages/shared-ts/src/lib/placeholder.ts', 'export const noop = 0;\n');
 	write('packages/client-ts/src/placeholder.ts', 'export const noop = 0;\n');
 
 	for (const [relativePath, contents] of Object.entries(files ?? {})) {
@@ -298,7 +298,7 @@ test('rejects a canonical stylesheet that has lost the suppression rule entirely
 
 test('rejects the reviewer route: an override bundled from packages/shared-ts', () => {
 	const { workspaceRoot } = createWorkspace({
-		'packages/shared-ts/lib/profile-style/search-cancel-style.ts': `
+		'packages/shared-ts/src/lib/profile-style/search-cancel-style.ts': `
 export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 	.publy-search-wrapper
 		> .publy-search-input[type='search']::-webkit-search-cancel-button {
@@ -446,7 +446,7 @@ export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 
 test('rejects a restoring rule carrying the retired allow marker on the line above, in packages/shared-ts', () => {
 	const { workspaceRoot } = createWorkspace({
-		'packages/shared-ts/lib/search-cancel-override.ts': `
+		'packages/shared-ts/src/lib/search-cancel-override.ts': `
 export const SEARCH_CANCEL_OVERRIDE = \`
 	.publy-search-wrapper
 		/* publy-allow search-cancel-token */

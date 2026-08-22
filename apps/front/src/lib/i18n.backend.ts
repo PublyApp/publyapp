@@ -18,19 +18,19 @@ type ResourceLoader = () => Promise<JsonModule>;
 const localLoaders = import.meta.glob<JsonModule>('../i18n/locales/*/*.json');
 
 // Relative paths into shared-ts's JSON, NOT `@org/shared-ts/...json` (which resolves to a
-// nonexistent `.json.ts` under shared-ts's `./* → ./*.ts` export map) and NOT the locale barrel
+// nonexistent `.json.ts` under shared-ts's `./* → ./src/*.ts` export map) and NOT the locale barrel
 // (`@org/shared-ts/lib/i18n/locales/{en,fr}`, which would pull shared `common` into every namespace
 // chunk). A relative dynamic `import()` of the exact file resolves correctly and code-splits each
 // namespace on its own — verified resolving + typechecking from `apps/front/src/lib/`.
 const sharedLoaders: Record<string, ResourceLoader> = {
 	'en/zod': () =>
-		import('../../../../packages/shared-ts/lib/i18n/json/zod.en.json'),
+		import('../../../../packages/shared-ts/src/lib/i18n/json/zod.en.json'),
 	'fr/zod': () =>
-		import('../../../../packages/shared-ts/lib/i18n/json/zod.fr.json'),
+		import('../../../../packages/shared-ts/src/lib/i18n/json/zod.fr.json'),
 	'en/response-message': () =>
-		import('../../../../packages/shared-ts/lib/i18n/json/response-message.en.json'),
+		import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.en.json'),
 	'fr/response-message': () =>
-		import('../../../../packages/shared-ts/lib/i18n/json/response-message.fr.json'),
+		import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.fr.json'),
 };
 
 const localLoaderByKey = new Map<string, ResourceLoader>();

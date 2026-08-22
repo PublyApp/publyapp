@@ -31,7 +31,7 @@ const runCases = (rule, label) => {
 			valid: [
 				{
 					code: "console.log('allowed in scripts');",
-					filename: 'packages/shared-ts/scripts/example.ts',
+					filename: 'packages/shared-ts/src/scripts/example.ts',
 				},
 				{
 					code: "console.log('allowed in tests');",

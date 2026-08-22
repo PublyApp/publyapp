@@ -28,7 +28,7 @@ distils them. `apps/old-front` is retired and is **not** a pattern source.
   — source: `docs/assets/publyapp-mark.svg`
 
 ### Tone of voice for UI copy
-Derived from `packages/shared-ts/lib/i18n/json/common.{en,fr}.json`:
+Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
 - **Sentence case** is the default for status, field, and message strings: `"User has no email"`,
   `"Uploads are not supported yet."`, `"No matching companies found"`, `"Verification link"`.
 - **Title Case** for navigation and noun labels: `"All tenants"`, `"Pending"`, `"Active"`,
@@ -40,11 +40,11 @@ Derived from `packages/shared-ts/lib/i18n/json/common.{en,fr}.json`:
   strings (e.g. `"Uploads are not supported yet."`).
 - French is a maintained translation (`common.fr.json`, `response-message.fr.json`, `zod.fr.json`),
   not a fallback.
-— source: `packages/shared-ts/lib/i18n/json/common.en.json`, `common.fr.json`
+— source: `packages/shared-ts/src/lib/i18n/json/common.en.json`, `common.fr.json`
 
 ### i18n rules
 - UI strings live in three namespaces mirrored per locale: `common`, `response-message`, `zod`.
-  — source: `packages/shared-ts/lib/i18n/json/`
+  — source: `packages/shared-ts/src/lib/i18n/json/`
 - **Never translate `response-message` keys by hand at a mutation call site.** Derive user-facing
   error text through `getFailureMessage(toApiFailure(error), ...)`; the `publy/no-manual-response-message-translation`
   lint rule enforces this. — source: `AGENTS.md` (Frontend Coding Standards), `docs/guides/frontend-error-handling.md`
@@ -361,7 +361,7 @@ These are factual observations from the tree; this document reports them rather 
 1. **UI copy case is mixed.** Navigation/noun labels use Title Case (`"All tenants"`, `"Pending"`),
    while status/message strings use sentence case (`"User has no email"`, `"Uploads are not supported yet."`).
    There is no single enforced case rule in the tree — both coexist in `common.en.json`.
-   — source: `packages/shared-ts/lib/i18n/json/common.en.json`
+   — source: `packages/shared-ts/src/lib/i18n/json/common.en.json`
 2. **`conventions.md` references `apps/front` while the archive design references `apps/front-2`.**
    The gray-UI migration design (`docs/archive/2026/designs/2026-07-09-front-2-gray-ui-stack-migration-design.md`)
    describes the stack that became `apps/front`; its component list predates the current `components/ui/*`
