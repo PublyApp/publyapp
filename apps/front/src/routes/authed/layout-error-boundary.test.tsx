@@ -43,7 +43,7 @@ const buildI18n = (lng: 'en' | 'fr') => {
 			fr: { common: frResource.common },
 		},
 		interpolation: { escapeValue: false },
-		initImmediate: false,
+		initAsync: false,
 	});
 	return instance;
 };
