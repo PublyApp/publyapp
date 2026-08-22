@@ -48,13 +48,13 @@ other gates' `Determine changed paths` pattern and covers: the workflow itself,
 | `pnpm format` (repo-wide oxfmt)                                                                   | yes       | yes            |
 | Lint (oxlint scope CI uses, disables audit, barrel check)                                         | yes       | yes            |
 | front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes       | yes            |
-| old-front unit characterization + typecheck                                                       | yes       | yes            |
+| ~~old-front unit characterization + typecheck~~ (deleted 2026-08-22, archived) | — | — |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec                                        | yes       | yes            |
 | `ci-migration-expand-contract`                                                                    | yes       | yes            |
 | Project PR-closure adapter contract (`pnpm test:project-closure-adapter`)                         | yes       | yes            |
 | **Full API test suite** (`just test-api`)                                                         | yes       | yes            |
 | front e2e (docker compose + Playwright + drawer-contrast Vitest guard)                            | no        | yes            |
-| old-front e2e characterization (docker compose + Playwright)                                      | no        | yes            |
+| ~~old-front e2e characterization~~ (deleted 2026-08-22, archived) | — | — |
 
 `just ci` is the everyday loop. Run `just ci-full` before merging anything that touches
 frontend behaviour, since that is where the e2e suites earn their runtime.
@@ -162,7 +162,7 @@ Recorded here rather than hidden, so they can be judged:
   the gap where it had no CI lint coverage at all). Issue #803 owns broadening this gate to
   repo-wide `oxlint` and resolving the remaining pre-existing warnings. Until then,
   the narrower scope intentionally mirrors CI.
-- **`just ci-e2e-old-front` delegates to the app's `test:e2e:fresh`**, which omits
+- **Former `just ci-e2e-old-front`** (deleted 2026-08-22) delegated to the app's `test:e2e:fresh`, which omitted
   `--remove-orphans` and CI's explicit `--wait-timeout 180`.
 - **The e2e recipes run `playwright install chromium` without CI's `--with-deps`.** That
   flag shells out to `sudo apt-get`, and a pre-push gate must not require root. The browser
@@ -317,7 +317,7 @@ substantially slower — the first `ci-full` pays several minutes to build the e
 | ----------------------- | ------- | -------------------------------------------------------------------------------------- |
 | `just ci`               | ~4m 20s | of which `just test-api` is ~1m 45s (1,158 tests)                                      |
 | `just ci-e2e-front`     | ~8m 15s | 180 Playwright tests + the 107-test drawer-contrast Vitest source guard + docker stack |
-| `just ci-e2e-old-front` | ~8m     | 13 Playwright tests; mostly docker build                                               |
+| ~~`just ci-e2e-old-front`~~ | — | deleted 2026-08-22 (archived) |
 | `just ci-full`          | ~21m    | the two e2e suites are ~80% of it                                                      |
 
 That split is the reason `ci` and `ci-full` are separate targets: the everyday loop stays

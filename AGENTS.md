@@ -26,14 +26,7 @@ just dev-front
 just dev-db
 ```
 
-**Frontend recipe naming:** these recipes directly build, run, type-check, or clean
-`apps/old-front`, the retired app: `dev-old-front`, `build-old-front`,
-`start-old-front`, `tsc-old-front`, `ci-old-front`, `ci-e2e-old-front`, and
-`clean-old-front`. The aggregate `ci` and `ci-full` gates intentionally
-include the retired app's characterization suites, and `clean` removes its artifacts along with the
-rest of the workspace. `dev-setup` and `quick-start` print `just dev-front`, which is correct for
-the shipped app. Drive `apps/front` — the app that actually ships — with `just dev-front`,
-`just review-front <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate.
+Drive `apps/front` — the app that actually ships — with `just dev-front`, `just review-front <pr-or-issue-number>`, `pnpm --filter front <script>` or the `just ci-front` gate. See also the retired-app note below.
 
 Since #885, the API waits for pending migrations but does not apply them. Run
 `just db-migrate` first, or use `just dev-api-migrated` to migrate and start the API.
@@ -60,7 +53,6 @@ The API reads configuration exclusively from environment variables via `AppEnvir
 just build-api                     # Build .NET API
 pnpm --filter front build          # Build the shipped frontend for production
 just deploy-images                 # Build + push the three GHCR release images
-just build-old-front               # Builds apps/old-front (retired app) — not the release artifact
 ```
 
 Releases use
@@ -72,7 +64,6 @@ checkout.
 ```bash
 just check-write                       # Run oxlint + oxfmt (auto-fix)
 pnpm --filter front typecheck          # TypeScript type checking (front)
-just tsc-old-front                     # TypeScript type checking (apps/old-front, retired)
 just knip                              # Check for unused dependencies
 ```
 
@@ -139,7 +130,6 @@ For the full guide on writing and debugging integration tests, see [`docs/guides
 ```
 apps/
 ├── api/              # .NET 10.0 Web API backend — also the worker (APP_ROLE=worker) and migrator
-├── old-front/        # RETIRED React Router v7 + MUI frontend — see note below
 └── front/            # THE frontend: TanStack Start + Base UI + Tailwind v4 (deployed)
 
 packages/
@@ -155,12 +145,8 @@ There is **no `apps/jobs`**. Background jobs shipped inside the API project (`ap
 and run as a separate deployed process off the **same API image** with `APP_ROLE=worker` — see
 `dokploy.yml`.
 
-**`apps/old-front` is retired-but-present.** It is not built for release and not deployed: the release
-workflow builds only `apps/api/Dockerfile` and `apps/front/Dockerfile`, and `dokploy.yml` serves
-`ghcr.io/radandevist/publyapp/front`. The directory still exists and is still covered by the
-`old-front-characterization.yml` CI job, so do not be surprised to find it — but **do not write code in
-it and do not use it as a pattern source.** All frontend work happens in `apps/front`.
-old-front→front feature parity is **not** complete (open: #735, #818, #819, #820).
+`apps/old-front` was retired on 2026-08-22. Archive in `docs/archive/old-front`, tag `old-front-final`.
+All frontend work happens in `apps/front`; `docs/archive/old-front` is the reference for the retired surfaces.
 
 ### Backend Architecture (Vertical Slice, Domain-First)
 
@@ -322,25 +308,17 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - React Hook Form + Zod for form validation; go through the front form/field wrappers rather than wiring `register()` onto raw inputs.
 - Loading/empty/error states use the front state components (`state-view.tsx`, `state-surface.tsx`, `skeleton.tsx`) — never ad-hoc conditional rendering per page.
 - **Entity images and avatars:** preserve the real image when one exists and keep the intended aspect ratio. When there is genuinely no image, an **entity identity** surface — a person or an organization — falls back to initials on a deterministic, name-hashed colour from the `--publy-avatar-1`…`--publy-avatar-8` palette with `--publy-avatar-foreground` text (`paletteIndex()` in [`apps/front/src/components/ui/avatar-initials.ts`](apps/front/src/components/ui/avatar-initials.ts), applied via [`apps/front/src/components/ui/person-avatar.tsx`](apps/front/src/components/ui/person-avatar.tsx)). That colour is **identity, not decoration**: it is what distinguishes two photoless people in the same list and makes one person recognizable across a table row, a drawer, and the account menu — a uniform grey column carries no information at all. The palette is WCAG-pinned against fixed white text and deliberately theme-invariant, so do **not** swap it for muted tokens, and do **not** give it an `html.dark` counterpart (see `THEME_INVARIANT_TOKENS` in [`apps/front/scripts/check-design-system.mjs`](apps/front/scripts/check-design-system.mjs) and the contrast guard in [`apps/front/src/styles/avatar-fallback-contrast.test.ts`](apps/front/src/styles/avatar-fallback-contrast.test.ts)). Neutral muted tokens remain correct for fallbacks that are **not** entity identity. Build on the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front/src/components/ui/avatar.tsx`](apps/front/src/components/ui/avatar.tsx), whose image preserves a square cover crop and whose bare fallback stays neutral for those non-identity consumers. **front has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
-- Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its code examples are MUI-era `apps/old-front`).
+- Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its old MUI-era `apps/old-front` code snippets are archived in `docs/archive/old-front`).
 
-**About `apps/old-front`:** it is retired. The MUI/`sx`/React-Router-loader/animation-preset standards
-that used to live in this section governed that app only; they are gone from this file on purpose,
-because the owner will not edit `apps/old-front` again.
+`apps/old-front` was retired on 2026-08-22 (archive `docs/archive/old-front`, tag `old-front-final`). The MUI/`sx` standards that governed it are archived, not deleted as guidance — see the archive for the retired patterns.
 
 **Enabled `publy/*` lint-rule scopes** (the configuration sets each of these to `error`):
 
 - All linted JavaScript/TypeScript: `no-array-reduce`, `prefer-specific-lodash-imports`, and
   `no-manual-response-message-translation`.
-- `no-console-in-source`: source files under `apps/old-front/src`, `apps/front/src`, and
-  `packages/shared-ts`, excluding tests/specs, shared package scripts, and CLI files.
-- `no-direct-dayjs-in-components`: TSX files under either frontend's `components/`, `_parts/`,
-  `_components/`, or `routes/` source paths.
-- Retired `apps/old-front` only: `no-raw-mui-textfield-register` covers its source files;
-  `no-native-html-in-mui-surfaces` and `no-raw-img-in-product-surfaces` cover product JSX under
-  `components/`, `layouts/`, `routes/`, and `lib/`, with their narrow marketing/brand exclusions;
-  `no-raw-img-in-product-surfaces` also exempts an image when the immediately preceding line
-  contains the `publy-allow full-bleed-background` comment marker.
+- `no-console-in-source`: source files under `apps/front/src` and `packages/shared-ts`, excluding tests/specs, shared package scripts, and CLI files.
+- `no-direct-dayjs-in-components`: TSX files under `apps/front/src` `components/`, `_parts/`, `_components/`, or `routes/` source paths.
+- `no-raw-mui-textfield-register`, `no-native-html-in-mui-surfaces`, `no-raw-img-in-product-surfaces`: retained for `apps/front` where applicable; retired `apps/old-front` scopes removed (archive in `docs/archive/old-front`).
 
 `publy/no-op` and `publy/arrow-function-components` are off. Component declaration style is
 therefore not lint-enforced in front; both arrow components and function declarations exist.
@@ -473,7 +451,7 @@ client regeneration workflow, and TypeScript patterns), see:
 - Required body fields: non-nullable `JsonElement` (not `JsonElement?`) for cleaner TypeScript types
 - Never add XML comments to generic types (`<T>`) — triggers .NET 10 OpenAPI bug
 - `[AsParameters]` query DTOs: never use `List<T>?` or custom `BindAsync`; use CSV `string?` + parser method for multi-value filters — see [`openapi-kiota-safeguards.md`](docs/guides/openapi-kiota-safeguards.md#query-dto-multi-value-filters)
-- After DTO/endpoint changes: `just build-api && just generate-client && pnpm --filter front typecheck` (add `just tsc-old-front` only if you also need the retired app to keep compiling)
+- After DTO/endpoint changes: `just build-api && just generate-client && pnpm --filter front typecheck`
 - Use `createUntypedString()` / `createUntypedArray()` for request body fields in TypeScript
 
 ## Documentation Organization

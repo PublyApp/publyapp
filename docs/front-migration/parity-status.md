@@ -1,3 +1,5 @@
+> **Note 2026-08-22:** `apps/old-front` was deleted. The factual inventory below is now archived in `docs/archive/old-front/{routes.md,screens/*.md,i18n-keys.md}` (tag `old-front-final` for full source). This file stays as the historical snapshot but is no longer the port reference — use the archive.
+
 # Front-2 ↔ old front — feature-parity status
 
 Dated snapshot: **2026-07-11** (swept from `apps/front/src/routes.ts` + `_tree/*` (`apps/front` is
