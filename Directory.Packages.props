@@ -6,7 +6,7 @@
   <!-- Central package version definitions -->
   <ItemGroup>
     <!-- ASP.NET Core packages -->
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.0" />
     <PackageVersion Include="Microsoft.OpenApi" Version="2.9.0" />
     <!-- Third-party packages -->
