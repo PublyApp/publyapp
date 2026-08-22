@@ -2,12 +2,12 @@
  * `@org/lint-ts` — custom Oxlint JS plugin for PublyApp.
  *
  * Loaded by Oxlint via the `jsPlugins` config field (see root `.oxlintrc.json`).
- * Oxlint 1.64.0 `import()`s this module and reads its DEFAULT export as the
+ * Oxlint 1.79.0 `import()`s this module and reads its DEFAULT export as the
  * plugin object. The plugin's `meta.name` ("publy") becomes the rule namespace,
  * so rules are referenced in config as `publy/<rule-name>`.
  *
  * JS plugins are flagged "alpha, not subject to semver" by Oxlint; no extra
- * experimental CLI flag is required in 1.64.0 — declaring `jsPlugins` activates
+ * experimental CLI flag is required in 1.79.0 — declaring `jsPlugins` activates
  * the loader. See https://oxc.rs/docs/guide/usage/linter/js-plugins.html
  *
  * Rule severities are tracked in `.oxlintrc.json`. Current publy/* rules:
