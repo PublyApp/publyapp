@@ -1,5 +1,5 @@
 /** Tone set the front StatusPill exposes — the front-native mapping of the
- * old-front MUI color vocabulary. */
+ * legacy MUI color vocabulary (archived in `docs/archive/old-front`). */
 export type AuditActionTone =
 	| 'danger'
 	| 'info'

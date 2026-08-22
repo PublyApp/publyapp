@@ -78,7 +78,7 @@ wins.
 | `misc/` | Nothing above fits. Treat a `misc/` file as scratch — never link one from `AGENTS.md`. |
 | `assets/` | It is an image or other binary a doc embeds. |
 | `superpowers/` | **Do not file here by hand.** This is the superpowers workflow's own output tree (`plans/`, `specs/`, `reviews/`) and it is written by that tooling. |
-| `old-front/` | **Closed.** `apps/old-front` is retired; do not add frontend planning notes here. |
+| `old-front/` | **Closed.** `apps/old-front` retired 2026-08-22 — archive in `docs/archive/old-front` (tag `old-front-final`); do not add new notes here. |
 
 ## Rules
 

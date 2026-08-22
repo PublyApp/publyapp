@@ -12,14 +12,14 @@ is a dev-time scaffolding/CSS-import dependency only, not a component library co
 runtime.
 
 This intentionally diverges from the MUI + `sx` rules and app-local primitive patterns that
-govern `apps/old-front`. Those retired-app rules are scoped to `apps/old-front`; they do not apply
+governed `apps/old-front` (retired 2026-08-22, archived in `docs/archive/old-front`). Those rules were scoped to `apps/old-front`; they do not apply
 to `apps/front`. Examples include:
 
 - `publy/no-native-html-in-mui-surfaces`
 - `publy/no-raw-mui-textfield-register`
 - `publy/no-raw-img-in-product-surfaces`
 
-Do not import MUI or `apps/old-front` UI primitives into `apps/front` to reuse retired-app
+Do not import MUI or archived `apps/old-front` patterns (see `docs/archive/old-front`) into `apps/front` to reuse retired-app
 components. Rebuild the surface with the `components/ui/*` primitive layer (Base UI + `cva` +
 Tailwind), and front-local equivalents where needed, keeping shared behavior behind
 framework-agnostic contracts where possible.

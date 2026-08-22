@@ -276,7 +276,7 @@ const GATE_WORKFLOWS = [
 		// file. findRequiredContextCollisionProblems below scans every job in
 		// every workflow in the repository, because any one of them can claim
 		// a required check name — the reviewer's reproduction made
-		// `old-front-characterization.yml` report `docs-archive-gate`, which
+		// a now-deleted workflow report `docs-archive-gate`, which
 		// the four-file classifier pattern classified as irrelevant, so the
 		// only job that runs the scan server-side never woke up. The last
 		// entry deliberately names a workflow file that does not exist: the
@@ -288,7 +288,6 @@ const GATE_WORKFLOWS = [
 			'.github/workflows/front-e2e.yml',
 			'.github/workflows/openapi-spec-drift.yml',
 			'.github/workflows/docs-archive.yml',
-			'.github/workflows/old-front-characterization.yml',
 			'.github/workflows/deploy-images.yml',
 			'.github/workflows/require-linked-issue.yml',
 			'.github/workflows/a-workflow-file-that-does-not-exist-yet.yml',
@@ -1006,7 +1005,7 @@ export const findCiGateStructureProblems = async ({
  * Round 6 BLOCKER: the check-run name a job reports under. GitHub uses the
  * job's `name:` when it has one and its job ID otherwise, so BOTH are ways
  * to claim a required context — the reviewer's reproduction renamed
- * `old-front-characterization.yml`'s `old-front-e2e` job to
+ * a deleted workflow's `old-front-e2e` job to
  * `docs-archive-gate`, and a `name: docs-archive-gate` on the same job is
  * the variant scripts/check-ci-drift.mjs cannot see at all (it hashes step
  * fields only, and a `name:` addition leaves every step key untouched).
@@ -1021,9 +1020,9 @@ const reportedCheckName = (jobId, job) =>
  * The structure check above pins each gate job's own `name:`, but nothing
  * stopped a job in an unrelated workflow from reporting one of the four
  * required names. The reviewer proved this is not cosmetic: with
- * `old-front-characterization.yml`'s e2e job reporting `docs-archive-gate`,
+ * a deleted workflow's e2e job reporting `docs-archive-gate`,
  * the two runs on the same head commit finished four minutes apart
- * (`docs-archive-gate` at 05:29:23Z, `old-front-e2e` at 05:33:39Z). Under
+ * (`docs-archive-gate` at 05:29:23Z, `old-front-e2e` at 05:33:39Z — deleted workflow). Under
  * the empirically established "latest report for a context wins" behavior
  * that motivated the round-5 rename, a real gate FAILURE followed by the
  * unrelated job's later SUCCESS leaves the required context green over

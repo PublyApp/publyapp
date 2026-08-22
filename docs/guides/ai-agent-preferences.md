@@ -3,7 +3,7 @@
 > **MIXED GUIDE — read the split before you follow anything.**
 > **Normative:** the C#/backend and general-review preferences.
 > **Not normative:** the "Frontend (React / MUI)" section and any `apps/old-front/src` path in this
-> guide. `apps/old-front` is the retired MUI + React Router v7 app — not deployed, and the owner will
+> guide. `apps/old-front` was retired 2026-08-22 (archive `docs/archive/old-front`) — the retired MUI + React Router v7 app — not deployed, and the owner will
 > not edit it again. Frontend work happens in `apps/front` per
 > [`front/index.md`](front/index.md) and [`front/conventions.md`](front/conventions.md).
 > Restating the still-useful frontend preferences in front terms is deferred to a later wave of
@@ -114,7 +114,7 @@ If a preference below conflicts with an existing guide, follow the existing guid
 - Prefer direct imports from the concrete frontend module file.
   - Example: `#app/components/iconify/iconify.tsx` instead of
     `#app/components/iconify/index.ts`.
-- Do not add new hand-written frontend barrel files under `apps/old-front/src` by
+- Do not add new hand-written frontend barrel files under `apps/front/src` beyond the allowlist (`scripts/check-frontend-barrels.mjs`; retired `apps/old-front` allowlist archived)
   default.
 - Keep a frontend barrel only when it is an intentional, narrow public facade
   with a documented reason.

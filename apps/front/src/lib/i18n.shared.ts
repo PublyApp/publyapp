@@ -15,8 +15,7 @@ export const isSupportedLanguage = (
 	value: string | undefined | null,
 ): value is SupportedLanguage => value === 'en' || value === 'fr';
 
-// Language names are displayed in their own tongue, not translated per-locale
-// (matching apps/old-front's `allLangs`).
+// Language names are displayed in their own tongue, not translated per-locale.
 export const LOCALE_LABELS: Record<SupportedLanguage, string> = {
 	en: 'English',
 	fr: 'Français',

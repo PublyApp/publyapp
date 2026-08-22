@@ -97,7 +97,7 @@ jobs:
         # workflow in the repository — any one of them can claim a required
         # check name. Server-enforcing that requires waking up for an edit to
         # any workflow file, not just the four gate files: the reviewer's
-        # reproduction made `old-front-characterization.yml` report
+        # reproduction made a now-deleted `old-front-characterization.yml` report
         # "docs-archive-gate", and under the previous four-file pattern that
         # edit classified as irrelevant, so the one job that runs the scan
         # never woke up. The prefix form (no file list) also covers workflow

@@ -42,7 +42,7 @@ type InvitationInfoResult =
 /**
  * Combines the pre-validation check (email/userExists) and the display
  * details (profileName) into one round trip for the accept-invitation
- * loader — mirrors apps/old-front's loader, which calls both endpoints and
+ * loader — calls both endpoints and
  * collapses any failure (either call, or a missing email) to a single
  * invalid-link state.
  */

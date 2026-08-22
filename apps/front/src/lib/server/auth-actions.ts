@@ -83,7 +83,7 @@ const EmailInputSchema = z.object({
  *
  * The underlying API call's outcome is deliberately swallowed (success or
  * 404-user-not-found alike) so a submitted email can never be used to probe
- * whether an account exists, mirroring apps/old-front's verify-email action.
+ * whether an account exists (old-front verify-email action was archived in `docs/archive/old-front`).
  */
 export const requestEmailVerification = createServerFn({ method: 'POST' })
 	.validator((data): EmailInput => EmailInputSchema.parse(data))

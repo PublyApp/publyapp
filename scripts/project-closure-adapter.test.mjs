@@ -230,8 +230,6 @@ function assertLocalConfigShape(config) {
 		'docs-archive-gate',
 		'front-ci-gate',
 		'front-e2e-gate',
-		'old-front-unit',
-		'old-front-e2e',
 	];
 	assert.equal(config.schema_version, 1);
 	assert.equal(config.project, 'publyapp');

@@ -23,9 +23,7 @@
 		"openapi-spec-drift-gate",
 		"docs-archive-gate",
 		"front-ci-gate",
-		"front-e2e-gate",
-		"old-front-unit",
-		"old-front-e2e"
+		"front-e2e-gate"
 	],
 	"tracking_projection": "trello:publyapp"
 }
