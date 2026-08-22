@@ -31,7 +31,7 @@ import { parse } from 'yaml';
 // See docs/guides/local-ci-gate.md for the full rationale.
 
 const workflowsDirectory = '.github/workflows';
-const manifestPath = 'scripts/ci-gate-manifest.json';
+const manifestPath = 'packages/scripts-ts/src/ci-gate-manifest.json';
 
 // Matches the reviewable-reason bar this repo already enforces on lint
 // suppressions (see the sibling guard in scripts/). "n/a" is not a reason.
@@ -283,7 +283,9 @@ export const findCiDrift = async ({ rootDir }) => {
 
 const isDirectRun =
 	process.argv[1] &&
-	toPosixPath(process.argv[1]).endsWith('scripts/check-ci-drift.mjs');
+	toPosixPath(process.argv[1]).endsWith(
+		'packages/scripts-ts/src/check-ci-drift.ts',
+	);
 
 if (isDirectRun) {
 	const findings = await findCiDrift({ rootDir: process.cwd() });

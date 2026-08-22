@@ -293,9 +293,9 @@ const GATE_WORKFLOWS = [
 			'.github/workflows/deploy-images.yml',
 			'.github/workflows/require-linked-issue.yml',
 			'.github/workflows/a-workflow-file-that-does-not-exist-yet.yml',
-			'scripts/ci-changed-paths.mjs',
-			'scripts/check-ci-drift.mjs',
-			'scripts/check-ci-gate-structure.mjs',
+			'packages/scripts-ts/src/ci-changed-paths.ts',
+			'packages/scripts-ts/src/check-ci-drift.ts',
+			'packages/scripts-ts/src/check-ci-gate-structure.ts',
 		],
 		// Round 5 BLOCKER fix: front-ci-gate must independently re-derive its
 		// own job graph's correctness rather than relying solely on
@@ -1013,7 +1013,7 @@ const checkWorkflow = (
 			// @ts-expect-error rung-0: add proper type in later rung
 			(step) =>
 				typeof step.run === 'string' &&
-				step.run.includes('check-ci-gate-structure.mjs'),
+				step.run.includes('check-ci-gate-structure.ts'),
 		);
 
 		if (!hasSelfCheckStep) {
@@ -1277,7 +1277,9 @@ export const findRequiredContextCollisionProblems = async ({
 
 const isDirectRun =
 	process.argv[1] &&
-	toPosixPath(process.argv[1]).endsWith('scripts/check-ci-gate-structure.mjs');
+	toPosixPath(process.argv[1]).endsWith(
+		'packages/scripts-ts/src/check-ci-gate-structure.ts',
+	);
 
 if (isDirectRun) {
 	const findings = [

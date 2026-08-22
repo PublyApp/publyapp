@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { test } from 'vitest';
 import { parse } from 'yaml';
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(scriptsDirectory, '..');
-const script = path.join(scriptsDirectory, 'deploy-images.mjs');
+const repositoryRoot = path.resolve(scriptsDirectory, '../..');
+const script = path.join(scriptsDirectory, 'deploy-images.ts');
 const dokployComposePath = path.join(repositoryRoot, 'dokploy.yml');
 const deployImagesWorkflowPath = path.join(
 	repositoryRoot,

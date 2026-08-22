@@ -11,9 +11,9 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { test } from 'vitest';
 import { parse } from 'yaml';
 
 import { classifyRelevance } from './ci-changed-paths.ts';
@@ -48,9 +48,12 @@ import { classifyRelevance } from './ci-changed-paths.ts';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
-	'..',
+	'../..',
 );
-const realClassifierPath = path.join(repoRoot, 'scripts/ci-changed-paths.mjs');
+const realClassifierPath = path.join(
+	repoRoot,
+	'packages/scripts-ts/src/ci-changed-paths.ts',
+);
 
 const workflowFiles = [
 	'front-e2e.yml',

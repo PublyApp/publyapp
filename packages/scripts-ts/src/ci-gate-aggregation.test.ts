@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { test } from 'vitest';
 import { parse } from 'yaml';
 
 // Proves the #1017 aggregate gates' result-aggregation logic — the "Check

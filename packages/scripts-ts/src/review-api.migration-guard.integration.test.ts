@@ -28,8 +28,9 @@ import {
 } from 'node:fs';
 import { createConnection } from 'node:net';
 import path from 'node:path';
-import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { after, before, test } from 'vitest';
 
 import {
 	assertNoPendingMigrations,
@@ -38,7 +39,7 @@ import {
 } from './review-api.ts';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, '..');
+const repoRoot = path.resolve(scriptDir, '../..');
 const apiDir = path.join(repoRoot, 'apps', 'api');
 const migrationsDir = path.join(apiDir, 'Migrations');
 

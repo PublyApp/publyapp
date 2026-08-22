@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { test } from 'vitest';
 
 import {
 	ambientCredentialSecrets,
@@ -25,7 +26,7 @@ import {
 } from './review-api.ts';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, '..');
+const repoRoot = path.resolve(scriptDir, '../..');
 
 // parseArgs's own rejection path calls the module-local `err()`, which calls
 // process.exit(1) — not throwable/mockable in-process. Spawning the real CLI is the only

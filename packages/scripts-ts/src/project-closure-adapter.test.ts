@@ -12,9 +12,10 @@ import {
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test } from 'node:test';
 
-const repo = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+import { test } from 'vitest';
+
+const repo = new URL('../..', import.meta.url).pathname.replace(/\/$/, '');
 const configPath = join(repo, '.ai', 'project-closure-v1.json');
 const adapterPath = join(repo, '.ai', 'trello-publyapp-projection');
 const sharedToolRoot = process.env.PR_CLOSURE_GATE_ROOT?.trim();

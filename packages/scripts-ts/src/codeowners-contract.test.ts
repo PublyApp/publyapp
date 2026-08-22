@@ -1,26 +1,26 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import test from 'node:test';
 
+import { test } from 'vitest';
 import { parse } from 'yaml';
 
-const codeownersPath = new URL('../.github/CODEOWNERS', import.meta.url);
-const justfilePath = new URL('../justfile', import.meta.url);
+const codeownersPath = new URL('../../../.github/CODEOWNERS', import.meta.url);
+const justfilePath = new URL('../../../justfile', import.meta.url);
 const frontCiWorkflowPath = new URL(
-	'../.github/workflows/front-ci.yml',
+	'../../../.github/workflows/front-ci.yml',
 	import.meta.url,
 );
 const requiredPatterns = [
 	'/.github/workflows/**',
-	'/scripts/ci-*.mjs',
-	'/scripts/check-ci-gate-structure.mjs',
-	'/scripts/ci-gate-manifest.json',
+	'/packages/scripts-ts/src/ci-*.ts',
+	'/packages/scripts-ts/src/check-ci-gate-structure.ts',
+	'/packages/scripts-ts/src/ci-gate-manifest.json',
 ];
 const protectedPaths = [
 	'/.github/workflows/front-ci.yml',
-	'/scripts/ci-x.mjs',
-	'/scripts/check-ci-gate-structure.mjs',
-	'/scripts/ci-gate-manifest.json',
+	'/packages/scripts-ts/src/ci-x.ts',
+	'/packages/scripts-ts/src/check-ci-gate-structure.ts',
+	'/packages/scripts-ts/src/ci-gate-manifest.json',
 ];
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -99,7 +99,7 @@ const justfileContents = readFileSync(justfilePath, 'utf8');
 const frontCiWorkflowContents = readFileSync(frontCiWorkflowPath, 'utf8');
 
 const codeownersInvocation =
-	'node --test ./scripts/codeowners-contract.test.mjs';
+	'pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts';
 
 const localCiDrift = justfileContents.match(
 	/^ci-drift:\n([\s\S]*?)(?=^\S|(?![\s\S]))/m,
@@ -136,8 +136,10 @@ test('CI controls are owned by the repository owner', () => {
 test('a later overlapping rule cannot override CI ownership', () => {
 	assert.throws(
 		() =>
-			assertCodeownersContract(`${validContents}\n/scripts/** @someone-else`),
-		/ci-x\.mjs/,
+			assertCodeownersContract(
+				`${validContents}\n/packages/scripts-ts/** @someone-else`,
+			),
+		/ci-x\.ts/,
 	);
 });
 
@@ -146,8 +148,8 @@ test('a CI ownership rule cannot grant an additional owner', () => {
 		() =>
 			assertCodeownersContract(
 				validContents.replace(
-					'/scripts/ci-*.mjs @radandevist',
-					'/scripts/ci-*.mjs @radandevist @someone-else',
+					'/packages/scripts-ts/src/ci-*.ts @radandevist',
+					'/packages/scripts-ts/src/ci-*.ts @radandevist @someone-else',
 				),
 			),
 		/must resolve to exactly @radandevist/,

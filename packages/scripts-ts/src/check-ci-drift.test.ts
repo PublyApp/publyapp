@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { test } from 'vitest';
 import { parse } from 'yaml';
 
 import { findCiDrift } from './check-ci-drift.ts';

@@ -9,8 +9,9 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+
+import { test } from 'vitest';
 
 import {
 	classifyRelevance,
@@ -350,8 +351,8 @@ test('parseChangedFilesTotal: a large but plausible total parses', () => {
 // ---------------------------------------------------------------------------
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(scriptsDirectory, '..');
-const cliScript = path.join(scriptsDirectory, 'ci-changed-paths.mjs');
+const repositoryRoot = path.resolve(scriptsDirectory, '../..');
+const cliScript = path.join(scriptsDirectory, 'ci-changed-paths.ts');
 
 /**
  * Builds a fake `gh` executable on its own PATH directory. It answers both
