@@ -9,4 +9,5 @@ public static class PostValidationRules {
 	// Long-form social/blog content; consistent with the repo's existing
 	// scale (Message 2000, Description 1024) but generous for article bodies.
 	public const int BodyMaxLength = 20_000;
+	public const int SearchMaxLength = 256;
 }
