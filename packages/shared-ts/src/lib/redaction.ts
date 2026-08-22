@@ -10,13 +10,13 @@ const SESSION_HEADER_NAMES = new Set([
 	'set-cookie',
 ]);
 
-type HeaderShape = HeadersInit | Record<string, string> | [string, string][];
+type HeaderInput = HeadersInit | Record<string, string> | [string, string][];
 
 const shouldRedactHeader = (name: string): boolean =>
 	SESSION_HEADER_NAMES.has(name.toLowerCase());
 
 export const redactHeaders = (
-	headers: HeaderShape | undefined,
+	headers: HeaderInput | undefined,
 ): Record<string, string> => {
 	const output: Record<string, string> = {};
 
