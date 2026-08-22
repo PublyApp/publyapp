@@ -49,7 +49,7 @@ export default defineConfig(({ mode }) => {
 					virtualRouteConfig: './src/routes.ts',
 				},
 			}),
-			viteReact(),
+			viteReact({ compiler: true }),
 		],
 	};
 });
