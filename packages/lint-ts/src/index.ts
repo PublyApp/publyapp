@@ -1,5 +1,5 @@
 /**
- * `@org/lint-ts` — custom Oxlint JS plugin for PublyApp.
+ * `@org/lint-ts` — custom Oxlint plugin for PublyApp, written in TypeScript.
  *
  * Loaded by Oxlint via the `jsPlugins` config field (see root `.oxlintrc.json`).
  * Oxlint 1.79.0 `import()`s this module and reads its DEFAULT export as the
