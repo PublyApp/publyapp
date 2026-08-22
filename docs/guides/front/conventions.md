@@ -80,6 +80,32 @@ Follow them by hand until automation exists:
   (`router.history.back()`), falling back to a `replace` when the drawer was entered by deep link
   and there is no entry of ours to consume. Every other list search write stays `replace: true`.
 
+## React Compiler
+
+The React Compiler runs automatically via `@vitejs/plugin-react` 6.1 with the Rust-based
+`oxc-transform-react` backend (`compiler: true` in `vite.config.ts`). It memoises components
+and hooks at build time, replacing the need for hand-written `useMemo`/`useCallback` for
+purely performance-driven memoisation.
+
+**Rules:**
+
+- **Do not add new `useMemo` or `useCallback`** for memoisation purposes. The compiler
+  handles this automatically. Existing ones stay until a measured follow-up removes them.
+- **Rules of React are load-bearing.** The compiler skips components that violate them (refs
+  during render, throw inside try/catch, eslint-disable suppressions). These skip warnings
+  appear in the build output — they are informational, not errors.
+- React Doctor (issue [#1182](https://github.com/radandevist/publyapp/issues/1182)) checks
+  Rules-of-React compliance. Run `pnpm --filter front test` to verify.
+
+**Known compiler skip patterns (informational):**
+- `throw` inside `try/catch` — the compiler cannot lower this yet (Todo upstream)
+- `finally` clauses — the compiler skips components with `try/finally`
+- Ref access during render — `locationRef.current = location` in render scope
+- `eslint-disable-next-line react-hooks/*` suppressions — the compiler refuses to optimise
+
+None of these cause build failures; the compiler degrades gracefully by skipping those
+specific components.
+
 ## Route-Local Private File Naming
 
 Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.

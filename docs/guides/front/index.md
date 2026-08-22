@@ -19,6 +19,7 @@ AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions;
 - React Hook Form, Zod, and `@hookform/resolvers`
 - Kiota-generated `@org/client-ts`
 - Shared contracts and utilities from `@org/shared-ts`
+- React Compiler (via `@vitejs/plugin-react` 6.1 + `oxc-transform-react`, `compiler: true`)
 - Vitest
 
 ## Commands
