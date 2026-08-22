@@ -57,6 +57,7 @@ const workflowFiles = [
 	'front-ci.yml',
 	'openapi-spec-drift.yml',
 	'docs-archive.yml',
+	'react-doctor.yml',
 ];
 
 /**
@@ -299,9 +300,10 @@ const RELEVANT_FILE_BY_WORKFLOW = {
 	'front-ci.yml': 'apps/front/src/routes.ts',
 	'openapi-spec-drift.yml': 'apps/api/Program.cs',
 	'docs-archive.yml': 'docs/guides/foo.md',
+	'react-doctor.yml': 'apps/front/src/routes.ts',
 };
 
-// A file no workflow's pattern matches, to prove the negative case for all four.
+// A file no workflow's pattern matches, to prove the negative case for all five.
 const IRRELEVANT_FILE = 'totally-unrelated-file.txt';
 
 for (const file of workflowFiles) {
