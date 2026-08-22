@@ -74,6 +74,17 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 
 The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as a **ladder**: one rule per PR, switched straight to `error` with every violation in the repo fixed in that same PR — never a `warn` stage, never a baseline of tolerated hits. The measured baseline per rule lives on issue #1160; pick the next rung from it. A PR that enables a rule must show `pnpm lint` green repo-wide at its tip.
 
+### Enabled rules
+
+| Rule | Severity | Baseline violations | Enabled in |
+|------|----------|-------------------|------------|
+| `anti-slop/no-conditional-empty-object-spread` | `error` | 30 (fixed) | #1170 (rung 1) |
+| `anti-slop/no-object-parameters` | `error` | 0 | rung 2 |
+| `anti-slop/no-reflect-apply` | `error` | 0 | rung 2 |
+| `anti-slop/no-reflect-get` | `error` | 0 | rung 2 |
+| `anti-slop/no-unknown-type-aliases` | `error` | 0 | rung 2 |
+| `anti-slop/no-widen-then-assert` | `error` | 0 | rung 2 |
+
 ## Roslyn analyzers (`packages/lint-cs/`)
 
 Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in `.editorconfig`. `isEnabledByDefault: false` ships dormant; `.editorconfig` flips to `warning` for enforcement (`TreatWarningsAsErrors=true` makes warning a build error).
