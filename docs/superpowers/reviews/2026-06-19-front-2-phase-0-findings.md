@@ -441,7 +441,7 @@ workspace glob — no `pnpm-workspace.yaml` change needed).
 
 ### Turbo
 - `build.outputs` += `.output/**` (forward-looking for Group 3; the current build emits `dist`, already covered).
-- `globalEnv` += `SERVER_API_BASE_URL`, `PUBLIC_API_BASE_URL`, `VITE_POSTHOG_PROJECT_TOKEN`.
+- `globalEnv` += `SERVER_API_BASE_URL`, `PUBLIC_API_BASE_URL`.
 
 ### Formatter/linter ignore (small repo-wide config change — DEVIATION called out)
 TanStack's generated `routeTree.gen.ts` (marked "exclude from your linter/formatter")

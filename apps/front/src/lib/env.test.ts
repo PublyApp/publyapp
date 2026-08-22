@@ -1,4 +1,11 @@
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
+const DEAD_ENV_VAR = 'VITE_POSTHOG_PROJECT_TOKEN';
 
 type RuntimeWindow = {
 	__ENV__?: {
@@ -276,5 +283,38 @@ describe('front runtime env registry', () => {
 		expect(payload).not.toContain('<');
 		expect(payload).not.toContain('</script>');
 		expect(payload).toContain('\\u003c/script>');
+	});
+});
+
+describe('dead PostHog env var guard', () => {
+	// The frontend reads the PostHog project token only through
+	// PUBLIC_POSTHOG_PROJECT_TOKEN (fallback POSTHOG_PROJECT_TOKEN). The
+	// VITE_POSTHOG_PROJECT_TOKEN key is dead config and must never reappear in
+	// tracked, non-archive files. Archive docs (docs/archive/**) are intentionally
+	// exempt because they capture historical state.
+	const trackedFiles = execSync('git ls-files', {
+		cwd: REPO_ROOT,
+		encoding: 'utf8',
+	})
+		.split('\n')
+		.filter((line) => line.length > 0)
+		.filter((line) => !line.startsWith('docs/archive/'))
+		// This test file legitimately names the dead var to assert its absence
+		// elsewhere; it must not flag itself.
+		.filter((line) => line !== 'apps/front/src/lib/env.test.ts');
+
+	test('no tracked non-archive file references the dead VITE_POSTHOG_PROJECT_TOKEN', () => {
+		const offenders: string[] = [];
+
+		for (const file of trackedFiles) {
+			const content = readFileSync(`${REPO_ROOT}${file}`, 'utf8');
+			if (content.includes(DEAD_ENV_VAR)) {
+				offenders.push(file);
+			}
+		}
+
+		expect(offenders, `found dead env var in: ${offenders.join(', ')}`).toEqual(
+			[],
+		);
 	});
 });
