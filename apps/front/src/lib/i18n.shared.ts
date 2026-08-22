@@ -53,7 +53,7 @@ export const createI18nFromResources = (
 		resources: resources as Resource,
 		interpolation: { escapeValue: false },
 		react: { useSuspense: false },
-		initImmediate: false,
+		initAsync: false,
 	});
 	return instance;
 };
