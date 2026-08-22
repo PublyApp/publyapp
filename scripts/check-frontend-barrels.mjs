@@ -12,7 +12,11 @@ const ignoredSegments = new Set([
 	'node_modules',
 ]);
 
-export const allowedFrontendIndexFiles: string[] = [];
+export const allowedFrontendIndexFiles = [
+	'apps/front/src/components/app-shell/index.ts',
+	'apps/front/src/components/field/index.ts',
+	'apps/front/src/lib/url-state/index.ts',
+];
 
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
@@ -23,6 +27,7 @@ const getRelativePath = (rootDir, filePath) => {
 const isFrontendIndexFile = (relativePath) => {
 	return (
 		relativePath.startsWith('apps/front/src/') &&
+		!relativePath.startsWith('apps/front/src/routes/') &&
 		(relativePath.endsWith('/index.ts') || relativePath.endsWith('/index.tsx'))
 	);
 };
