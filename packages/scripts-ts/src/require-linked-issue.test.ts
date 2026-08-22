@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { test } from 'vitest';
 import { parse } from 'yaml';
 
 // Guard for policy #1240 (owner decision 2026-08-22): dependabot[bot] PRs are
@@ -23,6 +23,8 @@ import { parse } from 'yaml';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
+	'..',
+	'..',
 	'..',
 );
 
