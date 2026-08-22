@@ -127,25 +127,9 @@ publish-api $APP_ROLE="api":
 build-old-front:
   cd {{old_front_dir}} && pnpm build
 
-# Build for deployment (dokploy-from-source artifacts)
-build-deploy:
-  node ./scripts/deploy.mjs
-
 # Build + push the three GHCR deploy images from a clean checkout at REF (Actions is stalled).
 deploy-images ref="origin/develop":
   node scripts/deploy-images.mjs {{ref}}
-
-# Deploy the retired front artifact (dokploy)
-deploy-old-front:
-  node ./scripts/deploy.mjs --target front --upload
-
-# Deploy api artifact (dokploy)
-deploy-api:
-  node ./scripts/deploy.mjs --target api --upload
-
-# Deploy both artifacts (dokploy)
-deploy:
-  node ./scripts/deploy.mjs --target all --upload
 
 # =============================================================================
 # Running
