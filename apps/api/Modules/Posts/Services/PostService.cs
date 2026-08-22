@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 
-#pragma warning disable IDE0004 // Redundant cast — tuple (DateTime, Guid?) cast is required for object?→typed extraction via CursorSortFieldHandler
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
@@ -163,7 +162,7 @@ public class PostService : IPostService {
 							select new { p.CreatedAt, p.Id }
 						).FirstOrDefaultAsync(cancellationToken);
 						return post is not null
-							? (post.CreatedAt, (Guid?)post.Id)
+							? (post.CreatedAt, post.Id)
 							: null;
 					},
 					applyFilter: (q, cursorValue, isAsc) => {
@@ -198,7 +197,7 @@ public class PostService : IPostService {
 							select new { p.UpdatedAt, p.Id }
 						).FirstOrDefaultAsync(cancellationToken);
 						return post is not null
-							? (post.UpdatedAt, (Guid?)post.Id)
+							? (post.UpdatedAt, post.Id)
 							: null;
 					},
 					applyFilter: (q, cursorValue, isAsc) => {
@@ -386,13 +385,12 @@ public class PostService : IPostService {
 		Guid projectId,
 		CancellationToken cancellationToken = default
 	) {
-		return await (
-			from project in _dbContext.Project.AsNoTracking()
-			where project.Id == projectId
-				&& project.TenantId == tenantId
-				&& !project.IsDeleted
-			select project.Id
-		).AnyAsync(cancellationToken);
+			return await (
+				from project in _dbContext.Project.AsNoTracking()
+				where project.Id == projectId
+					&& !project.IsDeleted
+				select project.Id
+			).AnyAsync(cancellationToken);
 	}
 
 	internal static PostListItem ToListItem(Post post) {
