@@ -96,8 +96,9 @@ services:
     # so this file never looks like it wires routing when it does not. See the deploy runbook.
     healthcheck:
       # Readiness gates routing. The five-minute start period matches the migration gate
-      # budget, so pending migrations keep the task alive-but-unrouted without counting
-      # probe failures toward Swarm's restart threshold.
+      # budget, so pending migrations keep the API alive-but-unrouted throughout the start
+      # period: plain Compose does not kill an unhealthy container, so the healthcheck failing
+      # during the wait does not take the container down (Traefik simply withholds routing).
       test:
         [
           'CMD',
@@ -179,14 +180,19 @@ services:
       # Belt-and-suspenders grace matching the worker migration-gate timeout.
       start_period: 300s
 
-  # A normal Swarm service, not a Compose profile or dependency. The immutable image tag
-  # changes on every release, so Swarm creates one migration task for each stack deploy.
-  # The task exits after the EF bundle finishes and is never restarted.
+  # A one-shot Compose container, not a long-running service or a Compose profile/dependency.
+  # It runs once per deploy to apply the EF migration bundle, then exits (zero or non-zero)
+  # and stays exited; the no-restart controls below keep it from running again. Because this
+  # file declares no `depends_on`, it starts concurrently with api and worker, which gate their
+  # own readiness against it (see the worker startup gate and the API readiness probe).
   publyapp-migrate:
     image: ghcr.io/radandevist/publyapp/migrate:${RELEASE_TAG}
     # One-shot: run once per deploy, never restart. `restart: "no"` governs under plain
-    # `docker compose` (Dokploy's default Compose mode); `deploy.restart_policy` below is the
-    # Swarm/Stack-mode equivalent. Both are set so the one-shot holds under either runtime.
+    # `docker compose` (the Compose mode recorded on this instance); `deploy.restart_policy`
+    # below is the Compose deploy-spec equivalent, which Compose honors when present and falls
+    # back to `restart:` only when absent. Both are set so the one-shot holds whatever Dokploy
+    # compose type is selected (Swarm/Stack is NOT in use here; it remains only a documented
+    # contingency for true zero-downtime cutover, per the deployment design doc).
     restart: 'no'
     deploy:
       restart_policy:
