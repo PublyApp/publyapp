@@ -42,6 +42,32 @@ export const DESCRIPTION_SELECTORS = [
 	'.publy-danger-zone-row-description',
 ] as const;
 
+/**
+ * `*-description`/`*-subtitle` classes that are deliberately NOT swept by the
+ * drawer/description contrast source guard, because a DIFFERENT, dedicated
+ * browser guard already covers them with a live, source-independent pixel
+ * measurement. Each entry MUST carry a verified reason — an exclusion without
+ * a verified reason is a blocking defect (issue #1086 round 1).
+ *
+ * The discovery guard (drawer-description-contrast.test.ts) reads the real
+ * `app.css`, enumerates every `*-description`/`*-subtitle` class it declares,
+ * and fails loud (naming the offending class) unless every such class is in
+ * `DESCRIPTION_SELECTORS` or on this allowlist. So a class added here WITHOUT a
+ * verified reason stays unguarded AND reds the discovery test — the exclusion
+ * is not a way to silence the guard.
+ */
+export const EXCLUDED_DESCRIPTION_SELECTORS = [
+	// Measured live by `e2e/toast-contrast.spec.ts`
+	// (TEXT_TARGETS -> `toast.locator('.publy-toast-description')`,
+	// apps/front/e2e/toast-contrast.spec.ts). That spec reads the rendered Sonner
+	// toast glyph pixels after Chromium has resolved the cascade — Sonner's
+	// un-layered stylesheet can beat app.css's layered rules, so a source parser
+	// cannot model what the toast actually paints. The drawer/description source
+	// guard therefore defers this class to that dedicated browser spec rather
+	// than duplicating it (verified by reading the spec, not assumed).
+	'.publy-toast-description',
+] as const;
+
 export const DRAWER_DESCRIPTION_CONSUMERS = [
 	{
 		file: 'src/components/marketing/cookie-prefs-drawer.tsx',
