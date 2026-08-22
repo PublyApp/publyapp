@@ -42,6 +42,7 @@ public class AppEnvironment {
 	public string RESEND_API_KEY { get; }
 	public string STAFF_OWNER_EMAIL { get; }
 	public string STAFF_OWNER_BOOTSTRAP_CODE { get; }
+	public byte[] SocialAccountsMasterKey { get; }
 
 	// ========== App Settings (moved from appsettings.json) ==========
 	public string APP_NAME { get; }
@@ -256,6 +257,7 @@ public class AppEnvironment {
 		string resendApiKey,
 		string staffOwnerEmail,
 		string staffOwnerBootstrapCode,
+		string socialAccountsMasterKey,
 		// App settings
 		string appName,
 		string defaultEmailSenderEmail,
@@ -325,6 +327,7 @@ public class AppEnvironment {
 		RESEND_API_KEY = resendApiKey;
 		STAFF_OWNER_EMAIL = staffOwnerEmail;
 		STAFF_OWNER_BOOTSTRAP_CODE = staffOwnerBootstrapCode;
+		SocialAccountsMasterKey = ParseMasterKey("SOCIAL_ACCOUNTS_MASTER_KEY", socialAccountsMasterKey);
 		APP_NAME = appName;
 		DEFAULT_EMAIL_SENDER_EMAIL = defaultEmailSenderEmail;
 		DEFAULT_EMAIL_SENDER_NAME = defaultEmailSenderName;
@@ -434,6 +437,7 @@ public class AppEnvironment {
 				resendApiKey: GetRequiredString(nameof(RESEND_API_KEY)),
 				staffOwnerEmail: GetRequiredString(nameof(STAFF_OWNER_EMAIL)),
 				staffOwnerBootstrapCode: GetRequiredString(nameof(STAFF_OWNER_BOOTSTRAP_CODE)),
+				socialAccountsMasterKey: GetRequiredString("SOCIAL_ACCOUNTS_MASTER_KEY"),
 				appName: GetRequiredString(nameof(APP_NAME)),
 				defaultEmailSenderEmail: GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_EMAIL)),
 				defaultEmailSenderName: GetRequiredString(nameof(DEFAULT_EMAIL_SENDER_NAME)),
@@ -806,6 +810,29 @@ public class AppEnvironment {
 			.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
 			.Distinct(StringComparer.Ordinal)
 			.ToList();
+	}
+
+	private static byte[] ParseMasterKey(string name, string value) {
+		var trimmed = (value ?? string.Empty).Trim();
+		if (trimmed.Length == 0) {
+			throw new InvalidOperationException(
+				$"{name} is required (base64-encoded, exactly 32 bytes)."
+			);
+		}
+		byte[] bytes;
+		try {
+			bytes = Convert.FromBase64String(trimmed);
+		} catch (FormatException) {
+			throw new InvalidOperationException(
+				$"{name} must be base64-encoded."
+			);
+		}
+		if (bytes.Length != 32) {
+			throw new InvalidOperationException(
+				$"{name} must decode to exactly 32 bytes (AES-256-GCM key); got {bytes.Length}."
+			);
+		}
+		return bytes;
 	}
 
 	private static string GetHostEnvironmentName() {
