@@ -3649,6 +3649,8 @@ describe('drawer description text contrast (#1043)', () => {
 		['publy-type-helper', '--publy-foreground-subtle'],
 		['publy-field-helper', '--publy-foreground-subtle'],
 		['publy-type-eyebrow', '--publy-foreground-subtle'],
+		['publy-back-link', '--publy-foreground-secondary'],
+		['publy-stat-card-value-suffix', '--publy-foreground-muted'],
 		['publy-field-error', '--publy-danger'],
 		['publy-toast-description', '--publy-foreground-secondary'],
 		['publy-drawer-description', '--publy-foreground-secondary'],

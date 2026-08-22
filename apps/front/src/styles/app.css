@@ -1718,7 +1718,7 @@ html.dark {
 
 	.publy-back-link {
 		@apply inline-flex items-center gap-1 text-sm transition-colors;
-		color: var(--publy-foreground-subtle);
+		color: var(--publy-foreground-secondary);
 	}
 
 	.publy-back-link:hover {
@@ -2103,7 +2103,7 @@ html.dark {
 	.publy-stat-card-value-suffix {
 		font-size: 15px;
 		font-weight: 500;
-		color: var(--publy-foreground-subtle);
+		color: var(--publy-foreground-muted);
 	}
 
 	.publy-stat-card-secondary {
