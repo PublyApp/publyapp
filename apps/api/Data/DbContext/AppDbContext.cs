@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -22,7 +23,7 @@ namespace PublyApp.Api.Data.DbContext;
 /// <summary>
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
-public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
+public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtectionKeyContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session {
@@ -108,6 +109,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	// Tenant content entities
 	public DbSet<Post> Post {
 		get { return Set<Post>(); }
+	}
+
+	// Data Protection key ring (C1-bis): keys persisted in Postgres, encrypted at rest
+	// with SOCIAL_ACCOUNTS_MASTER_KEY.
+	public DbSet<DataProtectionKey> DataProtectionKeys {
+		get { return Set<DataProtectionKey>(); }
 	}
 
 	public Guid? TenantId { get; set; }
