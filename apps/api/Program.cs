@@ -81,9 +81,8 @@ public class Program {
 		var app = builder.Build();
 
 		// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing/wrong (Epic C §4).
-		// The DataProtectionKeys table already exists here: migrations are applied by the
-		// separate `migrate` service (or `just db-migrate`) BEFORE api/worker boot, so the
-		// key ring is present when the witness round-trips the sentinel through it.
+		// The witness validates the key via an AES-256-GCM round-trip, so a missing or
+		// corrupted key fails fast before any request is served.
 		Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness
 			.EnsureMasterKeyUsable(AppEnvironment.Instance.SocialAccountsMasterKey);
 
