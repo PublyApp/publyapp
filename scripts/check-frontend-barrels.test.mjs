@@ -23,13 +23,13 @@ test('flags hand-written frontend index files that are not allowlisted', async (
 
 	await writeIndex(
 		rootDir,
-		'apps/old-front/src/components/new-widget/index.ts',
+		'apps/front/src/components/new-widget/index.ts',
 	);
 
 	const result = await findDisallowedFrontendBarrels({ rootDir });
 
 	assert.deepEqual(result, [
-		'apps/old-front/src/components/new-widget/index.ts',
+		'apps/front/src/components/new-widget/index.ts',
 	]);
 });
 

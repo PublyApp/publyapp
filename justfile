@@ -10,7 +10,6 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 api_dir := "apps/api"
-old_front_dir := "apps/old-front"
 front_dir := "apps/front"
 shared_dir := "packages/shared-ts"
 js_client_dir := "packages/client-ts"
@@ -52,9 +51,6 @@ dev-api-migrated: db-migrate dev-api
 dev-api-alt:
   node {{api_dir}}/run-dev.mjs
 
-# Start the retired React Router frontend (Vite)
-dev-old-front:
-  cd {{old_front_dir}} && pnpm dev
 
 # Start front frontend (Vite)
 dev-front port="5050":
@@ -123,9 +119,6 @@ build-api-full $APP_ROLE="api":
 publish-api $APP_ROLE="api":
   cd {{api_dir}} && dotnet publish
 
-# Build the retired frontend
-build-old-front:
-  cd {{old_front_dir}} && pnpm build
 
 # Build + push the three GHCR deploy images from a clean checkout at REF (Actions is stalled).
 deploy-images ref="origin/develop":
@@ -139,17 +132,11 @@ deploy-images ref="origin/develop":
 run-api:
   cd {{api_dir}} && dotnet run --no-restore -property:OpenApiGenerateDocuments=false
 
-# Start the retired frontend production server
-start-old-front:
-  cd {{old_front_dir}} && pnpm start
 
 # =============================================================================
 # Type checking
 # =============================================================================
 
-# Type-check the retired frontend (pnpm)
-tsc-old-front:
-  cd {{old_front_dir}} && pnpm type-check
 
 # =============================================================================
 # Code quality
@@ -373,11 +360,6 @@ ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
   dotnet restore PublyApp.slnx
   dotnet build PublyApp.slnx --no-restore
 
-# old-front (legacy app): unit characterization + typecheck
-ci-old-front: tsc-old-front
-  @echo "=== [gate] old-front unit characterization ==="
-  pnpm --filter old-front run test
-
 # openapi.json + client-ts determinism, then the OpenAPI contract spec
 ci-spec-drift:
   @echo "=== [gate] openapi + client drift ==="
@@ -407,20 +389,15 @@ ci-e2e-front:
   pnpm --filter front test:drawer-contrast
   docker compose -f apps/front/docker-compose.test.yml down -v
 
-# old-front e2e characterization: docker stack + playwright
-ci-e2e-old-front:
-  @echo "=== [gate] old-front e2e characterization (docker + playwright) ==="
-  pnpm --filter old-front exec playwright install chromium
-  pnpm --filter old-front run test:e2e:fresh
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-old-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-spec-drift test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
 
 # Full gate: `just ci` plus both e2e suites.
-ci-full: ci ci-e2e-front ci-e2e-old-front
+ci-full: ci ci-e2e-front
   @echo ""
   @echo "=== just ci-full: PASSED ==="
 
@@ -475,16 +452,13 @@ client-info:
 
 # Clean all build artifacts (cross-platform via node)
 clean:
-  node -e "const fs=require('fs'); const rm=(x)=>fs.rmSync(x,{recursive:true,force:true}); const glob=(dir)=>fs.existsSync(dir)?fs.readdirSync(dir,{withFileTypes:true}).filter((x)=>x.isDirectory()).map((x)=>`${dir}/${x.name}/.artifacts`):[]; ['node_modules','apps/api/node_modules','apps/old-front/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','packages/scripts-cs/bin','packages/scripts-cs/obj','apps/old-front/build','apps/old-front/dist','apps/old-front/.next',...glob('apps'),...glob('packages')].forEach(rm)"
+  node -e "const fs=require('fs'); const rm=(x)=>fs.rmSync(x,{recursive:true,force:true}); const glob=(dir)=>fs.existsSync(dir)?fs.readdirSync(dir,{withFileTypes:true}).filter((x)=>x.isDirectory()).map((x)=>`${dir}/${x.name}/.artifacts`):[]; ['node_modules','apps/api/node_modules','packages/shared-ts/node_modules','packages/client-ts/node_modules','packages/scripts-cs/bin','packages/scripts-cs/obj'...glob('apps'),...glob('packages')].forEach(rm)"
 
 # Clean API artifacts
 clean-api:
   cd {{api_dir}} && dotnet clean
   node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/api/.artifacts'].forEach(p)"
 
-# Clean the retired frontend's artifacts
-clean-old-front:
-  node -e "const fs=require('fs'); const p=(x)=>fs.rmSync(x,{recursive:true,force:true}); ['apps/old-front/build','apps/old-front/dist','apps/old-front/.next'].forEach(p)"
 
 # =============================================================================
 # Utility
