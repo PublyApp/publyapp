@@ -521,6 +521,11 @@
 			"mirror": "just nuget-audit",
 			"reason": "just nuget-audit calls `node scripts/nuget-audit.mjs`, which is the same script invoked by the CI step. Both parse the machine-readable `--format json` output from `dotnet list package --vulnerable` and fail when any vulnerabilities array is non-empty. Issue #1187 rung 3."
 		},
+		"quality-gate.yml::quality::Run NuGet audit fixture tests": {
+			"hash": "3505fa05fd147aa9",
+			"mirror": "node --test ./scripts/nuget-audit.test.mjs",
+			"reason": "Run locally so the fixture suite that validates the audit evaluator's own failure modes gates PRs, not just local runs, before the production audit executes."
+		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"hash": "83841604495adffa",
 			"mirror": "just ci-quality",

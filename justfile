@@ -185,6 +185,7 @@ react-doctor base="origin/develop":
 # scope covers all five projects.
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
   node scripts/nuget-audit.mjs
+  node --test ./scripts/nuget-audit.test.mjs
 
 # =============================================================================
 # Database

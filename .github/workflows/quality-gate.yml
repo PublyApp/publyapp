@@ -202,6 +202,12 @@ jobs:
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
         run: node scripts/nuget-audit.mjs
 
+      - name: Run NuGet audit fixture tests
+        env:
+          APP_ROLE: api
+          TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
+        run: node --test ./scripts/nuget-audit.test.mjs
+
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers
 
