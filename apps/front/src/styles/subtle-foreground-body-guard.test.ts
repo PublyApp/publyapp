@@ -1,10 +1,11 @@
 /**
  * Subtle foreground guard - forbids NEW --publy-foreground-subtle on standalone body-size text.
  *
- * Reads REAL source files (app.css plus every src TSX file), not a synthetic fixture.
- * Existing legitimate consumers are enumerated in subtle-foreground-allowlist.ts
- * with a file:line-independent key (selector / class fragment) so moving code
- * does not break but adding a new body site does.
+ * Reads REAL source files (every stylesheet under src plus every
+ * src TS/TSX file), not a synthetic fixture. Existing legitimate
+ * consumers are enumerated in subtle-foreground-allowlist.ts with a
+ * file:line-independent key (selector / class fragment) so moving code does
+ * not break but adding a new body site does.
  *
  * Body-size definition: standalone readable text at 13px or more. Placeholders,
  * decorative icons, eyebrow/label/helper (11-12px) and inline metadata that
@@ -12,8 +13,17 @@
  * allowlist entry (adversarial proof). A body-size subtle site must be
  * allowlisted with a reasoned entry or the guard fails.
  *
+ * Classification rule for string constants: a shared class constant such as
+ * `export const X = 'text-sm text-[var(--publy-foreground-subtle)]'` that
+ * carries the subtle token is a violation unless allowlisted (fail-closed).
+ * We do not trace consumers - the definition site itself must be allowlisted.
+ * Template literals and cn() compositions without a literal className="..."
+ * wrapper are likewise flagged at file level and require an allowlist entry.
+ * Tailwind utilities never appear in the compiled CSS, so they cannot be
+ * "bounded by the CSS guard" - the source scan is the bound.
+ *
  * House style follows drawer-description-contrast.test.ts and
- * profile-icon-picker-pin-contrast.test.ts: read the real app.css, strip
+ * profile-icon-picker-pin-contrast.test.ts: read the real stylesheets, strip
  * comments only for fallback scans, use postcss for the CSS walk.
  */
 
@@ -26,15 +36,12 @@ import { describe, expect, test } from 'vitest';
 import { SUBTLE_FOREGROUND_ALLOWLIST } from './subtle-foreground-allowlist';
 
 const FRONT_ROOT = path.resolve(process.cwd());
-const APP_CSS_PATH = path.join(FRONT_ROOT, 'src/styles/app.css');
 const SRC_DIR = path.join(FRONT_ROOT, 'src');
 
 const SUBTLE_TOKEN = '--publy-foreground-subtle';
 
 const isPlaceholderSelector = (selector: string) =>
 	/::placeholder|:placeholder/.test(selector);
-
-const isIconSelector = (selector: string) => /-icon\b/.test(selector);
 
 // Extract a body-size verdict from a CSS rule's text. Returns true for
 // standalone body (>=13px), false for caption/label/helper (<=12px), and
@@ -65,8 +72,9 @@ const cssSizeIsBody = (ruleText: string): boolean | null => {
 	return null;
 };
 
-// Extract body verdict from a TSX class string.
-const tsxClassIsBody = (classString: string): boolean | null => {
+// Extract body verdict from a class string or arbitrary string literal that
+// contains Tailwind size tokens.
+const classStringIsBody = (classString: string): boolean | null => {
 	if (/\btext-xs\b/.test(classString)) return false;
 	if (/\btext-\[11px\]/.test(classString)) return false;
 	if (/\btext-\[12px\]/.test(classString)) return false;
@@ -80,14 +88,13 @@ const tsxClassIsBody = (classString: string): boolean | null => {
 		if (v >= 13) return true;
 		if (v <= 12) return false;
 	}
-	// Also handle text-[13px], text-[14px] without bracket escape? Already covered.
 	// No size token at all - inherits body (14px) by default.
 	return null;
 };
 
 const isAllowlistedCss = (selector: string): boolean =>
 	SUBTLE_FOREGROUND_ALLOWLIST.some(
-		(e) => e.selector.trim() === selector.trim(),
+		(e) => !e.file && e.selector.trim() === selector.trim(),
 	);
 
 const isAllowlistedTsx = (classString: string, relativeFile: string): boolean =>
@@ -100,7 +107,7 @@ const isAllowlistedTsx = (classString: string, relativeFile: string): boolean =>
 		return classString.includes(e.selector);
 	});
 
-const collectTsxFiles = (dir: string, acc: string[] = []): string[] => {
+const collectSrcFiles = (dir: string, acc: string[] = []): string[] => {
 	for (const entry of readdirSync(dir)) {
 		const full = path.join(dir, entry);
 		const st = statSync(full);
@@ -108,11 +115,34 @@ const collectTsxFiles = (dir: string, acc: string[] = []): string[] => {
 			// Skip generated / build artifacts.
 			if (entry === 'node_modules' || entry === '.next' || entry === 'dist')
 				continue;
-			collectTsxFiles(full, acc);
-		} else if (entry.endsWith('.tsx') || entry.endsWith('.ts')) {
-			// Only scan TSX for className cases; .ts files do not carry JSX
-			// subtle consumers today, and skipping them reduces noise.
-			if (entry.endsWith('.tsx')) acc.push(full);
+			collectSrcFiles(full, acc);
+		} else if (
+			(entry.endsWith('.tsx') || entry.endsWith('.ts')) &&
+			!entry.endsWith('.d.ts')
+		) {
+			// Scan both .ts and .tsx - a shared constant in a .ts file such as
+			// `export const X = 'text-sm text-[var(--publy-foreground-subtle)]'`
+			// consumed on body text must be caught (fail-closed).
+			acc.push(full);
+		} else if (entry.endsWith('.css')) {
+			// Also collect stylesheets recursively - every file under src,
+			// not only app.css (landing.css included).
+			acc.push(full);
+		}
+	}
+	return acc;
+};
+
+const collectCssFiles = (dir: string, acc: string[] = []): string[] => {
+	for (const entry of readdirSync(dir)) {
+		const full = path.join(dir, entry);
+		const st = statSync(full);
+		if (st.isDirectory()) {
+			if (entry === 'node_modules' || entry === '.next' || entry === 'dist')
+				continue;
+			collectCssFiles(full, acc);
+		} else if (entry.endsWith('.css')) {
+			acc.push(full);
 		}
 	}
 	return acc;
@@ -122,46 +152,56 @@ describe('subtle foreground on body text guard (#1151)', () => {
 	test('fails when a new --publy-foreground-subtle lands on standalone body-size text', () => {
 		const violations: string[] = [];
 
-		// --- CSS scan: real app.css via postcss ---
-		const cssSource = readFileSync(APP_CSS_PATH, 'utf8');
-		const root = postcss.parse(cssSource);
-		root.walkRules((rule) => {
-			const hasSubtle = rule.nodes.some(
-				(n) =>
-					n.type === 'decl' &&
-					typeof (n as postcss.Declaration).value === 'string' &&
-					(n as postcss.Declaration).value.includes(SUBTLE_TOKEN),
-			);
-			if (!hasSubtle) return;
+		// --- CSS scan: every stylesheet under src via postcss ---
+		const cssFiles = collectCssFiles(SRC_DIR);
+		for (const cssPath of cssFiles) {
+			const relCss = path.relative(FRONT_ROOT, cssPath);
+			// Skip test fixtures that might mention the token in comments.
+			if (relCss.includes('.test.')) continue;
+			const cssSource = readFileSync(cssPath, 'utf8');
+			const root = postcss.parse(cssSource);
+			root.walkRules((rule) => {
+				const hasSubtle = rule.nodes.some(
+					(n) =>
+						n.type === 'decl' &&
+						typeof (n as postcss.Declaration).value === 'string' &&
+						(n as postcss.Declaration).value.includes(SUBTLE_TOKEN),
+				);
+				if (!hasSubtle) return;
 
-			const selector = rule.selector.trim();
-			if (isAllowlistedCss(selector)) return;
+				const selector = rule.selector.trim();
+				if (isAllowlistedCss(selector)) return;
 
-			// Placeholders and decorative icons are legitimate at any size.
-			if (isPlaceholderSelector(selector)) return;
-			if (isIconSelector(selector)) return;
+				// Placeholders are legitimate at any size (not readable body).
+				if (isPlaceholderSelector(selector)) return;
+				// Icon selectors are NOT blind-exempted - a future `*-icon`
+				// rule carrying readable body text must be explicitly
+				// allowlisted with a reason. Only the allowlist above exempts.
 
-			const sizeVerdict = cssSizeIsBody(rule.toString());
-			// Small / helper / eyebrow / label (<=12px) stays green.
-			if (sizeVerdict === false) return;
-			// Body (>=13px) or unknown (no explicit size, inherits 14px) is
-			// standalone body - requires an explicit allowlist entry with a
-			// reason, so flag as violation.
-			violations.push(
-				`CSS ${selector} uses ${SUBTLE_TOKEN} at body size (or unknown size - add an allowlist entry if this is legitimate inline-meta/helper/icon/placeholder)`,
-			);
-		});
+				const sizeVerdict = cssSizeIsBody(rule.toString());
+				// Small / helper / eyebrow / label (<=12px) stays green.
+				if (sizeVerdict === false) return;
+				// Body (>=13px) or unknown (no explicit size, inherits 14px) is
+				// standalone body - requires an explicit allowlist entry with a
+				// reason, so flag as violation.
+				violations.push(
+					`CSS ${relCss} :: ${selector} uses ${SUBTLE_TOKEN} at body size (or unknown size - add an allowlist entry if this is legitimate inline-meta/helper/icon/placeholder)`,
+				);
+			});
+		}
 
-		// --- TSX scan: real source files ---
-		const tsxFiles = collectTsxFiles(SRC_DIR);
-		// Class attribute regex - covers className="..." only; template
-		// literals and cn() compositions that spread a subtle token without a
-		// literal className string are out of scope for this guard (they would
-		// require AST parsing - see the drawer guard for that cost) and are
-		// instead bounded by the CSS guard above via their final class.
+		// --- TS/TSX scan: real source files ---
+		const allSrcFiles = collectSrcFiles(SRC_DIR);
+		const srcFiles = allSrcFiles.filter(
+			(f) => f.endsWith('.ts') || f.endsWith('.tsx'),
+		);
+		// Class attribute regex - covers className="..." only.
 		const classAttrRe = /className\s*=\s*"([^"]*foreground-subtle[^"]*)"/g;
-		for (const fullPath of tsxFiles) {
+		for (const fullPath of srcFiles) {
 			const rel = path.relative(FRONT_ROOT, fullPath);
+			if (rel.includes('subtle-foreground-allowlist')) continue;
+			if (rel.includes('.test.')) continue;
+			if (rel.endsWith('.d.ts')) continue;
 			const source = readFileSync(fullPath, 'utf8');
 			let m: RegExpExecArray | null;
 			// Reset regex state per file.
@@ -170,7 +210,7 @@ describe('subtle foreground on body text guard (#1151)', () => {
 				const classString = m[1];
 				if (isAllowlistedTsx(classString, rel)) continue;
 
-				const sizeVerdict = tsxClassIsBody(classString);
+				const sizeVerdict = classStringIsBody(classString);
 				// Caption / label / helper stays green.
 				if (sizeVerdict === false) continue;
 				// Body or unknown size without an allowlist entry is a violation.
@@ -187,28 +227,24 @@ describe('subtle foreground on body text guard (#1151)', () => {
 			}
 
 			// Also catch subtle used outside a literal className string, e.g.
-			// `text-[var(--publy-foreground-subtle)]` appears in a template
-			// literal or cn() call without a matching className="..." wrapper.
-			// For those, we cannot extract a size - treat as a violation unless
-			// the file itself is allowlisted via a CSS selector route.
-			// To avoid double-counting the literal cases already handled, only
-			// flag files that contain the token but had zero className hits and
-			// are not the allowlisted TSX files.
+			// a shared constant `export const X = 'text-sm ...subtle...'` in a
+			// .ts file or a template literal / cn() composition in a .tsx file
+			// without a matching className="..." wrapper. Classification rule:
+			// fail-closed - any string literal carrying the token is a
+			// violation unless the file+fragment is allowlisted. We do not
+			// trace consumers.
 			if (!source.includes(SUBTLE_TOKEN)) continue;
 			classAttrRe.lastIndex = 0;
 			const hadLiteralHit = classAttrRe.test(source);
 			if (hadLiteralHit) continue;
-			// File-level subtle without a className literal - could be a style
-			// prop, a cn() composition, or a dynamic class. Flag as needing
-			// allowlist unless the file is already covered.
+			// File-level subtle without a className literal - could be a .ts
+			// constant, a style prop, a cn() composition, or a dynamic class.
+			// Flag as needing allowlist unless the file is already covered.
 			const fileAllowlisted = SUBTLE_FOREGROUND_ALLOWLIST.some(
 				(e) => e.file && rel.replaceAll('\\', '/') === e.file,
 			);
 			if (fileAllowlisted) continue;
-			// Heuristic: if the file mentions subtle only inside a comment or
-			// a test file, do not flag - tests legitimately mention the token.
-			if (rel.includes('.test.')) continue;
-			// Find the line for a better message.
+			// Find the first non-comment line carrying the token for a better message.
 			const lines = source.split('\n');
 			for (let i = 0; i < lines.length; i++) {
 				if (
@@ -216,10 +252,12 @@ describe('subtle foreground on body text guard (#1151)', () => {
 					!lines[i].trim().startsWith('//') &&
 					!lines[i].trim().startsWith('*')
 				) {
-					// Ignore the allowlist file itself.
-					if (rel.includes('subtle-foreground-allowlist')) break;
+					// Caption / label in a constant (e.g. text-[11px] subtle)
+					// stays green - only body or unknown size is a violation.
+					const lineVerdict = classStringIsBody(lines[i]);
+					if (lineVerdict === false) break;
 					violations.push(
-						`TSX ${rel}:${i + 1} uses ${SUBTLE_TOKEN} outside a literal className - move it to a class or add an allowlist entry`,
+						`TS ${rel}:${i + 1} uses ${SUBTLE_TOKEN} outside a literal className - move it to a class or add an allowlist entry (fail-closed: string constants carrying the token are violations unless allowlisted)`,
 					);
 					break;
 				}
@@ -235,43 +273,93 @@ describe('subtle foreground on body text guard (#1151)', () => {
 	});
 
 	test('every allowlist entry still matches a real source site (no stale entries)', () => {
-		const cssSource = readFileSync(APP_CSS_PATH, 'utf8');
-		const root = postcss.parse(cssSource);
+		const cssFiles = collectCssFiles(SRC_DIR);
 		const cssSelectors = new Set<string>();
-		root.walkRules((rule) => {
-			const hasSubtle = rule.nodes.some(
-				(n) =>
-					n.type === 'decl' &&
-					(n as postcss.Declaration).value.includes(SUBTLE_TOKEN),
-			);
-			if (hasSubtle) cssSelectors.add(rule.selector.trim());
-		});
+		for (const cssPath of cssFiles) {
+			const relCss = path.relative(FRONT_ROOT, cssPath);
+			if (relCss.includes('.test.')) continue;
+			const cssSource = readFileSync(cssPath, 'utf8');
+			const root = postcss.parse(cssSource);
+			root.walkRules((rule) => {
+				const hasSubtle = rule.nodes.some(
+					(n) =>
+						n.type === 'decl' &&
+						(n as postcss.Declaration).value.includes(SUBTLE_TOKEN),
+				);
+				if (hasSubtle) cssSelectors.add(rule.selector.trim());
+			});
+		}
 
-		const tsxFiles = collectTsxFiles(SRC_DIR);
-		const tsxClassStrings: string[] = [];
-		for (const fullPath of tsxFiles) {
+		// Collect TS/TSX class strings for stale check.
+		const allSrc = collectSrcFiles(SRC_DIR);
+		const srcFiles = allSrc.filter(
+			(f) => f.endsWith('.ts') || f.endsWith('.tsx'),
+		);
+		// Map file -> set of class strings in that file, and also global set.
+		const fileToClassStrings = new Map<string, string[]>();
+		const allClassStrings: string[] = [];
+		for (const fullPath of srcFiles) {
+			const rel = path.relative(FRONT_ROOT, fullPath).replaceAll('\\', '/');
+			if (rel.includes('.test.')) continue;
+			if (rel.endsWith('.d.ts')) continue;
+			if (rel.includes('subtle-foreground-allowlist')) continue;
 			const source = readFileSync(fullPath, 'utf8');
 			const re = /className\s*=\s*"([^"]*foreground-subtle[^"]*)"/g;
 			let m: RegExpExecArray | null;
-			while ((m = re.exec(source)) !== null) tsxClassStrings.push(m[1]);
+			const arr: string[] = [];
+			while ((m = re.exec(source)) !== null) {
+				arr.push(m[1]);
+				allClassStrings.push(m[1]);
+			}
+			// Also capture string literals outside className that contain the token
+			// (for .ts constants) so stale entries scoped to those files are honoured.
+			if (source.includes(SUBTLE_TOKEN) && arr.length === 0) {
+				// Record raw lines containing the token as pseudo class strings
+				// for stale matching - entry.selector fragment match is sufficient.
+				const lines = source.split('\n');
+				for (const line of lines) {
+					if (line.includes(SUBTLE_TOKEN)) arr.push(line);
+				}
+			}
+			fileToClassStrings.set(rel, arr);
 		}
+		// Also collect raw CSS file existence for file-scoped CSS entries (if any).
 
 		const stale: string[] = [];
 		for (const entry of SUBTLE_FOREGROUND_ALLOWLIST) {
 			let found = false;
 			if (entry.file) {
-				found = tsxClassStrings.some((cs) => cs.includes(entry.selector));
-				if (!found) {
-					// Also check CSS for file-less entries that happen to mention a TSX fragment.
-					found = cssSelectors.has(entry.selector.trim());
+				// Honour entry.file strictly - an entry scoped to a deleted file
+				// must be reported stale even if the fragment matches elsewhere.
+				const want = entry.file.replaceAll('\\', '/');
+				const classStringsInFile = fileToClassStrings.get(want);
+				if (classStringsInFile) {
+					found = classStringsInFile.some((cs) => cs.includes(entry.selector));
+					// Also check if the file itself still exists and contains the fragment
+					// outside className (e.g. .ts constant). Fallback to raw file read.
+					if (!found) {
+						try {
+							const full = path.join(FRONT_ROOT, want);
+							const src = readFileSync(full, 'utf8');
+							found = src.includes(entry.selector);
+						} catch {
+							found = false;
+						}
+					}
+				} else {
+					// File does not exist or was not collected - stale.
+					found = false;
 				}
 			} else {
 				found = cssSelectors.has(entry.selector.trim());
 				if (!found) {
-					found = tsxClassStrings.some((cs) => cs.includes(entry.selector));
+					// Allow CSS entries to also be satisfied by a TSX fragment if
+					// the selector string happens to be a class fragment (defensive).
+					found = allClassStrings.some((cs) => cs.includes(entry.selector));
 				}
 			}
-			if (!found) stale.push(entry.selector);
+			if (!found)
+				stale.push(entry.selector + (entry.file ? ` (${entry.file})` : ''));
 		}
 
 		expect(
