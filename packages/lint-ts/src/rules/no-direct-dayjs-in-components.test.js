@@ -44,19 +44,15 @@ const runCases = (rule, label) => {
 			valid: [
 				{
 					code: "import dayjs from 'dayjs';",
-					filename: 'apps/old-front/src/lib/format-time.ts',
-				},
-				{
-					code: "import dayjs from 'dayjs';",
-					filename: 'apps/old-front/src/lib/date-helper.ts',
-				},
-				{
-					code: "import dayjs from 'dayjs';",
 					filename: 'apps/front/src/lib/format-time.ts',
 				},
 				{
 					code: "import dayjs from 'dayjs';",
-					filename: 'apps/old-front/src/pages/SomePage.tsx',
+					filename: 'apps/front/src/lib/date-helper.ts',
+				},
+				{
+					code: "import dayjs from 'dayjs';",
+					filename: 'apps/front/src/pages/SomePage.tsx',
 				},
 				{
 					code: "import dayjs from 'dayjs';",
@@ -64,28 +60,13 @@ const runCases = (rule, label) => {
 				},
 				{
 					code: "import { formatDate } from '@/lib/format-time';",
-					filename: 'apps/old-front/src/components/date-label.tsx',
+					filename: 'apps/front/src/components/date-label.tsx',
 				},
 			],
 			invalid: [
 				{
 					code: "import dayjs from 'dayjs';",
-					filename: 'apps/old-front/src/components/date-label.tsx',
-					errors: [{ messageId: 'directDayjsImport' }],
-				},
-				{
-					code: "import utc from 'dayjs/plugin/utc';",
-					filename: 'apps/old-front/src/routes/staff/users/page.tsx',
-					errors: [{ messageId: 'directDayjsImport' }],
-				},
-				{
-					code: "import fr from 'dayjs/locale/fr';",
-					filename: 'apps/old-front/src/components/date-label.tsx',
-					errors: [{ messageId: 'directDayjsImport' }],
-				},
-				{
-					code: "import { isDayjs } from 'dayjs';",
-					filename: 'apps/old-front/src/routes/staff/users/page.tsx',
+					filename: 'apps/front/src/components/date-label.tsx',
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 				{
@@ -94,13 +75,18 @@ const runCases = (rule, label) => {
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 				{
-					code: "import dayjs from 'dayjs';",
+					code: "import utc from 'dayjs/plugin/utc';",
+					filename: 'apps/front/src/routes/staff/users/page.tsx',
+					errors: [{ messageId: 'directDayjsImport' }],
+				},
+				{
+					code: "import fr from 'dayjs/locale/fr';",
 					filename: 'apps/front/src/components/date-label.tsx',
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 				{
 					code: "import * as dayjs from 'dayjs';",
-					filename: 'apps/old-front/src/_parts/date-range-picker.tsx',
+					filename: 'apps/front/src/_parts/date-range-picker.tsx',
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 				{
@@ -110,8 +96,7 @@ const runCases = (rule, label) => {
 				},
 				{
 					code: "import dayjs from 'dayjs';",
-					filename:
-						'apps/old-front/src/routes/some-page/_components/MyWidget.tsx',
+					filename: 'apps/front/src/routes/some-page/_components/MyWidget.tsx',
 					errors: [{ messageId: 'directDayjsImport' }],
 				},
 				{
@@ -127,3 +112,19 @@ const runCases = (rule, label) => {
 
 runCases(noDirectDayjsInComponents, 'via direct import');
 runCases(plugin.rules[RULE_NAME], 'via plugin index export');
+
+describe('paired proof: old-front scope is gone (no-direct-dayjs-in-components)', () => {
+	ruleTester.run(RULE_NAME, noDirectDayjsInComponents, {
+		valid: [
+			{
+				code: "import dayjs from 'dayjs';",
+				filename: 'apps/old-front/src/components/date-label.tsx',
+			},
+			{
+				code: "import dayjs from 'dayjs';",
+				filename: 'apps/old-front/src/routes/staff/users/page.tsx',
+			},
+		],
+		invalid: [],
+	});
+});

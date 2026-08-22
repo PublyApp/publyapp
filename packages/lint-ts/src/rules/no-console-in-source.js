@@ -4,7 +4,7 @@
  *
  * The rule is intentionally scoped to application/source package files and is
  * enabled in `.oxlintrc.json` at error level. It does not report test files,
- * scripts, server scripts, or obvious Node CLI entrypoints.
+ * scripts, or obvious Node CLI entrypoints.
  *
  * Known phase-one limitation: `globalThis.console.<method>(...)` is not
  * reported; only direct global `console.<method>(...)` calls are rewritten.
@@ -48,10 +48,6 @@ const isSharedScriptFile = (filename) =>
 	filename.startsWith('packages/shared-ts/scripts/') ||
 	filename.includes('/packages/shared-ts/scripts/');
 
-const isFrontServerFile = (filename) =>
-	filename.startsWith('apps/old-front/server/') ||
-	filename.includes('/apps/old-front/server/');
-
 const isNodeCliFile = (filename) =>
 	/(?:^|\/)(?:bin|cli)\//.test(filename) ||
 	/(?:^|\/)[^/]+\.cli\.(?:ts|tsx|mjs|js)$/.test(filename);
@@ -65,7 +61,6 @@ const shouldCheckFile = (rawFilename) => {
 	if (
 		isTestFile(filename) ||
 		isSharedScriptFile(filename) ||
-		isFrontServerFile(filename) ||
 		isNodeCliFile(filename)
 	) {
 		return false;

@@ -1,10 +1,11 @@
 /**
- * Scoping matrix for M0.6 rule rollout.
+ * Scoping matrix — verifies publy/* rules remain correctly wired and scoped
+ * to apps/front (apps/old-front is gone since #1169, see #1172).
  *
- * This test ensures:
- * - Portable rules apply to both `apps/old-front` and `apps/front`.
- * - MUI-specific rules remain scoped to `apps/old-front` only.
- * - Root `.oxlintrc.json` keeps the relevant `publy/*` rules at `error`.
+ * Guarantees:
+ * - Portable rules still cover apps/front source paths.
+ * - Dead old-front fixtures no longer trigger their former rule.
+ * - Root .oxlintrc.json pins the surviving publy/* rules at error.
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -15,7 +16,7 @@ import {
 	writeFileSync,
 	mkdtempSync,
 } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -26,9 +27,6 @@ import { noArrayReduce } from './no-array-reduce.js';
 import { noConsoleInSource } from './no-console-in-source.js';
 import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.js';
 import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.js';
-import { noNativeHtmlInMuiSurfaces } from './no-native-html-in-mui-surfaces.js';
-import { noRawImgInProductSurfaces } from './no-raw-img-in-product-surfaces.js';
-import { noRawMuiTextfieldRegister } from './no-raw-mui-textfield-register.js';
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -37,25 +35,16 @@ const WORKSPACE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const OXLINTRC_PATH = fileURLToPath(
 	new URL('../../../../.oxlintrc.json', import.meta.url),
 );
-const OXLINT_BIN = fileURLToPath(
-	new URL('../../../../node_modules/oxlint/bin/oxlint', import.meta.url),
-);
+const REPO_ROOT = join(WORKSPACE_ROOT, '../..');
+const OXLINT_BIN = join(REPO_ROOT, 'node_modules/.bin/oxlint');
 
 const ROOT_RULES = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8')).rules;
 
-const M0_6_PUBLY_RULES = [
+const PUBLY_RULES = [
 	'no-array-reduce',
 	'no-console-in-source',
 	'no-direct-dayjs-in-components',
 	'no-manual-response-message-translation',
-	'no-native-html-in-mui-surfaces',
-	'no-raw-img-in-product-surfaces',
-	'no-raw-mui-textfield-register',
-];
-const FRONT_SCOPED_MUI_RULE_CODES = [
-	'publy(no-native-html-in-mui-surfaces)',
-	'publy(no-raw-img-in-product-surfaces)',
-	'publy(no-raw-mui-textfield-register)',
 ];
 
 const FRONT_PORTABLE_RULE_CODES = [
@@ -142,57 +131,6 @@ const RULE_SCOPING_CASES = [
 			},
 		],
 	},
-	{
-		ruleName: 'no-native-html-in-mui-surfaces',
-		rule: noNativeHtmlInMuiSurfaces,
-		valid: [
-			{
-				code: 'const Component = () => <div>front 2 escape hatch</div>;',
-				filename: 'apps/front/src/components/upload-preview.tsx',
-			},
-		],
-		invalid: [
-			{
-				code: 'const Component = () => <div>legacy front surface</div>;',
-				filename: 'apps/old-front/src/components/upload-preview.tsx',
-				errors: [{ messageId: 'div' }],
-			},
-		],
-	},
-	{
-		ruleName: 'no-raw-img-in-product-surfaces',
-		rule: noRawImgInProductSurfaces,
-		valid: [
-			{
-				code: 'const Preview = () => <img alt="Front 2" src="/preview.png" />;',
-				filename: 'apps/front/src/components/upload-preview.tsx',
-			},
-		],
-		invalid: [
-			{
-				code: 'const Preview = () => <img alt="Front" src="/preview.png" />;',
-				filename: 'apps/old-front/src/components/upload-preview.tsx',
-				errors: [{ messageId: 'rawImg' }],
-			},
-		],
-	},
-	{
-		ruleName: 'no-raw-mui-textfield-register',
-		rule: noRawMuiTextfieldRegister,
-		valid: [
-			{
-				code: '<TextField {...register("email")} />;',
-				filename: 'apps/front/src/components/example-form.tsx',
-			},
-		],
-		invalid: [
-			{
-				code: '<TextField {...register("email")} />;',
-				filename: 'apps/old-front/src/components/example-form.tsx',
-				errors: [{ messageId: 'raw' }],
-			},
-		],
-	},
 ];
 
 const isRuleEnabledAsError = (value) => {
@@ -234,38 +172,25 @@ const runOxlint = (filePaths) => {
 		output = String(error.stdout ?? '');
 	}
 
-	return JSON.parse(output);
+	const parsed = JSON.parse(output);
+
+	// oxlint output shape is { diagnostics: [...] } when clean.
+	if (Array.isArray(parsed.diagnostics)) {
+		return parsed;
+	}
+
+	return { diagnostics: [] };
 };
 
 const createScopingFixtures = () => {
 	mkdirSync(join(WORKSPACE_ROOT, '.tmp'), { recursive: true });
-	const tempRoot = mkdtempSync(
-		join(WORKSPACE_ROOT, '.tmp', 'm0.6-lint-scoping-'),
-	);
-	const oldFrontComponentsDir = join(tempRoot, 'apps/old-front/src/components');
+	const tempRoot = mkdtempSync(join(WORKSPACE_ROOT, '.tmp', 'lint-scoping-'));
 	const frontComponentsDir = join(tempRoot, 'apps/front/src/components');
+	const oldFrontComponentsDir = join(tempRoot, 'apps/old-front/src/components');
 
-	mkdirSync(oldFrontComponentsDir, { recursive: true });
 	mkdirSync(frontComponentsDir, { recursive: true });
+	mkdirSync(oldFrontComponentsDir, { recursive: true });
 
-	const oldFrontNativePath = join(oldFrontComponentsDir, 'bad-native.tsx');
-	const oldFrontNativeJsxPath = join(oldFrontComponentsDir, 'bad-native.jsx');
-	const oldFrontImgPath = join(oldFrontComponentsDir, 'bad-img.tsx');
-	const oldFrontImgJsxPath = join(oldFrontComponentsDir, 'bad-img.jsx');
-	const oldFrontTextFieldPath = join(
-		oldFrontComponentsDir,
-		'bad-textfield.tsx',
-	);
-	const oldFrontTextFieldJsxPath = join(
-		oldFrontComponentsDir,
-		'bad-textfield.jsx',
-	);
-	const frontNativePath = join(frontComponentsDir, 'front-native.tsx');
-	const frontNativeJsxPath = join(frontComponentsDir, 'front-native.jsx');
-	const frontImgPath = join(frontComponentsDir, 'front-img.tsx');
-	const frontImgJsxPath = join(frontComponentsDir, 'front-img.jsx');
-	const frontTextFieldPath = join(frontComponentsDir, 'front-textfield.tsx');
-	const frontTextFieldJsxPath = join(frontComponentsDir, 'front-textfield.jsx');
 	const frontConsolePath = join(frontComponentsDir, 'front-console.tsx');
 	const frontDayjsPath = join(frontComponentsDir, 'front-dayjs.tsx');
 	const frontArrayReducePath = join(
@@ -276,75 +201,9 @@ const createScopingFixtures = () => {
 		frontComponentsDir,
 		'front-manual-response.tsx',
 	);
+	const oldFrontConsolePath = join(oldFrontComponentsDir, 'old-console.tsx');
+	const oldFrontDayjsPath = join(oldFrontComponentsDir, 'old-dayjs.tsx');
 
-	writeFileSync(
-		oldFrontNativePath,
-		"import * as React from 'react';\n" +
-			'export const NativeView = () => <div>legacy</div>;\n',
-	);
-	writeFileSync(
-		oldFrontNativeJsxPath,
-		"import * as React from 'react';\n" +
-			'export const NativeView = () => <div>legacy jsx</div>;\n',
-	);
-	writeFileSync(
-		oldFrontImgPath,
-		"import * as React from 'react';\n" +
-			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
-	);
-	writeFileSync(
-		oldFrontImgJsxPath,
-		"import * as React from 'react';\n" +
-			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
-	);
-	writeFileSync(
-		oldFrontTextFieldPath,
-		"import * as React from 'react';\n" +
-			"import { TextField } from '@mui/material';\n" +
-			'const register = (name: string) => ({ name });\n' +
-			"export const Field = () => <TextField {...register('email')} />;\n",
-	);
-	writeFileSync(
-		oldFrontTextFieldJsxPath,
-		"import * as React from 'react';\n" +
-			"import { TextField } from '@mui/material';\n" +
-			'const register = (name) => ({ name });\n' +
-			"export const Field = () => <TextField {...register('email')} />;\n",
-	);
-	writeFileSync(
-		frontNativePath,
-		"import * as React from 'react';\n" +
-			'export const NativeView = () => <div>front</div>;\n',
-	);
-	writeFileSync(
-		frontNativeJsxPath,
-		"import * as React from 'react';\n" +
-			'export const NativeView = () => <div>front jsx</div>;\n',
-	);
-	writeFileSync(
-		frontImgPath,
-		"import * as React from 'react';\n" +
-			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
-	);
-	writeFileSync(
-		frontImgJsxPath,
-		"import * as React from 'react';\n" +
-			"export const RawImage = () => <img alt='Preview' src='/preview.png' />;\n",
-	);
-	writeFileSync(
-		frontTextFieldPath,
-		"import * as React from 'react';\n" +
-			"import { TextField } from '@mui/material';\n" +
-			'const register = (name: string) => ({ name });\n' +
-			"export const Field = () => <TextField {...register('email')} />;\n",
-	);
-	writeFileSync(
-		frontTextFieldJsxPath,
-		"import * as React from 'react';\n" +
-			"import { TextField } from '@mui/material';\n" +
-			'const register = (name) => ({ name });\n' +
-			"export const Field = () => <TextField {...register('email')} />;\n",
-	);
 	writeFileSync(
 		frontConsolePath,
 		"console.log('front should be linted by no-console-in-source');\n",
@@ -362,31 +221,29 @@ const createScopingFixtures = () => {
 		frontManualResponsePath,
 		"t('response-message.user-not-found');\n",
 	);
+	writeFileSync(
+		oldFrontConsolePath,
+		"console.log('old-front must no longer be flagged');\n",
+	);
+	writeFileSync(
+		oldFrontDayjsPath,
+		"import dayjs from 'dayjs';\nexport const now = dayjs();\n",
+	);
 
 	return {
-		oldFrontNativePath,
-		oldFrontNativeJsxPath,
-		oldFrontImgPath,
-		oldFrontImgJsxPath,
-		oldFrontTextFieldPath,
-		oldFrontTextFieldJsxPath,
-		frontNativePath,
-		frontNativeJsxPath,
-		frontImgPath,
-		frontImgJsxPath,
-		frontTextFieldPath,
-		frontTextFieldJsxPath,
 		frontConsolePath,
 		frontDayjsPath,
 		frontArrayReducePath,
 		frontManualResponsePath,
+		oldFrontConsolePath,
+		oldFrontDayjsPath,
 		cleanup: () => rmSync(tempRoot, { force: true, recursive: true }),
 	};
 };
 
 const uniqueSorted = (values) => Array.from(new Set(values)).sort();
 
-describe('M0.6 rule scoping matrix', () => {
+describe('rule scoping matrix', () => {
 	describe('plugin entrypoint exports all scoped rules', () => {
 		for (const { ruleName, rule } of RULE_SCOPING_CASES) {
 			it(`wires ${ruleName}`, () => {
@@ -402,7 +259,7 @@ describe('M0.6 rule scoping matrix', () => {
 	}
 
 	it('pins publy rule severities at error in root config', () => {
-		for (const ruleName of M0_6_PUBLY_RULES) {
+		for (const ruleName of PUBLY_RULES) {
 			const configValue = ROOT_RULES[`publy/${ruleName}`];
 
 			assert.strictEqual(
@@ -411,175 +268,61 @@ describe('M0.6 rule scoping matrix', () => {
 				`publy/${ruleName} should be configured as error in .oxlintrc.json`,
 			);
 		}
+
+		for (const deadRule of [
+			'no-native-html-in-mui-surfaces',
+			'no-raw-img-in-product-surfaces',
+			'no-raw-mui-textfield-register',
+		]) {
+			assert.strictEqual(
+				ROOT_RULES[`publy/${deadRule}`],
+				undefined,
+				`dead publy/${deadRule} must be removed from .oxlintrc.json`,
+			);
+		}
+
+		for (const deadRule of [
+			'no-native-html-in-mui-surfaces',
+			'no-raw-img-in-product-surfaces',
+			'no-raw-mui-textfield-register',
+		]) {
+			assert.strictEqual(
+				plugin.rules[deadRule],
+				undefined,
+				`dead ${deadRule} must be removed from the plugin export`,
+			);
+		}
 	});
 
-	it('verifies apps/old-front remains protected while apps/front is not scoped by MUI rules', () => {
+	it('verifies apps/front portable rules still fire while apps/old-front is dead', () => {
 		const fixtures = createScopingFixtures();
 
 		try {
-			const oldFrontDiagnostics = runOxlint([
-				fixtures.oldFrontNativePath,
-				fixtures.oldFrontNativeJsxPath,
-				fixtures.oldFrontImgPath,
-				fixtures.oldFrontImgJsxPath,
-				fixtures.oldFrontTextFieldPath,
-				fixtures.oldFrontTextFieldJsxPath,
-			]).diagnostics;
 			const frontDiagnostics = runOxlint([
-				fixtures.frontNativePath,
-				fixtures.frontNativeJsxPath,
-				fixtures.frontImgPath,
-				fixtures.frontImgJsxPath,
-				fixtures.frontTextFieldPath,
-				fixtures.frontTextFieldJsxPath,
 				fixtures.frontConsolePath,
 				fixtures.frontDayjsPath,
 				fixtures.frontArrayReducePath,
 				fixtures.frontManualResponsePath,
 			]).diagnostics;
+			const oldFrontDiagnostics = runOxlint([
+				fixtures.oldFrontConsolePath,
+				fixtures.oldFrontDayjsPath,
+			]).diagnostics;
 
-			const hasDiagnosticForPath = (diagnostics, ruleCode, filePath) =>
-				diagnostics.some(
-					(diag) =>
-						diag.code === ruleCode &&
-						typeof diag.filename === 'string' &&
-						(pathBasename(diag.filename) === basename(filePath) ||
-							pathIncludes(diag.filename, filePath)),
-				);
-
-			const pathBasename = (filePath) =>
-				basename(filePath.replaceAll('\\', '/'));
-
-			const pathIncludes = (haystack, needle) => {
-				const normalizedHaystack = haystack.replaceAll('\\', '/');
-				const normalizedNeedle = needle.replaceAll('\\', '/');
-
-				return (
-					normalizedHaystack === normalizedNeedle ||
-					normalizedHaystack.endsWith(normalizedNeedle)
-				);
-			};
-
-			const oldFrontDiagnosticCodes = new Set(
-				oldFrontDiagnostics.map((diag) => diag.code),
-			);
-			const frontDiagnosticCodes = new Set(
-				frontDiagnostics.map((diag) => diag.code),
-			);
-
-			for (const ruleCode of FRONT_SCOPED_MUI_RULE_CODES) {
-				assert.ok(
-					oldFrontDiagnosticCodes.has(ruleCode),
-					`${ruleCode} should report in apps/old-front`,
-				);
-				assert.ok(
-					!frontDiagnosticCodes.has(ruleCode),
-					`${ruleCode} should not report in apps/front`,
-				);
-			}
-
-			assert.ok(
-				hasDiagnosticForPath(
-					oldFrontDiagnostics,
-					'publy(no-native-html-in-mui-surfaces)',
-					fixtures.oldFrontNativePath,
-				),
-				'no-native-html-in-mui-surfaces should fire in apps/old-front .tsx',
-			);
-			assert.ok(
-				hasDiagnosticForPath(
-					oldFrontDiagnostics,
-					'publy(no-native-html-in-mui-surfaces)',
-					fixtures.oldFrontNativeJsxPath,
-				),
-				'no-native-html-in-mui-surfaces should fire in apps/old-front .jsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					frontDiagnostics,
-					'publy(no-native-html-in-mui-surfaces)',
-					fixtures.frontNativePath,
-				),
-				'no-native-html-in-mui-surfaces should not fire in front .tsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					frontDiagnostics,
-					'publy(no-native-html-in-mui-surfaces)',
-					fixtures.frontNativeJsxPath,
-				),
-				'no-native-html-in-mui-surfaces should not fire in front .jsx',
-			);
-			assert.ok(
-				hasDiagnosticForPath(
-					oldFrontDiagnostics,
-					'publy(no-raw-img-in-product-surfaces)',
-					fixtures.oldFrontImgPath,
-				),
-				'no-raw-img-in-product-surfaces should fire in apps/old-front .tsx',
-			);
-			assert.ok(
-				hasDiagnosticForPath(
-					oldFrontDiagnostics,
-					'publy(no-raw-img-in-product-surfaces)',
-					fixtures.oldFrontImgJsxPath,
-				),
-				'no-raw-img-in-product-surfaces should fire in apps/old-front .jsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					frontDiagnostics,
-					'publy(no-raw-img-in-product-surfaces)',
-					fixtures.frontImgPath,
-				),
-				'no-raw-img-in-product-surfaces should not fire in front .tsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					frontDiagnostics,
-					'publy(no-raw-img-in-product-surfaces)',
-					fixtures.frontImgJsxPath,
-				),
-				'no-raw-img-in-product-surfaces should not fire in front .jsx',
-			);
-			assert.ok(
-				hasDiagnosticForPath(
-					oldFrontDiagnostics,
-					'publy(no-raw-mui-textfield-register)',
-					fixtures.oldFrontTextFieldPath,
-				),
-				'no-raw-mui-textfield-register should fire in apps/old-front .tsx',
-			);
-			assert.ok(
-				hasDiagnosticForPath(
-					oldFrontDiagnostics,
-					'publy(no-raw-mui-textfield-register)',
-					fixtures.oldFrontTextFieldJsxPath,
-				),
-				'no-raw-mui-textfield-register should fire in apps/old-front .jsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					frontDiagnostics,
-					'publy(no-raw-mui-textfield-register)',
-					fixtures.frontTextFieldPath,
-				),
-				'no-raw-mui-textfield-register should not fire in front .tsx',
-			);
-			assert.ok(
-				!hasDiagnosticForPath(
-					frontDiagnostics,
-					'publy(no-raw-mui-textfield-register)',
-					fixtures.frontTextFieldJsxPath,
-				),
-				'no-raw-mui-textfield-register should not fire in front .jsx',
-			);
-
+			// Front must report exactly the four portable violations.
 			const frontDiagnosticsCodes = frontDiagnostics.map((diag) => diag.code);
+
 			assert.deepStrictEqual(
 				uniqueSorted(frontDiagnosticsCodes),
 				FRONT_PORTABLE_RULE_CODES.slice().sort(),
 				'front apps should report exactly the expected portable violations',
+			);
+
+			// Old-front fixtures must produce zero diagnostics (scope is gone).
+			assert.strictEqual(
+				oldFrontDiagnostics.length,
+				0,
+				`old-front fixtures must not be flagged anymore, got ${JSON.stringify(oldFrontDiagnostics)}`,
 			);
 		} finally {
 			fixtures.cleanup();

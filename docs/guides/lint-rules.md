@@ -27,16 +27,6 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Shipped in:** #506
 - **Enforced in:** #511
 
-### `publy/no-raw-mui-textfield-register`
-
-- **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-raw-mui-textfield-register.js`
-- **Spec:** `packages/lint-ts/src/rules/no-raw-mui-textfield-register.test.js`
-- **AGENTS.md:** "React Hook Form + Zod for form validation — always use `Form`/`Field.*` wrappers from `@/front/components/hook-form`, never raw MUI `TextField` with `register()`."
-- **Autofix:** no
-- **Shipped in:** #504
-- **Enforced in:** #521
-
 ### `publy/no-direct-dayjs-in-components`
 
 - **Severity:** `error`
@@ -47,28 +37,6 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Allowed surface:** date/time utility modules such as `apps/front/src/utils/format-time.ts`
 - **Shipped in:** #508
 - **Enforced in:** #517
-
-### `publy/no-native-html-in-mui-surfaces`
-
-- **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-native-html-in-mui-surfaces.js`
-- **Spec:** `packages/lint-ts/src/rules/no-native-html-in-mui-surfaces.test.js`
-- **AGENTS.md:** "MUI v6 only — never native HTML elements (`<div>` → `<Box>`, `<h1>` → `<Typography variant=\"h1\">`)."
-- **Autofix:** no
-- **Scope notes:** product surfaces only; marketing surfaces and inline SVG are intentionally excluded
-- **Shipped in:** #509
-- **Enforced in:** #523
-
-### `publy/no-raw-img-in-product-surfaces`
-
-- **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-raw-img-in-product-surfaces.js`
-- **Spec:** `packages/lint-ts/src/rules/no-raw-img-in-product-surfaces.test.js`
-- **AGENTS.md:** "Content imagery (photos, avatars, hero illustrations) must use the `<Image>` primitive ... with a `ratio` prop — never raw `<img>` or `<Box component=\"img\">`."
-- **Autofix:** no
-- **Scope notes:** product surfaces only; marketing surfaces, brand wordmark/logo paths, inline SVG, and explicit full-bleed background comment opt-outs are intentionally excluded
-- **Shipped in:** #526
-- **Enforced in:** #526
 
 ### `publy/no-array-reduce`
 

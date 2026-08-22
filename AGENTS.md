@@ -325,7 +325,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
   `no-manual-response-message-translation`.
 - `no-console-in-source`: source files under `apps/front/src` and `packages/shared-ts`, excluding tests/specs, shared package scripts, and CLI files.
 - `no-direct-dayjs-in-components`: TSX files under `apps/front/src` `components/`, `_parts/`, `_components/`, or `routes/` source paths.
-- `no-raw-mui-textfield-register`, `no-native-html-in-mui-surfaces`, `no-raw-img-in-product-surfaces`: retained for `apps/front` where applicable; retired `apps/old-front` scopes removed (archive in `docs/archive/old-front`).
+- `no-raw-mui-textfield-register`, `no-native-html-in-mui-surfaces`, `no-raw-img-in-product-surfaces`: **deleted** with #1172 — their only target was the retired `apps/old-front` (MUI). The raw `<img>` policy for front above is a review rule, not a lint rule.
 
 `publy/no-op` and `publy/arrow-function-components` are off. Component declaration style is
 therefore not lint-enforced in front; both arrow components and function declarations exist.
