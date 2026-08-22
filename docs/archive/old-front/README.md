@@ -1,3 +1,8 @@
+Status: Archived
+Original location: docs/old-front/README.md
+Archive reason: Retired apps/old-front on 2026-08-22; reference preserved before deletion (tag old-front-final).
+Superseded by: none
+
 # old-front archive (retired 2026-08-22)
 
 This directory is the reference archive for `apps/old-front`, the retired React Router v7 + MUI frontend. The code is gone; product intent is preserved here for the three surfaces not yet ported to `apps/front`.

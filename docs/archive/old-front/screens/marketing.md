@@ -1,3 +1,8 @@
+Status: Archived
+Original location: docs/old-front/screens/marketing.md
+Archive reason: Retired apps/old-front on 2026-08-22; reference preserved before deletion (tag old-front-final).
+Superseded by: none
+
 # Marketing surfaces (old-front)
 
 > Source: `apps/old-front/src/routes/marketing/**` + `_data/*` + `_components/*`. Flag-guarded pages annotated. No design opinions.

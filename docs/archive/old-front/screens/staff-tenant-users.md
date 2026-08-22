@@ -1,3 +1,8 @@
+Status: Archived
+Original location: docs/old-front/screens/staff-tenant-users.md
+Archive reason: Retired apps/old-front on 2026-08-22; reference preserved before deletion (tag old-front-final).
+Superseded by: none
+
 # Staff tenant-users global pages (old-front)
 
 > Source: `apps/old-front/src/routes/authed/staff/tenant-users/**` + `packages/shared-ts/validations/tenant-user.validations.ts`. Two detail tabs (general + organizations) under staff scope.

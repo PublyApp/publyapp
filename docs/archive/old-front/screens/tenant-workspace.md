@@ -1,3 +1,8 @@
+Status: Archived
+Original location: docs/old-front/screens/tenant-workspace.md
+Archive reason: Retired apps/old-front on 2026-08-22; reference preserved before deletion (tag old-front-final).
+Superseded by: none
+
 # Tenant workspace (old-front)
 
 > Source: `apps/old-front/src/routes/authed/tenant/**`. This is the biggest missing slice (see parity-status). Factual inventory only.

@@ -1,3 +1,8 @@
+Status: Archived
+Original location: docs/old-front/routes.md
+Archive reason: Retired apps/old-front on 2026-08-22; reference preserved before deletion (tag old-front-final).
+Superseded by: none
+
 # old-front routes
 
 Generated from `apps/old-front/src/routes.ts` and `apps/old-front/src/routes/_tree/**/*.ts` (not hand-typed). Counts verified against file discovery.
