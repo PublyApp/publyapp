@@ -7,6 +7,11 @@ import {
 	BROWSER_SCREENSHOT_DECODER_SNIPPET,
 	BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET,
 	SCREENSHOT_DATA_URL_PREFIX,
+	__publyAssertTextPaintIsMeasurable,
+	__publyClassifyTextPaint,
+	__publyDecodeScreenshot,
+	__publyIsTransparentColor,
+	__publyNormalize,
 	assertTextPaintIsMeasurable,
 	classifyTextPaint,
 	decodeScreenshotDataUrl,
@@ -266,6 +271,92 @@ describe('classifyTextPaint — clipped/transparent/masked fail-loud', () => {
 				'title',
 			),
 		).toThrow(/transparent text fill/i);
+	});
+});
+
+describe('single source — browser snippets are derived, not hand-typed twins', () => {
+	test('BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET is exactly the toString join of the __publy* functions', () => {
+		const expected = [
+			__publyNormalize,
+			__publyIsTransparentColor,
+			__publyClassifyTextPaint,
+			__publyAssertTextPaintIsMeasurable,
+		]
+			.map((fn) => fn.toString())
+			.join('\n');
+		expect(BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET).toBe(expected);
+	});
+
+	test('BROWSER_SCREENSHOT_DECODER_SNIPPET is exactly __publyDecodeScreenshot.toString()', () => {
+		expect(BROWSER_SCREENSHOT_DECODER_SNIPPET).toBe(
+			__publyDecodeScreenshot.toString(),
+		);
+	});
+
+	test('Node aliases are the same reference as the __publy* source (no second body to drift)', () => {
+		expect(classifyTextPaint).toBe(__publyClassifyTextPaint);
+		expect(assertTextPaintIsMeasurable).toBe(
+			__publyAssertTextPaintIsMeasurable,
+		);
+	});
+
+	test('the shared source file contains no hand-typed snippet arrays and no duplicated regex', () => {
+		const source = readFileSync(
+			fileURLToPath(new URL('./toast-contrast-shared.ts', import.meta.url)),
+			'utf8',
+		);
+		// No hand-maintained string snippet twins (the old defect).
+		expect(source).not.toContain("'const __publyNormalize");
+		expect(source).not.toContain("'const __publyIsTransparentColor");
+		expect(source).not.toContain("'const __publyDecodeScreenshot");
+		// Duplicated modern-slash regex removed: snippet must contain it exactly once.
+		expect(
+			BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET.match(/\\\/\\s\*0/g) ?? [],
+		).toHaveLength(1);
+		// Source itself must contain the slash pattern exactly once (in __publyIsTransparentColor).
+		const sourceSlashMatches = source.match(/\\\/\\s\*0/g) ?? [];
+		expect(sourceSlashMatches).toHaveLength(1);
+	});
+
+	test('the browser artifact (new Function of the snippet) classifies the same as the Node alias', () => {
+		// This is the artifact the spec actually evaluates via new Function — prove unit tests exercise it.
+		// eslint-disable-next-line no-new-func
+		const classify = new Function(
+			`${BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET}
+return __publyClassifyTextPaint;`,
+		)() as typeof classifyTextPaint;
+		expect(
+			classify({
+				backgroundClip: 'border-box',
+				color: 'rgb(15, 23, 42)',
+				mask: 'url(#mask)',
+			}),
+		).toBe('masked');
+		expect(
+			classify({ backgroundClip: 'border-box', color: 'rgba(0,0,0,0)' }),
+		).toBe('transparent-fill');
+		expect(
+			classify({
+				backgroundClip: 'border-box',
+				color: 'rgb(0,0,0)',
+				opacity: '0',
+			}),
+		).toBe('transparent-opacity');
+		// eslint-disable-next-line no-new-func
+		const assert = new Function(
+			`${BROWSER_TEXT_PAINT_CLASSIFIER_SNIPPET}
+return __publyAssertTextPaintIsMeasurable;`,
+		)() as typeof assertTextPaintIsMeasurable;
+		expect(() =>
+			assert(
+				{
+					backgroundClip: 'border-box',
+					color: 'rgb(0,0,0)',
+					maskImage: 'linear-gradient(black, transparent)',
+				},
+				'title',
+			),
+		).toThrow(/masked text/i);
 	});
 });
 
