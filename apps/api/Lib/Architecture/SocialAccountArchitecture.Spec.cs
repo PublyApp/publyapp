@@ -27,12 +27,25 @@ public sealed class SocialAccountArchitectureSpec {
 	}
 
 	[Fact]
+	public void ItShouldDeclareTheUniqueIndexAsPartialWithIsDeletedFilter() {
+		var options = new DbContextOptionsBuilder<AppDbContext>()
+			.UseNpgsql("Host=localhost;Database=sa_arch_guard").Options;
+		using var db = new AppDbContext(options);
+		var entity = db.GetService<IDesignTimeModel>().Model.FindEntityType(typeof(SocialAccount))!;
+		var index = entity.GetIndexes()
+			.Single(i => i.GetDatabaseName() == "ix_social_accounts_tenant_provider_external");
+		index.IsUnique.Should().BeTrue();
+		index.GetFilter().Should().Be("is_deleted = false");
+	}
+
+	[Fact]
 	public void ItShouldRequireEveryServiceMethodWithTenantIdToUseIt() {
 		var path = FindSocialAccountServicePath();
-		if (path is null) {
-			return; // no service file yet; guard stays green until C2 adds one
-		}
-		var source = File.ReadAllText(path);
+		path.Should().NotBeNull(
+			"SocialAccountService.cs must exist; if C2 removed it, "
+			+ "this guard re-discovers the missing target."
+		);
+		var source = File.ReadAllText(path!);
 		var offenders = new List<string>();
 		foreach (var slice in SplitMethods(source, "public")) {
 			if (!slice.Signature.Contains("Guid tenantId", StringComparison.Ordinal)) {

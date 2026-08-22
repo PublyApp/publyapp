@@ -13,6 +13,7 @@ public sealed class SocialAccountConfiguration : IEntityTypeConfiguration<Social
 		builder
 			.HasIndex(account => new { account.TenantId, account.Provider, account.ExternalAccountId })
 			.IsUnique()
+			.HasFilter("is_deleted = false")
 			.HasDatabaseName("ix_social_accounts_tenant_provider_external");
 
 		builder

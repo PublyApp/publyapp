@@ -11,11 +11,26 @@ public static partial class LastErrorSanitiser {
 	[System.Text.RegularExpressions.GeneratedRegex("'[^\\s'\"]{4,}'")]
 	private static partial System.Text.RegularExpressions.Regex SecretPattern();
 
+	// Bearer token: Bearer <token> (unquoted, no whitespace)
+	[System.Text.RegularExpressions.GeneratedRegex(@"Bearer\s+[A-Za-z0-9\-._~+/]+=*")]
+	private static partial System.Text.RegularExpressions.Regex BearerPattern();
+
+	// Query-string key=value: access_token=... or token=... (unquoted, no whitespace)
+	[System.Text.RegularExpressions.GeneratedRegex(@"(?:access_token|token)=[A-Za-z0-9\-._~+/]+=*")]
+	private static partial System.Text.RegularExpressions.Regex QueryTokenPattern();
+
+	// JSON "access_token": "...", "refresh_token": "...", "client_secret": "..."
+	[System.Text.RegularExpressions.GeneratedRegex(@"""(?:access_token|refresh_token|client_secret)""\s*:\s*""[^""]{4,}""")]
+	private static partial System.Text.RegularExpressions.Regex JsonSecretPattern();
+
 	public static string? Sanitize(string? raw) {
 		if (string.IsNullOrEmpty(raw)) {
 			return raw;
 		}
 		var scrubbed = SecretPattern().Replace(raw, "'[redacted]'");
+		scrubbed = BearerPattern().Replace(scrubbed, "Bearer [redacted]");
+		scrubbed = QueryTokenPattern().Replace(scrubbed, "$1=[redacted]");
+		scrubbed = JsonSecretPattern().Replace(scrubbed, "\"$1\": \"[redacted]\"");
 		var bytes = System.Text.Encoding.UTF8.GetBytes(scrubbed);
 		if (bytes.Length <= MaxBytes) {
 			return scrubbed;
