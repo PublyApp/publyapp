@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 import { loginAsStaffAdmin } from './helpers/login';
 
 test.describe('auth redirect guard', { tag: ['@auth', '@untracked'] }, () => {
+	// @untracked: handoff parity guard
 	test('authenticated user navigating to /login is redirected to their workspace without seeing the login form', async ({
 		page,
 	}) => {

@@ -297,7 +297,7 @@ test.describe(
 );
 
 for (const width of [1280, 768, 390]) {
-	test.describe(`viewport ${width}px`, () => {
+	test.describe(`viewport ${width}px`, { tag: ['@shell', '@720'] }, () => {
 		test.use({ viewport: { width, height: 800 } });
 
 		test('table is responsive', async ({ page }) => {

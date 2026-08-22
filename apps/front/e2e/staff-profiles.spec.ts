@@ -197,13 +197,17 @@ test.describe(
 );
 
 for (const width of [768, 390]) {
-	test.describe(`staff profiles table responsive at ${width}px`, () => {
-		test.use({ viewport: { width, height: 800 } });
+	test.describe(
+		`staff profiles table responsive at ${width}px`,
+		{ tag: ['@staff-profiles', '@744'] },
+		() => {
+			test.use({ viewport: { width, height: 800 } });
 
-		test('table never overflows its card', async ({ page }) => {
-			await loginAsStaffAdmin(page);
-			await page.goto(STAFF_PROFILES_PATH);
-			await expectTableFitsCard(page, TABLE);
-		});
-	});
+			test('table never overflows its card', async ({ page }) => {
+				await loginAsStaffAdmin(page);
+				await page.goto(STAFF_PROFILES_PATH);
+				await expectTableFitsCard(page, TABLE);
+			});
+		},
+	);
 }

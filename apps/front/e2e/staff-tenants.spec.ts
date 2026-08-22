@@ -415,15 +415,19 @@ test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 });
 
 for (const width of [768, 390]) {
-	test.describe(`staff tenants table responsive at ${width}px`, () => {
-		test.use({ viewport: { width, height: 800 } });
+	test.describe(
+		`staff tenants table responsive at ${width}px`,
+		{ tag: ['@staff-tenants', '@806'] },
+		() => {
+			test.use({ viewport: { width, height: 800 } });
 
-		test('table never overflows its card', async ({ page }) => {
-			await loginAsStaffAdmin(page);
-			await mockStaffTenants(page);
+			test('table never overflows its card', async ({ page }) => {
+				await loginAsStaffAdmin(page);
+				await mockStaffTenants(page);
 
-			await page.goto('/staff/tenants');
-			await expectTableFitsCard(page, TABLE);
-		});
-	});
+				await page.goto('/staff/tenants');
+				await expectTableFitsCard(page, TABLE);
+			});
+		},
+	);
 }

@@ -24,7 +24,7 @@ import { loginAsStaffAdmin } from './helpers/login';
  */
 test.describe(
 	'cold-boot stability (BUG-2)',
-	{ tag: ['@auth', '@untracked'] },
+	{ tag: ['@auth', '@untracked'] }, // @untracked: handoff stability guard
 	() => {
 		test('the raw SSR HTML response for a reload already contains the app shell chrome', async ({
 			page,

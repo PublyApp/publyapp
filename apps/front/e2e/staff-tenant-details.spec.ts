@@ -1204,31 +1204,35 @@ test.describe(
 );
 
 for (const width of [768, 390]) {
-	test.describe(`staff tenant detail tables responsive at ${width}px`, () => {
-		test.use({ viewport: { width, height: 800 } });
+	test.describe(
+		`staff tenant detail tables responsive at ${width}px`,
+		{ tag: ['@staff-tenants', '@806'] },
+		() => {
+			test.use({ viewport: { width, height: 800 } });
 
-		test('Users table never overflows its card', async ({ page }) => {
-			await loginAsStaffAdmin(page);
-			await mockTenantDetails(page);
+			test('Users table never overflows its card', async ({ page }) => {
+				await loginAsStaffAdmin(page);
+				await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/users`);
-			await expectTableFitsCard(page, 'staff-tenant-users-table');
-		});
+				await page.goto(`/staff/tenants/${TENANT_ID}/users`);
+				await expectTableFitsCard(page, 'staff-tenant-users-table');
+			});
 
-		test('Invitations table never overflows its card', async ({ page }) => {
-			await loginAsStaffAdmin(page);
-			await mockTenantDetails(page);
+			test('Invitations table never overflows its card', async ({ page }) => {
+				await loginAsStaffAdmin(page);
+				await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
-			await expectTableFitsCard(page, 'staff-tenant-invitations-table');
-		});
+				await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
+				await expectTableFitsCard(page, 'staff-tenant-invitations-table');
+			});
 
-		test('Profiles table view never overflows its card', async ({ page }) => {
-			await loginAsStaffAdmin(page);
-			await mockTenantDetails(page);
+			test('Profiles table view never overflows its card', async ({ page }) => {
+				await loginAsStaffAdmin(page);
+				await mockTenantDetails(page);
 
-			await page.goto(`/staff/tenants/${TENANT_ID}/profiles?view=table`);
-			await expectTableFitsCard(page, 'staff-tenant-profiles-grid');
-		});
-	});
+				await page.goto(`/staff/tenants/${TENANT_ID}/profiles?view=table`);
+				await expectTableFitsCard(page, 'staff-tenant-profiles-grid');
+			});
+		},
+	);
 }
