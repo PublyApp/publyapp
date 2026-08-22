@@ -27,7 +27,7 @@
 		"knip": "6.12.2",
 		"lint-staged": "^15.5.2",
 		"lodash": "^4.17.21",
-		"markdownlint-cli": "^0.48.0",
+		"markdownlint-cli": "^0.49.1",
 		"@oxlint/plugins": "1.79.0",
 		"oxfmt": "0.49.0",
 		"oxlint": "1.79.0",
@@ -67,11 +67,15 @@
 			"linkify-it": "^5.0.1",
 			"launch-editor": "^2.14.1",
 			"markdown-it": "^14.2.0",
-			"js-yaml@>=4.0.0 <=4.1.1": "^4.2.0",
-			"nanoid@>=4.0.0 <5.0.9": "^5.0.9",
+			"js-yaml@>=4.0.0 <4.3.1": "^4.3.1",
+			"nanoid@>=4.0.0 <5.0.9": "^5.1.16",
 			"esbuild@>=0.27.3 <0.28.1": "^0.28.1",
 			"valibot@<1.4.2": "^1.4.2",
-			"@babel/core": "^7.29.6"
+			"@babel/core": "^7.29.6",
+			"ip-address@<=10.3.0": "^10.3.1",
+			"undici@>=7.0.0 <7.29.0": "^7.29.0",
+			"nanoid@<3.3.18": "^3.3.18",
+			"hono@>=3.8.0 <4.12.34": "^4.12.34"
 		},
 		"packageExtensions": {
 			"@hookform/resolvers@4.1.3": {
