@@ -26,6 +26,279 @@
 
 ---
 
+### Task 0: Backend — `GET /projects` tenant list endpoint (owner decision A, 2026-08-22)
+
+The project `<Select>` in Tasks 4–5 needs a read-only list of the tenant's active projects. `IProjectService.GetProjectsForTenantAsync` already exists (`apps/api/Modules/Projects/Services/ProjectService.cs:37`, filters `TenantId`, `!IsDeleted`, `Status == Active`, ordered by name); only the HTTP surface is missing. Mirror the Posts slice exactly.
+
+**Files:**
+- Create: `apps/api/Modules/Projects/Routes.Projects.cs`
+- Create: `apps/api/Modules/Projects/Permissions/ProjectPermissionsForTenant.cs`
+- Create: `apps/api/Modules/Projects/Endpoints/ProjectEndpointsForTenant.cs`
+- Create: `apps/api/Modules/Projects/Handlers/Tenant/FindProjectsForTenant.cs`
+- Create: `apps/api/Modules/Projects/Handlers/Tenant/ProjectTenantList.Spec.cs`
+- Modify: `apps/api/Lib/AppPermissions.cs` (add `public ProjectPermissionsForTenant Projects { get; } = new ProjectPermissionsForTenant();` next to `Posts`, line 53)
+- Modify: `apps/api/Program.cs:242` (add `tenantGroup.MapProjectEndpointsForTenant();` after `MapPostEndpointsForTenant`)
+- Regenerate: `apps/api/openapi.json` + `packages/client-ts/src/**` (`just gen-client`, see justfile ≈ line 438)
+
+**Interfaces:**
+- Consumes: `IProjectService.GetProjectsForTenantAsync(Guid tenantId, CancellationToken)`, `IRequestAuthContext`, `.WithTenantPermission([...])`, `ApiRateLimitPolicies.HeavySearchList`.
+- Produces: `GET /projects` → `200 FindProjectsForTenantResponse { items: ProjectListItem[] }` with `ProjectListItem { id: Guid; name: string }`; permission key `projects:view` (tenant). Kiota client gains `client.projects.get()` returning `FindProjectsForTenantResponse`; Task 1's `tenant-projects.ts` wraps it (no "if the route exists" fallback — the route exists after this task).
+
+- [ ] **Step 1: Write the failing integration spec**
+
+```csharp
+// apps/api/Modules/Projects/Handlers/Tenant/ProjectTenantList.Spec.cs
+using System.Net;
+using System.Net.Http.Json;
+
+using FluentAssertions;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Projects.Entities;
+
+using Xunit;
+
+namespace PublyApp.Api.Modules.Projects.Handlers.Tenant;
+
+public sealed class ProjectTenantListSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+	private readonly HttpClient _http;
+	private readonly TestAuthClient _authClient;
+
+	public ProjectTenantListSpec(ApiFixture fixture) {
+		_fixture = fixture;
+		_http = fixture.HttpClient;
+		_authClient = new TestAuthClient(_http);
+	}
+
+	[Fact]
+	public async Task ItShouldListOnlyActiveNonDeletedProjectsOfTheCurrentTenantOrderedByName() {
+		var (acmeId, token) = await LoginAsAcmeAdminAsync();
+		var globalId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http, await _authClient.LoginAsStaffAdminAsync(), SeedConstants.Tenants.GlobalName);
+		var zebra = await CreateProjectAsync(acmeId, "Zebra " + Suffix());
+		var apple = await CreateProjectAsync(acmeId, "Apple " + Suffix());
+		var deleted = await CreateProjectAsync(acmeId, "Deleted " + Suffix(), isDeleted: true);
+		var inactive = await CreateProjectAsync(acmeId, "Inactive " + Suffix(), status: ProjectStatus.Inactive);
+		var foreign = await CreateProjectAsync(globalId, "Foreign " + Suffix());
+
+		using var request = new HttpRequestMessage(HttpMethod.Get, "/projects")
+			.WithSessionToken(token).WithTenantId(acmeId);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content.ReadFromJsonAsync<FindProjectsForTenantResponse>();
+		var ids = payload!.Items.Select(x => x.Id).ToList();
+		ids.Should().Contain([apple, zebra]);
+		ids.Should().NotContain([deleted, inactive, foreign]);
+		ids.IndexOf(apple).Should().BeLessThan(ids.IndexOf(zebra));
+		payload.Items.Should().OnlyContain(x => !string.IsNullOrWhiteSpace(x.Name));
+	}
+
+	[Fact]
+	public async Task ItShouldReturn403WhenTheAccountLacksProjectsViewPermission() {
+		var (acmeId, _) = await LoginAsAcmeAdminAsync();
+		var memberToken = await _authClient.LoginAsync(
+			TestConstants.AcmeMemberEmail, TestConstants.SeedPassword);
+		// Copy the "member lacks permission" arrangement from
+		// PostTenantCrud.Spec.cs (ItShouldReturn403...) — same seeded member,
+		// same helper — so the two specs stay symmetric.
+		using var request = new HttpRequestMessage(HttpMethod.Get, "/projects")
+			.WithSessionToken(memberToken).WithTenantId(acmeId);
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	private static string Suffix() {
+		return Guid.NewGuid().ToString("N")[..8];
+	}
+
+	private async Task<Guid> CreateProjectAsync(
+		Guid tenantId, string name,
+		bool isDeleted = false, ProjectStatus status = ProjectStatus.Active
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var project = new Project { TenantId = tenantId, Name = name, Status = status, IsDeleted = isDeleted };
+		db.Project.Add(project);
+		await db.SaveChangesAsync();
+		return project.Id;
+	}
+
+	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http, staffToken, SeedConstants.Tenants.AcmeName);
+		var token = await _authClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		return (tenantId, token);
+	}
+}
+```
+
+If `TestConstants.AcmeMemberEmail` or a no-permission seeded account does not exist, reuse whatever `PostTenantCrud.Spec.cs` uses for its own 403 case — do not invent a new seed user.
+
+- [ ] **Step 2: Run it to verify it fails**
+
+Run: `cd apps/api && dotnet test --filter "FullyQualifiedName~ProjectTenantListSpec"`
+Expected: compile error (`FindProjectsForTenantResponse` undefined) — that is the red.
+
+- [ ] **Step 3: Routes, permission, handler, endpoint, registration**
+
+```csharp
+// apps/api/Modules/Projects/Routes.Projects.cs
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+namespace PublyApp.Api.Lib.Routes;
+#pragma warning restore IDE0130
+
+public static partial class Routes {
+	/// <summary>Projects routes (tenant-scoped, root scope)</summary>
+	public static class Projects {
+		public static class ForTenant {
+			public const string Root = "/projects";
+			public const string Find = "/";
+		}
+	}
+}
+```
+
+```csharp
+// apps/api/Modules/Projects/Permissions/ProjectPermissionsForTenant.cs
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Permissions.Entities;
+
+namespace PublyApp.Api.Modules.Projects.Permissions;
+
+public class ProjectPermissionsForTenant : ISlicePermissions {
+	public string KeyPrefix { get; } = "projects";
+
+	public Permission VIEW { get; }
+
+	public ProjectPermissionsForTenant() {
+		VIEW = Permission
+			.CreateTenantPermission(
+				string.Join(Permission.KeySeparator, new[] { KeyPrefix, "view" })
+			)
+			.SetTranslation(
+				SupportedLanguage.English,
+				new PermissionTranslation {
+					Name = "View projects",
+					Description = "List the workspace's projects"
+				}
+			)
+			.SetTranslation(
+				SupportedLanguage.French,
+				new PermissionTranslation {
+					Name = "Voir les projets",
+					Description = "Lister les projets de l'espace"
+				}
+			);
+	}
+}
+```
+
+Grant `projects:view` to the same seeded roles that receive `posts:view` (find them with `grep -rn "Posts.VIEW" apps/api --include=*.cs`) so the Acme admin can call the route and the member-without-permission case stays 403.
+
+```csharp
+// apps/api/Modules/Projects/Handlers/Tenant/FindProjectsForTenant.cs
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Projects.Services;
+
+namespace PublyApp.Api.Modules.Projects.Handlers.Tenant;
+
+public sealed class FindProjectsForTenant {
+	public static async Task<Ok<FindProjectsForTenantResponse>> Handle(
+		[FromServices] IRequestAuthContext authContext,
+		[FromServices] IProjectService projectService,
+		CancellationToken cancellationToken = default
+	) {
+		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
+			throw new InvalidOperationException(
+				$"{nameof(authContext.TenantId)} is not a GUID"
+			);
+		}
+
+		var projects = await projectService.GetProjectsForTenantAsync(
+			tenantId, cancellationToken
+		);
+
+		return TypedResults.Ok(new FindProjectsForTenantResponse {
+			Items = projects
+				.Select(p => new ProjectListItem {
+					Id = p.GetRequiredId(),
+					Name = p.Name,
+				})
+				.ToList(),
+		});
+	}
+}
+
+public record FindProjectsForTenantResponse {
+	public required IReadOnlyList<ProjectListItem> Items { get; init; }
+}
+
+public record ProjectListItem {
+	public required Guid Id { get; init; }
+	public required string Name { get; init; }
+}
+```
+
+```csharp
+// apps/api/Modules/Projects/Endpoints/ProjectEndpointsForTenant.cs
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.Filters;
+using PublyApp.Api.Lib.RateLimiting;
+using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Modules.Projects.Handlers.Tenant;
+
+namespace PublyApp.Api.Modules.Projects.Endpoints;
+
+public static class ProjectEndpointsForTenant {
+	public static IEndpointRouteBuilder MapProjectEndpointsForTenant(
+		this IEndpointRouteBuilder routes
+	) {
+		var group = routes.MapGroup(Routes.Projects.ForTenant.Root)
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			.WithTags("Projects");
+
+		group.MapGet(Routes.Projects.ForTenant.Find, FindProjectsForTenant.Handle)
+			.WithName("FindProjectsForTenant")
+			.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)
+			.WithSummary("List active projects of the current tenant")
+			.WithTenantPermission([AppPermissions.Tenant.Projects.VIEW]);
+
+		return routes;
+	}
+}
+```
+
+`apps/api/Lib/AppPermissions.cs`: add `using PublyApp.Api.Modules.Projects.Permissions;` and `public ProjectPermissionsForTenant Projects { get; } = new ProjectPermissionsForTenant();` beside `Posts`. `apps/api/Program.cs`: `tenantGroup.MapProjectEndpointsForTenant();` after line 242 (`using PublyApp.Api.Modules.Projects.Endpoints;`).
+
+- [ ] **Step 4: Run the spec and the architecture guards**
+
+Run: `cd apps/api && dotnet test --filter "FullyQualifiedName~ProjectTenantListSpec|FullyQualifiedName~Architecture"`
+Expected: PASS. If a discovery-based architecture guard (e.g. the one listing `Modules/*/Endpoints`) now flags Projects, satisfy it the way Posts does — never exclude Projects from the guard.
+
+- [ ] **Step 5: Regenerate OpenAPI + Kiota client, run drift gate**
+
+Run: `just gen-client && just ci-openapi` (names per justfile ≈ lines 362–441)
+Expected: `apps/api/openapi.json` gains `GET /projects` with tag `Projects`; `packages/client-ts/src/projects/` appears; drift gate green.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/Modules/Projects apps/api/Lib/AppPermissions.cs apps/api/Program.cs apps/api/openapi.json packages/client-ts/src
+git commit -m "feat(api): GET /projects tenant list for the B2 project select (#638)"
+```
+
 ### Task 1: Tenant posts query seam — single `savePost` writer
 
 **Files:**
@@ -195,7 +468,7 @@ export const selectTenantPostCrumbName = (data: unknown) => {
 };
 ```
 
-And `apps/front/src/lib/query/tenant-projects.ts` — thin wrapper over `client.projects.get()` if the route exists, else empty list helper — plus `apps/front/src/lib/url-state/tenant-post-list-helpers.ts` exporting `validateTenantPostListSearchParams`, `parseTenantPostListSearchParams`, `serializeTenantPostListSearchParams` mapping `q`/`sort_id`/`sort_order`/`cursor`/`size` (copy shape from `tenants/tenants-list-helpers.ts`, default `sortId='updated_at'`, `sortOrder='desc'`, `size=20`).
+And `apps/front/src/lib/query/tenant-projects.ts` — thin wrapper over `client.projects.get()` from Task 0 (`useTenantProjectsQuery` → `FindProjectsForTenantResponse.items`) — plus `apps/front/src/lib/url-state/tenant-post-list-helpers.ts` exporting `validateTenantPostListSearchParams`, `parseTenantPostListSearchParams`, `serializeTenantPostListSearchParams` mapping `q`/`sort_id`/`sort_order`/`cursor`/`size` (copy shape from `tenants/tenants-list-helpers.ts`, default `sortId='updated_at'`, `sortOrder='desc'`, `size=20`).
 
 - [ ] **Step 4: Run the failing test to verify it passes**
 
@@ -924,7 +1197,7 @@ git commit -m "test(e2e): add tenant posts drafts flows tagged @638"
 
 ## Self-Review
 
-**1. Spec coverage:** §2.1 drafts table + search + cursor pagination → Task 3; drawer text+project → Task 4; edit page route + centered editor + reserved C/D column → Task 5; single `savePost` seam → Task 1; explicit Save + unsaved guard → Tasks 4–5; permission gating (view/create/edit/delete) → Tasks 3+6; empty/error/cause+retry/404→404 → Tasks 3+5; i18n FR+EN + crumbs → Tasks 2+3+5; bin confirm → Task 6; component tests + design-token/i18n gates + full front test+typecheck per task → Task 7; one E2E per screen flow tagged `@tenant-workspace @638` → Task 8. No gaps.
+**1. Spec coverage:** backend `GET /projects` (owner decision A, 2026-08-22) → Task 0; §2.1 drafts table + search + cursor pagination → Task 3; drawer text+project → Task 4; edit page route + centered editor + reserved C/D column → Task 5; single `savePost` seam → Task 1; explicit Save + unsaved guard → Tasks 4–5; permission gating (view/create/edit/delete) → Tasks 3+6; empty/error/cause+retry/404→404 → Tasks 3+5; i18n FR+EN + crumbs → Tasks 2+3+5; bin confirm → Task 6; component tests + design-token/i18n gates + full front test+typecheck per task → Task 7; one E2E per screen flow tagged `@tenant-workspace @638` → Task 8. No gaps.
 
 **2. Placeholder scan:** No `TBD`/`TODO`/`implement later`/`fill in details`/`Add appropriate error handling`; every step carries concrete code, exact commands, expected output, and commit messages.
 
