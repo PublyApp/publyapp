@@ -3222,3 +3222,92 @@ test('M5 source reorder (error before base) fails the guard', async ({
 		),
 	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
 });
+
+/**
+ * R3 gap closures — browser-path (real artifact) tests for the classifier's
+ * gap branches. Each mutates the LIVE toast via addStyleTag (same hermetic
+ * project as M1-M5) and must make the guard THROW with the named reason.
+ * Follows the existing M1-M5 mutation pattern.
+ */
+test.describe('text-paint gap closures (browser artifact)', () => {
+	test.use({ deviceScaleFactor: 2 });
+
+	test('opacity 0 on the text node fails the guard', async ({ page }) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({ content: '.publy-toast-title { opacity: 0; }' });
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/transparent opacity 0/);
+	});
+
+	test('opacity 0 on an ancestor of the text node fails the guard', async ({
+		page,
+	}) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		// Ancestor opacity is walked explicitly in readBrowserPaint (contains check).
+		await page.addStyleTag({ content: '.publy-toast-content { opacity: 0; }' });
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/transparent opacity 0/);
+	});
+
+	test('mask-image linear-gradient on the text node fails the guard', async ({
+		page,
+	}) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({
+			content:
+				'.publy-toast-title { mask-image: linear-gradient(black, transparent); }',
+		});
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/masked text/);
+	});
+
+	test('mask shorthand on the text node fails the guard', async ({ page }) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({
+			content: '.publy-toast-title { mask: url(#mask); }',
+		});
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/masked text/);
+	});
+
+	test('color rgba(0,0,0,0) on the text node fails the guard', async ({
+		page,
+	}) => {
+		await openToastFixture(page, 'light', VIEWPORTS[0]);
+		await page.addStyleTag({
+			content: '.publy-toast-title { color: rgba(0, 0, 0, 0); }',
+		});
+		const toast = await renderToast(page, 'success');
+		await expect(
+			measureContrast(
+				toast.locator('.publy-toast-title'),
+				'text',
+				TEXT_CONTRAST_FLOOR,
+			),
+		).rejects.toThrow(/transparent text fill/);
+	});
+});
