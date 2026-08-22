@@ -8,7 +8,7 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	CreateStaffProfileBody,
 	FindStaffProfilePermissionsResult,
@@ -16,8 +16,8 @@ import type {
 	GetStaffProfileByIdResult,
 	StaffProfileItem,
 	StaffProfileCreated,
-} from '@org/client-ts/src/models/index.js';
-import type { StaffGetResponse } from '@org/client-ts/src/staff/permissions/scopes/staff/index.js';
+} from '@org/client-ts/models/index';
+import type { StaffGetResponse } from '@org/client-ts/staff/permissions/scopes/staff/index';
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,

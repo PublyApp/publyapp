@@ -6,7 +6,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { setCookie } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
-import type { AcceptInvitationBody } from '@org/client-ts/src/models/index.js';
+import type { AcceptInvitationBody } from '@org/client-ts/models/index';
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { selectToken } from '@org/shared-ts/lib/session/parse';
 

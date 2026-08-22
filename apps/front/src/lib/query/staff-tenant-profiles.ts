@@ -10,7 +10,7 @@ import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url'
 import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	ApiResponse,
 	BulkDeleteTenantProfilesBody,
@@ -25,8 +25,8 @@ import type {
 	TenantProfileItem,
 	TenantProfileUserItem,
 	UpdateTenantProfileAsStaffBody,
-} from '@org/client-ts/src/models/index.js';
-import type { TenantGetResponse } from '@org/client-ts/src/staff/permissions/scopes/tenant/index.js';
+} from '@org/client-ts/models/index';
+import type { TenantGetResponse } from '@org/client-ts/staff/permissions/scopes/tenant/index';
 import type { MutationFeedbackMeta } from '@org/shared-ts/lib/mutation-feedback/types';
 import {
 	buildStaffMutationOptions,

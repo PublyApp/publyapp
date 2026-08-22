@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
 
-import type { GetUserAuthDataResult } from '@org/client-ts/src/models/index.js';
+import type { GetUserAuthDataResult } from '@org/client-ts/models/index';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type CurrentUser = {

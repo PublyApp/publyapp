@@ -10,7 +10,7 @@ import {
 import type {
 	TenantSettingsGeneralResult,
 	UpdateTenantSettingsGeneralBody,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 
 export type TenantSettingsGeneral = {
 	id: string;

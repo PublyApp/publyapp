@@ -3,11 +3,11 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	FindStaffProfileUsersResult,
 	StaffProfileUserItem,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffProfileUsersQueryVariables = {

@@ -21,7 +21,7 @@ import type {
 	GetStaffUserByIdResult,
 	GetStaffUserProfilesResult,
 	StaffUserItem,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 
 describe('buildFindStaffUsersQueryParameters', () => {
 	test('trims supported values and stringifies page size', () => {

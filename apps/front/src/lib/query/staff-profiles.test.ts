@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest';
 import type {
 	GetStaffProfileByIdResult,
 	StaffProfileItem,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 
 import { toStaffProfileDetails, toStaffProfileRows } from './staff-profiles';
 

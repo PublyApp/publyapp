@@ -7,7 +7,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import { cn } from '~/lib/utils';
 
-import type { AuditLogDetail } from '@org/client-ts/src/models/index.js';
+import type { AuditLogDetail } from '@org/client-ts/models/index';
 
 import {
 	auditActionKindLabel,

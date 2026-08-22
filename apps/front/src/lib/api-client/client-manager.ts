@@ -5,8 +5,8 @@ import {
 } from '@microsoft/kiota-http-fetchlibrary';
 import * as cookie from 'cookie';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
-import { createApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/apiClient';
+import { createApiClient } from '@org/client-ts/apiClient';
 import {
 	SESSION_TOKEN_COOKIE_KEY,
 	TENANT_ID_HEADER_KEY,

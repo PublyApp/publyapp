@@ -3,12 +3,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	ApiResponse,
 	FindInvitationsForTenantAsStaffResult,
 	StaffTenantInvitationListItem,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,

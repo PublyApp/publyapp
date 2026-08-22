@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 
-import type { GetUserTenantsForPickerResponse } from '@org/client-ts/src/models/index.js';
+import type { GetUserTenantsForPickerResponse } from '@org/client-ts/models/index';
 import { TENANT_STATUS_ENUM } from '@org/shared-ts/lib/constants';
 
 export type TenantForPickerRow = {

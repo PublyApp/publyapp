@@ -10,7 +10,7 @@ import {
 import type {
 	AccountProfileResult,
 	UpdateAccountProfileBody,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 export type TenantAccountProfile = {

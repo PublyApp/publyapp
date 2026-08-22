@@ -13,7 +13,7 @@ import {
 import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	CreateInvitationForTenantAsStaffBody,
 	ApiResponse,
@@ -28,7 +28,7 @@ import type {
 	TenantUserDetailsResult,
 	TenantUserItem,
 	UpdateTenantUserAsStaffBody,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
