@@ -1,4 +1,4 @@
-import type { StaffProfileItem } from '@org/client-ts/src/models/index.js';
+import type { StaffProfileItem } from '@org/client-ts/models/index';
 
 export type StaffProfileOption = {
 	value: string;

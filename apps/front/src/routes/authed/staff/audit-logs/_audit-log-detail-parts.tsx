@@ -7,7 +7,7 @@ import { StatusPill } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import { cn } from '~/lib/utils';
 
-import type { AuditLogDetail } from '@org/client-ts/src/models/index.js';
+import type { AuditLogDetail } from '@org/client-ts/models/index';
 
 import {
 	auditActionKindLabel,
@@ -158,8 +158,7 @@ export const AuditLogContextGrid = ({
 	);
 };
 
-/** Audit-log details can be JSON or plain text; pretty-print JSON but
- * preserve non-JSON payloads verbatim (old-front behavior). */
+// react-doctor-disable-next-line only-export-components -- tightly-coupled utility; sole consumer is AuditLogPayload in this same file
 export const formatAuditLogPayload = (raw: string): string => {
 	try {
 		return JSON.stringify(JSON.parse(raw), null, 2);

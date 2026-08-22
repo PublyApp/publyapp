@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 
-import type { StaffTenantInvitationListItem } from '@org/client-ts/src/models/index.js';
+import type { StaffTenantInvitationListItem } from '@org/client-ts/models/index';
 
 import {
 	buildFindStaffTenantInvitationsQueryParameters,

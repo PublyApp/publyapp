@@ -9,7 +9,7 @@ import {
 import type {
 	GetStaffProfileByIdResult,
 	StaffProfileItem,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 
 const unwrapUntyped = (value: unknown): unknown => {
 	if (

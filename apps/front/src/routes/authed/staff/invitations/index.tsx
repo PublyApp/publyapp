@@ -18,7 +18,7 @@ import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
 
-import type { InvitationListItem } from '@org/client-ts/src/models/index.js';
+import type { InvitationListItem } from '@org/client-ts/models/index';
 
 import {
 	getInvitationStatusLabelKey,

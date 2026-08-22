@@ -25,6 +25,7 @@ import { noConsoleInSource } from './rules/no-console-in-source.js';
 import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.js';
 import { noManualResponseMessageTranslation } from './rules/no-manual-response-message-translation.js';
 import { noOp } from './rules/no-op.js';
+import { noPackageSrcImport } from './rules/no-package-src-import.js';
 import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.js';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
@@ -40,6 +41,7 @@ const plugin = {
 		'no-manual-response-message-translation':
 			noManualResponseMessageTranslation,
 		'prefer-specific-lodash-imports': preferSpecificLodashImports,
+		'no-package-src-import': noPackageSrcImport,
 		'arrow-function-components': arrowFunctionComponents,
 	},
 };

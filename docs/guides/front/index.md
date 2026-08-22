@@ -22,6 +22,11 @@ AGENTS.md remains authoritative for repo-wide API/error/URL/logging conventions;
 - React Compiler (via `@vitejs/plugin-react` 6.1 + `oxc-transform-react`, `compiler: true`)
 - Vitest
 
+> **Package exports maps.** Both `client-ts` and `shared-ts` map `./*` →
+> `./src/*.ts`, so imports use `@org/client-ts/<path>` (e.g.
+> `@org/client-ts/apiClient`) — never `@org/client-ts/src/<path>`. The guard
+> rule `publy/no-package-src-import` enforces this.
+
 ## Commands
 
 Run commands from the repository root unless noted otherwise.

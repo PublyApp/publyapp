@@ -12,7 +12,7 @@ import {
 	toStaffProfileUserRows,
 } from '~/lib/query/staff-profile-users';
 
-import type { StaffProfileUserItem } from '@org/client-ts/src/models/index.js';
+import type { StaffProfileUserItem } from '@org/client-ts/models/index';
 
 describe('toStaffProfileUserRows', () => {
 	test('normalizes API items and skips rows without usable ids', () => {
