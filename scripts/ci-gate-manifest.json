@@ -17,27 +17,27 @@
 	],
 	"steps": {
 		"deploy-images.yml::publish::Build and push API migrate image": {
-			"hash": "0e20b06337aa2067",
+			"hash": "ee033b874c0523d8",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push API runtime image": {
-			"hash": "f7e1d1adf41446ce",
+			"hash": "41406c68a70ddd2c",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the API runtime image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push Front image": {
-			"hash": "ebd0f7a2d51ada44",
+			"hash": "553e6ddbc8335b36",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the front image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Checkout": {
-			"hash": "35faeb9c41a3ab90",
+			"hash": "11ee605b2ca0dfd4",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repository onto the runner. Locally the working tree already is the code under test."
 		},
 		"deploy-images.yml::publish::Log in to GHCR": {
-			"hash": "16db249cdd537b79",
+			"hash": "9d52541481d1e372",
 			"mirror": "just ci",
 			"reason": "GitHub-only registry authentication step required to push images; local gate does not publish images."
 		},
@@ -47,7 +47,7 @@
 			"reason": "The workflow computes RELEASE_TAG from GITHUB_SHA for immutable tagging; local checks do not perform registry publishing."
 		},
 		"deploy-images.yml::publish::Set up Docker Buildx": {
-			"hash": "9ccb97d53a8963ea",
+			"hash": "73d098e126592972",
 			"mirror": "just ci",
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
@@ -127,7 +127,7 @@
 			"reason": "GitHub-only pnpm setup for CI. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "9ce0c8f4694fb330",
+			"hash": "269082600458cd99",
 			"mirror": "just ci-drift",
 			"reason": "The CODEOWNERS contract and CI gate guard suites (including scripts/ci-e2e-rerun-guard.test.mjs since #1063), deterministic frontend-lint regression, check-ci-gate-structure.mjs, and the #1240 require-linked-issue guard test (scripts/require-linked-issue.test.mjs) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained the one `node --test ./scripts/require-linked-issue.test.mjs` line; `just ci-drift` runs that same test."
 		},
@@ -382,7 +382,7 @@
 			"reason": "ci-e2e-front starts the same stack via up --build --wait. CI starts the already-pulled images with --no-build and performs its unchanged health polling separately."
 		},
 		"front-e2e.yml::test::Upload playwright report": {
-			"hash": "9df914ae9012c7d8",
+			"hash": "088cce9de705d985",
 			"mirror": null,
 			"reason": "actions/upload-artifact uses a shard-specific name to get each report off its ephemeral runner. Locally the report is already on disk at apps/front/playwright-report; there is nothing to upload it to."
 		},
@@ -457,27 +457,27 @@
 			"reason": "ci-spec-drift runs the identical filtered dotnet test for FullyQualifiedName~OpenApiContractSpec. Note that just ci also runs just test-api, the full suite of which this filter is a subset."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up .NET (pinned for CI determinism)": {
-			"hash": "28e48bbe39a17b43",
+			"hash": "bb639a72b78c8be4",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up Node": {
-			"hash": "fbda42d92f5a60e8",
+			"hash": "612e3d386ef1d731",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up just": {
-			"hash": "da6f3996c5677258",
+			"hash": "978432f99c1ad1d5",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up pnpm": {
-			"hash": "2d793749c74ab81e",
+			"hash": "8985553731d304dc",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"openapi-spec-drift.yml::spec-drift::uses:actions/checkout": {
-			"hash": "35faeb9c41a3ab90",
+			"hash": "11ee605b2ca0dfd4",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
@@ -577,7 +577,7 @@
 			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
 		},
 		"quality-gate.yml::quality::Setup .NET (pinned for CI determinism)": {
-			"hash": "28e48bbe39a17b43",
+			"hash": "bb639a72b78c8be4",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
@@ -587,7 +587,7 @@
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"quality-gate.yml::quality::Setup just": {
-			"hash": "da6f3996c5677258",
+			"hash": "978432f99c1ad1d5",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
