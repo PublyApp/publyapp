@@ -15,6 +15,7 @@ using PublyApp.Api.Modules.Messaging.Services;
 using PublyApp.Api.Modules.Permissions.Services;
 using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Projects.Services;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.SystemNotices.Services;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Services;
@@ -70,7 +71,8 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ITenantUserCompanyMembershipService), typeof(TenantUserCompanyMembershipService)),
 		(typeof(ITenantUserCompanyQueryService), typeof(TenantUserCompanyQueryService)),
 		(typeof(ITenantUserQueryService), typeof(TenantUserQueryService)),
-		(typeof(IUserService), typeof(UserService))
+		(typeof(IUserService), typeof(UserService)),
+		(typeof(ICredentialProtector), typeof(CredentialProtector))
 	];
 
 	private readonly ApiFixture _fixture;
