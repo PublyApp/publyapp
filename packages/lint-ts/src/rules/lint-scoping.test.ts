@@ -8,7 +8,6 @@
  * - Root .oxlintrc.json pins the surviving publy/* rules at error.
  */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import {
 	mkdirSync,
 	readFileSync,
@@ -23,6 +22,7 @@ import { RuleTester } from 'oxlint/plugins-dev';
 import { describe, it } from 'vitest';
 
 import plugin from '../index.ts';
+import { runOxlint } from '../lib/run-oxlint.ts';
 import { noArrayReduce } from './no-array-reduce.ts';
 import { noConsoleInSource } from './no-console-in-source.ts';
 import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.ts';
@@ -35,11 +35,6 @@ const WORKSPACE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const OXLINTRC_PATH = fileURLToPath(
 	new URL('../../../../.oxlintrc.json', import.meta.url),
 );
-// In a git worktree the workspace root sits inside the main repo, but in
-// CI (flat checkout) the workspace root IS the repo root.  Both environments
-// always have node_modules at the workspace root, so resolve the binary
-// there instead of two levels above (which escapes the checkout in CI).
-const OXLINT_BIN = join(WORKSPACE_ROOT, 'node_modules/.bin/oxlint');
 
 const ROOT_RULES = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8')).rules;
 
@@ -146,43 +141,6 @@ const isRuleEnabledAsError = (value) => {
 	}
 
 	return false;
-};
-
-const runOxlint = (filePaths) => {
-	let output = '';
-
-	try {
-		output = execFileSync(
-			OXLINT_BIN,
-			['--config', OXLINTRC_PATH, '--format', 'json', '--quiet', ...filePaths],
-			{
-				encoding: 'utf8',
-				cwd: WORKSPACE_ROOT,
-			},
-		);
-	} catch (error) {
-		if (
-			!(
-				typeof error === 'object' &&
-				error !== null &&
-				'stdout' in error &&
-				'status' in error
-			)
-		) {
-			throw error;
-		}
-
-		output = String(error.stdout ?? '');
-	}
-
-	const parsed = JSON.parse(output);
-
-	// oxlint output shape is { diagnostics: [...] } when clean.
-	if (Array.isArray(parsed.diagnostics)) {
-		return parsed;
-	}
-
-	return { diagnostics: [] };
 };
 
 const createScopingFixtures = () => {
