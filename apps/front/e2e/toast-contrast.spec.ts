@@ -7,6 +7,7 @@ import {
 } from '@playwright/test';
 
 import { toastVariantClassNames } from '../src/components/ui/toast-variants';
+import { SCREENSHOT_DATA_URL_PREFIX } from './helpers/toast-contrast-shared';
 
 // The pixel reading measures the composited glyphs; at the default 1x render
 // scale the fixture's 12px close glyph antialiases away its core colour and
@@ -1130,13 +1131,41 @@ const readBrowserPaint = async (
 					y,
 					painterName,
 				);
+				const clipValue =
+					(painterStyle as unknown as Record<string, string | undefined>)[
+						'webkitBackgroundClip'
+					] ?? painterStyle.backgroundClip;
+				if (clipValue && clipValue.toLowerCase().includes('text')) {
+					throw new Error(
+						`${painterName} has undecidable text paint: background-clip:text`,
+					);
+				}
+				const fillColor = (
+					painterStyle as unknown as Record<string, string | undefined>
+				)['webkitTextFillColor'];
+				if (
+					fillColor &&
+					(fillColor.toLowerCase() === 'transparent' ||
+						fillColor.toLowerCase() === 'rgba(0, 0, 0, 0)')
+				) {
+					throw new Error(
+						`${painterName} has undecidable text paint: transparent text fill (webkit-text-fill-color: transparent)`,
+					);
+				}
+				if (painterStyle.color.toLowerCase() === 'transparent') {
+					throw new Error(
+						`${painterName} has undecidable text paint: transparent text fill (color: transparent)`,
+					);
+				}
 				if (painterStyle.textShadow !== 'none') {
 					throw new Error(
 						`${painterName} has unsupported text shadow ${painterStyle.textShadow}`,
 					);
 				}
 				toSrgb(
-					painterStyle.webkitTextFillColor || painterStyle.color,
+					(painterStyle as unknown as Record<string, string | undefined>)[
+						'webkitTextFillColor'
+					] || painterStyle.color,
 					`${painterName} text fill colour`,
 				);
 			}
@@ -2139,7 +2168,7 @@ const measurePaintedContrast = async (
 		{
 			bandMargin: SURFACE_BAND_MARGIN,
 			blendMargin: BLEND_MARGIN,
-			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			dataUrl: `${SCREENSHOT_DATA_URL_PREFIX}${screenshot.toString('base64')}`,
 			dilation: MASK_DILATION,
 			floor,
 			kind,
@@ -2222,7 +2251,7 @@ const assertPaintsPixels = async (
 			return count;
 		},
 		{
-			dataUrl: `data:image/png;base64,${screenshot.toString('base64')}`,
+			dataUrl: `${SCREENSHOT_DATA_URL_PREFIX}${screenshot.toString('base64')}`,
 			rgb,
 		},
 	);
