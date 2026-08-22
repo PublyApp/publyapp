@@ -3144,19 +3144,47 @@ const renderStackedToasts = async (page: Page): Promise<Locator[]> => {
 };
 
 const dismissAllToasts = async (page: Page): Promise<void> => {
-	// Sonner stacks 4 toasts at same position; only front hit-tests. Plain click on back is intercepted.
-	let remaining = await page.locator('[data-sonner-toast]').count();
-	for (let attempt = 0; attempt < 8 && remaining > 0; attempt += 1) {
-		const buttons = page.locator(
-			'[data-sonner-toast] .publy-toast-close-button',
+	// Sonner stacks the toasts at the same position; only the FRONT toast
+	// (`data-front="true"`) is the dismiss target. Its close button is visually
+	// on top but sits *under* the (wide) toast title in the DOM hit-test, so a
+	// coordinate click — `click({ force: true })` included — lands on the title
+	// and never fires `removeToast`. We therefore dispatch the click event
+	// directly on the close button, which reliably dismisses, then wait on STATE:
+	// each front toast is tracked by its stable `data-type` and we wait for THAT
+	// toast to detach from the DOM (Sonner removes the node only once the exit
+	// animation finishes) before re-targeting the next front. The previous code
+	// clicked the LAST close button with a fixed `waitForTimeout(150)` between
+	// attempts; under load Sonner's exit animation outlasted the delay, so the
+	// final `toHaveCount(0)` failed with nodes still mid-exit (issue #1173, CI
+	// shard 4/4: `Expected: 0, Received: 3`). Replacing the fixed delay with a
+	// wait on each toast's own detachment removes the race. The loop is bounded
+	// by the rendered count — a structural bound, not a retry ceiling that would
+	// mask a real failure.
+	const toasts = page.locator('[data-sonner-toast]');
+	const rendered = await toasts.count();
+	for (let i = 0; i < rendered; i += 1) {
+		const front = page
+			.locator('[data-sonner-toast][data-front="true"]')
+			.first();
+		if ((await front.count()) === 0) break;
+		const type = await front.getAttribute('data-type');
+		await front.locator('.publy-toast-close-button').evaluate((el) =>
+			el.dispatchEvent(
+				new MouseEvent('click', {
+					bubbles: true,
+					cancelable: true,
+					view: window,
+				}),
+			),
 		);
-		const count = await buttons.count();
-		if (count === 0) break;
-		await buttons.last().click({ force: true });
-		await page.waitForTimeout(150);
-		remaining = await page.locator('[data-sonner-toast]').count();
+		// Wait for THIS toast to leave the DOM (exit animation done) before the
+		// next iteration re-targets the new front. 5s bounds a single exit; it is
+		// a real failure signal, not a flake retry.
+		await expect(
+			page.locator(`[data-sonner-toast][data-type="${type}"]`),
+		).toHaveCount(0, { timeout: 5_000 });
 	}
-	await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+	await expect(toasts).toHaveCount(0);
 };
 
 test('close button containing block holds in collapsed stacked state', async ({
