@@ -72,7 +72,7 @@ public class Program {
 			workerHost.LogDiManifestIfPresent();
 			// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing/wrong.
 			Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness
-				.EnsureMasterKeyUsable(workerHost.Services);
+				.EnsureMasterKeyUsable(AppEnvironment.Instance.SocialAccountsMasterKey);
 			workerHost.Run();
 			return;
 		}
@@ -85,7 +85,7 @@ public class Program {
 		// separate `migrate` service (or `just db-migrate`) BEFORE api/worker boot, so the
 		// key ring is present when the witness round-trips the sentinel through it.
 		Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness
-			.EnsureMasterKeyUsable(app.Services);
+			.EnsureMasterKeyUsable(AppEnvironment.Instance.SocialAccountsMasterKey);
 
 		app.LogDiManifestIfPresent();
 
