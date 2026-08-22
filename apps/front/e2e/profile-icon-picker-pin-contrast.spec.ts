@@ -180,116 +180,120 @@ const readPinComputedColors = async (
 	};
 };
 
-test.describe('profile icon-picker pencil-pin contrast (#992/#975 round 3, live component + live route)', () => {
-	test('the live pin clears the 3:1 non-text floor in both light and dark themes', async ({
-		page,
-	}) => {
-		await openProfileCreateDrawer(page);
+test.describe(
+	'profile icon-picker pencil-pin contrast (#992/#975 round 3, live component + live route)',
+	{ tag: ['@design', '@staff-profiles', '@992'] },
+	() => {
+		test('the live pin clears the 3:1 non-text floor in both light and dark themes', async ({
+			page,
+		}) => {
+			await openProfileCreateDrawer(page);
 
-		const light = await readPinComputedColors(page);
-		expect(
-			contrastRatio(light.color, light.background),
-			`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,
-		).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST_FLOOR);
+			const light = await readPinComputedColors(page);
+			expect(
+				contrastRatio(light.color, light.background),
+				`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,
+			).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST_FLOOR);
 
-		await page.evaluate(() => document.documentElement.classList.add('dark'));
-		const dark = await readPinComputedColors(page);
-		expect(
-			contrastRatio(dark.color, dark.background),
-			`dark: color rgb(${dark.color.r},${dark.color.g},${dark.color.b}) on background rgb(${dark.background.r},${dark.background.g},${dark.background.b})`,
-		).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST_FLOOR);
-	});
-
-	// Round 3 finding 2 (mirrored markup): reproduces the reviewer's exact
-	// live-component regression — stripping the pin's only styling class,
-	// leaving `pointer-events-none` (still present in the DOM, still
-	// aria-hidden, but visually unstyled). Round 2's hermetic spec always
-	// rendered its OWN hardcoded class list, so this mutation was invisible
-	// to it. This spec reads the live element's class list directly off the
-	// real rendered component, so removing production's styling hook here
-	// (the same effect as editing icon-color-picker.tsx and shipping it)
-	// must make the pin's computed colours fall back to the (transparent/
-	// inherited) values the component's plain classes leave behind, which do
-	// not model a passing 3:1 contrast pair.
-	test("a live pin missing its styling class ('publy-profile-detail-tile-pin') fails contrast, proving this spec reads the real element and not a copy", async ({
-		page,
-	}) => {
-		await openProfileCreateDrawer(page);
-
-		const before = await page
-			.getByTestId('profile-icon-picker-pin')
-			.getAttribute('class');
-		expect(before).toContain('publy-profile-detail-tile-pin');
-
-		await page.getByTestId('profile-icon-picker-pin').evaluate((pin) => {
-			pin.classList.remove('publy-profile-detail-tile-pin');
+			await page.evaluate(() => document.documentElement.classList.add('dark'));
+			const dark = await readPinComputedColors(page);
+			expect(
+				contrastRatio(dark.color, dark.background),
+				`dark: color rgb(${dark.color.r},${dark.color.g},${dark.color.b}) on background rgb(${dark.background.r},${dark.background.g},${dark.background.b})`,
+			).toBeGreaterThanOrEqual(NON_TEXT_CONTRAST_FLOOR);
 		});
 
-		const after = await readPinComputedColors(page);
-		// With the styling class gone, the pin has no declared `background`
-		// (falls back to `transparent`) and no declared `color` (inherits the
-		// tile's `--publy-icon-tile-fg`, not the pin's dedicated
-		// `--publy-foreground-muted`) — the exact real-world effect of the
-		// reviewer's regression. Assert the SPECIFIC real effect (transparent
-		// background) rather than only the downstream contrast number, so a
-		// coincidental pass can't hide a broken assertion.
-		expect(after.background).toEqual({ r: 0, g: 0, b: 0 });
-	});
+		// Round 3 finding 2 (mirrored markup): reproduces the reviewer's exact
+		// live-component regression — stripping the pin's only styling class,
+		// leaving `pointer-events-none` (still present in the DOM, still
+		// aria-hidden, but visually unstyled). Round 2's hermetic spec always
+		// rendered its OWN hardcoded class list, so this mutation was invisible
+		// to it. This spec reads the live element's class list directly off the
+		// real rendered component, so removing production's styling hook here
+		// (the same effect as editing icon-color-picker.tsx and shipping it)
+		// must make the pin's computed colours fall back to the (transparent/
+		// inherited) values the component's plain classes leave behind, which do
+		// not model a passing 3:1 contrast pair.
+		test("a live pin missing its styling class ('publy-profile-detail-tile-pin') fails contrast, proving this spec reads the real element and not a copy", async ({
+			page,
+		}) => {
+			await openProfileCreateDrawer(page);
 
-	// Cascade regression proof: a later duplicate rule for the exact same
-	// selector reverting `color` to the non-compliant
-	// `--publy-foreground-subtle` token. Injected as a real stylesheet
-	// (`page.addStyleTag`) appended after every other stylesheet the live
-	// page already loaded, so it wins the cascade exactly the way a later
-	// declaration in the real compiled app.css would — no artifact reuse, no
-	// mirrored markup, just the browser resolving the real cascade.
-	test('a later duplicate rule for the exact same selector changes the real computed colour, and the resulting contrast is correctly reported as failing', async ({
-		page,
-	}) => {
-		await openProfileCreateDrawer(page);
+			const before = await page
+				.getByTestId('profile-icon-picker-pin')
+				.getAttribute('class');
+			expect(before).toContain('publy-profile-detail-tile-pin');
 
-		await page.addStyleTag({
-			content:
-				'.publy-profile-detail-tile-pin{color:var(--publy-foreground-subtle)}',
+			await page.getByTestId('profile-icon-picker-pin').evaluate((pin) => {
+				pin.classList.remove('publy-profile-detail-tile-pin');
+			});
+
+			const after = await readPinComputedColors(page);
+			// With the styling class gone, the pin has no declared `background`
+			// (falls back to `transparent`) and no declared `color` (inherits the
+			// tile's `--publy-icon-tile-fg`, not the pin's dedicated
+			// `--publy-foreground-muted`) — the exact real-world effect of the
+			// reviewer's regression. Assert the SPECIFIC real effect (transparent
+			// background) rather than only the downstream contrast number, so a
+			// coincidental pass can't hide a broken assertion.
+			expect(after.background).toEqual({ r: 0, g: 0, b: 0 });
 		});
 
-		const light = await readPinComputedColors(page);
-		expect(
-			contrastRatio(light.color, light.background),
-			`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,
-		).toBeLessThan(NON_TEXT_CONTRAST_FLOOR);
-	});
+		// Cascade regression proof: a later duplicate rule for the exact same
+		// selector reverting `color` to the non-compliant
+		// `--publy-foreground-subtle` token. Injected as a real stylesheet
+		// (`page.addStyleTag`) appended after every other stylesheet the live
+		// page already loaded, so it wins the cascade exactly the way a later
+		// declaration in the real compiled app.css would — no artifact reuse, no
+		// mirrored markup, just the browser resolving the real cascade.
+		test('a later duplicate rule for the exact same selector changes the real computed colour, and the resulting contrast is correctly reported as failing', async ({
+			page,
+		}) => {
+			await openProfileCreateDrawer(page);
 
-	// Specificity regression proof: the round 3 reviewer defeated the
-	// source-level cascade resolver (css-cascade-test-support.ts) with a
-	// higher-specificity compound selector appending the pin's OWN
-	// `ring-background` class — `.publy-profile-detail-tile-pin.ring-background`
-	// — and round 2's hermetic browser spec also missed it because its
-	// hand-authored markup omitted that class entirely. The live pin
-	// genuinely carries `ring-background` (icon-color-picker.tsx), so this
-	// spec's real DOM read is exposed to exactly the same compound selector a
-	// real stylesheet author could write, and must catch it.
-	test('a higher-specificity compound selector targeting the live pin classes overrides the effective colour, and the resulting contrast is correctly reported as failing', async ({
-		page,
-	}) => {
-		await openProfileCreateDrawer(page);
+			await page.addStyleTag({
+				content:
+					'.publy-profile-detail-tile-pin{color:var(--publy-foreground-subtle)}',
+			});
 
-		const pinClasses = (
-			await page.getByTestId('profile-icon-picker-pin').getAttribute('class')
-		)
-			?.split(/\s+/)
-			.filter(Boolean);
-		expect(pinClasses).toContain('ring-background');
-
-		await page.addStyleTag({
-			content:
-				'.publy-profile-detail-tile-pin.ring-background{color:var(--publy-foreground-subtle)}',
+			const light = await readPinComputedColors(page);
+			expect(
+				contrastRatio(light.color, light.background),
+				`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,
+			).toBeLessThan(NON_TEXT_CONTRAST_FLOOR);
 		});
 
-		const light = await readPinComputedColors(page);
-		expect(
-			contrastRatio(light.color, light.background),
-			`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,
-		).toBeLessThan(NON_TEXT_CONTRAST_FLOOR);
-	});
-});
+		// Specificity regression proof: the round 3 reviewer defeated the
+		// source-level cascade resolver (css-cascade-test-support.ts) with a
+		// higher-specificity compound selector appending the pin's OWN
+		// `ring-background` class — `.publy-profile-detail-tile-pin.ring-background`
+		// — and round 2's hermetic browser spec also missed it because its
+		// hand-authored markup omitted that class entirely. The live pin
+		// genuinely carries `ring-background` (icon-color-picker.tsx), so this
+		// spec's real DOM read is exposed to exactly the same compound selector a
+		// real stylesheet author could write, and must catch it.
+		test('a higher-specificity compound selector targeting the live pin classes overrides the effective colour, and the resulting contrast is correctly reported as failing', async ({
+			page,
+		}) => {
+			await openProfileCreateDrawer(page);
+
+			const pinClasses = (
+				await page.getByTestId('profile-icon-picker-pin').getAttribute('class')
+			)
+				?.split(/\s+/)
+				.filter(Boolean);
+			expect(pinClasses).toContain('ring-background');
+
+			await page.addStyleTag({
+				content:
+					'.publy-profile-detail-tile-pin.ring-background{color:var(--publy-foreground-subtle)}',
+			});
+
+			const light = await readPinComputedColors(page);
+			expect(
+				contrastRatio(light.color, light.background),
+				`light: color rgb(${light.color.r},${light.color.g},${light.color.b}) on background rgb(${light.background.r},${light.background.g},${light.background.b})`,
+			).toBeLessThan(NON_TEXT_CONTRAST_FLOOR);
+		});
+	},
+);

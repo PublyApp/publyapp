@@ -124,384 +124,408 @@ const mockTenantEdit = async (page: Page) => {
 	});
 };
 
-test.describe('staff tenant edit form persistence', () => {
-	test('filling legal name and billing email, saving, and reloading shows the persisted values', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
+test.describe(
+	'staff tenant edit form persistence',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('filling legal name and billing email, saving, and reloading shows the persisted values', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
 
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-		await page
-			.getByRole('textbox', { name: 'Legal name' })
-			.fill('Acme Corporation Ltd');
-		await page
-			.getByRole('textbox', { name: 'Billing email' })
-			.fill('billing@acme.com');
+			await page
+				.getByRole('textbox', { name: 'Legal name' })
+				.fill('Acme Corporation Ltd');
+			await page
+				.getByRole('textbox', { name: 'Billing email' })
+				.fill('billing@acme.com');
 
-		const patchRequest = page.waitForRequest(
-			(request) =>
-				request.method() === 'PATCH' &&
-				isApiPath(request.url(), `/staff/tenants/${TENANT_ID}`),
-		);
-		await page.getByRole('button', { name: 'Save changes' }).click();
-		await patchRequest;
+			const patchRequest = page.waitForRequest(
+				(request) =>
+					request.method() === 'PATCH' &&
+					isApiPath(request.url(), `/staff/tenants/${TENANT_ID}`),
+			);
+			await page.getByRole('button', { name: 'Save changes' }).click();
+			await patchRequest;
 
-		await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
+			await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
 
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-		await expect(page.getByRole('textbox', { name: 'Legal name' })).toHaveValue(
-			'Acme Corporation Ltd',
-		);
-		await expect(
-			page.getByRole('textbox', { name: 'Billing email' }),
-		).toHaveValue('billing@acme.com');
-	});
-});
+			await expect(
+				page.getByRole('textbox', { name: 'Legal name' }),
+			).toHaveValue('Acme Corporation Ltd');
+			await expect(
+				page.getByRole('textbox', { name: 'Billing email' }),
+			).toHaveValue('billing@acme.com');
+		});
+	},
+);
 
-test.describe('staff tenant edit unsaved-changes navigation guard', () => {
-	test('navigating away with unsaved edits shows a confirm dialog, and Cancel keeps the edits', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
+test.describe(
+	'staff tenant edit unsaved-changes navigation guard',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('navigating away with unsaved edits shows a confirm dialog, and Cancel keeps the edits', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
 
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-		await page
-			.getByRole('textbox', { name: 'Legal name' })
-			.fill('Acme Corporation Ltd');
+			await page
+				.getByRole('textbox', { name: 'Legal name' })
+				.fill('Acme Corporation Ltd');
 
-		await page.getByRole('link', { name: 'Back to tenant' }).click();
+			await page.getByRole('link', { name: 'Back to tenant' }).click();
 
-		const dialog = page.getByRole('alertdialog');
-		await expect(dialog).toBeVisible();
-		await expect(dialog).toContainText('Leave without saving?');
+			const dialog = page.getByRole('alertdialog');
+			await expect(dialog).toBeVisible();
+			await expect(dialog).toContainText('Leave without saving?');
 
-		await dialog.getByRole('button', { name: 'Cancel' }).click();
-		await expect(dialog).not.toBeVisible();
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-		await expect(page.getByRole('textbox', { name: 'Legal name' })).toHaveValue(
-			'Acme Corporation Ltd',
-		);
-	});
-
-	test('confirming Leave page navigates away and discards the unsaved edits', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
-
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-
-		await page
-			.getByRole('textbox', { name: 'Legal name' })
-			.fill('Acme Corporation Ltd');
-
-		await page.getByRole('button', { name: 'Cancel' }).click();
-
-		const dialog = page.getByRole('alertdialog');
-		await expect(dialog).toBeVisible();
-		await dialog.getByRole('button', { name: 'Leave page' }).click();
-
-		await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
-	});
-});
-
-test.describe('staff tenant edit logo upload', () => {
-	test('uploading a logo sets the preview, saves, and persists after reload', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
-		await mockStaffUploads(page);
-
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-
-		const uploadRequest = page.waitForRequest(
-			(request) =>
-				request.method() === 'POST' &&
-				isApiPath(request.url(), '/staff/uploads'),
-		);
-		await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
-		await uploadRequest;
-
-		// The uploaded url is root-relative (BE-4); the form resolves it against
-		// the API origin so the <img> doesn't 404 against the front origin.
-		const absoluteUploadedLogoUrl = `${API_BASE_URL}${UPLOADED_LOGO_URL}`;
-		await expect(page.getByTestId('logo-upload-url')).toHaveText(
-			absoluteUploadedLogoUrl,
-		);
-		await expect(
-			page.getByTestId('staff-tenant-edit-preview').locator('img'),
-		).toHaveAttribute('src', absoluteUploadedLogoUrl);
-
-		const patchRequest = page.waitForRequest(
-			(request) =>
-				request.method() === 'PATCH' &&
-				isApiPath(request.url(), `/staff/tenants/${TENANT_ID}`),
-		);
-		await page.getByRole('button', { name: 'Save changes' }).click();
-		const request = await patchRequest;
-		// The persisted value stays root-relative — the API origin is stripped
-		// back off before saving, so a domain move doesn't strand stale urls.
-		expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
-			UPLOADED_LOGO_URL,
-		);
-
-		await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
-
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-		await expect(page.getByTestId('logo-upload-url')).toHaveText(
-			absoluteUploadedLogoUrl,
-		);
-
-		const preview = page
-			.getByTestId('staff-tenant-edit-preview')
-			.locator('img');
-		await expect(preview).toBeVisible();
-		await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
-		await expect
-			.poll(() =>
-				preview.evaluate(
-					(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
-				),
-			)
-			.toBe(true);
-	});
-
-	test('an oversized file shows an inline error and does not set the logo', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
-		await mockStaffUploads(page);
-
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-
-		await page.getByLabel('Logo').setInputFiles({
-			name: 'too-big.png',
-			mimeType: 'image/png',
-			buffer: Buffer.alloc(2_000_001),
+			await dialog.getByRole('button', { name: 'Cancel' }).click();
+			await expect(dialog).not.toBeVisible();
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await expect(
+				page.getByRole('textbox', { name: 'Legal name' }),
+			).toHaveValue('Acme Corporation Ltd');
 		});
 
-		await expect(page.getByText('Image must be 2 MB or smaller')).toBeVisible();
-		await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
-	});
+		test('confirming Leave page navigates away and discards the unsaved edits', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
 
-	test('a disallowed file type shows an inline error and does not set the logo', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
-		await mockStaffUploads(page);
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await page
+				.getByRole('textbox', { name: 'Legal name' })
+				.fill('Acme Corporation Ltd');
 
-		await page.getByLabel('Logo').setInputFiles({
-			name: 'logo.svg',
-			mimeType: 'image/svg+xml',
-			buffer: Buffer.from('<svg></svg>'),
+			await page.getByRole('button', { name: 'Cancel' }).click();
+
+			const dialog = page.getByRole('alertdialog');
+			await expect(dialog).toBeVisible();
+			await dialog.getByRole('button', { name: 'Leave page' }).click();
+
+			await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
+		});
+	},
+);
+
+test.describe(
+	'staff tenant edit logo upload',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('uploading a logo sets the preview, saves, and persists after reload', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
+			await mockStaffUploads(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+			const uploadRequest = page.waitForRequest(
+				(request) =>
+					request.method() === 'POST' &&
+					isApiPath(request.url(), '/staff/uploads'),
+			);
+			await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+			await uploadRequest;
+
+			// The uploaded url is root-relative (BE-4); the form resolves it against
+			// the API origin so the <img> doesn't 404 against the front origin.
+			const absoluteUploadedLogoUrl = `${API_BASE_URL}${UPLOADED_LOGO_URL}`;
+			await expect(page.getByTestId('logo-upload-url')).toHaveText(
+				absoluteUploadedLogoUrl,
+			);
+			await expect(
+				page.getByTestId('staff-tenant-edit-preview').locator('img'),
+			).toHaveAttribute('src', absoluteUploadedLogoUrl);
+
+			const patchRequest = page.waitForRequest(
+				(request) =>
+					request.method() === 'PATCH' &&
+					isApiPath(request.url(), `/staff/tenants/${TENANT_ID}`),
+			);
+			await page.getByRole('button', { name: 'Save changes' }).click();
+			const request = await patchRequest;
+			// The persisted value stays root-relative — the API origin is stripped
+			// back off before saving, so a domain move doesn't strand stale urls.
+			expect((request.postDataJSON() as Record<string, unknown>).logoUrl).toBe(
+				UPLOADED_LOGO_URL,
+			);
+
+			await expect(page).toHaveURL(new RegExp(`/staff/tenants/${TENANT_ID}$`));
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await expect(page.getByTestId('logo-upload-url')).toHaveText(
+				absoluteUploadedLogoUrl,
+			);
+
+			const preview = page
+				.getByTestId('staff-tenant-edit-preview')
+				.locator('img');
+			await expect(preview).toBeVisible();
+			await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
+			await expect
+				.poll(() =>
+					preview.evaluate(
+						(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
+					),
+				)
+				.toBe(true);
 		});
 
-		await expect(
-			page.getByText('Image must be PNG, JPEG, WEBP, or GIF'),
-		).toBeVisible();
-		await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
-	});
-});
+		test('an oversized file shows an inline error and does not set the logo', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
+			await mockStaffUploads(page);
 
-test.describe('staff tenant edit logo upload against the real backend', () => {
-	test('an uploaded logo resolves against the API origin and loads (200) after reload', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-		// Create a fresh tenant through the real, unmocked create flow so this
-		// spec owns its own row instead of depending on a seeded tenant id.
-		await page.goto('/staff/tenants/new');
-		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
-
-		const uniqueSuffix = Math.random().toString(36).slice(2, 10);
-		await page
-			.getByRole('textbox', { name: /organization/i })
-			.fill(`Real Upload Tenant ${uniqueSuffix}`);
-		await page
-			.locator('input[name="owners.0.email"]')
-			.fill(`owner-${uniqueSuffix}@acme.com`);
-
-		await page.getByRole('button', { name: /^(create tenant)$/i }).click();
-		const createDialog = page.getByRole('alertdialog');
-		await expect(createDialog).toBeVisible();
-		await createDialog
-			.getByRole('button', { name: /^(create tenant)$/i })
-			.click();
-
-		// A UUID-shaped final segment, not a bare `[^/]+` — the latter also
-		// matches the already-current `/staff/tenants/new` URL (since "new" has
-		// no slash), which would resolve this wait immediately without ever
-		// navigating.
-		await page.waitForURL(/\/staff\/tenants\/[0-9a-f-]{36}$/);
-		const tenantId = new URL(page.url()).pathname.split('/').pop();
-		if (!tenantId) {
-			throw new Error('expected a tenant id in the post-create redirect URL');
-		}
-
-		await page.goto(`/staff/tenants/${tenantId}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-
-		const uploadResponsePromise = page.waitForResponse(
-			(response) =>
-				response.request().method() === 'POST' &&
-				isApiPath(response.url(), '/staff/uploads') &&
-				response.status() === 201,
-		);
-		await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
-		const uploadResponse = await uploadResponsePromise;
-		const uploadBody = (await uploadResponse.json()) as { url: string };
-		expect(uploadBody.url.startsWith('/files/')).toBe(true);
-
-		const absoluteUploadedLogoUrl = `${API_BASE_URL}${uploadBody.url}`;
-		await expect(page.getByTestId('logo-upload-url')).toHaveText(
-			absoluteUploadedLogoUrl,
-		);
-		await expect(
-			page.getByTestId('staff-tenant-edit-preview').locator('img'),
-		).toHaveAttribute('src', absoluteUploadedLogoUrl);
-
-		const patchResponsePromise = page.waitForResponse(
-			(response) =>
-				response.request().method() === 'PATCH' &&
-				isApiPath(response.url(), `/staff/tenants/${tenantId}`) &&
-				response.status() === 200,
-		);
-		await page.getByRole('button', { name: 'Save changes' }).click();
-		await patchResponsePromise;
-
-		await page.waitForURL(new RegExp(`/staff/tenants/${tenantId}$`));
-
-		// Reload into the edit form and confirm the persisted (root-relative)
-		// url resolves against the real API origin and actually serves. The
-		// proof is the decoded image itself (naturalWidth below), NOT a
-		// network event: the browser may satisfy this GET straight from its
-		// memory cache after the upload above, emitting no response at all.
-		await page.goto(`/staff/tenants/${tenantId}/edit`);
-
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-		await expect(page.getByTestId('logo-upload-url')).toHaveText(
-			absoluteUploadedLogoUrl,
-		);
-
-		const preview = page
-			.getByTestId('staff-tenant-edit-preview')
-			.locator('img');
-		await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
-		await expect
-			.poll(() =>
-				preview.evaluate(
-					(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
-				),
-			)
-			.toBe(true);
-	});
-});
-
-test.describe('staff tenant edit aside and metadata (handoff 2d/2e)', () => {
-	test('the created/updated/last-active metadata renders as three stacked lines', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
-
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-
-		const metadataLines = page.getByTestId('edit-tenant-metadata').locator('p');
-		await expect(metadataLines).toHaveCount(3);
-		await expect(metadataLines.nth(0)).toContainText('Created');
-		await expect(metadataLines.nth(1)).toContainText('Updated');
-		await expect(metadataLines.nth(2)).toContainText('Last active');
-
-		const lineTops = await metadataLines.evaluateAll((elements) =>
-			elements.map((element) => element.getBoundingClientRect().top),
-		);
-		expect(lineTops[1]).toBeGreaterThan(lineTops[0]);
-		expect(lineTops[2]).toBeGreaterThan(lineTops[1]);
-	});
-
-	test('the preview card and metadata footer scroll together as one sticky unit', async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1280, height: 700 });
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
-
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-
-		const main = page.locator('.app-shell-main');
-		const readDims = async () =>
-			page.evaluate(() => {
-				const card = document.querySelector(
-					'[data-testid="staff-tenant-edit-preview"]',
-				) as HTMLElement;
-				const metadata = document.querySelector(
-					'[data-testid="edit-tenant-metadata"]',
-				) as HTMLElement;
-				return {
-					cardTop: card.getBoundingClientRect().top,
-					gap:
-						metadata.getBoundingClientRect().top -
-						card.getBoundingClientRect().bottom,
-				};
+			await page.getByLabel('Logo').setInputFiles({
+				name: 'too-big.png',
+				mimeType: 'image/png',
+				buffer: Buffer.alloc(2_000_001),
 			});
 
-		// Scroll twice, both past the sticky trigger point (the card is short
-		// enough relative to the form that ~100px of scroll already stuck it).
-		// Comparing two *stuck* positions isolates whether the wrapper holds
-		// card+metadata together while stuck — comparing against the
-		// pre-scroll (unstuck, natural-flow) position would always differ,
-		// since sticky only stops tracking scroll 1:1 once it engages.
-		await main.evaluate((element) => {
-			element.scrollTop = 300;
+			await expect(
+				page.getByText('Image must be 2 MB or smaller'),
+			).toBeVisible();
+			await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
 		});
-		await expect
-			.poll(() => main.evaluate((element) => element.scrollTop))
-			.toBe(300);
-		const stuckAt300 = await readDims();
 
-		await main.evaluate((element) => {
-			element.scrollTop = 500;
+		test('a disallowed file type shows an inline error and does not set the logo', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
+			await mockStaffUploads(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+			await page.getByLabel('Logo').setInputFiles({
+				name: 'logo.svg',
+				mimeType: 'image/svg+xml',
+				buffer: Buffer.from('<svg></svg>'),
+			});
+
+			await expect(
+				page.getByText('Image must be PNG, JPEG, WEBP, or GIF'),
+			).toBeVisible();
+			await expect(page.getByTestId('logo-upload-url')).toHaveCount(0);
 		});
-		await expect
-			.poll(() => main.evaluate((element) => element.scrollTop))
-			.toBe(500);
-		const stuckAt500 = await readDims();
+	},
+);
 
-		// A card scrolled entirely off-screen (cardTop deeply negative) would
-		// also satisfy "same position at both scroll offsets" — the equality
-		// checks alone don't prove the card is actually STUCK in view, only
-		// that it isn't moving. Assert it's still on-screen too (review-r1-
-		// tests.md F25).
-		expect(stuckAt300.cardTop).toBeGreaterThan(0);
-		expect(stuckAt500.cardTop).toBeGreaterThan(0);
+test.describe(
+	'staff tenant edit logo upload against the real backend',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('an uploaded logo resolves against the API origin and loads (200) after reload', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
 
-		// The sticky wrapper holds the card in place (top-5) once stuck, and
-		// the metadata line keeps the same gap below the card instead of
-		// splitting off toward the top of the page.
-		expect(
-			Math.abs(stuckAt500.cardTop - stuckAt300.cardTop),
-		).toBeLessThanOrEqual(1);
-		expect(Math.abs(stuckAt500.gap - stuckAt300.gap)).toBeLessThanOrEqual(1);
-	});
-});
+			// Create a fresh tenant through the real, unmocked create flow so this
+			// spec owns its own row instead of depending on a seeded tenant id.
+			await page.goto('/staff/tenants/new');
+			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+
+			const uniqueSuffix = Math.random().toString(36).slice(2, 10);
+			await page
+				.getByRole('textbox', { name: /organization/i })
+				.fill(`Real Upload Tenant ${uniqueSuffix}`);
+			await page
+				.locator('input[name="owners.0.email"]')
+				.fill(`owner-${uniqueSuffix}@acme.com`);
+
+			await page.getByRole('button', { name: /^(create tenant)$/i }).click();
+			const createDialog = page.getByRole('alertdialog');
+			await expect(createDialog).toBeVisible();
+			await createDialog
+				.getByRole('button', { name: /^(create tenant)$/i })
+				.click();
+
+			// A UUID-shaped final segment, not a bare `[^/]+` — the latter also
+			// matches the already-current `/staff/tenants/new` URL (since "new" has
+			// no slash), which would resolve this wait immediately without ever
+			// navigating.
+			await page.waitForURL(/\/staff\/tenants\/[0-9a-f-]{36}$/);
+			const tenantId = new URL(page.url()).pathname.split('/').pop();
+			if (!tenantId) {
+				throw new Error('expected a tenant id in the post-create redirect URL');
+			}
+
+			await page.goto(`/staff/tenants/${tenantId}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+			const uploadResponsePromise = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					isApiPath(response.url(), '/staff/uploads') &&
+					response.status() === 201,
+			);
+			await page.getByLabel('Logo').setInputFiles(LOGO_FIXTURE_PATH);
+			const uploadResponse = await uploadResponsePromise;
+			const uploadBody = (await uploadResponse.json()) as { url: string };
+			expect(uploadBody.url.startsWith('/files/')).toBe(true);
+
+			const absoluteUploadedLogoUrl = `${API_BASE_URL}${uploadBody.url}`;
+			await expect(page.getByTestId('logo-upload-url')).toHaveText(
+				absoluteUploadedLogoUrl,
+			);
+			await expect(
+				page.getByTestId('staff-tenant-edit-preview').locator('img'),
+			).toHaveAttribute('src', absoluteUploadedLogoUrl);
+
+			const patchResponsePromise = page.waitForResponse(
+				(response) =>
+					response.request().method() === 'PATCH' &&
+					isApiPath(response.url(), `/staff/tenants/${tenantId}`) &&
+					response.status() === 200,
+			);
+			await page.getByRole('button', { name: 'Save changes' }).click();
+			await patchResponsePromise;
+
+			await page.waitForURL(new RegExp(`/staff/tenants/${tenantId}$`));
+
+			// Reload into the edit form and confirm the persisted (root-relative)
+			// url resolves against the real API origin and actually serves. The
+			// proof is the decoded image itself (naturalWidth below), NOT a
+			// network event: the browser may satisfy this GET straight from its
+			// memory cache after the upload above, emitting no response at all.
+			await page.goto(`/staff/tenants/${tenantId}/edit`);
+
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await expect(page.getByTestId('logo-upload-url')).toHaveText(
+				absoluteUploadedLogoUrl,
+			);
+
+			const preview = page
+				.getByTestId('staff-tenant-edit-preview')
+				.locator('img');
+			await expect(preview).toHaveAttribute('src', absoluteUploadedLogoUrl);
+			await expect
+				.poll(() =>
+					preview.evaluate(
+						(img: HTMLImageElement) => img.complete && img.naturalWidth > 0,
+					),
+				)
+				.toBe(true);
+		});
+	},
+);
+
+test.describe(
+	'staff tenant edit aside and metadata (handoff 2d/2e)',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('the created/updated/last-active metadata renders as three stacked lines', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+			const metadataLines = page
+				.getByTestId('edit-tenant-metadata')
+				.locator('p');
+			await expect(metadataLines).toHaveCount(3);
+			await expect(metadataLines.nth(0)).toContainText('Created');
+			await expect(metadataLines.nth(1)).toContainText('Updated');
+			await expect(metadataLines.nth(2)).toContainText('Last active');
+
+			const lineTops = await metadataLines.evaluateAll((elements) =>
+				elements.map((element) => element.getBoundingClientRect().top),
+			);
+			expect(lineTops[1]).toBeGreaterThan(lineTops[0]);
+			expect(lineTops[2]).toBeGreaterThan(lineTops[1]);
+		});
+
+		test('the preview card and metadata footer scroll together as one sticky unit', async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 700 });
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+
+			const main = page.locator('.app-shell-main');
+			const readDims = async () =>
+				page.evaluate(() => {
+					const card = document.querySelector(
+						'[data-testid="staff-tenant-edit-preview"]',
+					) as HTMLElement;
+					const metadata = document.querySelector(
+						'[data-testid="edit-tenant-metadata"]',
+					) as HTMLElement;
+					return {
+						cardTop: card.getBoundingClientRect().top,
+						gap:
+							metadata.getBoundingClientRect().top -
+							card.getBoundingClientRect().bottom,
+					};
+				});
+
+			// Scroll twice, both past the sticky trigger point (the card is short
+			// enough relative to the form that ~100px of scroll already stuck it).
+			// Comparing two *stuck* positions isolates whether the wrapper holds
+			// card+metadata together while stuck — comparing against the
+			// pre-scroll (unstuck, natural-flow) position would always differ,
+			// since sticky only stops tracking scroll 1:1 once it engages.
+			await main.evaluate((element) => {
+				element.scrollTop = 300;
+			});
+			await expect
+				.poll(() => main.evaluate((element) => element.scrollTop))
+				.toBe(300);
+			const stuckAt300 = await readDims();
+
+			await main.evaluate((element) => {
+				element.scrollTop = 500;
+			});
+			await expect
+				.poll(() => main.evaluate((element) => element.scrollTop))
+				.toBe(500);
+			const stuckAt500 = await readDims();
+
+			// A card scrolled entirely off-screen (cardTop deeply negative) would
+			// also satisfy "same position at both scroll offsets" — the equality
+			// checks alone don't prove the card is actually STUCK in view, only
+			// that it isn't moving. Assert it's still on-screen too (review-r1-
+			// tests.md F25).
+			expect(stuckAt300.cardTop).toBeGreaterThan(0);
+			expect(stuckAt500.cardTop).toBeGreaterThan(0);
+
+			// The sticky wrapper holds the card in place (top-5) once stuck, and
+			// the metadata line keeps the same gap below the card instead of
+			// splitting off toward the top of the page.
+			expect(
+				Math.abs(stuckAt500.cardTop - stuckAt300.cardTop),
+			).toBeLessThanOrEqual(1);
+			expect(Math.abs(stuckAt500.gap - stuckAt300.gap)).toBeLessThanOrEqual(1);
+		});
+	},
+);

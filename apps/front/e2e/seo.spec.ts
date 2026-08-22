@@ -141,38 +141,40 @@ const assertMetaFromHtml = async (request: APIRequestContext, path: string) => {
 	return html;
 };
 
-test('renders canonical/OG/robots/sitemap/locale tags on /', async ({
-	request,
-}) => {
-	await assertMetaFromHtml(request, '/');
-});
+test.describe('SEO metadata', { tag: ['@public', '@713'] }, () => {
+	test('renders canonical/OG/robots/sitemap/locale tags on /', async ({
+		request,
+	}) => {
+		await assertMetaFromHtml(request, '/');
+	});
 
-test('renders canonical/OG/robots/sitemap/locale tags on /login', async ({
-	request,
-}) => {
-	await assertMetaFromHtml(request, '/login');
-});
+	test('renders canonical/OG/robots/sitemap/locale tags on /login', async ({
+		request,
+	}) => {
+		await assertMetaFromHtml(request, '/login');
+	});
 
-test('does not emit indexable SEO metadata on unknown routes', async ({
-	request,
-}) => {
-	const response = await request.get('/nope-404');
-	const html = await response.text();
+	test('does not emit indexable SEO metadata on unknown routes', async ({
+		request,
+	}) => {
+		const response = await request.get('/nope-404');
+		const html = await response.text();
 
-	expect(response.status(), '/nope-404 status').toBe(404);
-	expect(
-		hasMetaTag(html, {
-			name: 'robots',
-			content: 'noindex, nofollow',
-		}),
-	).toBe(true);
-	expect(hasLinkTag(html, { rel: 'canonical' })).toBe(false);
-	expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'en' })).toBe(false);
-	expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'fr' })).toBe(false);
-	expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'x-default' })).toBe(
-		false,
-	);
-	expect(
-		hasMetaTag(html, { property: 'og:url', content: `${BASE_URL}/nope-404` }),
-	).toBe(false);
+		expect(response.status(), '/nope-404 status').toBe(404);
+		expect(
+			hasMetaTag(html, {
+				name: 'robots',
+				content: 'noindex, nofollow',
+			}),
+		).toBe(true);
+		expect(hasLinkTag(html, { rel: 'canonical' })).toBe(false);
+		expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'en' })).toBe(false);
+		expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'fr' })).toBe(false);
+		expect(hasLinkTag(html, { rel: 'alternate', hreflang: 'x-default' })).toBe(
+			false,
+		);
+		expect(
+			hasMetaTag(html, { property: 'og:url', content: `${BASE_URL}/nope-404` }),
+		).toBe(false);
+	});
 });

@@ -32,33 +32,35 @@ const setLocaleCookie = async (
 	]);
 };
 
-test('renders / with locale from cookie and updates html lang', async ({
-	page,
-	baseURL,
-}) => {
-	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
-	await setLocaleCookie(page, 'fr', resolvedBaseUrl);
-	await page.goto('/');
+test.describe('i18n', { tag: ['@i18n', '@713'] }, () => {
+	test('renders / with locale from cookie and updates html lang', async ({
+		page,
+		baseURL,
+	}) => {
+		const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
+		await setLocaleCookie(page, 'fr', resolvedBaseUrl);
+		await page.goto('/');
 
-	await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-	// The landing page replaced the placeholder greeting element. The hero title
-	// is real translated page copy, so it proves the same thing: the cookie's
-	// locale decides what is rendered.
-	await expect(page.getByTestId('landing-hero-title')).toHaveText(
-		'Publiez partout où vivent vos marques',
-	);
-});
+		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+		// The landing page replaced the placeholder greeting element. The hero title
+		// is real translated page copy, so it proves the same thing: the cookie's
+		// locale decides what is rendered.
+		await expect(page.getByTestId('landing-hero-title')).toHaveText(
+			'Publiez partout où vivent vos marques',
+		);
+	});
 
-test('falls back to English when locale cookie is unsupported', async ({
-	page,
-	baseURL,
-}) => {
-	const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
-	await setLocaleCookie(page, 'zz', resolvedBaseUrl);
-	await page.goto('/');
+	test('falls back to English when locale cookie is unsupported', async ({
+		page,
+		baseURL,
+	}) => {
+		const resolvedBaseUrl = baseURL || DEFAULT_BASE_URL;
+		await setLocaleCookie(page, 'zz', resolvedBaseUrl);
+		await page.goto('/');
 
-	await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-	await expect(page.getByTestId('landing-hero-title')).toHaveText(
-		'Publish everywhere your brands live',
-	);
+		await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+		await expect(page.getByTestId('landing-hero-title')).toHaveText(
+			'Publish everywhere your brands live',
+		);
+	});
 });

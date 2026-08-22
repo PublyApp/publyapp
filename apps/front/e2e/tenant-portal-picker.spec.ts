@@ -21,46 +21,52 @@ test.use({ storageState: { cookies: [], origins: [] } });
 // suspended tenant, so the suspended-banner scenario isn't covered here —
 // only by the unit tests in src/routes/authed/tenant.test.tsx.
 
-test('a single-active-tenant user skips the picker entirely', async ({
-	page,
-}) => {
-	await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
+test.describe(
+	'tenant portal picker',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('a single-active-tenant user skips the picker entirely', async ({
+			page,
+		}) => {
+			await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
 
-	// The single active tenant auto-resolves to the workspace and the
-	// root redirects to `/tenant/account` (the picker never renders).
-	await expect(page).toHaveURL(/\/tenant\/account/);
-	await expect(page.getByTestId('tenant-workspace-shell')).toBeVisible();
-	await expect(page.getByTestId('tenant-portal-picker')).toHaveCount(0);
-});
+			// The single active tenant auto-resolves to the workspace and the
+			// root redirects to `/tenant/account` (the picker never renders).
+			await expect(page).toHaveURL(/\/tenant\/account/);
+			await expect(page.getByTestId('tenant-workspace-shell')).toBeVisible();
+			await expect(page.getByTestId('tenant-portal-picker')).toHaveCount(0);
+		});
 
-test('a multi-active-tenant user sees the picker and can select an organization', async ({
-	page,
-}) => {
-	await loginAsTenantUser(page, MULTI_TENANT_USER_CREDENTIALS);
+		test('a multi-active-tenant user sees the picker and can select an organization', async ({
+			page,
+		}) => {
+			await loginAsTenantUser(page, MULTI_TENANT_USER_CREDENTIALS);
 
-	await expect(page.getByTestId('simple-layout')).toBeVisible();
-	await expect(page.getByTestId('tenant-portal-picker')).toBeVisible();
+			await expect(page.getByTestId('simple-layout')).toBeVisible();
+			await expect(page.getByTestId('tenant-portal-picker')).toBeVisible();
 
-	const rows = page.getByTestId('tenant-portal-row');
-	await expect(rows).toHaveCount(2);
+			const rows = page.getByTestId('tenant-portal-row');
+			await expect(rows).toHaveCount(2);
 
-	await rows.first().click();
+			await rows.first().click();
 
-	// Selecting a tenant resolves the workspace; the child redirects to
-	// `/tenant/account` where the AppShell-mounted shell renders.
-	await expect(page.getByTestId('tenant-workspace-shell')).toBeVisible();
-	await expect(page.getByTestId('tenant-portal-picker')).toHaveCount(0);
-});
+			// Selecting a tenant resolves the workspace; the child redirects to
+			// `/tenant/account` where the AppShell-mounted shell renders.
+			await expect(page.getByTestId('tenant-workspace-shell')).toBeVisible();
+			await expect(page.getByTestId('tenant-portal-picker')).toHaveCount(0);
+		});
 
-test('logging out from the picker returns to login', async ({ page }) => {
-	await loginAsTenantUser(page, MULTI_TENANT_USER_CREDENTIALS);
+		test('logging out from the picker returns to login', async ({ page }) => {
+			await loginAsTenantUser(page, MULTI_TENANT_USER_CREDENTIALS);
 
-	await expect(page.getByTestId('tenant-portal-picker')).toBeVisible();
-	await page.getByTestId('tenant-portal-logout-button').click();
+			await expect(page.getByTestId('tenant-portal-picker')).toBeVisible();
+			await page.getByTestId('tenant-portal-logout-button').click();
 
-	// The central logout flow redirects to /login, carrying the rto
-	// (redirect-to) parameter naming the origin path — same contract as
-	// ssr-auth-shell.spec.ts.
-	await expect(page).toHaveURL(/\/login(\?rto=.*)?$/);
-	await expect(page.getByTestId('auth-login-form')).toBeVisible();
-});
+			// The central logout flow redirects to /login, carrying the rto
+			// (redirect-to) parameter naming the origin path — same contract as
+			// ssr-auth-shell.spec.ts.
+			await expect(page).toHaveURL(/\/login(\?rto=.*)?$/);
+			await expect(page.getByTestId('auth-login-form')).toBeVisible();
+		});
+	},
+);

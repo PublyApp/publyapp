@@ -2,16 +2,19 @@ import { expect, test } from '@playwright/test';
 
 import { loginAsStaffAdmin } from './helpers/login';
 
-test('authenticated user navigating to /login is redirected to their workspace without seeing the login form', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
+test.describe('auth redirect guard', { tag: ['@auth', '@untracked'] }, () => {
+	// @untracked: handoff parity guard
+	test('authenticated user navigating to /login is redirected to their workspace without seeing the login form', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
 
-	await page.goto('/login');
+		await page.goto('/login');
 
-	await page.waitForURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
-		waitUntil: 'domcontentloaded',
+		await page.waitForURL(/\/staff(?:\/staff-users)?(?:[?#].*)?$/, {
+			waitUntil: 'domcontentloaded',
+		});
+		expect(page.url()).not.toContain('/login');
+		await expect(page.getByTestId('auth-login-form')).not.toBeVisible();
 	});
-	expect(page.url()).not.toContain('/login');
-	await expect(page.getByTestId('auth-login-form')).not.toBeVisible();
 });

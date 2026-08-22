@@ -51,114 +51,120 @@ const mockInvitationDetails = async (page: import('@playwright/test').Page) => {
  * without owner-approved baselines would just pin whatever renders today,
  * including regressions.
  */
-test.describe('Gray UI screenshot capture (no visual assertions — see NOTE above)', () => {
-	for (const width of [1280, 768, 390]) {
-		test(`staff users list at ${width}px`, async ({ page }) => {
-			await page.setViewportSize({ width, height: 900 });
+test.describe(
+	'Gray UI screenshot capture (no visual assertions — see NOTE above)',
+	{ tag: ['@design', '@shell', '@untracked'] },
+	() => {
+		for (const width of [1280, 768, 390]) {
+			test(`staff users list at ${width}px`, async ({ page }) => {
+				await page.setViewportSize({ width, height: 900 });
+				await loginAsStaffAdmin(page);
+
+				await expect(page.getByTestId(TABLE)).toBeVisible();
+				const rows = page.getByTestId(`${TABLE}-rows`);
+				await expect(rows).toBeVisible();
+
+				// Per-viewport structural checks (previously identical at all three
+				// widths, asserting nothing viewport-specific — F10):
+				if (width >= 1024) {
+					await expect(
+						page.getByTestId('app-shell-secondary-panel'),
+					).toBeVisible();
+				} else {
+					await expect(
+						page.getByTestId('app-shell-secondary-panel'),
+					).toHaveCount(0);
+				}
+				if (width < 768) {
+					await expect(page.getByTestId('app-shell-rail')).not.toBeVisible();
+				} else {
+					await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+				}
+				// The table must never force horizontal scroll at any of these
+				// widths — a collapsed/overflowing table would still pass a bare
+				// toBeVisible() but fails this bound.
+				const rowsScrollWidth = await rows.evaluate((el) => el.scrollWidth);
+				const cardClientWidth = await page
+					.getByTestId(`${TABLE}-card`)
+					.evaluate((el) => el.clientWidth);
+				expect(rowsScrollWidth).toBeGreaterThan(0);
+				expect(rowsScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+
+				await page.screenshot({
+					path: `test-results/gray-ui/staff-users-list-${width}.png`,
+					fullPage: true,
+				});
+			});
+		}
+
+		test('no-match state', async ({ page }) => {
+			await page.setViewportSize({ width: 1280, height: 900 });
 			await loginAsStaffAdmin(page);
 
 			await expect(page.getByTestId(TABLE)).toBeVisible();
-			const rows = page.getByTestId(`${TABLE}-rows`);
-			await expect(rows).toBeVisible();
-
-			// Per-viewport structural checks (previously identical at all three
-			// widths, asserting nothing viewport-specific — F10):
-			if (width >= 1024) {
-				await expect(
-					page.getByTestId('app-shell-secondary-panel'),
-				).toBeVisible();
-			} else {
-				await expect(page.getByTestId('app-shell-secondary-panel')).toHaveCount(
-					0,
-				);
-			}
-			if (width < 768) {
-				await expect(page.getByTestId('app-shell-rail')).not.toBeVisible();
-			} else {
-				await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-			}
-			// The table must never force horizontal scroll at any of these
-			// widths — a collapsed/overflowing table would still pass a bare
-			// toBeVisible() but fails this bound.
-			const rowsScrollWidth = await rows.evaluate((el) => el.scrollWidth);
-			const cardClientWidth = await page
-				.getByTestId(`${TABLE}-card`)
-				.evaluate((el) => el.clientWidth);
-			expect(rowsScrollWidth).toBeGreaterThan(0);
-			expect(rowsScrollWidth).toBeLessThanOrEqual(cardClientWidth + 1);
+			await page.getByTestId(`${TABLE}-search`).fill('zzz-no-match-xyz');
+			await expect(page.getByTestId(`${TABLE}-no-match`)).toBeVisible();
+			// The rows container must actually be gone, not merely obscured behind
+			// the no-match state — a stacked/overlapping render would still pass
+			// the toBeVisible() above.
+			await expect(page.getByTestId(`${TABLE}-rows`)).toHaveCount(0);
 
 			await page.screenshot({
-				path: `test-results/gray-ui/staff-users-list-${width}.png`,
+				path: 'test-results/gray-ui/staff-users-no-match.png',
 				fullPage: true,
 			});
 		});
-	}
 
-	test('no-match state', async ({ page }) => {
-		await page.setViewportSize({ width: 1280, height: 900 });
-		await loginAsStaffAdmin(page);
+		test('detail surface', async ({ page }) => {
+			await page.setViewportSize({ width: 1280, height: 900 });
+			await loginAsStaffAdmin(page);
 
-		await expect(page.getByTestId(TABLE)).toBeVisible();
-		await page.getByTestId(`${TABLE}-search`).fill('zzz-no-match-xyz');
-		await expect(page.getByTestId(`${TABLE}-no-match`)).toBeVisible();
-		// The rows container must actually be gone, not merely obscured behind
-		// the no-match state — a stacked/overlapping render would still pass
-		// the toBeVisible() above.
-		await expect(page.getByTestId(`${TABLE}-rows`)).toHaveCount(0);
+			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
 
-		await page.screenshot({
-			path: 'test-results/gray-ui/staff-users-no-match.png',
-			fullPage: true,
+			const viewLink = page.getByTestId(`${TABLE}-rows`).locator('a').first();
+			await viewLink.click();
+			await page.waitForURL(/\/staff\/staff-users\//);
+
+			await expect(page.getByTestId('staff-user-details-page')).toBeVisible();
+			await expect(
+				page.getByTestId('staff-user-details-heading'),
+			).toBeVisible();
+			// Detail routes are rail-only — the real invariant under test, not
+			// just "some page rendered".
+			await expect(page.getByTestId('app-shell-rail')).toBeVisible();
+			await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+
+			await page.screenshot({
+				path: 'test-results/gray-ui/staff-user-detail.png',
+				fullPage: true,
+			});
 		});
-	});
 
-	test('detail surface', async ({ page }) => {
-		await page.setViewportSize({ width: 1280, height: 900 });
-		await loginAsStaffAdmin(page);
+		test('destructive confirm dialog', async ({ page }) => {
+			await page.setViewportSize({ width: 1280, height: 900 });
+			await loginAsStaffAdmin(page);
 
-		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+			await mockInvitationDetails(page);
+			await page.goto(`/staff/invitations/${PENDING_INVITATION_ID}`);
+			await expect(
+				page.getByTestId('staff-invitation-details-page'),
+			).toBeVisible();
 
-		const viewLink = page.getByTestId(`${TABLE}-rows`).locator('a').first();
-		await viewLink.click();
-		await page.waitForURL(/\/staff\/staff-users\//);
+			await page.getByRole('button', { name: /revoke/i }).click();
 
-		await expect(page.getByTestId('staff-user-details-page')).toBeVisible();
-		await expect(page.getByTestId('staff-user-details-heading')).toBeVisible();
-		// Detail routes are rail-only — the real invariant under test, not
-		// just "some page rendered".
-		await expect(page.getByTestId('app-shell-rail')).toBeVisible();
-		await expect(page.getByTestId('app-shell-secondary-panel')).toBeVisible();
+			const dialog = page.getByRole('alertdialog');
+			await expect(dialog).toBeVisible();
 
-		await page.screenshot({
-			path: 'test-results/gray-ui/staff-user-detail.png',
-			fullPage: true,
+			// Poll until the dialog's own entry animation (scale/translate) has
+			// settled, instead of a fixed sleep tuned to one component library's
+			// timing — this app has migrated off HeroUI, so a HeroUI-tuned wait
+			// would be silently wrong on the next animation-timing change too.
+			await waitForBoundingBoxToSettle(dialog);
+
+			await page.screenshot({
+				path: 'test-results/gray-ui/destructive-confirm-dialog.png',
+				fullPage: true,
+			});
 		});
-	});
-
-	test('destructive confirm dialog', async ({ page }) => {
-		await page.setViewportSize({ width: 1280, height: 900 });
-		await loginAsStaffAdmin(page);
-
-		await mockInvitationDetails(page);
-		await page.goto(`/staff/invitations/${PENDING_INVITATION_ID}`);
-		await expect(
-			page.getByTestId('staff-invitation-details-page'),
-		).toBeVisible();
-
-		await page.getByRole('button', { name: /revoke/i }).click();
-
-		const dialog = page.getByRole('alertdialog');
-		await expect(dialog).toBeVisible();
-
-		// Poll until the dialog's own entry animation (scale/translate) has
-		// settled, instead of a fixed sleep tuned to one component library's
-		// timing — this app has migrated off HeroUI, so a HeroUI-tuned wait
-		// would be silently wrong on the next animation-timing change too.
-		await waitForBoundingBoxToSettle(dialog);
-
-		await page.screenshot({
-			path: 'test-results/gray-ui/destructive-confirm-dialog.png',
-			fullPage: true,
-		});
-	});
-});
+	},
+);

@@ -502,28 +502,32 @@ const openDrawerByCallSiteId: Record<
 	'staff-user-email-change': openChangeEmailDrawer,
 };
 
-test.describe('form-bearing drawer scroll geometry (#990 / PR #1054)', () => {
-	for (const viewport of DRAWER_VIEWPORTS) {
-		test.describe(`${viewport.name} ${viewport.width}x${viewport.height} viewport`, () => {
-			test.beforeEach(async ({ page }) => {
-				await page.setViewportSize({
-					width: viewport.width,
-					height: viewport.height,
+test.describe(
+	'form-bearing drawer scroll geometry (#990 / PR #1054)',
+	{ tag: ['@design', '@990'] },
+	() => {
+		for (const viewport of DRAWER_VIEWPORTS) {
+			test.describe(`${viewport.name} ${viewport.width}x${viewport.height} viewport`, () => {
+				test.beforeEach(async ({ page }) => {
+					await page.setViewportSize({
+						width: viewport.width,
+						height: viewport.height,
+					});
 				});
-			});
 
-			for (const callSite of DRAWER_FORM_CALL_SITES) {
-				test(`the real ${callSite.name} drawer scrolls its body and keeps its footer reachable`, async ({
-					page,
-				}, testInfo) => {
-					await openDrawerByCallSiteId[callSite.id](page);
-					await assertDrawerScrollGeometry(
+				for (const callSite of DRAWER_FORM_CALL_SITES) {
+					test(`the real ${callSite.name} drawer scrolls its body and keeps its footer reachable`, async ({
 						page,
-						testInfo,
-						callSite.drawerTestId,
-					);
-				});
-			}
-		});
-	}
-});
+					}, testInfo) => {
+						await openDrawerByCallSiteId[callSite.id](page);
+						await assertDrawerScrollGeometry(
+							page,
+							testInfo,
+							callSite.drawerTestId,
+						);
+					});
+				}
+			});
+		}
+	},
+);

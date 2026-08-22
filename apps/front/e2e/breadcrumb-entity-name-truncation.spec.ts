@@ -175,43 +175,47 @@ const assertLongNameClipsAndShortNameDoesNot = async (
 	).toBeLessThanOrEqual(short.clientWidth);
 };
 
-test.describe('breadcrumb entity-name truncation geometry (#973, real browser)', () => {
-	test.afterAll(async () => {
-		await closeEntityCrumbRenderer();
-	});
+test.describe(
+	'breadcrumb entity-name truncation geometry (#973, real browser)',
+	{ tag: ['@shell', '@973'] },
+	() => {
+		test.afterAll(async () => {
+			await closeEntityCrumbRenderer();
+		});
 
-	test('a long entity name is genuinely clipped by the real compiled CSS; a short one is not', async ({
-		page,
-	}) => {
-		const css = readCompiledAppCss();
-		await assertLongNameClipsAndShortNameDoesNot(page, css);
-	});
+		test('a long entity name is genuinely clipped by the real compiled CSS; a short one is not', async ({
+			page,
+		}) => {
+			const css = readCompiledAppCss();
+			await assertLongNameClipsAndShortNameDoesNot(page, css);
+		});
 
-	/**
-	 * Geometry regression proof, mirroring `profile-icon-picker-pin-geometry
-	 * .spec.ts`'s own mutation test. The baseline test above already renders
-	 * the real `EntityCrumb` component (see `helpers/render-entity-crumb
-	 * .tsx`), so a regression that removes `truncate` from `entity-crumb.tsx`
-	 * itself is already caught there — no CSS mutation needed for that case.
-	 * This second test covers the complementary failure: a CASCADE-level
-	 * regression where the component still emits the right class names but
-	 * something else (an app.css edit, a competing higher-specificity rule)
-	 * neutralizes what those classes are supposed to do. Rather than
-	 * editing source to prove this (would leave the working tree dirty for
-	 * a test-only check), the same effect is reproduced by appending a CSS
-	 * rule that wins the cascade and reverts exactly the three declarations
-	 * `truncate` establishes (`overflow: hidden; text-overflow: ellipsis;
-	 * white-space: nowrap`), targeting the exact real `data-testid` the
-	 * production node carries.
-	 */
-	test('is caught if truncation is removed (CSS-mutation proof)', async ({
-		page,
-	}) => {
-		const css = readCompiledAppCss();
-		const mutatedCss = `${css}\n[data-testid="app-shell-breadcrumb-entity-name"]{overflow:visible;text-overflow:clip;white-space:normal}`;
+		/**
+		 * Geometry regression proof, mirroring `profile-icon-picker-pin-geometry
+		 * .spec.ts`'s own mutation test. The baseline test above already renders
+		 * the real `EntityCrumb` component (see `helpers/render-entity-crumb
+		 * .tsx`), so a regression that removes `truncate` from `entity-crumb.tsx`
+		 * itself is already caught there — no CSS mutation needed for that case.
+		 * This second test covers the complementary failure: a CASCADE-level
+		 * regression where the component still emits the right class names but
+		 * something else (an app.css edit, a competing higher-specificity rule)
+		 * neutralizes what those classes are supposed to do. Rather than
+		 * editing source to prove this (would leave the working tree dirty for
+		 * a test-only check), the same effect is reproduced by appending a CSS
+		 * rule that wins the cascade and reverts exactly the three declarations
+		 * `truncate` establishes (`overflow: hidden; text-overflow: ellipsis;
+		 * white-space: nowrap`), targeting the exact real `data-testid` the
+		 * production node carries.
+		 */
+		test('is caught if truncation is removed (CSS-mutation proof)', async ({
+			page,
+		}) => {
+			const css = readCompiledAppCss();
+			const mutatedCss = `${css}\n[data-testid="app-shell-breadcrumb-entity-name"]{overflow:visible;text-overflow:clip;white-space:normal}`;
 
-		await expect(
-			assertLongNameClipsAndShortNameDoesNot(page, mutatedCss),
-		).rejects.toThrow();
-	});
-});
+			await expect(
+				assertLongNameClipsAndShortNameDoesNot(page, mutatedCss),
+			).rejects.toThrow();
+		});
+	},
+);

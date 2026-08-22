@@ -27,7 +27,11 @@ export default defineConfig({
 				inline: ['@org/client-ts', '@org/shared-ts'],
 			},
 		},
-		include: ['src/**/*.{test.ts,test.tsx}', 'e2e/helpers/**/*.test.ts'],
+		include: [
+			'src/**/*.{test.ts,test.tsx}',
+			'e2e/helpers/**/*.test.ts',
+			'e2e/__tests__/**/*.test.ts',
+		],
 		// Round 19 I3: the drawer-description contrast guard is the ONLY
 		// browser-launching test in the suite. It now runs in the e2e lane
 		// (which already provisions Chromium) via vitest.drawer.config.ts, so
@@ -35,7 +39,11 @@ export default defineConfig({
 		// unit-lane contributor or CI run needs to install a browser for a
 		// synthetic guard the live e2e already bounds — see
 		// vitest.drawer.config.ts.
-		exclude: ['src/styles/drawer-description-contrast.test.ts'],
+		exclude: [
+			'src/styles/drawer-description-contrast.test.ts',
+			// The e2e tag guard is pure static analysis (reads .spec.ts files);
+			// it runs in the vitest lane but belongs under e2e/ for proximity.
+		],
 		setupFiles: ['./vitest.setup.ts'],
 		// The default 5000ms per-test budget, combined with testing-library's
 		// default 1000ms waitFor/findBy* timeout, is tight enough to flake under

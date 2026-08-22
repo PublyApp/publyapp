@@ -5,7 +5,7 @@ import { STAFF_ADMIN_STORAGE_STATE } from './e2e/helpers/storage-state';
 const faultSpecs = ['**/auth-error.spec.ts', '**/log-leak.spec.ts'];
 const hermeticCounterSpecs = ['**/request-counter.spec.ts'];
 const authSetupSpecs = ['**/auth.setup.ts'];
-const helperSpecs = ['**/helpers/**'];
+const helperSpecs = ['**/helpers/**', '**/__tests__/**'];
 // #973 review round 3: this spec renders a real, app-independent
 // `page.setContent()` page — the REAL compiled production CSS
 // (`dist/client/assets/*.css`, built once per process) plus markup

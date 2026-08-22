@@ -123,6 +123,8 @@ pnpm --filter front exec vitest run src/components/ui/avatar.test.tsx
 
 For the full guide on writing and debugging integration tests, see [`docs/guides/api-integration-tests.md`](docs/guides/api-integration-tests.md).
 
+For when a change needs an end-to-end test (the five criteria) and the tag vocabulary, see [`docs/guides/e2e-coverage.md`](docs/guides/e2e-coverage.md) and [`docs/guides/e2e-tags.md`](docs/guides/e2e-tags.md).
+
 ## Architecture
 
 ### Monorepo Structure

@@ -66,134 +66,138 @@ const getCounter = async (
  * test — and any future counter-based test — can drop the project-ordering
  * requirement and run fully in parallel instead.
  */
-test.describe('staff invitations request counter (hermetic project)', () => {
-	test('clean load issues exactly one GET /staff/invitations request', async ({
-		page,
-	}) => {
-		// Deliberately NO X-E2E-Test-Marker header (yet): the sidecar does not
-		// read it, and the API's CORS policy does not allowlist it — a
-		// non-simple custom header on every request turns each API call into a
-		// blocked preflight and kills the login flow outright (captain-verified
-		// against the live stack: allow-headers = Content-Type, Accept,
-		// X-Session-Token, X-PublyApp-TenantId). When the sidecar buckets by
-		// marker, add the header AND extend the API CORS allowlist together.
-		await loginAsStaffAdmin(page);
-		await resetCounter(page);
-
-		const response = waitForStaffInvitationsGetResponse(page);
-		await page.goto('/staff/invitations');
-		await response;
-
-		const getCount = await getCounter(page, STAFF_INVITATIONS_PATH, 'GET');
-		const optionsCount = await getCounter(
+test.describe(
+	'staff invitations request counter (hermetic project)',
+	{ tag: ['@security', '@806'] },
+	() => {
+		test('clean load issues exactly one GET /staff/invitations request', async ({
 			page,
-			STAFF_INVITATIONS_PATH,
-			'OPTIONS',
-		);
-		const routeTotal = await getCounter(page, STAFF_INVITATIONS_PATH);
+		}) => {
+			// Deliberately NO X-E2E-Test-Marker header (yet): the sidecar does not
+			// read it, and the API's CORS policy does not allowlist it — a
+			// non-simple custom header on every request turns each API call into a
+			// blocked preflight and kills the login flow outright (captain-verified
+			// against the live stack: allow-headers = Content-Type, Accept,
+			// X-Session-Token, X-PublyApp-TenantId). When the sidecar buckets by
+			// marker, add the header AND extend the API CORS allowlist together.
+			await loginAsStaffAdmin(page);
+			await resetCounter(page);
 
-		expect(getCount).toBe(1);
-		expect(optionsCount).toBeLessThanOrEqual(MAX_PREFLIGHT_COUNT);
-		expect(routeTotal).toBe(getCount + optionsCount);
-	});
+			const response = waitForStaffInvitationsGetResponse(page);
+			await page.goto('/staff/invitations');
+			await response;
 
-	test('revisit reuses the fresh staff invitations query without another GET', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await resetCounter(page);
-
-		const initialResponse = waitForStaffInvitationsGetResponse(page);
-		await page.goto('/staff/invitations');
-		await initialResponse;
-		await expect(page.getByTestId('staff-invitations-table')).toBeVisible();
-
-		const initialGetCount = await getCounter(
-			page,
-			STAFF_INVITATIONS_PATH,
-			'GET',
-		);
-		const initialOptionsCount = await getCounter(
-			page,
-			STAFF_INVITATIONS_PATH,
-			'OPTIONS',
-		);
-
-		await page.getByRole('link', { name: 'All users' }).click();
-		await expect(page.getByTestId('staff-users-table')).toBeVisible();
-
-		const unexpectedGetResponse = page
-			.waitForResponse(
-				(response) =>
-					isApiPath(response.url(), STAFF_INVITATIONS_PATH) &&
-					response.request().method() === 'GET',
-				{ timeout: 1_500 },
-			)
-			.then(
-				() => true,
-				() => false,
+			const getCount = await getCounter(page, STAFF_INVITATIONS_PATH, 'GET');
+			const optionsCount = await getCounter(
+				page,
+				STAFF_INVITATIONS_PATH,
+				'OPTIONS',
 			);
-		await page.getByRole('link', { name: 'Invitations' }).click();
-		await expect(page.getByTestId('staff-invitations-table')).toBeVisible();
+			const routeTotal = await getCounter(page, STAFF_INVITATIONS_PATH);
 
-		expect(await unexpectedGetResponse).toBe(false);
-		expect(await getCounter(page, STAFF_INVITATIONS_PATH, 'GET')).toBe(
-			initialGetCount,
-		);
-		expect(
-			(await getCounter(page, STAFF_INVITATIONS_PATH, 'OPTIONS')) -
-				initialOptionsCount,
-		).toBeLessThanOrEqual(MAX_PREFLIGHT_COUNT);
-	});
+			expect(getCount).toBe(1);
+			expect(optionsCount).toBeLessThanOrEqual(MAX_PREFLIGHT_COUNT);
+			expect(routeTotal).toBe(getCount + optionsCount);
+		});
 
-	test('status filtering issues exactly one additional staff invitations GET', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await resetCounter(page);
-
-		const initialResponse = waitForStaffInvitationsGetResponse(page);
-		await page.goto('/staff/invitations');
-		await initialResponse;
-		await expect(page.getByTestId('staff-invitations-table')).toBeVisible();
-
-		const initialGetCount = await getCounter(
+		test('revisit reuses the fresh staff invitations query without another GET', async ({
 			page,
-			STAFF_INVITATIONS_PATH,
-			'GET',
-		);
-		const initialOptionsCount = await getCounter(
-			page,
-			STAFF_INVITATIONS_PATH,
-			'OPTIONS',
-		);
-		const filterResponse = waitForStaffInvitationsGetResponse(page);
+		}) => {
+			await loginAsStaffAdmin(page);
+			await resetCounter(page);
 
-		await page.getByRole('button', { name: 'All statuses' }).click();
-		await page
-			.getByRole('menuitemcheckbox', { name: 'Pending', exact: true })
-			.click();
-		await filterResponse;
+			const initialResponse = waitForStaffInvitationsGetResponse(page);
+			await page.goto('/staff/invitations');
+			await initialResponse;
+			await expect(page.getByTestId('staff-invitations-table')).toBeVisible();
 
-		const filteredGetCount = await getCounter(
-			page,
-			STAFF_INVITATIONS_PATH,
-			'GET',
-		);
-		const optionsCount = await getCounter(
-			page,
-			STAFF_INVITATIONS_PATH,
-			'OPTIONS',
-		);
+			const initialGetCount = await getCounter(
+				page,
+				STAFF_INVITATIONS_PATH,
+				'GET',
+			);
+			const initialOptionsCount = await getCounter(
+				page,
+				STAFF_INVITATIONS_PATH,
+				'OPTIONS',
+			);
 
-		expect(filteredGetCount).toBe(initialGetCount + 1);
-		// The preflight budget is per data call, not per test: the CORS preflight
-		// cache is keyed by full request URL, so the filtered `?status=pending`
-		// call is a distinct entry from the unfiltered one and legitimately emits
-		// its own `OPTIONS`. Counting cumulatively against a bound of one would
-		// fail on correct behaviour, so assert the delta the filter itself caused.
-		expect(optionsCount - initialOptionsCount).toBeLessThanOrEqual(
-			MAX_PREFLIGHT_COUNT,
-		);
-	});
-});
+			await page.getByRole('link', { name: 'All users' }).click();
+			await expect(page.getByTestId('staff-users-table')).toBeVisible();
+
+			const unexpectedGetResponse = page
+				.waitForResponse(
+					(response) =>
+						isApiPath(response.url(), STAFF_INVITATIONS_PATH) &&
+						response.request().method() === 'GET',
+					{ timeout: 1_500 },
+				)
+				.then(
+					() => true,
+					() => false,
+				);
+			await page.getByRole('link', { name: 'Invitations' }).click();
+			await expect(page.getByTestId('staff-invitations-table')).toBeVisible();
+
+			expect(await unexpectedGetResponse).toBe(false);
+			expect(await getCounter(page, STAFF_INVITATIONS_PATH, 'GET')).toBe(
+				initialGetCount,
+			);
+			expect(
+				(await getCounter(page, STAFF_INVITATIONS_PATH, 'OPTIONS')) -
+					initialOptionsCount,
+			).toBeLessThanOrEqual(MAX_PREFLIGHT_COUNT);
+		});
+
+		test('status filtering issues exactly one additional staff invitations GET', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await resetCounter(page);
+
+			const initialResponse = waitForStaffInvitationsGetResponse(page);
+			await page.goto('/staff/invitations');
+			await initialResponse;
+			await expect(page.getByTestId('staff-invitations-table')).toBeVisible();
+
+			const initialGetCount = await getCounter(
+				page,
+				STAFF_INVITATIONS_PATH,
+				'GET',
+			);
+			const initialOptionsCount = await getCounter(
+				page,
+				STAFF_INVITATIONS_PATH,
+				'OPTIONS',
+			);
+			const filterResponse = waitForStaffInvitationsGetResponse(page);
+
+			await page.getByRole('button', { name: 'All statuses' }).click();
+			await page
+				.getByRole('menuitemcheckbox', { name: 'Pending', exact: true })
+				.click();
+			await filterResponse;
+
+			const filteredGetCount = await getCounter(
+				page,
+				STAFF_INVITATIONS_PATH,
+				'GET',
+			);
+			const optionsCount = await getCounter(
+				page,
+				STAFF_INVITATIONS_PATH,
+				'OPTIONS',
+			);
+
+			expect(filteredGetCount).toBe(initialGetCount + 1);
+			// The preflight budget is per data call, not per test: the CORS preflight
+			// cache is keyed by full request URL, so the filtered `?status=pending`
+			// call is a distinct entry from the unfiltered one and legitimately emits
+			// its own `OPTIONS`. Counting cumulatively against a bound of one would
+			// fail on correct behaviour, so assert the delta the filter itself caused.
+			expect(optionsCount - initialOptionsCount).toBeLessThanOrEqual(
+				MAX_PREFLIGHT_COUNT,
+			);
+		});
+	},
+);

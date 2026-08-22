@@ -70,45 +70,49 @@ const mockTenantUsers = async (page: Page) => {
 	});
 };
 
-test.describe('tenant Users tab: the table owns its scroll, not the page', () => {
-	test('the app shell body does not scroll while the table body does', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockTenantUsers(page);
+test.describe(
+	'tenant Users tab: the table owns its scroll, not the page',
+	{ tag: ['@shell', '@806'] },
+	() => {
+		test('the app shell body does not scroll while the table body does', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantUsers(page);
 
-		await page.goto(`/staff/tenants/${TENANT_ID}/users`);
-		await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
-		await expect(
-			page.getByTestId('staff-tenant-users-table-rows'),
-		).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/users`);
+			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
+			await expect(
+				page.getByTestId('staff-tenant-users-table-rows'),
+			).toBeVisible();
 
-		// `.app-shell-main` is the shell's real scroll container (the document
-		// itself never scrolls — `.app-shell-body` is `h-dvh overflow-hidden`).
-		// It must stay bounded to the viewport: scrollHeight === clientHeight.
-		const shellMainOverflow = await page
-			.locator('.app-shell-main')
-			.evaluate((element) => element.scrollHeight - element.clientHeight);
-		expect(shellMainOverflow).toBeLessThanOrEqual(1);
+			// `.app-shell-main` is the shell's real scroll container (the document
+			// itself never scrolls — `.app-shell-body` is `h-dvh overflow-hidden`).
+			// It must stay bounded to the viewport: scrollHeight === clientHeight.
+			const shellMainOverflow = await page
+				.locator('.app-shell-main')
+				.evaluate((element) => element.scrollHeight - element.clientHeight);
+			expect(shellMainOverflow).toBeLessThanOrEqual(1);
 
-		// The table's own internal scroll container (`[data-slot="table-
-		// container"]`, rendered by the shared `Table` primitive) must overflow
-		// instead — that's where the 40 seeded rows actually scroll.
-		const tableContainerOverflow = await page
-			.locator(
-				'[data-testid="staff-tenant-users-table-card"] [data-slot="table-container"]',
-			)
-			.evaluate((element) => element.scrollHeight - element.clientHeight);
-		expect(tableContainerOverflow).toBeGreaterThan(0);
+			// The table's own internal scroll container (`[data-slot="table-
+			// container"]`, rendered by the shared `Table` primitive) must overflow
+			// instead — that's where the 40 seeded rows actually scroll.
+			const tableContainerOverflow = await page
+				.locator(
+					'[data-testid="staff-tenant-users-table-card"] [data-slot="table-container"]',
+				)
+				.evaluate((element) => element.scrollHeight - element.clientHeight);
+			expect(tableContainerOverflow).toBeGreaterThan(0);
 
-		// The toolbar and cursor footer stay pinned in view while rows scroll.
-		// The default ratio is 0 (one visible pixel passes) — ratio: 1 requires
-		// the whole element to be in the viewport (review-r1-tests.md F25).
-		await expect(
-			page.getByTestId('staff-tenant-users-table-toolbar'),
-		).toBeInViewport({ ratio: 1 });
-		await expect(
-			page.getByTestId('staff-tenant-users-table-footer'),
-		).toBeInViewport({ ratio: 1 });
-	});
-});
+			// The toolbar and cursor footer stay pinned in view while rows scroll.
+			// The default ratio is 0 (one visible pixel passes) — ratio: 1 requires
+			// the whole element to be in the viewport (review-r1-tests.md F25).
+			await expect(
+				page.getByTestId('staff-tenant-users-table-toolbar'),
+			).toBeInViewport({ ratio: 1 });
+			await expect(
+				page.getByTestId('staff-tenant-users-table-footer'),
+			).toBeInViewport({ ratio: 1 });
+		});
+	},
+);

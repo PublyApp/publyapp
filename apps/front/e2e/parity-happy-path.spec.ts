@@ -206,146 +206,159 @@ function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-test.describe('staff-users parity happy path', () => {
-	test('login renders seeded staff rows and required columns', async ({
-		page,
-	}) => {
-		await loginAndWaitForSeededRows(page);
-		await assertColumnShape(page);
-		await assertSeededRowsVisible(page);
-	});
+test.describe(
+	'staff-users parity happy path',
+	{ tag: ['@staff-dashboard', '@723'] },
+	() => {
+		test('login renders seeded staff rows and required columns', async ({
+			page,
+		}) => {
+			await loginAndWaitForSeededRows(page);
+			await assertColumnShape(page);
+			await assertSeededRowsVisible(page);
+		});
 
-	test('search filters and clears', async ({ page }) => {
-		await loginAndWaitForSeededRows(page);
-		await assertSeededRowsVisible(page);
+		test('search filters and clears', async ({ page }) => {
+			await loginAndWaitForSeededRows(page);
+			await assertSeededRowsVisible(page);
 
-		const search = searchInput(page);
-		await search.fill('admin');
-		await expect(page).toHaveURL(/[?&]q=admin/);
-		await expect(staffUserRow(page, 'staff-admin@example.com')).toBeVisible();
-		await expect(staffUserRow(page, 'staff-user@example.com')).toHaveCount(0);
-		await expect(staffUserRow(page, 'owner@publyapp.local')).toHaveCount(0);
+			const search = searchInput(page);
+			await search.fill('admin');
+			await expect(page).toHaveURL(/[?&]q=admin/);
+			await expect(staffUserRow(page, 'staff-admin@example.com')).toBeVisible();
+			await expect(staffUserRow(page, 'staff-user@example.com')).toHaveCount(0);
+			await expect(staffUserRow(page, 'owner@publyapp.local')).toHaveCount(0);
 
-		await search.fill('');
-		await expect(page).not.toHaveURL(/[?&]q=/);
-		await assertSeededRowsVisible(page);
-	});
+			await search.fill('');
+			await expect(page).not.toHaveURL(/[?&]q=/);
+			await assertSeededRowsVisible(page);
+		});
 
-	test('invite button navigates to invitations route', async ({ page }) => {
-		await loginAndWaitForSeededRows(page);
+		test('invite button navigates to invitations route', async ({ page }) => {
+			await loginAndWaitForSeededRows(page);
 
-		const invite = getInviteStaffUserButton(page);
-		await Promise.all([
-			page.waitForURL(new RegExp(`${STAFF_INVITATIONS_NEW_PATH}$`)),
-			invite.click(),
-		]);
-		await expect(page).toHaveURL(new RegExp(`${STAFF_INVITATIONS_NEW_PATH}$`));
-	});
+			const invite = getInviteStaffUserButton(page);
+			await Promise.all([
+				page.waitForURL(new RegExp(`${STAFF_INVITATIONS_NEW_PATH}$`)),
+				invite.click(),
+			]);
+			await expect(page).toHaveURL(
+				new RegExp(`${STAFF_INVITATIONS_NEW_PATH}$`),
+			);
+		});
 
-	test('invite form shows English invalid email validation', async ({
-		page,
-	}) => {
-		await loginAndWaitForSeededRows(page);
-		await navigateToInviteUsersPage(page);
+		test('invite form shows English invalid email validation', async ({
+			page,
+		}) => {
+			await loginAndWaitForSeededRows(page);
+			await navigateToInviteUsersPage(page);
 
-		await invitationEmailInput(page).fill('invalid-email');
-		await invitationSubmitButton(page).click();
+			await invitationEmailInput(page).fill('invalid-email');
+			await invitationSubmitButton(page).click();
 
-		await expect(page.getByText('Invalid email')).toBeVisible();
-	});
+			await expect(page.getByText('Invalid email')).toBeVisible();
+		});
 
-	test('invite form shows French invalid email validation', async ({
-		page,
-	}) => {
-		await setLocaleCookie(page, 'fr');
-		await loginAndWaitForSeededRows(page);
-		await navigateToInviteUsersPage(page);
+		test('invite form shows French invalid email validation', async ({
+			page,
+		}) => {
+			await setLocaleCookie(page, 'fr');
+			await loginAndWaitForSeededRows(page);
+			await navigateToInviteUsersPage(page);
 
-		await invitationEmailInput(page).fill('invalid-email');
-		await invitationSubmitButton(page).click();
+			await invitationEmailInput(page).fill('invalid-email');
+			await invitationSubmitButton(page).click();
 
-		await expect(page.getByText('e-mail non valide')).toBeVisible();
-	});
+			await expect(page.getByText('e-mail non valide')).toBeVisible();
+		});
 
-	test('invite form requires a profile and submits with intercepted bulk create', async ({
-		page,
-	}) => {
-		await loginAndWaitForSeededRows(page);
-		const profiles = await navigateToInviteUsersPage(page);
-		const firstProfile = profiles[0];
+		test('invite form requires a profile and submits with intercepted bulk create', async ({
+			page,
+		}) => {
+			await loginAndWaitForSeededRows(page);
+			const profiles = await navigateToInviteUsersPage(page);
+			const firstProfile = profiles[0];
 
-		expect(firstProfile, 'seeded staff profile for invite flow').toBeDefined();
-		if (!firstProfile) {
-			return;
-		}
+			expect(
+				firstProfile,
+				'seeded staff profile for invite flow',
+			).toBeDefined();
+			if (!firstProfile) {
+				return;
+			}
 
-		let capturedBody:
-			| {
-					invitations?: Array<{
-						email?: string;
-						profileIds?: string[];
-					}>;
-			  }
-			| undefined;
-		await page.route(`**${STAFF_INVITATIONS_BULK_PATH}`, async (route) => {
-			capturedBody = route.request().postDataJSON() as typeof capturedBody;
-			await route.fulfill({
-				status: 201,
-				contentType: 'application/json',
-				body: JSON.stringify({ created: 1 }),
+			let capturedBody:
+				| {
+						invitations?: Array<{
+							email?: string;
+							profileIds?: string[];
+						}>;
+				  }
+				| undefined;
+			await page.route(`**${STAFF_INVITATIONS_BULK_PATH}`, async (route) => {
+				capturedBody = route.request().postDataJSON() as typeof capturedBody;
+				await route.fulfill({
+					status: 201,
+					contentType: 'application/json',
+					body: JSON.stringify({ created: 1 }),
+				});
 			});
+
+			await invitationEmailInput(page).fill('new-staff@example.com');
+			await invitationSubmitButton(page).click();
+			await expect(
+				page.getByText('At least one profile is required'),
+			).toBeVisible();
+
+			const profileCheckbox = page.getByRole('checkbox', {
+				name: firstProfile.name,
+			});
+			await profileCheckbox.press('Space');
+			await expect(profileCheckbox).toBeChecked();
+			await invitationSubmitButton(page).click();
+
+			await expect(
+				page.getByText('Invitations sent successfully'),
+			).toBeVisible();
+			await page.waitForURL(/\/staff\/invitations$/);
+			expect(capturedBody?.invitations?.[0]?.email).toBe(
+				'new-staff@example.com',
+			);
+			expect(capturedBody?.invitations?.[0]?.profileIds).toEqual([
+				firstProfile.id,
+			]);
 		});
 
-		await invitationEmailInput(page).fill('new-staff@example.com');
-		await invitationSubmitButton(page).click();
-		await expect(
-			page.getByText('At least one profile is required'),
-		).toBeVisible();
+		test('theme toggle persists across reload', async ({ page }) => {
+			await loginAndWaitForSeededRows(page);
 
-		const profileCheckbox = page.getByRole('checkbox', {
-			name: firstProfile.name,
+			const themeToggle = page.getByTestId('theme-toggle');
+			await expect(themeToggle).toHaveAttribute(
+				'aria-label',
+				'Switch to dark mode',
+			);
+			await themeToggle.click();
+			await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+			await expect
+				.poll(() => getThemeState(page))
+				.toMatchObject({ hasDarkClass: true, dataTheme: 'dark' });
+
+			await page.reload({ waitUntil: 'domcontentloaded' });
+
+			await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+			await expect
+				.poll(() => getThemeState(page))
+				.toMatchObject({ hasDarkClass: true, dataTheme: 'dark' });
 		});
-		await profileCheckbox.press('Space');
-		await expect(profileCheckbox).toBeChecked();
-		await invitationSubmitButton(page).click();
 
-		await expect(page.getByText('Invitations sent successfully')).toBeVisible();
-		await page.waitForURL(/\/staff\/invitations$/);
-		expect(capturedBody?.invitations?.[0]?.email).toBe('new-staff@example.com');
-		expect(capturedBody?.invitations?.[0]?.profileIds).toEqual([
-			firstProfile.id,
-		]);
-	});
+		test('configured locale renders French copy', async ({ page }) => {
+			await setLocaleCookie(page, 'fr');
+			await loginAndWaitForSeededRows(page);
 
-	test('theme toggle persists across reload', async ({ page }) => {
-		await loginAndWaitForSeededRows(page);
-
-		const themeToggle = page.getByTestId('theme-toggle');
-		await expect(themeToggle).toHaveAttribute(
-			'aria-label',
-			'Switch to dark mode',
-		);
-		await themeToggle.click();
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-		await expect
-			.poll(() => getThemeState(page))
-			.toMatchObject({ hasDarkClass: true, dataTheme: 'dark' });
-
-		await page.reload({ waitUntil: 'domcontentloaded' });
-
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-		await expect
-			.poll(() => getThemeState(page))
-			.toMatchObject({ hasDarkClass: true, dataTheme: 'dark' });
-	});
-
-	test('configured locale renders French copy', async ({ page }) => {
-		await setLocaleCookie(page, 'fr');
-		await loginAndWaitForSeededRows(page);
-
-		await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-		await expect(getInviteStaffUserButton(page)).toHaveText(
-			'Inviter des utilisateurs',
-		);
-	});
-});
+			await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
+			await expect(getInviteStaffUserButton(page)).toHaveText(
+				'Inviter des utilisateurs',
+			);
+		});
+	},
+);
