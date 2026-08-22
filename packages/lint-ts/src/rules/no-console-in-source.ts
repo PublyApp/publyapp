@@ -1,5 +1,7 @@
 import type { Context, Fix, Fixer, Visitor } from '@oxlint/plugins';
+import type { ESTree } from '@oxlint/plugins';
 
+import { isImportDeclaration } from '../lib/ast.ts';
 import { isFrontSourceFile, normalizeFilename } from './path-scopes.ts';
 
 /**
@@ -65,90 +67,63 @@ const shouldCheckFile = (rawFilename: string): boolean => {
 	return isFrontSourceFile(filename) || isSharedSourceFile(filename);
 };
 
-const isLoggerImport = (node: {
-	type: string;
-	source?: { value?: unknown };
-}): boolean =>
-	node.type === 'ImportDeclaration' &&
-	node.source?.value === LOGGER_IMPORT_SOURCE;
+const isLoggerImport = (node: ESTree.ImportDeclaration): boolean =>
+	node.source.value === LOGGER_IMPORT_SOURCE;
 
-const hasLoggerSpecifier = (node: {
-	type: string;
-	specifiers?: Array<{
-		type: string;
-		imported?: { name?: string };
-		local?: { name?: string };
-	}>;
-}): boolean =>
+const hasLoggerSpecifier = (node: ESTree.ImportDeclaration): boolean =>
 	(node.specifiers ?? []).some(
 		(s) =>
 			s.type === 'ImportSpecifier' &&
-			s.imported?.name === 'logger' &&
-			s.local?.name === 'logger',
+			s.imported.type === 'Identifier' &&
+			s.imported.name === 'logger' &&
+			s.local.name === 'logger',
 	);
 
-const isConsoleIdentifier = (
-	node: { type: string; name?: string } | null | undefined,
-): boolean => node?.type === 'Identifier' && node.name === 'console';
+const isConsoleIdentifier = (node: ESTree.Node | null | undefined): boolean =>
+	node !== null &&
+	node !== undefined &&
+	node.type === 'Identifier' &&
+	(node as ESTree.IdentifierName).name === 'console';
 
-const hasConsoleImportSpecifier = (node: {
-	type: string;
-	specifiers?: Array<{ local?: { type: string; name?: string } }>;
-}): boolean =>
-	node.type === 'ImportDeclaration' &&
-	(node.specifiers ?? []).some((s) =>
-		isConsoleIdentifier(s.local as { type: string; name?: string } | undefined),
-	);
+const hasConsoleImportSpecifier = (node: ESTree.ImportDeclaration): boolean =>
+	node.specifiers.some((s) => isConsoleIdentifier(s.local));
 
-const hasConsoleParam = (node: {
-	type: string;
-	params?: unknown[];
-}): boolean => {
-	if (
-		node.type !== 'FunctionDeclaration' &&
-		node.type !== 'FunctionExpression' &&
-		node.type !== 'ArrowFunctionExpression'
-	) {
-		return false;
-	}
-	return (node.params ?? []).some((p) =>
-		isConsoleIdentifier(p as { type: string; name?: string } | undefined),
-	);
+const hasConsoleParam = (
+	node: ESTree.Function | ESTree.ArrowFunctionExpression,
+): boolean => {
+	return node.params.some((p) => isConsoleIdentifier(p));
 };
 
-const hasConsoleVariableDeclarator = (node: {
-	type: string;
-	id?: { type: string; name?: string };
-}): boolean =>
-	node.type === 'VariableDeclarator' &&
-	isConsoleIdentifier(node.id as { type: string; name?: string } | undefined);
+const hasConsoleVariableDeclarator = (
+	node: ESTree.VariableDeclarator,
+): boolean => isConsoleIdentifier(node.id);
 
-// oxlint AST nodes have [key: string]: unknown at runtime
-interface AstNode {
-	type: string;
-	[key: string]: unknown;
-}
-
+/**
+ * Recursively walk an AST node looking for a `console` shadow — either an
+ * import of `console`, a function parameter named `console`, or a variable
+ * declarator binding `console`.
+ */
 const nodeHasConsoleShadow = (
-	node: AstNode,
-	visited: WeakSet<AstNode> = new WeakSet(),
+	node: ESTree.Node,
+	visited: WeakSet<ESTree.Node> = new WeakSet(),
 ): boolean => {
 	if (visited.has(node)) {
 		return false;
 	}
 	visited.add(node);
 
+	const isFunc =
+		node.type === 'FunctionDeclaration' ||
+		node.type === 'FunctionExpression' ||
+		node.type === 'ArrowFunctionExpression';
+
 	if (
-		hasConsoleImportSpecifier(
-			node as unknown as {
-				type: string;
-				specifiers?: { local?: { type: string; name?: string } }[];
-			},
-		) ||
-		hasConsoleParam(node as unknown as { type: string; params?: unknown[] }) ||
-		hasConsoleVariableDeclarator(
-			node as unknown as { type: string; id?: { type: string; name?: string } },
-		)
+		(isImportDeclaration(node) && hasConsoleImportSpecifier(node)) ||
+		(isFunc &&
+			hasConsoleParam(
+				node as ESTree.Function | ESTree.ArrowFunctionExpression,
+			)) ||
+		(node.type === 'VariableDeclarator' && hasConsoleVariableDeclarator(node))
 	) {
 		return true;
 	}
@@ -160,7 +135,7 @@ const nodeHasConsoleShadow = (
 					child !== null &&
 					typeof child === 'object' &&
 					'type' in child &&
-					nodeHasConsoleShadow(child as AstNode, visited)
+					nodeHasConsoleShadow(child as ESTree.Node, visited)
 				) {
 					return true;
 				}
@@ -172,7 +147,7 @@ const nodeHasConsoleShadow = (
 			value !== null &&
 			typeof value === 'object' &&
 			'type' in value &&
-			nodeHasConsoleShadow(value as AstNode, visited)
+			nodeHasConsoleShadow(value as ESTree.Node, visited)
 		) {
 			return true;
 		}
@@ -181,29 +156,24 @@ const nodeHasConsoleShadow = (
 	return false;
 };
 
-const getConsoleMethod = (callee: {
-	type: string;
-	object?: { type: string; name?: string };
-	property?: { type: string; name?: string };
-	computed?: boolean;
-}): string | null => {
-	if (callee.type !== 'MemberExpression' || callee.computed) {
+const getConsoleMethod = (callee: ESTree.MemberExpression): string | null => {
+	if (callee.computed) {
 		return null;
 	}
 
-	if (
-		callee.object?.type !== 'Identifier' ||
-		callee.object.name !== 'console'
-	) {
+	// StaticMemberExpression — object and property are typed
+	const obj = callee.object;
+	if (obj.type !== 'Identifier' || obj.name !== 'console') {
 		return null;
 	}
 
-	if (callee.property?.type !== 'Identifier') {
+	const prop = callee.property;
+	if (prop.type !== 'Identifier') {
 		return null;
 	}
 
-	const method = callee.property.name;
-	return method !== undefined && CONSOLE_METHODS.has(method) ? method : null;
+	const method = prop.name;
+	return CONSOLE_METHODS.has(method) ? method : null;
 };
 
 export const noConsoleInSource = {
@@ -229,41 +199,26 @@ export const noConsoleInSource = {
 			return {};
 		}
 
-		let program: AstNode | null = null;
+		let program: ESTree.Program | null = null;
 		let hasLoggerImport = false;
 		let hasConsoleShadow = false;
 
 		return {
 			Program(node) {
-				program = node as unknown as AstNode;
-				hasLoggerImport = (node.body as unknown as AstNode[]).some(
-					(statement: AstNode) =>
-						isLoggerImport(
-							statement as unknown as {
-								type: string;
-								source?: { value?: unknown };
-							},
-						) &&
-						hasLoggerSpecifier(
-							statement as unknown as {
-								type: string;
-								specifiers?: {
-									type: string;
-									imported?: { name?: string };
-									local?: { name?: string };
-								}[];
-							},
-						),
-				);
+				program = node;
+				hasLoggerImport = node.body.some((statement) => {
+					if (!isImportDeclaration(statement)) return false;
+					return isLoggerImport(statement) && hasLoggerSpecifier(statement);
+				});
 				hasConsoleShadow = nodeHasConsoleShadow(program);
 			},
 			CallExpression(n) {
-				const callee = n.callee as unknown as {
-					type: string;
-					object?: { type: string; name?: string };
-					property?: { type: string; name?: string };
-					computed?: boolean;
-				};
+				const callee = n.callee;
+
+				if (callee.type !== 'MemberExpression') {
+					return;
+				}
+
 				const method = getConsoleMethod(callee);
 				if (method === null) return;
 
@@ -276,28 +231,10 @@ export const noConsoleInSource = {
 					fix(fixer: Fixer): Fix[] {
 						const fixes: Fix[] = [];
 
-						fixes.push(
-							fixer.replaceText(
-								callee as unknown as {
-									range: [number, number];
-									type: string;
-									[key: string]: unknown;
-								},
-								`logger.${method}`,
-							),
-						);
+						fixes.push(fixer.replaceText(callee, `logger.${method}`));
 
 						if (!hasLoggerImport && program) {
-							fixes.push(
-								fixer.insertTextBefore(
-									program as unknown as {
-										range: [number, number];
-										type: string;
-										[key: string]: unknown;
-									},
-									LOGGER_IMPORT,
-								),
-							);
+							fixes.push(fixer.insertTextBefore(program, LOGGER_IMPORT));
 						}
 
 						return fixes;

@@ -1,4 +1,5 @@
 import type { Context, Visitor } from '@oxlint/plugins';
+import type { ESTree } from '@oxlint/plugins';
 
 /**
  * `publy/arrow-function-components` — report React components defined as
@@ -9,12 +10,15 @@ import type { Context, Visitor } from '@oxlint/plugins';
  *    components."
  */
 
+/** Any function-like node that has a body and optional id. */
+type FunctionNode = ESTree.Function | ESTree.ArrowFunctionExpression;
+
 interface ImportInfo {
 	reactNamespaces: Set<string>;
 	reactImportedNames: Set<string>;
 	reactImportedNameToImported: Map<string, string>;
 	importedNames: Set<string>;
-	localFunctionDecls: Map<string, { body: unknown; id?: { name?: string } }>;
+	localFunctionDecls: Map<string, FunctionNode>;
 }
 
 interface BodyAnalysis {
@@ -23,31 +27,23 @@ interface BodyAnalysis {
 	callsHook: boolean;
 }
 
-// Minimal node shape — oxlint adds parent at runtime, we access via cast
-interface LcNode {
-	type: string;
-	body?: unknown;
-	id?: { name?: string };
-	generator?: boolean;
-	parent?: LcNode;
-	[key: string]: unknown;
-}
-
 const isPascalCase = (name: string): boolean => /^[A-Z]/.test(name);
 const isHookLike = (name: string): boolean => /^use[A-Z]/.test(name);
 const WRAPPER_FNS: ReadonlySet<string> = new Set(['memo', 'forwardRef']);
 
-const isJsxNode = (node: LcNode | null | undefined): boolean =>
+const isJsxNode = (node: ESTree.Node | null | undefined): boolean =>
 	node !== null &&
 	node !== undefined &&
 	(node.type === 'JSXElement' || node.type === 'JSXFragment');
 
-const expressionContainsJsx = (node: LcNode | null | undefined): boolean => {
+const expressionContainsJsx = (
+	node: ESTree.Expression | null | undefined,
+): boolean => {
 	if (!node) return false;
 	if (isJsxNode(node)) return true;
 
 	if (node.type === 'ParenthesizedExpression') {
-		return expressionContainsJsx(node.expression as LcNode);
+		return expressionContainsJsx(node.expression);
 	}
 
 	if (
@@ -56,85 +52,73 @@ const expressionContainsJsx = (node: LcNode | null | undefined): boolean => {
 		node.type === 'TSSatisfiesExpression' ||
 		node.type === 'TSNonNullExpression'
 	) {
-		return expressionContainsJsx(node.expression as LcNode);
+		return expressionContainsJsx(node.expression);
 	}
 
 	if (node.type === 'ConditionalExpression') {
 		return (
-			expressionContainsJsx(node.consequent as LcNode) ||
-			expressionContainsJsx(node.alternate as LcNode)
+			expressionContainsJsx(node.consequent) ||
+			expressionContainsJsx(node.alternate)
 		);
 	}
 
 	if (node.type === 'LogicalExpression') {
 		return (
-			expressionContainsJsx(node.left as LcNode) ||
-			expressionContainsJsx(node.right as LcNode)
+			expressionContainsJsx(node.left) || expressionContainsJsx(node.right)
 		);
 	}
 
 	return false;
 };
 
-const buildImportInfo = (programNode: LcNode): ImportInfo => {
+const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 	const reactNamespaces = new Set<string>();
 	const reactImportedNames = new Set<string>();
 	const reactImportedNameToImported = new Map<string, string>();
 	const importedNames = new Set<string>();
-	const localFunctionDecls = new Map<
-		string,
-		{ body: unknown; id?: { name?: string } }
-	>();
+	const localFunctionDecls = new Map<string, FunctionNode>();
 
-	const registerLocalFn = (
-		name: string,
-		fnNode: { body: unknown; id?: { name?: string } },
-	): void => {
+	const registerLocalFn = (name: string, fnNode: FunctionNode): void => {
 		if (name) localFunctionDecls.set(name, fnNode);
 	};
 
-	const collectVarDeclarators = (varDecl: LcNode): void => {
-		for (const decl of (varDecl.declarations as LcNode[]) ?? []) {
-			const name = (decl.id as { name?: string } | undefined)?.name;
-			const init = decl.init as LcNode | undefined;
+	const collectVarDeclarators = (varDecl: ESTree.VariableDeclaration): void => {
+		for (const decl of varDecl.declarations) {
+			const id = decl.id;
+			const name = id.type === 'Identifier' ? id.name : undefined;
+			const init = decl.init;
 			if (
 				name &&
 				init &&
 				(init.type === 'ArrowFunctionExpression' ||
 					init.type === 'FunctionExpression')
 			) {
-				registerLocalFn(
-					name,
-					init as unknown as { body: unknown; id?: { name?: string } },
-				);
+				registerLocalFn(name, init);
 			}
 		}
 	};
 
-	for (const node of (programNode.body as LcNode[]) ?? []) {
+	for (const node of programNode.body) {
 		if (node.type === 'ImportDeclaration') {
-			const source = String((node.source as LcNode | undefined)?.value ?? '');
+			const source = node.source.value;
 			const isReact = source === 'react';
 
-			for (const specifier of (node.specifiers as LcNode[]) ?? []) {
+			for (const specifier of node.specifiers) {
 				if (
 					specifier.type === 'ImportDefaultSpecifier' ||
 					specifier.type === 'ImportNamespaceSpecifier'
 				) {
-					const localName = (specifier.local as LcNode | undefined)?.name as
-						| string
-						| undefined;
+					const localName = specifier.local.name;
 					if (localName) {
 						importedNames.add(localName);
 						if (isReact) reactNamespaces.add(localName);
 					}
 				} else if (specifier.type === 'ImportSpecifier') {
-					const local = specifier.local as LcNode | undefined;
-					const imported = specifier.imported as LcNode | undefined;
-					const localName = local?.name as string | undefined;
-					const importedName = (imported?.name ?? local?.name) as
-						| string
-						| undefined;
+					const localName = specifier.local.name;
+					const importedName =
+						specifier.imported.type === 'Identifier'
+							? specifier.imported.name
+							: specifier.imported.value;
 					if (localName) {
 						importedNames.add(localName);
 						if (isReact && importedName) {
@@ -147,20 +131,20 @@ const buildImportInfo = (programNode: LcNode): ImportInfo => {
 				}
 			}
 		} else {
-			let fn: LcNode | null = null;
+			let fn: ESTree.Function | null = null;
 
 			if (node.type === 'FunctionDeclaration') {
 				fn = node;
 			} else if (
 				node.type === 'ExportDefaultDeclaration' &&
-				(node.declaration as LcNode | undefined)?.type === 'FunctionDeclaration'
+				node.declaration.type === 'FunctionDeclaration'
 			) {
-				fn = node.declaration as LcNode;
+				fn = node.declaration;
 			} else if (node.type === 'ExportNamedDeclaration') {
-				const decl = node.declaration as LcNode | undefined;
-				if (decl?.type === 'FunctionDeclaration') {
+				const decl = node.declaration;
+				if (decl && decl.type === 'FunctionDeclaration') {
 					fn = decl;
-				} else if (decl?.type === 'VariableDeclaration') {
+				} else if (decl && decl.type === 'VariableDeclaration') {
 					collectVarDeclarators(decl);
 				}
 			} else if (node.type === 'VariableDeclaration') {
@@ -168,12 +152,8 @@ const buildImportInfo = (programNode: LcNode): ImportInfo => {
 			}
 
 			if (fn) {
-				const id = fn.id as { name?: string } | undefined;
-				if (id?.name)
-					registerLocalFn(
-						id.name,
-						fn as unknown as { body: unknown; id?: { name?: string } },
-					);
+				const id = fn.id;
+				if (id) registerLocalFn(id.name, fn);
 			}
 		}
 	}
@@ -188,7 +168,7 @@ const buildImportInfo = (programNode: LcNode): ImportInfo => {
 };
 
 const analyseBody = (
-	body: LcNode | null | undefined,
+	body: ESTree.FunctionBody | null | undefined,
 	importInfo: ImportInfo,
 	recursingFor: Set<string> = new Set(),
 ): BodyAnalysis => {
@@ -206,21 +186,21 @@ const analyseBody = (
 		localFunctionDecls,
 	} = importInfo;
 
-	const isHookCallee = (callee: LcNode | undefined): boolean => {
+	const isHookCallee = (callee: ESTree.Expression | undefined): boolean => {
 		if (!callee) return false;
 
 		if (
 			callee.type === 'MemberExpression' &&
-			(callee.object as LcNode | undefined)?.type === 'Identifier' &&
-			reactNamespaces.has((callee.object as LcNode).name as string) &&
-			(callee.property as LcNode | undefined)?.type === 'Identifier' &&
-			isHookLike((callee.property as LcNode).name as string)
+			callee.object.type === 'Identifier' &&
+			reactNamespaces.has(callee.object.name) &&
+			callee.property.type === 'Identifier' &&
+			isHookLike(callee.property.name)
 		) {
 			return true;
 		}
 
 		if (callee.type === 'Identifier') {
-			const name = callee.name as string;
+			const name = callee.name;
 			if (reactImportedNameToImported.has(name)) {
 				const importedName = reactImportedNameToImported.get(name);
 				if (importedName && isHookLike(importedName)) return true;
@@ -230,49 +210,51 @@ const analyseBody = (
 			if (localFunctionDecls.has(name)) {
 				if (recursingFor.has(name)) return false;
 				const localFn = localFunctionDecls.get(name);
+				const fnBody = localFn?.body;
+				if (!fnBody) return false;
 				const next = new Set(recursingFor).add(name);
-				return analyseBody(localFn?.body as LcNode, importInfo, next).callsHook;
+				if (fnBody.type === 'BlockStatement') {
+					return analyseBody(fnBody, importInfo, next).callsHook;
+				}
+				// Arrow function expression body — check the expression directly
+				walkExprForHooks(fnBody);
+				return result.callsHook;
 			}
 			return true;
 		}
 		return false;
 	};
 
-	const walkExprForHooks = (expr: LcNode | null | undefined): void => {
+	const walkExprForHooks = (
+		expr: ESTree.Expression | null | undefined,
+	): void => {
 		if (!expr) return;
 		if (expr.type === 'CallExpression') {
-			const callee = expr.callee as LcNode | undefined;
+			const callee = expr.callee;
 			if (isHookCallee(callee)) result.callsHook = true;
-			for (const arg of (expr.arguments as LcNode[]) ?? [])
-				walkExprForHooks(arg);
-			if (callee?.type === 'MemberExpression')
-				walkExprForHooks(callee.object as LcNode);
+			for (const arg of expr.arguments) {
+				if (arg.type !== 'SpreadElement') walkExprForHooks(arg);
+			}
+			if (callee.type === 'MemberExpression') walkExprForHooks(callee.object);
 		}
-		if (expr.type === 'MemberExpression')
-			walkExprForHooks(expr.object as LcNode);
+		if (expr.type === 'MemberExpression') walkExprForHooks(expr.object);
 	};
 
-	const scanStatements = (statements: LcNode[]): void => {
+	const scanStatements = (statements: ESTree.Statement[]): void => {
 		for (const stmt of statements) {
 			if (!stmt) continue;
-			if (
-				stmt.type === 'FunctionDeclaration' ||
-				stmt.type === 'FunctionExpression' ||
-				stmt.type === 'ArrowFunctionExpression'
-			)
-				continue;
+			if (stmt.type === 'FunctionDeclaration') continue;
 
 			if (stmt.type === 'VariableDeclaration') {
-				for (const decl of (stmt.declarations as LcNode[]) ?? [])
-					walkExprForHooks(decl.init as LcNode);
+				for (const decl of stmt.declarations) walkExprForHooks(decl.init);
 				continue;
 			}
 			if (stmt.type === 'ExpressionStatement') {
-				walkExprForHooks(stmt.expression as LcNode);
+				walkExprForHooks(stmt.expression);
 				continue;
 			}
 			if (stmt.type === 'ReturnStatement') {
-				const arg = stmt.argument as LcNode | undefined;
+				const arg = stmt.argument;
 				if (arg === null || arg === undefined) continue;
 				if (expressionContainsJsx(arg)) {
 					result.returnsJsx = true;
@@ -285,61 +267,50 @@ const analyseBody = (
 				continue;
 			}
 			if (stmt.type === 'IfStatement') {
-				walkExprForHooks(stmt.test as LcNode);
-				scanStatements([stmt.consequent as LcNode]);
-				if (stmt.alternate) scanStatements([stmt.alternate as LcNode]);
+				walkExprForHooks(stmt.test);
+				scanStatements([stmt.consequent]);
+				if (stmt.alternate) scanStatements([stmt.alternate]);
 				continue;
 			}
 			if (stmt.type === 'BlockStatement') {
-				scanStatements(stmt.body as LcNode[]);
+				scanStatements(stmt.body);
 				continue;
 			}
 			if (stmt.type === 'WhileStatement' || stmt.type === 'DoWhileStatement') {
-				walkExprForHooks(stmt.test as LcNode);
-				scanStatements([stmt.body as LcNode]);
+				walkExprForHooks(stmt.test);
+				scanStatements([stmt.body]);
 				continue;
 			}
 			if (stmt.type === 'ForStatement') {
-				walkExprForHooks(stmt.test as LcNode);
-				scanStatements([stmt.body as LcNode]);
+				walkExprForHooks(stmt.test);
+				scanStatements([stmt.body]);
 				continue;
 			}
 			if (stmt.type === 'ForInStatement' || stmt.type === 'ForOfStatement') {
-				scanStatements([stmt.body as LcNode]);
+				scanStatements([stmt.body]);
 				continue;
 			}
 			if (stmt.type === 'SwitchStatement') {
-				walkExprForHooks(stmt.discriminant as LcNode);
-				for (const c of (stmt.cases as LcNode[]) ?? [])
-					scanStatements(c.consequent as LcNode[]);
+				walkExprForHooks(stmt.discriminant);
+				for (const c of stmt.cases) scanStatements(c.consequent);
 				continue;
 			}
 			if (stmt.type === 'TryStatement') {
-				scanStatements(
-					((stmt.block as LcNode | undefined)?.body as LcNode[]) ?? [],
-				);
-				const handler = stmt.handler as LcNode | undefined;
-				if (handler)
-					scanStatements(
-						((handler.body as LcNode | undefined)?.body as LcNode[]) ?? [],
-					);
-				const finalizer = stmt.finalizer as LcNode | undefined;
-				if (finalizer) scanStatements((finalizer.body as LcNode[]) ?? []);
+				scanStatements(stmt.block.body);
+				const handler = stmt.handler;
+				if (handler) scanStatements(handler.body.body);
+				const finalizer = stmt.finalizer;
+				if (finalizer) scanStatements(finalizer.body);
 			}
 		}
 	};
 
-	if (body.type !== 'BlockStatement') {
-		walkExprForHooks(body);
-		return result;
-	}
-
-	scanStatements(body.body as LcNode[]);
+	scanStatements(body.body);
 	return result;
 };
 
 const bodyLooksLikeComponent = (
-	body: LcNode | null | undefined,
+	body: ESTree.FunctionBody | null | undefined,
 	importInfo: ImportInfo,
 ): boolean => {
 	const { returnsJsx, returnsOnlyNullOrJsx, callsHook } = analyseBody(
@@ -352,28 +323,42 @@ const bodyLooksLikeComponent = (
 };
 
 const isWrapperCall = (
-	node: LcNode | null | undefined,
+	node: ESTree.Expression | null | undefined,
 	importInfo: ImportInfo,
 ): boolean => {
 	if (!node || node.type !== 'CallExpression') return false;
 
 	const { reactNamespaces, reactImportedNames } = importInfo;
-	const callee = node.callee as LcNode | undefined;
+	const callee = node.callee;
 
 	if (
-		callee?.type === 'MemberExpression' &&
-		(callee.object as LcNode | undefined)?.type === 'Identifier' &&
-		reactNamespaces.has((callee.object as LcNode).name as string) &&
-		(callee.property as LcNode | undefined)?.type === 'Identifier'
+		callee.type === 'MemberExpression' &&
+		callee.object.type === 'Identifier' &&
+		reactNamespaces.has(callee.object.name) &&
+		callee.property.type === 'Identifier'
 	) {
-		return WRAPPER_FNS.has((callee.property as LcNode).name as string);
+		return WRAPPER_FNS.has(callee.property.name);
 	}
 
-	if (callee?.type === 'Identifier') {
-		return reactImportedNames.has(callee.name as string);
+	if (callee.type === 'Identifier') {
+		return reactImportedNames.has(callee.name);
 	}
 
 	return false;
+};
+
+/** Empty program used as a fallback when the Program visitor hasn't fired yet. */
+const EMPTY_PROGRAM: ESTree.Program = {
+	type: 'Program',
+	body: [],
+	sourceType: 'module',
+	comments: [],
+	tokens: [],
+	parent: null,
+	range: [0, 0],
+	start: 0,
+	end: 0,
+	loc: { start: { line: 1, column: 0 }, end: { line: 1, column: 0 } },
 };
 
 export const arrowFunctionComponents = {
@@ -397,18 +382,16 @@ export const arrowFunctionComponents = {
 
 		return {
 			Program(node) {
-				importInfo = buildImportInfo(node as unknown as LcNode);
+				importInfo = buildImportInfo(node);
 			},
 			FunctionDeclaration(node) {
 				if (node.generator) return;
-				const info =
-					importInfo ?? buildImportInfo({ type: 'Program', body: [] });
+				const info = importInfo ?? buildImportInfo(EMPTY_PROGRAM);
 				const name = node.id?.name;
-				const parent = (node as unknown as LcNode).parent;
+				const parent = node.parent;
 
 				if (!node.id && parent?.type === 'ExportDefaultDeclaration') {
-					if (!bodyLooksLikeComponent(node.body as unknown as LcNode, info))
-						return;
+					if (!bodyLooksLikeComponent(node.body, info)) return;
 					context.report({
 						node,
 						messageId: 'useArrowFunctionAnonymous',
@@ -418,24 +401,25 @@ export const arrowFunctionComponents = {
 				}
 
 				if (!name || !isPascalCase(name)) return;
-				if (!bodyLooksLikeComponent(node.body as unknown as LcNode, info))
-					return;
-				context.report({ node, messageId: 'useArrowFunction', data: { name } });
+				if (!bodyLooksLikeComponent(node.body, info)) return;
+				context.report({
+					node,
+					messageId: 'useArrowFunction',
+					data: { name },
+				});
 			},
 			FunctionExpression(node) {
 				if (node.generator) return;
-				const parent = (node as unknown as LcNode).parent;
+				const parent = node.parent;
 				if (!parent) return;
-				const info =
-					importInfo ?? buildImportInfo({ type: 'Program', body: [] });
+				const info = importInfo ?? buildImportInfo(EMPTY_PROGRAM);
 
 				if (
 					parent.type === 'CallExpression' &&
 					isWrapperCall(parent, info) &&
-					(parent.arguments as LcNode[])[0] === (node as unknown as LcNode)
+					parent.arguments[0] === node
 				) {
-					if (!bodyLooksLikeComponent(node.body as unknown as LcNode, info))
-						return;
+					if (!bodyLooksLikeComponent(node.body, info)) return;
 					const name = node.id?.name ?? 'Component';
 					context.report({
 						node,

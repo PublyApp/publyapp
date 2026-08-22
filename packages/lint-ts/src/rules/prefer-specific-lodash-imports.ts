@@ -1,4 +1,5 @@
 import type { Context, Fix, Fixer, Visitor } from '@oxlint/plugins';
+import type { ESTree } from '@oxlint/plugins';
 
 /**
  * `publy/prefer-specific-lodash-imports` — enforce targeted `lodash/<helper>`
@@ -10,12 +11,8 @@ import type { Context, Fix, Fixer, Visitor } from '@oxlint/plugins';
 
 const LODASH_PACKAGE = 'lodash';
 
-const exportedName = (node: {
-	type: string;
-	name?: string;
-	value?: unknown;
-}): string =>
-	(node.type === 'Literal' ? (node.value as string) : node.name) ?? '';
+const exportedName = (node: ESTree.ModuleExportName): string =>
+	node.type === 'Literal' ? node.value : node.name;
 
 const getContextFilename = (context: Context): string => {
 	if (typeof context.filename === 'string') {
@@ -24,14 +21,8 @@ const getContextFilename = (context: Context): string => {
 	return '';
 };
 
-interface LodashImportSpecifier {
-	type: string;
-	imported: { type: string; name?: string; value?: unknown };
-	local: { name: string };
-}
-
 const buildSpecificImports = (
-	specifiers: LodashImportSpecifier[],
+	specifiers: ESTree.ImportSpecifier[],
 	importPathExtension: string,
 ): string => {
 	const lines = specifiers.map((specifier) => {
@@ -79,13 +70,11 @@ export const preferSpecificLodashImports = {
 					return;
 				}
 
-				const typedSpecifiers =
-					specifiers as unknown as LodashImportSpecifier[];
+				const typedSpecifiers = specifiers as ESTree.ImportSpecifier[];
 
 				const hasTypeOnlyDecl = node.importKind === 'type';
 				const hasTypeOnlySpecifier = typedSpecifiers.some(
-					(s: LodashImportSpecifier & { importKind?: string }) =>
-						s.importKind === 'type',
+					(s) => s.importKind === 'type',
 				);
 
 				if (hasTypeOnlyDecl || hasTypeOnlySpecifier) {

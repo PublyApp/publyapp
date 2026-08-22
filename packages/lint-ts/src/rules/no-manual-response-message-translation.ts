@@ -1,4 +1,5 @@
 import type { Context, Visitor } from '@oxlint/plugins';
+import type { ESTree } from '@oxlint/plugins';
 
 /**
  * `publy/no-manual-response-message-translation` - prevent local manual
@@ -16,20 +17,16 @@ const RESPONSE_MESSAGE_PREFIXES: readonly string[] = [
 const startsWithResponseMessagePrefix = (value: string): boolean =>
 	RESPONSE_MESSAGE_PREFIXES.some((prefix) => value.startsWith(prefix));
 
-const getLiteralString = (node: {
-	type: string;
-	value?: unknown;
-}): string | undefined => {
+const getLiteralString = (node: ESTree.Expression): string | undefined => {
 	if (node.type !== 'Literal' || typeof node.value !== 'string') {
 		return undefined;
 	}
 	return node.value;
 };
 
-const getFirstTemplateQuasiValue = (node: {
-	type: string;
-	quasis?: Array<{ value: { raw?: string; cooked?: string } }>;
-}): string | undefined => {
+const getFirstTemplateQuasiValue = (
+	node: ESTree.Expression,
+): string | undefined => {
 	if (node.type !== 'TemplateLiteral') {
 		return undefined;
 	}
@@ -41,13 +38,7 @@ const getFirstTemplateQuasiValue = (node: {
 };
 
 const isResponseMessageKeyArgument = (
-	node:
-		| {
-				type: string;
-				value?: unknown;
-				quasis?: Array<{ value: { raw?: string; cooked?: string } }>;
-		  }
-		| undefined,
+	node: ESTree.Expression | undefined,
 ): boolean => {
 	if (!node) {
 		return false;
@@ -66,11 +57,7 @@ const isResponseMessageKeyArgument = (
 	return false;
 };
 
-const isTranslationCallee = (node: {
-	type: string;
-	name?: string;
-	property?: { type: string; name?: string; value?: unknown };
-}): boolean => {
+const isTranslationCallee = (node: ESTree.Expression): boolean => {
 	if (node.type === 'Identifier') {
 		return node.name === 't';
 	}
@@ -80,9 +67,9 @@ const isTranslationCallee = (node: {
 	}
 
 	const prop = node.property;
-	if (!prop) return false;
 	if (prop.type === 'Identifier') return prop.name === 't';
-	if (prop.type === 'Literal') return prop.value === 't';
+	if (prop.type === 'Literal' && typeof prop.value === 'string')
+		return prop.value === 't';
 	return false;
 };
 
@@ -103,17 +90,19 @@ export const noManualResponseMessageTranslation = {
 	create(context: Context): Visitor {
 		return {
 			CallExpression(node) {
-				const callee = node.callee as unknown as Parameters<
-					typeof isTranslationCallee
-				>[0];
-
-				if (!isTranslationCallee(callee)) {
+				if (!isTranslationCallee(node.callee)) {
 					return;
 				}
 
-				const firstArgument = node.arguments[0] as unknown as Parameters<
-					typeof isResponseMessageKeyArgument
-				>[0];
+				const firstArgument = node.arguments[0];
+				if (
+					firstArgument === null ||
+					firstArgument === undefined ||
+					firstArgument.type === 'SpreadElement'
+				) {
+					return;
+				}
+
 				if (!isResponseMessageKeyArgument(firstArgument)) {
 					return;
 				}
