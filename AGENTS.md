@@ -136,6 +136,7 @@ apps/
 
 packages/
 ├── shared-ts/        # Shared TypeScript utilities, validations, i18n
+│   └── src/              # source code (lib/, utils/, validations/, types/, @types/, scripts/)
 ├── client-ts/        # Auto-generated TypeScript API client
 ├── lint-ts/          # Custom oxlint/ESLint rules (@org/lint-ts)
 ├── lint-cs/          # Custom Roslyn analyzers (PublyApp.Analyzers)

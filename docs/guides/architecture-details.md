@@ -93,7 +93,7 @@ DbSet<Project>            // Projects (future use)
 ## Internationalization (i18n)
 
 **Translation workflow:**
-1. Add translations to `packages/shared-ts/lib/i18n/json/*.json`
+1. Add translations to `packages/shared-ts/src/lib/i18n/json/*.json`
 2. Auto-generated C# constants in `apps/api/Localization/ResponseKeys.g.cs`
 3. Auto-generated Zod i18n map on `pnpm install`
 

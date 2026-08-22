@@ -177,7 +177,7 @@ concern. The broader "no `N×SELECT` in hot paths" rule from
 
 | Side | Constant | Source |
 |------|----------|--------|
-| Frontend | `BULK_ACTION_MAX_COUNT = 100` | `packages/shared-ts/lib/constants.ts` |
+| Frontend | `BULK_ACTION_MAX_COUNT = 100` | `packages/shared-ts/src/lib/constants.ts` |
 | Backend | validator `maxCount: 100` | per-handler body validator |
 
 The two MUST stay in sync. Comment on both sides referencing the other.

@@ -5,11 +5,11 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
 	test: {
 		environment: 'node',
-		include: ['lib/**/*.{test.ts,test.tsx}'],
+		include: ['src/**/*.{test.ts,test.tsx}'],
 	},
 	resolve: {
 		alias: {
-			'~': fileURLToPath(new URL('./', import.meta.url)),
+			'~': fileURLToPath(new URL('./src/', import.meta.url)),
 		},
 	},
 });

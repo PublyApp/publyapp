@@ -11,7 +11,7 @@
 4. Create validators using FluentValidation
 5. Register endpoints in `[Feature]Endpoints.cs`
 6. Add route constants to `apps/api/Lib/RoutePath.cs`
-7. Add translation keys to `packages/shared-ts/lib/i18n/json/en/response-message.json`
+7. Add translation keys to `packages/shared-ts/src/lib/i18n/json/en/response-message.json`
 8. If database changes: `just db-add MigrationName` then `just db-migrate`
 9. Generate client: `just generate-client`
 
@@ -20,7 +20,7 @@
 2. Add route to `app/routes.ts`
 3. Create query/mutation hooks using `react-query-kit`
 4. Use auto-generated API client from `packages/client-ts`
-5. Add translations to `packages/shared-ts/lib/i18n/json/en/common.json`
+5. Add translations to `packages/shared-ts/src/lib/i18n/json/en/common.json`
 
 ## Updating API Contract
 

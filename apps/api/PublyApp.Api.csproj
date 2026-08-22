@@ -51,7 +51,7 @@
 
 	<ItemGroup>
 		<EmbeddedResource
-			Include="../../packages/shared-ts/lib/profile-style/tenant-profile-icons.json"
+			Include="../../packages/shared-ts/src/lib/profile-style/tenant-profile-icons.json"
 			Link="Resources/profile-icons.json"
 			LogicalName="PublyApp.ProfileIcons.json" />
 	</ItemGroup>
@@ -84,7 +84,7 @@
 
 	<!-- Generate translation keys before build. -->
 	<PropertyGroup>
-		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared-ts\lib\i18n\json\response-message.en.json</TranslationJsonFile>
+		<TranslationJsonFile>$(MSBuildProjectDirectory)\..\..\packages\shared-ts\src\lib\i18n\json\response-message.en.json</TranslationJsonFile>
 		<GeneratedKeysFile>$(MSBuildProjectDirectory)\Localization\ResponseKeys.g.cs</GeneratedKeysFile>
 		<TranslationKeyGenProject>$(MSBuildProjectDirectory)\..\..\packages\scripts-cs\PublyApp.Scripts.csproj</TranslationKeyGenProject>
 	</PropertyGroup>

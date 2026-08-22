@@ -21,7 +21,7 @@
 		"**/*.tsx",
 		"server.mjs",
 		"scripts/**/*.mjs",
-		"../../packages/shared-ts/@types/**/*.d.ts"
+		"../../packages/shared-ts/src/@types/**/*.d.ts"
 	],
 	"exclude": ["node_modules", "dist", ".output"]
 }

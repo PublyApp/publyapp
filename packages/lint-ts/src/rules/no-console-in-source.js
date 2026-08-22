@@ -41,12 +41,12 @@ const isTestFile = (filename) =>
 	/(?:^|\/)[^/]+\.(?:test|spec)\.(?:ts|tsx|jsx|mjs|js)$/.test(filename);
 
 const isSharedSourceFile = (filename) =>
-	filename.startsWith('packages/shared-ts/') ||
-	filename.includes('/packages/shared-ts/');
+	filename.startsWith('packages/shared-ts/src/') ||
+	filename.includes('/packages/shared-ts/src/');
 
 const isSharedScriptFile = (filename) =>
-	filename.startsWith('packages/shared-ts/scripts/') ||
-	filename.includes('/packages/shared-ts/scripts/');
+	filename.startsWith('packages/shared-ts/src/scripts/') ||
+	filename.includes('/packages/shared-ts/src/scripts/');
 
 const isNodeCliFile = (filename) =>
 	/(?:^|\/)(?:bin|cli)\//.test(filename) ||
