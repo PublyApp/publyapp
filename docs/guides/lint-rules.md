@@ -9,8 +9,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/prefer-specific-lodash-imports`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/prefer-specific-lodash-imports.js`
-- **Spec:** `packages/lint-ts/src/rules/prefer-specific-lodash-imports.test.js`
+- **Source:** `packages/lint-ts/src/rules/prefer-specific-lodash-imports.ts`
+- **Spec:** `packages/lint-ts/src/rules/prefer-specific-lodash-imports.test.ts`
 - **AGENTS.md:** "Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package."
 - **Autofix:** yes (value-only named imports → specific subpath imports; `.mjs`-aware)
 - **Shipped in:** #463
@@ -19,8 +19,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-console-in-source`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-console-in-source.js`
-- **Spec:** `packages/lint-ts/src/rules/no-console-in-source.test.js`
+- **Source:** `packages/lint-ts/src/rules/no-console-in-source.ts`
+- **Spec:** `packages/lint-ts/src/rules/no-console-in-source.test.ts`
 - **AGENTS.md:** "Frontend/Node: use `logger` from `@org/shared-ts/lib/logger/iso-logger` (not `console.*`)."
 - **Autofix:** yes (`console.X` → `logger.X` + adds import)
 - **Shadow guard:** files declaring `const console = ...` are skipped
@@ -30,8 +30,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-direct-dayjs-in-components`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-direct-dayjs-in-components.js`
-- **Spec:** `packages/lint-ts/src/rules/no-direct-dayjs-in-components.test.js`
+- **Source:** `packages/lint-ts/src/rules/no-direct-dayjs-in-components.ts`
+- **Spec:** `packages/lint-ts/src/rules/no-direct-dayjs-in-components.test.ts`
 - **AGENTS.md:** "Day.js via `format-time.ts` utilities — never import dayjs directly in components."
 - **Autofix:** no
 - **Allowed surface:** date/time utility modules such as `apps/front/src/utils/format-time.ts`
@@ -41,8 +41,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-array-reduce`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-array-reduce.js`
-- **Spec:** `packages/lint-ts/src/rules/no-array-reduce.test.js`
+- **Source:** `packages/lint-ts/src/rules/no-array-reduce.ts`
+- **Spec:** `packages/lint-ts/src/rules/no-array-reduce.test.ts`
 - **AGENTS.md:** "No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`."
 - **Autofix:** no
 - **Note:** flags both `.reduce(...)` and `.reduceRight(...)` on any receiver, including optional-chaining (`arr?.reduce(...)`) and computed string-literal access (`arr['reduce'](...)`); `unicorn/no-array-reduce` already covers the base case — this rule adds `reduceRight`, bracket-access coverage, and the repo-specific guidance message.
@@ -52,8 +52,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-manual-response-message-translation`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-manual-response-message-translation.js`
-- **Spec:** `packages/lint-ts/src/rules/no-manual-response-message-translation.test.js`
+- **Source:** `packages/lint-ts/src/rules/no-manual-response-message-translation.ts`
+- **Spec:** `packages/lint-ts/src/rules/no-manual-response-message-translation.test.ts`
 - **AGENTS.md:** "Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site."
 - **Autofix:** no
 - **Shipped in:** #507
@@ -62,8 +62,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/arrow-function-components`
 
 - **Severity:** `"off"` (dormant)
-- **Source:** `packages/lint-ts/src/rules/arrow-function-components.js`
-- **Spec:** `packages/lint-ts/src/rules/arrow-function-components.test.js`
+- **Source:** `packages/lint-ts/src/rules/arrow-function-components.ts`
+- **Spec:** `packages/lint-ts/src/rules/arrow-function-components.test.ts`
 - **AGENTS.md:** "Arrow function components only — never `function` declarations for components."
 - **Autofix:** no
 - **Detection:** flags `FunctionDeclaration` (or `FunctionExpression` inside `memo`/`forwardRef`) whose name is PascalCase and whose body contains a `return` statement returning JSX (including ternary/logical/TS-wrapped returns), or calls at least one React hook and returns only null/JSX; pure helpers and non-PascalCase functions are left un-flagged
@@ -203,6 +203,6 @@ See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaff
 1. Pick an ID — `publy/<kebab-name>` for JS or `PUBLY00XX` for .NET.
 2. Mirror an existing rule's structure file-for-file.
 3. Write a co-located spec (oxlint test file or `*.Spec.cs`).
-4. Register in `packages/lint-ts/src/index.js` + `.oxlintrc.json` (JS) or `packages/lint-cs/DiagnosticCatalog.cs` + `DiagnosticIds.cs` + `AnalyzerReleases.Unshipped.md` (.NET).
+4. Register in `packages/lint-ts/src/index.ts` + `.oxlintrc.json` (JS) or `packages/lint-cs/DiagnosticCatalog.cs` + `DiagnosticIds.cs` + `AnalyzerReleases.Unshipped.md` (.NET).
 5. Ship **dormant** (`"off"` / `isEnabledByDefault: false`).
 6. Open a follow-up enforcement PR that refactors all existing offenders and flips the rule on.
