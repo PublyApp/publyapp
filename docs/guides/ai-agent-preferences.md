@@ -114,7 +114,7 @@ If a preference below conflicts with an existing guide, follow the existing guid
 - Prefer direct imports from the concrete frontend module file.
   - Example: `#app/components/iconify/iconify.tsx` instead of
     `#app/components/iconify/index.ts`.
-- Do not add new hand-written frontend barrel files under `apps/front/src` beyond the allowlist (`scripts/check-frontend-barrels.mjs`; retired `apps/old-front` allowlist archived)
+- Do not add new hand-written frontend barrel files under `apps/front/src` beyond the allowlist (`packages/scripts-ts/src/check-frontend-barrels.ts`; retired `apps/old-front` allowlist archived)
   default.
 - Keep a frontend barrel only when it is an intentional, narrow public facade
   with a documented reason.

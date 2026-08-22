@@ -96,4 +96,4 @@ public record ApiResponse {
   - Rationale: consistent formatting + environment-safe (browser/SSR) behavior
   - If a request/loader context provides a logger (e.g. React Router `args.context.logger` / `getServerLoader`), prefer `context.logger` over importing the global singleton so logs can be request-scoped
   - Avoid committing `console.*` in React components, hooks, libs, SSR entrypoints, etc.
-  - **Exceptions:** scripts/build tooling/config where importing the iso-logger isn't feasible (e.g. `scripts/**`, `apps/*/_vite/**`, `*.config.*`, `*.mjs`, `server.js`), or intentionally user-facing CLI output
+  - **Exceptions:** scripts/build tooling/config where importing the iso-logger isn't feasible (e.g. `packages/scripts-ts/**`, `apps/*/_vite/**`, `*.config.*`, `*.mjs`, `server.js`), or intentionally user-facing CLI output

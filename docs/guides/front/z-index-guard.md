@@ -219,7 +219,7 @@ Five components:
    nested rules, and braces inside custom-property values retain their real grammar. This proves what
    actually ships, including CSS imported through the JavaScript component graph rather than through
    `app.css`. This is the exact failure that killed the previous attempt, whose own fixture literals
-   reached the shipped stylesheet. It is the reason fixtures live in `scripts/`, outside any path the
+   reached the shipped stylesheet. It is the reason fixtures live in `packages/scripts-ts/`, outside any path the
    scanner watches.
 5. **Scale-definition integrity.** A Vite post-order transform hook records project CSS and script
    modules reached by the real build — from **both** the client and the SSR environment, so an
@@ -432,4 +432,4 @@ swallowed). That red is a true positive — the shipped CSS is polluted — not 
 source construct; the shipped stylesheet is worse for it even though no class is ever themed by that
 source position. If you need such a literal under `src/`, break the
 utility token so the scanner cannot see it (e.g. `z-[60]` → `z-\\[60\\]`, or spell it "a numeric
-stacking value"). The cleanest place for fixtures is `scripts/`, which the scanner never watches.
+stacking value"). The cleanest place for fixtures is `packages/scripts-ts/`, which the scanner never watches.

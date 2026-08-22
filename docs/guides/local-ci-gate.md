@@ -36,7 +36,7 @@ other gates' `Determine changed paths` pattern and covers: the workflow itself,
 `.oxlintrc.json`, `.oxfmtrc.json`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`,
 `turbo.json`, `.npmrc`, `Directory.Build.props`, `Directory.Build.targets`,
 `Directory.Packages.props`, `global.json`, `PublyApp.slnx`, `apps/**`, `packages/**`,
-`scripts/**`.
+`packages/scripts-ts/**`.
 
 ## The two targets
 
@@ -101,13 +101,13 @@ These are exempt in the drift manifest, each with a recorded reason:
 
 A hand-mirrored gate rots. Someone adds a step to a workflow, nobody adds it here, and
 `just ci` keeps printing PASSED while CI would fail. `just ci-drift`
-(`scripts/check-ci-drift.mjs`) exists to make that impossible to do quietly.
+(`packages/scripts-ts/src/check-ci-drift.ts`) exists to make that impossible to do quietly.
 
 ### Mechanism
 
 It parses every `.github/workflows/*.yml` and content-addresses each step — the `run:` or
 `uses:`, plus its `with:`, `env:`, `if:`, and `continue-on-error:` — then compares it against
-`scripts/ci-gate-manifest.json`, which holds one entry per step:
+`packages/scripts-ts/src/ci-gate-manifest.json`, which holds one entry per step:
 
 ```json
 "front-ci.yml::supply-chain::Typecheck front": {
@@ -141,7 +141,7 @@ human assertion, reviewed like any other code. No parser can decide whether `jus
 fragments of the `run:` block — would hand out confident green on a mirror that had quietly
 stopped matching. That is the failure this guard exists to prevent, so it is not simulated.
 
-The guard's own failure modes are covered by `scripts/check-ci-drift.test.mjs`
+The guard's own failure modes are covered by `packages/scripts-ts/src/check-ci-drift.test.ts`
 (`pnpm test:ci-drift`), which `just ci-drift` runs first. One of those tests asserts that
 this repo's real workflows are fully reconciled, so the guard cannot rot into a check that
 always returns green.
@@ -150,7 +150,7 @@ always returns green.
 
 1. Read the workflow step it points at.
 2. Mirror it in the relevant `ci-*` recipe, **or** decide it cannot run locally.
-3. Update `scripts/ci-gate-manifest.json`: set `mirror` (or `null`), write a real `reason`,
+3. Update `packages/scripts-ts/src/ci-gate-manifest.json`: set `mirror` (or `null`), write a real `reason`,
    and set `hash` to the value in the failure message.
 
 Do not bump the hash without doing step 1. The hash is only meaningful if someone looked.
@@ -160,7 +160,7 @@ Do not bump the hash without doing step 1. The hash is only meaningful if someon
 Recorded here rather than hidden, so they can be judged:
 
 - **`just ci-lint` does not lint the whole repo.** It uses CI's scope
-  (`apps/front packages/shared-ts scripts` — `scripts/` was added by #1017, which closed
+  (`apps/front packages/shared-ts packages/scripts-ts` — `packages/scripts-ts/` was added by #1017, which closed
   the gap where it had no CI lint coverage at all). Issue #803 owns broadening this gate to
   repo-wide `oxlint` and resolving the remaining pre-existing warnings. Until then,
   the narrower scope intentionally mirrors CI.
@@ -193,7 +193,7 @@ first and the second reporter succeeds later, the required context ends green ov
 work. Measured on this PR's head, a second reporter finished four minutes after the real gate.
 
 Two rules keep each of the four required contexts to exactly one producer, both enforced by
-`scripts/check-ci-gate-structure.mjs` (which the required `front-ci-gate` job runs as one of its
+`packages/scripts-ts/src/check-ci-gate-structure.ts` (which the required `front-ci-gate` job runs as one of its
 own steps):
 
 - Each gate job's `name:` is an **allowlist** expression — it resolves to the externally required
@@ -211,7 +211,7 @@ own steps):
   it, and this guard cannot evaluate GitHub expressions, so a new dynamic job name is a reviewed
   decision (add it to the authorized set in the guard) rather than something that arrives silently.
 
-`scripts/check-ci-drift.mjs` is deliberately blind here: it hashes step fields only
+`packages/scripts-ts/src/check-ci-drift.ts` is deliberately blind here: it hashes step fields only
 (`continue-on-error`, `env`, step `if`, `run`, `uses`, `with`), so adding a job-level `name:` to an
 unrelated job leaves every one of its manifest keys and hashes untouched. That is the drift guard's
 correct contract; required-context uniqueness is the structure guard's job.
@@ -333,7 +333,7 @@ not re-run, the tag is stale) and fails the job with an explicit "a full workflo
 required" message. The only working retry is **"Re-run all jobs"**, which re-runs `build` and
 pushes a fresh image set.
 
-The guard's behavior is proven by `scripts/ci-e2e-rerun-guard.test.mjs` (executes the real
+The guard's behavior is proven by `packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts` (executes the real
 `run:` body from the workflow against the fresh-run, full-rerun, and partial-rerun scenarios),
 which runs in `just ci-drift` and server-side in `front-ci.yml::gate-selftest`.
 

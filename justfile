@@ -68,13 +68,13 @@ dev-front port="5050":
 [unix]
 [positional-arguments]
 review-front *args:
-  node scripts/review-front.mjs "$@"
+  node packages/scripts-ts/src/review-front.ts "$@"
 
 [windows]
 [script("pwsh")]
 [positional-arguments]
 review-front *args:
-  node scripts/review-front.mjs @args
+  node packages/scripts-ts/src/review-front.ts @args
 
 # Start another worktree's API by PR/issue number, against the shared dev database.
 # Refuses to start if the branch carries a migration the database hasn't applied
@@ -82,13 +82,13 @@ review-front *args:
 [unix]
 [positional-arguments]
 review-api *args:
-  node scripts/review-api.mjs "$@"
+  node packages/scripts-ts/src/review-api.ts "$@"
 
 [windows]
 [script("pwsh")]
 [positional-arguments]
 review-api *args:
-  node scripts/review-api.mjs @args
+  node packages/scripts-ts/src/review-api.ts @args
 
 # Start docker services (postgres, etc.)
 dev-services:
@@ -122,7 +122,7 @@ publish-api $APP_ROLE="api":
 
 # Build + push the three GHCR deploy images from a clean checkout at REF (Actions is stalled).
 deploy-images ref="origin/develop":
-  node scripts/deploy-images.mjs {{ref}}
+  node packages/scripts-ts/src/deploy-images.ts {{ref}}
 
 # =============================================================================
 # Running
@@ -288,25 +288,25 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 # #1017 requires.
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
-  node --test ./scripts/codeowners-contract.test.mjs
+  pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
   pnpm test:ci-drift
-  node --test ./scripts/lint-front.test.mjs
-  node ./scripts/check-ci-drift.mjs
-  node --test ./scripts/ci-changed-paths.test.mjs
-  node --test ./scripts/ci-gate-bootstrap.test.mjs
-  node --test ./scripts/ci-gate-aggregation.test.mjs
-  node --test ./scripts/ci-e2e-rerun-guard.test.mjs
-  node --test ./scripts/check-ci-gate-structure.test.mjs
-  node ./scripts/check-ci-gate-structure.mjs
-  node --test ./scripts/require-linked-issue.test.mjs
-  node --test ./scripts/check-actions-pinned.test.mjs
-  node ./scripts/check-actions-pinned.mjs
+  pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
+  node ./packages/scripts-ts/src/check-ci-drift.ts
+  pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
+  pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
+  pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
+  pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
+  pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts
+  node ./packages/scripts-ts/src/check-ci-gate-structure.ts
+  pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
+  node --test ./packages/scripts-ts/src/check-actions-pinned.test.mjs
+  node ./packages/scripts-ts/src/check-actions-pinned.mjs
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:
   @echo "=== [gate] migration expand/contract guard ==="
-  node --test ./scripts/check-migration-expand-contract.test.mjs
-  node ./scripts/check-migration-expand-contract.mjs
+  pnpm --filter scripts-ts exec vitest run src/check-migration-expand-contract.test.ts
+  node ./packages/scripts-ts/src/check-migration-expand-contract.ts
 
 # Ensure the review-worktree pure-resolution logic remains covered in the gate.
 ci-review-worktree-resolution:
@@ -316,8 +316,8 @@ ci-review-worktree-resolution:
 # intentionally skipped, see docs/README.md's archive policy)
 ci-docs-archive-records:
   @echo "=== [gate] docs archive records ==="
-  node --test ./scripts/check-archive-records.test.mjs
-  node ./scripts/check-archive-records.mjs
+  pnpm --filter scripts-ts exec vitest run src/check-archive-records.test.ts
+  node ./packages/scripts-ts/src/check-archive-records.ts
 
 # Ensure the shared PR-closure projection cannot drift from the project's
 # durable config, board contract, or fail-closed security rules.
@@ -328,7 +328,7 @@ ci-project-closure-adapter:
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
-  node apps/front/scripts/assert-pinned.mjs
+  node apps/front/packages/scripts-ts/src/assert-pinned.ts
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
@@ -342,11 +342,11 @@ ci-format: format
 # repo. Issue #803 owns broadening that scope and resolving the remaining
 # repo-wide errors. Until then, this gate mirrors the narrower CI lint step
 # exactly — apps/front, packages/shared-ts, and (since #1017 closed the gap
-# where scripts/ had no CI lint coverage at all) scripts/. See
+# where packages/scripts-ts/ had no CI lint coverage at all) packages/scripts-ts/. See
 # docs/guides/local-ci-gate.md.
 ci-lint:
   @echo "=== [gate] lint ==="
-  node scripts/lint-front.mjs --quiet
+  node packages/scripts-ts/src/lint-front.ts --quiet
   pnpm lint:disables
   pnpm check:frontend-barrels
   pnpm --filter @org/lint-ts test
@@ -402,9 +402,9 @@ ci-spec-drift:
   @echo "=== [gate] openapi + client drift ==="
   dotnet tool restore
   just build-api-full
-  node ./scripts/check-tree-clean.mjs apps/api/openapi.json
+  node ./packages/scripts-ts/src/check-tree-clean.ts apps/api/openapi.json
   just generate-client
-  node ./scripts/check-tree-clean.mjs packages/client-ts
+  node ./packages/scripts-ts/src/check-tree-clean.ts packages/client-ts
   cd {{api_dir}} && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~OpenApiContractSpec"
 
 # front e2e: docker stack + playwright (e2e only; `just ci-full` runs this)
