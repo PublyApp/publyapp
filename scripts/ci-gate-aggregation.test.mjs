@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -57,12 +57,46 @@ const repoRoot = path.resolve(
 	'..',
 );
 
-const workflowFiles = [
-	'front-e2e.yml',
-	'front-ci.yml',
-	'openapi-spec-drift.yml',
-	'docs-archive.yml',
-];
+const workflowsDirectory = path.join(repoRoot, '.github/workflows');
+
+// Workflows that contain an aggregate gate job but intentionally do NOT have
+// that gate exercised by this fixture suite. Keep this empty unless a new
+// gate really cannot be covered — every entry needs a reason so the NEXT
+// gate cannot be forgotten silently.
+const IGNORED_GATE_WORKFLOWS = new Map([
+	// No ignored workflows today.
+]);
+
+const workflowFiles = readdirSync(workflowsDirectory)
+	.filter((entry) => entry.endsWith('.yml') || entry.endsWith('.yaml'))
+	.filter((file) => {
+		if (IGNORED_GATE_WORKFLOWS.has(file)) {
+			return false;
+		}
+
+		const document = parse(
+			readFileSync(path.join(workflowsDirectory, file), 'utf8'),
+		);
+		const gateSteps = document?.jobs?.gate?.steps;
+
+		if (!Array.isArray(gateSteps)) {
+			return false;
+		}
+
+		return gateSteps.some(
+			(step) => step?.env?.NEEDS_JSON === '${{ toJSON(needs) }}',
+		);
+	})
+	.sort();
+
+assert.ok(
+	workflowFiles.length > 0,
+	'expected at least one workflow with a gate job wiring NEEDS_JSON',
+);
+assert.ok(
+	workflowFiles.includes('quality-gate.yml'),
+	'ci-gate-aggregation: quality-gate.yml must be exercised (see #803 / PR #1156 R2)',
+);
 
 /**
  * Parses a real workflow file and returns the `run:` body of the `gate`

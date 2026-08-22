@@ -7,6 +7,37 @@ This matters more than it normally would: the repo is on a Free plan with a priv
 repo (2,000 Actions minutes/month), and July 2026 burned 2,202. Until the allowance
 resets and stays under budget, **this gate is the pre-merge net** — see issue #869.
 
+## Quality gate (issue #803)
+
+`quality-gate.yml` fails PRs on (a) any `oxlint` diagnostic repo-wide (via `pnpm lint` —
+`oxlint --quiet .` plus `lint:disables` and `check:frontend-barrels` — and the format
+check `pnpm format` which runs `oxfmt --check`) and (b) any .NET analyzer or code-style
+warning, because `Directory.Build.props` sets `TreatWarningsAsErrors` +
+`EnforceCodeStyleInBuild` so a `dotnet restore` + `dotnet build` of `PublyApp.slnx` with
+those props active is the gate, plus the custom analyzer tests in
+`packages/lint-cs` (`just test-analyzers`).
+
+Local mirror (same property, same commands CI runs):
+
+```bash
+pnpm format        # oxfmt --check over the repo globs in package.json
+pnpm lint          # repo-wide oxlint + disables/barrel guards
+just ci-quality    # pnpm format + pnpm lint + dotnet restore+build (PublyApp.slnx, APP_ROLE=api) + just test-analyzers
+# or the two halves separately:
+just ci-quality-dotnet   # dotnet restore + build (warnings as errors)
+just test-analyzers      # Roslyn analyzer unit suite
+```
+
+CI needs `APP_ROLE=api` + `TRUSTED_PROXY_CIDRS` for the build step (the build boots the
+app to emit `openapi.json`; without the pin it fails fast in Production). The recipes
+pin both (`just ci-quality-dotnet` and `quality-gate.yml::quality::{Restore,Build} .NET solution`
+both export `APP_ROLE=api`, `TRUSTED_PROXY_CIDRS=127.0.0.1/32`). Path filter mirrors the
+other gates' `Determine changed paths` pattern and covers: the workflow itself,
+`.oxlintrc.json`, `.oxfmtrc.json`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`,
+`turbo.json`, `.npmrc`, `Directory.Build.props`, `Directory.Build.targets`,
+`Directory.Packages.props`, `global.json`, `PublyApp.slnx`, `apps/**`, `packages/**`,
+`scripts/**`.
+
 ## The two targets
 
 |                                                                                                   | `just ci` | `just ci-full` |
