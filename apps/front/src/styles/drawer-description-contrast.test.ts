@@ -52,6 +52,7 @@ import { resolveEffectiveDeclarations } from './css-cascade-test-support';
 import {
 	DESCRIPTION_SELECTORS,
 	DRAWER_DESCRIPTION_CONSUMERS,
+	EXCLUDED_DESCRIPTION_SELECTORS,
 	type DrawerDescriptionConsumer,
 } from './drawer-description-inventory';
 
@@ -4646,6 +4647,58 @@ describe('drawer description text contrast (#1043)', () => {
 			}
 		},
 	);
+
+	// Issue #1086: the guard must DISCOVER `*-description`/`*-subtitle` classes
+	// declared in the real app.css instead of trusting `DESCRIPTION_SELECTORS`.
+	// Every such class must either be swept (in DESCRIPTION_SELECTORS) or be a
+	// verified exclusion (EXCLUDED_DESCRIPTION_SELECTORS) — else the guard
+	// fails loud, naming the offending class. The scan reads app.css through the
+	// same postcss parse the rest of the guard uses, so it sees exactly what the
+	// app ships; a class the browser cannot parse would have red the parse above.
+	const discoveredDescriptionClasses = (root: postcss.Root): Set<string> => {
+		const classes = new Set<string>();
+		const pattern = /-(description|subtitle)\b/;
+		root.walkRules((rule) => {
+			for (const entry of splitSelectorList(rule.selector)) {
+				for (const compound of splitCompounds(entry)) {
+					for (const token of tokenizeCompound(compound)) {
+						if (token.kind === 'class' && pattern.test(token.name)) {
+							classes.add(`.${token.name.slice(1)}`);
+						}
+					}
+				}
+			}
+		});
+		return classes;
+	};
+
+	test('every real *-description/*-subtitle class in app.css is inventoried or a verified exclusion (issue #1086)', () => {
+		const discovered = discoveredDescriptionClasses(appCssRoot);
+		const swept = new Set<string>(DESCRIPTION_SELECTORS);
+		const excluded = new Set<string>(EXCLUDED_DESCRIPTION_SELECTORS);
+		const orphan = [...discovered].filter(
+			(selector) => !swept.has(selector) && !excluded.has(selector),
+		);
+		expect(
+			orphan,
+			`${orphan.join(', ')} declared in app.css but missing from ` +
+				'DESCRIPTION_SELECTORS and EXCLUDED_DESCRIPTION_SELECTORS — add it ' +
+				'to the inventory (with its real surfaces) or to the exclusion ' +
+				'allowlist with a VERIFIED reason',
+		).toEqual([]);
+
+		// Fail loud the other direction: an inventory/exclusion entry that no
+		// longer exists in CSS is a stale contract, not silent coverage.
+		const allDeclared = new Set(discovered);
+		const stale = [...swept, ...excluded].filter(
+			(selector) => !allDeclared.has(selector),
+		);
+		expect(
+			stale,
+			`${stale.join(', ')} in the inventory/exclusion list but not declared ` +
+				'in app.css — remove the dead entry',
+		).toEqual([]);
+	});
 
 	test('enumerates exactly the real DrawerDescription call sites, tied to the browser inventory', () => {
 		// The enumeration must find every real consumer AND nothing extra, so a
