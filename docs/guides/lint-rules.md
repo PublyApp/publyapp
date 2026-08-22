@@ -80,9 +80,9 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Spec:** `packages/lint-ts/src/rules/arrow-function-components.test.ts`
 - **AGENTS.md:** "Arrow function components only — never `function` declarations for components."
 - **Autofix:** no
-- **Detection:** flags `FunctionDeclaration` (or `FunctionExpression` inside `memo`/`forwardRef`) whose name is PascalCase and whose body contains a `return` statement returning JSX (including ternary/logical/TS-wrapped returns), or calls at least one React hook and returns only null/JSX; pure helpers and non-PascalCase functions are left un-flagged
+- **Detection:** flags `FunctionDeclaration` (or `FunctionExpression` inside `memo`/`forwardRef`) whose name is PascalCase and whose body contains a `return` statement returning JSX (including ternary/logical/TS-wrapped returns), a call to a known renderer (`useRender`, `createElement`, `jsx`, `jsxs`, or `React.xxx` member form), or calls at least one React hook and returns only null/JSX; pure helpers and non-PascalCase functions are left un-flagged
 - **Shipped in:** #653 (dormant)
-- **Enforced in:** #1210 (137 offenders converted across `apps/front/src/**/*.tsx`)
+- **Enforced in:** #1210 (74 baseline offenders across 73 files in `apps/front/src/**/*.tsx`)
 
 ## Anti-slop rules (`tools/oxlint/anti-slop/`, vendored from dmmulroy/anti-slop)
 
