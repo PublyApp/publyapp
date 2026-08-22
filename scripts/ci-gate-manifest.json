@@ -611,10 +611,15 @@
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo with fetch-depth: 0 for full diff history. Locally the working tree already is the code under test."
 		},
-		"react-doctor.yml::react-doctor::Fetch base branch": {
-			"hash": "3dc593764f7e5605",
+		"react-doctor.yml::react-doctor::Resolve diff base": {
+			"hash": "b23f196ef69e9388",
 			"mirror": null,
-			"reason": "GitHub-only: fetches the base branch for diffing against. Locally origin/develop is already fetched."
+			"reason": "GitHub-only: derives a single DIFF_BASE per event (pull_request -> origin/<base_ref>, merge_group -> the merge-group base sha, push -> github.event.before with a HEAD~1 fallback for a brand-new branch) so the Assert diff base is present step and --base cannot drift. The checkout uses fetch-depth: 0, so the resolved base is present locally without fetching."
+		},
+		"react-doctor.yml::react-doctor::Assert diff base is present": {
+			"hash": "f7ac1d639d459c7a",
+			"mirror": null,
+			"reason": "GitHub-only: asserts the per-event DIFF_BASE (resolved by the Resolve diff base step) is present in the fetch-depth:0 checkout via `git rev-parse --verify --quiet \"${DIFF_BASE}^{commit}\"`, failing loud if it is not so an unexamined run can never be reported green. Round 2 fix: replaces the old `git fetch --no-tags ${DIFF_BASE}` step that aborted CI because for a PR the resolved value is the local remote-tracking ref name `origin/<base>`, which `git fetch` does not accept as a `<remote> <ref>` position. Locally origin/develop is already present, and the fetch-depth:0 checkout means the base sha is present without fetching."
 		},
 		"react-doctor.yml::react-doctor::Install (frozen lockfile)": {
 			"hash": "293f74eab0665ce4",
@@ -627,9 +632,9 @@
 			"reason": "GitHub-only pnpm setup. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"react-doctor.yml::react-doctor::React Doctor -- changed files, blocking on warnings": {
-			"hash": "57329f42bee84480",
+			"hash": "82df50b3c0fc96be",
 			"mirror": "just react-doctor",
-			"reason": "just react-doctor runs the identical pnpm dlx react-doctor@0.9.12 --scope files --base origin/<base> --blocking warning --no-telemetry --verbose from apps/front."
+			"reason": "just react-doctor runs the identical pnpm dlx react-doctor@0.9.12 --scope files --base <diff_base> --blocking warning --no-telemetry --verbose from apps/front; CI now supplies the per-event diff base via the Resolve diff base step instead of the hardcoded origin/<base_ref>."
 		},
 		"react-doctor.yml::react-doctor::Setup Node": {
 			"hash": "b80a345620484c88",

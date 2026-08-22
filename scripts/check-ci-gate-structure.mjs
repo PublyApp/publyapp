@@ -530,6 +530,54 @@ const checkWorkflow = (
 		);
 	}
 
+	// #1227 BLOCKER: `github.base_ref` is only populated on `pull_request`
+	// events — on `push` (and `merge_group`) it is empty, so a `git fetch
+	// origin/${{ github.base_ref }}` (or any `--base origin/${{ github.base_ref }}`)
+	// resolves to the literal `origin/` and abort with
+	// `Diff base branch "origin/" does not exist`, taking down the whole
+	// push-triggered run. develop went red on exactly this after #1193 (#1227).
+	// The diff base must be resolved per event instead (the react-doctor.yml
+	// fix does so via a derived `DIFF_BASE` env var). Reject the raw
+	// `origin/${{ github.base_ref }}` token anywhere in a workflow that also
+	// declares a `push` trigger — the only place the empty-expansion bug can
+	// actually bite. A workflow with NO push subscription is exempt: there
+	// `github.base_ref` is always set, so the pattern is legitimately safe.
+	const declaresPush = declaredTriggerEvents(onSection).includes('push');
+
+	if (declaresPush) {
+		const badBaseToken = 'origin/${{ github.base_ref }}';
+		const re = /origin\/\$\{\{\s*github\.base_ref\s*\}\}/;
+
+		for (const [jobId, job] of Object.entries(jobs)) {
+			const jobSteps = Array.isArray(job?.steps) ? job.steps : [];
+
+			for (const [index, step] of jobSteps.entries()) {
+				const haystack = [
+					typeof step?.run === 'string' ? step.run : null,
+					typeof step?.with === 'object' && step.with !== null
+						? JSON.stringify(step.with)
+						: null,
+					typeof step?.env === 'object' && step.env !== null
+						? JSON.stringify(step.env)
+						: null,
+				]
+					.filter((value) => value !== null)
+					.join('\n');
+
+				if (re.test(haystack)) {
+					const label =
+						typeof step?.name === 'string' && step.name.trim().length > 0
+							? step.name.trim()
+							: `step#${index}`;
+
+					findings.push(
+						`${file}::${jobId}::${label}: uses \`${badBaseToken}\`, which expands to the literal \`origin/\` on a \`push\` (and \`merge_group\`) run — \`github.base_ref\` is empty outside \`pull_request\` — so a push-triggered run fetches/diffs against a nonexistent \`origin/\` and aborts (#1227). This workflow subscribes to \`push\`, so the diff base must be resolved per event (e.g. a derived \`DIFF_BASE\` env: \`pull_request\` -> \`origin/<base_ref>\`, \`merge_group\` -> \`\${{ github.event.merge_group.base_sha }}\`, \`push\` -> \`\${{ github.event.before }}\` with a \`HEAD~1\` fallback) and that value used for both the fetch and \`--base\`.`,
+					);
+				}
+			}
+		}
+	}
+
 	const changes = jobs[changesJob];
 
 	if (changes === undefined) {

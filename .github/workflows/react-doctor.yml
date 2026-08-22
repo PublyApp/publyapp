@@ -136,15 +136,62 @@ jobs:
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
-      - name: Fetch base branch
-        run: git fetch --no-tags origin ${{ github.base_ref }}
+      # #1227: `github.base_ref` is empty outside `pull_request`, so the
+      # push-triggered run that previously fetched `origin/${{ github.base_ref }}`
+      # resolved to the literal `origin/` and aborted with
+      # "Diff base branch \"origin/\" does not exist" — develop went red on this
+      # after #1193. Resolve the diff base per event INTO A SINGLE VARIABLE and
+      # use that same value for both the presence assertion and `--base`, so the
+      # two can never drift apart:
+      #   - pull_request -> origin/<base_ref>   (the PR's base branch)
+      #   - merge_group  -> the merge group's base sha (a full sha, present)
+      #   - push         -> github.event.before  (the sha before the push);
+      #                     a newly-pushed branch has `before` = the all-zero
+      #                     sha, so fall back to HEAD~1.
+      #
+      # The checkout above uses fetch-depth: 0, so origin/<base>, the merge_group
+      # base sha, and the push `before` sha are all present locally — there is no
+      # need to fetch. The assert step below fails loud if the resolved base is
+      # somehow absent (so an unexamined run can never be reported as a pass),
+      # instead of running a `git fetch <resolved-value>` that (for a PR) passed
+      # the local remote-tracking ref name `origin/develop` where `git fetch`
+      # expects `<remote> <ref>` and aborted CI.
+      - name: Resolve diff base
+        id: diff-base
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          MERGE_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "diff_base=origin/${BASE_REF}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "diff_base=${MERGE_BASE_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            # push (or anything else): prefer the pre-push sha, fall back to HEAD~1.
+            if [ -n "${PUSH_BEFORE}" ] && [ "${PUSH_BEFORE}" != "0000000000000000000000000000000000000000" ]; then
+              echo "diff_base=${PUSH_BEFORE}" >> "$GITHUB_OUTPUT"
+            else
+              echo "diff_base=HEAD~1" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Assert diff base is present
+        env:
+          DIFF_BASE: ${{ steps.diff-base.outputs.diff_base }}
+        run: |
+          if ! git rev-parse --verify --quiet "${DIFF_BASE}^{commit}" >/dev/null; then
+            echo "::error::diff base '${DIFF_BASE}' is not present in the checkout -- the changed-files scope cannot be computed, so nothing was examined. Refusing to pass." >&2
+            exit 1
+          fi
+          echo "diff base: ${DIFF_BASE} ($(git rev-parse --short "${DIFF_BASE}"))"
 
       - name: React Doctor -- changed files, blocking on warnings
         working-directory: apps/front
         run: >-
           pnpm dlx react-doctor@${{ env.REACT_DOCTOR_VERSION }}
           --scope files
-          --base origin/${{ github.base_ref }}
+          --base ${{ steps.diff-base.outputs.diff_base }}
           --blocking warning
           --no-telemetry
           --verbose
