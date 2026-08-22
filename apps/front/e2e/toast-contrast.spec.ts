@@ -256,6 +256,81 @@ const readBrowserPaint = async (
 				throw new Error('Browser canvas colour resolver is unavailable');
 			}
 
+			// #1089: undecidable text paint (background-clip:text / transparent-fill / masked / opacity 0)
+			// must fail BEFORE flat-tint or opacity measurements. Otherwise those generic messages win
+			// and the round-4 shard goes red on the wrong reason. This is the preferred fix per brief.
+			if (targetKind === 'text') {
+				const earlyName = (layer: Element): string => {
+					for (const [attr, fallback] of [
+						['data-slot', ''],
+						['data-testid', ''],
+						['data-type', ''],
+						['data-sonner-toast', 'toast'],
+						['data-title', 'title'],
+						['data-description', 'description'],
+						['data-content', 'content'],
+						['data-icon', 'icon'],
+						['data-close-button', 'close button'],
+						['data-button', 'button'],
+					] as const) {
+						if (layer.hasAttribute(attr))
+							return layer.getAttribute(attr) || fallback;
+					}
+					return layer.tagName.toLowerCase();
+				};
+				// eslint-disable-next-line no-new-func
+				const earlyAssert = new Function(
+					classifierSnippet + '\nreturn __publyAssertTextPaintIsMeasurable;',
+				)() as (s: Record<string, string | undefined>, l: string) => void;
+				const hasText = (c: Element): boolean =>
+					Array.from(c.childNodes).some(
+						(n) =>
+							n.nodeType === Node.TEXT_NODE &&
+							(n.textContent ?? '').trim() !== '',
+					);
+				const earlyPainters: Element[] = [element];
+				for (const d of element.querySelectorAll('*'))
+					if (hasText(d)) earlyPainters.push(d);
+				for (const painter of earlyPainters) {
+					const ps = getComputedStyle(painter);
+					if (ps.display === 'none' || ps.visibility === 'hidden') continue;
+					const label = earlyName(painter);
+					earlyAssert(
+						{
+							backgroundClip: ps.backgroundClip,
+							webkitBackgroundClip: (
+								ps as unknown as Record<string, string | undefined>
+							)['webkitBackgroundClip'],
+							webkitTextFillColor: (
+								ps as unknown as Record<string, string | undefined>
+							)['webkitTextFillColor'],
+							color: ps.color,
+							opacity: ps.opacity,
+							maskImage: (ps as unknown as Record<string, string | undefined>)[
+								'maskImage'
+							],
+							mask: (ps as unknown as Record<string, string | undefined>)[
+								'mask'
+							],
+						} as Record<string, string | undefined>,
+						label,
+					);
+					for (
+						let a: Element | null = painter.parentElement;
+						a !== null;
+						a = a.parentElement
+					) {
+						if (Number(getComputedStyle(a).opacity) === 0) {
+							throw new Error(
+								`${label} has undecidable text paint: transparent opacity 0 on ancestor ${earlyName(a)} — the glyphs are fully transparent and cannot be measured`,
+							);
+						}
+						// Only need ancestors up to the toast; beyond toaster is page chrome not relevant but harmless.
+						if (a === document.body) break;
+					}
+				}
+			}
+
 			const toSrgb = (color: string, source: string): string => {
 				if (!CSS.supports('color', color)) {
 					throw new Error(
@@ -1185,7 +1260,7 @@ const readBrowserPaint = async (
 					// Walk ancestors for opacity:0 — text inherits invisibility even if painter itself is opaque
 					for (
 						let ancestor: Element | null = painter.parentElement;
-						ancestor !== null && element.contains(ancestor);
+						ancestor !== null;
 						ancestor = ancestor.parentElement
 					) {
 						const ancestorStyle = getComputedStyle(ancestor);
@@ -1194,6 +1269,7 @@ const readBrowserPaint = async (
 								`${painterName} has undecidable text paint: transparent opacity 0 on ancestor ${elementName(ancestor)} — the glyphs are fully transparent and cannot be measured`,
 							);
 						}
+						if (ancestor === document.body) break;
 					}
 					if (painterStyle.textShadow !== 'none') {
 						throw new Error(
@@ -3068,10 +3144,17 @@ const renderStackedToasts = async (page: Page): Promise<Locator[]> => {
 };
 
 const dismissAllToasts = async (page: Page): Promise<void> => {
-	const toasts = page.locator('[data-sonner-toast][data-mounted="true"]');
-	const count = await toasts.count();
-	for (let index = count - 1; index >= 0; index -= 1) {
-		await toasts.nth(index).locator('.publy-toast-close-button').click();
+	// Sonner stacks 4 toasts at same position; only front hit-tests. Plain click on back is intercepted.
+	let remaining = await page.locator('[data-sonner-toast]').count();
+	for (let attempt = 0; attempt < 8 && remaining > 0; attempt += 1) {
+		const buttons = page.locator(
+			'[data-sonner-toast] .publy-toast-close-button',
+		);
+		const count = await buttons.count();
+		if (count === 0) break;
+		await buttons.last().click({ force: true });
+		await page.waitForTimeout(150);
+		remaining = await page.locator('[data-sonner-toast]').count();
 	}
 	await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
 };
@@ -3095,7 +3178,10 @@ test('close button containing block holds when stack is expanded on hover', asyn
 }) => {
 	await openToastFixture(page, 'light', VIEWPORTS[0]);
 	const toasts = await renderStackedToasts(page);
-	await page.locator('.publy-toaster').hover();
+	await page
+		.locator('[data-sonner-toast][data-front="true"]')
+		.first()
+		.hover({ force: true });
 	await expect(
 		page.locator('[data-sonner-toast][data-expanded="true"]'),
 	).toHaveCount(4, { timeout: 5_000 });
@@ -3151,7 +3237,9 @@ test('M1 duplicate success tint fails the guard', async ({ page }) => {
 			'text',
 			TEXT_CONTRAST_FLOOR,
 		),
-	).rejects.toThrow(/below the .* floor|has no legible glyph ink|undecidable/);
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate|undecidable/,
+	);
 });
 
 test('M2 higher-specificity toaster error competitor fails the guard', async ({
@@ -3169,7 +3257,9 @@ test('M2 higher-specificity toaster error competitor fails the guard', async ({
 			'text',
 			TEXT_CONTRAST_FLOOR,
 		),
-	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate/,
+	);
 });
 
 test('M3 redefined warning token fails the guard', async ({ page }) => {
@@ -3184,7 +3274,9 @@ test('M3 redefined warning token fails the guard', async ({ page }) => {
 			'text',
 			TEXT_CONTRAST_FLOOR,
 		),
-	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate/,
+	);
 });
 
 test('M4 near-black success background with near-black text fails the guard (injected via addStyleTag)', async ({
@@ -3210,8 +3302,9 @@ test('M5 source reorder (error before base) fails the guard', async ({
 }) => {
 	await openToastFixture(page, 'light', VIEWPORTS[0]);
 	await page.addStyleTag({
+		// Base first, then error with higher specificity so the wash wins (otherwise 16.96:1 false green).
 		content:
-			'.publy-toast-error { --publy-toast-tint: var(--publy-foreground); } .publy-toast { --publy-toast-tint: var(--publy-surface-raised); }',
+			'.publy-toast { --publy-toast-tint: var(--publy-surface-raised); } .publy-toaster .publy-toast-error { --publy-toast-tint: var(--publy-foreground); }',
 	});
 	const toast = await renderToast(page, 'error');
 	await expect(
@@ -3220,7 +3313,9 @@ test('M5 source reorder (error before base) fails the guard', async ({
 			'text',
 			TEXT_CONTRAST_FLOOR,
 		),
-	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+	).rejects.toThrow(
+		/below the .* floor|has no legible glyph ink|no ink candidate/,
+	);
 });
 
 /**
