@@ -1320,6 +1320,15 @@ export function createFindPostsForTenantResponseFromDiscriminatorValue(parseNode
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindProjectsForTenantResponse}
+ */
+// @ts-ignore
+export function createFindProjectsForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindProjectsForTenantResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindStaffInvitationsResult}
  */
 // @ts-ignore
@@ -1703,6 +1712,15 @@ export function createPostUpdatedFromDiscriminatorValue(parseNode: ParseNode | u
 // @ts-ignore
 export function createProfileItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProfileItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ProjectListItem}
+ */
+// @ts-ignore
+export function createProjectListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoProjectListItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3718,6 +3736,17 @@ export function deserializeIntoFindPostsForTenantResponse(findPostsForTenantResp
 }
 /**
  * The deserialization information for the current model
+ * @param FindProjectsForTenantResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindProjectsForTenantResponse(findProjectsForTenantResponse: Partial<FindProjectsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "items": n => { findProjectsForTenantResponse.items = n.getCollectionOfObjectValues<ProjectListItem>(createProjectListItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindStaffInvitationsResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4264,6 +4293,18 @@ export function deserializeIntoProfileItem(profileItem: Partial<ProfileItem> | u
         "id": n => { profileItem.id = n.getGuidValue(); },
         "name": n => { profileItem.name = n.getStringValue(); },
         "permissions": n => { profileItem.permissions = n.getCollectionOfPrimitiveValues<string>("string"); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ProjectListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoProjectListItem(projectListItem: Partial<ProjectListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { projectListItem.id = n.getGuidValue(); },
+        "name": n => { projectListItem.name = n.getStringValue(); },
     }
 }
 /**
@@ -5410,6 +5451,12 @@ export interface FindPostsForTenantResponse extends AdditionalDataHolder, Parsab
      */
     nextCursor?: string | null;
 }
+export interface FindProjectsForTenantResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The items property
+     */
+    items?: ProjectListItem[] | null;
+}
 export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -6089,6 +6136,16 @@ export interface ProfileItem extends AdditionalDataHolder, Parsable {
      * The permissions property
      */
     permissions?: string[] | null;
+}
+export interface ProjectListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
 }
 /**
  * HTTP wire result for the reactivate tenant-user operation; top-level sibling per thehandler file contract, with no Dto suffix on wire types.
@@ -7338,6 +7395,18 @@ export function serializeFindPostsForTenantResponse(writer: SerializationWriter,
 }
 /**
  * Serializes information the current object
+ * @param FindProjectsForTenantResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindProjectsForTenantResponse(writer: SerializationWriter, findProjectsForTenantResponse: Partial<FindProjectsForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findProjectsForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<ProjectListItem>("items", findProjectsForTenantResponse.items, serializeProjectListItem);
+    writer.writeAdditionalData(findProjectsForTenantResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindStaffInvitationsResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -7925,6 +7994,19 @@ export function serializeProfileItem(writer: SerializationWriter, profileItem: P
     writer.writeStringValue("name", profileItem.name);
     writer.writeCollectionOfPrimitiveValues<string>("permissions", profileItem.permissions);
     writer.writeAdditionalData(profileItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ProjectListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeProjectListItem(writer: SerializationWriter, projectListItem: Partial<ProjectListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!projectListItem || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", projectListItem.id);
+    writer.writeStringValue("name", projectListItem.name);
+    writer.writeAdditionalData(projectListItem.additionalData);
 }
 /**
  * Serializes information the current object
