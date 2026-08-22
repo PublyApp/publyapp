@@ -3070,3 +3070,121 @@ test('close button containing block holds when stack is expanded on hover', asyn
 	}
 	await dismissAllToasts(page);
 });
+
+test('clipped text (background-clip:text) fails loudly', async ({ page }) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toast-title { background: linear-gradient(90deg, red, blue); -webkit-background-clip: text; background-clip: text; color: transparent; }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/background-clip:text/);
+});
+
+test('transparent text fill (-webkit-text-fill-color: transparent) fails loudly', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content: '.publy-toast-title { -webkit-text-fill-color: transparent; }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/transparent text fill/);
+});
+
+test('M1 duplicate success tint fails the guard', async ({ page }) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toast-success { --publy-toast-tint: var(--publy-foreground); }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/below the .* floor|has no legible glyph ink|undecidable/);
+});
+
+test('M2 higher-specificity toaster error competitor fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toaster .publy-toast-error { --publy-toast-tint: var(--publy-foreground); --publy-toast-accent: var(--publy-background); }',
+	});
+	const toast = await renderToast(page, 'error');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+});
+
+test('M3 redefined warning token fails the guard', async ({ page }) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content: ':root { --publy-alert-warning-bg: var(--publy-foreground); }',
+	});
+	const toast = await renderToast(page, 'warning');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+});
+
+test('M4 richColors toast fails the guard (no CSS change, TSX flag)', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'[data-sonner-toast][data-type="success"] { background: hsl(0 0% 0%) !important; color: hsl(0 0% 10%) !important; }',
+	});
+	const toast = await renderToast(page, 'success');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+});
+
+test('M5 source reorder (error before base) fails the guard', async ({
+	page,
+}) => {
+	await openToastFixture(page, 'light', VIEWPORTS[0]);
+	await page.addStyleTag({
+		content:
+			'.publy-toast-error { --publy-toast-tint: var(--publy-foreground); } .publy-toast { --publy-toast-tint: var(--publy-surface-raised); }',
+	});
+	const toast = await renderToast(page, 'error');
+	await expect(
+		measureContrast(
+			toast.locator('.publy-toast-title'),
+			'text',
+			TEXT_CONTRAST_FLOOR,
+		),
+	).rejects.toThrow(/below the .* floor|has no legible glyph ink/);
+});
