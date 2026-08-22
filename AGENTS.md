@@ -311,6 +311,11 @@ primary-CTA consistency, tables, selection mode, empty/error states, navigation)
 Additional repo-specific preferences for AI assistants (to reduce review churn):
 [`docs/guides/ai-agent-preferences.md`](docs/guides/ai-agent-preferences.md)
 
+The product's design language (tokens, the `components/ui/*` layer, interaction conventions, dark
+mode, i18n/copy rules, and the guards that enforce them) is distilled in the root
+[`DESIGN.md`](DESIGN.md), written for designers and agents who must match the product without
+reading the code.
+
 **Key principles (always apply):**
 For the complete list of custom lint rules with severity and source, see [`docs/guides/lint-rules.md`](docs/guides/lint-rules.md).
 
