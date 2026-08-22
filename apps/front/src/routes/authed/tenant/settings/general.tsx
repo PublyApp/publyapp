@@ -223,32 +223,34 @@ function TenantSettingsGeneralPage() {
 			return;
 		}
 
-		const updateInput: TenantSettingsGeneralUpdateInput = {
-			tenantId,
-			...(dirtyFields.name ? { name: values.name } : {}),
-			...(dirtyFields.logoUrl
-				? { logoUrl: values.logoUrl.trim() || null }
-				: {}),
-			...(dirtyFields.legalName
-				? { legalName: (values.legalName ?? '').trim() || null }
-				: {}),
-			...(dirtyFields.description
-				? { description: (values.description ?? '').trim() || null }
-				: {}),
-			...(dirtyFields.websiteUrl
-				? { websiteUrl: (values.websiteUrl ?? '').trim() || null }
-				: {}),
-			...(dirtyFields.billingEmail
-				? { billingEmail: (values.billingEmail ?? '').trim() || null }
-				: {}),
-			...(dirtyFields.supportEmail
-				? { supportEmail: (values.supportEmail ?? '').trim() || null }
-				: {}),
-			...(dirtyFields.defaultLocale
-				? { defaultLocale: values.defaultLocale || null }
-				: {}),
-			...(dirtyFields.timezone ? { timezone: values.timezone || null } : {}),
-		};
+		const updateInput: TenantSettingsGeneralUpdateInput = { tenantId };
+		if (dirtyFields.name) {
+			updateInput.name = values.name;
+		}
+		if (dirtyFields.logoUrl) {
+			updateInput.logoUrl = values.logoUrl.trim() || null;
+		}
+		if (dirtyFields.legalName) {
+			updateInput.legalName = (values.legalName ?? '').trim() || null;
+		}
+		if (dirtyFields.description) {
+			updateInput.description = (values.description ?? '').trim() || null;
+		}
+		if (dirtyFields.websiteUrl) {
+			updateInput.websiteUrl = (values.websiteUrl ?? '').trim() || null;
+		}
+		if (dirtyFields.billingEmail) {
+			updateInput.billingEmail = (values.billingEmail ?? '').trim() || null;
+		}
+		if (dirtyFields.supportEmail) {
+			updateInput.supportEmail = (values.supportEmail ?? '').trim() || null;
+		}
+		if (dirtyFields.defaultLocale) {
+			updateInput.defaultLocale = values.defaultLocale || null;
+		}
+		if (dirtyFields.timezone) {
+			updateInput.timezone = values.timezone || null;
+		}
 		const hasChanges = Object.keys(updateInput).length > 1;
 
 		if (!hasChanges) {

@@ -71,12 +71,15 @@ export const buildStaffProfileOptions = ({
 		const description = includeDescriptions
 			? profile.description?.trim()
 			: undefined;
-		options.push({
+		const option: StaffProfileOption = {
 			value: profileId,
 			label:
 				profile.name?.trim() || knownProfileNames.get(profileId) || profileId,
-			...(description ? { description } : {}),
-		});
+		};
+		if (description) {
+			option.description = description;
+		}
+		options.push(option);
 		seen.add(profileId);
 	}
 

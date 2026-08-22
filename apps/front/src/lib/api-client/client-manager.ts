@@ -266,21 +266,24 @@ const buildCustomFetch = (options: BuildCustomFetchOptions): FetchFunction => {
 
 		if (requestLike) {
 			const signal = options.signal ?? init?.signal ?? requestInputInit.signal;
+			const headersAndSignal: RequestInit = { headers };
+			if (signal) {
+				headersAndSignal.signal = signal;
+			}
 			const mergedRequest = new Request(input.url, {
 				...requestInputInit,
 				...init,
-				headers,
-				...(signal ? { signal } : {}),
+				...headersAndSignal,
 			});
 
 			return fetchImpl(mergedRequest);
 		}
 
-		return fetchImpl(requestUrl, {
-			...init,
-			headers,
-			...(options.signal ? { signal: options.signal } : {}),
-		});
+		const initWithHeaders: RequestInit = { ...init, headers };
+		if (options.signal) {
+			initWithHeaders.signal = options.signal;
+		}
+		return fetchImpl(requestUrl, initWithHeaders);
 	};
 };
 

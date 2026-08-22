@@ -624,22 +624,26 @@ function StaffTenantCreateRoute() {
 
 		let result;
 		try {
-			result = await createTenant.mutateAsync({
-				name: values.name.trim(),
-				maxUsers: values.maxUsers,
-				...(trimmedCode.length > 0 ? { code: trimmedCode } : {}),
-				seedDefaultProfile: values.seedDefaultProfile,
-				initialUsers,
-				logoUrl: optionalField(values.logoUrl),
-				legalName: optionalField(values.legalName),
-				description: optionalField(values.description),
-				websiteUrl: optionalField(values.websiteUrl),
-				billingEmail: optionalField(values.billingEmail),
-				supportEmail: optionalField(values.supportEmail),
-				defaultLocale: optionalField(values.defaultLocale),
-				timezone: optionalField(values.timezone),
-				notes: optionalField(values.notes),
-			});
+			const createTenantInput: Parameters<typeof createTenant.mutateAsync>[0] =
+				{
+					name: values.name.trim(),
+					maxUsers: values.maxUsers,
+					seedDefaultProfile: values.seedDefaultProfile,
+					initialUsers,
+					logoUrl: optionalField(values.logoUrl),
+					legalName: optionalField(values.legalName),
+					description: optionalField(values.description),
+					websiteUrl: optionalField(values.websiteUrl),
+					billingEmail: optionalField(values.billingEmail),
+					supportEmail: optionalField(values.supportEmail),
+					defaultLocale: optionalField(values.defaultLocale),
+					timezone: optionalField(values.timezone),
+					notes: optionalField(values.notes),
+				};
+			if (trimmedCode.length > 0) {
+				createTenantInput.code = trimmedCode;
+			}
+			result = await createTenant.mutateAsync(createTenantInput);
 		} catch (error) {
 			setPendingCreateValues(null);
 

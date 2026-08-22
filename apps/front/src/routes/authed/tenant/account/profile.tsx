@@ -148,18 +148,16 @@ function AccountProfilePage() {
 			return;
 		}
 
-		const updateInput: AccountProfileUpdateInput = {
-			tenantId,
-			...(dirtyFields.firstName
-				? { firstName: values.firstName.trim() || null }
-				: {}),
-			...(dirtyFields.lastName
-				? { lastName: values.lastName.trim() || null }
-				: {}),
-			...(dirtyFields.avatarUrl
-				? { avatarUrl: values.avatarUrl.trim() || null }
-				: {}),
-		};
+		const updateInput: AccountProfileUpdateInput = { tenantId };
+		if (dirtyFields.firstName) {
+			updateInput.firstName = values.firstName.trim() || null;
+		}
+		if (dirtyFields.lastName) {
+			updateInput.lastName = values.lastName.trim() || null;
+		}
+		if (dirtyFields.avatarUrl) {
+			updateInput.avatarUrl = values.avatarUrl.trim() || null;
+		}
 		const hasChanges = Object.keys(updateInput).length > 1;
 
 		if (!hasChanges) {
