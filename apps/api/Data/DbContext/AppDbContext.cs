@@ -12,6 +12,7 @@ using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -102,6 +103,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	}
 	public DbSet<SystemNotice> SystemNotice {
 		get { return Set<SystemNotice>(); }
+	}
+
+	// Per-tenant external social platform links (Bluesky first, epic C #630).
+	// C1 (#640): entity + storage only; endpoints and the Bluesky client are C2 (#641).
+	public DbSet<SocialAccount> SocialAccount {
+		get { return Set<SocialAccount>(); }
 	}
 
 	public Guid? TenantId { get; set; }
