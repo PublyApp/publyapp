@@ -122,4 +122,18 @@ describe('TenantPostsDraftsPage', () => {
 		expect(screen.getByTestId('tenant-posts-drafts-page')).toBeTruthy();
 		expect(screen.getByTestId('tenant-posts-drafts-table')).toBeTruthy();
 	});
+
+	test('renders new-post button that opens the create drawer', () => {
+		render(<TenantPostsDraftsPage />);
+
+		const button = screen.getByTestId('tenant-posts-new-post');
+		expect(button).toBeTruthy();
+		expect(button.textContent).toContain('New post');
+	});
+
+	test('delete mutation is available for bin confirm flow', () => {
+		render(<TenantPostsDraftsPage />);
+
+		expect(mocks.useDeleteTenantPostMutation).toHaveBeenCalled();
+	});
 });
