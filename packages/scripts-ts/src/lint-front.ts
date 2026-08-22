@@ -64,7 +64,7 @@ const parseArguments = (argumentsList) => {
 			argument.startsWith('--tsconfig=')
 		) {
 			throw new Error(
-				`${argument} is owned by scripts/lint-front.mjs and cannot be overridden`,
+				`${argument} is owned by packages/scripts-ts/src/lint-front.ts and cannot be overridden`,
 			);
 		}
 
@@ -334,7 +334,7 @@ const main = () => {
 	);
 	const scriptsTsconfigPath = path.join(
 		rootDirectory,
-		'scripts/tsconfig.lint.json',
+		'packages/scripts-ts/tsconfig.json',
 	);
 
 	if (
@@ -351,12 +351,12 @@ const main = () => {
 
 	const typeScriptFiles = findFiles(
 		rootDirectory,
-		['apps/front', 'packages/shared-ts', 'scripts'],
+		['apps/front', 'packages/shared-ts', 'packages/scripts-ts/src'],
 		new Set(['.ts', '.tsx']),
 	);
 	const javaScriptFiles = findFiles(
 		rootDirectory,
-		['apps/front', 'packages/shared-ts', 'scripts'],
+		['apps/front', 'packages/shared-ts', 'packages/scripts-ts/src'],
 		new Set(['.js', '.mjs', '.cjs']),
 	);
 
@@ -383,7 +383,7 @@ const main = () => {
 		{
 			name: 'scripts',
 			// @ts-expect-error rung-0: add proper type in later rung
-			matches: (file) => file.startsWith('scripts/'),
+			matches: (file) => file.startsWith('packages/scripts-ts/src/'),
 			tsconfigPath: scriptsTsconfigPath,
 		},
 	]);
@@ -424,7 +424,7 @@ const main = () => {
 		{
 			name: 'scripts-javascript',
 			// @ts-expect-error rung-0: add proper type in later rung
-			matches: (file) => file.startsWith('scripts/'),
+			matches: (file) => file.startsWith('packages/scripts-ts/src/'),
 			tsconfigPath: scriptsTsconfigPath,
 		},
 	]);

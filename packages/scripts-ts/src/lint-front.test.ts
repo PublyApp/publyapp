@@ -69,7 +69,7 @@ const createFixture = async () => {
 	);
 	await writeFixtureFile(
 		rootDir,
-		'scripts/tsconfig.lint.json',
+		'packages/scripts-ts/tsconfig.json',
 		JSON.stringify({
 			compilerOptions: { allowJs: true, noEmit: true },
 			include: ['**/*.mjs'],
@@ -92,7 +92,7 @@ const createFixture = async () => {
 	);
 	await writeFixtureFile(
 		rootDir,
-		'scripts/problem.ts',
+		'packages/scripts-ts/src/problem.ts',
 		'const scriptsUnusedValue = 1;\n',
 	);
 	await writeFixtureFile(
@@ -224,7 +224,10 @@ test(
 			assert.match(firstRun.stdout, /project front-tooling:/);
 			assert.match(firstRun.stdout, /project shared-ts:/);
 			assert.match(firstRun.stdout, /project scripts:/);
-			assert.match(combinedOutput(firstRun), /scripts\/problem\.ts/);
+			assert.match(
+				combinedOutput(firstRun),
+				/packages\/scripts-ts\/src\/problem\.ts/,
+			);
 
 			const baselineTypeScript = getSection(
 				firstRun.stdout,
