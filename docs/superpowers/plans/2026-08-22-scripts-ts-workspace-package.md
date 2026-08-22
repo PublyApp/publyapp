@@ -15,10 +15,10 @@
 - `tsc --noEmit` passes under `packages/_tsconfig/tsconfig.base.json` (`strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitAny` via strict). [repo base]
 - `typescript/no-explicit-any: error` — `any` is forbidden. Type with `unknown` / `Record<string, unknown>` / explicit param types. `@ts-expect-error` allowed only where a rung-0 edge resists typing, removed in a later rung. [`.oxlintrc.json`]
 - Package name **`@org/scripts-ts`**. [issue #1181]
-- Test runner **`node --test`** (follow `packages/lint-ts`), not vitest. [issue #1181]
+- Test runner **vitest** — owner decision 2026-08-22 ("vitest partout": shared-ts already, lint-ts converts in #1201, scripts-ts here). Rung 0 converts every `*.test.mjs` from `node:test` to vitest (`import { describe, test, expect } from 'vitest'`; `node:assert` calls may stay or become `expect` — keep assertions semantically identical). `vitest.config.ts` mirrors `packages/shared-ts` (environment node, `include: ['src/**/*.test.ts']`), devDependency pinned to the same version as shared-ts. [issue #1181, owner]
 - `pnpm lint` (`oxlint --quiet .`) already covers `packages/*`; add `packages/scripts-ts/**/*.{ts}` to `oxfmt` globs. [`.oxlintrc.json`, root `package.json`]
 - `just ci-drift` (check-ci-drift + check-ci-gate-structure + codeowners-contract) and the manifest must stay green. [issue #1181]
-- Every reference updates in the same PR as its move. Verified count: **129 active root-resolving references** (brief's "108" is stale). [this spec §5.1]
+- Every reference updates in the same PR as its move. Verified count: **119 active root-resolving references** (brief's "108" is stale). [this spec §5.1]
 
 ---
 
@@ -46,7 +46,7 @@
 	"type": "module",
 	"description": "Repo CI/review/deploy scripts as a TypeScript-only pnpm workspace package (run with bare node on Node 24).",
 	"scripts": {
-		"test": "node --test \"src/**/*.test.ts\""
+		"test": "vitest run"
 	},
 	"devDependencies": {
 		"yaml": "2.8.3",
@@ -162,17 +162,17 @@ In root `package.json`, change every `scripts/<x>.mjs` to `packages/scripts-ts/s
 "check:docs-archive-records": "node ./packages/scripts-ts/src/check-archive-records.ts",
 "lint:disables": "node ./packages/scripts-ts/src/check-oxlint-disables.ts",
 "lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
-"test:ci-drift": "node --test ./packages/scripts-ts/src/check-ci-drift.test.ts",
-"test:review-worktree-resolution": "node --test ./packages/scripts-ts/src/review-worktree.resolve.test.ts",
-"test:review-api": "node --test ./packages/scripts-ts/src/review-api.test.ts",
-"test:review-api-migration-guard": "node --test ./packages/scripts-ts/src/review-api.migration-guard.integration.test.ts",
-"test:frontend-barrels": "node --test ./packages/scripts-ts/src/check-frontend-barrels.test.ts",
-"test:project-closure-adapter": "node --test ./packages/scripts-ts/src/project-closure-adapter.test.ts"
+"test:ci-drift": "pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts",
+"test:review-worktree-resolution": "pnpm --filter scripts-ts exec vitest run src/review-worktree.resolve.test.ts",
+"test:review-api": "pnpm --filter scripts-ts exec vitest run src/review-api.test.ts",
+"test:review-api-migration-guard": "pnpm --filter scripts-ts exec vitest run src/review-api.migration-guard.integration.test.ts",
+"test:frontend-barrels": "pnpm --filter scripts-ts exec vitest run src/check-frontend-barrels.test.ts",
+"test:project-closure-adapter": "pnpm --filter scripts-ts exec vitest run src/project-closure-adapter.test.ts"
 ```
 
 - [ ] **Step 2: Rewrite `justfile` references**
 
-For every `node scripts/<x>.mjs` line in `justfile`, replace with `node packages/scripts-ts/src/<x>.ts`. The affected recipes: `review-front`, `review-api`, `deploy-images`, `ci-docs-archive-records`, `ci-lint` (`node scripts/lint-front.mjs --quiet` → `node packages/scripts-ts/src/lint-front.ts --quiet`), `ci-drift`, `ci-migration-expand-contract`, `ci-spec-drift` (`node ./scripts/check-tree-clean.mjs ...` → `node ./packages/scripts-ts/src/check-tree-clean.ts ...`), and the `node --test ./scripts/codeowners-contract.test.mjs` line → `node --test ./packages/scripts-ts/src/codeowners-contract.test.ts`.
+For every `node scripts/<x>.mjs` line in `justfile`, replace with `node packages/scripts-ts/src/<x>.ts`. The affected recipes: `review-front`, `review-api`, `deploy-images`, `ci-docs-archive-records`, `ci-lint` (`node scripts/lint-front.mjs --quiet` → `node packages/scripts-ts/src/lint-front.ts --quiet`), `ci-drift`, `ci-migration-expand-contract`, `ci-spec-drift` (`node ./scripts/check-tree-clean.mjs ...` → `node ./packages/scripts-ts/src/check-tree-clean.ts ...`), and the `node --test ./scripts/codeowners-contract.test.mjs` line → `pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts`.
 
 - [ ] **Step 3: Rewrite workflow files**
 
@@ -300,7 +300,7 @@ In `packages/scripts-ts/src/codeowners-contract.ts`, change the literal paths at
 - [ ] **Step 5: Repoint `ci-gate-manifest.json` prose + re-bump hashes**
 
 In `packages/scripts-ts/src/ci-gate-manifest.json`:
-- Replace all 43 `scripts/<x>.mjs` occurrences (including `base-ref/scripts/ci-changed-paths.mjs`) with `packages/scripts-ts/src/<x>.ts`. The `mirror` command strings (e.g. `node --test scripts/ci-gate-bootstrap.test.mjs`) become `node --test packages/scripts-ts/src/ci-gate-bootstrap.test.ts`.
+- Replace all 43 `scripts/<x>.mjs` occurrences (including `base-ref/scripts/ci-changed-paths.mjs`) with `packages/scripts-ts/src/<x>.ts`. The `mirror` command strings (e.g. `node --test scripts/ci-gate-bootstrap.test.mjs`) become `pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts`.
 - For every manifest entry whose `mirror`/workflow `run:` block changed, the workflow step hash must be re-bumped: run `node packages/scripts-ts/src/check-ci-drift.ts`, read the reported new hashes, paste them into the matching entries, repeat until the guard reports no drift.
 
 - [ ] **Step 6: Run the drift + structure + codeowners guards**
@@ -310,7 +310,7 @@ Run:
 ```bash
 node packages/scripts-ts/src/check-ci-drift.ts
 node packages/scripts-ts/src/check-ci-gate-structure.ts
-node --test packages/scripts-ts/src/codeowners-contract.test.ts
+pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
 ```
 
 Expected: all three exit 0 (green).
@@ -346,11 +346,11 @@ Run:
 
 ```bash
 pnpm lint
-node --test packages/scripts-ts/src/**/*.test.ts
+pnpm --filter scripts-ts test
 pnpm --filter scripts-ts test
 ```
 
-Expected: `pnpm lint` exits 0; all `node --test` suites pass.
+Expected: `pnpm lint` exits 0; the vitest suite passes.
 
 - [ ] **Step 3: Run `just ci` to confirm the aggregate gate is green**
 
@@ -394,7 +394,7 @@ Run:
 ```bash
 node packages/scripts-ts/src/check-ci-drift.ts
 node packages/scripts-ts/src/check-ci-gate-structure.ts
-node --test packages/scripts-ts/src/ci-*.test.ts packages/scripts-ts/src/codeowners-contract.test.ts
+pnpm --filter scripts-ts exec vitest run src/ci-*.test.ts src/codeowners-contract.test.ts
 ```
 
 Expected: green.
@@ -424,7 +424,7 @@ git commit -m "refactor(scripts-ts): strict-typed CI-gate group; extract path he
 - §5.3 (import extensions) → Task 0 Step 4. Covered.
 - §5.4 (template) → Task 0 Steps 1-2. Covered.
 - §6 (guards) → Task 2. Covered (drift, structure, codeowners, manifest re-bump).
-- §7 (decisions) → encoded in Global Constraints + Task steps (`.ts` naming, `node --test`, `node packages/scripts-ts/src/x.ts`, `pnpm lint` covers `packages/*`). Covered.
+- §7 (decisions) → encoded in Global Constraints + Task steps (`.ts` naming, vitest, `node --test`, `node packages/scripts-ts/src/x.ts`, `pnpm lint` covers `packages/*`). Covered.
 - §8 (success) → Task 3 gate verification. Covered.
 
 **2. Placeholder scan.** No "TBD"/"implement later"/"similar to Task N" without concrete code. Task 5 references Task 4's concrete four steps rather than eliding them; that is deliberate cross-reference, not a placeholder.

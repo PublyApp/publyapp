@@ -28,7 +28,7 @@ JavaScript guarded only by the per-file `node --test` invocations the justfile w
   strips TypeScript types natively (`node file.ts`), so `.ts` scripts keep running with bare
   `node`. No `tsx`, no `tsc` emit, no bundle.
 - **Every reference updates in the same PR as its move.** 108 references were cited in the brief;
-  the verified count is **129 active root-resolving references** (see §5). `scripts/ci-gate-manifest.json`
+  the verified count is **119 active root-resolving references** (see §5). `scripts/ci-gate-manifest.json`
   + `check-ci-drift` and `check-ci-gate-structure` must keep passing (they assert the workflows).
 - **Ladder, not big bang.** PR0 creates the package, moves the files as-is (renamed `.ts`, typed
   minimally but enough to pass `tsc --noEmit` under strict base), updates every reference, and
@@ -53,7 +53,7 @@ JavaScript guarded only by the per-file `node --test` invocations the justfile w
   explicit param types). `@ts-expect-error` is permitted only where a genuine edge resists typing
   in rung 0 and must be removed in a later rung.
 - Package name: **`@org/scripts-ts`** (matches repo scope `@org/*`).
-- Test runner: **`node --test`** (follow `packages/lint-ts`), not vitest.
+- Test runner: **vitest** (owner decision 2026-08-22, "vitest partout"; lint-ts converts in #1201). Rung 0 converts the `node:test` suites.
 - `pnpm lint` (`oxlint --quiet .`, repo-wide) already covers `packages/*`; the new package is
   linted with no extra config. `oxfmt` format globs in root `package.json` must gain
   `packages/scripts-ts/**/*.{ts}`.
@@ -67,9 +67,9 @@ JavaScript guarded only by the per-file `node --test` invocations the justfile w
 `grep -rn "scripts/"` across `.github/workflows justfile package.json apps/*/package.json
 packages/*/package.json docs AGENTS.md` returns **157** raw lines. After excluding
 app/package-local `scripts/` (e.g. `apps/front/scripts/`, `packages/shared-ts/scripts/`) and
-historical docs (`docs/archive/**`, `docs/superpowers/reviews/**`), **129 active root-resolving
+historical docs (`docs/archive/**`, `docs/superpowers/reviews/**`), **119 active root-resolving
 references** must be repointed to `packages/scripts-ts/src/...`. The brief's "108" is stale;
-**129** is the number this spec plans against.
+**119** is the number this spec plans against.
 
 Breakdown (active, root-resolving):
 
@@ -89,7 +89,7 @@ Breakdown (active, root-resolving):
 | `docs/deployment/first-deploy-runbook.md` | 2 |
 | `docs/deployment/production-deployment-design.md` | 1 |
 | `AGENTS.md` | 1 |
-| **Total** | **129** |
+| **Total** | **119** |
 
 `apps/front/package.json` has 13 `scripts/` refs but npm resolves those from `apps/front`, i.e.
 `apps/front/scripts/` — **out of scope** (stays put). `packages/shared-ts/package.json` has 1
@@ -194,8 +194,7 @@ These four mechanisms pin `scripts/` paths and MUST move together with the files
 
 - **File naming:** flat `src/<name>.ts`; tests `src/<name>.test.ts`. No `src/lib/` split in rung 0;
   later rungs extract shared helpers into `src/lib/`.
-- **Test runner:** `node --test` (matches `packages/lint-ts`), not vitest. Native fit for
-  process/spawn-heavy Node scripts.
+- **Test runner:** vitest (owner decision 2026-08-22, repo-wide). The `node:test` suites are converted in rung 0 with identical assertions; spawn-heavy tests run fine under vitest's node environment.
 - **How `just`/CI reference them:** `node packages/scripts-ts/src/<name>.ts` (bare `node`, no build)
   — identical execution model to today's `node scripts/<name>.mjs`. The `changes` job in
   `quality-gate.yml` checks out the classifier from the base commit; that path becomes
