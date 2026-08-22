@@ -27,7 +27,7 @@ export default defineConfig({
 				inline: ['@org/client-ts', '@org/shared-ts'],
 			},
 		},
-		include: ['src/**/*.{test.ts,test.tsx}'],
+		include: ['src/**/*.{test.ts,test.tsx}', 'e2e/helpers/**/*.test.ts'],
 		// Round 19 I3: the drawer-description contrast guard is the ONLY
 		// browser-launching test in the suite. It now runs in the e2e lane
 		// (which already provisions Chromium) via vitest.drawer.config.ts, so
