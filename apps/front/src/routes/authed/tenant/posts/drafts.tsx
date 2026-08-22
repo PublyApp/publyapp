@@ -42,7 +42,11 @@ export const Route = createFileRoute('/_authed-layout/tenant/posts/drafts')({
 	component: TenantPostsDraftsPage,
 });
 
-function TenantPostsDraftsPage() {
+/**
+ * Honest read-only drafts section: no posts API exists, so the page is a
+ * coming-later state — never fabricated draft rows.
+ */
+const TenantPostsDraftsPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
 	const search = parseTenantPostListSearchParams(Route.useSearch() as never);
@@ -220,4 +224,15 @@ function TenantPostsDraftsPage() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/posts/drafts')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
+			{ kind: 'label', labelKey: 'drafts' },
+		],
+		i18nNamespaces: ['posts'],
+	},
+	component: TenantPostsDraftsPage,
+});

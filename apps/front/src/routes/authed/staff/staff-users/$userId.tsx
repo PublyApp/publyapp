@@ -164,22 +164,7 @@ const getActiveSection = (pathname: string): TabSection => {
 	return match ?? 'overview';
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/staff-users/$userId',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-users'],
-		// Always matched alongside an index/permissions/activity/settings
-		// child (never the deepest match on its own — see
-		// `deriveBreadcrumbTrail`), but the contract requires every route to
-		// declare its own trail. The overview base is the correct value for
-		// this route's own path.
-		crumbs: staffUserCrumbsBase,
-	},
-	component: StaffUserDetailsPage,
-});
-
-function StaffUserDetailsPage() {
+const StaffUserDetailsPage = () => {
 	const { userId } = Route.useParams();
 	const { t, i18n } = useTranslation(['staff-users', 'common']);
 	const queryClient = useQueryClient();
@@ -565,4 +550,19 @@ function StaffUserDetailsPage() {
 			</ConfirmDialog>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/staff-users/$userId',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		// Always matched alongside an index/permissions/activity/settings
+		// child (never the deepest match on its own — see
+		// `deriveBreadcrumbTrail`), but the contract requires every route to
+		// declare its own trail. The overview base is the correct value for
+		// this route's own path.
+		crumbs: staffUserCrumbsBase,
+	},
+	component: StaffUserDetailsPage,
+});

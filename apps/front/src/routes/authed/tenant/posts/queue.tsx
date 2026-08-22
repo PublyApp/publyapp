@@ -6,22 +6,11 @@ import { StateSurface } from '~/components/ui/state-surface';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/posts/queue')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
-			{ kind: 'label', labelKey: 'queue' },
-		],
-		i18nNamespaces: ['posts'],
-	},
-	component: TenantPostsQueuePage,
-});
-
 /**
  * Honest read-only queue section: no posts API exists, so the page is a
  * coming-later state — never fabricated queued-post rows.
  */
-function TenantPostsQueuePage() {
+const TenantPostsQueuePage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 
 	return (
@@ -44,4 +33,15 @@ function TenantPostsQueuePage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/posts/queue')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
+			{ kind: 'label', labelKey: 'queue' },
+		],
+		i18nNamespaces: ['posts'],
+	},
+	component: TenantPostsQueuePage,
+});

@@ -25,17 +25,6 @@ const getActiveSection = (pathname: string): SettingsSection => {
 	return match ?? 'general';
 };
 
-export const Route = createFileRoute('/_authed-layout/tenant/settings')({
-	// Always matched alongside a settings child (never the deepest match on
-	// its own — see `deriveBreadcrumbTrail`), but the contract requires every
-	// route to declare its own trail.
-	staticData: {
-		crumbs: () => [{ kind: 'label', labelKey: 'settings' }],
-		i18nNamespaces: ['settings'],
-	},
-	component: TenantSettingsLayout,
-});
-
 /**
  * The tenant settings home: section tabs over the general, members,
  * workspaces, roles, security, integrations and billing pages. Every section
@@ -43,7 +32,7 @@ export const Route = createFileRoute('/_authed-layout/tenant/settings')({
  * shows the tenant identity the workspace shell already resolved or an
  * honest coming-later state.
  */
-function TenantSettingsLayout() {
+const TenantSettingsLayout = () => {
 	const { t } = useTranslation('common');
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
@@ -101,4 +90,15 @@ function TenantSettingsLayout() {
 			</Tabs>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/settings')({
+	// Always matched alongside a settings child (never the deepest match on
+	// its own — see `deriveBreadcrumbTrail`), but the contract requires every
+	// route to declare its own trail.
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'settings' }],
+		i18nNamespaces: ['settings'],
+	},
+	component: TenantSettingsLayout,
+});

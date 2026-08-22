@@ -242,16 +242,7 @@ const buildTenantColumns = (
 	},
 ];
 
-export const Route = createFileRoute('/_authed-layout/staff/tenants')({
-	staticData: {
-		crumbs: () => [{ kind: 'label', labelKey: 'nav-tenants' }],
-	},
-	validateSearch: (search) =>
-		validateTenantListSearchParams(search as TenantListSearchParamInput),
-	component: StaffTenantsPage,
-});
-
-function StaffTenantsPage() {
+const StaffTenantsPage = () => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const navigate = Route.useNavigate();
 	const search = parseTenantListSearchParams(
@@ -389,7 +380,16 @@ function StaffTenantsPage() {
 			</FloatingSelectionBar>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/tenants')({
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-tenants' }],
+	},
+	validateSearch: (search) =>
+		validateTenantListSearchParams(search as TenantListSearchParamInput),
+	component: StaffTenantsPage,
+});
 
 type PendingLifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
 

@@ -191,19 +191,7 @@ export const makeAuditLogColumns = (
 	},
 ];
 
-export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
-	staticData: {
-		i18nNamespaces: ['staff-audit-logs'],
-		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-audit-logs' }],
-	},
-	validateSearch: (search) =>
-		serializeAuditLogsListSearchParams(
-			parseAuditLogsListSearchParams(search as AuditLogsListSearchParamInput),
-		),
-	component: StaffAuditLogsPage,
-});
-
-function StaffAuditLogsPage() {
+const StaffAuditLogsPage = () => {
 	const navigate = Route.useNavigate();
 	const search = parseAuditLogsListSearchParams(
 		Route.useSearch() as AuditLogsListSearchParamInput,
@@ -452,4 +440,16 @@ function StaffAuditLogsPage() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
+	staticData: {
+		i18nNamespaces: ['staff-audit-logs'],
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-audit-logs' }],
+	},
+	validateSearch: (search) =>
+		serializeAuditLogsListSearchParams(
+			parseAuditLogsListSearchParams(search as AuditLogsListSearchParamInput),
+		),
+	component: StaffAuditLogsPage,
+});

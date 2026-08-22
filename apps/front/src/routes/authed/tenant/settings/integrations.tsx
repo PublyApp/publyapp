@@ -6,25 +6,12 @@ import { StateSurface } from '~/components/ui/state-surface';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute(
-	'/_authed-layout/tenant/settings/integrations',
-)({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
-			{ kind: 'label', labelKey: 'integrations' },
-		],
-		i18nNamespaces: ['settings'],
-	},
-	component: TenantSettingsIntegrationsPage,
-});
-
 /**
  * Read-only org integrations: connected and available integrations plus API
  * access are all honest coming-later states — no integrations API exists, so
  * there are no fake catalog entries and no pretend-to-work connect switches.
  */
-function TenantSettingsIntegrationsPage() {
+const TenantSettingsIntegrationsPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 
 	return (
@@ -77,4 +64,17 @@ function TenantSettingsIntegrationsPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/tenant/settings/integrations',
+)({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
+			{ kind: 'label', labelKey: 'integrations' },
+		],
+		i18nNamespaces: ['settings'],
+	},
+	component: TenantSettingsIntegrationsPage,
+});

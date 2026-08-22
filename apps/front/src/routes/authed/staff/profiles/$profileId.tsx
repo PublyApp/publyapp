@@ -171,13 +171,13 @@ const ProfileDetailsError = ({
 	);
 };
 
-function PermissionMatrix({
+const PermissionMatrix = ({
 	assignedKeys,
 	catalog,
 }: {
 	assignedKeys: string[];
 	catalog: StaffPermissionCatalog | undefined;
-}) {
+}) => {
 	const allPermissions = useMemo(() => {
 		const entries: {
 			key: string;
@@ -292,9 +292,9 @@ function PermissionMatrix({
 			</div>
 		</div>
 	);
-}
+};
 
-function PermGroup({
+const PermGroup = ({
 	group,
 	assignedKeys,
 }: {
@@ -304,7 +304,7 @@ function PermGroup({
 		permissions: { key: string; name: string; description: string | null }[];
 	};
 	assignedKeys: string[];
-}) {
+}) => {
 	const assignedSet = useMemo(() => new Set(assignedKeys), [assignedKeys]);
 
 	return (
@@ -337,25 +337,9 @@ function PermGroup({
 			})}
 		</div>
 	);
-}
+};
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/profiles/$profileId',
-)({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
-			{
-				kind: 'entity',
-				query: staffProfileCrumbQuery,
-				select: selectStaffProfileCrumbName,
-			},
-		],
-	},
-	component: StaffProfileDetailsPage,
-});
-
-function StaffProfileDetailsPage() {
+const StaffProfileDetailsPage = () => {
 	const { profileId } = Route.useParams();
 	const { t, i18n } = useTranslation('common');
 
@@ -659,4 +643,20 @@ function StaffProfileDetailsPage() {
 			</DetailGrid>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/profiles/$profileId',
+)({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
+			{
+				kind: 'entity',
+				query: staffProfileCrumbQuery,
+				select: selectStaffProfileCrumbName,
+			},
+		],
+	},
+	component: StaffProfileDetailsPage,
+});

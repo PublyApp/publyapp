@@ -614,24 +614,6 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	);
 };
 
-export const Route = createRootRouteWithContext<{
-	queryClient: QueryClient;
-}>()({
-	staticData: { crumbs: 'shell' },
-	head: () => ({
-		meta: [
-			{ charSet: 'utf-8' },
-			{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
-		],
-		links: [{ rel: 'stylesheet', href: appCss }],
-	}),
-	beforeLoad: resolveRootContext,
-	errorComponent: RootErrorBoundary,
-	notFoundComponent: RootNotFound,
-	component: RootComponent,
-	shellComponent: RootShell,
-});
-
 /**
  * The ONLY place `<html>`/`<head>`/`<body>`/`<Scripts>` and the locale-aware
  * `<I18nextProvider>` are mounted (shell-r5-F1). `shellComponent` wraps
@@ -640,7 +622,7 @@ export const Route = createRootRouteWithContext<{
  * stylesheet, CSP nonce scripts, runtime env bootstrap — and the correct
  * French/English copy, not an English-only fragment.
  */
-function RootShell({ children }: { children: React.ReactNode }) {
+const RootShell = ({ children }: { children: React.ReactNode }) => {
 	const { locale, namespaces, resources } = Route.useRouteContext({
 		select: (context) => ({
 			locale: context.locale,
@@ -738,9 +720,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 			</body>
 		</html>
 	);
-}
+};
 
-function RootComponent() {
+const RootComponent = () => {
 	const namespaceLoadError = Route.useRouteContext({
 		select: (context) => context.namespaceLoadError,
 	});
@@ -748,4 +730,22 @@ function RootComponent() {
 		throw new Error(namespaceLoadError);
 	}
 	return <Outlet />;
-}
+};
+
+export const Route = createRootRouteWithContext<{
+	queryClient: QueryClient;
+}>()({
+	staticData: { crumbs: 'shell' },
+	head: () => ({
+		meta: [
+			{ charSet: 'utf-8' },
+			{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
+		],
+		links: [{ rel: 'stylesheet', href: appCss }],
+	}),
+	beforeLoad: resolveRootContext,
+	errorComponent: RootErrorBoundary,
+	notFoundComponent: RootNotFound,
+	component: RootComponent,
+	shellComponent: RootShell,
+});

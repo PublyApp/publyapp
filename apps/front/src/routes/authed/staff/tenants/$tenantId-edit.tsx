@@ -189,25 +189,7 @@ const ReadOnlySlugField = ({
 	</div>
 );
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/edit',
-)({
-	staticData: {
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{ kind: 'label', labelKey: 'common:edit' },
-		],
-	},
-	component: StaffTenantEditRoute,
-});
-
-function StaffTenantEditRoute() {
+const StaffTenantEditRoute = () => {
 	const { tenantId } = Route.useParams() as { tenantId: string };
 	const { t, i18n } = useTranslation('common');
 	const navigate = Route.useNavigate();
@@ -776,4 +758,22 @@ function StaffTenantEditRoute() {
 			/>
 		</FormPageLayout>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/edit',
+)({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:edit' },
+		],
+	},
+	component: StaffTenantEditRoute,
+});
