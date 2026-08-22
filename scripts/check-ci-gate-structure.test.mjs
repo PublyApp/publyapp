@@ -1430,3 +1430,110 @@ test("the repo's own aggregate-gate workflows have the required job graph", asyn
 		[],
 	);
 });
+
+// #1227 BLOCKER: a workflow that subscribes to `push` must not diff against
+// `origin/${{ github.base_ref }}` — that expression is empty on `push` (and
+// `merge_group`), so the fetch resolves to `origin/` and react-doctor aborts
+// with "Diff base branch \"origin/\" does not exist". The real run
+// https://github.com/radandevist/publyapp/actions/runs/32585167025 died on
+// exactly this. The base must instead be resolved per event (see the
+// react-doctor.yml fix). This guard catches the raw pattern reappearing in any
+// workflow that also declares a `push` trigger — including the one we are
+// fixing it in.
+//
+// TDD: this test was written RED against the unmodified guard (it failed: the
+// pattern was not detected) and turned GREEN when the guard below landed.
+const pushWorkflowWithBadBase = `
+name: fixture
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [develop]
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: \${{ steps.filter.outputs.relevant }}
+    steps:
+      - name: filter
+        id: filter
+        run: echo "relevant=true" >> "$GITHUB_OUTPUT"
+  heavy:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch base branch
+        run: git fetch --no-tags origin \${{ github.base_ref }}
+      - name: React Doctor
+        run: pnpm dlx react-doctor --base origin/\${{ github.base_ref }}
+  gate:
+    name: \${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'fixture-gate' || 'fixture-push-check' }}
+    if: always()
+    needs: [changes, heavy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required jobs
+        id: check-required-jobs
+        env:
+          NEEDS_JSON: \${{ toJSON(needs) }}
+        run: echo "$NEEDS_JSON"
+      - name: Verify outcome
+        if: always()
+        run: |
+          outcome="\${{ steps.check-required-jobs.outcome }}"
+          if [ "$outcome" != "success" ]; then
+            exit 1
+          fi
+`;
+
+test('#1227 BLOCKER: a `push`-subscribed workflow diffing against `origin/${{ github.base_ref }}` is caught', async () => {
+	const rootDir = await buildFixture(pushWorkflowWithBadBase);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	const bad = findings.filter((finding) =>
+		/fixture\.yml.*origin\/\$\{\{ github\.base_ref \}\}/.test(finding),
+	);
+
+	assert.ok(
+		bad.length > 0,
+		`expected at least one finding about the raw origin/\${{ github.base_ref }} pattern in a push-subscribed workflow, got:\n${findings.join('\n')}`,
+	);
+	assert.ok(
+		bad.every((finding) => /push/.test(finding)),
+		`every such finding must name the push trigger, got:\n${bad.join('\n')}`,
+	);
+});
+
+// The same pattern is harmless in a workflow that does NOT subscribe to `push`
+// (github.base_ref is always set on pull_request/merge_group). Prove the guard
+// does not over-reach: a workflow with only pull_request/merge_group and the
+// raw pattern must NOT be flagged by this rule.
+const noPushWorkflowWithBadBase = pushWorkflowWithBadBase.replace(
+	'  push:\n    branches: [develop]\n',
+	'',
+);
+
+test('#1227: a non-push workflow using `origin/${{ github.base_ref }}` is NOT flagged by this rule', async () => {
+	const rootDir = await buildFixture(noPushWorkflowWithBadBase);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: fixtureConfig,
+	});
+
+	assert.ok(
+		!findings.some((finding) =>
+			/origin\/\$\{\{ github\.base_ref \}\}/.test(finding),
+		),
+		`expected no origin/\${{ github.base_ref }} finding for a non-push workflow, got:\n${findings.join('\n')}`,
+	);
+});
