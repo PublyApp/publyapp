@@ -210,7 +210,7 @@ function adapterArgs(cardMap, state = 'REVIEW_READY', mode = 'dry-run') {
 	];
 }
 
-function assertLocalConfigShape(config) {
+function assertLocalConfigContents(config) {
 	const expectedConfigKeys = [
 		'ci_required_checks',
 		'closure_acceptance_commands',
@@ -307,7 +307,7 @@ async function localBranchAndHead() {
 
 test('project closure config validates and malformed config fails closed', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
-	assertLocalConfigShape(config);
+	assertLocalConfigContents(config);
 	const adapterStat = await lstat(adapterPath);
 	assert.equal(adapterStat.isSymbolicLink(), false);
 	assert.notEqual(adapterStat.mode & 0o111, 0);
@@ -358,11 +358,11 @@ test('project closure config validates and malformed config fails closed', async
 test('portable closure contract rejects unsafe config and renamed adapter fields', async () => {
 	const config = JSON.parse(await readFile(configPath, 'utf8'));
 	assert.throws(() =>
-		assertLocalConfigShape({ ...config, repo_path: '/tmp/publyapp' }),
+		assertLocalConfigContents({ ...config, repo_path: '/tmp/publyapp' }),
 	);
 	const missingBudget = { ...config };
 	delete missingBudget.infra_retry_budget;
-	assert.throws(() => assertLocalConfigShape(missingBudget));
+	assert.throws(() => assertLocalConfigContents(missingBudget));
 	const adapter = await readFile(
 		join(repo, '.ai/orchestration-adapter.md'),
 		'utf8',

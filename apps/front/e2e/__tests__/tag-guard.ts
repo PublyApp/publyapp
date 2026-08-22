@@ -478,7 +478,7 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 
 			let bodyStart = -1;
 			let bodyEnd = -1;
-			let unsupportedShape = false;
+			let unsupportedCallback = false;
 
 			if (arrowIdx !== -1) {
 				// Arrow callback: find { after =>
@@ -529,11 +529,11 @@ export function analyzeFile(filePath: string): DescribeInfo[] {
 				}
 			} else {
 				// Unsupported callback shape
-				unsupportedShape = true;
+				unsupportedCallback = true;
 			}
 
 			if (bodyStart === -1 || bodyEnd === -1) {
-				if (unsupportedShape) {
+				if (unsupportedCallback) {
 					records.push({
 						describePos,
 						bodyStart: 0,

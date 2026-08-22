@@ -1060,10 +1060,10 @@ const readBrowserPaint = async (
 						}
 					}
 				} else {
-					for (const shape of element.querySelectorAll(
+					for (const svgElement of element.querySelectorAll(
 						'path, circle, ellipse, line, polyline, polygon, rect',
 					)) {
-						rects.push(shape.getBoundingClientRect());
+						rects.push(svgElement.getBoundingClientRect());
 					}
 				}
 				if (rects.length === 0) {
@@ -1284,18 +1284,18 @@ const readBrowserPaint = async (
 					);
 				}
 			} else {
-				const shapes = element.querySelectorAll(
+				const svgElements = element.querySelectorAll(
 					'path, circle, ellipse, line, polyline, polygon, rect',
 				);
-				let paintedShapes = 0;
-				for (const shape of shapes) {
-					const style = getComputedStyle(shape);
+				let paintedCount = 0;
+				for (const svgElement of svgElements) {
+					const style = getComputedStyle(svgElement);
 					assertSupportedPaint(
 						style,
-						shape.getBoundingClientRect(),
+						svgElement.getBoundingClientRect(),
 						x,
 						y,
-						`${elementName(element)} ${shape.tagName}`,
+						`${elementName(element)} ${svgElement.tagName}`,
 					);
 					for (const property of ['fill', 'stroke'] as const) {
 						const paint = style[property];
@@ -1306,17 +1306,17 @@ const readBrowserPaint = async (
 							property === 'fill' ? style.fillOpacity : style.strokeOpacity;
 						if (paintOpacity !== '1') {
 							throw new Error(
-								`${elementName(element)} ${shape.tagName} has unsupported ${property}-opacity ${paintOpacity}`,
+								`${elementName(element)} ${svgElement.tagName} has unsupported ${property}-opacity ${paintOpacity}`,
 							);
 						}
 						toSrgb(
 							paint,
-							`${elementName(element)} ${shape.tagName} ${property}`,
+							`${elementName(element)} ${svgElement.tagName} ${property}`,
 						);
-						paintedShapes += 1;
+						paintedCount += 1;
 					}
 				}
-				if (paintedShapes === 0) {
+				if (paintedCount === 0) {
 					throw new Error(
 						`${elementName(element)} has no parseable painted glyph`,
 					);
@@ -1575,10 +1575,10 @@ const measurePaintedContrast = async (
 						}
 					}
 				} else {
-					for (const shape of element.querySelectorAll(
+					for (const svgElement of element.querySelectorAll(
 						'path, circle, ellipse, line, polyline, polygon, rect',
 					)) {
-						rects.push(shape.getBoundingClientRect());
+						rects.push(svgElement.getBoundingClientRect());
 					}
 				}
 				if (rects.length === 0) {
@@ -1872,10 +1872,10 @@ const measurePaintedContrast = async (
 						);
 						maskContext.translate(-viewBox.x, -viewBox.y);
 					}
-					for (const shape of svg.querySelectorAll(
+					for (const svgElement of svg.querySelectorAll(
 						'path, circle, ellipse, line, polyline, polygon, rect, text',
 					)) {
-						const style = getComputedStyle(shape);
+						const style = getComputedStyle(svgElement);
 						const fills = style.fill !== 'none';
 						const strokes = style.stroke !== 'none';
 						if (!fills && !strokes) {
@@ -1894,10 +1894,10 @@ const measurePaintedContrast = async (
 							maskContext.fillStyle = '#000';
 						}
 						const path = ((): Path2D | null => {
-							const tag = shape.tagName;
-							if (tag === 'path' && shape.getAttribute('d')) {
+							const tag = svgElement.tagName;
+							if (tag === 'path' && svgElement.getAttribute('d')) {
 								try {
-									return new Path2D(shape.getAttribute('d') ?? '');
+									return new Path2D(svgElement.getAttribute('d') ?? '');
 								} catch {
 									return null;
 								}
@@ -1905,20 +1905,20 @@ const measurePaintedContrast = async (
 							const built = new Path2D();
 							if (tag === 'line') {
 								built.moveTo(
-									Number(shape.getAttribute('x1')),
-									Number(shape.getAttribute('y1')),
+									Number(svgElement.getAttribute('x1')),
+									Number(svgElement.getAttribute('y1')),
 								);
 								built.lineTo(
-									Number(shape.getAttribute('x2')),
-									Number(shape.getAttribute('y2')),
+									Number(svgElement.getAttribute('x2')),
+									Number(svgElement.getAttribute('y2')),
 								);
 								return built;
 							}
 							if (tag === 'circle') {
 								built.arc(
-									Number(shape.getAttribute('cx')),
-									Number(shape.getAttribute('cy')),
-									Number(shape.getAttribute('r')),
+									Number(svgElement.getAttribute('cx')),
+									Number(svgElement.getAttribute('cy')),
+									Number(svgElement.getAttribute('r')),
 									0,
 									Math.PI * 2,
 								);
@@ -1926,10 +1926,10 @@ const measurePaintedContrast = async (
 							}
 							if (tag === 'ellipse') {
 								built.ellipse(
-									Number(shape.getAttribute('cx')),
-									Number(shape.getAttribute('cy')),
-									Number(shape.getAttribute('rx')),
-									Number(shape.getAttribute('ry')),
+									Number(svgElement.getAttribute('cx')),
+									Number(svgElement.getAttribute('cy')),
+									Number(svgElement.getAttribute('rx')),
+									Number(svgElement.getAttribute('ry')),
 									0,
 									0,
 									Math.PI * 2,
@@ -1938,15 +1938,15 @@ const measurePaintedContrast = async (
 							}
 							if (tag === 'rect') {
 								built.rect(
-									Number(shape.getAttribute('x') ?? 0),
-									Number(shape.getAttribute('y') ?? 0),
-									Number(shape.getAttribute('width')),
-									Number(shape.getAttribute('height')),
+									Number(svgElement.getAttribute('x') ?? 0),
+									Number(svgElement.getAttribute('y') ?? 0),
+									Number(svgElement.getAttribute('width')),
+									Number(svgElement.getAttribute('height')),
 								);
 								return built;
 							}
 							if (tag === 'polyline' || tag === 'polygon') {
-								const points = (shape.getAttribute('points') ?? '')
+								const points = (svgElement.getAttribute('points') ?? '')
 									.trim()
 									.split(/[\s,]+/u)
 									.map(Number);
