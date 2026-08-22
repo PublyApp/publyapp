@@ -376,12 +376,11 @@ ci-front:
 # (pnpm lint is repo-wide oxlint --quiet + lint:disables + frontend-barrels, pnpm format is
 # oxfmt --check) and on any .NET analyzer / code-style warning (Directory.Build.props sets
 # TreatWarningsAsErrors + EnforceCodeStyleInBuild, so a restore+build of PublyApp.slnx is the gate).
-ci-quality:
+# Composes ci-format (pnpm format) instead of restating it so `just ci` (which already
+# runs ci-format/ci-lint) does not run the same format check twice.
+ci-quality: ci-format ci-quality-dotnet test-analyzers
   @echo "=== [gate] quality (lint + format + dotnet build + analyzers) ==="
-  pnpm format
   pnpm lint
-  just ci-quality-dotnet
-  just test-analyzers
 
 # .NET solution build with warnings-as-errors (the quality gate's dotnet half).
 # APP_ROLE + TRUSTED_PROXY_CIDRS pinned for the same reason as build-api: `dotnet build`
