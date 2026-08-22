@@ -3,6 +3,7 @@ using System.Text;
 
 using FluentValidation;
 
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
@@ -20,6 +21,10 @@ using Resend;
 namespace PublyApp.Api.Lib;
 
 public static class ServiceRegistration {
+	// Key-ring subdirectory under FILE_STORAGE_ROOT. Kept beside staff-uploaded assets so
+	// the existing publyapp-api-storage volume (mounted into api AND worker) persists it.
+	// Not under the /files static root: keys must never be servable over HTTP.
+	internal const string DataProtectionKeyRingRelativePath = ".data-protection/keys";
 	// Helper method to get current tenant ID
 	private static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
 		var httpContext = httpContextAccessor.HttpContext;
@@ -134,6 +139,23 @@ public static class ServiceRegistration {
 				failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
 				tags: ["ready"]
 			);
+
+		// Social-account token protection (#640, epic C #630): ASP.NET Data Protection
+		// with a PERSISTED key ring. Without persistence every process restart would mint
+		// fresh keys and silently orphan every stored ProtectedCredentials blob (the row's
+		// tokens could never be decrypted again). The ring lives under FILE_STORAGE_ROOT,
+		// which is already volume-mounted in dokploy.yml for api AND worker — both roles
+		// resolve social-account rows, so both need the same readable key ring.
+		var dataProtectionRoot = Path.Combine(
+			AppEnvironment.Instance.FILE_STORAGE_ROOT,
+			DataProtectionKeyRingRelativePath
+		);
+		Directory.CreateDirectory(dataProtectionRoot);
+		builder.Services.AddDataProtection()
+			.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionRoot))
+			.SetApplicationName(AppEnvironment.Instance.APP_NAME);
+		// ITokenProtector/TokenProtector registers itself via the [Service] attribute
+		// scan (AddAppServices) — do not add an explicit registration here.
 
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) => {

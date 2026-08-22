@@ -80,9 +80,11 @@ services:
       - SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS=${SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS}
       - JOB_ALERT_LEASE_RETENTION_DAYS=${JOB_ALERT_LEASE_RETENTION_DAYS}
       - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
-    # Persists staff-uploaded assets (tenant logos) at FILE_STORAGE_ROOT across
-    # redeploys/container replacement — without this, every deploy wipes
-    # .artifacts/storage and every /files/... URL in tenants.logo_url 404s.
+    # Persists staff-uploaded assets (tenant logos) AND the Data Protection key
+    # ring (.data-protection/keys, #640) at FILE_STORAGE_ROOT across redeploys /
+    # container replacement — without this, every deploy wipes .artifacts/storage,
+    # every /files/... URL in tenants.logo_url 404s, and every stored social-account
+    # ProtectedCredentials blob becomes permanently undecryptable.
     # The mount must be writable by the container's $APP_UID (see
     # apps/api/Dockerfile, which chowns .artifacts to $APP_UID at build time).
     volumes:
@@ -164,7 +166,8 @@ services:
       - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
     # Shares the api's storage volume so files written by future export jobs (#213/#286)
     # are visible to the api's /files static serving (audit F18) — same FILE_STORAGE_ROOT
-    # path in both roles.
+    # path in both roles. Also lets the worker read the shared Data Protection key ring
+    # (#640): both roles must resolve identical keys or unprotect fails cross-role.
     volumes:
       - publyapp-api-storage:/app/.artifacts/storage
     networks:
