@@ -313,7 +313,7 @@ Additional repo-specific preferences for AI assistants (to reduce review churn):
 
 The product's design language (tokens, the `components/ui/*` layer, interaction conventions, dark
 mode, i18n/copy rules, and the guards that enforce them) is distilled in the root
-[`DESIGN.md`](../DESIGN.md), written for designers and agents who must match the product without
+[`DESIGN.md`](DESIGN.md), written for designers and agents who must match the product without
 reading the code.
 
 **Key principles (always apply):**

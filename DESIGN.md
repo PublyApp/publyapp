@@ -63,16 +63,19 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`, etc.).
 — source: `apps/front/src/styles/app.css` (`:root`, `html.dark`, `@theme inline`)
 
-**Semantic groups** (light value → dark value):
+**Semantic groups** (light value → dark value; both columns generated from `apps/front/src/styles/app.css`):
 
 | Group | Light | Dark | Notes |
 | --- | --- | --- | --- |
-| Primary (chrome accent) | `--publy-primary #fdc700` | `#f0bd00` | Yellow. Solid-button fill uses `--publy-primary-foreground #733e0a` text. |
-| Primary soft | `#fffbeb` | `#2a2400` | Chips / soft pill background; text `--publy-primary-soft-foreground`. |
+| Primary (chrome accent) | `--publy-primary #fdc700` | `#f0bd00` | Yellow. |
+| Primary foreground | `--publy-primary-foreground #733e0a` | `#1a0d00` | Solid-button text on `--publy-primary`. |
+| Primary soft | `#fffbeb` | `#2a2400` | Chips / soft pill background. |
+| Primary soft foreground | `#733e0a` | `#fbbf24` | Text on primary-soft; the value swaps to yellow in dark. |
 | Background / surface | `#ffffff` | `#18181b` | `--publy-background`, `--publy-surface` identical in both themes. |
 | Surface raised | `#fafafa` | `#1f1f23` | Overlay/popup base canvases. |
 | Surface muted | `#f4f4f5` | `#27272a` | `--publy-surface-muted` (secondary/accent fills). |
-| Surface hover / active | `#fafafa` / `#ececee` | `#2f2f33` / `#37373d` | |
+| Surface hover | `#fafafa` | `#2f2f33` | |
+| Surface active | `#ececee` | `#37373d` | |
 | Foreground | `#18181b` | `#fafafa` | Body text. |
 | Foreground secondary | `#3f3f46` | `#d4d4d8` | Real content text. |
 | Foreground muted | `#71717a` | `#a1a1aa` | Secondary body text (4.5:1 floor — see Contrast). |
@@ -82,7 +85,7 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 | Danger | `#dc2626` | `#f87171` | `--publy-danger`; destructive actions/alerts. |
 | Success | `#047857` | `#34d399` | |
 | Warning | `#b45309` | `#fbbf24` | |
-| Focus ring | `#a16207` | `#facc15` | `--publy-focus-ring`; darkened from `#ca8a04` to clear the 3:1 focus floor. |
+| Focus ring | `#a16207` | `#facc15` | `--publy-focus-ring`. |
 | Disabled | `#d4d4d8` | `#52525b` | |
 
 The avatar identity palette `--publy-avatar-1…8` (teal, violet, pink, rose, orange, sky, cyan,
@@ -131,9 +134,12 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 - No bespoke easing curves outside these tokens.
 
 ### Focus rings
-- `focus-visible` uses a **3px ring** at `--publy-focus-ring` (`focus-visible:ring-3
-  focus-visible:ring-ring`) on buttons, badges, inputs, selects, switches, checkboxes. The ring
-  colour is contrast-guarded to ≥3:1 against its surface (the focus-indicator floor). — source: `apps/front/src/components/ui/button.tsx`, `input.tsx`, `switch.tsx`, `apps/front/src/styles/focus-ring-contrast.test.ts`
+- `focus-visible` uses a ring at `--publy-focus-ring` (`focus-visible:ring-ring`), with the width set
+  per component in its `cva`/class string:
+  - **3px** (`focus-visible:ring-3`): `button.tsx`, `badge.tsx` (`ring-[3px]`), `input.tsx`,
+    `textarea.tsx`, `select.tsx`, `switch.tsx`.
+  - **2px** (`focus-visible:ring-2`): `checkbox.tsx`.
+  The ring colour is contrast-guarded to ≥3:1 against its surface (the focus-indicator floor). — source: `apps/front/src/components/ui/button.tsx`, `badge.tsx`, `input.tsx`, `textarea.tsx`, `select.tsx`, `switch.tsx`, `checkbox.tsx`, `apps/front/src/styles/focus-ring-contrast.test.ts`
 - Destructive/validation states keep the compliant base ring (`aria-invalid` adds a low-opacity
   destructive ring that must not replace the compliant one). — source: `apps/front/src/styles/focus-ring-contrast.test.ts`
 
@@ -184,6 +190,10 @@ scaffolding/CSS-import dependency only, not a runtime library. — source: `docs
 | `stat-card.tsx` | Metric tile | none | `--publy-stat-card-icon` |
 | `icon-color-picker.tsx` | Icon+colour chooser | none | `--publy-radius-circular` (pencil pin) |
 | `copy-button.tsx` | Copy-to-clipboard | none | `IconCheck`/`IconCopy` |
+| `toaster.tsx` | Sonner host (`AppToaster`); mounts the global toast surface | none | `.publy-toast-*` variants (via `toast-variants.ts`) |
+| `toast-variants.ts` | Toast variant tokens/tints (success/error/info/warning/loading/default) | none | semantic alert tokens |
+| `status-tone.ts` | Status→tone map + `StatusPillTone` type for status pills | none | danger/info/neutral/primary/success/warning |
+| `initials-avatar.tsx` | `EntityAvatar`, `AvatarStack`, `BrandTile` (org/people aggregations) | none | `--publy-avatar-1…8`, `--publy-avatar-foreground` |
 | `avatar.tsx` / `initials-avatar.tsx` / `person-avatar.tsx` | Identity surfaces | `PersonAvatar` sizes: default/xs/sm/md/lg | `--publy-avatar-1…8`, `--publy-avatar-foreground` |
 
 Avatars: `Avatar`/`AvatarImage`/`AvatarFallback` is the neutral primitive; `PersonAvatar`/`EntityAvatar`
@@ -253,6 +263,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
   because Sonner's un-layered stylesheet would defeat the app cascade. — source: `app.css`, `e2e/toast-contrast.spec.ts`
 
 ### Empty / error / loading states
+- **Every failure state shows its cause in plain words and the next action; never a bare "something went wrong".** This is the owner's product UI rule (decision 2026-08-22, spec `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` §1.7, on branch `docs/spec-epic-c-social-accounts`). A failed or paused state names what went wrong in one short sentence and offers the concrete recovery action (Retry / Reconnect the account / Reschedule), not a generic error string. — source: owner decision 2026-08-22, `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` §1.7
 - One shared primitive `state-view.tsx` (`StateView`, `StateSurface`, `ErrorStateSurface`,
   `NoMatchStateSurface`) at a **single visual scale**: 48px tone-coloured glyph (no disc/ring/box),
   matching title/description/action sizing. Full-page states use `h1`; in-list states use a non-`h1`.
@@ -312,7 +323,7 @@ and `pnpm --filter front test`).
 
 | Guard (file) | Rule it enforces | How to run | What red looks like |
 | --- | --- | --- | --- |
-| `scripts/check-design-system.mjs` | No raw visual colour (hex/rgb/hsl/`color-mix`) outside tokens; no `rounded-full`/`999px` except allowlist; no `@heroui`/`@mui`/`lucide-react` imports; no native product `<select>`; no prototype/icon-font classes; no `globalThis.confirm`; no `!important` on foundation; no centred non-confirmation overlay; no raw internal anchors; theme-invariant tokens must not swap. | `pnpm --filter front check:design-system` | A listed `ruleId` (e.g. `no-rounded-full-or-999-radius`, `no-raw-visual-color`) with the offending file/line. |
+| `scripts/check-design-system.mjs` | Enforces (by `ruleId`): `no-heroui-import`, `no-mui-import`, `no-lucide-import`, `no-heroui-color-scale`, `no-raw-visual-color` (hex/rgb/hsl/`color-mix` outside tokens), `no-native-product-select`, `no-prototype-icons`, `no-icon-font-classes`, `no-native-confirm`, `no-important-foundation`, `no-rounded-full-or-999-radius` (exact-selector allowlist), `no-non-confirmation-centered-overlay`, `no-dialog-popup-primitives`, `no-raw-internal-anchor`, `no-single-star-route-glob`, `token-theme-parity`, `token-must-be-declared`, `status-filter-checkbox-contract`, `stale-guard-debt`, `suppression-inventory-drift`. | `pnpm --filter front check:design-system` | A listed `ruleId` (e.g. `no-rounded-full-or-999-radius`, `no-raw-visual-color`, `token-theme-parity`) with the offending file/line. |
 | `scripts/check-zindex-guard.mjs` (+ `.test.mjs`) | Every `z-*` utility routes through `--publy-z-*`; no raw `z-10`/`z-50`/`[z-index:5]`; scale defined only in `:root` of `app.css`. | `pnpm --filter front check:zindex` (CLI) or `pnpm --filter front test` (suite) | A raw z-index candidate or an emitted `z-index:` not via `var(--publy-z-…)`; a second reachable scale definition. |
 | `src/styles/focus-ring-contrast.test.ts` | Focus ring resolves to ≥3:1 against its surface for every Button/Badge variant (incl. `aria-invalid`). | `pnpm --filter front test` | A variant whose resolved ring colour is below `CONTRAST_FLOOR = 3.0`. |
 | `src/styles/avatar-fallback-contrast.test.ts` | Each `--publy-avatar-N` bg meets 4.5:1 with white initials, both themes. | `pnpm --filter front test` | A palette token below `SMALL_TEXT_CONTRAST_FLOOR = 4.5`. |
