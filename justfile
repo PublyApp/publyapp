@@ -284,7 +284,7 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 # Fail if .github/workflows has a step the local gate is not reconciled with,
 # if the #1017 changed-path classifier's fail-closed logic regresses, or if
 # an aggregate gate's job graph (needs/if/permissions/outputs — the metadata
-# check-ci-drift.mjs's step-content hash does not cover) drifts from what
+# check-ci-drift.ts's step-content hash does not cover) drifts from what
 # #1017 requires.
 ci-drift:
   @echo "=== [gate] workflow drift guard ==="
