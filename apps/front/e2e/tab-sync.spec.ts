@@ -4,7 +4,7 @@ import { loginAsStaffAdmin } from './helpers/login';
 
 const THEME_TOGGLE_TEST_ID = 'theme-toggle';
 
-test.describe('logout in one tab', () => {
+test.describe('logout in one tab', { tag: ['@auth', '@806'] }, () => {
 	// Own clean context, not the shared staff-admin `storageState`: the day
 	// `clearSession` starts revoking the session server-side (queued —
 	// review-r3-tests.md F11), logging out here would invalidate the token
@@ -52,7 +52,7 @@ test('toggling the theme in one tab flips it in every other tab', async ({
 		.not.toBe(otherTabHtmlClassBefore);
 });
 
-test.describe('logging in on a parked tab', () => {
+test.describe('logging in on a parked tab', { tag: ['@auth', '@806'] }, () => {
 	// The `chromium` project supplies a pre-authenticated staff-admin
 	// `storageState` (playwright.config.ts, review-r1-tests.md F29) so the
 	// other tests in this file can skip a real form login. This test's whole

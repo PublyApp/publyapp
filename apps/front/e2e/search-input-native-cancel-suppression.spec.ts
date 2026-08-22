@@ -48,21 +48,25 @@ const TABLE = 'staff-users-table';
  * well beyond this fix's scope) or manual/visual QA across real desktop
  * Chrome, Firefox, and WebKit — not something this suite can assert.
  */
-test.describe('SearchInput clear control (#975, real browser)', () => {
-	test('exactly one accessible clear control exists once the field has text, and it empties + refocuses the field', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
+test.describe(
+	'SearchInput clear control (#975, real browser)',
+	{ tag: ['@shell', '@975'] },
+	() => {
+		test('exactly one accessible clear control exists once the field has text, and it empties + refocuses the field', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
 
-		const search = page.getByTestId(`${TABLE}-search`);
-		await expect(search).toBeVisible();
-		await search.fill('staff-admin');
+			const search = page.getByTestId(`${TABLE}-search`);
+			await expect(search).toBeVisible();
+			await search.fill('staff-admin');
 
-		const clearButtons = page.getByRole('button', { name: 'Clear search' });
-		await expect(clearButtons).toHaveCount(1);
+			const clearButtons = page.getByRole('button', { name: 'Clear search' });
+			await expect(clearButtons).toHaveCount(1);
 
-		await clearButtons.click();
-		await expect(search).toHaveValue('');
-		await expect(search).toBeFocused();
-	});
-});
+			await clearButtons.click();
+			await expect(search).toHaveValue('');
+			await expect(search).toBeFocused();
+		});
+	},
+);

@@ -17,6 +17,8 @@ else in `docs/` is a **record** — accurate as of its date, not a standing inst
 | [`AGENTS.md`](../AGENTS.md) (repo root) | The behavioural contract. Architecture and conventions for the whole repo. Wins over anything in `docs/`. |
 | [`docs/guides/`](guides) | The guides `AGENTS.md` links to. These are the long-form version of its rules. |
 | [`docs/guides/front/`](guides/front) | The frontend. `apps/front` is the only frontend under development and the only one deployed. |
+| [`docs/guides/e2e-coverage.md`](guides/e2e-coverage.md) | When a change needs an end-to-end test (five criteria). |
+| [`docs/guides/e2e-tags.md`](guides/e2e-tags.md) | E2E tag vocabulary and spec inventory. |
 | [`docs/deployment/`](deployment) | Live production operations — deployment design, migration gating, and the first-deploy runbook. Production has run on these since 2026-07-20. |
 
 Two cautions about `docs/guides/`:

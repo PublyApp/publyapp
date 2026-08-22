@@ -336,195 +336,204 @@ test.afterEach(async ({ page }) => {
 	await restoreToxiproxy();
 });
 
-test('connection-refused maps to a list error without crashing or logging out', async ({
-	page,
-}) => {
-	const pageErrors = installPageErrorCapture(page);
+test.describe(
+	'auth error handling',
+	{ tag: ['@auth', '@security', '@713'] },
+	() => {
+		test('connection-refused maps to a list error without crashing or logging out', async ({
+			page,
+		}) => {
+			const pageErrors = installPageErrorCapture(page);
 
-	await loginAsStaffAdmin(page);
-	await disableToxiproxy();
-	await searchFaultedStaffUsers(page, 'connection-refused');
-	await expectStillAuthenticated(
-		page,
-		pageErrors,
-		restoreToxiproxy,
-		'connection-refused-recovered',
-	);
-});
+			await loginAsStaffAdmin(page);
+			await disableToxiproxy();
+			await searchFaultedStaffUsers(page, 'connection-refused');
+			await expectStillAuthenticated(
+				page,
+				pageErrors,
+				restoreToxiproxy,
+				'connection-refused-recovered',
+			);
+		});
 
-test('reset peer maps to a list error without crashing or logging out', async ({
-	page,
-}) => {
-	const pageErrors = installPageErrorCapture(page);
+		test('reset peer maps to a list error without crashing or logging out', async ({
+			page,
+		}) => {
+			const pageErrors = installPageErrorCapture(page);
 
-	await loginAsStaffAdmin(page);
-	await addToxic('api-reset-peer', 'reset_peer');
-	await searchFaultedStaffUsers(page, 'reset-peer');
-	await expectStillAuthenticated(
-		page,
-		pageErrors,
-		restoreToxiproxy,
-		'reset-peer-recovered',
-	);
-});
+			await loginAsStaffAdmin(page);
+			await addToxic('api-reset-peer', 'reset_peer');
+			await searchFaultedStaffUsers(page, 'reset-peer');
+			await expectStillAuthenticated(
+				page,
+				pageErrors,
+				restoreToxiproxy,
+				'reset-peer-recovered',
+			);
+		});
 
-test('timeout maps to a list error without crashing or logging out', async ({
-	page,
-}) => {
-	const pageErrors = installPageErrorCapture(page);
+		test('timeout maps to a list error without crashing or logging out', async ({
+			page,
+		}) => {
+			const pageErrors = installPageErrorCapture(page);
 
-	await loginAsStaffAdmin(page);
-	await addToxic('api-timeout', 'timeout', { timeout: 1_000 });
-	await searchFaultedStaffUsers(page, 'timeout');
-	await expectStillAuthenticated(
-		page,
-		pageErrors,
-		restoreToxiproxy,
-		'timeout-recovered',
-	);
-});
+			await loginAsStaffAdmin(page);
+			await addToxic('api-timeout', 'timeout', { timeout: 1_000 });
+			await searchFaultedStaffUsers(page, 'timeout');
+			await expectStillAuthenticated(
+				page,
+				pageErrors,
+				restoreToxiproxy,
+				'timeout-recovered',
+			);
+		});
 
-/** The authed-surface counterpart to the `auth/redirect-code` 500 covered by
- * `design-handoff-foundation.spec.ts` and the POST 500 covered by
- * `staff-tenant-details.spec.ts`: neither of those proves that a `500`
- * `application/problem+json` on an authed LIST GET renders the list error
- * instead of tripping centralized logout. Only `401` may log a user out
- * (AGENTS.md → "Frontend invariants"), so a `500` must leave the session
- * cookie and the authed shell intact. */
-test('HTTP 500 problem+json maps to a list error without crashing or logging out', async ({
-	page,
-}) => {
-	const pageErrors = installPageErrorCapture(page);
+		/** The authed-surface counterpart to the `auth/redirect-code` 500 covered by
+		 * `design-handoff-foundation.spec.ts` and the POST 500 covered by
+		 * `staff-tenant-details.spec.ts`: neither of those proves that a `500`
+		 * `application/problem+json` on an authed LIST GET renders the list error
+		 * instead of tripping centralized logout. Only `401` may log a user out
+		 * (AGENTS.md → "Frontend invariants"), so a `500` must leave the session
+		 * cookie and the authed shell intact. */
+		test('HTTP 500 problem+json maps to a list error without crashing or logging out', async ({
+			page,
+		}) => {
+			const pageErrors = installPageErrorCapture(page);
 
-	await loginAsStaffAdmin(page);
-	await installSyntheticStaffUsersResponse(page, {
-		status: 500,
-		contentType: 'application/problem+json',
-		body: JSON.stringify({
-			type: 'about:blank',
-			title: 'Synthetic server error',
-			status: 500,
-			detail: 'Synthetic server error',
-			translationKey: 'e2e-500',
-		}),
-	});
-	await navigateToFaultedStaffUsers(page, 'http-500');
-	await expect(
-		page
-			.getByTestId('staff-users-table-error')
-			.getByRole('button', { name: /retry/i }),
-		'list error retry affordance',
-	).toBeVisible();
-	await expectStillAuthenticated(
-		page,
-		pageErrors,
-		async () => {
-			await page.unroute(`${API_BASE_URL}/**`);
-		},
-		'http-500-recovered',
-	);
-});
+			await loginAsStaffAdmin(page);
+			await installSyntheticStaffUsersResponse(page, {
+				status: 500,
+				contentType: 'application/problem+json',
+				body: JSON.stringify({
+					type: 'about:blank',
+					title: 'Synthetic server error',
+					status: 500,
+					detail: 'Synthetic server error',
+					translationKey: 'e2e-500',
+				}),
+			});
+			await navigateToFaultedStaffUsers(page, 'http-500');
+			await expect(
+				page
+					.getByTestId('staff-users-table-error')
+					.getByRole('button', { name: /retry/i }),
+				'list error retry affordance',
+			).toBeVisible();
+			await expectStillAuthenticated(
+				page,
+				pageErrors,
+				async () => {
+					await page.unroute(`${API_BASE_URL}/**`);
+				},
+				'http-500-recovered',
+			);
+		});
 
-test('invalid JSON maps to a list error without crashing or logging out', async ({
-	page,
-}) => {
-	const pageErrors = installPageErrorCapture(page);
+		test('invalid JSON maps to a list error without crashing or logging out', async ({
+			page,
+		}) => {
+			const pageErrors = installPageErrorCapture(page);
 
-	await loginAsStaffAdmin(page);
-	await installSyntheticStaffUsersResponse(page, {
-		status: 200,
-		contentType: 'application/json',
-		body: 'not json {',
-	});
-	await navigateToFaultedStaffUsers(page, 'invalid-json', {
-		includeOkResponse: true,
-	});
-	await expectStillAuthenticated(
-		page,
-		pageErrors,
-		async () => {
-			await page.unroute(`${API_BASE_URL}/**`);
-		},
-		'invalid-json-recovered',
-	);
-});
+			await loginAsStaffAdmin(page);
+			await installSyntheticStaffUsersResponse(page, {
+				status: 200,
+				contentType: 'application/json',
+				body: 'not json {',
+			});
+			await navigateToFaultedStaffUsers(page, 'invalid-json', {
+				includeOkResponse: true,
+			});
+			await expectStillAuthenticated(
+				page,
+				pageErrors,
+				async () => {
+					await page.unroute(`${API_BASE_URL}/**`);
+				},
+				'invalid-json-recovered',
+			);
+		});
 
-test('auth surface invalid session stays on login and stays reachable', async ({
-	page,
-}) => {
-	await setSessionCookie(page);
-	await page.goto('/login?rc=invalid_session');
+		test('auth surface invalid session stays on login and stays reachable', async ({
+			page,
+		}) => {
+			await setSessionCookie(page);
+			await page.goto('/login?rc=invalid_session');
 
-	await expect(
-		page.getByText('Your session expired. Please sign in again.'),
-	).toBeVisible();
-	const cookie = await page.evaluate(() => document.cookie);
-	expect(cookie).toContain(TENANT_TOKEN_VALUE);
-	expect(page.url()).toContain('/login');
-});
+			await expect(
+				page.getByText('Your session expired. Please sign in again.'),
+			).toBeVisible();
+			const cookie = await page.evaluate(() => document.cookie);
+			expect(cookie).toContain(TENANT_TOKEN_VALUE);
+			expect(page.url()).toContain('/login');
+		});
 
-test('authed 401 does not stay authed and redirects through logout flow', async ({
-	page,
-}) => {
-	await setSessionCookie(page);
-	const cookieBeforeNavigation = await page.evaluate(() => document.cookie);
-	expect(cookieBeforeNavigation).toContain(TENANT_TOKEN_VALUE);
+		test('authed 401 does not stay authed and redirects through logout flow', async ({
+			page,
+		}) => {
+			await setSessionCookie(page);
+			const cookieBeforeNavigation = await page.evaluate(() => document.cookie);
+			expect(cookieBeforeNavigation).toContain(TENANT_TOKEN_VALUE);
 
-	const redirectCodeMock = await mockAuthRedirectCode(page, 401, {
-		status: 401,
-		title: 'Unauthorized',
-		detail: 'Token invalid',
-	});
+			const redirectCodeMock = await mockAuthRedirectCode(page, 401, {
+				status: 401,
+				title: 'Unauthorized',
+				detail: 'Token invalid',
+			});
 
-	await page.goto('/tenant');
+			await page.goto('/tenant');
 
-	await expect(page).toHaveURL(/.*\/login\?rc=invalid_session/);
-	expect(redirectCodeMock.hits()).toBe(1);
-	await expect(
-		page.getByText('Your session expired. Please sign in again.'),
-	).toBeVisible();
-	const clearedCookie = await page.evaluate(() => document.cookie);
-	expect(clearedCookie).not.toContain(TENANT_TOKEN_VALUE);
-});
+			await expect(page).toHaveURL(/.*\/login\?rc=invalid_session/);
+			expect(redirectCodeMock.hits()).toBe(1);
+			await expect(
+				page.getByText('Your session expired. Please sign in again.'),
+			).toBeVisible();
+			const clearedCookie = await page.evaluate(() => document.cookie);
+			expect(clearedCookie).not.toContain(TENANT_TOKEN_VALUE);
+		});
 
-test('authed 403 renders forbidden view without logout', async ({ page }) => {
-	await setSessionCookie(page);
-	await mockAuthRedirectCode(page, 403, {
-		status: 403,
-		title: 'Forbidden',
-		detail: 'No scope',
-	});
+		test('authed 403 renders forbidden view without logout', async ({
+			page,
+		}) => {
+			await setSessionCookie(page);
+			await mockAuthRedirectCode(page, 403, {
+				status: 403,
+				title: 'Forbidden',
+				detail: 'No scope',
+			});
 
-	await page.goto('/tenant');
-	await expect(page.getByTestId('view-403')).toBeVisible();
+			await page.goto('/tenant');
+			await expect(page.getByTestId('view-403')).toBeVisible();
 
-	expect(page.url()).toContain('/tenant');
-	const cookie = await page.evaluate(() => document.cookie);
-	expect(cookie).toContain(TENANT_TOKEN_VALUE);
-});
+			expect(page.url()).toContain('/tenant');
+			const cookie = await page.evaluate(() => document.cookie);
+			expect(cookie).toContain(TENANT_TOKEN_VALUE);
+		});
 
-test('unknown paths render the shared 404 view', async ({ page }) => {
-	await page.goto('/route-does-not-exist');
+		test('unknown paths render the shared 404 view', async ({ page }) => {
+			await page.goto('/route-does-not-exist');
 
-	await expect(page.getByTestId('view-404')).toBeVisible();
-});
+			await expect(page.getByTestId('view-404')).toBeVisible();
+		});
 
-test('404 "Return home" navigates client-side instead of reloading the document', async ({
-	page,
-}) => {
-	await page.goto('/route-does-not-exist');
-	await expect(page.getByTestId('view-404')).toBeVisible();
+		test('404 "Return home" navigates client-side instead of reloading the document', async ({
+			page,
+		}) => {
+			await page.goto('/route-does-not-exist');
+			await expect(page.getByTestId('view-404')).toBeVisible();
 
-	await page.evaluate(() => {
-		(window as unknown as { __spaAlive?: boolean }).__spaAlive = true;
-	});
-	await page
-		.getByTestId('view-404')
-		.getByRole('link', { name: /home/i })
-		.click();
+			await page.evaluate(() => {
+				(window as unknown as { __spaAlive?: boolean }).__spaAlive = true;
+			});
+			await page
+				.getByTestId('view-404')
+				.getByRole('link', { name: /home/i })
+				.click();
 
-	const alive = await page.evaluate(
-		() => (window as unknown as { __spaAlive?: boolean }).__spaAlive === true,
-	);
-	expect(alive).toBe(true);
-});
+			const alive = await page.evaluate(
+				() =>
+					(window as unknown as { __spaAlive?: boolean }).__spaAlive === true,
+			);
+			expect(alive).toBe(true);
+		});
+	},
+);

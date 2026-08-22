@@ -93,46 +93,50 @@ const expectFieldFullyAboveActionBar = async (
 	expect(fieldBox.y + fieldBox.height).toBeLessThanOrEqual(barBox.y + 1);
 };
 
-test.describe('form action bar: opaque and clears the last field', () => {
-	test('create-tenant form: the bar is opaque, and keyboard-focusing the last field scrolls it fully above the bar', async ({
-		page,
-	}) => {
-		await page.setViewportSize(SHORT_VIEWPORT);
-		await loginAsStaffAdmin(page);
+test.describe(
+	'form action bar: opaque and clears the last field',
+	{ tag: ['@design', '@806'] },
+	() => {
+		test('create-tenant form: the bar is opaque, and keyboard-focusing the last field scrolls it fully above the bar', async ({
+			page,
+		}) => {
+			await page.setViewportSize(SHORT_VIEWPORT);
+			await loginAsStaffAdmin(page);
 
-		await page.goto('/staff/tenants/new');
-		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
-		await expect(page.locator('[data-slot="form-action-bar"]')).toBeVisible();
+			await page.goto('/staff/tenants/new');
+			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+			await expect(page.locator('[data-slot="form-action-bar"]')).toBeVisible();
 
-		await expectOpaqueBackground(page);
+			await expectOpaqueBackground(page);
 
-		const lastField = page.getByRole('switch', {
-			name: 'Seed default profiles',
+			const lastField = page.getByRole('switch', {
+				name: 'Seed default profiles',
+			});
+			await lastField.focus();
+			await expect(lastField).toBeFocused();
+			await expectFieldFullyAboveActionBar(page, lastField);
 		});
-		await lastField.focus();
-		await expect(lastField).toBeFocused();
-		await expectFieldFullyAboveActionBar(page, lastField);
-	});
 
-	test('edit-tenant form: keyboard-focusing the last field (Internal notes) scrolls it fully above the bar', async ({
-		page,
-	}) => {
-		await page.setViewportSize(SHORT_VIEWPORT);
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
+		test('edit-tenant form: keyboard-focusing the last field (Internal notes) scrolls it fully above the bar', async ({
+			page,
+		}) => {
+			await page.setViewportSize(SHORT_VIEWPORT);
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
 
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
-		await expect(page.locator('[data-slot="form-action-bar"]')).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await expect(page.locator('[data-slot="form-action-bar"]')).toBeVisible();
 
-		await expectOpaqueBackground(page);
+			await expectOpaqueBackground(page);
 
-		const lastField = page.getByRole('textbox', { name: 'Internal notes' });
-		await lastField.focus();
-		await expect(lastField).toBeFocused();
-		await expectFieldFullyAboveActionBar(page, lastField);
-	});
-});
+			const lastField = page.getByRole('textbox', { name: 'Internal notes' });
+			await lastField.focus();
+			await expect(lastField).toBeFocused();
+			await expectFieldFullyAboveActionBar(page, lastField);
+		});
+	},
+);
 
 /** Wheeling over a part of the shell with no scroll container of its own
  * (the rail) used to bubble up to <body>, which stayed independently
@@ -183,31 +187,35 @@ const expectBarFlushWithScrollerBottom = async (page: Page) => {
 	expect(Math.abs(dims.barBottom - dims.mainBottom)).toBeLessThanOrEqual(1);
 };
 
-test.describe('app shell: single scroller, no gap beneath the pinned bar (handoff 2a/2b)', () => {
-	test('create-tenant form: wheeling the rail does not scroll the document, and the bar sits flush at the bottom once scrolled', async ({
-		page,
-	}) => {
-		await page.setViewportSize(SHORT_VIEWPORT);
-		await loginAsStaffAdmin(page);
+test.describe(
+	'app shell: single scroller, no gap beneath the pinned bar (handoff 2a/2b)',
+	{ tag: ['@design', '@806'] },
+	() => {
+		test('create-tenant form: wheeling the rail does not scroll the document, and the bar sits flush at the bottom once scrolled', async ({
+			page,
+		}) => {
+			await page.setViewportSize(SHORT_VIEWPORT);
+			await loginAsStaffAdmin(page);
 
-		await page.goto('/staff/tenants/new');
-		await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
+			await page.goto('/staff/tenants/new');
+			await expect(page.getByTestId('staff-tenant-create-page')).toBeVisible();
 
-		await expectSingleScroller(page);
-		await expectBarFlushWithScrollerBottom(page);
-	});
+			await expectSingleScroller(page);
+			await expectBarFlushWithScrollerBottom(page);
+		});
 
-	test('edit-tenant form: wheeling the rail does not scroll the document, and the bar sits flush at the bottom once scrolled', async ({
-		page,
-	}) => {
-		await page.setViewportSize(SHORT_VIEWPORT);
-		await loginAsStaffAdmin(page);
-		await mockTenantEdit(page);
+		test('edit-tenant form: wheeling the rail does not scroll the document, and the bar sits flush at the bottom once scrolled', async ({
+			page,
+		}) => {
+			await page.setViewportSize(SHORT_VIEWPORT);
+			await loginAsStaffAdmin(page);
+			await mockTenantEdit(page);
 
-		await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
-		await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
+			await page.goto(`/staff/tenants/${TENANT_ID}/edit`);
+			await expect(page.getByTestId('staff-tenant-edit-page')).toBeVisible();
 
-		await expectSingleScroller(page);
-		await expectBarFlushWithScrollerBottom(page);
-	});
-});
+			await expectSingleScroller(page);
+			await expectBarFlushWithScrollerBottom(page);
+		});
+	},
+);

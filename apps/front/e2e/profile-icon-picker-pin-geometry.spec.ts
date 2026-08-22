@@ -283,66 +283,70 @@ const assertPinOverhangsAndIsNotClipped = async (
 	);
 };
 
-test.describe('profile icon-picker pencil-pin geometry (#992/#975 round 3, live component + live route)', () => {
-	test('the pin overhangs the tile, is not clipped by the drawer/drawer-body, and does not collide with neighbours (desktop width)', async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1280, height: 800 });
-		await openProfileCreateDrawer(page);
+test.describe(
+	'profile icon-picker pencil-pin geometry (#992/#975 round 3, live component + live route)',
+	{ tag: ['@design', '@staff-profiles', '@992'] },
+	() => {
+		test('the pin overhangs the tile, is not clipped by the drawer/drawer-body, and does not collide with neighbours (desktop width)', async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await openProfileCreateDrawer(page);
 
-		await assertPinOverhangsAndIsNotClipped(page);
-	});
-
-	// Issue #992's own callout: "Check it at narrow widths too, where the grid
-	// collapses to one column."
-	test('still overhangs and is not clipped at the narrow single-column breakpoint', async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 375, height: 800 });
-		await openProfileCreateDrawer(page);
-
-		await assertPinOverhangsAndIsNotClipped(page);
-	});
-
-	// Round 3 finding 3 (compiled CSS freshness): reproduces the reviewer's
-	// exact mutation — `right: 0` (this branch's `right: -4px`) changed to
-	// `right: 999px` — as a real stylesheet injected via `page.addStyleTag`
-	// AFTER the live page has already loaded its real, server-served
-	// stylesheet. There is no separate `dist/` artifact this spec reads: the
-	// CSS driving the baseline assertions above came straight from the
-	// running `front` container's HTTP response, so there is nothing here
-	// that can go stale independently of what that container actually
-	// serves. This override rule wins the cascade the same way a later
-	// declaration in the real compiled app.css would.
-	test('a right:999px mutation (displacing the pin far from the corner) is caught', async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1280, height: 800 });
-		await openProfileCreateDrawer(page);
-
-		await page.addStyleTag({
-			content: '.publy-profile-detail-tile-pin{right:999px}',
+			await assertPinOverhangsAndIsNotClipped(page);
 		});
 
-		await expect(assertPinOverhangsAndIsNotClipped(page)).rejects.toThrow();
-	});
+		// Issue #992's own callout: "Check it at narrow widths too, where the grid
+		// collapses to one column."
+		test('still overhangs and is not clipped at the narrow single-column breakpoint', async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 375, height: 800 });
+			await openProfileCreateDrawer(page);
 
-	// Round 3 finding 2 (mirrored markup): reproduces the reviewer's exact
-	// live-component regression — stripping the pin's only styling class.
-	// Round 2's hermetic spec always rendered its own hardcoded class list,
-	// so this mutation was invisible to it; this spec measures the real
-	// rendered element, so the same DOM surgery a source edit + rebuild would
-	// produce is directly visible here.
-	test("removing the live pin's styling class is caught (no overhang left to measure)", async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1280, height: 800 });
-		await openProfileCreateDrawer(page);
-
-		await page.getByTestId('profile-icon-picker-pin').evaluate((pin) => {
-			pin.classList.remove('publy-profile-detail-tile-pin');
+			await assertPinOverhangsAndIsNotClipped(page);
 		});
 
-		await expect(assertPinOverhangsAndIsNotClipped(page)).rejects.toThrow();
-	});
-});
+		// Round 3 finding 3 (compiled CSS freshness): reproduces the reviewer's
+		// exact mutation — `right: 0` (this branch's `right: -4px`) changed to
+		// `right: 999px` — as a real stylesheet injected via `page.addStyleTag`
+		// AFTER the live page has already loaded its real, server-served
+		// stylesheet. There is no separate `dist/` artifact this spec reads: the
+		// CSS driving the baseline assertions above came straight from the
+		// running `front` container's HTTP response, so there is nothing here
+		// that can go stale independently of what that container actually
+		// serves. This override rule wins the cascade the same way a later
+		// declaration in the real compiled app.css would.
+		test('a right:999px mutation (displacing the pin far from the corner) is caught', async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await openProfileCreateDrawer(page);
+
+			await page.addStyleTag({
+				content: '.publy-profile-detail-tile-pin{right:999px}',
+			});
+
+			await expect(assertPinOverhangsAndIsNotClipped(page)).rejects.toThrow();
+		});
+
+		// Round 3 finding 2 (mirrored markup): reproduces the reviewer's exact
+		// live-component regression — stripping the pin's only styling class.
+		// Round 2's hermetic spec always rendered its own hardcoded class list,
+		// so this mutation was invisible to it; this spec measures the real
+		// rendered element, so the same DOM surgery a source edit + rebuild would
+		// produce is directly visible here.
+		test("removing the live pin's styling class is caught (no overhang left to measure)", async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await openProfileCreateDrawer(page);
+
+			await page.getByTestId('profile-icon-picker-pin').evaluate((pin) => {
+				pin.classList.remove('publy-profile-detail-tile-pin');
+			});
+
+			await expect(assertPinOverhangsAndIsNotClipped(page)).rejects.toThrow();
+		});
+	},
+);

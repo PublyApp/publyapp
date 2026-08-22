@@ -288,67 +288,70 @@ const assertNoLeakAcrossSinks = async (
 
 test.describe.configure({ mode: 'serial' });
 
-test('rejected token is absent from deployed container logs', async ({
-	request,
-}, testInfo) => {
-	expect(CONTROL_REQUEST.path, 'request-counter control path is explicit').toBe(
-		STAFF_USERS_PATH,
-	);
-	expect(
-		CONTROL_REQUEST.method,
-		'request-counter control method is explicit',
-	).toBe('GET');
-
-	const token = buildSentinelToken('invalid', testInfo);
-	await assertNoLeakAcrossSinks(request, token);
-});
-
-// M1.4 intentionally scopes request-counter fault-path work to invalid token and
-// encoded payload coverage while the authenticated fault-recovery branch remains a
-// separate backlog item in this phase's residuals.
-test('redacts token in raw / encoded / JSON-escaped forms everywhere', async ({
-	request,
-	page,
-}, testInfo) => {
-	const rawToken = buildSentinelToken('encoded', testInfo);
-	const encodedToken = encodeURIComponent(rawToken);
-	const jsonToken = JSON.stringify(rawToken).slice(1, -1);
-
-	expect(
-		new Set([rawToken, encodedToken, jsonToken]).size,
-		'token variants are distinct',
-	).toBe(3);
-
-	const tokenVariants = [rawToken, encodedToken, jsonToken];
-	const browserMessages = await installBrowserLogCapture(page);
-	await page.addInitScript((smokeMessage) => {
-		console.info(smokeMessage);
-	}, SMOKE_BROWSER_MESSAGE);
-	await page.goto('/');
-
-	for (const token of tokenVariants) {
-		await assertNoLeakAcrossSinks(request, token);
-		const frontResult = await requestTokenViaFront(page, token);
-		expect(frontResult.protocol, 'front request transport is HTTPS').toBe(
-			'https:',
-		);
+test.describe('log leak prevention', { tag: ['@security', '@733'] }, () => {
+	test('rejected token is absent from deployed container logs', async ({
+		request,
+	}, testInfo) => {
 		expect(
-			frontResult.status,
-			'front request path handled malformed token probe',
-		).toBe(404);
-	}
+			CONTROL_REQUEST.path,
+			'request-counter control path is explicit',
+		).toBe(STAFF_USERS_PATH);
+		expect(
+			CONTROL_REQUEST.method,
+			'request-counter control method is explicit',
+		).toBe('GET');
 
-	const browserText = browserMessages.join('\n');
-	const browserAndContainerSinks: SinkCapture[] = [
-		{ name: 'browser-console', text: browserText },
-		...captureContainerLogSinks(),
-	];
+		const token = buildSentinelToken('invalid', testInfo);
+		await assertNoLeakAcrossSinks(request, token);
+	});
 
-	for (const token of tokenVariants) {
-		assertSecretAbsentFromSinks(browserAndContainerSinks, token);
-	}
-	expect(
-		browserText,
-		'browser console capture observed smoke probe message',
-	).toContain(SMOKE_BROWSER_MESSAGE);
+	// M1.4 intentionally scopes request-counter fault-path work to invalid token and
+	// encoded payload coverage while the authenticated fault-recovery branch remains a
+	// separate backlog item in this phase's residuals.
+	test('redacts token in raw / encoded / JSON-escaped forms everywhere', async ({
+		request,
+		page,
+	}, testInfo) => {
+		const rawToken = buildSentinelToken('encoded', testInfo);
+		const encodedToken = encodeURIComponent(rawToken);
+		const jsonToken = JSON.stringify(rawToken).slice(1, -1);
+
+		expect(
+			new Set([rawToken, encodedToken, jsonToken]).size,
+			'token variants are distinct',
+		).toBe(3);
+
+		const tokenVariants = [rawToken, encodedToken, jsonToken];
+		const browserMessages = await installBrowserLogCapture(page);
+		await page.addInitScript((smokeMessage) => {
+			console.info(smokeMessage);
+		}, SMOKE_BROWSER_MESSAGE);
+		await page.goto('/');
+
+		for (const token of tokenVariants) {
+			await assertNoLeakAcrossSinks(request, token);
+			const frontResult = await requestTokenViaFront(page, token);
+			expect(frontResult.protocol, 'front request transport is HTTPS').toBe(
+				'https:',
+			);
+			expect(
+				frontResult.status,
+				'front request path handled malformed token probe',
+			).toBe(404);
+		}
+
+		const browserText = browserMessages.join('\n');
+		const browserAndContainerSinks: SinkCapture[] = [
+			{ name: 'browser-console', text: browserText },
+			...captureContainerLogSinks(),
+		];
+
+		for (const token of tokenVariants) {
+			assertSecretAbsentFromSinks(browserAndContainerSinks, token);
+		}
+		expect(
+			browserText,
+			'browser console capture observed smoke probe message',
+		).toContain(SMOKE_BROWSER_MESSAGE);
+	});
 });

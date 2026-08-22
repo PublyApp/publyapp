@@ -769,81 +769,89 @@ const DRAWER_CASES = DRAWER_DESCRIPTION_CONSUMERS.flatMap((consumer) => {
 	];
 });
 
-test.describe('live description text contrast (#1043 / PR #1061)', () => {
-	test('every inventory consumer has a live browser case', () => {
-		expect(DRAWER_CASES.length).toBe(DRAWER_DESCRIPTION_CONSUMERS.length);
-		for (const consumer of DRAWER_DESCRIPTION_CONSUMERS) {
-			expect(
-				DRAWER_OPENERS[consumer.testId],
-				`no browser drawer opener for ${consumer.file} (${consumer.testId})`,
-			).toBeDefined();
-		}
-	});
-
-	// Round 8 M4: the source guard's DESCRIPTION_SELECTORS is its own list,
-	// and this spec's explicit description cases used to be hardcoded with
-	// nothing relating the two — a fourth description class gained source
-	// coverage automatically and browser coverage never, and the old
-	// BROWSER_COVERED_SELECTORS string[] was satisfiable by copy-paste. The
-	// coverage is now the DESCRIPTION_LIVE_CASES definitions below (real
-	// openers + real locators, driven into actual tests) plus the drawer
-	// description class, whose live coverage every drawer case asserts via
-	// toHaveClass. This fails the e2e until a live case exists.
-	test('every source-guarded description selector has a live browser case', () => {
-		const liveSelectors = new Set([
-			DRAWER_DESCRIPTION_SELECTOR,
-			...DESCRIPTION_LIVE_CASES.map((liveCase) => liveCase.selector),
-		]);
-		expect([...liveSelectors].sort()).toEqual(
-			[...DESCRIPTION_SELECTORS].sort(),
-		);
-	});
-
-	for (const drawerCase of DRAWER_CASES) {
-		test(`${drawerCase.name} drawer clears 4.5:1 in both themes`, async ({
-			page,
-		}, testInfo) => {
-			await drawerCase.open(page);
-			await assertDrawerDescriptionContrast(page, testInfo, drawerCase.testId);
+test.describe(
+	'live description text contrast (#1043 / PR #1061)',
+	{ tag: ['@design', '@1043'] },
+	() => {
+		test('every inventory consumer has a live browser case', () => {
+			expect(DRAWER_CASES.length).toBe(DRAWER_DESCRIPTION_CONSUMERS.length);
+			for (const consumer of DRAWER_DESCRIPTION_CONSUMERS) {
+				expect(
+					DRAWER_OPENERS[consumer.testId],
+					`no browser drawer opener for ${consumer.file} (${consumer.testId})`,
+				).toBeDefined();
+			}
 		});
-	}
 
-	for (const liveCase of DESCRIPTION_LIVE_CASES) {
-		test(`the real ${liveCase.name} clears 4.5:1 in both themes`, async ({
-			page,
-		}, testInfo) => {
-			await liveCase.open(page);
-			await assertTextContrast({
-				label: liveCase.name,
-				page,
-				testInfo,
-				// Round 10 M5: the selector is the locator — nothing else may
-				// stand in for what a case claims to measure.
-				text: page.locator(liveCase.selector),
-			});
-		});
-	}
-
-	// Round 5 I7: the source model deliberately drops `@media`-nested rules
-	// (documented in css-cascade-test-support.ts) and defers to a real-browser
-	// assertion — but every project runs at Desktop Chrome 1280×720, so the
-	// deferral had nowhere to land. One narrow-viewport run of the change-email
-	// drawer closes it: its description uses the DEFAULT primitive (no className
-	// override), so a mobile-only override on `.publy-drawer-description` is
-	// caught here and nowhere else. (The cookie drawer is not used because its
-	// own muted utility override would mask a primitive-level media rule.)
-	test.describe('mobile viewport', () => {
-		test.use({ viewport: { width: 375, height: 667 } });
-
-		test('change email drawer clears 4.5:1 in both themes at the narrow viewport', async ({
-			page,
-		}, testInfo) => {
-			await openChangeEmailDrawer(page);
-			await assertDrawerDescriptionContrast(
-				page,
-				testInfo,
-				'change-staff-user-email-dialog',
+		// Round 8 M4: the source guard's DESCRIPTION_SELECTORS is its own list,
+		// and this spec's explicit description cases used to be hardcoded with
+		// nothing relating the two — a fourth description class gained source
+		// coverage automatically and browser coverage never, and the old
+		// BROWSER_COVERED_SELECTORS string[] was satisfiable by copy-paste. The
+		// coverage is now the DESCRIPTION_LIVE_CASES definitions below (real
+		// openers + real locators, driven into actual tests) plus the drawer
+		// description class, whose live coverage every drawer case asserts via
+		// toHaveClass. This fails the e2e until a live case exists.
+		test('every source-guarded description selector has a live browser case', () => {
+			const liveSelectors = new Set([
+				DRAWER_DESCRIPTION_SELECTOR,
+				...DESCRIPTION_LIVE_CASES.map((liveCase) => liveCase.selector),
+			]);
+			expect([...liveSelectors].sort()).toEqual(
+				[...DESCRIPTION_SELECTORS].sort(),
 			);
 		});
-	});
-});
+
+		for (const drawerCase of DRAWER_CASES) {
+			test(`${drawerCase.name} drawer clears 4.5:1 in both themes`, async ({
+				page,
+			}, testInfo) => {
+				await drawerCase.open(page);
+				await assertDrawerDescriptionContrast(
+					page,
+					testInfo,
+					drawerCase.testId,
+				);
+			});
+		}
+
+		for (const liveCase of DESCRIPTION_LIVE_CASES) {
+			test(`the real ${liveCase.name} clears 4.5:1 in both themes`, async ({
+				page,
+			}, testInfo) => {
+				await liveCase.open(page);
+				await assertTextContrast({
+					label: liveCase.name,
+					page,
+					testInfo,
+					// Round 10 M5: the selector is the locator — nothing else may
+					// stand in for what a case claims to measure.
+					text: page.locator(liveCase.selector),
+				});
+			});
+		}
+
+		// Round 5 I7: the source model deliberately drops `@media`-nested rules
+		// (documented in css-cascade-test-support.ts) and defers to a real-browser
+		// assertion — but every project runs at Desktop Chrome 1280×720, so the
+		// deferral had nowhere to land. One narrow-viewport run of the change-email
+		// drawer closes it: its description uses the DEFAULT primitive (no className
+		// override), so a mobile-only override on `.publy-drawer-description` is
+		// caught here and nowhere else. (The cookie drawer is not used because its
+		// own muted utility override would mask a primitive-level media rule.)
+		test.describe('mobile viewport', () => {
+			test.use({ viewport: { width: 375, height: 667 } });
+
+			test('change email drawer clears 4.5:1 in both themes at the narrow viewport', async ({
+				page,
+			}, testInfo) => {
+				await openChangeEmailDrawer(page);
+				await assertDrawerDescriptionContrast(
+					page,
+					testInfo,
+					'change-staff-user-email-dialog',
+				);
+			});
+		});
+	},
+);

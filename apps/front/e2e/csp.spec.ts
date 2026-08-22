@@ -170,71 +170,73 @@ const assertLiveScriptNonces = async (page: Page) => {
 	}
 };
 
-test('serves CSP headers and nonced inline scripts on every HTML surface', async ({
-	page,
-	request,
-}) => {
-	for (const surface of SURFACES) {
-		await assertSurface(request, surface);
-		await page.goto(surface.path);
-		await assertLiveScriptNonces(page);
-	}
-});
-
-test('mints unique nonce per document request', async ({ request }) => {
-	const first = await assertSurface(request, {
-		path: '/',
-		expectedStatus: 200,
-	});
-	const second = await assertSurface(request, {
-		path: '/login',
-		expectedStatus: 200,
+test.describe('CSP headers', { tag: ['@public', '@713'] }, () => {
+	test('serves CSP headers and nonced inline scripts on every HTML surface', async ({
+		page,
+		request,
+	}) => {
+		for (const surface of SURFACES) {
+			await assertSurface(request, surface);
+			await page.goto(surface.path);
+			await assertLiveScriptNonces(page);
+		}
 	});
 
-	expect(first.nonce).not.toBe(second.nonce);
-});
-
-test('blocks nonced script that lacks nonce and executes a matching-nonce script', async ({
-	page,
-}) => {
-	await page.goto('/');
-
-	const blocked = await page.evaluate(async () => {
-		const violations: string[] = [];
-		document.addEventListener('securitypolicyviolation', (event) => {
-			violations.push(event.effectiveDirective);
+	test('mints unique nonce per document request', async ({ request }) => {
+		const first = await assertSurface(request, {
+			path: '/',
+			expectedStatus: 200,
+		});
+		const second = await assertSurface(request, {
+			path: '/login',
+			expectedStatus: 200,
 		});
 
-		const script = document.createElement('script');
-		script.textContent = 'window.__front2NonceTest = "blocked"';
-		document.body.append(script);
-		script.remove();
-		await new Promise((resolve) => window.requestAnimationFrame(resolve));
-
-		return {
-			blocked: (window as Window & { __front2NonceTest?: string })
-				.__front2NonceTest,
-			violations,
-		};
+		expect(first.nonce).not.toBe(second.nonce);
 	});
 
-	expect(blocked.blocked).toBeUndefined();
+	test('blocks nonced script that lacks nonce and executes a matching-nonce script', async ({
+		page,
+	}) => {
+		await page.goto('/');
 
-	const ran = await page.evaluate(async () => {
-		const nonce =
-			document
-				.querySelector('meta[name="csp-nonce"]')
-				?.getAttribute('content') ?? '';
-		const script = document.createElement('script');
-		script.nonce = nonce;
-		script.textContent = 'window.__front2NonceTest = "allowed"';
-		document.body.append(script);
-		script.remove();
-		await new Promise((resolve) => window.requestAnimationFrame(resolve));
+		const blocked = await page.evaluate(async () => {
+			const violations: string[] = [];
+			document.addEventListener('securitypolicyviolation', (event) => {
+				violations.push(event.effectiveDirective);
+			});
 
-		return (window as Window & { __front2NonceTest?: string })
-			.__front2NonceTest;
+			const script = document.createElement('script');
+			script.textContent = 'window.__front2NonceTest = "blocked"';
+			document.body.append(script);
+			script.remove();
+			await new Promise((resolve) => window.requestAnimationFrame(resolve));
+
+			return {
+				blocked: (window as Window & { __front2NonceTest?: string })
+					.__front2NonceTest,
+				violations,
+			};
+		});
+
+		expect(blocked.blocked).toBeUndefined();
+
+		const ran = await page.evaluate(async () => {
+			const nonce =
+				document
+					.querySelector('meta[name="csp-nonce"]')
+					?.getAttribute('content') ?? '';
+			const script = document.createElement('script');
+			script.nonce = nonce;
+			script.textContent = 'window.__front2NonceTest = "allowed"';
+			document.body.append(script);
+			script.remove();
+			await new Promise((resolve) => window.requestAnimationFrame(resolve));
+
+			return (window as Window & { __front2NonceTest?: string })
+				.__front2NonceTest;
+		});
+
+		expect(ran).toBe('allowed');
 	});
-
-	expect(ran).toBe('allowed');
 });

@@ -135,88 +135,96 @@ const assertActionTriggerCentredInCell = async (
 	).toBeLessThanOrEqual(1);
 };
 
-test.describe('row action trigger centring', () => {
-	test('staff-users: the ⋯ trigger is centred within its 40px column', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await assertActionTriggerCentredInCell(page, 'staff-users-table');
-	});
+test.describe(
+	'row action trigger centring',
+	{ tag: ['@shell', '@806'] },
+	() => {
+		test('staff-users: the ⋯ trigger is centred within its 40px column', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await assertActionTriggerCentredInCell(page, 'staff-users-table');
+		});
 
-	test('tenants: the ⋯ trigger is centred within its 40px column', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockStaffTenantsList(page);
-		await page.goto('/staff/tenants');
-		await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
-		await assertActionTriggerCentredInCell(page, 'staff-tenants-table');
-	});
+		test('tenants: the ⋯ trigger is centred within its 40px column', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockStaffTenantsList(page);
+			await page.goto('/staff/tenants');
+			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+			await assertActionTriggerCentredInCell(page, 'staff-tenants-table');
+		});
 
-	test('profiles: the ⋯ trigger is centred within its 40px column', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockStaffProfilesList(page);
-		await page.goto('/staff/profiles');
-		await expect(page.getByTestId('staff-profiles-table-rows')).toBeVisible();
-		await assertActionTriggerCentredInCell(page, 'staff-profiles-table');
-	});
+		test('profiles: the ⋯ trigger is centred within its 40px column', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockStaffProfilesList(page);
+			await page.goto('/staff/profiles');
+			await expect(page.getByTestId('staff-profiles-table-rows')).toBeVisible();
+			await assertActionTriggerCentredInCell(page, 'staff-profiles-table');
+		});
 
-	test('invitations: the ⋯ trigger is centred within its 40px column', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockStaffInvitationsList(page);
-		await page.goto('/staff/invitations');
-		await expect(
-			page.getByTestId('staff-invitations-table-rows'),
-		).toBeVisible();
-		await assertActionTriggerCentredInCell(page, 'staff-invitations-table');
-	});
-});
+		test('invitations: the ⋯ trigger is centred within its 40px column', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockStaffInvitationsList(page);
+			await page.goto('/staff/invitations');
+			await expect(
+				page.getByTestId('staff-invitations-table-rows'),
+			).toBeVisible();
+			await assertActionTriggerCentredInCell(page, 'staff-invitations-table');
+		});
+	},
+);
 
-test.describe('staff-users first-column hit area', () => {
-	test('the whole first cell is the row link, so hovering the avatar covers the same hit area as /staff/tenants', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await expect(page.getByTestId('staff-users-table-rows')).toBeVisible();
+test.describe(
+	'staff-users first-column hit area',
+	{ tag: ['@shell', '@806'] },
+	() => {
+		test('the whole first cell is the row link, so hovering the avatar covers the same hit area as /staff/tenants', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await expect(page.getByTestId('staff-users-table-rows')).toBeVisible();
 
-		const firstRow = page
-			.getByTestId('staff-users-table-rows')
-			.locator('[data-slot="table-row"]')
-			.first();
-		const avatar = firstRow
-			.locator(
-				'[data-slot="person-avatar-fallback"].publy-avatar-initials[data-palette]',
-			)
-			.first();
-		await expect(avatar).toBeVisible();
+			const firstRow = page
+				.getByTestId('staff-users-table-rows')
+				.locator('[data-slot="table-row"]')
+				.first();
+			const avatar = firstRow
+				.locator(
+					'[data-slot="person-avatar-fallback"].publy-avatar-initials[data-palette]',
+				)
+				.first();
+			await expect(avatar).toBeVisible();
 
-		const firstCellLink = firstRow
-			.locator('[data-slot="table-cell"]')
-			.first()
-			.locator('a');
-		await expect(firstCellLink).toHaveCount(1);
+			const firstCellLink = firstRow
+				.locator('[data-slot="table-cell"]')
+				.first()
+				.locator('a');
+			await expect(firstCellLink).toHaveCount(1);
 
-		await avatar.hover();
+			await avatar.hover();
 
-		const avatarBox = await avatar.boundingBox();
-		const linkBox = await firstCellLink.boundingBox();
-		expect(avatarBox).not.toBeNull();
-		expect(linkBox).not.toBeNull();
-		if (avatarBox && linkBox) {
-			// The link must fully cover the avatar — hovering anywhere on the
-			// avatar hovers the row link, matching the tenants archetype.
-			expect(linkBox.x).toBeLessThanOrEqual(avatarBox.x + 0.5);
-			expect(linkBox.y).toBeLessThanOrEqual(avatarBox.y + 0.5);
-			expect(linkBox.x + linkBox.width).toBeGreaterThanOrEqual(
-				avatarBox.x + avatarBox.width - 0.5,
-			);
-			expect(linkBox.y + linkBox.height).toBeGreaterThanOrEqual(
-				avatarBox.y + avatarBox.height - 0.5,
-			);
-		}
-	});
-});
+			const avatarBox = await avatar.boundingBox();
+			const linkBox = await firstCellLink.boundingBox();
+			expect(avatarBox).not.toBeNull();
+			expect(linkBox).not.toBeNull();
+			if (avatarBox && linkBox) {
+				// The link must fully cover the avatar — hovering anywhere on the
+				// avatar hovers the row link, matching the tenants archetype.
+				expect(linkBox.x).toBeLessThanOrEqual(avatarBox.x + 0.5);
+				expect(linkBox.y).toBeLessThanOrEqual(avatarBox.y + 0.5);
+				expect(linkBox.x + linkBox.width).toBeGreaterThanOrEqual(
+					avatarBox.x + avatarBox.width - 0.5,
+				);
+				expect(linkBox.y + linkBox.height).toBeGreaterThanOrEqual(
+					avatarBox.y + avatarBox.height - 0.5,
+				);
+			}
+		});
+	},
+);

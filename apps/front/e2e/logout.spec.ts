@@ -8,16 +8,18 @@ import { loginAsStaffAdmin } from './helpers/login';
 // other `chromium`-project test running concurrently is relying on.
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test('user menu logout clears the session and returns to login', async ({
-	page,
-}) => {
-	await loginAsStaffAdmin(page);
+test.describe('logout', { tag: ['@auth', '@806'] }, () => {
+	test('user menu logout clears the session and returns to login', async ({
+		page,
+	}) => {
+		await loginAsStaffAdmin(page);
 
-	await page.getByTestId('app-shell-user-menu-trigger').click();
-	await expect(page.getByTestId('app-shell-user-menu')).toBeVisible();
+		await page.getByTestId('app-shell-user-menu-trigger').click();
+		await expect(page.getByTestId('app-shell-user-menu')).toBeVisible();
 
-	await page.getByTestId('app-shell-user-menu-logout').click();
+		await page.getByTestId('app-shell-user-menu-logout').click();
 
-	await expect(page).toHaveURL(/\/login$/);
-	await expect(page.getByTestId('auth-login-form')).toBeVisible();
+		await expect(page).toHaveURL(/\/login$/);
+		await expect(page.getByTestId('auth-login-form')).toBeVisible();
+	});
 });

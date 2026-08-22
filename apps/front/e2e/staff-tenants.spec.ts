@@ -136,117 +136,127 @@ const mockStaffTenantsByStatus = async (page: Page) => {
 	});
 };
 
-test.describe('staff tenants status panel filters', () => {
-	test('clicking Active/Suspended in the panel filters the table, updates the URL, and highlights the matching item', async ({
-		page,
-	}) => {
-		await page.setViewportSize({ width: 1280, height: 900 });
-		await loginAsStaffAdmin(page);
-		await mockStaffTenantsByStatus(page);
+test.describe(
+	'staff tenants status panel filters',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('clicking Active/Suspended in the panel filters the table, updates the URL, and highlights the matching item', async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 900 });
+			await loginAsStaffAdmin(page);
+			await mockStaffTenantsByStatus(page);
 
-		await page.goto('/staff/tenants');
-		await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
-		await expect(page.getByText('Acme Corporation')).toBeVisible();
-		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			await page.goto('/staff/tenants');
+			await expect(page.getByTestId(`${TABLE}-rows`)).toBeVisible();
+			await expect(page.getByText('Acme Corporation')).toBeVisible();
+			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
 
-		const panel = page.getByTestId('app-shell-secondary-panel');
-		const activeRequest = page.waitForRequest(
-			(request) =>
-				request.method() === 'GET' &&
-				isApiPath(request.url(), STAFF_TENANTS_PATH) &&
-				new URL(request.url()).searchParams.get('status') === 'active',
-		);
+			const panel = page.getByTestId('app-shell-secondary-panel');
+			const activeRequest = page.waitForRequest(
+				(request) =>
+					request.method() === 'GET' &&
+					isApiPath(request.url(), STAFF_TENANTS_PATH) &&
+					new URL(request.url()).searchParams.get('status') === 'active',
+			);
 
-		await panel.getByRole('link', { name: 'Active' }).click();
-		await activeRequest;
+			await panel.getByRole('link', { name: 'Active' }).click();
+			await activeRequest;
 
-		await expect(page).toHaveURL(/[?&]status=active(?:&|$)/);
-		await expect(page.getByText('Globex Suspended Co')).toHaveCount(0);
-		await expect(page.getByText('Acme Corporation')).toBeVisible();
-		await expect(panel.getByRole('link', { name: 'Active' })).toHaveAttribute(
-			'data-active',
-			'true',
-		);
-		await expect(
-			panel.getByRole('link', { name: 'All tenants' }),
-		).not.toHaveAttribute('data-active', 'true');
-
-		const suspendedRequest = page.waitForRequest(
-			(request) =>
-				request.method() === 'GET' &&
-				isApiPath(request.url(), STAFF_TENANTS_PATH) &&
-				new URL(request.url()).searchParams.get('status') === 'suspended',
-		);
-
-		await panel.getByRole('link', { name: 'Suspended' }).click();
-		await suspendedRequest;
-
-		await expect(page).toHaveURL(/[?&]status=suspended(?:&|$)/);
-		await expect(page.getByText('Acme Corporation')).toHaveCount(0);
-		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
-		await expect(
-			panel.getByRole('link', { name: 'Suspended' }),
-		).toHaveAttribute('data-active', 'true');
-	});
-});
-
-test.describe('staff tenants toolbar status filter', () => {
-	test('combines, narrows, and resets status values in one persistent checkbox menu', async ({
-		page,
-	}) => {
-		await loginAsStaffAdmin(page);
-		await mockStaffTenantsByStatus(page);
-		await page.goto('/staff/tenants');
-
-		const trigger = page.getByTestId(
-			'staff-tenants-table-status-filter-trigger',
-		);
-		await trigger.click();
-		const active = page.getByTestId('staff-tenants-table-status-filter-active');
-		const suspended = page.getByTestId(
-			'staff-tenants-table-status-filter-suspended',
-		);
-		for (const item of [active, suspended]) {
-			await expect(item).toHaveAttribute('role', 'menuitemcheckbox');
+			await expect(page).toHaveURL(/[?&]status=active(?:&|$)/);
+			await expect(page.getByText('Globex Suspended Co')).toHaveCount(0);
+			await expect(page.getByText('Acme Corporation')).toBeVisible();
+			await expect(panel.getByRole('link', { name: 'Active' })).toHaveAttribute(
+				'data-active',
+				'true',
+			);
 			await expect(
-				item.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
-			).toBeVisible();
-		}
+				panel.getByRole('link', { name: 'All tenants' }),
+			).not.toHaveAttribute('data-active', 'true');
 
-		await active.click();
-		await expect(active).toHaveAttribute('aria-checked', 'true');
-		await expect(suspended).toBeVisible();
-		await suspended.click();
-		await expect(suspended).toHaveAttribute('aria-checked', 'true');
-		await expect
-			.poll(() => new URL(page.url()).searchParams.get('status'))
-			.toBe('active,suspended');
-		await expect(page.getByText('Acme Corporation')).toBeVisible();
-		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			const suspendedRequest = page.waitForRequest(
+				(request) =>
+					request.method() === 'GET' &&
+					isApiPath(request.url(), STAFF_TENANTS_PATH) &&
+					new URL(request.url()).searchParams.get('status') === 'suspended',
+			);
 
-		await active.click();
-		await expect(active).toHaveAttribute('aria-checked', 'false');
-		await expect
-			.poll(() => new URL(page.url()).searchParams.get('status'))
-			.toBe('suspended');
-		await expect(page.getByText('Acme Corporation')).toHaveCount(0);
-		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			await panel.getByRole('link', { name: 'Suspended' }).click();
+			await suspendedRequest;
 
-		const all = page.getByTestId('staff-tenants-table-status-filter-all');
-		await expect(
-			all.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
-		).toHaveCount(0);
-		await all.click();
-		await expect(page.getByRole('menu')).toBeHidden();
-		await expect
-			.poll(() => new URL(page.url()).searchParams.has('status'))
-			.toBe(false);
-		await expect(page.getByText('Acme Corporation')).toBeVisible();
-		await expect(page.getByText('Globex Suspended Co')).toBeVisible();
-	});
-});
+			await expect(page).toHaveURL(/[?&]status=suspended(?:&|$)/);
+			await expect(page.getByText('Acme Corporation')).toHaveCount(0);
+			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+			await expect(
+				panel.getByRole('link', { name: 'Suspended' }),
+			).toHaveAttribute('data-active', 'true');
+		});
+	},
+);
 
-test.describe('staff tenants list', () => {
+test.describe(
+	'staff tenants toolbar status filter',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		test('combines, narrows, and resets status values in one persistent checkbox menu', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockStaffTenantsByStatus(page);
+			await page.goto('/staff/tenants');
+
+			const trigger = page.getByTestId(
+				'staff-tenants-table-status-filter-trigger',
+			);
+			await trigger.click();
+			const active = page.getByTestId(
+				'staff-tenants-table-status-filter-active',
+			);
+			const suspended = page.getByTestId(
+				'staff-tenants-table-status-filter-suspended',
+			);
+			for (const item of [active, suspended]) {
+				await expect(item).toHaveAttribute('role', 'menuitemcheckbox');
+				await expect(
+					item.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
+				).toBeVisible();
+			}
+
+			await active.click();
+			await expect(active).toHaveAttribute('aria-checked', 'true');
+			await expect(suspended).toBeVisible();
+			await suspended.click();
+			await expect(suspended).toHaveAttribute('aria-checked', 'true');
+			await expect
+				.poll(() => new URL(page.url()).searchParams.get('status'))
+				.toBe('active,suspended');
+			await expect(page.getByText('Acme Corporation')).toBeVisible();
+			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+
+			await active.click();
+			await expect(active).toHaveAttribute('aria-checked', 'false');
+			await expect
+				.poll(() => new URL(page.url()).searchParams.get('status'))
+				.toBe('suspended');
+			await expect(page.getByText('Acme Corporation')).toHaveCount(0);
+			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+
+			const all = page.getByTestId('staff-tenants-table-status-filter-all');
+			await expect(
+				all.locator('[data-slot="dropdown-menu-checkbox-item-box"]'),
+			).toHaveCount(0);
+			await all.click();
+			await expect(page.getByRole('menu')).toBeHidden();
+			await expect
+				.poll(() => new URL(page.url()).searchParams.has('status'))
+				.toBe(false);
+			await expect(page.getByText('Acme Corporation')).toBeVisible();
+			await expect(page.getByText('Globex Suspended Co')).toBeVisible();
+		});
+	},
+);
+
+test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 	test('renders a selection checkbox and hashed logo fallback per row, matching the staff-users archetype', async ({
 		page,
 	}) => {
