@@ -21,7 +21,7 @@ How we keep vulnerable dependencies from landing or staying on `develop`.
 pnpm audit --prod --audit-level=high
 ```
 
-after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `high` or `critical` in the production graph and **passes** otherwise. Until rung 1 of #1187 merges this step is red on `develop` (6 high alerts still open — see #1187); that is expected and is why the step lives in the PR before the bumps do.
+after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `high` or `critical` in the production graph and **passes** otherwise. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were open on `develop`, so the step is green from the day it lands; it fails loud on an unreachable registry as well (no silent pass).
 
 ## How to handle an alert
 

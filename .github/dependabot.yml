@@ -53,6 +53,15 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+  - package-ecosystem: "nuget"
+    directory: "/packages/lint-cs"
+    schedule:
+      interval: weekly
+    labels:
+      - "technical-debt"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
 
   - package-ecosystem: "github-actions"
     directory: "/"
