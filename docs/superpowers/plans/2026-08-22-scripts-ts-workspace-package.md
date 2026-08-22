@@ -6,7 +6,7 @@
 
 **Architecture:** A no-build `type: module` package at `packages/scripts-ts`. Source lives flat in `src/*.ts` (tests `src/*.test.ts`). Scripts are invoked from CI/justfile as `node packages/scripts-ts/src/<name>.ts` exactly as today's `node scripts/<name>.mjs`. `pnpm lint` (repo-wide `oxlint --quiet .`) already covers `packages/*`, so no new lint wiring is needed beyond the `oxfmt` format glob. Rung 0 moves files verbatim (renamed `.ts`, minimally typed, no `any`) and repoints every reference plus the four path-asserting guards; later rungs harden groups to strict TypeScript and remove `@ts-expect-error`.
 
-**Tech Stack:** Node 24 (native type stripping), pnpm workspaces, TypeScript 7 (`tsc --noEmit`), `oxlint` + `oxfmt`, `node --test` (Node built-in test runner), `yaml`.
+**Tech Stack:** Node 24 (native type stripping), pnpm workspaces, TypeScript 7 (`tsc --noEmit`), `oxlint` + `oxfmt`, vitest (Node built-in test runner), `yaml`.
 
 ## Global Constraints
 
