@@ -10798,13 +10798,6 @@
         "operationId": "FindPostsForTenant",
         "parameters": [
           {
-            "name": "Q",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -10813,6 +10806,13 @@
           },
           {
             "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
             "in": "query",
             "schema": {
               "type": "string"

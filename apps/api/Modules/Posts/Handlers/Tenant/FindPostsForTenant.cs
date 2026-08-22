@@ -16,13 +16,23 @@ public class FindPostsForTenantResponse
 	: CursorPaginatedResult<PostListItem> { }
 
 public class FindPostsForTenantQuery : CursorPaginatedQuery {
-	public string? Q { get; set; }
+	[FromQuery(Name = "q")]
+	public string? Search { get; set; }
+
+	public string? GetSearchNormalized() {
+		if (Search is null) {
+			return null;
+		}
+
+		var trimmed = Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
 }
 
 public class FindPostsForTenantQueryValidator
 	: CursorPaginatedQueryValidator<FindPostsForTenantQuery> {
 	public FindPostsForTenantQueryValidator() {
-		RuleFor(x => x.Q)
+		RuleFor(x => x.Search)
 			.MaximumLength(PostValidationRules.SearchMaxLength)
 			.WithMessage(
 				$"q must be at most {PostValidationRules.SearchMaxLength} characters"
@@ -70,14 +80,14 @@ public sealed class FindPostsForTenant {
 		var limit = query.GetLimit();
 		var sortId = query.GetSortId();
 		var sortOrder = query.GetSortOrder();
-		var search = query.Q?.Trim();
+		var search = query.GetSearchNormalized();
 
 		var args = new FindPostsArgs(
 			Cursor: cursorGuid,
 			Limit: limit,
 			SortId: sortId,
 			SortOrder: sortOrder,
-			Search: string.IsNullOrWhiteSpace(search) ? null : search
+			Search: search
 		);
 
 		var serviceResult = await postService.FindForTenantAsync(

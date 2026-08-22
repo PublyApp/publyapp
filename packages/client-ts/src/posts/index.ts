@@ -70,12 +70,11 @@ export interface PostsRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const PostsRequestBuilderUriTemplate = "{+baseurl}/posts{?Q*,cursor*,limit*,sort_id*,sort_order*}";
+export const PostsRequestBuilderUriTemplate = "{+baseurl}/posts{?cursor*,limit*,q*,sort_id*,sort_order*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const PostsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
-    "q": "Q",
     "sortId": "sort_id",
     "sortOrder": "sort_order",
 };
