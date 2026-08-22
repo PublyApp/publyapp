@@ -11,8 +11,15 @@ public sealed record WorkerMigrationStartupGateOptions {
 
 /// <summary>
 /// Blocks worker host startup before any job-processing hosted service starts. This is
-/// registered first in the worker graph because Swarm starts the migrator and applications
-/// concurrently and ignores Compose dependency ordering.
+/// registered first in the worker graph because the deployed topology starts every service
+/// concurrently: on the production instance Dokploy runs plain `docker compose` (the operator
+/// log reported `Compose Type: docker-compose`), and the committed `dokploy.yml` declares no
+/// `depends_on` between services. Compose therefore offers no ordering or completion guarantee,
+/// so the one-shot `publyapp-migrate` task can still be applying migrations while the api and
+/// worker containers come up. The worker must not process jobs (or, under `FailFastWhenMigrationsPending`,
+/// even finish host startup) until migrations are applied, hence this gate runs first and waits
+/// up to <see cref="WorkerMigrationStartupGateOptions.Timeout"/>, keeping its liveness heartbeat
+/// fresh the whole time.
 /// </summary>
 public sealed class WorkerMigrationStartupGate : IHostedService {
 	private readonly IDatabaseMigrationReadiness _migrationReadiness;
