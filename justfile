@@ -299,6 +299,8 @@ ci-drift:
   node --test ./scripts/check-ci-gate-structure.test.mjs
   node ./scripts/check-ci-gate-structure.mjs
   node --test ./scripts/require-linked-issue.test.mjs
+  node --test ./scripts/check-actions-pinned.test.mjs
+  node ./scripts/check-actions-pinned.mjs
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:

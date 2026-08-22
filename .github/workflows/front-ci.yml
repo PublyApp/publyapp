@@ -263,6 +263,8 @@ jobs:
           node --test ./scripts/check-ci-gate-structure.test.mjs
           node ./scripts/check-ci-gate-structure.mjs
           node --test ./scripts/require-linked-issue.test.mjs
+          node --test ./scripts/check-actions-pinned.test.mjs
+          node ./scripts/check-actions-pinned.mjs
 
       # This must run in a required-check dependency, not only locally: the
       # projection protects closure evidence and Trello delivery-card updates.
