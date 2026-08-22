@@ -277,7 +277,7 @@ jobs:
           node-version: 24
 
       - name: Assert exact pins
-        run: node apps/front/packages/scripts-ts/src/assert-pinned.ts
+        run: node apps/front/scripts/assert-pinned.mjs
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts

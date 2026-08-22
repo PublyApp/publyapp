@@ -143,7 +143,7 @@ node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packag
           node-version: 24
 
       - name: Assert exact pins
-        run: node apps/front/packages/scripts-ts/src/assert-pinned.ts
+        run: node apps/front/scripts/assert-pinned.mjs
 
       - name: Install (frozen lockfile, no scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -161,10 +161,10 @@ node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packag
         run: pnpm --filter front build
 
       - name: Verify front production build emits a CSS asset
-        run: node apps/front/packages/scripts-ts/src/verify-build-css-link.ts
+        run: node apps/front/scripts/verify-build-css-link.mjs
 
       - name: Verify front production font bundle references and unicode coverage
-        run: node apps/front/packages/scripts-ts/src/verify-font-bundle.ts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
+        run: node apps/front/scripts/verify-font-bundle.mjs --dist apps/front/dist --locales-dir apps/front/src/i18n/locales
 
       - name: Smoke start front server and verify stylesheet tag
         env:

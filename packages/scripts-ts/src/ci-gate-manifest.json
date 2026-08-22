@@ -127,7 +127,7 @@
 			"reason": "GitHub-only pnpm setup for CI. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "1d2bdb692e0145ca",
+			"hash": "8403c52c3065d9c8",
 			"mirror": "just ci-drift",
 			"reason": "The CODEOWNERS contract and CI gate guard suites (including packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts since #1063), deterministic frontend-lint regression, check-ci-gate-structure.ts, the #1240 require-linked-issue guard test (packages/scripts-ts/src/require-linked-issue.test.ts), and the #1248 actions-pinning guard suite plus its real-tree scan (packages/scripts-ts/src/check-actions-pinned.test.mjs and check-actions-pinned.mjs) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained one require-linked-issue line from develop and the two actions-pinned lines; `just ci-drift` runs those same three commands."
 		},
@@ -182,9 +182,9 @@
 			"reason": "CI fails on any high/critical in the production graph via pnpm audit --prod --audit-level=high; locally the same command reproduces it without Docker or CI."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
-			"hash": "db03a32a28ffc655",
+			"hash": "98174f94e67bc83b",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/packages/scripts-ts/src/assert-pinned.ts."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/assert-pinned.mjs."
 		},
 		"front-ci.yml::supply-chain::Build front": {
 			"hash": "cbd03bead5b114fa",
@@ -239,7 +239,7 @@
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
 			"hash": "056e04ce212f4f40",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/packages/scripts-ts/src/smoke-start-server.ts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
+			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/smoke-start-server.mjs re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
 		},
 		"front-ci.yml::supply-chain::Test front": {
 			"hash": "b0ae64935f5d9419",
@@ -252,12 +252,12 @@
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
-			"hash": "463e410005270d88",
+			"hash": "009ab7f56653f01a",
 			"mirror": "just ci-front",
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same verify-build-css-link.mjs call."
 		},
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
-			"hash": "32d8a7d1c12f800f",
+			"hash": "a0ecbd5b41e526ba",
 			"mirror": "just ci-front",
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls verify-font-bundle.mjs. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script's defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
 		},
@@ -342,9 +342,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-e2e.yml::test::Assert exact pins": {
-			"hash": "db03a32a28ffc655",
+			"hash": "98174f94e67bc83b",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical node apps/front/packages/scripts-ts/src/assert-pinned.ts."
+			"reason": "ci-install runs the identical node apps/front/scripts/assert-pinned.mjs."
 		},
 		"front-e2e.yml::test::Cache Playwright browsers": {
 			"hash": "2a9fc7ccfef22deb",
@@ -537,9 +537,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
-			"hash": "db03a32a28ffc655",
+			"hash": "98174f94e67bc83b",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/packages/scripts-ts/src/assert-pinned.ts."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/assert-pinned.mjs."
 		},
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)": {
 			"hash": "5d8e0532bb76bdae",
@@ -632,9 +632,9 @@
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
 		"require-linked-issue.yml::require-linked-issue::Verify the PR closes an existing issue": {
-			"hash": "e71114a72d1682db",
+			"hash": "a4cc669d0f05a839",
 			"mirror": null,
-			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by scripts/require-linked-issue.test.mjs, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
+			"reason": "Reads github.event.pull_request.body. At pre-push time there is no PR and therefore no body to check, so this gate is unreproducible locally by construction rather than by omission. The step gained a #1240 waiver that short-circuits to success for PR_AUTHOR == 'dependabot[bot]' (exact-login policy, not github.actor, not a label); the waiver's exact shape is guarded by packages/scripts-ts/src/require-linked-issue.test.ts, which just ci-drift now runs, but the step itself (which reads the live PR body) stays a GitHub-only required check."
 		},
 		"react-doctor.yml::changes::Check whether react-doctor paths changed": {
 			"hash": "85b8ebcec99c9f7d",

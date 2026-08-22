@@ -43,7 +43,7 @@ jobs:
           # close a tracking issue. This waiver is keyed on the PR AUTHOR login
           # and matches EXACTLY that one login — not github.actor, not a label —
           # so another author cannot widen it, and no other bot login is covered
-          # by accident. The guard test (scripts/require-linked-issue.test.mjs)
+          # by accident. The guard test (packages/scripts-ts/src/require-linked-issue.test.ts)
           # fails if this equality is widened (e.g. endsWith('[bot]')) or removed.
           if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
             echo "dependabot PR — linked-issue requirement waived by policy #1240"

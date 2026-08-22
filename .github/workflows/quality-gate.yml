@@ -154,7 +154,7 @@ jobs:
         uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
 
       - name: Assert exact pins
-        run: node apps/front/packages/scripts-ts/src/assert-pinned.ts
+        run: node apps/front/scripts/assert-pinned.mjs
 
       - name: Install (frozen lockfile, no scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts
