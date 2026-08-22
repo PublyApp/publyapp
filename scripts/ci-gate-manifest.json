@@ -512,7 +512,7 @@
 			"reason": "ci-install runs the identical command: node apps/front/scripts/assert-pinned.mjs."
 		},
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)": {
-			"hash": "35866ca5beb7ed3c",
+			"hash": "5d8e0532bb76bdae",
 			"mirror": "just ci-quality",
 			"reason": "ci-quality-dotnet runs the identical dotnet build PublyApp.slnx --no-restore with TreatWarningsAsErrors and EnforceCodeStyleInBuild active via Directory.Build.props, so any analyzer or code-style warning fails the build the same way in CI and locally."
 		},
@@ -547,7 +547,7 @@
 			"reason": "CI-only compensation for the gitignored, absent .env.development. Copies .env.example, then forces APP_ROLE=api so build-time OpenAPI doc-gen runs api-only (no worker WorkerMigrationStartupGate, no DB connection) -- .env.example ships APP_ROLE=all, which DotNetEnv would clobber the recipe's APP_ROLE=api with and hang the DB-less runner. Locally a developer already has a real repo-root .env.development, so just ci-quality needs no such step."
 		},
 		"quality-gate.yml::quality::Restore .NET solution (PublyApp.slnx)": {
-			"hash": "c2a9680265a039f1",
+			"hash": "aa11df9d4b1e508b",
 			"mirror": "just ci-quality",
 			"reason": "ci-quality-dotnet runs the identical dotnet restore PublyApp.slnx with APP_ROLE=api and TRUSTED_PROXY_CIDRS pinned so AppEnvironment boots in Production."
 		},
