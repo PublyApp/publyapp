@@ -320,7 +320,7 @@ export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 				assert.match(error.message, /outside the committed mention inventory/i);
 				assert.match(
 					error.message,
-					/packages\/shared-ts\/lib\/profile-style\/search-cancel-style\.ts:\d+/,
+					/packages\/shared-ts\/src\/lib\/profile-style\/search-cancel-style\.ts:\d+/,
 				);
 				return true;
 			},
@@ -469,7 +469,7 @@ export const SEARCH_CANCEL_OVERRIDE = \`
 				assert.match(error.message, /outside the committed mention inventory/i);
 				assert.match(
 					error.message,
-					/packages\/shared-ts\/lib\/search-cancel-override\.ts:\d+/,
+					/packages\/shared-ts\/src\/lib\/search-cancel-override\.ts:\d+/,
 				);
 				return true;
 			},
