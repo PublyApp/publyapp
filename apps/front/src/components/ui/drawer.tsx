@@ -16,28 +16,28 @@ import { cn } from '~/lib/utils';
  * app.css (`.publy-drawer*`) so the handoff values stay token-driven.
  */
 
-function Drawer(props: DialogPrimitive.Root.Props) {
+const Drawer = (props: DialogPrimitive.Root.Props) => {
 	return <DialogPrimitive.Root {...props} />;
-}
+};
 
-function DrawerTrigger(props: DialogPrimitive.Trigger.Props) {
+const DrawerTrigger = (props: DialogPrimitive.Trigger.Props) => {
 	return <DialogPrimitive.Trigger data-slot="drawer-trigger" {...props} />;
-}
+};
 
-function DrawerClose(props: DialogPrimitive.Close.Props) {
+const DrawerClose = (props: DialogPrimitive.Close.Props) => {
 	return <DialogPrimitive.Close data-slot="drawer-close" {...props} />;
-}
+};
 
 type DrawerContentProps = DialogPrimitive.Popup.Props & {
 	width?: 736;
 };
 
-function DrawerContent({
+const DrawerContent = ({
 	className,
 	children,
 	width,
 	...props
-}: DrawerContentProps) {
+}: DrawerContentProps) => {
 	return (
 		<DialogPrimitive.Portal>
 			<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-(--publy-z-overlay) transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none" />
@@ -54,13 +54,13 @@ function DrawerContent({
 			</DialogPrimitive.Popup>
 		</DialogPrimitive.Portal>
 	);
-}
+};
 
-function DrawerHeader({
+const DrawerHeader = ({
 	className,
 	children,
 	...props
-}: React.ComponentProps<'div'>) {
+}: React.ComponentProps<'div'>) => {
 	const { t } = useTranslation('common');
 
 	return (
@@ -78,9 +78,9 @@ function DrawerHeader({
 			</DialogPrimitive.Close>
 		</div>
 	);
-}
+};
 
-function DrawerTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+const DrawerTitle = ({ className, ...props }: DialogPrimitive.Title.Props) => {
 	return (
 		<DialogPrimitive.Title
 			data-slot="drawer-title"
@@ -88,12 +88,12 @@ function DrawerTitle({ className, ...props }: DialogPrimitive.Title.Props) {
 			{...props}
 		/>
 	);
-}
+};
 
-function DrawerDescription({
+const DrawerDescription = ({
 	className,
 	...props
-}: DialogPrimitive.Description.Props) {
+}: DialogPrimitive.Description.Props) => {
 	return (
 		<DialogPrimitive.Description
 			data-slot="drawer-description"
@@ -101,9 +101,9 @@ function DrawerDescription({
 			{...props}
 		/>
 	);
-}
+};
 
-function DrawerBody({ className, ...props }: React.ComponentProps<'div'>) {
+const DrawerBody = ({ className, ...props }: React.ComponentProps<'div'>) => {
 	return (
 		<div
 			data-slot="drawer-body"
@@ -111,9 +111,9 @@ function DrawerBody({ className, ...props }: React.ComponentProps<'div'>) {
 			{...props}
 		/>
 	);
-}
+};
 
-function DrawerFooter({ className, ...props }: React.ComponentProps<'div'>) {
+const DrawerFooter = ({ className, ...props }: React.ComponentProps<'div'>) => {
 	return (
 		<div
 			data-slot="drawer-footer"
@@ -121,7 +121,7 @@ function DrawerFooter({ className, ...props }: React.ComponentProps<'div'>) {
 			{...props}
 		/>
 	);
-}
+};
 
 type DrawerFormProps<TFieldValues extends FieldValues = FieldValues> = {
 	children: React.ReactNode;
@@ -142,12 +142,12 @@ type DrawerFormProps<TFieldValues extends FieldValues = FieldValues> = {
  * spacing: the fixed-footer geometry is the point of the change, the
  * ordinary-height spacing is not.
  */
-function DrawerForm<TFieldValues extends FieldValues = FieldValues>({
+const DrawerForm = <TFieldValues extends FieldValues = FieldValues>({
 	children,
 	methods,
 	onSubmit,
 	slotProps,
-}: DrawerFormProps<TFieldValues>) {
+}: DrawerFormProps<TFieldValues>) => {
 	return (
 		<FormProvider {...methods}>
 			<form
@@ -164,7 +164,7 @@ function DrawerForm<TFieldValues extends FieldValues = FieldValues>({
 			</form>
 		</FormProvider>
 	);
-}
+};
 
 export {
 	Drawer,
