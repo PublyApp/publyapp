@@ -345,6 +345,8 @@ ci-front:
   pnpm --filter front typecheck
   pnpm --filter front check:design-system
   pnpm --filter front test
+  @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
+  pnpm audit --prod --audit-level=high
 
 # Quality gate (issue #803): repo-wide oxlint + oxfmt check + .NET warnings-as-errors + analyzer tests.
 # Mirrors .github/workflows/quality-gate.yml::quality — fails PRs on any oxlint diagnostic

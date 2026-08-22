@@ -67,6 +67,8 @@ pnpm --filter front typecheck          # TypeScript type checking (front)
 just knip                              # Check for unused dependencies
 ```
 
+Dependency health (Dependabot + `pnpm audit`): [`docs/guides/dependency-health.md`](docs/guides/dependency-health.md).
+
 ### Database Operations
 
 ```bash
