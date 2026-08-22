@@ -30,7 +30,7 @@ import { createConnection } from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { after, before, test } from 'vitest';
+import { afterAll, beforeAll, test } from 'vitest';
 
 import {
 	assertNoPendingMigrations,
@@ -300,7 +300,7 @@ const spawnSyncCapture = (command, args) => {
 
 const skip = !dockerIsAvailable();
 
-before(async () => {
+beforeAll(async () => {
 	if (skip) {
 		return;
 	}
@@ -344,7 +344,7 @@ before(async () => {
 	]);
 });
 
-after(() => {
+afterAll(() => {
 	if (skip) {
 		return;
 	}
@@ -363,7 +363,7 @@ after(() => {
 
 test(
 	'FAILING PROOF: guard refuses to start and names the real unapplied migration',
-	{ skip: skip && 'Docker is required for this test' },
+	{ skip },
 	() => {
 		assert.throws(
 			() =>
@@ -395,7 +395,7 @@ test(
 // round 2 found: buildApiChildEnv started from the launcher's ambient process.env and only
 // pinned the connection string when told to, which `main()` did not do. This version
 // drives the REAL CLI entrypoint (`node scripts/review-api.mjs`) exactly as a reviewer
-// would run it, against the SAME genuinely pending migration left unapplied by `before()`.
+// would run it, against the SAME genuinely pending migration left unapplied by `beforeAll()`.
 // ---------------------------------------------------------------------------
 
 const CLI_PORT = 5590;
@@ -914,7 +914,7 @@ const runHostedServiceManifestProbe = ({
 
 test(
 	'END-TO-END: the real CLI pins the guard and the launched API to the SAME (worktree file) connection string, not an ambient one',
-	{ skip: skip && 'Docker is required for this test' },
+	{ skip },
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
 			const free = await isPortFree(CLI_PORT);
@@ -1005,7 +1005,7 @@ test(
 
 test(
 	'PASSING PROOF: guard is silent once the real migration is applied',
-	{ skip: skip && 'Docker is required for this test' },
+	{ skip },
 	() => {
 		runDotnetWithDiagnostics([
 			'tool',
@@ -1045,7 +1045,7 @@ const NORMAL_LAUNCH_PORT = 5593;
 
 test(
 	'END-TO-END: an ordinary launch (fully migrated, no --allow-migrations) still pins the Api role — no job engine starts against the shared database',
-	{ skip: skip && 'Docker is required for this test' },
+	{ skip },
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
 			const free = await isPortFree(NORMAL_LAUNCH_PORT);
@@ -1185,7 +1185,7 @@ const MISSING_VALUE_TIMEOUT_MS = 30_000;
 
 test(
 	'END-TO-END: a worktree file missing POSTGRES_CONNECTION_STRING fails closed instead of falling back to an ambient decoy',
-	{ skip: skip && 'Docker is required for this test' },
+	{ skip },
 	async () => {
 		await withWorktreeConnectionStringRemoved(async () => {
 			const free = await isPortFree(MISSING_VALUE_PORT);
