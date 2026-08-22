@@ -881,6 +881,69 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates a nullable JsonElement? GUID field:
+	/// wrapper-null/Undefined/null OK; otherwise must be a non-empty GUID string.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement?>
+		MustBeNullableNonEmptyGuid<T>(
+			this IRuleBuilder<T, JsonElement?> ruleBuilder,
+			string fieldName
+		) {
+		return ruleBuilder
+			.Must(e => {
+				if (e is null) {
+					return true;
+				}
+				var kind = e.Value.ValueKind;
+				if (kind is JsonValueKind.Undefined or JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var raw = e.Value.GetString();
+				if (string.IsNullOrWhiteSpace(raw)) {
+					return false;
+				}
+				if (!Guid.TryParse(raw, out var guid)) {
+					return false;
+				}
+				return guid != Guid.Empty;
+			})
+			.WithMessage($"{fieldName} must be a valid GUID");
+	}
+
+	/// <summary>
+	/// Validates a non-nullable JsonElement GUID field for PatchField pattern:
+	/// Undefined OK (omit), null OK (clear), otherwise must be a non-empty GUID string.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBePatchFieldNonEmptyGuid<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName
+		) {
+		return ruleBuilder
+			.Must(e => {
+				var kind = e.ValueKind;
+				if (kind is JsonValueKind.Undefined or JsonValueKind.Null) {
+					return true;
+				}
+				if (kind is not JsonValueKind.String) {
+					return false;
+				}
+				var raw = e.GetString();
+				if (string.IsNullOrWhiteSpace(raw)) {
+					return false;
+				}
+				if (!Guid.TryParse(raw, out var guid)) {
+					return false;
+				}
+				return guid != Guid.Empty;
+			})
+			.WithMessage($"{fieldName} must be a valid GUID, null, or omitted");
+	}
+
+	/// <summary>
 	/// Validates a required JsonElement ISO 8601 UTC datetime field:
 	/// NotEmpty → must be string → parses via <see cref="DateUtils.TryParseIsoUtc"/>.
 	/// </summary>

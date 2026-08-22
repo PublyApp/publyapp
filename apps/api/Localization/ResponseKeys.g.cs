@@ -215,6 +215,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PendingInvitationExists = new("pending-invitation-exists");
 
 	/// <summary>
+	/// Post deleted successfully
+	/// </summary>
+	public static readonly TranslationKey PostDeletedSuccess = new("post-deleted-success");
+
+	/// <summary>
 	/// profile
 	/// </summary>
 	public static readonly TranslationKey Profile = new("profile");

@@ -10,6 +10,7 @@ using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
+using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
@@ -102,6 +103,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	}
 	public DbSet<SystemNotice> SystemNotice {
 		get { return Set<SystemNotice>(); }
+	}
+
+	// Tenant content entities
+	public DbSet<Post> Post {
+		get { return Set<Post>(); }
 	}
 
 	public Guid? TenantId { get; set; }

@@ -15,6 +15,7 @@ using PublyApp.Api.Modules.AuditLogs.Endpoints;
 using PublyApp.Api.Modules.Auth.Endpoints;
 using PublyApp.Api.Modules.Invitations.Endpoints;
 using PublyApp.Api.Modules.Permissions.Endpoints;
+using PublyApp.Api.Modules.Posts.Endpoints;
 using PublyApp.Api.Modules.Profiles.Endpoints;
 using PublyApp.Api.Modules.Settings.Endpoints;
 using PublyApp.Api.Modules.SystemNotices.Endpoints;
@@ -233,18 +234,12 @@ public class Program {
 		staffGroup.MapUploadEndpointsForStaff();
 
 		// First real tenant-scoped surface (root `/`): the signed-in user's
-		// own account profile. The /test stub below it was removed when this
-		// shipped (TenantAuthFilter.Spec.cs now probes the real endpoint).
+		// own account profile. Posts shipped as the first real permission-gated
+		// tenant CRUD surface (B1 #637) and replaces the former Testing-only
+		// /test-permission scaffold as the permission-filter probe.
 		tenantGroup.MapAccountEndpointsForTenant();
 		tenantGroup.MapSettingsEndpointsForTenant();
-
-		// Testing-only scaffold: never registered outside the Testing environment,
-		// so it never reaches openapi.json / the production Kiota client. Use host
-		// environment here (not AppEnvironment) for the same reason as the
-		// HTTPS-redirection check above.
-		if (app.Environment.IsEnvironment(EnvironmentNames.Testing)) {
-			MapTenantTestingScaffoldEndpoints(tenantGroup);
-		}
+		tenantGroup.MapPostEndpointsForTenant();
 
 		var readinessOptions = new HealthCheckOptions {
 			Predicate = registration => registration.Tags.Contains("ready"),
@@ -264,17 +259,5 @@ public class Program {
 			);
 		app.MapNotFoundRoute();
 		app.ValidateEndpointRateLimitCoverage();
-	}
-
-	// Test-only scaffold proving TenantPermissionFilter's AccountLevel.Admin bypass
-	// end to end (see TenantPermissionFilter.Spec.cs). Remove once a real tenant
-	// endpoint adopts WithTenantPermission(...). Only ever mapped under the Testing
-	// environment (see call site above) — must not ship into production artifacts.
-	private static void MapTenantTestingScaffoldEndpoints(RouteGroupBuilder tenantGroup) {
-		tenantGroup.MapGet("/test-permission", () => "Hello, Permission!")
-			.RequireRateLimiting(
-				ApiRateLimitPolicies.AuthenticatedDefault
-			)
-			.WithTenantPermission([AppPermissions.Tenant.Modules.ACCESS_DASHBOARD]);
 	}
 }

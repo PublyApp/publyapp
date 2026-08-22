@@ -28,13 +28,16 @@ namespace PublyApp.Api.Lib.Filters;
 /// not leak into a different tenant, and non-Admin tenant users must still be governed
 /// strictly by their profile-derived permissions.
 ///
-/// Exercises the real HTTP pipeline via the /test-permission scaffold endpoint (Program.cs),
-/// gated with .WithTenantPermission([AppPermissions.Tenant.Modules.ACCESS_DASHBOARD]) —
-/// the same pattern TenantAuthFilterSpec uses against /test.
+/// Exercises the real HTTP pipeline via the real tenant posts endpoint GET /posts
+/// (Program.cs: MapPostEndpointsForTenant), gated with
+/// .WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]) — the same pattern
+/// TenantAuthFilterSpec uses against /test, but now against the first real
+/// permission-gated tenant CRUD surface (B1 #637) after the Testing-only
+/// /test-permission scaffold was removed.
 /// </summary>
 public sealed class TenantPermissionFilterSpec
 	: IClassFixture<ApiFixture> {
-	private const string TestEndpoint = "/test-permission";
+	private const string PostsEndpoint = "/posts";
 
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
@@ -71,7 +74,7 @@ public sealed class TenantPermissionFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			PostsEndpoint
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId);
@@ -103,7 +106,7 @@ public sealed class TenantPermissionFilterSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			PostsEndpoint
 		)
 			.WithSessionToken(acmeUserToken)
 			.WithTenantId(acmeId);
@@ -141,7 +144,7 @@ public sealed class TenantPermissionFilterSpec
 		try {
 			var profileId = await CreateTenantProfileWithPermissionsAsync(
 				acmeId,
-				[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
+				[AppPermissions.Tenant.Posts.VIEW.Key]
 			);
 			createdProfileIds.Add(profileId);
 
@@ -158,7 +161,7 @@ public sealed class TenantPermissionFilterSpec
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				TestEndpoint
+				PostsEndpoint
 			)
 				.WithSessionToken(acmeUserToken)
 				.WithTenantId(acmeId);
@@ -200,7 +203,7 @@ public sealed class TenantPermissionFilterSpec
 
 		using (var acmeRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			PostsEndpoint
 		)
 			.WithSessionToken(charlieToken)
 			.WithTenantId(acmeId)) {
@@ -213,7 +216,7 @@ public sealed class TenantPermissionFilterSpec
 
 		using (var globalRequest = new HttpRequestMessage(
 			HttpMethod.Get,
-			TestEndpoint
+			PostsEndpoint
 		)
 			.WithSessionToken(charlieToken)
 			.WithTenantId(globalId)) {
