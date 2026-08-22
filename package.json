@@ -16,7 +16,8 @@
 		"test:review-api": "node --test ./scripts/review-api.test.mjs",
 		"test:review-api-migration-guard": "node --test ./scripts/review-api.migration-guard.integration.test.mjs",
 		"test:frontend-barrels": "node --test ./scripts/check-frontend-barrels.test.mjs",
-		"test:project-closure-adapter": "node --test ./scripts/project-closure-adapter.test.mjs"
+		"test:project-closure-adapter": "node --test ./scripts/project-closure-adapter.test.mjs",
+		"test:require-linked-issue": "node --test ./scripts/require-linked-issue.test.mjs"
 	},
 	"devDependencies": {
 		"@types/node": "^20.19.7",
