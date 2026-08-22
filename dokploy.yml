@@ -163,6 +163,7 @@ services:
       - SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS=${SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS}
       - JOB_ALERT_LEASE_RETENTION_DAYS=${JOB_ALERT_LEASE_RETENTION_DAYS}
       - JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST=${JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST}
+      - SOCIAL_ACCOUNTS_MASTER_KEY=${SOCIAL_ACCOUNTS_MASTER_KEY}
     # Shares the api's storage volume so files written by future export jobs (#213/#286)
     # are visible to the api's /files static serving (audit F18) — same FILE_STORAGE_ROOT
     # path in both roles.
