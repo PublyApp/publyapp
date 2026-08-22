@@ -2,7 +2,8 @@
  * Unit tests for shared path scoping helpers.
  */
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+
+import { describe, it } from 'vitest';
 
 import {
 	isUnderFrontSource,
@@ -11,7 +12,7 @@ import {
 	FRONT_SOURCE_PREFIXES,
 	getSourceRelativePath,
 	normalizeFilename,
-} from './path-scopes.js';
+} from './path-scopes.ts';
 
 describe('path-scopes helper', () => {
 	it('normalizes windows separators without changing existing forward slashes', () => {

@@ -1,6 +1,6 @@
 import type { Context, Fix, Fixer, Visitor } from '@oxlint/plugins';
 
-import { isFrontSourceFile, normalizeFilename } from './path-scopes.js';
+import { isFrontSourceFile, normalizeFilename } from './path-scopes.ts';
 
 /**
  * `publy/no-console-in-source` - rewrite source `console.<method>(...)` calls to

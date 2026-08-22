@@ -17,16 +17,16 @@ import {
 	mkdtempSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
-import plugin from '../index.js';
-import { noArrayReduce } from './no-array-reduce.js';
-import { noConsoleInSource } from './no-console-in-source.js';
-import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.js';
-import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.js';
+import plugin from '../index.ts';
+import { noArrayReduce } from './no-array-reduce.ts';
+import { noConsoleInSource } from './no-console-in-source.ts';
+import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.ts';
+import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.ts';
 
 RuleTester.describe = describe;
 RuleTester.it = it;

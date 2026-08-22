@@ -10,10 +10,6 @@ import type { Context, Fix, Fixer, Visitor } from '@oxlint/plugins';
 
 const LODASH_PACKAGE = 'lodash';
 
-/**
- * Resolve the textual name of a `ModuleExportName` node (`Identifier` or string
- * literal form, e.g. `import { "map" as m }`).
- */
 const exportedName = (node: {
 	type: string;
 	name?: string;
@@ -28,10 +24,6 @@ const getContextFilename = (context: Context): string => {
 	return '';
 };
 
-/**
- * Build the replacement source for a fully-named, VALUE-only lodash import
- * declaration.
- */
 interface LodashImportSpecifier {
 	type: string;
 	imported: { type: string; name?: string; value?: unknown };
@@ -68,6 +60,9 @@ export const preferSpecificLodashImports = {
 		},
 	},
 	create(context: Context): Visitor {
+		const filename = getContextFilename(context);
+		const importPathExtension = filename.endsWith('.mjs') ? '.js' : '';
+
 		return {
 			ImportDeclaration(node) {
 				if (node.source.value !== LODASH_PACKAGE) {
@@ -79,9 +74,7 @@ export const preferSpecificLodashImports = {
 					specifiers.length > 0 &&
 					specifiers.every((s) => s.type === 'ImportSpecifier');
 
-				const isTypeOnlyDecl = node.importKind === 'type';
-
-				if (isTypeOnlyDecl || !hasOnlyNamedSpecifiers) {
+				if (!hasOnlyNamedSpecifiers) {
 					context.report({ node, messageId: 'whole' });
 					return;
 				}
@@ -89,15 +82,13 @@ export const preferSpecificLodashImports = {
 				const typedSpecifiers =
 					specifiers as unknown as LodashImportSpecifier[];
 
+				const hasTypeOnlyDecl = node.importKind === 'type';
 				const hasTypeOnlySpecifier = typedSpecifiers.some(
 					(s: LodashImportSpecifier & { importKind?: string }) =>
 						s.importKind === 'type',
 				);
 
-				const filename = getContextFilename(context);
-				const importPathExtension = filename.endsWith('.mjs') ? '.js' : '';
-
-				if (hasTypeOnlySpecifier) {
+				if (hasTypeOnlyDecl || hasTypeOnlySpecifier) {
 					context.report({ node, messageId: 'named' });
 					return;
 				}

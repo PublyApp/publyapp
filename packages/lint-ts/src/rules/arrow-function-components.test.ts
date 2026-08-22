@@ -33,12 +33,12 @@
  *   Helper calling useThing() is flagged; non-hook expression bodies stay clean.
  */
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
 
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
-import plugin from '../index.js';
-import { arrowFunctionComponents } from './arrow-function-components.js';
+import plugin from '../index.ts';
+import { arrowFunctionComponents } from './arrow-function-components.ts';
 
 RuleTester.describe = describe;
 RuleTester.it = it;

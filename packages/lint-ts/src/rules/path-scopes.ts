@@ -2,12 +2,7 @@
  * Shared path helpers for lint rule file scoping.
  */
 
-export const FRONT_SOURCE_PREFIXES: readonly string[] = [
-	'apps/old-front/src/',
-	'apps/front/src/',
-];
-
-export const OLD_FRONT_SOURCE_PREFIX = 'apps/old-front/src/';
+export const FRONT_SOURCE_PREFIXES: readonly string[] = ['apps/front/src/'];
 
 export const FRONT_SOURCE_EXTENSIONS: readonly string[] = [
 	'.ts',
@@ -16,22 +11,12 @@ export const FRONT_SOURCE_EXTENSIONS: readonly string[] = [
 	'.jsx',
 	'.mjs',
 ];
-export const FRONT_PRODUCT_SURFACE_EXTENSIONS: readonly string[] = [
-	'.tsx',
-	'.jsx',
-];
 
 const FRONT_COMPONENT_RELATIVE_PATHS: readonly string[] = [
 	'components/',
 	'_parts/',
 	'_components/',
 	'routes/',
-];
-const FRONT_PRODUCT_RELATIVE_PATHS: readonly string[] = [
-	'components/',
-	'layouts/',
-	'routes/',
-	'lib/',
 ];
 
 export const normalizeFilename = (filename: string): string =>
@@ -110,22 +95,5 @@ export const isFrontComponentTsxFile = (filename: string): boolean => {
 		normalizedFilename.endsWith('.tsx') &&
 		relativePath !== '' &&
 		isPathUnderRelativePrefix(relativePath, FRONT_COMPONENT_RELATIVE_PATHS)
-	);
-};
-
-export const isOldFrontProductSurfaceFile = (
-	filename: string,
-	sourcePrefix: string = OLD_FRONT_SOURCE_PREFIX,
-	extensions: readonly string[] = FRONT_PRODUCT_SURFACE_EXTENSIONS,
-): boolean => {
-	const normalizedFilename = normalizeFilename(filename);
-	const relativePath = getSourceRelativePath(normalizedFilename, [
-		sourcePrefix,
-	]);
-
-	return (
-		hasAllowedExtension(normalizedFilename, extensions) &&
-		relativePath !== '' &&
-		isPathUnderRelativePrefix(relativePath, FRONT_PRODUCT_RELATIVE_PATHS)
 	);
 };

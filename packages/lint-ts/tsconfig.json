@@ -5,7 +5,9 @@
 		"target": "ES2022",
 		"declaration": false,
 		"declarationMap": false,
-		"composite": false
+		"composite": false,
+		"allowImportingTsExtensions": true,
+		"noEmit": true
 	},
 	"include": ["src"],
 	"exclude": ["node_modules", "src/**/*.test.ts"]

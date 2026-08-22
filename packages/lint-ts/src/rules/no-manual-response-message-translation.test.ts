@@ -15,12 +15,12 @@
  *   `.t(...)` report when called with a response-message key.
  */
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
 
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
-import plugin from '../index.js';
-import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.js';
+import plugin from '../index.ts';
+import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.ts';
 
 RuleTester.describe = describe;
 RuleTester.it = it;

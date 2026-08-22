@@ -16,12 +16,12 @@
  *   `_components`.
  */
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
 
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
-import plugin from '../index.js';
-import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.js';
+import plugin from '../index.ts';
+import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.ts';
 
 RuleTester.describe = describe;
 RuleTester.it = it;

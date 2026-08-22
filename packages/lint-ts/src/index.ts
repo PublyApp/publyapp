@@ -17,16 +17,17 @@
  *   - `publy/no-direct-dayjs-in-components` → "error"
  *   - `publy/no-manual-response-message-translation` → "error"
  *   - `publy/no-array-reduce` → "error"
+ *   - `publy/no-package-src-import` → "error"
  *   - `publy/arrow-function-components` → "off" (dormant)
  */
-import { arrowFunctionComponents } from './rules/arrow-function-components.js';
-import { noArrayReduce } from './rules/no-array-reduce.js';
-import { noConsoleInSource } from './rules/no-console-in-source.js';
-import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.js';
-import { noManualResponseMessageTranslation } from './rules/no-manual-response-message-translation.js';
-import { noOp } from './rules/no-op.js';
-import { noPackageSrcImport } from './rules/no-package-src-import.js';
-import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.js';
+import { arrowFunctionComponents } from './rules/arrow-function-components.ts';
+import { noArrayReduce } from './rules/no-array-reduce.ts';
+import { noConsoleInSource } from './rules/no-console-in-source.ts';
+import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.ts';
+import { noManualResponseMessageTranslation } from './rules/no-manual-response-message-translation.ts';
+import { noOp } from './rules/no-op.ts';
+import { noPackageSrcImport } from './rules/no-package-src-import.ts';
+import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.ts';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
 const plugin = {

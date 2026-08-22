@@ -4,7 +4,7 @@ import {
 	FRONT_SOURCE_PREFIXES,
 	isFrontComponentTsxFile,
 	normalizeFilename,
-} from './path-scopes.js';
+} from './path-scopes.ts';
 
 /**
  * `publy/no-direct-dayjs-in-components` — prevent React component files from
