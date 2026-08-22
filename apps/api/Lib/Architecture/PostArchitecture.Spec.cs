@@ -138,43 +138,27 @@ public sealed class PostArchitectureSpec {
 	}
 
 	private static string FindPostServicePath() {
-		var dir = AppContext.BaseDirectory;
-		for (var i = 0; i < 12; i++) {
-			var candidate = Path.Combine(
-				dir, "Modules", "Posts", "Services", "PostService.cs"
-			);
-			if (File.Exists(candidate)) {
-				return candidate;
+		var directory = new DirectoryInfo(AppContext.BaseDirectory);
+		while (directory is not null) {
+			if (File.Exists(Path.Combine(directory.FullName, "justfile"))) {
+				var target = Path.Combine(
+					directory.FullName,
+					"apps", "api", "Modules", "Posts", "Services", "PostService.cs"
+				);
+				if (!File.Exists(target)) {
+					throw new InvalidOperationException(
+						$"Could not locate PostService.cs at expected path: {target}"
+					);
+				}
+				return target;
 			}
 
-			var alt = Directory
-				.GetFiles(dir, "PostService.cs", SearchOption.AllDirectories)
-				.FirstOrDefault();
-			if (alt is not null && File.Exists(alt)) {
-				return alt;
-			}
-
-			var parent = Directory.GetParent(dir);
-			if (parent is null) {
-				break;
-			}
-			dir = parent.FullName;
-		}
-
-		// Fallback: search from repo root guess
-		var repoSearch = Directory
-			.GetFiles(
-				"/home/radan/Projects/PublyApp/publyapp/.worktrees/pr1158",
-				"PostService.cs",
-				SearchOption.AllDirectories
-			)
-			.FirstOrDefault(p => p.Contains("/Modules/Posts/Services/"));
-		if (repoSearch is not null) {
-			return repoSearch;
+			directory = directory.Parent;
 		}
 
 		throw new InvalidOperationException(
-			"Could not locate PostService.cs for architecture guard"
+			"Could not locate the repo root (containing justfile) by walking up from " +
+			$"{AppContext.BaseDirectory}."
 		);
 	}
 
