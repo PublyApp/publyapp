@@ -41,11 +41,11 @@
 - `apps/api/Modules/SocialAccounts/Lib/VisibleIn.cs` — `VisibleIn(SocialAccount, Guid)` pure function.
 - `apps/api/Modules/SocialAccounts/Seeder.cs` — **absent**: C1-bis seeds NO permissions (deferred to C2). Do not add a seeder here.
 - Tests:
-  - `apps/api/Modules/SocialAccounts/Tests/SocialAccountArchitecture.Spec.cs` — guard (every service method with `Guid tenantId` uses it; entity check constraints/indexes; junction is pure).
-  - `apps/api/Modules/SocialAccounts/Tests/CredentialProtectorSpec.cs` — round-trip, wrong-key refusal at boot, witness decrypt.
-  - `apps/api/Modules/SocialAccounts/Tests/LastErrorSanitiserSpec.cs` — length cap + secret scrub.
-  - `apps/api/Modules/SocialAccounts/Tests/VisibleInSpec.cs` — unattached visible everywhere; attached invisible in Y.
-  - `apps/api/Modules/SocialAccounts/Tests/SocialAccountEntitySpec.cs` — EF model: table, composite PK, check constraint, unique index, FKs.
+  - `apps/api/Lib/Architecture/SocialAccountArchitecture.Spec.cs` — guard (every service method with `Guid tenantId` uses it; entity check constraints/indexes; junction is pure).
+  - `apps/api/Modules/SocialAccounts/Services/CredentialProtector.Spec.cs` — round-trip, wrong-key refusal at boot, witness decrypt.
+  - `apps/api/Modules/SocialAccounts/Lib/LastErrorSanitiser.Spec.cs` — length cap + secret scrub.
+  - `apps/api/Modules/SocialAccounts/Lib/VisibleIn.Spec.cs` — unattached visible everywhere; attached invisible in Y.
+  - `apps/api/Modules/SocialAccounts/Entities/SocialAccountEntity.Spec.cs` — EF model: table, composite PK, check constraint, unique index, FKs.
 
 **Modify**
 - `Directory.Packages.props` — add `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.1.
@@ -76,7 +76,7 @@
 - [ ] **Step 1: Write the failing test**
 
 ```csharp
-// apps/api/Lib/AppEnvironmentMasterKeySpec.cs
+// apps/api/Lib/AppEnvironmentMasterKey.Spec.cs
 using FluentAssertions;
 using PublyApp.Api.Lib;
 using Xunit;
@@ -85,7 +85,7 @@ namespace PublyApp.Api.Lib;
 
 public sealed class AppEnvironmentMasterKeySpec {
 	[Fact]
-	public void ItShouldExposeTheDecodedMasterKeyAsAtLeast32Bytes() {
+	public void ItShouldExposeA32ByteMasterKeyWhenTheVariableIsValidBase64() {
 		// AppEnvironment.Instance is initialized once at assembly load from
 		// .env.development (see Lib/Testing/Fixtures/TestEnvironment.Bootstrap). The
 		// SOCIAL_ACCOUNTS_MASTER_KEY it reads is the committed placeholder in
@@ -183,7 +183,7 @@ Expected: PASS.
 ```bash
 cd /home/radan/Projects/PublyApp/publyapp/.worktrees/wt-plan-c1bis
 git add apps/api/Lib/AppEnvironment.cs Directory.Packages.props apps/api/PublyApp.Api.csproj \
-  apps/api/Lib/AppEnvironmentMasterKeySpec.cs .env.example
+  apps/api/Lib/AppEnvironmentMasterKey.Spec.cs .env.example
 git commit -m "feat(api): require SOCIAL_ACCOUNTS_MASTER_KEY and reference DataProtection EF Core"
 ```
 
@@ -205,17 +205,17 @@ git commit -m "feat(api): require SOCIAL_ACCOUNTS_MASTER_KEY and reference DataP
 - [ ] **Step 1: Write the failing test**
 
 ```csharp
-// apps/api/Modules/SocialAccounts/Tests/MasterKeyXmlSpec.cs
+// apps/api/Modules/SocialAccounts/Infrastructure/MasterKeyXml.Spec.cs
 using FluentAssertions;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 using Xunit;
 
-namespace PublyApp.Api.Modules.SocialAccounts.Tests;
+namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 
 public sealed class MasterKeyXmlSpec {
 	[Fact]
-	public void ItShouldRoundTripEncryptedXmlUnderTheMasterKey() {
+	public void ItShouldRoundTripXmlWhenEncryptedUnderTheMasterKey() {
 		// Arrange
 		var encryptor = new MasterKeyXmlEncryptor();
 		var decryptor = new MasterKeyXmlDecryptor();
@@ -412,7 +412,7 @@ git add apps/api/Data/DbContext/AppDbContext.cs apps/api/Lib/ServiceRegistration
   apps/api/Modules/SocialAccounts/Infrastructure/MasterKeyXmlEncryptor.cs \
   apps/api/Modules/SocialAccounts/Infrastructure/MasterKeyXmlDecryptor.cs \
   apps/api/Modules/SocialAccounts/Infrastructure/SocialAccountsMasterKeyWitness.cs \
-  apps/api/Modules/SocialAccounts/Tests/MasterKeyXmlSpec.cs
+  apps/api/Modules/SocialAccounts/Infrastructure/MasterKeyXml.Spec.cs
 git commit -m "feat(api): persist Data Protection keys to Postgres, encrypt with master key"
 ```
 
@@ -431,20 +431,20 @@ git commit -m "feat(api): persist Data Protection keys to Postgres, encrypt with
 - [ ] **Step 1: Write the failing test**
 
 ```csharp
-// apps/api/Modules/SocialAccounts/Tests/CredentialProtectorSpec.cs
+// apps/api/Modules/SocialAccounts/Services/CredentialProtector.Spec.cs
 using FluentAssertions;
 using Microsoft.AspNetCore.DataProtection;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using Xunit;
 
-namespace PublyApp.Api.Modules.SocialAccounts.Tests;
+namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 
 public sealed class CredentialProtectorSpec {
 	private static CredentialProtector Provider() => new(new NullDataProtectionProvider());
 
 	[Fact]
-	public void ItShouldRoundTripASecretPerProviderPurpose() {
+	public void ItShouldRoundTripTheSecretForEachProviderPurpose() {
 		var provider = Provider();
 		var clear = "app-password-secret";
 
@@ -455,7 +455,7 @@ public sealed class CredentialProtectorSpec {
 	}
 
 	[Fact]
-	public void ItShouldReturnNullOnGarbageNotThrow() {
+	public void ItShouldReturnNullWithoutThrowingWhenTheBlobIsGarbage() {
 		var provider = Provider();
 		provider.Unprotect("not-a-valid-token", SocialProvider.Bluesky).Should().BeNull();
 	}
@@ -533,7 +533,7 @@ Expected: PASS.
 cd /home/radan/Projects/PublyApp/publyapp/.worktrees/wt-plan-c1bis
 git add apps/api/Modules/SocialAccounts/Services/ICredentialProtector.cs \
   apps/api/Modules/SocialAccounts/Services/CredentialProtector.cs \
-  apps/api/Modules/SocialAccounts/Tests/CredentialProtectorSpec.cs
+  apps/api/Modules/SocialAccounts/Services/CredentialProtector.Spec.cs
 git commit -m "feat(api): add per-provider ICredentialProtector (no endpoint yet)"
 ```
 
@@ -557,7 +557,7 @@ git commit -m "feat(api): add per-provider ICredentialProtector (no endpoint yet
 - [ ] **Step 1: Write the failing test**
 
 ```csharp
-// apps/api/Modules/SocialAccounts/Tests/SocialAccountEntitySpec.cs
+// apps/api/Modules/SocialAccounts/Entities/SocialAccountEntity.Spec.cs
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -565,7 +565,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using Xunit;
 
-namespace PublyApp.Api.Modules.SocialAccounts.Tests;
+namespace PublyApp.Api.Modules.SocialAccounts.Entities;
 
 public sealed class SocialAccountEntitySpec {
 	private static IReadOnlyList<Microsoft.EntityFrameworkCore.Metadata.IEntityType> Model() {
@@ -577,7 +577,7 @@ public sealed class SocialAccountEntitySpec {
 	}
 
 	[Fact]
-	public void ItShouldConfigureSocialAccountCheckConstraintAndUniqueIndex() {
+	public void ItShouldDeclareCheckConstraintAndUniqueIndexForSocialAccount() {
 		var entity = Model().Single(e => e.ClrType == typeof(SocialAccount));
 		entity.GetCheckConstraints().Single(c => c.Name == "CK_SocialAccount_Status")
 			.Sql.Should().Be("status IN (10, 20, 30)");
@@ -586,7 +586,7 @@ public sealed class SocialAccountEntitySpec {
 	}
 
 	[Fact]
-	public void ItShouldConfigureSocialAccountProjectCompositeKey() {
+	public void ItShouldDeclareACompositeKeyForSocialAccountProject() {
 		var entity = Model().Single(e => e.ClrType == typeof(SocialAccountProject));
 		entity.FindPrimaryKey()!.Properties.Select(p => p.Name)
 			.Should().Equal("SocialAccountId", "ProjectId");
@@ -833,7 +833,7 @@ git commit -m "feat(api): SocialAccount + SocialAccountProject entities, config,
 
 **Files:**
 - Create: `apps/api/Modules/SocialAccounts/Lib/LastErrorSanitiser.cs`
-- Create: `apps/api/Modules/SocialAccounts/Tests/LastErrorSanitiserSpec.cs`
+- Create: `apps/api/Modules/SocialAccounts/Lib/LastErrorSanitiser.Spec.cs`
 
 **Interfaces:**
 - Produces: `LastErrorSanitiser.Sanitize(string?)` — caps at 2 KB and scrubs the secret. Later slices call this before persisting `SocialAccount.LastError`.
@@ -841,22 +841,22 @@ git commit -m "feat(api): SocialAccount + SocialAccountProject entities, config,
 - [ ] **Step 1: Write the failing test**
 
 ```csharp
-// apps/api/Modules/SocialAccounts/Tests/LastErrorSanitiserSpec.cs
+// apps/api/Modules/SocialAccounts/Lib/LastErrorSanitiser.Spec.cs
 using FluentAssertions;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using Xunit;
 
-namespace PublyApp.Api.Modules.SocialAccounts.Tests;
+namespace PublyApp.Api.Modules.SocialAccounts.Lib;
 
 public sealed class LastErrorSanitiserSpec {
 	[Fact]
-	public void ItShouldCapAtTwoKilobytes() {
+	public void ItShouldCapTheMessageWhenLongerThanTwoKilobytes() {
 		var huge = new string('x', 10_000);
 		LastErrorSanitiser.Sanitize(huge)!.Length.Should().BeLessThanOrEqualTo(2048);
 	}
 
 	[Fact]
-	public void ItShouldScrubTheSecret() {
+	public void ItShouldScrubTheSecretWhenPresentInTheMessage() {
 		var raw = "Bluesky refused: invalid app password 'hunter2-secret-token-123'";
 		var sanitised = LastErrorSanitiser.Sanitize(raw)!;
 		sanitised.Should().NotContain("hunter2-secret-token-123");
@@ -864,7 +864,7 @@ public sealed class LastErrorSanitiserSpec {
 	}
 
 	[Fact]
-	public void ItShouldPassThroughNull() {
+	public void ItShouldReturnNullWhenTheMessageIsNull() {
 		LastErrorSanitiser.Sanitize(null).Should().BeNull();
 	}
 }
@@ -922,7 +922,7 @@ Expected: PASS.
 ```bash
 cd /home/radan/Projects/PublyApp/publyapp/.worktrees/wt-plan-c1bis
 git add apps/api/Modules/SocialAccounts/Lib/LastErrorSanitiser.cs \
-  apps/api/Modules/SocialAccounts/Tests/LastErrorSanitiserSpec.cs
+  apps/api/Modules/SocialAccounts/Lib/LastErrorSanitiser.Spec.cs
 git commit -m "feat(api): add LastError sanitiser (<=2KB, secret never present)"
 ```
 
@@ -932,7 +932,7 @@ git commit -m "feat(api): add LastError sanitiser (<=2KB, secret never present)"
 
 **Files:**
 - Create: `apps/api/Modules/SocialAccounts/Lib/VisibleIn.cs`
-- Create: `apps/api/Modules/SocialAccounts/Tests/VisibleInSpec.cs`
+- Create: `apps/api/Modules/SocialAccounts/Lib/VisibleIn.Spec.cs`
 
 **Interfaces:**
 - Consumes: `SocialAccount` (Task 4).
@@ -941,13 +941,13 @@ git commit -m "feat(api): add LastError sanitiser (<=2KB, secret never present)"
 - [ ] **Step 1: Write the failing test**
 
 ```csharp
-// apps/api/Modules/SocialAccounts/Tests/VisibleInSpec.cs
+// apps/api/Modules/SocialAccounts/Lib/VisibleIn.Spec.cs
 using FluentAssertions;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using Xunit;
 
-namespace PublyApp.Api.Modules.SocialAccounts.Tests;
+namespace PublyApp.Api.Modules.SocialAccounts.Lib;
 
 public sealed class VisibleInSpec {
 	private static SocialAccount Active() {
@@ -968,7 +968,7 @@ public sealed class VisibleInSpec {
 	}
 
 	[Fact]
-	public void ItShouldBeInvisibleInProjectNotAttachedTo() {
+	public void ItShouldBeInvisibleForAProjectItIsNotAttachedTo() {
 		var account = Active();
 		var attached = Guid.NewGuid();
 		var other = Guid.NewGuid();
@@ -1036,7 +1036,7 @@ Expected: PASS.
 ```bash
 cd /home/radan/Projects/PublyApp/publyapp/.worktrees/wt-plan-c1bis
 git add apps/api/Modules/SocialAccounts/Lib/VisibleIn.cs \
-  apps/api/Modules/SocialAccounts/Tests/VisibleInSpec.cs \
+  apps/api/Modules/SocialAccounts/Lib/VisibleIn.Spec.cs \
   apps/api/Modules/SocialAccounts/Entities/SocialAccount.cs
 git commit -m "feat(api): add VisibleIn visibility rule + Projects nav on SocialAccount"
 ```
@@ -1047,7 +1047,7 @@ git commit -m "feat(api): add VisibleIn visibility rule + Projects nav on Social
 
 **Files:**
 - Modify: `apps/api/Program.cs`
-- Create: `apps/api/Modules/SocialAccounts/Tests/SocialAccountArchitecture.Spec.cs`
+- Create: `apps/api/Lib/Architecture/SocialAccountArchitecture.Spec.cs`
 
 **Interfaces:**
 - Consumes: `SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable` (Task 2).
@@ -1056,7 +1056,7 @@ git commit -m "feat(api): add VisibleIn visibility rule + Projects nav on Social
 - [ ] **Step 1: Write the failing test (architecture guard)**
 
 ```csharp
-// apps/api/Modules/SocialAccounts/Tests/SocialAccountArchitecture.Spec.cs
+// apps/api/Lib/Architecture/SocialAccountArchitecture.Spec.cs
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -1065,7 +1065,7 @@ using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using Xunit;
 
-namespace PublyApp.Api.Modules.SocialAccounts.Tests;
+namespace PublyApp.Api.Lib.Architecture;
 
 public sealed class SocialAccountArchitectureSpec {
 	static SocialAccountArchitectureSpec() {
@@ -1073,7 +1073,7 @@ public sealed class SocialAccountArchitectureSpec {
 	}
 
 	[Fact]
-	public void ItShouldDeclareStatusCheckConstraintWithExactlyTheEnumValues() {
+	public void ItShouldDeclareTheStatusCheckConstraintWithExactlyTheEnumValues() {
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql("Host=localhost;Database=sa_arch_guard").Options;
 		using var db = new AppDbContext(options);
@@ -1174,7 +1174,7 @@ Expected: build exits 0. Then prove the refusal: boot the API locally with `SOCI
 ```bash
 cd /home/radan/Projects/PublyApp/publyapp/.worktrees/wt-plan-c1bis
 git add apps/api/Program.cs \
-  apps/api/Modules/SocialAccounts/Tests/SocialAccountArchitecture.Spec.cs
+  apps/api/Lib/Architecture/SocialAccountArchitecture.Spec.cs
 git commit -m "feat(api): boot witness for SOCIAL_ACCOUNTS_MASTER_KEY + architecture guard"
 ```
 
