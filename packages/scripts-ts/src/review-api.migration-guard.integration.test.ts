@@ -534,8 +534,24 @@ const ensureEnvFileExists = () => {
 	copyFileSync(path.join(repoRoot, '.env.example'), envFilePath);
 };
 
+// A previous run that died mid-rewrite (external kill, aborted timeout) can leave the
+// file without its POSTGRES_CONNECTION_STRING line; the substitution asserts below would
+// then fail every remaining test. Repair from the committed template instead of failing.
+const ensureEnvFileHasConnectionString = () => {
+	const original = readFileSync(envFilePath, 'utf8');
+	if (/^POSTGRES_CONNECTION_STRING=/m.test(original)) {
+		return;
+	}
+
+	writeFileSync(
+		envFilePath,
+		`${original.trimEnd()}\nPOSTGRES_CONNECTION_STRING="Host=localhost;Port=5454;Database=publyapp_db;Username=postgres;Password=password"\n`,
+	);
+};
+
 const backUpEnvFile = () => {
 	ensureEnvFileExists();
+	ensureEnvFileHasConnectionString();
 	copyFileSync(envFilePath, envFileBackupPath);
 };
 
