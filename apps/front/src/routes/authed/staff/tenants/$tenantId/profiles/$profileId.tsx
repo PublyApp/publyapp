@@ -163,23 +163,7 @@ const TenantProfileDetailsError = ({
 	);
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-tenant-profiles'],
-		// Always matched alongside an index/permissions/members child (never
-		// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
-		// contract requires every route to declare its own trail. The overview
-		// base is the correct value for this route's own path.
-		crumbs: staffTenantProfileCrumbsBase,
-	},
-	validateSearch: (search) =>
-		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
-	component: StaffTenantProfileDetailsPage,
-});
-
-function StaffTenantProfileDetailsPage() {
+const StaffTenantProfileDetailsPage = () => {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
@@ -634,4 +618,20 @@ function StaffTenantProfileDetailsPage() {
 			}}
 		</QueryDisplay>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-tenant-profiles'],
+		// Always matched alongside an index/permissions/members child (never
+		// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
+		// contract requires every route to declare its own trail. The overview
+		// base is the correct value for this route's own path.
+		crumbs: staffTenantProfileCrumbsBase,
+	},
+	validateSearch: (search) =>
+		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
+	component: StaffTenantProfileDetailsPage,
+});

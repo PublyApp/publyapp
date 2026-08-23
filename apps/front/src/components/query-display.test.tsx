@@ -70,7 +70,7 @@ describe('QueryDisplay', () => {
 	// keystroke. Direct invocation keeps the element tree stable across renders.
 	test('does not remount the data subtree when the query object identity changes', () => {
 		let mounts = 0;
-		function Probe() {
+		const Probe = () => {
 			useEffect(() => {
 				mounts += 1;
 				return () => {
@@ -78,7 +78,7 @@ describe('QueryDisplay', () => {
 				};
 			}, []);
 			return <span>probe</span>;
-		}
+		};
 
 		const firstQuery = { ...successQueryStub } as never;
 		const { rerender } = render(
@@ -98,14 +98,14 @@ describe('QueryDisplay', () => {
 	});
 
 	test('a stable child keeps its DOM node across query identity churn', () => {
-		function Probe() {
+		const Probe = () => {
 			const [count, setCount] = useState(0);
 			return (
 				<button type="button" onClick={() => setCount((c) => c + 1)}>
 					count:{count}
 				</button>
 			);
-		}
+		};
 
 		const { rerender } = render(
 			<QueryDisplay query={successQueryStub as never}>

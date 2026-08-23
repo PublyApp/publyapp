@@ -102,22 +102,6 @@ const resolveLifecycleDescription = ({
 	return t('lifecycle-unavailable-until-tenant-activates');
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
-	{
-		staticData: {
-			crumbs: () => [
-				{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-				{
-					kind: 'entity',
-					query: staffTenantCrumbQuery,
-					select: selectStaffTenantCrumbName,
-				},
-			],
-		},
-		component: StaffTenantDetailsPage,
-	},
-);
-
 const OrgField = ({
 	label,
 	value,
@@ -418,7 +402,7 @@ const OwnersCard = ({
 	);
 };
 
-function StaffTenantDetailsPage() {
+const StaffTenantDetailsPage = () => {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation('common');
@@ -741,4 +725,20 @@ function StaffTenantDetailsPage() {
 			}}
 		</QueryDisplay>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
+	{
+		staticData: {
+			crumbs: () => [
+				{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+				{
+					kind: 'entity',
+					query: staffTenantCrumbQuery,
+					select: selectStaffTenantCrumbName,
+				},
+			],
+		},
+		component: StaffTenantDetailsPage,
+	},
+);

@@ -41,18 +41,6 @@ const resolveWorkspaceTenantWhenLoaded = (
 ): TenantForPickerRow | undefined =>
 	data ? resolveWorkspaceTenant(data, selectedTenantId) : undefined;
 
-export const Route = createFileRoute('/_authed-layout/tenant')({
-	// `/tenant` is the bare portal root: a redirect-only stub that never
-	// renders chrome itself (the picker is a SimpleLayout surface with no
-	// AppShell — see `isTenantPortalPath` in `route-shell.ts`), and once a
-	// workspace resolves it bounces to `/tenant/account`, mirroring
-	// `/staff` -> `/staff/staff-users`. Every `/tenant/*` CHILD path renders
-	// inside the AppShell; an unresolved child redirects back to `/tenant`
-	// so the bare picker stays the single unresolved surface.
-	staticData: { crumbs: () => [] },
-	component: TenantPortalRoute,
-});
-
 /**
  * The tenant workspace shell: rendered by the resolved branch of
  * `TenantPortalRoute` for every `/tenant/*` CHILD path — the `/tenant` root
@@ -102,7 +90,7 @@ const TenantWorkspaceShell = ({ tenant }: { tenant: TenantForPickerRow }) => {
 	);
 };
 
-function TenantPortalRoute() {
+const TenantPortalRoute = () => {
 	const query = useTenantsForPickerQuery();
 	const navigate = useNavigate();
 	const pathname = useRouterState({
@@ -220,4 +208,16 @@ function TenantPortalRoute() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant')({
+	// `/tenant` is the bare portal root: a redirect-only stub that never
+	// renders chrome itself (the picker is a SimpleLayout surface with no
+	// AppShell — see `isTenantPortalPath` in `route-shell.ts`), and once a
+	// workspace resolves it bounces to `/tenant/account`, mirroring
+	// `/staff` -> `/staff/staff-users`. Every `/tenant/*` CHILD path renders
+	// inside the AppShell; an unresolved child redirects back to `/tenant`
+	// so the bare picker stays the single unresolved surface.
+	staticData: { crumbs: () => [] },
+	component: TenantPortalRoute,
+});

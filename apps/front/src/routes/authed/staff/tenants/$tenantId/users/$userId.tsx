@@ -166,34 +166,7 @@ const getMembershipActionLabel = (
 	return null;
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/users/$userId',
-)({
-	staticData: {
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{
-				kind: 'label',
-				labelKey: 'common:users',
-				to: `/staff/tenants/${params.tenantId}/users`,
-			},
-			{
-				kind: 'entity',
-				query: staffTenantUserCrumbQuery,
-				select: selectStaffTenantUserCrumbName,
-			},
-		],
-	},
-	component: StaffTenantUserDetailsPage,
-});
-
-function StaffTenantUserDetailsPage() {
+const StaffTenantUserDetailsPage = () => {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation('common');
@@ -557,4 +530,31 @@ function StaffTenantUserDetailsPage() {
 			}}
 		</QueryDisplay>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/users/$userId',
+)({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{
+				kind: 'label',
+				labelKey: 'common:users',
+				to: `/staff/tenants/${params.tenantId}/users`,
+			},
+			{
+				kind: 'entity',
+				query: staffTenantUserCrumbQuery,
+				select: selectStaffTenantUserCrumbName,
+			},
+		],
+	},
+	component: StaffTenantUserDetailsPage,
+});
