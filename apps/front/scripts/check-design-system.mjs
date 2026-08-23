@@ -1833,9 +1833,17 @@ const rules = [
 		// specs widely compose globs as `` `**${suffix}` ``/`` `${BASE}${path}` ``
 		// template literals, and the interpolated portion is never itself the
 		// trailing-star boundary in any current usage.
+		//
+		// F824 (tests F4): the receiver anchor was a bare `\w+` identifier, so a
+		// CHAINED receiver (`page.context().route(`) ended in `)` before the
+		// `.route(` and never matched — a single-star glob hung off such a chain
+		// was structurally invisible. The anchor now consumes the full receiver
+		// chain (identifier/call/index segments joined by dots, ending in any of
+		// word char/$/)/]), so the emitted violation source quotes the whole call
+		// (`page.context().route(glob`) instead of a meaningless tail.
 		patterns: [
-			/\b\w+\.route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g,
-			/\b\w+\.route\(\s*(?!['"`/])\S[^,)]*/g,
+			/(?:[\w$\])]+(?:\((?:[^()]|\([^()]*\))*\))?(?:\[[^\][]*\])?\.)+route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g,
+			/(?:[\w$\])]+(?:\((?:[^()]|\([^()]*\))*\))?(?:\[[^\][]*\])?\.)+route\(\s*(?!['"`/])\S[^,)]*/g,
 		],
 	},
 ];

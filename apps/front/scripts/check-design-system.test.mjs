@@ -1743,6 +1743,33 @@ test('flags a page.route glob whose trailing single star cannot cross a path sep
 	assert.match(globViolations[0].source, /staff\/tenants\*/);
 });
 
+// F824 (tests F4): the rule's receiver was anchored to a bare `\w+\.route(`
+// identifier — a chained receiver like `page.context().route(` ends in `)`
+// before the `.`, so the pattern never matched and a single-star glob hung
+// off a chained Playwright receiver was structurally invisible to the guard.
+test('F824-tests-F4: flags a single-star glob on a chained receiver (page.context().route)', async () => {
+	const root = await makeFixture({
+		'e2e/chained.spec.ts':
+			"await page.context().route('**/staff/tenants*', handler);\nawait page.context().route('**/staff/profiles**', handler);",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	const globViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-single-star-route-glob',
+	);
+
+	assert.equal(
+		globViolations.length,
+		1,
+		'the chained-receiver single-star glob must be flagged',
+	);
+	assert.equal(globViolations[0].line, 1);
+});
+
 test('a design-system-ignore marker suppresses only when it carries a reason', async () => {
 	const bare = await makeFixture({
 		'e2e/bare.spec.ts':
