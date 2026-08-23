@@ -295,15 +295,6 @@ describe('rule scoping matrix', () => {
 
 	describe('anti-slop plugin wiring (mutation guard)', () => {
 		it('reports an enabled anti-slop rule while its jsPlugins specifier is wired, and only then', () => {
-			const fixtureDir = mkdtempSync(
-				join(WORKSPACE_ROOT, '.tmp', 'anti-slop-wiring-'),
-			);
-			const violationPath = join(fixtureDir, 'reflect-get-violation.ts');
-			writeFileSync(
-				violationPath,
-				"export const value = Reflect.get({ a: 1 }, 'a');\n",
-			);
-
 			const config = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8')) as {
 				jsPlugins: unknown[];
 			};
@@ -314,10 +305,21 @@ describe('rule scoping matrix', () => {
 					(entry as { name?: unknown }).name === 'anti-slop',
 			);
 
+			// Fail BEFORE any temp file/dir is created so a missing entry
+			// cannot leave residue behind.
 			assert.notStrictEqual(
 				antiSlopEntryIndex,
 				-1,
 				'.oxlintrc.json must carry the { name: "anti-slop" } jsPlugins entry — without it every enabled anti-slop/* rule silently stops reporting',
+			);
+
+			const fixtureDir = mkdtempSync(
+				join(WORKSPACE_ROOT, '.tmp', 'anti-slop-wiring-'),
+			);
+			const violationPath = join(fixtureDir, 'reflect-get-violation.ts');
+			writeFileSync(
+				violationPath,
+				"export const value = Reflect.get({ a: 1 }, 'a');\n",
 			);
 
 			// Control = byte-equivalent config; mutant = same config with the
