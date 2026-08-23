@@ -293,14 +293,16 @@ const TenantUserRowActions = ({
 				await removeMutation.mutateAsync({ tenantId, userId: user.id });
 			}
 		} catch (error) {
+			// Clear the pending action on every exit path — no try/finally,
+			// which the React Compiler cannot lower yet.
+			setPendingAction(null);
 			if (shouldLogoutForFailure(error)) {
 				onSessionExpired();
 				return;
 			}
 			return;
-		} finally {
-			setPendingAction(null);
 		}
+		setPendingAction(null);
 
 		await invalidateTenantUserQueries();
 	};

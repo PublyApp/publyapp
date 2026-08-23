@@ -314,14 +314,17 @@ const StaffUserDetailsPage = () => {
 				await reactivateUser.mutateAsync({ userId });
 			}
 		} catch (error) {
+			// Close the dialog on every exit path — no try/finally, which the
+			// React Compiler cannot lower yet and would skip this component.
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
+				setSuspendDialogOpen(false);
 				return;
 			}
-			return;
-		} finally {
 			setSuspendDialogOpen(false);
+			return;
 		}
+		setSuspendDialogOpen(false);
 
 		try {
 			await invalidateStaffUsers(queryClient);
@@ -334,15 +337,20 @@ const StaffUserDetailsPage = () => {
 		try {
 			await deleteUser.mutateAsync({ userId });
 		} catch (error) {
+			// Close the dialog on every exit path — no try/finally, which the
+			// React Compiler cannot lower yet and would skip this component.
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
+				setDeleteDialogOpen(false);
+				setDeleteConfirmText('');
 				return;
 			}
-			return;
-		} finally {
 			setDeleteDialogOpen(false);
 			setDeleteConfirmText('');
+			return;
 		}
+		setDeleteDialogOpen(false);
+		setDeleteConfirmText('');
 
 		try {
 			await navigate({ to: '/staff/staff-users' });

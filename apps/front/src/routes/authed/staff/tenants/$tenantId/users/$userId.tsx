@@ -303,14 +303,16 @@ const StaffTenantUserDetailsPage = () => {
 		try {
 			await removeTenantUserMutation.mutateAsync({ tenantId, userId });
 		} catch (error) {
+			// Reset pending state on every exit path — no try/finally,
+			// which the React Compiler cannot lower yet.
+			setPendingRemove(false);
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
 			return;
-		} finally {
-			setPendingRemove(false);
 		}
+		setPendingRemove(false);
 
 		await invalidateTenantUserQueries();
 		void navigate({

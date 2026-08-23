@@ -189,22 +189,25 @@ const InvitationDetailsCard = ({
 		copyLink.isPending || resend.isPending || revoke.isPending;
 
 	const handleCopyLink = async () => {
+		// No `throw` inside the try below: the React Compiler cannot lower
+		// ThrowStatement-in-try/catch yet and would skip this component.
+		let linkValidationError: string | null = null;
 		try {
 			const result = await copyLink.mutateAsync({ invitationId });
 			const nextLink = result.link?.trim();
-			if (!nextLink) {
-				throw new Error(t('invite-link-response-empty'));
+			if (nextLink) {
+				setInviteLink(nextLink);
+
+				if (navigator.clipboard?.writeText) {
+					await navigator.clipboard.writeText(nextLink);
+					toastLocalMutationResult.success(t('copy-link-success'));
+					return;
+				}
+
+				toastLocalMutationResult.info(t('copy-link-ready'));
+			} else {
+				linkValidationError = t('invite-link-response-empty');
 			}
-
-			setInviteLink(nextLink);
-
-			if (navigator.clipboard?.writeText) {
-				await navigator.clipboard.writeText(nextLink);
-				toastLocalMutationResult.success(t('copy-link-success'));
-				return;
-			}
-
-			toastLocalMutationResult.info(t('copy-link-ready'));
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				onAuthFailure();
@@ -212,6 +215,12 @@ const InvitationDetailsCard = ({
 			}
 
 			await displayLocalMutationFailure(error, t('unable-to-copy-invite-link'));
+		}
+		if (linkValidationError !== null) {
+			await displayLocalMutationFailure(
+				new Error(linkValidationError),
+				t('unable-to-copy-invite-link'),
+			);
 		}
 	};
 
@@ -231,12 +240,17 @@ const InvitationDetailsCard = ({
 			await Promise.all([invalidateStaffInvitations(queryClient), onRefresh()]);
 			setInviteLink('');
 		} catch (error) {
+			// Reset pending state on every exit path — no try/finally,
+			// which the React Compiler cannot lower yet.
 			if (shouldLogoutForFailure(error)) {
 				onAuthFailure();
+				setPendingRevoke(false);
+				return;
 			}
-		} finally {
 			setPendingRevoke(false);
+			return;
 		}
+		setPendingRevoke(false);
 	};
 
 	return (

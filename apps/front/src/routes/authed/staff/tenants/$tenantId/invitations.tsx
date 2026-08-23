@@ -408,13 +408,17 @@ const StaffTenantInvitationsPage = () => {
 				});
 				await invalidateAllStaffTenantScopes(queryClient);
 			} catch (error) {
+				// Reset pending state on every exit path — no try/finally,
+				// which the React Compiler cannot lower yet.
 				if (shouldLogoutForFailure(error)) {
 					setShouldRedirectToLogout(true);
+					setPendingRevokeRowId(null);
 					return;
 				}
-			} finally {
 				setPendingRevokeRowId(null);
+				return;
 			}
+			setPendingRevokeRowId(null);
 		},
 		[queryClient, revokeInvitation, tenantId],
 	);

@@ -327,9 +327,10 @@ const useAcceptInvitationSubmit = (token: string) => {
 					fallback: t('common:an-error-occurred'),
 				}),
 			);
-		} finally {
-			setIsSubmitting(false);
 		}
+		// No try/finally: the React Compiler cannot lower finally clauses
+		// yet and would skip this component.
+		setIsSubmitting(false);
 	};
 
 	return { submit, isSubmitting, errorMessage };

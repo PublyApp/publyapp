@@ -108,6 +108,9 @@ const TenantPostEditPage = () => {
 				for (const [k, msgs] of Object.entries(failure.fieldErrors)) {
 					methods.setError(k as keyof Values, { message: msgs[0] });
 				}
+				// No try/finally around the submit body: the React Compiler
+				// cannot lower finally clauses and would skip this component.
+				setSaving(false);
 				return;
 			}
 			methods.setError('root', {
@@ -116,9 +119,8 @@ const TenantPostEditPage = () => {
 						fallback: t('common:an-error-occurred'),
 					}) ?? undefined,
 			});
-		} finally {
-			setSaving(false);
 		}
+		setSaving(false);
 	});
 
 	const confirmBin = async () => {
