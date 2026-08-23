@@ -60,7 +60,10 @@ const TenantPostEditPage = () => {
 		defaultValues: { body: '', projectId: null },
 	});
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
-	const [saving, setSaving] = useState(false);
+	// `formState.isSubmitting` covers the whole async handleSubmit callback,
+	// so no manual loading flag is needed here (and a flag reset outside
+	// try/finally trips the loading-flag lint rule).
+	const isSaving = methods.formState.isSubmitting;
 	const [pendingBinId, setPendingBinId] = useState<string | null>(null);
 	const deleteMutation = useDeleteTenantPostMutation();
 
@@ -88,7 +91,6 @@ const TenantPostEditPage = () => {
 	});
 
 	const onSubmit = methods.handleSubmit(async (values) => {
-		setSaving(true);
 		try {
 			await savePost({
 				postId,
@@ -110,7 +112,6 @@ const TenantPostEditPage = () => {
 				}
 				// No try/finally around the submit body: the React Compiler
 				// cannot lower finally clauses and would skip this component.
-				setSaving(false);
 				return;
 			}
 			methods.setError('root', {
@@ -120,7 +121,6 @@ const TenantPostEditPage = () => {
 					}) ?? undefined,
 			});
 		}
-		setSaving(false);
 	});
 
 	const confirmBin = async () => {
@@ -235,10 +235,10 @@ const TenantPostEditPage = () => {
 							<Button
 								type="submit"
 								variant="default"
-								disabled={saving}
+								disabled={isSaving}
 								data-testid="tenant-post-edit-save"
 							>
-								{saving ? t('posts:saving') : t('posts:save')}
+								{isSaving ? t('posts:saving') : t('posts:save')}
 							</Button>
 							<Button
 								type="button"

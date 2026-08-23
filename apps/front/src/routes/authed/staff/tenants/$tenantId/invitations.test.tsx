@@ -206,7 +206,11 @@ vi.mock('~/lib/mutation-toast', () => ({
 	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 
-import { createColumns, isInvitationExpiringSoon, Route } from './invitations';
+import {
+	createTenantInvitationColumns as createColumns,
+	isInvitationExpiringSoon,
+} from './_invitation-columns';
+import { Route } from './invitations';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	data: undefined,

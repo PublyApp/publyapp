@@ -433,10 +433,14 @@ describe('accept-invitation route', () => {
 			expect(mocks.postBroadcast).toHaveBeenCalledWith('publyapp:auth-sync', {
 				type: 'login',
 			});
-			expect(mocks.navigate).toHaveBeenCalledWith({
-				to: '/tenant',
-				replace: true,
-			});
+			// Navigation is deferred one commit (redirect target committed in
+			// the submit hook, performed by an effect), so wait for it.
+			await waitFor(() =>
+				expect(mocks.navigate).toHaveBeenCalledWith({
+					to: '/tenant',
+					replace: true,
+				}),
+			);
 		});
 
 		test('retries redirect only after a successful acceptance, never double-calling accept', async () => {
@@ -490,10 +494,14 @@ describe('accept-invitation route', () => {
 			);
 			expect(mocks.acceptInvitation).toHaveBeenCalledTimes(1);
 			expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
-			expect(mocks.navigate).toHaveBeenCalledWith({
-				to: '/tenant',
-				replace: true,
-			});
+			// Navigation is deferred one commit (redirect target committed in
+			// the submit hook, performed by an effect), so wait for it.
+			await waitFor(() =>
+				expect(mocks.navigate).toHaveBeenCalledWith({
+					to: '/tenant',
+					replace: true,
+				}),
+			);
 		});
 
 		test('preserves the committed acceptance across an auth-state transition from new-user to existing-match, and retry completes without re-accepting (r5-F2)', async () => {
@@ -563,10 +571,14 @@ describe('accept-invitation route', () => {
 			// branch swap — the retry must not call acceptInvitation again.
 			expect(mocks.acceptInvitation).toHaveBeenCalledTimes(1);
 			expect(mocks.postBroadcast).toHaveBeenCalledTimes(1);
-			expect(mocks.navigate).toHaveBeenCalledWith({
-				to: '/tenant',
-				replace: true,
-			});
+			// Navigation is deferred one commit (redirect target committed in
+			// the submit hook, performed by an effect), so wait for it.
+			await waitFor(() =>
+				expect(mocks.navigate).toHaveBeenCalledWith({
+					to: '/tenant',
+					replace: true,
+				}),
+			);
 		});
 
 		test('joins with the existing account (useExistingAccount=true) when clicking "Join organization"', async () => {
