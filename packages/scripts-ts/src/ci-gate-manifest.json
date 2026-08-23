@@ -76,10 +76,20 @@
 			"mirror": null,
 			"reason": "GitHub-only: checks out the repository for the guard to evaluate git history and file identity. Local verification uses an already-present working tree."
 		},
+		"docs-archive.yml::docs-archive::Install (frozen lockfile, no scripts)": {
+			"hash": "2fd5cf518bdeb323",
+			"mirror": "pnpm install --frozen-lockfile --ignore-scripts",
+			"reason": "Identical install command to every other workflow job's frozen-lockfile install step; local development already runs pnpm install as part of setup, which the local fixture-test mirror below depends on."
+		},
+		"docs-archive.yml::docs-archive::Install pnpm": {
+			"hash": "e582485ed32ac12b",
+			"mirror": null,
+			"reason": "GitHub-only pnpm provisioning added so this job can run its vitest fixture-test step; local development already assumes pnpm is installed via corepack/the repo's pinned version."
+		},
 		"docs-archive.yml::docs-archive::Run archive guard fixture tests": {
 			"hash": "9caa46cf0e89e88d",
-			"mirror": "node --test ./packages/scripts-ts/src/check-archive-records.test.ts",
-			"reason": "Run locally so the fixture suite that pins the guard's own failure modes gates PRs, not just local runs, before the production guard executes."
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/check-archive-records.test.ts",
+			"reason": "Identical invocation to the CI step itself: since the scripts-ts migration the test runs under vitest (node --test no longer works on the .ts file), and CI gained pnpm/node/install steps so this exact command can execute there. Run locally so the fixture suite that pins the guard's own failure modes gates PRs before the production guard executes."
 		},
 		"docs-archive.yml::docs-archive::Setup Node": {
 			"hash": "6c699edc403fc068",
