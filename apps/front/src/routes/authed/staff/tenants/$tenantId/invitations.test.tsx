@@ -1339,7 +1339,7 @@ describe('createColumns column widths', () => {
 		});
 	});
 
-	test('hides secondary metadata columns below the 768px mobile breakpoint, keeping email/status/actions', () => {
+	test('hides secondary metadata columns below their breakpoints (768px, invited_by below 1024px), keeping email/status/actions', () => {
 		const columns = createColumns({
 			locale: 'en',
 			t: (key: string) => key,
@@ -1353,7 +1353,9 @@ describe('createColumns column widths', () => {
 		expect(hideBelowById).toEqual({
 			email: undefined,
 			profile_name: 768,
-			invited_by: 768,
+			// #838: the selection column adds 40px, which pushed the table past
+			// its card bound at 768px; invited_by now hides below 1024px.
+			invited_by: 1024,
 			expires_at: 768,
 			status: undefined,
 			actions: undefined,
