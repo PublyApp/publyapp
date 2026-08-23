@@ -5,7 +5,7 @@
 		"./packages/lint-ts/src/index.ts",
 		{
 			"name": "anti-slop",
-			"specifier": "./tools/oxlint/anti-slop/index.ts"
+			"specifier": "./packages/lint-ts/src/anti-slop/index.ts"
 		}
 	],
 	"options": {
@@ -39,7 +39,7 @@
 		".pi/**",
 		".roo/**",
 		".windsurf/**",
-		"tools/oxlint/anti-slop/**"
+		"packages/lint-ts/src/anti-slop/**"
 	],
 	"rules": {
 		"no-else-return": "error",

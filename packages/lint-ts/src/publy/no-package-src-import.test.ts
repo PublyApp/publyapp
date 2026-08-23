@@ -115,7 +115,7 @@ const runCases = (rule: typeof noPackageSrcImport, label: string) => {
 				},
 				{
 					code: "import { Bar } from '@org/shared-ts/src/lib/logger';",
-					filename: 'packages/lint-ts/src/rules/example.js',
+					filename: 'packages/lint-ts/src/publy/example.js',
 					errors: [{ messageId: 'banned' }],
 				},
 				{

@@ -1,10 +1,20 @@
 /**
- * `@org/lint-ts` — custom Oxlint plugin for PublyApp, written in TypeScript.
+ * `@org/lint-ts` — custom Oxlint plugins for PublyApp, written in TypeScript.
  *
  * Loaded by Oxlint via the `jsPlugins` config field (see root `.oxlintrc.json`).
- * Oxlint 1.79.0 `import()`s this module and reads its DEFAULT export as the
- * plugin object. The plugin's `meta.name` ("publy") becomes the rule namespace,
- * so rules are referenced in config as `publy/<rule-name>`.
+ * Oxlint 1.79.0 `import()`s this module and reads its exports as plugin
+ * objects. A plugin's `meta.name` becomes the rule namespace, so rules are
+ * referenced in config as `<plugin-name>/<rule-name>`.
+ *
+ * This package hosts BOTH plugins:
+ *   - `publy`     — house rules (`src/publy/*`), default export of this module.
+ *   - `anti-slop` — vendored from dmmulroy/anti-slop @ 6d53855 (MIT),
+ *     re-exported as a named export from `src/anti-slop/index.ts`.
+ *     Vendored code carries oxfmt-only modifications; do not add house rules
+ *     there (see `src/anti-slop/README.md`).
+ *
+ * Plugin names are stable contract: `.oxlintrc.json` rule ids
+ * (`publy/*`, `anti-slop/*`) do not change when files move.
  *
  * JS plugins are flagged "alpha, not subject to semver" by Oxlint; no extra
  * experimental CLI flag is required in 1.79.0 — declaring `jsPlugins` activates
@@ -18,21 +28,23 @@
  *   - `publy/no-manual-response-message-translation` → "error"
  *   - `publy/no-array-reduce` → "error"
  *   - `publy/no-package-src-import` → "error"
- *   - `publy/arrow-function-components` → "off" (dormant)
+ *   - `publy/arrow-function-components` → "error" (enforced since #1210)
  *   - `publy/prefer-query-display` → "off" (dormant)
  */
-import { arrowFunctionComponents } from './rules/arrow-function-components.ts';
-import { noArrayReduce } from './rules/no-array-reduce.ts';
-import { noConsoleInSource } from './rules/no-console-in-source.ts';
-import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components.ts';
-import { noManualResponseMessageTranslation } from './rules/no-manual-response-message-translation.ts';
-import { noOp } from './rules/no-op.ts';
-import { noPackageSrcImport } from './rules/no-package-src-import.ts';
-import { preferQueryDisplay } from './rules/prefer-query-display.ts';
-import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.ts';
+import { arrowFunctionComponents } from './publy/arrow-function-components.ts';
+import { noArrayReduce } from './publy/no-array-reduce.ts';
+import { noConsoleInSource } from './publy/no-console-in-source.ts';
+import { noDirectDayjsInComponents } from './publy/no-direct-dayjs-in-components.ts';
+import { noManualResponseMessageTranslation } from './publy/no-manual-response-message-translation.ts';
+import { noOp } from './publy/no-op.ts';
+import { noPackageSrcImport } from './publy/no-package-src-import.ts';
+import { preferQueryDisplay } from './publy/prefer-query-display.ts';
+import { preferSpecificLodashImports } from './publy/prefer-specific-lodash-imports.ts';
+
+export { default as antiSlopPlugin } from './anti-slop/index.ts';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
-const plugin = {
+const publyPlugin = {
 	meta: {
 		name: 'publy',
 	},
@@ -50,4 +62,4 @@ const plugin = {
 	},
 };
 
-export default plugin;
+export default publyPlugin;
