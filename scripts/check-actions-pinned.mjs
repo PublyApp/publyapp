@@ -3,18 +3,28 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-// Supply-chain guard: fails when any `uses:` in .github/workflows/** or
-// .github/actions/**/action.yml is not pinned to an immutable reference:
+// Supply-chain guard: fails when any scanned `uses:` reference is not pinned
+// to an immutable reference:
 //   - `owner/repo@<ref>` must carry a full 40-hex-char commit SHA;
 //     a value with NO `@ref` at all is unparseable/unpinnable input and
 //     fails closed rather than being skipped.
 //   - `docker://image[:tag][@digest]` container references must be pinned
 //     by content digest (`@sha256:<64-hex>`); a tag-only or digest-less
 //     image is mutable and fails.
-// Local actions (starting with `./`) are exempt — they live in the repo,
-// and their own `uses:` steps are scanned directly by the
-// .github/actions/**/action.yml pass below. (The drift guard hashes only
-// workflow step content; it does not parse composite action bodies.)
+//
+// EXACTLY WHAT IS SCANNED:
+//   - every *.yml/*.yaml file under .github/workflows/ (recursive), and
+//   - every *.yml/*.yaml file under .github/actions/ (recursive) — not only
+//     action.yml manifests, so stray YAML carrying a `uses:` there is also
+//     judged. A missing .github/actions is tolerated (zero composite actions
+//     is legitimate); a missing .github/workflows fails loud.
+//
+// KNOWN LIMIT: local actions (`uses: ./<path>` values) are exempt from the
+// pin rule, and local actions living OUTSIDE .github/actions are NOT
+// scanned by this guard — an unpinned third-party ref inside such an action
+// is invisible here (and to the drift guard, which hashes workflow step
+// content only). Resolving `./` targets to their action.yml and scanning
+// them is tracked in #1268.
 //
 // This prevents the exact class of issue found in round-1 review of
 // PR #1248: workflow files using bare moving tags (v4, v7, etc.) instead
