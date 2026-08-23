@@ -284,6 +284,51 @@ test('#1275: quality-gate classifier selects packages/shared-ts/src/lib/foo.ts a
 	assert.equal(result.relevant, true);
 });
 
+// ---------------------------------------------------------------------------
+// #1279 (#1276 follow-up): the #1275 case above pins a file deep inside
+// `packages/shared-ts/src/`, which is exactly where the review found the
+// blind spot: narrowing the real pattern's `packages/` group to
+// `packages/shared-ts/src/` keeps that one file matching, so the gate keeps
+// running for src-only PRs while `packages/shared-ts/package.json` (and its
+// tsconfig) silently drop out of gate selection — dependency bumps and
+// tsconfig changes stop waking quality-gate with no signal. Pin those two
+// paths too, extracted from the workflow YAML as above. Paired proof: both
+// new cases are RED against the narrowed pattern while the #1275 case stays
+// GREEN.
+// ---------------------------------------------------------------------------
+
+test('#1279: quality-gate classifier selects packages/shared-ts/package.json as relevant', () => {
+	assert.ok(
+		qualityGateClassifierPattern,
+		'classifier invocation found in quality-gate.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['packages/shared-ts/package.json'],
+		changedFilesTotal: 1,
+		pattern: qualityGateClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
+test('#1279: quality-gate classifier selects packages/shared-ts/tsconfig.json as relevant', () => {
+	assert.ok(
+		qualityGateClassifierPattern,
+		'classifier invocation found in quality-gate.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['packages/shared-ts/tsconfig.json'],
+		changedFilesTotal: 1,
+		pattern: qualityGateClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
 test('parseChangedFilesTotal: a valid non-negative integer, with surrounding whitespace, parses', () => {
 	assert.equal(parseChangedFilesTotal('  42  \n'), 42);
 });
