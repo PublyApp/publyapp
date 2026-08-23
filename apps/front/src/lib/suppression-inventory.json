@@ -71,7 +71,7 @@
 	},
 	{
 		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-details-shell.tsx",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-display.ts",
 		"reason": "an unrecognized/absent account level is a genuine \"no value\" formatter case, not fabricated identity data"
 	},
 	{
