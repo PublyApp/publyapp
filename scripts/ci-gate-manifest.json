@@ -556,6 +556,16 @@
 			"mirror": "just ci-lint",
 			"reason": "ci-lint runs pnpm --filter @org/lint-ts test, the same vitest suite for the custom publy/* oxlint plugin rules that CI now runs after the lint step."
 		},
+		"quality-gate.yml::quality::Typecheck shared-ts": {
+			"hash": "332e3d0e05aa9d9b",
+			"mirror": "just ci-shared-ts",
+			"reason": "ci-shared-ts runs the identical pnpm --filter @org/shared-ts typecheck (tsc --noEmit) that this step runs."
+		},
+		"quality-gate.yml::quality::Test shared-ts": {
+			"hash": "654cbefbe102aca1",
+			"mirror": "just ci-shared-ts",
+			"reason": "ci-shared-ts runs the identical pnpm --filter @org/shared-ts test (vitest run, 82 tests) that this step runs."
+		},
 		"quality-gate.yml::quality::Materialize .env.development from template (CI has no gitignored env file)": {
 			"hash": "0103d4ed70a6c462",
 			"mirror": null,

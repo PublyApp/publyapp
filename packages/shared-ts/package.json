@@ -13,7 +13,8 @@
 	},
 	"scripts": {
 		"postinstall": "node src/scripts/generate-zod-i18n-map.mjs",
-		"test": "vitest run"
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"dayjs": "^1.11.10",

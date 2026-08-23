@@ -351,6 +351,17 @@ ci-lint:
   pnpm check:frontend-barrels
   pnpm --filter @org/lint-ts test
 
+# @org/shared-ts: typecheck + vitest (issue #1270). The package ships the
+# repo-wide logger, i18n, query-factory and ApiFailure contracts consumed by
+# every front surface, but nothing standing verified it after its i18next
+# range moved two majors (#1262) — no typecheck script and no gate ran its 82
+# vitest tests. Both now run here and in quality-gate.yml::quality, exactly
+# as CI runs them.
+ci-shared-ts:
+  @echo "=== [gate] @org/shared-ts typecheck + tests ==="
+  pnpm --filter @org/shared-ts typecheck
+  pnpm --filter @org/shared-ts test
+
 # front: build, bundle guards, smoke start, typecheck, design system, unit tests
 ci-front:
   @echo "=== [gate] front build + checks ==="
@@ -412,7 +423,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

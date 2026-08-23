@@ -1,6 +1,21 @@
 import { expect, test } from 'vitest';
 
 import { toApiFailure } from './to-api-failure';
+import type { ApiFailure, ProblemFailure, ValidationFailure } from './types';
+
+// `ApiFailure` is a discriminated union, so property reads (`status`,
+// `fieldErrors`, ...) must happen on a narrowed variant. Each helper asserts
+// the expected kind once and hands back the narrowed type; the single cast is
+// guarded by the assertion immediately above it.
+const expectValidation = (failure: ApiFailure): ValidationFailure => {
+	expect(failure.kind).toBe('validation');
+	return failure as ValidationFailure;
+};
+
+const expectProblem = (failure: ApiFailure): ProblemFailure => {
+	expect(failure.kind).toBe('problem');
+	return failure as ProblemFailure;
+};
 
 test('maps body/problem-first status via problemDetails.status ?? responseStatusCode ?? 500', () => {
 	const payload = {
@@ -17,8 +32,7 @@ test('maps body/problem-first status via problemDetails.status ?? responseStatus
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 	expect(failure.detail).toBe('body detail');
 	expect(failure.fieldErrors).toEqual({
@@ -36,8 +50,7 @@ test('parses nested error container when body is empty and status resolves from 
 		responseStatusCode: 422,
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 	expect(failure.fieldErrors).toEqual({ email: ['required'] });
 });
@@ -53,8 +66,7 @@ test('prefers nested error payload over empty wrapper metadata when nested conta
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 	expect(failure.fieldErrors).toEqual({ password: ['too weak'] });
 });
@@ -70,8 +82,7 @@ test('parses nested error container before wrapper for validation', () => {
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(400);
 	expect(failure.fieldErrors).toEqual({ email: ['required'] });
 });
@@ -88,8 +99,7 @@ test('uses nested validation status over wrapper response status', () => {
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 	expect(failure.fieldErrors).toEqual({ password: ['too weak'] });
 });
@@ -106,8 +116,7 @@ test('uses body errors with wrapper response status when body.status is missing'
 		title: 'ignored',
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 });
 
@@ -122,8 +131,7 @@ test('uses wrapper responseStatusCode for validation when nested responseStatusC
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 	expect(failure.fieldErrors).toEqual({
 		name: ['is required'],
@@ -142,8 +150,7 @@ test('uses wrapper responseStatusCode instead of wrapper status for validation w
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 	expect(failure.fieldErrors).toEqual({
 		email: ['required'],
@@ -160,8 +167,7 @@ test('uses body status then wrapper response/status fallback for problem failure
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('problem');
+	const failure = expectProblem(toApiFailure(payload));
 	expect(failure.status).toBe(500);
 });
 
@@ -174,8 +180,7 @@ test('uses wrapper responseStatusCode when body responseStatusCode is set withou
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('problem');
+	const failure = expectProblem(toApiFailure(payload));
 	expect(failure.status).toBe(401);
 	expect(failure.detail).toBe('body detail');
 });
@@ -187,8 +192,7 @@ test('maps transport-level error when body is missing and fallback is responseSt
 		title: 'transport title',
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('problem');
+	const failure = expectProblem(toApiFailure(payload));
 	expect(failure.status).toBe(400);
 	expect(failure.detail).toBe('transport detail');
 	expect(failure.title).toBe('transport title');
@@ -199,8 +203,7 @@ test('maps fallback status to 500 when no status-like fields are available', () 
 		detail: 'unresolved',
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('problem');
+	const failure = expectProblem(toApiFailure(payload));
 	expect(failure.status).toBe(500);
 	expect(failure.detail).toBe('unresolved');
 });
@@ -218,8 +221,7 @@ test('maps 422 validation body with field errors', () => {
 		title: 'outer title',
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.status).toBe(422);
 	expect(failure.fieldErrors).toEqual({
 		email: ['required'],
@@ -234,12 +236,13 @@ test('maps unknown Error to unknown failure', () => {
 });
 
 test('falls back to 500 for out-of-range response status', () => {
-	const failure = toApiFailure({
-		responseStatusCode: 700,
-		title: 'ignored',
-	});
+	const failure = expectProblem(
+		toApiFailure({
+			responseStatusCode: 700,
+			title: 'ignored',
+		}),
+	);
 
-	expect(failure.kind).toBe('problem');
 	expect(failure.status).toBe(500);
 });
 
@@ -258,8 +261,7 @@ test('lower-camels the PascalCase field-error keys FluentValidation.ToDictionary
 		},
 	};
 
-	const failure = toApiFailure(payload);
-	expect(failure.kind).toBe('validation');
+	const failure = expectValidation(toApiFailure(payload));
 	expect(failure.fieldErrors).toEqual({
 		email: ['Email is required'],
 		newPassword: ['Password must be at least 12 characters'],

@@ -47,6 +47,7 @@ other gates' `Determine changed paths` pattern and covers: the workflow itself,
 | Exact-pin + frozen-lockfile install                                                               | yes       | yes            |
 | `pnpm format` (repo-wide oxfmt)                                                                   | yes       | yes            |
 | Lint (oxlint scope CI uses, disables audit, barrel check)                                         | yes       | yes            |
+| shared-ts typecheck + vitest suite (#1270)                                                        | yes       | yes            |
 | front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes       | yes            |
 | ~~old-front unit characterization + typecheck~~ (deleted 2026-08-22, archived) | — | — |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec                                        | yes       | yes            |
