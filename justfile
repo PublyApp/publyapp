@@ -176,6 +176,17 @@ knip:
 react-doctor base="origin/develop":
   cd {{front_dir}} && pnpm dlx react-doctor@0.9.12 --scope files --base {{base}} --blocking warning --no-telemetry --verbose
 
+# NuGet vulnerability audit (issue #1187 rung 3). Mirrors
+# .github/workflows/quality-gate.yml::quality::Scan .NET packages for known
+# vulnerabilities. Uses the machine-readable `--format json` output (not the
+# text format that TreatWarningsAsErrors breaks by converting NU1903 into an
+# error before the grep pattern can match). Scans EVERY .csproj (via
+# `git ls-files`), since PublyApp.slnx omits packages/lint-cs/* but the audit
+# scope covers all five projects.
+nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
+  node scripts/nuget-audit.mjs
+  node --test ./scripts/nuget-audit.test.mjs
+
 # =============================================================================
 # Database
 # =============================================================================
@@ -399,7 +410,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-spec-drift test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
