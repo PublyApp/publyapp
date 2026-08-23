@@ -233,7 +233,7 @@ test('parseChangedFilesTotal: a decimal value is invalid', () => {
 // ---------------------------------------------------------------------------
 
 const frontCiClassifierPattern = readFileSync(
-	new URL('../.github/workflows/front-ci.yml', import.meta.url),
+	new URL('../../../.github/workflows/front-ci.yml', import.meta.url),
 	'utf8',
 ).match(/node "\$CLASSIFIER" '([^']*)'/)?.[1];
 
@@ -265,7 +265,7 @@ test('#1261: front-ci classifier selects .github/actions/foo/action.yml as relev
 // ---------------------------------------------------------------------------
 
 const qualityGateClassifierPattern = readFileSync(
-	new URL('../.github/workflows/quality-gate.yml', import.meta.url),
+	new URL('../../../.github/workflows/quality-gate.yml', import.meta.url),
 	'utf8',
 ).match(/node "\$CLASSIFIER" '([^']*)'/)?.[1];
 
