@@ -69,7 +69,7 @@ const runCases = (rule, label) => {
 				{
 					code: [
 						'const Foo = () => {',
-						'  const { isPending } = useUpdateThing();',
+						'  const { isPending } = useMutation();',
 						'  return isPending ? <Spinner /> : <div />;',
 						'};',
 					].join('\n'),
