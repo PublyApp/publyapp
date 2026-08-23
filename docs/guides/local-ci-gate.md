@@ -51,7 +51,7 @@ other gates' `Determine changed paths` pattern and covers: the workflow itself,
 | front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes       | yes            |
 | ~~old-front unit characterization + typecheck~~ (deleted 2026-08-22, archived) | — | — |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec                                        | yes       | yes            |
-| NuGet vulnerability audit (`just nuget-audit` / `node scripts/nuget-audit.mjs`)                    | yes       | yes            |
+| NuGet vulnerability audit (`just nuget-audit` / `node packages/scripts-ts/src/nuget-audit.ts`)      | yes       | yes            |
 | `ci-migration-expand-contract`                                                                    | yes       | yes            |
 | Project PR-closure adapter contract (`pnpm test:project-closure-adapter`)                         | yes       | yes            |
 | **Full API test suite** (`just test-api`)                                                         | yes       | yes            |

@@ -13,7 +13,7 @@
 // entirely when there are zero vulnerable packages — "no frameworks" in the
 // vulnerable call is the CLEAN case, not the uninspectable case.
 //
-// Usage: node scripts/nuget-audit.mjs [--no-restore]
+// Usage: node packages/scripts-ts/src/nuget-audit.ts [--no-restore]
 //   --no-restore   Skip `dotnet restore` (caller already restored)
 //
 // Exit 0 on clean, exit 1 on vulnerability found, unparseable output, or
@@ -21,20 +21,93 @@
 
 import { execSync } from 'node:child_process';
 import path from 'node:path';
-import { argv } from 'node:process';
+import process from 'node:process';
+
+/** One `problem` entry as emitted by `dotnet list package --format json`. */
+type DotnetProblem = {
+	code?: string;
+	level?: string;
+	message?: string;
+	text?: string;
+};
+
+/** One package entry inside a framework's top-level/transitive package lists. */
+type DotnetPackage = {
+	id?: string;
+	requestedVersion?: string;
+	resolvedVersion?: string;
+	vulnerabilities?: Array<{
+		advisoryurl?: string;
+		severity?: string;
+	}>;
+};
+
+/** One target-framework entry inside a `projects[]` element. */
+type DotnetFramework = {
+	framework?: string;
+	topLevelPackages?: DotnetPackage[];
+	transitivePackages?: DotnetPackage[];
+};
+
+/** Parsed shape of `dotnet list package --format json` output. */
+type DotnetListJson = {
+	problems?: DotnetProblem[];
+	projects?: Array<{
+		frameworks?: DotnetFramework[];
+		path?: string;
+		problems?: DotnetProblem[];
+	}>;
+};
+
+/**
+ * Report returned by one `dotnet list` invocation: the parsed JSON when the
+ * output was parseable, otherwise the failure mode and dotnet's exit code.
+ */
+export type DotnetReport = {
+	error?: string;
+	exitCode?: number;
+	parsed: DotnetListJson | null;
+};
+
+/** A confirmed vulnerable dependency in one project. */
+type Vulnerability = {
+	advisories: Array<string | undefined>;
+	id?: string;
+	project: string;
+	severity: string;
+	version?: string;
+};
+
+/** Audit verdict for one project (paired inspectability + vulnerability). */
+type ProjectAuditResult =
+	| { ok: true; vulnerabilities: Vulnerability[] }
+	| { error: string; ok: false };
+
+/** Paired reports for one project, keyed by its csproj path. */
+type ProjectReports = { inspected: DotnetReport; vulnerable: DotnetReport };
+
+/** Aggregate decision across every audited project. */
+type AuditResult = {
+	errors: string[];
+	exitCode: number;
+	vulnerabilities: Vulnerability[];
+};
 
 /**
  * Evaluate paired inspectability + vulnerability reports for one project.
  *
- * @param {{ parsed: object | null, error?: string, exitCode?: number }} inspected
+ * @param inspected
  *   Report from `dotnet list <csproj> package --format json` (no --vulnerable).
- * @param {{ parsed: object | null, error?: string, exitCode?: number }} vulnerable
+ * @param vulnerable
  *   Report from `dotnet list <csproj> package --vulnerable --include-transitive --format json`.
- * @param {string} proj
+ * @param proj
  *   Path to the csproj.
- * @returns {{ ok: boolean, vulnerabilities?: object[], error?: string }}
  */
-export const evaluateProject = (inspected, vulnerable, proj) => {
+export const evaluateProject = (
+	inspected: DotnetReport,
+	vulnerable: DotnetReport,
+	proj: string,
+): ProjectAuditResult => {
 	const name = path.basename(proj);
 
 	// --- Inspectability checks (call 1) ---
@@ -116,10 +189,10 @@ export const evaluateProject = (inspected, vulnerable, proj) => {
 	}
 
 	// Check for vulnerable packages in the frameworks.
-	const vulnerabilities = [];
+	const vulnerabilities: Vulnerability[] = [];
 	for (const framework of vulnFrameworks) {
 		for (const pkg of framework.topLevelPackages ?? []) {
-			if (pkg.vulnerabilities?.length > 0) {
+			if ((pkg.vulnerabilities?.length ?? 0) > 0) {
 				vulnerabilities.push({
 					project: proj,
 					id: pkg.id,
@@ -130,7 +203,7 @@ export const evaluateProject = (inspected, vulnerable, proj) => {
 			}
 		}
 		for (const pkg of framework.transitivePackages ?? []) {
-			if (pkg.vulnerabilities?.length > 0) {
+			if ((pkg.vulnerabilities?.length ?? 0) > 0) {
 				vulnerabilities.push({
 					project: proj,
 					id: pkg.id,
@@ -147,13 +220,12 @@ export const evaluateProject = (inspected, vulnerable, proj) => {
 
 /**
  * Evaluate pre-parsed audit reports (paired per-project) and produce a decision.
- *
- * @param {Map<string, { inspected: { parsed: object | null, error?: string, exitCode?: number }, vulnerable: { parsed: object | null, error?: string, exitCode?: number } }>} reportsByProject
- * @returns {{ exitCode: number, vulnerabilities: object[], errors: string[] }}
  */
-export const evaluateAudit = (reportsByProject) => {
-	const vulnerabilities = [];
-	const errors = [];
+export const evaluateAudit = (
+	reportsByProject: Map<string, ProjectReports>,
+): AuditResult => {
+	const vulnerabilities: Vulnerability[] = [];
+	const errors: string[] = [];
 
 	for (const [proj, { inspected, vulnerable }] of reportsByProject) {
 		const result = evaluateProject(inspected, vulnerable, proj);
@@ -191,8 +263,8 @@ export const evaluateAudit = (reportsByProject) => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function runDotnet(args, proj) {
-	let stdout;
+const runDotnet = (args: string, proj: string): DotnetReport => {
+	let stdout: string;
 	let dotnetExitCode = 0;
 	try {
 		stdout = execSync(`dotnet list "${proj}" ${args} --format json`, {
@@ -201,7 +273,9 @@ function runDotnet(args, proj) {
 			stdio: ['pipe', 'pipe', 'pipe'],
 		});
 	} catch (err) {
+		// @ts-expect-error rung-0: TS18046 (err is unknown)
 		stdout = err.stdout ?? '';
+		// @ts-expect-error rung-0: TS18046 (err is unknown)
 		dotnetExitCode = err.status ?? 1;
 		if (!stdout) {
 			return {
@@ -225,14 +299,20 @@ function runDotnet(args, proj) {
 			exitCode: dotnetExitCode,
 		};
 	}
-}
+};
 
 // ---------------------------------------------------------------------------
 // Direct-run mode: discover csproj files via git, run dotnet, evaluate.
 // ---------------------------------------------------------------------------
 
+// @ts-expect-error rung-0: add proper type in later rung
+const toPosixPath = (value) => value.split(path.sep).join('/');
+
 const isDirectRun =
-	process.argv[1] && process.argv[1].endsWith('scripts/nuget-audit.mjs');
+	process.argv[1] &&
+	toPosixPath(process.argv[1]).endsWith(
+		'packages/scripts-ts/src/nuget-audit.ts',
+	);
 
 if (isDirectRun) {
 	const NO_RESTORE = argv.includes('--no-restore');
@@ -251,7 +331,7 @@ if (isDirectRun) {
 
 	if (!NO_RESTORE) {
 		console.log('Restoring .NET projects for vulnerability scan...');
-		const restoreErrors = [];
+		const restoreErrors: string[] = [];
 		for (const proj of csprojFiles) {
 			try {
 				execSync(`dotnet restore "${proj}"`, {
@@ -259,6 +339,7 @@ if (isDirectRun) {
 					stdio: 'pipe',
 				});
 			} catch (err) {
+				// @ts-expect-error rung-0: TS18046 (err is unknown)
 				const output = (err.stdout ?? '') + (err.stderr ?? '');
 				if (output.trim()) {
 					restoreErrors.push(`${proj}: ${output.trim()}`);
@@ -271,7 +352,7 @@ if (isDirectRun) {
 		}
 	}
 
-	const reportsByProject = new Map();
+	const reportsByProject = new Map<string, ProjectReports>();
 
 	for (const proj of csprojFiles) {
 		// Call 1: inspectability (no --vulnerable)

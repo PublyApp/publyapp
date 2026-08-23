@@ -18,7 +18,7 @@
 		"test:frontend-barrels": "pnpm --filter scripts-ts exec vitest run src/check-frontend-barrels.test.ts",
 		"test:project-closure-adapter": "pnpm --filter scripts-ts exec vitest run src/project-closure-adapter.test.ts",
 		"test:require-linked-issue": "pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts",
-		"test:nuget-audit": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.mjs"
+		"test:nuget-audit": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^20.19.7",

@@ -184,8 +184,8 @@ react-doctor base="origin/develop":
 # `git ls-files`), since PublyApp.slnx omits packages/lint-cs/* but the audit
 # scope covers all five projects.
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
-  node scripts/nuget-audit.mjs
-  node --test ./scripts/nuget-audit.test.mjs
+  node packages/scripts-ts/src/nuget-audit.ts
+  pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
 
 # =============================================================================
 # Database
