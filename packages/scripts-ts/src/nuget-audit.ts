@@ -22,6 +22,10 @@
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
+// `argv` backs the direct-run CLI branch below; dropping this import in the
+// .mjs->.ts conversion passed vitest (tests never execute that branch) but
+// crashed the workflow's bare-`node` invocation with ReferenceError.
+import { argv } from 'node:process';
 
 /** One `problem` entry as emitted by `dotnet list package --format json`. */
 type DotnetProblem = {
