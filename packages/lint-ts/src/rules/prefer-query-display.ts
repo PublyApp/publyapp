@@ -38,7 +38,15 @@ import {
  * useQuery()` tracks `rest` as a whole binding), whole-binding aliasing
  * (`const r = useQuery(); const q = r;`) and destructuring from an already
  * tracked whole binding (`const { isPending } = q;`). Callback bodies
- * (effects, handlers, `useMemo`) are not render context and are skipped.
+ * (effects, handlers, `useMemo`) are not render context and are skipped,
+ * except JSX-returning render-prop callbacks (see below).
+ *
+ * Render props: an arrow/function expression that **returns JSX** and sits in
+ * a JSX value position (a `JSXAttribute` value such as
+ * `<Controller render={(…) => …}>`, or a JSX child expression such as
+ * `<Select>{() => …}</Select>`) is render context, not an event handler, so
+ * flagged-field reads inside it are detected. Event handlers (`onClick`,
+ * `onSubmit`, effects, `useMemo`) do not return JSX and stay skipped.
  */
 
 const QUERY_FLAG_FIELDS: ReadonlySet<string> = new Set([
@@ -245,6 +253,59 @@ const isConditionalExpr = (node: ESTree.Node | null | undefined): boolean =>
 	node !== undefined &&
 	(node.type === 'ConditionalExpression' || node.type === 'LogicalExpression');
 
+/**
+ * Does this arrow/function expression itself produce JSX? Unlike
+ * `containsJsx`, this stops at nested function boundaries: a handler whose
+ * body calls something JSX-returning is not a render function, and a
+ * render-prop callback containing an inline event handler stays a render
+ * prop only because of its own expression. Covers concise bodies too
+ * (`(…) => (cond ? <A/> : <B/>)`, `(…) => <A/>`).
+ */
+const directlyReturnsJsx = (
+	fn:
+		| ESTree.FunctionDeclaration
+		| ESTree.FunctionExpression
+		| ESTree.ArrowFunctionExpression,
+): boolean => {
+	const body = fn.body;
+	if (!body) return false;
+
+	const visited = new WeakSet<ESTree.Node>();
+	let found = false;
+	const walk = (node: ESTree.Node | null | undefined): void => {
+		if (found || !node || typeof node !== 'object' || !('type' in node)) {
+			return;
+		}
+		if (visited.has(node)) return;
+		visited.add(node);
+		if (
+			node.type === 'ArrowFunctionExpression' ||
+			node.type === 'FunctionExpression' ||
+			node.type === 'FunctionDeclaration'
+		) {
+			// Nested callbacks own their own expressions.
+			return;
+		}
+		if (node.type === 'JSXElement' || node.type === 'JSXFragment') {
+			found = true;
+			return;
+		}
+		for (const value of Object.values(node)) {
+			if (Array.isArray(value)) {
+				for (const child of value) {
+					if (child && typeof child === 'object' && 'type' in child) {
+						walk(child as ESTree.Node);
+					}
+				}
+			} else if (value && typeof value === 'object' && 'type' in value) {
+				walk(value as ESTree.Node);
+			}
+		}
+	};
+	walk(body);
+	return found;
+};
+
 /** Walk a component body for conditional renders reading a flagged field. */
 const scan = (
 	node: ESTree.Node | null | undefined,
@@ -256,17 +317,30 @@ const scan = (
 	const scanInner = (
 		node: ESTree.Node | null | undefined,
 		conditional: boolean,
+		jsxValuePosition: boolean,
 	): void => {
 		if (!node || typeof node !== 'object' || !('type' in node)) return;
 		if (visited.has(node)) return;
 		visited.add(node);
 
 		if (
-			node.type === 'FunctionDeclaration' ||
-			node.type === 'FunctionExpression' ||
-			node.type === 'ArrowFunctionExpression'
+			node.type === 'ArrowFunctionExpression' ||
+			node.type === 'FunctionExpression'
 		) {
-			// Do not descend into nested callbacks.
+			// Render-prop exception: a JSX-returning callback sitting directly
+			// in a JSX attribute value (`<Controller render={(…) => …}>`) or a
+			// JSX child expression (`children={() => …}`) executes during
+			// render — its body is render context, so descend into it. The
+			// callback's own conditionals establish context from there.
+			// Event handlers (`onClick`, `onSubmit`) and effect/memo callbacks
+			// do not return JSX and stay skipped.
+			if (jsxValuePosition && directlyReturnsJsx(node)) {
+				scanInner(node.body, false, false);
+			}
+			return;
+		}
+		if (node.type === 'FunctionDeclaration') {
+			// Never render context in an expression walk.
 			return;
 		}
 
@@ -277,65 +351,101 @@ const scan = (
 
 		switch (node.type) {
 			case 'ConditionalExpression':
-				scanInner(node.test, true);
-				scanInner(node.consequent, true);
-				scanInner(node.alternate, true);
+				scanInner(node.test, true, false);
+				scanInner(node.consequent, true, false);
+				scanInner(node.alternate, true, false);
 				return;
 			case 'LogicalExpression':
-				scanInner(node.left, true);
-				scanInner(node.right, true);
+				scanInner(node.left, true, false);
+				scanInner(node.right, true, false);
 				return;
 			case 'IfStatement':
-				scanInner(node.test, true);
-				scanInner(node.consequent, conditional);
-				if (node.alternate) scanInner(node.alternate, conditional);
+				scanInner(node.test, true, false);
+				scanInner(node.consequent, conditional, false);
+				if (node.alternate) scanInner(node.alternate, conditional, false);
 				return;
 			case 'ReturnStatement':
 				if (isConditionalExpr(node.argument)) {
-					scanInner(node.argument, true);
+					scanInner(node.argument, true, false);
 				} else {
-					scanInner(node.argument, conditional);
+					scanInner(node.argument, conditional, false);
 				}
 				return;
 			case 'ForStatement':
 			case 'WhileStatement':
 			case 'DoWhileStatement': {
-				if ('test' in node && node.test) scanInner(node.test, true);
-				if ('init' in node && node.init) scanInner(node.init, conditional);
+				if ('test' in node && node.test) scanInner(node.test, true, false);
+				if ('init' in node && node.init)
+					scanInner(node.init, conditional, false);
 				if ('update' in node && node.update)
-					scanInner(node.update, conditional);
-				scanInner(node.body, conditional);
+					scanInner(node.update, conditional, false);
+				scanInner(node.body, conditional, false);
 				return;
 			}
 			case 'SwitchStatement':
-				scanInner(node.discriminant, true);
-				for (const c of node.cases) scanInner(c.consequent, conditional);
+				scanInner(node.discriminant, true, false);
+				for (const c of node.cases) scanInner(c.consequent, conditional, false);
 				return;
 			case 'JSXElement':
-			case 'JSXFragment':
+			case 'JSXFragment': {
+				// Opening elements carry the attributes (render props live there).
+				const edges =
+					'openingElement' in node
+						? [node.openingElement, node.closingElement]
+						: [node.openingFragment, node.closingFragment];
+				for (const edge of edges) {
+					if (edge) scanInner(edge as ESTree.Node, conditional, false);
+				}
 				for (const child of node.children) {
-					scanInner(child as ESTree.Node, conditional);
+					// Children sit in a JSX value position: an inline function
+					// expression child is a render prop candidate.
+					scanInner(child as ESTree.Node, conditional, true);
 				}
 				return;
+			}
 			case 'JSXExpressionContainer':
-				scanInner(node.expression, conditional);
+				scanInner(node.expression, conditional, true);
 				return;
+			case 'JSXAttribute': {
+				scanInner(node.name, conditional, false);
+				const value = node.value;
+				if (!value) return;
+				if (value.type === 'JSXExpressionContainer') {
+					// Only a function value is a render-prop candidate
+					// (`<Controller render={(…) => …}>`). Any other expression
+					// computes a prop (`disabled={q.isPending}`,
+					// `title={q.isPending ? … : undefined}`) — it does not render
+					// a query state, so it is not a hand-rolled ladder.
+					const expr = value.expression;
+					if (
+						expr.type === 'ArrowFunctionExpression' ||
+						expr.type === 'FunctionExpression'
+					) {
+						scanInner(expr, conditional, true);
+					}
+					return;
+				}
+				if (value.type === 'JSXElement' || value.type === 'JSXFragment') {
+					scanInner(value, conditional, false);
+				}
+				return;
+			}
 			default: {
 				for (const value of Object.values(node)) {
 					if (Array.isArray(value)) {
 						for (const child of value) {
 							if (child && typeof child === 'object' && 'type' in child) {
-								scanInner(child as ESTree.Node, conditional);
+								scanInner(child as ESTree.Node, conditional, false);
 							}
 						}
 					} else if (value && typeof value === 'object' && 'type' in value) {
-						scanInner(value as ESTree.Node, conditional);
+						scanInner(value as ESTree.Node, conditional, false);
 					}
 				}
 			}
 		}
 	};
-	scanInner(node, conditional);
+	scanInner(node, conditional, false);
 };
 
 /** Does a function body contain any JSX (i.e. is it a render function)? */
