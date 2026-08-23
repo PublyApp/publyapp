@@ -36,7 +36,7 @@ export const DRAWER_FORM_CALL_SITES = [
 		id: 'tenant-user-link-companies',
 		name: 'link-companies',
 		sourceFile:
-			'src/routes/authed/staff/tenant-users/$userId-organizations.tsx',
+			'src/routes/authed/staff/tenant-users/$userId-organizations-drawer.tsx',
 		drawerTestId: 'link-companies-drawer',
 	},
 ] as const;
