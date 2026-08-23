@@ -510,10 +510,12 @@ function StaffTenantUserDetailsPage() {
 					'—' placeholder for a required identity field entirely, instead
 					of tolerating a null API value. */}
 											<DetailItem label={t('tenant-id')} value={tenantId} />
-											{/* data-honesty-ignore: avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data */}
 											<DetailItem
 												label={t('avatar-url')}
-												value={user.avatarUrl ?? '—'}
+												value={
+													// data-honesty-ignore: avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data
+													user.avatarUrl ?? '—'
+												}
 											/>
 										</div>
 									</Card>

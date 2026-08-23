@@ -332,12 +332,22 @@ const StaffUserEditPage = () => {
 		withResolver: true,
 	});
 
+	// Hoisted so the fatal-error gates read plain locals, not query flags.
+	const detailsError = detailsQuery.error;
+	if (detailsError !== null && shouldLogoutForFailure(detailsError)) {
+		return <LogoutRedirect />;
+	}
+
+	const assignedProfilesError = assignedProfilesQuery.error;
 	if (
-		(detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) ||
-		(assignedProfilesQuery.isError &&
-			shouldLogoutForFailure(assignedProfilesQuery.error)) ||
-		(profilesQuery.isError && shouldLogoutForFailure(profilesQuery.error))
+		assignedProfilesError !== null &&
+		shouldLogoutForFailure(assignedProfilesError)
 	) {
+		return <LogoutRedirect />;
+	}
+
+	const profilesError = profilesQuery.error;
+	if (profilesError !== null && shouldLogoutForFailure(profilesError)) {
 		return <LogoutRedirect />;
 	}
 
@@ -345,36 +355,42 @@ const StaffUserEditPage = () => {
 		return <LogoutRedirect />;
 	}
 
+	const detailsIsPending = detailsQuery.isPending;
+	const assignedProfilesIsPending = assignedProfilesQuery.isPending;
+	const profilesIsPending = profilesQuery.isPending;
 	if (
-		detailsQuery.isPending ||
-		assignedProfilesQuery.isPending ||
-		(profilesQuery.isPending && !hasLoadedProfilesRef.current)
+		detailsIsPending ||
+		assignedProfilesIsPending ||
+		(profilesIsPending && !hasLoadedProfilesRef.current)
 	) {
 		return <StaffUserEditLoading />;
 	}
 
-	if (detailsQuery.isError) {
+	const detailsIsError = detailsQuery.isError;
+	if (detailsIsError) {
 		return (
 			<StaffUserEditError
-				error={detailsQuery.error}
+				error={detailsError}
 				onRetry={() => void detailsQuery.refetch()}
 			/>
 		);
 	}
 
-	if (assignedProfilesQuery.isError) {
+	const assignedProfilesIsError = assignedProfilesQuery.isError;
+	if (assignedProfilesIsError) {
 		return (
 			<StaffUserEditError
-				error={assignedProfilesQuery.error}
+				error={assignedProfilesError}
 				onRetry={() => void assignedProfilesQuery.refetch()}
 			/>
 		);
 	}
 
-	if (profilesQuery.isError) {
+	const profilesIsError = profilesQuery.isError;
+	if (profilesIsError) {
 		return (
 			<StaffUserEditError
-				error={profilesQuery.error}
+				error={profilesError}
 				onRetry={() => void profilesQuery.refetch()}
 			/>
 		);
@@ -643,14 +659,14 @@ const StaffUserEditPage = () => {
 								options={profileOptions}
 								isDisabled={
 									isSubmittingForm ||
-									profilesQuery.isPending ||
+									profilesIsPending ||
 									profilesQuery.isFetching
 								}
 							/>
 						) : null}
 						{hasNoServerProfileRows &&
 						isProfileSearchSettled &&
-						!profilesQuery.isPending &&
+						!profilesIsPending &&
 						!profilesQuery.isFetching ? (
 							<p role="status" className="text-sm text-muted-foreground">
 								{deferredProfileSearch

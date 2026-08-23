@@ -139,7 +139,9 @@ const NewStaffInvitationsRoute = () => {
 		);
 	}, [profilesQuery.data]);
 
-	if (profilesQuery.isError && shouldLogoutForFailure(profilesQuery.error)) {
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
+	const profilesError = profilesQuery.error;
+	if (profilesError !== null && shouldLogoutForFailure(profilesError)) {
 		return <LogoutRedirect />;
 	}
 
@@ -152,11 +154,13 @@ const NewStaffInvitationsRoute = () => {
 		knownProfileNames: knownProfileNamesRef.current,
 	});
 	const isPending = isSubmitting || createInvitations.isPending;
-	const profileLoadError = profilesQuery.isError
-		? getFailureMessage(toApiFailure(profilesQuery.error), {
-				fallback: t('common:unable-to-load-profiles'),
-			})
-		: '';
+	const profilesIsPending = profilesQuery.isPending;
+	const profileLoadError =
+		profilesError !== null
+			? getFailureMessage(toApiFailure(profilesError), {
+					fallback: t('common:unable-to-load-profiles'),
+				})
+			: '';
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		setServerErrors([]);
@@ -292,7 +296,7 @@ const NewStaffInvitationsRoute = () => {
 										);
 									}
 
-									if (profilesQuery.isPending) {
+									if (profilesIsPending) {
 										return (
 											<div className="flex items-center gap-2 text-sm text-muted-foreground">
 												<LoadingSpinner />
@@ -315,7 +319,7 @@ const NewStaffInvitationsRoute = () => {
 											label={t('common:select-profiles')}
 											helperText={t('select-at-least-one-profile')}
 											options={profileOptions}
-											isDisabled={isPending || profilesQuery.isPending}
+											isDisabled={isPending || profilesIsPending}
 										/>
 									);
 								})()}
