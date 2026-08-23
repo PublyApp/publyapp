@@ -29,6 +29,7 @@ import { runOxlint } from '../lib/run-oxlint.ts';
 import { noArrayReduce } from './no-array-reduce.ts';
 import { noConsoleInSource } from './no-console-in-source.ts';
 import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.ts';
+import { noIife } from './no-iife.ts';
 import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.ts';
 
 RuleTester.describe = describe;
@@ -45,6 +46,7 @@ const PUBLY_RULES = [
 	'no-array-reduce',
 	'no-console-in-source',
 	'no-direct-dayjs-in-components',
+	'no-iife',
 	'no-manual-response-message-translation',
 ];
 
@@ -52,6 +54,7 @@ const FRONT_PORTABLE_RULE_CODES = [
 	'publy(no-array-reduce)',
 	'publy(no-console-in-source)',
 	'publy(no-direct-dayjs-in-components)',
+	'publy(no-iife)',
 	'publy(no-manual-response-message-translation)',
 ];
 
@@ -116,6 +119,23 @@ const RULE_SCOPING_CASES = [
 		],
 	},
 	{
+		ruleName: 'no-iife',
+		rule: noIife,
+		valid: [
+			{
+				code: 'function boot() { return 1; }\nboot();',
+				filename: 'apps/front/src/lib/boot.ts',
+			},
+		],
+		invalid: [
+			{
+				code: 'export const ready = (() => true)();',
+				filename: 'apps/front/src/routes/index.tsx',
+				errors: [{ messageId: 'noIife' }],
+			},
+		],
+	},
+	{
 		ruleName: 'no-manual-response-message-translation',
 		rule: noManualResponseMessageTranslation,
 		valid: [
@@ -155,6 +175,7 @@ const createScopingFixtures = () => {
 	mkdirSync(frontComponentsDir, { recursive: true });
 	mkdirSync(oldFrontComponentsDir, { recursive: true });
 
+	const frontIifePath = join(frontComponentsDir, 'front-iife.tsx');
 	const frontConsolePath = join(frontComponentsDir, 'front-console.tsx');
 	const frontDayjsPath = join(frontComponentsDir, 'front-dayjs.tsx');
 	const frontArrayReducePath = join(
@@ -168,6 +189,7 @@ const createScopingFixtures = () => {
 	const oldFrontConsolePath = join(oldFrontComponentsDir, 'old-console.tsx');
 	const oldFrontDayjsPath = join(oldFrontComponentsDir, 'old-dayjs.tsx');
 
+	writeFileSync(frontIifePath, 'export const ready = (() => true)();\n');
 	writeFileSync(
 		frontConsolePath,
 		"console.log('front should be linted by no-console-in-source');\n",
@@ -195,6 +217,7 @@ const createScopingFixtures = () => {
 	);
 
 	return {
+		frontIifePath,
 		frontConsolePath,
 		frontDayjsPath,
 		frontArrayReducePath,
@@ -263,6 +286,7 @@ describe('rule scoping matrix', () => {
 
 		try {
 			const frontDiagnostics = runOxlint([
+				fixtures.frontIifePath,
 				fixtures.frontConsolePath,
 				fixtures.frontDayjsPath,
 				fixtures.frontArrayReducePath,
