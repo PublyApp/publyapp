@@ -16,7 +16,11 @@ import {
 	makeFixture,
 	registerFixtureSignalHandlers,
 } from './check-design-system-fixtures.mjs';
-import { scanFront2DesignSystem } from './check-design-system.mjs';
+import {
+	createHandoffLedgerProbe,
+	KNOWN_GUARD_DEBT,
+	scanFront2DesignSystem,
+} from './check-design-system.mjs';
 
 const testFilePath = fileURLToPath(import.meta.url);
 let fixtureParent;
@@ -2462,6 +2466,21 @@ test('r1-fix: a multi-occurrence line spends one budget unit per occurrence it c
 	assert.match(debtRuleHits[0]?.source ?? '', /beyond the occurrence budget/);
 });
 
+// r1-fix: measure a debt entry's snippet occurrences in its REAL file
+// (`(?!-)snippet`, non-overlapping \u2014 the same shape the guard's own
+// countSnippetOccurrences uses).
+const countSnippetOccurrencesInFile = async (debt) => {
+	const content = await readFile(
+		fileURLToPath(new URL(`../${debt.file}`, import.meta.url)),
+		'utf8',
+	);
+	const pattern = new RegExp(
+		`(?<!-)${debt.sourceIncludes.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+		'g',
+	);
+	return [...content.matchAll(pattern)].length;
+};
+
 // r1-fix: the zero-slack invariant as a PERMANENT test over the REAL repo,
 // through the same production code path the real CLI run uses
 // (checkDebtBudgetSlack): budget − current occurrences == 0 for EVERY
@@ -2469,6 +2488,12 @@ test('r1-fix: a multi-occurrence line spends one budget unit per occurrence it c
 // occurrence count leaves slack that silently re-permits new violations; one
 // below it fails the guard on recorded code. Either way this test (and the
 // real CLI run) now goes red instead of carrying the slack silently.
+//
+// Liveness coupling (paired red proof, PR #1298 round 1): reverting ONLY the
+// ledger change (per-occurrence charging + checkDebtBudgetSlack) makes this
+// exact assertion fail on today's real data — the tooltip entry then carries
+// budget 4 against one consuming LINE, i.e. slack 3. The tooltip assertions
+// below pin the concrete case so the proof cannot decay into vacuity.
 test('r1-fix: every KNOWN_GUARD_DEBT budget equals the exact current occurrence count (zero slack)', async () => {
 	const violations = await scanFront2DesignSystem({
 		checkStaleDebt: false,
@@ -2484,6 +2509,38 @@ test('r1-fix: every KNOWN_GUARD_DEBT budget equals the exact current occurrence 
 		slackFindings,
 		[],
 		'every debt budget must equal the exact current occurrence count of its snippet',
+	);
+
+	// The round-1 CRITICAL case, pinned to real repo data: the tooltip entry
+	// is measured per occurrence (4 stacked on one Arrow line), and the
+	// per-occurrence ledger consumes exactly its whole budget — zero units
+	// left after the status quo, so ANY new occurrence anywhere in the file
+	// surfaces. If the ledger ever reverts to per-line charging, this
+	// assertion fails with 3 remaining units (the review's proven slack).
+	const tooltipEntry = KNOWN_GUARD_DEBT.find(
+		(debt) =>
+			debt.ruleId === 'no-important-foundation' &&
+			debt.file === 'src/components/ui/tooltip.tsx',
+	);
+	assert.ok(tooltipEntry, 'the tooltip top-1/2! debt entry must exist');
+	assert.equal(
+		tooltipEntry.maxOccurrences,
+		await countSnippetOccurrencesInFile(tooltipEntry),
+		'tooltip budget must equal its real occurrence count',
+	);
+	const tooltipContent = await readFile(
+		fileURLToPath(new URL('../src/components/ui/tooltip.tsx', import.meta.url)),
+		'utf8',
+	);
+	const probe = createHandoffLedgerProbe(KNOWN_GUARD_DEBT);
+	assert.equal(
+		probe.remainingAfterStatusQuo(
+			'no-important-foundation',
+			'src/components/ui/tooltip.tsx',
+			tooltipContent,
+		),
+		0,
+		'the tooltip budget must be fully consumed by the status quo occurrences — any slack silently re-permits new violations',
 	);
 });
 

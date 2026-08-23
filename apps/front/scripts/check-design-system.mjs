@@ -581,7 +581,9 @@ for (const debt of KNOWN_HANDOFF_GUARD_DEBT) {
 	}
 }
 
-const KNOWN_GUARD_DEBT = [
+// r1-fix: exported for the permanent zero-slack test, which re-measures every
+// entry against its real file through the production path.
+export const KNOWN_GUARD_DEBT = [
 	...KNOWN_HANDOFF_GUARD_DEBT,
 	...KNOWN_IMPORTANT_FOUNDATION_DEBT,
 ];
@@ -1148,6 +1150,39 @@ const createHandoffGuardDebtLedger = (debtList) => {
 			}
 		}
 		return false;
+	};
+};
+
+// r1-fix: read-only probe over the REAL ledger, for the permanent zero-slack
+// test. It feeds the given file content's debt-matching lines through the
+// actual createHandoffGuardDebtLedger closure, then counts how many further
+// single-occurrence violations the entry would still absorb. Zero means the
+// status quo consumes the whole budget (no silent slack); anything above zero
+// is exactly the over-budget slack the round-1 review proved exploitable
+// (three planted `top-1/2!` lines staying green). Because this closes over
+// the production ledger, reverting the per-occurrence charging flips the
+// test that asserts on it back to red.
+export const createHandoffLedgerProbe = (debtList) => {
+	const allows = createHandoffGuardDebtLedger(debtList);
+	return {
+		remainingAfterStatusQuo: (ruleId, file, content) => {
+			const debt = debtList.find(
+				(entry) => entry.ruleId === ruleId && entry.file === file,
+			);
+			if (!debt) {
+				return 0;
+			}
+			for (const line of content.split('\n')) {
+				if (line.includes(debt.sourceIncludes)) {
+					allows({ ruleId, file, source: line });
+				}
+			}
+			let remaining = 0;
+			while (allows({ ruleId, file, source: debt.sourceIncludes })) {
+				remaining += 1;
+			}
+			return remaining;
+		},
 	};
 };
 
