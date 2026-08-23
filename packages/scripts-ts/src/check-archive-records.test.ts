@@ -170,58 +170,75 @@ test('warning: a newly archived record falsified since its add commit', async ()
 	// test above using the same add-commit-then-check shape with no edit.
 });
 
-test('verdict is unaffected by an unrelated advance of develop', async () => {
-	const rootDir = await initRepo('unrelated-advance');
+test(
+	'verdict is unaffected by an unrelated advance of develop',
+	{
+		// Builds a git fixture with several real commits and runs the checker
+		// twice; each spawnSync git call stretches past a second under heavy
+		// host load (r3 finisher: load ~30/12 cores with other lanes building),
+		// blowing vitest's 5s default mid-test.
+		timeout: 60_000,
+	},
+	async () => {
+		const rootDir = await initRepo('unrelated-advance');
 
-	// An ESTABLISHED record: present at the true merge base, so a body
-	// drift against it is fatal both before and after develop moves. A
-	// record only added after the branch point (as the previous version of
-	// this fixture used) is absent from origin/develop either way, so the
-	// moving ref is observationally irrelevant to it — this record must
-	// already exist at the merge base for the ref choice to matter.
-	// @ts-expect-error rung-0: TS2554
-	await writeArchiveFile(
-		rootDir,
-		'docs/archive/established.md',
-		'Original body.\n',
-	);
-	commitAll(rootDir, 'archive established record');
-	git(rootDir, ['branch', 'origin/develop']);
+		// An ESTABLISHED record: present at the true merge base, so a body
+		// drift against it is fatal both before and after develop moves. A
+		// record only added after the branch point (as the previous version of
+		// this fixture used) is absent from origin/develop either way, so the
+		// moving ref is observationally irrelevant to it — this record must
+		// already exist at the merge base for the ref choice to matter.
+		// @ts-expect-error rung-0: TS2554
+		await writeArchiveFile(
+			rootDir,
+			'docs/archive/established.md',
+			'Original body.\n',
+		);
+		commitAll(rootDir, 'archive established record');
+		git(rootDir, ['branch', 'origin/develop']);
 
-	// Drift the body on the local branch relative to the merge base. This
-	// is fatal under a correct merge-base implementation, and — critically —
-	// the fatal message embeds the baseline commit SHA, so if that baseline
-	// is computed differently the message itself changes even though a
-	// fatal finding fires in both cases.
-	// @ts-expect-error rung-0: TS2554
-	await writeArchiveFile(
-		rootDir,
-		'docs/archive/established.md',
-		'Drifted body.\n',
-	);
-	commitAll(rootDir, 'drift the established record');
+		// Drift the body on the local branch relative to the merge base. This
+		// is fatal under a correct merge-base implementation, and — critically —
+		// the fatal message embeds the baseline commit SHA, so if that baseline
+		// is computed differently the message itself changes even though a
+		// fatal finding fires in both cases.
+		// @ts-expect-error rung-0: TS2554
+		await writeArchiveFile(
+			rootDir,
+			'docs/archive/established.md',
+			'Drifted body.\n',
+		);
+		commitAll(rootDir, 'drift the established record');
 
-	const before = await runCheck(rootDir);
-	const beforeFatal = findFatal(before.findings, 'docs/archive/established.md');
-	assert.ok(beforeFatal, 'expected the drift to be fatal before the advance');
+		const before = await runCheck(rootDir);
+		const beforeFatal = findFatal(
+			before.findings,
+			'docs/archive/established.md',
+		);
+		assert.ok(beforeFatal, 'expected the drift to be fatal before the advance');
 
-	// Advance origin/develop with an unrelated, unrelated-file-only commit
-	// on top of the true merge base. A correct merge-base implementation
-	// still resolves to the original common ancestor here (advancing a ref
-	// forward along the same line does not change the most recent common
-	// ancestor with HEAD), so the finding must be byte-identical.
-	git(rootDir, ['checkout', '-q', '-b', 'develop-advance', 'origin/develop']);
-	await writeFile(path.join(rootDir, 'unrelated.md'), 'unrelated change\n');
-	commitAll(rootDir, 'unrelated advance of develop');
-	git(rootDir, ['update-ref', 'refs/heads/origin/develop', 'develop-advance']);
-	git(rootDir, ['checkout', '-q', 'main']);
-	git(rootDir, ['branch', '-D', 'develop-advance']);
+		// Advance origin/develop with an unrelated, unrelated-file-only commit
+		// on top of the true merge base. A correct merge-base implementation
+		// still resolves to the original common ancestor here (advancing a ref
+		// forward along the same line does not change the most recent common
+		// ancestor with HEAD), so the finding must be byte-identical.
+		git(rootDir, ['checkout', '-q', '-b', 'develop-advance', 'origin/develop']);
+		await writeFile(path.join(rootDir, 'unrelated.md'), 'unrelated change\n');
+		commitAll(rootDir, 'unrelated advance of develop');
+		git(rootDir, [
+			'update-ref',
+			'refs/heads/origin/develop',
+			'develop-advance',
+		]);
+		git(rootDir, ['checkout', '-q', 'main']);
+		git(rootDir, ['branch', '-D', 'develop-advance']);
 
-	const after = await runCheck(rootDir);
+		const after = await runCheck(rootDir);
 
-	assert.deepStrictEqual(after.findings, before.findings);
-	assert.deepStrictEqual(after.counts, before.counts);
-});
+		assert.deepStrictEqual(after.findings, before.findings);
+		assert.deepStrictEqual(after.counts, before.counts);
+	},
+);
 
 test('pass: the post-squash state, then fatal: an edit to the archived record after that squash', async () => {
 	const rootDir = await initRepo('post-squash');
