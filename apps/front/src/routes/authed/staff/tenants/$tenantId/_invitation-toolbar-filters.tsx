@@ -1,8 +1,4 @@
-import {
-	IconChevronDown,
-	IconCircleDot,
-	IconKey,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconCircleDot, IconKey } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import { SELECTION_LOCKED_TITLE_KEY } from '~/components/table/data-table';
 import { Button } from '~/components/ui/button';
@@ -67,7 +63,9 @@ export const InvitationToolbarFilters = ({
 							className="publy-data-table-filter-button max-w-64 text-[13px]"
 							data-testid="staff-tenant-invitations-level-filter-trigger"
 							disabled={selectionLocked}
-							title={selectionLocked ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
+							title={
+								selectionLocked ? t(SELECTION_LOCKED_TITLE_KEY) : undefined
+							}
 						/>
 					}
 				>
@@ -114,7 +112,9 @@ export const InvitationToolbarFilters = ({
 							className="publy-data-table-filter-button max-w-64 text-[13px]"
 							data-testid="staff-tenant-invitations-status-filter-trigger"
 							disabled={selectionLocked}
-							title={selectionLocked ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
+							title={
+								selectionLocked ? t(SELECTION_LOCKED_TITLE_KEY) : undefined
+							}
 						/>
 					}
 				>
