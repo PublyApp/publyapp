@@ -242,16 +242,17 @@ const isPostgresAcceptingAuthenticatedSessions = () => {
 };
 
 const waitForPostgresReady = async () => {
-	// 240 attempts x 500ms = a 2-minute ceiling. 60 attempts (30s of polling,
-	// ~60s wall-clock with docker exec overhead) was tuned on idle machines and
-	// closed before initdb finished under real host load: round-2 saw it fail
-	// on this exact branch, and the finisher reproduced it deterministically at
-	// load average ~12/12 cores (postgres:18-alpine initdb alone took >60s, and
-	// each `docker exec` probe stretches to ~1s when the daemon is busy). The
-	// happy path is unchanged — polling returns on the first successful
+	// 900 attempts x 500ms = a 7.5-minute ceiling. 240 attempts (a 2-minute
+	// ceiling) was itself a widening of the original 60 and STILL closed too
+	// early under multi-lane host load: the round-3 finisher measured initdb
+	// needing ~170s at load average ~20/12 cores (probe: fresh postgres:18-alpine,
+	// authenticated-session probe, same docker exec shape as below), and each
+	// `docker exec` probe stretches past 1s when the daemon is contended, so the
+	// effective wall-clock ceiling was even shorter than 240x500ms suggests.
+	// The happy path is unchanged — polling returns on the first successful
 	// authenticated query; the wider ceiling only affects the failure path and
 	// vitest's default per-hook timeout is 10s per AWAIT, not cumulative.
-	for (let attempt = 0; attempt < 240; attempt += 1) {
+	for (let attempt = 0; attempt < 900; attempt += 1) {
 		if (isPostgresAcceptingAuthenticatedSessions()) {
 			return;
 		}
@@ -579,11 +580,20 @@ const withWorktreeConnectionString = async (temporaryConnectionString, run) => {
 		/^POSTGRES_CONNECTION_STRING=.*$/m,
 		`POSTGRES_CONNECTION_STRING="${temporaryConnectionString}"`,
 	);
-	assert.notEqual(
-		rewritten,
-		original,
-		'the POSTGRES_CONNECTION_STRING line must actually be found and replaced',
-	);
+	if (rewritten === original) {
+		// Two ways to get here. (1) The file has NO POSTGRES_CONNECTION_STRING line:
+		// the replace was a silent no-op and the test would run against an ambient
+		// database — fail loudly. (2) A previously killed run (external kill,
+		// aborted timeout) died between writeFileSync and the finally-restore, so
+		// the file already carries EXACTLY this temporary connection string: the
+		// desired end state already holds, proceed instead of failing every
+		// remaining test on stale on-disk state.
+		assert.match(
+			original,
+			/^POSTGRES_CONNECTION_STRING=/m,
+			'the POSTGRES_CONNECTION_STRING line must exist to be replaced',
+		);
+	}
 	writeFileSync(envFilePath, rewritten);
 
 	try {
@@ -1058,7 +1068,9 @@ test(
 	'END-TO-END: the real CLI pins the guard and the launched API to the SAME (worktree file) connection string, not an ambient one',
 	{
 		skip: skip || (launchTargetSkip ? launchTargetSkipReason : false),
-		timeout: 120_000,
+		// Real CLI launch + API readiness polling; 120s closed under multi-lane
+		// host load (same r3-finisher measurements as the readiness ceiling).
+		timeout: 300_000,
 	},
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
@@ -1150,7 +1162,13 @@ test(
 
 test(
 	'PASSING PROOF: guard is silent once the real migration is applied',
-	{ skip },
+	{
+		skip,
+		// Runs the REAL `dotnet tool run dotnet-ef database update`; under
+		// multi-lane host load (r3 finisher: load ~20/12 cores) that takes
+		// minutes — vitest's 5s default test timeout fired long before completion.
+		timeout: 600_000,
+	},
 	() => {
 		runDotnetWithDiagnostics([
 			'tool',
@@ -1192,7 +1210,7 @@ test(
 	'END-TO-END: an ordinary launch (fully migrated, no --allow-migrations) still pins the Api role — no job engine starts against the shared database',
 	{
 		skip: skip || (launchTargetSkip ? launchTargetSkipReason : false),
-		timeout: 120_000,
+		timeout: 300_000,
 	},
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
