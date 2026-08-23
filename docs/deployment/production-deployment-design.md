@@ -130,6 +130,12 @@ These would have broken deploy #1. They are resolved in the committed `dokploy.y
 
 - **Generation:** `openssl rand -base64 32` (32 bytes). Injected as a Dokploy secret into
   `publyapp-api`, `publyapp-worker`, `publyapp-migrate`.
+- **Build/e2e placeholder:** the committed all-zero base64 value
+  (`AAAA…AAA=`, 32 zero bytes) exists ONLY so processes that boot the app without a
+  database can start — the Dockerfile's OpenAPI doc-gen build stages, the e2e stack,
+  and local tooling (`quality-gate.yml`, the `justfile` recipes). Those paths pass no
+  canary store to the master-key witness, so the placeholder never protects real data.
+  Never deploy it.
 - **What it protects:** the ASP.NET Data Protection key ring (Postgres `DataProtectionKeys`),
   which in turn protects every `social_accounts.protected_credentials` blob.
 - **Loss impact:** with no key (or a wrong one) the API/worker **refuse to start** — the

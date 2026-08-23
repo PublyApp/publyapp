@@ -12,6 +12,14 @@ x-api-test-environment: &api-test-environment
   POSTGRES_CONNECTION_STRING: Host=postgres;Port=5432;Database=publyapp_db;Username=postgres;Password=password;
   FRONT_URL: https://front.localhost:8443
   RESEND_API_KEY: e2e-disabled
+  # Required by AppEnvironment.Initialize() since #1239 (ParseMasterKey:
+  # base64, exactly 32 bytes). All-zero committed build placeholder — the e2e
+  # stack passes no canary store to the master-key witness, so nothing real is
+  # ever encrypted under it.
+  SOCIAL_ACCOUNTS_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+  # Pinned like every other non-dev booting surface (quality-gate.yml, the
+  # Dockerfile stages): loopback-only, matches AppEnvironment's default.
+  TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"
   STAFF_OWNER_EMAIL: owner@publyapp.local
   STAFF_OWNER_BOOTSTRAP_CODE: e2e-disabled
   APP_NAME: PublyApp
