@@ -20,7 +20,11 @@ const makeWorkflow = (steps) =>
  * relative files — used by the #1268 local-action fixtures to place actions
  * OUTSIDE .github/actions.
  */
-const buildFixture = async ({ workflowContent, actions = [], extraFiles = [] }) => {
+const buildFixture = async ({
+	workflowContent,
+	actions = [],
+	extraFiles = [],
+}) => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
 	);
