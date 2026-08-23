@@ -76,6 +76,51 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 	});
 };
 
+const InvitationProfileField = ({
+	index,
+	profileLoadError,
+	profilesQuery,
+	profileOptions,
+	isPending,
+}: {
+	index: number;
+	profileLoadError: string;
+	profilesQuery: ReturnType<typeof useStaffProfilesQuery>;
+	profileOptions: ReturnType<typeof buildStaffProfileOptions>;
+	isPending: boolean;
+}) => {
+	const { t } = useTranslation(['staff-invitations', 'common']);
+
+	if (profileLoadError) {
+		return <p className="text-sm text-destructive">{profileLoadError}</p>;
+	}
+
+	if (profilesQuery.isPending) {
+		return (
+			<div className="flex items-center gap-2 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('common:profiles')}</span>
+			</div>
+		);
+	}
+
+	if (profileOptions.length === 0) {
+		return (
+			<p className="text-sm text-muted-foreground">{t('no-results-found')}</p>
+		);
+	}
+
+	return (
+		<Field.CheckboxGroup
+			name={`invitations.${index}.profileIds`}
+			label={t('common:select-profiles')}
+			helperText={t('select-at-least-one-profile')}
+			options={profileOptions}
+			isDisabled={isPending || profilesQuery.isPending}
+		/>
+	);
+};
+
 const NewStaffInvitationsRoute = () => {
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
@@ -154,7 +199,6 @@ const NewStaffInvitationsRoute = () => {
 		knownProfileNames: knownProfileNamesRef.current,
 	});
 	const isPending = isSubmitting || createInvitations.isPending;
-	const profilesIsPending = profilesQuery.isPending;
 	const profileLoadError =
 		profilesError !== null
 			? getFailureMessage(toApiFailure(profilesError), {
@@ -287,42 +331,13 @@ const NewStaffInvitationsRoute = () => {
 									disabled={isPending}
 								/>
 
-								{(() => {
-									if (profileLoadError) {
-										return (
-											<p className="text-sm text-destructive">
-												{profileLoadError}
-											</p>
-										);
-									}
-
-									if (profilesIsPending) {
-										return (
-											<div className="flex items-center gap-2 text-sm text-muted-foreground">
-												<LoadingSpinner />
-												<span>{t('common:profiles')}</span>
-											</div>
-										);
-									}
-
-									if (profileOptions.length === 0) {
-										return (
-											<p className="text-sm text-muted-foreground">
-												{t('no-results-found')}
-											</p>
-										);
-									}
-
-									return (
-										<Field.CheckboxGroup
-											name={`invitations.${index}.profileIds`}
-											label={t('common:select-profiles')}
-											helperText={t('select-at-least-one-profile')}
-											options={profileOptions}
-											isDisabled={isPending || profilesIsPending}
-										/>
-									);
-								})()}
+								<InvitationProfileField
+									index={index}
+									profileLoadError={profileLoadError}
+									profilesQuery={profilesQuery}
+									profileOptions={profileOptions}
+									isPending={isPending}
+								/>
 							</Card>
 						))}
 
