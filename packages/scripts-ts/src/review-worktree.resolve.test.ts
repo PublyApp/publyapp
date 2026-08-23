@@ -368,7 +368,7 @@ test('disambiguateWorktreesByCwd: keeps every candidate when none is the cwd', (
 		{ path: '/tmp/b', branch: 'fix/994-b', head: 'h2' },
 	];
 
-	assert.deepEqual(disambiguateWorktreesByCwd(matches), matches);
+	assert.deepEqual(disambiguateWorktreesByCwd(matches, undefined), matches);
 });
 
 test('disambiguateWorktreesByCwd: an explicit preferPath overrides process.cwd', () => {
@@ -418,7 +418,9 @@ test('disambiguateWorktreesByCwd: prefers the candidate containing the current d
 	const previousCwd = process.cwd();
 	process.chdir(here);
 	try {
-		assert.deepEqual(disambiguateWorktreesByCwd(matches), [matches[1]]);
+		assert.deepEqual(disambiguateWorktreesByCwd(matches, undefined), [
+			matches[1],
+		]);
 	} finally {
 		process.chdir(previousCwd);
 		rmSync(parent, { recursive: true, force: true });
