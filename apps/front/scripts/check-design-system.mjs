@@ -1044,17 +1044,32 @@ const isConfirmDialogFile = (relativePath) =>
 // including second, unrelated offenses on other lines, and duplicates of the
 // debt line itself riding the same exemption forever (tests F2).
 //
-// The ledger hands out each entry's explicit `maxOccurrences` across the
-// WHOLE FILE: every violation whose offending line still matches a
-// budgeted entry (standalone-snippet boundary: the character before the
-// match must not be `-`, so `min-height: …` never feeds the
-// `height: …` entry) consumes exactly one unit of that entry's budget;
-// once an entry's budget is exhausted, further violations of the same rule
-// are reported for what they are. Fail loud, never compliant-by-default.
+// r1-fix (round-1 review CRITICAL): budgets are charged PER OCCURRENCE of the
+// entry's snippet, not once per violating LINE. The previous ledger
+// decremented exactly one unit per reported violation, so an entry whose
+// snippet appears several times on ONE line consumed a single unit of a
+// budget measured in occurrences — tooltip.tsx carries four `top-1/2!` on its
+// Arrow className line, so its `maxOccurrences: 4` spent 1 and left 3 units of
+// permanent slack that silently re-permitted three NEW violations (proven in
+// review: three planted `top-1/2!` lines stayed green). Now every violation
+// event spends as many units as ITS OWN offending text carries occurrences of
+// the snippet (up to what remains): the tooltip Arrow line spends 4 of 4 in
+// one event, and any further occurrence — anywhere, on any line — finds the
+// budget empty and is reported. One unit per occurrence, wherever it sits,
+// is exactly how every `maxOccurrences` in this file is measured; the
+// zero-slack check (`checkGuardDebtBudgetSlack`, r1-fix below) keeps
+// budget == exact current occurrence count so a correctly-measured entry can
+// never be exhausted early by status-quo content.
+//
 // The ledger closes over the EFFECTIVE debt list (the caller-supplied
 // `guardDebt` in fixture tests, `KNOWN_GUARD_DEBT` in the real CLI run), so
 // a narrow fixture exercises the same budget mechanics the production scan
 // runs.
+const countSnippetOccurrences = (source, snippet) => {
+	const pattern = new RegExp(`(?<!-)${escapeRegExpLiteral(snippet)}`, 'g');
+	return [...source.matchAll(pattern)].length;
+};
+
 const createHandoffGuardDebtLedger = (debtList) => {
 	const remainingByEntryIndex = new Map();
 	return ({ ruleId, file, source }) => {
@@ -1081,9 +1096,20 @@ const createHandoffGuardDebtLedger = (debtList) => {
 			}
 		}
 		for (const index of matchingIndexes) {
-			const remaining = remainingByEntryIndex.get(index);
-			if (remaining > 0) {
-				remainingByEntryIndex.set(index, remaining - 1);
+			// Charge PER OCCURRENCE carried by this violating text, capped at
+			// what the entry still has: a line bearing N snippets spends N
+			// units in this one event (tooltip.tsx's Arrow line spends all 4),
+			// so no multi-occurrence line can ride a budget measured in
+			// occurrences while leaving silent slack behind.
+			const occurrencesInSource = Math.min(
+				countSnippetOccurrences(source, debtList[index].sourceIncludes),
+				remainingByEntryIndex.get(index),
+			);
+			if (occurrencesInSource > 0) {
+				remainingByEntryIndex.set(
+					index,
+					remainingByEntryIndex.get(index) - occurrencesInSource,
+				);
 				return true;
 			}
 		}
