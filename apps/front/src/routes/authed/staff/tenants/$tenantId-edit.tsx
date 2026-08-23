@@ -15,6 +15,7 @@ import {
 	FormPageLayout,
 	type FieldSelectOption,
 } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -292,464 +293,491 @@ const StaffTenantEditRoute = () => {
 		return <LogoutRedirect />;
 	}
 
-	if (detailsQuery.isPending) {
-		return <TenantDetailsLoading />;
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
+	// QueryDisplay owns the loading/error/data rendering below.
+	const detailsError = detailsQuery.error;
+	if (detailsError !== null && shouldLogoutForFailure(detailsError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (detailsQuery.isError) {
-		if (shouldLogoutForFailure(detailsQuery.error)) {
-			return <LogoutRedirect />;
-		}
-
-		return (
-			<TenantDetailsError
-				error={detailsQuery.error}
-				onRetry={() => void detailsQuery.refetch()}
-			/>
-		);
-	}
-
-	if (!tenant) {
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-500-code')}
-				title={t('tenant-details-error-title')}
-				description={t('tenant-response-incomplete')}
-				testId="staff-tenant-edit-not-found"
-				actions={
-					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-				}
-			/>
-		);
-	}
-
-	const onSubmit = handleSubmit(async (values) => {
-		const payload: StaffTenantUpdateInput = { tenantId };
-
-		if (dirtyFields.name && values.name !== undefined) {
-			const name = values.name.trim();
-			if (name.length > 0) {
-				payload.name = name;
+	const renderNotFoundSlot = () => (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-response-incomplete')}
+			testId="staff-tenant-edit-not-found"
+			actions={
+				<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
 			}
-		}
-
-		if (dirtyFields.maxUsers) {
-			payload.maxUsers = values.maxUsers;
-		}
-
-		if (dirtyFields.logoUrl) {
-			payload.logoUrl = normalizeOptionalUpdateString(values.logoUrl);
-		}
-
-		if (dirtyFields.legalName) {
-			payload.legalName = normalizeOptionalUpdateString(values.legalName);
-		}
-
-		if (dirtyFields.description) {
-			payload.description = normalizeOptionalUpdateString(values.description);
-		}
-
-		if (dirtyFields.websiteUrl) {
-			payload.websiteUrl = normalizeOptionalUpdateString(values.websiteUrl);
-		}
-
-		if (dirtyFields.billingEmail) {
-			payload.billingEmail = normalizeOptionalUpdateString(values.billingEmail);
-		}
-
-		if (dirtyFields.supportEmail) {
-			payload.supportEmail = normalizeOptionalUpdateString(values.supportEmail);
-		}
-
-		if (dirtyFields.defaultLocale) {
-			payload.defaultLocale = normalizeOptionalUpdateString(
-				values.defaultLocale,
-			);
-		}
-
-		if (dirtyFields.timezone) {
-			payload.timezone = normalizeOptionalUpdateString(values.timezone);
-		}
-
-		if (dirtyFields.notes) {
-			payload.notes = normalizeOptionalUpdateString(values.notes);
-		}
-
-		try {
-			methods.clearErrors('root.server');
-			await updateTenant.mutateAsync(payload);
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldLogout(true);
-				return;
-			}
-
-			const failure = toApiFailure(error);
-			if (failure.kind === 'validation') {
-				const rootMessages: string[] = [];
-				let mappedFieldCount = 0;
-
-				for (const [field, messages] of Object.entries(failure.fieldErrors)) {
-					if (isTenantEditFormField(field) && messages.length > 0) {
-						mappedFieldCount += 1;
-						methods.setError(field, {
-							type: 'server',
-							message: messages.join(' '),
-						});
-						continue;
-					}
-
-					rootMessages.push(...messages);
-				}
-
-				if (mappedFieldCount === 0 && rootMessages.length === 0) {
-					rootMessages.push(
-						getFailureMessage(failure, {
-							fallback: t('tenant-update-failed'),
-						}),
-					);
-				}
-
-				if (rootMessages.length > 0) {
-					methods.setError('root.server', {
-						type: 'server',
-						message: Array.from(new Set(rootMessages)).join(' '),
-					});
-				}
-			}
-			return;
-		}
-
-		await invalidateStaffTenants(queryClient);
-		hasSavedRef.current = true;
-		void navigate({
-			to: '/staff/tenants/$tenantId',
-			params: { tenantId },
-		});
-	});
-
-	const previewName = watchedName.trim().length > 0 ? watchedName : tenant.name;
-	const parsedWatchedMaxUsers = Number(watchedMaxUsers);
-	const previewMaxUsers =
-		Number.isFinite(parsedWatchedMaxUsers) && parsedWatchedMaxUsers > 0
-			? parsedWatchedMaxUsers
-			: tenant.maxUsers;
-	const previewLogoUrl =
-		watchedLogoUrl.trim().length > 0 ? watchedLogoUrl.trim() : null;
-	const previewWebsiteHostname = getWebsiteHostname(watchedWebsiteUrl);
-
-	const seatMeterPercent =
-		previewMaxUsers > 0
-			? Math.min((tenant.usersCount / previewMaxUsers) * 100, 100)
-			: 0;
-	const isBelowCurrentUsers = previewMaxUsers < tenant.usersCount;
-
-	const formatLastActive = (value: Date | null): string => {
-		const parts = getRelativeTimeParts(value);
-		// data-honesty-ignore: relative-time "never active" fallback, not a fabricated identity
-		return parts ? t(parts.key, { count: parts.count }) : '—';
-	};
+		/>
+	);
 
 	return (
-		<FormPageLayout width={960} data-testid="staff-tenant-edit-page">
-			<div className="space-y-2">
-				<Link
-					to="/staff/tenants/$tenantId"
-					params={{ tenantId }}
-					className="publy-back-link"
-				>
-					<IconArrowLeft aria-hidden="true" className="size-3" />
-					{t('back-to-tenant')}
-				</Link>
-				<h1 className="text-xl font-semibold tracking-[-0.01em]">
-					{t('edit-item', { item: t('tenant') })}
-				</h1>
-				<p className="text-sm text-muted-foreground">
-					{t('edit-tenant-description')}
-				</p>
-			</div>
+		<QueryDisplay
+			query={detailsQuery}
+			LoadingSlot={<TenantDetailsLoading />}
+			ErrorSlot={
+				<TenantDetailsError
+					error={detailsError}
+					onRetry={() => void detailsQuery.refetch()}
+				/>
+			}
+		>
+			{() => {
+				if (!tenant) {
+					return renderNotFoundSlot();
+				}
 
-			<Form methods={methods} onSubmit={onSubmit}>
-				{methods.formState.errors.root?.server?.message ? (
-					<p className="text-sm text-destructive" role="alert">
-						{methods.formState.errors.root.server.message}
-					</p>
-				) : null}
-				<div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px] lg:gap-9">
-					<div className="order-2 flex min-w-0 flex-col gap-8 lg:order-1">
-						<section className="flex flex-col gap-4">
-							<p className="publy-type-eyebrow">{t('organization')}</p>
-							<Field.Text
-								name="name"
-								label={t('organization-name')}
-								fullWidth
-								isDisabled={isPending}
-							/>
-							<div className="grid grid-cols-[1fr_128px] items-start gap-3">
-								<ReadOnlySlugField
-									// data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data
-									code={tenant.code ?? '—'}
-									label={t('workspace-slug')}
-									hint={t('workspace-slug-immutable-hint')}
-								/>
-								<div className="flex flex-col gap-1.5">
-									<Field.Text
-										name="maxUsers"
-										type="number"
-										min={1}
-										label={t('seats')}
-										isDisabled={isPending}
-									/>
-									<div className="publy-stat-meter">
-										<div
-											className="publy-stat-meter-fill"
-											style={{ width: `${seatMeterPercent}%` }}
-										/>
-									</div>
-								</div>
-							</div>
-							{isBelowCurrentUsers ? (
-								<p
-									className="publy-field-helper text-(--publy-chip-pending-text)"
-									data-testid="edit-tenant-seats-warning"
-								>
-									<IconAlertCircle aria-hidden="true" />
-									{t('seats-below-current-members-warning', {
-										count: tenant.usersCount,
-									})}
+				const onSubmit = handleSubmit(async (values) => {
+					const payload: StaffTenantUpdateInput = { tenantId };
+
+					if (dirtyFields.name && values.name !== undefined) {
+						const name = values.name.trim();
+						if (name.length > 0) {
+							payload.name = name;
+						}
+					}
+
+					if (dirtyFields.maxUsers) {
+						payload.maxUsers = values.maxUsers;
+					}
+
+					if (dirtyFields.logoUrl) {
+						payload.logoUrl = normalizeOptionalUpdateString(values.logoUrl);
+					}
+
+					if (dirtyFields.legalName) {
+						payload.legalName = normalizeOptionalUpdateString(values.legalName);
+					}
+
+					if (dirtyFields.description) {
+						payload.description = normalizeOptionalUpdateString(
+							values.description,
+						);
+					}
+
+					if (dirtyFields.websiteUrl) {
+						payload.websiteUrl = normalizeOptionalUpdateString(
+							values.websiteUrl,
+						);
+					}
+
+					if (dirtyFields.billingEmail) {
+						payload.billingEmail = normalizeOptionalUpdateString(
+							values.billingEmail,
+						);
+					}
+
+					if (dirtyFields.supportEmail) {
+						payload.supportEmail = normalizeOptionalUpdateString(
+							values.supportEmail,
+						);
+					}
+
+					if (dirtyFields.defaultLocale) {
+						payload.defaultLocale = normalizeOptionalUpdateString(
+							values.defaultLocale,
+						);
+					}
+
+					if (dirtyFields.timezone) {
+						payload.timezone = normalizeOptionalUpdateString(values.timezone);
+					}
+
+					if (dirtyFields.notes) {
+						payload.notes = normalizeOptionalUpdateString(values.notes);
+					}
+
+					try {
+						methods.clearErrors('root.server');
+						await updateTenant.mutateAsync(payload);
+					} catch (error) {
+						if (shouldLogoutForFailure(error)) {
+							setShouldLogout(true);
+							return;
+						}
+
+						const failure = toApiFailure(error);
+						if (failure.kind === 'validation') {
+							const rootMessages: string[] = [];
+							let mappedFieldCount = 0;
+
+							for (const [field, messages] of Object.entries(
+								failure.fieldErrors,
+							)) {
+								if (isTenantEditFormField(field) && messages.length > 0) {
+									mappedFieldCount += 1;
+									methods.setError(field, {
+										type: 'server',
+										message: messages.join(' '),
+									});
+									continue;
+								}
+
+								rootMessages.push(...messages);
+							}
+
+							if (mappedFieldCount === 0 && rootMessages.length === 0) {
+								rootMessages.push(
+									getFailureMessage(failure, {
+										fallback: t('tenant-update-failed'),
+									}),
+								);
+							}
+
+							if (rootMessages.length > 0) {
+								methods.setError('root.server', {
+									type: 'server',
+									message: Array.from(new Set(rootMessages)).join(' '),
+								});
+							}
+						}
+						return;
+					}
+
+					await invalidateStaffTenants(queryClient);
+					hasSavedRef.current = true;
+					void navigate({
+						to: '/staff/tenants/$tenantId',
+						params: { tenantId },
+					});
+				});
+
+				const previewName =
+					watchedName.trim().length > 0 ? watchedName : tenant.name;
+				const parsedWatchedMaxUsers = Number(watchedMaxUsers);
+				const previewMaxUsers =
+					Number.isFinite(parsedWatchedMaxUsers) && parsedWatchedMaxUsers > 0
+						? parsedWatchedMaxUsers
+						: tenant.maxUsers;
+				const previewLogoUrl =
+					watchedLogoUrl.trim().length > 0 ? watchedLogoUrl.trim() : null;
+				const previewWebsiteHostname = getWebsiteHostname(watchedWebsiteUrl);
+
+				const seatMeterPercent =
+					previewMaxUsers > 0
+						? Math.min((tenant.usersCount / previewMaxUsers) * 100, 100)
+						: 0;
+				const isBelowCurrentUsers = previewMaxUsers < tenant.usersCount;
+
+				const formatLastActive = (value: Date | null): string => {
+					const parts = getRelativeTimeParts(value);
+					// data-honesty-ignore: relative-time "never active" fallback, not a fabricated identity
+					return parts ? t(parts.key, { count: parts.count }) : '—';
+				};
+
+				return (
+					<FormPageLayout width={960} data-testid="staff-tenant-edit-page">
+						<div className="space-y-2">
+							<Link
+								to="/staff/tenants/$tenantId"
+								params={{ tenantId }}
+								className="publy-back-link"
+							>
+								<IconArrowLeft aria-hidden="true" className="size-3" />
+								{t('back-to-tenant')}
+							</Link>
+							<h1 className="text-xl font-semibold tracking-[-0.01em]">
+								{t('edit-item', { item: t('tenant') })}
+							</h1>
+							<p className="text-sm text-muted-foreground">
+								{t('edit-tenant-description')}
+							</p>
+						</div>
+
+						<Form methods={methods} onSubmit={onSubmit}>
+							{methods.formState.errors.root?.server?.message ? (
+								<p className="text-sm text-destructive" role="alert">
+									{methods.formState.errors.root.server.message}
 								</p>
 							) : null}
-							<Field.ImageUpload
-								name="logoUrl"
-								label={t('logo')}
-								previewName={previewName}
-								isDisabled={isPending}
-							/>
-						</section>
-
-						<section className="flex flex-col gap-4">
-							<p className="publy-type-eyebrow">{t('identity')}</p>
-							<Field.Text
-								name="legalName"
-								label={t('legal-name')}
-								fullWidth
-								isDisabled={isPending}
-							/>
-							<Field.Textarea
-								name="description"
-								label={t('description')}
-								rows={3}
-								isDisabled={isPending}
-							/>
-							<Field.Text
-								name="websiteUrl"
-								label={t('website-url')}
-								placeholder="https://example.com"
-								fullWidth
-								isDisabled={isPending}
-							/>
-						</section>
-
-						<section className="flex flex-col gap-4">
-							<p className="publy-type-eyebrow">{t('contact')}</p>
-							<div className="grid grid-cols-2 gap-3">
-								<Field.Email
-									name="billingEmail"
-									label={t('billing-email')}
-									isDisabled={isPending}
-								/>
-								<Field.Email
-									name="supportEmail"
-									label={t('support-email')}
-									isDisabled={isPending}
-								/>
-							</div>
-						</section>
-
-						<section className="flex flex-col gap-4">
-							<p className="publy-type-eyebrow">{t('regional')}</p>
-							<div className="grid grid-cols-2 gap-3">
-								<Field.Select
-									name="defaultLocale"
-									label={t('default-locale')}
-									options={localeOptions}
-									isDisabled={isPending}
-								/>
-								<Field.Select
-									name="timezone"
-									label={t('timezone')}
-									options={timezoneOptions}
-									isDisabled={isPending}
-								/>
-							</div>
-						</section>
-
-						<section className="flex flex-col gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-warning-border) bg-(--publy-alert-warning-bg) p-4">
-							<Field.Textarea
-								name="notes"
-								label={t('internal-notes')}
-								helperText={t('internal-notes-hint')}
-								rows={4}
-								isDisabled={isPending}
-							/>
-						</section>
-					</div>
-
-					<aside className="order-1 lg:order-2">
-						<div className="lg:sticky lg:top-5">
-							<Card
-								className="gap-0 py-0"
-								data-testid="staff-tenant-edit-preview"
-							>
-								<div className="publy-card-header">
-									<span className="publy-type-eyebrow">{t('preview')}</span>
-								</div>
-
-								<div className="flex items-center gap-3 px-[18px] py-4">
-									<BrandTile
-										name={previewName}
-										logoUrl={previewLogoUrl}
-										className="size-11 rounded-[12px] text-base"
-									/>
-									<div className="min-w-0">
-										<p className="truncate text-[15px] font-semibold text-foreground">
-											{previewName}
-										</p>
-										<p className="publy-tenant-identity-meta">
-											<span className="publy-tenant-identity-meta-prefix">
-												publyapp.com/
-											</span>
-											{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
-											<span>{tenant.code ?? '—'}</span>
-										</p>
-										{previewWebsiteHostname ? (
-											<p className="truncate text-xs text-muted-foreground">
-												{previewWebsiteHostname}
+							<div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px] lg:gap-9">
+								<div className="order-2 flex min-w-0 flex-col gap-8 lg:order-1">
+									<section className="flex flex-col gap-4">
+										<p className="publy-type-eyebrow">{t('organization')}</p>
+										<Field.Text
+											name="name"
+											label={t('organization-name')}
+											fullWidth
+											isDisabled={isPending}
+										/>
+										<div className="grid grid-cols-[1fr_128px] items-start gap-3">
+											<ReadOnlySlugField
+												// data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data
+												code={tenant.code ?? '—'}
+												label={t('workspace-slug')}
+												hint={t('workspace-slug-immutable-hint')}
+											/>
+											<div className="flex flex-col gap-1.5">
+												<Field.Text
+													name="maxUsers"
+													type="number"
+													min={1}
+													label={t('seats')}
+													isDisabled={isPending}
+												/>
+												<div className="publy-stat-meter">
+													<div
+														className="publy-stat-meter-fill"
+														style={{ width: `${seatMeterPercent}%` }}
+													/>
+												</div>
+											</div>
+										</div>
+										{isBelowCurrentUsers ? (
+											<p
+												className="publy-field-helper text-(--publy-chip-pending-text)"
+												data-testid="edit-tenant-seats-warning"
+											>
+												<IconAlertCircle aria-hidden="true" />
+												{t('seats-below-current-members-warning', {
+													count: tenant.usersCount,
+												})}
 											</p>
 										) : null}
-									</div>
+										<Field.ImageUpload
+											name="logoUrl"
+											label={t('logo')}
+											previewName={previewName}
+											isDisabled={isPending}
+										/>
+									</section>
+
+									<section className="flex flex-col gap-4">
+										<p className="publy-type-eyebrow">{t('identity')}</p>
+										<Field.Text
+											name="legalName"
+											label={t('legal-name')}
+											fullWidth
+											isDisabled={isPending}
+										/>
+										<Field.Textarea
+											name="description"
+											label={t('description')}
+											rows={3}
+											isDisabled={isPending}
+										/>
+										<Field.Text
+											name="websiteUrl"
+											label={t('website-url')}
+											placeholder="https://example.com"
+											fullWidth
+											isDisabled={isPending}
+										/>
+									</section>
+
+									<section className="flex flex-col gap-4">
+										<p className="publy-type-eyebrow">{t('contact')}</p>
+										<div className="grid grid-cols-2 gap-3">
+											<Field.Email
+												name="billingEmail"
+												label={t('billing-email')}
+												isDisabled={isPending}
+											/>
+											<Field.Email
+												name="supportEmail"
+												label={t('support-email')}
+												isDisabled={isPending}
+											/>
+										</div>
+									</section>
+
+									<section className="flex flex-col gap-4">
+										<p className="publy-type-eyebrow">{t('regional')}</p>
+										<div className="grid grid-cols-2 gap-3">
+											<Field.Select
+												name="defaultLocale"
+												label={t('default-locale')}
+												options={localeOptions}
+												isDisabled={isPending}
+											/>
+											<Field.Select
+												name="timezone"
+												label={t('timezone')}
+												options={timezoneOptions}
+												isDisabled={isPending}
+											/>
+										</div>
+									</section>
+
+									<section className="flex flex-col gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-warning-border) bg-(--publy-alert-warning-bg) p-4">
+										<Field.Textarea
+											name="notes"
+											label={t('internal-notes')}
+											helperText={t('internal-notes-hint')}
+											rows={4}
+											isDisabled={isPending}
+										/>
+									</section>
 								</div>
 
-								<div className="mx-[18px] h-px bg-(--publy-row-border)" />
+								<aside className="order-1 lg:order-2">
+									<div className="lg:sticky lg:top-5">
+										<Card
+											className="gap-0 py-0"
+											data-testid="staff-tenant-edit-preview"
+										>
+											<div className="publy-card-header">
+												<span className="publy-type-eyebrow">
+													{t('preview')}
+												</span>
+											</div>
 
-								<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
-									<div className="flex items-center justify-between py-2.5 text-[13px]">
-										<span className="text-muted-foreground">{t('status')}</span>
-										<StatusPill tone={statusPillTone(tenant.status)}>
-											{tenant.status
-												? formatTenantStatusLabel(tenant.status, t)
-												: t('unknown')}
-										</StatusPill>
-									</div>
-									<div className="flex items-center justify-between py-2.5 text-[13px]">
-										<span className="text-muted-foreground">{t('seats')}</span>
-										<span
-											className="font-medium text-foreground"
-											data-testid="edit-preview-seats"
+											<div className="flex items-center gap-3 px-[18px] py-4">
+												<BrandTile
+													name={previewName}
+													logoUrl={previewLogoUrl}
+													className="size-11 rounded-[12px] text-base"
+												/>
+												<div className="min-w-0">
+													<p className="truncate text-[15px] font-semibold text-foreground">
+														{previewName}
+													</p>
+													<p className="publy-tenant-identity-meta">
+														<span className="publy-tenant-identity-meta-prefix">
+															publyapp.com/
+														</span>
+														{/* data-honesty-ignore: tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data */}
+														<span>{tenant.code ?? '—'}</span>
+													</p>
+													{previewWebsiteHostname ? (
+														<p className="truncate text-xs text-muted-foreground">
+															{previewWebsiteHostname}
+														</p>
+													) : null}
+												</div>
+											</div>
+
+											<div className="mx-[18px] h-px bg-(--publy-row-border)" />
+
+											<div className="flex flex-col divide-y divide-(--publy-row-border) px-[18px]">
+												<div className="flex items-center justify-between py-2.5 text-[13px]">
+													<span className="text-muted-foreground">
+														{t('status')}
+													</span>
+													<StatusPill tone={statusPillTone(tenant.status)}>
+														{tenant.status
+															? formatTenantStatusLabel(tenant.status, t)
+															: t('unknown')}
+													</StatusPill>
+												</div>
+												<div className="flex items-center justify-between py-2.5 text-[13px]">
+													<span className="text-muted-foreground">
+														{t('seats')}
+													</span>
+													<span
+														className="font-medium text-foreground"
+														data-testid="edit-preview-seats"
+													>
+														{tenant.usersCount} / {previewMaxUsers}
+													</span>
+												</div>
+												<div className="flex items-center justify-between py-2.5 text-[13px]">
+													<span className="text-muted-foreground">
+														{t('owners')}
+													</span>
+													<span
+														className="font-medium text-foreground"
+														data-testid="edit-preview-owners"
+													>
+														{tenant.ownersCount}
+													</span>
+												</div>
+												<div className="flex items-center justify-between py-2.5 text-[13px]">
+													<span className="text-muted-foreground">
+														{t('members')}
+													</span>
+													<span
+														className="font-medium text-foreground"
+														data-testid="edit-preview-members"
+													>
+														{tenant.usersCount}
+													</span>
+												</div>
+											</div>
+										</Card>
+										<div
+											className="mt-3 flex flex-col gap-1 text-[13px] text-muted-foreground"
+											data-testid="edit-tenant-metadata"
 										>
-											{tenant.usersCount} / {previewMaxUsers}
-										</span>
+											<p>
+												{t('created')}:{' '}
+												{formatShortDate(tenant.createdAt, i18n.language)}
+											</p>
+											<p>
+												{t('updated')}:{' '}
+												{formatShortDate(tenant.updatedAt, i18n.language)}
+											</p>
+											<p>
+												{t('last-active')}:{' '}
+												{formatLastActive(tenant.lastActivityAt)}
+											</p>
+										</div>
 									</div>
-									<div className="flex items-center justify-between py-2.5 text-[13px]">
-										<span className="text-muted-foreground">{t('owners')}</span>
-										<span
-											className="font-medium text-foreground"
-											data-testid="edit-preview-owners"
-										>
-											{tenant.ownersCount}
-										</span>
-									</div>
-									<div className="flex items-center justify-between py-2.5 text-[13px]">
-										<span className="text-muted-foreground">
-											{t('members')}
-										</span>
-										<span
-											className="font-medium text-foreground"
-											data-testid="edit-preview-members"
-										>
-											{tenant.usersCount}
-										</span>
-									</div>
-								</div>
-							</Card>
-							<div
-								className="mt-3 flex flex-col gap-1 text-[13px] text-muted-foreground"
-								data-testid="edit-tenant-metadata"
-							>
-								<p>
-									{t('created')}:{' '}
-									{formatShortDate(tenant.createdAt, i18n.language)}
-								</p>
-								<p>
-									{t('updated')}:{' '}
-									{formatShortDate(tenant.updatedAt, i18n.language)}
-								</p>
-								<p>
-									{t('last-active')}: {formatLastActive(tenant.lastActivityAt)}
-								</p>
+								</aside>
 							</div>
-						</div>
-					</aside>
-				</div>
 
-				<FormActionBar
-					status={
-						isDirty ? (
-							<span data-testid="edit-tenant-dirty-hint">
-								{t('unsaved-changes')}
-							</span>
-						) : undefined
-					}
-				>
-					{isDirty ? (
-						<Button
-							type="button"
-							variant="ghost"
-							disabled={isPending}
-							onClick={() => {
-								if (tenantFormValues) {
-									reset(tenantFormValues);
+							<FormActionBar
+								status={
+									isDirty ? (
+										<span data-testid="edit-tenant-dirty-hint">
+											{t('unsaved-changes')}
+										</span>
+									) : undefined
+								}
+							>
+								{isDirty ? (
+									<Button
+										type="button"
+										variant="ghost"
+										disabled={isPending}
+										onClick={() => {
+											if (tenantFormValues) {
+												reset(tenantFormValues);
+											}
+										}}
+									>
+										{t('reset-to-saved')}
+									</Button>
+								) : null}
+								<Button
+									type="button"
+									variant="ghost"
+									disabled={isPending}
+									onClick={() => {
+										void navigate({
+											to: '/staff/tenants/$tenantId',
+											params: { tenantId },
+										});
+									}}
+								>
+									{t('cancel')}
+								</Button>
+								<Button type="submit" disabled={isPending || !isDirty}>
+									{t('save-changes')}
+								</Button>
+							</FormActionBar>
+						</Form>
+
+						<ConfirmDialog
+							isOpen={blocker.status === 'blocked'}
+							title={t('unsaved-changes-dialog-title')}
+							description={t('unsaved-changes-dialog-description')}
+							confirmLabel={t('leave-page')}
+							cancelLabel={t('cancel')}
+							tone="danger"
+							onConfirm={() => blocker.proceed?.()}
+							onOpenChange={(isOpen) => {
+								if (!isOpen) {
+									blocker.reset?.();
 								}
 							}}
-						>
-							{t('reset-to-saved')}
-						</Button>
-					) : null}
-					<Button
-						type="button"
-						variant="ghost"
-						disabled={isPending}
-						onClick={() => {
-							void navigate({
-								to: '/staff/tenants/$tenantId',
-								params: { tenantId },
-							});
-						}}
-					>
-						{t('cancel')}
-					</Button>
-					<Button type="submit" disabled={isPending || !isDirty}>
-						{t('save-changes')}
-					</Button>
-				</FormActionBar>
-			</Form>
-
-			<ConfirmDialog
-				isOpen={blocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
-				tone="danger"
-				onConfirm={() => blocker.proceed?.()}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) {
-						blocker.reset?.();
-					}
-				}}
-			/>
-		</FormPageLayout>
+						/>
+					</FormPageLayout>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 
