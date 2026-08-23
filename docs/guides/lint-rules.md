@@ -81,6 +81,7 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **AGENTS.md:** "Arrow function components only — never `function` declarations for components."
 - **Autofix:** no
 - **Detection:** flags `FunctionDeclaration` (or `FunctionExpression` inside `memo`/`forwardRef`) whose name is PascalCase and whose body contains a `return` statement returning JSX (including ternary/logical/TS-wrapped returns), a call to a known renderer (`useRender`, `createElement`, `jsx`, `jsxs`, or `React.xxx` member form), or calls at least one React hook and returns only null/JSX; pure helpers and non-PascalCase functions are left un-flagged
+- **Scope:** the rule never targets class members (methods, getters, static members) — it visits only `FunctionDeclaration`/`FunctionExpression`, so class bodies are untouched and method `this` binding is preserved; pinned by the negative RuleTester case "Class declaration — out of scope for this rule" in `packages/lint-ts/src/rules/arrow-function-components.test.ts`
 - **Shipped in:** #653 (dormant)
 - **Enforced in:** #1210 (74 baseline offenders across 73 files in `apps/front/src/**/*.tsx`)
 
