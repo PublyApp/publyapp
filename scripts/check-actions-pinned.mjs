@@ -1,9 +1,16 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
-// Supply-chain guard: fails when any `uses: owner/repo@<ref>` in
-// .github/workflows/** is not pinned to a full 40-hex-char commit SHA.
+// Supply-chain guard: fails when any `uses:` in .github/workflows/** is
+// not pinned to an immutable reference:
+//   - `owner/repo@<ref>` must carry a full 40-hex-char commit SHA;
+//     a value with NO `@ref` at all is unparseable/unpinnable input and
+//     fails closed rather than being skipped.
+//   - `docker://image[:tag][@digest]` container references must be pinned
+//     by content digest (`@sha256:<64-hex>`); a tag-only or digest-less
+//     image is mutable and fails.
 // Local actions (starting with `./`) are exempt — they live in the repo
 // and are already covered by the drift guard's step-content hash.
 //
@@ -15,11 +22,14 @@ import process from 'node:process';
 
 const workflowsDir = '.github/workflows';
 const shaPattern = /^[0-9a-f]{40}$/;
+const dockerDigestPattern = /^sha256:[0-9a-f]{64}$/;
 
 /**
  * Scans all .github/workflows/*.yml files and returns an array of
- * { file, line, uses } objects for every non-local `uses:` that is
- * not pinned to a 40-char hex SHA.
+ * { file, line, uses } objects for every non-local `uses:` that is not
+ * pinned to an immutable reference (40-char hex SHA for actions, content
+ * digest for `docker://` images), including undecidable input such as a
+ * missing `@ref`.
  */
 export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
 	const dir = path.join(rootDir, workflowsDir);
@@ -47,9 +57,33 @@ export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
 			// Skip local actions (./path)
 			if (uses.startsWith('./')) continue;
 
-			// Extract the ref after @
+			// Container references (docker://…): only a content digest pin is
+			// immutable. Tag-only or digest-less images fail.
+			if (uses.startsWith('docker://')) {
+				const digestIdx = uses.lastIndexOf('@');
+				const digest = digestIdx === -1 ? '' : uses.slice(digestIdx + 1);
+
+				if (!dockerDigestPattern.test(digest)) {
+					findings.push({
+						file,
+						line: i + 1,
+						uses,
+					});
+				}
+				continue;
+			}
+
+			// Fail-closed on input without a `@ref` at all: it cannot be
+			// decided, so it never passes silently.
 			const atIdx = uses.lastIndexOf('@');
-			if (atIdx === -1) continue;
+			if (atIdx === -1) {
+				findings.push({
+					file,
+					line: i + 1,
+					uses,
+				});
+				continue;
+			}
 
 			const ref = uses.slice(atIdx + 1);
 
@@ -68,12 +102,12 @@ export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
 };
 
 // --- CLI entry point ---
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.url)) {
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
 	const findings = await findUnpinnedActions();
 
 	if (findings.length > 0) {
 		console.error(
-			`::error::${findings.length} action(s) in .github/workflows are not pinned to a full SHA:`,
+			`::error::${findings.length} uses: reference(s) in .github/workflows are not pinned to an immutable ref (full SHA / docker digest):`,
 		);
 		for (const f of findings) {
 			console.error(`  ${f.file}:${f.line}: ${f.uses}`);
@@ -81,5 +115,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.met
 		process.exit(1);
 	}
 
-	console.log('All uses: references in .github/workflows are pinned to full commit SHAs.');
+	console.log(
+		'All uses: references in .github/workflows are pinned to immutable refs (full SHAs / docker digests).',
+	);
 }

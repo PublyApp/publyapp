@@ -146,3 +146,45 @@ test('ignores commented-out uses: lines (YAML comments)', async () => {
 
 	assert.deepStrictEqual(findings, []);
 });
+
+// --- r3 hardening: fail-closed on undecidable / mutable non-action refs ---
+
+test('fails when a uses: value has no @ref at all', async () => {
+	// Undecidable input must never pass silently.
+	const content = makeWorkflow(
+		'      - uses: some-owner/some-action-without-ref\n',
+	);
+
+	const rootDir = await buildFixture({ workflowContent: content });
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].line, 8);
+	assert.strictEqual(findings[0].uses, 'some-owner/some-action-without-ref');
+});
+
+test('fails when a docker:// image has no digest pin', async () => {
+	const content = makeWorkflow(
+		'      - uses: docker://alpine:3.20\n',
+	);
+
+	const rootDir = await buildFixture({ workflowContent: content });
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].line, 8);
+	assert.strictEqual(findings[0].uses, 'docker://alpine:3.20');
+});
+
+test('passes when a docker:// image is pinned by sha256 digest', async () => {
+	const content = makeWorkflow(
+		'      - uses: docker://alpine@sha256:6457d53fb065d6f250e1504b9bc42d5b6c12950f3e2bb2611d13bbca9a4b7c58\n',
+	);
+
+	const rootDir = await buildFixture({ workflowContent: content });
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.deepStrictEqual(findings, []);
+});
