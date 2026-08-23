@@ -52,7 +52,28 @@ const TEST_CONTAINER = 'publyapp-review-api-guard-test';
 const TEST_PORT = 5599;
 const TEST_CONNECTION = `Host=localhost;Port=${String(TEST_PORT)};Database=publyapp;Username=postgres;Password=password`;
 const TRUSTED_PROXY_CIDRS = '127.0.0.1/32,::1/128';
-const BUILD_ENV = { APP_ROLE: 'api', TRUSTED_PROXY_CIDRS };
+
+// #1239 made AppEnvironment require SOCIAL_ACCOUNTS_MASTER_KEY (base64, exactly 32
+// bytes) unconditionally — including the doc-gen-less `dotnet-ef` design-time path this
+// file drives. The value below is the committed .env.example TEMPLATE placeholder, not a
+// real secret; it exists only so the API's config layer can boot in test harnesses.
+const SOCIAL_ACCOUNTS_MASTER_KEY =
+	'NmPlOY4IXMIqksyOOpwMmo0oZGHr3gIrqpMP/eKHVkY=';
+
+// Every launch proof spawns its child with `{ ...process.env }`; exporting here means
+// each child boots past the #1239 requirement no matter which env-literal shape its
+// spawn site uses, so each proof exercises the scenario it was written for (connection
+// string precedence / fail-closed) rather than dying on unrelated config boot. No test
+// asserts failure BECAUSE the master key is missing.
+process.env.SOCIAL_ACCOUNTS_MASTER_KEY ??= SOCIAL_ACCOUNTS_MASTER_KEY;
+
+const BUILD_ENV = {
+	APP_ROLE: 'api',
+	TRUSTED_PROXY_CIDRS,
+	// dotnet-ef spawns WITHOUT ASPNETCORE_ENVIRONMENT, so DotNetEnv never loads
+	// .env.development and the variable must arrive through process env directly.
+	SOCIAL_ACCOUNTS_MASTER_KEY,
+};
 
 // The REAL migration ids compiled into this worktree's actual apps/api/Migrations — not
 // a synthetic stand-in. Excludes the generated Designer/Snapshot siblings and co-located
@@ -573,9 +594,27 @@ const ensureEnvFileHasConnectionString = () => {
 	);
 };
 
+// #1239 added a second required variable (SOCIAL_ACCOUNTS_MASTER_KEY). Worktrees cloned
+// before that change carry an older .env.development without the line, and every launch
+// proof in this file would then die on config boot instead of testing what they mean to
+// test. Same repair shape as the connection string above: copy the committed template's
+// PLACEHOLDER value (not a real secret) when the line is missing.
+const ensureEnvFileHasSocialAccountsMasterKey = () => {
+	const original = readFileSync(envFilePath, 'utf8');
+	if (/^SOCIAL_ACCOUNTS_MASTER_KEY=/m.test(original)) {
+		return;
+	}
+
+	writeFileSync(
+		envFilePath,
+		`${original.trimEnd()}\nSOCIAL_ACCOUNTS_MASTER_KEY="${SOCIAL_ACCOUNTS_MASTER_KEY}"\n`,
+	);
+};
+
 const backUpEnvFile = () => {
 	ensureEnvFileExists();
 	ensureEnvFileHasConnectionString();
+	ensureEnvFileHasSocialAccountsMasterKey();
 	copyFileSync(envFilePath, envFileBackupPath);
 };
 
@@ -1059,6 +1098,8 @@ const runHostedServiceManifestProbe = ({
 				APP_ROLE: appRole,
 				TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
 				POSTGRES_CONNECTION_STRING: connectionString,
+				// #1239 requirement; see BUILD_ENV above.
+				SOCIAL_ACCOUNTS_MASTER_KEY,
 			},
 			// Cold `dotnet exec` stretches far past 30s when the host is heavily
 			// loaded by sibling lanes; 120s keeps the probe honest without
