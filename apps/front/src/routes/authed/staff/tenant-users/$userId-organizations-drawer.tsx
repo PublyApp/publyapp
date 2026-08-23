@@ -1,7 +1,7 @@
 import { IconSearch } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, type FieldSelectOption } from '~/components/field';
@@ -45,7 +45,7 @@ const PICKER_PAGE_SIZE = 20;
 type LinkDrawerValues = { level: 'Admin' | 'User' };
 
 /** Test seam + drawer-registry surface: rendered directly by drawer-form guards. */
-export function LinkCompaniesDrawerHost({
+export const LinkCompaniesDrawerHost = ({
 	userId,
 	isOpen,
 	onOpenChange,
@@ -53,7 +53,7 @@ export function LinkCompaniesDrawerHost({
 	userId: string;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
-}) {
+}) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState('');
@@ -66,7 +66,9 @@ export function LinkCompaniesDrawerHost({
 	const methods = useForm<LinkDrawerValues>({
 		defaultValues: { level: 'User' },
 	});
-	const level = methods.watch('level');
+	// useWatch (not watch) — a subscription instead of an unconditional
+	// re-read; keeps the compiler's memoization valid for this component.
+	const level = useWatch({ control: methods.control, name: 'level' });
 
 	// The picker only fetches while open — an idle drawer never hits /staff/tenants.
 	const pickerQuery = useGlobalTenantUsersPickerQuery(
@@ -287,4 +289,4 @@ export function LinkCompaniesDrawerHost({
 			</DrawerContent>
 		</Drawer>
 	);
-}
+};

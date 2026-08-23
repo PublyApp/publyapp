@@ -53,6 +53,16 @@ import { LinkCompaniesDrawerHost } from './$userId-organizations-drawer';
 import { tenantUserDetailsCrumbs } from './_crumbs';
 import { TenantUserDetailsShell } from './_details-shell';
 
+const TenantUserOrganizationsTabPage = () => {
+	const { userId } = Route.useParams();
+
+	return (
+		<TenantUserDetailsShell userId={userId} activeTab="organizations">
+			<OrganizationsTabContent userId={userId} />
+		</TenantUserDetailsShell>
+	);
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenant-users/details/$userId/organizations',
 )({
@@ -65,23 +75,13 @@ export const Route = createFileRoute(
 	component: TenantUserOrganizationsTabPage,
 });
 
-function TenantUserOrganizationsTabPage() {
-	const { userId } = Route.useParams();
-
-	return (
-		<TenantUserDetailsShell userId={userId} activeTab="organizations">
-			<OrganizationsTabContent userId={userId} />
-		</TenantUserDetailsShell>
-	);
-}
-
 const DEFAULT_SORT = { id: 'tenant_name', order: 'asc' as const };
 // Locked parity default (docs/front-migration/parity-contract.md).
 const DEFAULT_SIZE = 100;
 
 type OrganizationRow = ReturnType<typeof toGlobalTenantUserCompanyRows>[number];
 
-export function OrganizationsTabContent({ userId }: { userId: string }) {
+export const OrganizationsTabContent = ({ userId }: { userId: string }) => {
 	const { t } = useTranslation('common');
 	const [isLinkDrawerOpen, setLinkDrawerOpen] = useState(false);
 
@@ -108,9 +108,9 @@ export function OrganizationsTabContent({ userId }: { userId: string }) {
 			/>
 		</div>
 	);
-}
+};
 
-function CompanyCountLabel({ userId }: { userId: string }) {
+const CompanyCountLabel = ({ userId }: { userId: string }) => {
 	const { t } = useTranslation('common');
 	const query = useGlobalTenantUserCompaniesQuery({
 		userId,
@@ -125,9 +125,9 @@ function CompanyCountLabel({ userId }: { userId: string }) {
 			{t('company-count', { count: rows.length })}
 		</p>
 	);
-}
+};
 
-function OrganizationsTable({ userId }: { userId: string }) {
+const OrganizationsTable = ({ userId }: { userId: string }) => {
 	const { t, i18n } = useTranslation('common');
 	const navigate = Route.useNavigate();
 	const rawSearch = Route.useSearch() as TableSearchParamInput;
@@ -218,7 +218,7 @@ function OrganizationsTable({ userId }: { userId: string }) {
 			</FloatingSelectionBar>
 		</>
 	);
-}
+};
 
 function buildOrganizationColumns(
 	t: (key: string, options?: Record<string, unknown>) => string,
@@ -291,13 +291,13 @@ function buildOrganizationColumns(
 /** Test seam: the columns builder with explicit translator/locale. */
 export const buildOrganizationColumnsForTests = buildOrganizationColumns;
 
-function ConfirmRemoveSingleOrganization({
+const ConfirmRemoveSingleOrganization = ({
 	userId,
 	row,
 }: {
 	userId: string;
 	row: OrganizationRow;
-}) {
+}) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [isOpen, setOpen] = useState(false);
@@ -337,25 +337,29 @@ function ConfirmRemoveSingleOrganization({
 			onOpenChange={setOpen}
 		/>
 	);
-}
+};
 
-function OrganizationsBulkActions({
+const OrganizationsBulkActions = ({
 	userId,
 	selection,
 }: {
 	userId: string;
 	rows: OrganizationRow[];
 	selection: ReturnType<typeof useRowSelection>;
-}) {
+}) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [isOpen, setOpen] = useState(false);
 	const bulkUnlink = useBulkUnlinkGlobalTenantUserCompaniesMutation();
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const selectedIds = Object.entries(selection.rowSelection)
-		.filter(([, checked]) => checked)
-		.map(([id]) => id);
+	// Single pass (react-doctor/js-combine-iterations): no chained filter+map.
+	const selectedIds: string[] = [];
+	for (const [id, checked] of Object.entries(selection.rowSelection)) {
+		if (checked) {
+			selectedIds.push(id);
+		}
+	}
 	const isOverLimit = selectedIds.length > BULK_ACTION_MAX_COUNT;
 
 	if (shouldLogout) {
@@ -457,4 +461,4 @@ function OrganizationsBulkActions({
 			/>
 		</>
 	);
-}
+};

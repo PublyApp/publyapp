@@ -44,6 +44,16 @@ const getIdentitySchema = (t: (key: string) => string) =>
 
 type IdentityFormValues = z.infer<ReturnType<typeof getIdentitySchema>>;
 
+const TenantUserGeneralTabPage = () => {
+	const { userId } = Route.useParams();
+
+	return (
+		<TenantUserDetailsShell userId={userId} activeTab="general">
+			<IdentityEditSection userId={userId} />
+		</TenantUserDetailsShell>
+	);
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenant-users/details/$userId/general',
 )({
@@ -54,22 +64,16 @@ export const Route = createFileRoute(
 	component: TenantUserGeneralTabPage,
 });
 
-function TenantUserGeneralTabPage() {
-	const { userId } = Route.useParams();
-
-	return (
-		<TenantUserDetailsShell userId={userId} activeTab="general">
-			<IdentityEditSection userId={userId} />
-		</TenantUserDetailsShell>
-	);
-}
-
-function IdentityEditSection({ userId }: { userId: string }) {
+const IdentityEditSection = ({ userId }: { userId: string }) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const updateIdentity = useUpdateGlobalTenantUserIdentityMutation();
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const hasSavedRef = useRef(false);
+	// Saved-flag as STATE (not a ref): `useBlocker`'s shouldBlockFn runs while
+	// the component renders, and react-doctor forbids ref reads there. The
+	// flag flips only on a successful submit, so the extra render it causes
+	// is harmless.
+	const [hasSaved, setHasSaved] = useState(false);
 
 	const schema = useMemo(() => getIdentitySchema(t), [t]);
 	const methods = useForm<IdentityFormValues>({
@@ -101,7 +105,7 @@ function IdentityEditSection({ userId }: { userId: string }) {
 	}, [user, userId, detailsQuery.isSuccess, formState.isDirty, reset]);
 
 	const blocker = useBlocker({
-		shouldBlockFn: () => formState.isDirty && !hasSavedRef.current,
+		shouldBlockFn: () => formState.isDirty && !hasSaved,
 		withResolver: true,
 	});
 
@@ -148,7 +152,7 @@ function IdentityEditSection({ userId }: { userId: string }) {
 			return;
 		}
 
-		hasSavedRef.current = true;
+		setHasSaved(true);
 		methods.reset(
 			{ firstName: values.firstName.trim(), lastName: values.lastName.trim() },
 			{ keepValues: true },
@@ -209,4 +213,4 @@ function IdentityEditSection({ userId }: { userId: string }) {
 			/>
 		</FormPageLayout>
 	);
-}
+};
