@@ -9,7 +9,7 @@
 //
 // Requires Docker and the .NET SDK (both already required by `just test-api`).
 //
-// Per the review-api.mjs task ("would this test go red if the guard were deleted?"):
+// Per the review-api.ts task ("would this test go red if the guard were deleted?"):
 // yes — it calls the real, exported `assertNoPendingMigrations` against a database that
 // is genuinely missing the branch's real last migration (not a synthetic fixture), and
 // asserts on the specific migration id named in the thrown error, not merely that it
@@ -37,6 +37,11 @@ import {
 	LAUNCHED_API_CHILD_PID_PREFIX,
 	waitForApiReachable,
 } from './review-api.ts';
+import {
+	resolveByNumber,
+	runIssueByNumber,
+	runPrByNumber,
+} from './review-worktree.resolve.ts';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '../../..');
@@ -300,6 +305,99 @@ const spawnSyncCapture = (command, args) => {
 
 const skip = !dockerIsAvailable();
 
+// ---------------------------------------------------------------------------
+// Round-3 (#1238): the launch proofs below spawn the REAL review-api CLI, which resolves
+// its target PR/issue against GitHub plus this machine's actual worktrees. The old hard
+// coded '1016' only ever worked inside the author's own long-gone worktree (the PR is
+// closed and its worktree deleted, so resolution failed with "No PR or issue found" and
+// every launch proof died before starting an API). Derive the number from THIS checkout's
+// branch name (e.g. chore/1181-scripts-ts -> 1181), resolve it with THE CLI'S OWN
+// runPrByNumber/runIssueByNumber helpers (so "no such PR" and "no such issue" behave
+// exactly as in production: null, not an error), and skip with a precise reason when no
+// locally resolvable target exists — mirroring the dockerIsAvailable() preflight above.
+// ---------------------------------------------------------------------------
+type LaunchTargetResolution =
+	| { kind: 'ok'; number: number }
+	| { kind: 'skip'; reason: string };
+
+// Same porcelain parsing shape the review-api CLI feeds into resolveByNumber.
+const readLocalWorktrees = () => {
+	const result = spawnSync('git', ['worktree', 'list', '--porcelain'], {
+		cwd: repoRoot,
+		encoding: 'utf8',
+	});
+	const worktrees = [];
+	let current = null;
+	for (const line of result.stdout.split('\n')) {
+		if (line.startsWith('worktree ')) {
+			current = { path: line.slice('worktree '.length) };
+		} else if (line.startsWith('HEAD ') && current) {
+			current.head = line.slice('HEAD '.length);
+		} else if (line.startsWith('branch refs/heads/') && current) {
+			current.branch = line.slice('branch refs/heads/'.length);
+		} else if (line.trim() === '' && current) {
+			worktrees.push(current);
+			current = null;
+		}
+	}
+	if (current) {
+		worktrees.push(current);
+	}
+
+	return worktrees;
+};
+
+const deriveIssueNumberFromBranch = () => {
+	const branchResult = spawnSync('git', ['branch', '--show-current'], {
+		cwd: repoRoot,
+		encoding: 'utf8',
+	});
+	const branch = branchResult.stdout.trim();
+	for (let cursor = branch.length - 1; cursor >= 0; cursor -= 1) {
+		const slice = branch.slice(cursor);
+		const match = /^\d+(?=$|[/_-])/.exec(slice);
+		if (match && /[/_-]/.test(branch.slice(cursor - 1, cursor))) {
+			return Number.parseInt(match[0], 10);
+		}
+	}
+
+	return null;
+};
+
+const resolveLaunchTarget = async (): Promise<LaunchTargetResolution> => {
+	const derived = deriveIssueNumberFromBranch();
+	if (derived === null) {
+		return {
+			kind: 'skip',
+			reason:
+				'no issue number derivable from the current branch name (expected a form like chore/1181-scripts-ts)',
+		};
+	}
+
+	const worktrees = readLocalWorktrees();
+	const resolved = await resolveByNumber(derived, worktrees, {
+		// Same gh invocation shapes the real CLI uses inside main(), including the
+		// missing-reference -> null semantics via runGhJson.
+		runPrByNumber: (number) => runPrByNumber(number),
+		runIssueByNumber: (number) => runIssueByNumber(number),
+	});
+
+	if (resolved.kind === 'pr' || resolved.kind === 'issue') {
+		return { kind: 'ok', number: derived };
+	}
+
+	return {
+		kind: 'skip',
+		reason: `target #${String(derived)} is not resolvable from this checkout (resolved kind: ${resolved.kind}); the launch proofs need a PR/issue pinned to a local worktree`,
+	};
+};
+
+const launchTarget = await resolveLaunchTarget();
+const launchTargetSkip = launchTarget.kind === 'skip';
+const launchTargetSkipReason =
+	launchTarget.kind === 'skip' ? launchTarget.reason : '';
+const targetNumber = launchTarget.kind === 'ok' ? launchTarget.number : 0;
+
 beforeAll(async () => {
 	if (skip) {
 		return;
@@ -342,7 +440,7 @@ beforeAll(async () => {
 		'--connection',
 		TEST_CONNECTION,
 	]);
-});
+}, 600_000);
 
 afterAll(() => {
 	if (skip) {
@@ -359,7 +457,7 @@ afterAll(() => {
 
 	restoreEnvFileIfBackedUp();
 	removeTestContainer();
-});
+}, 120_000);
 
 test(
 	'FAILING PROOF: guard refuses to start and names the real unapplied migration',
@@ -394,7 +492,7 @@ test(
 // `main()` itself did not take, so it could not catch (and did not catch) the BLOCKER
 // round 2 found: buildApiChildEnv started from the launcher's ambient process.env and only
 // pinned the connection string when told to, which `main()` did not do. This version
-// drives the REAL CLI entrypoint (`node scripts/review-api.mjs`) exactly as a reviewer
+// drives the REAL CLI entrypoint (`node scripts/review-api.ts`) exactly as a reviewer
 // would run it, against the SAME genuinely pending migration left unapplied by `beforeAll()`.
 // ---------------------------------------------------------------------------
 
@@ -418,7 +516,19 @@ const AMBIENT_DECOY_CONNECTION =
 // @ts-expect-error rung-0: add proper type in later rung
 const isPortFree = async (port) => !(await isTcpPortReachable(port));
 
+// Round-3 (#1238): a fresh git worktree has no .env.development (gitignored). Materialize
+// it from the committed .env.example template so the backup/restore lifecycle below has a
+// real file to snapshot — the API loads its configuration exclusively from .env.development.
+const ensureEnvFileExists = () => {
+	if (existsSync(envFilePath)) {
+		return;
+	}
+
+	copyFileSync(path.join(repoRoot, '.env.example'), envFilePath);
+};
+
 const backUpEnvFile = () => {
+	ensureEnvFileExists();
 	copyFileSync(envFilePath, envFileBackupPath);
 };
 
@@ -512,7 +622,7 @@ const killProcessGroup = (child) => {
 // anything. When the regression this test exists to catch was restored (fall back to an
 // ambient connection string instead of failing closed), the real CLI launched `dotnet watch`
 // and installed its own SIGTERM handler — spawnSync's internal timeout could send one signal
-// to the direct child, but review-api.mjs's handler only forwards that signal once (no
+// to the direct child, but review-api.ts's handler only forwards that signal once (no
 // escalation, no self-exit), so a slow/ignoring descendant left the whole tree, and the
 // blocked event loop, alive well past the "30-second" bound; the test's own `after` cleanup
 // could not run at all while spawnSync blocked it. This performs an escalating, bounded
@@ -624,7 +734,7 @@ const findApiAssemblyPath = () => {
 // assumption on a host that runs concurrent dotnet/dotnet-watch processes (this repo's own
 // sibling review/dev lanes do exactly that).
 //
-// Fixed by making the launcher report its own child pid directly (review-api.mjs prints
+// Fixed by making the launcher report its own child pid directly (review-api.ts prints
 // `LAUNCHED_API_CHILD_PID_PREFIX <pid>` — the exact pid Node's own spawn() call just set
 // buildApiChildEnv's resolved env on) and reading that reported fact from the CLI's own
 // captured stdout, instead of searching for it. A discovered pid can be wrong in three ways —
@@ -650,7 +760,7 @@ const findApiAssemblyPath = () => {
 //     inside other output, or preceded/followed by other text, does not count;
 //   - EXACTLY ONE such line is required. Zero keeps waiting (bounded, then throws, as
 //     before). Two or more throws IMMEDIATELY, without picking one: the production launcher
-//     emits this marker exactly once per invocation (review-api.mjs's single `console.log`
+//     emits this marker exactly once per invocation (review-api.ts's single `console.log`
 //     call at the point it learns its own spawned child's pid), so more than one complete
 //     matching line is always a defect — a decoy or a duplicate-emission regression — never
 //     a legitimate state to resolve by guessing which one is real.
@@ -658,7 +768,7 @@ const LAUNCHED_API_CHILD_PID_LINE_PATTERN = new RegExp(
 	`^${LAUNCHED_API_CHILD_PID_PREFIX}\\s*(\\d+)$`,
 );
 
-// Waits (bounded) for review-api.mjs's LAUNCHED_API_CHILD_PID_PREFIX marker to appear as its
+// Waits (bounded) for review-api.ts's LAUNCHED_API_CHILD_PID_PREFIX marker to appear as its
 // own complete, unambiguous line in the CLI's own captured stdout, then parses the reported
 // pid out of it. Throws — never falls back to any kind of search, and never guesses among
 // multiple candidates — if the marker never appears within the bound, or appears more than
@@ -914,7 +1024,7 @@ const runHostedServiceManifestProbe = ({
 
 test(
 	'END-TO-END: the real CLI pins the guard and the launched API to the SAME (worktree file) connection string, not an ambient one',
-	{ skip },
+	{ skip: skip || (launchTargetSkip ? launchTargetSkipReason : false) },
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
 			const free = await isPortFree(CLI_PORT);
@@ -927,8 +1037,8 @@ test(
 			const child = spawn(
 				'node',
 				[
-					'scripts/review-api.mjs',
-					'1016',
+					'packages/scripts-ts/src/review-api.ts',
+					String(targetNumber),
 					'--allow-migrations',
 					'--port',
 					String(CLI_PORT),
@@ -1045,7 +1155,7 @@ const NORMAL_LAUNCH_PORT = 5593;
 
 test(
 	'END-TO-END: an ordinary launch (fully migrated, no --allow-migrations) still pins the Api role — no job engine starts against the shared database',
-	{ skip },
+	{ skip: skip || (launchTargetSkip ? launchTargetSkipReason : false) },
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
 			const free = await isPortFree(NORMAL_LAUNCH_PORT);
@@ -1065,8 +1175,8 @@ test(
 			const child = spawn(
 				'node',
 				[
-					'scripts/review-api.mjs',
-					'1016',
+					'packages/scripts-ts/src/review-api.ts',
+					String(targetNumber),
 					'--port',
 					String(NORMAL_LAUNCH_PORT),
 				],
@@ -1185,7 +1295,7 @@ const MISSING_VALUE_TIMEOUT_MS = 30_000;
 
 test(
 	'END-TO-END: a worktree file missing POSTGRES_CONNECTION_STRING fails closed instead of falling back to an ambient decoy',
-	{ skip },
+	{ skip: skip || (launchTargetSkip ? launchTargetSkipReason : false) },
 	async () => {
 		await withWorktreeConnectionStringRemoved(async () => {
 			const free = await isPortFree(MISSING_VALUE_PORT);
@@ -1201,8 +1311,8 @@ test(
 			const child = spawn(
 				'node',
 				[
-					'scripts/review-api.mjs',
-					'1016',
+					'packages/scripts-ts/src/review-api.ts',
+					String(targetNumber),
 					'--port',
 					String(MISSING_VALUE_PORT),
 				],

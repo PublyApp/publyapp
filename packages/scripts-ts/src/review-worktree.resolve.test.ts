@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { test } from 'vitest';
 
@@ -6,6 +9,7 @@ import {
 	GH_AUTH_FAILURE,
 	GH_INVOCATION_FAILURE,
 	GH_NETWORK_FAILURE,
+	disambiguateWorktreesByCwd,
 	getBranchPathByMap,
 	getIssueBranchPattern,
 	isGhAuthFailure,
@@ -351,6 +355,69 @@ test('resolveByNumber gives PR precedence over issue when both can match', async
 	assert.equal(result.kind, 'pr');
 	assert.equal(result.source.number, 994);
 	assert.equal(result.worktree?.path, '/tmp/issue');
+});
+
+test('disambiguateWorktreesByCwd: fewer than two candidates passes through untouched', () => {
+	const single = [{ path: '/tmp/a', branch: 'fix/1-a', head: 'h' }];
+	assert.equal(disambiguateWorktreesByCwd(single), single);
+});
+
+test('disambiguateWorktreesByCwd: keeps every candidate when none is the cwd', () => {
+	const matches = [
+		{ path: '/tmp/a', branch: 'fix/994-a', head: 'h1' },
+		{ path: '/tmp/b', branch: 'fix/994-b', head: 'h2' },
+	];
+
+	assert.deepEqual(disambiguateWorktreesByCwd(matches), matches);
+});
+
+test('disambiguateWorktreesByCwd: prefers the candidate containing the current directory', () => {
+	const parent = mkdtempSync(path.join(tmpdir(), 'resolve-cwd-'));
+	const here = path.join(parent, 'here');
+	const there = path.join(parent, 'there');
+	mkdirSync(here);
+	mkdirSync(there);
+	const matches = [
+		{ path: there, branch: 'fix/994-a', head: 'h1' },
+		{ path: here, branch: 'fix/994-b', head: 'h2' },
+	];
+	const previousCwd = process.cwd();
+	process.chdir(here);
+	try {
+		assert.deepEqual(disambiguateWorktreesByCwd(matches), [matches[1]]);
+	} finally {
+		process.chdir(previousCwd);
+		rmSync(parent, { recursive: true, force: true });
+	}
+});
+
+test('resolveByNumber: an issue matching multiple worktrees resolves to the one at the cwd', async () => {
+	const parent = mkdtempSync(path.join(tmpdir(), 'resolve-by-number-'));
+	const here = path.join(parent, 'feature');
+	const docsPlan = path.join(parent, 'docs');
+	mkdirSync(here);
+	mkdirSync(docsPlan);
+	const previousCwd = process.cwd();
+	process.chdir(here);
+	try {
+		const result = await resolveByNumber(
+			994,
+			[
+				{ path: docsPlan, branch: 'docs/plan-994', head: 'h1' },
+				{ path: here, branch: 'chore/994-scripts-ts', head: 'h2' },
+			],
+			{
+				runPrByNumber: async () => null,
+				runIssueByNumber: async () => ({ number: 994 }),
+			},
+		);
+
+		assert.equal(result.kind, 'issue');
+		assert.equal(result.worktree?.path, here);
+	} finally {
+		process.chdir(previousCwd);
+		rmSync(parent, { recursive: true, force: true });
+	}
 });
 
 test('runPrByNumber uses expected gh CLI args', async () => {

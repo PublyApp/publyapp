@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { realpathSync } from 'node:fs';
+
 export const GH_AUTH_FAILURE = 'gh-auth-failure';
 export const GH_NETWORK_FAILURE = 'gh-network-failure';
 export const GH_INVOCATION_FAILURE = 'gh-invocation-failure';
@@ -95,6 +97,39 @@ export const getIssueBranchPattern = (number) =>
 		ISSUE_TOKEN_PATTERN_SOURCE.replace('${number}', String(number)),
 		'i',
 	);
+
+// Round-3 review (#1238): when an issue number matches several local worktrees (e.g. a
+// feature worktree plus a docs/plan-* worktree for the same number), the ambiguity error
+// is only useful when none of the candidates is obviously "here". The worktree containing
+// the caller's current directory is unambiguous by construction, so prefer it and keep
+// the ambiguity error for genuinely ambiguous cases.
+// @ts-expect-error rung-0: add proper type in later rung
+const realpathIfExists = (value) => {
+	try {
+		return realpathSync(value);
+	} catch {
+		return null;
+	}
+};
+
+// @ts-expect-error rung-0: add proper type in later rung
+export const disambiguateWorktreesByCwd = (matches) => {
+	if (matches.length < 2) {
+		return matches;
+	}
+
+	const cwd = realpathIfExists(process.cwd());
+	if (!cwd) {
+		return matches;
+	}
+
+	const here = matches.find(
+		// @ts-expect-error rung-0: add proper type in later rung
+		(candidate) => realpathIfExists(candidate.path) === cwd,
+	);
+
+	return here ? [here] : matches;
+};
 
 // @ts-expect-error rung-0: add proper type in later rung
 export const getBranchPathByMap = (worktrees) => {
@@ -294,16 +329,17 @@ export const resolveByNumber = async (
 		return { kind: 'not-found', requested: number, source: issue };
 	}
 
-	if (matches.length > 1) {
+	const disambiguated = disambiguateWorktreesByCwd(matches);
+	if (disambiguated.length > 1) {
 		return {
 			kind: 'issue-ambiguous',
 			source: issue,
 			requested: number,
-			worktrees: matches,
+			worktrees: disambiguated,
 		};
 	}
 
-	return { kind: 'issue', source: issue, worktree: matches[0] };
+	return { kind: 'issue', source: issue, worktree: disambiguated[0] };
 };
 
 export const resolveInteractivePicker = async (
