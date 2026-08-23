@@ -1868,6 +1868,45 @@ const collectFiles = async (dir) => {
 	return files;
 };
 
+// F824 (shell F3): a suppression naming a rule id nobody defined used to be
+// honoured silently (or, worse, silently absorbed the real id it merely
+// prefixed). The guard now rejects any `design-system-ignore:` comment whose
+// leading rule id is not one of the rules declared in this file — the author
+// gets an explicit "unknown suppression rule id" finding instead of silence.
+// This walks the ONE shared parser (`findSuppressionSitesInSource`) line by
+// line, so what counts as a suppression site here can never diverge from the
+// live suppression check or the committed inventory.
+const KNOWN_DESIGN_SYSTEM_RULE_IDS = new Set(rules.map((rule) => rule.id));
+
+const unknownSuppressionRuleIdViolations = (relativePath, source) => {
+	const findings = [];
+	const lines = source.split('\n');
+	for (let index = 0; index < lines.length; index += 1) {
+		for (const site of findSuppressionSitesInSource(
+			lines[index],
+			relativePath,
+		)) {
+			if (site.convention !== 'design-system-ignore') {
+				continue;
+			}
+			const statedRuleId = site.reason.trim().split(/\s+/)[0] ?? '';
+			if (KNOWN_DESIGN_SYSTEM_RULE_IDS.has(statedRuleId)) {
+				continue;
+			}
+			findings.push({
+				ruleId: 'unknown-suppression-rule-id',
+				message:
+					`design-system-ignore names rule id "${statedRuleId}", which is not a known rule id — ` +
+					'the suppression is rejected. Fix the typo or remove the comment.',
+				file: relativePath,
+				line: index + 1,
+				source: lines[index].trim(),
+			});
+		}
+	}
+	return findings;
+};
+
 export const scanFront2DesignSystem = async ({
 	baseDir = rootDir,
 	sourceDir,
@@ -1933,6 +1972,9 @@ export const scanFront2DesignSystem = async ({
 		const lines = source.split('\n');
 		fileContentsByRelativePath.set(relativePath, source);
 		violations.push(...statusMenuViolations(relativePath, source));
+		violations.push(
+			...unknownSuppressionRuleIdViolations(relativePath, source),
+		);
 
 		for (const rule of rules) {
 			if (!rule.appliesTo(relativePath) || rule.allow?.(relativePath)) {

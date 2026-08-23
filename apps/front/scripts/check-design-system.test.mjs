@@ -3021,3 +3021,81 @@ test('the live guard and suppression-inventory discovery never disagree on wheth
 		);
 	}
 });
+
+// F824 (shell F3): the live guard matched a suppression's rule id with a bare
+// `reason.startsWith(ruleId)` — any text merely BEGINNING with the real id
+// absorbed it. A typo'd id like `no-raw-visual-colors` (real id + stray
+// character) is a DIFFERENT, unknown rule id, yet it silently suppressed
+// `no-raw-visual-color` violations: the guard certified the line as clean
+// under a rule name nobody defined.
+test('F824-shell-F3: a typoed rule id that merely prefixes the real id does not suppress the real rule', async () => {
+	const root = await makeFixture({
+		'src/components/table/shell-f3-typo.tsx': [
+			'// design-system-ignore: no-raw-visual-colors — stray-character id must not absorb the real rule',
+			"export const shellF3TypoColour = '#abcdef';",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'no-raw-visual-color'),
+		true,
+		'the typoed id must leave the real no-raw-visual-color violation standing',
+	);
+});
+
+// Second half of the gap: an unknown id is not merely ignored — it should be
+// REJECTED with an explicit finding, never silently honoured (and never
+// silently swallowed either, which hides dead suppressions).
+test('F824-shell-F3: an unknown rule id in a design-system-ignore suppression is rejected with an explicit finding', async () => {
+	const root = await makeFixture({
+		'src/components/table/shell-f3-unknown.tsx': [
+			'// design-system-ignore: no-such-rule-anywhere — invented id',
+			"export const shellF3UnknownColour = '#abcdef';",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const rejections = violations.filter(
+		(violation) =>
+			violation.ruleId === 'unknown-suppression-rule-id' &&
+			violation.message.includes('no-such-rule-anywhere'),
+	);
+	assert.equal(
+		rejections.length,
+		1,
+		'the unknown id must produce an explicit rejection naming the bad id',
+	);
+});
+
+// Companion regression control: the exact-id form (id followed by a word
+// boundary) keeps suppressing as before — the boundary fix must not
+// overcorrect into rejecting every legitimate suppression.
+test('F824-shell-F3: the exact rule id still suppresses (boundary-fix control)', async () => {
+	const root = await makeFixture({
+		'src/components/table/shell-f3-ok.tsx': [
+			'// design-system-ignore: no-raw-visual-color — legacy palette probe kept deliberately raw',
+			"export const shellF3OkColour = '#abcdef';",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
+});
