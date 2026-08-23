@@ -8,6 +8,11 @@ import type { ESTree } from '@oxlint/plugins';
  * Rationale (AGENTS.md -> "Frontend Coding Standards"):
  *   "Arrow function components only — never `function` declarations for
  *    components."
+ *
+ * A PascalCase `FunctionDeclaration` whose body returns a call to a known
+ * renderer (`useRender`, `createElement`, `jsx`, `jsxs` — bare or as a React
+ * namespace member) is also a component: Base UI components delegate to
+ * `useRender(...)` instead of returning JSX directly.
  */
 
 /** Any function-like node that has a body and optional id. */
@@ -25,11 +30,22 @@ interface BodyAnalysis {
 	returnsJsx: boolean;
 	returnsOnlyNullOrJsx: boolean;
 	callsHook: boolean;
+	returnsRendererCall: boolean;
 }
 
 const isPascalCase = (name: string): boolean => /^[A-Z]/.test(name);
 const isHookLike = (name: string): boolean => /^use[A-Z]/.test(name);
 const WRAPPER_FNS: ReadonlySet<string> = new Set(['memo', 'forwardRef']);
+
+// Known renderer functions whose return value indicates the function is a
+// component. PascalCase functions returning useRender(...), createElement(...),
+// jsx(...), or jsxs(...) are components even without a direct JSX return.
+const KNOWN_RENDERERS: ReadonlySet<string> = new Set([
+	'useRender',
+	'createElement',
+	'jsx',
+	'jsxs',
+]);
 
 const isJsxNode = (node: ESTree.Node | null | undefined): boolean =>
 	node !== null &&
@@ -176,6 +192,7 @@ const analyseBody = (
 		returnsJsx: false,
 		returnsOnlyNullOrJsx: true,
 		callsHook: false,
+		returnsRendererCall: false,
 	};
 	if (!body) return result;
 
@@ -185,6 +202,33 @@ const analyseBody = (
 		importedNames,
 		localFunctionDecls,
 	} = importInfo;
+
+	/**
+	 * Whether a CallExpression callee is a known renderer function
+	 * (useRender, createElement, jsx, jsxs) — bare identifier or React
+	 * namespace member expression.
+	 */
+	const isKnownRendererCallee = (
+		callee: ESTree.Expression | undefined,
+	): boolean => {
+		if (!callee) return false;
+
+		if (callee.type === 'Identifier' && KNOWN_RENDERERS.has(callee.name)) {
+			return true;
+		}
+
+		if (
+			callee.type === 'MemberExpression' &&
+			callee.object.type === 'Identifier' &&
+			reactNamespaces.has(callee.object.name) &&
+			callee.property.type === 'Identifier' &&
+			KNOWN_RENDERERS.has(callee.property.name)
+		) {
+			return true;
+		}
+
+		return false;
+	};
 
 	const isHookCallee = (callee: ESTree.Expression | undefined): boolean => {
 		if (!callee) return false;
@@ -258,6 +302,13 @@ const analyseBody = (
 				if (arg === null || arg === undefined) continue;
 				if (expressionContainsJsx(arg)) {
 					result.returnsJsx = true;
+				} else if (
+					arg.type === 'CallExpression' &&
+					isKnownRendererCallee(arg.callee)
+				) {
+					// PascalCase function returning useRender(...), createElement(...),
+					// jsx(...), or jsxs(...) — component even without direct JSX.
+					result.returnsRendererCall = true;
 				} else {
 					const isNullLike =
 						(arg.type === 'Literal' && arg.value === null) ||
@@ -313,11 +364,10 @@ const bodyLooksLikeComponent = (
 	body: ESTree.FunctionBody | null | undefined,
 	importInfo: ImportInfo,
 ): boolean => {
-	const { returnsJsx, returnsOnlyNullOrJsx, callsHook } = analyseBody(
-		body,
-		importInfo,
-	);
+	const { returnsJsx, returnsOnlyNullOrJsx, callsHook, returnsRendererCall } =
+		analyseBody(body, importInfo);
 	if (returnsJsx) return true;
+	if (returnsRendererCall) return true;
 	if (callsHook && returnsOnlyNullOrJsx) return true;
 	return false;
 };
