@@ -83,7 +83,12 @@ const resolveUsageKey = (
 const KEY_MAP_DECLARATION_PATTERN =
 	/\b[A-Z][A-Z0-9_]*_KEYS?\s*(?::[^={]+)?=\s*\{/g;
 const KEBAB_I18N_KEY_CANDIDATE = /^[a-z][a-z0-9]*(-[a-z0-9]+){2,}$/;
-const STRING_LITERAL_PATTERN = /(['"])([a-zA-Z0-9_.-]+)\1/g;
+// `:` is REQUIRED here: without it a namespace-qualified value
+// (`auth:some-key`) matches NO quote-to-quote literal at all and silently
+// drops out of lookup-table coverage instead of flowing through
+// resolveUsageKey below. Pinned by the qualified-value regression test near
+// the bottom of this file.
+const STRING_LITERAL_PATTERN = /(['"])([a-zA-Z0-9_.:-]+)\1/g;
 
 // r3-tests-F6: a scalar `*_KEY`/`*_KEYS` const (not an object-literal lookup
 // map) is invisible to KEY_MAP_DECLARATION_PATTERN, since that pattern only
@@ -1482,6 +1487,26 @@ describe('i18n key coverage', () => {
 			[],
 		);
 		expect(missingFr, 'keys missing from French namespace bundles').toEqual([]);
+	});
+
+	// Namespace-qualified lookup-table values (`auth:some-key`) must be
+	// extracted AND attributed to their declared namespace. This pins
+	// STRING_LITERAL_PATTERN's `:` inclusion: without it a qualified value
+	// matches NO quote-to-quote literal at all and silently drops out of
+	// coverage instead of failing resolution (found by a red-proof canary
+	// while reviewing #1267 — the guard passed vacuously).
+	test('extractI18nKeyUsages attributes namespace-qualified KEYS-map values to their namespace', async () => {
+		const usages = await extractI18nKeyUsages(srcDir);
+
+		const headlineLocations =
+			usages.get('auth:accept-invitation-brand-headline-mismatch') ?? [];
+		expect(headlineLocations).toContain(
+			'routes/_accept-invitation-i18n-keys.ts',
+		);
+
+		const ctaLocations =
+			usages.get('auth:auth-invitation-log-out-and-sign-in') ?? [];
+		expect(ctaLocations).toContain('routes/_accept-invitation-i18n-keys.ts');
 	});
 
 	// r3-tests-F6: a canary for the scalar-`*_KEY` extractor itself going
