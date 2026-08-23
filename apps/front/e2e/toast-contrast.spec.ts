@@ -1029,7 +1029,7 @@ const readBrowserPaint = async (
 			// 100+ px away from where the text is, which is where every paint
 			// that matters would have to reach (round-7 B1), and the click-through
 			// scan and the pixel cross-check intersect the same area.
-			const glyphArea = ((): {
+			const computeGlyphArea = (): {
 				bottom: number;
 				left: number;
 				right: number;
@@ -1077,7 +1077,8 @@ const readBrowserPaint = async (
 					top: Math.min(...rects.map((textRect) => textRect.top)),
 					bottom: Math.max(...rects.map((textRect) => textRect.bottom)),
 				};
-			})();
+			};
+			const glyphArea = computeGlyphArea();
 			const x = glyphArea.left + (glyphArea.right - glyphArea.left) / 2;
 			const y = glyphArea.top + (glyphArea.bottom - glyphArea.top) / 2;
 			const hitStack = document.elementsFromPoint(x, y);
@@ -1092,7 +1093,7 @@ const readBrowserPaint = async (
 			// relative to THIS surface. Walk the hit stack down and stop at the
 			// first element that paints an opaque background.
 			const seen = new Set<Element>();
-			const opaqueElement = ((): Element | null => {
+			const findOpaqueElement = (): Element | null => {
 				for (const layer of hitStack.slice(targetIndex)) {
 					if (seen.has(layer)) {
 						continue;
@@ -1119,7 +1120,8 @@ const readBrowserPaint = async (
 					}
 				}
 				return null;
-			})();
+			};
+			const opaqueElement = findOpaqueElement();
 
 			if (!opaqueElement) {
 				throw new Error(
@@ -1544,7 +1546,7 @@ const measurePaintedContrast = async (
 
 			const dpr = devicePixelRatio;
 			const elementBox = element.getBoundingClientRect();
-			const glyphArea = ((): {
+			const computeCanvasGlyphArea = (): {
 				bottom: number;
 				left: number;
 				right: number;
@@ -1594,7 +1596,8 @@ const measurePaintedContrast = async (
 					bottom:
 						(Math.max(...rects.map((r) => r.bottom)) - elementBox.top) * dpr,
 				};
-			})();
+			};
+			const glyphArea = computeCanvasGlyphArea();
 
 			const pixelAt = (x: number, y: number): [number, number, number] => {
 				const index = (y * canvas.width + x) * 4;
@@ -1642,7 +1645,7 @@ const measurePaintedContrast = async (
 				}
 				return pixels;
 			};
-			const band = ((): number[][] => {
+			const pickBand = (): number[][] => {
 				for (const margin of [bandMargin, 2, 1]) {
 					const pixels = ring(margin * dpr);
 					if (pixels.length > 0) {
@@ -1650,7 +1653,8 @@ const measurePaintedContrast = async (
 					}
 				}
 				return [];
-			})();
+			};
+			const band = pickBand();
 			let surface: number[];
 			if (kind === 'text') {
 				const allPixels: number[][] = [];
@@ -1893,7 +1897,7 @@ const measurePaintedContrast = async (
 						if (fills) {
 							maskContext.fillStyle = '#000';
 						}
-						const path = ((): Path2D | null => {
+						const buildSvgPath = (): Path2D | null => {
 							const tag = svgElement.tagName;
 							if (tag === 'path' && svgElement.getAttribute('d')) {
 								try {
@@ -1965,7 +1969,8 @@ const measurePaintedContrast = async (
 								return built;
 							}
 							return null;
-						})();
+						};
+						const path = buildSvgPath();
 						if (!path) {
 							continue;
 						}
