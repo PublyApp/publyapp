@@ -502,14 +502,14 @@ const TenantBulkActions = ({
 
 	const eligibleIdsFor = (action: PendingLifecycleAction): string[] => {
 		if (action === 'suspend') {
-			return selectedTenants
-				.filter((tenant) => tenant.status === TENANT_STATUS_ACTIVE)
-				.map((tenant) => tenant.id);
+			return selectedTenants.flatMap((tenant) =>
+				tenant.status === TENANT_STATUS_ACTIVE ? [tenant.id] : [],
+			);
 		}
 		if (action === 'reactivate') {
-			return selectedTenants
-				.filter((tenant) => tenant.status === TENANT_STATUS_SUSPENDED)
-				.map((tenant) => tenant.id);
+			return selectedTenants.flatMap((tenant) =>
+				tenant.status === TENANT_STATUS_SUSPENDED ? [tenant.id] : [],
+			);
 		}
 		if (action === 'delete') {
 			const allSelectedAreSuspended =

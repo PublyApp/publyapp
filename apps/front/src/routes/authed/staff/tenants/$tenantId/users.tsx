@@ -910,9 +910,9 @@ const TenantUserBulkActions = ({
 	const bulkRemoveMutation = useBulkRemoveStaffTenantUsersMutation();
 	const exportMutation = useExportStaffTenantUsersMutation();
 
-	const selectedIds = rows
-		.filter((row) => selection.rowSelection[row.id])
-		.map((row) => row.id);
+	const selectedIds = rows.flatMap((row) =>
+		selection.rowSelection[row.id] ? [row.id] : [],
+	);
 	const selectedCount = selection.selectedCount;
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
 	const isActionPending =

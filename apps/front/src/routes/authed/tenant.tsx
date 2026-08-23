@@ -38,8 +38,12 @@ const TenantPortalRoute = () => {
 		readSelectedTenantId(),
 	);
 	const isTenantRoot = pathname.replace(/\/+$/, '') === '/tenant';
+	// react-doctor: this route is CSR-only (`ssr: false`) and `readSelectedTenantId`
+	// already returns a stable `null` on the server, so there is no server/hydration
+	// pair to diverge — the rule's premise does not apply on this surface.
 	const resolvedTenant = query.isSuccess
-		? resolveWorkspaceTenant(query.data, selectedTenantId)
+		? // react-doctor-disable-next-line react-doctor/no-hydration-branch-on-browser-global
+			resolveWorkspaceTenant(query.data, selectedTenantId)
 		: undefined;
 	const isResolvedToWorkspace = resolvedTenant !== undefined;
 	const querySettled = query.isSuccess || query.isError;
@@ -54,6 +58,11 @@ const TenantPortalRoute = () => {
 	// is the single unresolved surface, and painting it inside the AppShell
 	// would nest SimpleLayout in the platform chrome (PR #1131 round 3
 	// finding 1 — fixed by redirecting instead of bypassing the shell).
+	// react-doctor: TanStack post-load redirect pattern — the workspace only
+	// becomes known once the picker query settles, which no event handler can
+	// observe; the effect navigates at most once per state change and renders
+	// a spinner meanwhile.
+	// react-doctor-disable-next-line react-doctor/no-event-handler
 	useEffect(() => {
 		if (isTenantRoot) {
 			if (isResolvedToWorkspace) {

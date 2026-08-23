@@ -202,6 +202,9 @@ const StaffAuditLogsPage = () => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const selectedActions = parseAuditLogsActionsFilter(search.actions);
+	// O(1) membership for the dropdown checkboxes; rebuilt per render from the
+	// freshly-parsed filter, so it can never go stale.
+	const selectedActionsFilter = new Set(selectedActions);
 
 	const onSearchChange = (next: AuditLogsListSearchParams): void => {
 		void navigate({
@@ -370,7 +373,7 @@ const StaffAuditLogsPage = () => {
 									actionsOptions.map((action) => (
 										<DropdownMenuCheckboxItem
 											key={action}
-											checked={selectedActions.includes(action)}
+											checked={selectedActionsFilter.has(action)}
 											closeOnClick={false}
 											showCheckbox
 											data-testid={`staff-audit-logs-actions-filter-${action}`}

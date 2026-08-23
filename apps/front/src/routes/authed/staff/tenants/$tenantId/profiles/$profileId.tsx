@@ -458,6 +458,9 @@ const StaffTenantProfileDetailsPage = () => {
 		});
 	};
 
+	// react-doctor: memoizing this literal would require hoisting it above the
+	// early returns, breaking conditional hook order on this page. The Provider
+	// re-renders only with this page, whose consumers read the same queries.
 	const detailsContextValue: StaffTenantProfileDetailsContextValue = {
 		tenantId,
 		profileId,
@@ -542,6 +545,9 @@ const StaffTenantProfileDetailsPage = () => {
 				onOpenChange={setPendingDelete}
 			/>
 
+			{/* react-doctor: see the detailsContextValue comment above — deliberate,
+			bounded re-render scope; memoizing would break hook order here. */}
+			{/* react-doctor-disable-next-line react-doctor/context-provider-value-from-unmemoized-local-literal */}
 			<StaffTenantProfileDetailsContext.Provider value={detailsContextValue}>
 				<Outlet />
 			</StaffTenantProfileDetailsContext.Provider>

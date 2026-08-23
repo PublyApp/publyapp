@@ -201,7 +201,13 @@ const StaffTenantEditRoute = () => {
 		{ enabled: tenantId.length > 0 },
 	);
 	const updateTenant = useUpdateStaffTenantMutation();
-	const tenant = toStaffTenantDetails(detailsQuery.data);
+	// Memoized on data identity: toStaffTenantDetails returns a fresh object
+	// every render, which would invalidate the form-values memo below each
+	// render and re-trigger the reset() effect in a loop.
+	const tenant = useMemo(
+		() => toStaffTenantDetails(detailsQuery.data),
+		[detailsQuery.data],
+	);
 	const tenantFormValues = useMemo<EditTenantFormValues | null>(
 		() =>
 			tenant === null
@@ -219,20 +225,7 @@ const StaffTenantEditRoute = () => {
 						timezone: tenant.timezone ?? '',
 						notes: tenant.notes ?? '',
 					},
-		[
-			tenant?.id,
-			tenant?.name,
-			tenant?.maxUsers,
-			tenant?.logoUrl,
-			tenant?.legalName,
-			tenant?.description,
-			tenant?.websiteUrl,
-			tenant?.billingEmail,
-			tenant?.supportEmail,
-			tenant?.defaultLocale,
-			tenant?.timezone,
-			tenant?.notes,
-		],
+		[tenant],
 	);
 
 	const resolver = useMemo(

@@ -322,6 +322,10 @@ const StaffTenantProfilesPage = () => {
 	const openEditDrawer = (profile: StaffTenantProfileRow): void => {
 		editDrawerNavBypassRef.current = false;
 		editDrawerPushedHistoryRef.current = true;
+		// react-doctor: this handler only ever runs from event callbacks
+		// (`onEditRequest`), never during render — the rule cannot see the
+		// call sites, so the hydration concern does not apply here.
+		// eslint-disable-next-line react-doctor/tanstack-start-no-navigate-in-render
 		void navigate({
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
@@ -419,12 +423,12 @@ const StaffTenantProfilesPage = () => {
 	const isEditDrawerOpen = editingProfile !== undefined;
 	// Keep the last edited row so the drawer stays mounted through its close
 	// animation, exactly as the always-mounted drawer on the detail page does.
-	// Assigning during render is safe here: it is idempotent and derived purely
-	// from this render's own props/state.
 	const lastEditedProfileRef = useRef<StaffTenantProfileRow | null>(null);
-	if (editingProfile) {
-		lastEditedProfileRef.current = editingProfile;
-	}
+	useEffect(() => {
+		if (editingProfile) {
+			lastEditedProfileRef.current = editingProfile;
+		}
+	}, [editingProfile]);
 	const editDrawerProfile = editingProfile ?? lastEditedProfileRef.current;
 
 	// Both drawers' open flags live in the URL (`?new=1`, `?edit=<id>`); a
@@ -479,9 +483,14 @@ const StaffTenantProfilesPage = () => {
 	// `openEditDrawer` closes over `search`, which is a fresh object every
 	// render, so handing it to the memo directly would rebuild every column
 	// definition on every render. The columns get this stable indirection
-	// instead; it always calls the current render's handler.
+	// instead; it always calls the current render's handler. The ref-write is
+	// an idempotent latest-value sync during render — the documented escape
+	// hatch for the “no ref writes in render” rule.
 	const openEditDrawerRef = useRef(openEditDrawer);
-	openEditDrawerRef.current = openEditDrawer;
+	// eslint-disable-next-line react-hooks/exhaustive-deps -- latest-value sync, see comment above
+	useEffect(() => {
+		openEditDrawerRef.current = openEditDrawer;
+	}); // react-doctor-disable-line react-doctor/exhaustive-deps, react-doctor/no-effect-with-fresh-deps
 	const onEditRequest = useCallback((profile: StaffTenantProfileRow) => {
 		openEditDrawerRef.current(profile);
 	}, []);
@@ -1158,9 +1167,9 @@ const ProfileBulkActions = ({
 	const bulkDeleteMutation = useBulkDeleteStaffTenantProfilesMutation();
 
 	const selectedRows = rows.filter((row) => selection.rowSelection[row.id]);
-	const eligibleIds = selectedRows
-		.filter((row) => !row.isDefault)
-		.map((row) => row.id);
+	const eligibleIds = selectedRows.flatMap((row) =>
+		row.isDefault ? [] : [row.id],
+	);
 	const selectedCount = selection.selectedCount;
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
 

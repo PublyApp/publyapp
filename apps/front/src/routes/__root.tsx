@@ -369,7 +369,9 @@ const SessionInvalidationListener = () => {
 	// tear down and recreate the channel subscription for no reason — this
 	// only needs the location at the moment the backstop actually fires.
 	const locationRef = React.useRef(location);
-	locationRef.current = location;
+	React.useEffect(() => {
+		locationRef.current = location;
+	}, [location]);
 
 	React.useEffect(() => {
 		return subscribeToSessionInvalidated(() => {
@@ -735,6 +737,7 @@ const RootComponent = () => {
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
 }>()({
+	beforeLoad: resolveRootContext,
 	staticData: { crumbs: 'shell' },
 	head: () => ({
 		meta: [
@@ -743,7 +746,6 @@ export const Route = createRootRouteWithContext<{
 		],
 		links: [{ rel: 'stylesheet', href: appCss }],
 	}),
-	beforeLoad: resolveRootContext,
 	errorComponent: RootErrorBoundary,
 	notFoundComponent: RootNotFound,
 	component: RootComponent,

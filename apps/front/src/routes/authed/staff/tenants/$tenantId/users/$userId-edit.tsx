@@ -272,13 +272,7 @@ const StaffTenantUserEditPage = () => {
 						avatarUrl: user.avatarUrl ?? '',
 						accountLevel: normalizeAccountLevel(user.accountLevel),
 					},
-		[
-			user?.id,
-			user?.firstName,
-			user?.lastName,
-			user?.avatarUrl,
-			user?.accountLevel,
-		],
+		[user],
 	);
 
 	useEffect(() => {
