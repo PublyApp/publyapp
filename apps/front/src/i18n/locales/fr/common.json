@@ -918,6 +918,7 @@
 	"tenant-response-incomplete": "La réponse du client était incomplète.",
 	"tenant-users-table-aria-label": "Utilisateurs du client",
 	"member-since": "Membre depuis",
+	"no-items-found": "Aucune organisation li\u00e9e pour le moment",
 	"company-count_one": "{{count}} organisation liée",
 	"company-count_other": "{{count}} organisations liées",
 	"organizations-empty-title": "Aucune organisation liée",

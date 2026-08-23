@@ -918,6 +918,7 @@
 	"tenant-response-incomplete": "The tenant response was incomplete.",
 	"tenant-users-table-aria-label": "Tenant users",
 	"member-since": "Member since",
+	"no-items-found": "No linked organizations yet",
 	"company-count_one": "{{count}} linked organization",
 	"company-count_other": "{{count}} linked organizations",
 	"organizations-empty-title": "No linked organizations",

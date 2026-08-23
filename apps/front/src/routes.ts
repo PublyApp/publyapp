@@ -107,6 +107,22 @@ export const routes = rootRoute('__root.tsx', [
 		),
 		route('/staff/audit-logs', 'authed/staff/audit-logs.tsx'),
 		route('/staff/audit-logs/$logId', 'authed/staff/audit-logs/$logId.tsx'),
+		route(
+			'/staff/tenant-users/details/$userId',
+			'authed/staff/tenant-users-details-$userId.tsx',
+		),
+		route(
+			'/staff/tenant-users/details/$userId/general',
+			'authed/staff/tenant-users/$userId-general.tsx',
+		),
+		route(
+			'/staff/tenant-users/details/$userId/organizations',
+			'authed/staff/tenant-users/$userId-organizations.tsx',
+		),
+		route(
+			'/staff/tenant-users/details/$userId/$tab',
+			'authed/staff/_tenant-user-details-tab-fallback.tsx',
+		),
 		route('/tenant', 'authed/tenant.tsx', [
 			route('/account', 'authed/tenant/account.tsx', [
 				index('authed/tenant/account/profile.tsx'),
