@@ -2,23 +2,30 @@
  * Shared path helpers for lint rule file scoping.
  */
 
-export const FRONT_SOURCE_PREFIXES = ['apps/front/src/'];
+export const FRONT_SOURCE_PREFIXES: readonly string[] = ['apps/front/src/'];
 
-export const FRONT_SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs'];
+export const FRONT_SOURCE_EXTENSIONS: readonly string[] = [
+	'.ts',
+	'.tsx',
+	'.js',
+	'.jsx',
+	'.mjs',
+];
 
-const FRONT_COMPONENT_RELATIVE_PATHS = [
+const FRONT_COMPONENT_RELATIVE_PATHS: readonly string[] = [
 	'components/',
 	'_parts/',
 	'_components/',
 	'routes/',
 ];
 
-export const normalizeFilename = (filename) => filename.replaceAll('\\', '/');
+export const normalizeFilename = (filename: string): string =>
+	filename.replaceAll('\\', '/');
 
-const hasPrefix = (filename, prefix) =>
+const hasPrefix = (filename: string, prefix: string): boolean =>
 	filename.startsWith(prefix) || filename.includes(`/${prefix}`);
 
-const findPrefixIndex = (filename, prefix) => {
+const findPrefixIndex = (filename: string, prefix: string): number => {
 	if (filename.startsWith(prefix)) {
 		return 0;
 	}
@@ -31,9 +38,9 @@ const findPrefixIndex = (filename, prefix) => {
 };
 
 export const getSourceRelativePath = (
-	filename,
-	sourcePrefixes = FRONT_SOURCE_PREFIXES,
-) => {
+	filename: string,
+	sourcePrefixes: readonly string[] = FRONT_SOURCE_PREFIXES,
+): string => {
 	for (const prefix of sourcePrefixes) {
 		const index = findPrefixIndex(filename, prefix);
 
@@ -45,23 +52,25 @@ export const getSourceRelativePath = (
 	return '';
 };
 
-const hasAllowedExtension = (filename, extensions) =>
-	extensions.some((extension) => filename.endsWith(extension));
+const hasAllowedExtension = (
+	filename: string,
+	extensions: readonly string[],
+): boolean => extensions.some((extension) => filename.endsWith(extension));
 
 export const isUnderFrontSource = (
-	filename,
-	sourcePrefixes = FRONT_SOURCE_PREFIXES,
-) => {
+	filename: string,
+	sourcePrefixes: readonly string[] = FRONT_SOURCE_PREFIXES,
+): boolean => {
 	const normalizedFilename = normalizeFilename(filename);
 
 	return sourcePrefixes.some((prefix) => hasPrefix(normalizedFilename, prefix));
 };
 
 export const isFrontSourceFile = (
-	filename,
-	extensions = FRONT_SOURCE_EXTENSIONS,
-	sourcePrefixes = FRONT_SOURCE_PREFIXES,
-) => {
+	filename: string,
+	extensions: readonly string[] = FRONT_SOURCE_EXTENSIONS,
+	sourcePrefixes: readonly string[] = FRONT_SOURCE_PREFIXES,
+): boolean => {
 	const normalizedFilename = normalizeFilename(filename);
 
 	return (
@@ -70,10 +79,12 @@ export const isFrontSourceFile = (
 	);
 };
 
-const isPathUnderRelativePrefix = (relativePath, prefixes) =>
-	prefixes.some((prefix) => relativePath.startsWith(prefix));
+const isPathUnderRelativePrefix = (
+	relativePath: string,
+	prefixes: readonly string[],
+): boolean => prefixes.some((prefix) => relativePath.startsWith(prefix));
 
-export const isFrontComponentTsxFile = (filename) => {
+export const isFrontComponentTsxFile = (filename: string): boolean => {
 	const normalizedFilename = normalizeFilename(filename);
 	const relativePath = getSourceRelativePath(
 		normalizedFilename,

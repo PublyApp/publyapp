@@ -16,12 +16,12 @@
  *   the rule object is correctly shaped and wired.
  */
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
 
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
-import plugin from '../index.js';
-import { noOp } from './no-op.js';
+import plugin from '../index.ts';
+import { noOp } from './no-op.ts';
 
 RuleTester.describe = describe;
 RuleTester.it = it;

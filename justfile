@@ -336,6 +336,7 @@ ci-lint:
   node scripts/lint-front.mjs --quiet
   pnpm lint:disables
   pnpm check:frontend-barrels
+  pnpm --filter @org/lint-ts test
 
 # front: build, bundle guards, smoke start, typecheck, design system, unit tests
 ci-front:

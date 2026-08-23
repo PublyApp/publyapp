@@ -541,6 +541,11 @@
 			"mirror": "just ci-quality",
 			"reason": "ci-quality runs pnpm lint, the repo-wide oxlint --quiet invocation (plus lint:disables and frontend-barrels guards) over the same rule set."
 		},
+		"quality-gate.yml::quality::Lint plugin unit tests (lint-ts)": {
+			"hash": "a716b2b18311dc2a",
+			"mirror": "just ci-lint",
+			"reason": "ci-lint runs pnpm --filter @org/lint-ts test, the same vitest suite for the custom publy/* oxlint plugin rules that CI now runs after the lint step."
+		},
 		"quality-gate.yml::quality::Materialize .env.development from template (CI has no gitignored env file)": {
 			"hash": "0103d4ed70a6c462",
 			"mirror": null,

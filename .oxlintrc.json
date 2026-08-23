@@ -2,7 +2,7 @@
 	"$schema": "./node_modules/oxlint/configuration_schema.json",
 	"plugins": ["unicorn", "typescript", "oxc", "react"],
 	"jsPlugins": [
-		"./packages/lint-ts/src/index.js",
+		"./packages/lint-ts/src/index.ts",
 		{
 			"name": "anti-slop",
 			"specifier": "./tools/oxlint/anti-slop/index.ts"

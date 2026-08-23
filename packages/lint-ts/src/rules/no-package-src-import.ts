@@ -1,3 +1,7 @@
+import type { Context, Visitor } from '@oxlint/plugins';
+
+import { normalizeFilename } from './path-scopes.ts';
+
 /**
  * `publy/no-package-src-import` — forbid `@org/client-ts/src/…` and
  * `@org/shared-ts/src/…` import paths. Consumers must import through the
@@ -7,14 +11,13 @@
  * Scoped to `apps/**` and `packages/**` source files (excluding the two
  * packages themselves, whose internal code may legitimately reference `src/`).
  */
-import { normalizeFilename } from './path-scopes.js';
 
-const BANNED_PREFIXES = ['@org/client-ts/src/', '@org/shared-ts/src/'];
+const BANNED_PREFIXES: readonly string[] = [
+	'@org/client-ts/src/',
+	'@org/shared-ts/src/',
+];
 
-const BANNED_MESSAGE =
-	'Do not import from `@org/…/src/…`; use the package exports map (`@org/{{pkg}}/<path>`) instead.';
-
-const isConsumerFile = (filename) => {
+const isConsumerFile = (filename: string): boolean => {
 	const n = normalizeFilename(filename);
 	return (
 		n.startsWith('apps/') ||
@@ -24,7 +27,7 @@ const isConsumerFile = (filename) => {
 	);
 };
 
-const isOwnPackageFile = (filename) => {
+const isOwnPackageFile = (filename: string): boolean => {
 	const n = normalizeFilename(filename);
 	return (
 		n.includes('/packages/client-ts/') ||
@@ -34,7 +37,7 @@ const isOwnPackageFile = (filename) => {
 	);
 };
 
-const matchBannedPrefix = (value) => {
+const matchBannedPrefix = (value: string): string | null => {
 	for (const prefix of BANNED_PREFIXES) {
 		if (value.startsWith(prefix)) {
 			return prefix;
@@ -44,9 +47,17 @@ const matchBannedPrefix = (value) => {
 	return null;
 };
 
+const getContextFilename = (context: Context): string => {
+	if (typeof context.filename === 'string') {
+		return context.filename;
+	}
+
+	return '';
+};
+
 export const noPackageSrcImport = {
 	meta: {
-		type: 'problem',
+		type: 'problem' as const,
 		docs: {
 			description:
 				'Forbid @org/client-ts/src/ and @org/shared-ts/src/ import paths; use the exports map instead.',
@@ -58,15 +69,15 @@ export const noPackageSrcImport = {
 				'Do not import from `@org/…/src/…`; use the package exports map (`@org/{{pkg}}/<path>`) instead.',
 		},
 	},
-	create(context) {
-		const filename = getContextFilename(context);
+	create(context: Context): Visitor {
+		const filename = normalizeFilename(getContextFilename(context));
 
 		if (!isConsumerFile(filename) || isOwnPackageFile(filename)) {
 			return {};
 		}
 
 		/** Check a source string node and report if it matches a banned prefix. */
-		const checkSource = (sourceNode) => {
+		const checkSource = (sourceNode: { value?: unknown }): void => {
 			const source = sourceNode?.value;
 
 			if (typeof source !== 'string') {
@@ -84,7 +95,7 @@ export const noPackageSrcImport = {
 				: 'shared-ts';
 
 			context.report({
-				node: sourceNode,
+				node: sourceNode as never,
 				messageId: 'banned',
 				data: { pkg },
 			});
@@ -120,16 +131,4 @@ export const noPackageSrcImport = {
 			},
 		};
 	},
-};
-
-const getContextFilename = (context) => {
-	if (typeof context.filename === 'string') {
-		return context.filename;
-	}
-
-	if (typeof context.getFilename === 'function') {
-		return context.getFilename();
-	}
-
-	return '';
 };

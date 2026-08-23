@@ -178,6 +178,9 @@ jobs:
       - name: Lint (oxlint repo-wide)
         run: pnpm lint
 
+      - name: Lint plugin unit tests (lint-ts)
+        run: pnpm --filter @org/lint-ts test
+
       - name: Restore .NET solution (PublyApp.slnx)
         env:
           APP_ROLE: api

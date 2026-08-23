@@ -1,43 +1,45 @@
+import type { Context, Visitor } from '@oxlint/plugins';
+import type { ESTree } from '@oxlint/plugins';
+
 /**
  * `publy/no-manual-response-message-translation` - prevent local manual
  * translation of backend response-message keys.
  *
- * Frontend local mutation handlers should normalize unknown errors through
- * `toApiFailure(error)` and derive user-facing text with
- * `getFailureMessage(failure, ...)`. Components should not translate
- * `response-message.*` or `response-message:*` keys directly with `t(...)`.
- *
- * Rule shape (oxlint 1.64.0, `oxlint/plugins-dev`): `{ meta, create(context) }`
- * returning an AST visitor. See https://oxc.rs/docs/guide/usage/linter/js-plugins.html
+ * Rule shape (oxlint 1.79.0): `{ meta, create(context) }` returning an AST
+ * visitor. See https://oxc.rs/docs/guide/usage/linter/js-plugins.html
  */
 
-const RESPONSE_MESSAGE_PREFIXES = ['response-message.', 'response-message:'];
+const RESPONSE_MESSAGE_PREFIXES: readonly string[] = [
+	'response-message.',
+	'response-message:',
+];
 
-const startsWithResponseMessagePrefix = (value) =>
+const startsWithResponseMessagePrefix = (value: string): boolean =>
 	RESPONSE_MESSAGE_PREFIXES.some((prefix) => value.startsWith(prefix));
 
-const getLiteralString = (node) => {
+const getLiteralString = (node: ESTree.Expression): string | undefined => {
 	if (node.type !== 'Literal' || typeof node.value !== 'string') {
 		return undefined;
 	}
-
 	return node.value;
 };
 
-const getFirstTemplateQuasiValue = (node) => {
+const getFirstTemplateQuasiValue = (
+	node: ESTree.Expression,
+): string | undefined => {
 	if (node.type !== 'TemplateLiteral') {
 		return undefined;
 	}
-
-	const firstQuasi = node.quasis[0];
+	const firstQuasi = node.quasis?.[0];
 	if (!firstQuasi) {
 		return undefined;
 	}
-
 	return firstQuasi.value.raw ?? firstQuasi.value.cooked;
 };
 
-const isResponseMessageKeyArgument = (node) => {
+const isResponseMessageKeyArgument = (
+	node: ESTree.Expression | undefined,
+): boolean => {
 	if (!node) {
 		return false;
 	}
@@ -55,19 +57,7 @@ const isResponseMessageKeyArgument = (node) => {
 	return false;
 };
 
-const isTProperty = (node) => {
-	if (node.type === 'Identifier') {
-		return node.name === 't';
-	}
-
-	if (node.type === 'Literal') {
-		return node.value === 't';
-	}
-
-	return false;
-};
-
-const isTranslationCallee = (node) => {
+const isTranslationCallee = (node: ESTree.Expression): boolean => {
 	if (node.type === 'Identifier') {
 		return node.name === 't';
 	}
@@ -76,12 +66,16 @@ const isTranslationCallee = (node) => {
 		return false;
 	}
 
-	return isTProperty(node.property);
+	const prop = node.property;
+	if (prop.type === 'Identifier') return prop.name === 't';
+	if (prop.type === 'Literal' && typeof prop.value === 'string')
+		return prop.value === 't';
+	return false;
 };
 
 export const noManualResponseMessageTranslation = {
 	meta: {
-		type: 'problem',
+		type: 'problem' as const,
 		docs: {
 			description:
 				'Disallow manual translation of backend response-message keys in frontend code.',
@@ -93,7 +87,7 @@ export const noManualResponseMessageTranslation = {
 				'Use getFailureMessage(toApiFailure(error), ...) instead of translating response-message keys manually.',
 		},
 	},
-	create(context) {
+	create(context: Context): Visitor {
 		return {
 			CallExpression(node) {
 				if (!isTranslationCallee(node.callee)) {
@@ -101,6 +95,14 @@ export const noManualResponseMessageTranslation = {
 				}
 
 				const firstArgument = node.arguments[0];
+				if (
+					firstArgument === null ||
+					firstArgument === undefined ||
+					firstArgument.type === 'SpreadElement'
+				) {
+					return;
+				}
+
 				if (!isResponseMessageKeyArgument(firstArgument)) {
 					return;
 				}

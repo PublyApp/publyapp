@@ -8,7 +8,6 @@
  * - Root .oxlintrc.json pins the surviving publy/* rules at error.
  */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import {
 	mkdirSync,
 	readFileSync,
@@ -17,16 +16,17 @@ import {
 	mkdtempSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { RuleTester } from 'oxlint/plugins-dev';
+import { describe, it } from 'vitest';
 
-import plugin from '../index.js';
-import { noArrayReduce } from './no-array-reduce.js';
-import { noConsoleInSource } from './no-console-in-source.js';
-import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.js';
-import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.js';
+import plugin from '../index.ts';
+import { runOxlint } from '../lib/run-oxlint.ts';
+import { noArrayReduce } from './no-array-reduce.ts';
+import { noConsoleInSource } from './no-console-in-source.ts';
+import { noDirectDayjsInComponents } from './no-direct-dayjs-in-components.ts';
+import { noManualResponseMessageTranslation } from './no-manual-response-message-translation.ts';
 
 RuleTester.describe = describe;
 RuleTester.it = it;
@@ -35,8 +35,6 @@ const WORKSPACE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const OXLINTRC_PATH = fileURLToPath(
 	new URL('../../../../.oxlintrc.json', import.meta.url),
 );
-const REPO_ROOT = join(WORKSPACE_ROOT, '../..');
-const OXLINT_BIN = join(REPO_ROOT, 'node_modules/.bin/oxlint');
 
 const ROOT_RULES = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8')).rules;
 
@@ -143,43 +141,6 @@ const isRuleEnabledAsError = (value) => {
 	}
 
 	return false;
-};
-
-const runOxlint = (filePaths) => {
-	let output = '';
-
-	try {
-		output = execFileSync(
-			OXLINT_BIN,
-			['--config', OXLINTRC_PATH, '--format', 'json', '--quiet', ...filePaths],
-			{
-				encoding: 'utf8',
-				cwd: WORKSPACE_ROOT,
-			},
-		);
-	} catch (error) {
-		if (
-			!(
-				typeof error === 'object' &&
-				error !== null &&
-				'stdout' in error &&
-				'status' in error
-			)
-		) {
-			throw error;
-		}
-
-		output = String(error.stdout ?? '');
-	}
-
-	const parsed = JSON.parse(output);
-
-	// oxlint output shape is { diagnostics: [...] } when clean.
-	if (Array.isArray(parsed.diagnostics)) {
-		return parsed;
-	}
-
-	return { diagnostics: [] };
 };
 
 const createScopingFixtures = () => {
