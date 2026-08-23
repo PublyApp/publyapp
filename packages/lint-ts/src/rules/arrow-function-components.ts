@@ -9,10 +9,20 @@ import type { ESTree } from '@oxlint/plugins';
  *   "Arrow function components only — never `function` declarations for
  *    components."
  *
- * A PascalCase `FunctionDeclaration` whose body returns a call to a known
- * renderer (`useRender`, `createElement`, `jsx`, `jsxs` — bare or as a React
- * namespace member) is also a component: Base UI components delegate to
- * `useRender(...)` instead of returning JSX directly.
+ * A PascalCase `FunctionDeclaration` is a component regardless of HOW it
+ * renders — the declaration shape is the signal, not the render call-site:
+ *   - a body `return` of JSX (directly, ternary/logical/TS-wrapped);
+ *   - a `return` of a known renderer call (`useRender`, `createElement`,
+ *     `jsx`, `jsxs` — bare or React namespace member; Base UI components
+ *     delegate to `useRender(...)`);
+ *   - a `return` delegating to a top-level LOCAL helper whose own body
+ *     yields JSX the same way (#1283) — so a `customRender(...)` wrapper
+ *     invisible to the renderer list cannot hide a component;
+ *   - or hook calls with only-null/JSX returns.
+ *
+ * Boundaries (documented, heuristic-free by design): callees that cannot be
+ * resolved locally (imports, member expressions) and JSX routed through
+ * local variables are not followed.
  */
 
 /** Any function-like node that has a body and optional id. */
@@ -187,6 +197,7 @@ const analyseBody = (
 	body: ESTree.FunctionBody | null | undefined,
 	importInfo: ImportInfo,
 	recursingFor: Set<string> = new Set(),
+	visiting: Set<string> = new Set(),
 ): BodyAnalysis => {
 	const result: BodyAnalysis = {
 		returnsJsx: false,
@@ -309,6 +320,16 @@ const analyseBody = (
 					// PascalCase function returning useRender(...), createElement(...),
 					// jsx(...), or jsxs(...) — component even without direct JSX.
 					result.returnsRendererCall = true;
+				} else if (
+					arg.type === 'CallExpression' &&
+					arg.callee.type === 'Identifier' &&
+					isLocalRenderDelegate(arg.callee.name, importInfo, visiting)
+				) {
+					// #1283: `return someLocalHelper(...)` where the helper's own body
+					// yields JSX (directly, through further such helpers, or through a
+					// known renderer). The declaration shape is the signal, so a
+					// non-allowlisted render wrapper cannot hide the component.
+					result.returnsRendererCall = true;
 				} else {
 					const isNullLike =
 						(arg.type === 'Literal' && arg.value === null) ||
@@ -358,6 +379,41 @@ const analyseBody = (
 
 	scanStatements(body.body);
 	return result;
+};
+
+/**
+ * Whether a `return name(...)` call delegates rendering to a top-level LOCAL
+ * helper whose own body yields JSX — directly, through further such helpers,
+ * or through a known renderer call (#1283). Imported and member-expression
+ * callees are not resolved. `visiting` carries the resolution stack so
+ * mutually recursive helpers terminate.
+ */
+const isLocalRenderDelegate = (
+	name: string,
+	importInfo: ImportInfo,
+	visiting: Set<string>,
+): boolean => {
+	const { importedNames, localFunctionDecls } = importInfo;
+	if (importedNames.has(name)) return false;
+	const localFn = localFunctionDecls.get(name);
+	if (!localFn) return false;
+	if (visiting.has(name)) return false;
+
+	const fnBody = localFn.body;
+	if (!fnBody) return false;
+	const next = new Set(visiting).add(name);
+
+	if (fnBody.type === 'BlockStatement') {
+		const nested = analyseBody(fnBody, importInfo, next, next);
+		return nested.returnsJsx || nested.returnsRendererCall;
+	}
+
+	// Concise arrow body (`const h = (props) => <div {...props} />`).
+	if (expressionContainsJsx(fnBody)) return true;
+	if (fnBody.type === 'CallExpression' && fnBody.callee.type === 'Identifier') {
+		return isLocalRenderDelegate(fnBody.callee.name, importInfo, next);
+	}
+	return false;
 };
 
 const bodyLooksLikeComponent = (
