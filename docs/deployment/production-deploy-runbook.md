@@ -103,6 +103,27 @@ image on the database network, verify a zero exit and logs, and only then trigge
 Dokploy deployment. This works without Dokploy lifecycle hooks but relies on manual
 discipline, so it is an interim/fallback procedure rather than the default.
 
+## Social accounts master key (`SOCIAL_ACCOUNTS_MASTER_KEY`) and the boot canary
+
+`SOCIAL_ACCOUNTS_MASTER_KEY` (32 bytes, `openssl rand -base64 32`) must be set as a Dokploy
+secret on **all three** services — `publyapp-api`, `publyapp-worker`, and `publyapp-migrate`
+— with the **same value**. It protects the Data Protection key ring persisted to Postgres,
+which encrypts every stored social credential. A value present but wrong-sized or wrong
+refuses the api/worker boot with a plain-words cause; it does not fail silently.
+
+At every real boot of `publyapp-api` and `publyapp-worker`, the startup witness decrypts a
+canary blob persisted beside that key ring (row `social-accounts-master-key-canary` in
+`data_protection_keys`). On success it logs exactly one Information line stating the canary
+PASSED (#1284); on mismatch it refuses to start and names the recovery options. When watching
+a deploy, treat that PASSED line as the positive proof the key works — its absence means the
+boot was refused earlier, not that everything is fine.
+
+One deliberate exception: the build-time OpenAPI generation inside `dotnet build`
+(`just build-api` / `just generate-client`) runs this app's `Main` **without a database**, so
+the canary is skipped there by design — only the key parse/size contract runs, and no PASSED
+line is logged. A green CI build therefore never exercises the canary; only a real api/worker
+boot does. Full guide: [`docs/guides/social-accounts.md`](../guides/social-accounts.md).
+
 ## Production-instance checks — RESOLVED (first deploy, 2026-07-20)
 
 These were open before the first real deployment. They are now answered on the live VPS. The

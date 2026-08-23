@@ -205,6 +205,10 @@ slice boundaries, permission enforcement, vertical slice design principles, and 
 For detailed documentation on business rules, database layer, authentication, and i18n, see:
 [`docs/guides/architecture-details.md`](docs/guides/architecture-details.md)
 
+For the social accounts master key (`SOCIAL_ACCOUNTS_MASTER_KEY`), the boot canary that
+verifies it, its one structured pass log line, and the db-less OpenAPI build path where the
+canary is skipped, see: [`docs/guides/social-accounts.md`](docs/guides/social-accounts.md)
+
 **Key facts (always apply):**
 - Staff/Tenant mutual exclusivity: a `User` can only have accounts of ONE scope type (Staff or Tenant/Project, never both); suspended accounts still count
 - PostgreSQL 18 with UUID v7 PKs, soft deletes (`IsDeleted`), and audit tracking

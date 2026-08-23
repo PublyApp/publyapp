@@ -19,7 +19,27 @@ public static class SocialAccountsMasterKeyWitness {
 	private static readonly byte[] Sentinel =
 		System.Text.Encoding.UTF8.GetBytes("__social_accounts_master_key_sentinel__");
 
-	public static void EnsureMasterKeyUsable(byte[] key, IKeyRingCanaryStore? canaryStore = null) {
+	/// <summary>
+	/// Exact text of the Information line logged when the canary round-trip PASSES at real
+	/// boot (#1284). Public so the boot-log spec asserts against the same constant Program
+	/// writes, instead of a copy that could drift.
+	/// </summary>
+	public const string CanaryPassedLogLine =
+		"Social accounts master-key canary PASSED: SOCIAL_ACCOUNTS_MASTER_KEY decrypts the "
+		+ "persisted key-ring canary; credential protection is verified for this process.";
+
+	/// <summary>
+	/// The fail-loud gate: throws (refuses boot) when the key is missing, wrong-sized, or
+	/// does not decrypt the persisted canary — that path is unchanged (#1284). When the
+	/// canary round-trip PASSES, one structured Information line goes to
+	/// <paramref name="logger"/> so operators can tell "verified" boots from doc-gen runs
+	/// where only the parse contract ran.
+	/// </summary>
+	public static void EnsureMasterKeyUsable(
+		byte[] key,
+		IKeyRingCanaryStore? canaryStore = null,
+		ILogger? logger = null
+	) {
 		if (key.Length == 0) {
 			throw new InvalidOperationException(
 				"SOCIAL_ACCOUNTS_MASTER_KEY is missing or empty: "
@@ -40,7 +60,8 @@ public static class SocialAccountsMasterKeyWitness {
 		if (canaryStore is null) {
 			// No persistence seam available (e.g. build-time OpenAPI generation with no
 			// database): only the parse/size contract above is verifiable here. Callers
-			// that serve real traffic MUST pass a store so the canary check runs.
+			// that serve real traffic MUST pass a store so the canary check runs. No pass
+			// line is logged here — nothing was verified beyond key SIZE (#1284).
 			return;
 		}
 
@@ -50,10 +71,12 @@ public static class SocialAccountsMasterKeyWitness {
 				// First boot (or canary lost): mint it under the current key. From now on
 				// every boot with a different key value fails below.
 				canaryStore.Write(ProtectSentinel(key));
+				logger?.LogInformation(CanaryPassedLogLine);
 				return;
 			}
 
 			VerifyPersistedCanary(key, stored);
+			logger?.LogInformation(CanaryPassedLogLine);
 		} catch (Exception ex) when (ex is CryptographicException or FormatException or ArgumentException) {
 			throw WrongKey(ex);
 		}

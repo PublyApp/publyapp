@@ -99,7 +99,12 @@ public class Program {
 						? null // doc-gen process: no DB, key checks only
 						: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryStore(
 							workerHost.Services.GetRequiredService<IServiceScopeFactory>()
-						)
+						),
+					// #1284: one structured Information line when the canary round-trip PASSES,
+					// so operators can tell verified boots from doc-gen runs (which skip it).
+					workerHost.Services.GetRequiredService<ILoggerFactory>().CreateLogger(
+						nameof(Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness)
+					)
 				);
 			workerHost.Run();
 			return;
@@ -120,7 +125,12 @@ public class Program {
 					? null // doc-gen process: no DB, key checks only
 					: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryStore(
 						app.Services.GetRequiredService<IServiceScopeFactory>()
-					)
+					),
+				// #1284: one structured Information line when the canary round-trip PASSES,
+				// so operators can tell verified boots from doc-gen runs (which skip it).
+				app.Services.GetRequiredService<ILoggerFactory>().CreateLogger(
+					nameof(Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness)
+				)
 			);
 
 		app.LogDiManifestIfPresent();
