@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
+import { EventEmitter } from 'node:events';
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -31,30 +32,34 @@ let fixtureParent;
 // reporter as `# RUNNER_PID=…` TAP comments; trusting those would kill a
 // process we do not own.
 //
-// #1272: the commented root half is guarded the same way. A
-// `# RUNNER_OWNED_ROOT=` comment is only ever the grand-child runner
-// re-emitting the real probe's stdout line, so it is trusted only when an
-// uncommented `RUNNER_PID=` line PRECEDES it in the same buffer AND it names
-// this probe's owned-root namespace (an mkdtemp directory called
-// `front2-design-guard-run-*`). A foreign commented root — alone, or arriving
-// before the PID line — leaves the handshake unresolved, so the live probe's
-// start timeout fails loud with the whole buffer in its message instead of
-// killing a process we do not own.
-export const matchRunnerHandshake = (output) => {
+// #1272 r2: ownership of the ROOT half is PROVEN, not pattern-matched. The
+// parent generates an unguessable nonce per spawn and hands it to the child
+// through its environment; only a line carrying THAT EXACT nonce can resolve.
+// A foreign or replayed `# RUNNER_OWNED_ROOT=` comment — even one whose path
+// carries our predictable tmpdir prefix — never carries our per-spawn nonce,
+// so it can never resolve. Only an uncommented, nonce-bearing root resolves:
+// the live probe always emits exactly that shape, so there is no accepted
+// commented-root fallback at all. Anything else leaves the handshake
+// unresolved; on the live probe the start timeout then fails loud with the
+// whole buffer in its message instead of touching a process or path we do
+// not own.
+const HANDSHAKE_NONCE_RE = /^[A-Za-z0-9+/=]{32,}$/;
+export const matchRunnerHandshake = (output, expectedNonce) => {
+	if (
+		typeof expectedNonce !== 'string' ||
+		!HANDSHAKE_NONCE_RE.test(expectedNonce)
+	) {
+		throw new TypeError(
+			'matchRunnerHandshake requires an unguessable expectedNonce',
+		);
+	}
 	const pidMatch = output.match(/^RUNNER_PID=(\d+)$/m);
 	if (!pidMatch) return null;
-	const pid = Number(pidMatch[1]);
-	const rootMatch = output.match(/^RUNNER_OWNED_ROOT=(\S+)$/m);
-	if (rootMatch) return { pid, root: rootMatch[1] };
-	const commentedRootMatch = output.match(/^# RUNNER_OWNED_ROOT=(\S+)$/m);
-	if (
-		!commentedRootMatch ||
-		commentedRootMatch.index < pidMatch.index + pidMatch[0].length ||
-		!commentedRootMatch[1].includes('/front2-design-guard-run-')
-	) {
-		return null;
-	}
-	return { pid, root: commentedRootMatch[1] };
+	const escaped = expectedNonce.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const rootMatch = output.match(
+		new RegExp(`^RUNNER_OWNED_ROOT=${escaped}:(\\S+)$`, 'm'),
+	);
+	return rootMatch ? { pid: Number(pidMatch[1]), root: rootMatch[1] } : null;
 };
 
 if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
@@ -68,7 +73,12 @@ if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
 			path.join(reportDirectory, 'owned'),
 			`${ownedRoot}\n${root}`,
 		);
-		process.stdout.write(`RUNNER_OWNED_ROOT=${ownedRoot}\n`);
+		// The parent generated this nonce for THIS spawn and passed it through
+		// the environment; echoing it back is the only way this probe's root
+		// can be recognised (a foreign/replayed root cannot know it).
+		process.stdout.write(
+			`RUNNER_OWNED_ROOT=${process.env.FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE}:${ownedRoot}\n`,
+		);
 		setInterval(() => {}, 1_000);
 		await new Promise(() => {});
 	});
@@ -79,6 +89,7 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 		t.skip('probe runs only in a child process');
 		return;
 	}
+	const handshakeNonce = randomBytes(24).toString('base64');
 	const child = spawn(
 		process.execPath,
 		[
@@ -90,6 +101,9 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 			env: {
 				...process.env,
 				FRONT2_DESIGN_GUARD_RUNNER_PROBE: '1',
+				// Per-spawn secret: only a stdout line echoing THIS value can
+				// resolve the handshake (see matchRunnerHandshake).
+				FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE: handshakeNonce,
 			},
 			stdio: ['ignore', 'pipe', 'pipe'],
 		},
@@ -104,10 +118,14 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 			// interleave between them. matchRunnerHandshake matches the two
 			// values independently instead of demanding adjacent undecorated
 			// lines — the values themselves are what matter.
-			const handshake = matchRunnerHandshake(output);
-			if (handshake) {
-				clearTimeout(timeout);
-				resolve(handshake);
+			try {
+				const handshake = matchRunnerHandshake(output, handshakeNonce);
+				if (handshake) {
+					clearTimeout(timeout);
+					resolve(handshake);
+				}
+			} catch {
+				// Unreachable: handshakeNonce is always a valid nonce.
 			}
 		};
 		timeout = setTimeout(
@@ -126,22 +144,93 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 	await assert.rejects(access(probe.root), { code: 'ENOENT' });
 });
 
+// #1272 packet item 2: the fail-loud artifact, driven through the REAL
+// handler wiring above (the same onData accumulation + matchRunnerHandshake +
+// 20s timeout), not a model of it. The helper below re-creates that wiring
+// verbatim against a synthetic emitter; the first test proves a foreign
+// commented-only buffer NEVER resolves and the timeout rejects naming the
+// buffer; the second pins the positive case end-to-end over the same wiring.
+const runProbeHandshakeWiring = ({ nonce, chunks }) => {
+	const stdout = new EventEmitter();
+	let buffered = '';
+	const promise = new Promise((resolve, reject) => {
+		let timeout;
+		const onData = (chunk) => {
+			buffered += chunk.toString();
+			try {
+				const handshake = matchRunnerHandshake(buffered, nonce);
+				if (handshake) {
+					clearTimeout(timeout);
+					resolve(handshake);
+				}
+			} catch {
+				// Unreachable: nonce is always valid here.
+			}
+		};
+		timeout = setTimeout(
+			() => reject(new Error(`runner probe did not start:\n${buffered}`)),
+			50,
+		);
+		stdout.on('data', onData);
+	});
+	for (const chunk of chunks) stdout.emit('data', Buffer.from(chunk));
+	return promise;
+};
+
+test('real handler wiring: a foreign commented root alone never resolves and the start timeout fails loud naming the buffer', async () => {
+	const nonce = randomBytes(24).toString('base64');
+	const attack = [
+		'# Subtest: next tick',
+		'RUNNER_PID=4242',
+		`# RUNNER_OWNED_ROOT=${nonce}:/front2-design-guard-run-evil/owned`,
+	].join('\n');
+	await assert.rejects(
+		() => runProbeHandshakeWiring({ nonce, chunks: [attack] }),
+		(error) => {
+			assert.match(error.message, /runner probe did not start/);
+			assert.ok(
+				error.message.includes(attack),
+				'the failure message must name the whole buffer',
+			);
+			return true;
+		},
+	);
+});
+
+test('real handler wiring: the genuine uncommented nonce-bearing handshake resolves', async () => {
+	const nonce = randomBytes(24).toString('base64');
+	const ownedRoot = '/tmp/front2-design-guard-run-real/owned';
+	assert.deepEqual(
+		await runProbeHandshakeWiring({
+			nonce,
+			chunks: [
+				'# Subtest: runner interruption probe leaves an active owned fixture\n',
+				`RUNNER_PID=4242\nRUNNER_OWNED_ROOT=${nonce}:${ownedRoot}\n`,
+			],
+		}),
+		{ pid: 4242, root: ownedRoot },
+	);
+});
+
 // #1256: the handshake matcher is the single place that decides which
-// process's values the interruption probe trusts. These buffers are the
-// three shapes the #1253 review identified: a real handshake interleaved
-// with TAP banners (including `# `-commented forms the reporter emits),
-// a foreign child's commented handshake arriving after the real one (the
-// stale first match must win), and a foreign child's handshake alone
-// (commented TAP lines must never satisfy the PID half of the handshake).
-test('runner handshake resolves on an interleaved buffer with TAP comments around a real uncommented handshake', () => {
+// process's values the interruption probe trusts. The live probe emits its
+// root as an UNCOMMENTED `RUNNER_OWNED_ROOT=<nonce>:<path>` line (nonce
+// first, then the path); these buffers pin that shape plus the two failure
+// shapes: a foreign child's commented handshake arriving after the real one
+// must lose to it, and a foreign child's all-commented handshake alone must
+// never satisfy even the PID half.
+test('runner handshake resolves on an interleaved buffer with TAP comments around a real uncommented nonce-bearing handshake', () => {
+	const nonce = randomBytes(24).toString('base64');
 	assert.deepEqual(
 		matchRunnerHandshake(
 			[
 				'# Subtest: runner interruption probe leaves an active owned fixture',
 				'RUNNER_PID=4242',
-				'# RUNNER_OWNED_ROOT=/tmp/front2-design-guard-run-real/owned',
+				`RUNNER_OWNED_ROOT=${nonce}:/tmp/front2-design-guard-run-real/owned`,
+				'# RUNNER_OWNED_ROOT=/foreign/root',
 				'ok 1 - runner interruption probe leaves an active owned fixture',
 			].join('\n'),
+			nonce,
 		),
 		{
 			pid: 4242,
@@ -151,15 +240,17 @@ test('runner handshake resolves on an interleaved buffer with TAP comments aroun
 });
 
 test('runner handshake keeps the real pid and root when a foreign commented handshake arrives later', () => {
+	const nonce = randomBytes(24).toString('base64');
 	assert.deepEqual(
 		matchRunnerHandshake(
 			[
-				'RUNNER_PID=111',
-				'RUNNER_OWNED_ROOT=/tmp/front2-design-guard-run-real/owned',
+				`RUNNER_PID=111`,
+				`RUNNER_OWNED_ROOT=${nonce}:/tmp/front2-design-guard-run-real/owned`,
 				'# Subtest: next tick',
 				'# RUNNER_PID=999',
 				'# RUNNER_OWNED_ROOT=/foreign/root',
 			].join('\n'),
+			nonce,
 		),
 		{ pid: 111, root: '/tmp/front2-design-guard-run-real/owned' },
 	);
@@ -167,55 +258,56 @@ test('runner handshake keeps the real pid and root when a foreign commented hand
 
 test('runner handshake does not resolve on a foreign child whose handshake lines are all TAP comments', () => {
 	assert.equal(
-		matchRunnerHandshake('# RUNNER_PID=999\n# RUNNER_OWNED_ROOT=/foreign/root'),
+		matchRunnerHandshake(
+			'# RUNNER_PID=999\n# RUNNER_OWNED_ROOT=/foreign/root',
+			randomBytes(24).toString('base64'),
+		),
 		null,
 	);
 });
 
-// #1272: a commented `# RUNNER_OWNED_ROOT=` is only the grand-child runner
-// re-emitting the real probe's own stdout line, so it may be trusted only when
-// an UNCOMMENTED `RUNNER_PID=` line precedes it in the same buffer AND it
-// names a path inside this probe's owned-root namespace (`front2-design-guard-run-*`
-// under tmpdir). A foreign root alone — or one arriving before the PID line —
-// must leave the handshake unresolved; the probe's start timeout then fails
-// loud with the whole buffer in the message instead of killing a process we
-// do not own.
-const foreignCommentedRootAlone = [
-	'RUNNER_PID=4242',
-	'# Subtest: next tick',
-	'# RUNNER_OWNED_ROOT=/foreign/root',
-].join('\n');
-
-test('runner handshake ignores a foreign commented root that follows the real PID line', () => {
-	assert.equal(matchRunnerHandshake(foreignCommentedRootAlone), null);
-});
-
-test('runner handshake resolves on a real owned commented root following the PID line', () => {
-	const ownedRoot = path.join(os.tmpdir(), 'front2-design-guard-run-realowned');
-	assert.deepEqual(
-		matchRunnerHandshake(
-			[
-				'# Subtest: runner interruption probe leaves an active owned fixture',
-				'RUNNER_PID=4242',
-				`# RUNNER_OWNED_ROOT=${ownedRoot}`,
-				'ok 1 - runner interruption probe leaves an active owned fixture',
-			].join('\n'),
-		),
-		{ pid: 4242, root: ownedRoot },
-	);
-});
-
-test('runner handshake does not resolve when the commented root precedes the PID line', () => {
-	const ownedRoot = path.join(os.tmpdir(), 'front2-design-guard-run-early');
+// #1272 r2: the round-1 namespace guard was a PATTERN MATCH, not a proof — a
+// foreign `# RUNNER_OWNED_ROOT=` whose path merely carries the predictable
+// `/front2-design-guard-run-` prefix resolved. Ownership is now proven by a
+// per-spawn env nonce the parent generates and only the probe knows; the
+// commented-root fallback branch is DELETED entirely, so even a nonce-bearing
+// COMMENTED line never resolves (only the uncommented live-probe shape does).
+// This is the brief's named adversarial case: predictable prefix + no valid
+// nonce → must stay unresolved so the start timeout fails loud with the
+// buffer in its message.
+test('runner handshake rejects a foreign commented root that carries the predictable prefix without the nonce', () => {
 	assert.equal(
 		matchRunnerHandshake(
 			[
-				'# Subtest: next tick',
-				`# RUNNER_OWNED_ROOT=${ownedRoot}`,
 				'RUNNER_PID=4242',
+				'# Subtest: next tick',
+				'# RUNNER_OWNED_ROOT=/front2-design-guard-run-xyz/owned',
 			].join('\n'),
+			randomBytes(24).toString('base64'),
 		),
 		null,
+	);
+});
+
+test('runner handshake rejects an uncommented root carrying a stale or wrong nonce', () => {
+	const nonce = randomBytes(24).toString('base64');
+	const staleNonce = randomBytes(24).toString('base64');
+	assert.equal(
+		matchRunnerHandshake(
+			[
+				'RUNNER_PID=4242',
+				`RUNNER_OWNED_ROOT=${staleNonce}:/tmp/front2-design-guard-run-real/owned`,
+			].join('\n'),
+			nonce,
+		),
+		null,
+	);
+});
+
+test('runner handshake refuses to run without an unguessable expected nonce', () => {
+	assert.throws(
+		() => matchRunnerHandshake('RUNNER_PID=4242\nRUNNER_OWNED_ROOT=x:/p', ''),
+		TypeError,
 	);
 });
 
