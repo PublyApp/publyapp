@@ -17,7 +17,9 @@ const makeWorkflow = (steps) =>
  * Builds a throwaway repo with one workflow file.
  */
 const buildFixture = async ({ workflowContent }) => {
-	const rootDir = await mkdtemp(path.join(os.tmpdir(), 'publyapp-actions-pinned-'));
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
+	);
 
 	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
 
@@ -41,9 +43,7 @@ test('passes when all uses: are pinned to full SHAs', async () => {
 });
 
 test('passes for local actions (./path)', async () => {
-	const content = makeWorkflow(
-		'      - uses: ./.github/actions/my-action\n',
-	);
+	const content = makeWorkflow('      - uses: ./.github/actions/my-action\n');
 
 	const rootDir = await buildFixture({ workflowContent: content });
 	const findings = await findUnpinnedActions({ rootDir });
@@ -52,9 +52,7 @@ test('passes for local actions (./path)', async () => {
 });
 
 test('fails when a bare major tag is used', async () => {
-	const content = makeWorkflow(
-		'      - uses: actions/checkout@v7\n',
-	);
+	const content = makeWorkflow('      - uses: actions/checkout@v7\n');
 
 	const rootDir = await buildFixture({ workflowContent: content });
 	const findings = await findUnpinnedActions({ rootDir });
@@ -80,8 +78,8 @@ test('fails when a bare minor tag is used', async () => {
 test('reports multiple unpinned actions across steps', async () => {
 	const content = makeWorkflow(
 		'      - uses: actions/checkout@v7\n' +
-		'      - uses: actions/setup-node@v7\n' +
-		'      - uses: pnpm/action-setup@v6\n',
+			'      - uses: actions/setup-node@v7\n' +
+			'      - uses: pnpm/action-setup@v6\n',
 	);
 
 	const rootDir = await buildFixture({ workflowContent: content });
@@ -96,7 +94,7 @@ test('reports multiple unpinned actions across steps', async () => {
 test('mixed pinned and unpinned lines — only unpinned reported', async () => {
 	const content = makeWorkflow(
 		'      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n' +
-		'      - uses: actions/setup-dotnet@v4\n',
+			'      - uses: actions/setup-dotnet@v4\n',
 	);
 
 	const rootDir = await buildFixture({ workflowContent: content });
@@ -116,9 +114,7 @@ test('revert restores green — proof of paired regression', async () => {
 	assert.deepStrictEqual(cleanFindings, []);
 
 	// Phase 2: dirty (unpin one line)
-	const dirtyContent = makeWorkflow(
-		'      - uses: actions/checkout@v7\n',
-	);
+	const dirtyContent = makeWorkflow('      - uses: actions/checkout@v7\n');
 	await writeFile(
 		path.join(rootDir, '.github/workflows/fixture.yml'),
 		dirtyContent,
@@ -138,7 +134,7 @@ test('revert restores green — proof of paired regression', async () => {
 test('ignores commented-out uses: lines (YAML comments)', async () => {
 	const content = makeWorkflow(
 		'      # - uses: actions/checkout@v7\n' +
-		'      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n',
+			'      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n',
 	);
 
 	const rootDir = await buildFixture({ workflowContent: content });
@@ -165,9 +161,7 @@ test('fails when a uses: value has no @ref at all', async () => {
 });
 
 test('fails when a docker:// image has no digest pin', async () => {
-	const content = makeWorkflow(
-		'      - uses: docker://alpine:3.20\n',
-	);
+	const content = makeWorkflow('      - uses: docker://alpine:3.20\n');
 
 	const rootDir = await buildFixture({ workflowContent: content });
 	const findings = await findUnpinnedActions({ rootDir });
