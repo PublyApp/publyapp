@@ -113,12 +113,15 @@ const realpathIfExists = (value) => {
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
-export const disambiguateWorktreesByCwd = (matches) => {
+export const disambiguateWorktreesByCwd = (matches, preferPath) => {
 	if (matches.length < 2) {
 		return matches;
 	}
 
-	const cwd = realpathIfExists(process.cwd());
+	// Callers that already know their anchor directory (e.g. a CLI whose resolution must
+	// be relative to repoRoot rather than whatever process.cwd() happens to be inside a
+	// test runner) pass preferPath explicitly; everyone else means "here".
+	const cwd = realpathIfExists(preferPath ?? process.cwd());
 	if (!cwd) {
 		return matches;
 	}
@@ -292,6 +295,8 @@ export const resolveByNumber = async (
 		runIssueByNumber: runIssueByNumberFn,
 		// @ts-expect-error rung-0: TS2339
 		runGh,
+		// @ts-expect-error rung-0: TS2339
+		preferCwdPath,
 	} = {},
 ) => {
 	const runPr = runPrByNumberFn
@@ -329,7 +334,7 @@ export const resolveByNumber = async (
 		return { kind: 'not-found', requested: number, source: issue };
 	}
 
-	const disambiguated = disambiguateWorktreesByCwd(matches);
+	const disambiguated = disambiguateWorktreesByCwd(matches, preferCwdPath);
 	if (disambiguated.length > 1) {
 		return {
 			kind: 'issue-ambiguous',

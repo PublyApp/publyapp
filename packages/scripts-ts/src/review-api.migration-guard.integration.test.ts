@@ -384,6 +384,9 @@ const resolveLaunchTarget = async (): Promise<LaunchTargetResolution> => {
 		// missing-reference -> null semantics via runGhJson.
 		runPrByNumber: (number) => runPrByNumber(number, { runGh }),
 		runIssueByNumber: (number) => runIssueByNumber(number, { runGh }),
+		// The CLI resolves ambiguity against ITS cwd (repoRoot); vitest's process.cwd()
+		// is the package dir instead, so pin the comparison to repoRoot explicitly.
+		preferCwdPath: repoRoot,
 	});
 
 	if (resolved.kind === 'pr' || resolved.kind === 'issue') {

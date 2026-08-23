@@ -371,6 +371,40 @@ test('disambiguateWorktreesByCwd: keeps every candidate when none is the cwd', (
 	assert.deepEqual(disambiguateWorktreesByCwd(matches), matches);
 });
 
+test('disambiguateWorktreesByCwd: an explicit preferPath overrides process.cwd', () => {
+	const parent = mkdtempSync(path.join(tmpdir(), 'resolve-prefer-'));
+	const here = path.join(parent, 'here');
+	const there = path.join(parent, 'there');
+	mkdirSync(here);
+	mkdirSync(there);
+	const matches = [
+		{ path: here, branch: 'fix/994-a', head: 'h1' },
+		{ path: there, branch: 'fix/994-b', head: 'h2' },
+	];
+	const previousCwd = process.cwd();
+	process.chdir(here);
+	try {
+		assert.deepEqual(disambiguateWorktreesByCwd(matches, there), [matches[1]]);
+	} finally {
+		process.chdir(previousCwd);
+		rmSync(parent, { recursive: true, force: true });
+	}
+});
+
+test('resolveByNumber: a target with no local worktree reports not-found (skip signal for the launch proofs)', async () => {
+	const result = await resolveByNumber(
+		1016,
+		[{ path: '/tmp/other', branch: 'feature/unrelated', head: 'h' }],
+		{
+			runPrByNumber: async () => null,
+			runIssueByNumber: async () => null,
+		},
+	);
+
+	assert.equal(result.kind, 'not-found');
+	assert.equal(result.requested, 1016);
+});
+
 test('disambiguateWorktreesByCwd: prefers the candidate containing the current directory', () => {
 	const parent = mkdtempSync(path.join(tmpdir(), 'resolve-cwd-'));
 	const here = path.join(parent, 'here');
