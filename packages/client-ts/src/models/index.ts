@@ -4509,8 +4509,10 @@ export function deserializeIntoStaffProfileCreated(staffProfileCreated: Partial<
 export function deserializeIntoStaffProfileItem(staffProfileItem: Partial<StaffProfileItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "description": n => { staffProfileItem.description = n.getStringValue(); },
+        "icon": n => { staffProfileItem.icon = n.getStringValue(); },
         "id": n => { staffProfileItem.id = n.getGuidValue(); },
         "name": n => { staffProfileItem.name = n.getStringValue(); },
+        "tone": n => { staffProfileItem.tone = n.getStringValue(); },
         "userAccountCount": n => { staffProfileItem.userAccountCount = n.getNumberValue(); },
     }
 }
@@ -8226,8 +8228,10 @@ export function serializeStaffProfileCreated(writer: SerializationWriter, staffP
 export function serializeStaffProfileItem(writer: SerializationWriter, staffProfileItem: Partial<StaffProfileItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffProfileItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("description", staffProfileItem.description);
+    writer.writeStringValue("icon", staffProfileItem.icon);
     writer.writeGuidValue("id", staffProfileItem.id);
     writer.writeStringValue("name", staffProfileItem.name);
+    writer.writeStringValue("tone", staffProfileItem.tone);
     writer.writeNumberValue("userAccountCount", staffProfileItem.userAccountCount);
     writer.writeAdditionalData(staffProfileItem.additionalData);
 }
@@ -9280,6 +9284,10 @@ export interface StaffProfileItem extends AdditionalDataHolder, Parsable {
      */
     description?: string | null;
     /**
+     * The icon property
+     */
+    icon?: string | null;
+    /**
      * The id property
      */
     id?: Guid | null;
@@ -9287,6 +9295,10 @@ export interface StaffProfileItem extends AdditionalDataHolder, Parsable {
      * The name property
      */
     name?: string | null;
+    /**
+     * The tone property
+     */
+    tone?: string | null;
     /**
      * The userAccountCount property
      */

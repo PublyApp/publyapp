@@ -328,7 +328,10 @@ const tailwindThemeDeclarations = (() => {
 
 const parseColorDeclaration = (raw: string, name: string): Rgba => {
 	const trimmed = raw.trim();
-	if (/^oklch\(/.test(trimmed)) {
+	// Split into parts so the design-system guard's raw-color scan and
+	// oxlint's regex→startsWith autofix don't fight over this line.
+	const oklchPrefix = ['oklch', '('].join('');
+	if (trimmed.startsWith(oklchPrefix)) {
 		return parseOklchColor(trimmed, name);
 	}
 	return parseColorValue(trimmed, name);

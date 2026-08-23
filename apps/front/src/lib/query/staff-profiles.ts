@@ -6,6 +6,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
+import { deriveProfileCardStyle } from '~/lib/profile-card-style';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -37,6 +38,9 @@ export type CreateStaffProfileInput = {
 	description?: string;
 	permissions: string[];
 	emails?: string[];
+	/** Persisted profile style (#980); omitted values stay null on the wire. */
+	icon?: string | null;
+	tone?: string | null;
 };
 
 export type StaffPermissionCatalogQueryVariables = {
@@ -125,35 +129,17 @@ const normalizeOptionalString = (value: unknown): string | undefined => {
 	return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const PROFILE_ICONS = [
-	'news',
-	'calendar',
-	'shield',
-	'building-bank',
-	'users',
-	'settings',
-	'chart-bar',
-	'world',
-] as const;
-
-const PROFILE_ICON_TONES = ['0', '1', '2', '3', '4', '5', '6', '7'] as const;
-
-const deriveProfileIcon = (
+// #980: rows/details carry the profile's persisted icon and tone; when none
+// was stored, `deriveProfileCardStyle` derives a deterministic picker-valid
+// fallback from the name — the same rule tenant profiles follow.
+const toProfileCardStyle = (
 	name: string,
+	icon?: string | null,
+	tone?: string | null,
 ): { icon: string; iconTone: string } => {
-	let sum = 0;
-	for (const c of name) {
-		sum += c.charCodeAt(0);
-	}
-
-	const iconIdx = sum % PROFILE_ICONS.length;
-	const toneIdx = sum % PROFILE_ICON_TONES.length;
-	return {
-		icon: PROFILE_ICONS[iconIdx],
-		iconTone: PROFILE_ICON_TONES[toneIdx],
-	};
+	const style = deriveProfileCardStyle(name, icon, tone);
+	return { icon: style.icon, iconTone: style.tone };
 };
-
 const formatModuleLabel = (moduleKey: string): string =>
 	moduleKey
 		.trim()
@@ -192,7 +178,7 @@ export const toStaffProfileRows = (
 			name,
 			description: item.description ?? null,
 			userAccountCount: item.userAccountCount ?? null,
-			...deriveProfileIcon(name),
+			...toProfileCardStyle(name, item.icon, item.tone),
 		});
 	}
 
@@ -218,7 +204,7 @@ export const toStaffProfileDetails = (
 		name,
 		description: profile?.description ?? null,
 		userAccountCount: profile?.userAccountCount ?? null,
-		...deriveProfileIcon(name),
+		...toProfileCardStyle(name, profile?.icon, profile?.tone),
 	};
 };
 
@@ -351,6 +337,18 @@ export const buildCreateStaffProfileBody = (
 		body.emails = createUntypedArray(
 			emails.map((email) => createUntypedString(email)),
 		) as typeof body.emails;
+	}
+
+	if (normalizeString(input.icon ?? undefined) !== undefined) {
+		body.icon = createUntypedString(
+			normalizeString(input.icon ?? undefined) as string,
+		) as typeof body.icon;
+	}
+
+	if (normalizeString(input.tone ?? undefined) !== undefined) {
+		body.tone = createUntypedString(
+			normalizeString(input.tone ?? undefined) as string,
+		) as typeof body.tone;
 	}
 
 	return body;
