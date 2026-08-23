@@ -219,6 +219,39 @@ test('parseChangedFilesTotal: a decimal value is invalid', () => {
 	assert.equal(parseChangedFilesTotal('3.5'), undefined);
 });
 
+// ---------------------------------------------------------------------------
+// #1261 round-2 finding 1: the guard's only server-side runner is
+// front-ci.yml's `gate-selftest` job, which is relevance-gated on this
+// classifier. `.github/actions/**` (the composite-action half of the
+// check-actions-pinned scan) must be in the REAL pattern from front-ci.yml,
+// so an actions-only PR — e.g. a Dependabot github-actions bump inside an
+// existing action.yml, or a human unpinning one — wakes gate-selftest up.
+// The pattern is extracted from the workflow YAML itself, not restated here,
+// so narrowing it back is caught. Paired proof: this test is RED against the
+// old pattern (no `.github/actions/` group) and GREEN after adding it.
+// ---------------------------------------------------------------------------
+
+const frontCiClassifierPattern = readFileSync(
+	new URL('../.github/workflows/front-ci.yml', import.meta.url),
+	'utf8',
+).match(/node "\$CLASSIFIER" '([^']*)'/)?.[1];
+
+test('#1261: front-ci classifier selects .github/actions/foo/action.yml as relevant', () => {
+	assert.ok(
+		frontCiClassifierPattern,
+		'classifier invocation found in front-ci.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['.github/actions/foo/action.yml'],
+		changedFilesTotal: 1,
+		pattern: frontCiClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
 test('parseChangedFilesTotal: a valid non-negative integer, with surrounding whitespace, parses', () => {
 	assert.equal(parseChangedFilesTotal('  42  \n'), 42);
 });
