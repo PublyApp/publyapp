@@ -123,18 +123,29 @@ public sealed class SocialAccountsMasterKeyBootLogSpec {
 
 	[Fact]
 	public void ItShouldWireThePassLineIntoBothRealBootCallSitesInProgramCs() {
-		var source = FindProgramCsSource().Replace("\t", string.Empty);
+		// Whitespace-normalised (same approach as MasterKeyWitnessCallSiteSpec) so the
+		// multi-line call sites still match.
+		var source = Normalize(FindProgramCsSource());
 
-		// Both role branches (web host AND worker Generic Host) must feed the witness a
-		// logger built from the constant below — removing either wiring leaves a boot
-		// path whose success is invisible to operators. Red if the line is unwired.
+		// Both role branches (web host AND worker Generic Host) must hand the witness a
+		// real ILoggerFactory-built logger named after the witness — removing either
+		// wiring leaves a boot path whose success is invisible to operators. Red if the
+		// line is unwired. (The LogInformation(CanaryPassedLogLine) calls themselves are
+		// pinned by the four behavioural specs above.)
 		var wiredCallSites = CountOccurrences(
 			source,
-			"SocialAccountsMasterKeyWitness.CanaryPassedLogLine"
+			"GetRequiredService<ILoggerFactory>().CreateLogger("
+				+ "nameof(Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness))"
 		);
 		wiredCallSites.Should().Be(
 			2,
-			"both boot paths must log the canary pass line through the shared constant"
+			"both boot paths must pass the witness logger so the canary pass line is logged"
+		);
+	}
+
+	private static string Normalize(string source) {
+		return string.Concat(
+			source.Where(static c => !char.IsWhiteSpace(c))
 		);
 	}
 
