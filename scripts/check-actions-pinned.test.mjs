@@ -158,13 +158,15 @@ test('ignores commented-out uses: lines (YAML comments)', async () => {
 
 test('fails when a mutable tag carries only a full-SHA trailing comment', async () => {
 	// `actions/checkout@v1` is the ref GitHub actually checks out; the 40-hex
-	// SHA sits in a YAML comment and pins nothing. Comment-stripping before
-	// the match is what keeps that SHA out of the judgment entirely, so the
-	// live line is judged by its mutable `@v1` alone. The commented-out twin
-	// of the same abuse pattern is the control that makes comment handling
-	// observable: if the stripping ever regresses, the twin's `uses:` leaks
-	// out of the comment and this test turns red (two findings, one of them
-	// from a dead line) instead of passing silently.
+	// SHA sits in a YAML comment and pins nothing. The captured ref can never
+	// include that SHA — `/uses:\s*(\S+)/` already stops at whitespace — so
+	// this test does NOT pin comment-stripping. It pins the abuse-class rule
+	// proven by mutation in the r1 review: trusting a 40-hex found anywhere
+	// on the line (the one mutation that reds this test alone) must stay a
+	// failure, never a silent pass. The commented-out twin of the same
+	// pattern doubles as the observable control for comment handling: if
+	// stripping ever regresses, the twin leaks into the findings instead of
+	// passing silently.
 	const shaComment = '3d3c42e5aac5ba805825da76410c181273ba90b1';
 	const content = makeWorkflow(
 		`      # - uses: actions/checkout@v1 # ${shaComment}\n` +

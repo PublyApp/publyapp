@@ -43,10 +43,15 @@ const dockerDigestPattern = /^sha256:[0-9a-f]{64}$/;
  * reference, or null when the line is fine (including non-`uses:` lines and
  * commented-out ones).
  *
- * YAML comments are stripped BEFORE matching: `uses: owner/repo@v1 # <sha>`
- * must be judged by the mutable `@v1` ref, never by the 40-hex SHA that
- * merely sits in the comment. That stripping is load-bearing and pinned by
- * the trailing-comment test in check-actions-pinned.test.mjs.
+ * Rationale note (corrected in the #1261 round 2): the pin judgment itself
+ * never needs the comment strip — `/uses:\s*(\S+)/` stops at whitespace,
+ * so a trailing `# <40-hex>` comment can never enter the captured ref.
+ * Stripping exists to keep DEAD lines (commented-out `uses:`) out of the
+ * findings, i.e. it prevents false positives, and is pinned by the
+ * commented-out-lines test. What the trailing-comment test actually pins
+ * is the opposite direction: judging a live line by a 40-hex SHA found
+ * ANYWHERE on it (e.g. in its comment) must stay a FAILING mutable-ref
+ * case, never a silent pass.
  */
 const findLineFinding = (line) => {
 	// Strip YAML comments (# preceded by whitespace or at line start)
