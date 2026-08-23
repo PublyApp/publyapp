@@ -18,6 +18,7 @@ type FakeClient = {
 type Accessor = {
 	getOrCreateClient: (tenantId: string) => FakeClient;
 	getOrCreateStaffClient: () => FakeClient;
+	getOrCreateTenantScopeClient: () => FakeClient;
 	getOrCreateAnonymousClient: () => FakeClient;
 };
 
@@ -27,8 +28,17 @@ const createAccessor = () => ({
 		tenantId,
 	})),
 	getOrCreateStaffClient: vi.fn(() => ({ scope: 'staff' as const })),
+	getOrCreateTenantScopeClient: vi.fn(() => ({ scope: 'tenant' as const })),
 	getOrCreateAnonymousClient: vi.fn(() => ({ scope: 'anonymous' as const })),
 });
+
+// The generated `onError` forwards any thrown value to `toApiFailure(unknown)`,
+// but the factories type the callback `TError` (default `Error`). Build real
+// `Error` instances carrying the problem-details fields so the payloads
+// type-check without casts while `toApiFailure` still sees `responseStatusCode`
+// at runtime.
+const problemError = (responseStatusCode: number, title: string): Error =>
+	Object.assign(new Error(title), { responseStatusCode, title });
 
 const createScopeOptions = (accessor: Accessor) => ({
 	clientAccessor: accessor,
@@ -262,10 +272,7 @@ test('tenant onError triggers onLogout for 401 and skips toast', async () => {
 		},
 	);
 
-	await options.onError?.({
-		responseStatusCode: 401,
-		title: 'unauthorized',
-	});
+	await options.onError?.(problemError(401, 'unauthorized'));
 	expect(onLogout).toHaveBeenCalledTimes(1);
 	expect(onToast).not.toHaveBeenCalled();
 });
@@ -286,10 +293,7 @@ test('non-401 errors trigger onToast for tenant scope', async () => {
 		},
 	);
 
-	await options.onError?.({
-		responseStatusCode: 400,
-		title: 'bad request',
-	});
+	await options.onError?.(problemError(400, 'bad request'));
 	expect(onError).toHaveBeenCalledTimes(1);
 	expect(onToast).toHaveBeenCalledTimes(1);
 	expect(onToast.mock.calls[0]?.[1]).toMatchObject({ scope: 'tenant' });
@@ -314,12 +318,9 @@ test('local onError is called even when generated handler throws', () => {
 		},
 	);
 
-	expect(() =>
-		options.onError?.({
-			responseStatusCode: 400,
-			title: 'bad request',
-		}),
-	).toThrow('toast failed');
+	expect(() => options.onError?.(problemError(400, 'bad request'))).toThrow(
+		'toast failed',
+	);
 	expect(onError).toHaveBeenCalledTimes(1);
 });
 
@@ -337,10 +338,7 @@ test('anonymous auth errors do not trigger onLogout for 401', async () => {
 		},
 	);
 
-	await options.onError?.({
-		responseStatusCode: 401,
-		title: 'unauthorized',
-	});
+	await options.onError?.(problemError(401, 'unauthorized'));
 	expect(onLogout).not.toHaveBeenCalled();
 	expect(onToast).toHaveBeenCalledTimes(1);
 });
@@ -370,10 +368,7 @@ test('auth query errors follow anonymous-style 401 handling (no onLogout)', asyn
 		},
 	);
 
-	await options.onError?.({
-		responseStatusCode: 401,
-		title: 'unauthorized',
-	});
+	await options.onError?.(problemError(401, 'unauthorized'));
 	expect(onLogout).not.toHaveBeenCalled();
 	expect(onToast).toHaveBeenCalledTimes(1);
 });
