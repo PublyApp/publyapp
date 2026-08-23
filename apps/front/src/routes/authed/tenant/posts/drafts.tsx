@@ -145,7 +145,10 @@ const TenantPostsDraftsPage = () => {
 		[t, navigate],
 	);
 
-	if (query.isError && shouldLogoutForFailure(query.error)) {
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
+	// QueryDisplay owns state rendering below (DataTable carries the slots).
+	const queryError = query.error;
+	if (queryError !== null && shouldLogoutForFailure(queryError)) {
 		return <LogoutRedirect />;
 	}
 

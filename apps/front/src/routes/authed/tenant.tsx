@@ -13,6 +13,7 @@ import { SimpleLayout } from '~/layouts/simple-layout';
 import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
 import {
 	resolveWorkspaceTenant,
+	type TenantsForPickerData,
 	type TenantForPickerRow,
 } from '~/lib/query/tenants-for-picker';
 import {
@@ -28,117 +29,17 @@ import {
 } from './tenant/_tenant-picker-states';
 import { TenantPortalPickerView } from './tenant/_tenant-picker-view';
 
-const TenantPortalRoute = () => {
-	const query = useTenantsForPickerQuery();
-	const navigate = useNavigate();
-	const pathname = useRouterState({
-		select: (state) => state.location.pathname,
-	});
-	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(() =>
-		readSelectedTenantId(),
-	);
-	const isTenantRoot = pathname.replace(/\/+$/, '') === '/tenant';
-	// react-doctor: this route is CSR-only (`ssr: false`) and `readSelectedTenantId`
-	// already returns a stable `null` on the server, so there is no server/hydration
-	// pair to diverge — the rule's premise does not apply on this surface.
-	const resolvedTenant = query.isSuccess
-		? // react-doctor-disable-next-line react-doctor/no-hydration-branch-on-browser-global
-			resolveWorkspaceTenant(query.data, selectedTenantId)
-		: undefined;
-	const isResolvedToWorkspace = resolvedTenant !== undefined;
-	const querySettled = query.isSuccess || query.isError;
-
-	// The workspace root never hosts the shell: the shell only renders inside
-	// the AppShell (whose rail is the workspace navigation), and the root
-	// renders bare for the picker. Once a workspace resolves, bounce to the
-	// first section — the same shape as `/staff` -> `/staff/staff-users`.
-	//
-	// A CHILD path with no resolvable workspace (0 actives, or 2+ actives
-	// with no valid stored selection) redirects to `/tenant`: the bare picker
-	// is the single unresolved surface, and painting it inside the AppShell
-	// would nest SimpleLayout in the platform chrome (PR #1131 round 3
-	// finding 1 — fixed by redirecting instead of bypassing the shell).
-	// react-doctor: TanStack post-load redirect pattern — the workspace only
-	// becomes known once the picker query settles, which no event handler can
-	// observe; the effect navigates at most once per state change and renders
-	// a spinner meanwhile.
-	// react-doctor-disable-next-line react-doctor/no-event-handler
-	useEffect(() => {
-		if (isTenantRoot) {
-			if (isResolvedToWorkspace) {
-				void navigate({ to: '/tenant/account', replace: true });
-			}
-			return;
-		}
-
-		if (querySettled && !isResolvedToWorkspace) {
-			void navigate({ to: '/tenant', replace: true });
-		}
-	}, [isResolvedToWorkspace, isTenantRoot, navigate, querySettled]);
-
-	if (query.isError && shouldLogoutForFailure(query.error)) {
-		return <LogoutRedirect />;
-	}
-
-	if (isResolvedToWorkspace) {
-		if (isTenantRoot) {
-			return (
-				<div
-					className="flex min-h-svh items-center justify-center"
-					data-testid="tenant-portal-redirecting"
-				>
-					<IconLoader2
-						aria-hidden="true"
-						className="size-8 animate-spin text-muted-foreground"
-					/>
-				</div>
-			);
-		}
-
-		return <TenantWorkspaceShell tenant={resolvedTenant} />;
-	}
-
-	if (isTenantRoot) {
-		return (
-			<SimpleLayout>
-				<QueryDisplay
-					query={query}
-					LoadingSlot={TenantPortalLoadingState}
-					ErrorSlot={TenantPortalErrorState}
-				>
-					{({ data }) =>
-						data.totalCount === 0 ? (
-							<TenantPortalEmptyState />
-						) : (
-							<TenantPortalPickerView
-								data={data}
-								onSelect={(tenantId) => {
-									setSelectedTenantId(tenantId);
-									writeSelectedTenantId(tenantId);
-								}}
-							/>
-						)
-					}
-				</QueryDisplay>
-			</SimpleLayout>
-		);
-	}
-
-	// Unresolved child path: the effect above is redirecting to `/tenant`,
-	// where the bare picker lives. Render a neutral spinner here — never the
-	// picker itself, which would nest SimpleLayout inside the AppShell.
-	return (
-		<div
-			className="flex min-h-svh items-center justify-center"
-			data-testid="tenant-portal-redirecting"
-		>
-			<IconLoader2
-				aria-hidden="true"
-				className="size-8 animate-spin text-muted-foreground"
-			/>
-		</div>
-	);
-};
+/**
+ * Non-JSX resolver adapter: keeps the `isSuccess` branch outside the portal
+ * component so the query-state render contract stays in `QueryDisplay`.
+ * `undefined` data (pre-resolution) resolves to no workspace, exactly like
+ * the previous inline ternary.
+ */
+const resolveWorkspaceTenantWhenLoaded = (
+	data: TenantsForPickerData | undefined,
+	selectedTenantId: string | null,
+): TenantForPickerRow | undefined =>
+	data ? resolveWorkspaceTenant(data, selectedTenantId) : undefined;
 
 export const Route = createFileRoute('/_authed-layout/tenant')({
 	// `/tenant` is the bare portal root: a redirect-only stub that never
@@ -200,3 +101,123 @@ const TenantWorkspaceShell = ({ tenant }: { tenant: TenantForPickerRow }) => {
 		</div>
 	);
 };
+
+function TenantPortalRoute() {
+	const query = useTenantsForPickerQuery();
+	const navigate = useNavigate();
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
+	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(() =>
+		readSelectedTenantId(),
+	);
+	const isTenantRoot = pathname.replace(/\/+$/, '') === '/tenant';
+	const resolvedTenant = resolveWorkspaceTenantWhenLoaded(
+		query.data,
+		selectedTenantId,
+	);
+	const isResolvedToWorkspace = resolvedTenant !== undefined;
+
+	// The workspace root never hosts the shell: the shell only renders inside
+	// the AppShell (whose rail is the workspace navigation), and the root
+	// renders bare for the picker. Once a workspace resolves, bounce to the
+	// first section — the same shape as `/staff` -> `/staff/staff-users`.
+	//
+	// A CHILD path with no resolvable workspace (0 actives, or 2+ actives
+	// with no valid stored selection) redirects to `/tenant`: the bare picker
+	// is the single unresolved surface, and painting it inside the AppShell
+	// would nest SimpleLayout in the platform chrome (PR #1131 round 3
+	// finding 1 — fixed by redirecting instead of bypassing the shell).
+	useEffect(() => {
+		if (isTenantRoot) {
+			if (isResolvedToWorkspace) {
+				void navigate({ to: '/tenant/account', replace: true });
+			}
+			return;
+		}
+
+		// Settled = success or error; computed inside the effect (not render)
+		// because it gates navigation, never a rendered query state.
+		if ((query.isSuccess || query.isError) && !isResolvedToWorkspace) {
+			void navigate({ to: '/tenant', replace: true });
+		}
+	}, [
+		isResolvedToWorkspace,
+		isTenantRoot,
+		navigate,
+		query.isSuccess,
+		query.isError,
+	]);
+
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
+	// QueryDisplay owns state rendering below. `shouldLogoutForFailure` only
+	// recognises problem+json failures, so a settled success (error ===
+	// undefined) never trips this gate.
+	const queryError = query.error;
+	if (
+		queryError !== null &&
+		queryError !== undefined &&
+		shouldLogoutForFailure(queryError)
+	) {
+		return <LogoutRedirect />;
+	}
+
+	if (isResolvedToWorkspace) {
+		if (isTenantRoot) {
+			return (
+				<div
+					className="flex min-h-svh items-center justify-center"
+					data-testid="tenant-portal-redirecting"
+				>
+					<IconLoader2
+						aria-hidden="true"
+						className="size-8 animate-spin text-muted-foreground"
+					/>
+				</div>
+			);
+		}
+
+		return <TenantWorkspaceShell tenant={resolvedTenant} />;
+	}
+
+	if (isTenantRoot) {
+		return (
+			<SimpleLayout>
+				<QueryDisplay
+					query={query}
+					LoadingSlot={TenantPortalLoadingState}
+					ErrorSlot={TenantPortalErrorState}
+				>
+					{({ data }) =>
+						data.totalCount === 0 ? (
+							<TenantPortalEmptyState />
+						) : (
+							<TenantPortalPickerView
+								data={data}
+								onSelect={(tenantId) => {
+									setSelectedTenantId(tenantId);
+									writeSelectedTenantId(tenantId);
+								}}
+							/>
+						)
+					}
+				</QueryDisplay>
+			</SimpleLayout>
+		);
+	}
+
+	// Unresolved child path: the effect above is redirecting to `/tenant`,
+	// where the bare picker lives. Render a neutral spinner here — never the
+	// picker itself, which would nest SimpleLayout inside the AppShell.
+	return (
+		<div
+			className="flex min-h-svh items-center justify-center"
+			data-testid="tenant-portal-redirecting"
+		>
+			<IconLoader2
+				aria-hidden="true"
+				className="size-8 animate-spin text-muted-foreground"
+			/>
+		</div>
+	);
+}

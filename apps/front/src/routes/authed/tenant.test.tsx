@@ -208,6 +208,9 @@ const setTwoActiveTenants = () => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	// clearAllMocks keeps implementations, so restore the default verdict of
+	// the fatal-failure predicate explicitly — the 401 escape test flips it.
+	mocks.shouldLogoutForFailure.mockReturnValue(false);
 	window.localStorage.clear();
 	mocks.pathname = '/tenant';
 });
