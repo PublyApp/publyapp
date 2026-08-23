@@ -103,8 +103,6 @@ The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as
 
 ### Enabled rules
 
-| Rule                                           | Severity | Baseline violations | Enabled in     |
-| ---------------------------------------------- | -------- | ------------------- | -------------- |
 | `anti-slop/no-conditional-empty-object-spread` | `error`  | 30 (fixed)          | #1170 (rung 1) |
 | `anti-slop/no-object-parameters`               | `error`  | 0                   | rung 2         |
 | `anti-slop/no-reflect-apply`                   | `error`  | 0                   | rung 2         |
@@ -112,6 +110,7 @@ The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as
 | `anti-slop/no-unknown-type-aliases`            | `error`  | 0                   | rung 2         |
 | `anti-slop/no-widen-then-assert`               | `error`  | 0                   | rung 2         |
 | `anti-slop/no-shape-in-symbol-names`           | `error`  | 69 (fixed)          | rung 3         |
+| `anti-slop/no-unknown-returns`                 | `error`  | 73 (fixed)          | rung 4         |
 
 ## Roslyn analyzers (`packages/lint-cs/`)
 
