@@ -7,6 +7,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { DataTable, SELECTION_LOCKED_TITLE_KEY } from './data-table';
+import { DataTableStates } from './data-table-states';
 import type { UseRowSelectionResult } from './use-row-selection';
 
 vi.mock('react-i18next', () => ({
@@ -1036,5 +1037,81 @@ describe('DataTable a11y', () => {
 			fireEvent.keyDown(cellAt(1, 1), { key: 'ArrowUp' });
 			expect(document.activeElement).toBe(cellAt(0, 1));
 		});
+	});
+});
+
+describe('DataTableStates (extracted)', () => {
+	test('renders the skeleton card for the loading state', () => {
+		render(
+			<DataTableStates
+				testId="states"
+				bodyState="loading"
+				resolvedRowHeight={48}
+				onRetry={noop}
+			/>,
+		);
+
+		expect(screen.getByTestId('states-loading')).toBeTruthy();
+		expect(screen.queryByTestId('states-error')).toBeNull();
+	});
+
+	test('renders the error surface with a retry action', () => {
+		const onRetry = vi.fn();
+		render(
+			<DataTableStates
+				testId="states"
+				bodyState="error"
+				resolvedRowHeight={48}
+				onRetry={onRetry}
+			/>,
+		);
+
+		expect(screen.getByText('List unavailable')).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+		expect(onRetry).toHaveBeenCalledTimes(1);
+	});
+
+	test('renders the empty surface with custom actions', () => {
+		render(
+			<DataTableStates
+				testId="states"
+				bodyState="empty"
+				resolvedRowHeight={48}
+				onRetry={noop}
+				emptyActions={<button type="button">Invite</button>}
+			/>,
+		);
+
+		expect(screen.getByText('Nothing here — yet')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Invite' })).toBeTruthy();
+	});
+
+	test('renders the no-match surface for a search with no results', () => {
+		render(
+			<DataTableStates
+				testId="states"
+				bodyState="no-match"
+				resolvedRowHeight={48}
+				onRetry={noop}
+				noMatchContent="Nothing matched acme."
+			/>,
+		);
+
+		expect(screen.getByText('No matches for that search')).toBeTruthy();
+		expect(screen.getByText('Nothing matched acme.')).toBeTruthy();
+	});
+
+	test('renders nothing for the rows state', () => {
+		const { container } = render(
+			<DataTableStates
+				testId="states"
+				bodyState="rows"
+				resolvedRowHeight={48}
+				onRetry={noop}
+			/>,
+		);
+
+		expect(container.innerHTML).toBe('');
 	});
 });
