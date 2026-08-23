@@ -68,7 +68,7 @@
 		"publy/no-direct-dayjs-in-components": "error",
 		"publy/no-manual-response-message-translation": "error",
 		"publy/arrow-function-components": "error",
-		"publy/prefer-query-display": "off",
+		"publy/prefer-query-display": "error",
 		"anti-slop/no-chained-type-assertions": "off",
 		"anti-slop/no-conditional-empty-object-spread": "error",
 		"anti-slop/no-known-value-widening": "off",
