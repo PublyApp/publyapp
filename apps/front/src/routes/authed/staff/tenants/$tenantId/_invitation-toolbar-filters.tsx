@@ -34,7 +34,7 @@ type ToolbarFiltersProps = {
 /** Status / account-level dropdown pair rendered at the far end of the
  * invitations table toolbar. Extracted so each render unit stays
  * reviewable in isolation. */
-export function InvitationToolbarFilters({
+export const InvitationToolbarFilters = ({
 	selectedLevels,
 	selectedStatuses,
 	levelFilterLabel,
@@ -43,7 +43,7 @@ export function InvitationToolbarFilters({
 	onToggleLevel,
 	onSetStatuses,
 	onToggleStatus,
-}: ToolbarFiltersProps) {
+}: ToolbarFiltersProps) => {
 	const { t } = useTranslation('common');
 
 	return (
@@ -139,4 +139,4 @@ export function InvitationToolbarFilters({
 			</DropdownMenu>
 		</div>
 	);
-}
+};

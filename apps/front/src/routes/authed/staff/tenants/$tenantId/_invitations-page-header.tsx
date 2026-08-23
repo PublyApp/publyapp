@@ -6,13 +6,13 @@ import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
 /** Page title with the pending-invitations count chip plus the primary
  * "invite people" action. Extracted from the route component so it stays
  * reviewable in isolation. */
-export function InvitationsPageHeader({
+export const InvitationsPageHeader = ({
 	tenant,
 	onInvite,
 }: {
 	tenant: Pick<StaffTenantDetails, 'pendingInvitationsCount'>;
 	onInvite: () => void;
-}) {
+}) => {
 	const { t } = useTranslation('common');
 
 	return (
@@ -38,4 +38,4 @@ export function InvitationsPageHeader({
 			</Button>
 		</div>
 	);
-}
+};

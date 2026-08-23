@@ -156,40 +156,6 @@ const StaffUserDetailsPage = () => {
 			/>
 		);
 	}
-	const maxProfilesPerUser = profilesQuery.data?.maxProfilesPerUser;
-	const profilesHasError =
-		profilesQuery.isError && !shouldLogoutForFailure(profilesQuery.error);
-
-	// Memoizing this literal would require hoisting it above the early returns,
-	// breaking conditional hook order on this page. The Provider re-renders only
-	// with this page, and the overview tab consumes the same query data, so the
-	// extra renders are local and bounded.
-	const overviewContextValue: StaffUserOverviewContextValue = {
-		user,
-		locale: i18n.language,
-		profiles,
-		// `detailQuery.isPending` alone gates the page's own loading screen —
-		// profiles is a separate query that can still be pending once details
-		// resolve, so the overview tab must model this explicitly instead of
-		// treating "not yet loaded" the same as "loaded, zero assignments"
-		// (r5-F6).
-		profilesIsPending: profilesQuery.isPending,
-		profilesHasError,
-		onRetryProfiles: () => void profilesQuery.refetch(),
-		maxProfilesPerUser: maxProfilesPerUser ?? 0,
-		canSuspend,
-		canReactivate,
-		suspendLabelKey: getSuspendLabelKey(user.status),
-		suspendDescription: t(getSuspendDialogKeys(user.status).descriptionKey),
-		isDeletePending: deleteUser.isPending,
-		onOpenSuspendDialog: () => {
-			setSuspendDialogOpen(true);
-		},
-		onOpenDeleteDialog: () => {
-			setDeleteDialogOpen(true);
-		},
-	};
-
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}

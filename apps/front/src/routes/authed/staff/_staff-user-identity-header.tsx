@@ -29,7 +29,7 @@ type HeaderUser = {
 /** Identity header of the staff user details page: back link, avatar,
  * name with status/level pills, edit link and the suspend/reactivate
  * confirm dialog. Extracted so each render unit stays reviewable. */
-export function StaffUserIdentityHeader({
+export const StaffUserIdentityHeader = ({
 	user,
 	userId,
 	suspendDialogOpen,
@@ -54,7 +54,7 @@ export function StaffUserIdentityHeader({
 	getSuspendLabelKey: (status: string | null) => string;
 	activeSection: StaffUserSection;
 	overviewContextValue: StaffUserOverviewContextValue;
-}) {
+}) => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
@@ -134,4 +134,4 @@ export function StaffUserIdentityHeader({
 			</div>
 		</>
 	);
-}
+};

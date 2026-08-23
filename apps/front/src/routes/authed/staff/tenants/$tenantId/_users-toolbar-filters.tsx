@@ -38,7 +38,7 @@ type ToolbarFiltersProps = {
  * tenant users table toolbar. Selection mode locks both filters; an
  * ineligible click explains why via the shared locked title. Extracted so
  * each render unit stays reviewable in isolation. */
-export function TenantUsersToolbarFilters({
+export const TenantUsersToolbarFilters = ({
 	selectedLevels,
 	selectedStatuses,
 	levelFilterLabel,
@@ -48,7 +48,7 @@ export function TenantUsersToolbarFilters({
 	onToggleLevel,
 	onSetStatuses,
 	onToggleStatus,
-}: ToolbarFiltersProps) {
+}: ToolbarFiltersProps) => {
 	const { t } = useTranslation('common');
 	const lockedTitle = isLocked ? t(SELECTION_LOCKED_TITLE_KEY) : undefined;
 
@@ -149,4 +149,4 @@ export function TenantUsersToolbarFilters({
 			</DropdownMenu>
 		</div>
 	);
-}
+};

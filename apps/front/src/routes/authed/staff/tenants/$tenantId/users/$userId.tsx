@@ -34,7 +34,10 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from '../_tenant-details-shell';
-import { TenantUserDetailCards } from './_user-detail-cards';
+import {
+	TenantUserDetailCards,
+	type MembershipLifecycle,
+} from './_user-detail-cards';
 import {
 	StaffTenantUserDetailsError,
 	TenantUserDetailsLoading,
@@ -51,20 +54,6 @@ const TENANT_USER_STATUS_SUSPENDED = 'suspended';
 const getNormalizedTenantUserStatus = (
 	value: string | null | undefined,
 ): string => value?.trim().toLowerCase() ?? '';
-
-const getMembershipActionLabel = (
-	status: string,
-): 'suspend' | 'reactivate' | null => {
-	if (status === TENANT_USER_STATUS_ACTIVE) {
-		return 'suspend';
-	}
-
-	if (status === TENANT_USER_STATUS_SUSPENDED) {
-		return 'reactivate';
-	}
-
-	return null;
-};
 
 const StaffTenantUserDetailsPage = () => {
 	const { tenantId, userId } = Route.useParams();
@@ -163,20 +152,27 @@ const StaffTenantUserDetailsPage = () => {
 	const normalizedStatus = getNormalizedTenantUserStatus(user.status);
 	const canSuspend = normalizedStatus === TENANT_USER_STATUS_ACTIVE;
 	const canReactivate = normalizedStatus === TENANT_USER_STATUS_SUSPENDED;
-	const canChangeStatus = canSuspend || canReactivate;
 	const isGloballySuspended =
 		normalizedStatus === TENANT_USER_STATUS_GLOBALLY_SUSPENDED;
-	const isStatusActionPending =
+	let membershipLifecycle: MembershipLifecycle;
+	if (canSuspend) {
+		membershipLifecycle = { kind: 'changeable', action: 'suspend' };
+	} else if (canReactivate) {
+		membershipLifecycle = { kind: 'changeable', action: 'reactivate' };
+	} else if (isGloballySuspended) {
+		membershipLifecycle = { kind: 'globally-suspended' };
+	} else {
+		membershipLifecycle = { kind: 'locked' };
+	}
+	const membershipActionLabel =
+		membershipLifecycle.kind === 'changeable' &&
+		membershipLifecycle.action === 'suspend'
+			? t('suspend')
+			: t('reactivate');
+	const statusPending =
 		suspendTenantUserMutation.isPending ||
 		reactivateTenantUserMutation.isPending;
-	const isRemoveActionPending = removeTenantUserMutation.isPending;
-	const isAnyActionPending = isStatusActionPending || isRemoveActionPending;
-
-	const membershipAction = getMembershipActionLabel(normalizedStatus);
-	const membershipActionLabel =
-		membershipAction === 'suspend' ? t('suspend') : t('reactivate');
-	const membershipActionDisabled =
-		isStatusActionPending || isGloballySuspended || !membershipAction;
+	const removePending = removeTenantUserMutation.isPending;
 
 	const invalidateTenantUserQueries = async () => {
 		await invalidateAllStaffTenantScopes(queryClient);
@@ -260,17 +256,12 @@ const StaffTenantUserDetailsPage = () => {
 			<TenantUserDetailCards
 				user={user}
 				tenantId={tenantId}
-				canChangeStatus={canChangeStatus}
-				isGloballySuspended={isGloballySuspended}
-				membershipAction={membershipAction}
+				membershipLifecycle={membershipLifecycle}
 				membershipActionLabel={membershipActionLabel}
-				membershipActionDisabled={membershipActionDisabled}
-				isStatusActionPending={isStatusActionPending}
-				isRemoveActionPending={isRemoveActionPending}
-				isAnyActionPending={isAnyActionPending}
+				statusPending={statusPending}
 				onMembershipAction={() => {
-					if (membershipAction) {
-						void handleMembershipAction(membershipAction);
+					if (membershipLifecycle.kind === 'changeable') {
+						void handleMembershipAction(membershipLifecycle.action);
 					}
 				}}
 				onRequestRemove={() => setPendingRemove(true)}
@@ -279,7 +270,7 @@ const StaffTenantUserDetailsPage = () => {
 				}}
 				onRemoveOpenChange={setPendingRemove}
 				pendingRemove={pendingRemove}
-				removePending={removeTenantUserMutation.isPending}
+				removePending={removePending}
 			/>
 		</TenantDetailsPageShell>
 	);

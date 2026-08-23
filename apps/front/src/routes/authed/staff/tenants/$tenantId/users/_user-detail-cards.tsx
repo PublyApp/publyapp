@@ -11,46 +11,45 @@ import {
 	formatTenantUserStatusLabel,
 } from '../_tenant-details-shell';
 
+/** Lifecycle state of the user's membership, resolved by the caller:
+ * - 'changeable': suspend/reactivate available (action says which)
+ * - 'globally-suspended' / 'locked': no membership action possible
+ */
+export type MembershipLifecycle =
+	| { kind: 'changeable'; action: 'suspend' | 'reactivate' }
+	| { kind: 'globally-suspended' }
+	| { kind: 'locked' };
+
 type TenantUserDetailCardsProps = {
 	user: StaffTenantUserDetails;
 	tenantId: string;
-	canChangeStatus: boolean;
-	isGloballySuspended: boolean;
-	membershipAction: 'suspend' | 'reactivate' | null;
+	membershipLifecycle: MembershipLifecycle;
 	membershipActionLabel: string;
-	membershipActionDisabled: boolean;
-	isStatusActionPending: boolean;
-	isRemoveActionPending: boolean;
-	isAnyActionPending: boolean;
 	onMembershipAction: () => void;
 	onRequestRemove: () => void;
 	onConfirmRemove: () => void;
 	onRemoveOpenChange: (open: boolean) => void;
 	pendingRemove: boolean;
+	statusPending: boolean;
 	removePending: boolean;
 };
 
 /** The membership-status, removal, identity and activity cards of the
  * staff tenant-user details page. Extracted so each render unit stays
  * reviewable in isolation. */
-export function TenantUserDetailCards({
+export const TenantUserDetailCards = ({
 	user,
 	tenantId,
-	canChangeStatus,
-	isGloballySuspended,
-	membershipAction,
+	membershipLifecycle,
 	membershipActionLabel,
-	membershipActionDisabled,
-	isStatusActionPending,
-	isRemoveActionPending,
-	isAnyActionPending,
+	statusPending,
+	removePending,
 	onMembershipAction,
 	onRequestRemove,
 	onConfirmRemove,
 	onRemoveOpenChange,
 	pendingRemove,
-	removePending,
-}: TenantUserDetailCardsProps) {
+}: TenantUserDetailCardsProps) => {
 	const { t, i18n } = useTranslation('common');
 
 	return (
@@ -66,30 +65,24 @@ export function TenantUserDetailCards({
 						</p>
 					</div>
 					<div className="flex items-center gap-2">
-						{canChangeStatus ? (
+						{membershipLifecycle.kind === 'changeable' ? (
 							<Button
 								type="button"
 								variant="secondary"
 								size="sm"
-								onClick={() => {
-									if (!membershipAction) {
-										return;
-									}
-
-									onMembershipAction();
-								}}
-								disabled={membershipActionDisabled}
+								onClick={onMembershipAction}
+								disabled={statusPending}
 							>
 								{membershipActionLabel}
-								{isStatusActionPending ? '…' : ''}
+								{statusPending ? '…' : ''}
 							</Button>
 						) : null}
 					</div>
 				</div>
 
-				{!canChangeStatus ? (
+				{membershipLifecycle.kind !== 'changeable' ? (
 					<p className="rounded-large border border-dashed border-border bg-card p-2 text-xs text-muted-foreground">
-						{isGloballySuspended
+						{membershipLifecycle.kind === 'globally-suspended'
 							? t('membership-lifecycle-disabled-globally-suspended')
 							: t('membership-lifecycle-unavailable-status')}
 					</p>
@@ -111,10 +104,10 @@ export function TenantUserDetailCards({
 						variant="destructive"
 						size="sm"
 						onClick={onRequestRemove}
-						disabled={isAnyActionPending}
+						disabled={statusPending || removePending}
 					>
 						{t('remove-from-tenant')}
-						{isRemoveActionPending ? '…' : ''}
+						{removePending ? '…' : ''}
 					</Button>
 				</div>
 			</Card>
@@ -186,4 +179,4 @@ export function TenantUserDetailCards({
 			</Card>
 		</>
 	);
-}
+};

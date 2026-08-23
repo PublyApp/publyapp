@@ -89,31 +89,7 @@ export {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/users',
-)({
-	staticData: {
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{ kind: 'label', labelKey: 'common:users' },
-		],
-	},
-	validateSearch: (search) =>
-		serializeTenantUsersListSearchParams(
-			parseTenantUsersListSearchParams(
-				search as TenantUsersListSearchParamInput,
-			),
-		),
-	component: StaffTenantUsersPage,
-});
-
-function StaffTenantUsersPage() {
+const StaffTenantUsersPage = () => {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = parseTenantUsersListSearchParams(
@@ -403,7 +379,7 @@ function StaffTenantUsersPage() {
 			/>
 		</TenantDetailsPageShell>
 	);
-}
+};
 
 const TenantUserBulkActions = ({
 	tenantId,
@@ -589,3 +565,27 @@ const TenantUserBulkActions = ({
 		</>
 	);
 };
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/users',
+)({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:users' },
+		],
+	},
+	validateSearch: (search) =>
+		serializeTenantUsersListSearchParams(
+			parseTenantUsersListSearchParams(
+				search as TenantUsersListSearchParamInput,
+			),
+		),
+	component: StaffTenantUsersPage,
+});

@@ -38,13 +38,13 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 /** Error branches of the staff user details page: not-found / malformed id,
  * forbidden, and generic load failure. Extracted so the route component
  * stays under the giant-component threshold. */
-export function StaffUserErrorViews({
+export const StaffUserErrorViews = ({
 	error,
 	onRetry,
 }: {
 	error: unknown;
 	onRetry: () => void;
-}) {
+}) => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
 	if (
@@ -99,4 +99,4 @@ export function StaffUserErrorViews({
 			}
 		/>
 	);
-}
+};

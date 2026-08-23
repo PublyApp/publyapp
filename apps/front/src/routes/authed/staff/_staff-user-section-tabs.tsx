@@ -14,7 +14,7 @@ export type { StaffUserSection };
 /** The section tab strip plus the routed outlet wrapped in the overview
  * context provider. Extracted from the route component so it stays
  * reviewable in isolation. */
-export function StaffUserSectionTabs({
+export const StaffUserSectionTabs = ({
 	userId,
 	activeSection,
 	contextValue,
@@ -22,7 +22,7 @@ export function StaffUserSectionTabs({
 	userId: string;
 	activeSection: StaffUserSection;
 	contextValue: StaffUserOverviewContextValue;
-}) {
+}) => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
@@ -76,4 +76,4 @@ export function StaffUserSectionTabs({
 			</TabsContent>
 		</Tabs>
 	);
-}
+};
