@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.FileProviders;
 
@@ -26,6 +28,21 @@ using PublyApp.Api.Modules.Users.Endpoints;
 namespace PublyApp.Api;
 
 public class Program {
+	/// <summary>
+	/// True when the current process is the OpenAPI document generator
+	/// (Microsoft.Extensions.ApiDescription.Server's dotnet-getdocument tool), which loads
+	/// this assembly and RUNS Main during `dotnet build`/`just build-api`. That process has
+	/// no database, so the witness must skip its canary round-trip there (store: null).
+	/// The entry assembly is dotnet-getdocument in that process; it is PublyApp.Api (or a
+	/// test host) otherwise.
+	/// </summary>
+	public static bool IsOpenApiGenerationProcess {
+		get {
+			return Assembly.GetEntryAssembly()?.GetName().Name
+				is not "PublyApp.Api" and not null;
+		}
+	}
+
 	public static void Main(string[] args) {
 		AppEnvironment.Initialize(); // ! must be called before anything else
 
@@ -70,9 +87,19 @@ public class Program {
 		if (role is AppRole.Worker) {
 			using var workerHost = CreateWorkerHostBuilder(args).Build();
 			workerHost.LogDiManifestIfPresent();
-			// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing/wrong.
+			// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing, wrong-size,
+			// or wrong-VALUE. The canary (review r3) decrypts a sentinel persisted beside
+			// the key ring, so a divergent api/worker key fails here instead of silently
+			// breaking credential decryption later.
 			Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness
-				.EnsureMasterKeyUsable(AppEnvironment.Instance.SocialAccountsMasterKey);
+				.EnsureMasterKeyUsable(
+					AppEnvironment.Instance.SocialAccountsMasterKey,
+					Program.IsOpenApiGenerationProcess
+						? null // doc-gen process: no DB, key checks only
+						: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryStore(
+							workerHost.Services.GetRequiredService<IServiceScopeFactory>()
+						)
+				);
 			workerHost.Run();
 			return;
 		}
@@ -80,11 +107,20 @@ public class Program {
 		var builder = CreateWebHostBuilder(args, role);
 		var app = builder.Build();
 
-		// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing/wrong (Epic C §4).
-		// The witness validates the key via an AES-256-GCM round-trip, so a missing or
-		// corrupted key fails fast before any request is served.
+		// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing, wrong-size, or
+		// wrong-VALUE (Epic C §4). The canary (review r3) decrypts a sentinel persisted
+		// beside the Data Protection key ring at first boot, so any key value other than
+		// the one credentials were encrypted under refuses to start with a plain-words
+		// cause, before any request is served.
 		Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness
-			.EnsureMasterKeyUsable(AppEnvironment.Instance.SocialAccountsMasterKey);
+			.EnsureMasterKeyUsable(
+				AppEnvironment.Instance.SocialAccountsMasterKey,
+				Program.IsOpenApiGenerationProcess
+					? null // doc-gen process: no DB, key checks only
+					: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryStore(
+						app.Services.GetRequiredService<IServiceScopeFactory>()
+					)
+			);
 
 		app.LogDiManifestIfPresent();
 

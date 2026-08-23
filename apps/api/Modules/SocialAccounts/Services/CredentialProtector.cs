@@ -12,21 +12,27 @@ public sealed class CredentialProtector : ICredentialProtector {
 	}
 
 	public string Protect(string plaintext, SocialProvider provider) {
-		return _dataProtectionProvider
-			.CreateProtector($"social-account-{provider.ToString().ToLowerInvariant()}-v1")
-			.Protect(plaintext);
+		return ProtectorFor(provider).Protect(plaintext);
 	}
 
-	public string? Unprotect(string? protectedText, SocialProvider provider) {
+	public UnprotectResult Unprotect(string? protectedText, SocialProvider provider) {
 		if (string.IsNullOrEmpty(protectedText)) {
-			return null;
+			return UnprotectResult.Absent();
 		}
 		try {
-			return _dataProtectionProvider
-				.CreateProtector($"social-account-{provider.ToString().ToLowerInvariant()}-v1")
-				.Unprotect(protectedText);
+			return UnprotectResult.Ok(ProtectorFor(provider).Unprotect(protectedText));
 		} catch (System.Security.Cryptography.CryptographicException) {
-			return null;
+			// GCM authentication failed: the payload was corrupted/truncated OR was
+			// protected under another purpose/key. Either way the caller must see a
+			// distinct outcome — never a null conflated with "nothing stored" (review r3,
+			// transparent-failure-causes rule).
+			return UnprotectResult.Tampered();
 		}
+	}
+
+	private IDataProtector ProtectorFor(SocialProvider provider) {
+		return _dataProtectionProvider.CreateProtector(
+			$"social-account-{provider.ToString().ToLowerInvariant()}-v1"
+		);
 	}
 }
