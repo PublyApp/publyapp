@@ -213,6 +213,8 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			Id = profile.GetRequiredId(),
 			Name = profile.Name,
 			Description = profile.Description,
+			Icon = profile.Icon,
+			Tone = profile.Tone,
 			UserAccountCount = userAccountCount,
 		};
 

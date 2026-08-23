@@ -13733,6 +13733,18 @@
               "string"
             ]
           },
+          "icon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "userAccountCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",

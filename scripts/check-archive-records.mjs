@@ -202,8 +202,8 @@ const splitToSupersededReferences = (value) => {
 
 	const normalizeCandidate = (raw) => {
 		const candidate = raw
-			.replace(/^[`'"\s.,;:\)\]}]+/, '')
-			.replace(/[`'"\s.,;:\(\[{)]+$/, '')
+			.replace(/^[`'"\s.,;:)\]}]+/, '')
+			.replace(/[`'"\s.,;:([{)]+$/, '')
 			.trim();
 
 		if (!candidate) {

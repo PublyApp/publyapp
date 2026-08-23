@@ -272,8 +272,8 @@ test('fails when the changes job becomes conditional (would no longer always rep
 
 test('fails when the changes job output stops matching the classifier step', async () => {
 	const broken = goodWorkflow.replace(
-		'relevant: \${{ steps.filter.outputs.relevant }}',
-		'relevant: \${{ steps.wrong.outputs.relevant }}',
+		'relevant: ${{ steps.filter.outputs.relevant }}',
+		'relevant: ${{ steps.wrong.outputs.relevant }}',
 	);
 	const rootDir = await buildFixture(broken);
 
@@ -699,7 +699,7 @@ test('ROUND 2 BLOCKER: a job added to gate.needs but omitted from a hand-written
 	// that wiring to exist, so a regression back to a hand-maintained map
 	// is caught structurally, not just via the drift-hash on the step body.
 	const broken = goodWorkflow.replace(
-		'      - name: Check required jobs\n        id: check-required-jobs\n        env:\n          NEEDS_JSON: \${{ toJSON(needs) }}\n        run: echo "$NEEDS_JSON"\n',
+		'      - name: Check required jobs\n        id: check-required-jobs\n        env:\n          NEEDS_JSON: ${{ toJSON(needs) }}\n        run: echo "$NEEDS_JSON"\n',
 		'      - name: Check required jobs\n        run: |\n          echo "${{ needs.changes.result }}"\n          echo "${{ needs.heavy.result }}"\n',
 	);
 	const rootDir = await buildFixture(broken);

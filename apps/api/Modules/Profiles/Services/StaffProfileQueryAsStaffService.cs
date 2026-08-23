@@ -13,6 +13,8 @@ public class StaffProfileItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public string? Description { get; set; }
+	public string? Icon { get; set; }
+	public string? Tone { get; set; }
 	public int UserAccountCount { get; set; }
 }
 
@@ -366,6 +368,8 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 				Id = p.Id ?? Guid.Empty,
 				Name = p.Name,
 				Description = p.Description,
+				Icon = p.Icon,
+				Tone = p.Tone,
 				UserAccountCount = p.UserAccountProfiles.Count
 			})
 			.Take(effectiveLimit + 1)  // Fetch one extra to check for more pages
@@ -407,6 +411,8 @@ public sealed class StaffProfileQueryAsStaffService : IStaffProfileQueryAsStaffS
 				Id = p.Id ?? Guid.Empty,
 				Name = p.Name,
 				Description = p.Description,
+				Icon = p.Icon,
+				Tone = p.Tone,
 				UserAccountCount = p.UserAccountProfiles.Count,
 			}
 		).FirstOrDefaultAsync(cancellationToken);

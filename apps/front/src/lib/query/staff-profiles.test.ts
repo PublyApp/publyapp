@@ -82,4 +82,39 @@ describe('toStaffProfileDetails', () => {
 			} as GetStaffProfileByIdResult),
 		).toBeNull();
 	});
+
+	test('#980: honors persisted icon and tone in the details payload', () => {
+		const result = toStaffProfileDetails({
+			profile: {
+				id: 'profile-9',
+				name: 'Owners',
+				description: null,
+				userAccountCount: 0,
+				icon: 'shield-check',
+				tone: '5',
+			},
+		} as GetStaffProfileByIdResult);
+
+		expect(result).toEqual(
+			expect.objectContaining({
+				id: 'profile-9',
+				icon: 'shield-check',
+				iconTone: '5',
+			}),
+		);
+	});
+
+	test('#980: derives a deterministic picker-valid style when none was stored', () => {
+		const result = toStaffProfileDetails({
+			profile: {
+				id: 'profile-10',
+				name: 'Owners',
+				description: null,
+				userAccountCount: 0,
+			},
+		} as GetStaffProfileByIdResult);
+
+		expect(result?.icon).toBeTruthy();
+		expect(result?.iconTone).toMatch(/^[0-7]$/);
+	});
 });
