@@ -4,11 +4,11 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
+import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	FindPostsForTenantResponse,
 	PostDetail,
-} from '@org/client-ts/src/models/index.js';
+} from '@org/client-ts/models/index';
 import {
 	buildTenantQueryOptions,
 	scopedKey,
@@ -74,8 +74,15 @@ const normalizeNullableString = (
 const normalizeDate = (
 	value: Date | string | null | undefined,
 ): Date | null => {
-	const d = value instanceof Date ? value : value ? new Date(value) : null;
-	return d && !Number.isNaN(d.valueOf()) ? d : null;
+	let d: Date | null = null;
+
+	if (value instanceof Date) {
+		d = value;
+	} else if (typeof value === 'string' && value.length > 0) {
+		d = new Date(value);
+	}
+
+	return d !== null && !Number.isNaN(d.valueOf()) ? d : null;
 };
 
 const isPositiveSafeInteger = (value: number | undefined): boolean =>

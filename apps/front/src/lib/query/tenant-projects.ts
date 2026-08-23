@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
-import type { ApiClient } from '@org/client-ts/src/apiClient';
-import type { FindProjectsForTenantResponse } from '@org/client-ts/src/models/index.js';
+import type { ApiClient } from '@org/client-ts/apiClient';
+import type { FindProjectsForTenantResponse } from '@org/client-ts/models/index';
 import { buildTenantQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 
 export type TenantProjectListItem = {

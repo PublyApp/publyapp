@@ -93,7 +93,6 @@ function TenantPostEditPage() {
 		const handler = (e: BeforeUnloadEvent) => {
 			if (methods.formState.isDirty && !methods.formState.isSubmitting) {
 				e.preventDefault();
-				e.returnValue = '';
 			}
 		};
 		window.addEventListener('beforeunload', handler);
