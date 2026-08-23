@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -28,17 +29,32 @@ let fixtureParent;
 // #1256: the PID half anchors to an UNCOMMENTED line start. A foreign child
 // running its own probe under the same runner emits its handshake through the
 // reporter as `# RUNNER_PID=…` TAP comments; trusting those would kill a
-// process we do not own. The root half accepts both forms because the
-// grand-child's reporter legitimately re-emits the real probe's stdout line
-// as a `# ` comment.
+// process we do not own.
+//
+// #1272: the commented root half is guarded the same way. A
+// `# RUNNER_OWNED_ROOT=` comment is only ever the grand-child runner
+// re-emitting the real probe's stdout line, so it is trusted only when an
+// uncommented `RUNNER_PID=` line PRECEDES it in the same buffer AND it names
+// this probe's owned-root namespace (an mkdtemp directory called
+// `front2-design-guard-run-*`). A foreign commented root — alone, or arriving
+// before the PID line — leaves the handshake unresolved, so the live probe's
+// start timeout fails loud with the whole buffer in its message instead of
+// killing a process we do not own.
 export const matchRunnerHandshake = (output) => {
 	const pidMatch = output.match(/^RUNNER_PID=(\d+)$/m);
 	if (!pidMatch) return null;
-	const rootMatch =
-		output.match(/^RUNNER_OWNED_ROOT=(\S+)$/m) ??
-		output.match(/^# RUNNER_OWNED_ROOT=(\S+)$/m);
-	if (!rootMatch) return null;
-	return { pid: Number(pidMatch[1]), root: rootMatch[1] };
+	const pid = Number(pidMatch[1]);
+	const rootMatch = output.match(/^RUNNER_OWNED_ROOT=(\S+)$/m);
+	if (rootMatch) return { pid, root: rootMatch[1] };
+	const commentedRootMatch = output.match(/^# RUNNER_OWNED_ROOT=(\S+)$/m);
+	if (
+		!commentedRootMatch ||
+		commentedRootMatch.index < pidMatch.index + pidMatch[0].length ||
+		!commentedRootMatch[1].includes('/front2-design-guard-run-')
+	) {
+		return null;
+	}
+	return { pid, root: commentedRootMatch[1] };
 };
 
 if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
@@ -152,6 +168,53 @@ test('runner handshake keeps the real pid and root when a foreign commented hand
 test('runner handshake does not resolve on a foreign child whose handshake lines are all TAP comments', () => {
 	assert.equal(
 		matchRunnerHandshake('# RUNNER_PID=999\n# RUNNER_OWNED_ROOT=/foreign/root'),
+		null,
+	);
+});
+
+// #1272: a commented `# RUNNER_OWNED_ROOT=` is only the grand-child runner
+// re-emitting the real probe's own stdout line, so it may be trusted only when
+// an UNCOMMENTED `RUNNER_PID=` line precedes it in the same buffer AND it
+// names a path inside this probe's owned-root namespace (`front2-design-guard-run-*`
+// under tmpdir). A foreign root alone — or one arriving before the PID line —
+// must leave the handshake unresolved; the probe's start timeout then fails
+// loud with the whole buffer in the message instead of killing a process we
+// do not own.
+const foreignCommentedRootAlone = [
+	'RUNNER_PID=4242',
+	'# Subtest: next tick',
+	'# RUNNER_OWNED_ROOT=/foreign/root',
+].join('\n');
+
+test('runner handshake ignores a foreign commented root that follows the real PID line', () => {
+	assert.equal(matchRunnerHandshake(foreignCommentedRootAlone), null);
+});
+
+test('runner handshake resolves on a real owned commented root following the PID line', () => {
+	const ownedRoot = path.join(os.tmpdir(), 'front2-design-guard-run-realowned');
+	assert.deepEqual(
+		matchRunnerHandshake(
+			[
+				'# Subtest: runner interruption probe leaves an active owned fixture',
+				'RUNNER_PID=4242',
+				`# RUNNER_OWNED_ROOT=${ownedRoot}`,
+				'ok 1 - runner interruption probe leaves an active owned fixture',
+			].join('\n'),
+		),
+		{ pid: 4242, root: ownedRoot },
+	);
+});
+
+test('runner handshake does not resolve when the commented root precedes the PID line', () => {
+	const ownedRoot = path.join(os.tmpdir(), 'front2-design-guard-run-early');
+	assert.equal(
+		matchRunnerHandshake(
+			[
+				'# Subtest: next tick',
+				`# RUNNER_OWNED_ROOT=${ownedRoot}`,
+				'RUNNER_PID=4242',
+			].join('\n'),
+		),
 		null,
 	);
 });
