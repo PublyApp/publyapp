@@ -118,24 +118,33 @@ test('fatal: an established record (present at the merge base) whose body drifts
 	assert.equal(findFatal(clean.findings, 'docs/archive/example.md'), undefined);
 });
 
-test('pass: a newly archived record that is byte-exact with its add commit', async () => {
-	const rootDir = await initRepo('new-byte-exact');
-	await writeFile(path.join(rootDir, 'README.md'), 'baseline\n');
-	commitAll(rootDir, 'baseline');
-	git(rootDir, ['branch', 'origin/develop']);
+test(
+	'pass: a newly archived record that is byte-exact with its add commit',
+	{
+		// Same git-fixture-under-load shape as the unrelated-advance case below:
+		// several real spawnSync git calls stretch past vitest's 5s default when
+		// sibling lanes load the host (r6 rerun: failed at exactly 5419ms).
+		timeout: 60_000,
+	},
+	async () => {
+		const rootDir = await initRepo('new-byte-exact');
+		await writeFile(path.join(rootDir, 'README.md'), 'baseline\n');
+		commitAll(rootDir, 'baseline');
+		git(rootDir, ['branch', 'origin/develop']);
 
-	// @ts-expect-error rung-0: TS2554
-	await writeArchiveFile(
-		rootDir,
-		'docs/archive/new.md',
-		'Body copied verbatim.\n',
-	);
-	commitAll(rootDir, 'archive new record');
+		// @ts-expect-error rung-0: TS2554
+		await writeArchiveFile(
+			rootDir,
+			'docs/archive/new.md',
+			'Body copied verbatim.\n',
+		);
+		commitAll(rootDir, 'archive new record');
 
-	const { findings } = await runCheck(rootDir);
-	assert.equal(findWarning(findings, 'docs/archive/new.md'), undefined);
-	assert.equal(findFatal(findings, 'docs/archive/new.md'), undefined);
-});
+		const { findings } = await runCheck(rootDir);
+		assert.equal(findWarning(findings, 'docs/archive/new.md'), undefined);
+		assert.equal(findFatal(findings, 'docs/archive/new.md'), undefined);
+	},
+);
 
 test('warning: a newly archived record falsified since its add commit', async () => {
 	const rootDir = await initRepo('new-falsified');
