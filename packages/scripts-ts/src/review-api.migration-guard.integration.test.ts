@@ -375,11 +375,15 @@ const resolveLaunchTarget = async (): Promise<LaunchTargetResolution> => {
 	}
 
 	const worktrees = readLocalWorktrees();
+	// Minimal gh runner shaped like what runGhJson consumes (status/stdout/stderr),
+	// pinned to the repo root exactly like review-api.ts's own runGh.
+	const runGh = (args) =>
+		spawnSync('gh', args, { cwd: repoRoot, encoding: 'utf8' });
 	const resolved = await resolveByNumber(derived, worktrees, {
 		// Same gh invocation shapes the real CLI uses inside main(), including the
 		// missing-reference -> null semantics via runGhJson.
-		runPrByNumber: (number) => runPrByNumber(number),
-		runIssueByNumber: (number) => runIssueByNumber(number),
+		runPrByNumber: (number) => runPrByNumber(number, { runGh }),
+		runIssueByNumber: (number) => runIssueByNumber(number, { runGh }),
 	});
 
 	if (resolved.kind === 'pr' || resolved.kind === 'issue') {
