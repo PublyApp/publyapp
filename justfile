@@ -370,6 +370,11 @@ ci-front:
   pnpm --filter front smoke:start
   pnpm --filter front typecheck
   pnpm --filter front check:design-system
+  # Built-artifact guard (#1234): proves the React Compiler actually ran on
+  # the dist produced above (runtime chunk present, compiled-module count
+  # >= floor). Same pattern as check:design-system: a step of `pnpm --filter
+  # front test` AND an explicit front-ci.yml::supply-chain step.
+  pnpm --filter front check:react-compiler
   pnpm --filter front test
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
   pnpm audit --prod --audit-level=high

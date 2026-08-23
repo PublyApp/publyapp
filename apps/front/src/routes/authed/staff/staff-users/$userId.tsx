@@ -1,13 +1,8 @@
-import {
-	IconAlertCircle,
-	IconArrowLeft,
-	IconPencil,
-} from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
 	createFileRoute,
 	Link,
-	Outlet,
 	useNavigate,
 	useRouterState,
 } from '@tanstack/react-router';
@@ -15,14 +10,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { View403 } from '~/components/error-views/View403';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import { Input } from '~/components/ui/input';
-import { PersonAvatar } from '~/components/ui/person-avatar';
-import { StatusPill } from '~/components/ui/product-page';
-import { statusPillTone } from '~/components/ui/status-tone';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
 	invalidateStaffUsers,
 	removeStaffUserDetails,
@@ -36,48 +25,22 @@ import {
 } from '~/lib/query/staff-users';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
+import {
+	DeleteConfirmField,
+	ConfirmHeaderInfo,
+} from '../_staff-user-delete-confirm';
+import { StaffUserErrorViews } from '../_staff-user-error-views';
+import { StaffUserIdentityHeader } from '../_staff-user-identity-header';
 import { staffUserCrumbsBase } from './$userId/_crumbs';
-import {
-	StaffUserOverviewContext,
-	type StaffUserOverviewContextValue,
-} from './$userId/_overview-context';
-import {
-	formatAccountLevelLabel,
-	formatStaffStatusLabel,
-} from './status-labels';
+import type { StaffUserOverviewContextValue } from './$userId/_overview-context';
 
-const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
+const TAB_ROUTE_SUFFIXES = ['permissions', 'activity', 'settings'] as const;
+type TabSection = 'overview' | (typeof TAB_ROUTE_SUFFIXES)[number];
+
 const STAFF_STATUS_ACTIVE = 'active';
 const STAFF_STATUS_SUSPENDED = 'suspended';
-
-const isProblemStatus = (
-	error: unknown,
-	status: number,
-	translationKey?: string,
-): boolean => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind !== 'problem' || failure.status !== status) {
-		return false;
-	}
-
-	return (
-		translationKey === undefined || failure.translationKey === translationKey
-	);
-};
-
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
-};
 
 const normalizeStatus = (value: string | null | undefined): string =>
 	value?.trim().toLowerCase() ?? '';
@@ -107,54 +70,6 @@ const getSuspendDialogKeys = (
 		descriptionKey: 'suspend-staff-user-confirm',
 	};
 };
-
-const ConfirmHeaderInfo = ({
-	name,
-	email,
-	avatarUrl,
-}: {
-	name: string;
-	email: string;
-	avatarUrl: string | null;
-}) => (
-	<div className="rounded-[var(--publy-radius-card)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3">
-		<div className="flex items-center gap-2.5">
-			<PersonAvatar name={name} avatarUrl={avatarUrl} size="sm" />
-			<div className="min-w-0">
-				<p className="text-sm font-medium text-foreground">{name}</p>
-				<p className="truncate text-xs text-muted-foreground">{email}</p>
-			</div>
-		</div>
-	</div>
-);
-
-const DeleteConfirmField = ({
-	value,
-	onChange,
-}: {
-	value: string;
-	onChange: (next: string) => void;
-}) => {
-	const { t } = useTranslation(['staff-users', 'common']);
-
-	return (
-		<div className="space-y-1.5">
-			<p className="text-xs text-muted-foreground">
-				{t('delete-confirm-instructions')}
-			</p>
-			<Input
-				aria-label={t('confirm-delete-field-label')}
-				value={value}
-				placeholder={t('type-delete-to-confirm-placeholder')}
-				onChange={(event) => onChange(event.target.value)}
-				className="h-9"
-			/>
-		</div>
-	);
-};
-
-const TAB_ROUTE_SUFFIXES = ['permissions', 'activity', 'settings'] as const;
-type TabSection = 'overview' | (typeof TAB_ROUTE_SUFFIXES)[number];
 
 const getActiveSection = (pathname: string): TabSection => {
 	const match = TAB_ROUTE_SUFFIXES.find((suffix) =>
@@ -190,6 +105,8 @@ const StaffUserDetailsPage = () => {
 		{ userId },
 		{ enabled: userId.length > 0 },
 	);
+	const user = toStaffUserDetails(detailQuery.data);
+	const profiles = toAssignedStaffProfiles(profilesQuery.data);
 
 	if (
 		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
@@ -210,66 +127,16 @@ const StaffUserDetailsPage = () => {
 	}
 
 	if (detailQuery.isError) {
-		if (
-			isProblemStatus(detailQuery.error, 404) ||
-			isProblemStatus(detailQuery.error, 400, MALFORMED_ID_TRANSLATION_KEY)
-		) {
-			return (
-				<AppErrorView
-					icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-					code={t('common:error-404-code')}
-					title={t('staff-user-not-found-title')}
-					description={getFailureDescription(
-						detailQuery.error,
-						t('staff-user-not-found-description'),
-					)}
-					testId="staff-user-details-not-found"
-					actions={
-						<Link
-							to="/staff/staff-users"
-							className={buttonVariants({ variant: 'outline' })}
-						>
-							{t('back-to-staff-users')}
-						</Link>
-					}
-				/>
-			);
-		}
-
-		if (isProblemStatus(detailQuery.error, 403)) {
-			return <View403 />;
-		}
-
 		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('common:error-500-code')}
-				title={t('unable-to-load-staff-user')}
-				description={t('problem-loading-staff-user-details')}
-				testId="staff-user-details-error"
-				actions={
-					<>
-						<Button
-							variant="default"
-							onClick={() => void detailQuery.refetch()}
-							type="button"
-						>
-							{t('common:try-again')}
-						</Button>
-						<Link
-							to="/staff/staff-users"
-							className={buttonVariants({ variant: 'outline' })}
-						>
-							{t('back-to-staff-users')}
-						</Link>
-					</>
-				}
+			<StaffUserErrorViews
+				error={detailQuery.error}
+				onRetry={() => {
+					void detailQuery.refetch();
+				}}
 			/>
 		);
 	}
 
-	const user = toStaffUserDetails(detailQuery.data);
-	const profiles = toAssignedStaffProfiles(profilesQuery.data);
 	if (!user) {
 		return (
 			<AppErrorView
@@ -289,7 +156,6 @@ const StaffUserDetailsPage = () => {
 			/>
 		);
 	}
-
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
@@ -314,14 +180,17 @@ const StaffUserDetailsPage = () => {
 				await reactivateUser.mutateAsync({ userId });
 			}
 		} catch (error) {
+			// Close the dialog on every exit path — no try/finally, which the
+			// React Compiler cannot lower yet and would skip this component.
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
+				setSuspendDialogOpen(false);
 				return;
 			}
-			return;
-		} finally {
 			setSuspendDialogOpen(false);
+			return;
 		}
+		setSuspendDialogOpen(false);
 
 		try {
 			await invalidateStaffUsers(queryClient);
@@ -334,15 +203,20 @@ const StaffUserDetailsPage = () => {
 		try {
 			await deleteUser.mutateAsync({ userId });
 		} catch (error) {
+			// Close the dialog on every exit path — no try/finally, which the
+			// React Compiler cannot lower yet and would skip this component.
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
+				setDeleteDialogOpen(false);
+				setDeleteConfirmText('');
 				return;
 			}
-			return;
-		} finally {
 			setDeleteDialogOpen(false);
 			setDeleteConfirmText('');
+			return;
 		}
+		setDeleteDialogOpen(false);
+		setDeleteConfirmText('');
 
 		try {
 			await navigate({ to: '/staff/staff-users' });
@@ -396,130 +270,20 @@ const StaffUserDetailsPage = () => {
 			className="publy-detail-page space-y-5"
 			data-testid="staff-user-details-page"
 		>
-			<div className="space-y-3">
-				<Link to="/staff/staff-users" className="publy-back-link">
-					<IconArrowLeft aria-hidden="true" className="size-3" />
-					{t('back-to-staff-users')}
-				</Link>
-			</div>
-			<div className="space-y-1" data-testid="staff-user-details-heading">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div className="flex items-start gap-3">
-						<div className="h-14 w-14">
-							<PersonAvatar
-								name={user.displayName}
-								avatarUrl={user.avatarUrl}
-								size="lg"
-							/>
-						</div>
-						<div className="min-w-0">
-							<div className="flex flex-wrap items-center gap-2">
-								<h1 className="text-[22px] font-semibold leading-7 tracking-[-0.01em] text-foreground">
-									{user.displayName}
-								</h1>
-								{user.accountLevel ? (
-									<StatusPill tone="neutral">
-										{formatAccountLevelLabel(user.accountLevel, t)}
-									</StatusPill>
-								) : null}
-								{user.status ? (
-									<StatusPill tone={statusPillTone(user.status)}>
-										{formatStaffStatusLabel(user.status, t)}
-									</StatusPill>
-								) : null}
-							</div>
-							<p className="max-w-3xl text-[13px] text-muted-foreground">
-								{user.email || t('common:no-email-address')}
-							</p>
-						</div>
-					</div>
-
-					<div className="flex flex-wrap items-center gap-2">
-						<Link
-							to="/staff/staff-users/$userId/edit"
-							params={{ userId }}
-							className={buttonVariants({ variant: 'outline', size: 'sm' })}
-						>
-							<IconPencil className="size-4" />
-							{t('common:edit')}
-						</Link>
-						<ConfirmDialog
-							isOpen={isSuspendDialogOpen}
-							title={t(getSuspendDialogKeys(user.status).titleKey)}
-							description={t(getSuspendDialogKeys(user.status).descriptionKey)}
-							confirmLabel={t(`common:${getSuspendLabelKey(user.status)}`)}
-							isPending={pendingAction}
-							onConfirm={() => {
-								void handleLifecycleAction();
-							}}
-							onOpenChange={(nextOpen) => {
-								setSuspendDialogOpen(nextOpen);
-							}}
-						>
-							<ConfirmHeaderInfo
-								name={user.displayName}
-								email={user.email || t('common:no-email-address')}
-								avatarUrl={user.avatarUrl}
-							/>
-						</ConfirmDialog>
-					</div>
-				</div>
-
-				<Tabs value={activeSection}>
-					<TabsList variant="line">
-						<TabsTrigger
-							value="overview"
-							render={
-								<Link to="/staff/staff-users/$userId" params={{ userId }} />
-							}
-						>
-							{t('common:overview')}
-						</TabsTrigger>
-						<TabsTrigger
-							value="permissions"
-							render={
-								<Link
-									to="/staff/staff-users/$userId/permissions"
-									params={{ userId }}
-								/>
-							}
-						>
-							{t('common:permissions')}
-						</TabsTrigger>
-						<TabsTrigger
-							value="activity"
-							render={
-								<Link
-									to="/staff/staff-users/$userId/activity"
-									params={{ userId }}
-								/>
-							}
-						>
-							{t('common:activity')}
-						</TabsTrigger>
-						<TabsTrigger
-							value="settings"
-							render={
-								<Link
-									to="/staff/staff-users/$userId/settings"
-									params={{ userId }}
-								/>
-							}
-						>
-							{t('settings')}
-						</TabsTrigger>
-					</TabsList>
-
-					<TabsContent value={activeSection} className="mt-5">
-						{/* react-doctor: see the overviewContextValue comment above —
-						deliberate, bounded re-render scope; memoizing would break hook order. */}
-						{/* react-doctor-disable-next-line react-doctor/context-provider-value-from-unmemoized-local-literal */}
-						<StaffUserOverviewContext.Provider value={overviewContextValue}>
-							<Outlet />
-						</StaffUserOverviewContext.Provider>
-					</TabsContent>
-				</Tabs>
-			</div>
+			<StaffUserIdentityHeader
+				user={user}
+				userId={userId}
+				suspendDialogOpen={isSuspendDialogOpen}
+				onSuspendDialogOpenChange={(open) => setSuspendDialogOpen(open)}
+				onConfirmLifecycle={() => {
+					void handleLifecycleAction();
+				}}
+				isLifecyclePending={pendingAction}
+				getSuspendDialogKeys={getSuspendDialogKeys}
+				getSuspendLabelKey={getSuspendLabelKey}
+				activeSection={activeSection}
+				overviewContextValue={overviewContextValue}
+			/>
 
 			<ConfirmDialog
 				isOpen={isDeleteDialogOpen}

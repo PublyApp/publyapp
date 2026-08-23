@@ -9,11 +9,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { View403 } from '~/components/error-views/View403';
-import { Button } from '~/components/ui/button';
-import { Card } from '~/components/ui/card';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
 	selectStaffTenantUserCrumbName,
 	staffTenantUserCrumbQuery,
@@ -32,21 +27,22 @@ import {
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-
 import {
 	BackToTenantsLink,
-	DetailItem,
-	formatDateTime,
-	formatTenantUserLevelLabel,
-	formatTenantUserStatusLabel,
 	TenantDetailsError,
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from '../_tenant-details-shell';
+import {
+	TenantUserDetailCards,
+	type MembershipLifecycle,
+} from './_user-detail-cards';
+import {
+	StaffTenantUserDetailsError,
+	TenantUserDetailsLoading,
+} from './_user-details-views';
 
-const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 const TENANT_USER_STATUS_ACTIVE = 'active';
 const TENANT_USER_STATUS_GLOBALLY_SUSPENDED = 'globally_suspended';
 const TENANT_USER_STATUS_SUSPENDED = 'suspended';
@@ -55,120 +51,14 @@ const TENANT_USER_STATUS_SUSPENDED = 'suspended';
 // memberships. Any other status value is treated as ambiguous to avoid accidental
 // lifecycle actions we cannot confidently support.
 
-const isProblemStatus = (
-	error: unknown,
-	status: number,
-	translationKey?: string,
-): boolean => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind !== 'problem' || failure.status !== status) {
-		return false;
-	}
-
-	return (
-		translationKey === undefined || failure.translationKey === translationKey
-	);
-};
-
-const getFailureDescription = (error: unknown, fallback: string): string => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind === 'problem' && failure.detail) {
-		return failure.detail;
-	}
-
-	return fallback;
-};
-
-const MissingTenantUserView = ({ error }: { error: unknown }) => {
-	const { t } = useTranslation('common');
-
-	return (
-		<AppErrorView
-			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-			code={t('error-404-code')}
-			title={t('tenant-user-not-found-title')}
-			description={getFailureDescription(
-				error,
-				t('tenant-user-not-found-description'),
-			)}
-			testId="staff-tenant-user-details-not-found"
-			actions={<BackToTenantsLink />}
-		/>
-	);
-};
-
-const StaffTenantUserDetailsError = ({
-	error,
-	onRetry,
-}: {
-	error: unknown;
-	onRetry: () => void;
-}) => {
-	const { t } = useTranslation('common');
-
-	if (
-		isProblemStatus(error, 404) ||
-		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
-	) {
-		return <MissingTenantUserView error={error} />;
-	}
-
-	if (isProblemStatus(error, 403)) {
-		return <View403 />;
-	}
-
-	return (
-		<AppErrorView
-			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
-			title={t('unable-to-load-tenant-user')}
-			description={t('tenant-user-load-error-description')}
-			testId="staff-tenant-user-details-error"
-			actions={<TenantRetryActions onRetry={onRetry} />}
-		/>
-	);
-};
-
-const TenantUserDetailsLoading = () => {
-	const { t } = useTranslation('common');
-
-	return (
-		<div
-			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-			data-testid="staff-tenant-user-details-loading"
-		>
-			<div className="flex items-center gap-3 text-sm text-muted-foreground">
-				<LoadingSpinner />
-				<span>{t('loading-tenant-user')}</span>
-			</div>
-		</div>
-	);
-};
-
 const getNormalizedTenantUserStatus = (
 	value: string | null | undefined,
 ): string => value?.trim().toLowerCase() ?? '';
 
-const getMembershipActionLabel = (
-	status: string,
-): 'suspend' | 'reactivate' | null => {
-	if (status === TENANT_USER_STATUS_ACTIVE) {
-		return 'suspend';
-	}
-
-	if (status === TENANT_USER_STATUS_SUSPENDED) {
-		return 'reactivate';
-	}
-
-	return null;
-};
-
 const StaffTenantUserDetailsPage = () => {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const { t, i18n } = useTranslation('common');
+	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [pendingRemove, setPendingRemove] = useState(false);
@@ -262,20 +152,27 @@ const StaffTenantUserDetailsPage = () => {
 	const normalizedStatus = getNormalizedTenantUserStatus(user.status);
 	const canSuspend = normalizedStatus === TENANT_USER_STATUS_ACTIVE;
 	const canReactivate = normalizedStatus === TENANT_USER_STATUS_SUSPENDED;
-	const canChangeStatus = canSuspend || canReactivate;
 	const isGloballySuspended =
 		normalizedStatus === TENANT_USER_STATUS_GLOBALLY_SUSPENDED;
-	const isStatusActionPending =
+	let membershipLifecycle: MembershipLifecycle;
+	if (canSuspend) {
+		membershipLifecycle = { kind: 'changeable', intent: 'suspend' };
+	} else if (canReactivate) {
+		membershipLifecycle = { kind: 'changeable', intent: 'reactivate' };
+	} else if (isGloballySuspended) {
+		membershipLifecycle = { kind: 'globally-suspended' };
+	} else {
+		membershipLifecycle = { kind: 'locked' };
+	}
+	const membershipActionLabel =
+		membershipLifecycle.kind === 'changeable' &&
+		membershipLifecycle.intent === 'suspend'
+			? t('suspend')
+			: t('reactivate');
+	const statusPending =
 		suspendTenantUserMutation.isPending ||
 		reactivateTenantUserMutation.isPending;
-	const isRemoveActionPending = removeTenantUserMutation.isPending;
-	const isAnyActionPending = isStatusActionPending || isRemoveActionPending;
-
-	const membershipAction = getMembershipActionLabel(normalizedStatus);
-	const membershipActionLabel =
-		membershipAction === 'suspend' ? t('suspend') : t('reactivate');
-	const membershipActionDisabled =
-		isStatusActionPending || isGloballySuspended || !membershipAction;
+	const removePending = removeTenantUserMutation.isPending;
 
 	const invalidateTenantUserQueries = async () => {
 		await invalidateAllStaffTenantScopes(queryClient);
@@ -303,14 +200,16 @@ const StaffTenantUserDetailsPage = () => {
 		try {
 			await removeTenantUserMutation.mutateAsync({ tenantId, userId });
 		} catch (error) {
+			// Reset pending state on every exit path — no try/finally,
+			// which the React Compiler cannot lower yet.
+			setPendingRemove(false);
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
 				return;
 			}
 			return;
-		} finally {
-			setPendingRemove(false);
 		}
+		setPendingRemove(false);
 
 		await invalidateTenantUserQueries();
 		void navigate({
@@ -354,135 +253,25 @@ const StaffTenantUserDetailsPage = () => {
 				</div>
 			</div>
 
-			<Card className="space-y-4 p-4">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div className="space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-							{t('tenant-membership-status')}
-						</p>
-						<p className="text-sm text-foreground">
-							{formatTenantUserStatusLabel(user.status, t)}
-						</p>
-					</div>
-					<div className="flex items-center gap-2">
-						{canChangeStatus ? (
-							<Button
-								type="button"
-								variant="secondary"
-								size="sm"
-								onClick={() => {
-									if (!membershipAction) {
-										return;
-									}
-
-									void handleMembershipAction(membershipAction);
-								}}
-								disabled={membershipActionDisabled}
-							>
-								{membershipActionLabel}
-								{isStatusActionPending ? '…' : ''}
-							</Button>
-						) : null}
-					</div>
-				</div>
-
-				{!canChangeStatus ? (
-					<p className="rounded-large border border-dashed border-border bg-card p-2 text-xs text-muted-foreground">
-						{isGloballySuspended
-							? t('membership-lifecycle-disabled-globally-suspended')
-							: t('membership-lifecycle-unavailable-status')}
-					</p>
-				) : null}
-			</Card>
-
-			<Card className="space-y-4 p-4">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div className="space-y-1">
-						<p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-							{t('tenant-user-removal')}
-						</p>
-						<p className="text-sm text-foreground">
-							{t('remove-user-from-tenant-description')}
-						</p>
-					</div>
-					<Button
-						type="button"
-						variant="destructive"
-						size="sm"
-						onClick={() => setPendingRemove(true)}
-						disabled={isAnyActionPending}
-					>
-						{t('remove-from-tenant')}
-						{isRemoveActionPending ? '…' : ''}
-					</Button>
-				</div>
-			</Card>
-
-			<ConfirmDialog
-				isOpen={pendingRemove}
-				title={t('remove-tenant-user-confirm-title')}
-				description={t('remove-tenant-user-confirm-description')}
-				confirmLabel={t('remove')}
-				isPending={removeTenantUserMutation.isPending}
-				onConfirm={() => {
+			<TenantUserDetailCards
+				user={user}
+				tenantId={tenantId}
+				membershipLifecycle={membershipLifecycle}
+				membershipActionLabel={membershipActionLabel}
+				statusPending={statusPending}
+				onMembershipAction={() => {
+					if (membershipLifecycle.kind === 'changeable') {
+						void handleMembershipAction(membershipLifecycle.intent);
+					}
+				}}
+				onRequestRemove={() => setPendingRemove(true)}
+				onConfirmRemove={() => {
 					void handleRemoveAction();
 				}}
-				onOpenChange={setPendingRemove}
+				onRemoveOpenChange={setPendingRemove}
+				pendingRemove={pendingRemove}
+				removePending={removePending}
 			/>
-
-			<Card className="space-y-4 p-5">
-				<div className="grid gap-4 md:grid-cols-2">
-					<DetailItem label={t('email')} value={user.email} />
-					<DetailItem
-						label={t('account-level')}
-						value={formatTenantUserLevelLabel(user.accountLevel, t)}
-					/>
-					<DetailItem
-						label={t('status')}
-						value={formatTenantUserStatusLabel(user.status, t)}
-					/>
-					<DetailItem label={t('user-id')} value={user.id} />
-					{/* W6-GUARDS (tests F7 / users-auth F11): the API's own
-					`tenantId` is nullable in the response type, but this route is
-					already scoped to a validated tenant via `Route.useParams()` —
-					sourcing the display value from the ROUTE removes the fabricated
-					'—' placeholder for a required identity field entirely, instead
-					of tolerating a null API value. */}
-					<DetailItem label={t('tenant-id')} value={tenantId} />
-					{/* data-honesty-ignore: avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data */}
-					<DetailItem label={t('avatar-url')} value={user.avatarUrl ?? '—'} />
-				</div>
-			</Card>
-
-			<Card className="space-y-4 p-5">
-				<div className="space-y-1">
-					<p className="text-lg font-semibold text-foreground">
-						{t('activity')}
-					</p>
-					<p className="text-sm text-muted-foreground">
-						{t('tenant-user-activity-description')}
-					</p>
-				</div>
-				<div className="grid gap-4">
-					{user.createdAt ? (
-						<DetailItem
-							label={t('created')}
-							value={formatDateTime(user.createdAt, i18n.language)}
-						/>
-					) : null}
-					{user.updatedAt ? (
-						<DetailItem
-							label={t('updated')}
-							value={formatDateTime(user.updatedAt, i18n.language)}
-						/>
-					) : null}
-					{!user.createdAt && !user.updatedAt ? (
-						<div className="rounded-large border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
-							{t('tenant-user-no-timestamps')}
-						</div>
-					) : null}
-				</div>
-			</Card>
 		</TenantDetailsPageShell>
 	);
 };

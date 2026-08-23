@@ -17,12 +17,14 @@
 		"test:font-bundle": "node --test scripts/verify-font-bundle.test.mjs",
 		"check:design-system": "node scripts/check-design-system.mjs",
 		"check:zindex": "node scripts/check-zindex-guard.mjs",
+		"check:react-compiler": "node scripts/check-react-compiler.mjs",
 		"test:design-system-guard": "node --test scripts/check-design-system.test.mjs",
 		"test:drawer-contrast": "vitest run --config vitest.drawer.config.ts",
 		"test:zindex-guard": "node --test scripts/check-zindex-guard.test.mjs",
+		"test:react-compiler-guard": "node --test scripts/check-react-compiler.test.mjs",
 		"smoke:start": "node scripts/smoke-start-server.mjs",
 		"test:e2e:tag": "playwright test --grep",
-		"test": "node --test scripts/compose-startup.test.mjs && vitest run && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:design-system-guard && pnpm test:zindex-guard && pnpm test:font-bundle && pnpm check:design-system && pnpm check:zindex"
+		"test": "node --test scripts/compose-startup.test.mjs && vitest run && pnpm test:request-counter && pnpm test:search-cancel-css && pnpm test:context-chunk-isolation && pnpm test:design-system-guard && pnpm test:zindex-guard && pnpm test:react-compiler-guard && pnpm test:font-bundle && pnpm check:design-system && pnpm check:zindex && pnpm check:react-compiler"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.3.0",

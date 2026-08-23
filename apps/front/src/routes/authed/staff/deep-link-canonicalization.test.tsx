@@ -31,6 +31,10 @@ import {
 import { Route as StaffProfilesRoute } from '~/routes/authed/staff/profiles';
 import { Route as TenantsRoute } from '~/routes/authed/staff/tenants';
 import { parseTenantListSearchParams } from '~/routes/authed/staff/tenants-list-helpers';
+import {
+	parseTenantUsersListSearchParams,
+	type TenantUsersListSearchParamInput,
+} from '~/routes/authed/staff/tenants/$tenantId/_users-search-params';
 import { Route as TenantInvitationsRoute } from '~/routes/authed/staff/tenants/$tenantId/invitations';
 import {
 	parseStaffTenantProfilesSearchParams,
@@ -45,11 +49,7 @@ import {
 	type ProfileDetailsSearchParamInput,
 	type ProfileOverviewSearchParamInput,
 } from '~/routes/authed/staff/tenants/$tenantId/profiles/_profile-details-search';
-import {
-	parseTenantUsersListSearchParams,
-	Route as TenantUsersRoute,
-	type TenantUsersListSearchParamInput,
-} from '~/routes/authed/staff/tenants/$tenantId/users';
+import { Route as TenantUsersRoute } from '~/routes/authed/staff/tenants/$tenantId/users';
 
 // Every harness below reuses the exact production `validateSearch` function
 // object off the route module's own `Route.options` — never a re-typed

@@ -251,14 +251,19 @@ vi.mock('./_invite-user-drawer-host', () => ({
 	},
 }));
 
+import type { ColumnDef } from '@tanstack/react-table';
+import type { StaffTenantUserRow } from '~/lib/query/staff-tenant-users';
+
 import {
 	formatTenantUserLevelLabel,
 	formatTenantUserStatusLabel,
-	makeTenantUserColumns,
+	tenantUserLevelChipClassName,
+} from './_tenant-details-shell';
+import { makeTenantUserColumns } from './_user-columns';
+import {
 	parseTenantUserLevelFilter,
 	parseTenantUserStatusFilter,
 	Route,
-	tenantUserLevelChipClassName,
 } from './users';
 
 const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
@@ -1155,7 +1160,10 @@ describe('makeTenantUserColumns column widths', () => {
 			() => undefined,
 		);
 		const widthById = Object.fromEntries(
-			columns.map((column) => [column.id, column.meta?.width]),
+			columns.map((column: ColumnDef<StaffTenantUserRow>) => [
+				column.id,
+				column.meta?.width,
+			]),
 		);
 
 		expect(widthById).toEqual({
@@ -1173,7 +1181,10 @@ describe('makeTenantUserColumns column widths', () => {
 			() => undefined,
 		);
 		const hideBelowById = Object.fromEntries(
-			columns.map((column) => [column.id, column.meta?.hideBelow]),
+			columns.map((column: ColumnDef<StaffTenantUserRow>) => [
+				column.id,
+				column.meta?.hideBelow,
+			]),
 		);
 
 		expect(hideBelowById).toEqual({

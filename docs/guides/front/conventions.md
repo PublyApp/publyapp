@@ -92,10 +92,16 @@ purely performance-driven memoisation.
 - **Do not add new `useMemo` or `useCallback`** for memoisation purposes. The compiler
   handles this automatically. Existing ones stay until a measured follow-up removes them.
 - **Rules of React are load-bearing.** The compiler skips components that violate them (refs
-  during render, throw inside try/catch, eslint-disable suppressions). These skip warnings
-  appear in the build output — they are informational, not errors.
+  during render, throw inside try/catch, finally clauses, eslint-disable suppressions). These
+  skip warnings appear in the build output — they are informational, not errors. The full
+  inventory lives in [`docs/guides/front/react-compiler.md`](react-compiler.md).
 - React Doctor (issue [#1182](https://github.com/radandevist/publyapp/issues/1182)) checks
-  Rules-of-React compliance. Run `pnpm --filter front test` to verify.
+  Rules-of-React compliance. It does **not** run inside `pnpm --filter front test`: it is a
+  separate oxlint-based analyzer enforced by its own required workflow
+  ([`.github/workflows/react-doctor.yml`](../../../.github/workflows/react-doctor.yml),
+  `pnpm dlx react-doctor@0.9.12 --scope files --base <base> --blocking warning`). Run
+  `just react-doctor` locally before pushing — see
+  [`docs/guides/react-doctor.md`](react-doctor.md).
 
 **Known compiler skip patterns (informational):**
 - `throw` inside `try/catch` — the compiler cannot lower this yet (Todo upstream)

@@ -88,9 +88,10 @@ const InvitationRowActions = ({ row }: { row: InvitationRow }) => {
 			await invalidateStaffInvitations(queryClient);
 		} catch {
 			// MutationCache owns ordinary mutation feedback.
-		} finally {
-			setConfirmOpen(false);
 		}
+		// No try/finally: the React Compiler cannot lower finally clauses
+		// yet and would skip this component.
+		setConfirmOpen(false);
 	};
 
 	return (
