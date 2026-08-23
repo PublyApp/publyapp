@@ -18,6 +18,7 @@ import { promisify } from 'node:util';
 import {
 	contextChunkIsolationPlugin,
 	findContextChunkIsolationViolations,
+	findContextInventoryViolations,
 	findReactContextDeclarations,
 } from './check-context-chunk-isolation.mjs';
 import { findEmittedCallExtents } from './context-source-map.mjs';
@@ -4796,6 +4797,62 @@ const holderFactoryFixture = (probeBody) => ({
 	`,
 });
 
+// F824 (ui F6): the inventory compared DISCOVERED and EXPECTED contexts as
+// sets keyed by `${name} in ${file}` — a module hosting two distinct
+// `createContext` sites under one identity (e.g. two anonymous holder mints,
+// both discovered as `<anonymous context>` in the same file) collapsed to a
+// single discovered entry, and a single inventory entry silently certified
+// both sites (and silently kept certifying one after the other was deleted).
+// The comparison is a multiset now: every minting site must be covered by its
+// own inventory entry, and any surplus or deficit on either side fails loud.
+void test('F824-ui-F6: demands one inventory entry per createContext site when one file hosts several under one identity', () => {
+	const sourceFile = path.resolve(frontDirectory, 'src/two-mints.tsx');
+	const contexts = [
+		{
+			name: '<anonymous context>',
+			sourceFile,
+			mintSpans: [{ startLine: 2, startCol: 8, endLine: 2, endCol: 24 }],
+		},
+		{
+			name: '<anonymous context>',
+			sourceFile,
+			mintSpans: [{ startLine: 5, startCol: 8, endLine: 5, endCol: 24 }],
+		},
+	];
+
+	const violations = findContextInventoryViolations(
+		contexts,
+		[{ name: '<anonymous context>', sourceFile: 'src/two-mints.tsx' }],
+		frontDirectory,
+	);
+
+	assert.equal(violations.length, 1);
+	assert.match(violations[0], /missing from the checked-in inventory/);
+});
+
+void test('F824-ui-F6: flags an inventory entry whose site disappeared while another entry remains uncovered', () => {
+	const sourceFile = path.resolve(frontDirectory, 'src/two-mints.tsx');
+	const contexts = [
+		{
+			name: '<anonymous context>',
+			sourceFile,
+			mintSpans: [{ startLine: 2, startCol: 8, endLine: 2, endCol: 24 }],
+		},
+	];
+
+	const violations = findContextInventoryViolations(
+		contexts,
+		[
+			{ name: '<anonymous context>', sourceFile: 'src/two-mints.tsx' },
+			{ name: '<anonymous context>', sourceFile: 'src/two-mints.tsx' },
+		],
+		frontDirectory,
+	);
+
+	assert.equal(violations.length, 1);
+	assert.match(violations[0], /missing from the TypeScript program/);
+});
+
 const holderInventory = [
 	{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
 	{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
@@ -5458,6 +5515,8 @@ void test(
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
@@ -5705,6 +5764,8 @@ void test(
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
@@ -5749,6 +5810,8 @@ void test(
 	async () => {
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
@@ -5798,6 +5861,8 @@ void test(
 	async () => {
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
@@ -5881,6 +5946,8 @@ void test(
 	async () => {
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
@@ -5969,6 +6036,8 @@ void test(
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
@@ -6037,6 +6106,8 @@ void test(
 		// every content-identical lookalike.
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
@@ -6256,6 +6327,8 @@ void test(
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'FourthContext', sourceFile: 'src/contexts.tsx' },
@@ -6320,6 +6393,8 @@ void test(
 		// it did force from the output.
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
@@ -6401,6 +6476,8 @@ void test(
 		// the guard still strips every map it did force.
 		const inventory = [
 			{ name: '<anonymous context>', sourceFile: 'src/make-context.ts' },
+			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
+			// F824 ui F6: one inventory entry per minting site — the probe hosts TWO.
 			{ name: '<anonymous context>', sourceFile: 'src/routes/probe.tsx' },
 			{ name: 'SecondContext', sourceFile: 'src/contexts.tsx' },
 			{ name: 'ThirdContext', sourceFile: 'src/contexts.tsx' },
