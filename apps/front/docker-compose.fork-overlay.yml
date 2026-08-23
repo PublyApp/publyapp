@@ -1,0 +1,33 @@
+# Fork-run overlay for the e2e stack (#1021), applied by
+# .github/workflows/front-e2e.yml's `build` job ONLY when the run originates
+# from a fork pull request (read-only GITHUB_TOKEN).
+#
+# Why: the base compose file exports build cache with `type=gha`, whose
+# backend authenticates with the Actions RUNTIME token. A fork run has
+# neither a writable cache destination nor that runtime credential, so the
+# export would fail (or degrade) inside an otherwise registry-free build.
+# This overlay strips the four services' cache_from/cache_to — compose's
+# `!reset` tag replaces each list with an empty one instead of merging into
+# the base lists — leaving a plain local build that loads all four images
+# into the build runner's daemon for the artifact handoff to the shards.
+#
+# Same-repo runs never see this file: they keep gha cache warmth and the
+# GHCR push path unchanged.
+
+services:
+  migrate:
+    build:
+      cache_from: !reset []
+      cache_to: !reset []
+  api:
+    build:
+      cache_from: !reset []
+      cache_to: !reset []
+  request-counter:
+    build:
+      cache_from: !reset []
+      cache_to: !reset []
+  front:
+    build:
+      cache_from: !reset []
+      cache_to: !reset []
