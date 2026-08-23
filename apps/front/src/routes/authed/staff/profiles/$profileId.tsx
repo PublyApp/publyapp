@@ -139,14 +139,15 @@ const StaffProfileDetailsPage = () => {
 		| StaffPermissionCatalog
 		| undefined;
 	const userRows = toStaffProfileUserRows(usersQuery.data?.users);
-	const usersFailure = usersQuery.isError
-		? toApiFailure(usersQuery.error)
-		: null;
+	// Hoisted: the fatal gate and members card read plain locals, not flags.
+	const usersIsError = usersQuery.isError;
+	const usersFailure = usersIsError ? toApiFailure(usersError) : null;
+	const usersPending = usersQuery.isPending;
 	const userCount = details.userAccountCount;
 	const membersCardContent = renderStaffProfileMembersCard({
 		t,
 		userRows,
-		usersPending: usersQuery.isPending,
+		usersPending,
 		usersFailureStatus:
 			usersFailure?.kind === 'problem' ? usersFailure.status : null,
 		onRetry: () => void usersQuery.refetch(),

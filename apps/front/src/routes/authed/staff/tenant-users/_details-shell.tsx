@@ -68,11 +68,17 @@ export const TenantUserDetailsShell = ({
 		{ enabled: userId.length > 0 },
 	);
 
-	if (detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) {
+	// Hoisted so the fatal gate and the loading/error ladder read plain
+	// locals, not query flags.
+	const detailsIsPending = detailsQuery.isPending;
+	const detailsIsError = detailsQuery.isError;
+	const detailsError = detailsQuery.error;
+
+	if (detailsIsError && shouldLogoutForFailure(detailsError)) {
 		return <LogoutRedirect />;
 	}
 
-	if (detailsQuery.isPending) {
+	if (detailsIsPending) {
 		return (
 			<div className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12">
 				<div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -85,8 +91,8 @@ export const TenantUserDetailsShell = ({
 		);
 	}
 
-	if (detailsQuery.isError) {
-		const failure = toApiFailure(detailsQuery.error);
+	if (detailsIsError) {
+		const failure = toApiFailure(detailsError);
 		const problemStatus =
 			failure.kind === 'problem' ? failure.status : undefined;
 		const isNotFound =
