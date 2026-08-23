@@ -14,9 +14,11 @@ const makeWorkflow = (steps) =>
 	`name: fixture\non:\n  pull_request:\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`;
 
 /**
- * Builds a throwaway repo with one workflow file.
+ * Builds a throwaway repo with one workflow file and, optionally, composite
+ * actions under .github/actions/<name>/action.yml (name may contain slashes
+ * to prove the scan is recursive).
  */
-const buildFixture = async ({ workflowContent }) => {
+const buildFixture = async ({ workflowContent, actions = [] }) => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
 	);
@@ -28,8 +30,17 @@ const buildFixture = async ({ workflowContent }) => {
 		workflowContent,
 	);
 
+	for (const { content, name } of actions) {
+		const actionDir = path.join(rootDir, '.github/actions', name);
+		await mkdir(actionDir, { recursive: true });
+		await writeFile(path.join(actionDir, 'action.yml'), content);
+	}
+
 	return rootDir;
 };
+
+const makeAction = (steps) =>
+	`name: 'Fixture composite action'\ndescription: 'fixture'\nruns:\n  using: composite\n  steps:\n${steps}`;
 
 test('passes when all uses: are pinned to full SHAs', async () => {
 	const content = makeWorkflow(
@@ -58,7 +69,7 @@ test('fails when a bare major tag is used', async () => {
 	const findings = await findUnpinnedActions({ rootDir });
 
 	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
 	assert.strictEqual(findings[0].uses, 'actions/checkout@v7');
 });
@@ -143,6 +154,104 @@ test('ignores commented-out uses: lines (YAML comments)', async () => {
 	assert.deepStrictEqual(findings, []);
 });
 
+// --- #1255 follow-up 1: pin the trailing-comment abuse case ---
+
+test('fails when a mutable tag carries only a full-SHA trailing comment', async () => {
+	// `actions/checkout@v1` is the ref GitHub actually checks out; the 40-hex
+	// SHA sits in a YAML comment and pins nothing. Comment-stripping before
+	// the match is what keeps that SHA out of the judgment entirely, so the
+	// live line is judged by its mutable `@v1` alone. The commented-out twin
+	// of the same abuse pattern is the control that makes comment handling
+	// observable: if the stripping ever regresses, the twin's `uses:` leaks
+	// out of the comment and this test turns red (two findings, one of them
+	// from a dead line) instead of passing silently.
+	const shaComment = '3d3c42e5aac5ba805825da76410c181273ba90b1';
+	const content = makeWorkflow(
+		`      # - uses: actions/checkout@v1 # ${shaComment}\n` +
+			`      - uses: actions/checkout@v1 # ${shaComment}\n`,
+	);
+
+	const rootDir = await buildFixture({ workflowContent: content });
+	const findings = await findUnpinnedActions({ rootDir });
+
+	// No `file` assertion here on purpose: the reporting path format changes
+	// with the #1255 recursive-scan fix, and this test pins the abuse-case
+	// behavior (comment-stripping), not the path format.
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].line, 9);
+	assert.strictEqual(findings[0].uses, 'actions/checkout@v1');
+});
+
+// --- #1255 follow-up 2: composite actions under .github/actions ---
+
+test('fails when a composite action uses a bare tag', async () => {
+	const content = makeWorkflow('      - uses: ./.github/actions/fixture\n');
+
+	const rootDir = await buildFixture({
+		workflowContent: content,
+		actions: [
+			{
+				name: 'fixture',
+				content: makeAction('      - uses: actions/setup-node@v7\n'),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, '.github/actions/fixture/action.yml');
+	assert.strictEqual(findings[0].line, 6);
+	assert.strictEqual(findings[0].uses, 'actions/setup-node@v7');
+});
+
+test('scans nested .github/actions/**/action.yml recursively', async () => {
+	const content = makeWorkflow(
+		'      - uses: ./.github/actions/group/nested-fixture\n',
+	);
+
+	const rootDir = await buildFixture({
+		workflowContent: content,
+		actions: [
+			{
+				name: 'group/nested-fixture',
+				content: makeAction('      - uses: pnpm/action-setup@v6\n'),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(
+		findings[0].file,
+		'.github/actions/group/nested-fixture/action.yml',
+	);
+	assert.strictEqual(findings[0].line, 6);
+	assert.strictEqual(findings[0].uses, 'pnpm/action-setup@v6');
+});
+
+test('passes when every composite action step is pinned', async () => {
+	const content = makeWorkflow('      - uses: ./.github/actions/fixture\n');
+
+	const rootDir = await buildFixture({
+		workflowContent: content,
+		actions: [
+			{
+				name: 'fixture',
+				content: makeAction(
+					'      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\n' +
+						'      - uses: docker://alpine@sha256:6457d53fb065d6f250e1504b9bc42d5b6c12950f3e2bb2611d13bbca9a4b7c58\n',
+				),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.deepStrictEqual(findings, []);
+});
+
 // --- r3 hardening: fail-closed on undecidable / mutable non-action refs ---
 
 test('fails when a uses: value has no @ref at all', async () => {
@@ -155,7 +264,7 @@ test('fails when a uses: value has no @ref at all', async () => {
 	const findings = await findUnpinnedActions({ rootDir });
 
 	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
 	assert.strictEqual(findings[0].uses, 'some-owner/some-action-without-ref');
 });
@@ -167,7 +276,7 @@ test('fails when a docker:// image has no digest pin', async () => {
 	const findings = await findUnpinnedActions({ rootDir });
 
 	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
 	assert.strictEqual(findings[0].uses, 'docker://alpine:3.20');
 });
