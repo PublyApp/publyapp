@@ -1183,6 +1183,32 @@ test('W6-GUARDS: does not flag a token reference whose name happens to contain a
 	);
 });
 
+// F824 (ui F5): a raw colour assembled by STRING COMPOSITION contains no
+// complete raw-colour literal at all — `'#' + 'ff0000'` and `` `#${'00ccff'}` ``
+// evaluate to raw hex at runtime while every literal-shaped detector sails
+// past, so the guard certified the evasion idiom itself as clean.
+test('F824-ui-F5: flags a raw hex colour built by string composition (evasion proof)', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			"const rawRed = '#' + 'ff0000';",
+			"const tint = `#${'00ccff'}`;",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	const bySource = (needle) =>
+		colorViolations.filter((violation) => violation.source.includes(needle));
+	assert.equal(bySource("'#' + 'ff0000'").length, 1, 'hash-prefix concat');
+	assert.equal(bySource("`#${'00ccff'}`").length, 1, 'template interpolation');
+});
+
 // W6-GUARDS (ui F5): `box-shadow` was only present in the colour-FUNCTION
 // pattern, not the hex/named-colour patterns — a raw hex or named-colour
 // shadow sailed through while the equivalent rgba() shadow was already

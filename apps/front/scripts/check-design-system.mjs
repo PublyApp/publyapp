@@ -210,6 +210,8 @@ const statusMenuViolations = (relativePath, source) => {
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
 const APP_CSS_PATH = 'src/styles/app.css';
 const ROUNDED_RULE_ID = 'no-rounded-full-or-999-radius';
+// F824 (ui F5): referenced by the composed-hex fixture-debt entries below.
+const RAW_COLOR_RULE_ID = 'no-raw-visual-color';
 const KNOWN_HANDOFF_GUARD_DEBT = [
 	{
 		ruleId: ROUNDED_RULE_ID,
@@ -518,6 +520,42 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 			'the literal CSS token to exercise the code path the reviewer defeated.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
+		maxOccurrences: 1,
+	},
+	// F824 (ui F5): these three contrast-suite fixtures deliberately compose
+	// their fixture hexes (`'#' + 'ff0000'` etc.) precisely SO THAT the raw-
+	// colour guard cannot see them — they exist to prove the contrast
+	// resolvers still RESOLVE raw values correctly without tripping this very
+	// scan on every run. They are recorded debt against the NEW composition
+	// detectors, not silent exemptions: each carries a hard occurrence budget
+	// and the matched source text is pinned, so editing a fixture past its
+	// budget (or adding another composed colour anywhere) fails the guard.
+	{
+		ruleId: RAW_COLOR_RULE_ID,
+		file: 'src/styles/focus-ring-contrast.test.ts',
+		sourceIncludes: "'#' + 'ffffff'",
+		reason:
+			'Contrast-suite fixture input (ARBITRARY_HEX_FIXTURE) — deliberate ' +
+			'evasion spelling so this guard stays green while the fixture proves ' +
+			'raw arbitrary-value rings still resolve. Test DATA, not shipped styling.',
+		maxOccurrences: 1,
+	},
+	{
+		ruleId: RAW_COLOR_RULE_ID,
+		file: 'src/styles/drawer-description-contrast.test.ts',
+		sourceIncludes: "'#' + 'ff0000'",
+		reason:
+			'Contrast-suite fixture input (rawRed) — same deliberate evasion ' +
+			'spelling as the focus-ring fixture; test DATA for resolver coverage.',
+		maxOccurrences: 1,
+	},
+	{
+		ruleId: RAW_COLOR_RULE_ID,
+		file: 'src/styles/drawer-description-contrast.test.ts',
+		sourceIncludes: "'#' + '111111'",
+		reason:
+			'Contrast-suite fixture input (rawNearBlack) — same deliberate ' +
+			'evasion spelling as rawRed above; test DATA for resolver coverage.',
 		maxOccurrences: 1,
 	},
 ];
@@ -1548,6 +1586,31 @@ const hasRawColorMixOperand = (text) =>
 
 const COLOR_MIX_RAW_OPERAND_PATTERN = { test: hasRawColorMixOperand };
 
+// F824 (ui F5): a raw colour assembled by STRING COMPOSITION never contains a
+// complete raw-colour literal, so every literal-shaped detector above sails
+// past it. Two runtime-equivalent spellings exist in this codebase:
+//   '#' + 'ff0000'   — hash prefix concatenated with a quoted hex body
+//   `#${'00ccff'}`   — template literal interpolating a quoted hex body
+// Both evaluate to a raw hex string a stylesheet/style object will happily
+// consume. Deliberately narrow shapes:
+//  - Pattern 1 requires BOTH operands fully quoted ('#' / "#" / `#`) so a
+//    DOM id selector built from a variable (`'#' + elementId`, querySelector
+//    anchors) never matches — only a hex-digit body does.
+//  - Pattern 2 requires the interpolated expression to START with a quote,
+//    so `` `#${sectionId}` `` anchors and e2e labels stay unscanned; only an
+//    interpolated string literal whose contents are pure hex digits match.
+// A composed colour split across THREE or more fragments, or assembled via
+// variables/constants instead of inline literals, remains outside regex
+// reach by design — this rule catches the idiom as written, not a dataflow
+// analysis (the same boundary every other pattern here accepts).
+const QUOTE_CLASS = `["'\`]`;
+const COMPOSED_HASH_CONCAT_PATTERN = new RegExp(
+	`${QUOTE_CLASS}#${QUOTE_CLASS}\\s*\\+\\s*${QUOTE_CLASS}[0-9a-fA-F]{3,8}${QUOTE_CLASS}`,
+);
+const COMPOSED_TEMPLATE_INTERP_PATTERN = new RegExp(
+	'`\\s*#\\$\\{\\s*' + `${QUOTE_CLASS}[0-9a-fA-F]{3,8}${QUOTE_CLASS}\\s*\\}`,
+);
+
 const rules = [
 	{
 		id: 'no-heroui-import',
@@ -1596,6 +1659,9 @@ const rules = [
 			isAppCssTokenLayerLine(relativePath, lineIndex, lines),
 		patterns: [
 			/["'`][#][0-9a-fA-F]{3,8}["'`]/, // quoted/templated raw color tokens
+			// F824 (ui F5): runtime-composed raw hex (see declaration above).
+			COMPOSED_HASH_CONCAT_PATTERN,
+			COMPOSED_TEMPLATE_INTERP_PATTERN,
 			/\b(?:bg|text|border|ring|shadow|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[#(?:[0-9a-fA-F]{3,8})\]/,
 			RAW_COLOR_PROPERTY_HEX_PATTERN,
 			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-(?:slate|zinc|gray|neutral)-\d{2,3}\b/,
