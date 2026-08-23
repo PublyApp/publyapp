@@ -6,6 +6,9 @@
  * - Portable rules still cover apps/front source paths.
  * - Dead old-front fixtures no longer trigger their former rule.
  * - Root .oxlintrc.json pins the surviving publy/* rules at error.
+ * - Plugin wiring is mutation-guarded: removing the `{ name: "anti-slop" }`
+ *   jsPlugins specifier from .oxlintrc.json silences every enabled
+ *   `anti-slop/*` rule, and this suite must go RED when that happens.
  */
 import assert from 'node:assert/strict';
 import {
@@ -288,5 +291,102 @@ describe('rule scoping matrix', () => {
 		} finally {
 			fixtures.cleanup();
 		}
+	});
+
+	describe('anti-slop plugin wiring (mutation guard)', () => {
+		it('reports an enabled anti-slop rule while its jsPlugins specifier is wired, and only then', () => {
+			const fixtureDir = mkdtempSync(
+				join(WORKSPACE_ROOT, '.tmp', 'anti-slop-wiring-'),
+			);
+			const violationPath = join(fixtureDir, 'reflect-get-violation.ts');
+			writeFileSync(
+				violationPath,
+				"export const value = Reflect.get({ a: 1 }, 'a');\n",
+			);
+
+			const config = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8')) as {
+				jsPlugins: unknown[];
+			};
+			const antiSlopEntryIndex = config.jsPlugins.findIndex(
+				(entry) =>
+					typeof entry === 'object' &&
+					entry !== null &&
+					(entry as { name?: unknown }).name === 'anti-slop',
+			);
+
+			assert.notStrictEqual(
+				antiSlopEntryIndex,
+				-1,
+				'.oxlintrc.json must carry the { name: "anti-slop" } jsPlugins entry — without it every enabled anti-slop/* rule silently stops reporting',
+			);
+
+			// Control = byte-equivalent config; mutant = same config with the
+			// anti-slop jsPlugins entry spliced out. Both copies live at the
+			// workspace root so their relative jsPlugins specifiers resolve
+			// exactly like the real config's do.
+			const mutant = structuredClone(config);
+			mutant.jsPlugins.splice(antiSlopEntryIndex, 1);
+
+			const controlConfigPath = join(
+				WORKSPACE_ROOT,
+				'.oxlintrc.wiring-control.tmp.json',
+			);
+			const mutantConfigPath = join(
+				WORKSPACE_ROOT,
+				'.oxlintrc.wiring-mutant.tmp.json',
+			);
+			writeFileSync(controlConfigPath, JSON.stringify(config, null, '\t'));
+			writeFileSync(mutantConfigPath, JSON.stringify(mutant, null, '\t'));
+
+			try {
+				const wiredDiagnostics = runOxlint([violationPath], {
+					oxlintrcPath: controlConfigPath,
+				}).diagnostics as Array<{ code?: string }>;
+
+				const wiredCodes = wiredDiagnostics.map((diag) => diag.code ?? '');
+				assert.ok(
+					wiredCodes.includes('anti-slop(no-reflect-get)'),
+					`enabled anti-slop rule must report while its specifier is wired, got ${JSON.stringify(wiredCodes)}`,
+				);
+
+				// Mutant leg: oxlint either rejects the config outright
+				// ("Plugin 'anti-slop' not found" — the enabled anti-slop/*
+				// rules reference a plugin that is no longer loaded) or loads
+				// without the plugin and stays silent. Both outcomes prove the
+				// specifier is load-bearing; only a clean run WITH anti-slop
+				// diagnostics would be a miss.
+				let mutantRejectedConfig = false;
+				let unwiredDiagnostics: Array<{ code?: string }> = [];
+
+				try {
+					unwiredDiagnostics = runOxlint([violationPath], {
+						oxlintrcPath: mutantConfigPath,
+					}).diagnostics as Array<{ code?: string }>;
+				} catch {
+					mutantRejectedConfig = true;
+				}
+
+				if (mutantRejectedConfig) {
+					assert.ok(
+						true,
+						'removing the jsPlugins specifier makes oxlint reject the config outright (enabled anti-slop/* rules lose their plugin)',
+					);
+				} else {
+					const unwiredAntiSlopCodes = unwiredDiagnostics
+						.map((diag) => diag.code ?? '')
+						.filter((code) => code.startsWith('anti-slop('));
+
+					assert.deepStrictEqual(
+						unwiredAntiSlopCodes,
+						[],
+						'removing the anti-slop jsPlugins specifier must silence enabled anti-slop/* rules',
+					);
+				}
+			} finally {
+				rmSync(controlConfigPath, { force: true });
+				rmSync(mutantConfigPath, { force: true });
+				rmSync(fixtureDir, { force: true, recursive: true });
+			}
+		});
 	});
 });
