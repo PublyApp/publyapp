@@ -127,9 +127,9 @@
 			"reason": "GitHub-only pnpm setup for CI. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "269082600458cd99",
+			"hash": "1d2bdb692e0145ca",
 			"mirror": "just ci-drift",
-			"reason": "The CODEOWNERS contract and CI gate guard suites (including scripts/ci-e2e-rerun-guard.test.mjs since #1063), deterministic frontend-lint regression, check-ci-gate-structure.mjs, and the #1240 require-linked-issue guard test (scripts/require-linked-issue.test.mjs) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained the one `node --test ./scripts/require-linked-issue.test.mjs` line; `just ci-drift` runs that same test."
+			"reason": "The CODEOWNERS contract and CI gate guard suites (including scripts/ci-e2e-rerun-guard.test.mjs since #1063), deterministic frontend-lint regression, check-ci-gate-structure.mjs, the #1240 require-linked-issue guard test (scripts/require-linked-issue.test.mjs), and the #1248 actions-pinning guard suite plus its real-tree scan (scripts/check-actions-pinned.{test,mjs}) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained one require-linked-issue line from develop and the two actions-pinned lines; `just ci-drift` runs those same three commands."
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"hash": "efdabfd7485185e8",
