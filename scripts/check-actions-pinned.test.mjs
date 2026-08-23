@@ -1,10 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-	mkdir,
-	mkdtemp,
-	symlink,
-	writeFile,
-} from 'node:fs/promises';
+import { mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -576,9 +571,7 @@ test('stays green when a committed symlink stays inside the repo', async () => {
 				),
 			},
 		],
-		symlinks: [
-			{ linkPath: 'tools/alias', target: 'tools/real-action' },
-		],
+		symlinks: [{ linkPath: 'tools/alias', target: 'tools/real-action' }],
 	});
 
 	const findings = await findUnpinnedActions({ rootDir });
