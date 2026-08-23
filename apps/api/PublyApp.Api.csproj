@@ -95,6 +95,19 @@
 		<TranslationKeyGenSources Include="$(MSBuildProjectDirectory)\..\..\packages\scripts-cs\*.csproj" />
 	</ItemGroup>
 
+	<!-- Private artifact directories for the codegen `dotnet run` below (see
+	     the race comment inside GenerateTranslationKeys). Passed as environment
+	     variables — the strongest override channel an Exec offers: they are
+	     plain properties, so they beat the conditional Directory.Build.props
+	     defaults regardless of Configuration, and they cannot be clobbered by
+	     later property re-evaluation the way a target-scoped PropertyGroup
+	     could be. The child MSBuild reads them as global properties, so its
+	     outputs never collide with the solution's own build of Scripts. -->
+	<ItemGroup>
+		<TranslationKeyGenEnv Include="BaseOutputPath=$(MSBuildProjectDirectory)\..\..\packages\scripts-cs\.artifacts\codegen\bin\" />
+		<TranslationKeyGenEnv Include="BaseIntermediateOutputPath=$(MSBuildProjectDirectory)\..\..\packages\scripts-cs\.artifacts\codegen\obj\" />
+	</ItemGroup>
+
 	<Target Name="GenerateTranslationKeys"
 			BeforeTargets="BeforeBuild"
 			Condition="'$(Configuration)' != 'Test'"
@@ -102,7 +115,20 @@
 			Outputs="$(GeneratedKeysFile)">
 		<Message Text="Generating translation keys from response-message.en.json..."
 				 Importance="high" />
+		<!-- This Exec races the solution build itself: when PublyApp.slnx builds
+		     (quality-gate, just build-api), MSBuild node 2 compiles Scripts in its
+		     own .artifacts while this target's `dotnet run` rebuilds Scripts in
+		     the same Debug directories on node 1 — two processes creating
+		     PublyApp.Scripts.runtimeconfig.json concurrently fails with MSB4018
+		     "being used by another process" (observed cold-cache on CI and
+		     locally). Redirect THIS invocation's artifacts to a private directory
+		     via plain environment variables: simple properties win over the
+		     conditional defaults in Directory.Build.props (they are already set,
+		     so those conditions stay false) and satisfy the .artifacts guard in
+		     Directory.Build.targets. The solution's own build of Scripts is then
+		     never touched by the codegen subprocess, under any configuration. -->
 		<Exec Command="dotnet run --project &quot;$(TranslationKeyGenProject)&quot; -- generate-translation-keys &quot;$(TranslationJsonFile)&quot; &quot;$(GeneratedKeysFile)&quot;"
+			  EnvironmentVariables="@(TranslationKeyGenEnv)"
 			  ContinueOnError="false" />
 	</Target>
 
