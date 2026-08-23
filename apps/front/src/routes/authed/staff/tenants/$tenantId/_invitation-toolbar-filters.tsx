@@ -1,5 +1,10 @@
-import { IconChevronDown, IconCircleDot, IconKey } from '@tabler/icons-react';
+import {
+	IconChevronDown,
+	IconCircleDot,
+	IconKey,
+} from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { SELECTION_LOCKED_TITLE_KEY } from '~/components/table/data-table';
 import { Button } from '~/components/ui/button';
 import {
 	DropdownMenu,
@@ -29,6 +34,10 @@ type ToolbarFiltersProps = {
 	onToggleLevel: (level: KnownLevel) => void;
 	onSetStatuses: (next: KnownInvitationStatus[]) => void;
 	onToggleStatus: (status: KnownInvitationStatus) => void;
+	/** #838: while row-selection mode is active the filter triggers are
+	 * disabled with the shared locked-title tooltip so a pending selection
+	 * cannot be invalidated by a filter change. */
+	selectionLocked?: boolean;
 };
 
 /** Status / account-level dropdown pair rendered at the far end of the
@@ -43,6 +52,7 @@ export const InvitationToolbarFilters = ({
 	onToggleLevel,
 	onSetStatuses,
 	onToggleStatus,
+	selectionLocked = false,
 }: ToolbarFiltersProps) => {
 	const { t } = useTranslation('common');
 
@@ -56,6 +66,8 @@ export const InvitationToolbarFilters = ({
 							variant="outline"
 							className="publy-data-table-filter-button max-w-64 text-[13px]"
 							data-testid="staff-tenant-invitations-level-filter-trigger"
+							disabled={selectionLocked}
+							title={selectionLocked ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
 						/>
 					}
 				>
@@ -101,6 +113,8 @@ export const InvitationToolbarFilters = ({
 							variant="outline"
 							className="publy-data-table-filter-button max-w-64 text-[13px]"
 							data-testid="staff-tenant-invitations-status-filter-trigger"
+							disabled={selectionLocked}
+							title={selectionLocked ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
 						/>
 					}
 				>

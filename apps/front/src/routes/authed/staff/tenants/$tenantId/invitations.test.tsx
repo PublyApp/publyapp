@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	search: {} as Record<string, unknown>,
 	navigate: vi.fn(),
+	downloadFile: vi.fn(),
 	tenantId: '11111111-1111-1111-1111-111111111111',
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
@@ -125,6 +126,7 @@ const TRANSLATIONS: Record<string, string> = {
 	revoked: 'Revoked',
 	'status-unknown': 'Unknown',
 	clear: 'Clear',
+	'created-at': 'Created at',
 	'search-invitations': 'Search invitations',
 	'tenant-invitations-empty-title': 'No pending invitations',
 	'tenant-invitations-empty-description':
@@ -133,7 +135,18 @@ const TRANSLATIONS: Record<string, string> = {
 	'tenant-invitations-no-match-description':
 		'Try a different name, email, or filter.',
 	'invitations-pending-count-chip': '{{count}} pending',
+	'select-row-named': 'Select {{name}}',
+	'select-all-rows': 'Select all rows',
+	'selected-count': '{{count}} selected',
+	'clear-selection': 'Clear selection',
+	'select-all-visible': 'Select all {{count}}',
+	'export-selected': 'Export selected',
 };
+
+vi.mock('~/lib/download-file', () => ({
+	downloadFile: mocks.downloadFile,
+	formatExportDateStamp: () => '2026-07-12',
+}));
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
@@ -1123,6 +1136,151 @@ describe('staff tenant invitations route', () => {
 			invite: 1,
 		});
 		expect(statusNavigation.search.cursor).toBeUndefined();
+	});
+
+	// #838: row selection on this table. Nested so the shared route-level
+	// beforeEach above (query/tenant/revoke mocks) applies to these too;
+	// the local beforeEach only swaps in two visible rows.
+	describe('row selection (#838)', () => {
+		const mediumDateTime = (value: Date): string =>
+			value.toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' });
+
+		const twoInvitationRows = () => [
+			{
+				id: 'invite-1',
+				email: 'alex@example.com',
+				status: 'Pending',
+				scope: 'Tenant',
+				profileName: 'Approvers',
+				invitedByName: 'Taylor Smith',
+				acceptedAt: null,
+				createdAt: new Date('2026-07-01T09:00:00Z'),
+				expiresAt: new Date('2026-07-07T09:00:00Z'),
+			},
+			{
+				id: 'invite-2',
+				email: 'sam@example.com',
+				status: 'Pending',
+				scope: 'Tenant',
+				profileName: null,
+				accountLevel: 'User',
+				invitedByName: 'Taylor Smith',
+				acceptedAt: null,
+				createdAt: new Date('2026-07-01T10:00:00Z'),
+				expiresAt: new Date('2026-07-08T09:00:00Z'),
+			},
+		];
+
+		beforeEach(() => {
+			mocks.toStaffTenantInvitationRows.mockReturnValue(twoInvitationRows());
+		});
+
+		test('renders a labelled checkbox column when rows are present', () => {
+			renderPage();
+
+			expect(
+				screen.getByRole('checkbox', { name: 'Select all rows' }),
+			).toBeTruthy();
+			expect(screen.getByLabelText('Select alex@example.com')).toBeTruthy();
+			expect(screen.getByLabelText('Select sam@example.com')).toBeTruthy();
+		});
+
+		test('selecting one row reports the count and offers the export action; deselecting clears it', async () => {
+			renderPage();
+
+			fireEvent.click(screen.getByLabelText('Select alex@example.com'));
+
+			expect(await screen.findByTestId('floating-selection-bar')).toBeTruthy();
+			expect(screen.getByText('1 selected')).toBeTruthy();
+			expect(
+				screen.getByRole('button', { name: 'Export selected' }),
+			).toBeTruthy();
+
+			fireEvent.click(screen.getByLabelText('Select alex@example.com'));
+
+			await waitFor(() =>
+				expect(screen.queryByTestId('floating-selection-bar')).toBeNull(),
+			);
+		});
+
+		test('select all rows selects every visible invitation and clear empties the selection', async () => {
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select all rows' }),
+			);
+
+			expect(await screen.findByText('2 selected')).toBeTruthy();
+			// Base UI Checkbox renders a button carrying aria-checked.
+			expect(
+				screen
+					.getByLabelText('Select alex@example.com')
+					.getAttribute('aria-checked'),
+			).toBe('true');
+			expect(
+				screen
+					.getByLabelText('Select sam@example.com')
+					.getAttribute('aria-checked'),
+			).toBe('true');
+
+			fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+
+			await waitFor(() => expect(screen.queryByText('2 selected')).toBeNull());
+			expect(
+				screen
+					.getByLabelText('Select alex@example.com')
+					.getAttribute('aria-checked'),
+			).toBe('false');
+		});
+
+		test('prunes the selection when filtering leaves no visible rows', async () => {
+			const Component = getRouteComponent();
+			const renderResult = render(<Component />);
+
+			fireEvent.click(screen.getByLabelText('Select alex@example.com'));
+			expect(await screen.findByText('1 selected')).toBeTruthy();
+
+			// Same shape as a real navigation: the status filter narrows the list
+			// query to zero rows on the rerendered route.
+			mocks.toStaffTenantInvitationRows.mockReturnValue([]);
+			renderResult.rerender(<Component />);
+
+			await waitFor(() =>
+				expect(screen.queryByTestId('floating-selection-bar')).toBeNull(),
+			);
+		});
+
+		test('exports only the selected rows with email, access, invited by, status, created at, and expiry', async () => {
+			renderPage();
+
+			fireEvent.click(screen.getByLabelText('Select sam@example.com'));
+			fireEvent.click(
+				await screen.findByRole('button', { name: 'Export selected' }),
+			);
+
+			expect(mocks.downloadFile).toHaveBeenCalledOnce();
+			const [download] = mocks.downloadFile.mock.calls[0] as [
+				{ data: unknown; fileName: string; mimeType: string },
+			];
+			expect(download.fileName).toBe('staff-tenant-invitations-2026-07-12.csv');
+			expect(download.mimeType).toBe('text/csv;charset=utf-8');
+
+			const lines = String(download.data).split('\r\n');
+			expect(lines[0]).toBe(
+				'Invitee,Access,Invited by,Status,Created at,Expires',
+			);
+			expect(lines).toHaveLength(2);
+			expect(lines[1]).toBe(
+				[
+					'sam@example.com',
+					'User',
+					'Taylor Smith',
+					'Pending',
+					'"' + mediumDateTime(twoInvitationRows()[1].createdAt) + '"',
+					'"' + mediumDateTime(twoInvitationRows()[1].expiresAt) + '"',
+				].join(','),
+			);
+		});
 	});
 });
 
