@@ -20,6 +20,7 @@ else in `docs/` is a **record** — accurate as of its date, not a standing inst
 | [`docs/guides/front/`](guides/front) | The frontend. `apps/front` is the only frontend under development and the only one deployed. |
 | [`docs/guides/e2e-coverage.md`](guides/e2e-coverage.md) | When a change needs an end-to-end test (five criteria). |
 | [`docs/guides/e2e-tags.md`](guides/e2e-tags.md) | E2E tag vocabulary and spec inventory. |
+| [`docs/guides/social-accounts.md`](guides/social-accounts.md) | The social accounts master key env var, the boot canary that verifies it (and its PASSED log line), and the db-less build-time OpenAPI path where the canary is skipped. |
 | [`docs/deployment/`](deployment) | Live production operations — deployment design, migration gating, and the first-deploy runbook. Production has run on these since 2026-07-20. |
 
 Two cautions about `docs/guides/`:
