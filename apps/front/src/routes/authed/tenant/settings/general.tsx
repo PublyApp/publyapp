@@ -38,107 +38,13 @@ import {
 } from '../../staff/tenants/tenant-organization-profile-fields';
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/settings/')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
-			{ kind: 'label', labelKey: 'general' },
-		],
-		i18nNamespaces: ['settings'],
-	},
-	component: TenantSettingsGeneralPage,
-});
-
-const ALLOWED_LOGO_URL_PROTOCOLS = ['http:', 'https:'] as const;
-const API_FILES_PREFIX = '/files/';
-
-const getSettingsGeneralSchema = (t: (key: string) => string) =>
-	z.object({
-		name: z
-			.string()
-			.trim()
-			.min(5, { message: t('name-min-length') })
-			.max(256, { message: t('name-max-length') }),
-		logoUrl: z
-			.string()
-			.trim()
-			.max(2048, { message: t('logo-url-max-length') })
-			.refine((value) => {
-				if (!value) {
-					return true;
-				}
-
-				try {
-					return ALLOWED_LOGO_URL_PROTOCOLS.includes(
-						new URL(value)
-							.protocol as (typeof ALLOWED_LOGO_URL_PROTOCOLS)[number],
-					);
-				} catch {
-					// Root-relative served-upload paths are valid logo values.
-					return value.startsWith(API_FILES_PREFIX);
-				}
-			}, t('invalid-logo-url')),
-		legalName: z
-			.string()
-			.trim()
-			.max(256, { message: t('legal-name-max-length') })
-			.optional(),
-		description: z
-			.string()
-			.trim()
-			.max(1024, { message: t('description-max-length') })
-			.optional(),
-		websiteUrl: z
-			.string()
-			.trim()
-			.max(2048, { message: t('website-max-length') })
-			.optional()
-			.refine((value) => !value || isAbsoluteHttpUrl(value), {
-				message: t('invalid-website-url'),
-			}),
-		billingEmail: z
-			.string()
-			.trim()
-			.max(320, { message: t('email-max-length') })
-			.optional()
-			.refine((value) => !value || isValidEmailAddress(value), {
-				message: t('invalid-email'),
-			}),
-		supportEmail: z
-			.string()
-			.trim()
-			.max(320, { message: t('email-max-length') })
-			.optional()
-			.refine((value) => !value || isValidEmailAddress(value), {
-				message: t('invalid-email'),
-			}),
-		defaultLocale: z.string().optional(),
-		timezone: z.string().optional(),
-	});
-
-type SettingsGeneralValues = z.infer<
-	ReturnType<typeof getSettingsGeneralSchema>
->;
-
-const EDITABLE_FIELDS = [
-	'name',
-	'logoUrl',
-	'legalName',
-	'description',
-	'websiteUrl',
-	'billingEmail',
-	'supportEmail',
-	'defaultLocale',
-	'timezone',
-] as const;
-
 /**
  * Workspace general settings, editable through the real tenant-scoped
  * endpoints (`GET/PATCH /settings/general`). Identity fields come from the
  * settings query and are writable; the danger zone still has no backend and
  * keeps the coming-later affordance.
  */
-function TenantSettingsGeneralPage() {
+const TenantSettingsGeneralPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
@@ -471,4 +377,98 @@ function TenantSettingsGeneralPage() {
 			)}
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/settings/')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
+			{ kind: 'label', labelKey: 'general' },
+		],
+		i18nNamespaces: ['settings'],
+	},
+	component: TenantSettingsGeneralPage,
+});
+
+const ALLOWED_LOGO_URL_PROTOCOLS = ['http:', 'https:'] as const;
+const API_FILES_PREFIX = '/files/';
+
+const getSettingsGeneralSchema = (t: (key: string) => string) =>
+	z.object({
+		name: z
+			.string()
+			.trim()
+			.min(5, { message: t('name-min-length') })
+			.max(256, { message: t('name-max-length') }),
+		logoUrl: z
+			.string()
+			.trim()
+			.max(2048, { message: t('logo-url-max-length') })
+			.refine((value) => {
+				if (!value) {
+					return true;
+				}
+
+				try {
+					return ALLOWED_LOGO_URL_PROTOCOLS.includes(
+						new URL(value)
+							.protocol as (typeof ALLOWED_LOGO_URL_PROTOCOLS)[number],
+					);
+				} catch {
+					// Root-relative served-upload paths are valid logo values.
+					return value.startsWith(API_FILES_PREFIX);
+				}
+			}, t('invalid-logo-url')),
+		legalName: z
+			.string()
+			.trim()
+			.max(256, { message: t('legal-name-max-length') })
+			.optional(),
+		description: z
+			.string()
+			.trim()
+			.max(1024, { message: t('description-max-length') })
+			.optional(),
+		websiteUrl: z
+			.string()
+			.trim()
+			.max(2048, { message: t('website-max-length') })
+			.optional()
+			.refine((value) => !value || isAbsoluteHttpUrl(value), {
+				message: t('invalid-website-url'),
+			}),
+		billingEmail: z
+			.string()
+			.trim()
+			.max(320, { message: t('email-max-length') })
+			.optional()
+			.refine((value) => !value || isValidEmailAddress(value), {
+				message: t('invalid-email'),
+			}),
+		supportEmail: z
+			.string()
+			.trim()
+			.max(320, { message: t('email-max-length') })
+			.optional()
+			.refine((value) => !value || isValidEmailAddress(value), {
+				message: t('invalid-email'),
+			}),
+		defaultLocale: z.string().optional(),
+		timezone: z.string().optional(),
+	});
+
+type SettingsGeneralValues = z.infer<
+	ReturnType<typeof getSettingsGeneralSchema>
+>;
+
+const EDITABLE_FIELDS = [
+	'name',
+	'logoUrl',
+	'legalName',
+	'description',
+	'websiteUrl',
+	'billingEmail',
+	'supportEmail',
+	'defaultLocale',
+	'timezone',
+] as const;

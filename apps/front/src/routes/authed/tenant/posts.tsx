@@ -18,24 +18,13 @@ const getActiveSection = (pathname: string): PostsSection => {
 	return match ?? 'calendar';
 };
 
-export const Route = createFileRoute('/_authed-layout/tenant/posts')({
-	// Always matched alongside a calendar/drafts/history/queue child (never
-	// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
-	// contract requires every route to declare its own trail.
-	staticData: {
-		crumbs: () => [{ kind: 'label', labelKey: 'posts' }],
-		i18nNamespaces: ['posts'],
-	},
-	component: TenantPostsLayout,
-});
-
 /**
  * The tenant posts home: section tabs over the calendar, drafts, history and
  * queue pages. Every section is read-only for now — no posts API exists, so
  * each page is an honest coming-later state, never fabricated schedule data
  * or fake post rows.
  */
-function TenantPostsLayout() {
+const TenantPostsLayout = () => {
 	const { t } = useTranslation('common');
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
@@ -72,4 +61,15 @@ function TenantPostsLayout() {
 			</Tabs>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/posts')({
+	// Always matched alongside a calendar/drafts/history/queue child (never
+	// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
+	// contract requires every route to declare its own trail.
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'posts' }],
+		i18nNamespaces: ['posts'],
+	},
+	component: TenantPostsLayout,
+});

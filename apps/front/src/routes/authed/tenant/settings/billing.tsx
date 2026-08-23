@@ -11,26 +11,13 @@ import { StateSurface } from '~/components/ui/state-surface';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/settings/billing')(
-	{
-		staticData: {
-			crumbs: () => [
-				{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
-				{ kind: 'label', labelKey: 'billing' },
-			],
-			i18nNamespaces: ['settings'],
-		},
-		component: TenantSettingsBillingPage,
-	},
-);
-
 /**
  * Read-only org billing settings: the plan, payment method, billing history
  * and usage surfaces are all honest coming-later states — no billing API
  * exists, so there is no fake pricing, no mock invoices, and no disabled
  * button that pretends to work.
  */
-function TenantSettingsBillingPage() {
+const TenantSettingsBillingPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 
 	return (
@@ -98,4 +85,17 @@ function TenantSettingsBillingPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/settings/billing')(
+	{
+		staticData: {
+			crumbs: () => [
+				{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
+				{ kind: 'label', labelKey: 'billing' },
+			],
+			i18nNamespaces: ['settings'],
+		},
+		component: TenantSettingsBillingPage,
+	},
+);

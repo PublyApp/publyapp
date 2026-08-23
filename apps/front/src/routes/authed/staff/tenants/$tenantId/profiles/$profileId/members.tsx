@@ -4,6 +4,20 @@ import { ProfileMembersTab } from '../_profile-members-tab';
 import { staffTenantProfileCrumbsBase } from './_crumbs';
 import { useStaffTenantProfileDetailsContext } from './_details-context';
 
+const StaffTenantProfileMembersSection = () => {
+	const { tenantId, profileId, profile, onSessionExpired } =
+		useStaffTenantProfileDetailsContext();
+
+	return (
+		<ProfileMembersTab
+			tenantId={tenantId}
+			profileId={profileId}
+			memberCount={profile.userAccountCount}
+			onSessionExpired={onSessionExpired}
+		/>
+	);
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/members',
 )({
@@ -16,17 +30,3 @@ export const Route = createFileRoute(
 	},
 	component: StaffTenantProfileMembersSection,
 });
-
-function StaffTenantProfileMembersSection() {
-	const { tenantId, profileId, profile, onSessionExpired } =
-		useStaffTenantProfileDetailsContext();
-
-	return (
-		<ProfileMembersTab
-			tenantId={tenantId}
-			profileId={profileId}
-			memberCount={profile.userAccountCount}
-			onSessionExpired={onSessionExpired}
-		/>
-	);
-}

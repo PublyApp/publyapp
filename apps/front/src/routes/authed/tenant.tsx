@@ -28,68 +28,7 @@ import {
 } from './tenant/_tenant-picker-states';
 import { TenantPortalPickerView } from './tenant/_tenant-picker-view';
 
-export const Route = createFileRoute('/_authed-layout/tenant')({
-	// `/tenant` is the bare portal root: a redirect-only stub that never
-	// renders chrome itself (the picker is a SimpleLayout surface with no
-	// AppShell — see `isTenantPortalPath` in `route-shell.ts`), and once a
-	// workspace resolves it bounces to `/tenant/account`, mirroring
-	// `/staff` -> `/staff/staff-users`. Every `/tenant/*` CHILD path renders
-	// inside the AppShell; an unresolved child redirects back to `/tenant`
-	// so the bare picker stays the single unresolved surface.
-	staticData: { crumbs: () => [] },
-	component: TenantPortalRoute,
-});
-
-/**
- * The tenant workspace shell: rendered by the resolved branch of
- * `TenantPortalRoute` for every `/tenant/*` CHILD path — the `/tenant` root
- * itself is the bare SimpleLayout picker and never hosts this shell. Child
- * paths mount inside the platform AppShell (rail + topbar + user menu, which
- * own navigation and logout), so the shell contributes only the tenant
- * identity the shared chrome cannot know — the resolved tenant's name and
- * code — and the child route. Deliberately no `<main>` (the AppShell owns
- * the landmark), no full-viewport height, no logout button: one nav layer
- * and one logout affordance per tenant route.
- */
-const TenantWorkspaceShell = ({ tenant }: { tenant: TenantForPickerRow }) => {
-	const { t } = useTranslation('common');
-	const tenantName = tenant.name ?? t('unnamed-tenant');
-
-	return (
-		<div className="flex min-w-0 flex-col" data-testid="tenant-workspace-shell">
-			<div className="flex items-center gap-3 border-b border-border pb-4">
-				<div
-					className="flex size-10 shrink-0 items-center justify-center rounded-[var(--publy-radius-input)] bg-muted"
-					aria-hidden="true"
-					data-testid="tenant-workspace-identity-icon"
-				>
-					<IconBuilding className="size-5 text-muted-foreground" />
-				</div>
-				<div className="min-w-0">
-					<p
-						className="truncate text-sm font-medium text-foreground"
-						data-testid="tenant-workspace-tenant-name"
-					>
-						{tenantName}
-					</p>
-					{tenant.code ? (
-						<p
-							className="truncate font-mono text-xs text-muted-foreground"
-							data-testid="tenant-workspace-tenant-code"
-						>
-							{tenant.code}
-						</p>
-					) : null}
-				</div>
-			</div>
-			<div className="mx-auto mt-6 w-full min-w-0 max-w-5xl">
-				<Outlet />
-			</div>
-		</div>
-	);
-};
-
-function TenantPortalRoute() {
+const TenantPortalRoute = () => {
 	const query = useTenantsForPickerQuery();
 	const navigate = useNavigate();
 	const pathname = useRouterState({
@@ -99,8 +38,12 @@ function TenantPortalRoute() {
 		readSelectedTenantId(),
 	);
 	const isTenantRoot = pathname.replace(/\/+$/, '') === '/tenant';
+	// react-doctor: this route is CSR-only (`ssr: false`) and `readSelectedTenantId`
+	// already returns a stable `null` on the server, so there is no server/hydration
+	// pair to diverge — the rule's premise does not apply on this surface.
 	const resolvedTenant = query.isSuccess
-		? resolveWorkspaceTenant(query.data, selectedTenantId)
+		? // react-doctor-disable-next-line react-doctor/no-hydration-branch-on-browser-global
+			resolveWorkspaceTenant(query.data, selectedTenantId)
 		: undefined;
 	const isResolvedToWorkspace = resolvedTenant !== undefined;
 	const querySettled = query.isSuccess || query.isError;
@@ -115,6 +58,11 @@ function TenantPortalRoute() {
 	// is the single unresolved surface, and painting it inside the AppShell
 	// would nest SimpleLayout in the platform chrome (PR #1131 round 3
 	// finding 1 — fixed by redirecting instead of bypassing the shell).
+	// react-doctor: TanStack post-load redirect pattern — the workspace only
+	// becomes known once the picker query settles, which no event handler can
+	// observe; the effect navigates at most once per state change and renders
+	// a spinner meanwhile.
+	// react-doctor-disable-next-line react-doctor/no-event-handler
 	useEffect(() => {
 		if (isTenantRoot) {
 			if (isResolvedToWorkspace) {
@@ -190,4 +138,65 @@ function TenantPortalRoute() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant')({
+	// `/tenant` is the bare portal root: a redirect-only stub that never
+	// renders chrome itself (the picker is a SimpleLayout surface with no
+	// AppShell — see `isTenantPortalPath` in `route-shell.ts`), and once a
+	// workspace resolves it bounces to `/tenant/account`, mirroring
+	// `/staff` -> `/staff/staff-users`. Every `/tenant/*` CHILD path renders
+	// inside the AppShell; an unresolved child redirects back to `/tenant`
+	// so the bare picker stays the single unresolved surface.
+	staticData: { crumbs: () => [] },
+	component: TenantPortalRoute,
+});
+
+/**
+ * The tenant workspace shell: rendered by the resolved branch of
+ * `TenantPortalRoute` for every `/tenant/*` CHILD path — the `/tenant` root
+ * itself is the bare SimpleLayout picker and never hosts this shell. Child
+ * paths mount inside the platform AppShell (rail + topbar + user menu, which
+ * own navigation and logout), so the shell contributes only the tenant
+ * identity the shared chrome cannot know — the resolved tenant's name and
+ * code — and the child route. Deliberately no `<main>` (the AppShell owns
+ * the landmark), no full-viewport height, no logout button: one nav layer
+ * and one logout affordance per tenant route.
+ */
+const TenantWorkspaceShell = ({ tenant }: { tenant: TenantForPickerRow }) => {
+	const { t } = useTranslation('common');
+	const tenantName = tenant.name ?? t('unnamed-tenant');
+
+	return (
+		<div className="flex min-w-0 flex-col" data-testid="tenant-workspace-shell">
+			<div className="flex items-center gap-3 border-b border-border pb-4">
+				<div
+					className="flex size-10 shrink-0 items-center justify-center rounded-[var(--publy-radius-input)] bg-muted"
+					aria-hidden="true"
+					data-testid="tenant-workspace-identity-icon"
+				>
+					<IconBuilding className="size-5 text-muted-foreground" />
+				</div>
+				<div className="min-w-0">
+					<p
+						className="truncate text-sm font-medium text-foreground"
+						data-testid="tenant-workspace-tenant-name"
+					>
+						{tenantName}
+					</p>
+					{tenant.code ? (
+						<p
+							className="truncate font-mono text-xs text-muted-foreground"
+							data-testid="tenant-workspace-tenant-code"
+						>
+							{tenant.code}
+						</p>
+					) : null}
+				</div>
+			</div>
+			<div className="mx-auto mt-6 w-full min-w-0 max-w-5xl">
+				<Outlet />
+			</div>
+		</div>
+	);
+};

@@ -1,19 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-export const Route = createFileRoute('/_authed-layout/staff/dashboard/reports')(
-	{
-		staticData: {
-			crumbs: () => [
-				{ kind: 'label', labelKey: 'nav-dashboard', to: '/staff/dashboard' },
-				{ kind: 'label', labelKey: 'nav-dashboard-reports' },
-			],
-		},
-		component: StaffDashboardReportsTab,
-	},
-);
-
-function StaffDashboardReportsTab() {
+const StaffDashboardReportsTab = () => {
 	const { t } = useTranslation('common');
 
 	return (
@@ -26,4 +14,16 @@ function StaffDashboardReportsTab() {
 			</p>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/dashboard/reports')(
+	{
+		staticData: {
+			crumbs: () => [
+				{ kind: 'label', labelKey: 'nav-dashboard', to: '/staff/dashboard' },
+				{ kind: 'label', labelKey: 'nav-dashboard-reports' },
+			],
+		},
+		component: StaffDashboardReportsTab,
+	},
+);

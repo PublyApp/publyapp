@@ -168,16 +168,7 @@ export const buildColumns = (
 	},
 ];
 
-export const Route = createFileRoute('/_authed-layout/staff/profiles')({
-	staticData: {
-		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-profiles' }],
-	},
-	validateSearch: (search) =>
-		validateTableSearchParams(search as TableSearchParamInput),
-	component: StaffProfilesPage,
-});
-
-function StaffProfilesPage() {
+const StaffProfilesPage = () => {
 	const navigate = Route.useNavigate();
 	const search = parseTableSearchParams(
 		Route.useSearch() as TableSearchParamInput,
@@ -279,4 +270,13 @@ function StaffProfilesPage() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/profiles')({
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-profiles' }],
+	},
+	validateSearch: (search) =>
+		validateTableSearchParams(search as TableSearchParamInput),
+	component: StaffProfilesPage,
+});

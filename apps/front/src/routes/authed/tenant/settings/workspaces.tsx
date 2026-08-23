@@ -21,19 +21,6 @@ import {
 	ReadOnlyValue,
 } from '../_workspace-page-parts';
 
-export const Route = createFileRoute(
-	'/_authed-layout/tenant/settings/workspaces',
-)({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
-			{ kind: 'label', labelKey: 'workspaces' },
-		],
-		i18nNamespaces: ['settings'],
-	},
-	component: TenantSettingsWorkspacesPage,
-});
-
 /**
  * Read-only org workspaces. No workspaces API exists, so the only real value
  * on the page is the current workspace itself — the tenant identity the
@@ -42,7 +29,7 @@ export const Route = createFileRoute(
  * coming-later state — never fabricated workspace cards, never a disabled
  * create button that pretends to work.
  */
-function TenantSettingsWorkspacesPage() {
+const TenantSettingsWorkspacesPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 	const query = useTenantsForPickerQuery();
 	const [selectedTenantId] = useState<string | null>(() =>
@@ -129,4 +116,17 @@ function TenantSettingsWorkspacesPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/tenant/settings/workspaces',
+)({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
+			{ kind: 'label', labelKey: 'workspaces' },
+		],
+		i18nNamespaces: ['settings'],
+	},
+	component: TenantSettingsWorkspacesPage,
+});

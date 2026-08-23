@@ -3,20 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { staffUserCrumbsBase } from './_crumbs';
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/staff-users/$userId/activity',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-users'],
-		crumbs: (params) => [
-			...staffUserCrumbsBase(params),
-			{ kind: 'label', labelKey: 'common:activity' },
-		],
-	},
-	component: StaffUserActivityTab,
-});
-
-function StaffUserActivityTab() {
+const StaffUserActivityTab = () => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
@@ -29,4 +16,17 @@ function StaffUserActivityTab() {
 			</p>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/staff-users/$userId/activity',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: (params) => [
+			...staffUserCrumbsBase(params),
+			{ kind: 'label', labelKey: 'common:activity' },
+		],
+	},
+	component: StaffUserActivityTab,
+});

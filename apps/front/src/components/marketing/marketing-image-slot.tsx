@@ -45,14 +45,14 @@ export type MarketingImageSlotProps = {
 	className?: string;
 };
 
-export function MarketingImageSlot({
+export const MarketingImageSlot = ({
 	slot,
 	subject,
 	ratio,
 	tint = false,
 	alt,
 	className,
-}: MarketingImageSlotProps): ReactElement {
+}: MarketingImageSlotProps): ReactElement => {
 	const style: CSSProperties = {};
 	if (ratio !== undefined) {
 		style.aspectRatio = ratio;
@@ -72,4 +72,4 @@ export function MarketingImageSlot({
 			style={style}
 		/>
 	);
-}
+};

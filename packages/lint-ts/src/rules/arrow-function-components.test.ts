@@ -31,6 +31,10 @@
  * - Round-4: expression-bodied local arrow hooks: `const useThing = () => useRef(null)`
  *   has an expression body — analyseBody now scans it for hook calls (not early-return).
  *   Helper calling useThing() is flagged; non-hook expression bodies stay clean.
+ * - Round-5: renderer-call detection: PascalCase functions returning `useRender(...)`,
+ *   `createElement(...)`, `jsx(...)`, or `jsxs(...)` (bare or `React.xxx` member form)
+ *   are flagged as components even though they do not return JSX directly.
+ *   Arrow-form equivalents are left un-flagged.
  */
 import assert from 'node:assert/strict';
 
@@ -204,6 +208,24 @@ const runCases = (rule, label) => {
 						'function Helper2() { useThing(); return null; }',
 					].join('\n'),
 					filename: 'apps/front/src/utils/helper2.ts',
+				},
+
+				// Round-5 valid: arrow component returning useRender(...) — already arrow form.
+				{
+					code: [
+						"import { useRender } from '@base-ui/react/use-render';",
+						'const Badge = (props) => useRender({ defaultTagName: "span", props });',
+					].join('\n'),
+					filename: 'apps/front/src/components/badge.tsx',
+				},
+
+				// Round-5 valid: arrow component returning createElement(...) — already arrow form.
+				{
+					code: [
+						"import { createElement } from 'react';",
+						'const Widget = (props) => createElement("div", props);',
+					].join('\n'),
+					filename: 'apps/front/src/components/widget.tsx',
 				},
 			],
 			invalid: [
@@ -393,6 +415,51 @@ const runCases = (rule, label) => {
 						'function Helper() { useThing(); return null; }',
 					].join('\n'),
 					filename: 'apps/front/src/components/helper.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-5 finding #1 (invalid): PascalCase function returning
+				// useRender(...) — a known renderer — must be flagged even though
+				// it does not return JSX directly (Base UI pattern).
+				{
+					code: [
+						"import { useRender } from '@base-ui/react/use-render';",
+						'function Badge(props) { return useRender({ defaultTagName: "span", props }); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/badge.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-5 finding #2 (invalid): PascalCase function returning
+				// createElement(...) — a known renderer — must be flagged.
+				{
+					code: [
+						"import { createElement } from 'react';",
+						'function Widget(props) { return createElement("div", props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/widget.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-5 finding #3 (invalid): PascalCase function returning
+				// React.createElement(...) — React namespace member form must also be detected.
+				{
+					code: [
+						"import React from 'react';",
+						'function Panel(props) { return React.createElement("section", props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/panel.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-5 finding #4 (invalid): PascalCase function returning
+				// jsx(...) — JSX runtime renderer must be flagged.
+				{
+					code: [
+						"import { jsx } from 'react/jsx-runtime';",
+						'function Card(props) { return jsx("div", props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/card.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
 			],

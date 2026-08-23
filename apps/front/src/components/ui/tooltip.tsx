@@ -1,14 +1,14 @@
 import { Tooltip as TooltipPrimitive } from '@base-ui/react/tooltip';
 import { cn } from '~/lib/utils';
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
+const Tooltip = ({ ...props }: TooltipPrimitive.Root.Props) => {
 	return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
-}
+};
 
-function TooltipTrigger({
+const TooltipTrigger = ({
 	closeOnClick = false,
 	...props
-}: TooltipPrimitive.Trigger.Props) {
+}: TooltipPrimitive.Trigger.Props) => {
 	return (
 		<TooltipPrimitive.Trigger
 			data-slot="tooltip-trigger"
@@ -16,9 +16,9 @@ function TooltipTrigger({
 			{...props}
 		/>
 	);
-}
+};
 
-function TooltipContent({
+const TooltipContent = ({
 	className,
 	side = 'top',
 	sideOffset = 4,
@@ -30,7 +30,7 @@ function TooltipContent({
 	Pick<
 		TooltipPrimitive.Positioner.Props,
 		'align' | 'alignOffset' | 'side' | 'sideOffset'
-	>) {
+	>) => {
 	return (
 		<TooltipPrimitive.Portal>
 			<TooltipPrimitive.Positioner
@@ -54,6 +54,6 @@ function TooltipContent({
 			</TooltipPrimitive.Positioner>
 		</TooltipPrimitive.Portal>
 	);
-}
+};
 
 export { Tooltip, TooltipTrigger, TooltipContent };

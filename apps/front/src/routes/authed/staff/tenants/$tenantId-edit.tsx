@@ -189,25 +189,7 @@ const ReadOnlySlugField = ({
 	</div>
 );
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/edit',
-)({
-	staticData: {
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{ kind: 'label', labelKey: 'common:edit' },
-		],
-	},
-	component: StaffTenantEditRoute,
-});
-
-function StaffTenantEditRoute() {
+const StaffTenantEditRoute = () => {
 	const { tenantId } = Route.useParams() as { tenantId: string };
 	const { t, i18n } = useTranslation('common');
 	const navigate = Route.useNavigate();
@@ -219,7 +201,13 @@ function StaffTenantEditRoute() {
 		{ enabled: tenantId.length > 0 },
 	);
 	const updateTenant = useUpdateStaffTenantMutation();
-	const tenant = toStaffTenantDetails(detailsQuery.data);
+	// Memoized on data identity: toStaffTenantDetails returns a fresh object
+	// every render, which would invalidate the form-values memo below each
+	// render and re-trigger the reset() effect in a loop.
+	const tenant = useMemo(
+		() => toStaffTenantDetails(detailsQuery.data),
+		[detailsQuery.data],
+	);
 	const tenantFormValues = useMemo<EditTenantFormValues | null>(
 		() =>
 			tenant === null
@@ -237,20 +225,7 @@ function StaffTenantEditRoute() {
 						timezone: tenant.timezone ?? '',
 						notes: tenant.notes ?? '',
 					},
-		[
-			tenant?.id,
-			tenant?.name,
-			tenant?.maxUsers,
-			tenant?.logoUrl,
-			tenant?.legalName,
-			tenant?.description,
-			tenant?.websiteUrl,
-			tenant?.billingEmail,
-			tenant?.supportEmail,
-			tenant?.defaultLocale,
-			tenant?.timezone,
-			tenant?.notes,
-		],
+		[tenant],
 	);
 
 	const resolver = useMemo(
@@ -776,4 +751,22 @@ function StaffTenantEditRoute() {
 			/>
 		</FormPageLayout>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/edit',
+)({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:edit' },
+		],
+	},
+	component: StaffTenantEditRoute,
+});

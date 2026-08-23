@@ -164,22 +164,7 @@ const getActiveSection = (pathname: string): TabSection => {
 	return match ?? 'overview';
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/staff-users/$userId',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-users'],
-		// Always matched alongside an index/permissions/activity/settings
-		// child (never the deepest match on its own — see
-		// `deriveBreadcrumbTrail`), but the contract requires every route to
-		// declare its own trail. The overview base is the correct value for
-		// this route's own path.
-		crumbs: staffUserCrumbsBase,
-	},
-	component: StaffUserDetailsPage,
-});
-
-function StaffUserDetailsPage() {
+const StaffUserDetailsPage = () => {
 	const { userId } = Route.useParams();
 	const { t, i18n } = useTranslation(['staff-users', 'common']);
 	const queryClient = useQueryClient();
@@ -376,6 +361,10 @@ function StaffUserDetailsPage() {
 	const profilesHasError =
 		profilesQuery.isError && !shouldLogoutForFailure(profilesQuery.error);
 
+	// Memoizing this literal would require hoisting it above the early returns,
+	// breaking conditional hook order on this page. The Provider re-renders only
+	// with this page, and the overview tab consumes the same query data, so the
+	// extra renders are local and bounded.
 	const overviewContextValue: StaffUserOverviewContextValue = {
 		user,
 		locale: i18n.language,
@@ -522,6 +511,9 @@ function StaffUserDetailsPage() {
 					</TabsList>
 
 					<TabsContent value={activeSection} className="mt-5">
+						{/* react-doctor: see the overviewContextValue comment above —
+						deliberate, bounded re-render scope; memoizing would break hook order. */}
+						{/* react-doctor-disable-next-line react-doctor/context-provider-value-from-unmemoized-local-literal */}
 						<StaffUserOverviewContext.Provider value={overviewContextValue}>
 							<Outlet />
 						</StaffUserOverviewContext.Provider>
@@ -565,4 +557,19 @@ function StaffUserDetailsPage() {
 			</ConfirmDialog>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/staff-users/$userId',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		// Always matched alongside an index/permissions/activity/settings
+		// child (never the deepest match on its own — see
+		// `deriveBreadcrumbTrail`), but the contract requires every route to
+		// declare its own trail. The overview base is the correct value for
+		// this route's own path.
+		crumbs: staffUserCrumbsBase,
+	},
+	component: StaffUserDetailsPage,
+});

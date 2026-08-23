@@ -206,36 +206,7 @@ const TenantUserEditError = ({
 	);
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/users/$userId/edit',
-)({
-	staticData: {
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{
-				kind: 'label',
-				labelKey: 'common:users',
-				to: `/staff/tenants/${params.tenantId}/users`,
-			},
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}/users/${params.userId}`,
-				query: staffTenantUserCrumbQuery,
-				select: selectStaffTenantUserCrumbName,
-			},
-			{ kind: 'label', labelKey: 'common:edit' },
-		],
-	},
-	component: StaffTenantUserEditPage,
-});
-
-function StaffTenantUserEditPage() {
+const StaffTenantUserEditPage = () => {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation('common');
@@ -301,13 +272,7 @@ function StaffTenantUserEditPage() {
 						avatarUrl: user.avatarUrl ?? '',
 						accountLevel: normalizeAccountLevel(user.accountLevel),
 					},
-		[
-			user?.id,
-			user?.firstName,
-			user?.lastName,
-			user?.avatarUrl,
-			user?.accountLevel,
-		],
+		[user],
 	);
 
 	useEffect(() => {
@@ -544,4 +509,33 @@ function StaffTenantUserEditPage() {
 			/>
 		</TenantDetailsPageShell>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/users/$userId/edit',
+)({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{
+				kind: 'label',
+				labelKey: 'common:users',
+				to: `/staff/tenants/${params.tenantId}/users`,
+			},
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}/users/${params.userId}`,
+				query: staffTenantUserCrumbQuery,
+				select: selectStaffTenantUserCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:edit' },
+		],
+	},
+	component: StaffTenantUserEditPage,
+});
