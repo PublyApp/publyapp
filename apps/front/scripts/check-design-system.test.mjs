@@ -19,6 +19,28 @@ import { scanFront2DesignSystem } from './check-design-system.mjs';
 const testFilePath = fileURLToPath(import.meta.url);
 let fixtureParent;
 
+// The probe's own two handshake lines and the grand-child runner's TAP stream
+// share one pipe, so under load (or a pty) TAP banners interleave between them
+// and may prefix them as `# ` comments. Match the two values independently
+// instead of demanding adjacent undecorated lines — the values themselves are
+// what matter.
+//
+// #1256: the PID half anchors to an UNCOMMENTED line start. A foreign child
+// running its own probe under the same runner emits its handshake through the
+// reporter as `# RUNNER_PID=…` TAP comments; trusting those would kill a
+// process we do not own. The root half accepts both forms because the
+// grand-child's reporter legitimately re-emits the real probe's stdout line
+// as a `# ` comment.
+export const matchRunnerHandshake = (output) => {
+	const pidMatch = output.match(/^RUNNER_PID=(\d+)$/m);
+	if (!pidMatch) return null;
+	const rootMatch =
+		output.match(/^RUNNER_OWNED_ROOT=(\S+)$/m) ??
+		output.match(/^# RUNNER_OWNED_ROOT=(\S+)$/m);
+	if (!rootMatch) return null;
+	return { pid: Number(pidMatch[1]), root: rootMatch[1] };
+};
+
 if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
 	test('runner interruption probe leaves an active owned fixture', async () => {
 		const root = await makeFixture({
@@ -58,24 +80,24 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 	);
 	let output = '';
 	const probe = await new Promise((resolve, reject) => {
-		const timeout = setTimeout(
-			() => reject(new Error(`runner probe did not start:\n${output}`)),
-			20_000,
-		);
+		let timeout;
 		const onData = (chunk) => {
 			output += chunk.toString();
 			// The probe's own two handshake lines and the grand-child runner's
 			// TAP stream share one pipe, so under load (or a pty) TAP banners
-			// interleave between them and may prefix them as `# ` comments.
-			// Match the two values independently instead of demanding adjacent
-			// undecorated lines — the values themselves are what matter.
-			const pidMatch = output.match(/RUNNER_PID=(\d+)/);
-			const rootMatch = output.match(/RUNNER_OWNED_ROOT=(\S+)/);
-			if (pidMatch && rootMatch) {
+			// interleave between them. matchRunnerHandshake matches the two
+			// values independently instead of demanding adjacent undecorated
+			// lines — the values themselves are what matter.
+			const handshake = matchRunnerHandshake(output);
+			if (handshake) {
 				clearTimeout(timeout);
-				resolve({ pid: Number(pidMatch[1]), root: rootMatch[1] });
+				resolve(handshake);
 			}
 		};
+		timeout = setTimeout(
+			() => reject(new Error(`runner probe did not start:\n${output}`)),
+			20_000,
+		);
 		child.stdout.on('data', onData);
 		child.stderr.on('data', onData);
 		child.once('error', reject);
@@ -86,6 +108,52 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 	);
 	assert.notEqual(result.code, 0);
 	await assert.rejects(access(probe.root), { code: 'ENOENT' });
+});
+
+// #1256: the handshake matcher is the single place that decides which
+// process's values the interruption probe trusts. These buffers are the
+// three shapes the #1253 review identified: a real handshake interleaved
+// with TAP banners (including `# `-commented forms the reporter emits),
+// a foreign child's commented handshake arriving after the real one (the
+// stale first match must win), and a foreign child's handshake alone
+// (commented TAP lines must never satisfy the PID half of the handshake).
+test('runner handshake resolves on an interleaved buffer with TAP comments around a real uncommented handshake', () => {
+	assert.deepEqual(
+		matchRunnerHandshake(
+			[
+				'# Subtest: runner interruption probe leaves an active owned fixture',
+				'RUNNER_PID=4242',
+				'# RUNNER_OWNED_ROOT=/tmp/front2-design-guard-run-real/owned',
+				'ok 1 - runner interruption probe leaves an active owned fixture',
+			].join('\n'),
+		),
+		{
+			pid: 4242,
+			root: '/tmp/front2-design-guard-run-real/owned',
+		},
+	);
+});
+
+test('runner handshake keeps the real pid and root when a foreign commented handshake arrives later', () => {
+	assert.deepEqual(
+		matchRunnerHandshake(
+			[
+				'RUNNER_PID=111',
+				'RUNNER_OWNED_ROOT=/tmp/front2-design-guard-run-real/owned',
+				'# Subtest: next tick',
+				'# RUNNER_PID=999',
+				'# RUNNER_OWNED_ROOT=/foreign/root',
+			].join('\n'),
+		),
+		{ pid: 111, root: '/tmp/front2-design-guard-run-real/owned' },
+	);
+});
+
+test('runner handshake does not resolve on a foreign child whose handshake lines are all TAP comments', () => {
+	assert.equal(
+		matchRunnerHandshake('# RUNNER_PID=999\n# RUNNER_OWNED_ROOT=/foreign/root'),
+		null,
+	);
 });
 
 registerFixtureSignalHandlers();
