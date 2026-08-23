@@ -13,6 +13,24 @@ name: front e2e
 # the `test` job detects this before pulling and fails loudly; the only
 # working retry is a FULL workflow re-run ("Re-run all jobs"), which re-runs
 # `build` and pushes a fresh image set. See docs/guides/local-ci-gate.md.
+#
+# Fork pull requests (#1021): a pull_request event originating from a fork
+# gets a read-only GITHUB_TOKEN — GitHub strips `packages: write` regardless
+# of contributor approval — so the GHCR push path cannot work there. Rather
+# than switching to `pull_request_target` (which would hand fork-authored
+# code a base-repository write-capable token: never acceptable here), the
+# `build` job detects the fork case
+# (`github.event.pull_request.head.repo.fork`) and takes a registry-free
+# path: it skips the GHCR login/push AND the gha cache export (whose backend
+# needs the runtime token forks do not get), saves the four built images to
+# a tarball artifact, and each matrix shard loads them into its own local
+# daemon with `docker load`. The images exist only under their local names
+# inside each runner; nothing leaves GitHub. Same-repo PRs keep the GHCR
+# push path unchanged (cache warmth + the shared-digest cleanup behaviour
+# documented below). This workflow only ever runs on pull_request,
+# merge_group, and push-to-develop; on merge_group/push the token carries
+# full repository permissions, so the fork condition and an unavailable
+# packages:write coincide exactly.
 
 on:
   pull_request:
@@ -136,10 +154,17 @@ jobs:
       packages: write
     outputs:
       tag: ${{ steps.image-tag.outputs.tag }}
+      fork: ${{ steps.fork.outputs.fork }}
     steps:
       - name: Set image tag
         id: image-tag
         run: echo "tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect fork pull request
+        id: fork
+        env:
+          IS_FORK: ${{ github.event.pull_request.head.repo.fork == true }}
+        run: echo "fork=$IS_FORK" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -153,6 +178,7 @@ jobs:
         uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
 
       - name: Login to GHCR
+        if: steps.fork.outputs.fork != 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
@@ -164,13 +190,62 @@ jobs:
           COMPOSE_BAKE: 'true'
           E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
-        run: docker compose -f apps/front/docker-compose.test.yml build
+        # On a fork run the gha cache backend has neither a writable cache
+        # destination nor the runtime credentials it authenticates with, so
+        # apps/front/docker-compose.fork-overlay.yml strips the four
+        # services' cache_from/cache_to instead of letting the export fail
+        # or silently degrade. Either way, the build loads all four images
+        # into THIS runner's local docker daemon (verified locally: compose
+        # bake hands the result back over the docker-container driver's
+        # tarball bridge).
+        run: |
+          compose_files=(-f apps/front/docker-compose.test.yml)
 
-      - name: Push stack images
+          if [ "${{ steps.fork.outputs.fork }}" = "true" ]; then
+            compose_files+=(-f apps/front/docker-compose.fork-overlay.yml)
+          fi
+
+          docker compose "${compose_files[@]}" build
+
+      - name: Push stack images to GHCR (same-repo runs only)
+        if: steps.fork.outputs.fork != 'true'
         env:
           E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front
+
+      # #1021: shards run on separate runners, so the build job's local
+      # --load cannot hand the matrix its images; the registry-free
+      # equivalent of the GHCR hop is a versioned-artifact handoff — save
+      # the same four tagged images the push path would have published,
+      # upload them, let every shard load them locally (see the `test`
+      # job). retention-days: 1 keeps the multi-hundred-MB artifact around
+      # only as long as the run's own shards (plus a failed-shard look).
+      - name: Save stack images tarball (fork runs)
+        if: steps.fork.outputs.fork == 'true'
+        env:
+          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p /tmp/e2e-images
+
+          for service in migrate api request-counter front; do
+            docker save "${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG}" \
+              | gzip > "/tmp/e2e-images/${service}.tar.gz"
+            ls -lh "/tmp/e2e-images/${service}.tar.gz"
+          done
+
+      - name: Upload stack images artifact (fork runs)
+        if: steps.fork.outputs.fork == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-stack-images-${{ steps.image-tag.outputs.tag }}
+          path: /tmp/e2e-images/*.tar.gz
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error
 
   test:
     name: front-e2e (${{ matrix.shard }}/4)
@@ -208,6 +283,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Login to GHCR
+        if: needs.build.outputs.fork != 'true'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
@@ -245,7 +321,28 @@ jobs:
           fi
 
       - name: Pull stack
+        if: needs.build.outputs.fork != 'true'
         run: docker compose -f apps/front/docker-compose.test.yml pull
+
+      # #1021: on a fork run nothing was ever pushed to GHCR — the build
+      # job handed its images over as a tarball artifact instead. Restore
+      # them into this runner's local daemon before `up --no-build`
+      # resolves the same ${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG} tags.
+      - name: Load stack images from artifact (fork runs)
+        if: needs.build.outputs.fork == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: e2e-stack-images-${{ needs.build.outputs.tag }}
+          path: /tmp/e2e-images
+
+      - name: Import stack images into the local daemon (fork runs)
+        if: needs.build.outputs.fork == 'true'
+        run: |
+          set -euo pipefail
+
+          for tarball in /tmp/e2e-images/*.tar.gz; do
+            gunzip -c "$tarball" | docker load
+          done
 
       - name: Up stack
         run: docker compose -f apps/front/docker-compose.test.yml up -d --no-build
@@ -405,8 +502,19 @@ jobs:
       - name: Delete run image versions
         env:
           GH_TOKEN: ${{ github.token }}
+          FORK_RUN: ${{ needs.build.outputs.fork }}
         run: |
           set -euo pipefail
+
+          # #1021: a fork run pushed nothing to GHCR (its token is
+          # read-only; the images travelled as an artifact instead), so
+          # there is nothing of this run's to list or delete. The job still
+          # reports success so the aggregate gate keeps aggregating real
+          # results on fork PRs.
+          if [ "$FORK_RUN" = "true" ]; then
+            echo "::notice::Fork run: no images were pushed to GHCR, so there is nothing to clean up."
+            exit 0
+          fi
 
           if [ -z "$E2E_IMAGE_TAG" ]; then
             echo "::warning::Build did not emit an image tag; skipping GHCR cleanup."

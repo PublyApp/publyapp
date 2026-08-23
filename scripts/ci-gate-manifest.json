@@ -257,24 +257,39 @@
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls verify-font-bundle.mjs. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script's defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
 		},
 		"front-e2e.yml::build::Build stack images": {
-			"hash": "2dc4710a8a09a12c",
+			"hash": "048da7056a8d72da",
 			"mirror": "just ci-e2e-front",
-			"reason": "ci-e2e-front builds the same four Compose services locally via up --build. CI enables Compose Bake for the GHA cache while retaining Compose-file-relative build-context resolution and loading the four GHCR-tagged images."
+			"reason": "ci-e2e-front builds the same four Compose services locally via up --build. CI enables Compose Bake for the GHA cache while retaining Compose-file-relative build-context resolution and loading the four GHCR-tagged images. #1021: on fork runs the build adds apps/front/docker-compose.fork-overlay.yml (strips the gha cache_from/cache_to the read-only token cannot write) and loads the images into the local daemon for the artifact handoff — the same local-build property ci-e2e-front exercises."
 		},
 		"front-e2e.yml::build::Checkout": {
 			"hash": "11ee605b2ca0dfd4",
 			"mirror": null,
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
-		"front-e2e.yml::build::Login to GHCR": {
-			"hash": "e4da2b174605ef73",
+		"front-e2e.yml::build::Detect fork pull request": {
+			"hash": "ed4d9b1b90eba34d",
 			"mirror": null,
-			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed."
+			"reason": "GitHub-only: resolves github.event.pull_request.head.repo.fork into the build job's `fork` output that switches every fork-conditional step below (#1021). There is no local pull_request event to detect."
 		},
-		"front-e2e.yml::build::Push stack images": {
-			"hash": "832cba6a8e139ab7",
+		"front-e2e.yml::build::Login to GHCR": {
+			"hash": "11729cb5c27ba3d1",
 			"mirror": null,
-			"reason": "GitHub-only: pushes the four loaded, immutable per-run application images to GHCR for the matrix runners; local e2e builds never publish them."
+			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed. #1021: the step is now skipped on fork runs (read-only token), which take the artifact handoff path instead; the local gate has no GHCR authentication to mirror either way."
+		},
+		"front-e2e.yml::build::Push stack images to GHCR (same-repo runs only)": {
+			"hash": "c86f14326ef6fa58",
+			"mirror": null,
+			"reason": "GitHub-only: pushes the four loaded, immutable per-run application images to GHCR for the matrix runners; local e2e builds never publish them. #1021: renamed and now skipped on fork runs, which hand the images to the shards as a tarball artifact instead of a registry push."
+		},
+		"front-e2e.yml::build::Save stack images tarball (fork runs)": {
+			"hash": "7ab1327be12be42f",
+			"mirror": null,
+			"reason": "GitHub-only, fork runs only (#1021): docker saves the four built images into gzipped tarballs for the artifact handoff to the matrix runners. Local e2e runs keep the images in the local daemon and never package them."
+		},
+		"front-e2e.yml::build::Upload stack images artifact (fork runs)": {
+			"hash": "2078b6e1685f6bde",
+			"mirror": null,
+			"reason": "GitHub-only, fork runs only (#1021): actions/upload-artifact moves the image tarballs from the build runner to the versioned artifact the shards download — the registry-free stand-in for the GHCR hop. Locally there is nothing to upload; the images are already where the stack starts."
 		},
 		"front-e2e.yml::build::Set image tag": {
 			"hash": "3de5752d807be577",
@@ -307,9 +322,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-e2e.yml::cleanup::Delete run image versions": {
-			"hash": "2a62fe4f756a64d4",
+			"hash": "2e2c19f7844ac66d",
 			"mirror": null,
-			"reason": "GitHub-only: deletes this run's exclusively-tagged ephemeral per-run GHCR image versions after every matrix outcome; local builds never publish them. #1018 reconciliation: no continue-on-error, so a failed cleanup fails the job. GitHub package API has no tag-level delete (404/405), so version deletion with an exclusivity re-check before each delete is the only supported primitive. Public >5000-download versions refuse deletion with HTTP 400 -> ::error::; visibility flip is a separate owner decision."
+			"reason": "GitHub-only: deletes this run's exclusively-tagged ephemeral per-run GHCR image versions after every matrix outcome; local builds never publish them. #1018 reconciliation: no continue-on-error, so a failed cleanup fails the job. GitHub package API has no tag-level delete (404/405), so version deletion with an exclusivity re-check before each delete is the only supported primitive. Public >5000-download versions refuse deletion with HTTP 400 -> ::error::; visibility flip is a separate owner decision. #1021: a fork run short-circuits to success (nothing was pushed to GHCR), so the job still reports on fork PRs without touching the registry."
 		},
 		"front-e2e.yml::gate::Check required jobs": {
 			"hash": "882f344edb8cc40a",
@@ -352,14 +367,24 @@
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"front-e2e.yml::test::Login to GHCR": {
-			"hash": "e4da2b174605ef73",
+			"hash": "9d102080f184bc6b",
 			"mirror": null,
-			"reason": "GitHub-only: authenticates each matrix runner to GHCR so it can read the build job's private package versions."
+			"reason": "GitHub-only: authenticates each matrix runner to GHCR so it can read the build job's private package versions. #1021: now skipped on fork runs, whose images arrive via artifact instead of the registry; the local gate has no GHCR authentication to mirror either way."
 		},
 		"front-e2e.yml::test::Pull stack": {
-			"hash": "be35f529ce2a09ef",
+			"hash": "46cd65537980c9fd",
 			"mirror": "just ci-e2e-front",
-			"reason": "ci-e2e-front makes the same four application images available by building them locally. CI instead pulls the build job's immutable images plus the same pinned public dependencies."
+			"reason": "ci-e2e-front makes the same four application images available by building them locally. CI instead pulls the build job's immutable images plus the same pinned public dependencies. #1021: on fork runs this pull is skipped and the shard loads the artifact tarballs instead — the same make-the-four-images-available property the local build provides."
+		},
+		"front-e2e.yml::test::Load stack images from artifact (fork runs)": {
+			"hash": "dd181b632078e9d6",
+			"mirror": null,
+			"reason": "GitHub-only, fork runs only (#1021): actions/download-artifact fetches the build job's image tarballs onto the shard runner. Locally the images are already in the daemon; there is no artifact hop to mirror."
+		},
+		"front-e2e.yml::test::Import stack images into the local daemon (fork runs)": {
+			"hash": "f7052df257bde898",
+			"mirror": null,
+			"reason": "GitHub-only, fork runs only (#1021): docker loads the downloaded tarballs so `up --no-build` resolves the same four image tags the GHCR path would have pulled. Locally the equivalent state (images present in the daemon) is produced by the build itself."
 		},
 		"front-e2e.yml::test::Run playwright browser tests": {
 			"hash": "40afdc4e5110db78",
