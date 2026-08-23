@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
@@ -9,6 +10,7 @@ using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Validation;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Tenants.Services;
@@ -228,15 +230,18 @@ public interface ITenantAsStaffService {
 public class TenantAsStaffService : ITenantAsStaffService {
 	private readonly AppDbContext _dbContext;
 	private readonly IInvitationEmailOutboxSignal _outboxSignal;
+	private readonly IUploadAssetReferenceService _uploadReferences;
 	private readonly ILogger<TenantAsStaffService> _logger;
 
 	public TenantAsStaffService(
 		AppDbContext dbContext,
 		IInvitationEmailOutboxSignal outboxSignal,
+		IUploadAssetReferenceService uploadReferences,
 		ILogger<TenantAsStaffService> logger
 	) {
 		_dbContext = dbContext;
 		_outboxSignal = outboxSignal;
+		_uploadReferences = uploadReferences;
 		_logger = logger;
 	}
 
@@ -501,6 +506,15 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 			await using var transaction =
 				await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+			// A created tenant may already carry a served-upload logoUrl: acquire
+			// its asset reference inside this same transaction so the persisted
+			// URL can never outlive a zero-reference asset row (#807 F5).
+			if (ServedUploadPath.ExtractOrNull(args.LogoUrl) is { } createLogoPath) {
+				await _uploadReferences.TryAddReferenceAsync(
+					createLogoPath, cancellationToken
+				);
+			}
 
 			// 1. Create tenant
 			var tenant = new Tenant {
@@ -824,9 +838,17 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return new UpdateTenantResult.MaxUsersBelowCurrentCount();
 		}
 
-		// Captured before mutation so a replaced/cleared logoUrl can be recorded as
-		// a deferred cleanup candidate after the update commits.
+		// Captured before mutation so a replaced/cleared logoUrl can release its
+		// asset reference in the same transaction as the update (#807 F5).
 		var previousLogoUrl = tenant.LogoUrl;
+
+		// Acquire the new blob's reference BEFORE the entity write: the acquire
+		// joins this transaction, so a concurrent sweeper can never observe the
+		// URL persisted while its asset still reads zero references.
+		if (args.LogoUrl.IsPresent
+			&& ServedUploadPath.ExtractOrNull(args.LogoUrl.Value) is { } acquiredPath) {
+			await _uploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+		}
 
 		// Mutate tracked entity
 		if (args.Name is not null) {
@@ -863,25 +885,46 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			tenant.Notes = args.Notes.Value;
 		}
 		tenant.UpdatedAt = DateTime.UtcNow;
-		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		if (args.LogoUrl.IsPresent) {
-			DeferReplacedLogoBlobCleanup(
-				tenantId, previousLogoUrl, tenant.LogoUrl
-			);
+		// The release of a replaced/cleared blob's reference MUST commit in the
+		// same transaction as the entity write (#807 F5): splitting them would
+		// let the sweeper physically delete a blob whose URL is still visible.
+		// When no transaction is ambient (the usual path) one is opened here.
+		var hadAmbientTransaction = _dbContext.Database.CurrentTransaction is not null;
+		var updateTransaction = hadAmbientTransaction
+			? null
+			: await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+		try {
+			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			if (args.LogoUrl.IsPresent) {
+				await ReleaseReplacedLogoReferenceAsync(
+					tenantId, previousLogoUrl, tenant.LogoUrl, cancellationToken
+				);
+			}
+
+			if (updateTransaction is not null) {
+				await updateTransaction.CommitAsync(cancellationToken);
+			}
+		} catch {
+			if (updateTransaction is not null) {
+				await updateTransaction.RollbackAsync(cancellationToken);
+			}
+			throw;
 		}
 
 		return new UpdateTenantResult.Success(tenant, currentUserCount);
 	}
 
-	// Phase 1 deliberately leaves replaced logo blobs in place. A durable asset
-	// lifecycle with ownership/reference transitions and grace-period cleanup is
-	// phase 2 of #807; an inline delete or an in-memory/no-op queue would recreate
-	// the TOCTOU race or falsely imply cross-process durability.
-	private void DeferReplacedLogoBlobCleanup(
+	// Releases the replaced/cleared logo's asset reference. Best-effort by design:
+	// legacy blobs persisted before upload_assets existed have no row to release,
+	// and absolute http(s) URLs were never this API's blobs. Physical deletion of
+	// the orphaned blob is exclusively the sweeper job's — never inline.
+	private async Task ReleaseReplacedLogoReferenceAsync(
 		Guid tenantId,
 		string? previousLogoUrl,
-		string? newLogoUrl
+		string? newLogoUrl,
+		CancellationToken cancellationToken
 	) {
 		if (
 			previousLogoUrl is null
@@ -891,10 +934,18 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			return;
 		}
 
-		if (_logger.IsEnabled(LogLevel.Information)) {
+		var previousPath = ServedUploadPath.ExtractOrNull(previousLogoUrl);
+		if (previousPath is null) {
+			return;
+		}
+
+		var released = await _uploadReferences.TryReleaseReferenceAsync(
+			previousPath, cancellationToken
+		);
+		if (!released && _logger.IsEnabled(LogLevel.Information)) {
 			_logger.LogInformation(
-				"Deferring cleanup of replaced logo blob {PreviousLogoUrl} for tenant {TenantId} "
-				+ "until the phase-2 asset lifecycle is available",
+				"Replaced tenant logo {PreviousLogoUrl} for tenant {TenantId} has no "
+				+ "tracked asset row; nothing to release (pre-#807 or foreign blob)",
 				previousLogoUrl,
 				tenantId
 			);

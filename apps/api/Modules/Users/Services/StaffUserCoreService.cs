@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -40,10 +42,16 @@ public interface IStaffUserCoreService {
 [Service(ServiceLifetime.Scoped)]
 public class StaffUserCoreService : IStaffUserCoreService {
 	private readonly AppDbContext _dbContext;
+	private readonly IUploadAssetReferenceService _uploadReferences;
 	private readonly ILogger<StaffUserCoreService> _logger;
 
-	public StaffUserCoreService(AppDbContext dbContext, ILogger<StaffUserCoreService> logger) {
+	public StaffUserCoreService(
+		AppDbContext dbContext,
+		IUploadAssetReferenceService uploadReferences,
+		ILogger<StaffUserCoreService> logger
+	) {
 		_dbContext = dbContext;
+		_uploadReferences = uploadReferences;
 		_logger = logger;
 	}
 
@@ -115,6 +123,23 @@ public class StaffUserCoreService : IStaffUserCoreService {
 				);
 			}
 
+			// Captured inside this transaction: the mutation below is a BLIND
+			// ExecuteUpdate, so the replaced avatar must be read first; its
+			// reference is released before commit, atomically with the write (#807 F5).
+			string? previousAvatarUrl = null;
+			if (document.AvatarUrl.IsPresent) {
+				previousAvatarUrl = await _dbContext.User
+					.Where(u => u.Id == userId && !u.IsDeleted)
+					.Select(u => u.AvatarUrl)
+					.FirstOrDefaultAsync(cancellationToken);
+
+				// Acquire the new blob's reference BEFORE the blind write so the URL
+				// can never commit while its asset reads zero references.
+				if (ServedUploadPath.ExtractOrNull(document.AvatarUrl.Value) is { } acquiredPath) {
+					await _uploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+				}
+			}
+
 			var updatedCount = await _dbContext.User
 				.Where(u => u.Id == userId && !u.IsDeleted)
 				.ExecuteUpdateAsync(setters => setters
@@ -141,6 +166,14 @@ public class StaffUserCoreService : IStaffUserCoreService {
 					.ExecuteUpdateAsync(setters => setters
 						.SetProperty(ua => ua.Level, accountLevel)
 						.SetProperty(ua => ua.UpdatedAt, DateTime.UtcNow), cancellationToken);
+			}
+
+			// Release the replaced avatar's reference in the SAME transaction as the
+			// entity write; physical deletion stays exclusively the sweeper's.
+			if (document.AvatarUrl.IsPresent && previousAvatarUrl is not null
+				&& ServedUploadPath.ExtractOrNull(previousAvatarUrl) is { } releasedPath
+				&& previousAvatarUrl != document.AvatarUrl.Value) {
+				await _uploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
 			}
 
 			await transaction.CommitAsync(cancellationToken);

@@ -3,8 +3,10 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -91,12 +93,15 @@ public interface ITenantUserMembershipService {
 public class TenantUserMembershipService : ITenantUserMembershipService {
 
 	private readonly AppDbContext _dbContext;
+	private readonly IUploadAssetReferenceService _uploadReferences;
 
 	public TenantUserMembershipService(
 		AppDbContext dbContext,
+		IUploadAssetReferenceService uploadReferences,
 		ILogger<TenantUserMembershipService> logger
 	) {
 		_dbContext = dbContext;
+		_uploadReferences = uploadReferences;
 		_ = logger;
 	}
 
@@ -241,6 +246,10 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 				}
 			}
 
+			// Captured before mutation: the replaced avatar's reference is released
+			// in the same transaction as the entity write (#807 F5).
+			var previousAvatarUrl = user.AvatarUrl;
+
 			// Apply all changes: account level + user profile fields
 			if (newLevel is not null) {
 				account.Level = newLevel.Value;
@@ -252,6 +261,11 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 				user.LastName = document.LastName.Value;
 			}
 			if (document.AvatarUrl.IsPresent) {
+				// Acquire the new blob's reference BEFORE the entity write so the URL
+				// can never commit while its asset reads zero references (#807 F5).
+				if (ServedUploadPath.ExtractOrNull(document.AvatarUrl.Value) is { } acquiredPath) {
+					await _uploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+				}
 				user.AvatarUrl = document.AvatarUrl.Value;
 			}
 
@@ -259,6 +273,13 @@ public class TenantUserMembershipService : ITenantUserMembershipService {
 			user.UpdatedAt = DateTime.UtcNow;
 
 			await _dbContext.SaveChangesAsync(cancellationToken);
+
+			if (document.AvatarUrl.IsPresent && previousAvatarUrl is not null
+				&& ServedUploadPath.ExtractOrNull(previousAvatarUrl) is { } releasedPath
+				&& previousAvatarUrl != user.AvatarUrl) {
+				await _uploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+			}
+
 			await transaction.CommitAsync(cancellationToken);
 		} catch {
 			await transaction.RollbackAsync(cancellationToken);

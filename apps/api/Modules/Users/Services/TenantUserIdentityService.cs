@@ -3,8 +3,10 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -71,9 +73,14 @@ public interface ITenantUserIdentityService {
 [Service(ServiceLifetime.Scoped)]
 public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 	private readonly AppDbContext _dbContext;
+	private readonly IUploadAssetReferenceService _uploadReferences;
 
-	public TenantUserIdentityService(AppDbContext dbContext) {
+	public TenantUserIdentityService(
+		AppDbContext dbContext,
+		IUploadAssetReferenceService uploadReferences
+	) {
 		_dbContext = dbContext;
+		_uploadReferences = uploadReferences;
 	}
 
 	public async Task<UpdateTenantUserIdentityResult> UpdateTenantUserIdentityForStaffAsync(
@@ -100,6 +107,10 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 			return new UpdateTenantUserIdentityResult.NotFound();
 		}
 
+		// Captured before mutation: the replaced avatar's reference is released in
+		// the same unit of work as the entity write (#807 F5).
+		var previousAvatarUrl = user.AvatarUrl;
+
 		if (document.FirstName.IsPresent) {
 			user.FirstName = document.FirstName.Value;
 		}
@@ -109,11 +120,22 @@ public sealed class TenantUserIdentityService : ITenantUserIdentityService {
 		}
 
 		if (document.AvatarUrl.IsPresent) {
+			// Acquire the new blob's reference BEFORE the entity write so the URL
+			// can never commit while its asset reads zero references (#807 F5).
+			if (ServedUploadPath.ExtractOrNull(document.AvatarUrl.Value) is { } acquiredPath) {
+				await _uploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+			}
 			user.AvatarUrl = document.AvatarUrl.Value;
 		}
 
 		user.UpdatedAt = DateTime.UtcNow;
 		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		if (document.AvatarUrl.IsPresent && previousAvatarUrl is not null
+			&& ServedUploadPath.ExtractOrNull(previousAvatarUrl) is { } releasedPath
+			&& previousAvatarUrl != user.AvatarUrl) {
+			await _uploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+		}
 
 		var userData = await GetTenantUserDetailsForStaffForMutationAsync(
 			userId,

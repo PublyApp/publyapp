@@ -161,6 +161,8 @@ public static class ServiceRegistration {
 		// numbers are read from upload_budgets rows (seeded from env on first use),
 		// not captured here — operators retune budgets without a redeploy.
 		builder.Services.AddScoped<IUploadAdmissionService, UploadAdmissionService>();
+		// Atomic reference-count transitions over upload_assets (#807 F5): SCOPED so
+		// its ExecuteSqlAsync calls join the caller's ambient DbContext transaction.
 
 		// Durable invitation email outbox — PRODUCER half only (design §3.2, C5/R2-6).
 		// The signal is not a hosted service: it is the wake handle the invitation-writing

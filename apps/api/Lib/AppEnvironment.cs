@@ -65,6 +65,10 @@ public class AppEnvironment {
 	public int UPLOAD_MAX_BYTES { get; }
 	public long UPLOAD_GLOBAL_MAX_BYTES { get; }
 	public long UPLOAD_PER_STAFF_MAX_BYTES { get; }
+	/// <summary>Grace period (days) an orphaned upload must age past before the
+	/// sweeper may physically delete its blob (owner rule: deferred deletion with a
+	/// final recheck, never inline deletes).</summary>
+	public int UPLOAD_ORPHAN_GRACE_DAYS { get; }
 	public IReadOnlyList<string> TRUSTED_PROXY_CIDRS { get; }
 	public int ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT { get; }
 	public int ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS { get; }
@@ -278,6 +282,7 @@ public class AppEnvironment {
 		int uploadMaxBytes,
 		long uploadGlobalMaxBytes,
 		long uploadPerStaffMaxBytes,
+		int uploadOrphanGraceDays,
 		IReadOnlyList<string> trustedProxyCidrs,
 		int anonAuthIpRateLimitPermitLimit,
 		int anonAuthIpRateLimitWindowSeconds,
@@ -346,6 +351,7 @@ public class AppEnvironment {
 		UPLOAD_MAX_BYTES = uploadMaxBytes;
 		UPLOAD_GLOBAL_MAX_BYTES = uploadGlobalMaxBytes;
 		UPLOAD_PER_STAFF_MAX_BYTES = uploadPerStaffMaxBytes;
+		UPLOAD_ORPHAN_GRACE_DAYS = uploadOrphanGraceDays;
 		TRUSTED_PROXY_CIDRS = trustedProxyCidrs;
 		ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT = anonAuthIpRateLimitPermitLimit;
 		ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS = anonAuthIpRateLimitWindowSeconds;
@@ -466,6 +472,7 @@ public class AppEnvironment {
 					nameof(UPLOAD_PER_STAFF_MAX_BYTES),
 					DefaultUploadPerStaffMaxBytes
 				),
+				uploadOrphanGraceDays: GetOptionalInt(nameof(UPLOAD_ORPHAN_GRACE_DAYS), 7),
 				trustedProxyCidrs: GetOptionalCsvList(
 					nameof(TRUSTED_PROXY_CIDRS),
 					["127.0.0.1/32", "::1/128"]
@@ -1005,6 +1012,10 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.WithMessage(
 				"UPLOAD_GLOBAL_MAX_BYTES must be greater than or equal to UPLOAD_PER_STAFF_MAX_BYTES"
 			);
+
+		RuleFor(x => x.UPLOAD_ORPHAN_GRACE_DAYS)
+			.InclusiveBetween(1, 365)
+			.WithMessage("UPLOAD_ORPHAN_GRACE_DAYS must be between 1 and 365");
 
 		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)
 			.Must(cidr => IPNetwork.TryParse(cidr, out _))

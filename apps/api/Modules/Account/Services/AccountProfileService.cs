@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Account.Services;
@@ -43,9 +45,14 @@ public interface IAccountProfileService {
 [Service(ServiceLifetime.Scoped)]
 public class AccountProfileService : IAccountProfileService {
 	private readonly AppDbContext _dbContext;
+	private readonly IUploadAssetReferenceService _uploadReferences;
 
-	public AccountProfileService(AppDbContext dbContext) {
+	public AccountProfileService(
+		AppDbContext dbContext,
+		IUploadAssetReferenceService uploadReferences
+	) {
 		_dbContext = dbContext;
+		_uploadReferences = uploadReferences;
 	}
 
 	public async Task<AccountProfileData?> GetAccountProfileAsync(
@@ -76,6 +83,10 @@ public class AccountProfileService : IAccountProfileService {
 			return null;
 		}
 
+		// Captured before mutation: the replaced avatar's reference is released
+		// after SaveChanges, in the same transaction scope (#807 F5).
+		var previousAvatarUrlValue = user.AvatarUrl;
+
 		if (args.FirstName.IsPresent) {
 			user.FirstName = args.FirstName.Value;
 		}
@@ -85,12 +96,25 @@ public class AccountProfileService : IAccountProfileService {
 		}
 
 		if (args.AvatarUrl.IsPresent) {
+			// Acquire the new blob's reference BEFORE the entity write so the URL
+			// can never commit while its asset still reads zero references (#807 F5).
+			if (ServedUploadPath.ExtractOrNull(args.AvatarUrl.Value) is { } acquiredPath) {
+				await _uploadReferences.TryAddReferenceAsync(acquiredPath, cancellationToken);
+			}
 			user.AvatarUrl = args.AvatarUrl.Value;
 		}
 
 		user.UpdatedAt = DateTime.UtcNow;
 
 		await _dbContext.SaveChangesAsync(cancellationToken);
+
+		// Release the replaced avatar's reference in the SAME unit of work as the
+		// entity write; physical deletion stays exclusively the sweeper's.
+		if (args.AvatarUrl.IsPresent && previousAvatarUrlValue is not null
+			&& ServedUploadPath.ExtractOrNull(previousAvatarUrlValue) is { } releasedPath
+			&& previousAvatarUrlValue != user.AvatarUrl) {
+			await _uploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+		}
 
 		return ToResult(user);
 	}
