@@ -2278,6 +2278,102 @@ test('F9: no-important-foundation now scans app.css, where the real !important d
 	);
 });
 
+// F824 ui F1: a debt entry is a BUDGET, not an unlimited licence. The old
+// matcher did `source.includes(snippet)` against the whole FILE, so one
+// occurrence anywhere let EVERY violation of the same rule in that file
+// through — including a second, unrelated offense on a different line.
+test('F824 ui F1: a guardDebt entry covers only its budgeted occurrences — violations beyond it are reported', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full">budgeted</div>',
+			'<div className="rounded-full">beyond budget</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 1,
+				reason: 'fixture: budget of exactly one occurrence',
+			},
+		],
+	});
+
+	const debtRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+	assert.equal(debtRuleHits.length, 1);
+	assert.match(debtRuleHits[0]?.source ?? '', /beyond budget/);
+});
+
+// F824 tests F2: duplicates of the SAME snippet each consume one unit of the
+// entry's budget — a copy-pasted repeat of the debt line cannot ride the same
+// single-shot exemption forever.
+test('F824 tests F2: duplicate occurrences of a debt snippet consume the budget one-for-one', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full">duplicate</div>',
+			'<div className="rounded-full">duplicate</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 1,
+				reason:
+					'fixture: one occurrence allowed, second duplicate must surface',
+			},
+		],
+	});
+
+	const debtRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+	assert.equal(debtRuleHits.length, 1);
+	assert.equal(debtRuleHits[0].line, 2);
+});
+
+test('F824: occurrences within an explicit budget stay suppressed', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full">a</div>',
+			'<div className="rounded-full">b</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 2,
+				reason: 'fixture: budget of exactly two occurrences',
+			},
+		],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+		),
+		false,
+	);
+});
+
 test('F3: token-theme-parity flags a colour token declared in :root with no html.dark counterpart', async () => {
 	const root = await makeFixture({
 		'src/styles/app.css': [
