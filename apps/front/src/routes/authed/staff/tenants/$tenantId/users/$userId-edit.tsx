@@ -15,6 +15,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
 import type { FieldSelectOption } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -219,14 +220,18 @@ const StaffTenantUserEditPage = () => {
 		{ tenantId },
 		{ enabled: tenantId.length > 0 },
 	);
+	// Hoisted locals keep raw query flags out of the chained-query gate.
+	const tenantQueryIsPending = tenantQuery.isPending;
+	const tenantQueryIsError = tenantQuery.isError;
 	const detailsQuery = useStaffTenantUserDetailsQuery(
 		{ tenantId, userId },
 		{
+			// Hoisted locals keep raw query flags out of the chained-query gate.
 			enabled:
 				tenantId.length > 0 &&
 				userId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
+				!tenantQueryIsPending &&
+				!tenantQueryIsError,
 		},
 	);
 	const updateTenantUser = useUpdateStaffTenantUserMutation();
@@ -291,223 +296,244 @@ const StaffTenantUserEditPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	if (tenantQuery.isPending) {
-		return <TenantDetailsLoading />;
-	}
-
-	if (tenantQuery.isError) {
-		if (shouldLogoutForFailure(tenantQuery.error)) {
-			return <LogoutRedirect />;
-		}
-
-		return (
-			<TenantDetailsError
-				error={tenantQuery.error}
-				onRetry={() => void tenantQuery.refetch()}
-			/>
-		);
-	}
-
-	if (!tenant) {
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-500-code')}
-				title={t('tenant-details-error-title')}
-				description={t('tenant-response-incomplete')}
-				testId="staff-tenant-details-error"
-				actions={
-					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
-				}
-			/>
-		);
-	}
-
-	if (detailsQuery.isError && shouldLogoutForFailure(detailsQuery.error)) {
+	// Hoisted so the fatal-error gates read plain locals, not query flags —
+	// QueryDisplay owns the loading/error/data rendering below.
+	const tenantError = tenantQuery.error;
+	if (tenantError !== null && shouldLogoutForFailure(tenantError)) {
 		return <LogoutRedirect />;
 	}
 
-	if (detailsQuery.isPending) {
-		return <TenantUserEditLoading />;
+	const detailsError = detailsQuery.error;
+	if (detailsError !== null && shouldLogoutForFailure(detailsError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (detailsQuery.isError) {
-		return (
-			<TenantUserEditError
-				error={detailsQuery.error}
-				onRetry={() => void detailsQuery.refetch()}
-			/>
-		);
-	}
-
-	if (!user) {
-		return (
-			<AppErrorView
-				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
-				title={t('tenant-user-not-found-title')}
-				description={t('tenant-user-payload-empty')}
-				testId="staff-tenant-user-edit-not-found"
-				actions={<BackToTenantsLink />}
-			/>
-		);
-	}
-
-	const onSubmit = handleSubmit(async (values) => {
-		const payload: TenantUserEditPayload = {
-			tenantId,
-			userId,
-		};
-
-		if (formState.dirtyFields.firstName) {
-			payload.firstName = normalizeOptionalUpdateString(values.firstName);
-		}
-
-		if (formState.dirtyFields.lastName) {
-			payload.lastName = normalizeOptionalUpdateString(values.lastName);
-		}
-
-		if (formState.dirtyFields.avatarUrl) {
-			payload.avatarUrl = normalizeOptionalUpdateString(values.avatarUrl);
-		}
-
-		if (formState.dirtyFields.accountLevel) {
-			payload.accountLevel = values.accountLevel;
-		}
-
-		try {
-			setRootValidationError('');
-			await updateTenantUser.mutateAsync(payload);
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldLogout(true);
-				return;
+	const renderTenantMissingSlot = () => (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-response-incomplete')}
+			testId="staff-tenant-details-error"
+			actions={
+				<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
 			}
+		/>
+	);
 
-			const failure = toApiFailure(error);
-			if (failure.kind === 'validation') {
-				const hasAvatarUrlError =
-					(failure.fieldErrors.avatarUrl?.length ?? 0) > 0;
-				if (hasAvatarUrlError) {
-					methods.setError('avatarUrl', {
-						type: 'server',
-						message: getFailureMessage(failure, {
-							fallback: t('tenant-user-update-failed'),
-						}),
-					});
-				}
-
-				const hasUnmappedError = Object.keys(failure.fieldErrors).some(
-					(field) => field !== 'avatarUrl',
-				);
-				if (!hasAvatarUrlError || hasUnmappedError) {
-					setRootValidationError(
-						getFailureMessage(failure, {
-							fallback: t('tenant-user-update-failed'),
-						}),
-					);
-				}
-			}
-			return;
-		}
-
-		await invalidateAllStaffTenantScopes(queryClient);
-		hasSavedRef.current = true;
-		void navigate({
-			to: '/staff/tenants/$tenantId/users/$userId',
-			params: { tenantId, userId },
-		});
-	});
-
-	const isSubmittingForm = isSubmitting || updateTenantUser.isPending;
-	const saveDisabled =
-		isSubmittingForm ||
-		!formState.isDirty ||
-		!tenantId.length ||
-		!userId.length;
+	const renderUserMissingSlot = () => (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-user-not-found-title')}
+			description={t('tenant-user-payload-empty')}
+			testId="staff-tenant-user-edit-not-found"
+			actions={<BackToTenantsLink />}
+		/>
+	);
 
 	return (
-		<TenantDetailsPageShell
-			tenant={tenant}
-			activeSection="users"
-			summary={t('edit-tenant-user-summary')}
-			testId="staff-tenant-user-edit-page"
+		<QueryDisplay
+			query={tenantQuery}
+			LoadingSlot={<TenantDetailsLoading />}
+			ErrorSlot={
+				<TenantDetailsError
+					error={tenantError}
+					onRetry={() => void tenantQuery.refetch()}
+				/>
+			}
 		>
-			<div className="space-y-2">
-				<div className="flex items-center justify-between gap-2">
-					<Link
-						to="/staff/tenants/$tenantId/users/$userId"
-						params={{ tenantId, userId }}
-						className="publy-back-link"
-					>
-						<IconArrowLeft aria-hidden="true" className="size-3" />
-						{t('back-to-user')}
-					</Link>
-					<h2 className="text-2xl font-semibold text-foreground">
-						{t('edit-tenant-user')}
-					</h2>
-				</div>
-				<p className="text-sm text-muted-foreground">
-					{t('edit-tenant-user-description')}
-				</p>
-			</div>
+			{() => (
+				<QueryDisplay
+					query={detailsQuery}
+					LoadingSlot={<TenantUserEditLoading />}
+					ErrorSlot={({ error }) => (
+						<TenantUserEditError
+							error={error}
+							onRetry={() => void detailsQuery.refetch()}
+						/>
+					)}
+					EmptySlot={renderUserMissingSlot()}
+				>
+					{() => {
+						if (!user) {
+							return renderUserMissingSlot();
+						}
 
-			<Card className="space-y-4 p-5">
-				<Form methods={methods} onSubmit={onSubmit}>
-					<Field.Text
-						name="firstName"
-						label={t('first-name')}
-						fullWidth
-						isDisabled={isSubmittingForm}
-					/>
-					<Field.Text
-						name="lastName"
-						label={t('last-name')}
-						fullWidth
-						isDisabled={isSubmittingForm}
-					/>
-					<Field.Text
-						name="avatarUrl"
-						label={t('avatar-url')}
-						fullWidth
-						isDisabled={isSubmittingForm}
-					/>
-					<Field.Select
-						name="accountLevel"
-						label={t('account-level')}
-						options={accountLevelOptions}
-						isDisabled={isSubmittingForm}
-					/>
+						const onSubmit = handleSubmit(async (values) => {
+							const payload: TenantUserEditPayload = {
+								tenantId,
+								userId,
+							};
 
-					{rootValidationError ? (
-						<p className="text-sm text-destructive" role="alert">
-							{rootValidationError}
-						</p>
-					) : null}
+							if (formState.dirtyFields.firstName) {
+								payload.firstName = normalizeOptionalUpdateString(
+									values.firstName,
+								);
+							}
 
-					<div className="flex justify-end">
-						<Button type="submit" variant="default" disabled={saveDisabled}>
-							{t('save-changes')}
-						</Button>
-					</div>
-				</Form>
-			</Card>
+							if (formState.dirtyFields.lastName) {
+								payload.lastName = normalizeOptionalUpdateString(
+									values.lastName,
+								);
+							}
 
-			<ConfirmDialog
-				isOpen={blocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
-				tone="danger"
-				onConfirm={() => blocker.proceed?.()}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) {
-						blocker.reset?.();
-					}
-				}}
-			/>
-		</TenantDetailsPageShell>
+							if (formState.dirtyFields.avatarUrl) {
+								payload.avatarUrl = normalizeOptionalUpdateString(
+									values.avatarUrl,
+								);
+							}
+
+							if (formState.dirtyFields.accountLevel) {
+								payload.accountLevel = values.accountLevel;
+							}
+
+							try {
+								setRootValidationError('');
+								await updateTenantUser.mutateAsync(payload);
+							} catch (error) {
+								if (shouldLogoutForFailure(error)) {
+									setShouldLogout(true);
+									return;
+								}
+
+								const failure = toApiFailure(error);
+								if (failure.kind === 'validation') {
+									const hasAvatarUrlError =
+										(failure.fieldErrors.avatarUrl?.length ?? 0) > 0;
+									if (hasAvatarUrlError) {
+										methods.setError('avatarUrl', {
+											type: 'server',
+											message: getFailureMessage(failure, {
+												fallback: t('tenant-user-update-failed'),
+											}),
+										});
+									}
+
+									const hasUnmappedError = Object.keys(
+										failure.fieldErrors,
+									).some((field) => field !== 'avatarUrl');
+									if (!hasAvatarUrlError || hasUnmappedError) {
+										setRootValidationError(
+											getFailureMessage(failure, {
+												fallback: t('tenant-user-update-failed'),
+											}),
+										);
+									}
+								}
+								return;
+							}
+
+							await invalidateAllStaffTenantScopes(queryClient);
+							hasSavedRef.current = true;
+							void navigate({
+								to: '/staff/tenants/$tenantId/users/$userId',
+								params: { tenantId, userId },
+							});
+						});
+
+						const isSubmittingForm = isSubmitting || updateTenantUser.isPending;
+						const saveDisabled =
+							isSubmittingForm ||
+							!formState.isDirty ||
+							!tenantId.length ||
+							!userId.length;
+
+						if (tenant === null) {
+							return renderTenantMissingSlot();
+						}
+
+						return (
+							<TenantDetailsPageShell
+								tenant={tenant}
+								activeSection="users"
+								summary={t('edit-tenant-user-summary')}
+								testId="staff-tenant-user-edit-page"
+							>
+								<div className="space-y-2">
+									<div className="flex items-center justify-between gap-2">
+										<Link
+											to="/staff/tenants/$tenantId/users/$userId"
+											params={{ tenantId, userId }}
+											className="publy-back-link"
+										>
+											<IconArrowLeft aria-hidden="true" className="size-3" />
+											{t('back-to-user')}
+										</Link>
+										<h2 className="text-2xl font-semibold text-foreground">
+											{t('edit-tenant-user')}
+										</h2>
+									</div>
+									<p className="text-sm text-muted-foreground">
+										{t('edit-tenant-user-description')}
+									</p>
+								</div>
+
+								<Card className="space-y-4 p-5">
+									<Form methods={methods} onSubmit={onSubmit}>
+										<Field.Text
+											name="firstName"
+											label={t('first-name')}
+											fullWidth
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Text
+											name="lastName"
+											label={t('last-name')}
+											fullWidth
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Text
+											name="avatarUrl"
+											label={t('avatar-url')}
+											fullWidth
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Select
+											name="accountLevel"
+											label={t('account-level')}
+											options={accountLevelOptions}
+											isDisabled={isSubmittingForm}
+										/>
+
+										{rootValidationError ? (
+											<p className="text-sm text-destructive" role="alert">
+												{rootValidationError}
+											</p>
+										) : null}
+
+										<div className="flex justify-end">
+											<Button
+												type="submit"
+												variant="default"
+												disabled={saveDisabled}
+											>
+												{t('save-changes')}
+											</Button>
+										</div>
+									</Form>
+								</Card>
+
+								<ConfirmDialog
+									isOpen={blocker.status === 'blocked'}
+									title={t('unsaved-changes-dialog-title')}
+									description={t('unsaved-changes-dialog-description')}
+									confirmLabel={t('leave-page')}
+									cancelLabel={t('cancel')}
+									tone="danger"
+									onConfirm={() => blocker.proceed?.()}
+									onOpenChange={(isOpen) => {
+										if (!isOpen) {
+											blocker.reset?.();
+										}
+									}}
+								/>
+							</TenantDetailsPageShell>
+						);
+					}}
+				</QueryDisplay>
+			)}
+		</QueryDisplay>
 	);
 };
 

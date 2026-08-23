@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import QueryDisplay from '~/components/query-display';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import {
@@ -162,7 +163,23 @@ const TenantProfileDetailsError = ({
 	);
 };
 
-const StaffTenantProfileDetailsPage = () => {
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-tenant-profiles'],
+		// Always matched alongside an index/permissions/members child (never
+		// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
+		// contract requires every route to declare its own trail. The overview
+		// base is the correct value for this route's own path.
+		crumbs: staffTenantProfileCrumbsBase,
+	},
+	validateSearch: (search) =>
+		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
+	component: StaffTenantProfileDetailsPage,
+});
+
+function StaffTenantProfileDetailsPage() {
 	const { tenantId, profileId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
@@ -287,14 +304,18 @@ const StaffTenantProfileDetailsPage = () => {
 		{ tenantId },
 		{ enabled: tenantId.length > 0 },
 	);
+	// Hoisted locals keep raw query flags out of the chained-query gates.
+	const tenantQueryIsPending = tenantQuery.isPending;
+	const tenantQueryIsError = tenantQuery.isError;
+
 	const detailQuery = useStaffTenantProfileDetailsQuery(
 		{ tenantId, profileId },
 		{
 			enabled:
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
+				!tenantQueryIsPending &&
+				!tenantQueryIsError,
 		},
 	);
 	const permissionKeysQuery = useStaffTenantProfilePermissionKeysQuery(
@@ -303,8 +324,8 @@ const StaffTenantProfileDetailsPage = () => {
 			enabled:
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
+				!tenantQueryIsPending &&
+				!tenantQueryIsError,
 		},
 	);
 	// Overview only needs the leading members (avatar stack + first-4 preview).
@@ -323,8 +344,8 @@ const StaffTenantProfileDetailsPage = () => {
 				activeSection === 'overview' &&
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
+				!tenantQueryIsPending &&
+				!tenantQueryIsError,
 		},
 	);
 	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery({
@@ -357,240 +378,260 @@ const StaffTenantProfileDetailsPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	if (tenantQuery.isPending) {
-		return <TenantDetailsLoading />;
+	// Hoisted so the fatal-error gates read plain locals, not query flags —
+	// QueryDisplay owns the loading/error/data rendering below.
+	const tenantError = tenantQuery.error;
+	if (tenantError !== null && shouldLogoutForFailure(tenantError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (tenantQuery.isError) {
-		if (shouldLogoutForFailure(tenantQuery.error)) {
-			return <LogoutRedirect />;
-		}
-
-		return (
-			<TenantDetailsError
-				error={tenantQuery.error}
-				onRetry={() => void tenantQuery.refetch()}
-			/>
-		);
+	const detailError = detailQuery.error;
+	if (detailError !== null && shouldLogoutForFailure(detailError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (!tenant) {
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('common:error-500-code')}
-				title={t('common:tenant-details-error-title')}
-				description={t('common:tenant-response-incomplete')}
-				testId="staff-tenant-details-error"
-				actions={
-					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
-				}
-			/>
-		);
-	}
-
+	const permissionKeysError = permissionKeysQuery.error;
 	if (
-		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
-		(permissionKeysQuery.isError &&
-			shouldLogoutForFailure(permissionKeysQuery.error)) ||
-		(membersQuery.isError && shouldLogoutForFailure(membersQuery.error)) ||
-		(permissionCatalogQuery.isError &&
-			shouldLogoutForFailure(permissionCatalogQuery.error))
+		permissionKeysError !== null &&
+		shouldLogoutForFailure(permissionKeysError)
 	) {
 		return <LogoutRedirect />;
 	}
 
-	if (detailQuery.isPending || permissionKeysQuery.isPending) {
-		return <ProfileDetailsLoading />;
+	const membersError = membersQuery.error;
+	if (membersError !== null && shouldLogoutForFailure(membersError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (detailQuery.isError) {
-		return (
-			<TenantProfileDetailsError
-				error={detailQuery.error}
-				onRetry={() => void detailQuery.refetch()}
-			/>
-		);
+	const permissionCatalogError = permissionCatalogQuery.error;
+	if (
+		permissionCatalogError !== null &&
+		shouldLogoutForFailure(permissionCatalogError)
+	) {
+		return <LogoutRedirect />;
 	}
 
-	if (permissionKeysQuery.isError) {
-		return (
-			<TenantProfileDetailsError
-				error={permissionKeysQuery.error}
-				onRetry={() => void permissionKeysQuery.refetch()}
-			/>
-		);
-	}
+	const renderProfileMissingSlot = () => (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('common:error-404-code')}
+			title={t('common:tenant-profile-not-found-title')}
+			description={t('common:tenant-profile-payload-empty')}
+			testId="staff-tenant-profile-details-not-found"
+			actions={<BackToTenantsLink />}
+		/>
+	);
 
-	if (!profile) {
-		return (
-			<AppErrorView
-				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code={t('common:error-404-code')}
-				title={t('common:tenant-profile-not-found-title')}
-				description={t('common:tenant-profile-payload-empty')}
-				testId="staff-tenant-profile-details-not-found"
-				actions={<BackToTenantsLink />}
-			/>
-		);
-	}
-
-	const handleDelete = async () => {
-		if (profile.isDefault) {
-			return;
-		}
-
-		try {
-			await deleteProfile.mutateAsync({ tenantId, profileId });
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldRedirectToLogout(true);
+	const renderTenantMissingSlot = () => (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('common:error-500-code')}
+			title={t('common:tenant-details-error-title')}
+			description={t('common:tenant-response-incomplete')}
+			testId="staff-tenant-details-error"
+			actions={
+				<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
 			}
-			setPendingDelete(false);
-			return;
-		}
-
-		setPendingDelete(false);
-		await invalidatePermissionQueries();
-		void navigate({
-			to: '/staff/tenants/$tenantId/profiles',
-			params: { tenantId },
-		});
-	};
-
-	// react-doctor: memoizing this literal would require hoisting it above the
-	// early returns, breaking conditional hook order on this page. The Provider
-	// re-renders only with this page, whose consumers read the same queries.
-	const detailsContextValue: StaffTenantProfileDetailsContextValue = {
-		tenantId,
-		profileId,
-		profile,
-		permissionKeys,
-		permissionKeysRevision: permissionKeysCacheSnapshot?.revision ?? 0,
-		permissionGroups,
-		isCatalogPending: permissionCatalogQuery.isPending,
-		isCatalogError: permissionCatalogQuery.isError,
-		catalogError: permissionCatalogQuery.error,
-		locale: i18n.language,
-		members,
-		membersPending: membersQuery.isPending,
-		membersError: membersQuery.isError,
-		isDeletePending: deleteProfile.isPending,
-		onDeleteRequest: () => setPendingDelete(true),
-		onSessionExpired: () => setShouldRedirectToLogout(true),
-		onPermissionsDirtyChange: setIsPermissionsMatrixDirty,
-	};
+		/>
+	);
 
 	return (
-		<div
-			className="publy-detail-page flex w-full flex-col gap-5"
-			data-testid="staff-tenant-profile-details-page"
+		<QueryDisplay
+			query={tenantQuery}
+			LoadingSlot={<TenantDetailsLoading />}
+			ErrorSlot={
+				<TenantDetailsError
+					error={tenantError}
+					onRetry={() => void tenantQuery.refetch()}
+				/>
+			}
+			EmptySlot={renderTenantMissingSlot()}
 		>
-			<Link
-				to="/staff/tenants/$tenantId/profiles"
-				params={{ tenantId }}
-				className="publy-back-link"
-			>
-				<IconArrowLeft aria-hidden="true" className="size-3" />
-				{t('back-to-tenant-profiles', { name: tenant.name })}
-			</Link>
+			{() => {
+				if (!tenant) {
+					return renderTenantMissingSlot();
+				}
 
-			<ProfileTenantBand tenant={tenant} tenantId={tenantId} />
+				return (
+					<QueryDisplay
+						query={detailQuery}
+						loadingStrategy="loading"
+						LoadingSlot={<ProfileDetailsLoading />}
+						ErrorSlot={({ error }) => (
+							<TenantProfileDetailsError
+								error={error}
+								onRetry={() => void detailQuery.refetch()}
+							/>
+						)}
+					>
+						{() => (
+							<QueryDisplay
+								query={permissionKeysQuery}
+								loadingStrategy="loading"
+								LoadingSlot={<ProfileDetailsLoading />}
+								ErrorSlot={({ error }) => (
+									<TenantProfileDetailsError
+										error={error}
+										onRetry={() => void permissionKeysQuery.refetch()}
+									/>
+								)}
+								EmptySlot={renderProfileMissingSlot()}
+							>
+								{() => {
+									if (!profile) {
+										return renderProfileMissingSlot();
+									}
 
-			<ProfileIdentityHeader
-				profile={profile}
-				permissionCount={permissionKeys.length}
-				onEdit={() => setEditDrawerOpen(true)}
-			/>
+									const handleDelete = async () => {
+										if (profile.isDefault) {
+											return;
+										}
 
-			<nav
-				aria-label={t('profile-sections')}
-				className="flex flex-wrap gap-1 border-b border-border"
-				data-testid="staff-tenant-profile-tabs"
-			>
-				<ProfileSectionNavLink
-					activeSection={activeSection}
-					label={t('common:overview')}
-					section="overview"
-					tenantId={tenantId}
-					profileId={profileId}
-				/>
-				<ProfileSectionNavLink
-					activeSection={activeSection}
-					count={permissionKeys.length}
-					label={t('common:permissions')}
-					section="permissions"
-					tenantId={tenantId}
-					profileId={profileId}
-				/>
-				<ProfileSectionNavLink
-					activeSection={activeSection}
-					count={profile.userAccountCount}
-					label={t('common:members')}
-					section="members"
-					tenantId={tenantId}
-					profileId={profileId}
-				/>
-			</nav>
+										try {
+											await deleteProfile.mutateAsync({ tenantId, profileId });
+										} catch (error) {
+											if (shouldLogoutForFailure(error)) {
+												setShouldRedirectToLogout(true);
+											}
+											setPendingDelete(false);
+											return;
+										}
 
-			<ConfirmDialog
-				isOpen={pendingDelete}
-				title={t('common:delete-tenant-profile-confirm-title')}
-				description={t('common:confirm-delete-tenant-profile-description')}
-				confirmLabel={t('common:delete')}
-				isPending={deleteProfile.isPending}
-				onConfirm={() => {
-					void handleDelete();
-				}}
-				onOpenChange={setPendingDelete}
-			/>
+										setPendingDelete(false);
+										await invalidatePermissionQueries();
+										void navigate({
+											to: '/staff/tenants/$tenantId/profiles',
+											params: { tenantId },
+										});
+									};
 
-			{/* react-doctor: see the detailsContextValue comment above — deliberate,
-			bounded re-render scope; memoizing would break hook order here. */}
-			{/* react-doctor-disable-next-line react-doctor/context-provider-value-from-unmemoized-local-literal */}
-			<StaffTenantProfileDetailsContext.Provider value={detailsContextValue}>
-				<Outlet />
-			</StaffTenantProfileDetailsContext.Provider>
+									const detailsContextValue: StaffTenantProfileDetailsContextValue =
+										{
+											tenantId,
+											profileId,
+											profile,
+											permissionKeys,
+											permissionKeysRevision:
+												permissionKeysCacheSnapshot?.revision ?? 0,
+											permissionGroups,
+											isCatalogPending: permissionCatalogQuery.isPending,
+											isCatalogError: permissionCatalogQuery.isError,
+											catalogError: permissionCatalogQuery.error,
+											locale: i18n.language,
+											members,
+											membersPending: membersQuery.isPending,
+											membersError: membersQuery.isError,
+											isDeletePending: deleteProfile.isPending,
+											onDeleteRequest: () => setPendingDelete(true),
+											onSessionExpired: () => setShouldRedirectToLogout(true),
+											onPermissionsDirtyChange: setIsPermissionsMatrixDirty,
+										};
 
-			<ProfileEditDetailsDrawer
-				tenantId={tenantId}
-				isOpen={isEditDrawerOpen}
-				profile={profile}
-				onOpenChange={setEditDrawerOpen}
-				onSessionExpired={() => setShouldRedirectToLogout(true)}
-				onDirtyChange={setIsEditFormDirty}
-				onSaved={() => setEditDrawerOpen(false)}
-			/>
-			<ConfirmDialog
-				isOpen={editDrawerBlocker.status === 'blocked'}
-				title={t('common:unsaved-changes-dialog-title')}
-				description={t('common:unsaved-changes-dialog-description')}
-				confirmLabel={t('common:leave-page')}
-				cancelLabel={t('common:cancel')}
-				tone="danger"
-				onConfirm={() => editDrawerBlocker.proceed?.()}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) {
-						editDrawerBlocker.reset?.();
-					}
-				}}
-			/>
-		</div>
+									return (
+										<div
+											className="publy-detail-page flex w-full flex-col gap-5"
+											data-testid="staff-tenant-profile-details-page"
+										>
+											<Link
+												to="/staff/tenants/$tenantId/profiles"
+												params={{ tenantId }}
+												className="publy-back-link"
+											>
+												<IconArrowLeft aria-hidden="true" className="size-3" />
+												{t('back-to-tenant-profiles', { name: tenant.name })}
+											</Link>
+
+											<ProfileTenantBand tenant={tenant} tenantId={tenantId} />
+
+											<ProfileIdentityHeader
+												profile={profile}
+												permissionCount={permissionKeys.length}
+												onEdit={() => setEditDrawerOpen(true)}
+											/>
+
+											<nav
+												aria-label={t('profile-sections')}
+												className="flex flex-wrap gap-1 border-b border-border"
+												data-testid="staff-tenant-profile-tabs"
+											>
+												<ProfileSectionNavLink
+													activeSection={activeSection}
+													label={t('common:overview')}
+													section="overview"
+													tenantId={tenantId}
+													profileId={profileId}
+												/>
+												<ProfileSectionNavLink
+													activeSection={activeSection}
+													count={permissionKeys.length}
+													label={t('common:permissions')}
+													section="permissions"
+													tenantId={tenantId}
+													profileId={profileId}
+												/>
+												<ProfileSectionNavLink
+													activeSection={activeSection}
+													count={profile.userAccountCount}
+													label={t('common:members')}
+													section="members"
+													tenantId={tenantId}
+													profileId={profileId}
+												/>
+											</nav>
+
+											<ConfirmDialog
+												isOpen={pendingDelete}
+												title={t('common:delete-tenant-profile-confirm-title')}
+												description={t(
+													'common:confirm-delete-tenant-profile-description',
+												)}
+												confirmLabel={t('common:delete')}
+												isPending={deleteProfile.isPending}
+												onConfirm={() => {
+													void handleDelete();
+												}}
+												onOpenChange={setPendingDelete}
+											/>
+
+											<StaffTenantProfileDetailsContext.Provider
+												value={detailsContextValue}
+											>
+												<Outlet />
+											</StaffTenantProfileDetailsContext.Provider>
+
+											<ProfileEditDetailsDrawer
+												tenantId={tenantId}
+												isOpen={isEditDrawerOpen}
+												profile={profile}
+												onOpenChange={setEditDrawerOpen}
+												onSessionExpired={() => setShouldRedirectToLogout(true)}
+												onDirtyChange={setIsEditFormDirty}
+												onSaved={() => setEditDrawerOpen(false)}
+											/>
+											<ConfirmDialog
+												isOpen={editDrawerBlocker.status === 'blocked'}
+												title={t('common:unsaved-changes-dialog-title')}
+												description={t(
+													'common:unsaved-changes-dialog-description',
+												)}
+												confirmLabel={t('common:leave-page')}
+												cancelLabel={t('common:cancel')}
+												tone="danger"
+												onConfirm={() => editDrawerBlocker.proceed?.()}
+												onOpenChange={(isOpen) => {
+													if (!isOpen) {
+														editDrawerBlocker.reset?.();
+													}
+												}}
+											/>
+										</div>
+									);
+								}}
+							</QueryDisplay>
+						)}
+					</QueryDisplay>
+				);
+			}}
+		</QueryDisplay>
 	);
-};
-
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-tenant-profiles'],
-		// Always matched alongside an index/permissions/members child (never
-		// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
-		// contract requires every route to declare its own trail. The overview
-		// base is the correct value for this route's own path.
-		crumbs: staffTenantProfileCrumbsBase,
-	},
-	validateSearch: (search) =>
-		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
-	component: StaffTenantProfileDetailsPage,
-});
+}

@@ -116,6 +116,11 @@ export const ProfileFormDrawer = ({
 	const catalogQuery = useStaffTenantPermissionCatalogQuery({
 		language: i18n.language,
 	});
+
+	// Hoisted locals keep raw query flags out of render-flow conditionals.
+	const catalogIsPending = catalogQuery.isPending;
+	const catalogIsError = catalogQuery.isError;
+	const catalogError = catalogQuery.error;
 	const createProfile = useCreateStaffTenantProfileMutation();
 
 	const groups = buildStaffTenantPermissionCatalogGroups(
@@ -298,23 +303,21 @@ export const ProfileFormDrawer = ({
 							isDisabled={isFormLocked}
 						/>
 
-						{catalogQuery.isPending ? (
+						{catalogIsPending ? (
 							<p className="text-sm text-muted-foreground">
 								{t('loading-permissions')}
 							</p>
 						) : null}
 
-						{catalogQuery.isError ? (
+						{catalogIsError ? (
 							<p className="text-sm text-destructive">
-								{getFailureMessage(toApiFailure(catalogQuery.error), {
+								{getFailureMessage(toApiFailure(catalogError), {
 									fallback: t('tenant-permission-catalog-load-failed'),
 								})}
 							</p>
 						) : null}
 
-						{!catalogQuery.isPending &&
-						!catalogQuery.isError &&
-						groups.length > 0 ? (
+						{!catalogIsPending && !catalogIsError && groups.length > 0 ? (
 							<Controller
 								name="permissionKeys"
 								control={methods.control}
@@ -332,9 +335,7 @@ export const ProfileFormDrawer = ({
 							/>
 						) : null}
 
-						{!catalogQuery.isPending &&
-						!catalogQuery.isError &&
-						groups.length === 0 ? (
+						{!catalogIsPending && !catalogIsError && groups.length === 0 ? (
 							<p className="text-sm text-muted-foreground">
 								{t('no-permissions-available')}
 							</p>

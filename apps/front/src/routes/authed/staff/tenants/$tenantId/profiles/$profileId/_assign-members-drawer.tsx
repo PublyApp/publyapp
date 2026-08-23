@@ -403,6 +403,9 @@ export const AssignMembersDrawer = ({
 		},
 	);
 
+	// Hoisted so the error banner reads a plain local, not a query flag.
+	const resolutionIsError = resolutionQuery.isError;
+
 	return (
 		<Drawer
 			open={isOpen}
@@ -420,7 +423,7 @@ export const AssignMembersDrawer = ({
 					</DrawerDescription>
 				</DrawerHeader>
 				<DrawerBody className="flex min-h-0 flex-1 flex-col gap-3">
-					{resolutionQuery.isError ? (
+					{resolutionIsError ? (
 						<ErrorStateSurface
 							title={t('assign-members-resolution-error-title')}
 							description={t('assign-members-resolution-error-description')}

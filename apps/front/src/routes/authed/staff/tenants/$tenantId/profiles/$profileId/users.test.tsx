@@ -249,6 +249,10 @@ const buildMembersQueryResult = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	// clearAllMocks keeps implementations, so the escape-hatch tests that
+	// force a logout verdict would otherwise leak into later tests once the
+	// fatal-error gate stopped short-circuiting on the raw query error flag.
+	mocks.shouldLogoutForFailure.mockReturnValue(false);
 	mocks.search = {};
 	mocks.useStaffTenantDetailsQuery.mockReturnValue({
 		data: TENANT,

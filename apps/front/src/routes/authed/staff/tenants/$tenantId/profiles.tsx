@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay from '~/components/query-display';
 import {
 	DataTable,
 	DataTableCursorFooter,
@@ -500,40 +501,15 @@ const StaffTenantProfilesPage = () => {
 		[tenantId, t, onEditRequest, setDeleteTarget],
 	);
 
-	if (detailsQuery.isPending) {
-		return <TenantDetailsLoading />;
+	// Hoisted so the fatal-error gates read plain locals, not query flags —
+	// QueryDisplay owns the loading/error/data rendering below.
+	const detailsError = detailsQuery.error;
+	if (detailsError !== null && shouldLogoutForFailure(detailsError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (detailsQuery.isError) {
-		if (shouldLogoutForFailure(detailsQuery.error)) {
-			return <LogoutRedirect />;
-		}
-
-		return (
-			<TenantDetailsError
-				error={detailsQuery.error}
-				onRetry={() => void detailsQuery.refetch()}
-			/>
-		);
-	}
-
-	const tenant = toStaffTenantDetails(detailsQuery.data);
-	if (!tenant) {
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-500-code')}
-				title={t('tenant-details-error-title')}
-				description={t('tenant-response-incomplete')}
-				testId="staff-tenant-details-error"
-				actions={
-					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-				}
-			/>
-		);
-	}
-
-	if (profilesQuery.isError && shouldLogoutForFailure(profilesQuery.error)) {
+	const profilesError = profilesQuery.error;
+	if (profilesError !== null && shouldLogoutForFailure(profilesError)) {
 		return <LogoutRedirect />;
 	}
 
@@ -541,204 +517,148 @@ const StaffTenantProfilesPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	const testId = 'staff-tenant-profiles-grid';
-	const hasActiveSearch = Boolean(
-		controller.search.committed || search.is_default !== undefined,
-	);
-	const bodyState = resolveTableBodyState({
-		isPending: profilesQuery.isPending,
-		isError: profilesQuery.isError,
-		rowCount: rows.length,
-		hasActiveSearch,
-	});
-
-	const toggleCardSelection = (profileId: string): void => {
-		const visibleIds = rows.map((row) => row.id);
-		const currentlySelected = new Set(
-			visibleIds.filter((id) => selection.rowSelection[id]),
-		);
-
-		if (currentlySelected.has(profileId)) {
-			currentlySelected.delete(profileId);
-		} else {
-			currentlySelected.add(profileId);
-		}
-
-		selection.onSelectionChange(currentlySelected);
-	};
-
-	const handleDelete = async () => {
-		if (!deleteTarget) {
-			return;
-		}
-
-		try {
-			await deleteProfile.mutateAsync({
-				tenantId,
-				profileId: deleteTarget.id,
-			});
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldRedirectToLogout(true);
+	const renderTenantMissingSlot = () => (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-response-incomplete')}
+			testId="staff-tenant-details-error"
+			actions={
+				<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
 			}
-			setDeleteTarget(null);
-			return;
-		}
-
-		setDeleteTarget(null);
-		await invalidateAllStaffTenantScopes(queryClient);
-	};
-
-	const toolbarEnd = (
-		<div className="flex items-center gap-2">
-			<ProfileTypeFilter
-				value={toStaffTenantProfileTypeFilterString(search.is_default)}
-				onChange={setTypeFilter}
-				testId={testId}
-				disabled={selection.isSelectionMode}
-			/>
-			<ProfileViewToggle view={view} onChange={setView} testId={testId} />
-		</div>
+		/>
 	);
+
+	const tenant = toStaffTenantDetails(detailsQuery.data);
 
 	return (
-		<TenantDetailsPageShell
-			tenant={tenant}
-			activeSection="profiles"
-			testId="staff-tenant-profiles-page"
-			bodyScroll={view === 'table' ? 'contained' : 'page'}
-		>
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-				<div className="space-y-1">
-					<h2 className="publy-type-page-title">
-						{t('profiles')}
-						{tenant.profilesCount != null ? (
-							<span className="ml-2 publy-profile-count-badge align-middle">
-								{tenant.profilesCount}
-							</span>
-						) : null}
-					</h2>
-					<p className="publy-type-helper">
-						{t('tenant-profiles-tab-description')}
-					</p>
-				</div>
-				<Button
-					type="button"
-					size="sm"
-					onClick={() => setCreateDrawerOpen(true)}
-				>
-					<IconPlus aria-hidden="true" className="size-[15px]" />
-					{t('new-profile')}
-				</Button>
-			</div>
-
-			{view === 'table' ? (
-				<DataTable<StaffTenantProfileRow>
-					testId={testId}
-					ariaLabel={t('tenant-profiles-table-aria-label')}
-					columns={columns}
-					rows={rows}
-					getRowLabel={(row) => row.name}
-					isPending={profilesQuery.isPending}
-					isError={profilesQuery.isError}
-					onRetry={() => void profilesQuery.refetch()}
-					emptyIcon={IconShield}
-					emptyContent={t('tenant-profiles-empty-description')}
-					noMatchContent={t('tenant-profiles-no-match-description')}
-					hasActiveSearch={hasActiveSearch}
-					sort={controller.sort}
-					onSortChange={controller.onSortChange}
-					size={controller.size}
-					onSizeChange={controller.onSizeChange}
-					pageIndex={controller.cursor.pageIndex}
-					hasPreviousPage={controller.cursor.hasPreviousPage}
-					hasNextPage={profilesQuery.data?.nextCursor != null}
-					isPaginationPending={profilesQuery.isFetching}
-					onNextPage={() =>
-						controller.cursor.onNextPage(
-							profilesQuery.data?.nextCursor ?? undefined,
-						)
-					}
-					onPreviousPage={controller.cursor.onPreviousPage}
-					searchDraft={controller.search.draft}
-					onSearchDraftChange={controller.search.onDraftChange}
-					searchPlaceholder={t('search-profiles')}
-					selection={selection}
-					toolbarEnd={toolbarEnd}
+		<QueryDisplay
+			query={detailsQuery}
+			LoadingSlot={<TenantDetailsLoading />}
+			ErrorSlot={
+				<TenantDetailsError
+					error={detailsError}
+					onRetry={() => void detailsQuery.refetch()}
 				/>
-			) : (
-				<div className="publy-data-table-shell">
-					<DataTableToolbar
-						testId={testId}
-						searchDraft={controller.search.draft}
-						onSearchDraftChange={controller.search.onDraftChange}
-						searchPlaceholder={t('search-profiles')}
-						disabled={selection.isSelectionMode}
-						disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
-						toolbarEnd={toolbarEnd}
-					/>
+			}
+			EmptySlot={renderTenantMissingSlot()}
+		>
+			{() => {
+				if (!tenant) {
+					return renderTenantMissingSlot();
+				}
 
-					{bodyState === 'loading' ? (
-						<ProfileCardGridSkeleton testId={testId} />
-					) : null}
+				const testId = 'staff-tenant-profiles-grid';
+				const hasActiveSearch = Boolean(
+					controller.search.committed || search.is_default !== undefined,
+				);
+				const bodyState = resolveTableBodyState({
+					isPending: profilesQuery.isPending,
+					isError: profilesQuery.isError,
+					rowCount: rows.length,
+					hasActiveSearch,
+				});
 
-					{bodyState === 'error' ? (
-						<ErrorStateSurface
-							title={t('list-unavailable-title')}
-							description={t('list-error-default-description')}
-							actions={
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => void profilesQuery.refetch()}
-								>
-									{t('retry')}
-								</Button>
-							}
-							testId={`${testId}-error`}
+				const toggleCardSelection = (profileId: string): void => {
+					const visibleIds = rows.map((row) => row.id);
+					const currentlySelected = new Set(
+						visibleIds.filter((id) => selection.rowSelection[id]),
+					);
+
+					if (currentlySelected.has(profileId)) {
+						currentlySelected.delete(profileId);
+					} else {
+						currentlySelected.add(profileId);
+					}
+
+					selection.onSelectionChange(currentlySelected);
+				};
+
+				const handleDelete = async () => {
+					if (!deleteTarget) {
+						return;
+					}
+
+					try {
+						await deleteProfile.mutateAsync({
+							tenantId,
+							profileId: deleteTarget.id,
+						});
+					} catch (error) {
+						if (shouldLogoutForFailure(error)) {
+							setShouldRedirectToLogout(true);
+						}
+						setDeleteTarget(null);
+						return;
+					}
+
+					setDeleteTarget(null);
+					await invalidateAllStaffTenantScopes(queryClient);
+				};
+
+				const toolbarEnd = (
+					<div className="flex items-center gap-2">
+						<ProfileTypeFilter
+							value={toStaffTenantProfileTypeFilterString(search.is_default)}
+							onChange={setTypeFilter}
+							testId={testId}
+							disabled={selection.isSelectionMode}
 						/>
-					) : null}
+						<ProfileViewToggle view={view} onChange={setView} testId={testId} />
+					</div>
+				);
 
-					{bodyState === 'empty' ? (
-						<StateSurface
-							title={t('list-empty-title')}
-							description={t('tenant-profiles-empty-description')}
-							testId={`${testId}-empty`}
-						/>
-					) : null}
-
-					{bodyState === 'no-match' ? (
-						<NoMatchStateSurface
-							title={t('list-no-match-title')}
-							description={t('tenant-profiles-no-match-description')}
-							testId={`${testId}-no-match`}
-						/>
-					) : null}
-
-					{bodyState === 'rows' ? (
-						<>
-							<div
-								className="publy-profile-card-grid"
-								data-testid={`${testId}-rows`}
-							>
-								{rows.map((profile) => (
-									<ProfileCard
-										key={profile.id}
-										tenantId={tenantId}
-										profile={profile}
-										onEditRequest={onEditRequest}
-										onDeleteRequest={setDeleteTarget}
-										isSelected={Boolean(selection.rowSelection[profile.id])}
-										isSelectionMode={selection.isSelectionMode}
-										onToggleSelect={toggleCardSelection}
-									/>
-								))}
+				return (
+					<TenantDetailsPageShell
+						tenant={tenant}
+						activeSection="profiles"
+						testId="staff-tenant-profiles-page"
+						bodyScroll={view === 'table' ? 'contained' : 'page'}
+					>
+						<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+							<div className="space-y-1">
+								<h2 className="publy-type-page-title">
+									{t('profiles')}
+									{tenant.profilesCount != null ? (
+										<span className="ml-2 publy-profile-count-badge align-middle">
+											{tenant.profilesCount}
+										</span>
+									) : null}
+								</h2>
+								<p className="publy-type-helper">
+									{t('tenant-profiles-tab-description')}
+								</p>
 							</div>
-							<DataTableCursorFooter
+							<Button
+								type="button"
+								size="sm"
+								onClick={() => setCreateDrawerOpen(true)}
+							>
+								<IconPlus aria-hidden="true" className="size-[15px]" />
+								{t('new-profile')}
+							</Button>
+						</div>
+
+						{view === 'table' ? (
+							<DataTable<StaffTenantProfileRow>
 								testId={testId}
-								pageIndex={controller.cursor.pageIndex}
+								ariaLabel={t('tenant-profiles-table-aria-label')}
+								columns={columns}
+								rows={rows}
+								getRowLabel={(row) => row.name}
+								isPending={profilesQuery.isPending}
+								isError={profilesQuery.isError}
+								onRetry={() => void profilesQuery.refetch()}
+								emptyIcon={IconShield}
+								emptyContent={t('tenant-profiles-empty-description')}
+								noMatchContent={t('tenant-profiles-no-match-description')}
+								hasActiveSearch={hasActiveSearch}
+								sort={controller.sort}
+								onSortChange={controller.onSortChange}
 								size={controller.size}
 								onSizeChange={controller.onSizeChange}
+								pageIndex={controller.cursor.pageIndex}
 								hasPreviousPage={controller.cursor.hasPreviousPage}
 								hasNextPage={profilesQuery.data?.nextCursor != null}
 								isPaginationPending={profilesQuery.isFetching}
@@ -748,106 +668,200 @@ const StaffTenantProfilesPage = () => {
 									)
 								}
 								onPreviousPage={controller.cursor.onPreviousPage}
-								disabled={selection.isSelectionMode}
-								disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
-								variant="flat"
+								searchDraft={controller.search.draft}
+								onSearchDraftChange={controller.search.onDraftChange}
+								searchPlaceholder={t('search-profiles')}
+								selection={selection}
+								toolbarEnd={toolbarEnd}
 							/>
-						</>
-					) : null}
-				</div>
-			)}
+						) : (
+							<div className="publy-data-table-shell">
+								<DataTableToolbar
+									testId={testId}
+									searchDraft={controller.search.draft}
+									onSearchDraftChange={controller.search.onDraftChange}
+									searchPlaceholder={t('search-profiles')}
+									disabled={selection.isSelectionMode}
+									disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
+									toolbarEnd={toolbarEnd}
+								/>
 
-			<FloatingSelectionBar
-				selectedCount={selection.selectedCount}
-				visibleCount={rows.length}
-				allVisibleSelected={
-					rows.length > 0 && rows.every((row) => selection.rowSelection[row.id])
-				}
-				onClear={selection.clearSelection}
-				onSelectAllVisible={() =>
-					selection.onSelectionChange(new Set(rows.map((row) => row.id)))
-				}
-			>
-				<ProfileBulkActions
-					tenantId={tenantId}
-					rows={rows}
-					selection={selection}
-					onSessionExpired={() => setShouldRedirectToLogout(true)}
-				/>
-			</FloatingSelectionBar>
+								{bodyState === 'loading' ? (
+									<ProfileCardGridSkeleton testId={testId} />
+								) : null}
 
-			<ConfirmDialog
-				isOpen={deleteTarget !== null}
-				title={t('delete')}
-				description={t('confirm-delete-tenant-profile-description')}
-				confirmLabel={t('delete')}
-				isPending={deleteProfile.isPending}
-				onConfirm={() => {
-					void handleDelete();
-				}}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) setDeleteTarget(null);
-				}}
-			/>
+								{bodyState === 'error' ? (
+									<ErrorStateSurface
+										title={t('list-unavailable-title')}
+										description={t('list-error-default-description')}
+										actions={
+											<Button
+												type="button"
+												variant="outline"
+												onClick={() => void profilesQuery.refetch()}
+											>
+												{t('retry')}
+											</Button>
+										}
+										testId={`${testId}-error`}
+									/>
+								) : null}
 
-			<ProfileFormDrawer
-				tenantId={tenantId}
-				isOpen={isCreateDrawerOpen}
-				onOpenChange={setCreateDrawerOpen}
-				onSessionExpired={() => setShouldRedirectToLogout(true)}
-				onDirtyChange={setIsCreateFormDirty}
-				onSaved={(profileId) => {
-					// A successful submit must never be blocked by the parent's own
-					// nav guard reading a not-yet-flushed dirty flag (W8-DRAWER).
-					createDrawerNavBypassRef.current = true;
+								{bodyState === 'empty' ? (
+									<StateSurface
+										title={t('list-empty-title')}
+										description={t('tenant-profiles-empty-description')}
+										testId={`${testId}-empty`}
+									/>
+								) : null}
 
-					if (profileId) {
-						void navigate({
-							to: '/staff/tenants/$tenantId/profiles/$profileId',
-							params: { tenantId, profileId },
-						});
-						return;
-					}
+								{bodyState === 'no-match' ? (
+									<NoMatchStateSurface
+										title={t('list-no-match-title')}
+										description={t('tenant-profiles-no-match-description')}
+										testId={`${testId}-no-match`}
+									/>
+								) : null}
 
-					setCreateDrawerOpen(false);
-				}}
-			/>
+								{bodyState === 'rows' ? (
+									<>
+										<div
+											className="publy-profile-card-grid"
+											data-testid={`${testId}-rows`}
+										>
+											{rows.map((profile) => (
+												<ProfileCard
+													key={profile.id}
+													tenantId={tenantId}
+													profile={profile}
+													onEditRequest={onEditRequest}
+													onDeleteRequest={setDeleteTarget}
+													isSelected={Boolean(
+														selection.rowSelection[profile.id],
+													)}
+													isSelectionMode={selection.isSelectionMode}
+													onToggleSelect={toggleCardSelection}
+												/>
+											))}
+										</div>
+										<DataTableCursorFooter
+											testId={testId}
+											pageIndex={controller.cursor.pageIndex}
+											size={controller.size}
+											onSizeChange={controller.onSizeChange}
+											hasPreviousPage={controller.cursor.hasPreviousPage}
+											hasNextPage={profilesQuery.data?.nextCursor != null}
+											isPaginationPending={profilesQuery.isFetching}
+											onNextPage={() =>
+												controller.cursor.onNextPage(
+													profilesQuery.data?.nextCursor ?? undefined,
+												)
+											}
+											onPreviousPage={controller.cursor.onPreviousPage}
+											disabled={selection.isSelectionMode}
+											disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
+											variant="flat"
+										/>
+									</>
+								) : null}
+							</div>
+						)}
 
-			{/* #972: the same drawer the detail page mounts, hosted here so the
-			 * quick edit stays quick — the list underneath never unmounts, so its
-			 * filters, cursor page, selection and scroll are exactly where the
-			 * user left them when the drawer closes. */}
-			{editDrawerProfile ? (
-				<ProfileEditDetailsDrawer
-					tenantId={tenantId}
-					isOpen={isEditDrawerOpen}
-					profile={editDrawerProfile}
-					onOpenChange={(isOpen) => {
-						if (!isOpen) {
-							closeEditDrawer();
-						}
-					}}
-					onSessionExpired={() => setShouldRedirectToLogout(true)}
-					onDirtyChange={setIsEditFormDirty}
-					onSaved={() => closeEditDrawer()}
-				/>
-			) : null}
+						<FloatingSelectionBar
+							selectedCount={selection.selectedCount}
+							visibleCount={rows.length}
+							allVisibleSelected={
+								rows.length > 0 &&
+								rows.every((row) => selection.rowSelection[row.id])
+							}
+							onClear={selection.clearSelection}
+							onSelectAllVisible={() =>
+								selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+							}
+						>
+							<ProfileBulkActions
+								tenantId={tenantId}
+								rows={rows}
+								selection={selection}
+								onSessionExpired={() => setShouldRedirectToLogout(true)}
+							/>
+						</FloatingSelectionBar>
 
-			<ConfirmDialog
-				isOpen={drawerBlocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
-				tone="danger"
-				onConfirm={() => drawerBlocker.proceed?.()}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) {
-						drawerBlocker.reset?.();
-					}
-				}}
-			/>
-		</TenantDetailsPageShell>
+						<ConfirmDialog
+							isOpen={deleteTarget !== null}
+							title={t('delete')}
+							description={t('confirm-delete-tenant-profile-description')}
+							confirmLabel={t('delete')}
+							isPending={deleteProfile.isPending}
+							onConfirm={() => {
+								void handleDelete();
+							}}
+							onOpenChange={(isOpen) => {
+								if (!isOpen) setDeleteTarget(null);
+							}}
+						/>
+
+						<ProfileFormDrawer
+							tenantId={tenantId}
+							isOpen={isCreateDrawerOpen}
+							onOpenChange={setCreateDrawerOpen}
+							onSessionExpired={() => setShouldRedirectToLogout(true)}
+							onDirtyChange={setIsCreateFormDirty}
+							onSaved={(profileId) => {
+								// A successful submit must never be blocked by the parent's own
+								// nav guard reading a not-yet-flushed dirty flag (W8-DRAWER).
+								createDrawerNavBypassRef.current = true;
+
+								if (profileId) {
+									void navigate({
+										to: '/staff/tenants/$tenantId/profiles/$profileId',
+										params: { tenantId, profileId },
+									});
+									return;
+								}
+
+								setCreateDrawerOpen(false);
+							}}
+						/>
+
+						{/* #972: the same drawer the detail page mounts, hosted here so the
+						 * quick edit stays quick — the list underneath never unmounts, so its
+						 * filters, cursor page, selection and scroll are exactly where the
+						 * user left them when the drawer closes. */}
+						{editDrawerProfile ? (
+							<ProfileEditDetailsDrawer
+								tenantId={tenantId}
+								isOpen={isEditDrawerOpen}
+								profile={editDrawerProfile}
+								onOpenChange={(isOpen) => {
+									if (!isOpen) {
+										closeEditDrawer();
+									}
+								}}
+								onSessionExpired={() => setShouldRedirectToLogout(true)}
+								onDirtyChange={setIsEditFormDirty}
+								onSaved={() => closeEditDrawer()}
+							/>
+						) : null}
+
+						<ConfirmDialog
+							isOpen={drawerBlocker.status === 'blocked'}
+							title={t('unsaved-changes-dialog-title')}
+							description={t('unsaved-changes-dialog-description')}
+							confirmLabel={t('leave-page')}
+							cancelLabel={t('cancel')}
+							tone="danger"
+							onConfirm={() => drawerBlocker.proceed?.()}
+							onOpenChange={(isOpen) => {
+								if (!isOpen) {
+									drawerBlocker.reset?.();
+								}
+							}}
+						/>
+					</TenantDetailsPageShell>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 
