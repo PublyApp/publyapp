@@ -2374,6 +2374,39 @@ test('F824: occurrences within an explicit budget stay suppressed', async () => 
 	);
 });
 
+// F824 ui F2: parity ran in ONE direction only (:root tokens needing a dark
+// counterpart), so a token defined ONLY in html.dark passed as clean while
+// its light-mode value silently fell back to whatever cascade default
+// applied. Dark-only colour tokens are flagged by the same rule.
+test('F824 ui F2: token-theme-parity flags a colour token declared only in html.dark', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-background: #ffffff;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-background: #18181b;',
+			'\t--publy-alert-critical-bg: #7f1d1d;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const darkOnlyHits = violations.filter(
+		(violation) =>
+			violation.ruleId === 'token-theme-parity' &&
+			violation.source.includes('--publy-alert-critical-bg'),
+	);
+
+	assert.equal(darkOnlyHits.length, 1);
+});
+
 test('F3: token-theme-parity flags a colour token declared in :root with no html.dark counterpart', async () => {
 	const root = await makeFixture({
 		'src/styles/app.css': [
@@ -2394,7 +2427,13 @@ test('F3: token-theme-parity flags a colour token declared in :root with no html
 	});
 
 	const parityHits = violations.filter(
-		(violation) => violation.ruleId === 'token-theme-parity',
+		(violation) =>
+			violation.ruleId === 'token-theme-parity' &&
+			// F824 ui F2: the symmetric check now also flags dark-only colour
+			// tokens; this fixture's html.dark --publy-background is one, and its
+			// flag is asserted by the F824 ui F2 test below. Scope this legacy
+			// assertion to the light-only token it has always been about.
+			violation.source.includes('--publy-alert-critical-bg'),
 	);
 
 	assert.equal(parityHits.length, 1);
@@ -2435,6 +2474,7 @@ test('F3: token-theme-parity does not flag the documented theme-invariant allowl
 			'\t--publy-avatar-1: #0f766e;',
 			'\t--publy-auth-panel-bg: #18181b;',
 			'\t--publy-shadow-chrome: 0 2px 2px rgba(255, 255, 255, 0.1) inset;',
+			'\t--publy-background: #ffffff;',
 			'}',
 			'',
 			'html.dark {',

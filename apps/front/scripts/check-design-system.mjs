@@ -893,6 +893,11 @@ const checkTokenGuardViolations = (fileContentsByRelativePath) => {
 
 	// token-theme-parity: every colour-valued :root token needs an html.dark
 	// counterpart, unless it's on the theme-invariant allowlist above.
+
+	// F824 ui F2: parity ran in ONE direction only — :root tokens were
+	// required to have a dark counterpart, but a token declared ONLY in
+	// html.dark passed as clean, its light-mode value silently falling back
+	// to whatever the cascade default is. The check is now symmetric.
 	for (const [name, value] of rootDeclarations) {
 		if (!COLOR_LITERAL_PATTERN.test(value)) {
 			continue;
@@ -910,6 +915,28 @@ const checkTokenGuardViolations = (fileContentsByRelativePath) => {
 			file: APP_CSS_PATH,
 			line: rootRange
 				? findDeclarationLine(appCssLines, rootRange[0], rootRange[1], name)
+				: 0,
+			source: `${name}: ${value}`,
+		});
+	}
+
+	for (const [name, value] of darkDeclarations) {
+		if (!COLOR_LITERAL_PATTERN.test(value)) {
+			continue;
+		}
+
+		if (isThemeInvariantToken(name) || rootDeclarations.has(name)) {
+			continue;
+		}
+
+		violations.push({
+			ruleId: 'token-theme-parity',
+			message:
+				'Colour-valued token declared in html.dark has no :root counterpart and is not on the ' +
+				'theme-invariant allowlist — light mode will render no value at all instead of this one.',
+			file: APP_CSS_PATH,
+			line: darkRange
+				? findDeclarationLine(appCssLines, darkRange[0], darkRange[1], name)
 				: 0,
 			source: `${name}: ${value}`,
 		});
