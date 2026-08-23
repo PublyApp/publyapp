@@ -7,14 +7,18 @@
  * What this proves:
  * - Plugin wiring: `index.js` exposes `rules['prefer-query-display']`
  *   pointing at the same rule object exported from the rule module.
- * - `valid`: QueryDisplay usage, mutations, query-definition modules, the
- *   allow-listed route/auth files, pure helper reads, and bindings that are
- *   never rendered conditionally.
+ * - `valid`: QueryDisplay usage, mutations (including aliased ones), query-
+ *   definition modules, the allow-listed route/auth files, pure helper reads,
+ *   non-query aliases/renames, event handlers, memo/effect callbacks, and
+ *   bindings that are never rendered conditionally.
  * - `invalid`: a component that binds a `use*Query` result and renders JSX
  *   conditionally on `isPending` / `isLoading` / `isError` / `isSuccess` /
- *   `status` / `error` — via ternary, `&&`, early return, `if`, and both
- *   whole-binding (`q.isError`) and destructured (`{ isError }`) reads.
- *   `useMutation` results are never flagged.
+ *   `status` / `error` — via ternary, `&&`, early return, `if`, whole-binding
+ *   (`q.isError`) and destructured (`{ isError }`) reads, renamed
+ *   destructuring (`{ isPending: loading }`), rest elements (`...rest`),
+ *   whole-binding aliasing (`const q = r;`), destructuring from an aliased
+ *   binding, and JSX-returning render-prop callbacks (`render={…}`,
+ *   `children={() => …}`). `useMutation` results are never flagged.
  */
 import assert from 'node:assert/strict';
 
@@ -176,6 +180,98 @@ const runCases = (rule, label) => {
 						'const Foo = () => {',
 						'  const { isError } = useWidget();',
 						'  return isError ? <div /> : <div>x</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// Non-query aliases are not tracked — a plain hook result aliased
+				// through an intermediate variable stays unflagged.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const r = useWidget();',
+						'  const q = r;',
+						'  return q.isPending ? <div /> : <div>x</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// Non-query renamed destructuring stays unflagged.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const { isPending: loading } = useWidget();',
+						'  return loading ? <div /> : <div>x</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// Aliased useMutation results stay out of scope.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const m = useMutation({});',
+						'  const { isPending } = m;',
+						'  return isPending ? <Spinner /> : <div />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// A non-JSX-returning callback in a JSX value position is an event
+				// handler (`onClick`-style), not a render prop.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  return <button onClick={(event) => { if (q.isError) event.preventDefault(); }}>go</button>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// A JSX-returning memo/effect callback is not a render prop (not in
+				// a JSX value position).
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const extra = useMemo(() => (q.isError ? <Err /> : null), [q.isError]);',
+						'  return <div>{extra}</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// A callback in a render-prop slot that does not return JSX is left
+				// alone.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  return <Controller name="a" control={c} render={({ field }) => field.onChange(String(q.data))} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// Computed prop values are not render output: a flag read inside an
+				// attribute expression (`disabled={q.isPending}`) or a nested
+				// element's attributes stays unflagged.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  return <DropdownMenuTrigger render={<Button disabled={q.isPending} title={q.isPending ? t("loading") : undefined} />}>',
+						'    go',
+						'  </DropdownMenuTrigger>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// Delegating props (`isPending={q.isPending}`) hand the state to
+				// QueryDisplay/DataTable — not a hand-rolled ladder.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  return <DataTable rows={rows} isPending={q.isPending} isError={q.isError} />;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -382,6 +478,152 @@ const runCases = (rule, label) => {
 						'  const q = useThingQuery();',
 						'  while (q.isLoading) { doSpin(); }',
 						'  return <div>{q.data}</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Renamed destructuring: the local alias of a flagged field is
+				// tracked through the rename.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const { isPending: loading } = useThingQuery();',
+						'  return loading ? <Skeleton /> : <div />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Renamed destructuring alongside untouched names.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const { data, isPending: loading, isError: failed } = useThingQuery();',
+						'  if (failed) return <Error />;',
+						'  return loading ? <Skeleton /> : <div>{data}</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [
+						{ messageId: 'preferQueryDisplay' },
+						{ messageId: 'preferQueryDisplay' },
+					],
+				},
+				// Rest element keeps a whole result object: `...rest` reads flags
+				// via member access.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const { data, ...rest } = useThingQuery();',
+						'  return rest.isPending ? <Skeleton /> : <div>{data}</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Whole binding aliased through an intermediate variable.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const r = useThingQuery();',
+						'  const q = r;',
+						'  return q.isPending ? <Skeleton /> : <div>{r.data}</div>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Destructuring from an already tracked whole binding.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const r = useThingQuery();',
+						'  const { isPending } = r;',
+						'  return isPending && <Skeleton />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Alias chain: hook result → alias → renamed destructure, used late.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const r = useThingQuery();',
+						'  const q = r;',
+						'  const { isLoading: spinning } = q;',
+						'  return spinning ? <Spinner /> : <div />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Render prop: JSX-returning `render` callback on a Controller is
+				// render context even though it sits in a callback.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  return (',
+						'    <Controller',
+						'      name="a"',
+						'      control={c}',
+						'      render={({ field }) => (',
+						'        q.isPending ? <LoadingSpinner /> : <button onClick={field.onChange} />',
+						'      )}',
+						'    />',
+						'  );',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Render prop with a block body computing state from the query
+				// (_invite-profile-select.tsx shape).
+				{
+					code: [
+						'const Foo = () => {',
+						'  const profilesQuery = useStaffProfilesQuery();',
+						'  return (',
+						'    <Controller',
+						'      name="profiles"',
+						'      control={control}',
+						'      render={({ field }) => {',
+						'        const triggerLabel = profilesQuery.isPending',
+						'          ? t("loading-profiles")',
+						'          : t("select-profiles");',
+						'        return <span>{triggerLabel}</span>;',
+						'      }}',
+						'    />',
+						'  );',
+						'};',
+					].join('\n'),
+					filename: ROUTE_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Render prop as a JSX child expression: `children={() => …}`.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  return (',
+						'    <Select>',
+						'      {() => (q.isError ? <Error /> : <List items={q.data} />)}',
+						'    </Select>',
+						'  );',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Renamed destructure read inside a render-prop callback: tracking
+				// and render-context detection compose.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const { isPending: loading } = useThingQuery();',
+						'  return <Wizard steps={[loading]} render={() => (loading ? <Skeleton /> : <Done />)} />;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
