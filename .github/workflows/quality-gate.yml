@@ -181,16 +181,29 @@ jobs:
       - name: Lint plugin unit tests (lint-ts)
         run: pnpm --filter @org/lint-ts test
 
+      # @org/shared-ts ships the repo-wide logger, i18n, query-factory and
+      # ApiFailure contracts every front surface imports, but nothing standing
+      # verified it after its i18next range moved two majors (#1262). Both
+      # commands run here exactly as `just ci-shared-ts` runs them locally;
+      # see issue #1270.
+      - name: Typecheck shared-ts
+        run: pnpm --filter @org/shared-ts typecheck
+
+      - name: Test shared-ts
+        run: pnpm --filter @org/shared-ts test
+
       - name: Restore .NET solution (PublyApp.slnx)
         env:
           APP_ROLE: api
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
+          SOCIAL_ACCOUNTS_MASTER_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         run: dotnet restore PublyApp.slnx
 
       - name: Build .NET solution (warnings as errors via Directory.Build.props)
         env:
           APP_ROLE: api
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
+          SOCIAL_ACCOUNTS_MASTER_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         run: dotnet build PublyApp.slnx --no-restore
 
       # NuGet vulnerability scan (issue #1187 rung 3). Uses the machine-readable

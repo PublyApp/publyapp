@@ -130,6 +130,12 @@ const AuditLogDetailsError = ({
 	);
 };
 
+const StaffAuditLogDetailsRoute = () => {
+	const { logId } = Route.useParams();
+
+	return <StaffAuditLogDetailsPage logId={logId} />;
+};
+
 export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 	{
 		staticData: {
@@ -151,13 +157,7 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 	},
 );
 
-function StaffAuditLogDetailsRoute() {
-	const { logId } = Route.useParams();
-
-	return <StaffAuditLogDetailsPage logId={logId} />;
-}
-
-export function StaffAuditLogDetailsPage({ logId }: { logId: string }) {
+export const StaffAuditLogDetailsPage = ({ logId }: { logId: string }) => {
 	const { t, i18n } = useTranslation(['staff-audit-logs', 'common']);
 	const locale = i18n?.language ?? 'en';
 	const detailQuery = useStaffAuditLogDetailsQuery(
@@ -211,4 +211,4 @@ export function StaffAuditLogDetailsPage({ logId }: { logId: string }) {
 			</QueryDisplay>
 		</div>
 	);
-}
+};

@@ -80,7 +80,9 @@ public sealed class WorkerMigrationStartupGateSpec {
 			readiness,
 			logger,
 			new WorkerMigrationStartupGateOptions {
-				Timeout = TimeSpan.FromMilliseconds(30),
+				// Generous window: under parallel test load a Task.Delay(5ms) can
+				// overshoot badly; 500ms guarantees multiple retries are observed.
+				Timeout = TimeSpan.FromMilliseconds(500),
 				RetryDelay = TimeSpan.FromMilliseconds(5),
 				HeartbeatPath = heartbeatPath,
 				FailFastWhenMigrationsPending = false,

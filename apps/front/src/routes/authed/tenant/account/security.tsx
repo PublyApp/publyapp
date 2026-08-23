@@ -13,26 +13,13 @@ import {
 	ReadOnlyValue,
 } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/account/security')(
-	{
-		staticData: {
-			crumbs: () => [
-				{ kind: 'label', labelKey: 'account-settings', to: '/tenant/account' },
-				{ kind: 'label', labelKey: 'security' },
-			],
-			i18nNamespaces: ['account'],
-		},
-		component: AccountSecurityPage,
-	},
-);
-
 /**
  * Read-only port of old-front's account security page: password change and
  * two-factor cards render their fields disabled, and the active-sessions
  * surface shows an honest coming-later state (session management has no API
  * yet). No fake mutations anywhere.
  */
-function AccountSecurityPage() {
+const AccountSecurityPage = () => {
 	const { t } = useTranslation(['account', 'common']);
 
 	return (
@@ -100,4 +87,17 @@ function AccountSecurityPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/account/security')(
+	{
+		staticData: {
+			crumbs: () => [
+				{ kind: 'label', labelKey: 'account-settings', to: '/tenant/account' },
+				{ kind: 'label', labelKey: 'security' },
+			],
+			i18nNamespaces: ['account'],
+		},
+		component: AccountSecurityPage,
+	},
+);

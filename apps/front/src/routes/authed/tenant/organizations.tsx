@@ -21,14 +21,6 @@ import {
 	ReadOnlyValue,
 } from './_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/organizations')({
-	staticData: {
-		crumbs: () => [{ kind: 'label', labelKey: 'organizations' }],
-		i18nNamespaces: ['organizations'],
-	},
-	component: TenantOrganizationsPage,
-});
-
 /**
  * Read-only organizations surface. No organizations API exists, so the only
  * real values are the tenant identity the workspace shell already resolved
@@ -36,7 +28,7 @@ export const Route = createFileRoute('/_authed-layout/tenant/organizations')({
  * list and member management are explicit coming-later states — never
  * fabricated rows, never a fake control.
  */
-function TenantOrganizationsPage() {
+const TenantOrganizationsPage = () => {
 	const { t } = useTranslation(['organizations', 'common']);
 	const query = useTenantsForPickerQuery();
 	const [selectedTenantId] = useState<string | null>(() =>
@@ -148,4 +140,12 @@ function TenantOrganizationsPage() {
 			)}
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/organizations')({
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'organizations' }],
+		i18nNamespaces: ['organizations'],
+	},
+	component: TenantOrganizationsPage,
+});

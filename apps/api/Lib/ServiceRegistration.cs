@@ -3,6 +3,7 @@ using System.Text;
 
 using FluentValidation;
 
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 
@@ -14,6 +15,8 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Modules.Uploads;
+using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 using Resend;
 
@@ -172,6 +175,17 @@ public static class ServiceRegistration {
 		// infra runs in the api role too, and registering it here made both deployed
 		// containers double-claim invitation_email_outbox (D1 violation).
 		builder.Services.AddSingleton<IInvitationEmailOutboxSignal, InvitationEmailOutboxSignal>();
+
+		// Social account credential protection (C1-bis): key ring in Postgres, encrypted
+		// with SOCIAL_ACCOUNTS_MASTER_KEY. No hosted service is added, so the
+		// AppRoleCompositionSpec allowlist is unaffected.
+		builder.Services
+			.AddDataProtection()
+			.SetApplicationName("publyapp-social-accounts")
+			.PersistKeysToDbContext<AppDbContext>();
+		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlEncryptor, MasterKeyXmlEncryptor>();
+		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlDecryptor, MasterKeyXmlDecryptor>();
+		builder.Services.AddSingleton<ICredentialProtector, CredentialProtector>();
 
 		return builder;
 	}

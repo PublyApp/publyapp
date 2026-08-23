@@ -5653,6 +5653,24 @@ const resolveValueIdentity = (
 		// A local value — never the drawer module's symbol.
 		return null;
 	}
+	if (
+		kind === SyntaxKind.ArrowFunction ||
+		kind === SyntaxKind.FunctionExpression
+	) {
+		// An inline arrow/function-expression initializer IS a freshly
+		// created local value: the binding can never be identical to the
+		// drawer module's exported symbol, whatever the body renders. A
+		// FunctionDeclaration binding always had exactly this verdict
+		// (DEFINITE_LOCAL_DECLARATION_KINDS) without anyone inspecting its
+		// body — the arrow-function-component conversion (#1210) moved
+		// components like `ui/badge.tsx` (which delegates to
+		// `useRender(...)`, a shape extractComponentBody cannot see
+		// through) under THIS branch, and the old fall-through classified
+		// them UNVERIFIABLE, reddening every file that renders them. Body
+		// extraction stays the WALK's job (it expands the definition's JSX
+		// and judges the geometry); identity here is decidable without it.
+		return null;
+	}
 	if (kind === SyntaxKind.CallExpression) {
 		const call = unwrapped as CallExpression;
 		if (isFactoryCall(call)) {

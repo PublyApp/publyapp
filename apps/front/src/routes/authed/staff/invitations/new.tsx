@@ -76,22 +76,7 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 	});
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/invitations/new')({
-	staticData: {
-		i18nNamespaces: ['staff-invitations'],
-		crumbs: () => [
-			{
-				kind: 'label',
-				labelKey: 'nav-staff-invitations',
-				to: '/staff/invitations',
-			},
-			{ kind: 'label', labelKey: 'common:new-invitation' },
-		],
-	},
-	component: NewStaffInvitationsRoute,
-});
-
-function NewStaffInvitationsRoute() {
+const NewStaffInvitationsRoute = () => {
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
 	const [profileSearch, setProfileSearch] = useState('');
@@ -381,4 +366,19 @@ function NewStaffInvitationsRoute() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/invitations/new')({
+	staticData: {
+		i18nNamespaces: ['staff-invitations'],
+		crumbs: () => [
+			{
+				kind: 'label',
+				labelKey: 'nav-staff-invitations',
+				to: '/staff/invitations',
+			},
+			{ kind: 'label', labelKey: 'common:new-invitation' },
+		],
+	},
+	component: NewStaffInvitationsRoute,
+});

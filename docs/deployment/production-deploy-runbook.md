@@ -66,6 +66,7 @@ Before triggering the stack deployment:
   the value contains no `#` (this deployment's first release silently truncated a secret there).
   This is observed project behaviour, not a vendor-documentation claim. Full note:
   [`first-deploy-runbook.md`](first-deploy-runbook.md) §5a.
+- Confirm `SOCIAL_ACCOUNTS_MASTER_KEY` is set for `api`, `worker`, and `migrate` (one generated `openssl rand -base64 32` value shared by all three; a missing or divergent value refuses to boot them). The committed all-zero base64 string is the build/e2e placeholder only — never a deployable value.
 - Confirm the migration service joins a network that resolves and reaches PostgreSQL.
 - Confirm the persistent API storage volume is mounted and writable by the runtime UID.
 

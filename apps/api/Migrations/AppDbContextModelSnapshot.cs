@@ -17,11 +17,30 @@ namespace PublyApp.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("data_protection_keys", (string)null);
+                });
 
             modelBuilder.Entity("PublyApp.Api.Modules.AuditLogs.Entities.AuditLog", b =>
                 {
@@ -1120,6 +1139,107 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CredentialType")
+                        .HasColumnType("integer")
+                        .HasColumnName("credential_type");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("DisplayHandle")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("display_handle");
+
+                    b.Property<string>("ExternalAccountId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("external_account_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text")
+                        .HasColumnName("last_error");
+
+                    b.Property<DateTime?>("LastSuccessAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_success_at");
+
+                    b.Property<string>("ProtectedCredentials")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("protected_credentials");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("integer")
+                        .HasColumnName("provider");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Provider", "ExternalAccountId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_social_accounts_tenant_provider_external")
+                        .HasFilter("is_deleted = false");
+
+                    b.ToTable("social_accounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_SocialAccount_Status", "status IN (10, 20, 30)");
+                        });
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccountProject", b =>
+                {
+                    b.Property<Guid>("SocialAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("social_account_id");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("SocialAccountId", "ProjectId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("social_account_projects");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.SystemNotices.Entities.SystemNotice", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1647,6 +1767,36 @@ namespace PublyApp.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccountProject", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Projects.Entities.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount", "SocialAccount")
+                        .WithMany()
+                        .HasForeignKey("SocialAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("SocialAccount");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.SystemNotices.Entities.SystemNotice", b =>

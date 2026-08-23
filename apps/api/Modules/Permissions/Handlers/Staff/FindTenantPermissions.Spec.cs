@@ -19,6 +19,7 @@ public sealed class FindTenantPermissionsSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly string[] ExpectedTenantPermissionGroups = [
 		"posts",
+		"projects",
 		"media",
 		"calendar",
 		"channels",
@@ -40,6 +41,7 @@ public sealed class FindTenantPermissionsSpec
 		"tenant.posts.publish",
 		"tenant.posts.schedule",
 		"tenant.posts.delete",
+		"tenant.projects.view",
 		"tenant.media.view",
 		"tenant.media.upload",
 		"tenant.media.edit",
@@ -255,14 +257,14 @@ public sealed class FindTenantPermissionsSpec
 
 		foreach (var (language, catalog) in catalogsByLanguage) {
 			catalog.Keys.Should().BeEquivalentTo(ExpectedTenantPermissionGroups);
-			catalog.Should().HaveCount(13);
+			catalog.Should().HaveCount(14);
 
 			var permissions = catalog.Values
 				.SelectMany(group => group.Values)
 				.ToList();
 			var keys = permissions.Select(permission => permission.Key).ToList();
 
-			keys.Should().HaveCount(43);
+			keys.Should().HaveCount(44);
 			keys.Should().OnlyHaveUniqueItems();
 			keys.Should().BeEquivalentTo(ExpectedTenantPermissionKeys);
 			keys.Should().OnlyContain(key => key.StartsWith(

@@ -76,12 +76,23 @@ test.describe(
 			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
 		});
 
-		test('staff tenants list: refocus does not stampede auth/list requests or blank the table', async ({
+		// #1154 (option a): the two list-query checks below are NOT "never
+		// refetch" invariants — the router default (refetchOnWindowFocus: true,
+		// staleTime 30s, router.tsx DEFAULT_QUERY_STALE_TIME_MS) means a refocus
+		// inside the stale window must trigger no request and a refocus after it
+		// must trigger exactly one. Each check therefore asserts both sides of
+		// that freshness window at the network seam (page.clock crosses the
+		// boundary without a real wait; the positive control above proves the
+		// synthetic dispatch actually reaches TanStack Query's focus manager).
+		test('staff tenants list: refocus inside the freshness window triggers no request and does not blank the table', async ({
 			page,
 		}) => {
+			await page.clock.install();
 			await loginAsStaffAdmin(page);
 			await page.goto('/staff/tenants');
 			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+			// Stay INSIDE the 30s staleTime: the data is still fresh.
+			await page.clock.fastForward('00:00:05');
 			await page.waitForTimeout(500);
 
 			const requestsAfterRefocus: string[] = [];
@@ -115,9 +126,57 @@ test.describe(
 			await expect(page.getByText('500 — Server Error')).toHaveCount(0);
 		});
 
-		test('staff tenant users: refocus does not stampede auth requests or blank the table', async ({
+		test('staff tenants list: refocus after the freshness window triggers exactly one list request', async ({
 			page,
 		}) => {
+			await page.clock.install();
+			await loginAsStaffAdmin(page);
+
+			const initialTenantsResponse = page.waitForResponse(
+				(response) =>
+					response.url().includes('/staff/tenants') &&
+					response.request().method() === 'GET',
+			);
+			await page.goto('/staff/tenants');
+			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+			await initialTenantsResponse;
+
+			// Cross the 30s staleTime boundary so the mounted query is genuinely
+			// stale when the tab is refocused.
+			await page.clock.fastForward('00:00:31');
+
+			let tenantListRefetches = 0;
+			page.on('request', (req) => {
+				if (req.url().includes('/staff/tenants') && req.method() === 'GET') {
+					tenantListRefetches += 1;
+				}
+			});
+
+			const staleRefetch = page.waitForRequest(
+				(request) =>
+					request.url().includes('/staff/tenants') &&
+					request.method() === 'GET',
+				{ timeout: 5_000 },
+			);
+			await dispatchRefocus(page);
+			// Guarantees the focus-driven revalidation has actually gone out
+			// before the count below is read.
+			await staleRefetch;
+
+			await page.waitForTimeout(1000);
+			await page.waitForLoadState('networkidle').catch(() => undefined);
+
+			// Exactly one — not a stampede of focus-driven revalidations.
+			expect(tenantListRefetches).toBe(1);
+
+			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+			await expect(page.getByText('500 — Server Error')).toHaveCount(0);
+		});
+
+		test('staff tenant users: refocus inside the freshness window triggers no auth request and does not blank the table', async ({
+			page,
+		}) => {
+			await page.clock.install();
 			await loginAsStaffAdmin(page);
 			await page.goto('/staff/tenants');
 			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
@@ -139,6 +198,8 @@ test.describe(
 			await expect(
 				page.getByTestId('staff-tenant-users-table-rows'),
 			).toBeVisible({ timeout: 15_000 });
+			// Stay INSIDE the 30s staleTime: the data is still fresh.
+			await page.clock.fastForward('00:00:05');
 			await page.waitForTimeout(500);
 
 			const requestsAfterRefocus: string[] = [];
@@ -162,6 +223,64 @@ test.describe(
 			expect(
 				requestsAfterRefocus.some((url) => url.includes('/auth/redirect-code')),
 			).toBe(false);
+			expect(
+				requestsAfterRefocus.some((url) =>
+					/\/staff\/tenants\/[0-9a-f-]{36}\/users/.test(url),
+				),
+			).toBe(false);
+
+			await expect(
+				page.getByTestId('staff-tenant-users-table-rows'),
+			).toBeVisible();
+			await expect(page.getByText('500 — Server Error')).toHaveCount(0);
+		});
+
+		test('staff tenant users: refocus after the freshness window triggers exactly one list request', async ({
+			page,
+		}) => {
+			await page.clock.install();
+			await loginAsStaffAdmin(page);
+			await page.goto('/staff/tenants');
+			await expect(page.getByTestId('staff-tenants-table-rows')).toBeVisible();
+			// Target the seeded Acme tenant (it always has users) instead of the
+			// first row: real create-flow specs running earlier in the suite add
+			// fresh user-less tenants that can occupy row 1, whose users tab then
+			// renders the empty state and never shows the rows container.
+			await page
+				.getByTestId('staff-tenants-table-search')
+				.fill('Acme Corporation');
+			const acmeLink = page
+				.getByRole('link', { name: 'Acme Corporation' })
+				.first();
+			await expect(acmeLink).toBeVisible();
+			await acmeLink.click();
+			await page.waitForURL(/\/staff\/tenants\/[0-9a-f-]{36}$/);
+			const tenantPathname = new URL(page.url()).pathname;
+			await page.goto(`${tenantPathname}/users`);
+			await expect(
+				page.getByTestId('staff-tenant-users-table-rows'),
+			).toBeVisible({ timeout: 15_000 });
+
+			// Cross the 30s staleTime boundary so the mounted query is genuinely
+			// stale when the tab is refocused.
+			await page.clock.fastForward('00:00:31');
+
+			let userListRefetches = 0;
+			page.on('request', (req) => {
+				if (
+					req.method() === 'GET' &&
+					/\/staff\/tenants\/[0-9a-f-]{36}\/users/.test(req.url())
+				) {
+					userListRefetches += 1;
+				}
+			});
+
+			await dispatchRefocus(page);
+			await page.waitForTimeout(1000);
+			await page.waitForLoadState('networkidle').catch(() => undefined);
+
+			// Exactly one — not a stampede of focus-driven revalidations.
+			expect(userListRefetches).toBe(1);
 
 			await expect(
 				page.getByTestId('staff-tenant-users-table-rows'),

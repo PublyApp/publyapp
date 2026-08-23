@@ -42,37 +42,6 @@ const SOCIAL_PROOF_KEYS = [
 	'landing-social-proof-setup',
 ] as const;
 
-export const Route = createFileRoute('/')({
-	component: LandingPage,
-	staticData: { i18nNamespaces: ['landing'], crumbs: 'shell' },
-	/**
-	 * The document title and description, resolved in the reader's own
-	 * locale.
-	 *
-	 * The root route declares only `charSet` and `viewport`, so every landing
-	 * exploration inherits the app's default title — the last detail of a page
-	 * a reader sees is the browser tab, and it was unset. `head` runs with the
-	 * match's context, which is where the root's `beforeLoad` has already put
-	 * the resolved locale and the loaded i18n resources, so the title and the
-	 * description come out of the same bundle the page's copy does rather
-	 * than out of a second, English-only source that would silently drift.
-	 */
-	head: ({ match }) => {
-		const { locale, namespaces, resources } = match.context;
-		const t = createI18nFromResources(locale, namespaces, resources).getFixedT(
-			locale,
-			'landing',
-		);
-
-		return {
-			meta: [
-				{ title: t('landing-meta-title') },
-				{ name: 'description', content: t('landing-meta-description') },
-			],
-		};
-	},
-});
-
 /**
  * THE LANDING PAGE — "THE DAY": header through the footer.
  *
@@ -99,7 +68,7 @@ export const Route = createFileRoute('/')({
  * The second HORIZON opens NIGHT, which takes the closing argument and the
  * footer together and runs off the bottom of the document.
  */
-function LandingPage() {
+const LandingPage = () => {
 	const { t } = useTranslation('landing');
 	const [isCookiePrefsOpen, setIsCookiePrefsOpen] = useState(false);
 	const mainRef = useRef<HTMLElement>(null);
@@ -396,4 +365,35 @@ function LandingPage() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/')({
+	component: LandingPage,
+	staticData: { i18nNamespaces: ['landing'], crumbs: 'shell' },
+	/**
+	 * The document title and description, resolved in the reader's own
+	 * locale.
+	 *
+	 * The root route declares only `charSet` and `viewport`, so every landing
+	 * exploration inherits the app's default title — the last detail of a page
+	 * a reader sees is the browser tab, and it was unset. `head` runs with the
+	 * match's context, which is where the root's `beforeLoad` has already put
+	 * the resolved locale and the loaded i18n resources, so the title and the
+	 * description come out of the same bundle the page's copy does rather
+	 * than out of a second, English-only source that would silently drift.
+	 */
+	head: ({ match }) => {
+		const { locale, namespaces, resources } = match.context;
+		const t = createI18nFromResources(locale, namespaces, resources).getFixedT(
+			locale,
+			'landing',
+		);
+
+		return {
+			meta: [
+				{ title: t('landing-meta-title') },
+				{ name: 'description', content: t('landing-meta-description') },
+			],
+		};
+	},
+});

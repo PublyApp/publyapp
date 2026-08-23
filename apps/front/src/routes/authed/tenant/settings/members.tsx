@@ -6,25 +6,12 @@ import { StateSurface } from '~/components/ui/state-surface';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/settings/members')(
-	{
-		staticData: {
-			crumbs: () => [
-				{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
-				{ kind: 'label', labelKey: 'members' },
-			],
-			i18nNamespaces: ['settings'],
-		},
-		component: TenantSettingsMembersPage,
-	},
-);
-
 /**
  * Read-only org members: the team roster and pending invitations are honest
  * coming-later states — no members API exists, so there is no mock member
  * table and no disabled invite button that pretends to work.
  */
-function TenantSettingsMembersPage() {
+const TenantSettingsMembersPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 
 	return (
@@ -62,4 +49,17 @@ function TenantSettingsMembersPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/settings/members')(
+	{
+		staticData: {
+			crumbs: () => [
+				{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
+				{ kind: 'label', labelKey: 'members' },
+			],
+			i18nNamespaces: ['settings'],
+		},
+		component: TenantSettingsMembersPage,
+	},
+);

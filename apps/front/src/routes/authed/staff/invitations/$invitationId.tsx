@@ -388,6 +388,12 @@ const InvitationDetailsCard = ({
 	);
 };
 
+const StaffInvitationDetailsRoute = () => {
+	const { invitationId } = Route.useParams();
+
+	return <StaffInvitationDetailsPage invitationId={invitationId} />;
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/invitations/$invitationId',
 )({
@@ -409,17 +415,11 @@ export const Route = createFileRoute(
 	component: StaffInvitationDetailsRoute,
 });
 
-function StaffInvitationDetailsRoute() {
-	const { invitationId } = Route.useParams();
-
-	return <StaffInvitationDetailsPage invitationId={invitationId} />;
-}
-
-export function StaffInvitationDetailsPage({
+export const StaffInvitationDetailsPage = ({
 	invitationId,
 }: {
 	invitationId: string;
-}) {
+}) => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const detailQuery = useStaffInvitationDetailsQuery({
 		invitationId,
@@ -451,4 +451,4 @@ export function StaffInvitationDetailsPage({
 			</QueryDisplay>
 		</div>
 	);
-}
+};

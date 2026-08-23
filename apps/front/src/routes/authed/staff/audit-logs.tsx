@@ -191,19 +191,7 @@ export const makeAuditLogColumns = (
 	},
 ];
 
-export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
-	staticData: {
-		i18nNamespaces: ['staff-audit-logs'],
-		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-audit-logs' }],
-	},
-	validateSearch: (search) =>
-		serializeAuditLogsListSearchParams(
-			parseAuditLogsListSearchParams(search as AuditLogsListSearchParamInput),
-		),
-	component: StaffAuditLogsPage,
-});
-
-function StaffAuditLogsPage() {
+const StaffAuditLogsPage = () => {
 	const navigate = Route.useNavigate();
 	const search = parseAuditLogsListSearchParams(
 		Route.useSearch() as AuditLogsListSearchParamInput,
@@ -214,6 +202,9 @@ function StaffAuditLogsPage() {
 	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const selectedActions = parseAuditLogsActionsFilter(search.actions);
+	// O(1) membership for the dropdown checkboxes; rebuilt per render from the
+	// freshly-parsed filter, so it can never go stale.
+	const selectedActionsFilter = new Set(selectedActions);
 
 	const onSearchChange = (next: AuditLogsListSearchParams): void => {
 		void navigate({
@@ -382,7 +373,7 @@ function StaffAuditLogsPage() {
 									actionsOptions.map((action) => (
 										<DropdownMenuCheckboxItem
 											key={action}
-											checked={selectedActions.includes(action)}
+											checked={selectedActionsFilter.has(action)}
 											closeOnClick={false}
 											showCheckbox
 											data-testid={`staff-audit-logs-actions-filter-${action}`}
@@ -452,4 +443,16 @@ function StaffAuditLogsPage() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
+	staticData: {
+		i18nNamespaces: ['staff-audit-logs'],
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-audit-logs' }],
+	},
+	validateSearch: (search) =>
+		serializeAuditLogsListSearchParams(
+			parseAuditLogsListSearchParams(search as AuditLogsListSearchParamInput),
+		),
+	component: StaffAuditLogsPage,
+});

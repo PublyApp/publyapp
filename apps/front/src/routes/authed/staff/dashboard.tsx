@@ -18,15 +18,7 @@ const getActiveSection = (pathname: string): DashboardSection => {
 	return match ?? 'overview';
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/dashboard')({
-	// Always matched alongside an index/activity/reports child (never the
-	// deepest match on its own — see `deriveBreadcrumbTrail`), but the
-	// contract requires every route to declare its own trail.
-	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
-	component: StaffDashboardPage,
-});
-
-function StaffDashboardPage() {
+const StaffDashboardPage = () => {
 	const { t } = useTranslation('common');
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
@@ -66,4 +58,12 @@ function StaffDashboardPage() {
 			</Tabs>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/dashboard')({
+	// Always matched alongside an index/activity/reports child (never the
+	// deepest match on its own — see `deriveBreadcrumbTrail`), but the
+	// contract requires every route to declare its own trail.
+	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
+	component: StaffDashboardPage,
+});

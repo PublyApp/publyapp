@@ -6,22 +6,11 @@ import { StateSurface } from '~/components/ui/state-surface';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/posts/history')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
-			{ kind: 'label', labelKey: 'history' },
-		],
-		i18nNamespaces: ['posts'],
-	},
-	component: TenantPostsHistoryPage,
-});
-
 /**
  * Honest read-only history section: no posts API exists, so the page is a
  * coming-later state — never fabricated published-post rows.
  */
-function TenantPostsHistoryPage() {
+const TenantPostsHistoryPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 
 	return (
@@ -44,4 +33,15 @@ function TenantPostsHistoryPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/posts/history')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
+			{ kind: 'label', labelKey: 'history' },
+		],
+		i18nNamespaces: ['posts'],
+	},
+	component: TenantPostsHistoryPage,
+});

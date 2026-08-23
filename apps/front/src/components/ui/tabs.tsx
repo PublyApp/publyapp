@@ -2,11 +2,11 @@ import { Tabs as TabsPrimitive } from '@base-ui/react/tabs';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '~/lib/utils';
 
-function Tabs({
+const Tabs = ({
 	className,
 	orientation = 'horizontal',
 	...props
-}: TabsPrimitive.Root.Props) {
+}: TabsPrimitive.Root.Props) => {
 	return (
 		<TabsPrimitive.Root
 			data-slot="tabs"
@@ -18,7 +18,7 @@ function Tabs({
 			{...props}
 		/>
 	);
-}
+};
 
 const tabsListVariants = cva(
 	'group/tabs-list inline-flex w-fit items-center justify-center rounded-[var(--publy-radius-button)] p-1 text-muted-foreground group-data-horizontal/tabs:h-9 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col group-data-vertical/tabs:rounded-2xl data-[variant=line]:rounded-none',
@@ -35,11 +35,11 @@ const tabsListVariants = cva(
 	},
 );
 
-function TabsList({
+const TabsList = ({
 	className,
 	variant = 'default',
 	...props
-}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) {
+}: TabsPrimitive.List.Props & VariantProps<typeof tabsListVariants>) => {
 	return (
 		<TabsPrimitive.List
 			data-slot="tabs-list"
@@ -48,14 +48,14 @@ function TabsList({
 			{...props}
 		/>
 	);
-}
+};
 
-function TabsTrigger({
+const TabsTrigger = ({
 	className,
 	nativeButton,
 	render,
 	...props
-}: TabsPrimitive.Tab.Props) {
+}: TabsPrimitive.Tab.Props) => {
 	return (
 		<TabsPrimitive.Tab
 			data-slot="tabs-trigger"
@@ -77,9 +77,9 @@ function TabsTrigger({
 			{...props}
 		/>
 	);
-}
+};
 
-function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+const TabsContent = ({ className, ...props }: TabsPrimitive.Panel.Props) => {
 	return (
 		<TabsPrimitive.Panel
 			data-slot="tabs-content"
@@ -87,6 +87,6 @@ function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
 			{...props}
 		/>
 	);
-}
+};
 
 export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants };

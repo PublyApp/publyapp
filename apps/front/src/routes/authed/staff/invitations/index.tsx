@@ -63,17 +63,7 @@ const toRows = (
 	return rows;
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/invitations')({
-	validateSearch: (search) =>
-		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
-	staticData: {
-		i18nNamespaces: ['staff-invitations'],
-		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-invitations' }],
-	},
-	component: StaffInvitationsPage,
-});
-
-function StaffInvitationsPage() {
+const StaffInvitationsPage = () => {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch() as InvitationListSearchParams;
 	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
@@ -250,4 +240,14 @@ function StaffInvitationsPage() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/invitations')({
+	validateSearch: (search) =>
+		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+	staticData: {
+		i18nNamespaces: ['staff-invitations'],
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-invitations' }],
+	},
+	component: StaffInvitationsPage,
+});

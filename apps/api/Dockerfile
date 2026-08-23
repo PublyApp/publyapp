@@ -19,6 +19,7 @@ RUN cd apps/api \
 	FRONT_URL="http://localhost:5050" \
 	RESEND_API_KEY="build-placeholder" \
 	TRUSTED_PROXY_CIDRS="127.0.0.1/32,::1/128" \
+	SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" \
 	STAFF_OWNER_EMAIL="owner@publyapp.local" \
 	STAFF_OWNER_BOOTSTRAP_CODE="build-placeholder" \
 	APP_NAME="PublyApp" \
@@ -45,6 +46,7 @@ RUN APP_ROLE=api \
 	FRONT_URL="http://localhost:5050" \
 	RESEND_API_KEY="build-placeholder" \
 	TRUSTED_PROXY_CIDRS="127.0.0.1/32,::1/128" \
+	SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" \
 	STAFF_OWNER_EMAIL="owner@publyapp.local" \
 	STAFF_OWNER_BOOTSTRAP_CODE="build-placeholder" \
 	APP_NAME="PublyApp" \

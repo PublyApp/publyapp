@@ -126,6 +126,27 @@ These would have broken deploy #1. They are resolved in the committed `dokploy.y
 - **Blue/green / multi-replica horizontal scale** — the split topology and immutable tags keep the door open; not needed at current traffic.
 - ~~Automated expand/contract CI guard (#877)~~ — **done**, see Migrations above.
 
+### Social Accounts Master Key (`SOCIAL_ACCOUNTS_MASTER_KEY`)
+
+- **Generation:** `openssl rand -base64 32` (32 bytes). Injected as a Dokploy secret into
+  `publyapp-api`, `publyapp-worker`, `publyapp-migrate`.
+- **Build/e2e placeholder:** the committed all-zero base64 value
+  (`AAAA…AAA=`, 32 zero bytes) exists ONLY so processes that boot the app without a
+  database can start — the Dockerfile's OpenAPI doc-gen build stages, the e2e stack,
+  and local tooling (`quality-gate.yml`, the `justfile` recipes). Those paths pass no
+  canary store to the master-key witness, so the placeholder never protects real data.
+  Never deploy it.
+- **What it protects:** the ASP.NET Data Protection key ring (Postgres `DataProtectionKeys`),
+  which in turn protects every `social_accounts.protected_credentials` blob.
+- **Loss impact:** with no key (or a wrong one) the API/worker **refuse to start** — the
+  startup witness fails fast with a clear message, so there is no silent token loss. Any
+  stored social token encrypted under the old ring becomes unrecoverable.
+- **Recovery (Epic C §4):** generate a new key, set it on all three services, restart. Every
+  account transitions to `NeedsReconnect`; the Integrations banner (C3) drives reconnection,
+  which re-opens a Bluesky session, resolves the DID, and re-encrypts the secret under the new
+  ring. No post data is lost. No rotation tooling ships in C1-bis; re-protecting stored tokens
+  is a later Epic C task (the `ICredentialProtector` exposes the surface for it).
+
 ## Verification (all performed)
 - Local `docker compose` smoke: migrate (bundle) → api + worker come up healthy with the full env; API `/health/live` stays 200 while `/health/ready` changes from 503 to 200, and worker `--worker-health` stays fresh during the gate wait.
 - A spec asserts **demo seeders do not run under `ASPNETCORE_ENVIRONMENT=Production`** and essentials do.

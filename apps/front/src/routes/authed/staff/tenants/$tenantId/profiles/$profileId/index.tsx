@@ -8,6 +8,40 @@ import { ProfileOverviewTab } from '../_profile-overview-tab';
 import { staffTenantProfileCrumbsBase } from './_crumbs';
 import { useStaffTenantProfileDetailsContext } from './_details-context';
 
+const StaffTenantProfileOverviewSection = () => {
+	const {
+		tenantId,
+		profile,
+		permissionKeys,
+		permissionGroups,
+		isCatalogPending,
+		isCatalogError,
+		members,
+		membersPending,
+		membersError,
+		locale,
+		onDeleteRequest,
+		isDeletePending,
+	} = useStaffTenantProfileDetailsContext();
+
+	return (
+		<ProfileOverviewTab
+			tenantId={tenantId}
+			profile={profile}
+			permissionKeys={permissionKeys}
+			permissionGroups={permissionGroups}
+			isCatalogPending={isCatalogPending}
+			isCatalogError={isCatalogError}
+			members={members}
+			membersPending={membersPending}
+			membersError={membersError}
+			locale={locale}
+			onDeleteRequest={onDeleteRequest}
+			isDeletePending={isDeletePending}
+		/>
+	);
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/',
 )({
@@ -41,37 +75,3 @@ export const Route = createFileRoute(
 	},
 	component: StaffTenantProfileOverviewSection,
 });
-
-function StaffTenantProfileOverviewSection() {
-	const {
-		tenantId,
-		profile,
-		permissionKeys,
-		permissionGroups,
-		isCatalogPending,
-		isCatalogError,
-		members,
-		membersPending,
-		membersError,
-		locale,
-		onDeleteRequest,
-		isDeletePending,
-	} = useStaffTenantProfileDetailsContext();
-
-	return (
-		<ProfileOverviewTab
-			tenantId={tenantId}
-			profile={profile}
-			permissionKeys={permissionKeys}
-			permissionGroups={permissionGroups}
-			isCatalogPending={isCatalogPending}
-			isCatalogError={isCatalogError}
-			members={members}
-			membersPending={membersPending}
-			membersError={membersError}
-			locale={locale}
-			onDeleteRequest={onDeleteRequest}
-			isDeletePending={isDeletePending}
-		/>
-	);
-}

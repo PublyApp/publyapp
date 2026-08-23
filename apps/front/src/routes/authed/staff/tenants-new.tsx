@@ -429,17 +429,7 @@ const downloadTemplateCsv = () => {
 	});
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/tenants/new')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{ kind: 'label', labelKey: 'common:create-tenant' },
-		],
-	},
-	component: StaffTenantCreateRoute,
-});
-
-function StaffTenantCreateRoute() {
+const StaffTenantCreateRoute = () => {
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
@@ -1330,4 +1320,14 @@ function StaffTenantCreateRoute() {
 			/>
 		</FormPageLayout>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/tenants/new')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{ kind: 'label', labelKey: 'common:create-tenant' },
+		],
+	},
+	component: StaffTenantCreateRoute,
+});

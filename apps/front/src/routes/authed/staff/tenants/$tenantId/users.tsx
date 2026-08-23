@@ -483,31 +483,7 @@ export const makeTenantUserColumns = (
 	},
 ];
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/users',
-)({
-	staticData: {
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{ kind: 'label', labelKey: 'common:users' },
-		],
-	},
-	validateSearch: (search) =>
-		serializeTenantUsersListSearchParams(
-			parseTenantUsersListSearchParams(
-				search as TenantUsersListSearchParamInput,
-			),
-		),
-	component: StaffTenantUsersPage,
-});
-
-function StaffTenantUsersPage() {
+const StaffTenantUsersPage = () => {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = parseTenantUsersListSearchParams(
@@ -889,7 +865,31 @@ function StaffTenantUsersPage() {
 			/>
 		</TenantDetailsPageShell>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/users',
+)({
+	staticData: {
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:users' },
+		],
+	},
+	validateSearch: (search) =>
+		serializeTenantUsersListSearchParams(
+			parseTenantUsersListSearchParams(
+				search as TenantUsersListSearchParamInput,
+			),
+		),
+	component: StaffTenantUsersPage,
+});
 
 const TenantUserBulkActions = ({
 	tenantId,
@@ -910,9 +910,9 @@ const TenantUserBulkActions = ({
 	const bulkRemoveMutation = useBulkRemoveStaffTenantUsersMutation();
 	const exportMutation = useExportStaffTenantUsersMutation();
 
-	const selectedIds = rows
-		.filter((row) => selection.rowSelection[row.id])
-		.map((row) => row.id);
+	const selectedIds = rows.flatMap((row) =>
+		selection.rowSelection[row.id] ? [row.id] : [],
+	);
 	const selectedCount = selection.selectedCount;
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
 	const isActionPending =

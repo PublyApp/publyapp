@@ -6,23 +6,12 @@ import { StateSurface } from '~/components/ui/state-surface';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/settings/roles')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
-			{ kind: 'label', labelKey: 'roles-and-permissions' },
-		],
-		i18nNamespaces: ['settings'],
-	},
-	component: TenantSettingsRolesPage,
-});
-
 /**
  * Read-only org roles: the role list and the permission matrix are honest
  * coming-later states — no roles API exists, so there is no mock role table
  * and no disabled create-role button that pretends to work.
  */
-function TenantSettingsRolesPage() {
+const TenantSettingsRolesPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 
 	return (
@@ -60,4 +49,15 @@ function TenantSettingsRolesPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/settings/roles')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
+			{ kind: 'label', labelKey: 'roles-and-permissions' },
+		],
+		i18nNamespaces: ['settings'],
+	},
+	component: TenantSettingsRolesPage,
+});
