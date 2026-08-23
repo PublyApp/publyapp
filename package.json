@@ -5,8 +5,8 @@
 	"scripts": {
 		"check:frontend-barrels": "node ./scripts/check-frontend-barrels.mjs",
 		"check:docs-archive-records": "node ./scripts/check-archive-records.mjs",
-		"format": "oxfmt --check \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
-		"format:write": "oxfmt --write \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
+		"format": "oxfmt --check \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,json}\"",
+		"format:write": "oxfmt --write \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"scripts/**/*.{js,mjs,cjs}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,ts,json}\"",
 		"lint": "oxlint --quiet . && pnpm lint:disables && pnpm check:frontend-barrels",
 		"lint:disables": "node ./scripts/check-oxlint-disables.mjs",
 		"lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
@@ -16,7 +16,9 @@
 		"test:review-api": "node --test ./scripts/review-api.test.mjs",
 		"test:review-api-migration-guard": "node --test ./scripts/review-api.migration-guard.integration.test.mjs",
 		"test:frontend-barrels": "node --test ./scripts/check-frontend-barrels.test.mjs",
-		"test:project-closure-adapter": "node --test ./scripts/project-closure-adapter.test.mjs"
+		"test:project-closure-adapter": "node --test ./scripts/project-closure-adapter.test.mjs",
+		"test:require-linked-issue": "node --test ./scripts/require-linked-issue.test.mjs",
+		"test:nuget-audit": "node --test ./scripts/nuget-audit.test.mjs"
 	},
 	"devDependencies": {
 		"@types/node": "^20.19.7",

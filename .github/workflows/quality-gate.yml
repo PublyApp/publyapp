@@ -85,7 +85,7 @@ jobs:
       # below fails closed to relevant=true rather than crashing when that
       # happens.
       - name: Checkout classifier from the base commit (not the PR's own copy)
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: |
@@ -94,7 +94,7 @@ jobs:
           path: base-ref
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
 
@@ -133,25 +133,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install pnpm
-        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           version: 10.13.1
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
 
       - name: Setup .NET (pinned for CI determinism)
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: "10.0.102"
 
       - name: Setup just
-        uses: extractions/setup-just@v2
+        uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
 
       - name: Assert exact pins
         run: node apps/front/scripts/assert-pinned.mjs
@@ -178,6 +178,9 @@ jobs:
       - name: Lint (oxlint repo-wide)
         run: pnpm lint
 
+      - name: Lint plugin unit tests (lint-ts)
+        run: pnpm --filter @org/lint-ts test
+
       - name: Restore .NET solution (PublyApp.slnx)
         env:
           APP_ROLE: api
@@ -191,6 +194,24 @@ jobs:
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
           SOCIAL_ACCOUNTS_MASTER_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
         run: dotnet build PublyApp.slnx --no-restore
+
+      # NuGet vulnerability scan (issue #1187 rung 3). Uses the machine-readable
+      # `--format json` output (not the text format that TreatWarningsAsErrors
+      # breaks by converting NU1903 into an error before the grep pattern can
+      # match). Scans EVERY .csproj in the repo (via `git ls-files`), not just
+      # PublyApp.slnx: the slnx omits packages/lint-cs/*, but the audit scope
+      # covers all five projects. Mirrors `just nuget-audit`.
+      - name: Scan .NET packages for known vulnerabilities
+        env:
+          APP_ROLE: api
+          TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
+        run: node scripts/nuget-audit.mjs
+
+      - name: Run NuGet audit fixture tests
+        env:
+          APP_ROLE: api
+          TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
+        run: node --test ./scripts/nuget-audit.test.mjs
 
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers

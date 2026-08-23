@@ -64,10 +64,16 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 		);
 		const onData = (chunk) => {
 			output += chunk.toString();
-			const match = output.match(/^RUNNER_PID=(\d+)\nRUNNER_OWNED_ROOT=(.+)$/m);
-			if (match) {
+			// The probe's own two handshake lines and the grand-child runner's
+			// TAP stream share one pipe, so under load (or a pty) TAP banners
+			// interleave between them and may prefix them as `# ` comments.
+			// Match the two values independently instead of demanding adjacent
+			// undecorated lines — the values themselves are what matter.
+			const pidMatch = output.match(/RUNNER_PID=(\d+)/);
+			const rootMatch = output.match(/RUNNER_OWNED_ROOT=(\S+)/);
+			if (pidMatch && rootMatch) {
 				clearTimeout(timeout);
-				resolve({ pid: Number(match[1]), root: match[2] });
+				resolve({ pid: Number(pidMatch[1]), root: rootMatch[1] });
 			}
 		};
 		child.stdout.on('data', onData);

@@ -1346,5 +1346,7 @@
 	"tenant-invitations-batch-success_one": "{{count}} invitation envoyée avec succès.",
 	"tenant-invitations-batch-success_other": "{{count}} invitations envoyées avec succès.",
 	"tenant-invitations-batch-summary": "{{succeeded}} réussie(s) · {{failed}} échouée(s)",
+	"post-saved-success": "Publication enregistrée avec succès",
+	"post-deleted-success": "Publication supprimée avec succès",
 	"unknown-invitee": "Personne invitée inconnue"
 }

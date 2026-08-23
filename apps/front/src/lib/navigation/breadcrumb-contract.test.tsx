@@ -53,6 +53,7 @@ import { staffTenantProfileCrumbQuery } from '~/lib/query/staff-tenant-profiles'
 import { staffTenantUserCrumbQuery } from '~/lib/query/staff-tenant-users';
 import { staffTenantCrumbQuery } from '~/lib/query/staff-tenants';
 import { staffUserCrumbQuery } from '~/lib/query/staff-users';
+import { tenantPostCrumbQuery } from '~/lib/query/tenant-posts';
 import { Route as TenantDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId';
 import { Route as TenantProfileDetailsRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId';
 import { Route as TenantProfileOverviewRoute } from '~/routes/authed/staff/tenants/$tenantId/profiles/$profileId/index';
@@ -212,6 +213,13 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 		query: staffTenantProfileCrumbQuery,
 		buildPayload: (marker) => ({
 			profile: { id: 'probe-tenant-profile-id', name: marker },
+		}),
+	},
+	{
+		query: tenantPostCrumbQuery,
+		buildPayload: (marker) => ({
+			id: 'probe-post-id',
+			body: marker,
 		}),
 	},
 ];

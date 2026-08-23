@@ -1255,5 +1255,9 @@
 	"account": "Account",
 	"settings": "Settings",
 	"read-only": "Read only",
-	"not-available-yet": "Not available yet"
+	"not-available-yet": "Not available yet",
+	"error-loading-data": "Error loading data",
+	"not-found": "Not found",
+	"leave": "Leave",
+	"stay": "Stay"
 }

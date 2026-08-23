@@ -237,6 +237,16 @@ vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({}),
 }));
 
+vi.mock('~/lib/query/tenant-projects', () => ({
+	useTenantProjectsQuery: () => ({ data: undefined, isPending: true }),
+	toTenantProjectItems: () => [],
+}));
+
+vi.mock('~/lib/query/tenant-posts', () => ({
+	savePost: vi.fn(),
+	invalidateTenantPosts: vi.fn(),
+}));
+
 vi.mock('~/components/ui/button', () => ({
 	Button: ({
 		children,
@@ -338,6 +348,7 @@ import { ChangeStaffUserEmailDialog } from '../../routes/authed/staff/staff-user
 import { InviteTenantUserDrawer } from '../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer';
 import { ProfileEditDetailsDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer';
 import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer';
+import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-drawer';
 
 const noop = () => undefined;
 
@@ -9333,6 +9344,9 @@ const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
 				onSessionExpired={noop}
 			/>,
 		);
+	},
+	'tenant-post-create': () => {
+		render(<CreatePostDrawer open onOpenChange={noop} tenantId="tenant-1" />);
 	},
 };
 

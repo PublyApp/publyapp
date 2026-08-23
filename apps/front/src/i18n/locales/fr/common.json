@@ -1255,5 +1255,9 @@
 	"account": "Compte",
 	"settings": "Paramètres",
 	"read-only": "Lecture seule",
-	"not-available-yet": "Pas encore disponible"
+	"not-available-yet": "Pas encore disponible",
+	"error-loading-data": "Erreur lors du chargement des données",
+	"not-found": "Introuvable",
+	"leave": "Quitter",
+	"stay": "Rester"
 }

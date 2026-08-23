@@ -26,6 +26,12 @@ export const DRAWER_FORM_CALL_SITES = [
 		sourceFile: 'src/routes/authed/staff/staff-users/_change-email-dialog.tsx',
 		drawerTestId: 'change-staff-user-email-dialog',
 	},
+	{
+		id: 'tenant-post-create',
+		name: 'create-post',
+		sourceFile: 'src/routes/authed/tenant/posts/_create-post-drawer.tsx',
+		drawerTestId: 'tenant-posts-create-drawer',
+	},
 ] as const;
 
 export type DrawerFormCallSiteId =

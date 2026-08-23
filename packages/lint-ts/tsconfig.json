@@ -1,0 +1,15 @@
+{
+	"extends": "../_tsconfig/tsconfig.base.json",
+	"compilerOptions": {
+		"module": "ESNext",
+		"target": "ES2022",
+		"declaration": false,
+		"declarationMap": false,
+		"composite": false,
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+		"types": ["node"]
+	},
+	"include": ["src"],
+	"exclude": ["node_modules", "src/**/*.test.ts"]
+}

@@ -1,8 +1,8 @@
 {
-  "descriptionHash": "4335F26BA11E599690277CC9407C60E7193AADDE5DA6D3B190DDBA120792E9C1BAE824C90C003FE7F64F2D78587F943CEC8437C65ADC97AEACA3021E8FE3D4A5",
+  "descriptionHash": "8BFE801F58D7FB846AD9C7A7C2619FAA046B825299CBE7636C07CA1AD902E3158E9AE425DF7F27F8DF31A1DD741FF63F46F9A6FE3280FF96BB5E8DE86163B960",
   "descriptionLocation": "../../../apps/api/openapi.json",
   "lockFileVersion": "1.0.0",
-  "kiotaVersion": "1.29.0",
+  "kiotaVersion": "1.34.1",
   "clientClassName": "ApiClient",
   "typeAccessModifier": "Public",
   "clientNamespaceName": "PublyApp.Api.Client",
@@ -30,5 +30,6 @@
   ],
   "includePatterns": [],
   "excludePatterns": [],
-  "disabledValidationRules": []
+  "disabledValidationRules": [],
+  "allowedExternalOrigins": []
 }
