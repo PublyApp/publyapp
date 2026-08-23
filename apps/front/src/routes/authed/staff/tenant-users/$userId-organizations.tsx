@@ -314,6 +314,9 @@ function buildOrganizationColumns(
 	];
 }
 
+/** Test seam: the columns builder with explicit translator/locale. */
+export const buildOrganizationColumnsForTests = buildOrganizationColumns;
+
 function ConfirmRemoveSingleOrganization({
 	userId,
 	row,
