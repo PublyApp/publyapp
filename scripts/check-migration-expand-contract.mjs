@@ -19,7 +19,7 @@ const isMigrationSource = (filePath) =>
 	/\.cs$/i.test(filePath) && /\.Designer\.cs$/i.test(filePath) === false;
 
 const normalizeMigrationPath = (rootDir, filePath) =>
-	path.resolve(rootDir, filePath.replace(/^\"|\"$/g, ''));
+	path.resolve(rootDir, filePath.replace(/^"|"$/g, ''));
 
 const collectDiffPaths = async ({
 	rootDir,

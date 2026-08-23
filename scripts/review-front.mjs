@@ -37,7 +37,7 @@ const err = (message) => {
 const runCommand = (command, args, options = {}) => {
 	const result = spawnSync(command, args, {
 		cwd: options.cwd,
-		env: { ...process.env, ...(options.env ?? {}) },
+		env: { ...process.env, ...options.env },
 		encoding: 'utf8',
 		stdio: options.stdio ?? 'pipe',
 	});
