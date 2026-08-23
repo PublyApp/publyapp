@@ -35,6 +35,14 @@
  *   `createElement(...)`, `jsx(...)`, or `jsxs(...)` (bare or `React.xxx` member form)
  *   are flagged as components even though they do not return JSX directly.
  *   Arrow-form equivalents are left un-flagged.
+ * - Round-6 (#1283): PascalCase declarations rendered through NON-allowlisted
+ *   local render helpers are flagged. A declaration whose body returns a call
+ *   to a top-level local helper that itself returns JSX (directly, through
+ *   further such helpers, or via a known renderer) is a component — the
+ *   declaration shape decides, not the render call-site (hoisted aliases and
+ *   default exports included). Imported or member-expression callees are not
+ *   resolved (documented boundary), and mutually recursive helpers must not
+ *   hang the analysis.
  */
 import assert from 'node:assert/strict';
 
@@ -226,6 +234,46 @@ const runCases = (rule, label) => {
 						'const Widget = (props) => createElement("div", props);',
 					].join('\n'),
 					filename: 'apps/front/src/components/widget.tsx',
+				},
+
+				// Round-6 valid: local helper returning a plain value — the PascalCase
+				// caller is NOT a component (delegation target produces no JSX).
+				{
+					code: [
+						'function computeLabel(value) { return String(value); }',
+						'function Count(props) { return computeLabel(props.n); }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/count.ts',
+				},
+
+				// Round-6 valid: imported (unresolvable) render helper — the rule cannot
+				// see the helper body, so no diagnostic (documented boundary).
+				{
+					code: [
+						"import { customRender } from './test-utils';",
+						'function Foo(props) { return customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/foo.tsx',
+				},
+
+				// Round-6 valid: member-expression helper call is not resolved.
+				{
+					code: [
+						'const kit = { customRender: () => null };',
+						'function Foo() { return kit.customRender(); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/foo.tsx',
+				},
+
+				// Round-6 valid: mutually recursive local helpers with no JSX anywhere —
+				// the analysis must terminate (cycle guard) and stay un-flagged.
+				{
+					code: [
+						'function loopA() { return loopB(); }',
+						'function loopB() { return loopA(); }',
+						'function Widget() { return loopA(); }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/loops.ts',
 				},
 			],
 			invalid: [
@@ -460,6 +508,76 @@ const runCases = (rule, label) => {
 						'function Card(props) { return jsx("div", props); }',
 					].join('\n'),
 					filename: 'apps/front/src/components/card.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-6 finding #1 (#1283): PascalCase declaration rendered through a
+				// NON-allowlisted local render helper. The declaration shape is the
+				// signal, so this must be flagged even though `customRender` is not in
+				// the known-renderer list.
+				{
+					code: [
+						'function customRender(props) { return <div {...props} />; }',
+						'function Foo(props) { return customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/foo.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-6 finding #2: flagging must not depend on the render call-site —
+				// Foo is aliased into `x` (hoisted reference) before anything renders.
+				{
+					code: [
+						'const x = Foo;',
+						'function customRender(props) { return <span>{props.label}</span>; }',
+						'function Foo(props) { return customRender(props); }',
+						'export { x };',
+					].join('\n'),
+					filename: 'apps/front/src/components/foo.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-6 finding #3: named default-export declaration delegating to a
+				// local JSX-returning helper.
+				{
+					code: [
+						'function customRender() { return <section />; }',
+						'export default function Footer() { return customRender(); }',
+					].join('\n'),
+					filename: 'apps/front/src/layouts/footer.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-6 finding #3b: anonymous default-export declaration delegating
+				// to a local JSX-returning helper.
+				{
+					code: [
+						'function customRender() { return <main />; }',
+						'export default function () { return customRender(); }',
+					].join('\n'),
+					filename: 'apps/front/src/routes/page.tsx',
+					errors: [{ messageId: 'useArrowFunctionAnonymous' }],
+				},
+
+				// Round-6 finding #4: delegation chain — a local helper whose own body
+				// returns a KNOWN renderer call propagates component-ness to the caller.
+				{
+					code: [
+						"import { createElement } from 'react';",
+						'function makeElement(kind) { return createElement(kind); }',
+						'function Box(props) { return makeElement("div", props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/box.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-6 finding #5: expression-bodied local arrow helper returning JSX.
+				{
+					code: [
+						'const customRender = (props) => <b>{props.text}</b>;',
+						'function Label(props) { return customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/label.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
 			],
