@@ -15,12 +15,15 @@ public static partial class LastErrorSanitiser {
 	[System.Text.RegularExpressions.GeneratedRegex(@"Bearer\s+[A-Za-z0-9\-._~+/]+=*")]
 	private static partial System.Text.RegularExpressions.Regex BearerPattern();
 
-	// Query-string key=value: access_token=... or token=... (unquoted, no whitespace)
-	[System.Text.RegularExpressions.GeneratedRegex(@"(?:access_token|token)=[A-Za-z0-9\-._~+/]+=*")]
+	// Query-string key=value: access_token=... or token=... (unquoted, no whitespace).
+	// Capturing group keeps the field name in the replacement so the operator can tell
+	// WHICH field leaked (review r3): access_token=[redacted], not =\u200b[redacted].
+	[System.Text.RegularExpressions.GeneratedRegex(@"(access_token|token)=[A-Za-z0-9\-._~+/]+=*")]
 	private static partial System.Text.RegularExpressions.Regex QueryTokenPattern();
 
 	// JSON "access_token": "...", "refresh_token": "...", "client_secret": "..."
-	[System.Text.RegularExpressions.GeneratedRegex(@"""(?:access_token|refresh_token|client_secret)""\s*:\s*""[^""]{4,}""")]
+	// Capturing group keeps the field name in the replacement (see QueryTokenPattern).
+	[System.Text.RegularExpressions.GeneratedRegex("\"(access_token|refresh_token|client_secret)\"\\s*:\\s*\"[^\"]{4,}\"")]
 	private static partial System.Text.RegularExpressions.Regex JsonSecretPattern();
 
 	public static string? Sanitize(string? raw) {

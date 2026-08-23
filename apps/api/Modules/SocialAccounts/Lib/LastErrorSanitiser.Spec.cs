@@ -1,4 +1,5 @@
 using FluentAssertions;
+
 using Xunit;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Lib;
@@ -36,7 +37,8 @@ public sealed class LastErrorSanitiserSpec {
 		var raw = "Response from https://api.example.com/callback?access_token=abc123secret&state=x";
 		var sanitised = LastErrorSanitiser.Sanitize(raw)!;
 		sanitised.Should().NotContain("abc123secret");
-		sanitised.Should().Contain("[redacted]");
+		sanitised.Should().Contain("access_token=[redacted]",
+			"the field name must survive so the operator knows WHICH field leaked");
 	}
 
 	[Fact]
@@ -44,7 +46,8 @@ public sealed class LastErrorSanitiserSpec {
 		var raw = "Exchange failed: token=ghp_abcdef1234567890";
 		var sanitised = LastErrorSanitiser.Sanitize(raw)!;
 		sanitised.Should().NotContain("ghp_abcdef1234567890");
-		sanitised.Should().Contain("[redacted]");
+		sanitised.Should().Contain("token=[redacted]",
+			"the field name must survive so the operator knows WHICH field leaked");
 	}
 
 	[Fact]
@@ -52,7 +55,8 @@ public sealed class LastErrorSanitiserSpec {
 		var raw = "OAuth error: \"access_token\": \"sk-proj-abcdef\"";
 		var sanitised = LastErrorSanitiser.Sanitize(raw)!;
 		sanitised.Should().NotContain("sk-proj-abcdef");
-		sanitised.Should().Contain("[redacted]");
+		sanitised.Should().Contain("\"access_token\": \"[redacted]\"",
+			"the field name must survive so the operator knows WHICH field leaked");
 	}
 
 	[Fact]
@@ -60,7 +64,8 @@ public sealed class LastErrorSanitiserSpec {
 		var raw = "Token refresh failed: \"refresh_token\": \"rt_verysecret123\"";
 		var sanitised = LastErrorSanitiser.Sanitize(raw)!;
 		sanitised.Should().NotContain("rt_verysecret123");
-		sanitised.Should().Contain("[redacted]");
+		sanitised.Should().Contain("\"refresh_token\": \"[redacted]\"",
+			"the field name must survive so the operator knows WHICH field leaked");
 	}
 
 	[Fact]
@@ -68,7 +73,8 @@ public sealed class LastErrorSanitiserSpec {
 		var raw = "Client auth failed: \"client_secret\": \"cs_prod_xyz789\"";
 		var sanitised = LastErrorSanitiser.Sanitize(raw)!;
 		sanitised.Should().NotContain("cs_prod_xyz789");
-		sanitised.Should().Contain("[redacted]");
+		sanitised.Should().Contain("\"client_secret\": \"[redacted]\"",
+			"the field name must survive so the operator knows WHICH field leaked");
 	}
 
 	[Fact]
