@@ -48,8 +48,18 @@ const repoRoot = path.resolve(scriptDir, '../../..');
 const apiDir = path.join(repoRoot, 'apps', 'api');
 const migrationsDir = path.join(apiDir, 'Migrations');
 
-const TEST_CONTAINER = 'publyapp-review-api-guard-test';
-const TEST_PORT = 5599;
+// Round-5 finisher fix: this fixture's fixed global container NAME and fixed HOST PORT
+// collided across sibling lanes running this same suite concurrently on one host. Each
+// beforeAll starts with `docker rm -f <name>`, so lane B's setup deleted lane A's
+// database mid-run; lane A's authenticated-session probe then failed for its ENTIRE
+// ceiling even though nothing was wrong with its own container (reproduced r5: two
+// lanes, both stuck at "never accepted an authenticated session" for ~22 minutes).
+// Derive both from this process's pid: names become globally unique among live runs,
+// and ports stay inside a small reserved window (pid modulo keeps them deterministic
+// and far from the dev stack's 5000/5050/5432/5454). The connection string below
+// already derives from TEST_PORT, so nothing else needs to know.
+const TEST_CONTAINER = `publyapp-review-api-guard-test-${String(process.pid)}`;
+const TEST_PORT = 5599 + (process.pid % 400);
 const TEST_CONNECTION = `Host=localhost;Port=${String(TEST_PORT)};Database=publyapp;Username=postgres;Password=password`;
 const TRUSTED_PROXY_CIDRS = '127.0.0.1/32,::1/128';
 
