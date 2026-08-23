@@ -520,6 +520,13 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await page.route('**/staff/tenant-users/**', async (route) => {
 		const request = route.request();
+		// The glob also matches the SPA document navigation itself; only the
+		// data calls are mocked, so let the real HTML document through or
+		// goto() resolves to raw JSON and nothing ever renders.
+		if (request.resourceType() === 'document') {
+			await route.fallback();
+			return;
+		}
 		const url = request.url();
 		if (request.method() !== 'GET') {
 			await route.fallback();
