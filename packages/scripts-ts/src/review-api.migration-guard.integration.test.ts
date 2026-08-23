@@ -799,6 +799,12 @@ const HOSTED_SERVICES_END_MARKER = 'HOSTED_SERVICES_END';
 const ALLOWED_API_ROLE_HOSTED_SERVICES = [
 	'Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherHostedService',
 	'Microsoft.AspNetCore.Hosting.GenericWebHostService',
+	// Registered by AddDataProtection() (#1239: SocialAccounts credential encryption,
+	// key ring persisted to Postgres and encrypted with SOCIAL_ACCOUNTS_MASTER_KEY).
+	// It activates the key ring once at startup (load/refresh/purge policy); it claims
+	// no queue work and runs no loop, so it is api-safe — mirrored from the API-side
+	// AppRoleCompositionSpec allowlist, which #1239 updated with this same entry.
+	'Microsoft.AspNetCore.DataProtection.Internal.DataProtectionHostedService',
 ].sort();
 
 const findApiAssemblyPath = () => {
