@@ -555,6 +555,22 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
 			return;
 		}
 
+		if (/\/tenants(?:\?|$)/.test(url)) {
+			await route.fulfill(
+				json({
+					data: [
+						{
+							id: '11111111-2222-4333-8444-555555555555',
+							name: 'Acme Corporation',
+							logoUrl: null,
+							status: 'Active',
+						},
+					],
+				}),
+			);
+			return;
+		}
+
 		if (/\/companies(?:\?|$)/.test(url)) {
 			await route.fulfill(
 				json({ data: [], nextCursor: null, hasPreviousPage: false }),
@@ -589,6 +605,13 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('link-companies-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
+	// The footer submit is disabled until a picker row is selected; check the
+	// first one so the geometry assertions can trial-click the action.
+	await page
+		.getByTestId('link-companies-options')
+		.getByRole('checkbox')
+		.first()
+		.check();
 };
 
 const openDrawerByCallSiteId: Record<
