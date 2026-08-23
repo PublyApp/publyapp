@@ -32,6 +32,13 @@ export const DRAWER_FORM_CALL_SITES = [
 		sourceFile: 'src/routes/authed/tenant/posts/_create-post-drawer.tsx',
 		drawerTestId: 'tenant-posts-create-drawer',
 	},
+	{
+		id: 'tenant-user-link-companies',
+		name: 'link-companies',
+		sourceFile:
+			'src/routes/authed/staff/tenant-users/$userId-organizations.tsx',
+		drawerTestId: 'link-companies-drawer',
+	},
 ] as const;
 
 export type DrawerFormCallSiteId =
