@@ -57,6 +57,11 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		// none, so it is inert. It claims no work and touches no queue.
 		"Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckPublisherHostedService",
 
+		// Registered by AddDataProtection() (SocialAccounts master-key encryption). It
+		// activates the key ring once at startup (load/refresh/purge policy); it claims
+		// no queue work and runs no loop, so it is api-safe (design §3.2).
+		"Microsoft.AspNetCore.DataProtection.Internal.DataProtectionHostedService",
+
 		// The WebApplication's own HTTP server host: it starts/stops Kestrel, which is
 		// exactly the api role's purpose (design §3.2 — the api serves HTTP). It runs no
 		// queue/background job work. It surfaces here (and not in the old descriptor-only

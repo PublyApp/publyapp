@@ -13,6 +13,7 @@ using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
 using PublyApp.Api.Modules.Messaging.Services;
 using PublyApp.Api.Modules.Permissions.Services;
+using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Profiles.Services;
 using PublyApp.Api.Modules.Projects.Services;
 using PublyApp.Api.Modules.SocialAccounts.Services;
@@ -58,6 +59,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ITenantProfileAsStaffService), typeof(TenantProfileAsStaffService)),
 		(typeof(ITenantProfileQueryAsStaffService), typeof(TenantProfileQueryAsStaffService)),
 		(typeof(IProjectService), typeof(ProjectService)),
+		(typeof(IPostService), typeof(PostService)),
 		(typeof(ISessionService), typeof(SessionService)),
 		(typeof(IStaffUserCoreService), typeof(StaffUserCoreService)),
 		(typeof(IStaffUserLifecycleService), typeof(StaffUserLifecycleService)),
@@ -74,6 +76,23 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IUserService), typeof(UserService)),
 		(typeof(ICredentialProtector), typeof(CredentialProtector))
 	];
+
+	// Services registered BY HAND in Lib/DI/ServiceRegistration.cs instead of via
+	// [Service] auto-discovery. The credential protector is deliberately not attributed
+	// (its IDataProtectionProvider wiring is explicit); the scanner therefore never sees
+	// it, so the scanner-vs-convention comparison below excludes it here.
+	private static readonly (
+		Type ServiceType,
+		Type ImplementationType
+	)[] ExplicitlyRegisteredServices = [
+		(typeof(ICredentialProtector), typeof(CredentialProtector)),
+	];
+
+	private static bool IsExplicitlyRegistered(QualifyingService service) {
+		return ExplicitlyRegisteredServices.Any(candidate =>
+			candidate.ServiceType == service.ServiceType
+		);
+	}
 
 	private readonly ApiFixture _fixture;
 
@@ -115,6 +134,7 @@ public sealed class ServiceAttributeRegistrationSpec
 
 		actualServices.Should().BeEquivalentTo(
 			qualifyingServices
+				.Where(x => !IsExplicitlyRegistered(x))
 				.Select(x => new {
 					x.ServiceType,
 					x.ImplementationType,
