@@ -85,6 +85,17 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Shipped in:** #653 (dormant)
 - **Enforced in:** #1210 (74 baseline offenders across 73 files in `apps/front/src/**/*.tsx`); re-measured in #1283 after widening detection to local JSX-yielding delegates — 0 offenders across `apps/front/src` (config-copy method, oxlint 1.79.0); re-measured in #1293 after resolving JSX through local variables and member-expression delegates — 0 offenders across `apps/front/src` (config-copy method, oxlint 1.79.0, plugin firing verified by an injected probe file)
 
+### `publy/no-iife`
+
+- **Severity:** `error`
+- **Source:** `packages/lint-ts/src/publy/no-iife.ts`
+- **Spec:** `packages/lint-ts/src/publy/no-iife.test.ts`
+- **Rationale (issue #1303):** an IIFE hides imperative branching inside an expression; extract a named function or compute the value with preceding statements instead.
+- **Autofix:** no
+- **Detection:** flags a `CallExpression`/`NewExpression` whose callee is an inline function literal (`ArrowFunctionExpression`/`FunctionExpression`) after unwrapping transparent wrappers around the callee (`ParenthesizedExpression`, `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression`, `TSTypeAssertion`, `TSInstantiationExpression`). Callbacks passed as arguments, named-function calls, and callees that unwrap to identifiers are not flagged.
+- **Ported from:** the DigitalPrevention `no-iife` rule.
+- **Shipped in / Enforced in:** #1303 (22 baseline offenders across 12 files extracted in the same PR → 0 at enforcement).
+
 ## Anti-slop rules (`packages/lint-ts/src/anti-slop/`, vendored from dmmulroy/anti-slop)
 
 The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as a **ladder**: one rule per PR, switched straight to `error` with every violation in the repo fixed in that same PR — never a `warn` stage, never a baseline of tolerated hits. The measured baseline per rule lives on issue #1160; pick the next rung from it. A PR that enables a rule must show `pnpm lint` green repo-wide at its tip.
