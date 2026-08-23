@@ -435,6 +435,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey UnprocessableEntity = new("unprocessable-entity");
 
 	/// <summary>
+	/// Upload storage capacity is temporarily exhausted. Please try again later.
+	/// </summary>
+	public static readonly TranslationKey UploadBudgetExhausted = new("upload-budget-exhausted");
+
+	/// <summary>
 	/// A file is required
 	/// </summary>
 	public static readonly TranslationKey UploadFileRequired = new("upload-file-required");

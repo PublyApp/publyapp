@@ -7,6 +7,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Uploads.Entities;
 
 namespace PublyApp.Api.Modules.Uploads.Handlers.Staff;
 
@@ -85,75 +86,118 @@ public sealed class CreateStaffUpload {
 		uploadStream.Position = 0;
 
 		var (contentType, extension) = sniffed.Value;
-		var admission = uploadAdmissionService.TryReserve(account.UserId, file.Length);
-		if (admission is UploadAdmissionResult.Rejected) {
+
+		// Durable admission (#807 F1): reserve bytes and create the Reserved asset
+		// row in ONE transaction BEFORE opening the destination file. Concurrent
+		// admissions serialise on the budget rows inside Postgres, so bursts of
+		// individually-valid uploads can no longer over-admit.
+		await using var admissionScope = await uploadAdmissionService
+			.BeginReservationAsync(
+				account.UserId, file.Length, UploadAdmissionService.StaffUploadPurpose,
+				cancellationToken
+			);
+
+		if (admissionScope.Admission is UploadAdmissionResult.Rejected rejected) {
+			// Transparent failure cause (owner product rule): name which budget ran
+			// out and by how much, in plain words, instead of a generic refusal.
+			var scopeName = rejected.ExhaustedScope switch {
+				UploadBudgetScope.Global => "the shared storage budget",
+				UploadBudgetScope.CreatorUser => "your personal storage budget",
+				UploadBudgetScope.Purpose => $"the '{UploadAdmissionService.StaffUploadPurpose}' purpose budget",
+				_ => throw new ArgumentOutOfRangeException(
+					nameof(rejected), rejected.ExhaustedScope, "Unhandled UploadBudgetScope"
+				),
+			};
+			var humanRequested = FormatBytes(rejected.RequestedBytes);
+			var humanAvailable = FormatBytes(Math.Max(0, rejected.AvailableBytes));
 			return TypedProblems.TooManyRequests(
-				"Upload storage capacity is temporarily exhausted. Please try again later.",
-				ResponseKeys.TooManyRequests
+				$"Upload refused: {scopeName} has {humanAvailable} free, which is less "
+				+ $"than this file's {humanRequested}. Delete unused files or wait for "
+				+ "capacity to free up.",
+				ResponseKeys.UploadBudgetExhausted
 			);
 		}
 
-		var reservation = ((UploadAdmissionResult.Accepted)admission).Reservation;
-		using (reservation) {
-			var relativePath = string.Empty;
-			try {
-				relativePath = await fileStorage.SaveAsync(
-					uploadStream, extension, cancellationToken
-				);
+		var asset = ((UploadAdmissionResult.Accepted)admissionScope.Admission).Asset;
 
-				await auditLogService.LogAsync(
-					new CreateAuditLogArgs(
-						UserId: account.UserId,
-						Action: AuditActions.UploadCreated,
-						TargetId: null,
-						Details: new {
-							Path = relativePath,
-							SizeBytes = file.Length,
-							ContentType = contentType
-						}
-					),
-					cancellationToken
-				);
-			} catch (Exception exception) {
-				var cleanupConfirmed = exception is StorageWriteException {
-					CleanupConfirmed: true
-				};
-				if (exception is StorageWriteException storageWriteException) {
-					relativePath = storageWriteException.RelativePath;
-				}
-				if (relativePath.Length > 0 && !cleanupConfirmed) {
-					try {
-						cleanupConfirmed = await fileStorage.DeleteAsync(
-							relativePath,
-							CancellationToken.None
-						);
-					} catch (Exception cleanupException) {
-						logger.LogWarning(
-							cleanupException,
-							"Failed to clean up upload blob {Path} after a failed upload operation",
-							relativePath
-						);
+		try {
+			var relativePath = await fileStorage.SaveAsync(
+				uploadStream, extension, cancellationToken
+			);
+			asset.RelativePath = relativePath;
+			asset.ContentType = contentType;
+			admissionScope.MarkCommitPending();
+
+			await auditLogService.LogAsync(
+				new CreateAuditLogArgs(
+					UserId: account.UserId,
+					Action: AuditActions.UploadCreated,
+					TargetId: null,
+					Details: new {
+						Path = relativePath,
+						SizeBytes = file.Length,
+						ContentType = contentType
 					}
-				}
-				if (cleanupConfirmed) {
-					uploadAdmissionService.Release(reservation);
-				} else {
-					// A blob may still exist. Keep its bytes accounted for rather than
-					// admitting more storage than this process can safely bound.
-					uploadAdmissionService.Commit(reservation);
-				}
+				),
+				cancellationToken
+			);
 
-				throw;
-			}
-
-			uploadAdmissionService.Commit(reservation);
+			await admissionScope.CommitAsync(cancellationToken);
 			return TypedResults.Created((string?)null, new StaffUploadCreated {
 				Url = $"/files/{relativePath}",
 				Path = relativePath,
 				SizeBytes = file.Length,
 				ContentType = contentType
 			});
+		} catch (Exception exception) {
+			var cleanupConfirmed = exception is StorageWriteException {
+				CleanupConfirmed: true
+			};
+			if (exception is StorageWriteException storageWriteException) {
+				asset.RelativePath = storageWriteException.RelativePath;
+				// A StorageWriteException means a destination write was ATTEMPTED:
+				// the blob's fate is unknown until cleanup confirms otherwise. Stamp
+				// commit-pending so FailAsync keeps the bytes accounted for (Stored
+				// orphan) instead of rolling the reservation away while bytes may
+				// still exist on disk.
+				admissionScope.MarkCommitPending();
+			}
+			var hasPath = !string.IsNullOrEmpty(asset.RelativePath);
+			if (hasPath && !cleanupConfirmed) {
+				try {
+					cleanupConfirmed = await fileStorage.DeleteAsync(
+						asset.RelativePath,
+						CancellationToken.None
+					);
+				} catch (Exception cleanupException) {
+					logger.LogWarning(
+						cleanupException,
+						"Failed to clean up upload blob {Path} after a failed upload operation",
+						asset.RelativePath
+					);
+				}
+			}
+
+			// A confirmed-cleanup failure releases the bytes back to every budget;
+			// an unconfirmed one keeps them accounted for via a Stored orphan row —
+			// never admitting more storage than this deployment can bound.
+			await admissionScope.FailAsync(releaseBudget: cleanupConfirmed, CancellationToken.None);
+
+			throw;
 		}
+	}
+
+	private static string FormatBytes(long bytes) {
+		if (bytes >= 1_000_000_000) {
+			return $"{bytes / 1_000_000_000.0:0.#} GB";
+		}
+		if (bytes >= 1_000_000) {
+			return $"{bytes / 1_000_000.0:0.#} MB";
+		}
+		if (bytes >= 1_000) {
+			return $"{bytes / 1_000.0:0.#} kB";
+		}
+		return $"{bytes} B";
 	}
 
 	private static AppValidationProblemHttpResult ValidationFailure(

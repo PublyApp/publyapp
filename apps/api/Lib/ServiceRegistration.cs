@@ -156,12 +156,11 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IFileStorage>(
 			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)
 		);
-		builder.Services.AddSingleton<IUploadAdmissionService>(
-			_ => new UploadAdmissionService(
-				AppEnvironment.Instance.UPLOAD_GLOBAL_MAX_BYTES,
-				AppEnvironment.Instance.UPLOAD_PER_STAFF_MAX_BYTES
-			)
-		);
+		// Durable upload admission control (#807): SCOPED because it owns the
+		// per-request AppDbContext transaction the reservation runs on. Budget
+		// numbers are read from upload_budgets rows (seeded from env on first use),
+		// not captured here — operators retune budgets without a redeploy.
+		builder.Services.AddScoped<IUploadAdmissionService, UploadAdmissionService>();
 
 		// Durable invitation email outbox — PRODUCER half only (design §3.2, C5/R2-6).
 		// The signal is not a hosted service: it is the wake handle the invitation-writing

@@ -30,13 +30,7 @@ public sealed class UploadBudgetConfiguration : IEntityTypeConfiguration<UploadB
 		builder
 			.HasIndex(budget => new { budget.ScopeKind, budget.ScopeKey })
 			.IsUnique()
+			.AreNullsDistinct(false)
 			.HasDatabaseName("ux_upload_budgets_scope");
-
-		// Only the global pool may have a NULL scope key.
-		builder
-			.HasIndex(budget => budget.ScopeKey)
-			.IsUnique()
-			.HasFilter("scope_kind = 10")
-			.HasDatabaseName("ux_upload_budgets_single_global");
 	}
 }
