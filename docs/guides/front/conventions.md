@@ -335,6 +335,28 @@ stays local to `components/ui/toaster.tsx` and `lib/mutation-toast.ts`. The
 executable guard is
 `apps/front/src/lib/mutation-feedback-architecture.test.ts`.
 
+## Query State Rendering
+
+Render TanStack Query loading / error / empty / data ladders through the shared
+`QueryDisplay` component (`apps/front/src/components/query-display.tsx`), not a hand-rolled
+`if (isPending) ... if (isError) ... return <div>{data}</div>` ladder. `QueryDisplay` keeps the
+loading, error, and empty states visually consistent (it composes `StateView` /
+`StateSurface` / `Skeleton`), and it is the single place to evolve those states.
+
+The `publy/prefer-query-display` oxlint rule flags component files that bind a `use*Query` result
+and then branch on a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` /
+`error`) inside a conditional render. It is **dormant** (`"off"`) in this repo today — it ships so
+the offender list is measurable and the follow-up that flips it to `"error"` is mechanical. While
+dormant, keep new code on `QueryDisplay`; do not wait for enforcement to land.
+
+`useMutation` results are explicitly out of scope for the rule — mutation feedback ownership is a
+separate policy (see above). The rule also excludes the `QueryDisplay` implementation itself, the
+table layer, the `lib/query` helpers, and the three root/layout entrypoints that legitimately wire
+query state into shell-level error boundaries. `DataTable` screens own their own list-state
+mechanism (`components/table/table-body-state.ts` + the `no-match` state `QueryDisplay` lacks), so
+they are intentionally excluded — PR 3 of #1250 folds that mechanism into `QueryDisplay` and lets
+`DataTable` delegate.
+
 ## Product UI Design Preferences (owner-ratified)
 
 These are standing design decisions Radan has ratified across the front parity review
