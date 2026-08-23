@@ -14,9 +14,11 @@ const makeWorkflow = (steps) =>
 	`name: fixture\non:\n  pull_request:\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`;
 
 /**
- * Builds a throwaway repo with one workflow file.
+ * Builds a throwaway repo with one workflow file and, optionally, composite
+ * actions under .github/actions/<name>/action.yml (name may contain slashes
+ * to prove the scan is recursive).
  */
-const buildFixture = async ({ workflowContent }) => {
+const buildFixture = async ({ workflowContent, actions = [] }) => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
 	);
@@ -28,8 +30,17 @@ const buildFixture = async ({ workflowContent }) => {
 		workflowContent,
 	);
 
+	for (const { content, name } of actions) {
+		const actionDir = path.join(rootDir, '.github/actions', name);
+		await mkdir(actionDir, { recursive: true });
+		await writeFile(path.join(actionDir, 'action.yml'), content);
+	}
+
 	return rootDir;
 };
+
+const makeAction = (steps) =>
+	`name: 'Fixture composite action'\ndescription: 'fixture'\nruns:\n  using: composite\n  steps:\n${steps}`;
 
 test('passes when all uses: are pinned to full SHAs', async () => {
 	const content = makeWorkflow(
@@ -58,7 +69,7 @@ test('fails when a bare major tag is used', async () => {
 	const findings = await findUnpinnedActions({ rootDir });
 
 	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
 	assert.strictEqual(findings[0].uses, 'actions/checkout@v7');
 });
@@ -143,6 +154,167 @@ test('ignores commented-out uses: lines (YAML comments)', async () => {
 	assert.deepStrictEqual(findings, []);
 });
 
+// --- #1255 follow-up 1: pin the trailing-comment abuse case ---
+
+test('fails when a mutable tag carries only a full-SHA trailing comment', async () => {
+	// `actions/checkout@v1` is the ref GitHub actually checks out; the 40-hex
+	// SHA sits in a YAML comment and pins nothing. The captured ref can never
+	// include that SHA — `/uses:\s*(\S+)/` already stops at whitespace — so
+	// this test does NOT pin comment-stripping. It pins the abuse-class rule
+	// proven by mutation in the r1 review: trusting a 40-hex found anywhere
+	// on the line (the one mutation that reds this test alone) must stay a
+	// failure, never a silent pass. The commented-out twin of the same
+	// pattern doubles as the observable control for comment handling: if
+	// stripping ever regresses, the twin leaks into the findings instead of
+	// passing silently.
+	const shaComment = '3d3c42e5aac5ba805825da76410c181273ba90b1';
+	const content = makeWorkflow(
+		`      # - uses: actions/checkout@v1 # ${shaComment}\n` +
+			`      - uses: actions/checkout@v1 # ${shaComment}\n`,
+	);
+
+	const rootDir = await buildFixture({ workflowContent: content });
+	const findings = await findUnpinnedActions({ rootDir });
+
+	// No `file` assertion here on purpose: the reporting path format changes
+	// with the #1255 recursive-scan fix, and this test pins the abuse-case
+	// behavior (comment-stripping), not the path format.
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].line, 9);
+	assert.strictEqual(findings[0].uses, 'actions/checkout@v1');
+});
+
+// --- #1255 follow-up 2: composite actions under .github/actions ---
+
+test('fails when a composite action uses a bare tag', async () => {
+	const content = makeWorkflow('      - uses: ./.github/actions/fixture\n');
+
+	const rootDir = await buildFixture({
+		workflowContent: content,
+		actions: [
+			{
+				name: 'fixture',
+				content: makeAction('      - uses: actions/setup-node@v7\n'),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, '.github/actions/fixture/action.yml');
+	assert.strictEqual(findings[0].line, 6);
+	assert.strictEqual(findings[0].uses, 'actions/setup-node@v7');
+});
+
+test('scans nested .github/actions/**/action.yml recursively', async () => {
+	const content = makeWorkflow(
+		'      - uses: ./.github/actions/group/nested-fixture\n',
+	);
+
+	const rootDir = await buildFixture({
+		workflowContent: content,
+		actions: [
+			{
+				name: 'group/nested-fixture',
+				content: makeAction('      - uses: pnpm/action-setup@v6\n'),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(
+		findings[0].file,
+		'.github/actions/group/nested-fixture/action.yml',
+	);
+	assert.strictEqual(findings[0].line, 6);
+	assert.strictEqual(findings[0].uses, 'pnpm/action-setup@v6');
+});
+
+// --- #1261 round-2 finding 2: only .github/actions may be absent ---
+//
+// The r1 review proved the blanket `catch (ENOENT) continue` was fail-open:
+// with no `.github/workflows` under the root (exactly what the guard sees
+// when invoked from the wrong working directory), it printed
+// "All uses: references … are pinned" with rc=0 where the pre-#1255 guard
+// crashed. A missing workflows dir means the scan certified nothing, so it
+// must fail loud; only the composite-actions dir may legitimately be absent
+// (a repo can have zero composite actions today).
+
+test('fails closed when .github/workflows is absent (wrong-root misfire)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
+	);
+
+	await assert.rejects(findUnpinnedActions({ rootDir }), (error) => {
+		assert.match(error.message, /\.github\/workflows/);
+		return true;
+	});
+});
+
+test('still fails when .github/actions exists but .github/workflows does not', async () => {
+	// Order-independence: the tolerance for a missing actions dir must not
+	// swallow a missing workflows dir, whichever one is absent.
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
+	);
+
+	const actionDir = path.join(rootDir, '.github/actions/pinned');
+	await mkdir(actionDir, { recursive: true });
+	await writeFile(
+		path.join(actionDir, 'action.yml'),
+		makeAction(
+			'      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\n',
+		),
+	);
+
+	await assert.rejects(findUnpinnedActions({ rootDir }), (error) => {
+		assert.match(error.message, /\.github\/workflows/);
+		return true;
+	});
+});
+
+test('tolerates an absent .github/actions (no composite actions yet)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
+	);
+
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		makeWorkflow(
+			'      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n',
+		),
+	);
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.deepStrictEqual(findings, []);
+});
+
+test('passes when every composite action step is pinned', async () => {
+	const content = makeWorkflow('      - uses: ./.github/actions/fixture\n');
+
+	const rootDir = await buildFixture({
+		workflowContent: content,
+		actions: [
+			{
+				name: 'fixture',
+				content: makeAction(
+					'      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\n' +
+						'      - uses: docker://alpine@sha256:6457d53fb065d6f250e1504b9bc42d5b6c12950f3e2bb2611d13bbca9a4b7c58\n',
+				),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.deepStrictEqual(findings, []);
+});
+
 // --- r3 hardening: fail-closed on undecidable / mutable non-action refs ---
 
 test('fails when a uses: value has no @ref at all', async () => {
@@ -155,7 +327,7 @@ test('fails when a uses: value has no @ref at all', async () => {
 	const findings = await findUnpinnedActions({ rootDir });
 
 	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
 	assert.strictEqual(findings[0].uses, 'some-owner/some-action-without-ref');
 });
@@ -167,7 +339,7 @@ test('fails when a docker:// image has no digest pin', async () => {
 	const findings = await findUnpinnedActions({ rootDir });
 
 	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, 'fixture.yml');
+	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
 	assert.strictEqual(findings[0].uses, 'docker://alpine:3.20');
 });
