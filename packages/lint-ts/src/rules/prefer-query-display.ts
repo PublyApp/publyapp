@@ -32,7 +32,12 @@ import {
  * name) — either as a whole binding (`const q = useQuery()`) or via
  * destructuring (`const { isError } = useQuery()`) — and then reads one of the
  * flagged fields from that binding inside a conditional render (ternary, `&&`
- * / `||`, early return, `if`/`for`/`while` guard). Callback bodies
+ * / `||`, early return, `if`/`for`/`while` guard). Binding tracking follows
+ * simple data flow: renamed destructuring (`const { isPending: loading } =
+ * useQuery()` tracks `loading`), rest elements (`const { data, ...rest } =
+ * useQuery()` tracks `rest` as a whole binding), whole-binding aliasing
+ * (`const r = useQuery(); const q = r;`) and destructuring from an already
+ * tracked whole binding (`const { isPending } = q;`). Callback bodies
  * (effects, handlers, `useMemo`) are not render context and are skipped.
  */
 
@@ -99,63 +104,114 @@ const collectTrackedBindings = (
 ): TrackedBindings => {
 	const tracked: TrackedBindings = { whole: new Set(), flagged: new Set() };
 
-	const visited = new WeakSet<ESTree.Node>();
-	const isQueryInit = (init: ESTree.Expression | null): boolean => {
-		if (!init || init.type !== 'CallExpression') return false;
-		const hookName = getHookName(init);
-		return (
-			hookName !== null &&
-			isHookLikeName(hookName) &&
-			isQueryHookName(hookName) &&
-			!isMutationHookName(hookName)
-		);
+	// Aliasing can chain (`r = useQuery(); q = r; { isPending } = q`), so the
+	// walk repeats until the tracked sets stop growing.
+	const MAX_PASSES = 10;
+
+	/** Track what a destructuring pattern binds from a query result object. */
+	const trackPattern = (id: ESTree.ObjectPattern): boolean => {
+		let changed = false;
+		for (const prop of id.properties) {
+			if (prop.type === 'Property') {
+				if (
+					prop.key.type === 'Identifier' &&
+					prop.value.type === 'Identifier' &&
+					QUERY_FLAG_FIELDS.has(prop.key.name) &&
+					!tracked.flagged.has(prop.value.name)
+				) {
+					// Renamed destructuring: `const { isPending: loading }`.
+					tracked.flagged.add(prop.value.name);
+					changed = true;
+				}
+			} else if (
+				prop.type === 'RestElement' &&
+				prop.argument.type === 'Identifier' &&
+				!tracked.whole.has(prop.argument.name)
+			) {
+				// Rest aliasing: `const { data, ...rest }` keeps a whole result.
+				tracked.whole.add(prop.argument.name);
+				changed = true;
+			}
+		}
+		return changed;
 	};
 
-	const visit = (node: ESTree.Node | null | undefined): void => {
-		if (!node || visited.has(node)) return;
-		visited.add(node);
-		if (
-			node.type === 'FunctionDeclaration' ||
-			node.type === 'FunctionExpression' ||
-			node.type === 'ArrowFunctionExpression'
-		) {
-			// Skip nested callback bodies (effects, handlers, useMemo).
-			return;
-		}
-		if (node.type === 'VariableDeclaration') {
-			for (const decl of node.declarations) {
-				const id = decl.id;
-				if (isQueryInit(decl.init)) {
+	const runPass = (): boolean => {
+		let changed = false;
+		const visited = new WeakSet<ESTree.Node>();
+
+		const isQueryInit = (init: ESTree.Expression | null): boolean => {
+			if (!init || init.type !== 'CallExpression') return false;
+			const hookName = getHookName(init);
+			return (
+				hookName !== null &&
+				isHookLikeName(hookName) &&
+				isQueryHookName(hookName) &&
+				!isMutationHookName(hookName)
+			);
+		};
+
+		/** Is this initializer a reference to a tracked whole binding? */
+		const isWholeBindingRef = (init: ESTree.Expression | null): boolean =>
+			init !== null &&
+			init.type === 'Identifier' &&
+			tracked.whole.has(init.name);
+
+		const visit = (node: ESTree.Node | null | undefined): void => {
+			if (!node || visited.has(node)) return;
+			visited.add(node);
+			if (
+				node.type === 'FunctionDeclaration' ||
+				node.type === 'FunctionExpression' ||
+				node.type === 'ArrowFunctionExpression'
+			) {
+				// Skip nested callback bodies (effects, handlers, useMemo).
+				return;
+			}
+			if (node.type === 'VariableDeclaration') {
+				for (const decl of node.declarations) {
+					const id = decl.id;
+					const fromQuery = isQueryInit(decl.init);
+					const fromTrackedWhole = isWholeBindingRef(decl.init);
 					if (id.type === 'Identifier') {
-						tracked.whole.add(id.name);
-					} else if (id.type === 'ObjectPattern') {
-						for (const prop of id.properties) {
-							if (prop.type !== 'Property') continue;
-							if (
-								prop.key.type === 'Identifier' &&
-								QUERY_FLAG_FIELDS.has(prop.key.name)
-							) {
-								tracked.flagged.add(prop.key.name);
-							}
+						if (
+							(fromQuery || fromTrackedWhole) &&
+							!tracked.whole.has(id.name)
+						) {
+							// Whole binding from the hook, or an alias of one:
+							// `const q = useQuery(); const alias = q;`.
+							tracked.whole.add(id.name);
+							changed = true;
+						}
+					} else if (
+						id.type === 'ObjectPattern' &&
+						(fromQuery || fromTrackedWhole)
+					) {
+						if (trackPattern(id)) changed = true;
+					}
+				}
+			}
+			for (const value of Object.values(node)) {
+				if (Array.isArray(value)) {
+					for (const child of value) {
+						if (child && typeof child === 'object' && 'type' in child) {
+							visit(child as ESTree.Node);
 						}
 					}
+				} else if (value && typeof value === 'object' && 'type' in value) {
+					visit(value as ESTree.Node);
 				}
 			}
-		}
-		for (const value of Object.values(node)) {
-			if (Array.isArray(value)) {
-				for (const child of value) {
-					if (child && typeof child === 'object' && 'type' in child) {
-						visit(child as ESTree.Node);
-					}
-				}
-			} else if (value && typeof value === 'object' && 'type' in value) {
-				visit(value as ESTree.Node);
-			}
-		}
+		};
+
+		visit(body);
+		return changed;
 	};
 
-	visit(body);
+	for (let pass = 0; pass < MAX_PASSES; pass += 1) {
+		if (!runPass()) break;
+	}
+
 	return tracked;
 };
 
