@@ -443,7 +443,7 @@ vi.mock('~/components/field', () => ({
 
 vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateStaffTenants: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
+		invalidateQueries: (arg: unknown) => void;
 	}) =>
 		queryClient.invalidateQueries({
 			queryKey: ['staff', 'staff-tenants'],

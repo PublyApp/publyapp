@@ -4,6 +4,7 @@ import {
 	IconHelpCircle,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
+import type { QueryObserverResult } from '@tanstack/react-query';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -43,7 +44,7 @@ import {
 type InvitationDetailsCardProps = {
 	invitationId: string;
 	invitation: StaffInvitationDetails;
-	onRefresh: () => Promise<unknown>;
+	onRefresh: () => Promise<void>;
 	onAuthFailure: () => void;
 };
 
@@ -108,7 +109,9 @@ const InvitationDetailsError = ({
 	query,
 }: {
 	error: unknown;
-	query: { refetch: () => unknown };
+	query: {
+		refetch: () => Promise<QueryObserverResult<StaffInvitationDetails>>;
+	};
 }) => {
 	const { t } = useTranslation(['staff-invitations', 'common']);
 
@@ -460,7 +463,9 @@ export const StaffInvitationDetailsPage = ({
 					<InvitationDetailsCard
 						invitationId={invitationId}
 						invitation={data}
-						onRefresh={() => detailQuery.refetch()}
+						onRefresh={async () => {
+							await detailQuery.refetch();
+						}}
 						onAuthFailure={() => setShouldLogout(true)}
 					/>
 				)}

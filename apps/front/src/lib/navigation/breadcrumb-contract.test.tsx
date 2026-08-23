@@ -167,7 +167,7 @@ const buildSyntheticParams = (segments: string[]): Record<string, string> => {
  */
 type EntityRegistryEntry = {
 	query: (params: Record<string, string>) => EntityCrumbQuery;
-	buildPayload: (marker: string) => unknown;
+	buildPayload: (marker: string) => Record<string, unknown>;
 };
 
 const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
@@ -535,6 +535,19 @@ describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () =>
  */
 type FakeClientCall = { path: readonly string[]; args: readonly unknown[] };
 
+/** Whatever the fake Kiota chain resolves to — tests read it back through
+ * `respond` mock assertions, never by consuming the value itself. */
+type FakeResponse = Record<string, unknown>;
+
+/** One link in the fake Kiota method chain — a callable Proxy whose
+ * properties continue the chain and whose call resolves an HTTP verb
+ * segment. Declared as an interface because the index signature points
+ * back at the same type (a self-referencing type alias is circular). */
+interface FakeApiClient {
+	(): Promise<FakeResponse>;
+	[segment: string]: FakeApiClient;
+}
+
 const mocks = vi.hoisted(() => {
 	const HTTP_VERBS = new Set(['get', 'post', 'patch', 'delete', 'put']);
 
@@ -542,10 +555,11 @@ const mocks = vi.hoisted(() => {
 	 * access continues the method chain (`.staff.tenants.byTenantId(id)`),
 	 * and calling a chain whose last segment is an HTTP verb resolves via
 	 * `respond`. */
+
 	const buildFakeApiClient = (
-		respond: (call: FakeClientCall) => unknown,
-	): unknown => {
-		const makeProxy = (path: readonly string[]): unknown =>
+		respond: (call: FakeClientCall) => FakeResponse | Promise<FakeResponse>,
+	): FakeApiClient => {
+		const makeProxy = (path: readonly string[]): FakeApiClient =>
 			new Proxy(() => {}, {
 				get: (_target, prop) =>
 					typeof prop === 'string' ? makeProxy([...path, prop]) : undefined,
@@ -559,12 +573,14 @@ const mocks = vi.hoisted(() => {
 					// at the same logical position so `.get()` can follow.
 					return makeProxy(path);
 				},
-			});
+			}) as unknown as FakeApiClient;
 
 		return makeProxy([]);
 	};
 
-	const respond = vi.fn((_call: FakeClientCall): unknown => ({}));
+	const respond = vi.fn(
+		(_call: FakeClientCall): FakeResponse | Promise<FakeResponse> => ({}),
+	);
 	const fakeClient = buildFakeApiClient((call) => respond(call));
 
 	return { respond, fakeClient };

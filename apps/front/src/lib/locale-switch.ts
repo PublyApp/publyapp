@@ -4,10 +4,12 @@ import {
 	postBroadcast,
 } from '~/lib/tab-sync/broadcast-sync';
 
-type RouterLike = { invalidate: () => Promise<unknown> };
+type LocaleSwitchedResult = { locale: SupportedLanguage };
+
+type RouterLike = { invalidate: () => Promise<void> };
 type SetLocaleFn = (opts: {
 	data: { locale: SupportedLanguage };
-}) => Promise<unknown>;
+}) => Promise<LocaleSwitchedResult>;
 
 /**
  * Re-runs the root loader so it re-resolves `{ locale, resources }` from the

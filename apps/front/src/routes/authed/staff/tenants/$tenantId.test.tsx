@@ -170,7 +170,7 @@ vi.mock('~/components/error-views/View403', () => ({
 vi.mock('~/lib/query/staff-tenants', () => ({
 	STAFF_TENANT_DETAILS_QUERY_KEY: ['staff-tenants', 'detail'],
 	invalidateStaffTenants: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
+		invalidateQueries: (arg: unknown) => void;
 	}) =>
 		queryClient.invalidateQueries({
 			queryKey: ['staff', 'staff-tenants'],

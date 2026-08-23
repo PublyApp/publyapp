@@ -453,9 +453,13 @@ describe('reset-password route', () => {
 });
 
 describe('reset-password loader', () => {
+	type ResetPasswordLoaderResult = { view: 'request' } | { view: 'invalid' };
+
 	const loader = (
 		Route as unknown as {
-			loader: (args: { location: { searchStr: string } }) => Promise<unknown>;
+			loader: (args: {
+				location: { searchStr: string };
+			}) => Promise<ResetPasswordLoaderResult>;
 		}
 	).loader;
 

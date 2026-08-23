@@ -17,7 +17,7 @@ import { Route } from './users-invite';
 describe('staff tenant users/invite legacy route', () => {
 	test('redirects to the users tab with the invite drawer flag', () => {
 		const RouteConfig = Route as unknown as {
-			beforeLoad: (context: { params: { tenantId: string } }) => unknown;
+			beforeLoad: (context: { params: { tenantId: string } }) => void;
 		};
 
 		expect(() =>

@@ -25,7 +25,7 @@ vi.mock('@tanstack/react-router', () => ({
 		</a>
 	),
 	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
-	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
+	useRouterState: ({ select }: { select?: (state: unknown) => void }) =>
 		select?.({ location: { pathname: mocks.pathname } }),
 }));
 

@@ -21,18 +21,18 @@ vi.mock('../api-client/client-manager', () => ({
  */
 vi.mock('@tanstack/react-start', () => ({
 	createServerFn: () => {
-		let validatorFn: ((data: unknown) => unknown) | undefined;
+		let validatorFn: ((data: never) => Record<string, unknown>) | undefined;
 		const chain = {
-			validator: (fn: (data: unknown) => unknown) => {
+			validator: (fn: (data: never) => Record<string, unknown>) => {
 				validatorFn = fn;
 				return chain;
 			},
-			handler: (handlerFn: (ctx: { data: unknown }) => unknown) => {
-				return (input: { data: unknown }) =>
+			handler:
+				<TResult>(handlerFn: (ctx: { data: unknown }) => TResult) =>
+				(input: { data: unknown }): TResult =>
 					handlerFn({
-						data: validatorFn ? validatorFn(input.data) : input.data,
-					});
-			},
+						data: validatorFn ? validatorFn(input.data as never) : input.data,
+					}),
 		};
 		return chain;
 	},

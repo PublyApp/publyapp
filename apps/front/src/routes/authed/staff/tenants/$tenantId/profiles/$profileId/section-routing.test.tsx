@@ -196,7 +196,9 @@ const mountRealRoute = <TRoute,>(
 	route: TRoute,
 	options: Record<string, unknown>,
 ): TRoute => {
-	(route as { update: (options: unknown) => unknown }).update(options);
+	(route as { update: (options: Record<string, unknown>) => void }).update(
+		options,
+	);
 
 	return route;
 };
@@ -299,17 +301,17 @@ const buildRouter = (
 
 	const routeTree = (
 		rootRoute as unknown as {
-			addChildren: (children: unknown[]) => unknown;
+			addChildren: (children: unknown[]) => void;
 		}
 	).addChildren([
 		(
 			layoutRoute as unknown as {
-				addChildren: (children: unknown[]) => unknown;
+				addChildren: (children: unknown[]) => void;
 			}
 		).addChildren([
 			(
 				detailsRoute as unknown as {
-					addChildren: (children: unknown[]) => unknown;
+					addChildren: (children: unknown[]) => void;
 				}
 			).addChildren([overviewRoute, permissionsRoute, membersRoute]),
 			profileUsersRoute,

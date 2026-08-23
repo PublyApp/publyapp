@@ -41,7 +41,7 @@ vi.mock('@tanstack/react-router', () => ({
 		</a>
 	),
 	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
-	useMatches: ({ select }: { select?: (matches: unknown[]) => unknown }) =>
+	useMatches: ({ select }: { select?: (matches: unknown[]) => void }) =>
 		select?.([
 			{
 				routeId: '/_authed-layout',
@@ -62,7 +62,7 @@ vi.mock('@tanstack/react-router', () => ({
 				staticData: { crumbs: 'shell' },
 			},
 		]),
-	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
+	useRouterState: ({ select }: { select?: (state: unknown) => void }) =>
 		select?.({ location: { pathname: mocks.pathname } }),
 	useNavigate: () => mocks.navigate,
 	// The portal's redirects are declarative `<Navigate>` elements now; the

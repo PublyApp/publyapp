@@ -19,7 +19,7 @@ describe('staff tenant profiles/$profileId/edit legacy route', () => {
 		const RouteConfig = Route as unknown as {
 			beforeLoad: (context: {
 				params: { tenantId: string; profileId: string };
-			}) => unknown;
+			}) => void;
 		};
 
 		expect(() =>

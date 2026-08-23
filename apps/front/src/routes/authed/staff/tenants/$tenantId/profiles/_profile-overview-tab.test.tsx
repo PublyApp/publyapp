@@ -28,7 +28,11 @@ vi.mock('@tanstack/react-router', () => ({
 		}
 		const resolvedSearch =
 			typeof search === 'function'
-				? (search as (previous: Record<string, unknown>) => unknown)({})
+				? (
+						search as (
+							previous: Record<string, unknown>,
+						) => Record<string, unknown>
+					)({})
 				: search;
 		return (
 			<a

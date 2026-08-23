@@ -34,7 +34,7 @@ const waitForStaffProfilesGetResponse = (page: Page, expectedQuery?: string) =>
 	});
 
 const extractProfiles = async (response: {
-	json: () => Promise<unknown>;
+	json: () => Promise<{ data?: unknown }>;
 }): Promise<StaffProfileFixture[]> => {
 	const payload = (await response.json()) as {
 		data?: unknown;

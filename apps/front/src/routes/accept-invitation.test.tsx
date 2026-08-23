@@ -707,9 +707,13 @@ describe('accept-invitation route', () => {
 });
 
 describe('accept-invitation loader', () => {
+	type AcceptInvitationLoaderResult = { view: 'invalid' };
+
 	const loader = (
 		Route as unknown as {
-			loader: (args: { location: { searchStr: string } }) => Promise<unknown>;
+			loader: (args: {
+				location: { searchStr: string };
+			}) => Promise<AcceptInvitationLoaderResult>;
 		}
 	).loader;
 

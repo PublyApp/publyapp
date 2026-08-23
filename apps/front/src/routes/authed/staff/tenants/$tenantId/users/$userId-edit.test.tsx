@@ -235,7 +235,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	invalidateAllStaffTenantScopes: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
+		invalidateQueries: (arg: unknown) => void;
 	}) =>
 		queryClient.invalidateQueries({
 			queryKey: ['staff', 'staff-tenants'],

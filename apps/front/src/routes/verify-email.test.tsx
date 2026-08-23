@@ -209,9 +209,16 @@ describe('verify-email route', () => {
 });
 
 describe('verify-email loader', () => {
+	type VerifyEmailLoaderResult =
+		| { view: 'request' }
+		| { view: 'sent'; email: string }
+		| { view: 'invalid' };
+
 	const loader = (
 		Route as unknown as {
-			loader: (args: { location: { searchStr: string } }) => Promise<unknown>;
+			loader: (args: {
+				location: { searchStr: string };
+			}) => Promise<VerifyEmailLoaderResult>;
 		}
 	).loader;
 
