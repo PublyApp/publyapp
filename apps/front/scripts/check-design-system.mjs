@@ -1070,6 +1070,40 @@ const countSnippetOccurrences = (source, snippet) => {
 	return [...source.matchAll(pattern)].length;
 };
 
+// r1-fix (round-1 review): a debt entry's `maxOccurrences` must equal the
+// file's EXACT current occurrence count of its snippet (`(?!-)snippet`,
+// non-overlapping, wherever they sit). A budget ABOVE the real count leaves
+// permanent slack that silently re-permits new violations of the same rule
+// (the round-1 CRITICAL: tooltip.tsx's four `top-1/2!` share one line); a
+// budget BELOW it fails the guard on the very code the entry records. Opt-in
+// like the other whole-repo checks: only the real CLI run enables it, plus
+// the permanent zero-slack test which measures the REAL repo.
+const checkGuardDebtBudgetSlack = (guardDebt, fileContentsByRelativePath) => {
+	const findings = [];
+	for (const debt of guardDebt) {
+		const content = fileContentsByRelativePath.get(debt.file);
+		if (content === undefined) {
+			continue;
+		}
+		const actual = countSnippetOccurrences(content, debt.sourceIncludes);
+		if (actual === debt.maxOccurrences) {
+			continue;
+		}
+		findings.push({
+			ruleId: 'guard-debt-budget-slack',
+			message:
+				`guardDebt entry ${debt.ruleId} @ ${debt.file} (${debt.sourceIncludes}) declares maxOccurrences ${String(debt.maxOccurrences)} but the file currently carries ${String(actual)} occurrence(s) — a budget must equal the exact measured occurrence count (zero slack). ` +
+				(actual > debt.maxOccurrences
+					? 'Raise the budget only together with the code that adds the occurrence(s), each with a reason.'
+					: 'Lower the budget to match — leftover slack silently re-permits new violations of this rule.'),
+			file: debt.file,
+			line: 0,
+			source: `${debt.ruleId}: ${debt.sourceIncludes}`,
+		});
+	}
+	return findings;
+};
+
 const createHandoffGuardDebtLedger = (debtList) => {
 	const remainingByEntryIndex = new Map();
 	return ({ ruleId, file, source }) => {
@@ -1963,6 +1997,11 @@ export const scanFront2DesignSystem = async ({
 	// with the real, committed suppression-inventory.json, so comparing a
 	// fixture scan against it would spuriously fail every such test.
 	checkSuppressionInventory = false,
+	// Same opt-in reasoning again (r1-fix): a fixture temp dir rarely carries
+	// the real debt-listed files, so measuring budgets against it is
+	// meaningless; only the real CLI run opts in, plus the permanent
+	// zero-slack test which measures the REAL repo directly.
+	checkDebtBudgetSlack = false,
 } = {}) => {
 	const handoffGuardDebtAllows = createHandoffGuardDebtLedger(guardDebt);
 	const recordViolation = makeRecordViolation(handoffGuardDebtAllows);
@@ -2253,6 +2292,14 @@ export const scanFront2DesignSystem = async ({
 		}
 	}
 
+	// r1-fix: every budget must equal the file's exact current occurrence
+	// count — see checkGuardDebtBudgetSlack above.
+	if (checkDebtBudgetSlack) {
+		violations.push(
+			...checkGuardDebtBudgetSlack(guardDebt, fileContentsByRelativePath),
+		);
+	}
+
 	if (checkTokenGuards) {
 		violations.push(...checkTokenGuardViolations(fileContentsByRelativePath));
 	}
@@ -2315,6 +2362,7 @@ if (
 		checkStaleDebt: true,
 		checkTokenGuards: true,
 		checkSuppressionInventory: true,
+		checkDebtBudgetSlack: true,
 	});
 
 	console.error(

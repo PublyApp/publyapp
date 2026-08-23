@@ -2427,6 +2427,123 @@ test('F824: occurrences within an explicit budget stay suppressed', async () => 
 	);
 });
 
+// r1-fix (PR #1298 round 1, CRITICAL): budgets are charged PER OCCURRENCE,
+// so occurrences stacked on ONE line each consume their unit. The old
+// per-line ledger let a line bearing N occurrences of the snippet spend a
+// single unit of an N-measured budget, leaving N−1 units of permanent slack
+// that silently re-permitted N−1 NEW violations (tooltip.tsx: four
+// `top-1/2!` on one Arrow line against maxOccurrences 4).
+test('r1-fix: a multi-occurrence line spends one budget unit per occurrence it carries', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full" data-alt="rounded-full">both on one line</div>',
+			'<div className="rounded-full">beyond the occurrence budget</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 2,
+				reason: 'fixture: budget of exactly the two stacked occurrences',
+			},
+		],
+	});
+
+	const debtRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+	assert.equal(debtRuleHits.length, 1);
+	assert.match(debtRuleHits[0]?.source ?? '', /beyond the occurrence budget/);
+});
+
+// r1-fix: the zero-slack invariant as a PERMANENT test over the REAL repo,
+// through the same production code path the real CLI run uses
+// (checkDebtBudgetSlack): budget − current occurrences == 0 for EVERY
+// KNOWN_GUARD_DEBT entry. An entry whose budget exceeds the file's real
+// occurrence count leaves slack that silently re-permits new violations; one
+// below it fails the guard on recorded code. Either way this test (and the
+// real CLI run) now goes red instead of carrying the slack silently.
+test('r1-fix: every KNOWN_GUARD_DEBT budget equals the exact current occurrence count (zero slack)', async () => {
+	const violations = await scanFront2DesignSystem({
+		checkStaleDebt: false,
+		checkTokenGuards: false,
+		checkSuppressionInventory: false,
+		checkDebtBudgetSlack: true,
+	});
+
+	const slackFindings = violations.filter(
+		(violation) => violation.ruleId === 'guard-debt-budget-slack',
+	);
+	assert.deepEqual(
+		slackFindings,
+		[],
+		'every debt budget must equal the exact current occurrence count of its snippet',
+	);
+});
+
+// r1-fix: the slack detector itself works — an over-budgeted entry in a
+// fixture produces an explicit guard-debt-budget-slack finding naming both
+// numbers (this is the exact shape the round-1 review proved exploitable).
+test('r1-fix: checkDebtBudgetSlack flags an entry whose budget exceeds the real occurrence count', async () => {
+	const root = await makeFixture({
+		'src/components/table/r1-slack.tsx':
+			'<div className="rounded-full">single occurrence</div>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/components/table/r1-slack.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 4,
+				reason: 'fixture: dishonest budget of four against one real occurrence',
+			},
+		],
+		checkDebtBudgetSlack: true,
+	});
+
+	const slackFindings = violations.filter(
+		(violation) => violation.ruleId === 'guard-debt-budget-slack',
+	);
+	assert.equal(slackFindings.length, 1);
+	assert.match(slackFindings[0]?.message ?? '', /maxOccurrences 4/);
+	assert.match(slackFindings[0]?.message ?? '', /carries 1 occurrence/);
+
+	// Control: the same fixture with the honest budget of 1 produces no slack
+	// finding (and the occurrence itself stays suppressed within budget).
+	const honestViolations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/components/table/r1-slack.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 1,
+				reason: 'fixture: honest budget of exactly one occurrence',
+			},
+		],
+		checkDebtBudgetSlack: true,
+	});
+	assert.deepEqual(
+		honestViolations.filter(
+			(violation) =>
+				violation.ruleId === 'guard-debt-budget-slack' ||
+				violation.ruleId === 'no-rounded-full-or-999-radius',
+		),
+		[],
+	);
+});
+
 // F824 ui F2: parity ran in ONE direction only (:root tokens needing a dark
 // counterpart), so a token defined ONLY in html.dark passed as clean while
 // its light-mode value silently fell back to whatever cascade default
