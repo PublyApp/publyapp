@@ -102,7 +102,7 @@ const MEASURED_VIEWPORT = { width: 1280, height: 720 } as const;
 // contract pin reds AND the probe starts rendering the new contract — the
 // probe's element identity is the real primitive's, not a parallel model of
 // it.
-const DESCRIPTION_HOST_CONTRACT = (() => {
+const deriveDescriptionHostContract = () => {
 	const html = renderToStaticMarkup(
 		createElement(
 			Drawer,
@@ -125,7 +125,9 @@ const DESCRIPTION_HOST_CONTRACT = (() => {
 		dataSlot: slotMatch[1],
 		hasId: /\sid=/.test(html),
 	};
-})();
+};
+
+const DESCRIPTION_HOST_CONTRACT = deriveDescriptionHostContract();
 
 type Rgba = { r: number; g: number; b: number; a: number };
 
@@ -179,7 +181,7 @@ const DARK_DECLARATIONS = readDeclarations('html.dark');
 // different toast tone, a different data-tone) cannot be modelled
 // statically; the guard resolves the base declaration and the browser spec
 // measures the real paints.
-const CONTEXTUAL_DECLARATIONS = (() => {
+const readFirstContextualDeclarations = (): Map<string, string> => {
 	const declarations = new Map<string, string>();
 	appCssRoot.walkDecls((decl) => {
 		if (decl.prop.startsWith('--') && !declarations.has(decl.prop)) {
@@ -187,7 +189,9 @@ const CONTEXTUAL_DECLARATIONS = (() => {
 		}
 	});
 	return declarations;
-})();
+};
+
+const CONTEXTUAL_DECLARATIONS = readFirstContextualDeclarations();
 
 const parseColorValue = (raw: string, name: string): Rgba => {
 	const trimmed = raw.trim();
@@ -304,7 +308,7 @@ const parseOklchColor = (raw: string, name: string): Rgba => {
 const tailwindThemePath = fileURLToPath(
 	import.meta.resolve('tailwindcss/theme.css'),
 );
-const tailwindThemeDeclarations = (() => {
+const readTailwindThemeDeclarations = (): Map<string, string> => {
 	const themeSource = readFileSync(tailwindThemePath, 'utf8');
 	const themeRoot = postcss.parse(themeSource, { from: undefined });
 	const declarations = new Map<string, string>();
@@ -324,7 +328,9 @@ const tailwindThemeDeclarations = (() => {
 		throw new Error('Missing @theme default block in tailwindcss/theme.css');
 	}
 	return declarations;
-})();
+};
+
+const tailwindThemeDeclarations = readTailwindThemeDeclarations();
 
 const parseColorDeclaration = (raw: string, name: string): Rgba => {
 	const trimmed = raw.trim();
@@ -1865,11 +1871,12 @@ const compiledCssFor = (utilities: string[]): Promise<string> => {
 	if (cached) {
 		return cached;
 	}
-	const compiled = (async (): Promise<string> => {
+	const compileUtilities = async (): Promise<string> => {
 		const compiler = await getCompiler();
 		const generatedCss = compiler.build(utilities);
 		return generatedCss.replace(/^\/\*![\s\S]*?\*\/\s*/, '');
-	})();
+	};
+	const compiled = compileUtilities();
 	compiledCssCache.set(cacheKey, compiled);
 	return compiled;
 };
@@ -3206,6 +3213,18 @@ const assertVerifiable = (
  * Only single-compound class arguments can be fabricated; anything more
  * complex than `.child` stays unverifiable and is covered by the e2e's real
  * markup. */
+/**
+ * Default child variants when a probe declares none: a single empty variant,
+ * or empty plus the fabricated children when any were produced.
+ */
+const buildFabricatedChildVariants = (
+	recorded: RecordedDeclaration[],
+	utilities: string[],
+): string[][] => {
+	const fabricated = probeChildrenFor(recorded, utilities);
+	return fabricated.length === 0 ? [[]] : [[], fabricated];
+};
+
 const probeChildrenFor = (
 	recorded: RecordedDeclaration[],
 	utilities: string[],
@@ -3344,10 +3363,7 @@ const resolvePaintFromCss = async (
 	const childVariants: string[][] =
 		probe.children !== undefined
 			? [probe.children]
-			: (() => {
-					const fabricated = probeChildrenFor(recorded, utilities);
-					return fabricated.length === 0 ? [[]] : [[], fabricated];
-				})();
+			: buildFabricatedChildVariants(recorded, utilities);
 
 	// One page, so variants run sequentially — never Promise.all, which would
 	// race concurrent mutations of the single shared probePage. Each `:has()`
