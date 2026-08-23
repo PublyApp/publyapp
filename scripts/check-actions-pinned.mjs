@@ -113,41 +113,71 @@ const listYamlFiles = async (dir, rootDir) => {
 };
 
 /**
- * Scans all .github/workflows/*.yml files plus every composite action
- * manifest under .github/actions/…/action.yml (recursive), and returns an
- * array of { file, line, uses } objects for every non-local `uses:` that is
- * not pinned to an immutable reference (40-char hex SHA for actions, content
- * digest for `docker://` images), including undecidable input such as a
- * missing `@ref`. `file` is repo-relative so findings name the path a
- * human edits from the repo root.
+ * Scans every *.yml/*.yaml under one directory (recursive) and returns an
+ * array of { file, line, uses } findings (repo-relative `file`).
  */
-export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
+const scanDirFindings = async ({ dir, rootDir }) => {
 	const findings = [];
+	const files = await listYamlFiles(path.join(rootDir, dir), rootDir);
 
-	for (const dir of [workflowsDir, actionsDir]) {
-		let files;
-		try {
-			files = await listYamlFiles(path.join(rootDir, dir), rootDir);
-		} catch (error) {
-			if (error?.code === 'ENOENT') continue; // e.g. no composite actions yet
-			throw error;
-		}
+	for (const file of files) {
+		const content = await readFile(path.join(rootDir, file), 'utf8');
+		const lines = content.split('\n');
 
-		for (const file of files) {
-			const content = await readFile(path.join(rootDir, file), 'utf8');
-			const lines = content.split('\n');
+		for (let i = 0; i < lines.length; i++) {
+			const finding = findLineFinding(lines[i]);
 
-			for (let i = 0; i < lines.length; i++) {
-				const finding = findLineFinding(lines[i]);
-
-				if (finding !== null) {
-					findings.push({ file, line: i + 1, uses: finding.uses });
-				}
+			if (finding !== null) {
+				findings.push({ file, line: i + 1, uses: finding.uses });
 			}
 		}
 	}
 
 	return findings;
+};
+
+/**
+ * Scans .github/workflows/** plus everything under .github/actions/…
+ * (recursive), and returns an array of { file, line, uses } objects for every
+ * non-local `uses:` that is not pinned to an immutable reference (40-char hex
+ * SHA for actions, content digest for `docker://` images), including
+ * undecidable input such as a missing `@ref`. `file` is repo-relative so
+ * findings name the path a human edits from the repo root.
+ *
+ * Failure semantics are asymmetric on purpose:
+ *   - A MISSING .github/workflows is fatal. It almost always means the guard
+ *     was started from the wrong working directory, and a silent pass would
+ *     certify nothing; the error names the missing path.
+ *   - A MISSING .github/actions is tolerated: a repository can legitimately
+ *     have zero composite actions.
+ */
+export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
+	// Mandatory half: see the failure-semantics note above.
+	let workflowFindings;
+	try {
+		workflowFindings = await scanDirFindings({ dir: workflowsDir, rootDir });
+	} catch (error) {
+		if (error?.code === 'ENOENT') {
+			throw new Error(
+				`actions-pin guard: ${workflowsDir}/ does not exist under '${rootDir}'. The workflows half of the scan certified nothing, so this fails instead of passing. Run the guard from the repository root.`,
+				{ cause: error },
+			);
+		}
+
+		throw error;
+	}
+
+	// Tolerated half: no composite actions yet.
+	let actionFindings;
+	try {
+		actionFindings = await scanDirFindings({ dir: actionsDir, rootDir });
+	} catch (error) {
+		if (error?.code !== 'ENOENT') {
+			throw error;
+		}
+	}
+
+	return [...workflowFindings, ...(actionFindings ?? [])];
 };
 
 // --- CLI entry point ---

@@ -231,6 +231,67 @@ test('scans nested .github/actions/**/action.yml recursively', async () => {
 	assert.strictEqual(findings[0].uses, 'pnpm/action-setup@v6');
 });
 
+// --- #1261 round-2 finding 2: only .github/actions may be absent ---
+//
+// The r1 review proved the blanket `catch (ENOENT) continue` was fail-open:
+// with no `.github/workflows` under the root (exactly what the guard sees
+// when invoked from the wrong working directory), it printed
+// "All uses: references … are pinned" with rc=0 where the pre-#1255 guard
+// crashed. A missing workflows dir means the scan certified nothing, so it
+// must fail loud; only the composite-actions dir may legitimately be absent
+// (a repo can have zero composite actions today).
+
+test('fails closed when .github/workflows is absent (wrong-root misfire)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
+	);
+
+	await assert.rejects(findUnpinnedActions({ rootDir }), (error) => {
+		assert.match(error.message, /\.github\/workflows/);
+		return true;
+	});
+});
+
+test('still fails when .github/actions exists but .github/workflows does not', async () => {
+	// Order-independence: the tolerance for a missing actions dir must not
+	// swallow a missing workflows dir, whichever one is absent.
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
+	);
+
+	const actionDir = path.join(rootDir, '.github/actions/pinned');
+	await mkdir(actionDir, { recursive: true });
+	await writeFile(
+		path.join(actionDir, 'action.yml'),
+		makeAction(
+			'      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\n',
+		),
+	);
+
+	await assert.rejects(findUnpinnedActions({ rootDir }), (error) => {
+		assert.match(error.message, /\.github\/workflows/);
+		return true;
+	});
+});
+
+test('tolerates an absent .github/actions (no composite actions yet)', async () => {
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
+	);
+
+	await mkdir(path.join(rootDir, '.github/workflows'), { recursive: true });
+	await writeFile(
+		path.join(rootDir, '.github/workflows/fixture.yml'),
+		makeWorkflow(
+			'      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n',
+		),
+	);
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.deepStrictEqual(findings, []);
+});
+
 test('passes when every composite action step is pinned', async () => {
 	const content = makeWorkflow('      - uses: ./.github/actions/fixture\n');
 
