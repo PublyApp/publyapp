@@ -247,6 +247,26 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 	invalidateTenantPosts: vi.fn(),
 }));
 
+vi.mock('~/lib/query/staff-global-tenant-users', async (importOriginal) => {
+	const actual =
+		await importOriginal<
+			typeof import('~/lib/query/staff-global-tenant-users')
+		>();
+
+	return {
+		...actual,
+		useGlobalTenantUsersPickerQuery: () => ({
+			data: undefined,
+			isPending: true,
+		}),
+		useLinkGlobalTenantUserCompaniesMutation: () => ({
+			isPending: false,
+			mutate: vi.fn(),
+			mutateAsync: vi.fn().mockResolvedValue(undefined),
+		}),
+	};
+});
+
 vi.mock('~/components/ui/button', () => ({
 	Button: ({
 		children,
@@ -345,6 +365,7 @@ vi.mock(
 );
 
 import { ChangeStaffUserEmailDialog } from '../../routes/authed/staff/staff-users/_change-email-dialog';
+import { LinkCompaniesDrawerHost } from '../../routes/authed/staff/tenant-users/$userId-organizations-drawer';
 import { InviteTenantUserDrawer } from '../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer';
 import { ProfileEditDetailsDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer';
 import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer';
@@ -9365,6 +9386,11 @@ const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
 	},
 	'tenant-post-create': () => {
 		render(<CreatePostDrawer open onOpenChange={noop} tenantId="tenant-1" />);
+	},
+	'tenant-user-link-companies': () => {
+		render(
+			<LinkCompaniesDrawerHost userId="user-1" isOpen onOpenChange={noop} />,
+		);
 	},
 };
 
