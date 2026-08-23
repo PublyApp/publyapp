@@ -43,25 +43,7 @@ const getSchema = (t: (k: string) => string) =>
 
 type Values = z.infer<ReturnType<typeof getSchema>>;
 
-export const Route = createFileRoute(
-	'/_authed-layout/tenant/posts/$postId/edit',
-)({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
-			{ kind: 'label', labelKey: 'drafts', to: '/tenant/posts/drafts' },
-			{
-				kind: 'entity',
-				query: tenantPostCrumbQuery,
-				select: selectTenantPostCrumbName,
-			} as never,
-		],
-		i18nNamespaces: ['posts'],
-	},
-	component: TenantPostEditPage,
-});
-
-function TenantPostEditPage() {
+const TenantPostEditPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const { postId } = Route.useParams();
 	const navigate = Route.useNavigate();
@@ -318,4 +300,22 @@ function TenantPostEditPage() {
 			/>
 		</FormPageLayout>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/tenant/posts/$postId/edit',
+)({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
+			{ kind: 'label', labelKey: 'drafts', to: '/tenant/posts/drafts' },
+			{
+				kind: 'entity',
+				query: tenantPostCrumbQuery,
+				select: selectTenantPostCrumbName,
+			} as never,
+		],
+		i18nNamespaces: ['posts'],
+	},
+	component: TenantPostEditPage,
+});

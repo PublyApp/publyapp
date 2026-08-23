@@ -31,17 +31,6 @@ import { CreatePostDrawer } from './_create-post-drawer';
 
 const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
 
-export const Route = createFileRoute('/_authed-layout/tenant/posts/drafts')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
-			{ kind: 'label', labelKey: 'drafts' },
-		],
-		i18nNamespaces: ['posts'],
-	},
-	component: TenantPostsDraftsPage,
-});
-
 /**
  * Honest read-only drafts section: no posts API exists, so the page is a
  * coming-later state — never fabricated draft rows.
