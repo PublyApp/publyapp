@@ -7,7 +7,7 @@ import {
 	waitFor,
 	within,
 } from '@testing-library/react';
-import { createElement, type ReactNode, type FormEventHandler } from 'react';
+import { createElement, type ReactNode, type SubmitEventHandler } from 'react';
 import { FormProvider, useFormContext } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -247,7 +247,7 @@ vi.mock('~/components/field', () => ({
 	}: {
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
-		onSubmit?: FormEventHandler<HTMLFormElement>;
+		onSubmit?: SubmitEventHandler<HTMLFormElement>;
 	}) =>
 		createElement(
 			FormProvider as never,

@@ -459,8 +459,11 @@ export const TenantDetailsPageShell = ({
 							) : null}
 							<span>
 								{' '}
-								· {t('tenant-member-count', { count: tenant.usersCount })} ·{' '}
-								{t('tenant-owner-count', { count: tenant.ownersCount })} ·{' '}
+								·{' '}
+								{t('tenant-member-count', {
+									count: tenant.usersCount,
+								})}{' '}
+								· {t('tenant-owner-count', { count: tenant.ownersCount })} ·{' '}
 								{t('since-date', {
 									date: formatMonthYear(tenant.createdAt, i18n.language),
 								})}
