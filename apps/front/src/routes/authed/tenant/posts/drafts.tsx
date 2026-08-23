@@ -29,6 +29,8 @@ import {
 
 import { CreatePostDrawer } from './_create-post-drawer';
 
+const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
+
 export const Route = createFileRoute('/_authed-layout/tenant/posts/drafts')({
 	staticData: {
 		crumbs: () => [
@@ -56,11 +58,10 @@ function TenantPostsDraftsPage() {
 			replace: true,
 		});
 	};
-	const defaultSort = { id: 'updated_at', order: 'desc' as const };
 	const controller = useTableController({
 		search: search as never,
 		onSearchChange: onSearchChange as never,
-		defaultSort,
+		defaultSort: DEFAULT_SORT,
 		defaultSize: 20,
 	});
 	const tenantId = useResolvedWorkspaceTenantId();

@@ -1,6 +1,6 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
@@ -293,18 +293,31 @@ export const savePost = async (
 
 // ── Mutations ──────────────────────────────────────────────────────
 
-export const useSavePostMutation = () =>
-	useMutation({
+export const useSavePostMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
 		mutationKey: [...TENANT_POSTS_QUERY_KEY, 'save'],
 		mutationFn: savePost,
+		onSuccess: (_data, variables) => {
+			void queryClient.invalidateQueries({
+				queryKey: [
+					...scopedKey('tenant', TENANT_POSTS_QUERY_KEY),
+					variables.tenantId,
+				],
+			});
+		},
 		meta: {
 			successMessage: 'post-saved-success',
 			validationHandledByForm: true,
 		},
 	});
+};
 
-export const useDeleteTenantPostMutation = () =>
-	useMutation({
+export const useDeleteTenantPostMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
 		mutationKey: [...TENANT_POSTS_QUERY_KEY, 'delete'],
 		mutationFn: async ({
 			postId,
@@ -316,8 +329,17 @@ export const useDeleteTenantPostMutation = () =>
 			const client = getClientManager().getOrCreateClient(tenantId);
 			await client.posts.byPostId(postId).delete();
 		},
+		onSuccess: (_data, variables) => {
+			void queryClient.invalidateQueries({
+				queryKey: [
+					...scopedKey('tenant', TENANT_POSTS_QUERY_KEY),
+					variables.tenantId,
+				],
+			});
+		},
 		meta: { successMessage: 'post-deleted-success' },
 	});
+};
 
 // ── Invalidation ───────────────────────────────────────────────────
 
