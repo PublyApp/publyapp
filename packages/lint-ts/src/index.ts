@@ -19,6 +19,7 @@
  *   - `publy/no-array-reduce` → "error"
  *   - `publy/no-package-src-import` → "error"
  *   - `publy/arrow-function-components` → "off" (dormant)
+ *   - `publy/prefer-query-display` → "off" (dormant)
  */
 import { arrowFunctionComponents } from './rules/arrow-function-components.ts';
 import { noArrayReduce } from './rules/no-array-reduce.ts';
@@ -27,6 +28,7 @@ import { noDirectDayjsInComponents } from './rules/no-direct-dayjs-in-components
 import { noManualResponseMessageTranslation } from './rules/no-manual-response-message-translation.ts';
 import { noOp } from './rules/no-op.ts';
 import { noPackageSrcImport } from './rules/no-package-src-import.ts';
+import { preferQueryDisplay } from './rules/prefer-query-display.ts';
 import { preferSpecificLodashImports } from './rules/prefer-specific-lodash-imports.ts';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
@@ -44,6 +46,7 @@ const plugin = {
 		'prefer-specific-lodash-imports': preferSpecificLodashImports,
 		'no-package-src-import': noPackageSrcImport,
 		'arrow-function-components': arrowFunctionComponents,
+		'prefer-query-display': preferQueryDisplay,
 	},
 };
 
