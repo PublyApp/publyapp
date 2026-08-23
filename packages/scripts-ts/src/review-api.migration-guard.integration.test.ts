@@ -478,7 +478,14 @@ afterAll(() => {
 
 test(
 	'FAILING PROOF: guard refuses to start and names the real unapplied migration',
-	{ skip },
+	{
+		skip,
+		// Calls the real exported assertNoPendingMigrations, which shells out to
+		// dotnet-ef against the throwaway database; under multi-lane host load
+		// (r3 finisher: load ~20/12 cores) that takes minutes — same reasoning
+		// as PASSING PROOF's timeout below.
+		timeout: 600_000,
+	},
 	() => {
 		assert.throws(
 			() =>
