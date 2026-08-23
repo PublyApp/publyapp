@@ -242,7 +242,16 @@ const isPostgresAcceptingAuthenticatedSessions = () => {
 };
 
 const waitForPostgresReady = async () => {
-	for (let attempt = 0; attempt < 60; attempt += 1) {
+	// 240 attempts x 500ms = a 2-minute ceiling. 60 attempts (30s of polling,
+	// ~60s wall-clock with docker exec overhead) was tuned on idle machines and
+	// closed before initdb finished under real host load: round-2 saw it fail
+	// on this exact branch, and the finisher reproduced it deterministically at
+	// load average ~12/12 cores (postgres:18-alpine initdb alone took >60s, and
+	// each `docker exec` probe stretches to ~1s when the daemon is busy). The
+	// happy path is unchanged — polling returns on the first successful
+	// authenticated query; the wider ceiling only affects the failure path and
+	// vitest's default per-hook timeout is 10s per AWAIT, not cumulative.
+	for (let attempt = 0; attempt < 240; attempt += 1) {
 		if (isPostgresAcceptingAuthenticatedSessions()) {
 			return;
 		}
@@ -1047,7 +1056,10 @@ const runHostedServiceManifestProbe = ({
 
 test(
 	'END-TO-END: the real CLI pins the guard and the launched API to the SAME (worktree file) connection string, not an ambient one',
-	{ skip: skip || (launchTargetSkip ? launchTargetSkipReason : false) },
+	{
+		skip: skip || (launchTargetSkip ? launchTargetSkipReason : false),
+		timeout: 120_000,
+	},
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
 			const free = await isPortFree(CLI_PORT);
@@ -1178,7 +1190,10 @@ const NORMAL_LAUNCH_PORT = 5593;
 
 test(
 	'END-TO-END: an ordinary launch (fully migrated, no --allow-migrations) still pins the Api role — no job engine starts against the shared database',
-	{ skip: skip || (launchTargetSkip ? launchTargetSkipReason : false) },
+	{
+		skip: skip || (launchTargetSkip ? launchTargetSkipReason : false),
+		timeout: 120_000,
+	},
 	async () => {
 		await withWorktreeConnectionString(TEST_CONNECTION, async () => {
 			const free = await isPortFree(NORMAL_LAUNCH_PORT);
@@ -1318,7 +1333,10 @@ const MISSING_VALUE_TIMEOUT_MS = 30_000;
 
 test(
 	'END-TO-END: a worktree file missing POSTGRES_CONNECTION_STRING fails closed instead of falling back to an ambient decoy',
-	{ skip: skip || (launchTargetSkip ? launchTargetSkipReason : false) },
+	{
+		skip: skip || (launchTargetSkip ? launchTargetSkipReason : false),
+		timeout: 120_000,
+	},
 	async () => {
 		await withWorktreeConnectionStringRemoved(async () => {
 			const free = await isPortFree(MISSING_VALUE_PORT);
