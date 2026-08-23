@@ -252,6 +252,38 @@ test('#1261: front-ci classifier selects .github/actions/foo/action.yml as relev
 	assert.equal(result.relevant, true);
 });
 
+// ---------------------------------------------------------------------------
+// #1275 (#1273 follow-up): quality-gate.yml gates its heavy job on this same
+// classifier, and @org/shared-ts's standing typecheck/test steps live under
+// `packages/shared-ts/**`. Nothing pinned that a shared-ts-only PR selects
+// the gate, so a silent narrowing of the REAL pattern would stop running
+// shared-ts verification without anyone noticing. As with #1261 above, the
+// pattern is extracted from the workflow YAML itself, not restated here, so
+// narrowing it is caught. Paired proof: this test is RED against a narrowed
+// pattern (the `packages/` group removed) and GREEN against the shipped one.
+// ---------------------------------------------------------------------------
+
+const qualityGateClassifierPattern = readFileSync(
+	new URL('../.github/workflows/quality-gate.yml', import.meta.url),
+	'utf8',
+).match(/node "\$CLASSIFIER" '([^']*)'/)?.[1];
+
+test('#1275: quality-gate classifier selects packages/shared-ts/src/lib/foo.ts as relevant', () => {
+	assert.ok(
+		qualityGateClassifierPattern,
+		'classifier invocation found in quality-gate.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['packages/shared-ts/src/lib/logger/iso-logger.ts'],
+		changedFilesTotal: 1,
+		pattern: qualityGateClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
 test('parseChangedFilesTotal: a valid non-negative integer, with surrounding whitespace, parses', () => {
 	assert.equal(parseChangedFilesTotal('  42  \n'), 42);
 });
