@@ -299,8 +299,8 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts
   node ./packages/scripts-ts/src/check-ci-gate-structure.ts
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
-  node --test ./packages/scripts-ts/src/check-actions-pinned.test.mjs
-  node ./packages/scripts-ts/src/check-actions-pinned.mjs
+  pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts
+  node ./packages/scripts-ts/src/check-actions-pinned.ts
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:

@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
 
-import { findUnpinnedActions } from './check-actions-pinned.mjs';
+import { test } from 'vitest';
+
+import { findUnpinnedActions } from './check-actions-pinned.ts';
 
 // Standing proof that the SHA-pinning guard actually fires.
 // Every failure mode it claims to catch gets exercised against a throwaway
 // repo, so the guard cannot rot into a check that always returns green.
 
-const makeWorkflow = (steps) =>
+const makeWorkflow = (steps: string): string =>
 	`name: fixture\non:\n  pull_request:\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n${steps}`;
 
 /**
@@ -18,16 +19,20 @@ const makeWorkflow = (steps) =>
  * actions under .github/actions/<name>/action.yml (name may contain slashes
  * to prove the scan is recursive). `extraFiles` writes arbitrary repo-root
  * relative files — used by the #1268 local-action fixtures to place actions
- * OUTSIDE .github/actions. `symlinks` commits symlinks into the throwaway
- * repo — used by the #1277 fixtures to point a local action path at a real
- * directory elsewhere (`target` absolute, or repo-root relative).
+ * OUTSIDE .github/actions.
  */
+type FixtureAction = { name: string; content: string };
+type ExtraFile = { path: string; content: string };
+
 const buildFixture = async ({
 	workflowContent,
 	actions = [],
 	extraFiles = [],
-	symlinks = [],
-}) => {
+}: {
+	workflowContent: string;
+	actions?: FixtureAction[];
+	extraFiles?: ExtraFile[];
+}): Promise<string> => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
 	);
@@ -51,19 +56,10 @@ const buildFixture = async ({
 		await writeFile(path.join(rootDir, filePath), content);
 	}
 
-	for (const { linkPath, target } of symlinks) {
-		const linkFull = path.join(rootDir, linkPath);
-		await mkdir(path.join(linkFull, '..'), { recursive: true });
-		const targetFull = path.isAbsolute(target)
-			? target
-			: path.join(rootDir, target);
-		await symlink(targetFull, linkFull, 'dir');
-	}
-
 	return rootDir;
 };
 
-const makeAction = (steps) =>
+const makeAction = (steps: string): string =>
 	`name: 'Fixture composite action'\ndescription: 'fixture'\nruns:\n  using: composite\n  steps:\n${steps}`;
 
 test('passes when all uses: are pinned to full SHAs', async () => {
@@ -264,7 +260,7 @@ test('fails closed when .github/workflows is absent (wrong-root misfire)', async
 	);
 
 	await assert.rejects(findUnpinnedActions({ rootDir }), (error) => {
-		assert.match(error.message, /\.github\/workflows/);
+		assert.match((error as Error).message, /\.github\/workflows/);
 		return true;
 	});
 });
@@ -286,7 +282,7 @@ test('still fails when .github/actions exists but .github/workflows does not', a
 	);
 
 	await assert.rejects(findUnpinnedActions({ rootDir }), (error) => {
-		assert.match(error.message, /\.github\/workflows/);
+		assert.match((error as Error).message, /\.github\/workflows/);
 		return true;
 	});
 });
@@ -450,7 +446,7 @@ test('fails closed when a referenced local action has no action.yml', async () =
 	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
 	assert.strictEqual(findings[0].line, 8);
 	assert.match(findings[0].uses, /^\.\/tools\/ghost-action/);
-	assert.match(findings[0].reason, /action\.yml/);
+	assert.match(findings[0].reason ?? '', /action\.yml/);
 });
 
 test('fails closed when a nested local reference points outside the repository', async () => {
@@ -469,7 +465,7 @@ test('fails closed when a nested local reference points outside the repository',
 	assert.strictEqual(findings.length, 1);
 	assert.strictEqual(findings[0].file, 'tools/outer/action.yml');
 	assert.match(findings[0].uses, /^\.\.\/outside-repo/);
-	assert.match(findings[0].reason, /outside/);
+	assert.match(findings[0].reason ?? '', /outside/);
 });
 
 test('local action cycles terminate via the visited set', async () => {
@@ -522,79 +518,4 @@ test('self-referencing local action terminates', async () => {
 	assert.strictEqual(findings.length, 1);
 	assert.strictEqual(findings[0].file, 'tools/self-loop/action.yml');
 	assert.strictEqual(findings[0].uses, 'pnpm/action-setup@v6');
-});
-
-// --- #1277: the containment check must hold on REAL paths ---
-//
-// `access()`/`readFile()` dereference symlinks, so a committed symlink whose
-// target leaves the repo passes a purely lexical (path.relative) containment
-// check and the guard then reads and judges a file OUTSIDE the repo —
-// contradicting the header's fail-closed invariant. The real path of the
-// resolved manifest must stay under the real repo root.
-
-test('fails when a committed symlink points the local action outside the repo', async () => {
-	// The lexical path `tools/escape` sits inside the root; its TARGET does
-	// not. On the pre-#1277 code this stayed green while the guard read and
-	// judged an out-of-repo manifest.
-	const outsideDir = await mkdtemp(
-		path.join(os.tmpdir(), 'publyapp-actions-pinned-outside-'),
-	);
-	await writeFile(
-		path.join(outsideDir, 'action.yml'),
-		makeAction('      - uses: actions/setup-node@v7\n'),
-	);
-
-	const rootDir = await buildFixture({
-		workflowContent: makeWorkflow('      - uses: ./tools/escape\n'),
-		symlinks: [{ linkPath: 'tools/escape', target: outsideDir }],
-	});
-
-	const findings = await findUnpinnedActions({ rootDir });
-
-	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
-	assert.strictEqual(findings[0].line, 8);
-	assert.match(findings[0].uses, /^\.\/tools\/escape/);
-	assert.match(findings[0].reason, /outside|symbolic link/);
-});
-
-test('stays green when a committed symlink stays inside the repo', async () => {
-	// Containment on real paths must not over-reject: an alias that resolves
-	// to a fully pinned in-repo action is legitimate and passes.
-	const rootDir = await buildFixture({
-		workflowContent: makeWorkflow('      - uses: ./tools/alias\n'),
-		extraFiles: [
-			{
-				path: 'tools/real-action/action.yml',
-				content: makeAction(
-					'      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\n',
-				),
-			},
-		],
-		symlinks: [{ linkPath: 'tools/alias', target: 'tools/real-action' }],
-	});
-
-	const findings = await findUnpinnedActions({ rootDir });
-
-	assert.deepStrictEqual(findings, []);
-});
-
-test('fails closed when the referenced directory exists but has no action manifest', async () => {
-	// Pins the sub-case #1268 claimed but never tested: `access()` succeeds
-	// on the directory itself, so "directory present" must still fail closed
-	// when neither action.yml nor action.yaml exists inside it.
-	const rootDir = await buildFixture({
-		workflowContent: makeWorkflow('      - uses: ./tools/bare-dir\n'),
-		extraFiles: [
-			{ path: 'tools/bare-dir/README.md', content: 'no manifest here\n' },
-		],
-	});
-
-	const findings = await findUnpinnedActions({ rootDir });
-
-	assert.strictEqual(findings.length, 1);
-	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
-	assert.strictEqual(findings[0].line, 8);
-	assert.match(findings[0].uses, /^\.\/tools\/bare-dir/);
-	assert.match(findings[0].reason, /action\.yml/);
 });

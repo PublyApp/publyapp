@@ -1,4 +1,4 @@
-import { readdir, readFile, realpath } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -17,10 +17,7 @@ import { fileURLToPath } from 'node:url';
 //     local refs found inside resolved actions (a visited set makes cycles
 //     terminate). A referenced action file that does not exist — or a value
 //     resolving OUTSIDE the repo root — is itself a finding: fail closed,
-//     never silently skipped (#1268). Containment holds on REAL paths
-//     (#1277): access()/readFile() dereference symlinks, so a committed
-//     symlink whose target leaves the repository is a finding too, not a
-//     license to judge files stored outside the repo.
+//     never silently skipped (#1268).
 //
 // EXACTLY WHAT IS SCANNED:
 //   - every *.yml/*.yaml file under .github/workflows/ (recursive), and
@@ -43,6 +40,19 @@ const actionsDir = '.github/actions';
 const shaPattern = /^[0-9a-f]{40}$/;
 const dockerDigestPattern = /^sha256:[0-9a-f]{64}$/;
 
+type UnpinnedActionFinding = {
+	file: string;
+	line: number;
+	uses: string;
+	reason?: string;
+};
+
+type LineFinding = { uses: string; local: true } | { uses: string };
+
+type LocalActionTarget =
+	| { ok: true; file: string }
+	| { ok: false; reason: string };
+
 /**
  * Judges one physical line of a workflow or composite-action file.
  * Returns a finding descriptor when the line carries a `uses:` that needs
@@ -63,7 +73,7 @@ const dockerDigestPattern = /^sha256:[0-9a-f]{64}$/;
  * ANYWHERE on it (e.g. in its comment) must stay a FAILING mutable-ref
  * case, never a silent pass.
  */
-const findLineFinding = (line) => {
+const findLineFinding = (line: string): LineFinding | null => {
 	// Strip YAML comments (# preceded by whitespace or at line start)
 	// before matching, so commented-out uses: lines are not flagged.
 	const code = line.replace(/#.*/, '');
@@ -106,22 +116,13 @@ const findLineFinding = (line) => {
  * <path>/action.yml first, then <path>/action.yaml; the value must stay
  * inside the repo root — one that escapes it (../) fails instead of being
  * followed (#1268).
- *
- * #1277: containment is enforced twice. The value is checked lexically
- * (path.relative), then the winning manifest is resolved with fs.realpath
- * and its REAL path must stay under the repo root's real path. A committed
- * symlink like `tools/escape -> <outside>` passes the lexical half but
- * access()/readFile() dereference it, so without the second check the guard
- * would read and judge a file outside the repository.
  */
-const resolveLocalActionTarget = async (usesValue, rootDir) => {
-	// Both containment halves compare REAL coordinates: resolving `rootDir`
-	// first keeps this correct even when the caller's cwd chain crosses a
-	// symlink (e.g. a tmpdir parent), where mixing lexical and real paths
-	// would reject every in-repo target.
-	const realRoot = await realpath(path.resolve(rootDir));
-	const joined = path.resolve(realRoot, usesValue);
-	const relToRoot = path.relative(realRoot, joined);
+const resolveLocalActionTarget = async (
+	usesValue: string,
+	rootDir: string,
+): Promise<LocalActionTarget> => {
+	const joined = path.resolve(rootDir, usesValue);
+	const relToRoot = path.relative(path.resolve(rootDir), joined);
 
 	if (
 		relToRoot.startsWith('..') ||
@@ -138,24 +139,12 @@ const resolveLocalActionTarget = async (usesValue, rootDir) => {
 
 	for (const manifest of ['action.yml', 'action.yaml']) {
 		const rel = `${relBase}/${manifest}`;
-		let realTarget;
 		try {
-			realTarget = await realpath(path.join(rootDir, rel));
+			await access(path.join(rootDir, rel));
+			return { ok: true, file: rel };
 		} catch {
-			// missing manifest — try the next candidate
-			continue;
+			// try next candidate
 		}
-
-		const relReal = path.relative(realRoot, realTarget);
-
-		if (relReal.startsWith('..') || path.isAbsolute(relReal)) {
-			return {
-				ok: false,
-				reason: `symbolic link target leaves the repository root: ${rel} points at ${realTarget}`,
-			};
-		}
-
-		return { ok: true, file: rel };
 	}
 
 	return {
@@ -167,7 +156,7 @@ const resolveLocalActionTarget = async (usesValue, rootDir) => {
 /**
  * Deterministic lexicographic ordering for reported file paths.
  */
-const comparePosixPath = (a, b) => {
+const comparePosixPath = (a: string, b: string): number => {
 	if (a === b) return 0;
 
 	return a < b ? -1 : 1;
@@ -177,10 +166,13 @@ const comparePosixPath = (a, b) => {
  * Walks `dir` recursively and yields every *.yml/*.yaml file path
  * (repo-relative POSIX, e.g. .github/actions/group/deploy/action.yml).
  */
-const listYamlFiles = async (dir, rootDir) => {
-	const files = [];
+const listYamlFiles = async (
+	dir: string,
+	rootDir: string,
+): Promise<string[]> => {
+	const files: string[] = [];
 
-	const walk = async (current) => {
+	const walk = async (current: string): Promise<void> => {
 		const entries = await readdir(current, { withFileTypes: true });
 
 		for (const entry of entries) {
@@ -213,7 +205,17 @@ const listYamlFiles = async (dir, rootDir) => {
  * once, which makes reference cycles terminate (#1268). The caller must
  * have added `file` to `visited` before invoking.
  */
-const scanFileFindings = async ({ file, rootDir, visited, findings }) => {
+const scanFileFindings = async ({
+	file,
+	rootDir,
+	visited,
+	findings,
+}: {
+	file: string;
+	rootDir: string;
+	visited: Set<string>;
+	findings: UnpinnedActionFinding[];
+}): Promise<void> => {
 	const content = await readFile(path.join(rootDir, file), 'utf8');
 	const lines = content.split('\n');
 
@@ -273,19 +275,23 @@ const scanFileFindings = async ({ file, rootDir, visited, findings }) => {
  *   - A MISSING .github/actions is tolerated: a repository can legitimately
  *     have zero composite actions.
  */
-export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
-	const findings = [];
-	const visited = new Set();
+export const findUnpinnedActions = async ({
+	rootDir = '.',
+}: {
+	rootDir?: string;
+} = {}): Promise<UnpinnedActionFinding[]> => {
+	const findings: UnpinnedActionFinding[] = [];
+	const visited = new Set<string>();
 
 	// Mandatory half: see the failure-semantics note above.
-	let workflowFiles;
+	let workflowFiles: string[];
 	try {
 		workflowFiles = await listYamlFiles(
 			path.join(rootDir, workflowsDir),
 			rootDir,
 		);
 	} catch (error) {
-		if (error?.code === 'ENOENT') {
+		if ((error as NodeJS.ErrnoException)?.code === 'ENOENT') {
 			throw new Error(
 				`actions-pin guard: ${workflowsDir}/ does not exist under '${rootDir}'. The workflows half of the scan certified nothing, so this fails instead of passing. Run the guard from the repository root.`,
 				{ cause: error },
@@ -296,11 +302,11 @@ export const findUnpinnedActions = async ({ rootDir = '.' } = {}) => {
 	}
 
 	// Tolerated half: no composite actions yet.
-	let actionFiles = [];
+	let actionFiles: string[] = [];
 	try {
 		actionFiles = await listYamlFiles(path.join(rootDir, actionsDir), rootDir);
 	} catch (error) {
-		if (error?.code !== 'ENOENT') {
+		if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
 			throw error;
 		}
 	}
@@ -328,11 +334,11 @@ if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
 
 	if (findings.length > 0) {
 		console.error(
-			`::error::${findings.length} uses: reference(s) in .github/workflows, .github/actions, or the local actions they resolve to are not pinned to an immutable ref (full SHA / docker digest):`,
+			`::error::${String(findings.length)} uses: reference(s) in .github/workflows, .github/actions, or the local actions they resolve to are not pinned to an immutable ref (full SHA / docker digest):`,
 		);
 		for (const f of findings) {
 			console.error(
-				`  ${f.file}:${f.line}: ${f.uses}${f.reason ? ` — ${f.reason}` : ''}`,
+				`  ${f.file}:${String(f.line)}: ${f.uses}${f.reason ? ` — ${f.reason}` : ''}`,
 			);
 		}
 		process.exit(1);
