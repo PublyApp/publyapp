@@ -1,4 +1,4 @@
-import { access, readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +17,10 @@ import { fileURLToPath } from 'node:url';
 //     local refs found inside resolved actions (a visited set makes cycles
 //     terminate). A referenced action file that does not exist — or a value
 //     resolving OUTSIDE the repo root — is itself a finding: fail closed,
-//     never silently skipped (#1268).
+//     never silently skipped (#1268). Containment holds on REAL paths
+//     (#1277): access()/readFile() dereference symlinks, so a committed
+//     symlink whose target leaves the repository is a finding too, not a
+//     license to judge files stored outside the repo.
 //
 // EXACTLY WHAT IS SCANNED:
 //   - every *.yml/*.yaml file under .github/workflows/ (recursive), and
@@ -118,13 +121,25 @@ const findLineFinding = (line: string): LineFinding | null => {
  * <path>/action.yml first, then <path>/action.yaml; the value must stay
  * inside the repo root — one that escapes it (../) fails instead of being
  * followed (#1268).
+ *
+ * #1277: containment is enforced twice. The value is checked lexically
+ * (path.relative), then the winning manifest is resolved with fs.realpath
+ * and its REAL path must stay under the repo root's real path. A committed
+ * symlink like `tools/escape -> <outside>` passes the lexical half but
+ * access()/readFile() dereference it, so without the second check the guard
+ * would read and judge a file outside the repository.
  */
 const resolveLocalActionTarget = async (
 	usesValue: string,
 	rootDir: string,
 ): Promise<LocalActionTarget> => {
-	const joined = path.resolve(rootDir, usesValue);
-	const relToRoot = path.relative(path.resolve(rootDir), joined);
+	// Both containment halves compare REAL coordinates: resolving `rootDir`
+	// first keeps this correct even when the caller's cwd chain crosses a
+	// symlink (e.g. a tmpdir parent), where mixing lexical and real paths
+	// would reject every in-repo target.
+	const realRoot = await realpath(path.resolve(rootDir));
+	const joined = path.resolve(realRoot, usesValue);
+	const relToRoot = path.relative(realRoot, joined);
 
 	if (
 		relToRoot.startsWith('..') ||
@@ -141,12 +156,24 @@ const resolveLocalActionTarget = async (
 
 	for (const manifest of ['action.yml', 'action.yaml']) {
 		const rel = `${relBase}/${manifest}`;
+		let realTarget: string;
 		try {
-			await access(path.join(rootDir, rel));
-			return { ok: true, file: rel };
+			realTarget = await realpath(path.join(rootDir, rel));
 		} catch {
-			// try next candidate
+			// missing manifest — try the next candidate
+			continue;
 		}
+
+		const relReal = path.relative(realRoot, realTarget);
+
+		if (relReal.startsWith('..') || path.isAbsolute(relReal)) {
+			return {
+				ok: false,
+				reason: `symbolic link target leaves the repository root: ${rel} points at ${realTarget}`,
+			};
+		}
+
+		return { ok: true, file: rel };
 	}
 
 	return {
