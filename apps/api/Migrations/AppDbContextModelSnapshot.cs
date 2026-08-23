@@ -39,7 +39,7 @@ namespace PublyApp.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("DataProtectionKeys");
+                    b.ToTable("data_protection_keys", (string)null);
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.AuditLogs.Entities.AuditLog", b =>
