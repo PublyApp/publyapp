@@ -48,6 +48,7 @@ import { loginAsStaffAdmin } from './helpers/login';
 const TENANT_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 const PROFILE_ID = '0197b8f0-4444-7ccc-8ccc-cccccccccccc';
 const STAFF_USER_ID = '0197b8f0-5555-7ccc-8ccc-cccccccccccc';
+const GLOBAL_TENANT_USER_ID = '0197b8f0-6666-7ccc-8ccc-cccccccccccc';
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
 
 // Round 8 M4: the linkage used to compare against BROWSER_COVERED_SELECTORS,
@@ -336,6 +337,73 @@ const mockDrawerDependencies = async (page: Page): Promise<void> => {
 
 		await route.fallback();
 	});
+
+	// The link-companies drawer lives on the global tenant-user organizations
+	// tab; same origin-guard pattern as every sibling handler so only real
+	// API calls are intercepted, never document navigations.
+	await page.route('**/staff/tenant-users/**', async (route) => {
+		const request = route.request();
+		const url = request.url();
+
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		if (isApiPath(url, `/staff/tenant-users/${GLOBAL_TENANT_USER_ID}`)) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					id: GLOBAL_TENANT_USER_ID,
+					email: 'member@acme.example',
+					firstName: 'Ada',
+					lastName: 'Lovelace',
+					status: 'Active',
+					avatarUrl: null,
+					companyCount: 0,
+					createdAt: '2026-07-01T09:00:00Z',
+					updatedAt: null,
+				}),
+			});
+			return;
+		}
+
+		if (
+			isApiPath(url, `/staff/tenant-users/${GLOBAL_TENANT_USER_ID}/companies`)
+		) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					data: [],
+					nextCursor: null,
+					hasPreviousPage: false,
+				}),
+			});
+			return;
+		}
+
+		if (isApiPath(url, '/staff/tenants')) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					data: [
+						{
+							id: TENANT_ID,
+							name: 'Acme Corporation',
+							logoUrl: null,
+							status: 'Active',
+						},
+					],
+				}),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
 };
 
 const openAuditLogExportDrawer = async (page: Page): Promise<void> => {
@@ -349,6 +417,21 @@ const openAuditLogExportDrawer = async (page: Page): Promise<void> => {
 	);
 	await page.getByTestId('staff-audit-logs-export-trigger').click();
 	await expect(page.getByTestId('audit-log-export-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
+const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await mockDrawerDependencies(page);
+	await page.goto(
+		`/staff/tenant-users/details/${GLOBAL_TENANT_USER_ID}/organizations`,
+	);
+	await expect(page.getByTestId('link-companies-button')).toBeVisible({
+		timeout: 10_000,
+	});
+	await page.getByTestId('link-companies-button').click();
+	await expect(page.getByTestId('link-companies-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
 };
@@ -748,6 +831,10 @@ const DRAWER_OPENERS: Record<
 	'audit-log-export-drawer': {
 		name: 'export audit logs',
 		open: openAuditLogExportDrawer,
+	},
+	'link-companies-drawer': {
+		name: 'link companies',
+		open: openLinkCompaniesDrawer,
 	},
 };
 

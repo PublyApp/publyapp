@@ -539,6 +539,22 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
 			body: JSON.stringify(body),
 		});
 
+		if (/\/tenants(?:\?|$)/.test(url)) {
+			await route.fulfill(
+				json({
+					data: [
+						{
+							id: '11111111-2222-4333-8444-555555555555',
+							name: 'Acme Corp',
+							logoUrl: null,
+							status: 'Active',
+						},
+					],
+				}),
+			);
+			return;
+		}
+
 		if (/\/companies(?:\?|$)/.test(url)) {
 			await route.fulfill(
 				json({ data: [], nextCursor: null, hasPreviousPage: false }),
