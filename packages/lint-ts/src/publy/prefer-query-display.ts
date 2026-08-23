@@ -47,6 +47,15 @@ import {
  * `<Select>{() => …}</Select>`) is render context, not an event handler, so
  * flagged-field reads inside it are detected. Event handlers (`onClick`,
  * `onSubmit`, effects, `useMemo`) do not return JSX and stay skipped.
+ *
+ * Hoisted render props: the same callback declared first and passed by
+ * reference (`<Controller render={renderX}>`, `<Select>{renderItems}</Select>`,
+ * `<Controller children={renderX}>`) or via a member expression
+ * (`render={slots.render}`) executes during render exactly like its inline
+ * equivalent, so locally-declared JSX-returning callbacks are resolved from
+ * their reference and scanned too. References to functions declared outside
+ * the component (module-level components/renderers) are not resolvable and
+ * stay unscanned.
  */
 
 const QUERY_FLAG_FIELDS: ReadonlySet<string> = new Set([
@@ -86,11 +95,22 @@ const isExcludedFile = (relativePath: string): boolean => {
 	);
 };
 
+/** Locally-declared JSX-returning callback node (a hoisted render prop). */
+type HoistedFn = ESTree.Function | ESTree.ArrowFunctionExpression;
+
 interface TrackedBindings {
 	/** Whole binding names: `const q = useQuery()` → "q" (member access q.flag). */
 	whole: Set<string>;
 	/** Destructured flag names: `const { isError } = useQuery()` → "isError". */
 	flagged: Set<string>;
+	/**
+	 * Locally-declared JSX-returning callbacks: `const renderX = () => <jsx/>`
+	 * → the function node. Referenced from a JSX attribute/child, they execute
+	 * during render (hoisted render props).
+	 */
+	hoistedJsxCallbacks: Map<string, HoistedFn>;
+	/** Object-literal initializers: `const slots = { render: … }` → the node. */
+	objectLiterals: Map<string, ESTree.ObjectExpression>;
 }
 
 const getHookName = (init: ESTree.CallExpression): string | null => {
@@ -110,7 +130,12 @@ const getHookName = (init: ESTree.CallExpression): string | null => {
 const collectTrackedBindings = (
 	body: ESTree.BlockStatement,
 ): TrackedBindings => {
-	const tracked: TrackedBindings = { whole: new Set(), flagged: new Set() };
+	const tracked: TrackedBindings = {
+		whole: new Set(),
+		flagged: new Set(),
+		hoistedJsxCallbacks: new Map(),
+		objectLiterals: new Map(),
+	};
 
 	// Aliasing can chain (`r = useQuery(); q = r; { isPending } = q`), so the
 	// walk repeats until the tracked sets stop growing.
@@ -179,8 +204,9 @@ const collectTrackedBindings = (
 			if (node.type === 'VariableDeclaration') {
 				for (const decl of node.declarations) {
 					const id = decl.id;
-					const fromQuery = isQueryInit(decl.init);
-					const fromTrackedWhole = isWholeBindingRef(decl.init);
+					const init = decl.init;
+					const fromQuery = isQueryInit(init);
+					const fromTrackedWhole = isWholeBindingRef(init);
 					if (id.type === 'Identifier') {
 						if (
 							(fromQuery || fromTrackedWhole) &&
@@ -190,6 +216,21 @@ const collectTrackedBindings = (
 							// `const q = useQuery(); const alias = q;`.
 							tracked.whole.add(id.name);
 							changed = true;
+						}
+						if (
+							(init?.type === 'ArrowFunctionExpression' ||
+								init?.type === 'FunctionExpression') &&
+							directlyReturnsJsx(init) &&
+							!tracked.hoistedJsxCallbacks.has(id.name)
+						) {
+							// Locally-declared JSX-returning callback: a hoisted
+							// render prop when referenced from a JSX slot.
+							tracked.hoistedJsxCallbacks.set(id.name, init);
+						}
+						if (init?.type === 'ObjectExpression') {
+							// Remember object literals so `render={slots.render}`
+							// can resolve to the stored callback.
+							tracked.objectLiterals.set(id.name, init);
 						}
 					} else if (
 						id.type === 'ObjectPattern' &&
@@ -252,6 +293,42 @@ const isConditionalExpr = (node: ESTree.Node | null | undefined): boolean =>
 	node !== null &&
 	node !== undefined &&
 	(node.type === 'ConditionalExpression' || node.type === 'LogicalExpression');
+
+/**
+ * Resolve a hoisted render-prop reference — `render={renderX}` or
+ * `render={obj.render}` — to the locally-declared function value it names.
+ * Returns `null` for anything not resolvable to a local declaration.
+ */
+const resolveHoistedCallback = (
+	tracked: TrackedBindings,
+	expr: ESTree.Node | null | undefined,
+): HoistedFn | null => {
+	if (!expr) return null;
+	if (expr.type === 'Identifier') {
+		return tracked.hoistedJsxCallbacks.get(expr.name) ?? null;
+	}
+	if (
+		expr.type === 'MemberExpression' &&
+		!expr.computed &&
+		expr.object.type === 'Identifier' &&
+		expr.property.type === 'Identifier'
+	) {
+		const literal = tracked.objectLiterals.get(expr.object.name);
+		if (!literal) return null;
+		for (const prop of literal.properties) {
+			if (
+				prop.type === 'Property' &&
+				prop.key.type === 'Identifier' &&
+				prop.key.name === expr.property.name &&
+				(prop.value.type === 'ArrowFunctionExpression' ||
+					prop.value.type === 'FunctionExpression')
+			) {
+				return prop.value as HoistedFn;
+			}
+		}
+	}
+	return null;
+};
 
 /**
  * Does this arrow/function expression itself produce JSX? Unlike
@@ -344,7 +421,6 @@ const scan = (
 			// Never render context in an expression walk.
 			return;
 		}
-
 		if (conditional) {
 			const field = queryFieldRef(node, tracked);
 			if (field !== null) onField(field);
@@ -412,9 +488,19 @@ const scan = (
 				}
 				return;
 			}
-			case 'JSXExpressionContainer':
-				scanInner(node.expression, conditional, true);
+			case 'JSXExpressionContainer': {
+				const expr = node.expression;
+				if (expr.type === 'Identifier' || expr.type === 'MemberExpression') {
+					// Hoisted render-prop child: `<Select>{renderItems}</Select>`.
+					const hoistedFn = resolveHoistedCallback(tracked, expr);
+					if (hoistedFn && directlyReturnsJsx(hoistedFn)) {
+						scanInner(hoistedFn.body, false, false);
+					}
+					return;
+				}
+				scanInner(expr, conditional, true);
 				return;
+			}
 			case 'JSXAttribute': {
 				scanInner(node.name, conditional, false);
 				const value = node.value;
@@ -431,6 +517,15 @@ const scan = (
 						expr.type === 'FunctionExpression'
 					) {
 						scanInner(expr, conditional, true);
+						return;
+					}
+					// Hoisted render-prop reference: `render={renderX}` /
+					// `render={obj.render}` / `children={renderX}` executes during
+					// render exactly like its inline equivalent — resolve the local
+					// declaration and scan it (r2-review bypass fix).
+					const hoistedFn = resolveHoistedCallback(tracked, expr);
+					if (hoistedFn && directlyReturnsJsx(hoistedFn)) {
+						scanInner(hoistedFn.body, false, false);
 					}
 					return;
 				}
