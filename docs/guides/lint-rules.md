@@ -9,8 +9,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/prefer-specific-lodash-imports`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/prefer-specific-lodash-imports.ts`
-- **Spec:** `packages/lint-ts/src/rules/prefer-specific-lodash-imports.test.ts`
+- **Source:** `packages/lint-ts/src/publy/prefer-specific-lodash-imports.ts`
+- **Spec:** `packages/lint-ts/src/publy/prefer-specific-lodash-imports.test.ts`
 - **AGENTS.md:** "Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package."
 - **Autofix:** yes (value-only named imports → specific subpath imports; `.mjs`-aware)
 - **Shipped in:** #463
@@ -19,8 +19,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-console-in-source`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-console-in-source.ts`
-- **Spec:** `packages/lint-ts/src/rules/no-console-in-source.test.ts`
+- **Source:** `packages/lint-ts/src/publy/no-console-in-source.ts`
+- **Spec:** `packages/lint-ts/src/publy/no-console-in-source.test.ts`
 - **AGENTS.md:** "Frontend/Node: use `logger` from `@org/shared-ts/lib/logger/iso-logger` (not `console.*`)."
 - **Autofix:** yes (`console.X` → `logger.X` + adds import)
 - **Shadow guard:** files declaring `const console = ...` are skipped
@@ -30,8 +30,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-direct-dayjs-in-components`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-direct-dayjs-in-components.ts`
-- **Spec:** `packages/lint-ts/src/rules/no-direct-dayjs-in-components.test.ts`
+- **Source:** `packages/lint-ts/src/publy/no-direct-dayjs-in-components.ts`
+- **Spec:** `packages/lint-ts/src/publy/no-direct-dayjs-in-components.test.ts`
 - **AGENTS.md:** "Day.js via `format-time.ts` utilities — never import dayjs directly in components."
 - **Autofix:** no
 - **Allowed surface:** date/time utility modules such as `apps/front/src/utils/format-time.ts`
@@ -41,8 +41,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-array-reduce`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-array-reduce.ts`
-- **Spec:** `packages/lint-ts/src/rules/no-array-reduce.test.ts`
+- **Source:** `packages/lint-ts/src/publy/no-array-reduce.ts`
+- **Spec:** `packages/lint-ts/src/publy/no-array-reduce.test.ts`
 - **AGENTS.md:** "No `Array.reduce()` — use `find`, `filter+map`, `for...of`, or `Object.groupBy`."
 - **Autofix:** no
 - **Note:** flags both `.reduce(...)` and `.reduceRight(...)` on any receiver, including optional-chaining (`arr?.reduce(...)`) and computed string-literal access (`arr['reduce'](...)`); `unicorn/no-array-reduce` already covers the base case — this rule adds `reduceRight`, bracket-access coverage, and the repo-specific guidance message.
@@ -52,8 +52,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/no-manual-response-message-translation`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/no-manual-response-message-translation.ts`
-- **Spec:** `packages/lint-ts/src/rules/no-manual-response-message-translation.test.ts`
+- **Source:** `packages/lint-ts/src/publy/no-manual-response-message-translation.ts`
+- **Spec:** `packages/lint-ts/src/publy/no-manual-response-message-translation.test.ts`
 - **AGENTS.md:** "Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site."
 - **Autofix:** no
 - **Shipped in:** #507
@@ -62,8 +62,8 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/prefer-query-display`
 
 - **Severity:** `"off"` (dormant)
-- **Source:** `packages/lint-ts/src/rules/prefer-query-display.ts`
-- **Spec:** `packages/lint-ts/src/rules/prefer-query-display.test.ts`
+- **Source:** `packages/lint-ts/src/publy/prefer-query-display.ts`
+- **Spec:** `packages/lint-ts/src/publy/prefer-query-display.test.ts`
 - **AGENTS.md:** "Query state rendering uses the shared `QueryDisplay` component rather than a hand-rolled loading/error/empty/data ladder." (normative via `docs/guides/front/conventions.md#query-state-rendering`)
 - **Autofix:** no
 - **Detection:** flags a component `.tsx` file (relative to `apps/front/src/`) that binds a `use*Query` result — whole binding (`const q = useQuery()`), destructured (`const { isError } = useQuery()`), renamed destructured (`const { isPending: loading } = useQuery()`), rest element (`const { data, ...rest } = useQuery()`), whole-binding alias (`const r = useQuery(); const q = r;`), or destructuring from an already tracked binding — and then reads a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` / `error`) inside a conditional render (ternary / `&&` / `||` / `if` / early return / `for`/`while` guard). A JSX-returning callback sitting directly in a JSX attribute value or child expression (`<Controller render={(…) => …}>`, `children={() => …}`) is render context and is scanned too; event handlers (`onClick`, `onSubmit`), effect/memo callbacks, and computed prop values (`disabled={q.isPending}`, delegating `isPending={q.isPending}`) are not.
@@ -76,16 +76,16 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 ### `publy/arrow-function-components`
 
 - **Severity:** `error`
-- **Source:** `packages/lint-ts/src/rules/arrow-function-components.ts`
-- **Spec:** `packages/lint-ts/src/rules/arrow-function-components.test.ts`
+- **Source:** `packages/lint-ts/src/publy/arrow-function-components.ts`
+- **Spec:** `packages/lint-ts/src/publy/arrow-function-components.test.ts`
 - **AGENTS.md:** "Arrow function components only — never `function` declarations for components."
 - **Autofix:** no
 - **Detection:** flags `FunctionDeclaration` (or `FunctionExpression` inside `memo`/`forwardRef`) whose name is PascalCase and whose body contains a `return` statement returning JSX (including ternary/logical/TS-wrapped returns), a call to a known renderer (`useRender`, `createElement`, `jsx`, `jsxs`, or `React.xxx` member form) or to a top-level local helper whose own body yields JSX through either of those routes (#1283 — the declaration shape itself is component evidence, so the renderer list is deliberately NOT treated as an exhaustive detector), or calls at least one React hook and returns only null/JSX; pure helpers and non-PascalCase functions are left un-flagged. Known boundary: JSX routed only through imports, member expressions, or local variables is not followed
-- **Scope:** the rule never targets class members (methods, getters, static members) — it visits only `FunctionDeclaration`/`FunctionExpression`, so class bodies are untouched and method `this` binding is preserved; pinned by the negative RuleTester case "Class declaration — out of scope for this rule" in `packages/lint-ts/src/rules/arrow-function-components.test.ts`
+- **Scope:** the rule never targets class members (methods, getters, static members) — it visits only `FunctionDeclaration`/`FunctionExpression`, so class bodies are untouched and method `this` binding is preserved; pinned by the negative RuleTester case "Class declaration — out of scope for this rule" in `packages/lint-ts/src/publy/arrow-function-components.test.ts`
 - **Shipped in:** #653 (dormant)
 - **Enforced in:** #1210 (74 baseline offenders across 73 files in `apps/front/src/**/*.tsx`); re-measured in #1283 after widening detection to local JSX-yielding delegates — 0 offenders across `apps/front/src` (config-copy method, oxlint 1.79.0)
 
-## Anti-slop rules (`tools/oxlint/anti-slop/`, vendored from dmmulroy/anti-slop)
+## Anti-slop rules (`packages/lint-ts/src/anti-slop/`, vendored from dmmulroy/anti-slop)
 
 The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as a **ladder**: one rule per PR, switched straight to `error` with every violation in the repo fixed in that same PR — never a `warn` stage, never a baseline of tolerated hits. The measured baseline per rule lives on issue #1160; pick the next rung from it. A PR that enables a rule must show `pnpm lint` green repo-wide at its tip.
 
