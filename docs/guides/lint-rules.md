@@ -59,6 +59,19 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Shipped in:** #507
 - **Enforced in:** #519
 
+### `publy/prefer-query-display`
+
+- **Severity:** `"off"` (dormant)
+- **Source:** `packages/lint-ts/src/rules/prefer-query-display.ts`
+- **Spec:** `packages/lint-ts/src/rules/prefer-query-display.test.ts`
+- **AGENTS.md:** "Query state rendering uses the shared `QueryDisplay` component rather than a hand-rolled loading/error/empty/data ladder." (normative via `docs/guides/front/conventions.md#query-state-rendering`)
+- **Autofix:** no
+- **Detection:** flags a component `.tsx` file (relative to `apps/front/src/`) that binds a `use*Query` result (whole binding `const q = useQuery()` or destructured `const { isError } = useQuery()`) and then reads a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` / `error`) inside a conditional render (ternary / `&&` / `||` / `if` / early return / `for`/`while` guard), except inside nested event handlers / callbacks; `useMutation` results are out of scope.
+- **Exclusions:** `components/query-display`, `components/table/`, `lib/query/`, and exactly `routes/__root.tsx`, `routes/authed/layout.tsx`, `routes/accept-invitation.tsx`.
+- **Offender baseline at ship time:** 29 files / 76 diagnostics across `apps/front/src/routes/authed/**` (`isError` 29, `error` 26, `isPending` 18, `isSuccess` 3).
+- **Shipped in:** #1250 (dormant)
+- **Enforced in:** future PR that flips severity to `"error"` after the known offenders migrate to `QueryDisplay`.
+
 ### `publy/arrow-function-components`
 
 - **Severity:** `"off"` (dormant)
