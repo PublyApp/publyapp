@@ -144,6 +144,20 @@ const TenantPostEditPage = () => {
 		return <LogoutRedirect />;
 	}
 
+	// Null payload is the not-found case: QueryDisplay routes empty data to
+	// EmptySlot, so the not-found view must live there, not only in children.
+	const renderNotFoundSlot = () => (
+		<div className="space-y-4">
+			<Link to="/tenant/posts/drafts" className="publy-back-link">
+				<IconArrowLeft aria-hidden className="size-3" />
+				{t('posts:back-to-drafts')}
+			</Link>
+			<div data-testid="tenant-post-edit-not-found">
+				{t('common:not-found')}
+			</div>
+		</div>
+	);
+
 	return (
 		<QueryDisplay
 			query={detailsQuery}
@@ -170,21 +184,12 @@ const TenantPostEditPage = () => {
 					testId="tenant-post-edit-error"
 				/>
 			}
+			EmptySlot={renderNotFoundSlot()}
 		>
 			{({ data }) => {
 				const details = toTenantPostDetails(data);
 				if (!details) {
-					return (
-						<div className="space-y-4">
-							<Link to="/tenant/posts/drafts" className="publy-back-link">
-								<IconArrowLeft aria-hidden className="size-3" />
-								{t('posts:back-to-drafts')}
-							</Link>
-							<div data-testid="tenant-post-edit-not-found">
-								{t('common:not-found')}
-							</div>
-						</div>
-					);
+					return renderNotFoundSlot();
 				}
 
 				return (

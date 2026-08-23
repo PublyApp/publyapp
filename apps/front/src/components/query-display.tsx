@@ -1,5 +1,5 @@
 import type { UseQueryResult } from '@tanstack/react-query';
-import { type ComponentType, isValidElement, type ReactNode } from 'react';
+import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { checkIfEmptyQueryData } from '@org/shared-ts/lib/query/query-state';
@@ -31,7 +31,10 @@ type Props<TData = unknown, TError = Error> = {
 		query: UseQueryResult<TData, TError>;
 	}>;
 	EmptySlot?: RenderSlot;
-	children?: ReactNode | ComponentType<{ data: TData }>;
+	// Render prop only (not ComponentType): an inline closure passed here must
+	// stay a render function, and direct invocation keeps the element tree stable
+	// across parent rerenders instead of remounting the data subtree.
+	children?: ReactNode | ((props: { data: TData }) => ReactNode);
 	forceRender?: 'loading' | 'error' | 'empty' | 'data';
 };
 
@@ -99,8 +102,11 @@ const renderData = <TData, TError>(
 	children?: Props<TData, TError>['children'],
 ) => {
 	if (typeof children === 'function') {
-		const Slot = children;
-		return <Slot data={query.data as TData} />;
+		// Invoke the render prop directly instead of mounting it as a component:
+		// an inline closure is a new component type on every parent render, which
+		// would remount (and reset) the whole data subtree — forms included — on
+		// each keystroke. Direct invocation keeps the returned element tree stable.
+		return children({ data: query.data as TData });
 	}
 	if (isValidElement(children)) {
 		return children;
