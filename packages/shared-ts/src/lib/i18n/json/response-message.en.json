@@ -101,5 +101,6 @@
 	"code-already-taken": "This workspace code is already taken",
 	"upload-file-required": "A file is required",
 	"upload-file-too-large": "File exceeds the maximum allowed size",
-	"upload-file-unsupported-type": "File must be a PNG, JPEG, WEBP, or GIF image"
+	"upload-file-unsupported-type": "File must be a PNG, JPEG, WEBP, or GIF image",
+	"upload-budget-exhausted": "Upload storage capacity is temporarily exhausted. Please try again later."
 }
