@@ -164,7 +164,7 @@ export const createTenantInvitationColumns = ({
 		),
 		accessorKey: 'invitedByName',
 		enableSorting: false,
-		meta: { width: '150px', hideBelow: 768 },
+		meta: { width: '150px', hideBelow: 1024 },
 		cell: ({ getValue }) => (
 			<span className="text-[13px] text-muted-foreground">
 				{getValue<string>()}

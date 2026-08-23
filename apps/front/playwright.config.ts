@@ -47,7 +47,9 @@ export default defineConfig({
 		['html', { outputFolder: 'playwright-report', open: 'never' }],
 	],
 	use: {
-		baseURL: 'https://front.localhost:8443',
+		// E2E_BASE_URL lets a private docker-compose instance (remapped host
+		// ports) reuse this config; the default is the shared-stack URL.
+		baseURL: process.env.E2E_BASE_URL ?? 'https://front.localhost:8443',
 		headless: true,
 		ignoreHTTPSErrors: true,
 		trace: 'retain-on-failure',

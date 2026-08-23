@@ -1,11 +1,12 @@
 import { IconAlertCircle, IconMail, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -43,6 +44,7 @@ import {
 } from './_invitation-columns';
 import { InvitationToolbarFilters } from './_invitation-toolbar-filters';
 import { InvitationsPageHeader } from './_invitations-page-header';
+import { TenantInvitationsSelectionExport } from './_invitations-selection-export';
 import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';
 import {
 	type InviteUserSearchState,
@@ -203,6 +205,20 @@ const StaffTenantInvitationsPage = () => {
 		[i18n.language, t, revokeInvitation.isPending, promptRevoke],
 	);
 
+	const rows = toStaffTenantInvitationRows(invitationsQuery.data?.data);
+	const selection = useRowSelection(rows.map((row) => row.id));
+
+	// tenants-r6-F2 (mirrors invitations/index.tsx, staff-users.tsx,
+	// profiles.tsx): freeze the selection target set — cancel a pending
+	// search commit the moment selection mode starts; the level/status
+	// filter triggers are disabled for the same reason.
+	const { resetDraftToCommitted } = controller.search;
+	useEffect(() => {
+		if (selection.isSelectionMode) {
+			resetDraftToCommitted();
+		}
+	}, [selection.isSelectionMode, resetDraftToCommitted]);
+
 	if (detailsQuery.isPending) {
 		return <TenantDetailsLoading />;
 	}
@@ -246,8 +262,6 @@ const StaffTenantInvitationsPage = () => {
 	if (shouldRedirectToLogout) {
 		return <LogoutRedirect />;
 	}
-
-	const rows = toStaffTenantInvitationRows(invitationsQuery.data?.data);
 
 	const setStatuses = (nextStatuses: KnownInvitationStatus[]): void => {
 		void navigate({
@@ -337,6 +351,7 @@ const StaffTenantInvitationsPage = () => {
 				ariaLabel={t('tenant-invitations-table-aria-label')}
 				columns={columns}
 				rows={rows}
+				getRowLabel={(row) => row.email}
 				isPending={invitationsQuery.isPending}
 				isError={invitationsQuery.isError}
 				onRetry={() => void invitationsQuery.refetch()}
@@ -376,6 +391,7 @@ const StaffTenantInvitationsPage = () => {
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-invitations')}
+				selection={selection}
 				toolbarEnd={
 					<InvitationToolbarFilters
 						selectedLevels={selectedLevels}
@@ -386,9 +402,15 @@ const StaffTenantInvitationsPage = () => {
 						onToggleLevel={toggleLevel}
 						onSetStatuses={setStatuses}
 						onToggleStatus={toggleStatus}
+						selectionLocked={selection.isSelectionMode}
 					/>
 				}
 			/>
+
+			{/* #838: meaningful selected-row action — client-side CSV of the
+				selected visible invitations (no tenant bulk endpoints exist;
+				bulk revoke is explicitly out of scope for this issue). */}
+			<TenantInvitationsSelectionExport rows={rows} selection={selection} />
 
 			<InviteTenantUserDrawerHost
 				tenantId={tenantId}

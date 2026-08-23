@@ -825,6 +825,115 @@ test.describe(
 );
 
 test.describe(
+	'staff tenant invitations row selection',
+	{ tag: ['@staff-tenants', '@806'] },
+	() => {
+		// #838: the tenant Invitations table must match the other staff list
+		// surfaces — checkbox column, floating selection bar with a live
+		// count, and an export action scoped to the selected rows. The mock
+		// fixture seeds two pending invitations (sam@example.com admin,
+		// user@example.com user-level).
+		test('selecting one invitation reveals the selection bar with count and export; clearing hides it', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
+			await expect(
+				page.getByTestId('staff-tenant-invitations-page'),
+			).toBeVisible();
+
+			const selectAll = page.getByLabel('Select all rows');
+			await expect(selectAll).toBeVisible();
+			await page
+				.getByRole('checkbox', { name: 'Select sam@example.com' })
+				.click();
+
+			const bar = page.getByTestId('floating-selection-bar');
+			await expect(bar).toContainText('1 selected');
+			await expectFloatingSelectionBarAtViewportBottom(page);
+
+			// The toolbar's level/status filters stay visible during selection.
+			await expect(
+				page.getByTestId('staff-tenant-invitations-table-toolbar'),
+			).toBeVisible();
+
+			await bar.getByRole('button', { name: 'Clear selection' }).click();
+			await expect(bar).toBeHidden();
+			await expect(selectAll).toBeVisible();
+		});
+
+		test('select all selects both visible invitations; filters are locked while selecting', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
+			await expect(
+				page.getByTestId('staff-tenant-invitations-page'),
+			).toBeVisible();
+
+			await page.getByLabel('Select all rows').click();
+			const bar = page.getByTestId('floating-selection-bar');
+			await expect(bar).toContainText('2 selected');
+
+			const levelTrigger = page.getByTestId(
+				'staff-tenant-invitations-level-filter-trigger',
+			);
+			const statusTrigger = page.getByTestId(
+				'staff-tenant-invitations-status-filter-trigger',
+			);
+			await expect(levelTrigger).toBeDisabled();
+			await expect(statusTrigger).toBeDisabled();
+
+			await bar.getByRole('button', { name: 'Clear selection' }).click();
+			await expect(bar).toBeHidden();
+			await expect(levelTrigger).toBeEnabled();
+		});
+
+		test('Export selected downloads only the selected invitation row', async ({
+			page,
+		}) => {
+			await loginAsStaffAdmin(page);
+			await mockTenantDetails(page);
+
+			await page.goto(`/staff/tenants/${TENANT_ID}/invitations`);
+			await expect(
+				page.getByTestId('staff-tenant-invitations-page'),
+			).toBeVisible();
+
+			await page
+				.getByRole('checkbox', { name: 'Select sam@example.com' })
+				.click();
+			const bar = page.getByTestId('floating-selection-bar');
+			await expect(bar).toContainText('1 selected');
+
+			const downloadPromise = page.waitForEvent('download');
+			await bar.getByRole('button', { name: 'Export selected' }).click();
+			const download = await downloadPromise;
+
+			expect(download.suggestedFilename()).toMatch(
+				/^staff-tenant-invitations-\d{4}-\d{2}-\d{2}\.csv$/,
+			);
+
+			const stream = await download.createReadStream();
+			const chunks: Buffer[] = [];
+			for await (const chunk of stream) {
+				chunks.push(chunk as Buffer);
+			}
+			const csvContent = Buffer.concat(chunks).toString('utf-8');
+			// Only the selected row is exported; the unselected user@ invitation
+			// must not appear. Header carries email/access/invited-by/status/
+			// created/expiry per the issue's field list.
+			expect(csvContent).toContain('sam@example.com');
+			expect(csvContent).not.toContain('user@example.com');
+		});
+	},
+);
+
+test.describe(
 	'staff tenant invite-user drawer',
 	{ tag: ['@staff-tenants', '@806'] },
 	() => {
