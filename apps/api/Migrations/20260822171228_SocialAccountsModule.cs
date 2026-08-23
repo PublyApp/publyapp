@@ -13,7 +13,7 @@ namespace PublyApp.Api.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "DataProtectionKeys",
+                name: "data_protection_keys",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -23,7 +23,7 @@ namespace PublyApp.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DataProtectionKeys", x => x.Id);
+                    table.PrimaryKey("PK_data_protection_keys", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -99,7 +99,7 @@ namespace PublyApp.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "DataProtectionKeys");
+                name: "data_protection_keys");
 
             migrationBuilder.DropTable(
                 name: "social_account_projects");
