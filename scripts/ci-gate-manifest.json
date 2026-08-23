@@ -267,7 +267,7 @@
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"front-e2e.yml::build::Detect fork pull request": {
-			"hash": "ed4d9b1b90eba34d",
+			"hash": "490e23f28d6e72ee",
 			"mirror": null,
 			"reason": "GitHub-only: resolves github.event.pull_request.head.repo.fork into the build job's `fork` output that switches every fork-conditional step below (#1021). There is no local pull_request event to detect."
 		},
