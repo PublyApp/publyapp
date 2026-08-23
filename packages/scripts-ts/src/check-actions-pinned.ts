@@ -47,7 +47,9 @@ type UnpinnedActionFinding = {
 	reason?: string;
 };
 
-type LineFinding = { uses: string; local: true } | { uses: string };
+type LineFinding =
+	| { uses: string; local: true }
+	| { uses: string; local?: undefined };
 
 type LocalActionTarget =
 	| { ok: true; file: string }
