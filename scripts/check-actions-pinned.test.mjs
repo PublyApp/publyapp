@@ -16,9 +16,15 @@ const makeWorkflow = (steps) =>
 /**
  * Builds a throwaway repo with one workflow file and, optionally, composite
  * actions under .github/actions/<name>/action.yml (name may contain slashes
- * to prove the scan is recursive).
+ * to prove the scan is recursive). `extraFiles` writes arbitrary repo-root
+ * relative files — used by the #1268 local-action fixtures to place actions
+ * OUTSIDE .github/actions.
  */
-const buildFixture = async ({ workflowContent, actions = [] }) => {
+const buildFixture = async ({
+	workflowContent,
+	actions = [],
+	extraFiles = [],
+}) => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-actions-pinned-'),
 	);
@@ -36,6 +42,12 @@ const buildFixture = async ({ workflowContent, actions = [] }) => {
 		await writeFile(path.join(actionDir, 'action.yml'), content);
 	}
 
+	for (const { path: filePath, content } of extraFiles) {
+		const fileDir = path.join(rootDir, filePath, '..');
+		await mkdir(fileDir, { recursive: true });
+		await writeFile(path.join(rootDir, filePath), content);
+	}
+
 	return rootDir;
 };
 
@@ -46,15 +58,6 @@ test('passes when all uses: are pinned to full SHAs', async () => {
 	const content = makeWorkflow(
 		'      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n',
 	);
-
-	const rootDir = await buildFixture({ workflowContent: content });
-	const findings = await findUnpinnedActions({ rootDir });
-
-	assert.deepStrictEqual(findings, []);
-});
-
-test('passes for local actions (./path)', async () => {
-	const content = makeWorkflow('      - uses: ./.github/actions/my-action\n');
 
 	const rootDir = await buildFixture({ workflowContent: content });
 	const findings = await findUnpinnedActions({ rootDir });
@@ -353,4 +356,158 @@ test('passes when a docker:// image is pinned by sha256 digest', async () => {
 	const findings = await findUnpinnedActions({ rootDir });
 
 	assert.deepStrictEqual(findings, []);
+});
+
+// --- #1268: local `uses: ./<path>` actions are resolved to their action
+// manifest, scanned with the same line rule, and must exist (fail closed).
+// A local action living OUTSIDE .github/actions is exactly the gap this
+// closes: GitHub allows `uses: ./<any-path-in-repo>`.
+
+test('resolves and scans an out-of-tree local action holding an unpinned ref', async () => {
+	// Round-1 adversarial repro from #1268: `tools/probe-action/action.yml`
+	// with an unpinned ref, referenced as `uses: ./tools/probe-action`, used
+	// to stay green because every `./` value was exempt.
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow('      - uses: ./tools/probe-action\n'),
+		extraFiles: [
+			{
+				path: 'tools/probe-action/action.yml',
+				content: makeAction('      - uses: actions/setup-node@v7\n'),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, 'tools/probe-action/action.yml');
+	assert.strictEqual(findings[0].line, 6);
+	assert.strictEqual(findings[0].uses, 'actions/setup-node@v7');
+});
+
+test('stays green when an out-of-tree local action is fully pinned', async () => {
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow('      - uses: ./tools/probe-action\n'),
+		extraFiles: [
+			{
+				path: 'tools/probe-action/action.yml',
+				content: makeAction(
+					'      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7\n',
+				),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.deepStrictEqual(findings, []);
+});
+
+test('scans nested local-action references recursively', async () => {
+	// Action A references local action B; B holds an unpinned ref. The scan
+	// must follow A → B and report against B's own file.
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow('      - uses: ./tools/outer\n'),
+		extraFiles: [
+			{
+				path: 'tools/outer/action.yml',
+				content: makeAction('      - uses: ./tools/outer/inner\n'),
+			},
+			{
+				path: 'tools/outer/inner/action.yml',
+				content: makeAction('      - uses: pnpm/action-setup@v6\n'),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, 'tools/outer/inner/action.yml');
+	assert.strictEqual(findings[0].uses, 'pnpm/action-setup@v6');
+});
+
+test('fails closed when a referenced local action has no action.yml', async () => {
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow('      - uses: ./tools/ghost-action\n'),
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, '.github/workflows/fixture.yml');
+	assert.strictEqual(findings[0].line, 8);
+	assert.match(findings[0].uses, /^\.\/tools\/ghost-action/);
+	assert.match(findings[0].reason, /action\.yml/);
+});
+
+test('fails closed when a nested local reference points outside the repository', async () => {
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow('      - uses: ./tools/outer\n'),
+		extraFiles: [
+			{
+				path: 'tools/outer/action.yml',
+				content: makeAction('      - uses: ../outside-repo\n'),
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, 'tools/outer/action.yml');
+	assert.match(findings[0].uses, /^\.\.\/outside-repo/);
+	assert.match(findings[0].reason, /outside/);
+});
+
+test('local action cycles terminate via the visited set', async () => {
+	// cycle-a carries an unpinned ref AND a back-reference to cycle-b, which
+	// points straight back. The scan must terminate (visited set) and still
+	// report the unpinned ref exactly once.
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow('      - uses: ./tools/cycle-a\n'),
+		extraFiles: [
+			{
+				path: 'tools/cycle-a/action.yml',
+				content:
+					makeAction('      - uses: actions/setup-node@v7\n') +
+					'      - uses: ./tools/cycle-b\n',
+			},
+			{
+				path: 'tools/cycle-b/action.yml',
+				content: makeAction('      - uses: ./tools/cycle-a\n'),
+			},
+		],
+	});
+
+	// Completing at all proves termination; the exact finding proves the
+	// visited set neither drops nor duplicates work inside the cycle.
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, 'tools/cycle-a/action.yml');
+	assert.strictEqual(findings[0].uses, 'actions/setup-node@v7');
+});
+
+test('self-referencing local action terminates', async () => {
+	// The self-reference plus an unpinned ref in the same file: termination
+	// (the test completes) and exactly-one-finding (no duplicate judgment of
+	// the revisited file) together pin the visited set.
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow('      - uses: ./tools/self-loop\n'),
+		extraFiles: [
+			{
+				path: 'tools/self-loop/action.yml',
+				content:
+					makeAction('      - uses: pnpm/action-setup@v6\n') +
+					'      - uses: ./tools/self-loop\n',
+			},
+		],
+	});
+
+	const findings = await findUnpinnedActions({ rootDir });
+
+	assert.strictEqual(findings.length, 1);
+	assert.strictEqual(findings[0].file, 'tools/self-loop/action.yml');
+	assert.strictEqual(findings[0].uses, 'pnpm/action-setup@v6');
 });
