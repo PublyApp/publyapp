@@ -10,6 +10,7 @@ using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Permissions;
 using PublyApp.Api.Modules.Posts.Permissions;
 using PublyApp.Api.Modules.Profiles.Permissions;
+using PublyApp.Api.Modules.Projects.Permissions;
 using PublyApp.Api.Modules.Settings.Permissions;
 using PublyApp.Api.Modules.SystemNotices.Permissions;
 using PublyApp.Api.Modules.Tenants.Permissions;
@@ -51,6 +52,7 @@ public class TenantScopePermissions : IScopePermissions {
 	// Settings, Billing) — the keys exist so profiles can be configured ahead of
 	// the features shipping.
 	public PostPermissionsForTenant Posts { get; } = new PostPermissionsForTenant();
+	public ProjectPermissionsForTenant Projects { get; } = new ProjectPermissionsForTenant();
 	public MediaPermissionsForTenant Media { get; } = new MediaPermissionsForTenant();
 	public CalendarPermissionsForTenant Calendar { get; } = new CalendarPermissionsForTenant();
 	public ChannelPermissionsForTenant Channels { get; } = new ChannelPermissionsForTenant();

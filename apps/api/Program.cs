@@ -17,6 +17,7 @@ using PublyApp.Api.Modules.Invitations.Endpoints;
 using PublyApp.Api.Modules.Permissions.Endpoints;
 using PublyApp.Api.Modules.Posts.Endpoints;
 using PublyApp.Api.Modules.Profiles.Endpoints;
+using PublyApp.Api.Modules.Projects.Endpoints;
 using PublyApp.Api.Modules.Settings.Endpoints;
 using PublyApp.Api.Modules.SystemNotices.Endpoints;
 using PublyApp.Api.Modules.Tenants.Endpoints;
@@ -240,6 +241,7 @@ public class Program {
 		tenantGroup.MapAccountEndpointsForTenant();
 		tenantGroup.MapSettingsEndpointsForTenant();
 		tenantGroup.MapPostEndpointsForTenant();
+		tenantGroup.MapProjectEndpointsForTenant();
 
 		var readinessOptions = new HealthCheckOptions {
 			Predicate = registration => registration.Tags.Contains("ready"),

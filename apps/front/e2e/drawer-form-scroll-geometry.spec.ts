@@ -5,7 +5,11 @@ import {
 	DRAWER_FORM_CALL_SITES,
 	type DrawerFormCallSiteId,
 } from './helpers/drawer-form-call-sites';
-import { loginAsStaffAdmin } from './helpers/login';
+import {
+	loginAsStaffAdmin,
+	loginAsTenantUser,
+	SINGLE_TENANT_USER_CREDENTIALS,
+} from './helpers/login';
 
 /**
  * #990 / PR #1054 browser-side guard. Earlier source-level checks could prove
@@ -492,6 +496,23 @@ const assertDrawerScrollGeometry = async (
 	}
 };
 
+const openTenantPostCreateDrawer = async (page: Page): Promise<void> => {
+	// The `chromium` project supplies a pre-authenticated staff-admin
+	// storageState; a tenant login must start from a clean context or the
+	// authed staff surface redirects `/login` away before the form renders
+	// (same reason tenant-posts-drafts.spec.ts clears its storageState).
+	await page.context().clearCookies();
+	await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
+	await page.goto('/tenant/posts/drafts');
+	await expect(page.getByTestId('tenant-posts-drafts-page')).toBeVisible({
+		timeout: 10_000,
+	});
+	await page.getByTestId('tenant-posts-new-post').click();
+	await expect(page.getByTestId('tenant-posts-create-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
 const openDrawerByCallSiteId: Record<
 	DrawerFormCallSiteId,
 	(page: Page) => Promise<void>
@@ -500,6 +521,7 @@ const openDrawerByCallSiteId: Record<
 	'profile-edit': openProfileEditDrawer,
 	'tenant-user-invite': openInviteUserDrawer,
 	'staff-user-email-change': openChangeEmailDrawer,
+	'tenant-post-create': openTenantPostCreateDrawer,
 };
 
 test.describe(
