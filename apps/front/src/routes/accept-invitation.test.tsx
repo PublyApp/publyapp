@@ -180,7 +180,9 @@ const EN_LABELS: Record<string, string> = {
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, values?: Record<string, string>) => {
-			const resolvedKey = key.replace(/^common:/, '');
+			// Keys may arrive namespace-qualified (`auth:some-key`) — lookup
+			// tables in _accept-invitation-i18n-keys.ts qualify their values.
+			const resolvedKey = key.replace(/^[a-z][a-z0-9]*:/, '');
 			let text = EN_LABELS[resolvedKey] ?? resolvedKey;
 			for (const [name, value] of Object.entries(values ?? {})) {
 				text = text.replaceAll(`{{${name}}}`, value);

@@ -454,12 +454,29 @@ export const MismatchView = ({
 			<div>
 				<AuthFormHeader title={t('auth-invitation-wrong-account-title')} />
 				<p className="mt-1 text-sm text-muted-foreground">
-					<Trans
-						i18nKey={mismatchKeys.description}
-						ns="auth"
-						values={{ invitationEmail: email, currentUserEmail: currentEmail }}
-						components={{ strong: <strong className="text-foreground" /> }}
-					/>
+					{/* Literal keys + ns="auth": <Trans>'s static typing requires
+					    UNqualified keys, unlike t() which accepts `auth:` ones. */}
+					{userExists ? (
+						<Trans
+							i18nKey="auth-invitation-existing-user-mismatch-description"
+							ns="auth"
+							values={{
+								invitationEmail: email,
+								currentUserEmail: currentEmail,
+							}}
+							components={{ strong: <strong className="text-foreground" /> }}
+						/>
+					) : (
+						<Trans
+							i18nKey="auth-invitation-new-user-mismatch-description"
+							ns="auth"
+							values={{
+								invitationEmail: email,
+								currentUserEmail: currentEmail,
+							}}
+							components={{ strong: <strong className="text-foreground" /> }}
+						/>
+					)}
 				</p>
 			</div>
 

@@ -130,12 +130,30 @@ const extractKeyMapLiteralUsages = (
 
 		const block = source.slice(braceStart, braceEnd);
 		for (const literalMatch of block.matchAll(STRING_LITERAL_PATTERN)) {
-			const candidate = literalMatch[2];
-			if (!KEBAB_I18N_KEY_CANDIDATE.test(candidate)) {
+			// Skip quoted PROPERTY NAMES (`'existing-signed-out': {`) — they
+			// are the table's own discriminators, not translation keys; only
+			// values (right of the colon) are key candidates. Without this,
+			// a 3+-segment kebab discriminator masquerades as a bundle-less
+			// key and fails the resolution check below.
+			const afterQuote = block.slice(
+				(literalMatch.index ?? 0) + literalMatch[0].length,
+			);
+			if (/^\s*:/.test(afterQuote)) {
+				continue;
+			}
+			// A value may be namespace-qualified (`auth:some-key`) — lookup
+			// tables in modules without their own `useTranslation()` default
+			// qualify every value so the guard can attribute them correctly
+			// (see routes/_accept-invitation-i18n-keys.ts).
+			const { namespace, key } = resolveUsageKey(
+				literalMatch[2],
+				defaultNamespace,
+			);
+			if (!KEBAB_I18N_KEY_CANDIDATE.test(key)) {
 				continue;
 			}
 
-			const qualifiedKey = `${defaultNamespace}:${candidate}`;
+			const qualifiedKey = `${namespace}:${key}`;
 			const usages = usagesByKey.get(qualifiedKey) ?? [];
 			usages.push(relativePath);
 			usagesByKey.set(qualifiedKey, usages);
@@ -150,12 +168,12 @@ const extractScalarKeyDeclarations = (
 	usagesByKey: Map<string, string[]>,
 ): void => {
 	for (const match of source.matchAll(SCALAR_KEY_DECLARATION_PATTERN)) {
-		const candidate = match[2];
-		if (!KEBAB_I18N_KEY_CANDIDATE.test(candidate)) {
+		const { namespace, key } = resolveUsageKey(match[2], defaultNamespace);
+		if (!KEBAB_I18N_KEY_CANDIDATE.test(key)) {
 			continue;
 		}
 
-		const qualifiedKey = `${defaultNamespace}:${candidate}`;
+		const qualifiedKey = `${namespace}:${key}`;
 		const usages = usagesByKey.get(qualifiedKey) ?? [];
 		usages.push(relativePath);
 		usagesByKey.set(qualifiedKey, usages);
@@ -374,12 +392,17 @@ const isCopyLikeLiteral = (
 	allowKeyLookupExemption = false,
 ): boolean => {
 	const trimmed = value.trim();
+	// Namespace-qualified key values (`auth:some-long-key`) are exempted on
+	// their key part — same rationale as the bare-kebab case below.
+	const trimmedKeyPart = trimmed.replace(/^[a-z][a-z0-9]*:/, '');
 	if (
 		trimmed.length < 2 ||
 		LOCALE_SELF_NAME_ALLOWLIST.has(trimmed) ||
 		NEVER_TRANSLATED_LITERAL_ALLOWLIST.has(trimmed) ||
 		URL_EMAIL_OR_DOMAIN_PATTERN.test(trimmed) ||
-		(allowKeyLookupExemption && KEBAB_I18N_KEY_CANDIDATE.test(trimmed))
+		(allowKeyLookupExemption &&
+			(KEBAB_I18N_KEY_CANDIDATE.test(trimmedKeyPart) ||
+				KEBAB_I18N_KEY_CANDIDATE.test(trimmed)))
 	) {
 		return false;
 	}

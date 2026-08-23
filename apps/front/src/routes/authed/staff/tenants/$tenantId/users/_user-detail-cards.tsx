@@ -12,11 +12,11 @@ import {
 } from '../_tenant-details-shell';
 
 /** Lifecycle state of the user's membership, resolved by the caller:
- * - 'changeable': suspend/reactivate available (action says which)
+ * - 'changeable': suspend/reactivate available (intent says which)
  * - 'globally-suspended' / 'locked': no membership action possible
  */
 export type MembershipLifecycle =
-	| { kind: 'changeable'; action: 'suspend' | 'reactivate' }
+	| { kind: 'changeable'; intent: 'suspend' | 'reactivate' }
 	| { kind: 'globally-suspended' }
 	| { kind: 'locked' };
 

@@ -6,7 +6,12 @@
  * are indexed by.
  */
 
-/** Copy shown in the auth brand header per accept-invitation branch. */
+/** Copy shown in the auth brand header per accept-invitation branch.
+ *
+ * Values are namespace-qualified (`auth:`): this module declares no
+ * `useTranslation()` default of its own, so the i18n-key coverage guard
+ * cannot infer a namespace here, and every consumer renders these
+ * through `useTranslation(['auth', 'common'])`. */
 export type AcceptInvitationBrandKeyMap = {
 	headline: string;
 	subtitle: string;
@@ -17,31 +22,32 @@ export const ACCEPT_INVITATION_BRAND_I18N_KEYS: Record<
 	AcceptInvitationBrandKeyMap | undefined
 > = {
 	'new-user': {
-		headline: 'accept-invitation-brand-headline-new-user',
-		subtitle: 'accept-invitation-brand-subtitle-new-user',
+		headline: 'auth:accept-invitation-brand-headline-new-user',
+		subtitle: 'auth:accept-invitation-brand-subtitle-new-user',
 	},
 	'existing-match': {
-		headline: 'accept-invitation-brand-headline-existing-match',
-		subtitle: 'accept-invitation-brand-subtitle-existing-match',
+		headline: 'auth:accept-invitation-brand-headline-existing-match',
+		subtitle: 'auth:accept-invitation-brand-subtitle-existing-match',
 	},
 	'existing-signed-out': {
-		headline: 'accept-invitation-brand-headline-existing-signed-out',
-		subtitle: 'accept-invitation-brand-subtitle-existing-signed-out',
+		headline: 'auth:accept-invitation-brand-headline-existing-signed-out',
+		subtitle: 'auth:accept-invitation-brand-subtitle-existing-signed-out',
 	},
 	mismatch: {
-		headline: 'accept-invitation-brand-headline-mismatch',
-		subtitle: 'accept-invitation-brand-subtitle-mismatch',
+		headline: 'auth:accept-invitation-brand-headline-mismatch',
+		subtitle: 'auth:accept-invitation-brand-subtitle-mismatch',
 	},
 };
 
-/** Wrong-account view copy per signed-in user state. */
+/** Wrong-account view copy per signed-in user state. The CTA goes through
+ * `t()` (which accepts the `auth:` prefix); the description is NOT kept here
+ * because its renderer is a `<Trans>` whose static typing demands an
+ * UNqualified literal key paired with `ns="auth"`. */
 export const ACCEPT_INVITATION_MISMATCH_I18N_KEYS = {
 	existing: {
-		description: 'auth-invitation-existing-user-mismatch-description',
-		cta: 'auth-invitation-log-out-and-sign-in',
+		cta: 'auth:auth-invitation-log-out-and-sign-in',
 	},
 	newUser: {
-		description: 'auth-invitation-new-user-mismatch-description',
-		cta: 'auth-invitation-log-out-and-continue',
+		cta: 'auth:auth-invitation-log-out-and-continue',
 	},
 } as const;

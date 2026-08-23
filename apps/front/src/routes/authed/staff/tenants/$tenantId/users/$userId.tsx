@@ -156,9 +156,9 @@ const StaffTenantUserDetailsPage = () => {
 		normalizedStatus === TENANT_USER_STATUS_GLOBALLY_SUSPENDED;
 	let membershipLifecycle: MembershipLifecycle;
 	if (canSuspend) {
-		membershipLifecycle = { kind: 'changeable', action: 'suspend' };
+		membershipLifecycle = { kind: 'changeable', intent: 'suspend' };
 	} else if (canReactivate) {
-		membershipLifecycle = { kind: 'changeable', action: 'reactivate' };
+		membershipLifecycle = { kind: 'changeable', intent: 'reactivate' };
 	} else if (isGloballySuspended) {
 		membershipLifecycle = { kind: 'globally-suspended' };
 	} else {
@@ -166,7 +166,7 @@ const StaffTenantUserDetailsPage = () => {
 	}
 	const membershipActionLabel =
 		membershipLifecycle.kind === 'changeable' &&
-		membershipLifecycle.action === 'suspend'
+		membershipLifecycle.intent === 'suspend'
 			? t('suspend')
 			: t('reactivate');
 	const statusPending =
@@ -261,7 +261,7 @@ const StaffTenantUserDetailsPage = () => {
 				statusPending={statusPending}
 				onMembershipAction={() => {
 					if (membershipLifecycle.kind === 'changeable') {
-						void handleMembershipAction(membershipLifecycle.action);
+						void handleMembershipAction(membershipLifecycle.intent);
 					}
 				}}
 				onRequestRemove={() => setPendingRemove(true)}
