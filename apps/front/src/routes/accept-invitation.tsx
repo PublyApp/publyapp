@@ -310,16 +310,21 @@ const useAcceptInvitationSubmit = (token: string) => {
 			if (!acceptedResult) {
 				setAcceptedResult(result);
 			}
-			if (!result.sessionExpiresAt) {
-				throw new Error('acceptance did not return a session expiration');
+
+			if (result.sessionExpiresAt !== undefined) {
+				const redirect = await completeRedirect({
+					data: { sessionExpiresAt: result.sessionExpiresAt },
+				});
+
+				postBroadcast(AUTH_SYNC_CHANNEL, { type: 'login' });
+				await navigate({ to: redirect.targetPath, replace: true });
+			} else {
+				// No `throw` inside try/catch: the React Compiler cannot lower
+				// ThrowStatement-in-try yet and would skip this component. A
+				// missing expiry is not an API failure, so surface the same
+				// generic error message the old throw-and-catch produced.
+				setErrorMessage(t('common:an-error-occurred'));
 			}
-
-			const redirect = await completeRedirect({
-				data: { sessionExpiresAt: result.sessionExpiresAt },
-			});
-
-			postBroadcast(AUTH_SYNC_CHANNEL, { type: 'login' });
-			await navigate({ to: redirect.targetPath, replace: true });
 		} catch (error) {
 			const failure = toApiFailure(error);
 			setErrorMessage(

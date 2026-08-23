@@ -196,6 +196,11 @@
 			"mirror": "just ci-front",
 			"reason": "ci-front runs the identical pnpm --filter front check:design-system."
 		},
+		"front-ci.yml::supply-chain::Check front React Compiler artifacts": {
+			"hash": "c51c99b3e86c7ffa",
+			"mirror": "just ci-front",
+			"reason": "ci-front runs the identical pnpm --filter front check:react-compiler after the front build (#1234)."
+		},
 		"front-ci.yml::supply-chain::Check front formatting": {
 			"hash": "83841604495adffa",
 			"mirror": "just format",
