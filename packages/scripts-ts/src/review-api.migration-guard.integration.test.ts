@@ -242,17 +242,19 @@ const isPostgresAcceptingAuthenticatedSessions = () => {
 };
 
 const waitForPostgresReady = async () => {
-	// 900 attempts x 500ms = a 7.5-minute ceiling. 240 attempts (a 2-minute
-	// ceiling) was itself a widening of the original 60 and STILL closed too
-	// early under multi-lane host load: the round-3 finisher measured initdb
-	// needing ~170s at load average ~20/12 cores (probe: fresh postgres:18-alpine,
-	// authenticated-session probe, same docker exec shape as below), and each
-	// `docker exec` probe stretches past 1s when the daemon is contended, so the
-	// effective wall-clock ceiling was even shorter than 240x500ms suggests.
-	// The happy path is unchanged — polling returns on the first successful
-	// authenticated query; the wider ceiling only affects the failure path and
-	// vitest's default per-hook timeout is 10s per AWAIT, not cumulative.
-	for (let attempt = 0; attempt < 900; attempt += 1) {
+	// 2400 attempts x 500ms = a 20-minute ceiling. Every earlier ceiling kept
+	// closing too early as sibling lanes piled onto this host: the round-3
+	// finisher measured initdb needing ~170s at load average ~20/12 cores
+	// (probe: fresh postgres:18-alpine, authenticated-session probe, same
+	// docker exec shape as below), and the very next full-suite run STILL
+	// failed readiness at load ~30/12 cores — each `docker exec` probe
+	// stretches to several seconds when the daemon is contended AND initdb
+	// itself is starved of CPU, so wall-clock need grew faster than the old
+	// ceilings assumed. The happy path is unchanged — polling returns on the
+	// first successful authenticated query; the wider ceiling only affects
+	// the failure path, and vitest's default per-hook timeout is 10s per
+	// AWAIT, not cumulative.
+	for (let attempt = 0; attempt < 2400; attempt += 1) {
 		if (isPostgresAcceptingAuthenticatedSessions()) {
 			return;
 		}
@@ -457,7 +459,12 @@ beforeAll(async () => {
 		'--connection',
 		TEST_CONNECTION,
 	]);
-}, 600_000);
+	// Container start + readiness (waitForPostgresReady's own ceiling is
+	// 20 minutes under extreme host load) + one cold build + one real
+	// dotnet-ef database update, all CPU-starved by sibling lanes. 40
+	// minutes covers the sum; every internal phase still has its own
+	// tighter bound, so nothing can hang silently inside this budget.
+}, 2_400_000);
 
 afterAll(() => {
 	if (skip) {
@@ -1053,7 +1060,10 @@ const runHostedServiceManifestProbe = ({
 				TRUSTED_PROXY_CIDRS: trustedProxyCidrs,
 				POSTGRES_CONNECTION_STRING: connectionString,
 			},
-			timeout: 30_000,
+			// Cold `dotnet exec` stretches far past 30s when the host is heavily
+			// loaded by sibling lanes; 120s keeps the probe honest without
+			// turning host contention into a false negative.
+			timeout: 120_000,
 		},
 	);
 
@@ -1360,7 +1370,9 @@ test(
 	'END-TO-END: a worktree file missing POSTGRES_CONNECTION_STRING fails closed instead of falling back to an ambient decoy',
 	{
 		skip: skip || (launchTargetSkip ? launchTargetSkipReason : false),
-		timeout: 120_000,
+		// Launches a real API process; under multi-lane host load (r3 finisher:
+		// load ~30/12 cores) even a fail-closed fast path needs minutes.
+		timeout: 300_000,
 	},
 	async () => {
 		await withWorktreeConnectionStringRemoved(async () => {
