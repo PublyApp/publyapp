@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,13 +12,15 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260822171228_SocialAccountsModule")]
+    partial class SocialAccountsModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
@@ -39,7 +42,7 @@ namespace PublyApp.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("data_protection_keys", (string)null);
+                    b.ToTable("data_protection_keys");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.AuditLogs.Entities.AuditLog", b =>
@@ -1206,8 +1209,7 @@ namespace PublyApp.Api.Migrations
 
                     b.HasIndex("TenantId", "Provider", "ExternalAccountId")
                         .IsUnique()
-                        .HasDatabaseName("ix_social_accounts_tenant_provider_external")
-                        .HasFilter("is_deleted = false");
+                        .HasDatabaseName("ix_social_accounts_tenant_provider_external");
 
                     b.ToTable("social_accounts", t =>
                         {

@@ -108,11 +108,11 @@ dev-db: dev-services
 # also keeps document generation on the API-only surface instead of composing the job
 # engine. Exported by just (a `$`-prefixed parameter), not shell syntax, so it works
 # under both bash and pwsh.
-build-api $APP_ROLE="api":
+build-api $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   cd {{api_dir}} && dotnet build --no-restore
 
 # Build API (with restore)
-build-api-full $APP_ROLE="api":
+build-api-full $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   cd {{api_dir}} && dotnet build
 
 # Publish API
@@ -388,7 +388,7 @@ ci-quality: ci-format ci-quality-dotnet test-analyzers
 # .NET solution build with warnings-as-errors (the quality gate's dotnet half).
 # APP_ROLE + TRUSTED_PROXY_CIDRS pinned for the same reason as build-api: `dotnet build`
 # boots the app to emit openapi.json and AppEnvironment requires APP_ROLE in Production.
-ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
+ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   dotnet restore PublyApp.slnx
   dotnet build PublyApp.slnx --no-restore
 
@@ -464,7 +464,7 @@ generate-response-keys:
 # Build API + generate TypeScript client from OpenAPI
 # APP_ROLE pinned for the same reason as build-api: this `dotnet build` boots the app to
 # regenerate openapi.json before kiota reads it (design §3.1 item 3).
-generate-client $APP_ROLE="api":
+generate-client $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   cd {{api_dir}} && dotnet build --no-restore
   cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient
   cd {{js_client_dir}} && node -e "const fs=require('fs'),path=require('path'); const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{const p=path.join(d,e.name); return e.isDirectory()?walk(p):[p];}); for (const f of walk('src')) { if (f.endsWith('.ts')||f.endsWith('.json')) { const c=fs.readFileSync(f,'utf8'); const n=c.replace(/\r\n?/g,'\n'); if (n!==c) fs.writeFileSync(f,n); } }"

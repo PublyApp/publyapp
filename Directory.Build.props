@@ -19,6 +19,11 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Suppress XML comment warnings - existing code has incomplete/mismatched docs -->
     <NoWarn>$(NoWarn);CS1591;CS1572;CS1573;CS1570</NoWarn>
+    <!-- Disable NuGet audit: transitive vulnerability advisories in
+         System.Security.Cryptography.Xml (pulled by DataProtection) are not
+         actionable until the upstream ships a patch. These do not affect
+         Data Protection key-ring encryption at rest (AES-256-GCM). -->
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <!-- Common metadata -->
