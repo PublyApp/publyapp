@@ -6,6 +6,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { Button, buttonVariants } from '~/components/ui/button';
+import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
@@ -75,7 +76,7 @@ export const TenantUserDetailsShell = ({
 		return (
 			<div className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12">
 				<div className="flex items-center gap-3 text-sm text-muted-foreground">
-					<div className="h-2 w-2 rounded-full bg-primary" />
+					<LoadingSpinner />
 					<span data-testid="tenant-user-details-loading">
 						{t('loading-tenant-user')}
 					</span>
