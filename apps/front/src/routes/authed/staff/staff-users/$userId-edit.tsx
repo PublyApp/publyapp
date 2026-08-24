@@ -146,6 +146,28 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
+const getUnsavedChangesStatus = ({
+	isDirty,
+	attentionCount,
+	unsavedChanges,
+	fieldsNeedAttention,
+}: {
+	isDirty: boolean;
+	attentionCount: number;
+	unsavedChanges: string;
+	fieldsNeedAttention: string;
+}): string | undefined => {
+	if (!isDirty) {
+		return undefined;
+	}
+
+	if (attentionCount > 0) {
+		return `${unsavedChanges} · ${fieldsNeedAttention}`;
+	}
+
+	return unsavedChanges;
+};
+
 const StaffUserEditLoading = () => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
@@ -622,17 +644,12 @@ const StaffUserEditPage = () => {
 		updateStaffUser.isPending ||
 		updateStaffUserProfiles.isPending;
 	const attentionCount = Object.keys(errors).length;
-	const status = ((): string | undefined => {
-		if (!formState.isDirty) {
-			return undefined;
-		}
-
-		if (attentionCount > 0) {
-			return `${t('common:unsaved-changes')} · ${t('fields-need-attention', { count: attentionCount })}`;
-		}
-
-		return t('common:unsaved-changes');
-	})();
+	const status = getUnsavedChangesStatus({
+		isDirty: formState.isDirty,
+		attentionCount,
+		unsavedChanges: t('common:unsaved-changes'),
+		fieldsNeedAttention: t('fields-need-attention', { count: attentionCount }),
+	});
 
 	return (
 		<FormPageLayout data-testid="staff-user-edit-page">

@@ -62,6 +62,7 @@
 		"unicorn/prefer-number-properties": "error",
 		"publy/no-op": "off",
 		"publy/no-package-src-import": "error",
+		"publy/no-iife": "error",
 		"publy/no-array-reduce": "error",
 		"publy/prefer-specific-lodash-imports": "error",
 		"publy/no-console-in-source": "error",

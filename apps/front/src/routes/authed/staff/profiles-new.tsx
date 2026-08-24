@@ -29,7 +29,10 @@ import {
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 
-import { buildStaffPermissionOptions } from './_staff-permission-options';
+import {
+	buildStaffPermissionOptions,
+	type StaffPermissionOption,
+} from './_staff-permission-options';
 
 type NewStaffProfileValues = z.infer<
 	ReturnType<typeof getNewStaffProfileSchema>
@@ -76,11 +79,112 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 	});
 };
 
+const NewStaffProfileForm = ({
+	permissionsQuery,
+	methods,
+	onSubmit,
+	permissionOptions,
+}: {
+	permissionsQuery: ReturnType<typeof useStaffPermissionCatalogQuery>;
+	methods: ReturnType<typeof useForm<NewStaffProfileValues>>;
+	onSubmit: (event?: React.BaseSyntheticEvent) => void;
+	permissionOptions: StaffPermissionOption[];
+}) => {
+	const { t } = useTranslation('common');
+	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
+	const createProfile = useCreateStaffProfileMutation();
+	const icon = useWatch({ control: methods.control, name: 'icon' });
+	const tone = useWatch({ control: methods.control, name: 'tone' });
+
+	if (permissionsQuery.isPending) {
+		return (
+			<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('loading-permissions')}</span>
+			</div>
+		);
+	}
+
+	if (permissionsQuery.isError) {
+		return (
+			<div className="space-y-3">
+				<p className="text-sm text-destructive">
+					{getFailureMessage(toApiFailure(permissionsQuery.error), {
+						fallback: t('unable-to-load-staff-permissions'),
+					})}
+				</p>
+				<Button
+					type="button"
+					variant="secondary"
+					onClick={() => void permissionsQuery.refetch()}
+				>
+					{t('retry')}
+				</Button>
+			</div>
+		);
+	}
+
+	return (
+		<Form methods={methods} onSubmit={onSubmit}>
+			<div className="space-y-1.5">
+				<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
+					<IconColorPicker
+						value={{ icon, tone }}
+						disabled={createProfile.isPending}
+						onChange={(next) => {
+							methods.setValue('icon', next.icon ?? icon, {
+								shouldDirty: true,
+							});
+							methods.setValue('tone', next.tone ?? tone, {
+								shouldDirty: true,
+							});
+						}}
+					/>
+					<Field.Text
+						name="name"
+						label={t('profile-name')}
+						placeholder={t('profile-name-placeholder')}
+						disabled={createProfile.isPending}
+					/>
+				</div>
+				<p className="text-xs text-muted-foreground sm:pl-[68px]">
+					{tProfiles('profile-icon-picker-hint')}
+				</p>
+			</div>
+			<Field.Text
+				name="description"
+				label={t('description')}
+				placeholder={t('profile-description-placeholder')}
+				disabled={createProfile.isPending}
+			/>
+			<Field.CheckboxGroup
+				name="permissions"
+				label={t('permissions')}
+				options={permissionOptions}
+				isDisabled={createProfile.isPending}
+			/>
+			{methods.formState.errors.root?.server?.message ? (
+				<p className="text-sm text-destructive" role="alert">
+					{methods.formState.errors.root.server.message}
+				</p>
+			) : null}
+			<div className="flex justify-end">
+				<Button
+					type="submit"
+					variant="default"
+					disabled={createProfile.isPending || permissionsQuery.isPending}
+				>
+					{t('create-profile')}
+				</Button>
+			</div>
+		</Form>
+	);
+};
+
 const NewStaffProfileRoute = () => {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 	const { t, i18n } = useTranslation('common');
-	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const hasSavedRef = useRef(false);
 
@@ -103,9 +207,6 @@ const NewStaffProfileRoute = () => {
 		language: i18n.language,
 	});
 	const createProfile = useCreateStaffProfileMutation();
-
-	const icon = useWatch({ control: methods.control, name: 'icon' });
-	const tone = useWatch({ control: methods.control, name: 'tone' });
 
 	const permissionOptions = useMemo(
 		() => buildStaffPermissionOptions(permissionsQuery.data?.additionalData),
@@ -195,95 +296,12 @@ const NewStaffProfileRoute = () => {
 			</div>
 
 			<Card className="space-y-4 p-4">
-				{(() => {
-					const permissionsIsPending = permissionsQuery.isPending;
-					const permissionsIsError = permissionsQuery.isError;
-					if (permissionsIsPending) {
-						return (
-							<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
-								<LoadingSpinner />
-								<span>{t('loading-permissions')}</span>
-							</div>
-						);
-					}
-
-					if (permissionsIsError) {
-						return (
-							<div className="space-y-3">
-								<p className="text-sm text-destructive">
-									{getFailureMessage(toApiFailure(permissionsError), {
-										fallback: t('unable-to-load-staff-permissions'),
-									})}
-								</p>
-								<Button
-									type="button"
-									variant="secondary"
-									onClick={() => void permissionsQuery.refetch()}
-								>
-									{t('retry')}
-								</Button>
-							</div>
-						);
-					}
-
-					return (
-						<Form methods={methods} onSubmit={onSubmit}>
-							<div className="space-y-1.5">
-								<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
-									<IconColorPicker
-										value={{ icon, tone }}
-										disabled={createProfile.isPending}
-										onChange={(next) => {
-											methods.setValue('icon', next.icon ?? icon, {
-												shouldDirty: true,
-											});
-											methods.setValue('tone', next.tone ?? tone, {
-												shouldDirty: true,
-											});
-										}}
-									/>
-									<Field.Text
-										name="name"
-										label={t('profile-name')}
-										placeholder={t('profile-name-placeholder')}
-										disabled={createProfile.isPending}
-									/>
-								</div>
-								<p className="text-xs text-muted-foreground sm:pl-[68px]">
-									{tProfiles('profile-icon-picker-hint')}
-								</p>
-							</div>
-							<Field.Text
-								name="description"
-								label={t('description')}
-								placeholder={t('profile-description-placeholder')}
-								disabled={createProfile.isPending}
-							/>
-							<Field.CheckboxGroup
-								name="permissions"
-								label={t('permissions')}
-								options={permissionOptions}
-								isDisabled={createProfile.isPending}
-							/>
-							{methods.formState.errors.root?.server?.message ? (
-								<p className="text-sm text-destructive" role="alert">
-									{methods.formState.errors.root.server.message}
-								</p>
-							) : null}
-							<div className="flex justify-end">
-								<Button
-									type="submit"
-									variant="default"
-									disabled={
-										createProfile.isPending || permissionsQuery.isPending
-									}
-								>
-									{t('create-profile')}
-								</Button>
-							</div>
-						</Form>
-					);
-				})()}
+				<NewStaffProfileForm
+					permissionsQuery={permissionsQuery}
+					methods={methods}
+					onSubmit={onSubmit}
+					permissionOptions={permissionOptions}
+				/>
 			</Card>
 			<ConfirmDialog
 				isOpen={blocker.status === 'blocked'}

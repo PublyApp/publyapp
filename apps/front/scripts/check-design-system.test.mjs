@@ -345,7 +345,7 @@ const startFixtureProbe = async (mode) => {
 		},
 	);
 	let output = '';
-	const marker = (async () => {
+	const waitForProbeMarker = async () => {
 		await mkdir(reportDirectory, { recursive: true });
 		const timeout = setTimeout(() => {
 			throw new Error(`fixture probe did not start:\n${output}`);
@@ -360,7 +360,8 @@ const startFixtureProbe = async (mode) => {
 				await new Promise((resolve) => setTimeout(resolve, 25));
 			}
 		}
-	})();
+	};
+	const marker = waitForProbeMarker();
 	const exit = new Promise((resolve, reject) => {
 		child.once('error', reject);
 		child.once('exit', (code, signal) => resolve({ code, signal }));

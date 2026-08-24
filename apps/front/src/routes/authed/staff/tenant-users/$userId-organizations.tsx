@@ -309,6 +309,23 @@ const ConfirmRemoveSingleOrganization = ({
 	const bulkUnlink = useBulkUnlinkGlobalTenantUserCompaniesMutation();
 	const [shouldLogout, setShouldLogout] = useState(false);
 
+	const confirmRemoveUserFromTenant = async () => {
+		try {
+			await bulkUnlink.mutateAsync({ userId, tenantIds: [row.id] });
+		} catch (error) {
+			setOpen(false);
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+			await displayLocalMutationFailure(error, t('an-error-occurred'));
+			return;
+		}
+		setOpen(false);
+		await invalidateGlobalTenantUsers(queryClient);
+		toastLocalMutationResult.success(t('user-removed-success'));
+	};
+
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
@@ -322,22 +339,7 @@ const ConfirmRemoveSingleOrganization = ({
 			tone="danger"
 			isPending={bulkUnlink.isPending}
 			onConfirm={() => {
-				void (async () => {
-					try {
-						await bulkUnlink.mutateAsync({ userId, tenantIds: [row.id] });
-					} catch (error) {
-						setOpen(false);
-						if (shouldLogoutForFailure(error)) {
-							setShouldLogout(true);
-							return;
-						}
-						await displayLocalMutationFailure(error, t('an-error-occurred'));
-						return;
-					}
-					setOpen(false);
-					await invalidateGlobalTenantUsers(queryClient);
-					toastLocalMutationResult.success(t('user-removed-success'));
-				})();
+				void confirmRemoveUserFromTenant();
 			}}
 			onOpenChange={setOpen}
 		/>
@@ -366,6 +368,45 @@ const OrganizationsBulkActions = ({
 		}
 	}
 	const isOverLimit = selectedIds.length > BULK_ACTION_MAX_COUNT;
+
+	const confirmRemoveSelectedOrganizations = async () => {
+		try {
+			const result = await bulkUnlink.mutateAsync({
+				userId,
+				tenantIds: selectedIds,
+			});
+			const summary = toGlobalTenantUserBulkUnlinkSummary(result);
+			setOpen(false);
+			selection.clearSelection();
+			await invalidateGlobalTenantUsers(queryClient);
+
+			if (summary.failedCount === 0) {
+				toastLocalMutationResult.success(
+					t('tenant-user-company-bulk-remove-success', {
+						count: summary.succeededCount,
+					}),
+				);
+				return;
+			}
+
+			toastLocalMutationResult.error(
+				t('tenant-user-company-bulk-remove-partial-success', {
+					succeeded: summary.succeededCount,
+					failed: summary.failedCount,
+				}),
+			);
+		} catch (error) {
+			setOpen(false);
+			if (shouldLogoutForFailure(error)) {
+				setShouldLogout(true);
+				return;
+			}
+			await displayLocalMutationFailure(
+				error,
+				t('tenant-user-company-bulk-remove-failure'),
+			);
+		}
+	};
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -421,44 +462,7 @@ const OrganizationsBulkActions = ({
 				tone="danger"
 				isPending={bulkUnlink.isPending}
 				onConfirm={() => {
-					void (async () => {
-						try {
-							const result = await bulkUnlink.mutateAsync({
-								userId,
-								tenantIds: selectedIds,
-							});
-							const summary = toGlobalTenantUserBulkUnlinkSummary(result);
-							setOpen(false);
-							selection.clearSelection();
-							await invalidateGlobalTenantUsers(queryClient);
-
-							if (summary.failedCount === 0) {
-								toastLocalMutationResult.success(
-									t('tenant-user-company-bulk-remove-success', {
-										count: summary.succeededCount,
-									}),
-								);
-								return;
-							}
-
-							toastLocalMutationResult.error(
-								t('tenant-user-company-bulk-remove-partial-success', {
-									succeeded: summary.succeededCount,
-									failed: summary.failedCount,
-								}),
-							);
-						} catch (error) {
-							setOpen(false);
-							if (shouldLogoutForFailure(error)) {
-								setShouldLogout(true);
-								return;
-							}
-							await displayLocalMutationFailure(
-								error,
-								t('tenant-user-company-bulk-remove-failure'),
-							);
-						}
-					})();
+					void confirmRemoveSelectedOrganizations();
 				}}
 				onOpenChange={(nextOpen) => {
 					setOpen(nextOpen);

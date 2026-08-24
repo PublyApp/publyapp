@@ -46,19 +46,21 @@ export const makeFixture = async (files) => {
 	return root;
 };
 
+const runFixtureCleanup = async () => {
+	if (ownedRootPromise !== undefined) {
+		const root = await ownedRootPromise;
+		const delay = Number(process.env.FRONT2_DESIGN_GUARD_CLEANUP_DELAY_MS);
+		if (Number.isFinite(delay) && delay > 0) {
+			await new Promise((resolve) => setTimeout(resolve, delay));
+		}
+		await rm(root, { recursive: true, force: true });
+	}
+	ownedFixtureRoots.clear();
+};
+
 export const cleanupFixtures = async () => {
 	if (cleanupPromise === undefined) {
-		cleanupPromise = (async () => {
-			if (ownedRootPromise !== undefined) {
-				const root = await ownedRootPromise;
-				const delay = Number(process.env.FRONT2_DESIGN_GUARD_CLEANUP_DELAY_MS);
-				if (Number.isFinite(delay) && delay > 0) {
-					await new Promise((resolve) => setTimeout(resolve, delay));
-				}
-				await rm(root, { recursive: true, force: true });
-			}
-			ownedFixtureRoots.clear();
-		})();
+		cleanupPromise = runFixtureCleanup();
 	}
 	return cleanupPromise;
 };

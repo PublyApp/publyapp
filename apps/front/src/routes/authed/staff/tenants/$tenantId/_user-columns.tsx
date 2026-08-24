@@ -43,6 +43,38 @@ import {
 
 type TenantUserPendingAction = 'suspend' | 'reactivate' | 'remove' | null;
 
+type TFunctionLike = (key: string, options?: Record<string, unknown>) => string;
+
+/**
+ * Title/description/confirm copy for the row-action confirm dialog, resolved
+ * from the pending action (falls back to the remove-user copy when nothing
+ * is pending).
+ */
+const getTenantUserDialogConfig = (
+	pendingAction: TenantUserPendingAction,
+	t: TFunctionLike,
+): { title: string; description: string; confirmLabel: string } => {
+	if (pendingAction === 'suspend') {
+		return {
+			title: t('suspend'),
+			description: t('suspend-tenant-user-description'),
+			confirmLabel: t('suspend'),
+		};
+	}
+	if (pendingAction === 'reactivate') {
+		return {
+			title: t('reactivate'),
+			description: t('reactivate-tenant-user-description'),
+			confirmLabel: t('reactivate'),
+		};
+	}
+	return {
+		title: t('remove-user-from-tenant'),
+		description: t('confirm-remove-user-from-tenant-details'),
+		confirmLabel: t('remove-user-from-tenant'),
+	};
+};
+
 const getNormalizedTenantUserStatus = (
 	value: string | null | undefined,
 ): string => value?.trim().toLowerCase() ?? '';
@@ -99,27 +131,7 @@ export const TenantUserRowActions = ({
 		await invalidateTenantUserQueries();
 	};
 
-	const dialogConfig = (() => {
-		if (pendingAction === 'suspend') {
-			return {
-				title: t('suspend'),
-				description: t('suspend-tenant-user-description'),
-				confirmLabel: t('suspend'),
-			};
-		}
-		if (pendingAction === 'reactivate') {
-			return {
-				title: t('reactivate'),
-				description: t('reactivate-tenant-user-description'),
-				confirmLabel: t('reactivate'),
-			};
-		}
-		return {
-			title: t('remove-user-from-tenant'),
-			description: t('confirm-remove-user-from-tenant-details'),
-			confirmLabel: t('remove-user-from-tenant'),
-		};
-	})();
+	const dialogConfig = getTenantUserDialogConfig(pendingAction, t);
 
 	return (
 		<div className="flex flex-col items-center gap-1">

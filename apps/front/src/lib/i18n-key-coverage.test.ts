@@ -238,54 +238,55 @@ const getSourceFiles = (dir: string): Promise<SourceFile[]> => {
 // change mid-run.
 let cachedUsagesByKey: Promise<Map<string, string[]>> | null = null;
 
+const collectI18nKeyUsages = async (
+	dir: string,
+): Promise<Map<string, string[]>> => {
+	const files = await getSourceFiles(dir);
+	const usagesByKey = new Map<string, string[]>();
+
+	for (const { relativePath, source } of files) {
+		if (
+			relativePath.endsWith('.test.ts') ||
+			relativePath.endsWith('.test.tsx')
+		) {
+			continue;
+		}
+
+		const defaultNamespace = (source.match(USE_TRANSLATION_PATTERN)?.[2] ??
+			'common') as SupportedNamespace;
+
+		for (const pattern of KEY_PATTERNS) {
+			for (const match of source.matchAll(pattern)) {
+				const { namespace, key } = resolveUsageKey(match[2], defaultNamespace);
+				const qualifiedKey = `${namespace}:${key}`;
+				const usages = usagesByKey.get(qualifiedKey) ?? [];
+				usages.push(relativePath);
+				usagesByKey.set(qualifiedKey, usages);
+			}
+		}
+
+		extractKeyMapLiteralUsages(
+			source,
+			relativePath,
+			defaultNamespace,
+			usagesByKey,
+		);
+		extractScalarKeyDeclarations(
+			source,
+			relativePath,
+			defaultNamespace,
+			usagesByKey,
+		);
+		extractLabelKeyPropertyUsages(source, relativePath, usagesByKey);
+	}
+
+	return usagesByKey;
+};
+
 export const extractI18nKeyUsages = async (
 	dir: string,
 ): Promise<Map<string, string[]>> => {
-	cachedUsagesByKey ??= (async () => {
-		const files = await getSourceFiles(dir);
-		const usagesByKey = new Map<string, string[]>();
-
-		for (const { relativePath, source } of files) {
-			if (
-				relativePath.endsWith('.test.ts') ||
-				relativePath.endsWith('.test.tsx')
-			) {
-				continue;
-			}
-
-			const defaultNamespace = (source.match(USE_TRANSLATION_PATTERN)?.[2] ??
-				'common') as SupportedNamespace;
-
-			for (const pattern of KEY_PATTERNS) {
-				for (const match of source.matchAll(pattern)) {
-					const { namespace, key } = resolveUsageKey(
-						match[2],
-						defaultNamespace,
-					);
-					const qualifiedKey = `${namespace}:${key}`;
-					const usages = usagesByKey.get(qualifiedKey) ?? [];
-					usages.push(relativePath);
-					usagesByKey.set(qualifiedKey, usages);
-				}
-			}
-
-			extractKeyMapLiteralUsages(
-				source,
-				relativePath,
-				defaultNamespace,
-				usagesByKey,
-			);
-			extractScalarKeyDeclarations(
-				source,
-				relativePath,
-				defaultNamespace,
-				usagesByKey,
-			);
-			extractLabelKeyPropertyUsages(source, relativePath, usagesByKey);
-		}
-
-		return usagesByKey;
-	})();
+	cachedUsagesByKey ??= collectI18nKeyUsages(dir);
 
 	return cachedUsagesByKey;
 };

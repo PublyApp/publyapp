@@ -53,7 +53,7 @@ const buildFixture = async ({ manifestSteps, steps }) => {
 
 // Hash of the `mirroredStep` above, as computed by the guard. Captured once so
 // the other tests can build a reconciled baseline to perturb.
-const reconciledHash = await (async () => {
+const computeReconciledHash = async () => {
 	const rootDir = await buildFixture({
 		manifestSteps: {
 			'fixture.yml::build::Run tests': {
@@ -69,7 +69,9 @@ const reconciledHash = await (async () => {
 
 	// @ts-expect-error rung-0: TS2531
 	return finding.match(/workflow ([a-f0-9]+)/)[1];
-})();
+};
+
+const reconciledHash = await computeReconciledHash();
 
 const reconciled = {
 	'fixture.yml::build::Run tests': {
