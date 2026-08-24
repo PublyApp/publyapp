@@ -338,8 +338,11 @@ export const isPortAvailableOnHost = async (host, port) => {
 export const ensurePortOpen = async (
 	// @ts-expect-error rung-0: add proper type in later rung
 	port,
-	// @ts-expect-error rung-0: TS7031/TS2339
-	{ host = '127.0.0.1', what } = {},
+	{
+		host = '127.0.0.1',
+		// @ts-expect-error rung-0: TS2339
+		what,
+	} = {},
 ) => {
 	const available = await isPortAvailableOnHost(host, port);
 	if (!available) {
@@ -521,11 +524,11 @@ export const requireResolvedWorktree = (
 
 /** Shared resolveTarget wiring: gh-backed runners plus this module's interactive picker. */
 export const resolveReviewTarget = async ({
-	// @ts-expect-error rung-0: add proper type in later rung
+	// @ts-expect-error rung-0: TS2339
 	requestedRef,
-	// @ts-expect-error rung-0: add proper type in later rung
+	// @ts-expect-error rung-0: TS2339
 	preferCwdPath,
-}) => {
+} = {}) => {
 	const worktrees = getWorktrees();
 	const byBranch = getBranchPathByMap(worktrees);
 	const runGh = makeRunGh();

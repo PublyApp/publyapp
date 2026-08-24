@@ -1,167 +1,40 @@
 #!/usr/bin/env node
 
-import { spawn, spawnSync } from 'node:child_process';
+// Frontend review launcher (#1020): keeps only the app-specific parts — the API
+// prerequisite, dependency install, Vite launch command and readiness check, and the
+// user-facing messages. Everything application-neutral (command execution with
+// secret-aware rendering, worktree discovery/root resolution, GitHub execution, port
+// probing, env-file copying, tracked-file checks, interactive selection, resolution
+// error handling, child signal handling, startup/exit plumbing) lives in
+// review-launcher.ts and is tested there.
+
+import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { copyFileSync, existsSync, statSync } from 'node:fs';
-import { createServer } from 'node:net';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import {
-	GH_AUTH_FAILURE,
-	GH_INVOCATION_FAILURE,
-	GH_NETWORK_FAILURE,
-	parseWorktrees,
-	parseTrackedChangesFromStatus,
-	getBranchPathByMap,
-	resolveTarget,
-	runIssueByNumber,
-	runPrByNumber,
-} from './review-worktree.resolve.ts';
+	err,
+	ensureEnvCopy,
+	ensurePortOpen,
+	forwardTerminationSignals,
+	parseLauncherArgs,
+	requireResolvedWorktree,
+	reportNewlyDirtyFiles,
+	resolveReviewTarget,
+	runCommand,
+	runLauncherCli,
+	trackedChanges,
+} from './review-launcher.ts';
 
 const DEFAULT_PORT = 5050;
 const FRONTEND_ENV_FILE = '.env.development';
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, '../../..');
-const rootRepoCache = { path: null };
 const requestedArgs = process.argv.slice(2);
-const hasInteractiveTerminal = process.stdin.isTTY && process.stdout.isTTY;
 
 // @ts-expect-error rung-0: add proper type in later rung
-const err = (message) => {
-	console.error(message);
-	process.exit(1);
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const runCommand = (command, args, options = {}) => {
-	const result = spawnSync(command, args, {
-		// @ts-expect-error rung-0: TS2339
-		cwd: options.cwd,
-		// @ts-expect-error rung-0: TS2339
-		env: { ...process.env, ...options.env },
-		encoding: 'utf8',
-		// @ts-expect-error rung-0: TS2339
-		stdio: options.stdio ?? 'pipe',
-	});
-
-	if (result.error) {
-		throw result.error;
-	}
-
-	const status = result.status ?? -1;
-	if (status !== 0) {
-		const stderr = String(result.stderr ?? '').trim();
-		const stdout = String(result.stdout ?? '').trim();
-		// @ts-expect-error rung-0: TS2339
-		const prefix = options.label ? `${options.label}: ` : '';
-		throw new Error(
-			`${prefix}${command} ${args.join(' ')} exited with status ${String(status)} ` +
-				(stderr || stdout ? `\n${stderr || stdout}` : ''),
-		);
-	}
-
-	return {
-		stdout: String(result.stdout ?? ''),
-		stderr: String(result.stderr ?? ''),
-		status,
-	};
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const runCommandOptional = (command, args, options = {}) => {
-	try {
-		return runCommand(command, args, options);
-	} catch (error) {
-		return {
-			status: -1,
-			stdout: '',
-			// @ts-expect-error rung-0: TS2339
-			stderr: String(error?.message ?? ''),
-			error,
-		};
-	}
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const parseArgs = (args) => {
-	let requestedRef = '';
-	let port = DEFAULT_PORT;
-
-	for (let index = 0; index < args.length; index += 1) {
-		const argument = args[index];
-		if (argument === '--port') {
-			const requestedPort = args[index + 1];
-			if (!requestedPort) {
-				err('Missing value for --port.');
-			}
-
-			index += 1;
-			const parsed = Number.parseInt(requestedPort, 10);
-			if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
-				err(`Invalid --port value: ${requestedPort}.`);
-			}
-
-			port = parsed;
-			continue;
-		}
-
-		if (argument.startsWith('--port=')) {
-			const requestedPort = argument.slice('--port='.length);
-			const parsed = Number.parseInt(requestedPort, 10);
-			if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
-				err(`Invalid --port value: ${requestedPort}.`);
-			}
-
-			port = parsed;
-			continue;
-		}
-
-		if (requestedRef.length === 0) {
-			requestedRef = argument;
-			continue;
-		}
-
-		if (argument.startsWith('--')) {
-			err(`Unknown option: ${argument}`);
-		}
-	}
-
-	return { requestedRef, port };
-};
-
-const getWorktrees = () => {
-	const output = runCommand('git', ['worktree', 'list', '--porcelain'], {
-		cwd: repoRoot,
-	}).stdout;
-
-	return parseWorktrees(output);
-};
-
-const getRootClonePath = () => {
-	if (rootRepoCache.path) {
-		return rootRepoCache.path;
-	}
-
-	const result = runCommand(
-		'git',
-		['rev-parse', '--path-format=absolute', '--git-common-dir'],
-		{ cwd: repoRoot },
-	);
-	const gitCommonDir = result.stdout.trim();
-	if (!gitCommonDir) {
-		// @ts-expect-error rung-0: TS2322
-		rootRepoCache.path = repoRoot;
-		return rootRepoCache.path;
-	}
-
-	const commonDir = path.resolve(gitCommonDir);
-	// @ts-expect-error rung-0: TS2322
-	rootRepoCache.path = path.resolve(commonDir, '..');
-	return rootRepoCache.path;
-};
+const parseArgs = (args) => parseLauncherArgs(args, { defaultPort: DEFAULT_PORT });
 
 const ensureApi = async () => {
 	for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -224,6 +97,7 @@ const ensureDependencies = (worktreePath) => {
 		runCommand('node', ['apps/front/scripts/assert-pinned.mjs'], {
 			cwd: worktreePath,
 			stdio: 'inherit',
+			timeout: 10 * 60_000,
 		});
 	} else {
 		console.error(
@@ -235,6 +109,7 @@ const ensureDependencies = (worktreePath) => {
 	runCommand('pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], {
 		cwd: worktreePath,
 		stdio: 'inherit',
+		timeout: 10 * 60_000,
 	});
 
 	if (existsSync(sharedTsPostinstall)) {
@@ -242,95 +117,13 @@ const ensureDependencies = (worktreePath) => {
 		runCommand('pnpm', ['--filter', '@org/shared-ts', 'run', 'postinstall'], {
 			cwd: worktreePath,
 			stdio: 'inherit',
+			timeout: 10 * 60_000,
 		});
 	} else {
 		console.error(
 			'Skipping shared-ts postinstall (missing packages/shared-ts/package.json)',
 		);
 	}
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const isPortAvailableOnHost = async (host, port) => {
-	return await new Promise((resolve) => {
-		const server = createServer();
-		server.once('error', () => {
-			resolve(false);
-		});
-		server.listen(port, host, () => {
-			server.close(() => {
-				resolve(true);
-			});
-		});
-	});
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const ensurePortOpen = async (port, { host = '127.0.0.1' } = {}) => {
-	const available = await isPortAvailableOnHost(host, port);
-	if (!available) {
-		err(
-			`Port ${String(
-				port,
-			)} is already in use. The root clone's frontend or another review launcher is likely running.\n` +
-				'Stop that process, or run with --port <n> to force a different port.',
-		);
-	}
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const isHardlinkToSource = (source, destination) => {
-	const sourceStats = statSync(source);
-	const destinationStats = statSync(destination);
-	if (
-		destinationStats.dev === sourceStats.dev &&
-		destinationStats.ino === sourceStats.ino
-	) {
-		return true;
-	}
-
-	return destinationStats.nlink > 1;
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const ensureEnvCopy = (worktreePath) => {
-	// @ts-expect-error rung-0: TS2345
-	const source = path.join(getRootClonePath(), FRONTEND_ENV_FILE);
-	const target = path.join(worktreePath, FRONTEND_ENV_FILE);
-
-	if (!existsSync(source)) {
-		err(
-			`Missing ${source}; copy .env.example to .env.development in the root clone before continuing.`,
-		);
-	}
-
-	if (!existsSync(target)) {
-		copyFileSync(source, target);
-		console.log(`Copied ${source} -> ${target}.`);
-		return;
-	}
-
-	if (isHardlinkToSource(source, target)) {
-		err(
-			`Refusing to proceed: ${target} is linked to ${source}. ` +
-				'Copying would rewrite the root clone file. Use a standalone worktree env file.',
-		);
-	}
-
-	console.log(`Using existing ${target}; leaving it unchanged.`);
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const trackedChanges = (worktreePath) => {
-	const output = runCommand(
-		'git',
-		['-C', worktreePath, 'status', '--short', '--untracked-files=no'],
-		{
-			stdio: 'pipe',
-		},
-	).stdout;
-
-	return parseTrackedChangesFromStatus(output);
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -349,39 +142,6 @@ const waitForFrontendReachable = async (url) => {
 	}
 
 	err(`Vite did not become reachable at ${url} before timeout.`);
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const askChoice = async (title, rows) => {
-	console.log(title);
-	// @ts-expect-error rung-0: add proper type in later rung
-	rows.forEach((row, index) => {
-		console.log(`${index + 1}. ${row}`);
-	});
-
-	if (!hasInteractiveTerminal) {
-		err('Interactive selection required but terminal is not interactive.');
-	}
-
-	const rl = createInterface({
-		input: process.stdin,
-		output: process.stdout,
-	});
-
-	const selected = await new Promise((resolve) => {
-		rl.question(`Select 1-${rows.length}: `, (input) => {
-			rl.close();
-			resolve(input.trim());
-		});
-	});
-
-	// @ts-expect-error rung-0: TS2345
-	const index = Number.parseInt(selected, 10);
-	if (!Number.isInteger(index) || index < 1 || index > rows.length) {
-		err(`Invalid selection: ${selected}`);
-	}
-
-	return index - 1;
 };
 
 // @ts-expect-error rung-0: add proper type in later rung
@@ -407,14 +167,14 @@ const launchVite = async (worktreePath, port, { host = '127.0.0.1' } = {}) => {
 		},
 	);
 
-	// @ts-expect-error rung-0: add proper type in later rung
-	const shutdown = (signal) => {
-		if (!child.killed) {
-			child.kill(signal);
-		}
-	};
-	process.on('SIGINT', () => shutdown('SIGINT'));
-	process.on('SIGTERM', () => shutdown('SIGTERM'));
+	forwardTerminationSignals(
+		// @ts-expect-error rung-0: TS7006 - signal stays untyped until a later rung
+		(signal) => {
+			if (!child.killed) {
+				child.kill(signal);
+			}
+		},
+	);
 
 	await waitForFrontendReachable(publicUrl);
 	const [code, signal] = await once(child, 'exit');
@@ -429,78 +189,28 @@ const launchVite = async (worktreePath, port, { host = '127.0.0.1' } = {}) => {
 
 const main = async () => {
 	const { requestedRef, port } = parseArgs(requestedArgs);
-	const worktrees = getWorktrees();
-	const byBranch = getBranchPathByMap(worktrees);
-	// @ts-expect-error rung-0: add proper type in later rung
-	const runGh = async (args) =>
-		runCommandOptional('gh', args, {
-			cwd: repoRoot,
-			label: 'gh',
-		});
+	const resolved = await resolveReviewTarget({ requestedRef });
+	const worktree = requireResolvedWorktree(resolved, requestedRef);
 
-	const resolved = await resolveTarget(worktrees, byBranch, {
-		requestedRef,
-		hasInteractiveTerminal,
-		askChoice,
-		// @ts-expect-error rung-0: add proper type in later rung
-		runPrByNumber: (number) => runPrByNumber(number, { runGh }),
-		// @ts-expect-error rung-0: add proper type in later rung
-		runIssueByNumber: (number) => runIssueByNumber(number, { runGh }),
-		runGh,
+	await ensurePortOpen(port, {
+		// @ts-expect-error rung-0: TS2353 - `what` is open-ended until a later rung types it
+		what: 'frontend',
 	});
-
-	const worktree = resolved?.worktree;
-	if (!worktree?.path) {
-		if (resolved?.kind === 'not-found') {
-			err(
-				`No PR or issue found for ${String(
-					resolved.requested,
-				)}. Add this PR to a local worktree first.`,
-			);
-		}
-
-		if (resolved?.kind === 'issue-ambiguous') {
-			// @ts-expect-error rung-0: add proper type in later rung
-			const candidates = resolved.worktrees.map((w) => w.path).join('\n  ');
-			err(
-				`Issue ${String(
-					resolved.requested,
-				)} matched multiple worktrees; pick the target directly by PR number or by path.\n  ${candidates}`,
-			);
-		}
-
-		if (resolved?.kind === 'pr-unmatched') {
-			err(`Could not resolve PR #${resolved.requested} to a local worktree.`);
-		}
-
-		err(`Could not determine worktree for ${String(requestedRef)}.`);
-	}
-
-	await ensurePortOpen(port);
 	await ensureApi();
 	await ensureDependencies(worktree.path);
-	ensureEnvCopy(worktree.path);
+	ensureEnvCopy(worktree.path, FRONTEND_ENV_FILE);
 
 	console.log('\n');
 	console.log('Launching PR frontend review server');
 	console.log(`worktree: ${worktree.path}`);
 	console.log(`open:     http://localhost:${String(port)}`);
-	console.log(
-		`Tip: keep a second terminal for API/debug while both sessions run.`,
-	);
+	console.log(`Tip: keep a second terminal for API/debug while both sessions run.`);
 	console.log('');
 
 	const beforeDirty = trackedChanges(worktree.path);
 	const { code, signal } = await launchVite(worktree.path, port);
 	const afterDirty = trackedChanges(worktree.path);
-	const newlyDirty = [...afterDirty].filter((entry) => !beforeDirty.has(entry));
-
-	if (newlyDirty.length > 0) {
-		console.error('Warning: tracked files became dirty while the session ran.');
-		for (const entry of newlyDirty) {
-			console.error(`  ${entry}`);
-		}
-	}
+	reportNewlyDirtyFiles(beforeDirty, afterDirty);
 
 	if (signal) {
 		process.exit(0);
@@ -511,29 +221,4 @@ const main = async () => {
 	}
 };
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	try {
-		await main();
-	} catch (error) {
-		// @ts-expect-error rung-0: TS2339
-		switch (error?.code) {
-			case GH_AUTH_FAILURE: {
-				// @ts-expect-error rung-0: TS18046
-				err(`${error.message}\nRun: gh auth login`);
-				break;
-			}
-
-			case GH_NETWORK_FAILURE:
-			case GH_INVOCATION_FAILURE: {
-				// @ts-expect-error rung-0: TS18046
-				err(error.message);
-				break;
-			}
-
-			default: {
-				// @ts-expect-error rung-0: TS2339
-				err(error?.message ?? String(error));
-			}
-		}
-	}
-}
+await runLauncherCli(main, fileURLToPath(import.meta.url));
