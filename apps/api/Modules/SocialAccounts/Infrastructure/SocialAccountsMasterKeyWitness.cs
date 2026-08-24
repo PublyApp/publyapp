@@ -19,6 +19,13 @@ public static class SocialAccountsMasterKeyWitness {
 	private static readonly byte[] Sentinel =
 		System.Text.Encoding.UTF8.GetBytes("__social_accounts_master_key_sentinel__");
 
+	// The committed all-zero base64 string shared by apps/api/Dockerfile (both build-time
+	// Production blocks), quality-gate.yml, the just recipes and the front-e2e history:
+	// the repo's DOCUMENTED, publicly known build placeholder. Kept byte-exact in sync
+	// with AppEnvironmentBuildEnvCompletenessSpec.PlaceholderMasterKey.
+	private static readonly byte[] DocumentedBuildPlaceholder =
+		Convert.FromBase64String("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+
 	/// <summary>
 	/// Exact text of the Information line logged when the canary round-trip PASSES at real
 	/// boot (#1284). Public so the boot-log spec asserts against the same constant Program
@@ -61,9 +68,18 @@ public static class SocialAccountsMasterKeyWitness {
 			// No persistence seam available (e.g. build-time OpenAPI generation with no
 			// database): only the parse/size contract above is verifiable here. Callers
 			// that serve real traffic MUST pass a store so the canary check runs. No pass
-			// line is logged here — nothing was verified beyond key SIZE (#1284).
+			// line is logged here — nothing was verified beyond key SIZE (#1284). The
+			// known-non-secret rejection below deliberately lives AFTER this return: the
+			// doc-gen process legitimately boots with the committed build placeholder,
+			// and tightening THIS path would break `just build-api`.
 			return;
 		}
+
+		// Real boot (api/worker serving real traffic, or the e2e containers): refuse the
+		// publicly known placeholder and degenerate low-entropy values BEFORE the canary
+		// round-trip. An operator pasting the placeholder into Dokploy would otherwise run
+		// the whole deployment under a key anyone can read off the repository (#1294).
+		RejectKnownNonSecretOrDegenerateValue(key);
 
 		try {
 			var stored = canaryStore.Read();
@@ -113,6 +129,58 @@ public static class SocialAccountsMasterKeyWitness {
 			System.Globalization.CultureInfo.InvariantCulture,
 			$"{Convert.ToBase64String(nonce)}:{Convert.ToBase64String(ciphertext)}:{Convert.ToBase64String(tag)}"
 		);
+	}
+
+	// ---- #1294: publicly known placeholder + degenerate values refuse a REAL boot --
+
+	// Entropy floor justification (issue #1294): an AES-256 master key needs only to be
+	// unguessable. A 32-byte value with fewer than 16 DISTINCT byte values cannot plausibly
+	// be that: honestly generated keys (openssl rand -base64 32) draw their bytes uniformly
+	// and land below 16 distinct values with probability < 10^-15, while hand-copied
+	// patterns (repeated words, padded constants, keyboard walks) sit far below the floor.
+	// The floor therefore rejects degenerate operator input at a REAL boot with a false
+	// positive rate that is negligible, and the all-same-byte family (any single value
+	// repeated 32 times, not just the all-zero placeholder) fails both checks explicitly.
+	private const int MinimumDistinctBytes = 16;
+
+	private static void RejectKnownNonSecretOrDegenerateValue(byte[] key) {
+		string? reason = null;
+
+		if (key.AsSpan().SequenceEqual(DocumentedBuildPlaceholder)) {
+			reason = "it is the repository's publicly documented build placeholder";
+		} else {
+			var distinct = DistinctByteCount(key);
+			if (distinct == 1) {
+				reason = "all 32 of its bytes are the same value";
+			} else if (distinct < MinimumDistinctBytes) {
+				reason = $"it carries only {distinct} distinct byte values across its "
+					+ $"32 bytes (fewer than {MinimumDistinctBytes})";
+			}
+		}
+
+		if (reason is null) {
+			return;
+		}
+
+		throw new InvalidOperationException(
+			"SOCIAL_ACCOUNTS_MASTER_KEY was rejected because " + reason + ". Anyone who can "
+				+ "read this repository — or reproduce a simple repeated pattern — could decrypt "
+				+ "every stored social-account credential, so the API/worker will not start with "
+				+ "this value. Generate a real key with: openssl rand -base64 32"
+		);
+	}
+
+	private static int DistinctByteCount(byte[] key) {
+		var seen = new bool[256];
+		var count = 0;
+		foreach (var b in key) {
+			if (!seen[b]) {
+				seen[b] = true;
+				count++;
+			}
+		}
+
+		return count;
 	}
 
 	private static InvalidOperationException WrongKey(Exception cause) {
