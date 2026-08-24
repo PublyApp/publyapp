@@ -1,6 +1,5 @@
 import type { Context, Visitor } from '@oxlint/plugins';
 import type { ESTree } from '@oxlint/plugins';
-
 import {
 	isFrontComponentTsxFile,
 	normalizeFilename,
@@ -21,7 +20,8 @@ import {
  * Scope:
  *   - Only front component `.tsx` files.
  *   - Excludes the implementation itself (`components/query-display.tsx`), the
- *     DataTable screens (`components/table/**`) and the query-definition
+ *     three DataTable screens pinned in `EXCLUDED_DATATABLE_RELATIVE_PATHS`
+ *     (`data-table.tsx`, `floating-selection-bar.tsx`, `row-actions.tsx`) and the query-definition
  *     modules (`lib/query/**`) — those own their own list-state mechanism or
  *     merely call the hooks. The three allow-listed auth/routing state-machine
  *     route files are also excluded by path.
@@ -74,13 +74,29 @@ const isMutationHookName = (name: string): boolean =>
 	name === 'useMutation' || /^use[A-Z].*Mutation$/.test(name);
 
 /** Allow-listed implementation + state-machine + DataTable + query-def paths. */
-const EXCLUDED_RELATIVE_PREFIXES: readonly string[] = [
+export const EXCLUDED_RELATIVE_PREFIXES: readonly string[] = [
 	'components/query-display',
-	'components/table/',
 	'lib/query/',
 ];
 
-const ALLOWLISTED_RELATIVE_PATHS: readonly string[] = [
+/**
+ * Exempt DataTable screens: they own their own list-state mechanism.
+ *
+ * #1323: this list is PINNED by
+ * `prefer-query-display.exemption.test.ts` and must never widen. It is an
+ * explicit file list on purpose — the pre-#1323 broad `components/table/`
+ * directory prefix silently exempted every future screen added to that
+ * directory. When QueryDisplay PR 3 lands (DataTable delegating to
+ * `resolveTableBodyState` via the `no-match` slot), this list shrinks and
+ * the pin updates in the same PR.
+ */
+export const EXCLUDED_DATATABLE_RELATIVE_PATHS: readonly string[] = [
+	'components/table/data-table.tsx',
+	'components/table/floating-selection-bar.tsx',
+	'components/table/row-actions.tsx',
+];
+
+export const ALLOWLISTED_RELATIVE_PATHS: readonly string[] = [
 	'routes/__root.tsx',
 	'routes/authed/layout.tsx',
 	'routes/accept-invitation.tsx',
@@ -88,6 +104,9 @@ const ALLOWLISTED_RELATIVE_PATHS: readonly string[] = [
 
 const isExcludedFile = (relativePath: string): boolean => {
 	if (ALLOWLISTED_RELATIVE_PATHS.includes(relativePath)) {
+		return true;
+	}
+	if (EXCLUDED_DATATABLE_RELATIVE_PATHS.includes(relativePath)) {
 		return true;
 	}
 	return EXCLUDED_RELATIVE_PREFIXES.some((prefix) =>
