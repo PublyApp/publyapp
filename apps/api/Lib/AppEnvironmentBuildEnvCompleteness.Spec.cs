@@ -20,8 +20,12 @@ namespace PublyApp.Api.Lib;
 /// argument, plus the Production-gated <c>TRUSTED_PROXY_CIDRS</c>) instead of a
 /// hand-copied list, so adding a required variable without teaching the build surfaces
 /// about it fails here first. It asserts each required variable appears in:
-/// - <c>apps/api/Dockerfile</c> — TWICE (both the publish/doc-gen stage and the
-///   migrations-bundle stage boot the app under Production);
+/// - <c>apps/api/Dockerfile</c> — in EVERY <c>ASPNETCORE_ENVIRONMENT=Production</c>
+///   block (today both the publish/doc-gen stage and the migrations-bundle stage boot
+///   the app under Production). Since #1294 this is asserted PER BLOCK, not by a
+///   file-wide occurrence count: “appears ≥ 2 times” stayed green even when a new
+///   third Production block omitted the variable entirely — exactly the defect class
+///   this guard exists for;
 /// - <c>apps/front/docker-compose.test.yml</c> — the e2e stack's shared api/migrate
 ///   runtime environment anchor;
 /// - <c>docs/deployment/first-deploy-runbook.md</c> — the operator's REQUIRED table.
@@ -67,6 +71,87 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 		"GetRequired(?:String|Int)\\(\\s*(?:nameof\\(([A-Za-z_][A-Za-z0-9_]*)\\)|\"([A-Za-z_][A-Za-z0-9_]*)\")"
 	)]
 	private static partial Regex RequiredReaderRegex();
+
+	/// <summary>
+	/// Splits a Dockerfile into the env blocks that follow an
+	/// <c>ASPNETCORE_ENVIRONMENT=Production</c> marker line: the marker line itself plus
+	/// every following line until one stops ending in a backslash continuation.
+	/// </summary>
+	internal static IReadOnlyList<string> SplitProductionBlocks(string dockerfile) {
+		var blocks = new List<string>();
+		List<string>? current = null;
+
+		foreach (var line in dockerfile.Split('\n')) {
+			if (line.Contains("ASPNETCORE_ENVIRONMENT=Production", StringComparison.Ordinal)) {
+				if (current is not null) {
+					blocks.Add(string.Join("\n", current));
+				}
+
+				current = [line];
+			} else if (current is not null) {
+				current.Add(line);
+				if (!line.TrimEnd('\r').EndsWith('\\')) {
+					blocks.Add(string.Join("\n", current));
+					current = null;
+				}
+			}
+		}
+
+		if (current is not null) {
+			blocks.Add(string.Join("\n", current));
+		}
+
+		return blocks;
+	}
+
+	/// <summary>
+	/// Returns one human-readable “block N is missing X” entry per (block, required
+	/// variable) pair the block does not satisfy. Shared verbatim by the green theory
+	/// and the red scratch-block proof so they cannot drift apart.
+	/// </summary>
+	internal static IReadOnlyList<string> CollectMissingVariablesPerProductionBlock(
+		string dockerfile,
+		IReadOnlyList<string> variableNames
+	) {
+		var violations = new List<string>();
+		var blocks = SplitProductionBlocks(dockerfile);
+
+		for (var index = 0; index < blocks.Count; index++) {
+			foreach (var name in variableNames) {
+				if (!blocks[index].Contains(name, StringComparison.Ordinal)) {
+					violations.Add($"block {index + 1} is missing {name}");
+				}
+			}
+		}
+
+		return violations;
+	}
+
+	/// <summary>
+	/// Appends a plausible THIRD Production env block to <paramref name="dockerfile"/>
+	/// that carries every required variable EXCEPT <paramref name="omittedVariable"/>
+	/// (drawn from the live extractor, so it never drifts as AppEnvironment evolves).
+	/// Used by the red-proof to demonstrate the guard detects the defect it exists for.
+	/// </summary>
+	private static string AppendScratchThirdProductionBlockOmitting(
+		string dockerfile,
+		string omittedVariable
+	) {
+		var lines = new List<string> {
+			"RUN cd apps/api \\",
+			"\t&& ASPNETCORE_ENVIRONMENT=Production \\",
+			"\tDOTNET_ENVIRONMENT=Production \\",
+			"\tAPP_ROLE=api \\",
+		};
+
+		lines.AddRange(CollectRequiredSurfaceVariables()
+			.Where(name => name != omittedVariable)
+			.Select(name => $"\t{name}=\"scratch-placeholder\" \\"));
+
+		lines.Add("\tdotnet publish -c Release -o /publish");
+
+		return dockerfile + "\n" + string.Join("\n", lines);
+	}
 
 	private static IReadOnlyList<string> CollectRequiredSurfaceVariables() {
 		var source = FindRepoFileText("apps", "api", "Lib", "AppEnvironment.cs");
@@ -124,20 +209,57 @@ public sealed partial class AppEnvironmentBuildEnvCompletenessSpec {
 
 	[Theory]
 	[MemberData(nameof(RequiredSurfaceVariables))]
-	public void ItShouldProvideEveryRequiredVariableInBothDockerfileBuildStages(
+	public void ItShouldProvideEveryRequiredVariableInEveryDockerfileProductionBlock(
 		string variableName
 	) {
 		var dockerfile = FindRepoFileText("apps", "api", "Dockerfile");
 
 		// Both the publish stage (OpenAPI doc-gen boots the app) and the migrations
 		// stage (dotnet ef migrations bundle) run under Production with APP_ROLE=api,
-		// so EACH carries its own inline env block. One occurrence per stage means the
-		// variable must appear at least twice in the file.
-		dockerfile.Split(variableName).Length.Should().BeGreaterThanOrEqualTo(3,
-				"because {0} must be set in BOTH Dockerfile build stages "
-				+ "(publish/doc-gen and migrations bundle) — either stage missing it "
-				+ "fails the image build with \"Environment variable '{0}' is not set\"",
+		// so EACH carries its own inline env block — and any FUTURE Production block
+		// must carry the full required set too. Assert per block, never by file-wide
+		// occurrence count: a count passes even when a new block omits the variable.
+		SplitProductionBlocks(dockerfile).Count.Should().BeGreaterThanOrEqualTo(2,
+			"because the publish/doc-gen and migrations stages both boot under "
+				+ "ASPNETCORE_ENVIRONMENT=Production; fewer blocks means a stage moved "
+				+ "or was renamed and this guard must be re-taught");
+
+		CollectMissingVariablesPerProductionBlock(dockerfile, [variableName])
+			.Should().BeEmpty(
+				"because EVERY ASPNETCORE_ENVIRONMENT=Production block boots the app for "
+					+ "real; a block missing {0} fails that image build with \"Environment "
+					+ "variable '{0}' is not set\"",
 				variableName);
+	}
+
+	[Fact]
+	public void ItShouldGoRedOnAScratchThirdProductionBlockWithoutTheMasterKey() {
+		// Paired proof for #1294: take the REAL Dockerfile and append a scratch THIRD
+		// ASPNETCORE_ENVIRONMENT=Production block carrying every required variable EXCEPT
+		// SOCIAL_ACCOUNTS_MASTER_KEY (generated from the extractor so it cannot drift).
+		// Under the retired file-wide “appears at least twice” rule this defect passed
+		// silently; the per-block guard must flag exactly that block and variable.
+		var real = FindRepoFileText("apps", "api", "Dockerfile");
+
+		var scratched = AppendScratchThirdProductionBlockOmitting(real,
+			"SOCIAL_ACCOUNTS_MASTER_KEY");
+		var violations = CollectMissingVariablesPerProductionBlock(
+			scratched,
+			CollectRequiredSurfaceVariables()
+		);
+
+		violations.Should().BeEquivalentTo(
+			[$"block 3 is missing SOCIAL_ACCOUNTS_MASTER_KEY"],
+			"a Production block without the master key must turn the guard red — "
+				+ "and ONLY that omission, proving the other blocks stay satisfied"
+		);
+
+		// Sanity: the same checker on the UNMODIFIED Dockerfile stays green, so the red
+		// above is attributable to the scratch block alone.
+		CollectMissingVariablesPerProductionBlock(
+			real,
+			CollectRequiredSurfaceVariables()
+		).Should().BeEmpty();
 	}
 
 	[Theory]
