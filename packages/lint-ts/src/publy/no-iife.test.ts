@@ -10,12 +10,14 @@
  *   rule object exported from the rule module.
  * - `valid`: plain calls, callbacks passed as arguments, constructor calls on
  *   identifiers, callee wrappers that peel to a non-function-literal
- *   (including the comma-operator form `(0, fn)()`), and identifier tags on
+ *   (including the comma-operator form `(0, fn)()`), conditional/logical
+ *   callees with NO function-literal branch (#1327), and identifier tags on
  *   tagged templates — must NOT fire.
  * - `invalid`: plain, async, parenthesised, `as`-cast, `satisfies`,
  *   non-null-`!`, `<type>`-assertion, comma-operator `(0, fn)()`, and
- *   tagged-template-tag IIFEs, plus `new` with a function literal callee —
- *   each report with `messageId: 'noIife'`.
+ *   tagged-template-tag IIFEs, `new` with a function literal callee, plus
+ *   conditional/logical callees where ANY branch is a function literal
+ *   (#1327) — each report with `messageId: 'noIife'`.
  */
 import assert from 'node:assert/strict';
 
@@ -69,6 +71,28 @@ const runCases = (rule, label) => {
 				// Callee wrapper peels to an identifier — not a function literal.
 				v('declare const fn: () => void;\n(fn as () => void)();'),
 				v('declare const fn2: () => void;\n(<() => void>fn2)();'),
+				// Conditional callee whose branches carry NO function literal —
+				// neither branch is an inline function.
+				v(
+					'declare const cond: boolean;\ndeclare function fa(): number;\ndeclare function fb(): number;\n(cond ? fa : fb)();',
+				),
+				// Member-expression branches — still not function literals.
+				v(
+					'declare const cond: boolean;\ndeclare const obj: { m(): void };\ndeclare const alt: { m(): void };\n(cond ? obj.m : alt.m)();',
+				),
+				// Logical callees over identifiers/member expressions — no literal
+				// on either side.
+				v(
+					'declare const cond: boolean;\ndeclare function g(): void;\n(cond && g)();',
+				),
+				v(
+					'declare const maybe: (() => void) | null;\ndeclare function h(): void;\n(maybe ?? h)();',
+				),
+				// A conditional carrying a function literal in ARGUMENT position is
+				// a callback choice, not an immediate invocation.
+				v(
+					'declare const cond: boolean;\ndeclare function log(v: unknown): void;\ndeclare function cb(): void;\nlog(cond ? cb : () => {});',
+				),
 				// Comma-operator callee whose LAST expression is an identifier —
 				// not a function literal.
 				v('declare const fn3: () => void;\n(0, fn3)();'),
@@ -126,6 +150,26 @@ const runCases = (rule, label) => {
 				i('(0, (() => 7) as () => number)();'),
 				// IIFE passed as an argument to another call.
 				i('declare function log(v: unknown): void;\nlog((() => 42)());'),
+				// Conditional callee with a function literal in a branch (#1327).
+				i('(cond ? () => 1 : () => 2)();'),
+				// Only ONE branch being a function literal still reports.
+				i(
+					'declare const cond: boolean;\ndeclare function fb(): number;\n(cond ? () => 1 : fb)();',
+				),
+				// Nested conditionals — a literal anywhere in the tree reports.
+				i(
+					'declare const a: boolean;\ndeclare const b: boolean;\ndeclare function fn(): number;\ndeclare function fn2(): number;\n(a ? (b ? fn : () => 1) : fn2)();',
+				),
+				// Logical AND callee carrying a function literal.
+				i('(cond && (() => 3))();'),
+				// Nullish coalescing callee carrying a function literal.
+				i('(a ?? (() => 4))();'),
+				// Logical OR callee carrying a function literal.
+				i("(a || (() => 'x'))();"),
+				// Mixed logical-of-conditional shapes.
+				i('((a ? f1 : f2) || (() => 9))();'),
+				// Function literal on the LEFT of `||` — short-circuit default form.
+				i('(maybeFn || (() => boot()))();'),
 			],
 		});
 	});
