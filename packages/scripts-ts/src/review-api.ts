@@ -1,25 +1,35 @@
 #!/usr/bin/env node
 
+// API review launcher (#1020): keeps only the app-specific parts — the Npgsql
+// connection-string secret parsing, the migration guard against the shared dev database,
+// the dotnet watch launch command + readiness check, and user-facing messages. Everything
+// application-neutral lives in review-launcher.ts (command execution with secret-aware
+// rendering, worktree discovery/root resolution, GitHub execution, port probing, env-file
+// copying with hardlink refusal, tracked-file checks, interactive selection, resolution
+// error handling, child signal handling, startup/exit plumbing) and is tested there.
+
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { copyFileSync, existsSync, readFileSync, statSync } from 'node:fs';
-import { createServer } from 'node:net';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import {
-	GH_AUTH_FAILURE,
-	GH_INVOCATION_FAILURE,
-	GH_NETWORK_FAILURE,
-	parseWorktrees,
-	parseTrackedChangesFromStatus,
-	getBranchPathByMap,
-	resolveTarget,
-	runIssueByNumber,
-	runPrByNumber,
-} from './review-worktree.resolve.ts';
+	ambientCredentialSecrets,
+	ensureEnvCopy,
+	err,
+	ensurePortOpen,
+	forwardTerminationSignals,
+	parseLauncherArgs,
+	redactSecrets,
+	requireResolvedWorktree,
+	reportNewlyDirtyFiles,
+	resolveReviewTarget,
+	runCommand,
+	runLauncherCli,
+	trackedChanges,
+} from './review-launcher.ts';
 
 // API's documented default port (see AGENTS.md "Development Environment").
 const DEFAULT_PORT = 5000;
@@ -36,10 +46,8 @@ const DEFAULT_TRUSTED_PROXY_CIDRS = '127.0.0.1/32,::1/128';
 
 // Bounded so a stuck build/restore/connection attempt cannot hang the launcher forever.
 // Builds get a longer ceiling (cold-cache dotnet build can genuinely take a few minutes);
-// everything else (git, gh, dotnet-ef list) is expected to be fast.
-const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
+// everything else (git, gh, dotnet-ef list) uses the shared launcher's 60s default.
 const BUILD_COMMAND_TIMEOUT_MS = 10 * 60_000;
-const REDACTED = '[REDACTED]';
 
 // Round-5 review BLOCKER: the end-to-end "no job engine starts" proof used to REDISCOVER the
 // launched process by pattern-matching argv against the whole host (`pgrep -f`), which can
@@ -49,33 +57,18 @@ const REDACTED = '[REDACTED]';
 // stdout, so a caller (the integration test) can read it directly instead of guessing.
 export const LAUNCHED_API_CHILD_PID_PREFIX = 'LAUNCHED_API_CHILD_PID:';
 
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, '../../..');
-const rootRepoCache = { path: null };
-const requestedArgs = process.argv.slice(2);
-const hasInteractiveTerminal = process.stdin.isTTY && process.stdout.isTTY;
+// Shared-layer command execution + credential sources, re-exported so this module remains
+// the single import surface its existing suites rely on (#1020).
+export {
+	ambientCredentialSecrets,
+	redactSecrets,
+	runCommand,
+} from './review-launcher.ts';
 
-// @ts-expect-error rung-0: add proper type in later rung
-const err = (message) => {
-	console.error(message);
-	process.exit(1);
-};
-
-// Replaces every occurrence of each non-empty value in `secrets` with a fixed marker.
-// Used to keep a connection string's password out of any rendered command error —
-// whether the secret leaked into argv, stdout, or stderr.
-// @ts-expect-error rung-0: add proper type in later rung
-export const redactSecrets = (text, secrets = []) => {
-	let redacted = text;
-	for (const secret of secrets) {
-		// @ts-expect-error rung-0: TS2339
-		if (typeof secret === 'string' && secret.length > 0) {
-			redacted = redacted.split(secret).join(REDACTED);
-		}
-	}
-
-	return redacted;
-};
+// ---------------------------------------------------------------------------
+// Connection-string secrets (Npgsql-specific, deliberately NOT in the shared
+// launcher layer — only this launcher renders database credentials)
+// ---------------------------------------------------------------------------
 
 // The whitespace a keyword/value pair may carry around its separators, matched precisely
 // against real Npgsql 10.0.0 rather than guessed. Round-6 review reproduced a leak: the
@@ -286,294 +279,16 @@ export const connectionStringSecrets = (connectionString) => {
 	].filter((value) => typeof value === 'string' && value.length > 0);
 };
 
-// Round-5 review IMPORTANT: the connection string is not the only credential source a
-// launched subprocess can echo back. libpq/Npgsql also honor the standalone `PGPASSWORD`
-// environment variable as a password
-// (https://www.npgsql.org/doc/connection-string-parameters.html), and `runCommand` below
-// inherits the ambient `process.env` for every subprocess it spawns. If the operator's own
-// shell happens to export `PGPASSWORD`, that value is a real credential regardless of what
-// the connection string itself contains, and must be redacted the same way. Read fresh (not
-// cached) so a test can set/unset it around a single assertion.
-export const ambientCredentialSecrets = () => {
-	return [process.env.PGPASSWORD].filter(
-		(value) => typeof value === 'string' && value.length > 0,
-	);
-};
+// ---------------------------------------------------------------------------
+// Argument parsing
+// ---------------------------------------------------------------------------
 
-// Exported so the bounded-timeout behavior can be tested directly against a real
-// subprocess, not a mock of spawnSync's option-handling.
 // @ts-expect-error rung-0: add proper type in later rung
-export const runCommand = (command, args, options = {}) => {
-	// @ts-expect-error rung-0: TS2339
-	const secrets = options.secrets ?? [];
-	const result = spawnSync(command, args, {
-		// @ts-expect-error rung-0: TS2339
-		cwd: options.cwd,
-		// @ts-expect-error rung-0: TS2339
-		env: { ...process.env, ...options.env },
-		encoding: 'utf8',
-		// @ts-expect-error rung-0: TS2339
-		stdio: options.stdio ?? 'pipe',
-		// @ts-expect-error rung-0: TS2339
-		timeout: options.timeout ?? DEFAULT_COMMAND_TIMEOUT_MS,
+export const parseArgs = (args) =>
+	parseLauncherArgs(args, {
+		defaultPort: DEFAULT_PORT,
+		extraFlags: { '--allow-migrations': 'allowMigrations' },
 	});
-
-	if (result.error) {
-		if (typeof result.error.message === 'string') {
-			result.error.message = redactSecrets(result.error.message, secrets);
-		}
-
-		throw result.error;
-	}
-
-	// spawnSync sets status to null (not just absent) both on a normal signal-kill and on
-	// a timeout; treating that as a non-zero exit means a timed-out command fails closed
-	// through the exact same throw path as any other command failure.
-	const status = result.status ?? -1;
-	if (status !== 0) {
-		const stderr = redactSecrets(String(result.stderr ?? '').trim(), secrets);
-		const stdout = redactSecrets(String(result.stdout ?? '').trim(), secrets);
-		// @ts-expect-error rung-0: TS2339
-		const prefix = options.label ? `${options.label}: ` : '';
-		const detail = stderr || stdout ? `\n${stderr || stdout}` : '';
-		const renderedArgs = redactSecrets(args.join(' '), secrets);
-		const timedOut = result.signal && !result.status ? ' (timed out)' : '';
-		throw new Error(
-			`${prefix}${command} ${renderedArgs} exited with status ${String(status)}${timedOut} ${detail}`,
-		);
-	}
-
-	return {
-		stdout: String(result.stdout ?? ''),
-		stderr: String(result.stderr ?? ''),
-		status,
-	};
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const runCommandOptional = (command, args, options = {}) => {
-	try {
-		return runCommand(command, args, options);
-	} catch (error) {
-		return {
-			status: -1,
-			stdout: '',
-			// @ts-expect-error rung-0: TS2339
-			stderr: String(error?.message ?? ''),
-			error,
-		};
-	}
-};
-
-// Whole-string decimal check — `Number.parseInt` stops at the first non-digit character and
-// happily returns 5000 for "5000junk" or "5000.5" (round-3 review), silently accepting
-// garbage input as a valid port.
-// @ts-expect-error rung-0: add proper type in later rung
-const parseStrictPort = (rawValue) => {
-	if (!/^\d+$/.test(rawValue)) {
-		err(`Invalid --port value: ${rawValue}.`);
-	}
-
-	const parsed = Number.parseInt(rawValue, 10);
-	if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
-		err(`Invalid --port value: ${rawValue}.`);
-	}
-
-	return parsed;
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-export const parseArgs = (args) => {
-	let requestedRef = '';
-	let port = DEFAULT_PORT;
-	let allowMigrations = false;
-
-	for (let index = 0; index < args.length; index += 1) {
-		const argument = args[index];
-		if (argument === '--port') {
-			const requestedPort = args[index + 1];
-			if (!requestedPort) {
-				err('Missing value for --port.');
-			}
-
-			index += 1;
-			port = parseStrictPort(requestedPort);
-			continue;
-		}
-
-		if (argument.startsWith('--port=')) {
-			port = parseStrictPort(argument.slice('--port='.length));
-			continue;
-		}
-
-		if (argument === ALLOW_MIGRATIONS_FLAG) {
-			allowMigrations = true;
-			continue;
-		}
-
-		// Reject any unrecognized `--`-prefixed option immediately, regardless of whether a
-		// ref has been assigned yet — round-3 review found a leading unknown option (e.g.
-		// `--bogus`) was silently accepted as the requested ref instead.
-		if (argument.startsWith('--')) {
-			err(`Unknown option: ${argument}`);
-		}
-
-		if (requestedRef.length > 0) {
-			err(`Unexpected extra argument: ${argument}.`);
-		}
-
-		requestedRef = argument;
-	}
-
-	return { requestedRef, port, allowMigrations };
-};
-
-const getWorktrees = () => {
-	const output = runCommand('git', ['worktree', 'list', '--porcelain'], {
-		cwd: repoRoot,
-	}).stdout;
-
-	return parseWorktrees(output);
-};
-
-const getRootClonePath = () => {
-	if (rootRepoCache.path) {
-		return rootRepoCache.path;
-	}
-
-	const result = runCommand(
-		'git',
-		['rev-parse', '--path-format=absolute', '--git-common-dir'],
-		{ cwd: repoRoot },
-	);
-	const gitCommonDir = result.stdout.trim();
-	if (!gitCommonDir) {
-		// @ts-expect-error rung-0: TS2322
-		rootRepoCache.path = repoRoot;
-		return rootRepoCache.path;
-	}
-
-	const commonDir = path.resolve(gitCommonDir);
-	// @ts-expect-error rung-0: TS2322
-	rootRepoCache.path = path.resolve(commonDir, '..');
-	return rootRepoCache.path;
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const isHardlinkToSource = (source, destination) => {
-	const sourceStats = statSync(source);
-	const destinationStats = statSync(destination);
-	if (
-		destinationStats.dev === sourceStats.dev &&
-		destinationStats.ino === sourceStats.ino
-	) {
-		return true;
-	}
-
-	return destinationStats.nlink > 1;
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const ensureEnvCopy = (worktreePath) => {
-	// @ts-expect-error rung-0: TS2345
-	const source = path.join(getRootClonePath(), ENV_FILE);
-	const target = path.join(worktreePath, ENV_FILE);
-
-	if (!existsSync(source)) {
-		err(
-			`Missing ${source}; copy .env.example to .env.development in the root clone before continuing.`,
-		);
-	}
-
-	if (!existsSync(target)) {
-		copyFileSync(source, target);
-		console.log(`Copied ${source} -> ${target}.`);
-		return;
-	}
-
-	if (isHardlinkToSource(source, target)) {
-		err(
-			`Refusing to proceed: ${target} is linked to ${source}. ` +
-				'Copying would rewrite the root clone file. Use a standalone worktree env file.',
-		);
-	}
-
-	console.log(`Using existing ${target}; leaving it unchanged.`);
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const isPortAvailableOnHost = async (host, port) => {
-	return await new Promise((resolve) => {
-		const server = createServer();
-		server.once('error', () => {
-			resolve(false);
-		});
-		server.listen(port, host, () => {
-			server.close(() => {
-				resolve(true);
-			});
-		});
-	});
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const ensurePortOpen = async (port, { host = '127.0.0.1' } = {}) => {
-	const available = await isPortAvailableOnHost(host, port);
-	if (!available) {
-		err(
-			`Port ${String(
-				port,
-			)} is already in use. The root clone's API or another review launcher is likely running.\n` +
-				'Stop that process, or run with --port <n> to force a different port.',
-		);
-	}
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const trackedChanges = (worktreePath) => {
-	const output = runCommand(
-		'git',
-		['-C', worktreePath, 'status', '--short', '--untracked-files=no'],
-		{
-			stdio: 'pipe',
-		},
-	).stdout;
-
-	return parseTrackedChangesFromStatus(output);
-};
-
-// @ts-expect-error rung-0: add proper type in later rung
-const askChoice = async (title, rows) => {
-	console.log(title);
-	// @ts-expect-error rung-0: add proper type in later rung
-	rows.forEach((row, index) => {
-		console.log(`${index + 1}. ${row}`);
-	});
-
-	if (!hasInteractiveTerminal) {
-		err('Interactive selection required but terminal is not interactive.');
-	}
-
-	const rl = createInterface({
-		input: process.stdin,
-		output: process.stdout,
-	});
-
-	const selected = await new Promise((resolve) => {
-		rl.question(`Select 1-${rows.length}: `, (input) => {
-			rl.close();
-			resolve(input.trim());
-		});
-	});
-
-	// @ts-expect-error rung-0: TS2345
-	const index = Number.parseInt(selected, 10);
-	if (!Number.isInteger(index) || index < 1 || index > rows.length) {
-		err(`Invalid selection: ${selected}`);
-	}
-
-	return index - 1;
-};
 
 // ---------------------------------------------------------------------------
 // Env-file helpers (small + pure, so the migration guard's plumbing is testable
@@ -709,7 +424,7 @@ export const extractPendingMigrationIds = (migrationEntries) => {
 
 // @ts-expect-error rung-0: add proper type in later rung
 export const formatMigrationGuardError = (pendingMigrationIds) => {
-	// @ts-expect-error rung-0: add proper type in later rung
+	// @ts-expect-error rung-0: TS2339 - stays untyped until a later rung
 	const list = pendingMigrationIds.map((id) => `  - ${id}`).join('\n');
 	const pronoun = pendingMigrationIds.length > 1 ? 'them' : 'it';
 	return [
@@ -744,8 +459,7 @@ export const formatMigrationGuardStatusMessage = (pendingMigrationIds) => {
 // is also passed to `secrets` so it gets redacted out of any error this command raises
 // (a malformed connection string can otherwise echo its own password back in the
 // exception text). Exported with an injectable `runCommand` so unit tests can stub it;
-// the migration-guard proof itself must call this with the real runner (see
-// scripts/review-api.migration-guard.integration.test.mjs).
+// the migration-guard proof itself must call this with the real runner.
 export const listMigrationsJson = ({
 	// @ts-expect-error rung-0: add proper type in later rung
 	apiDir,
@@ -762,7 +476,8 @@ export const listMigrationsJson = ({
 	};
 	// Covers both credential sources: the connection string's own secret-bearing parameters,
 	// and the separate ambient PGPASSWORD source (round-5 review) — either can reach a
-	// rendered error from these subprocesses.
+	// rendered error from these subprocesses. The shared runCommand merges the ambient
+	// source in again internally; declaring it here keeps the declared list self-contained.
 	const secrets = [
 		...connectionStringSecrets(connectionString),
 		...ambientCredentialSecrets(),
@@ -792,9 +507,11 @@ export const listMigrationsJson = ({
 		// offending input (round-2 review: unparseable stdout beginning with the password
 		// reproduced it here even though the raw stdout itself is never rendered).
 		const parserMessage = redactSecrets(
-			// @ts-expect-error rung-0: TS2339
-			String(error?.message ?? error),
-			// @ts-expect-error rung-0: TS2345
+			String(
+				// @ts-expect-error rung-0: TS2339 - `error` stays untyped until a later rung
+				error?.message ?? error,
+			),
+			// @ts-expect-error rung-0: TS2345 - secrets stays untyped until a later rung
 			secrets,
 		);
 		throw createIndeterminateError(
@@ -1043,8 +760,10 @@ const launchApi = async (worktreePath, port, options) => {
 	// rediscover it later.
 	console.log(`${LAUNCHED_API_CHILD_PID_PREFIX} ${String(child.pid)}`);
 
-	process.on('SIGINT', () => killApiChildGroup(child, 'SIGINT'));
-	process.on('SIGTERM', () => killApiChildGroup(child, 'SIGTERM'));
+	forwardTerminationSignals(
+		// @ts-expect-error rung-0: TS7006 - signal stays untyped until a later rung
+		(signal) => killApiChildGroup(child, signal),
+	);
 
 	// A longer-than-default budget (~30s): the API is already built by this point (the
 	// migration guard just did it), but a loaded or cold machine can still take a while to
@@ -1073,57 +792,19 @@ const launchApi = async (worktreePath, port, options) => {
 	return { code };
 };
 
+const REQUESTED_ARGS = process.argv.slice(2);
+
 const main = async () => {
-	const { requestedRef, port, allowMigrations } = parseArgs(requestedArgs);
-	const worktrees = getWorktrees();
-	const byBranch = getBranchPathByMap(worktrees);
-	// @ts-expect-error rung-0: add proper type in later rung
-	const runGh = async (args) =>
-		runCommandOptional('gh', args, {
-			cwd: repoRoot,
-			label: 'gh',
-		});
+	// @ts-expect-error rung-0: TS2339 - allowMigrations comes from the open-ended flags result
+	const { requestedRef, port, allowMigrations } = parseArgs(REQUESTED_ARGS);
+	const resolved = await resolveReviewTarget({ requestedRef });
+	const worktree = requireResolvedWorktree(resolved, requestedRef);
 
-	const resolved = await resolveTarget(worktrees, byBranch, {
-		requestedRef,
-		hasInteractiveTerminal,
-		askChoice,
-		// @ts-expect-error rung-0: add proper type in later rung
-		runPrByNumber: (number) => runPrByNumber(number, { runGh }),
-		// @ts-expect-error rung-0: add proper type in later rung
-		runIssueByNumber: (number) => runIssueByNumber(number, { runGh }),
-		runGh,
+	await ensurePortOpen(port, {
+		// @ts-expect-error rung-0: TS2353 - `what` is open-ended until a later rung types it
+		what: 'API',
 	});
-
-	const worktree = resolved?.worktree;
-	if (!worktree?.path) {
-		if (resolved?.kind === 'not-found') {
-			err(
-				`No PR or issue found for ${String(
-					resolved.requested,
-				)}. Add this PR to a local worktree first.`,
-			);
-		}
-
-		if (resolved?.kind === 'issue-ambiguous') {
-			// @ts-expect-error rung-0: add proper type in later rung
-			const candidates = resolved.worktrees.map((w) => w.path).join('\n  ');
-			err(
-				`Issue ${String(
-					resolved.requested,
-				)} matched multiple worktrees; pick the target directly by PR number or by path.\n  ${candidates}`,
-			);
-		}
-
-		if (resolved?.kind === 'pr-unmatched') {
-			err(`Could not resolve PR #${resolved.requested} to a local worktree.`);
-		}
-
-		err(`Could not determine worktree for ${String(requestedRef)}.`);
-	}
-
-	await ensurePortOpen(port);
-	ensureEnvCopy(worktree.path);
+	ensureEnvCopy(worktree.path, ENV_FILE);
 
 	const envFileContent = readWorktreeEnvFile(worktree.path);
 	const connectionString = extractEnvValue(
@@ -1168,14 +849,7 @@ const main = async () => {
 		connectionStringOverride: connectionString,
 	});
 	const afterDirty = trackedChanges(worktree.path);
-	const newlyDirty = [...afterDirty].filter((entry) => !beforeDirty.has(entry));
-
-	if (newlyDirty.length > 0) {
-		console.error('Warning: tracked files became dirty while the session ran.');
-		for (const entry of newlyDirty) {
-			console.error(`  ${entry}`);
-		}
-	}
+	reportNewlyDirtyFiles(beforeDirty, afterDirty);
 
 	if (signal) {
 		process.exit(0);
@@ -1186,36 +860,11 @@ const main = async () => {
 	}
 };
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	try {
-		await main();
-	} catch (error) {
-		// @ts-expect-error rung-0: TS2339
-		switch (error?.code) {
-			case GH_AUTH_FAILURE: {
-				// @ts-expect-error rung-0: TS18046
-				err(`${error.message}\nRun: gh auth login`);
-				break;
-			}
-
-			case GH_NETWORK_FAILURE:
-			case GH_INVOCATION_FAILURE: {
-				// @ts-expect-error rung-0: TS18046
-				err(error.message);
-				break;
-			}
-
-			case 'MIGRATION_GUARD_BLOCKED':
-			case 'MIGRATION_GUARD_INDETERMINATE': {
-				// @ts-expect-error rung-0: TS18046
-				err(error.message);
-				break;
-			}
-
-			default: {
-				// @ts-expect-error rung-0: TS2339
-				err(error?.message ?? String(error));
-			}
-		}
-	}
-}
+await runLauncherCli(main, fileURLToPath(import.meta.url), {
+	MIGRATION_GUARD_BLOCKED:
+		// @ts-expect-error rung-0: TS18046
+		(error) => error.message,
+	MIGRATION_GUARD_INDETERMINATE:
+		// @ts-expect-error rung-0: TS18046
+		(error) => error.message,
+});
