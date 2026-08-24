@@ -510,10 +510,10 @@ const listSourceFiles = (): string[] => {
 			}
 
 			if (!/\.(ts|tsx)$/.test(child)) continue;
-			if (/\.d\.ts$/.test(child)) continue;
+			if (child.endsWith('.d.ts')) continue;
 			if (/\.test\.(ts|tsx)$/.test(child)) continue;
 			if (/\.spec\./.test(child)) continue;
-			if (/\.stories\.tsx$/.test(child)) continue;
+			if (child.endsWith('.stories.tsx')) continue;
 			files.push(child);
 		}
 	};
@@ -715,18 +715,20 @@ const hasStrongComponentsMap = (attributes: ts.JsxAttributes): boolean => {
 				continue;
 
 			const value = entry.initializer;
-			const attributesOfValue = ts.isJsxElement(value)
-				? value.openingElement.attributes
-				: ts.isJsxSelfClosingElement(value)
-					? value.attributes
-					: undefined;
+			let attributesOfValue: ts.JsxAttributes | undefined;
+			if (ts.isJsxElement(value)) {
+				attributesOfValue = value.openingElement.attributes;
+			} else if (ts.isJsxSelfClosingElement(value)) {
+				attributesOfValue = value.attributes;
+			}
 			if (!attributesOfValue) continue;
 
-			const tagName = ts.isJsxSelfClosingElement(value)
-				? value.tagName.getText()
-				: ts.isJsxElement(value)
-					? value.openingElement.tagName.getText()
-					: null;
+			let tagName: string | null = null;
+			if (ts.isJsxSelfClosingElement(value)) {
+				tagName = value.tagName.getText();
+			} else if (ts.isJsxElement(value)) {
+				tagName = value.openingElement.tagName.getText();
+			}
 			if (tagName === null || tagName.toLowerCase() !== 'strong') continue;
 
 			for (const attribute of attributesOfValue.properties) {
