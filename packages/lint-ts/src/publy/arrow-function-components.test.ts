@@ -53,6 +53,13 @@
  *   member delegates that yield no JSX stay un-flagged, imported namespaces
  *   and computed member accesses remain unresolvable boundaries, and cyclic
  *   member delegates terminate.
+ * - Round-8 (#1322): JSX reaching a local only through an ASSIGNMENT statement
+ *   (`let el = null; el = <div {...p} />; return el;`) is followed in the same
+ *   statement-order map as initializers — bare/uninitialized `let`, ternary /
+ *   logical / TS-wrapped RHS, and the delegated-helper route included.
+ *   Precision: a non-JSX assigned value, assignments to OUTER/imported
+ *   bindings, and assignments inside a NESTED function (whose own body is a
+ *   separate analysis) stay un-flagged.
  */
 import assert from 'node:assert/strict';
 
@@ -342,6 +349,45 @@ const runCases = (rule, label) => {
 						'function Rule() { return kit["customRender"](); }',
 					].join('\n'),
 					filename: 'apps/front/src/components/rule.tsx',
+				},
+
+				// Round-8 valid: the ASSIGNED value is not JSX — assignment routing
+				// alone must not invent component-ness (companion to #1322).
+				{
+					code: [
+						'function GetName(user) { let n = null; n = user.name; return n; }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/get-name.ts',
+				},
+
+				// Round-8 valid: the JSX lands on an OUTER binding (module-level
+				// variable), not on a local of this body — `el` stays null-valued.
+				{
+					code: [
+						'let outerEl = null;',
+						'function Choose() { let el = null; outerEl = <div />; return el; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/choose.tsx',
+				},
+
+				// Round-8 valid: the JSX lands on an IMPORTED binding's member —
+				// member-expression assignment targets are never locals.
+				{
+					code: [
+						"import { kit } from './kit';",
+						'function Choose() { let el = null; kit.current = <div />; return el; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/choose.tsx',
+				},
+
+				// Round-8 valid: the assignment happens inside a NESTED function —
+				// each body resolves only its OWN locals, so the outer `el` stays
+				// null-valued even though the nested arrow assigns it.
+				{
+					code: [
+						'function Foo() { let el = null; const setup = () => { el = <div />; }; setup(); return el; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/foo-setup.tsx',
 				},
 
 				// Round-7 valid: mutually recursive MEMBER delegates with no JSX —
@@ -752,6 +798,67 @@ const runCases = (rule, label) => {
 						'function CheckBadge() { return icons.renderCheck(); }',
 					].join('\n'),
 					filename: 'apps/front/src/components/check-badge.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-8 finding #1 (#1322): canonical issue shape — JSX reaches `el`
+				// only through an ASSIGNMENT; the initializer is null.
+				{
+					code: 'function Foo({ p }) { let el = null; el = <div {...p} />; return el; }',
+					filename: 'apps/front/src/components/foo.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-8 finding #2: bare uninitialized `let` — the declaration
+				// carries NO initializer at all.
+				{
+					code: 'function Bar({ p }) { let el; el = <span>{p.t}</span>; return el; }',
+					filename: 'apps/front/src/components/bar.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-8 finding #3: ternary RHS behind the assignment —
+				// expressionContainsJsx applies to assigned values too.
+				{
+					code: [
+						'function MaybeTag({ ok }) { let node = null; node = ok ? <i>{ok}</i> : null; return node; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/maybe-tag.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-8 finding #4: logical-and RHS behind the assignment.
+				{
+					code: [
+						'function Overlay({ visible }) { let el = null; el = visible && <div className="overlay" />; return el; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/overlay.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-8 finding #5: TSAsExpression-wrapped RHS.
+				{
+					code: 'function Widget() { let el = null; el = <span /> as unknown; return el; }',
+					filename: 'apps/front/src/components/widget.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-8 finding #6: TSNonNullExpression-wrapped RHS.
+				{
+					code: 'function Toast() { let el = null; el = (<em />)!; return el; }',
+					filename: 'apps/front/src/components/toast.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-8 finding #7: the delegated-helper route — the HELPER routes
+				// its JSX through an assignment, so #1283 delegation must still
+				// propagate component-ness to the PascalCase caller.
+				{
+					code: [
+						'function customRender(p) { let el = null; el = <b>{p.t}</b>; return el; }',
+						'function Strong(props) { return customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/strong.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
 			],
