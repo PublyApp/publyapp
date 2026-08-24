@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useBlocker, useRouter } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { resolveTableBodyState } from '~/components/table/table-body-state';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
@@ -127,9 +127,13 @@ export const useStaffTenantProfilesList = ({
 	// open drawer is its own history entry, so a browser Back closes it and
 	// restores this list entry (same filters, same cursor page, same selection,
 	// same scroll) instead of leaving the list (#972).
+	//
+	// This handler is handed to `makeTenantProfileColumns`, so it must stay
+	// free of ref writes: the compiler treats any function that mutates a ref
+	// as ref-tainted, and passing such a value anywhere during render makes it
+	// skip the whole component. The bypass re-arm and PUSH bookkeeping moved
+	// to the `useEffect` below, which observes the same open transition.
 	const openEditDrawer = (profile: StaffTenantProfileRow): void => {
-		editDrawerNavBypassRef.current = false;
-		editDrawerPushedHistoryRef.current = true;
 		pushSearch({
 			...search,
 			edit: profile.id,
@@ -213,13 +217,32 @@ export const useStaffTenantProfilesList = ({
 	const isEditDrawerOpen = editingProfile !== undefined;
 	// Keep the last edited row so the drawer stays mounted through its close
 	// animation, exactly as the always-mounted drawer on the detail page does.
-	const lastEditedProfileRef = useRef<StaffTenantProfileRow | null>(null);
+	// State (not a ref): the render must read this value, and a ref read
+	// during render makes React Compiler skip the whole component.
+	const [lastEditedProfile, setLastEditedProfile] =
+		useState<StaffTenantProfileRow | null>(null);
 	useEffect(() => {
 		if (editingProfile) {
-			lastEditedProfileRef.current = editingProfile;
+			setLastEditedProfile(editingProfile);
 		}
 	}, [editingProfile]);
-	const editDrawerProfile = editingProfile ?? lastEditedProfileRef.current;
+	const editDrawerProfile = editingProfile ?? lastEditedProfile;
+
+	// The open transition (no `?edit=<id>` -> one) re-arms the close guard and
+	// records that the drawer URL was a PUSH entry — the bookkeeping that used
+	// to live inside `openEditDrawer`. Doing it in an effect keeps
+	// `openEditDrawer` free of ref writes, which keeps it untainted for the
+	// compiler when it is handed to `makeTenantProfileColumns`. Every run of
+	// this effect corresponds 1:1 with an open click, so the bookkeeping
+	// cannot drift.
+	const wasEditDrawerOpenRef = useRef(isEditDrawerOpen);
+	useEffect(() => {
+		if (isEditDrawerOpen && !wasEditDrawerOpenRef.current) {
+			editDrawerNavBypassRef.current = false;
+			editDrawerPushedHistoryRef.current = true;
+		}
+		wasEditDrawerOpenRef.current = isEditDrawerOpen;
+	}, [isEditDrawerOpen]);
 
 	// Both drawers' open flags live in the URL (`?new=1`, `?edit=<id>`); a
 	// browser Back or a sibling-route navigation changes/unmounts them without
@@ -270,26 +293,19 @@ export const useStaffTenantProfilesList = ({
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
-	// `openEditDrawer` closes over `search`, which is a fresh object every
-	// render, so handing it to the memo directly would rebuild every column
-	// definition on every render. The columns get this stable indirection
-	// instead; it always calls the current render's handler. The ref-write is
-	// an idempotent latest-value sync during render — the documented escape
-	// hatch for the “no ref writes in render” rule.
-	const openEditDrawerRef = useRef(openEditDrawer);
-	// Latest-value sync: `openEditDrawer` closes over `search`, a fresh object
-	// every render, so the stable `onEditRequest` indirection below reads the
-	// newest closure through this ref. Runs intentionally after every render.
-	useEffect(() => {
-		openEditDrawerRef.current = openEditDrawer;
-	});
-	const onEditRequest = useCallback((profile: StaffTenantProfileRow) => {
-		openEditDrawerRef.current(profile);
-	}, []);
+	// `onEditRequest` is a plain function handed straight to
+	// `makeTenantProfileColumns` — no manual memoisation anywhere. The React
+	// Compiler caches the columns per value, so identity churn costs nothing,
+	// and there is no latest-callback ref indirection to read during render.
+	const onEditRequest = (profile: StaffTenantProfileRow): void => {
+		openEditDrawer(profile);
+	};
 
-	const columns = useMemo(
-		() => makeTenantProfileColumns(tenantId, t, onEditRequest, setDeleteTarget),
-		[tenantId, t, onEditRequest, setDeleteTarget],
+	const columns = makeTenantProfileColumns(
+		tenantId,
+		t,
+		onEditRequest,
+		setDeleteTarget,
 	);
 
 	const hasActiveSearch = Boolean(
