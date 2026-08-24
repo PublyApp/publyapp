@@ -37,7 +37,7 @@ pay for them twice.
   target branch. Pick the SHA tag you want to deploy (that becomes `RELEASE_TAG`).
   If Actions is billing-stalled, first run `docker login ghcr.io -u radandevist`, then run
   `just deploy-images [ref]` locally (the ref defaults to `origin/develop`), or invoke
-  `node scripts/deploy-images.mjs [ref]` directly. The wrapper mirrors the workflow's three builds
+  `node packages/scripts-ts/src/deploy-images.ts [ref]` directly. The wrapper mirrors the workflow's three builds
   and pushes, using a pristine detached git worktree at the resolved commit rather than the current
   working tree. Copy its final `RELEASE_TAG=<full-SHA>` into Dokploy.
 - A GitHub **classic PAT** with `read:packages` (and `write:packages`) scope, for GHCR pulls.
@@ -277,7 +277,7 @@ checks". They are now answered; that section is closed out.
   that did build. If GitHub Actions cannot run at all (e.g. the account is over its Actions
   spending limit, which shows as **every** job failing in ~3s with 0 steps and no runner),
   authenticate with `docker login ghcr.io -u radandevist`, then run
-  `just deploy-images [ref]` (or `node scripts/deploy-images.mjs [ref]`). It mirrors
+  `just deploy-images [ref]` (or `node packages/scripts-ts/src/deploy-images.ts [ref]`). It mirrors
   `deploy-images.yml` exactly and tags all three images with the **same full commit SHA**, from a
   clean detached worktree at that commit.
 - **Login fails with a network/"request failed" error (nothing server-side)** → the browser

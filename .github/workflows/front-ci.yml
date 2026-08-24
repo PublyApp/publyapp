@@ -66,7 +66,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: |
-            scripts/ci-changed-paths.mjs
+            packages/scripts-ts/src/ci-changed-paths.ts
           sparse-checkout-cone-mode: false
           path: base-ref
 
@@ -82,17 +82,17 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         # Same path groups the old `pull_request.paths` filter listed, plus
-        # `scripts/**`: #1017 also closes the gap where scripts/ had no CI
+        # `packages/scripts-ts/**`: #1017 also closes the gap where scripts/ had no CI
         # lint coverage at all, and its lint check now lives in this job's
         # "Lint front" step, so this job must wake up for scripts-only PRs.
-        # The classifier itself (scripts/ci-changed-paths.mjs) fails closed
+        # The classifier itself (packages/scripts-ts/src/ci-changed-paths.ts) fails closed
         # to relevant=true when the changed-file list can't be verified
         # complete (GitHub's 3,000-file API ceiling) — see
-        # scripts/ci-changed-paths.test.mjs.
+        # packages/scripts-ts/src/ci-changed-paths.test.ts.
         #
         # Also includes EVERY file under .github/workflows/, not just this
         # one: the `gate-selftest` job below and this workflow's own `gate`
-        # job run scripts/check-ci-gate-structure.mjs, whose round-6
+        # job run packages/scripts-ts/src/check-ci-gate-structure.ts, whose round-6
         # required-context uniqueness scan parses and asserts against every
         # workflow in the repository — any one of them can claim a required
         # check name. Server-enforcing that requires waking up for an edit to
@@ -102,7 +102,7 @@ jobs:
         # edit classified as irrelevant, so the one job that runs the scan
         # never woke up. The prefix form (no file list) also covers workflow
         # files that do not exist yet. Pinned as a requirement in
-        # scripts/check-ci-gate-structure.mjs itself (see its
+        # packages/scripts-ts/src/check-ci-gate-structure.ts itself (see its
         # `selfTestCoverage` check, which includes a path for a
         # not-yet-existing workflow file precisely so this cannot narrow back
         # to an enumerated list), so this pattern cannot narrow silently.
@@ -112,13 +112,13 @@ jobs:
         # never invokes the classifier at all, kept structurally separate
         # from the classifier's own answer so a real relevant=false can never
         # be mistaken for "missing" and vice versa. See
-        # scripts/ci-gate-bootstrap.test.mjs, which executes this exact
+        # packages/scripts-ts/src/ci-gate-bootstrap.test.ts, which executes this exact
         # inline script (parsed from this file) against both cases.
         run: |
-          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+          CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-          node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|turbo\.json$|\.github/workflows/|\.github/actions/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
+          node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|packages/scripts-ts/|turbo\.json$|\.github/workflows/|\.github/actions/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -199,7 +199,7 @@ jobs:
 
       - name: Lint front
         run: |
-          node scripts/lint-front.mjs --quiet
+          node packages/scripts-ts/src/lint-front.ts --quiet
           pnpm lint:disables
           pnpm check:frontend-barrels
 
@@ -225,7 +225,7 @@ jobs:
         run: pnpm --filter front test
 
   # IMPORTANT fix: the four #1017 aggregate-gate test suites and the
-  # scripts/check-ci-gate-structure.mjs CLI were reachable only through local
+  # packages/scripts-ts/src/check-ci-gate-structure.ts CLI were reachable only through local
   # `just ci-drift` — no workflow invoked them. A review confirmed against a
   # real job log that server CI ran lint/design-system/front tests but none
   # of the gate guard's own tests, so every guard #1017 added was, on the
@@ -234,7 +234,7 @@ jobs:
   # relevance classifier above (widened to also cover the other three gate
   # workflow files — see the "Check whether front-ci paths changed" step's
   # comment), and folded into front-ci-gate below so it cannot silently stop
-  # being required without also failing scripts/check-ci-gate-structure.mjs's
+  # being required without also failing packages/scripts-ts/src/check-ci-gate-structure.ts's
   # "gate.needs must equal every other job in the file" check.
   gate-selftest:
     name: CI gate guard self-test
@@ -260,19 +260,20 @@ jobs:
 
       - name: Run CI gate guard tests (mirrors `just ci-drift`)
         run: |
-          node --test ./scripts/codeowners-contract.test.mjs
-          node --test ./scripts/check-ci-drift.test.mjs
-          node --test ./scripts/lint-front.test.mjs
-          node ./scripts/check-ci-drift.mjs
-          node --test ./scripts/ci-changed-paths.test.mjs
-          node --test ./scripts/ci-gate-bootstrap.test.mjs
-          node --test ./scripts/ci-gate-aggregation.test.mjs
-          node --test ./scripts/ci-e2e-rerun-guard.test.mjs
-          node --test ./scripts/check-ci-gate-structure.test.mjs
-          node ./scripts/check-ci-gate-structure.mjs
-          node --test ./scripts/require-linked-issue.test.mjs
-          node --test ./scripts/check-actions-pinned.test.mjs
-          node ./scripts/check-actions-pinned.mjs
+          pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
+          pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts
+          pnpm --filter scripts-ts exec vitest run src/lint-front.test.ts
+          node ./packages/scripts-ts/src/check-ci-drift.ts
+          pnpm --filter scripts-ts exec vitest run src/ci-changed-paths.test.ts
+          pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts
+          pnpm --filter scripts-ts exec vitest run src/ci-gate-aggregation.test.ts
+          pnpm --filter scripts-ts exec vitest run src/ci-e2e-rerun-guard.test.ts
+          pnpm --filter scripts-ts exec vitest run src/check-ci-gate-structure.test.ts
+          node ./packages/scripts-ts/src/check-ci-gate-structure.ts
+          pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
+          pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts
+          node ./packages/scripts-ts/src/check-actions-pinned.ts
+          pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
 
       # This must run in a required-check dependency, not only locally: the
       # projection protects closure evidence and Trello delivery-card updates.
@@ -311,7 +312,7 @@ jobs:
     # takes a branch/tag ref and uses its last commit as GITHUB_SHA -- and
     # both enforced guards stayed green. Only `pull_request` and
     # `merge_group` may resolve to the required name.
-    # scripts/check-ci-gate-structure.mjs pins this exact expression, caps
+    # packages/scripts-ts/src/check-ci-gate-structure.ts pins this exact expression, caps
     # this workflow's `on:` to pull_request/merge_group/push, and scans
     # every job in every workflow in the repository so no other job can
     # report one of the four required names either.
@@ -321,7 +322,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # BLOCKER fix (round 5): `gate-selftest` above runs
-      # scripts/check-ci-gate-structure.mjs (among other things) server-side,
+      # packages/scripts-ts/src/check-ci-gate-structure.ts (among other things) server-side,
       # but only as long as it stays connected to THIS job's `needs:` — a
       # review round proved that dropping `gate-selftest` from `needs` makes
       # the selftest job itself go red, but disconnects it from
@@ -367,7 +368,7 @@ jobs:
 
       - name: Verify the aggregate-gate job graph from inside the required job itself
         if: needs.changes.outputs.relevant == 'true'
-        run: node ./scripts/check-ci-gate-structure.mjs
+        run: node ./packages/scripts-ts/src/check-ci-gate-structure.ts
 
       # Reads the `needs` context directly (via toJSON) instead of a
       # hand-written per-job map: a job added to `needs` above without also
@@ -383,7 +384,7 @@ jobs:
         # nonempty JSON object whose every entry's result is exactly
         # "success" or "skipped" (GitHub documents only
         # success/failure/cancelled/skipped for needs.<job>.result — see
-        # scripts/ci-gate-aggregation.test.mjs). An empty object/array, a
+        # packages/scripts-ts/src/ci-gate-aggregation.test.ts). An empty object/array, a
         # missing `.result`, or an unrecognized result value (a documented
         # future addition, a typo, a job whose result GitHub reports in a
         # shape this was not written against) must never silently pass
@@ -458,7 +459,7 @@ jobs:
       # `steps.check-required-jobs.outcome` here is not fooled by
       # continue-on-error on that step. `if: always()` so this still runs
       # (and still fails the job) even if the step above failed for real
-      # without continue-on-error. scripts/check-ci-gate-structure.mjs
+      # without continue-on-error. packages/scripts-ts/src/check-ci-gate-structure.ts
       # separately hard-rejects continue-on-error anywhere in this job, as
       # an independent second layer.
       - name: Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)

@@ -84,7 +84,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: |
-            scripts/ci-changed-paths.mjs
+            packages/scripts-ts/src/ci-changed-paths.ts
           sparse-checkout-cone-mode: false
           path: base-ref
 
@@ -101,20 +101,20 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         # Same path groups the old `pull_request.paths` filter listed —
         # deliberately not widened or narrowed. The classifier itself
-        # (scripts/ci-changed-paths.mjs) fails closed to relevant=true when
+        # (packages/scripts-ts/src/ci-changed-paths.ts) fails closed to relevant=true when
         # the changed-file list can't be verified complete (GitHub's
         # 3,000-file API ceiling) rather than trusting a truncated list — see
-        # scripts/ci-changed-paths.test.mjs.
+        # packages/scripts-ts/src/ci-changed-paths.test.ts.
         #
         # The base-pinned checkout above can legitimately be empty (see its
         # comment). If so, this fails closed to relevant=true on a path that
         # never invokes the classifier at all, kept structurally separate
         # from the classifier's own answer so a real relevant=false can never
         # be mistaken for "missing" and vice versa. See
-        # scripts/ci-gate-bootstrap.test.mjs, which executes this exact
+        # packages/scripts-ts/src/ci-gate-bootstrap.test.ts, which executes this exact
         # inline script (parsed from this file) against both cases.
         run: |
-          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+          CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
             node "$CLASSIFIER" '^(Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|apps/api/|packages/client-ts/|justfile$|global\.json$|\.gitattributes$|\.config/dotnet-tools\.json$|\.github/workflows/openapi-spec-drift\.yml$)'
@@ -232,7 +232,7 @@ jobs:
     # takes a branch/tag ref and uses its last commit as GITHUB_SHA -- and
     # both enforced guards stayed green. Only `pull_request` and
     # `merge_group` may resolve to the required name.
-    # scripts/check-ci-gate-structure.mjs pins this exact expression, caps
+    # packages/scripts-ts/src/check-ci-gate-structure.ts pins this exact expression, caps
     # this workflow's `on:` to pull_request/merge_group/push, and scans
     # every job in every workflow in the repository so no other job can
     # report one of the four required names either.
@@ -255,7 +255,7 @@ jobs:
         # nonempty JSON object whose every entry's result is exactly
         # "success" or "skipped" (GitHub documents only
         # success/failure/cancelled/skipped for needs.<job>.result — see
-        # scripts/ci-gate-aggregation.test.mjs). An empty object/array, a
+        # packages/scripts-ts/src/ci-gate-aggregation.test.ts). An empty object/array, a
         # missing `.result`, or an unrecognized result value (a documented
         # future addition, a typo, a job whose result GitHub reports in a
         # shape this was not written against) must never silently pass
@@ -330,7 +330,7 @@ jobs:
       # `steps.check-required-jobs.outcome` here is not fooled by
       # continue-on-error on that step. `if: always()` so this still runs
       # (and still fails the job) even if the step above failed for real
-      # without continue-on-error. scripts/check-ci-gate-structure.mjs
+      # without continue-on-error. packages/scripts-ts/src/check-ci-gate-structure.ts
       # separately hard-rejects continue-on-error anywhere in this job, as
       # an independent second layer.
       - name: Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)
