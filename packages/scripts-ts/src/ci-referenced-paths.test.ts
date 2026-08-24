@@ -128,7 +128,10 @@ test('every script path referenced by gate config surfaces exists', () => {
 const reactCompilerDocPath = 'docs/guides/front/react-compiler.md';
 
 test('every skip-inventory path in react-compiler.md exists', () => {
-	const contents = readFileSync(path.join(repoRoot, reactCompilerDocPath), 'utf8');
+	const contents = readFileSync(
+		path.join(repoRoot, reactCompilerDocPath),
+		'utf8',
+	);
 
 	const inventoryPaths = [...contents.matchAll(/^\| `(src\/[^`]+)` \|/gm)].map(
 		(match) => match[1],
