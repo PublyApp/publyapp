@@ -18,11 +18,22 @@ import type { ESTree } from '@oxlint/plugins';
  *   - a `return` delegating to a top-level LOCAL helper whose own body
  *     yields JSX the same way (#1283) — so a `customRender(...)` wrapper
  *     invisible to the renderer list cannot hide a component;
+ *   - a `return` delegating to a MEMBER of a top-level LOCAL object literal
+ *     whose function member yields JSX the same way (#1293) —
+ *     `kit.customRender()` cannot hide a component either;
  *   - or hook calls with only-null/JSX returns.
  *
+ * JSX routed through LOCAL VARIABLES is followed too (#1293): within one
+ * function body, `const el = <div/>; ...; return el;` counts as a JSX
+ * return, directly or inside a delegated helper/object member. Resolution
+ * is statement-order based and deliberately shallow: reassignment is not
+ * tracked (last JSX-carrying binding wins), and reads of a property off a
+ * JSX-valued variable (`el.type`) are not treated as element returns.
+ *
  * Boundaries (documented, heuristic-free by design): callees that cannot be
- * resolved locally (imports, member expressions) and JSX routed through
- * local variables are not followed.
+ * resolved locally (imports, imported namespaces) and COMPUTED member
+ * accesses (`kit[name]()`) are not followed; object literals containing a
+ * spread are skipped wholesale.
  */
 
 /** Any function-like node that has a body and optional id. */
@@ -34,6 +45,8 @@ interface ImportInfo {
 	reactImportedNameToImported: Map<string, string>;
 	importedNames: Set<string>;
 	localFunctionDecls: Map<string, FunctionNode>;
+	/** #1293: top-level local object name -> member name -> function node. */
+	localObjectMembers: Map<string, Map<string, FunctionNode>>;
 }
 
 interface BodyAnalysis {
@@ -103,9 +116,45 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 	const reactImportedNameToImported = new Map<string, string>();
 	const importedNames = new Set<string>();
 	const localFunctionDecls = new Map<string, FunctionNode>();
+	const localObjectMembers = new Map<string, Map<string, FunctionNode>>();
 
 	const registerLocalFn = (name: string, fnNode: FunctionNode): void => {
 		if (name) localFunctionDecls.set(name, fnNode);
+	};
+
+	/**
+	 * Collect function-valued members of a top-level local object literal
+	 * (#1293). Only static `Identifier` keys mapping to functions are kept;
+	 * getters/setters and non-function members are ignored, and ANY spread
+	 * makes the whole object unresolvable (its shape is no longer local).
+	 */
+	const collectObjectMembers = (
+		objExpr: ESTree.ObjectExpression,
+		into: Map<string, FunctionNode>,
+	): void => {
+		let resolvable = true;
+		for (const prop of objExpr.properties) {
+			if (prop.type === 'SpreadElement') {
+				resolvable = false;
+				break;
+			}
+			if (
+				prop.type !== 'Property' ||
+				prop.kind !== 'init' ||
+				prop.key.type !== 'Identifier'
+			) {
+				continue;
+			}
+			const value = prop.value;
+			if (
+				value.type === 'ArrowFunctionExpression' ||
+				value.type === 'FunctionExpression' ||
+				value.type === 'FunctionDeclaration'
+			) {
+				into.set(prop.key.name, value);
+			}
+		}
+		if (!resolvable) into.clear();
 	};
 
 	const collectVarDeclarators = (varDecl: ESTree.VariableDeclaration): void => {
@@ -113,13 +162,19 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 			const id = decl.id;
 			const name = id.type === 'Identifier' ? id.name : undefined;
 			const init = decl.init;
+			if (!name || !init) continue;
 			if (
-				name &&
-				init &&
-				(init.type === 'ArrowFunctionExpression' ||
-					init.type === 'FunctionExpression')
+				init.type === 'ArrowFunctionExpression' ||
+				init.type === 'FunctionExpression'
 			) {
 				registerLocalFn(name, init);
+			} else if (init.type === 'ObjectExpression') {
+				let members = localObjectMembers.get(name);
+				if (!members) {
+					members = new Map<string, FunctionNode>();
+					localObjectMembers.set(name, members);
+				}
+				collectObjectMembers(init, members);
 			}
 		}
 	};
@@ -190,6 +245,7 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 		reactImportedNameToImported,
 		importedNames,
 		localFunctionDecls,
+		localObjectMembers,
 	};
 };
 
@@ -206,6 +262,11 @@ const analyseBody = (
 		returnsRendererCall: false,
 	};
 	if (!body) return result;
+
+	// #1293: names of local variables whose (statement-order) initializer
+	// carries JSX in THIS function body. Fresh per analyseBody call, so each
+	// analysed function resolves only its own locals.
+	const localJsxVars = new Set<string>();
 
 	const {
 		reactNamespaces,
@@ -301,7 +362,18 @@ const analyseBody = (
 			if (stmt.type === 'FunctionDeclaration') continue;
 
 			if (stmt.type === 'VariableDeclaration') {
-				for (const decl of stmt.declarations) walkExprForHooks(decl.init);
+				for (const decl of stmt.declarations) {
+					walkExprForHooks(decl.init);
+					// #1293: remember JSX-carrying local variables so a later
+					// `return el;` counts as a JSX return.
+					if (
+						decl.id.type === 'Identifier' &&
+						decl.init &&
+						expressionContainsJsx(decl.init)
+					) {
+						localJsxVars.add(decl.id.name);
+					}
+				}
 				continue;
 			}
 			if (stmt.type === 'ExpressionStatement') {
@@ -330,6 +402,25 @@ const analyseBody = (
 					// known renderer). The declaration shape is the signal, so a
 					// non-allowlisted render wrapper cannot hide the component.
 					result.returnsRendererCall = true;
+				} else if (
+					arg.type === 'CallExpression' &&
+					arg.callee.type === 'MemberExpression' &&
+					arg.callee.property.type === 'Identifier' &&
+					isLocalMemberRenderDelegate(
+						arg.callee.object,
+						arg.callee.property,
+						importInfo,
+						visiting,
+					)
+				) {
+					// #1293: `return someLocalObject.member(...)` where the member is a
+					// function on a top-level LOCAL object literal and its own body
+					// yields JSX the same way.
+					result.returnsRendererCall = true;
+				} else if (arg.type === 'Identifier' && localJsxVars.has(arg.name)) {
+					// #1293: `return el;` where `el` was initialized (earlier in this
+					// body) with an expression carrying JSX.
+					result.returnsJsx = true;
 				} else {
 					const isNullLike =
 						(arg.type === 'Literal' && arg.value === null) ||
@@ -384,9 +475,9 @@ const analyseBody = (
 /**
  * Whether a `return name(...)` call delegates rendering to a top-level LOCAL
  * helper whose own body yields JSX — directly, through further such helpers,
- * or through a known renderer call (#1283). Imported and member-expression
- * callees are not resolved. `visiting` carries the resolution stack so
- * mutually recursive helpers terminate.
+ * through local variables (#1293), or through a known renderer call (#1283).
+ * Imported callees are not resolved. `visiting` carries the resolution stack
+ * so mutually recursive helpers terminate.
  */
 const isLocalRenderDelegate = (
 	name: string,
@@ -412,6 +503,71 @@ const isLocalRenderDelegate = (
 	if (expressionContainsJsx(fnBody)) return true;
 	if (fnBody.type === 'CallExpression' && fnBody.callee.type === 'Identifier') {
 		return isLocalRenderDelegate(fnBody.callee.name, importInfo, next);
+	}
+	if (
+		fnBody.type === 'CallExpression' &&
+		fnBody.callee.type === 'MemberExpression'
+	) {
+		return isLocalMemberRenderDelegate(
+			fnBody.callee.object,
+			fnBody.callee.property,
+			importInfo,
+			next,
+		);
+	}
+	return false;
+};
+
+/**
+ * Whether a member-expression callee (`obj.member(...)`) resolves to a
+ * function-valued member of a top-level LOCAL object literal whose own body
+ * yields JSX (#1293). Only static `obj.prop` access on a locally declared
+ * object is resolved: imported namespaces and COMPUTED access (`obj[name]`)
+ * are not followed, and objects containing a spread were never collected.
+ * `visiting` carries the resolution stack so cyclic delegates terminate.
+ */
+const isLocalMemberRenderDelegate = (
+	object: ESTree.Expression | ESTree.PrivateIdentifier,
+	property: ESTree.Expression | ESTree.PrivateIdentifier,
+	importInfo: ImportInfo,
+	visiting: Set<string>,
+): boolean => {
+	if (object.type !== 'Identifier') return false;
+	if (property.type !== 'Identifier') return false;
+	const { importedNames, localObjectMembers } = importInfo;
+	// An imported namespace is never a locally declared object literal.
+	if (importedNames.has(object.name)) return false;
+	const members = localObjectMembers.get(object.name);
+	if (!members) return false;
+	const key = `${object.name}.${property.name}` as const;
+	const memberFn = members.get(property.name);
+	if (!memberFn) return false;
+	if (visiting.has(key)) return false;
+
+	const fnBody = memberFn.body;
+	if (!fnBody) return false;
+	const next = new Set(visiting).add(key);
+
+	if (fnBody.type === 'BlockStatement') {
+		const nested = analyseBody(fnBody, importInfo, new Set(), next);
+		return nested.returnsJsx || nested.returnsRendererCall;
+	}
+
+	// Concise arrow property (`{ customRender: (props) => <b>{props.t}</b> }`).
+	if (expressionContainsJsx(fnBody)) return true;
+	if (fnBody.type === 'CallExpression' && fnBody.callee.type === 'Identifier') {
+		return isLocalRenderDelegate(fnBody.callee.name, importInfo, next);
+	}
+	if (
+		fnBody.type === 'CallExpression' &&
+		fnBody.callee.type === 'MemberExpression'
+	) {
+		return isLocalMemberRenderDelegate(
+			fnBody.callee.object,
+			fnBody.callee.property,
+			importInfo,
+			next,
+		);
 	}
 	return false;
 };
