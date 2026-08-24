@@ -301,6 +301,7 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts
   node ./packages/scripts-ts/src/check-actions-pinned.ts
+  pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:
@@ -328,7 +329,7 @@ ci-project-closure-adapter:
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
-  node apps/front/packages/scripts-ts/src/assert-pinned.ts
+  node apps/front/scripts/assert-pinned.mjs
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 
