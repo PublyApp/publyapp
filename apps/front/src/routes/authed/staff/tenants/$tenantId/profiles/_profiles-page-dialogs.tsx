@@ -1,9 +1,11 @@
+import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
 
 import { ProfileEditDetailsDrawer } from './_profile-edit-details-drawer';
 import { ProfileFormDrawer } from './_profile-form-drawer';
+import type { ProfileFormValues } from './_profile-form-schema';
 
 type ProfilesPageDialogsProps = {
 	tenantId: string;
@@ -14,7 +16,9 @@ type ProfilesPageDialogsProps = {
 	isCreateDrawerOpen: boolean;
 	onCreateDrawerOpenChange: (isOpen: boolean) => void;
 	onCreateSaved: (profileId: string) => void;
-	onCreateDirtyChange: (isDirty: boolean) => void;
+	/** Page-owned RHF store for the create drawer (develop #1306 contract):
+	 * passed straight through instead of relaying dirtiness via callbacks. */
+	createMethods: UseFormReturn<ProfileFormValues>;
 	editDrawerProfile: StaffTenantProfileRow | null;
 	isEditDrawerOpen: boolean;
 	onEditDrawerClose: () => void;
@@ -37,7 +41,7 @@ export const ProfilesPageDialogs = ({
 	isCreateDrawerOpen,
 	onCreateDrawerOpenChange,
 	onCreateSaved,
-	onCreateDirtyChange,
+	createMethods,
 	editDrawerProfile,
 	isEditDrawerOpen,
 	onEditDrawerClose,
@@ -63,12 +67,15 @@ export const ProfilesPageDialogs = ({
 				}}
 			/>
 
+			{/* Remounting under a fresh key re-seeds the page-owned form from
+			 * `getProfileFormValues()` without any reset effect. */}
 			<ProfileFormDrawer
+				key={`create-${tenantId}:${isCreateDrawerOpen}`}
 				tenantId={tenantId}
 				isOpen={isCreateDrawerOpen}
+				methods={createMethods}
 				onOpenChange={onCreateDrawerOpenChange}
 				onSessionExpired={onSessionExpired}
-				onDirtyChange={onCreateDirtyChange}
 				onSaved={onCreateSaved}
 			/>
 

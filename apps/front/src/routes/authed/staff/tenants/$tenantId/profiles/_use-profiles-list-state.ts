@@ -39,6 +39,10 @@ type UseStaffTenantProfilesListArgs = {
 	pushSearch: (next: StaffTenantProfilesSearchParams) => void;
 	/** Navigate to a profile's detail page after a successful create. */
 	navigateToProfile: (profileId: string) => void;
+	/** Live dirty flag of the PAGE-owned create form (develop #1306): the page
+	 * renders `createMethods.formState.isDirty` and hands it down so this
+	 * hook's nav guard reads dirtiness synchronously during render. */
+	isCreateFormDirty: boolean;
 };
 
 /**
@@ -55,13 +59,13 @@ export const useStaffTenantProfilesList = ({
 	applySearch,
 	pushSearch,
 	navigateToProfile,
+	isCreateFormDirty,
 }: UseStaffTenantProfilesListArgs) => {
 	const queryClient = useQueryClient();
 	const [deleteTarget, setDeleteTarget] =
 		useState<StaffTenantProfileRow | null>(null);
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
-	const [isCreateFormDirty, setIsCreateFormDirty] = useState(false);
 	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
 
 	const isCreateDrawerOpen = search.new === 1;
@@ -354,7 +358,6 @@ export const useStaffTenantProfilesList = ({
 		selection,
 		setCreateDrawerOpen,
 		setDeleteTarget,
-		setIsCreateFormDirty,
 		setIsEditFormDirty,
 		setShouldRedirectToLogout,
 		setTypeFilter,
