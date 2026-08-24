@@ -8,13 +8,23 @@ import type {
 	useStaffTenantInvitationsQuery,
 } from '~/lib/query/staff-tenant-invitations';
 
+import { InvitationToolbarFilters } from './_invitation-toolbar-filters';
 import type { InvitationsFilterState } from './_invitations-filter-state';
-import { InvitationsFilterMenus } from './_invitations-toolbar';
 
-/** The tenant invitations data table, its empty/no-match copy and its filter
- * toolbar. Split out of the route file for
- * `react-doctor/no-giant-component`; every prop, test id and i18n key is
- * unchanged. */
+type InvitationsTableProps = {
+	columns: ColumnDef<StaffTenantInvitationRow>[];
+	rows: StaffTenantInvitationRow[];
+	invitationsQuery: ReturnType<typeof useStaffTenantInvitationsQuery>;
+	controller: ReturnType<typeof useTableController>;
+	hasActiveSearch: boolean;
+	filters: InvitationsFilterState;
+	onInvite: () => void;
+	t: (key: string, options?: Record<string, unknown>) => string;
+};
+
+/** The tenant invitations data table with its empty/no-match copy and its
+ * status/account-level filter toolbar. Split out of the route file for
+ * `react-doctor/no-giant-component`; every prop and test id is unchanged. */
 export const InvitationsTable = ({
 	columns,
 	rows,
@@ -24,21 +34,13 @@ export const InvitationsTable = ({
 	filters,
 	onInvite,
 	t,
-}: {
-	columns: ColumnDef<StaffTenantInvitationRow>[];
-	rows: StaffTenantInvitationRow[];
-	invitationsQuery: ReturnType<typeof useStaffTenantInvitationsQuery>;
-	controller: ReturnType<typeof useTableController>;
-	hasActiveSearch: boolean;
-	filters: InvitationsFilterState;
-	onInvite: () => void;
-	t: (key: string, options?: Record<string, unknown>) => string;
-}) => (
+}: InvitationsTableProps) => (
 	<DataTable
 		testId="staff-tenant-invitations-table"
 		ariaLabel={t('tenant-invitations-table-aria-label')}
 		columns={columns}
 		rows={rows}
+		getRowLabel={(row) => row.email}
 		isPending={invitationsQuery.isPending}
 		isError={invitationsQuery.isError}
 		onRetry={() => void invitationsQuery.refetch()}
@@ -71,6 +73,7 @@ export const InvitationsTable = ({
 		searchDraft={controller.search.draft}
 		onSearchDraftChange={controller.search.onDraftChange}
 		searchPlaceholder={t('search-invitations')}
-		toolbarEnd={<InvitationsFilterMenus filters={filters} t={t} />}
+		selection={filters.selection}
+		toolbarEnd={<InvitationToolbarFilters {...filters.toolbar} />}
 	/>
 );

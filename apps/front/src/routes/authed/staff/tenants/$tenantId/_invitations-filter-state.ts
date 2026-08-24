@@ -1,3 +1,5 @@
+import type { useRowSelection } from '~/components/table/use-row-selection';
+
 import {
 	type KnownInvitationAccountLevel,
 	type KnownInvitationStatus,
@@ -6,9 +8,25 @@ import {
 	serializeInvitationAccountLevelFilter,
 	serializeInvitationStatusFilter,
 } from '../../invitations/list-helpers';
-import { formatTenantInvitationStatusLabel } from './_invitation-status-label';
+import { formatTenantInvitationStatusLabel } from './_invitation-columns';
 import type { InvitationRouteSearchParams } from './_invitations-route-search';
 import { formatTenantUserLevelLabel } from './_tenant-details-shell';
+
+/** Row-selection state returned by `useRowSelection`. */
+type RowSelection = ReturnType<typeof useRowSelection>;
+
+/** Prop bundle for the status/account-level dropdown pair rendered at the
+ * far end of the table toolbar (`_invitation-toolbar-filters`). */
+type InvitationsToolbarState = {
+	selectedStatuses: KnownInvitationStatus[];
+	selectedLevels: KnownInvitationAccountLevel[];
+	statusFilterLabel: string;
+	levelFilterLabel: string;
+	onSetStatuses: (nextStatuses: KnownInvitationStatus[]) => void;
+	onToggleStatus: (status: KnownInvitationStatus) => void;
+	onSetLevels: (nextLevels: KnownInvitationAccountLevel[]) => void;
+	onToggleLevel: (level: KnownInvitationAccountLevel) => void;
+};
 
 export type InvitationsFilterState = {
 	selectedStatuses: KnownInvitationStatus[];
@@ -19,12 +37,19 @@ export type InvitationsFilterState = {
 	toggleStatus: (status: KnownInvitationStatus) => void;
 	setLevels: (nextLevels: KnownInvitationAccountLevel[]) => void;
 	toggleLevel: (level: KnownInvitationAccountLevel) => void;
+	/** Active row-selection state, passed through so the table can hand the
+	 * selection to `DataTable` while the toolbar reads it for lock state. */
+	selection: RowSelection;
+	toolbar: InvitationsToolbarState;
 };
 
 type BuildInvitationsFilterStateArgs = {
 	search: InvitationRouteSearchParams;
 	t: (key: string, options?: Record<string, unknown>) => string;
 	applySearch: (next: InvitationRouteSearchParams) => void;
+	/** Active row-selection state from `useRowSelection`; forwarded to the
+	 * toolbar's lock logic and to the table's selection prop. */
+	selection: RowSelection;
 };
 
 /** Status/account-level filter selection, labels and toggles for the tenant
@@ -35,6 +60,7 @@ export const buildInvitationsFilterState = ({
 	search,
 	t,
 	applySearch,
+	selection,
 }: BuildInvitationsFilterStateArgs): InvitationsFilterState => {
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 	const selectedLevels = parseInvitationAccountLevelFilter(search.level);
@@ -96,5 +122,16 @@ export const buildInvitationsFilterState = ({
 		toggleStatus,
 		setLevels,
 		toggleLevel,
+		selection,
+		toolbar: {
+			selectedStatuses,
+			selectedLevels,
+			statusFilterLabel,
+			levelFilterLabel,
+			onSetStatuses: setStatuses,
+			onToggleStatus: toggleStatus,
+			onSetLevels: setLevels,
+			onToggleLevel: toggleLevel,
+		},
 	};
 };

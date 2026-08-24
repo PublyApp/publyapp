@@ -4,6 +4,9 @@ import { buildInvitationsFilterState } from './_invitations-filter-state';
 import type { InvitationRouteSearchParams } from './_invitations-route-search';
 
 const t = (key: string): string => key;
+const selection = {
+	isSelectionMode: false,
+} as Parameters<typeof buildInvitationsFilterState>[0]['selection'];
 
 const build = (search: Partial<InvitationRouteSearchParams> = {}) => {
 	const applySearch = vi.fn();
@@ -11,6 +14,7 @@ const build = (search: Partial<InvitationRouteSearchParams> = {}) => {
 		search: search as InvitationRouteSearchParams,
 		t,
 		applySearch,
+		selection,
 	});
 
 	return { applySearch, state };

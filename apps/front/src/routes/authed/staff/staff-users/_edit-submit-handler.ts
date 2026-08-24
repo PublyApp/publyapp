@@ -149,7 +149,7 @@ export const submitStaffUserEdit = async ({
 
 	hasSavedRef.current = true;
 	toastLocalMutationResult.success(t('staff-user-updated-success'));
-	void navigate({
+	navigate({
 		to: '/staff/staff-users/$userId',
 		params: { userId },
 	});
