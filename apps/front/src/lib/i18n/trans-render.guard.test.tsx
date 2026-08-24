@@ -571,6 +571,8 @@ export type DiscoveredTransSite = {
 	line: number;
 	i18nKey: string | null;
 	namespace: string | null;
+	/** True when the element carries `components={{ strong: <strong …/> }}` with the production className. */
+	hasStrongMap: boolean;
 };
 
 /**
@@ -666,14 +668,85 @@ const describeSite = (
 		line: line + 1,
 		i18nKey: readAttribute('i18nKey'),
 		namespace: readAttribute('ns'),
+		hasStrongMap: hasStrongComponentsMap(attributes),
 	};
 };
 
-const DISCOVERED_SITES: DiscoveredTransSite[] = discoverTransCallSites();
+const PRODUCTION_STRONG_CLASSNAME = 'text-foreground';
 
-// The exact production components-map snippet every call site passes.
-const STRONG_MAP_SNIPPET =
-	'components={{ strong: <strong className="text-foreground" /> }}';
+const readStringAttributeText = (
+	initializer: ts.JsxAttributeValue,
+): string | null => {
+	if (ts.isStringLiteral(initializer)) return initializer.text;
+	if (
+		ts.isJsxExpression(initializer) &&
+		initializer.expression &&
+		ts.isStringLiteral(initializer.expression)
+	) {
+		return initializer.expression.text;
+	}
+
+	return null;
+};
+
+/**
+ * True when the attributes carry `components={{ strong: <strong …/> }}`
+ * with the production className — decided over the syntax tree, NOT a raw
+ * substring match (#1312 round 1): reformatting the attribute across lines
+ * cannot dodge this check, and dropping the `strong` entry (or the whole
+ * map) cannot hide from it.
+ */
+const hasStrongComponentsMap = (attributes: ts.JsxAttributes): boolean => {
+	for (const property of attributes.properties) {
+		if (
+			!ts.isJsxAttribute(property) ||
+			property.name.getText() !== 'components' ||
+			!property.initializer ||
+			!ts.isJsxExpression(property.initializer)
+		) {
+			continue;
+		}
+
+		const expression = property.initializer.expression;
+		if (!expression || !ts.isObjectLiteralExpression(expression)) continue;
+
+		for (const entry of expression.properties) {
+			if (!ts.isPropertyAssignment(entry) || entry.name.getText() !== 'strong')
+				continue;
+
+			const value = entry.initializer;
+			const attributesOfValue = ts.isJsxElement(value)
+				? value.openingElement.attributes
+				: ts.isJsxSelfClosingElement(value)
+					? value.attributes
+					: undefined;
+			if (!attributesOfValue) continue;
+
+			const tagName = ts.isJsxSelfClosingElement(value)
+				? value.tagName.getText()
+				: ts.isJsxElement(value)
+					? value.openingElement.tagName.getText()
+					: null;
+			if (tagName === null || tagName.toLowerCase() !== 'strong') continue;
+
+			for (const attribute of attributesOfValue.properties) {
+				if (
+					ts.isJsxAttribute(attribute) &&
+					attribute.name.getText() === 'className' &&
+					attribute.initializer &&
+					readStringAttributeText(attribute.initializer) ===
+						PRODUCTION_STRONG_CLASSNAME
+				) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+};
+
+const DISCOVERED_SITES: DiscoveredTransSite[] = discoverTransCallSites();
 
 beforeEach(() => {
 	mocks.hasBrowserSessionCookie.mockReturnValue(true);
@@ -765,31 +838,20 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 		).toBe(false);
 	});
 
-	test('every guarded route file still passes the production components map', () => {
+	test('every discovered <Trans> still passes the production strong components map', () => {
 		// Pins the seam this guard asserts against: the `text-foreground`
 		// className is only reachable through this map, so the call-site tests
-		// below can only stay green while the real files keep passing it.
+		// below can only stay green while every real call site keeps passing
+		// it. Structural (AST), so reformatting the attribute stays green and
+		// deleting the entry flips red — the old substring pin did neither reliably.
+		const bareSites = DISCOVERED_SITES.filter(
+			(discoveredSite) => !discoveredSite.hasStrongMap,
+		).map((discoveredSite) => `${discoveredSite.file}:${discoveredSite.line}`);
+
 		expect(
-			countOccurrences(
-				readSource('routes/reset-password.tsx'),
-				STRONG_MAP_SNIPPET,
-			),
-			'reset-password.tsx must pass the strong components map at both sites',
-		).toBe(2);
-		expect(
-			countOccurrences(
-				readSource('routes/_accept-invitation-views.tsx'),
-				STRONG_MAP_SNIPPET,
-			),
-			'_accept-invitation-views.tsx must pass the strong components map at both mismatch sites',
-		).toBe(2);
-		expect(
-			countOccurrences(
-				readSource('routes/verify-email.tsx'),
-				STRONG_MAP_SNIPPET,
-			),
-			'verify-email.tsx must pass the strong components map once',
-		).toBe(1);
+			bareSites.sort(),
+			'these <Trans> call sites lost the production strong components map',
+		).toEqual([]);
 	});
 
 	test('every production <Trans> key exists in BOTH language resources', () => {
