@@ -1537,3 +1537,118 @@ test('#1227: a non-push workflow using `origin/${{ github.base_ref }}` is NOT fl
 		`expected no origin/\${{ github.base_ref }} finding for a non-push workflow, got:\n${findings.join('\n')}`,
 	);
 });
+
+// ---------------------------------------------------------------------------
+// PR #1312 round 1: `pinnedTestFiles` — explicit CI enforcement for the
+// real-<Trans> render guard. Renaming, moving, deleting, or quietly excluding
+// that file keeps `pnpm --filter front test` green (the file simply stops
+// running), so this structural check is what fails the gate instead.
+// ---------------------------------------------------------------------------
+
+const pinnedConfig = [
+	{
+		file: 'fixture.yml',
+		changesJob: 'changes',
+		gateJob: 'gate',
+		gateName: 'fixture-gate',
+		pushCheckName: 'fixture-push-check',
+		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
+		alwaysJobs: [],
+		pinnedTestFiles: [
+			{
+				path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+				runnerConfig: 'apps/front/vitest.config.ts',
+				reason: 'the real-<Trans> render guard',
+			},
+		],
+	},
+];
+
+test('pinnedTestFiles: the real tree still pins the trans-render guard and its vitest discovery', async () => {
+	assert.deepEqual(
+		await findCiGateStructureProblems({ rootDir: repoRoot }),
+		[],
+	);
+});
+
+test('pinnedTestFiles: a renamed/moved/deleted pinned file is a finding', async () => {
+	// The renamed/moved/deleted shape: the runner config still exists, but
+	// no file sits at the path the pin expects.
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await mkdir(path.join(rootDir, 'apps/front'), { recursive: true });
+	await writeFile(
+		path.join(rootDir, 'apps/front/vitest.config.ts'),
+		"export default { test: { include: ['src/**/*.test.tsx'] } };\n",
+	);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: pinnedConfig,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/trans-render\.guard\.test\.tsx` is missing/.test(finding),
+		),
+		`expected a missing-pinned-file finding, got:\n${findings.join('\n')}`,
+	);
+});
+
+test('pinnedTestFiles: a present file no vitest include glob discovers is a finding', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
+		recursive: true,
+	});
+	await writeFile(
+		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
+		'export {};\n',
+	);
+	await writeFile(
+		path.join(rootDir, 'apps/front/vitest.config.ts'),
+		"export default { test: { include: ['src/**/*.nope.test.tsx'] } };\n",
+	);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: pinnedConfig,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/no `include` pattern in `apps\/front\/vitest\.config\.ts` discovers/.test(
+				finding,
+			),
+		),
+		`expected a not-discovered-by-runner finding, got:\n${findings.join('\n')}`,
+	);
+});
+
+test('pinnedTestFiles: a file matched by the runner exclude list is a finding', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
+		recursive: true,
+	});
+	await writeFile(
+		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
+		'export {};\n',
+	);
+	await writeFile(
+		path.join(rootDir, 'apps/front/vitest.config.ts'),
+		"export default { test: { include: ['src/**/*.test.tsx'], exclude: ['src/**/trans-render.guard.test.tsx'] } };\n",
+	);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		workflows: pinnedConfig,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/matched by the `exclude` pattern\(s\)/.test(finding),
+		),
+		`expected an excluded-from-runner finding, got:\n${findings.join('\n')}`,
+	);
+});

@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -185,6 +185,65 @@ const EXPECTED_NEEDS_JSON_EXPR = '${{ toJSON(needs) }}';
 const EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID = 'check-required-jobs';
 
 /**
+ * Converts a glob pattern to a RegExp over POSIX paths. Deliberately NOT a
+ * general glob engine: it supports exactly the constructs the pinned
+ * runners' configs use (`**`, `*`, `{a,b}` alternation, literals) and treats
+ * everything else as a literal, so an exotic future pattern can only fail
+ * the include check loudly (fail closed), never silently widen.
+ */
+const globToRegExp = (pattern) => {
+	const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	let expression = '';
+
+	for (let i = 0; i < pattern.length; i += 1) {
+		const char = pattern[i];
+
+		if (char === '*' && pattern[i + 1] === '*') {
+			expression += '[\\s\\S]*';
+			i += 1;
+		} else if (char === '*') {
+			expression += '[^/]*';
+		} else if (char === '{') {
+			const closing = pattern.indexOf('}', i);
+
+			if (closing === -1) {
+				expression += '\\{';
+			} else {
+				expression += `(?:${pattern
+					.slice(i + 1, closing)
+					.split(',')
+					.map((alternative) => escapeRegex(alternative))
+					.join('|')})`;
+				i = closing;
+			}
+		} else if ('\\^$.|+()[]{}'.includes(char)) {
+			expression += `\\${char}`;
+		} else {
+			expression += char;
+		}
+	}
+
+	return new RegExp(`^${expression}$`);
+};
+
+/**
+ * Extracts a top-level `key: [...]` string array (the shape vitest configs
+ * use for `include`/`exclude`) from a config's source text. Returns null
+ * when the key or its array is absent, so callers can fail closed.
+ */
+const extractStringArrayField = (source, key) => {
+	const field = source.match(
+		new RegExp(`\\b${key}\\s*:\\s*\\[([\\s\\S]*?)\\]`),
+	);
+
+	if (field === null) {
+		return null;
+	}
+
+	return [...field[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+};
+
+/**
  * Round 6 BLOCKER: the ONLY events whose runs may report a gate's externally
  * required check name. Everything else resolves to the non-required
  * push-check name, so no event added to a gate workflow later can produce a
@@ -299,6 +358,27 @@ const GATE_WORKFLOWS = [
 		// own job graph's correctness rather than relying solely on
 		// gate-selftest (see the file-level comment).
 		requiresSelfCheck: true,
+		// PR #1312 round 1 (review MAJOR/BLOCKS_PR): the real-`<Trans>` render
+		// guard is the ONLY front-suite file that mounts react-i18next's
+		// `<Trans>` unmocked over the real route components (85 of 213 front
+		// test files mock react-i18next — that is the suite-wide blindness it
+		// offsets). Its entire value therefore depends on this exact file
+		// staying at this exact path AND still being discovered by the vitest
+		// config: renamed, moved, deleted, or quietly excluded from the glob,
+		// `pnpm --filter front test` stays green while the unmocked coverage
+		// is gone and no other guard notices. Pinning the path here makes all
+		// four moves fail this guard (and therefore `just ci-drift`,
+		// gate-selftest, and the required front-ci-gate) until the pin is
+		// consciously re-made. This is a strengthening pin, not an allowlist:
+		// nothing is exempted from anything.
+		pinnedTestFiles: [
+			{
+				path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+				runnerConfig: 'apps/front/vitest.config.ts',
+				reason:
+					'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
+			},
+		],
 	},
 	{
 		file: 'openapi-spec-drift.yml',
@@ -433,7 +513,7 @@ const setsEqual = (a, b) => {
  * Checks one workflow's job graph against its expected shape. Returns an
  * array of human-readable findings (empty when the graph matches).
  */
-const checkWorkflow = (
+const checkWorkflow = async (
 	{
 		file,
 		changesJob,
@@ -445,8 +525,10 @@ const checkWorkflow = (
 		matrix,
 		selfTestCoverage,
 		requiresSelfCheck,
+		pinnedTestFiles,
 	},
 	document,
+	rootDir,
 ) => {
 	const findings = [];
 	const jobs = document?.jobs ?? {};
@@ -1034,6 +1116,68 @@ const checkWorkflow = (
 		}
 	}
 
+	// PR #1312 round 1 (review MAJOR/BLOCKS_PR): a pinned test file must still
+	// exist at its pinned path AND still be discovered by its runner's config
+	// (matched by an `include` glob, not matched by any `exclude`). Renaming,
+	// moving, deleting, or quietly excluding the file keeps the test runner
+	// itself green — the file simply stops executing — so this structural
+	// check is what fails the gate instead.
+	if (pinnedTestFiles !== undefined) {
+		for (const { path: pinnedPath, runnerConfig, reason } of pinnedTestFiles) {
+			const pinnedAbsolute = path.join(rootDir, pinnedPath);
+			let exists = true;
+
+			try {
+				await access(pinnedAbsolute);
+			} catch {
+				exists = false;
+			}
+
+			if (!exists) {
+				findings.push(
+					`${file}: the pinned test file \`${pinnedPath}\` is missing (${reason}). A rename, move, or delete silences that coverage while every other step stays green; re-point this pin at the file's reviewed new path.`,
+				);
+			}
+
+			let runnerSource;
+
+			try {
+				runnerSource = await readFile(path.join(rootDir, runnerConfig), 'utf8');
+			} catch {
+				findings.push(
+					`${file}: the runner config \`${runnerConfig}\` for pinned test file \`${pinnedPath}\` is missing or unreadable (${reason}); discovery cannot be verified, which fails closed.`,
+				);
+				continue;
+			}
+			// Runner globs resolve relative to the config file's own directory
+			// (vitest semantics); the pin is repository-root-relative, so both
+			// spellings are tried.
+			const configDirectory = path.dirname(path.join(rootDir, runnerConfig));
+			const candidatePaths = [
+				toPosixPath(pinnedPath),
+				toPosixPath(path.relative(configDirectory, pinnedAbsolute)),
+			];
+			const matchesPattern = (entry) =>
+				candidatePaths.some((candidate) => globToRegExp(entry).test(candidate));
+			const includes = extractStringArrayField(runnerSource, 'include');
+			const excludes = extractStringArrayField(runnerSource, 'exclude') ?? [];
+
+			if (includes === null || !includes.some(matchesPattern)) {
+				findings.push(
+					`${file}: no \`include\` pattern in \`${runnerConfig}\` discovers the pinned test file \`${pinnedPath}\` (${reason}), so the runner would skip it even though the gate still counts its coverage. Restore discovery in the runner config — never satisfy this check by removing or narrowing the pin.`,
+				);
+			}
+
+			const excludedBy = excludes.filter(matchesPattern);
+
+			if (excludedBy.length > 0) {
+				findings.push(
+					`${file}: the pinned test file \`${pinnedPath}\` is matched by the \`exclude\` pattern(s) ${JSON.stringify(excludedBy)} in \`${runnerConfig}\` (${reason}); the runner would skip it while this gate still counts its coverage.`,
+				);
+			}
+		}
+	}
+
 	return findings;
 };
 
@@ -1052,7 +1196,7 @@ export const findCiGateStructureProblems = async ({
 		const raw = await readFile(filePath, 'utf8');
 		const document = parse(raw);
 
-		findings.push(...checkWorkflow(workflow, document));
+		findings.push(...(await checkWorkflow(workflow, document, rootDir)));
 	}
 
 	return findings;
