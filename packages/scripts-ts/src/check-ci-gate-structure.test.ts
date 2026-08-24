@@ -1555,6 +1555,12 @@ test('#1227: a non-push workflow using `origin/${{ github.base_ref }}` is NOT fl
 // running), so this structural check is what fails the gate instead.
 // ---------------------------------------------------------------------------
 
+// The pin fixture carries `pinnedTestFiles`, which only exists on the real
+// front-ci entry of GATE_WORKFLOWS — and that entry additionally REQUIRES
+// `selfTestCoverage`/`requiresSelfCheck`, fields a minimal fixture cannot
+// fake (their checks inspect the changes job's real classifier patterns),
+// while every other union member pins `pinnedTestFiles` to undefined. Each
+// use site below therefore carries the file's standing rung-0 escape hatch.
 const pinnedConfig = [
 	{
 		file: 'fixture.yml',
@@ -1594,6 +1600,7 @@ test('pinnedTestFiles: a renamed/moved/deleted pinned file is a finding', async 
 
 	const findings = await findCiGateStructureProblems({
 		rootDir,
+		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
 		workflows: pinnedConfig,
 	});
 
@@ -1622,6 +1629,7 @@ test('pinnedTestFiles: a present file no vitest include glob discovers is a find
 
 	const findings = await findCiGateStructureProblems({
 		rootDir,
+		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
 		workflows: pinnedConfig,
 	});
 
@@ -1652,6 +1660,7 @@ test('pinnedTestFiles: a file matched by the runner exclude list is a finding', 
 
 	const findings = await findCiGateStructureProblems({
 		rootDir,
+		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
 		workflows: pinnedConfig,
 	});
 

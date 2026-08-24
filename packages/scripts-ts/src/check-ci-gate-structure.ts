@@ -191,8 +191,9 @@ const EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID = 'check-required-jobs';
  * everything else as a literal, so an exotic future pattern can only fail
  * the include check loudly (fail closed), never silently widen.
  */
-const globToRegExp = (pattern) => {
-	const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const globToRegExp = (pattern: string): RegExp => {
+	const escapeRegex = (value: string): string =>
+		value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	let expression = '';
 
 	for (let i = 0; i < pattern.length; i += 1) {
@@ -212,7 +213,7 @@ const globToRegExp = (pattern) => {
 				expression += `(?:${pattern
 					.slice(i + 1, closing)
 					.split(',')
-					.map((alternative) => escapeRegex(alternative))
+					.map((alternative: string) => escapeRegex(alternative))
 					.join('|')})`;
 				i = closing;
 			}
@@ -231,7 +232,10 @@ const globToRegExp = (pattern) => {
  * use for `include`/`exclude`) from a config's source text. Returns null
  * when the key or its array is absent, so callers can fail closed.
  */
-const extractStringArrayField = (source, key) => {
+const extractStringArrayField = (
+	source: string,
+	key: string,
+): string[] | null => {
 	const field = source.match(
 		new RegExp(`\\b${key}\\s*:\\s*\\[([\\s\\S]*?)\\]`),
 	);
@@ -543,10 +547,12 @@ const checkWorkflow = async (
 		selfTestCoverage,
 		// @ts-expect-error rung-0: add proper type in later rung
 		requiresSelfCheck,
+		// @ts-expect-error rung-0: add proper type in later rung
 		pinnedTestFiles,
 	},
 	// @ts-expect-error rung-0: add proper type in later rung
 	document,
+	// @ts-expect-error rung-0: add proper type in later rung
 	rootDir,
 ) => {
 	const findings = [];
@@ -1184,7 +1190,7 @@ const checkWorkflow = async (
 				toPosixPath(pinnedPath),
 				toPosixPath(path.relative(configDirectory, pinnedAbsolute)),
 			];
-			const matchesPattern = (entry) =>
+			const matchesPattern = (entry: string) =>
 				candidatePaths.some((candidate) => globToRegExp(entry).test(candidate));
 			const includes = extractStringArrayField(runnerSource, 'include');
 			const excludes = extractStringArrayField(runnerSource, 'exclude') ?? [];
