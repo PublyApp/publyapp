@@ -52,11 +52,20 @@ React Compiler artifact guard FAILED (MISSING_RUNTIME).
 Every other gate stayed green on that build; only this guard went red. The
 config was reverted immediately after the proof.
 
-## Skip inventory (production build, 2026-08-23, post-rewrite)
+## Skip inventory (production build, 2026-08-24, post-#1264)
 
-Measured on this lane's `pnpm --filter front build` after the cheap rewrites
-below landed: **36 diagnostics across 20 files**, against 90 successfully
-compiled client modules. Duplicate diagnostics for one file are collapsed.
+Measured on this lane's `pnpm --filter front build` after the #1234 rewrites
+**and** the #1264 follow-ups below landed: **12 diagnostics across 8 files**,
+against 96 successfully compiled client modules. Duplicate diagnostics for one
+file are collapsed.
+
+#1264 resolved the queued follow-ups: `useWatch()` in `_create-post-drawer`, a
+shared [`useLanguageKeyedZodResolver`](../../../apps/front/src/lib/hooks/use-language-keyed-zod-resolver.ts)
+hook replacing the resolver-on-language-change suppression family (7 files),
+collapse of both latest-callback ref patterns, state-based known-profile-names
+flow in the big forms, and preserve-memo drops. Remaining diagnostics are all
+**accepted skips** (table family, documented suppressions) or outside this
+issue's scope (2 render-time ref reads flagged as future follow-ups).
 Line numbers drift; treat them as of this writing.
 
 Decision vocabulary: **acceptable skip** = leave it (the pattern is load-bearing
@@ -69,26 +78,22 @@ or the fix costs more than the skip); **rewrite now** = done in #1234;
 | `src/components/table/offset-pagination.ts` | suppression (`resetKeys` variable-length spread) | **acceptable skip.** Documented static-shape rationale; a rewrite would trade a working pagination primitive for compiler eligibility. |
 | `src/components/table/use-row-selection.ts` | suppression ×2 (`visibleKey` stable-key effects) | **acceptable skip.** Same table-family rationale. |
 | `src/routes/__root.tsx` | ref access during render (`locationRef.current = location`) | **acceptable skip.** Deliberate latest-value ref so the session-invalidation backstop reads the location without resubscribing per navigation (commented as such). Moving it into an effect would resubscribe the channel on every navigation. |
-| `src/routes/authed/staff/invitations/new.tsx` | ref access during render ×3 (`knownProfileNamesRef` read during render; timeout ref) | **follow-up.** The render-time Map read can become state + effect; needs care around the redirect-timeout cleanup. |
+| `src/routes/authed/staff/invitations/new.tsx` | — (was ref access during render ×3) | **fixed in #1264.** Known profile names live in state with an idempotent effect fold (fresh page rows unioned synchronously per render); the redirect timer is a state-armed deadline owned by an effect. Now compiles. |
 | `src/routes/authed/staff/invitations/table-columns.tsx` | — (was try/finally) | **rewritten in #1234.** Cleanup hoisted after the try/catch. Now compiles. |
-| `src/routes/authed/staff/profiles-new.tsx` | ref access during render (`hasSavedRef` read) | **follow-up.** Convert to state or move the read behind an event handler. |
-| `src/routes/authed/staff/staff-users/$userId-edit.tsx` | ref access during render ×5 (form-hydration refs: `hasSavedRef`, `knownProfileNamesRef` Map copy + `rememberStaffProfileNames` during render) | **follow-up.** The render-time `knownProfileNamesRef.current` copy is the blocker; it needs a redesign of how known profile names flow into option building. |
+| `src/routes/authed/staff/profiles-new.tsx` | — (was ref access during render: `hasSavedRef` read) | **fixed in #1264.** The nav guard reads `formState.isDirty` directly; after a successful save the guard is re-armed synchronously via `reset()` before navigating. Now compiles. |
+| `src/routes/authed/staff/staff-users/$userId-edit.tsx` | ref access during render (`handleSubmit` callback mutates refs — flagged as a future follow-up; not part of the render-read family #1264 owned) | **accepted for now.** The five render-time reads were fixed in #1264 (names-map state, loaded-flag state, saved-flag re-baseline); what remains is the compiler tainting the submit closure, which needs its own pass. |
 | `src/routes/authed/staff/staff-users/$userId.tsx` | — (was try/finally ×2) | **rewritten in #1234.** Dialog-close cleanup hoisted onto every exit path. Now compiles. |
-| `src/routes/authed/staff/staff-users/_change-email-dialog.tsx` | suppression (`resolver` useMemo rebuilds on language change) | **follow-up.** Part of the shared "zod resolver memoised on `i18n.language` with a suppression" family below. |
-| `src/routes/authed/staff/tenants-new.tsx` | suppression (same resolver-on-language-change family) | **follow-up.** Same family. |
-| `src/routes/authed/staff/tenants/$tenantId-edit.tsx` | suppression (same resolver family) | **follow-up.** Same family. |
-| `src/routes/authed/staff/tenants/$tenantId/invitations.tsx` | preserve-memo (`handleRevoke` useCallback deps vs inferred), finally clause inside the callback body | **follow-up.** Dropping the manual `useCallback`/`useMemo` wrappers here would let the compiler take over, but the component also feeds columns through manual memoisation; do it together. |
-| `src/routes/authed/staff/tenants/$tenantId/users.tsx` | preserve-memo (`onUserSessionExpired` empty-deps `useCallback`) | **follow-up.** Drop the manual memoisation and let the compiler infer dependencies. |
-| `src/routes/authed/staff/tenants/$tenantId/users/$userId-edit.tsx` | suppression (resolver family) | **follow-up.** Same family. |
+| `src/routes/authed/staff/staff-users/_change-email-dialog.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
+| `src/routes/authed/staff/tenants-new.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId-edit.tsx` | ref access during render (`handleSubmit` callback mutates refs — future follow-up); resolver half fixed in #1264 | **partially fixed in #1264.** The resolver suppression is gone; the remaining Refs diagnostic is the same submit-closure shape as staff users. |
+| `src/routes/authed/staff/tenants/$tenantId/invitations.tsx` | — (was preserve-memo on `handleRevoke` + columns chain) | **fixed in #1264.** Manual `useCallback`/`useMemo` wrappers dropped; handlers are plain functions and the compiler caches per value. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId/users.tsx` | — (was preserve-memo on `onUserSessionExpired`) | **fixed in #1264.** Manual memoisation dropped; compiler infers dependencies. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId/users/$userId-edit.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
 | `src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx` | — (was try/finally) | **rewritten in #1234.** Now compiles. |
-| `src/routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx` | suppression (resolver family) | **follow-up.** Same family. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles.tsx` | ref access during render ×4 + preserve-memo (`openEditDrawerRef` latest-callback pattern) | **follow-up.** The "latest callback in a ref" indirection exists to keep handlers stable; under the compiler it can collapse to plain functions. Needs its own careful pass. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx` | suppression ×2 (documented reset-key rationales) | **acceptable skip.** Both suppressions document deliberate narrower-trigger semantics. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx` | suppression ×2 (resolver family + draft-protection effect) | **follow-up** (resolver half); draft-protection half acceptable. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer.tsx` | suppression (resolver family) | **follow-up.** Same family. |
+| `src/routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-permissions-tab.tsx` | suppression (`grantedSignature` stable key) | **acceptable skip.** Documented signature-key rationale. |
 | `src/routes/authed/tenant/posts/$postId/edit.tsx` | — (was try/finally) | **rewritten in #1234.** Now compiles. |
-| `src/routes/authed/tenant/posts/_create-post-drawer.tsx` | incompatible library (`useForm().watch()` read via `methods.watch('body')`) | **follow-up.** Subscribe with `useWatch()` instead of calling `watch()` in render; small but touches form wiring. |
+| `src/routes/authed/tenant/posts/_create-post-drawer.tsx` | — (was incompatible library: `watch()` read during render) | **fixed in #1264.** Subscribes with `useWatch()` instead of calling `watch()` in render. Now compiles. |
 | `src/routes/accept-invitation.tsx` | — (was throw-in-try + try/finally) | **rewritten in #1234.** Now compiles. |
 
 Rewrites landed in #1234 (9 files, all now compile): staff-user detail suspend/
@@ -97,6 +102,8 @@ delete handlers, tenant-user details membership/remove handlers, tenant users
 the invitations table revoke action, accept-invitation submit, and post-edit
 submit — each hoisting its `finally` cleanup onto every exit path — plus the
 invitation copy-link flow, which no longer throws from inside `try/catch`.
+#1264 then resolved every queued follow-up above (16 more files now compile;
+see the per-row notes).
 
 ## Skip patterns the compiler reports
 
