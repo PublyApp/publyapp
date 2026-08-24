@@ -1,6 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -17,6 +16,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	invalidateStaffUsers,
 	useUpdateStaffUserEmailMutation,
@@ -59,15 +59,16 @@ export const ChangeStaffUserEmailDialog = ({
 	onUpdated: (email: string) => void;
 	onSessionExpired: () => void;
 }) => {
-	const { t, i18n } = useTranslation(['staff-users', 'common']);
+	const { t } = useTranslation(['staff-users', 'common']);
 	const queryClient = useQueryClient();
 	const { mutateAsync, isPending } = useUpdateStaffUserEmailMutation();
 	const [rootValidationError, setRootValidationError] = useState('');
 	const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-	const resolver = useMemo(
-		() => zodResolver(buildChangeEmailSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+	// Language-keyed resolver: rebuilds when translations change so error
+	// messages stay localized; see use-language-keyed-zod-resolver.
+	const resolver = useLanguageKeyedZodResolver<ChangeEmailFormValues>(
+		buildChangeEmailSchema,
+		['staff-users', 'common'],
 	);
 	const methods = useForm<ChangeEmailFormValues>({
 		resolver,

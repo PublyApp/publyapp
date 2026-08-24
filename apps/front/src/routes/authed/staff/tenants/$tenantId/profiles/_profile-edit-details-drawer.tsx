@@ -1,7 +1,6 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -19,6 +18,7 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import { IconColorPicker } from '~/components/ui/icon-color-picker';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -97,14 +97,15 @@ const ProfileEditDetailsDrawer = ({
 	onSessionExpired: () => void;
 	onDirtyChange?: (isDirty: boolean) => void;
 }) => {
-	const { t, i18n } = useTranslation('common');
+	const { t } = useTranslation('common');
 	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
 	const updateProfile = useUpdateStaffTenantProfileMutation();
-	const resolver = useMemo(
-		() => zodResolver(buildProfileEditDetailsSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+	// Language-keyed resolver: rebuilds when translations change so error
+	// messages stay localized; see use-language-keyed-zod-resolver.
+	const resolver = useLanguageKeyedZodResolver<ProfileEditDetailsValues>(
+		buildProfileEditDetailsSchema,
+		'common',
 	);
 	const methods = useForm<ProfileEditDetailsValues>({
 		resolver,

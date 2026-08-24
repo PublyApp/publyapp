@@ -1,8 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { i18n as I18nInstance } from 'i18next';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -19,6 +18,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -316,10 +316,11 @@ export const InviteTenantUserDrawer = ({
 	const [rootValidationError, setRootValidationError] = useState('');
 	const [batchSummary, setBatchSummary] =
 		useState<StaffTenantInvitationBulkCreateSummary | null>(null);
-	const resolver = useMemo(
-		() => zodResolver(buildInviteUserSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+	// Language-keyed resolver: rebuilds when translations change so error
+	// messages stay localized; see use-language-keyed-zod-resolver.
+	const resolver = useLanguageKeyedZodResolver<InviteTenantUserFormValues>(
+		buildInviteUserSchema,
+		'common',
 	);
 	const methods = useForm<InviteTenantUserFormValues>({
 		resolver,
