@@ -173,8 +173,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first
 import { Route } from './edit';
 
-const TenantPostEditPage = (Route as unknown as { component: ComponentType })
-	.component;
+const TenantPostEditPage = Route.options.component as ComponentType;
 
 afterEach(() => {
 	cleanup();

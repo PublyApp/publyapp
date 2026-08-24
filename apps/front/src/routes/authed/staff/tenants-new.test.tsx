@@ -466,11 +466,9 @@ vi.mock('~/lib/mutation-toast', () => ({
 import { Route } from './tenants-new';
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => ReturnType<typeof createElement>;
-		}
-	).component;
+	const Component = Route.options.component as () => ReturnType<
+		typeof createElement
+	>;
 
 	return render(<Component />);
 };

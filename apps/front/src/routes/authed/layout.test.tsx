@@ -22,7 +22,7 @@ function createQueryResult(overrides: {
 		isLoading: overrides.isLoading,
 		refetch: overrides.refetch,
 		data: overrides.data,
-	} as unknown as UseQueryResult<string | null, unknown>;
+	} as UseQueryResult<string | null, unknown>;
 }
 
 const mocks = vi.hoisted(() => ({
@@ -87,14 +87,20 @@ type MockMatch = {
 	routeId?: string;
 };
 
-const routeOptions = Route as unknown as {
+// `Route.options` types its members against the real route tree, so
+// `component`/`pendingComponent`/`beforeLoad` resolve through generics the
+// test can't name. The helper is the single widening point.
+function widenOptions<T>(value: unknown): T {
+	return value as T;
+}
+const routeOptions = widenOptions<{
 	component: ComponentType;
 	pendingComponent: ComponentType;
 	beforeLoad: (args: {
 		location: { pathname: string };
 		matches: MockMatch[];
 	}) => Promise<void>;
-};
+}>(Route);
 
 // An exact match: the deepest match is a real leaf route registered under
 // `/_authed-layout` whose pathname is the requested one.

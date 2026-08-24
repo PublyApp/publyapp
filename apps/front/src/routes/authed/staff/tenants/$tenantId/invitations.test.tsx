@@ -235,12 +235,7 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const getRouteComponent = () =>
-	(
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+const getRouteComponent = () => Route.options.component as () => JSX.Element;
 
 const renderPage = () => {
 	const Component = getRouteComponent();
@@ -689,7 +684,7 @@ describe('staff tenant invitations route', () => {
 
 	test('renders default status control when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
 		const validateSearch = (
-			Route as unknown as {
+			Route.options as {
 				validateSearch: (
 					search: Record<string, unknown>,
 				) => Record<string, unknown>;
@@ -845,7 +840,7 @@ describe('staff tenant invitations route', () => {
 
 	test('canonicalizes both account levels and forwards them to the list query', () => {
 		const validateSearch = (
-			Route as unknown as {
+			Route.options as {
 				validateSearch: (
 					search: Record<string, unknown>,
 				) => Record<string, unknown>;

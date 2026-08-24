@@ -16,12 +16,12 @@ import { Route } from './users-invite';
 
 describe('staff tenant users/invite legacy route', () => {
 	test('redirects to the users tab with the invite drawer flag', () => {
-		const RouteConfig = Route as unknown as {
-			beforeLoad: (context: { params: { tenantId: string } }) => void;
-		};
+		const beforeLoad = Route.options.beforeLoad as (context: {
+			params: { tenantId: string };
+		}) => void;
 
 		expect(() =>
-			RouteConfig.beforeLoad({
+			beforeLoad({
 				params: { tenantId: '11111111-1111-1111-1111-111111111111' },
 			}),
 		).toThrow();

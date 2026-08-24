@@ -209,8 +209,7 @@ vi.mock('react-i18next', () => ({
 import { Route } from './accept-invitation';
 
 const getRouteComponent = () =>
-	(Route as unknown as { component: () => ReturnType<typeof createElement> })
-		.component;
+	Route.options.component as () => ReturnType<typeof createElement>;
 
 const renderAcceptInvitationRoute = () =>
 	render(createElement(getRouteComponent()));
@@ -710,7 +709,7 @@ describe('accept-invitation loader', () => {
 	type AcceptInvitationLoaderResult = { view: 'invalid' };
 
 	const loader = (
-		Route as unknown as {
+		Route.options as {
 			loader: (args: {
 				location: { searchStr: string };
 			}) => Promise<AcceptInvitationLoaderResult>;

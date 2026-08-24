@@ -393,11 +393,7 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 
 import { Route } from './$userId-edit';
 
-const Component = (
-	Route as unknown as {
-		component: () => JSX.Element;
-	}
-).component;
+const Component = Route.options.component as () => JSX.Element;
 
 const renderPage = () => render(<Component />);
 

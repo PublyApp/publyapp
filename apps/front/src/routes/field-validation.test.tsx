@@ -38,9 +38,9 @@ afterEach(cleanup);
 
 describe('field-validation route', () => {
 	test('renders real Sonner toast fixtures with messages and descriptions', () => {
-		const Component = (
-			Route as unknown as { component: () => ReturnType<typeof createElement> }
-		).component;
+		const Component = Route.options.component as () => ReturnType<
+			typeof createElement
+		>;
 		render(createElement(Component));
 
 		for (const variant of ['success', 'error', 'warning', 'info'] as const) {
@@ -53,9 +53,9 @@ describe('field-validation route', () => {
 	});
 
 	test('authors inert compiled-style probes for focus and invalid focus', () => {
-		const Component = (
-			Route as unknown as { component: () => ReturnType<typeof createElement> }
-		).component;
+		const Component = Route.options.component as () => ReturnType<
+			typeof createElement
+		>;
 		render(createElement(Component));
 
 		const focusProbe = screen.getByTestId('outline-expected-focus');

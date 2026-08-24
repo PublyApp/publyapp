@@ -155,11 +155,7 @@ const buildContextValue = (
 const renderTab = (
 	contextValue: StaffUserOverviewContextValue = buildContextValue(),
 ) => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+	const Component = Route.options.component as () => JSX.Element;
 
 	return render(
 		<StaffUserOverviewContext.Provider value={contextValue}>

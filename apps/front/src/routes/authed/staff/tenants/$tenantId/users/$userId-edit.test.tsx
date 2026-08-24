@@ -258,11 +258,7 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const RouteComponent = (
-	Route as unknown as {
-		component: () => JSX.Element;
-	}
-).component;
+const RouteComponent = Route.options.component as () => JSX.Element;
 
 const renderPage = () => {
 	return render(<RouteComponent />);

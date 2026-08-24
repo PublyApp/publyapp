@@ -28,8 +28,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './queue';
 
-const TenantPostsQueuePage = (Route as unknown as { component: ComponentType })
-	.component;
+const TenantPostsQueuePage = Route.options.component as ComponentType;
 
 afterEach(() => {
 	cleanup();

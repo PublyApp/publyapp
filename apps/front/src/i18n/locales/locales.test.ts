@@ -116,18 +116,8 @@ const marketingCopy = (bundle: {
 	landing: Record<string, string>;
 }): Record<string, string> => ({ ...bundle.common, ...bundle.landing });
 
-const enMarketing = marketingCopy(
-	en as unknown as {
-		common: Record<string, string>;
-		landing: Record<string, string>;
-	},
-);
-const frMarketing = marketingCopy(
-	fr as unknown as {
-		common: Record<string, string>;
-		landing: Record<string, string>;
-	},
-);
+const enMarketing = marketingCopy(en);
+const frMarketing = marketingCopy(fr);
 
 describe('front locale manifests', () => {
 	test('publish every registered namespace in registry order', () => {

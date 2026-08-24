@@ -314,7 +314,7 @@ const StaffTenantProfilesPage = () => {
 		void navigate({
 			search: serializeStaffTenantProfilesSearchParams(
 				next,
-			) as unknown as TableSearchParams,
+			) as TableSearchParams,
 			replace: true,
 		});
 	};
@@ -333,7 +333,7 @@ const StaffTenantProfilesPage = () => {
 				// is open would produce `?new=1&edit=<id>`, which canonicalizes
 				// straight back to `?edit=<id>` and makes the button a no-op.
 				edit: isOpen ? undefined : search.edit,
-			}) as unknown as TableSearchParams,
+			}) as TableSearchParams,
 			replace: true,
 		});
 	};
@@ -357,7 +357,7 @@ const StaffTenantProfilesPage = () => {
 				// pushed URL is right on its own, not only after the boundary
 				// canonicalizes it.
 				new: undefined,
-			}) as unknown as TableSearchParams,
+			}) as TableSearchParams,
 		});
 	};
 
@@ -378,7 +378,7 @@ const StaffTenantProfilesPage = () => {
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
 				edit: undefined,
-			}) as unknown as TableSearchParams,
+			}) as TableSearchParams,
 			replace: true,
 		});
 	};
@@ -391,7 +391,7 @@ const StaffTenantProfilesPage = () => {
 				...search,
 				is_default: next === undefined ? undefined : next === 'true',
 				cursor: undefined,
-			}) as unknown as TableSearchParams,
+			}) as TableSearchParams,
 			replace: true,
 		});
 	};
@@ -401,7 +401,7 @@ const StaffTenantProfilesPage = () => {
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
 				view: next === 'table' ? 'table' : undefined,
-			}) as unknown as TableSearchParams,
+			}) as TableSearchParams,
 			replace: true,
 		});
 	};

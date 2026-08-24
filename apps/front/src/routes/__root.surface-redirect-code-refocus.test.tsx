@@ -15,7 +15,6 @@
  * Proof is paired: flip `refetchOnWindowFocus` to `true` in `__root.tsx` and
  * this test goes RED; restore `false` and it goes GREEN.
  */
-import type { UseQueryResult } from '@tanstack/react-query';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -65,7 +64,7 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 				isError: false,
 				error: undefined,
 				refetch: vi.fn(),
-			} as unknown as UseQueryResult<string | null, unknown>;
+			};
 		},
 	};
 });

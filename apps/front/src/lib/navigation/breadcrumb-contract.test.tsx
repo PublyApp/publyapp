@@ -245,7 +245,7 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 createRouter({ routeTree, history: createMemoryHistory() } as never);
 
 describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () => {
-	const allRoutes = walkRealRouteTree(routeTree as unknown as RouteLike);
+	const allRoutes = walkRealRouteTree(routeTree as RouteLike);
 
 	test('the walk is not vacuous: it visits as many routes as the virtual route config declares', () => {
 		const expectedCount = countVirtualRouteNodes(routes);
@@ -573,7 +573,7 @@ const mocks = vi.hoisted(() => {
 					// at the same logical position so `.get()` can follow.
 					return makeProxy(path);
 				},
-			}) as unknown as FakeApiClient;
+			}) as FakeApiClient;
 
 		return makeProxy([]);
 	};

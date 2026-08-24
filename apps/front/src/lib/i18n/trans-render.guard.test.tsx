@@ -200,7 +200,7 @@ describe('real-<Trans> render guard (#1269)', () => {
 			'Trans must be the real react-i18next component, not a vi.fn',
 		).toBe(false);
 		expect(
-			(initReactI18next as unknown as { type?: string }).type,
+			(initReactI18next as { type?: string }).type,
 			'initReactI18next must be the real react-i18next plugin object',
 		).toBe('3rdParty');
 	});

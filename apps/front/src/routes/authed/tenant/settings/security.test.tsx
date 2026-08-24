@@ -36,9 +36,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './security';
 
-const TenantSettingsSecurityPage = (
-	Route as unknown as { component: ComponentType }
-).component;
+const TenantSettingsSecurityPage = Route.options.component as ComponentType;
 
 afterEach(() => {
 	cleanup();

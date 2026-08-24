@@ -46,8 +46,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './posts';
 
-const TenantPostsLayout = (Route as unknown as { component: ComponentType })
-	.component;
+const TenantPostsLayout = Route.options.component as ComponentType;
 
 const TAB_DESTINATIONS = [
 	['/tenant/posts', 'Calendar'],

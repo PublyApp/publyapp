@@ -63,15 +63,9 @@ describe('parseTableSearchParams', () => {
 			{},
 		);
 		expect(parseTableSearchParams({ size: Number.NaN })).toEqual({});
-		expect(
-			parseTableSearchParams({ size: ['10'] as unknown as number }),
-		).toEqual({});
-		expect(
-			parseTableSearchParams({ size: { count: '10' } as unknown as number }),
-		).toEqual({});
-		expect(parseTableSearchParams({ size: null as unknown as string })).toEqual(
-			{},
-		);
+		expect(parseTableSearchParams({ size: ['10'] })).toEqual({});
+		expect(parseTableSearchParams({ size: { count: '10' } })).toEqual({});
+		expect(parseTableSearchParams({ size: null })).toEqual({});
 		expect(parseTableSearchParams({})).toEqual({});
 	});
 

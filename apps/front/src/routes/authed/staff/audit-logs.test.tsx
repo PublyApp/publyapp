@@ -55,7 +55,7 @@ describe('staff audit logs column grid', () => {
 		const translate = (key: string): string =>
 			key === 'action-kind-user' ? 'User category' : key;
 		const columns = makeAuditLogColumns(translate, 'en');
-		const eventCell = columns[0].cell as unknown as
+		const eventCell = columns[0].cell as
 			| ((context: { row: { original: Record<string, unknown> } }) => ReactNode)
 			| undefined;
 

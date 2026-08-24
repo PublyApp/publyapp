@@ -49,7 +49,7 @@ const buildI18n = (lng: 'en' | 'fr') => {
 };
 
 const AuthedLayoutErrorBoundary = (
-	Route as unknown as {
+	Route.options as {
 		errorComponent: (props: { error: unknown; reset: () => void }) => ReactNode;
 	}
 ).errorComponent;

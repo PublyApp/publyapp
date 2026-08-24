@@ -140,11 +140,7 @@ vi.mock('~/components/table/data-table', () => ({
 
 import { buildColumns, Route } from './users';
 
-const Component = (
-	Route as unknown as {
-		component: () => JSX.Element;
-	}
-).component;
+const Component = Route.options.component as () => JSX.Element;
 
 const renderPage = () => render(<Component />);
 

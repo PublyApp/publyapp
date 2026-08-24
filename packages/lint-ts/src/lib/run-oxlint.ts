@@ -89,7 +89,7 @@ export const runOxlint = (
 			oxlintBin,
 			['--config', oxlintrcPath, '--format', 'json', '--quiet', ...filePaths],
 			{ encoding: 'utf8', cwd } as never,
-		) as unknown as string;
+		) as string;
 	} catch (error) {
 		if (
 			!(

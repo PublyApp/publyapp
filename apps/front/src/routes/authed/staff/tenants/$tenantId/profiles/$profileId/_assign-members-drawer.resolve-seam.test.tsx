@@ -214,7 +214,7 @@ const renderDrawer = (queryClient: QueryClient): ReturnType<typeof render> =>
 					onSessionExpired={() => {}}
 				/>
 			</QueryClientProvider>
-		) as unknown as JSX.Element,
+		) as JSX.Element,
 	);
 
 let fake: FakeClient;

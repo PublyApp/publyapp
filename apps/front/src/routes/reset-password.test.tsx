@@ -132,9 +132,9 @@ import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guar
 import { Route } from './reset-password';
 
 const renderResetPasswordRoute = () => {
-	const Component = (
-		Route as unknown as { component: () => ReturnType<typeof createElement> }
-	).component;
+	const Component = Route.options.component as () => ReturnType<
+		typeof createElement
+	>;
 	return render(createElement(Component));
 };
 
@@ -153,7 +153,7 @@ describe('reset-password route', () => {
 	});
 
 	test('attaches the authenticated-user redirect guard', () => {
-		expect((Route as unknown as { beforeLoad: unknown }).beforeLoad).toBe(
+		expect((Route.options as { beforeLoad: unknown }).beforeLoad).toBe(
 			redirectAuthenticatedUserAwayFromAuthPage,
 		);
 	});
@@ -428,9 +428,9 @@ describe('reset-password route', () => {
 		// view — a fresh object, which is what the component keys its
 		// tokenRejected reset off of.
 		mocks.loaderData = { view: 'request' };
-		const Component = (
-			Route as unknown as { component: () => ReturnType<typeof createElement> }
-		).component;
+		const Component = Route.options.component as () => ReturnType<
+			typeof createElement
+		>;
 		rerender(createElement(Component));
 
 		await waitFor(() =>
@@ -456,7 +456,7 @@ describe('reset-password loader', () => {
 	type ResetPasswordLoaderResult = { view: 'request' } | { view: 'invalid' };
 
 	const loader = (
-		Route as unknown as {
+		Route.options as {
 			loader: (args: {
 				location: { searchStr: string };
 			}) => Promise<ResetPasswordLoaderResult>;

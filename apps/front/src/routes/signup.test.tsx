@@ -94,9 +94,9 @@ import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guar
 import { Route } from './signup';
 
 const renderSignUpRoute = () => {
-	const Component = (
-		Route as unknown as { component: () => ReturnType<typeof createElement> }
-	).component;
+	const Component = Route.options.component as () => ReturnType<
+		typeof createElement
+	>;
 	return render(createElement(Component));
 };
 
@@ -115,7 +115,7 @@ describe('signup route', () => {
 	});
 
 	test('attaches the authenticated-user redirect guard', () => {
-		expect((Route as unknown as { beforeLoad: unknown }).beforeLoad).toBe(
+		expect((Route.options as { beforeLoad: unknown }).beforeLoad).toBe(
 			redirectAuthenticatedUserAwayFromAuthPage,
 		);
 	});

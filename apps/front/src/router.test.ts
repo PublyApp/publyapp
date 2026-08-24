@@ -60,10 +60,10 @@ describe('getRouter', () => {
 		const router = getRouter();
 		const { queryClient } = router.options.context;
 
-		const authFailure = {
+		const authFailure = Object.assign(new Error('Unauthorized'), {
 			responseStatusCode: 401,
 			title: 'Unauthorized',
-		} as unknown as Error;
+		});
 
 		queryClient.getQueryCache().config.onError?.(authFailure, {} as never);
 		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(1);
@@ -90,12 +90,13 @@ describe('getRouter', () => {
 		expect(mutationCache.config.onError).toBeTypeOf('function');
 		expect(mutationCache.config.onSuccess).toBeTypeOf('function');
 
-		queryClient
-			.getQueryCache()
-			.config.onError?.(
-				{ responseStatusCode: 500, title: 'Query failed' } as unknown as Error,
-				{} as never,
-			);
+		queryClient.getQueryCache().config.onError?.(
+			Object.assign(new Error('Query failed'), {
+				responseStatusCode: 500,
+				title: 'Query failed',
+			}),
+			{} as never,
+		);
 		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
 	});
 });

@@ -92,12 +92,14 @@ const buildRouter = (initialUrl: string, includeErrorPreview: boolean) => {
 		: [];
 	// `RootRoute` is a singleton created via `createRootRouteWithContext`, so
 	// `.addChildren` isn't part of its exported type — it's only ever called
-	// here, building a throwaway per-test route tree.
-	const routeTree = (
-		RootRoute as unknown as {
-			addChildren: (children: unknown[]) => typeof RootRoute;
-		}
-	).addChildren(children);
+	// here, building a throwaway per-test route tree. The helper is the one
+	// widening point; the call site stays readable.
+	function widenOptions<T>(value: unknown): T {
+		return value as T;
+	}
+	const routeTree = widenOptions<{
+		addChildren: (children: unknown[]) => typeof RootRoute;
+	}>(RootRoute).addChildren(children);
 	const history = createMemoryHistory({ initialEntries: [initialUrl] });
 	const queryClient = new QueryClient();
 	const router = createRouter({
@@ -129,8 +131,7 @@ describe('root shell wraps success/error/not-found in one document (shell-r5-F1)
 		// singleton (mutated via `.addChildren`), so without clearing this a
 		// later test's different children silently reuse an earlier test's
 		// cached (stale) route map.
-		(globalThis as unknown as { __TSR_CACHE__?: unknown }).__TSR_CACHE__ =
-			undefined;
+		(globalThis as { __TSR_CACHE__?: unknown }).__TSR_CACHE__ = undefined;
 	});
 
 	afterEach(() => {

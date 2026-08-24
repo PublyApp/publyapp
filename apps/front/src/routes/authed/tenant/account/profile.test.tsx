@@ -104,8 +104,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './profile';
 
-const AccountProfilePage = (Route as unknown as { component: ComponentType })
-	.component;
+const AccountProfilePage = Route.options.component as ComponentType;
 
 const profileData = {
 	id: 'user-1',

@@ -472,7 +472,7 @@ const staffTenantUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const createStaffTenantUserInvitationMutationOptions =
+export const createStaffTenantUserInvitationMutationOptions =
 	buildStaffMutationOptions<
 		ApiClient,
 		InvitationCreatedForTenant | undefined,
