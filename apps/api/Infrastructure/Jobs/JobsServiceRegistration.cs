@@ -5,6 +5,7 @@ using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
+using PublyApp.Api.Modules.Uploads.Jobs;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
 
@@ -130,6 +131,11 @@ public static class JobsServiceRegistration {
 		);
 		builder.AddJobHandler<EmailPreparedSendsRetentionHandler>(
 			EmailPreparedSendsRetentionHandler.JobKey
+		);
+		// Upload lifecycle sweeper (#807 F6): the only deleter that removes
+		// orphaned blobs and releases their bytes from the durable budgets.
+		builder.AddJobHandler<UploadOrphanReclaimerHandler>(
+			UploadOrphanReclaimerHandler.JobKey
 		);
 	}
 

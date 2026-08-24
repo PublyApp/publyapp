@@ -7,6 +7,7 @@ using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
+using PublyApp.Api.Modules.Uploads.Jobs;
 
 namespace PublyApp.Api.Modules.Jobs.Seeders;
 
@@ -142,6 +143,19 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 					"Delete orphaned email_prepared_sends scratch rows (live-state anti-join) "
 					+ "past the EMAIL_PREPARED_SEND_RETENTION_DAYS floor. Runs every 10 min: "
 					+ "the cadence must stay materially under EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES.",
+			},
+			new SystemJobDefinition {
+				JobKey = UploadOrphanReclaimerHandler.JobKey,
+				// Hourly at :20, staggered off the other sweeps' daily slots. The
+				// reclaimer is capacity-recovery, not just housekeeping: committed
+				// bytes stay blocked until it runs, so a daily cadence would let a
+				// replace-heavy day pin up to a day of storage. An hour bounds how
+				// long reclaimed capacity stays invisible to admission.
+				CronExpression = "0 20 * * * ?",
+				Description =
+					"Reclaim orphaned upload blobs past UPLOAD_ORPHAN_GRACE_DAYS "
+					+ "(releases committed_bytes) and stale Reserved rows past "
+					+ "UPLOAD_STALE_RESERVATION_TTL_MINUTES (releases reserved_bytes).",
 			},
 		];
 	}

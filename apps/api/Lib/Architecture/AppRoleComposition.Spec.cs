@@ -520,6 +520,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			DeadLetterRetentionHandler.JobKey,
 			SystemJobOccurrenceRetentionHandler.JobKey,
 			EmailPreparedSendsRetentionHandler.JobKey,
+			PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler.JobKey,
 		]);
 	}
 

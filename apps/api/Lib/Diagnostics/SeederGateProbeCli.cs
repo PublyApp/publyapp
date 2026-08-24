@@ -4,8 +4,8 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Auth.Jobs;
+using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
 using PublyApp.Api.Modules.Profiles.Entities;
@@ -135,6 +135,7 @@ public static class SeederGateProbeCli {
 				EmailLogRetentionHandler.JobKey,
 				DeadLetterRetentionHandler.JobKey,
 				EmailPreparedSendsRetentionHandler.JobKey,
+				PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler.JobKey,
 			}
 			.Except(seededJobKeys)
 			.ToList();
