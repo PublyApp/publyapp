@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,9 +12,11 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824231720_AddDeadLetterTriage")]
+    partial class AddDeadLetterTriage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1439,137 +1442,6 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Uploads.Entities.UploadAsset", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("content_type");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("CreatedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("created_by_user_id");
-
-                    b.Property<DateTime?>("DeleteNotBefore")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("delete_not_before");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<string>("Purpose")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("purpose");
-
-                    b.Property<int>("ReferenceCount")
-                        .HasColumnType("integer")
-                        .HasColumnName("reference_count");
-
-                    b.Property<string>("RelativePath")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)")
-                        .HasColumnName("relative_path");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("size_bytes");
-
-                    b.Property<int>("State")
-                        .HasColumnType("integer")
-                        .HasColumnName("state");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RelativePath")
-                        .IsUnique()
-                        .HasDatabaseName("ux_upload_assets_relative_path_live")
-                        .HasFilter("is_deleted = false");
-
-                    b.HasIndex("CreatedByUserId", "State")
-                        .HasDatabaseName("ix_upload_assets_creator_state")
-                        .HasFilter("is_deleted = false");
-
-                    b.HasIndex("State", "DeleteNotBefore")
-                        .HasDatabaseName("ix_upload_assets_state_delete_not_before");
-
-                    b.ToTable("upload_assets", t =>
-                        {
-                            t.HasCheckConstraint("CK_UploadAssets_ReferenceCount", "reference_count >= 0");
-
-                            t.HasCheckConstraint("CK_UploadAssets_SizeBytes", "size_bytes > 0");
-
-                            t.HasCheckConstraint("CK_UploadAssets_State", "state IN (10, 20, 30, 40, 50)");
-                        });
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Uploads.Entities.UploadBudget", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<long>("CommittedBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("committed_bytes");
-
-                    b.Property<long>("MaxBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("max_bytes");
-
-                    b.Property<long>("ReservedBytes")
-                        .HasColumnType("bigint")
-                        .HasColumnName("reserved_bytes");
-
-                    b.Property<string>("ScopeKey")
-                        .HasColumnType("text")
-                        .HasColumnName("scope_key");
-
-                    b.Property<int>("ScopeKind")
-                        .HasColumnType("integer")
-                        .HasColumnName("scope_kind");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ScopeKind", "ScopeKey")
-                        .IsUnique()
-                        .HasDatabaseName("ux_upload_budgets_scope");
-
-                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ScopeKind", "ScopeKey"), false);
-
-                    b.ToTable("upload_budgets", t =>
-                        {
-                            t.HasCheckConstraint("CK_UploadBudgets_Accounting", "reserved_bytes >= 0 AND committed_bytes >= 0");
-
-                            t.HasCheckConstraint("CK_UploadBudgets_MaxBytes", "max_bytes > 0");
-
-                            t.HasCheckConstraint("CK_UploadBudgets_ScopeKind", "scope_kind IN (10, 20)");
-                        });
-                });
-
             modelBuilder.Entity("PublyApp.Api.Modules.Users.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1955,17 +1827,6 @@ namespace PublyApp.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("CreatedByStaff");
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Uploads.Entities.UploadAsset", b =>
-                {
-                    b.HasOne("PublyApp.Api.Modules.Users.Entities.User", "CreatedByUser")
-                        .WithMany()
-                        .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("CreatedByUser");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Users.Entities.UserAccount", b =>
