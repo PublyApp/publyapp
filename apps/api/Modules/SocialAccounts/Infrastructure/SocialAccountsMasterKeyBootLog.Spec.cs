@@ -99,9 +99,15 @@ public sealed class SocialAccountsMasterKeyBootLogSpec {
 		// parse/size contract ran; claiming a pass would be a lie operators would trust.
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(NewKey(), null, logger);
 
-		logger.Entries.Should().NotContain(
-			e => e.Message == SocialAccountsMasterKeyWitness.CanaryPassedLogLine,
-			"the doc-gen path verifies nothing beyond key SIZE and must stay silent"
+		// #1309 (adversarial review round 1, MINOR): the previous NotContain(
+		// CanaryPassedLogLine) was too weak — a DIFFERENTLY-worded log on the db-less path
+		// passed it while still claiming a verification that never ran. The skipped path
+		// verifies nothing beyond key SIZE, so the captured logger must stay EMPTY. The
+		// paired red proof (a mutant logging a differently-worded line on this path) is
+		// recorded in .dump/task2-skipped-path-mutation-proof.md.
+		logger.Entries.Should().BeEmpty(
+			"the doc-gen path verifies nothing beyond key SIZE and must log NOTHING at all; "
+				+ "any line here would claim a verification that never ran"
 		);
 	}
 
