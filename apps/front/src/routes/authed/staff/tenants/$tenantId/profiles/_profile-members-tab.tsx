@@ -147,6 +147,7 @@ export const ProfileMembersTab = ({
 			</div>
 
 			<AssignMembersDrawer
+				key={`assign-${tenantId}:${profileId}`}
 				tenantId={tenantId}
 				profileId={profileId}
 				isOpen={isAssignDrawerOpen}

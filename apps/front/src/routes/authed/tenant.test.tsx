@@ -65,6 +65,13 @@ vi.mock('@tanstack/react-router', () => ({
 	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
 		select?.({ location: { pathname: mocks.pathname } }),
 	useNavigate: () => mocks.navigate,
+	// The portal's redirects are declarative `<Navigate>` elements now; the
+	// stub funnels them through the same `mocks.navigate` spy the assertions
+	// already inspect.
+	Navigate: ({ to, replace }: { to: string; replace?: boolean }) => {
+		mocks.navigate({ to, replace });
+		return null;
+	},
 }));
 
 // RoutedShell (the shell decision in `../__root`) needs a resolved surface
@@ -208,6 +215,9 @@ const setTwoActiveTenants = () => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	// clearAllMocks keeps implementations, so restore the default verdict of
+	// the fatal-failure predicate explicitly — the 401 escape test flips it.
+	mocks.shouldLogoutForFailure.mockReturnValue(false);
 	window.localStorage.clear();
 	mocks.pathname = '/tenant';
 });

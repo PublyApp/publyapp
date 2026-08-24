@@ -112,9 +112,11 @@ const NewStaffProfileRoute = () => {
 		[permissionsQuery.data],
 	);
 
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
+	const permissionsError = permissionsQuery.error;
 	if (
 		shouldLogout ||
-		(permissionsQuery.isError && shouldLogoutForFailure(permissionsQuery.error))
+		(permissionsError !== null && shouldLogoutForFailure(permissionsError))
 	) {
 		return <LogoutRedirect />;
 	}
@@ -194,7 +196,9 @@ const NewStaffProfileRoute = () => {
 
 			<Card className="space-y-4 p-4">
 				{(() => {
-					if (permissionsQuery.isPending) {
+					const permissionsIsPending = permissionsQuery.isPending;
+					const permissionsIsError = permissionsQuery.isError;
+					if (permissionsIsPending) {
 						return (
 							<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
 								<LoadingSpinner />
@@ -203,11 +207,11 @@ const NewStaffProfileRoute = () => {
 						);
 					}
 
-					if (permissionsQuery.isError) {
+					if (permissionsIsError) {
 						return (
 							<div className="space-y-3">
 								<p className="text-sm text-destructive">
-									{getFailureMessage(toApiFailure(permissionsQuery.error), {
+									{getFailureMessage(toApiFailure(permissionsError), {
 										fallback: t('unable-to-load-staff-permissions'),
 									})}
 								</p>

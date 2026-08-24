@@ -46,43 +46,68 @@ const StaffProfileDetailsPage = () => {
 	});
 	const usersQuery = useStaffProfileUsersQuery({ profileId, size: 5 });
 
+	// Hoisted so the fatal-error gates read plain locals, not query flags.
+	const detailError = detailQuery.error;
+	if (detailError !== null && shouldLogoutForFailure(detailError)) {
+		return <LogoutRedirect />;
+	}
+
+	const permissionKeysError = permissionKeysQuery.error;
 	if (
-		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
-		(permissionKeysQuery.isError &&
-			shouldLogoutForFailure(permissionKeysQuery.error)) ||
-		(permissionCatalogQuery.isError &&
-			shouldLogoutForFailure(permissionCatalogQuery.error)) ||
-		(usersQuery.isError && shouldLogoutForFailure(usersQuery.error))
+		permissionKeysError !== null &&
+		shouldLogoutForFailure(permissionKeysError)
 	) {
 		return <LogoutRedirect />;
 	}
 
-	if (detailQuery.isPending || permissionKeysQuery.isPending) {
+	const permissionCatalogError = permissionCatalogQuery.error;
+	if (
+		permissionCatalogError !== null &&
+		shouldLogoutForFailure(permissionCatalogError)
+	) {
+		return <LogoutRedirect />;
+	}
+
+	const usersError = usersQuery.error;
+	if (usersError !== null && shouldLogoutForFailure(usersError)) {
+		return <LogoutRedirect />;
+	}
+
+	const detailIsPending = detailQuery.isPending;
+	if (detailIsPending) {
 		return <ProfileDetailsLoading />;
 	}
 
-	if (detailQuery.isError) {
+	const detailIsError = detailQuery.isError;
+	if (detailIsError) {
 		return (
 			<ProfileDetailsError
-				error={detailQuery.error}
+				error={detailError}
 				onRetry={() => void detailQuery.refetch()}
 			/>
 		);
 	}
 
-	if (permissionKeysQuery.isError) {
+	const permissionKeysIsPending = permissionKeysQuery.isPending;
+	if (permissionKeysIsPending) {
+		return <ProfileDetailsLoading />;
+	}
+
+	const permissionKeysIsError = permissionKeysQuery.isError;
+	if (permissionKeysIsError) {
 		return (
 			<ProfileDetailsError
-				error={permissionKeysQuery.error}
+				error={permissionKeysError}
 				onRetry={() => void permissionKeysQuery.refetch()}
 			/>
 		);
 	}
 
-	if (permissionCatalogQuery.isError) {
+	const permissionCatalogIsError = permissionCatalogQuery.isError;
+	if (permissionCatalogIsError) {
 		return (
 			<ProfileDetailsError
-				error={permissionCatalogQuery.error}
+				error={permissionCatalogError}
 				onRetry={() => void permissionCatalogQuery.refetch()}
 			/>
 		);
@@ -114,14 +139,15 @@ const StaffProfileDetailsPage = () => {
 		| StaffPermissionCatalog
 		| undefined;
 	const userRows = toStaffProfileUserRows(usersQuery.data?.users);
-	const usersFailure = usersQuery.isError
-		? toApiFailure(usersQuery.error)
-		: null;
+	// Hoisted: the fatal gate and members card read plain locals, not flags.
+	const usersIsError = usersQuery.isError;
+	const usersFailure = usersIsError ? toApiFailure(usersError) : null;
+	const usersPending = usersQuery.isPending;
 	const userCount = details.userAccountCount;
 	const membersCardContent = renderStaffProfileMembersCard({
 		t,
 		userRows,
-		usersPending: usersQuery.isPending,
+		usersPending,
 		usersFailureStatus:
 			usersFailure?.kind === 'problem' ? usersFailure.status : null,
 		onRetry: () => void usersQuery.refetch(),

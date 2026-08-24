@@ -120,6 +120,16 @@ const makeAssignMembersColumns = (
 	},
 ];
 
+/**
+ * Scoped per (tenantId, profileId) via the callers' `key`: remounting on a
+ * new drawer target starts from a blank slate — never showing a previous
+ * profile's resolved/optimistic state while the new profile's own resolve
+ * read is still in flight — without an adjustment effect
+ * (react-doctor/no-adjust-state-on-prop-change). Nothing is lost by the
+ * remount: the resolve query's cache entry is already per-profile (both ids
+ * are part of its key), so a different profile produces a brand-new entry
+ * on its own.
+ */
 export const AssignMembersDrawer = ({
 	tenantId,
 	profileId,
@@ -217,21 +227,6 @@ export const AssignMembersDrawer = ({
 				rowAccountIds.length > 0,
 		},
 	);
-
-	// A new drawer target (different tenant/profile) must start from a blank
-	// slate — never show a previous profile's resolved/optimistic state while
-	// the new profile's own resolve read is still in flight. No generation
-	// bump is needed here: `tenantId`/`profileId` are themselves part of the
-	// resolve query's key (see the variables passed below), so a different
-	// profile already produces a brand-new cache entry on its own.
-	useEffect(() => {
-		setAssignedIds(new Set());
-		setResolvedIds(new Set());
-		setPendingIds(new Set());
-		appliedResolveDataRef.current = undefined;
-		previousRowAccountIdsKeyRef.current = '';
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- only tenantId/profileId should reset the drawer to a blank slate.
-	}, [tenantId, profileId]);
 
 	// Keeps `pendingIdsRef` current for the scope-prune effect below, without
 	// making that effect re-run on every pending-set change (it must stay
@@ -403,6 +398,9 @@ export const AssignMembersDrawer = ({
 		},
 	);
 
+	// Hoisted so the error banner reads a plain local, not a query flag.
+	const resolutionIsError = resolutionQuery.isError;
+
 	return (
 		<Drawer
 			open={isOpen}
@@ -420,7 +418,7 @@ export const AssignMembersDrawer = ({
 					</DrawerDescription>
 				</DrawerHeader>
 				<DrawerBody className="flex min-h-0 flex-1 flex-col gap-3">
-					{resolutionQuery.isError ? (
+					{resolutionIsError ? (
 						<ErrorStateSurface
 							title={t('assign-members-resolution-error-title')}
 							description={t('assign-members-resolution-error-description')}

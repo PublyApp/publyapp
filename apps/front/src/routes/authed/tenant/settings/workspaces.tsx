@@ -1,12 +1,11 @@
-import { IconAlertCircle, IconFolder } from '@tabler/icons-react';
+import { IconFolder } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Button } from '~/components/ui/button';
+import QueryDisplay from '~/components/query-display';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import { Skeleton } from '~/components/ui/skeleton';
-import { ErrorStateSurface, StateSurface } from '~/components/ui/state-surface';
+import { StateSurface } from '~/components/ui/state-surface';
 import {
 	resolveWorkspaceTenant,
 	useTenantsForPickerQuery,
@@ -14,6 +13,10 @@ import {
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
+import {
+	TenantReadOnlyCardError,
+	TenantReadOnlyCardSkeleton,
+} from '../_read-only-query-slots';
 import {
 	WorkspacePageHeader,
 	ReadOnlyBadge,
@@ -35,11 +38,11 @@ const TenantSettingsWorkspacesPage = () => {
 	const [selectedTenantId] = useState<string | null>(() =>
 		readSelectedTenantId(),
 	);
-	const tenant = query.isSuccess
-		? resolveWorkspaceTenant(query.data, selectedTenantId)
-		: undefined;
 
-	if (query.isError && shouldLogoutForFailure(query.error)) {
+	// Logout gate: read the hoisted error local instead of branching on the
+	// query result — QueryDisplay owns state rendering below.
+	const queryError = query.error;
+	if (queryError !== null && shouldLogoutForFailure(queryError)) {
 		return <LogoutRedirect />;
 	}
 
@@ -53,34 +56,24 @@ const TenantSettingsWorkspacesPage = () => {
 					<ReadOnlyBadge />
 				</CardHeader>
 				<CardContent>
-					{query.isError ? (
-						<ErrorStateSurface
-							icon={IconAlertCircle}
-							title={t('failed-to-load-organization')}
-							description={t('failed-to-load-organization-description')}
-							testId="tenant-settings-workspaces-error"
-							actions={
-								<Button
-									variant="default"
-									type="button"
-									onClick={() => void query.refetch()}
-								>
-									{t('common:retry')}
-								</Button>
-							}
-						/>
-					) : (
-						<>
-							{query.isPending ? (
-								<div
-									className="space-y-4"
-									data-testid="tenant-settings-workspaces-skeleton"
-								>
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-								</div>
-							) : (
+					<QueryDisplay
+						query={query}
+						LoadingSlot={
+							<TenantReadOnlyCardSkeleton testId="tenant-settings-workspaces-skeleton" />
+						}
+						ErrorSlot={
+							<TenantReadOnlyCardError
+								query={query}
+								titleKey="failed-to-load-organization"
+								descriptionKey="failed-to-load-organization-description"
+								testId="tenant-settings-workspaces-error"
+							/>
+						}
+					>
+						{({ data }) => {
+							const tenant = resolveWorkspaceTenant(data, selectedTenantId);
+
+							return (
 								<div className="space-y-1">
 									<ReadOnlyFieldRow label={t('common:name')}>
 										<ReadOnlyValue>
@@ -94,9 +87,9 @@ const TenantSettingsWorkspacesPage = () => {
 										<ReadOnlyValue />
 									</ReadOnlyFieldRow>
 								</div>
-							)}
-						</>
-					)}
+							);
+						}}
+					</QueryDisplay>
 				</CardContent>
 			</Card>
 

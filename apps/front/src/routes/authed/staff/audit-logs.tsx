@@ -233,7 +233,10 @@ const StaffAuditLogsPage = () => {
 	const actionsQuery = useAuditLogActionsQuery();
 	const columns = useMemo(() => makeAuditLogColumns(t, locale), [t, locale]);
 
-	if (query.isError && shouldLogoutForFailure(query.error)) {
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
+	// the DataTable carries the loading/error slots (exempt from QueryDisplay).
+	const queryError = query.error;
+	if (queryError !== null && shouldLogoutForFailure(queryError)) {
 		return <LogoutRedirect />;
 	}
 

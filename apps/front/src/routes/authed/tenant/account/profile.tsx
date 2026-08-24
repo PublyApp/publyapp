@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { PersonAvatar } from '~/components/ui/person-avatar';
@@ -51,9 +52,9 @@ const AccountProfilePage = () => {
 	const { t, i18n } = useTranslation(['account', 'common']);
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
-	const { data, isPending, isError, isSuccess, refetch } =
-		useAccountProfileQuery(tenantId);
-	const profile = toAccountProfile(data);
+	const query = useAccountProfileQuery(tenantId);
+	const { refetch } = query;
+	const profile = toAccountProfile(query.data);
 	const updateProfile = useUpdateAccountProfileMutation();
 	const [serverError, setServerError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
@@ -88,7 +89,11 @@ const AccountProfilePage = () => {
 	const hydratedTenantIdRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (!isSuccess || !profile || hydratedTenantIdRef.current === tenantId) {
+		if (
+			!query.isSuccess ||
+			!profile ||
+			hydratedTenantIdRef.current === tenantId
+		) {
 			return;
 		}
 
@@ -99,7 +104,7 @@ const AccountProfilePage = () => {
 			email: profile.email,
 		});
 		hydratedTenantIdRef.current = tenantId;
-	}, [isSuccess, profile, tenantId, reset]);
+	}, [query.isSuccess, profile, tenantId, reset]);
 
 	const isSubmittingForm = isSubmitting || updateProfile.isPending;
 
@@ -163,140 +168,149 @@ const AccountProfilePage = () => {
 		<div className="space-y-5" data-testid="tenant-account-profile-page">
 			<WorkspacePageHeader titleKey="profile" />
 
-			{isError ? (
-				<Card>
-					<CardHeader>
-						<CardTitle>{t('personal-information')}</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ErrorStateSurface
-							icon={IconAlertCircle}
-							title={t('failed-to-load-profile')}
-							description={t('failed-to-load-profile-description')}
-							testId="tenant-account-profile-error"
-							actions={
-								<Button
-									variant="default"
-									type="button"
-									onClick={() => void refetch()}
-								>
-									{t('common:retry')}
-								</Button>
-							}
-						/>
-					</CardContent>
-				</Card>
-			) : (
-				<>
+			<QueryDisplay
+				query={query}
+				LoadingSlot={
 					<Card>
 						<CardHeader>
 							<CardTitle>{t('personal-information')}</CardTitle>
 						</CardHeader>
 						<CardContent>
-							{isPending ? (
-								<div className="space-y-4">
-									<div className="flex items-center gap-4">
-										<Skeleton className="size-14 rounded-[10px]" />
-										<div className="space-y-1.5">
-											<Skeleton className="h-4 w-40" />
-											<Skeleton className="h-3 w-56" />
-										</div>
+							<div className="space-y-4">
+								<div className="flex items-center gap-4">
+									<Skeleton className="size-14 rounded-[10px]" />
+									<div className="space-y-1.5">
+										<Skeleton className="h-4 w-40" />
+										<Skeleton className="h-3 w-56" />
 									</div>
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
 								</div>
-							) : (
-								<>
-									<div className="mb-5 flex items-center gap-4">
-										<PersonAvatar
-											name={avatarSeed}
-											avatarUrl={profile?.avatarUrl}
-											size="lg"
-										/>
-										<div className="min-w-0">
-											<p className="truncate text-sm font-medium text-foreground">
-												{profile?.displayName ?? t('common:un-named')}
-											</p>
-											<p className="truncate text-xs text-muted-foreground">
-												{profile?.email}
-											</p>
-										</div>
-									</div>
-
-									{serverError ? (
-										<p
-											role="alert"
-											className="mb-4 rounded-[var(--publy-radius-input)] bg-destructive/10 px-3 py-2 text-sm text-destructive"
-										>
-											{serverError}
-										</p>
-									) : null}
-
-									<Form methods={methods} onSubmit={onSubmit}>
-										<div className="grid gap-4 md:grid-cols-2">
-											<Field.Text
-												name="firstName"
-												label={t('common:first-name')}
-												placeholder={t('common:first-name')}
-												isDisabled={isSubmittingForm}
-											/>
-											<Field.Text
-												name="lastName"
-												label={t('common:last-name')}
-												placeholder={t('common:last-name')}
-												isDisabled={isSubmittingForm}
-											/>
-											<Field.Email
-												name="email"
-												label={t('common:email-address')}
-												isDisabled
-											/>
-											<Field.Text
-												name="avatarUrl"
-												label={t('common:avatar-url')}
-												placeholder="https://example.com/avatar.png"
-												isDisabled={isSubmittingForm}
-											/>
-										</div>
-
-										<div className="flex items-center gap-3 pt-2">
-											<Button
-												type="submit"
-												variant="default"
-												disabled={isSubmittingForm}
-											>
-												{t('save-changes')}
-											</Button>
-										</div>
-									</Form>
-								</>
-							)}
+								<Skeleton className="h-9 w-full" />
+								<Skeleton className="h-9 w-full" />
+								<Skeleton className="h-9 w-full" />
+							</div>
 						</CardContent>
 					</Card>
-
+				}
+				ErrorSlot={
 					<Card>
 						<CardHeader>
-							<CardTitle>{t('preferences')}</CardTitle>
-							<ReadOnlyBadge />
+							<CardTitle>{t('personal-information')}</CardTitle>
 						</CardHeader>
-						<CardContent className="space-y-1">
-							<ReadOnlyFieldRow
-								label={t('common:language')}
-								description={t('language-description')}
-							>
-								<ReadOnlyValue>{localeLabel}</ReadOnlyValue>
-							</ReadOnlyFieldRow>
-							<ReadOnlyFieldRow
-								label={t('timezone')}
-								description={t('timezone-description')}
-							>
-								<ReadOnlyValue />
-							</ReadOnlyFieldRow>
+						<CardContent>
+							<ErrorStateSurface
+								icon={IconAlertCircle}
+								title={t('failed-to-load-profile')}
+								description={t('failed-to-load-profile-description')}
+								testId="tenant-account-profile-error"
+								actions={
+									<Button
+										variant="default"
+										type="button"
+										onClick={() => void refetch()}
+									>
+										{t('common:retry')}
+									</Button>
+								}
+							/>
 						</CardContent>
 					</Card>
-				</>
-			)}
+				}
+			>
+				{() => (
+					<>
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('personal-information')}</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className="mb-5 flex items-center gap-4">
+									<PersonAvatar
+										name={avatarSeed}
+										avatarUrl={profile?.avatarUrl}
+										size="lg"
+									/>
+									<div className="min-w-0">
+										<p className="truncate text-sm font-medium text-foreground">
+											{profile?.displayName ?? t('common:un-named')}
+										</p>
+										<p className="truncate text-xs text-muted-foreground">
+											{profile?.email}
+										</p>
+									</div>
+								</div>
+
+								{serverError ? (
+									<p
+										role="alert"
+										className="mb-4 rounded-[var(--publy-radius-input)] bg-destructive/10 px-3 py-2 text-sm text-destructive"
+									>
+										{serverError}
+									</p>
+								) : null}
+
+								<Form methods={methods} onSubmit={onSubmit}>
+									<div className="grid gap-4 md:grid-cols-2">
+										<Field.Text
+											name="firstName"
+											label={t('common:first-name')}
+											placeholder={t('common:first-name')}
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Text
+											name="lastName"
+											label={t('common:last-name')}
+											placeholder={t('common:last-name')}
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Email
+											name="email"
+											label={t('common:email-address')}
+											isDisabled
+										/>
+										<Field.Text
+											name="avatarUrl"
+											label={t('common:avatar-url')}
+											placeholder="https://example.com/avatar.png"
+											isDisabled={isSubmittingForm}
+										/>
+									</div>
+
+									<div className="flex items-center gap-3 pt-2">
+										<Button
+											type="submit"
+											variant="default"
+											disabled={isSubmittingForm}
+										>
+											{t('save-changes')}
+										</Button>
+									</div>
+								</Form>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('preferences')}</CardTitle>
+								<ReadOnlyBadge />
+							</CardHeader>
+							<CardContent className="space-y-1">
+								<ReadOnlyFieldRow
+									label={t('common:language')}
+									description={t('language-description')}
+								>
+									<ReadOnlyValue>{localeLabel}</ReadOnlyValue>
+								</ReadOnlyFieldRow>
+								<ReadOnlyFieldRow
+									label={t('timezone')}
+									description={t('timezone-description')}
+								>
+									<ReadOnlyValue />
+								</ReadOnlyFieldRow>
+							</CardContent>
+						</Card>
+					</>
+				)}
+			</QueryDisplay>
 		</div>
 	);
 };

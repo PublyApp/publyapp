@@ -439,9 +439,11 @@ export const StaffInvitationDetailsPage = ({
 		invitationId,
 	});
 
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
+	const detailError = detailQuery.error;
 	if (
 		shouldLogout ||
-		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error))
+		(detailError !== null && shouldLogoutForFailure(detailError))
 	) {
 		return <LogoutRedirect />;
 	}

@@ -287,6 +287,42 @@ const runCases = (rule, label) => {
 					].join('\n'),
 					filename: 'packages/shared-ts/src/lib/query/foo.tsx',
 				},
+				// A hoisted callback that does NOT return JSX stays skipped even in
+				// a render-named slot.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const renderValue = ({ field }) => field.onChange(String(q.data));',
+						'  return <Controller name="a" control={c} render={renderValue} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// An identifier prop that is not a hoisted callback reference
+				// (`render={someString}`) is not render context.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const label = "loading";',
+						'  return <Wizard render={label} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// A hoisted JSX-returning callback never passed anywhere is just an
+				// unused local — no render position, no ladder.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const maybeRender = () => (q.isError ? <Error /> : <div>{q.data}</div>);',
+						'  console.log(maybeRender);',
+						'  return <QueryDisplay query={q}>{({ data }) => <div>{data}</div>}</QueryDisplay>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
 			],
 			invalid: [
 				// Whole-binding ternaries on each flagged field.
@@ -683,6 +719,87 @@ const runCases = (rule, label) => {
 						{ messageId: 'preferQueryDisplay' },
 						{ messageId: 'preferQueryDisplay' },
 					],
+				},
+				// Hoisted render prop: the JSX-returning callback is declared as a
+				// variable first and passed as `render={renderX}` — still render
+				// context (r2 review bypass).
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const renderField = ({ field }) => (',
+						'    q.isPending ? <LoadingSpinner /> : <button onClick={field.onChange} />',
+						'  );',
+						'  return <Controller name="a" control={c} render={renderField} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Hoisted render prop via a member expression: `render={obj.render}`.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const slots = { render: () => (q.isError ? <Error /> : <List items={q.data} />) };',
+						'  return <Controller name="a" control={c} render={slots.render} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Hoisted render prop passed as an explicit `children={renderX}` prop.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const renderItems = () => (q.isPending ? <Skeleton /> : <List items={q.data} />);',
+						'  return <Select children={renderItems} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Hoisted render prop declared with a function expression.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const renderBody = function ({ field }) {',
+						'    return q.error ? <Error /> : <div>{q.data}</div>;',
+						'  };',
+						'  return <Controller name="a" control={c} render={renderBody} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Hoisted render prop referenced from a rest-destructured query
+				// result: tracking and hoisted-reference resolution compose.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const { data, ...rest } = useThingQuery();',
+						'  const renderRow = () => (rest.isPending ? <Skeleton /> : <div>{data}</div>);',
+						'  return <Table render={renderRow} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// A JSX-returning callback referenced from ANY prop position is
+				// treated like its inline equivalent (`onClick={(…) => <jsx/>}` is
+				// already render context under the shipped semantics).
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const handleDelete = () => (q.isError ? null : <span />);',
+						'  return <Button onClick={handleDelete}>go</Button>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
 				},
 			],
 		});

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
+import QueryDisplay from '~/components/query-display';
 import { DataTable } from '~/components/table/data-table';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useTableController } from '~/components/table/use-table-controller';
@@ -215,16 +216,21 @@ const StaffTenantProfileMembersPage = () => {
 		{ tenantId },
 		{ enabled: tenantId.length > 0 },
 	);
+	// Hoisted locals keep raw query flags out of the chained-query gates.
+	const tenantQueryIsPending = tenantQuery.isPending;
+	const tenantQueryIsError = tenantQuery.isError;
 	const detailQuery = useStaffTenantProfileDetailsQuery(
 		{ tenantId, profileId },
 		{
 			enabled:
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
+				!tenantQueryIsPending &&
+				!tenantQueryIsError,
 		},
 	);
+	const detailQueryIsPending = detailQuery.isPending;
+	const detailQueryIsError = detailQuery.isError;
 	const membersQuery = useStaffTenantProfileMembersQuery(
 		{
 			tenantId,
@@ -239,10 +245,10 @@ const StaffTenantProfileMembersPage = () => {
 			enabled:
 				tenantId.length > 0 &&
 				profileId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError &&
-				!detailQuery.isPending &&
-				!detailQuery.isError,
+				!tenantQueryIsPending &&
+				!tenantQueryIsError &&
+				!detailQueryIsPending &&
+				!detailQueryIsError,
 		},
 	);
 	const memberRows = useMemo(
@@ -278,196 +284,220 @@ const StaffTenantProfileMembersPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	if (tenantQuery.isPending) {
-		return <TenantDetailsLoading />;
-	}
-
-	if (tenantQuery.isError) {
-		if (shouldLogoutForFailure(tenantQuery.error)) {
-			return <LogoutRedirect />;
-		}
-
-		return (
-			<TenantDetailsError
-				error={tenantQuery.error}
-				onRetry={() => void tenantQuery.refetch()}
-			/>
-		);
-	}
-
-	const tenant = toStaffTenantDetails(tenantQuery.data);
-	if (!tenant) {
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-500-code')}
-				title={t('tenant-details-error-title')}
-				description={t('tenant-response-incomplete')}
-				testId="staff-tenant-details-error"
-				actions={
-					<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
-				}
-			/>
-		);
-	}
-
-	if (detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) {
+	// Hoisted so the fatal-error gates read plain locals, not query flags —
+	// QueryDisplay owns the loading/error/data rendering below.
+	const tenantError = tenantQuery.error;
+	if (tenantError !== null && shouldLogoutForFailure(tenantError)) {
 		return <LogoutRedirect />;
 	}
 
-	if (detailQuery.isPending) {
-		return <ProfileMembersLoading />;
+	const detailError = detailQuery.error;
+	if (detailError !== null && shouldLogoutForFailure(detailError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (detailQuery.isError) {
-		return (
-			<TenantProfileMembersError
-				error={detailQuery.error}
-				onRetry={() => void detailQuery.refetch()}
-			/>
-		);
-	}
+	const renderTenantMissingSlot = () => (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-response-incomplete')}
+			testId="staff-tenant-details-error"
+			actions={
+				<TenantRetryActions onRetry={() => void tenantQuery.refetch()} />
+			}
+		/>
+	);
 
+	const renderProfileMissingSlot = () => (
+		<AppErrorView
+			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
+			code={t('error-404-code')}
+			title={t('tenant-profile-not-found-title')}
+			description={t('tenant-profile-payload-empty')}
+			testId="staff-tenant-profile-members-not-found"
+			actions={<BackToTenantsLink />}
+		/>
+	);
+
+	const tenant = toStaffTenantDetails(tenantQuery.data);
 	const profile = toStaffTenantProfileDetails(detailQuery.data);
-	if (!profile) {
-		return (
-			<AppErrorView
-				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
-				title={t('tenant-profile-not-found-title')}
-				description={t('tenant-profile-payload-empty')}
-				testId="staff-tenant-profile-members-not-found"
-				actions={<BackToTenantsLink />}
-			/>
-		);
-	}
 
 	return (
-		<TenantDetailsPageShell
-			tenant={tenant}
-			activeSection="profiles"
-			testId="staff-tenant-profile-members-page"
-			bodyScroll="contained"
+		<QueryDisplay
+			query={tenantQuery}
+			LoadingSlot={<TenantDetailsLoading />}
+			ErrorSlot={
+				<TenantDetailsError
+					error={tenantError}
+					onRetry={() => void tenantQuery.refetch()}
+				/>
+			}
+			EmptySlot={renderTenantMissingSlot()}
 		>
-			<div className="flex h-full min-h-0 flex-1 flex-col gap-6">
-				<div className="shrink-0 space-y-1">
-					<h2 className="text-2xl font-semibold text-foreground">
-						{profile.name}
-					</h2>
-					<p className="max-w-3xl text-sm text-muted-foreground">
-						{profile.description ?? t('no-description-provided')}
-					</p>
-				</div>
+			{() => {
+				if (!tenant) {
+					return renderTenantMissingSlot();
+				}
 
-				<Tabs value="members" className="min-h-0 flex-1">
-					<TabsList
-						variant="line"
-						aria-label={t('staff-tenant-profiles:profile-sections')}
-						className="shrink-0"
+				return (
+					<QueryDisplay
+						query={detailQuery}
+						LoadingSlot={<ProfileMembersLoading />}
+						ErrorSlot={({ error }) => (
+							<TenantProfileMembersError
+								error={error}
+								onRetry={() => void detailQuery.refetch()}
+							/>
+						)}
+						EmptySlot={renderProfileMissingSlot()}
 					>
-						<TabsTrigger
-							value="profile"
-							render={
-								<Link
-									to="/staff/tenants/$tenantId/profiles/$profileId"
-									params={{ tenantId, profileId }}
-								/>
+						{() => {
+							if (!profile) {
+								return renderProfileMissingSlot();
 							}
-						>
-							{t('profile')}
-						</TabsTrigger>
-						<TabsTrigger value="members">
-							{t('members')}
-							<span className="publy-detail-chip publy-detail-chip--outline">
-								{profile.userAccountCount}
-							</span>
-						</TabsTrigger>
-					</TabsList>
 
-					<TabsContent
-						value="members"
-						className="publy-detail-tab-body min-h-0"
-					>
-						{/* DataTable already renders its own `.publy-table-card` surface —
+							return (
+								<TenantDetailsPageShell
+									tenant={tenant}
+									activeSection="profiles"
+									testId="staff-tenant-profile-members-page"
+									bodyScroll="contained"
+								>
+									<div className="flex h-full min-h-0 flex-1 flex-col gap-6">
+										<div className="shrink-0 space-y-1">
+											<h2 className="text-2xl font-semibold text-foreground">
+												{profile.name}
+											</h2>
+											<p className="max-w-3xl text-sm text-muted-foreground">
+												{profile.description ?? t('no-description-provided')}
+											</p>
+										</div>
+
+										<Tabs value="members" className="min-h-0 flex-1">
+											<TabsList
+												variant="line"
+												aria-label={t('staff-tenant-profiles:profile-sections')}
+												className="shrink-0"
+											>
+												<TabsTrigger
+													value="profile"
+													render={
+														<Link
+															to="/staff/tenants/$tenantId/profiles/$profileId"
+															params={{ tenantId, profileId }}
+														/>
+													}
+												>
+													{t('profile')}
+												</TabsTrigger>
+												<TabsTrigger value="members">
+													{t('members')}
+													<span className="publy-detail-chip publy-detail-chip--outline">
+														{profile.userAccountCount}
+													</span>
+												</TabsTrigger>
+											</TabsList>
+
+											<TabsContent
+												value="members"
+												className="publy-detail-tab-body min-h-0"
+											>
+												{/* DataTable already renders its own `.publy-table-card` surface —
 						no outer Card here, or it's a card inside a card (#978). */}
-						<div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
-							<div className="space-y-1">
-								<p className="text-lg font-semibold text-foreground">
-									{t('members')}
-									<span className="ml-2 publy-profile-count-badge align-middle">
-										{profile.userAccountCount}
-									</span>
-								</p>
-								<p className="text-sm text-muted-foreground">
-									{t('profile-members-tab-description')}
-								</p>
-							</div>
-							<Button
-								type="button"
-								variant="default"
-								onClick={() => setAssignDrawerOpen(true)}
-							>
-								{t('assign-members')}
-							</Button>
-						</div>
+												<div className="shrink-0 flex flex-wrap items-center justify-between gap-3">
+													<div className="space-y-1">
+														<p className="text-lg font-semibold text-foreground">
+															{t('members')}
+															<span className="ml-2 publy-profile-count-badge align-middle">
+																{profile.userAccountCount}
+															</span>
+														</p>
+														<p className="text-sm text-muted-foreground">
+															{t('profile-members-tab-description')}
+														</p>
+													</div>
+													<Button
+														type="button"
+														variant="default"
+														onClick={() => setAssignDrawerOpen(true)}
+													>
+														{t('assign-members')}
+													</Button>
+												</div>
 
-						<DataTable<StaffTenantProfileMemberRow>
-							testId="staff-tenant-profile-members-table"
-							ariaLabel={t('profile-members-table-aria-label')}
-							columns={memberColumns}
-							rows={memberRows}
-							getRowLabel={(row) => row.displayName}
-							isPending={membersQuery.isPending}
-							isError={membersQuery.isError}
-							onRetry={() => void membersQuery.refetch()}
-							emptyIcon={IconUsers}
-							emptyTitle={t('profile-members-empty-title')}
-							emptyContent={t('profile-members-empty-description')}
-							noMatchTitle={t('tenant-users-no-match-title')}
-							noMatchContent={t('tenant-users-no-match-description')}
-							hasActiveSearch={Boolean(membersController.search.committed)}
-							sort={membersController.sort}
-							onSortChange={membersController.onSortChange}
-							size={membersController.size}
-							onSizeChange={membersController.onSizeChange}
-							pageIndex={membersPageIndex}
-							hasPreviousPage={membersPageIndex > 0}
-							hasNextPage={
-								(membersPageIndex + 1) * membersController.size <
-								(membersQuery.data?.count ?? 0)
-							}
-							isPaginationPending={
-								membersQuery.isFetching && !membersQuery.isPending
-							}
-							onNextPage={() => {
-								const hasNext =
-									(membersPageIndex + 1) * membersController.size <
-									(membersQuery.data?.count ?? 0);
-								if (hasNext) {
-									setMembersPageIndex((current) => current + 1);
-								}
-							}}
-							onPreviousPage={() => {
-								if (membersPageIndex > 0) {
-									setMembersPageIndex((current) => Math.max(current - 1, 0));
-								}
-							}}
-							searchDraft={membersController.search.draft}
-							onSearchDraftChange={membersController.search.onDraftChange}
-							searchPlaceholder={t('search-tenant-members')}
-						/>
-					</TabsContent>
-				</Tabs>
-			</div>
+												<DataTable<StaffTenantProfileMemberRow>
+													testId="staff-tenant-profile-members-table"
+													ariaLabel={t('profile-members-table-aria-label')}
+													columns={memberColumns}
+													rows={memberRows}
+													getRowLabel={(row) => row.displayName}
+													isPending={membersQuery.isPending}
+													isError={membersQuery.isError}
+													onRetry={() => void membersQuery.refetch()}
+													emptyIcon={IconUsers}
+													emptyTitle={t('profile-members-empty-title')}
+													emptyContent={t('profile-members-empty-description')}
+													noMatchTitle={t('tenant-users-no-match-title')}
+													noMatchContent={t(
+														'tenant-users-no-match-description',
+													)}
+													hasActiveSearch={Boolean(
+														membersController.search.committed,
+													)}
+													sort={membersController.sort}
+													onSortChange={membersController.onSortChange}
+													size={membersController.size}
+													onSizeChange={membersController.onSizeChange}
+													pageIndex={membersPageIndex}
+													hasPreviousPage={membersPageIndex > 0}
+													hasNextPage={
+														(membersPageIndex + 1) * membersController.size <
+														(membersQuery.data?.count ?? 0)
+													}
+													isPaginationPending={
+														membersQuery.isFetching && !membersQuery.isPending
+													}
+													onNextPage={() => {
+														const hasNext =
+															(membersPageIndex + 1) * membersController.size <
+															(membersQuery.data?.count ?? 0);
+														if (hasNext) {
+															setMembersPageIndex((current) => current + 1);
+														}
+													}}
+													onPreviousPage={() => {
+														if (membersPageIndex > 0) {
+															setMembersPageIndex((current) =>
+																Math.max(current - 1, 0),
+															);
+														}
+													}}
+													searchDraft={membersController.search.draft}
+													onSearchDraftChange={
+														membersController.search.onDraftChange
+													}
+													searchPlaceholder={t('search-tenant-members')}
+												/>
+											</TabsContent>
+										</Tabs>
+									</div>
 
-			<AssignMembersDrawer
-				tenantId={tenantId}
-				profileId={profileId}
-				isOpen={isAssignDrawerOpen}
-				onOpenChange={setAssignDrawerOpen}
-				onSessionExpired={() => setShouldRedirectToLogout(true)}
-			/>
-		</TenantDetailsPageShell>
+									<AssignMembersDrawer
+										key={`assign-${tenantId}:${profileId}`}
+										tenantId={tenantId}
+										profileId={profileId}
+										isOpen={isAssignDrawerOpen}
+										onOpenChange={setAssignDrawerOpen}
+										onSessionExpired={() => setShouldRedirectToLogout(true)}
+									/>
+								</TenantDetailsPageShell>
+							);
+						}}
+					</QueryDisplay>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 

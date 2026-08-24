@@ -79,6 +79,14 @@ export const LinkCompaniesDrawerHost = ({
 		() => toTenantPickerOptions(pickerQuery.data),
 		[pickerQuery.data],
 	);
+	// Hoisted so the picker's loading/error ladder reads plain locals.
+	const pickerIsPending = pickerQuery.isPending;
+	const pickerIsError = pickerQuery.isError;
+	const pickerError = pickerQuery.error;
+	// `isSuccess` is a query flag too: fold it here so the JSX below never
+	// branches on the raw query object.
+	const pickerIsEmptySuccess =
+		pickerQuery.data !== undefined && options.length === 0;
 	// Rows already linked cannot be linked twice — hidden from the picker.
 	const linkedIds = useMemo(() => new Set<string>(), []);
 
@@ -192,7 +200,7 @@ export const LinkCompaniesDrawerHost = ({
 							/>
 						</div>
 
-						{pickerQuery.isPending ? (
+						{pickerIsPending ? (
 							<p
 								className="py-6 text-center text-sm text-muted-foreground"
 								data-testid="link-companies-loading"
@@ -201,13 +209,13 @@ export const LinkCompaniesDrawerHost = ({
 							</p>
 						) : null}
 
-						{pickerQuery.isError ? (
+						{pickerIsError ? (
 							<p
 								className="py-6 text-center text-sm text-destructive"
 								role="alert"
 								data-testid="link-companies-error"
 							>
-								{getFailureMessage(toApiFailure(pickerQuery.error), {
+								{getFailureMessage(toApiFailure(pickerError), {
 									fallback: t('an-error-occurred'),
 								})}
 								<Button
@@ -222,7 +230,7 @@ export const LinkCompaniesDrawerHost = ({
 							</p>
 						) : null}
 
-						{pickerQuery.isSuccess && options.length === 0 ? (
+						{pickerIsEmptySuccess ? (
 							<p
 								className="py-6 text-center text-sm text-muted-foreground"
 								data-testid="link-companies-empty"

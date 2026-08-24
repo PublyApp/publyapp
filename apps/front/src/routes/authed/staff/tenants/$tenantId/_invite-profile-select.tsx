@@ -53,11 +53,16 @@ export const InviteProfileSelect = ({
 	});
 	const profiles = toStaffTenantProfileRows(profilesQuery.data?.data);
 
+	// Hoisted locals keep raw query flags out of the effect gate.
+	const profilesIsPending = profilesQuery.isPending;
+	const profilesIsError = profilesQuery.isError;
+	const profilesError = profilesQuery.error;
+
 	useEffect(() => {
-		if (profilesQuery.isError && shouldLogoutForFailure(profilesQuery.error)) {
+		if (profilesIsError && shouldLogoutForFailure(profilesError)) {
 			onSessionExpired();
 		}
-	}, [onSessionExpired, profilesQuery.error, profilesQuery.isError]);
+	}, [onSessionExpired, profilesError, profilesIsError]);
 
 	return (
 		<Controller
@@ -65,18 +70,21 @@ export const InviteProfileSelect = ({
 			control={control}
 			render={({ field, fieldState: { error } }) => {
 				const selectedIds = toStringArray(field.value);
+				// O(1) membership for the two per-profile checks below instead of
+				// an Array.includes scan per row (react-doctor/js-set-map-lookups).
+				const selectedIdSet = new Set(selectedIds);
 				const selectedProfiles = profiles.filter((profile) =>
-					selectedIds.includes(profile.id),
+					selectedIdSet.has(profile.id),
 				);
-				const queryError = profilesQuery.isError
-					? getFailureMessage(toApiFailure(profilesQuery.error), {
+				const queryError = profilesIsError
+					? getFailureMessage(toApiFailure(profilesError), {
 							fallback: t('unable-to-load-profiles'),
 						})
 					: '';
 				const helper = error?.message ?? queryError;
 				const isInvalid = Boolean(error || queryError);
 				let triggerLabel = t('select-profiles');
-				if (profilesQuery.isPending) {
+				if (profilesIsPending) {
 					triggerLabel = t('loading-profiles');
 				} else if (selectedIds.length > 0) {
 					triggerLabel = t('profiles-selected-count', {
@@ -104,7 +112,7 @@ export const InviteProfileSelect = ({
 										type="button"
 										variant="outline"
 										className="w-full justify-between"
-										disabled={isDisabled || profilesQuery.isPending}
+										disabled={isDisabled || profilesIsPending}
 										aria-labelledby={labelId}
 										aria-invalid={isInvalid || undefined}
 										aria-describedby={helper ? helperId : undefined}
@@ -112,7 +120,7 @@ export const InviteProfileSelect = ({
 								}
 							>
 								<span className="truncate">{triggerLabel}</span>
-								{profilesQuery.isPending ? (
+								{profilesIsPending ? (
 									<LoadingSpinner />
 								) : (
 									<IconChevronDown aria-hidden="true" className="size-3" />
@@ -123,7 +131,7 @@ export const InviteProfileSelect = ({
 									profiles.map((profile) => (
 										<DropdownMenuCheckboxItem
 											key={profile.id}
-											checked={selectedIds.includes(profile.id)}
+											checked={selectedIdSet.has(profile.id)}
 											closeOnClick={false}
 											showCheckbox
 											onCheckedChange={(checked) => {

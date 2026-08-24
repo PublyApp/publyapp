@@ -165,7 +165,9 @@ export const StaffAuditLogDetailsPage = ({ logId }: { logId: string }) => {
 		{ enabled: logId.length > 0 },
 	);
 
-	if (detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) {
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
+	const detailError = detailQuery.error;
+	if (detailError !== null && shouldLogoutForFailure(detailError)) {
 		return <LogoutRedirect />;
 	}
 

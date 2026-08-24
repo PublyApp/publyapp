@@ -10,7 +10,13 @@ import {
 	within,
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
-import { FormProvider, useFormContext } from 'react-hook-form';
+import {
+	FormProvider,
+	useForm,
+	useFormContext,
+	type UseFormReturn,
+} from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -273,6 +279,51 @@ vi.mock('~/lib/mutation-toast', () => ({
 }));
 
 import { ProfileFormDrawer } from './_profile-form-drawer';
+import {
+	getProfileFormValues,
+	profileFormResolver,
+	type ProfileFormValues,
+} from './_profile-form-schema';
+
+/**
+ * The drawer no longer owns its form: the host page creates it with `useForm`
+ * and passes the instance down. These tests mirror that ownership through a
+ * minimal owner component — the hook must run inside a render, and each
+ * `renderDrawer` call re-creates the store so tests never share form state.
+ */
+let methods: UseFormReturn<ProfileFormValues>;
+
+const DrawerHarness = (
+	props: Partial<Parameters<typeof ProfileFormDrawer>[0]> & {
+		isOpen?: boolean;
+	},
+): ReactNode => {
+	const { t } = useTranslation('common');
+	methods = useForm<ProfileFormValues>({
+		resolver: profileFormResolver(t),
+		defaultValues: getProfileFormValues(),
+	});
+
+	return (
+		<ProfileFormDrawer
+			tenantId="tenant-1"
+			isOpen={true}
+			onOpenChange={vi.fn()}
+			onSaved={vi.fn()}
+			onSessionExpired={vi.fn()}
+			methods={methods}
+			{...props}
+		/>
+	);
+};
+
+const renderDrawer = (
+	props: Partial<Parameters<typeof ProfileFormDrawer>[0]> & {
+		isOpen?: boolean;
+	} = {},
+): void => {
+	render(<DrawerHarness {...props} />);
+};
 
 const CATALOG = {
 	Users: {
@@ -309,29 +360,25 @@ describe('ProfileFormDrawer', () => {
 	});
 
 	test('renders nothing when closed', () => {
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen={false}
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: false,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 
 		expect(screen.queryByTestId('profile-form-drawer')).toBeNull();
 	});
 
 	test('renders the permission catalog grouped by module', () => {
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 
 		expect(screen.getByText('Users')).toBeTruthy();
 		expect(screen.getByText('Posts')).toBeTruthy();
@@ -346,15 +393,13 @@ describe('ProfileFormDrawer', () => {
 	// dirty edits must not be discarded silently.
 	test('Cancel closes immediately when the form is pristine', () => {
 		const onOpenChange = vi.fn();
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={onOpenChange}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: onOpenChange,
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 
 		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -364,15 +409,13 @@ describe('ProfileFormDrawer', () => {
 
 	test('Cancel on a dirty form asks for confirmation instead of discarding silently, and Leave page proceeds', () => {
 		const onOpenChange = vi.fn();
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={onOpenChange}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: onOpenChange,
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'Approvers' },
@@ -394,15 +437,13 @@ describe('ProfileFormDrawer', () => {
 		});
 		const onSaved = vi.fn();
 
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onSaved={onSaved}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: onSaved,
+			onSessionExpired: vi.fn(),
+		});
 
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'Approvers' },
@@ -438,15 +479,13 @@ describe('ProfileFormDrawer', () => {
 	});
 
 	test('blocks submission when the profile name is empty', async () => {
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 
 		fireEvent.click(screen.getByLabelText('Read users'));
 		fireEvent.click(screen.getByRole('button', { name: 'Create profile' }));
@@ -457,15 +496,13 @@ describe('ProfileFormDrawer', () => {
 	});
 
 	test('blocks submission when the profile name has only one character', async () => {
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'A' },
@@ -491,15 +528,13 @@ describe('ProfileFormDrawer', () => {
 			},
 		});
 
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'Approvers' },
 		});
@@ -521,15 +556,13 @@ describe('ProfileFormDrawer', () => {
 		};
 		mocks.createProfileMutation.mockRejectedValue(error);
 
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={vi.fn()}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'Approvers' },
 		});
@@ -556,15 +589,13 @@ describe('ProfileFormDrawer', () => {
 		mocks.shouldLogoutForFailure.mockReturnValue(true);
 		const onSessionExpired = vi.fn();
 
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={vi.fn()}
-				onSaved={vi.fn()}
-				onSessionExpired={onSessionExpired}
-			/>,
-		);
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: onSessionExpired,
+		});
 
 		fireEvent.change(screen.getByLabelText('Profile name'), {
 			target: { value: 'Approvers' },

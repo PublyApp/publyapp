@@ -262,21 +262,27 @@ const StaffProfileUsersPage = () => {
 		],
 	});
 
-	if (
-		(detailQuery.isError && shouldLogoutForFailure(detailQuery.error)) ||
-		(usersQuery.isError && shouldLogoutForFailure(usersQuery.error))
-	) {
+	// Hoisted so the fatal-error gate reads plain locals, not query flags.
+	const detailIsPending = detailQuery.isPending;
+	const detailIsError = detailQuery.isError;
+	const detailError = detailQuery.error;
+	if (detailError !== null && shouldLogoutForFailure(detailError)) {
 		return <LogoutRedirect />;
 	}
 
-	if (detailQuery.isPending) {
+	const usersError = usersQuery.error;
+	if (usersError !== null && shouldLogoutForFailure(usersError)) {
+		return <LogoutRedirect />;
+	}
+
+	if (detailIsPending) {
 		return <ProfileDetailsLoading />;
 	}
 
-	if (detailQuery.isError) {
+	if (detailIsError) {
 		return (
 			<ProfileDetailsError
-				error={detailQuery.error}
+				error={detailError}
 				onRetry={() => void detailQuery.refetch()}
 			/>
 		);
@@ -305,9 +311,10 @@ const StaffProfileUsersPage = () => {
 	const hasPreviousPage = pageIndex > 0;
 	const hasNextPage =
 		(pageIndex + 1) * controller.size < (usersQuery.data?.count ?? 0);
-	const usersFailure = usersQuery.isError
-		? toApiFailure(usersQuery.error)
-		: null;
+	const usersFailure = usersError !== null ? toApiFailure(usersError) : null;
+	// Hoisted locals for the DataTable's table-body-state props.
+	const usersIsPending = usersQuery.isPending;
+	const usersIsError = usersQuery.isError;
 
 	return (
 		<div
@@ -378,8 +385,8 @@ const StaffProfileUsersPage = () => {
 						ariaLabel={t('assigned-staff-profile-users')}
 						columns={columns}
 						rows={rows}
-						isPending={usersQuery.isPending}
-						isError={usersQuery.isError}
+						isPending={usersIsPending}
+						isError={usersIsError}
 						onRetry={() => void usersQuery.refetch()}
 						errorContent={
 							usersFailure?.kind === 'problem' &&
@@ -399,7 +406,7 @@ const StaffProfileUsersPage = () => {
 						pageIndex={pageIndex}
 						hasPreviousPage={hasPreviousPage}
 						hasNextPage={hasNextPage}
-						isPaginationPending={usersQuery.isFetching && !usersQuery.isPending}
+						isPaginationPending={usersQuery.isFetching && !usersIsPending}
 						onNextPage={() => {
 							if (hasNextPage) {
 								setPageIndex((current) => current + 1);

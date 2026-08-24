@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay from '~/components/query-display';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
@@ -219,43 +220,15 @@ const StaffTenantInvitationsPage = () => {
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
-	if (detailsQuery.isPending) {
-		return <TenantDetailsLoading />;
+	// Hoisted so the fatal-error gates read plain locals, not query flags —
+	// QueryDisplay owns the loading/error/data rendering below.
+	const detailsError = detailsQuery.error;
+	if (detailsError !== null && shouldLogoutForFailure(detailsError)) {
+		return <LogoutRedirect />;
 	}
 
-	if (detailsQuery.isError) {
-		if (shouldLogoutForFailure(detailsQuery.error)) {
-			return <LogoutRedirect />;
-		}
-
-		return (
-			<TenantDetailsError
-				error={detailsQuery.error}
-				onRetry={() => void detailsQuery.refetch()}
-			/>
-		);
-	}
-
-	const tenant = toStaffTenantDetails(detailsQuery.data);
-	if (!tenant) {
-		return (
-			<AppErrorView
-				icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-				code={t('error-500-code')}
-				title={t('tenant-details-error-title')}
-				description={t('tenant-response-incomplete')}
-				testId="staff-tenant-details-error"
-				actions={
-					<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
-				}
-			/>
-		);
-	}
-
-	if (
-		invitationsQuery.isError &&
-		shouldLogoutForFailure(invitationsQuery.error)
-	) {
+	const invitationsError = invitationsQuery.error;
+	if (invitationsError !== null && shouldLogoutForFailure(invitationsError)) {
 		return <LogoutRedirect />;
 	}
 
@@ -263,162 +236,200 @@ const StaffTenantInvitationsPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	const setStatuses = (nextStatuses: KnownInvitationStatus[]): void => {
-		void navigate({
-			search: serializeInvitationRouteSearchParams({
-				...search,
-				status: serializeInvitationStatusFilter(nextStatuses),
-				cursor: undefined,
-			}),
-			replace: true,
-		});
-	};
+	const renderTenantMissingSlot = () => (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-response-incomplete')}
+			testId="staff-tenant-details-error"
+			actions={
+				<TenantRetryActions onRetry={() => void detailsQuery.refetch()} />
+			}
+		/>
+	);
 
-	const toggleStatus = (status: KnownInvitationStatus): void => {
-		if (selectedStatuses.includes(status)) {
-			setStatuses(selectedStatuses.filter((value) => value !== status));
-			return;
-		}
-
-		setStatuses([...selectedStatuses, status]);
-	};
-
-	const statusFilterLabel =
-		selectedStatuses.length === 0
-			? t('all-statuses')
-			: selectedStatuses
-					.map((status) => formatTenantInvitationStatusLabel(status, t))
-					.join(', ');
-
-	const setLevels = (nextLevels: KnownInvitationAccountLevel[]): void => {
-		void navigate({
-			search: serializeInvitationRouteSearchParams({
-				...search,
-				level: serializeInvitationAccountLevelFilter(nextLevels),
-				cursor: undefined,
-			}),
-			replace: true,
-		});
-	};
-
-	const toggleLevel = (level: KnownInvitationAccountLevel): void => {
-		if (selectedLevels.includes(level)) {
-			setLevels(selectedLevels.filter((value) => value !== level));
-			return;
-		}
-
-		setLevels([...selectedLevels, level]);
-	};
-
-	const levelFilterLabel =
-		selectedLevels.length === 0
-			? t('all-account-levels')
-			: selectedLevels
-					.map((level) => formatTenantUserLevelLabel(level, t))
-					.join(', ');
+	const tenant = toStaffTenantDetails(detailsQuery.data);
 
 	return (
-		<TenantDetailsPageShell
-			tenant={tenant}
-			activeSection="invitations"
-			testId="staff-tenant-invitations-page"
-			bodyScroll="contained"
+		<QueryDisplay
+			query={detailsQuery}
+			LoadingSlot={<TenantDetailsLoading />}
+			ErrorSlot={
+				<TenantDetailsError
+					error={detailsError}
+					onRetry={() => void detailsQuery.refetch()}
+				/>
+			}
+			EmptySlot={renderTenantMissingSlot()}
 		>
-			<InvitationsPageHeader
-				tenant={tenant}
-				onInvite={() => setInviteDrawerOpen(true)}
-			/>
+			{() => {
+				if (!tenant) {
+					return renderTenantMissingSlot();
+				}
 
-			<ConfirmDialog
-				isOpen={pendingRevokeRowId !== null}
-				title={t('revoke-invitation')}
-				description={t('revoke-invitation-confirm-description')}
-				confirmLabel={t('revoke')}
-				isPending={revokeInvitation.isPending}
-				onConfirm={() => {
-					const row = rows.find((r) => r.id === pendingRevokeRowId);
-					if (row) {
-						void handleRevoke(row);
+				const setStatuses = (nextStatuses: KnownInvitationStatus[]): void => {
+					void navigate({
+						search: serializeInvitationRouteSearchParams({
+							...search,
+							status: serializeInvitationStatusFilter(nextStatuses),
+							cursor: undefined,
+						}),
+						replace: true,
+					});
+				};
+
+				const toggleStatus = (status: KnownInvitationStatus): void => {
+					if (selectedStatuses.includes(status)) {
+						setStatuses(selectedStatuses.filter((value) => value !== status));
+						return;
 					}
-				}}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) setPendingRevokeRowId(null);
-				}}
-			/>
 
-			<DataTable
-				testId="staff-tenant-invitations-table"
-				ariaLabel={t('tenant-invitations-table-aria-label')}
-				columns={columns}
-				rows={rows}
-				getRowLabel={(row) => row.email}
-				isPending={invitationsQuery.isPending}
-				isError={invitationsQuery.isError}
-				onRetry={() => void invitationsQuery.refetch()}
-				emptyIcon={IconMail}
-				emptyTitle={t('tenant-invitations-empty-title')}
-				emptyContent={t('tenant-invitations-empty-description')}
-				emptyActions={
-					<Button
-						type="button"
-						size="sm"
-						variant="outline"
-						onClick={() => setInviteDrawerOpen(true)}
+					setStatuses([...selectedStatuses, status]);
+				};
+
+				const statusFilterLabel =
+					selectedStatuses.length === 0
+						? t('all-statuses')
+						: selectedStatuses
+								.map((status) => formatTenantInvitationStatusLabel(status, t))
+								.join(', ');
+
+				const setLevels = (nextLevels: KnownInvitationAccountLevel[]): void => {
+					void navigate({
+						search: serializeInvitationRouteSearchParams({
+							...search,
+							level: serializeInvitationAccountLevelFilter(nextLevels),
+							cursor: undefined,
+						}),
+						replace: true,
+					});
+				};
+
+				const toggleLevel = (level: KnownInvitationAccountLevel): void => {
+					if (selectedLevels.includes(level)) {
+						setLevels(selectedLevels.filter((value) => value !== level));
+						return;
+					}
+
+					setLevels([...selectedLevels, level]);
+				};
+
+				const levelFilterLabel =
+					selectedLevels.length === 0
+						? t('all-account-levels')
+						: selectedLevels
+								.map((level) => formatTenantUserLevelLabel(level, t))
+								.join(', ');
+
+				return (
+					<TenantDetailsPageShell
+						tenant={tenant}
+						activeSection="invitations"
+						testId="staff-tenant-invitations-page"
+						bodyScroll="contained"
 					>
-						<IconPlus aria-hidden="true" className="size-[15px]" />
-						{t('invite-people')}
-					</Button>
-				}
-				noMatchTitle={t('tenant-invitations-no-match-title')}
-				noMatchContent={t('tenant-invitations-no-match-description')}
-				hasActiveSearch={Boolean(
-					controller.search.committed || search.status || search.level,
-				)}
-				sort={controller.sort}
-				onSortChange={controller.onSortChange}
-				size={controller.size}
-				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={invitationsQuery.data?.nextCursor != null}
-				isPaginationPending={invitationsQuery.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(
-						invitationsQuery.data?.nextCursor ?? undefined,
-					)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
-				searchDraft={controller.search.draft}
-				onSearchDraftChange={controller.search.onDraftChange}
-				searchPlaceholder={t('search-invitations')}
-				selection={selection}
-				toolbarEnd={
-					<InvitationToolbarFilters
-						selectedLevels={selectedLevels}
-						selectedStatuses={selectedStatuses}
-						levelFilterLabel={levelFilterLabel}
-						statusFilterLabel={statusFilterLabel}
-						onSetLevels={setLevels}
-						onToggleLevel={toggleLevel}
-						onSetStatuses={setStatuses}
-						onToggleStatus={toggleStatus}
-						selectionLocked={selection.isSelectionMode}
-					/>
-				}
-			/>
+						<InvitationsPageHeader
+							tenant={tenant}
+							onInvite={() => setInviteDrawerOpen(true)}
+						/>
 
-			{/* #838: meaningful selected-row action — client-side CSV of the
-				selected visible invitations (no tenant bulk endpoints exist;
-				bulk revoke is explicitly out of scope for this issue). */}
-			<TenantInvitationsSelectionExport rows={rows} selection={selection} />
+						<ConfirmDialog
+							isOpen={pendingRevokeRowId !== null}
+							title={t('revoke-invitation')}
+							description={t('revoke-invitation-confirm-description')}
+							confirmLabel={t('revoke')}
+							isPending={revokeInvitation.isPending}
+							onConfirm={() => {
+								const row = rows.find((r) => r.id === pendingRevokeRowId);
+								if (row) {
+									void handleRevoke(row);
+								}
+							}}
+							onOpenChange={(isOpen) => {
+								if (!isOpen) setPendingRevokeRowId(null);
+							}}
+						/>
 
-			<InviteTenantUserDrawerHost
-				tenantId={tenantId}
-				isOpen={isInviteDrawerOpen}
-				onOpenChange={setInviteDrawerOpen}
-				onSessionExpired={() => setShouldRedirectToLogout(true)}
-			/>
-		</TenantDetailsPageShell>
+						<DataTable
+							testId="staff-tenant-invitations-table"
+							ariaLabel={t('tenant-invitations-table-aria-label')}
+							columns={columns}
+							rows={rows}
+							getRowLabel={(row) => row.email}
+							isPending={invitationsQuery.isPending}
+							isError={invitationsQuery.isError}
+							onRetry={() => void invitationsQuery.refetch()}
+							emptyIcon={IconMail}
+							emptyTitle={t('tenant-invitations-empty-title')}
+							emptyContent={t('tenant-invitations-empty-description')}
+							emptyActions={
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									onClick={() => setInviteDrawerOpen(true)}
+								>
+									<IconPlus aria-hidden="true" className="size-[15px]" />
+									{t('invite-people')}
+								</Button>
+							}
+							noMatchTitle={t('tenant-invitations-no-match-title')}
+							noMatchContent={t('tenant-invitations-no-match-description')}
+							hasActiveSearch={Boolean(
+								controller.search.committed || search.status || search.level,
+							)}
+							sort={controller.sort}
+							onSortChange={controller.onSortChange}
+							size={controller.size}
+							onSizeChange={controller.onSizeChange}
+							pageIndex={controller.cursor.pageIndex}
+							hasPreviousPage={controller.cursor.hasPreviousPage}
+							hasNextPage={invitationsQuery.data?.nextCursor != null}
+							isPaginationPending={invitationsQuery.isFetching}
+							onNextPage={() =>
+								controller.cursor.onNextPage(
+									invitationsQuery.data?.nextCursor ?? undefined,
+								)
+							}
+							onPreviousPage={controller.cursor.onPreviousPage}
+							searchDraft={controller.search.draft}
+							onSearchDraftChange={controller.search.onDraftChange}
+							searchPlaceholder={t('search-invitations')}
+							selection={selection}
+							toolbarEnd={
+								<InvitationToolbarFilters
+									selectedLevels={selectedLevels}
+									selectedStatuses={selectedStatuses}
+									levelFilterLabel={levelFilterLabel}
+									statusFilterLabel={statusFilterLabel}
+									onSetLevels={setLevels}
+									onToggleLevel={toggleLevel}
+									onSetStatuses={setStatuses}
+									onToggleStatus={toggleStatus}
+									selectionLocked={selection.isSelectionMode}
+								/>
+							}
+						/>
+
+						{/* #838: meaningful selected-row action — client-side CSV of the
+							selected visible invitations (no tenant bulk endpoints exist;
+							bulk revoke is explicitly out of scope for this issue). */}
+						<TenantInvitationsSelectionExport
+							rows={rows}
+							selection={selection}
+						/>
+
+						<InviteTenantUserDrawerHost
+							tenantId={tenantId}
+							isOpen={isInviteDrawerOpen}
+							onOpenChange={setInviteDrawerOpen}
+							onSessionExpired={() => setShouldRedirectToLogout(true)}
+						/>
+					</TenantDetailsPageShell>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 

@@ -58,8 +58,11 @@ const mocks = vi.hoisted(() => ({
 	capturedShouldBlockFn: undefined as
 		| ((transition: BlockerTransition) => boolean)
 		| undefined,
-	capturedOnDirtyChange: undefined as ((isDirty: boolean) => void) | undefined,
 	capturedOnSaved: undefined as ((profileId: string) => void) | undefined,
+	setPageFormField: undefined as
+		| ((field: 'name', value: string) => void)
+		| undefined,
+	resetPageForm: undefined as (() => void) | undefined,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -237,19 +240,28 @@ vi.mock('~/lib/mutation-toast', () => ({
 vi.mock('./profiles/_profile-form-drawer', () => ({
 	ProfileFormDrawer: ({
 		isOpen,
-		onDirtyChange,
+		methods,
 		onSaved,
 	}: {
 		isOpen: boolean;
-		onDirtyChange?: (isDirty: boolean) => void;
+		methods?: UseFormReturn<StaffTenantProfileFormValues>;
 		onSaved?: (profileId: string) => void;
 	}) => {
-		mocks.capturedOnDirtyChange = onDirtyChange;
+		// The page owns the RHF store now; expose it so tests can drive the
+		// real dirty state instead of simulating a child-to-parent relay.
+		if (methods) {
+			mocks.setPageFormField = (field, value) =>
+				methods.setValue(field, value, { shouldDirty: true });
+			mocks.resetPageForm = () => methods.reset();
+		}
 		mocks.capturedOnSaved = onSaved;
 		return isOpen ? <div data-testid="profile-create-drawer-open" /> : null;
 	},
 }));
 
+import type { UseFormReturn } from 'react-hook-form';
+
+import type { StaffTenantProfileFormValues } from './profiles';
 import {
 	deriveTenantProfileCardStyle,
 	Route,
@@ -274,6 +286,16 @@ const RouteComponent = (
 
 const renderPage = () => render(<RouteComponent />);
 
+// The create form is owned by the page (react-hook-form), so tests drive
+// dirtiness through the real form store rather than a relayed callback.
+const makeCreateFormDirty = (): void => {
+	act(() => mocks.setPageFormField?.('name', 'draft name'));
+};
+
+const makeCreateFormClean = (): void => {
+	act(() => mocks.resetPageForm?.());
+};
+
 describe('staff tenant profiles route', () => {
 	test('declares the profile feature namespace', () => {
 		expect(Route.options.staticData?.i18nNamespaces).toEqual([
@@ -288,7 +310,6 @@ describe('staff tenant profiles route', () => {
 		mocks.blockerResolver.proceed = undefined;
 		mocks.blockerResolver.reset = undefined;
 		mocks.capturedShouldBlockFn = undefined;
-		mocks.capturedOnDirtyChange = undefined;
 		mocks.capturedOnSaved = undefined;
 		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
@@ -1126,10 +1147,10 @@ describe('staff tenant profiles route', () => {
 
 		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(false);
 
-		act(() => mocks.capturedOnDirtyChange?.(true));
+		makeCreateFormDirty();
 		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(true);
 
-		act(() => mocks.capturedOnDirtyChange?.(false));
+		makeCreateFormClean();
 		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(false);
 	});
 
@@ -1137,7 +1158,7 @@ describe('staff tenant profiles route', () => {
 		mocks.search = {};
 		renderPage();
 
-		act(() => mocks.capturedOnDirtyChange?.(true));
+		makeCreateFormDirty();
 		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(false);
 	});
 
@@ -1151,14 +1172,13 @@ describe('staff tenant profiles route', () => {
 		mocks.search = { new: 1 };
 		renderPage();
 
-		act(() => mocks.capturedOnDirtyChange?.(true));
+		makeCreateFormDirty();
 		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(true);
 
-		// React batches state updates across a single `act` callback and only
-		// applies them once it returns, so asserting *inside* this callback
-		// (before the flush) reproduces the real stale-closure race.
+		// The bypass ref is set synchronously by onSaved before the navigation
+		// it performs, so asserting inside this act still exercises the guard
+		// against this render's (still dirty) form state.
 		act(() => {
-			mocks.capturedOnDirtyChange?.(false);
 			mocks.capturedOnSaved?.('new-profile-id');
 
 			expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(
@@ -1181,11 +1201,10 @@ describe('staff tenant profiles route', () => {
 		mocks.search = { new: 1 };
 		renderPage();
 
-		act(() => mocks.capturedOnDirtyChange?.(true));
+		makeCreateFormDirty();
 		expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(true);
 
 		act(() => {
-			mocks.capturedOnDirtyChange?.(false);
 			mocks.capturedOnSaved?.('');
 
 			expect(mocks.capturedShouldBlockFn?.(leavingListTransition())).toBe(

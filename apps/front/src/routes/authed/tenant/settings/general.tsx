@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form, type FieldSelectOption } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Skeleton } from '~/components/ui/skeleton';
@@ -48,9 +49,9 @@ const TenantSettingsGeneralPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
-	const { data, isPending, isError, isSuccess, refetch } =
-		useTenantSettingsGeneralQuery(tenantId);
-	const settings = toTenantSettingsGeneral(data);
+	const query = useTenantSettingsGeneralQuery(tenantId);
+	const { refetch } = query;
+	const settings = toTenantSettingsGeneral(query.data);
 	const updateSettings = useUpdateTenantSettingsGeneralMutation();
 	const [serverError, setServerError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
@@ -104,7 +105,11 @@ const TenantSettingsGeneralPage = () => {
 	const hydratedTenantIdRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (!isSuccess || !settings || hydratedTenantIdRef.current === tenantId) {
+		if (
+			!query.isSuccess ||
+			!settings ||
+			hydratedTenantIdRef.current === tenantId
+		) {
 			return;
 		}
 
@@ -120,7 +125,7 @@ const TenantSettingsGeneralPage = () => {
 			timezone: settings.timezone ?? '',
 		});
 		hydratedTenantIdRef.current = tenantId;
-	}, [isSuccess, settings, tenantId, reset]);
+	}, [query.isSuccess, settings, tenantId, reset]);
 
 	const isSubmittingForm = isSubmitting || updateSettings.isPending;
 
@@ -202,37 +207,15 @@ const TenantSettingsGeneralPage = () => {
 		<div className="space-y-5" data-testid="tenant-settings-general-page">
 			<WorkspacePageHeader titleKey="general" />
 
-			{isError ? (
-				<Card>
-					<CardHeader>
-						<CardTitle>{t('common:organization-details')}</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<ErrorStateSurface
-							icon={IconAlertCircle}
-							title={t('failed-to-load-settings')}
-							description={t('failed-to-load-settings-description')}
-							testId="tenant-settings-general-error"
-							actions={
-								<Button
-									variant="default"
-									type="button"
-									onClick={() => void refetch()}
-								>
-									{t('common:retry')}
-								</Button>
-							}
-						/>
-					</CardContent>
-				</Card>
-			) : (
-				<>
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('common:organization-details')}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{isPending ? (
+			<QueryDisplay
+				query={query}
+				LoadingSlot={
+					<>
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('common:organization-details')}</CardTitle>
+							</CardHeader>
+							<CardContent>
 								<div
 									className="space-y-4"
 									data-testid="tenant-settings-general-skeleton"
@@ -243,80 +226,118 @@ const TenantSettingsGeneralPage = () => {
 									<Skeleton className="h-9 w-full" />
 									<Skeleton className="h-9 w-full" />
 								</div>
-							) : (
-								<>
-									{serverError ? (
-										<p
-											role="alert"
-											className="mb-4 rounded-[var(--publy-radius-input)] bg-destructive/10 px-3 py-2 text-sm text-destructive"
-										>
-											{serverError}
-										</p>
-									) : null}
+							</CardContent>
+						</Card>
 
-									<Form methods={methods} onSubmit={onSubmit}>
-										<div className="grid gap-4 md:grid-cols-2">
-											<Field.Text
-												name="name"
-												label={t('common:name')}
-												placeholder={t('common:name')}
-												isDisabled={isSubmittingForm}
-											/>
-											<Field.Text
-												name="logoUrl"
-												label={t('common:logo')}
-												helperText={t('common:logo-description')}
-												placeholder="https://example.com/logo.png"
-												isDisabled={isSubmittingForm}
-											/>
-											<Field.Text
-												name="legalName"
-												label={t('common:legal-name')}
-												placeholder={t('common:legal-name')}
-												isDisabled={isSubmittingForm}
-											/>
-											<Field.Text
-												name="websiteUrl"
-												label={t('common:website')}
-												placeholder="https://example.com"
-												isDisabled={isSubmittingForm}
-											/>
-										</div>
-										<Field.Textarea
-											name="description"
-											label={t('common:description')}
-											placeholder={t('common:description')}
-											isDisabled={isSubmittingForm}
-										/>
-
-										<div className="flex items-center gap-3 pt-2">
-											<Button
-												type="submit"
-												variant="default"
-												disabled={isSubmittingForm}
-											>
-												{t('common:save-changes')}
-											</Button>
-										</div>
-									</Form>
-								</>
-							)}
-						</CardContent>
-					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('regional-and-contact-settings')}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{isPending ? (
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('regional-and-contact-settings')}</CardTitle>
+							</CardHeader>
+							<CardContent>
 								<div className="space-y-4">
 									<Skeleton className="h-9 w-full" />
 									<Skeleton className="h-9 w-full" />
 									<Skeleton className="h-9 w-full" />
 									<Skeleton className="h-9 w-full" />
 								</div>
-							) : (
+							</CardContent>
+						</Card>
+					</>
+				}
+				ErrorSlot={
+					<Card>
+						<CardHeader>
+							<CardTitle>{t('common:organization-details')}</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<ErrorStateSurface
+								icon={IconAlertCircle}
+								title={t('failed-to-load-settings')}
+								description={t('failed-to-load-settings-description')}
+								testId="tenant-settings-general-error"
+								actions={
+									<Button
+										variant="default"
+										type="button"
+										onClick={() => void refetch()}
+									>
+										{t('common:retry')}
+									</Button>
+								}
+							/>
+						</CardContent>
+					</Card>
+				}
+			>
+				{() => (
+					<>
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('common:organization-details')}</CardTitle>
+							</CardHeader>
+							<CardContent>
+								{serverError !== '' ? (
+									<p
+										role="alert"
+										className="mb-4 rounded-[var(--publy-radius-input)] bg-destructive/10 px-3 py-2 text-sm text-destructive"
+									>
+										{serverError}
+									</p>
+								) : null}
+
+								<Form methods={methods} onSubmit={onSubmit}>
+									<div className="grid gap-4 md:grid-cols-2">
+										<Field.Text
+											name="name"
+											label={t('common:name')}
+											placeholder={t('common:name')}
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Text
+											name="logoUrl"
+											label={t('common:logo')}
+											helperText={t('common:logo-description')}
+											placeholder="https://example.com/logo.png"
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Text
+											name="legalName"
+											label={t('common:legal-name')}
+											placeholder={t('common:legal-name')}
+											isDisabled={isSubmittingForm}
+										/>
+										<Field.Text
+											name="websiteUrl"
+											label={t('common:website')}
+											placeholder="https://example.com"
+											isDisabled={isSubmittingForm}
+										/>
+									</div>
+									<Field.Textarea
+										name="description"
+										label={t('common:description')}
+										placeholder={t('common:description')}
+										isDisabled={isSubmittingForm}
+									/>
+
+									<div className="flex items-center gap-3 pt-2">
+										<Button
+											type="submit"
+											variant="default"
+											disabled={isSubmittingForm}
+										>
+											{t('common:save-changes')}
+										</Button>
+									</div>
+								</Form>
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('regional-and-contact-settings')}</CardTitle>
+							</CardHeader>
+							<CardContent>
 								<Form methods={methods} onSubmit={onSubmit}>
 									<div className="grid gap-4 md:grid-cols-2">
 										<Field.Select
@@ -355,26 +376,26 @@ const TenantSettingsGeneralPage = () => {
 										</Button>
 									</div>
 								</Form>
-							)}
-						</CardContent>
-					</Card>
+							</CardContent>
+						</Card>
 
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('common:danger-zone')}</CardTitle>
-							<ReadOnlyBadge />
-						</CardHeader>
-						<CardContent>
-							<StateSurface
-								icon={IconAlertTriangle}
-								title={t('danger-zone-coming-later-title')}
-								description={t('danger-zone-coming-later-description')}
-								testId="tenant-settings-general-danger-empty"
-							/>
-						</CardContent>
-					</Card>
-				</>
-			)}
+						<Card>
+							<CardHeader>
+								<CardTitle>{t('common:danger-zone')}</CardTitle>
+								<ReadOnlyBadge />
+							</CardHeader>
+							<CardContent>
+								<StateSurface
+									icon={IconAlertTriangle}
+									title={t('danger-zone-coming-later-title')}
+									description={t('danger-zone-coming-later-description')}
+									testId="tenant-settings-general-danger-empty"
+								/>
+							</CardContent>
+						</Card>
+					</>
+				)}
+			</QueryDisplay>
 		</div>
 	);
 };

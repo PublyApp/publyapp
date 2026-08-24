@@ -1,9 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useState } from 'react';
+import { Controller, useWatch, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { Field } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -36,57 +34,11 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { PermissionMatrix } from './_permission-matrix';
-import { deriveTenantProfileCardStyle } from './_profile-card-style';
-
-const buildProfileFormSchema = (t: (key: string) => string) =>
-	z.object({
-		name: z
-			.string()
-			.trim()
-			.min(1, { message: t('profile-name-required') })
-			.min(2, { message: t('profile-name-too-short') })
-			.max(100, { message: t('profile-name-too-long') }),
-		description: z
-			.string()
-			.trim()
-			.max(500, { message: t('profile-description-too-long') })
-			.optional(),
-		icon: z.string().min(1),
-		tone: z.string().min(1),
-		permissionKeys: z.array(z.string()),
-	});
-
-type ProfileFormValues = z.infer<ReturnType<typeof buildProfileFormSchema>>;
-
-const PROFILE_FORM_FIELDS = [
-	'name',
-	'description',
-	'icon',
-	'tone',
-	'permissionKeys',
-] as const satisfies readonly (keyof ProfileFormValues)[];
-
-const isProfileFormField = (
-	field: string,
-): field is (typeof PROFILE_FORM_FIELDS)[number] =>
-	PROFILE_FORM_FIELDS.some((candidate) => candidate === field);
-
-const toStringArray = (value: unknown): string[] =>
-	Array.isArray(value)
-		? value.filter((item): item is string => typeof item === 'string')
-		: [];
-
-const getProfileFormValues = (): ProfileFormValues => {
-	const style = deriveTenantProfileCardStyle('');
-
-	return {
-		name: '',
-		description: '',
-		icon: style.icon,
-		tone: style.tone,
-		permissionKeys: [],
-	};
-};
+import {
+	isProfileFormField,
+	toStringArray,
+	type ProfileFormValues,
+} from './_profile-form-schema';
 
 export const ProfileFormDrawer = ({
 	tenantId,
@@ -94,7 +46,7 @@ export const ProfileFormDrawer = ({
 	onOpenChange,
 	onSaved,
 	onSessionExpired,
-	onDirtyChange,
+	methods,
 }: {
 	tenantId: string;
 	isOpen: boolean;
@@ -102,12 +54,16 @@ export const ProfileFormDrawer = ({
 	onSaved: (profileId: string) => void;
 	onSessionExpired: () => void;
 	/**
-	 * Reports form dirtiness to the parent so it can guard the URL-driven
-	 * open path (`?new=1`/`?edit=1`) against a browser Back or sibling-route
-	 * navigation — those transitions update/unmount this drawer without ever
-	 * calling its own `onOpenChange` close guard (tenants-r1-F2).
+	 * Form state owned by the host page. The page reads `formState.isDirty`
+	 * during its own render and passes a fresh `key` when reopening so the
+	 * directly during its own renders (no child effect relaying it upward)
+	 * and guards the URL-driven open path (`?new=1`) against a browser Back
+	 * or sibling-route navigation — those transitions unmount this drawer
+	 * without ever calling its close guard (tenants-r1-F2). Remounting this
+	 * drawer with a fresh `key` re-seeds the form from
+	 * `getProfileFormValues()` without any reset effect.
 	 */
-	onDirtyChange?: (isDirty: boolean) => void;
+	methods: UseFormReturn<ProfileFormValues>;
 }) => {
 	const { t, i18n } = useTranslation('common');
 	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
@@ -116,56 +72,39 @@ export const ProfileFormDrawer = ({
 	const catalogQuery = useStaffTenantPermissionCatalogQuery({
 		language: i18n.language,
 	});
+
+	// Hoisted locals keep raw query flags out of render-flow conditionals.
+	const catalogIsPending = catalogQuery.isPending;
+	const catalogIsError = catalogQuery.isError;
+	const catalogError = catalogQuery.error;
 	const createProfile = useCreateStaffTenantProfileMutation();
 
 	const groups = buildStaffTenantPermissionCatalogGroups(
 		catalogQuery.data?.additionalData,
 	);
 
-	const resolver = useMemo(
-		() => zodResolver(buildProfileFormSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
-	);
-
-	const methods = useForm<ProfileFormValues>({
-		resolver,
-		defaultValues: getProfileFormValues(),
-	});
 	const {
-		reset,
 		formState: { isDirty, isSubmitting },
 	} = methods;
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 	const icon = useWatch({ control: methods.control, name: 'icon' });
 	const tone = useWatch({ control: methods.control, name: 'tone' });
 
-	useEffect(() => {
-		if (!isOpen) {
-			return;
-		}
-
-		setIsDiscardConfirmOpen(false);
-		reset(getProfileFormValues());
-	}, [isOpen, reset]);
-
-	useEffect(() => {
-		onDirtyChange?.(isDirty);
-	}, [isDirty, onDirtyChange]);
-
 	const isSaving = createProfile.isPending;
 	const isFormLocked = isSaving || isSubmitting;
 
 	// tenants-r6-F3: every close path (Escape, backdrop click, Cancel, and
 	// browser back — all funneled through Base UI's `onOpenChange`) must
-	// confirm before discarding a dirty create form.
-	const requestClose = () => {
-		if (isDirty) {
-			setIsDiscardConfirmOpen(true);
+	// confirm before discarding a dirty create form. Dirtiness is read at
+	// call time, not captured in an effect, so every caller sees the current
+	// form state.
+	const requestClose = (isDirtyAtClose: boolean): void => {
+		if (!isDirtyAtClose) {
+			onOpenChange(false);
 			return;
 		}
 
-		onOpenChange(false);
+		setIsDiscardConfirmOpen(true);
 	};
 
 	const invalidateProfileQueries = () =>
@@ -233,9 +172,6 @@ export const ProfileFormDrawer = ({
 		toastLocalMutationResult.success(t('profile-created-successfully'));
 
 		const profileId = result?.profile?.id?.toString().trim();
-		// A successful submit must never trip the parent's nav guard on
-		// the navigation `onSaved` performs next.
-		onDirtyChange?.(false);
 		onSaved(profileId ?? '');
 	});
 
@@ -248,7 +184,7 @@ export const ProfileFormDrawer = ({
 				}
 
 				if (!open) {
-					requestClose();
+					requestClose(isDirty);
 					return;
 				}
 
@@ -298,23 +234,21 @@ export const ProfileFormDrawer = ({
 							isDisabled={isFormLocked}
 						/>
 
-						{catalogQuery.isPending ? (
+						{catalogIsPending ? (
 							<p className="text-sm text-muted-foreground">
 								{t('loading-permissions')}
 							</p>
 						) : null}
 
-						{catalogQuery.isError ? (
+						{catalogIsError ? (
 							<p className="text-sm text-destructive">
-								{getFailureMessage(toApiFailure(catalogQuery.error), {
+								{getFailureMessage(toApiFailure(catalogError), {
 									fallback: t('tenant-permission-catalog-load-failed'),
 								})}
 							</p>
 						) : null}
 
-						{!catalogQuery.isPending &&
-						!catalogQuery.isError &&
-						groups.length > 0 ? (
+						{!catalogIsPending && !catalogIsError && groups.length > 0 ? (
 							<Controller
 								name="permissionKeys"
 								control={methods.control}
@@ -332,9 +266,7 @@ export const ProfileFormDrawer = ({
 							/>
 						) : null}
 
-						{!catalogQuery.isPending &&
-						!catalogQuery.isError &&
-						groups.length === 0 ? (
+						{!catalogIsPending && !catalogIsError && groups.length === 0 ? (
 							<p className="text-sm text-muted-foreground">
 								{t('no-permissions-available')}
 							</p>
@@ -351,7 +283,7 @@ export const ProfileFormDrawer = ({
 							type="button"
 							variant="ghost"
 							disabled={isFormLocked}
-							onClick={requestClose}
+							onClick={() => requestClose(isDirty)}
 						>
 							{t('cancel')}
 						</Button>
@@ -370,10 +302,6 @@ export const ProfileFormDrawer = ({
 				onOpenChange={setIsDiscardConfirmOpen}
 				onConfirm={() => {
 					setIsDiscardConfirmOpen(false);
-					// The user already confirmed the discard here — clear dirtiness
-					// first so the parent's URL nav guard doesn't immediately block
-					// the close navigation this triggers with a second prompt.
-					onDirtyChange?.(false);
 					onOpenChange(false);
 				}}
 			/>

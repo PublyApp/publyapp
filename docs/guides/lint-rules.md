@@ -61,17 +61,17 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 
 ### `publy/prefer-query-display`
 
-- **Severity:** `"off"` (dormant)
+- **Severity:** `"error"`
 - **Source:** `packages/lint-ts/src/publy/prefer-query-display.ts`
 - **Spec:** `packages/lint-ts/src/publy/prefer-query-display.test.ts`
 - **AGENTS.md:** "Query state rendering uses the shared `QueryDisplay` component rather than a hand-rolled loading/error/empty/data ladder." (normative via `docs/guides/front/conventions.md#query-state-rendering`)
 - **Autofix:** no
 - **Detection:** flags a component `.tsx` file (relative to `apps/front/src/`) that binds a `use*Query` result — whole binding (`const q = useQuery()`), destructured (`const { isError } = useQuery()`), renamed destructured (`const { isPending: loading } = useQuery()`), rest element (`const { data, ...rest } = useQuery()`), whole-binding alias (`const r = useQuery(); const q = r;`), or destructuring from an already tracked binding — and then reads a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` / `error`) inside a conditional render (ternary / `&&` / `||` / `if` / early return / `for`/`while` guard). A JSX-returning callback sitting directly in a JSX attribute value or child expression (`<Controller render={(…) => …}>`, `children={() => …}`) is render context and is scanned too; event handlers (`onClick`, `onSubmit`), effect/memo callbacks, and computed prop values (`disabled={q.isPending}`, delegating `isPending={q.isPending}`) are not.
 - **Exclusions:** `components/query-display`, `components/table/`, `lib/query/`, and exactly `routes/__root.tsx`, `routes/authed/layout.tsx`, `routes/accept-invitation.tsx`.
-- **Offender baseline at ship time:** 30 files / 79 diagnostics across `apps/front/src/routes/authed/**` (`isError` 30, `error` 27, `isPending` 19, `isSuccess` 3). Includes `_invite-profile-select.tsx` (named in issue #1250) via the render-prop detection; every file named in issue #1250 that this rule can see is flagged except `_profile-overview-tab.tsx` (a props-carrier whose query flags originate in `$profileId.tsx`, which is flagged).
-- **Verifying while dormant:** `oxlint -D publy/prefer-query-display` silently no-ops for jsPlugin rules on oxlint 1.79.0; flip severity on a copy of `.oxlintrc.json` instead (`"error"` for the rule) and run `pnpm exec oxlint --config .oxlintrc.error.json apps/front/src`.
+- **Offender baseline before enforcement:** 30 files / 79 diagnostics across `apps/front/src/routes/authed/**` (`isError` 30, `error` 27, `isPending` 19, `isSuccess` 3) — all migrated to `QueryDisplay` or hoisted-local gates; zero diagnostics at enforcement time.
+- **Migration idiom:** fatal-error/logout gates read hoisted plain locals (`const detailError = q.error; if (detailError !== null && shouldLogoutForFailure(detailError)) ...`) rather than raw query flags in render-flow conditionals; loading/error/data rendering goes through `QueryDisplay`. DataTable's table-body-state props keep taking locals too.
 - **Shipped in:** #1259 (dormant)
-- **Enforced in:** future PR that flips severity to `"error"` after the known offenders migrate to `QueryDisplay`.
+- **Enforced in:** PR 2 of #1250 (severity flipped to `"error"` after the known offenders migrated).
 
 ### `publy/arrow-function-components`
 
