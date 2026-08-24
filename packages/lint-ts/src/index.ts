@@ -8,8 +8,9 @@
  *
  * This package hosts BOTH plugins:
  *   - `publy`     — house rules (`src/publy/*`), default export of this module.
- *   - `anti-slop` — vendored from dmmulroy/anti-slop @ 6d53855 (MIT),
- *     re-exported as a named export from `src/anti-slop/index.ts`.
+ *   - `anti-slop` — vendored from dmmulroy/anti-slop @ 6d53855 (MIT); it
+ *     lives in `src/anti-slop/index.ts` and is wired straight into Oxlint
+ *     through its own `jsPlugins` specifier, so it is NOT re-exported here.
  *     Vendored code carries oxfmt-only modifications; do not add house rules
  *     there (see `src/anti-slop/README.md`).
  *
@@ -40,8 +41,6 @@ import { noOp } from './publy/no-op.ts';
 import { noPackageSrcImport } from './publy/no-package-src-import.ts';
 import { preferQueryDisplay } from './publy/prefer-query-display.ts';
 import { preferSpecificLodashImports } from './publy/prefer-specific-lodash-imports.ts';
-
-export { default as antiSlopPlugin } from './anti-slop/index.ts';
 
 // Plugin object shape (oxlint 1.64.0): `{ meta: { name }, rules: { [name]: Rule } }`.
 const publyPlugin = {
