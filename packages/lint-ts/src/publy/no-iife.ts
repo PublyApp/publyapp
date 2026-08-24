@@ -13,7 +13,11 @@ import type { ESTree } from '@oxlint/plugins';
  * literal (`ArrowFunctionExpression` | `FunctionExpression`), ignoring
  * transparent wrappers around the callee — `ParenthesizedExpression`,
  * `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression`,
- * `TSTypeAssertion`, and `TSInstantiationExpression`.
+ * `TSTypeAssertion`, and `TSInstantiationExpression`. The comma-operator form
+ * `(0, fn)()` (`SequenceExpression` callee, last expression taken) is peeled
+ * too, so `(0, () => {})()` is reported. A function literal used as a tagged-
+ * template tag (`(() => x)`t`)`) is an immediate invocation as well and is
+ * reported via `TaggedTemplateExpression`.
  */
 
 /**
@@ -39,6 +43,13 @@ export const unwrapCallee = (node: ESTree.Expression): ESTree.Expression => {
 					.expression;
 				continue;
 			}
+			case 'SequenceExpression': {
+				// Comma-operator callee `(0, fn)()` — the effective callee is the
+				// LAST expression in the sequence.
+				const { expressions } = current;
+				current = expressions[expressions.length - 1];
+				continue;
+			}
 			default: {
 				return current;
 			}
@@ -55,7 +66,6 @@ const isFunctionLiteral = (node: ESTree.Expression): boolean =>
  */
 export const isIifeCallee = (callee: ESTree.Expression): boolean =>
 	isFunctionLiteral(unwrapCallee(callee));
-
 export const noIife = {
 	meta: {
 		type: 'suggestion' as const,
@@ -85,6 +95,11 @@ export const noIife = {
 			},
 			NewExpression(node) {
 				reportIfIife(node.callee, node);
+			},
+			TaggedTemplateExpression(node) {
+				// `` (() => x)`t` `` — a function literal invoked immediately as a
+				// tagged-template tag.
+				reportIfIife(node.tag, node);
 			},
 		};
 	},

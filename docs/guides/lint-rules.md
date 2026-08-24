@@ -92,7 +92,7 @@ Each rule is exposed under the `publy/*` namespace and registered in `.oxlintrc.
 - **Spec:** `packages/lint-ts/src/publy/no-iife.test.ts`
 - **Rationale (issue #1303):** an IIFE hides imperative branching inside an expression; extract a named function or compute the value with preceding statements instead.
 - **Autofix:** no
-- **Detection:** flags a `CallExpression`/`NewExpression` whose callee is an inline function literal (`ArrowFunctionExpression`/`FunctionExpression`) after unwrapping transparent wrappers around the callee (`ParenthesizedExpression`, `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression`, `TSTypeAssertion`, `TSInstantiationExpression`). Callbacks passed as arguments, named-function calls, and callees that unwrap to identifiers are not flagged.
+- **Detection:** flags a `CallExpression`/`NewExpression` whose callee is an inline function literal (`ArrowFunctionExpression`/`FunctionExpression`) after unwrapping transparent wrappers around the callee (`ParenthesizedExpression`, `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression`, `TSTypeAssertion`, `TSInstantiationExpression`, and `SequenceExpression` — the comma-operator form `(0, fn)()`, where the last expression is the effective callee). Also flags a `TaggedTemplateExpression` whose tag unwraps to a function literal (``(() => x)`t` ``). Callbacks passed as arguments, named-function calls, callees that unwrap to identifiers, and identifier tags (``css`…` ``) are not flagged.
 - **Ported from:** the DigitalPrevention `no-iife` rule.
 - **Shipped in / Enforced in:** #1303 (22 baseline offenders across 12 files extracted in the same PR → 0 at enforcement).
 

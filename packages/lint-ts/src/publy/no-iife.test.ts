@@ -9,11 +9,13 @@
  * - Plugin wiring: `index.ts` exposes `rules['no-iife']` pointing at the same
  *   rule object exported from the rule module.
  * - `valid`: plain calls, callbacks passed as arguments, constructor calls on
- *   identifiers, and callee wrappers that peel to a non-function-literal —
- *   must NOT fire.
+ *   identifiers, callee wrappers that peel to a non-function-literal
+ *   (including the comma-operator form `(0, fn)()`), and identifier tags on
+ *   tagged templates — must NOT fire.
  * - `invalid`: plain, async, parenthesised, `as`-cast, `satisfies`,
- *   non-null-`!`, and `<type>`-assertion wrapped IIFEs, plus `new` with a
- *   function literal callee — each report with `messageId: 'noIife'`.
+ *   non-null-`!`, `<type>`-assertion, comma-operator `(0, fn)()`, and
+ *   tagged-template-tag IIFEs, plus `new` with a function literal callee —
+ *   each report with `messageId: 'noIife'`.
  */
 import assert from 'node:assert/strict';
 
@@ -67,6 +69,14 @@ const runCases = (rule, label) => {
 				// Callee wrapper peels to an identifier — not a function literal.
 				v('declare const fn: () => void;\n(fn as () => void)();'),
 				v('declare const fn2: () => void;\n(<() => void>fn2)();'),
+				// Comma-operator callee whose LAST expression is an identifier —
+				// not a function literal.
+				v('declare const fn3: () => void;\n(0, fn3)();'),
+				// Identifier tag — a normal tagged template, not an immediate
+				// invocation.
+				v(
+					'declare const css: (strings: TemplateStringsArray) => string;\ncss`color: red;`;',
+				),
 				// `new Identifier()` is a normal construction, not an IIFE.
 				v('class Foo {}\nnew Foo();'),
 				v(
@@ -103,6 +113,17 @@ const runCases = (rule, label) => {
 				// `new` on a function-literal callee.
 				i('new (function () { this.x = 1; })();'),
 				i('new (() => {})();'),
+				// Comma-operator callee `(0, fn)()` — the effective callee is the
+				// LAST expression in the sequence.
+				i('(0, (() => { return 1; }))();'),
+				i('(0, function () { return 1; })();'),
+				// Nested sequence still ends on the function literal.
+				i('(1, 2, () => 42)();'),
+				// Function literal used as a tagged-template tag.
+				i('const t = ((x) => String(x))`tagged`;'),
+				i('(function () { return 1; })`tagged`;'),
+				// Wrapped function literal behind a comma-operator callee.
+				i('(0, (() => 7) as () => number)();'),
 				// IIFE passed as an argument to another call.
 				i('declare function log(v: unknown): void;\nlog((() => 42)());'),
 			],
