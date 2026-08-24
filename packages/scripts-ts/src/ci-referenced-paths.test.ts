@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
+import { parseSkipInventoryPaths } from './react-compiler-skip-inventory.ts';
+
 // Guard against dangling script-path references in the gate configuration
 // surfaces (workflows, justfile, root package.json, AGENTS.md).
 //
@@ -120,6 +122,14 @@ test('every script path referenced by gate config surfaces exists', () => {
 // exist. Scoped to `src/`-prefixed keys so the doc's second table (compiler
 // diagnostic names, which are prose, not paths) stays out of scope.
 //
+// Parsing is STRICT (react-compiler-skip-inventory.ts): every table body row
+// of the Skip inventory section must carry a back-ticked `src/<path>` File
+// cell. A row that does not parse fails loud naming the row verbatim with its
+// line number — it is never silently skipped. The original inline regex
+// (`/^\| `(src\/[^`]+)` \|/gm`) ignored non-back-ticked rows while staying
+// green, exactly the silent false negative round-1 review of PR #1320
+// flagged as a blocker.
+//
 // WHAT THIS DOES NOT PROVE
 // ------------------------
 // That the row's pattern/decision columns still match what the build emits —
@@ -133,9 +143,7 @@ test('every skip-inventory path in react-compiler.md exists', () => {
 		'utf8',
 	);
 
-	const inventoryPaths = [...contents.matchAll(/^\| `(src\/[^`]+)` \|/gm)].map(
-		(match) => match[1],
-	);
+	const inventoryPaths = parseSkipInventoryPaths(contents);
 
 	assert.ok(
 		inventoryPaths.length > 0,
@@ -156,5 +164,117 @@ test('every skip-inventory path in react-compiler.md exists', () => {
 			'A skip-inventory row naming a non-existent file cannot be reconciled\n' +
 			'with a real build. Fix the path key (or move/rename the file back).\n' +
 			'See issue #1297 for the original instance of this bug.',
+	);
+});
+
+// Standing proof that the strict skip-inventory parser fires on every
+// malformed shape the old regex silently swallowed (round-1 review of
+// PR #1320). Each failure mode the parser claims to catch gets exercised
+// against an inline markdown fixture, so the guard cannot rot into a check
+// that always returns green.
+
+const buildInventoryDoc = (options: {
+	inventoryRows: string[];
+	extraSection?: string;
+}): string =>
+	[
+		'# React Compiler guide',
+		'',
+		'## Skip inventory (production build, fixture)',
+		'',
+		"Measured on this lane's production build.",
+		'',
+		'| File | Pattern | Decision |',
+		'| --- | --- | --- |',
+		...options.inventoryRows,
+		'',
+		...(options.extraSection === undefined ? [] : [options.extraSection]),
+	].join('\n');
+
+const validRow =
+	'| `src/routes/authed/staff/staff-users/$userId.tsx` | — (was try/finally) | **rewritten.** Now compiles. |';
+
+const validRootRow =
+	'| `src/routes/__root.tsx` | ref access during render (`locationRef.current = location`) | **acceptable skip.** |';
+
+test('parser returns the File-cell paths of a valid skip-inventory section', () => {
+	const contents = buildInventoryDoc({
+		inventoryRows: [validRow, validRootRow],
+	});
+
+	assert.deepEqual(parseSkipInventoryPaths(contents), [
+		'src/routes/authed/staff/staff-users/$userId.tsx',
+		'src/routes/__root.tsx',
+	]);
+});
+
+test('parser throws naming a row whose File cell lost its backticks', () => {
+	const unbacktickedRow =
+		'| src/routes/authed/staff/profiles-new.tsx | ref access during render (`hasSavedRef` read) | **follow-up.** |';
+	const contents = buildInventoryDoc({
+		inventoryRows: [validRow, unbacktickedRow],
+	});
+
+	assert.throws(
+		() => parseSkipInventoryPaths(contents),
+		(error: unknown) => {
+			assert.ok(error instanceof Error);
+			assert.match(error.message, /unparseable skip-inventory row/);
+			assert.ok(
+				error.message.includes(unbacktickedRow),
+				'the offending row must be named verbatim',
+			);
+			assert.match(error.message, /L\d+:/, 'the row line number is included');
+			return true;
+		},
+	);
+});
+
+test('parser throws on a back-ticked path not starting with src/', () => {
+	const offPrefixRow =
+		'| `docs/guides/front/react-compiler.md` | prose entry, not a source path | n/a. |';
+	const contents = buildInventoryDoc({
+		inventoryRows: [validRow, offPrefixRow],
+	});
+
+	assert.throws(
+		() => parseSkipInventoryPaths(contents),
+		(error: unknown) => {
+			assert.ok(error instanceof Error);
+			assert.match(error.message, /unparseable skip-inventory row/);
+			assert.ok(error.message.includes(offPrefixRow));
+			return true;
+		},
+	);
+});
+
+test('parser keeps the second (diagnostic) table out of scope after a new ## heading', () => {
+	const contents = buildInventoryDoc({
+		inventoryRows: [validRow],
+		extraSection: [
+			'## Skip patterns the compiler reports',
+			'',
+			'| Diagnostic | Meaning | Typical fix |',
+			'| --- | --- | --- |',
+			"| `(BuildHIR::lowerStatement) Handle TryStatement with a finalizer ('finally') clause` | try/finally | hoist cleanup |",
+			'| `Cannot access refs during render` | ref read in render | move to effect |',
+		].join('\n'),
+	});
+
+	// Only the Skip inventory row comes back; the diagnostic rows neither
+	// appear in the result nor trip the strict first-cell check.
+	assert.deepEqual(parseSkipInventoryPaths(contents), [
+		'src/routes/authed/staff/staff-users/$userId.tsx',
+	]);
+});
+
+test('parser throws when the Skip inventory heading is missing', () => {
+	assert.throws(
+		() => parseSkipInventoryPaths('# Guide\n\nNo tables here.\n'),
+		(error: unknown) => {
+			assert.ok(error instanceof Error);
+			assert.match(error.message, /no `## Skip inventory` heading/);
+			return true;
+		},
 	);
 });
