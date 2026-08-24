@@ -1,200 +1,467 @@
 /**
- * Real-`<Trans>` render guard (#1269).
+ * Real-`<Trans>` render guard over the REAL route files (#1285, follow-up to
+ * #1269/#1281).
  *
- * The four `<Trans>` call-site component tests mock `react-i18next`
- * (85 of 213 front test files do), so the suite is structurally blind to any
- * react-i18next regression — the i18next 26 / react-i18next 17 bump swapped
- * `html-parse-stringify` 3 → 4, the parser behind `<Trans>`, and nothing in
- * CI would have noticed a rendering change.
+ * #1281 mounted its own `<Trans>` instances behind a `makeRealI18n` mirror of
+ * the production init — so deleting the `components={{ strong: … }}` map in a
+ * route left the guard green, and production init drift stayed invisible.
+ * This version mounts the REAL exported route components (reset-password,
+ * accept-invitation, verify-email — the same objects `Route.component`
+ * serves in production) and initialises i18n ONLY through the REAL
+ * `createI18nFromResources` from `~/lib/i18n.shared` with the REAL EN and FR
+ * resource bundles the app ships. Nothing here re-states production init.
  *
- * This guard mounts every production `<Trans>` key through the REAL
- * react-i18next with the REAL EN and FR resources (the same JSON files the
- * app ships) and pins the rendered DOM in two modes:
+ * Mocked at the seam only, never react-i18next: TanStack Router/Start
+ * (`useLoaderData`, `useServerFn`), the server actions, and the auth/query
+ * hooks. (The per-route component tests mock react-i18next itself — 85 of
+ * 213 front test files do — which is exactly the suite-wide blindness this
+ * guard offsets.)
  *
- * - **Call-site mode** — exactly what each route renders today:
- *   `components={{ strong: <strong className="text-foreground" /> }}`.
- * - **Bare-resource mode** — the same key with no `components` map, so
- *   rendering rides on the resource's raw `<strong>` markup and therefore on
- *   `transKeepBasicHtmlNodesFor` (default `['br', 'strong', 'i', 'p']`). This
- *   mode is the parser canary: with the keep-list emptied, `<Trans>` no longer
- *   lifts `<strong>` out of the resource string and it lands in the DOM as
- *   escaped text (`&lt;strong&gt;…`) instead of an element.
+ * Pinned per language (EN + FR) for the four production call sites (one
+ * `<Trans>` in accept-invitation feeds two mismatch views, so 5 keys):
+ * - rendered `<strong>` tags: count, tag name, and the production
+ *   `text-foreground` className — only reachable through the route's
+ *   `components` map, so dropping that map flips these red;
+ * - each interpolated email inside exactly one `<strong>`;
+ * - the full sentence against a verbatim pin (never recomputed from the
+ *   resource files, so EN/FR copy drift flips this red).
  *
- * Expected sentences are pinned verbatim below (NOT re-derived from the
- * resource files — an expectation computed from the same string it renders
- * could never detect drift). The guard goes red when a key breaks, when an
- * EN/FR resource string drifts from these pins, or when basic-HTML-node
- * parsing behaviour changes.
+ * A second, direct-`<Trans>` mode rides only the resource's raw `<strong>`
+ * markup (no `components` map), which is the path governed by
+ * `transKeepBasicHtmlNodesFor` — kept because html-parse-stringify sits
+ * underneath it and the i18next 26 bump swapped that parser.
  *
  * Paired proof (2026-08-23, both flips observed locally against this exact
  * file, then reverted):
- * - Emptying `transKeepBasicHtmlNodesFor` in this test's init (`react: {
- *   useSuspense: false, transKeepBasicHtmlNodesFor: [] }`) turns the guard
- *   red: all 10 bare-resource assertions fail (`the resource's <strong> must
- *   survive parsing: expected +0 to be …`), while the call-site assertions
- *   stay green — that is expected and documented above: with a `components`
- *   map the tag name is a known component name, so the keep-list plays no
- *   role on that path.
- * - Appending "X" to the EN resource of `reset-password-description` turns
- *   exactly that key's two EN sentence-pin assertions red (call-site +
- *   bare-resource) while every other assertion stays green.
+ * - Removing the `components={{ strong: … }}` map from BOTH `<Trans>` sites
+ *   in `apps/front/src/routes/reset-password.tsx` turns this guard red: all
+ *   four reset-password call-site tests fail on the className pin
+ *   (`text-foreground` vs the class-less `<strong>` the resource markup
+ *   produces) while every other route's assertions stay green. The two
+ *   mismatch `<Trans>`s moved into `routes/_accept-invitation-views.tsx` in
+ *   an upstream refactor; their map is pinned by the same source scan.
+ * - Emptying the keep-list on the instance returned by the real helper
+ *   (`instance.options.react.transKeepBasicHtmlNodesFor = []`, the only
+ *   knob `createI18nFromResources` does not take) turns every bare-resource
+ *   assertion red (`the resource's <strong> must survive parsing`) while the
+ *   call-site assertions stay green — with a `components` map the tag is a
+ *   known component name, so the keep-list plays no role on that path.
  */
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render } from '@testing-library/react';
-import { createInstance, type i18n as I18nInstance } from 'i18next';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import type { i18n as I18nInstance } from 'i18next';
+import { createElement, type ReactElement, type ReactNode } from 'react';
 import { I18nextProvider, initReactI18next, Trans } from 'react-i18next';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
 
 import resourceEN from '../../i18n/locales/en';
 import resourceFR from '../../i18n/locales/fr';
+import { Route as AcceptInvitationRoute } from '../../routes/accept-invitation';
+import { Route as ResetPasswordRoute } from '../../routes/reset-password';
+import { Route as VerifyEmailRoute } from '../../routes/verify-email';
+import { AuthBrandProvider } from '../auth-brand-context';
+import {
+	createI18nFromResources,
+	type I18nResources,
+	type SupportedLanguage,
+} from '../i18n.shared';
 
-type Language = 'en' | 'fr';
+type ResetPasswordLoaderData =
+	| { view: 'invalid' }
+	| { view: 'unavailable' }
+	| { view: 'request' }
+	| {
+			view: 'set-new';
+			id: string;
+			token: string;
+			email: string;
+			fromEmailVerification: boolean;
+	  };
+
+type VerifyEmailLoaderData =
+	| { view: 'invalid' }
+	| { view: 'unavailable' }
+	| { view: 'sent'; email: string }
+	| { view: 'request' };
+
+/**
+ * Mirrors the route file's own loader contract (the #1287-era refactor kept
+ * the loader there and moved the view branches to
+ * `routes/_accept-invitation-views.tsx`).
+ */
+type InvitationLoaderData =
+	| { view: 'invalid' }
+	| { view: 'unavailable' }
+	| {
+			view: 'valid';
+			token: string;
+			email: string;
+			profileName: string;
+			userExists: boolean;
+	  };
+
+const mocks = vi.hoisted(() => ({
+	resetPasswordLoaderData: { view: 'request' } as ResetPasswordLoaderData,
+	verifyEmailLoaderData: { view: 'request' } as VerifyEmailLoaderData,
+	invitationLoaderData: { view: 'invalid' } as InvitationLoaderData,
+	navigate: vi.fn(),
+	redirect: vi.fn((opts: Record<string, unknown>) => ({
+		isRedirect: true,
+		...opts,
+	})),
+	checkResetPasswordToken: vi.fn(),
+	requestEmailVerification: vi.fn(),
+	requestPasswordReset: vi.fn(),
+	resetPassword: vi.fn(),
+	checkEmailVerificationToken: vi.fn(),
+	loadInvitationInfo: vi.fn(),
+	acceptInvitation: vi.fn(),
+	completeLoginRedirect: vi.fn(),
+	postBroadcast: vi.fn(),
+	hasBrowserSessionCookie: vi.fn(),
+	logout: vi.fn(),
+	isLoggingOut: false,
+	isHydrated: false,
+	currentUserQuery: {
+		isSuccess: false,
+		isError: false,
+		data: undefined as { email?: string } | undefined,
+	},
+}));
+
+vi.mock('@tanstack/react-router', () => ({
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
+	useLoaderData: ({ from }: { from?: string } = {}) => {
+		if (from === '/accept-invitation') return mocks.invitationLoaderData;
+		if (from === '/verify-email') return mocks.verifyEmailLoaderData;
+		return mocks.resetPasswordLoaderData;
+	},
+	useLocation: () => ({
+		pathname: '/accept-invitation',
+		searchStr: '?id=enc-guard&token=tok-guard',
+	}),
+	useNavigate: () => mocks.navigate,
+	redirect: mocks.redirect,
+	Link: ({
+		children,
+		to,
+		search,
+		...props
+	}: {
+		children: ReactNode;
+		to: string;
+		search?: Record<string, string>;
+	}) => {
+		const query = search ? `?${new URLSearchParams(search).toString()}` : '';
+		return createElement('a', { href: `${to}${query}`, ...props }, children);
+	},
+}));
+
+vi.mock('@tanstack/react-start', () => ({
+	useServerFn: (fn: unknown) => fn,
+}));
+
+// Real hook starts false and flips in an effect; the fake flips when the
+// guard asks, so the invitation route's post-hydration branches resolve
+// synchronously once effects flush.
+vi.mock('~/lib/hooks/use-hydrated', () => ({
+	useHydrated: () => mocks.isHydrated,
+}));
+
+vi.mock('~/lib/server/auth-actions', () => ({
+	checkResetPasswordToken: mocks.checkResetPasswordToken,
+	checkEmailVerificationToken: mocks.checkEmailVerificationToken,
+	requestEmailVerification: mocks.requestEmailVerification,
+	requestPasswordReset: mocks.requestPasswordReset,
+	resetPassword: mocks.resetPassword,
+}));
+
+vi.mock('~/lib/server/invitation-actions', () => ({
+	loadInvitationInfo: mocks.loadInvitationInfo,
+	acceptInvitation: mocks.acceptInvitation,
+}));
+
+vi.mock('~/lib/server/session-actions', () => ({
+	completeLoginRedirect: mocks.completeLoginRedirect,
+}));
+
+vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
+	AUTH_SYNC_CHANNEL: 'publyapp:auth-sync',
+	postBroadcast: mocks.postBroadcast,
+}));
+
+vi.mock('~/lib/auth-route-guard', () => ({
+	redirectAuthenticatedUserAwayFromAuthPage: vi.fn(),
+	hasBrowserSessionCookie: mocks.hasBrowserSessionCookie,
+}));
+
+vi.mock('~/lib/hooks/use-logout', () => ({
+	useLogout: () => ({
+		logout: mocks.logout,
+		isLoggingOut: mocks.isLoggingOut,
+	}),
+}));
+
+vi.mock('~/lib/query/auth', () => ({
+	useCurrentUserQuery: () => ({
+		isFetching: false,
+		refetch: vi.fn(),
+		...mocks.currentUserQuery,
+	}),
+}));
+
+/**
+ * The REAL production init helper, fed the REAL shipped bundles. This file
+ * must never grow its own i18n init call — the dedicated test below scans
+ * this very source to keep it that way (#1285: the old mirror hid init
+ * drift).
+ */
+const RESOURCES: I18nResources = {
+	en: { auth: resourceEN.auth, common: resourceEN.common },
+	fr: { auth: resourceFR.auth, common: resourceFR.common },
+};
+
+const makeAppI18n = (language: SupportedLanguage): I18nInstance =>
+	createI18nFromResources(language, ['auth', 'common'], RESOURCES);
 
 // react-i18next types i18nKey against the known translation-key union.
 type AuthTranslationKey = Extract<keyof typeof resourceEN.auth, string>;
 
-// auth.json is flat: every value is a plain translation string.
-const AUTH_RESOURCES: Record<Language, Record<string, string>> = {
-	en: resourceEN.auth,
-	fr: resourceFR.auth,
-};
+const RESET_REQUEST_EMAIL = 'ada@example.com';
+const SET_NEW_EMAIL = 'grace@example.com';
+const INVITED_EMAIL = 'invited@example.com';
+const CURRENT_USER_EMAIL = 'other@example.com';
+const VERIFY_SENT_EMAIL = 'linus@example.com';
 
 /**
  * Every production `<Trans>` call site (`rg "<Trans" apps/front/src`):
- * reset-password.tsx ×2, accept-invitation.tsx ×1 (both mismatch views share
- * one `<Trans>` fed by INVITATION_MISMATCH_I18N_KEYS), verify-email.tsx ×1.
- * All render in the `auth` namespace with a `components={{ strong }}` map and
- * interpolate emails — mirrored exactly below.
+ * reset-password.tsx x2, accept-invitation.tsx x1 (both mismatch views share
+ * one `<Trans>` fed by INVITATION_MISMATCH_I18N_KEYS), verify-email.tsx x1.
  *
- * `expectedText` pins the exact rendered text per language: resource markup
- * stripped, values interpolated. These pins are what make resource edits red;
- * update them deliberately when copy changes.
+ * `en`/`fr` pin the exact rendered text per language: resource markup
+ * stripped, values interpolated. Update them deliberately when copy changes.
  */
-const TRANS_PRODUCTION_KEYS = [
+type CallSiteSpec = {
+	site: string;
+	route: 'reset-password' | 'accept-invitation' | 'verify-email';
+	loaderData:
+		| ResetPasswordLoaderData
+		| VerifyEmailLoaderData
+		| InvitationLoaderData;
+	flow?: 'submit-reset-request';
+	scopeTestId?: string;
+	key: AuthTranslationKey;
+	values: Record<string, string>;
+	en: string;
+	fr: string;
+};
+
+const CALL_SITES: CallSiteSpec[] = [
 	{
+		site: 'routes/reset-password.tsx (request form -> sent confirmation)',
+		route: 'reset-password',
+		loaderData: { view: 'request' },
+		flow: 'submit-reset-request',
+		scopeTestId: 'reset-password-request-sent',
 		key: 'reset-link-sent-description',
-		callSite: 'routes/reset-password.tsx (request form → sent confirmation)',
-		values: { email: 'ada@example.com' },
+		values: { email: RESET_REQUEST_EMAIL },
 		en: "ada@example.com is valid, you'll receive an email with a link to reset your password.",
 		fr: 'Si ada@example.com est valide, vous recevrez un email avec un lien pour réinitialiser votre mot de passe.',
 	},
 	{
+		site: 'routes/reset-password.tsx (set-new-password form)',
+		route: 'reset-password',
+		loaderData: {
+			view: 'set-new',
+			id: 'enc-guard',
+			token: 'tok-guard',
+			email: SET_NEW_EMAIL,
+			fromEmailVerification: false,
+		},
 		key: 'reset-password-description',
-		callSite: 'routes/reset-password.tsx (set-new-password form)',
-		values: { email: 'grace@example.com' },
+		values: { email: SET_NEW_EMAIL },
 		en: 'Enter your new password for grace@example.com',
 		fr: 'Entrez votre nouveau mot de passe pour grace@example.com',
 	},
 	{
+		site: 'routes/accept-invitation (existing-user mismatch view, via the real route component)',
+		route: 'accept-invitation',
+		loaderData: {
+			view: 'valid',
+			token: 'tok-guard',
+			email: INVITED_EMAIL,
+			profileName: 'Editor',
+			userExists: true,
+		},
 		key: 'auth-invitation-existing-user-mismatch-description',
-		callSite: 'routes/accept-invitation.tsx (existing-user mismatch view)',
 		values: {
-			invitationEmail: 'invited@example.com',
-			currentUserEmail: 'other@example.com',
+			invitationEmail: INVITED_EMAIL,
+			currentUserEmail: CURRENT_USER_EMAIL,
 		},
 		en: 'This invitation belongs to invited@example.com. You are currently signed in as other@example.com. Log out, then sign in as the invited user to continue.',
 		fr: "Cette invitation appartient à invited@example.com. Vous êtes actuellement connecté en tant que other@example.com. Déconnectez-vous, puis connectez-vous avec l'utilisateur invité pour continuer.",
 	},
 	{
+		site: 'routes/accept-invitation (new-user mismatch view, via the real route component)',
+		route: 'accept-invitation',
+		loaderData: {
+			view: 'valid',
+			token: 'tok-guard',
+			email: INVITED_EMAIL,
+			profileName: 'Editor',
+			userExists: false,
+		},
 		key: 'auth-invitation-new-user-mismatch-description',
-		callSite: 'routes/accept-invitation.tsx (new-user mismatch view)',
 		values: {
-			invitationEmail: 'invited@example.com',
-			currentUserEmail: 'other@example.com',
+			invitationEmail: INVITED_EMAIL,
+			currentUserEmail: CURRENT_USER_EMAIL,
 		},
 		en: 'This invitation is for invited@example.com, but you are signed in as other@example.com. Log out to continue creating the invited account.',
 		fr: 'Cette invitation est destinée à invited@example.com, mais vous êtes actuellement connecté en tant que other@example.com. Déconnectez-vous pour continuer la création du compte invité.',
 	},
 	{
+		site: 'routes/verify-email.tsx (verification email sent)',
+		route: 'verify-email',
+		loaderData: { view: 'sent', email: VERIFY_SENT_EMAIL },
+		scopeTestId: 'verify-email-sent',
 		key: 'verify-email-sent-description',
-		callSite: 'routes/verify-email.tsx (verification email sent)',
-		values: { email: 'linus@example.com' },
+		values: { email: VERIFY_SENT_EMAIL },
 		en: "linus@example.com is valid, you'll receive an email with a link to verify your account.",
 		fr: 'Si linus@example.com est valide, vous recevrez un email avec un lien pour vérifier votre compte.',
 	},
-] as const;
+];
 
-let instance: I18nInstance | undefined;
-
-afterEach(() => {
-	cleanup();
-	instance = undefined;
-});
-
-/** Mirrors the production init shape (`createI18nFromResources`). */
-const makeRealI18n = (
-	language: Language,
-	keepBasicHtmlNodesFor?: readonly string[],
-): I18nInstance => {
-	const reactOptions: Record<string, unknown> = { useSuspense: false };
-	if (keepBasicHtmlNodesFor) {
-		reactOptions.transKeepBasicHtmlNodesFor = [...keepBasicHtmlNodesFor];
-	}
-	const i = createInstance();
-	void i.use(initReactI18next).init({
-		lng: language,
-		fallbackLng: false,
-		supportedLngs: ['en', 'fr'],
-		defaultNS: 'common',
-		ns: ['auth'],
-		resources: { [language]: { auth: AUTH_RESOURCES[language] } },
-		interpolation: { escapeValue: false },
-		react: reactOptions,
-		initAsync: false,
-	});
-	return i;
+const ROUTE_COMPONENTS: Record<
+	CallSiteSpec['route'],
+	() => () => ReactElement
+> = {
+	'reset-password': () =>
+		(
+			ResetPasswordRoute as unknown as {
+				component: () => ReactElement;
+			}
+		).component,
+	'accept-invitation': () =>
+		(
+			AcceptInvitationRoute as unknown as {
+				component: () => ReactElement;
+			}
+		).component,
+	'verify-email': () =>
+		(
+			VerifyEmailRoute as unknown as {
+				component: () => ReactElement;
+			}
+		).component,
 };
 
-/** Renders one production key exactly as the call sites do. */
-const renderProductionTrans = (
-	language: Language,
-	i18nKey: AuthTranslationKey,
-	values: Record<string, string>,
-): HTMLElement => {
-	instance = makeRealI18n(language);
+const setRouteLoader = (
+	route: CallSiteSpec['route'],
+	loaderData: CallSiteSpec['loaderData'],
+): void => {
+	if (route === 'reset-password')
+		mocks.resetPasswordLoaderData = loaderData as ResetPasswordLoaderData;
+	else if (route === 'verify-email')
+		mocks.verifyEmailLoaderData = loaderData as VerifyEmailLoaderData;
+	else mocks.invitationLoaderData = loaderData as InvitationLoaderData;
+};
+
+const renderThroughRealI18n = (
+	ui: ReactElement,
+	language: SupportedLanguage,
+): { container: HTMLElement; instance: I18nInstance } => {
+	const instance = makeAppI18n(language);
 	const { container } = render(
 		<I18nextProvider i18n={instance}>
-			<Trans
-				i18nKey={i18nKey}
-				ns="auth"
-				values={values}
-				components={{ strong: <strong className="text-foreground" /> }}
-			/>
+			{/* No brand override under test: the context setter degrades to a no-op
+			outside its provider, and its type still demands a value. */}
+			<AuthBrandProvider value={undefined}>{ui}</AuthBrandProvider>
 		</I18nextProvider>,
 	);
-	return container;
+	return { container, instance };
 };
 
 /**
- * Renders one production key riding only on the resource's own markup (no
- * `components` map) — the path that depends on transKeepBasicHtmlNodesFor.
+ * Mounts one real route component in the state that shows the given
+ * `<Trans>` call site, through the real init helper.
  */
-const renderBareResourceTrans = (
-	language: Language,
-	i18nKey: AuthTranslationKey,
-	values: Record<string, string>,
-): HTMLElement => {
-	// Default react options → default transKeepBasicHtmlNodesFor. Only the
-	// paired-proof mutation empties that list.
-	instance = makeRealI18n(language);
-	const { container } = render(
-		<I18nextProvider i18n={instance}>
-			<Trans i18nKey={i18nKey} ns="auth" values={values} />
-		</I18nextProvider>,
-	);
-	return container;
+const renderCallSite = async (
+	spec: CallSiteSpec,
+	language: SupportedLanguage,
+): Promise<{ container: HTMLElement; instance: I18nInstance }> => {
+	setRouteLoader(spec.route, { ...spec.loaderData });
+	const Component = ROUTE_COMPONENTS[spec.route]();
+	const rendered = renderThroughRealI18n(createElement(Component), language);
+
+	if (spec.flow === 'submit-reset-request') {
+		const emailInput = rendered.container.querySelector<HTMLInputElement>(
+			'#reset-password-email',
+		);
+		if (emailInput === null) throw new Error('request form email input');
+		fireEvent.change(emailInput, {
+			target: { value: RESET_REQUEST_EMAIL },
+		});
+		const form = rendered.container.querySelector(
+			'[data-testid="reset-password-request-form"]',
+		);
+		if (form === null) throw new Error('request form');
+		fireEvent.submit(form);
+
+		await waitFor(() =>
+			expect(
+				rendered.container.querySelector(`[data-testid="${spec.scopeTestId}"]`),
+			).toBeTruthy(),
+		);
+	}
+
+	return rendered;
 };
 
 const countOccurrences = (haystack: string, needle: string): number =>
 	haystack.split(needle).length - 1;
 
-describe('real-<Trans> render guard (#1269)', () => {
+// vitest's import.meta.url may be a plain path rather than a file:// URL,
+// depending on transform mode — normalise both shapes.
+const THIS_FILE = import.meta.url.startsWith('file:')
+	? fileURLToPath(import.meta.url)
+	: import.meta.url;
+const SRC_ROOT = path.resolve(THIS_FILE, '..', '..', '..');
+const readSource = (relative: string): string =>
+	readFileSync(path.join(SRC_ROOT, relative), 'utf8');
+
+// The exact production components-map snippet every call site passes.
+const STRONG_MAP_SNIPPET =
+	'components={{ strong: <strong className="text-foreground" /> }}';
+
+beforeEach(() => {
+	mocks.hasBrowserSessionCookie.mockReturnValue(true);
+	mocks.requestPasswordReset.mockResolvedValue({ status: 'sent' });
+	mocks.isHydrated = true;
+	mocks.currentUserQuery = {
+		isSuccess: true,
+		isError: false,
+		data: { email: CURRENT_USER_EMAIL },
+	};
+});
+
+afterEach(() => {
+	cleanup();
+});
+
+describe('real-<Trans> render guard over the real route files (#1285)', () => {
 	test('react-i18next is NOT mocked in this file', () => {
 		// #1269 exists because the rest of the suite fakes `<Trans>` with a
-		// regex. If a `vi.mock('react-i18next', …)` sneaks into this file, the
-		// plugin object loses its real shape and these fail loudly.
+		// regex. If this file ever grows a react-i18next module mock, the
+		// real shapes below fail loudly.
 		expect(
 			vi.isMockFunction(Trans),
 			'Trans must be the real react-i18next component, not a vi.fn',
@@ -205,60 +472,80 @@ describe('real-<Trans> render guard (#1269)', () => {
 		).toBe('3rdParty');
 	});
 
+	test('this file initialises i18n ONLY through createI18nFromResources', () => {
+		const source = readSource('lib/i18n/trans-render.guard.test.tsx');
+		expect(source).toContain('createI18nFromResources');
+		expect(
+			source.match(/\.init\(/),
+			'the guard must not carry its own init mirror (makeRealI18n regression)',
+		).toBeNull();
+		expect(source.match(/\bcreateInstance\b/)).toBeNull();
+		// Joined at runtime so THIS source line is not itself a match.
+		const reactMockNeedle = ['vi.mock', "('react-i18next'"].join('');
+		expect(
+			source.includes(reactMockNeedle),
+			'react-i18next must never be mocked here',
+		).toBe(false);
+	});
+
+	test('every guarded route file still passes the production components map', () => {
+		// Pins the seam this guard asserts against: the `text-foreground`
+		// className is only reachable through this map, so the call-site tests
+		// below can only stay green while the real files keep passing it.
+		expect(
+			countOccurrences(
+				readSource('routes/reset-password.tsx'),
+				STRONG_MAP_SNIPPET,
+			),
+			'reset-password.tsx must pass the strong components map at both sites',
+		).toBe(2);
+		expect(
+			countOccurrences(
+				readSource('routes/_accept-invitation-views.tsx'),
+				STRONG_MAP_SNIPPET,
+			),
+			'_accept-invitation-views.tsx must pass the strong components map at both mismatch sites',
+		).toBe(2);
+		expect(
+			countOccurrences(
+				readSource('routes/verify-email.tsx'),
+				STRONG_MAP_SNIPPET,
+			),
+			'verify-email.tsx must pass the strong components map once',
+		).toBe(1);
+	});
+
 	test('every production <Trans> key exists in BOTH language resources', () => {
-		for (const { key } of TRANS_PRODUCTION_KEYS) {
+		for (const spec of CALL_SITES) {
 			expect(
-				AUTH_RESOURCES.en[key],
-				`en/auth.json must contain ${key}`,
+				resourceEN.auth[spec.key],
+				`en/auth.json must contain ${spec.key}`,
 			).toBeTypeOf('string');
 			expect(
-				AUTH_RESOURCES.fr[key],
-				`fr/auth.json must contain ${key}`,
+				resourceFR.auth[spec.key],
+				`fr/auth.json must contain ${spec.key}`,
 			).toBeTypeOf('string');
 		}
 	});
 
 	for (const language of ['en', 'fr'] as const) {
 		describe(language, () => {
-			for (const spec of TRANS_PRODUCTION_KEYS) {
-				const { key, callSite, values } = spec;
-				test(`${key} (${callSite}) renders real <strong> elements around each interpolated email`, () => {
-					const container = renderProductionTrans(language, key, values);
+			for (const spec of CALL_SITES) {
+				test(`${spec.site}: ${spec.key} renders the pinned DOM through the real route`, async () => {
+					const { container } = await renderCallSite(spec, language);
 
-					const expectedEmails = Object.values(values);
-					const strongs = [...container.querySelectorAll('strong')];
-
-					// Tag names: one real <strong> per interpolated value…
-					expect(
-						strongs.length,
-						`${language}/${key}: expected one <strong> per interpolated value`,
-					).toBe(expectedEmails.length);
-					for (const strong of strongs) {
-						expect(strong.tagName).toBe('STRONG');
+					let scope: Element = container;
+					if (spec.scopeTestId) {
+						const found = container.querySelector(
+							`[data-testid="${spec.scopeTestId}"]`,
+						);
+						if (found === null)
+							throw new Error(
+								`missing scope [data-testid="${spec.scopeTestId}"]`,
+							);
+						scope = found;
 					}
-					// …carrying the production className from the components map.
-					for (const strong of strongs) {
-						expect(strong.className).toBe('text-foreground');
-					}
-
-					// Text content: each email sits inside exactly one <strong>.
-					expect(strongs.map((el) => el.textContent)).toEqual(expectedEmails);
-
-					// Never escaped-markup text (`&lt;strong&gt;…`): that is how a
-					// broken parser renders these resources.
-					const text = container.textContent ?? '';
-					expect(text).not.toContain('&lt;');
-					for (const email of expectedEmails) {
-						expect(countOccurrences(text, email)).toBe(1);
-					}
-
-					// Full-sentence pin against the verbatim expected text for this
-					// language — NOT a value recomputed from the resource file, so
-					// any EN/FR wording drift flips this red.
-					expect(
-						text,
-						`${language}/${key}: rendered sentence drifted from the pinned copy`,
-					).toBe(spec[language]);
+					assertTransDom(scope, spec, language, 'call-site');
 				});
 			}
 		});
@@ -266,31 +553,78 @@ describe('real-<Trans> render guard (#1269)', () => {
 
 	for (const language of ['en', 'fr'] as const) {
 		describe(`${language} (bare resource, no components map)`, () => {
-			for (const spec of TRANS_PRODUCTION_KEYS) {
-				const { key, callSite, values } = spec;
-				test(`${key} (${callSite}) keeps the resource's own <strong> as real DOM elements`, () => {
-					const container = renderBareResourceTrans(language, key, values);
+			for (const spec of CALL_SITES) {
+				test(`${spec.key} keeps the resource's own <strong> as real DOM elements`, () => {
+					// Direct <Trans> over the same real helper: with no components
+					// map, rendering rides the resource's raw <strong> markup and
+					// therefore on transKeepBasicHtmlNodesFor — the parser canary.
+					const instance = makeAppI18n(language);
+					const { container } = render(
+						<I18nextProvider i18n={instance}>
+							<Trans i18nKey={spec.key} ns="auth" values={{ ...spec.values }} />
+						</I18nextProvider>,
+					);
 
-					const expectedEmails = Object.values(values);
-
-					// The keep-list path: the resource's bare <strong> must come
-					// out of html-parse-stringify as real elements, one per
-					// interpolated value, not as escaped text nodes.
-					const strongs = [...container.querySelectorAll('strong')];
-					expect(
-						strongs.length,
-						`${language}/${key}: the resource's <strong> must survive parsing`,
-					).toBe(expectedEmails.length);
-					expect(strongs.map((el) => el.textContent)).toEqual(expectedEmails);
-
-					// And never the degraded form.
-					const text = container.textContent ?? '';
-					expect(text).not.toContain('&lt;');
-
-					// Same verbatim sentence pin in bare-resource mode.
-					expect(text).toBe(spec[language]);
+					assertTransDom(container, spec, language, 'bare-resource');
 				});
 			}
 		});
 	}
 });
+
+/**
+ * Shared DOM pins: tag names + counts, the production className (call-site
+ * mode only), email placement, escaped-markup detection, and the verbatim
+ * sentence pin for the language.
+ */
+const assertTransDom = (
+	scope: Element,
+	spec: CallSiteSpec,
+	language: SupportedLanguage,
+	mode: 'call-site' | 'bare-resource',
+): void => {
+	const expectedEmails = Object.values(spec.values);
+	const strongs = [...scope.querySelectorAll('strong')];
+
+	expect(
+		strongs.length,
+		mode === 'bare-resource'
+			? `${language}/${spec.key}: the resource's <strong> must survive parsing (transKeepBasicHtmlNodesFor)`
+			: `${language}/${spec.key} (${mode}): expected one <strong> per interpolated value`,
+	).toBe(expectedEmails.length);
+	for (const strong of strongs) {
+		expect(strong.tagName).toBe('STRONG');
+	}
+
+	if (mode === 'call-site') {
+		for (const strong of strongs) {
+			expect(
+				strong.className,
+				`${language}/${spec.key}: production className from the route's components map`,
+			).toBe('text-foreground');
+		}
+	}
+
+	expect(strongs.map((el) => el.textContent)).toEqual(expectedEmails);
+
+	// Scope the text pins to the <p> hosting the rendered <Trans>: the real
+	// routes render plenty of other copy (headings, labels, buttons) around
+	// the call site, and this guard must judge only the Trans DOM.
+	const host =
+		(strongs[0]?.closest('p') as Element | null | undefined) ?? scope;
+
+	// Never escaped-markup text (`&lt;strong&gt;…`): that is how a broken
+	// parser renders these resources.
+	const text = host.textContent ?? '';
+	expect(text).not.toContain('&lt;');
+	for (const email of expectedEmails) {
+		expect(countOccurrences(text, email)).toBe(1);
+	}
+
+	// Full-sentence pin against the verbatim expected text for this language —
+	// NOT recomputed from the resource file, so wording drift flips this red.
+	expect(
+		text,
+		`${language}/${spec.key} (${mode}): rendered sentence drifted from the pinned copy`,
+	).toBe(spec[language]);
+};
