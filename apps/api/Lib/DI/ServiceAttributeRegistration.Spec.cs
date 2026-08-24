@@ -19,6 +19,7 @@ using PublyApp.Api.Modules.Projects.Services;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.SystemNotices.Services;
 using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Services;
 
 using Xunit;
@@ -73,6 +74,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ITenantUserCompanyMembershipService), typeof(TenantUserCompanyMembershipService)),
 		(typeof(ITenantUserCompanyQueryService), typeof(TenantUserCompanyQueryService)),
 		(typeof(ITenantUserQueryService), typeof(TenantUserQueryService)),
+		(typeof(IUploadAssetReferenceService), typeof(UploadAssetReferenceService)),
 		(typeof(IUserService), typeof(UserService)),
 		(typeof(ICredentialProtector), typeof(CredentialProtector))
 	];

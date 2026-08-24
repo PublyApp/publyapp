@@ -48,6 +48,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		DeadLetterRetentionHandler.JobKey,
 		SystemJobOccurrenceRetentionHandler.JobKey,
 		EmailPreparedSendsRetentionHandler.JobKey,
+		PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler.JobKey,
 	];
 
 	public SystemJobDefinitionSeederSpec(ApiFixture fixture) {
@@ -118,11 +119,11 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 			maxGap = trailingGap;
 		}
 
-			occurrences.Should().BeGreaterThan(
-				50_000,
-				"a 10-minute cadence owes ~144 passes/day — ~52,704 over a leap year; a cron that "
-				+ "stopped recurring would fail here rather than pass vacuously"
-			);
+		occurrences.Should().BeGreaterThan(
+			50_000,
+			"a 10-minute cadence owes ~144 passes/day — ~52,704 over a leap year; a cron that "
+			+ "stopped recurring would fail here rather than pass vacuously"
+		);
 		maxGap.Should().BeLessThanOrEqualTo(
 			MaxPreparedSweepCadence,
 			$"every adjacent gap and both horizon edges must stay at or under "

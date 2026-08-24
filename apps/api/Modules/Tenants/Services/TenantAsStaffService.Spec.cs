@@ -12,6 +12,7 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -45,6 +46,7 @@ public sealed class TenantAsStaffServiceSpec
 		var service = new TenantAsStaffService(
 			serviceDbContext,
 			new InvitationEmailOutboxSignal(),
+			new UploadAssetReferenceService(serviceDbContext),
 			NullLogger<TenantAsStaffService>.Instance
 		);
 
@@ -197,12 +199,20 @@ public sealed class TenantAsStaffServiceSpec
 		}
 
 		private void MaybeFail(string commandText) {
+			// Fail on the FIRST command after the tenant UPDATE unless that command
+			// is the F5 reference-release UPDATE: since #807 the service legitimately
+			// releases the replaced logo's asset reference right after the entity
+			// write, inside the same transaction. The rule under test — no INLINE
+			// blob cleanup (file deletes / existence probes) after the update —
+			// still holds; a second non-reference SQL command remains a failure.
 			if (!_hasSeenUpdate && IsTenantUpdateCommand(commandText)) {
 				_hasSeenUpdate = true;
 				return;
 			}
 
-			if (_hasSeenUpdate && !_hasFailed) {
+			if (_hasSeenUpdate
+				&& !_hasFailed
+				&& !IsLogoReferenceReleaseCommand(commandText)) {
 				_hasFailed = true;
 				throw new InvalidOperationException(
 					"Injected logo reference-check failure after tenant update."
@@ -213,6 +223,14 @@ public sealed class TenantAsStaffServiceSpec
 		private static bool IsTenantUpdateCommand(string commandText) {
 			return commandText.Contains("UPDATE ", StringComparison.OrdinalIgnoreCase)
 				&& commandText.Contains("tenants", StringComparison.OrdinalIgnoreCase);
+		}
+
+		private static bool IsLogoReferenceReleaseCommand(string commandText) {
+			return commandText.Contains("UPDATE ", StringComparison.OrdinalIgnoreCase)
+				&& commandText.Contains(
+					"upload_assets",
+					StringComparison.OrdinalIgnoreCase
+				);
 		}
 	}
 
@@ -235,6 +253,7 @@ public sealed class TenantAsStaffServiceSpec
 		var service = new TenantAsStaffService(
 			serviceDbContext,
 			fakeOutboxSignal,
+			new UploadAssetReferenceService(serviceDbContext),
 			NullLogger<TenantAsStaffService>.Instance
 		);
 

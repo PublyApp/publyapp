@@ -66,6 +66,18 @@ public class AppEnvironment {
 	public int UPLOAD_MAX_BYTES { get; }
 	public long UPLOAD_GLOBAL_MAX_BYTES { get; }
 	public long UPLOAD_PER_STAFF_MAX_BYTES { get; }
+	/// <summary>Grace period (days) an orphaned upload must age past before the
+	/// sweeper may physically delete its blob (owner rule: deferred deletion with a
+	/// final recheck, never inline deletes).</summary>
+	public int UPLOAD_ORPHAN_GRACE_DAYS { get; }
+	/// <summary>TTL (minutes) after which a <c>Reserved</c> upload-asset row is
+	/// considered abandoned by a crashed writer; the sweeper then hard-deletes the
+	/// row and releases its held reservation bytes.</summary>
+	public int UPLOAD_STALE_RESERVATION_TTL_MINUTES { get; }
+	/// <summary>Retention TTL (minutes) for <c>Stored</c> rows nobody references
+	/// (the fail-soft "blob MAY exist" path); the sweeper may then remove the blob
+	/// and reclaim their committed bytes.</summary>
+	public int UPLOAD_STORED_ORPHAN_TTL_MINUTES { get; }
 	public IReadOnlyList<string> TRUSTED_PROXY_CIDRS { get; }
 	public int ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT { get; }
 	public int ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS { get; }
@@ -280,6 +292,9 @@ public class AppEnvironment {
 		int uploadMaxBytes,
 		long uploadGlobalMaxBytes,
 		long uploadPerStaffMaxBytes,
+		int uploadOrphanGraceDays,
+		int uploadStaleReservationTtlMinutes,
+		int uploadStoredOrphanTtlMinutes,
 		IReadOnlyList<string> trustedProxyCidrs,
 		int anonAuthIpRateLimitPermitLimit,
 		int anonAuthIpRateLimitWindowSeconds,
@@ -349,6 +364,9 @@ public class AppEnvironment {
 		UPLOAD_MAX_BYTES = uploadMaxBytes;
 		UPLOAD_GLOBAL_MAX_BYTES = uploadGlobalMaxBytes;
 		UPLOAD_PER_STAFF_MAX_BYTES = uploadPerStaffMaxBytes;
+		UPLOAD_ORPHAN_GRACE_DAYS = uploadOrphanGraceDays;
+		UPLOAD_STALE_RESERVATION_TTL_MINUTES = uploadStaleReservationTtlMinutes;
+		UPLOAD_STORED_ORPHAN_TTL_MINUTES = uploadStoredOrphanTtlMinutes;
 		TRUSTED_PROXY_CIDRS = trustedProxyCidrs;
 		ANON_AUTH_IP_RATE_LIMIT_PERMIT_LIMIT = anonAuthIpRateLimitPermitLimit;
 		ANON_AUTH_IP_RATE_LIMIT_WINDOW_SECONDS = anonAuthIpRateLimitWindowSeconds;
@@ -469,6 +487,13 @@ public class AppEnvironment {
 				uploadPerStaffMaxBytes: GetOptionalLong(
 					nameof(UPLOAD_PER_STAFF_MAX_BYTES),
 					DefaultUploadPerStaffMaxBytes
+				),
+				uploadOrphanGraceDays: GetOptionalInt(nameof(UPLOAD_ORPHAN_GRACE_DAYS), 7),
+				uploadStaleReservationTtlMinutes: GetOptionalInt(
+					nameof(UPLOAD_STALE_RESERVATION_TTL_MINUTES), 60
+				),
+				uploadStoredOrphanTtlMinutes: GetOptionalInt(
+					nameof(UPLOAD_STORED_ORPHAN_TTL_MINUTES), 1440
 				),
 				trustedProxyCidrs: GetOptionalCsvList(
 					nameof(TRUSTED_PROXY_CIDRS),
@@ -1031,6 +1056,22 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.GreaterThanOrEqualTo(x => x.UPLOAD_PER_STAFF_MAX_BYTES)
 			.WithMessage(
 				"UPLOAD_GLOBAL_MAX_BYTES must be greater than or equal to UPLOAD_PER_STAFF_MAX_BYTES"
+			);
+
+		RuleFor(x => x.UPLOAD_ORPHAN_GRACE_DAYS)
+			.InclusiveBetween(1, 365)
+			.WithMessage("UPLOAD_ORPHAN_GRACE_DAYS must be between 1 and 365");
+
+		RuleFor(x => x.UPLOAD_STALE_RESERVATION_TTL_MINUTES)
+			.InclusiveBetween(1, 10080)
+			.WithMessage(
+				"UPLOAD_STALE_RESERVATION_TTL_MINUTES must be between 1 and 10080 (7 days)"
+			);
+
+		RuleFor(x => x.UPLOAD_STORED_ORPHAN_TTL_MINUTES)
+			.InclusiveBetween(5, 20160)
+			.WithMessage(
+				"UPLOAD_STORED_ORPHAN_TTL_MINUTES must be between 5 and 20160 (14 days)"
 			);
 
 		RuleForEach(x => x.TRUSTED_PROXY_CIDRS)

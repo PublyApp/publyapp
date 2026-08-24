@@ -37,6 +37,23 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 	private static readonly HashSet<string> AllowedServiceDependencies = new(
 		StringComparer.Ordinal
 	) {
+		// #807 F5 baseline violation (ratchet target): AccountProfileService
+		// releases an avatar's asset reference best-effort inside the caller's
+		// transaction when a served avatar URL is replaced or cleared. The
+		// dependency is one conditional UPDATE with no business branching; if a
+		// future change grows it, move the coordination to the calling handler
+		// and remove this entry.
+		"AccountProfileService → IUploadAssetReferenceService",
+		// Same #807 F5 shape as above (ratchet target): these services release
+		// an avatar/logo's asset reference best-effort inside the caller's
+		// transaction when a served URL is replaced or cleared. One conditional
+		// UPDATE each, no business branching; if any of them grows business
+		// logic, move the coordination to the calling handler and remove its
+		// entry.
+		"StaffUserCoreService → IUploadAssetReferenceService",
+		"TenantAsStaffService → IUploadAssetReferenceService",
+		"TenantUserIdentityService → IUploadAssetReferenceService",
+		"TenantUserMembershipService → IUploadAssetReferenceService",
 	};
 
 	[Fact]

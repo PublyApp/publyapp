@@ -125,6 +125,10 @@ public static class AuditActions {
 	public const string StaffUserEmailUpdated = "staff.user.email.updated";
 
 	public const string UploadCreated = "upload.created";
+	// Emitted by the upload-orphan-reclaim system job when it physically deletes an
+	// orphaned blob and releases its budget bytes — the asset row itself is flipped
+	// to Deleted, so this audit entry is the only durable record of the reclamation.
+	public const string UploadAssetDeleted = "upload.asset.deleted";
 
 	public const string PostCreated = "post.created";
 	public const string PostUpdated = "post.updated";

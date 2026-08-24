@@ -1,97 +1,234 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+
+using Npgsql;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Uploads.Entities;
+
 namespace PublyApp.Api.Infrastructure.Storage;
 
 public interface IUploadAdmissionService {
-	UploadAdmissionResult TryReserve(Guid staffUserId, long bytes);
-
-	void Commit(UploadReservation reservation);
-
-	void Release(UploadReservation reservation);
+	/// <summary>
+	/// Opens the admission transaction, atomically reserves <paramref name="bytes"/>
+	/// against the durable global and per-creator budgets, and creates the asset row
+	/// in <see cref="UploadAssetState.Reserved"/> — all BEFORE the caller opens the
+	/// destination file. Dispose without committing rolls the whole reservation back.
+	/// </summary>
+	Task<UploadAdmissionScope> BeginReservationAsync(
+		Guid staffUserId,
+		long bytes,
+		string purpose,
+		CancellationToken cancellationToken = default
+	);
 }
 
 public abstract record UploadAdmissionResult {
 	private UploadAdmissionResult() { }
 
-	public sealed record Accepted(UploadReservation Reservation)
+	public sealed record Accepted(UploadAsset Asset)
 		: UploadAdmissionResult;
 
-	public sealed record Rejected : UploadAdmissionResult;
+	/// <summary>
+	/// Admission refused because a budget lacks headroom. Carries which scope was
+	/// exhausted and the numbers needed for a transparent RFC 7807 cause (owner
+	/// product rule: never a generic "something went wrong").
+	/// </summary>
+	public sealed record Rejected(
+		UploadBudgetScope ExhaustedScope,
+		long UsedBytes,
+		long RequestedBytes,
+		long MaxBytes
+	) : UploadAdmissionResult {
+		public long AvailableBytes {
+			get { return MaxBytes - UsedBytes; }
+		}
+	}
 }
 
 /// <summary>
-/// An in-process reservation for an upload's bytes. The reservation is opaque to
-/// callers and releases itself when disposed unless it has been committed.
+/// One in-flight upload's hold on the durable budgets. The scope OWNS the database
+/// transaction that reserved the bytes: the commit path finishes that transaction,
+/// so Postgres keeps the budget rows locked until the reservation resolves and no
+/// concurrent admission can slip past the numbers this request acted on.
+/// Disposing without committing rolls everything back.
 /// </summary>
-public sealed class UploadReservation : IDisposable {
-	internal UploadReservation(
-		IUploadAdmissionService owner,
-		Guid staffUserId,
-		long bytes
+public sealed class UploadAdmissionScope : IAsyncDisposable {
+	private readonly AppDbContext _dbContext;
+	private readonly UploadAdmissionService _owner;
+
+	internal bool CommitPending;
+
+	internal UploadAdmissionScope(
+		UploadAdmissionService owner,
+		AppDbContext dbContext,
+		IDbContextTransaction transaction,
+		UploadAdmissionResult admission
 	) {
-		Owner = owner;
-		StaffUserId = staffUserId;
-		Bytes = bytes;
+		_owner = owner;
+		_dbContext = dbContext;
+		Transaction = transaction;
+		Admission = admission;
 	}
 
-	internal IUploadAdmissionService Owner { get; }
+	public IDbContextTransaction Transaction { get; }
 
-	internal Guid StaffUserId { get; }
+	public UploadAdmissionResult Admission { get; }
 
-	internal long Bytes { get; }
-
-	internal UploadReservationState State { get; set; }
-
-	public void Dispose() {
-		Owner.Release(this);
+	// The handler calls this once the blob is durably written and audited, BEFORE
+	// CommitAsync: it stamps the intent so FailAsync keeps the bytes accounted for
+	// when cleanup could not be confirmed (a blob may exist → Stored orphan).
+	internal void MarkCommitPending() {
+		CommitPending = true;
 	}
-}
 
-internal enum UploadReservationState {
-	Active,
-	Committed,
-	Released,
+	/// <summary>
+	/// Reserved → Stored: flips the asset state, moves the bytes from reserved to
+	/// committed on every applicable budget row, and commits the transaction. The
+	/// blob exists durably at this point, so its bytes stay accounted for even
+	/// though nothing references the asset yet.
+	/// </summary>
+	public async Task CommitAsync(CancellationToken cancellationToken = default) {
+		if (Admission is not UploadAdmissionResult.Accepted accepted) {
+			throw new InvalidOperationException(
+				"Cannot commit an upload whose admission was rejected."
+			);
+		}
+		if (!CommitPending || string.IsNullOrEmpty(accepted.Asset.RelativePath)) {
+			throw new InvalidOperationException(
+				"Cannot commit an upload before its blob write and path stamping."
+			);
+		}
+
+		try {
+			accepted.Asset.State = UploadAssetState.Stored;
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			var bytes = accepted.Asset.SizeBytes;
+			await _owner.MoveReservedToCommittedAsync(
+				UploadBudgetScope.Global, null, bytes, cancellationToken
+			);
+			await _owner.MoveReservedToCommittedAsync(
+				UploadBudgetScope.CreatorUser, accepted.Asset.CreatedByUserId, bytes, cancellationToken
+			);
+
+			await Transaction.CommitAsync(cancellationToken);
+		} catch {
+			// A commit failure may leave the blob on disk with an unknown fate; keep
+			// the bytes accounted for as a Stored orphan rather than releasing them.
+			await FailAsync(releaseBudget: false, CancellationToken.None);
+			throw;
+		}
+	}
+
+	/// <summary>
+	/// Failure path. <paramref name="releaseBudget"/> true (blob cleanup confirmed):
+	/// roll back — the reservation vanishes and the bytes return to both budgets.
+	/// False (a blob MAY still exist): flip the asset to Stored, MOVE reserved to
+	/// committed, and commit — the bytes stay durably accounted for as an orphan
+	/// rather than admitting storage this deployment cannot bound. Column invariant:
+	/// a Reserved row's bytes live in reserved_bytes, a Stored row's in
+	/// committed_bytes, whatever path led there. Safe to call
+	/// more than once or after a dead transaction: rollback failures are swallowed.
+	/// </summary>
+	public async Task FailAsync(bool releaseBudget, CancellationToken cancellationToken = default) {
+		if (releaseBudget || !CommitPending) {
+			await RollbackQuietlyAsync();
+			return;
+		}
+
+		try {
+			if (Admission is not UploadAdmissionResult.Accepted accepted
+				|| string.IsNullOrEmpty(accepted.Asset.RelativePath)) {
+				await RollbackQuietlyAsync();
+				return;
+			}
+			// The failure that led here may have left half-applied entity
+			// mutations in the change tracker (e.g. an audit failure after the
+			// handler stamped ContentType/RelativePath). Flush those unrelated
+			// mutations, reattach the asset, and force a FULL update: the row
+			// was originally inserted (inside this very transaction) with an
+			// empty path, so the handler-stamped values must be written
+			// explicitly rather than diffed against the post-Clear snapshot.
+			var retainedBytes = accepted.Asset.SizeBytes;
+			_dbContext.ChangeTracker.Clear();
+			var assetEntry = _dbContext.UploadAsset.Attach(accepted.Asset);
+			assetEntry.State = EntityState.Modified;
+			accepted.Asset.State = UploadAssetState.Stored;
+			await _owner.MoveReservedToCommittedAsync(
+				UploadBudgetScope.Global, null, retainedBytes, cancellationToken
+			);
+			await _owner.MoveReservedToCommittedAsync(
+				UploadBudgetScope.CreatorUser, accepted.Asset.CreatedByUserId,
+				retainedBytes,
+				cancellationToken
+			);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+			await Transaction.CommitAsync(cancellationToken);
+		} catch {
+			await RollbackQuietlyAsync();
+		}
+	}
+
+	private async Task RollbackQuietlyAsync() {
+		try {
+			await Transaction.RollbackAsync();
+		} catch {
+			// Already committed/rolled back or connection gone — nothing to do.
+		}
+	}
+
+	public async ValueTask DisposeAsync() {
+		try {
+			if (Transaction is IDbContextTransaction owned) {
+				await owned.RollbackAsync();
+			}
+		} catch {
+			// Already committed/rolled back or connection gone — nothing to do.
+		}
+	}
 }
 
 /// <summary>
-/// Fail-closed, process-local upload byte admission accounting. This bounds
-/// in-flight and successful uploads on one API process. It is deliberately not
-/// cross-process durable; phase 2 of #807 owns a durable asset/accounting model.
+/// Durable upload byte admission accounting (#807 F1). Replaces phase 1's
+/// process-local counter: budgets live in <c>upload_budgets</c>, reservations as
+/// Reserved rows in <c>upload_assets</c>, and each admission opens ONE serialisable
+/// database transaction whose conditional UPDATEs against the budget rows add bytes
+/// only when headroom exists AT EXECUTION TIME on the locked tuple. Concurrent
+/// admissions therefore serialise on the budget rows themselves — over-admission
+/// is impossible by construction because there is no read-check-write window left
+/// to race (the two-context spec proves it against real Postgres).
+///
+/// The global budget is always enforced. A creator budget row additionally caps
+/// one staff user when present (seeded from UPLOAD_PER_STAFF_MAX_BYTES).
+///
+/// Fail-closed: a missing or unreadable budget row rejects admission instead of
+/// admitting unbounded bytes.
 /// </summary>
-public sealed class UploadAdmissionService : IUploadAdmissionService {
-	private readonly object _gate = new();
-	private readonly long _globalMaxBytes;
-	private readonly long _perStaffMaxBytes;
-	private readonly Dictionary<Guid, long> _committedBytesByStaff = [];
-	private readonly Dictionary<Guid, long> _reservedBytesByStaff = [];
-	private long _committedBytes;
-	private long _reservedBytes;
+public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmissionService {
+	// Purpose bucket recorded on assets admitted through the generic staff
+	// endpoint; snake_case wire value per the API contract naming split.
+	public const string StaffUploadPurpose = "staff_upload";
 
-	public UploadAdmissionService(long globalMaxBytes, long perStaffMaxBytes) {
-		if (globalMaxBytes <= 0) {
-			throw new ArgumentOutOfRangeException(
-				nameof(globalMaxBytes),
-				globalMaxBytes,
-				"The global upload budget must be positive."
-			);
-		}
-		if (perStaffMaxBytes <= 0) {
-			throw new ArgumentOutOfRangeException(
-				nameof(perStaffMaxBytes),
-				perStaffMaxBytes,
-				"The per-staff upload budget must be positive."
-			);
-		}
-		if (globalMaxBytes < perStaffMaxBytes) {
-			throw new ArgumentException(
-				"The global upload budget must be greater than or equal to the per-staff budget.",
-				nameof(globalMaxBytes)
-			);
-		}
+	// Serializable-retry tuning. Attempts are generous because bursts of
+	// concurrent admissions serialise on the same budget tuple; the randomised
+	// exponential backoff stops the losers from retrying in lockstep.
+	private const int RetryMaxAttempts = 8;
+	private const int RetryBackoffBaseMs = 10;
+	private const int RetryBackoffMaxShift = 5;
+	private const int RetryBackoffJitterMs = 40;
+	private const int RetryBackoffCeilingMs = 500;
 
-		_globalMaxBytes = globalMaxBytes;
-		_perStaffMaxBytes = perStaffMaxBytes;
+	internal AppDbContext DbContext {
+		get { return dbContext; }
 	}
 
-	public UploadAdmissionResult TryReserve(Guid staffUserId, long bytes) {
+	public async Task<UploadAdmissionScope> BeginReservationAsync(
+		Guid staffUserId,
+		long bytes,
+		string purpose,
+		CancellationToken cancellationToken = default
+	) {
 		if (bytes <= 0) {
 			throw new ArgumentOutOfRangeException(
 				nameof(bytes),
@@ -100,97 +237,286 @@ public sealed class UploadAdmissionService : IUploadAdmissionService {
 			);
 		}
 
-		lock (_gate) {
-			var staffUsed = GetUsedBytes(_committedBytesByStaff, staffUserId)
-				+ GetUsedBytes(_reservedBytesByStaff, staffUserId);
-			if (WouldExceed(_committedBytes + _reservedBytes, bytes, _globalMaxBytes)
-				|| WouldExceed(staffUsed, bytes, _perStaffMaxBytes)) {
-				return new UploadAdmissionResult.Rejected();
-			}
+		// Serializable transactions abort with 40001 (or deadlock-abort 40P01)
+		// when concurrent admissions race on the same budget tuples; the loser
+		// must RETRY with fresh state, never surface the failure to the caller
+		// (a serialization failure is a scheduling event, not an admission
+		// verdict). EF wraps provider errors raised by SaveChangesAsync in
+		// DbUpdateException, so unwrap before matching the SQLSTATE.
+		const int MaxAttempts = RetryMaxAttempts;
+		for (var attempt = 0; ; attempt += 1) {
+			try {
+				return await BeginReservationAttemptAsync(
+					staffUserId, bytes, purpose, cancellationToken
+				);
+			} catch (Exception exception)
+				when (attempt < MaxAttempts
+					&& IsRetryableSerializationFailure(exception)) {
+				// The database aborted the attempt: dispose its (already
+				// rollback-decided) transaction to free the connection, drop
+				// any half-tracked entities, and start the next attempt clean.
+				if (dbContext.Database.CurrentTransaction
+					is IDbContextTransaction aborted) {
+					try {
+						await aborted.DisposeAsync();
+					} catch {
+						// Connection may already be broken — nothing to do.
+					}
+				}
+				dbContext.ChangeTracker.Clear();
 
-			_reservedBytes += bytes;
-			AddBytes(_reservedBytesByStaff, staffUserId, bytes);
-			return new UploadAdmissionResult.Accepted(
-				new UploadReservation(this, staffUserId, bytes)
+				// Randomised exponential backoff: concurrent losers must not
+				// retry in lockstep, or they keep serialising into the same
+				// instant and can exhaust every attempt before the winner
+				// finishes its commit.
+				var backoffMs = Math.Min(
+					(RetryBackoffBaseMs << Math.Min(attempt, RetryBackoffMaxShift))
+						+ Random.Shared.Next(RetryBackoffJitterMs),
+					RetryBackoffCeilingMs
+				);
+				await Task.Delay(backoffMs, cancellationToken);
+			}
+		}
+	}
+
+	private static bool IsRetryableSerializationFailure(Exception exception) {
+		var postgres = exception as PostgresException;
+		if (postgres is null && exception is DbUpdateException wrapped) {
+			postgres = wrapped.InnerException as PostgresException;
+		}
+		if (postgres is null) {
+			return false;
+		}
+		return postgres.SqlState
+			is PostgresErrorCodes.SerializationFailure
+				or PostgresErrorCodes.DeadlockDetected;
+	}
+
+	private async Task<UploadAdmissionScope> BeginReservationAttemptAsync(
+		Guid staffUserId,
+		long bytes,
+		string purpose,
+		CancellationToken cancellationToken
+	) {
+		var transaction = await dbContext.Database.BeginTransactionAsync(
+			System.Data.IsolationLevel.Serializable, cancellationToken
+		);
+
+		await EnsureBudgetRowsExistAsync(staffUserId, cancellationToken);
+
+		var globalUpdated = await TryAddReservedBytesAsync(
+			UploadBudgetScope.Global, null, bytes, cancellationToken
+		);
+		if (globalUpdated == 0) {
+			await TransactionRollbackAsync(transaction);
+			return new UploadAdmissionScope(
+				this, dbContext, transaction,
+				await BuildRejectionAsync(
+					UploadBudgetScope.Global, null, bytes, cancellationToken
+				)
 			);
 		}
+
+		var creatorUpdated = await TryAddReservedBytesAsync(
+			UploadBudgetScope.CreatorUser, staffUserId, bytes, cancellationToken
+		);
+		if (creatorUpdated == 0) {
+			// Give the global reservation back before reporting the creator cap.
+			await SubtractReservedBytesAsync(
+				UploadBudgetScope.Global, null, bytes, cancellationToken
+			);
+			await TransactionRollbackAsync(transaction);
+			return new UploadAdmissionScope(
+				this, dbContext, transaction,
+				await BuildRejectionAsync(
+					UploadBudgetScope.CreatorUser, staffUserId, bytes, cancellationToken
+				)
+			);
+		}
+
+		var asset = new UploadAsset {
+			RelativePath = string.Empty,
+			SizeBytes = bytes,
+			ContentType = string.Empty,
+			Purpose = purpose,
+			State = UploadAssetState.Reserved,
+			CreatedByUserId = staffUserId,
+		};
+		dbContext.UploadAsset.Add(asset);
+		await dbContext.SaveChangesAsync(cancellationToken);
+
+		return new UploadAdmissionScope(
+			this, dbContext, transaction,
+			new UploadAdmissionResult.Accepted(asset)
+		);
 	}
 
-	public void Commit(UploadReservation reservation) {
-		ArgumentNullException.ThrowIfNull(reservation);
+	// ── helpers ─────────────────────────────────────────────────────────────
 
-		lock (_gate) {
-			EnsureActiveReservation(reservation);
-			_reservedBytes -= reservation.Bytes;
-			RemoveBytes(_reservedBytesByStaff, reservation.StaffUserId, reservation.Bytes);
-			_committedBytes += reservation.Bytes;
-			AddBytes(_committedBytesByStaff, reservation.StaffUserId, reservation.Bytes);
-			reservation.State = UploadReservationState.Committed;
+	private static async Task TransactionRollbackAsync(IDbContextTransaction transaction) {
+		try {
+			await transaction.RollbackAsync();
+		} catch {
+			// A rollback racing disposal is harmless; the scope re-attempts quietly.
 		}
 	}
 
-	public void Release(UploadReservation reservation) {
-		ArgumentNullException.ThrowIfNull(reservation);
+	// Reads the refusing scope's numbers AFTER the rollback so the problem details
+	// can name the cause in plain words ("X free, less than this file's Y"). Reads
+	// outside the aborted transaction see the last committed accounting.
+	private async Task<UploadAdmissionResult.Rejected> BuildRejectionAsync(
+		UploadBudgetScope scope,
+		Guid? scopeKeyGuid,
+		long requestedBytes,
+		CancellationToken cancellationToken
+	) {
+		var key = scopeKeyGuid?.ToString();
+		var hasScopeKey = scopeKeyGuid is not null;
+		var budget = await (
+			from b in dbContext.UploadBudget.AsNoTracking()
+			where b.ScopeKind == scope
+				&& (hasScopeKey ? b.ScopeKey == key : b.ScopeKey == null)
+			select b
+		).FirstOrDefaultAsync(cancellationToken);
 
-		lock (_gate) {
-			if (!ReferenceEquals(reservation.Owner, this)) {
-				throw new InvalidOperationException("Upload reservation ownership is invalid.");
-			}
-			if (reservation.State is not UploadReservationState.Active) {
-				return;
-			}
-
-			_reservedBytes -= reservation.Bytes;
-			RemoveBytes(_reservedBytesByStaff, reservation.StaffUserId, reservation.Bytes);
-			reservation.State = UploadReservationState.Released;
+		if (budget is null) {
+			// Fail closed with honest "nothing known free" accounting.
+			return new UploadAdmissionResult.Rejected(scope, long.MaxValue, requestedBytes, long.MaxValue);
 		}
+
+		var used = Math.Min(
+			budget.ReservedBytes + budget.CommittedBytes,
+			budget.MaxBytes
+		);
+		return new UploadAdmissionResult.Rejected(
+			scope, used, requestedBytes, budget.MaxBytes
+		);
 	}
 
-	private static long GetUsedBytes(
-		IReadOnlyDictionary<Guid, long> bytesByStaff,
-		Guid staffUserId
-	) {
-		return bytesByStaff.GetValueOrDefault(staffUserId);
-	}
+	private static int ScopeToInt(UploadBudgetScope scope) {
+	return (int)scope;
+}
 
-	private static bool WouldExceed(long usedBytes, long requestedBytes, long maxBytes) {
-		return usedBytes > maxBytes - requestedBytes;
-	}
-
-	private static void AddBytes(
-		IDictionary<Guid, long> bytesByStaff,
+private async Task EnsureBudgetRowsExistAsync(
 		Guid staffUserId,
-		long bytes
+		CancellationToken cancellationToken
 	) {
-		var current = bytesByStaff.TryGetValue(staffUserId, out var value)
-			? value
-			: 0;
-		bytesByStaff[staffUserId] = current + bytes;
+		var env = AppEnvironment.Instance;
+
+		// Idempotent config seeding: ON CONFLICT DO NOTHING means two simultaneous
+		// first-admissions cannot double-create rows, and operator-tuned max_bytes
+		// survives (only missing rows are inserted). Budgets are config, not data.
+		await dbContext.Database.ExecuteSqlAsync(
+			$"""
+			INSERT INTO upload_budgets (id, scope_kind, scope_key, max_bytes, reserved_bytes, committed_bytes)
+			VALUES (uuidv7(), {ScopeToInt(UploadBudgetScope.Global)}, NULL, {env.UPLOAD_GLOBAL_MAX_BYTES}, 0, 0)
+			ON CONFLICT (scope_kind, scope_key) DO NOTHING
+			""",
+			cancellationToken
+		);
+		await dbContext.Database.ExecuteSqlAsync(
+			$"""
+			INSERT INTO upload_budgets (id, scope_kind, scope_key, max_bytes, reserved_bytes, committed_bytes)
+			VALUES (uuidv7(), {ScopeToInt(UploadBudgetScope.CreatorUser)}, {staffUserId.ToString()}, {env.UPLOAD_PER_STAFF_MAX_BYTES}, 0, 0)
+			ON CONFLICT (scope_kind, scope_key) DO NOTHING
+			""",
+			cancellationToken
+		);
 	}
 
-	private static void RemoveBytes(
-		IDictionary<Guid, long> bytesByStaff,
-		Guid staffUserId,
-		long bytes
+	private async Task<int> TryAddReservedBytesAsync(
+		UploadBudgetScope scope,
+		Guid? scopeKeyGuid,
+		long bytes,
+		CancellationToken cancellationToken
 	) {
-		var current = bytesByStaff.TryGetValue(staffUserId, out var value)
-			? value
-			: 0;
-		var remaining = current - bytes;
-		if (remaining <= 0) {
-			bytesByStaff.Remove(staffUserId);
+		// Two branches instead of a null-typed parameter: Postgres cannot infer the
+		// data type of a NULL placeholder inside an OR/IS NULL predicate (42P18),
+		// and the branch is known statically here anyway.
+		if (scopeKeyGuid is null) {
+			return await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				UPDATE upload_budgets
+				SET reserved_bytes = reserved_bytes + {bytes}
+				WHERE scope_kind = {ScopeToInt(scope)}
+					AND scope_key IS NULL
+					AND max_bytes - reserved_bytes - committed_bytes >= {bytes}
+				""",
+				cancellationToken
+			);
+		}
+
+		return await dbContext.Database.ExecuteSqlAsync(
+			$"""
+			UPDATE upload_budgets
+			SET reserved_bytes = reserved_bytes + {bytes}
+			WHERE scope_kind = {ScopeToInt(scope)}
+				AND scope_key = {scopeKeyGuid.ToString()}
+				AND max_bytes - reserved_bytes - committed_bytes >= {bytes}
+			""",
+			cancellationToken
+		);
+	}
+
+	private async Task SubtractReservedBytesAsync(
+		UploadBudgetScope scope,
+		Guid? scopeKeyGuid,
+		long bytes,
+		CancellationToken cancellationToken
+	) {
+		if (scopeKeyGuid is null) {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				UPDATE upload_budgets
+				SET reserved_bytes = reserved_bytes - {bytes}
+				WHERE scope_kind = {ScopeToInt(scope)}
+					AND scope_key IS NULL
+				""",
+				cancellationToken
+			);
 			return;
 		}
 
-		bytesByStaff[staffUserId] = remaining;
+		await dbContext.Database.ExecuteSqlAsync(
+			$"""
+			UPDATE upload_budgets
+			SET reserved_bytes = reserved_bytes - {bytes}
+			WHERE scope_kind = {ScopeToInt(scope)}
+				AND scope_key = {scopeKeyGuid.ToString()}
+			""",
+			cancellationToken
+		);
 	}
 
-	private void EnsureActiveReservation(UploadReservation reservation) {
-		if (!ReferenceEquals(reservation.Owner, this)) {
-			throw new InvalidOperationException("Upload reservation ownership is invalid.");
+	internal async Task MoveReservedToCommittedAsync(
+		UploadBudgetScope scope,
+		Guid? scopeKeyGuid,
+		long bytes,
+		CancellationToken cancellationToken
+	) {
+		if (scopeKeyGuid is null) {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				UPDATE upload_budgets
+				SET reserved_bytes = reserved_bytes - {bytes},
+					committed_bytes = committed_bytes + {bytes}
+				WHERE scope_kind = {ScopeToInt(scope)}
+					AND scope_key IS NULL
+				""",
+				cancellationToken
+			);
+			return;
 		}
-		if (reservation.State is not UploadReservationState.Active) {
-			throw new InvalidOperationException("Upload reservation is no longer active.");
-		}
+
+		await dbContext.Database.ExecuteSqlAsync(
+			$"""
+			UPDATE upload_budgets
+			SET reserved_bytes = reserved_bytes - {bytes},
+				committed_bytes = committed_bytes + {bytes}
+			WHERE scope_kind = {ScopeToInt(scope)}
+				AND scope_key = {scopeKeyGuid.ToString()}
+			""",
+			cancellationToken
+		);
 	}
 }

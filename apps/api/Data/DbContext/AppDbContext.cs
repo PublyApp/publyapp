@@ -16,6 +16,7 @@ using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Uploads.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Data.DbContext;
@@ -104,6 +105,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	}
 	public DbSet<SystemNotice> SystemNotice {
 		get { return Set<SystemNotice>(); }
+	}
+
+	// Durable upload admission control + asset lifecycle (#807). Entities live in
+	// Modules/Uploads by convention; the accounting engine lives beside them.
+	public DbSet<UploadAsset> UploadAsset {
+		get { return Set<UploadAsset>(); }
+	}
+	public DbSet<UploadBudget> UploadBudget {
+		get { return Set<UploadBudget>(); }
 	}
 
 	// Tenant content entities
