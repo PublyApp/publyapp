@@ -100,3 +100,58 @@ test('every script path referenced by gate config surfaces exists', () => {
 			'missing script fails only when someone runs it, which is too late.',
 	);
 });
+
+// Guard against dangling source-path keys in the React Compiler guide's
+// "Skip inventory" table (docs/guides/front/react-compiler.md).
+//
+// WHY THIS EXISTS
+// ---------------
+// Issue #1297: the table listed the `_assign-members-drawer.tsx` skips under
+// `src/routes/authed/staff/tenants/$tenantId/profiles/`, but the file (and
+// the suppressions the row documents) actually lives under
+// `profiles/$profileId/`. The decision text was right and the path was wrong;
+// nothing failed because no guard resolved inventory paths against disk.
+//
+// WHAT THIS PROVES
+// ----------------
+// Every `src/...` File-column key in the skip-inventory table resolves to an
+// existing file under apps/front/. A moved, renamed, or hallucinated entry
+// now fails this suite instead of silently describing a file that does not
+// exist. Scoped to `src/`-prefixed keys so the doc's second table (compiler
+// diagnostic names, which are prose, not paths) stays out of scope.
+//
+// WHAT THIS DOES NOT PROVE
+// ------------------------
+// That the row's pattern/decision columns still match what the build emits —
+// the inventory is refreshed manually per build; see the doc itself.
+
+const reactCompilerDocPath = 'docs/guides/front/react-compiler.md';
+
+test('every skip-inventory path in react-compiler.md exists', () => {
+	const contents = readFileSync(path.join(repoRoot, reactCompilerDocPath), 'utf8');
+
+	const inventoryPaths = [...contents.matchAll(/^\| `(src\/[^`]+)` \|/gm)].map(
+		(match) => match[1],
+	);
+
+	assert.ok(
+		inventoryPaths.length > 0,
+		'No `src/...` skip-inventory rows found in react-compiler.md; ' +
+			'the guard is blind — check whether the table was restructured.',
+	);
+
+	const dangling = inventoryPaths.filter(
+		(inventoryPath) =>
+			!existsSync(path.join(repoRoot, 'apps/front', inventoryPath)),
+	);
+
+	assert.deepEqual(
+		dangling,
+		[],
+		'Dangling skip-inventory entries found (these paths do not exist):\n' +
+			`${dangling.join('\n')}\n` +
+			'A skip-inventory row naming a non-existent file cannot be reconciled\n' +
+			'with a real build. Fix the path key (or move/rename the file back).\n' +
+			'See issue #1297 for the original instance of this bug.',
+	);
+});
