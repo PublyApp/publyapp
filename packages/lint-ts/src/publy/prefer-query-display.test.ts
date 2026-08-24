@@ -17,8 +17,9 @@
  *   (`q.isError`) and destructured (`{ isError }`) reads, renamed
  *   destructuring (`{ isPending: loading }`), rest elements (`...rest`),
  *   whole-binding aliasing (`const q = r;`), destructuring from an aliased
- *   binding, and JSX-returning render-prop callbacks (`render={…}`,
- *   `children={() => …}`). `useMutation` results are never flagged.
+ *   binding, JSX-returning render-prop callbacks (`render={…}`,
+ *   `children={() => …}`), and hand-rolled ladders inside `switch` case
+ *   bodies. `useMutation` results are never flagged.
  */
 import assert from 'node:assert/strict';
 
@@ -624,6 +625,43 @@ const runCases = (rule, label) => {
 						'const Foo = () => {',
 						'  const { isPending: loading } = useThingQuery();',
 						'  return <Wizard steps={[loading]} render={() => (loading ? <Skeleton /> : <Done />)} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Hand-rolled ladder inside a `switch` case body: the case-body
+				// walk must reach statements under `case`/`default`. The
+				// discriminant carries no flagged field, so the diagnostic can
+				// only come from walking the case body itself.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  const mode = "view";',
+						'  switch (mode) {',
+						'    case "pending":',
+						'      return q.isPending ? <Skeleton /> : <div>{q.data}</div>;',
+						'    default:',
+						'      return <div>{q.data}</div>;',
+						'  }',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'preferQueryDisplay' }],
+				},
+				// Same ladder inside a brace-less case body.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useThingQuery();',
+						'  switch (q.data?.id) {',
+						'    case 1:',
+						'      if (q.isError) return <Error />;',
+						'      return <div>{q.data}</div>;',
+						'    default:',
+						'      return null;',
+						'  }',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,

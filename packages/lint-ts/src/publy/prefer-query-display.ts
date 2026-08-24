@@ -383,11 +383,18 @@ const scan = (
 				scanInner(node.body, conditional, false);
 				return;
 			}
-			case 'SwitchStatement':
-				// Only the discriminant is walked: case bodies were never render
-				// context in this rule and remain out of scope.
+			case 'SwitchStatement': {
+				// The discriminant is a value read, so it is render context.
+				// Case bodies are walked too: a hand-rolled state ladder inside
+				// `switch` is as much a conditional render as an `if` chain.
 				scanInner(node.discriminant, true, false);
+				for (const caseClause of node.cases) {
+					for (const statement of caseClause.consequent) {
+						scanInner(statement, conditional, false);
+					}
+				}
 				return;
+			}
 			case 'JSXElement':
 			case 'JSXFragment': {
 				// Opening elements carry the attributes (render props live there).
