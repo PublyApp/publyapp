@@ -19,6 +19,20 @@ import { generateRouteTree } from './route-tree-generator.mjs';
 
 const GENERATED_RELATIVE_PATH = path.join('src', 'routeTree.gen.ts');
 
+// During `vite build` and `vitest run`, @tanstack/start-plugin-core appends
+// an ephemeral module-registration footer to routeTree.gen.ts (see its
+// start-router-plugin/route-tree-footer.js) and never commits it — this repo
+// declares the same `interface Register` in src/router.tsx. CI's "Build front"
+// step runs BEFORE "Test front", so the on-disk file can legitimately carry
+// this suffix whenever the guard executes; it is stripped from both sides
+// before comparing so toolchain churn never reads as drift (and only exact
+// suffix matches are stripped, so substantive edits stay detected).
+const PLUGIN_FOOTER_PATTERN =
+	/\n*import type \{ getRouter \} from '[^'\r\n]*'\r?\nimport type \{ createStart \} from '@tanstack\/[a-z]+-start'\r?\ndeclare module '@tanstack\/[a-z]+-start' \{\r?\n {2}interface Register \{\r?\n {4}ssr: true\r?\n {4}router: Awaited<ReturnType<typeof getRouter>>\r?\n {2}\}\r?\n\}\s*$/;
+
+const stripPluginFooter = (content) =>
+	content.replace(PLUGIN_FOOTER_PATTERN, '');
+
 const frontRootFromHere = () =>
 	path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -50,7 +64,15 @@ export const checkFreshness = async ({ frontRoot } = {}) => {
 		return { stale: true, outputPath, contentBefore };
 	}
 
-	return { stale: after !== contentBefore, outputPath, contentBefore };
+	// The pattern consumes the leading blank line(s) it anchors on, so strip
+	// then ignore trailing whitespace on BOTH sides: an end-of-file newline is
+	// formatting, not route drift.
+	const normalized = (content) => stripPluginFooter(content).trimEnd();
+	return {
+		stale: normalized(after) !== normalized(contentBefore),
+		outputPath,
+		contentBefore,
+	};
 };
 
 const isCli = () =>

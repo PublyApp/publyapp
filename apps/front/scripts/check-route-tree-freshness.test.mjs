@@ -172,3 +172,67 @@ test('a missing generated file reports stale: true', async () => {
 		await rm(root, { recursive: true, force: true });
 	}
 });
+
+test('the toolchain-injected SSR register footer alone does not read as stale', async () => {
+	// During `vite build` and `vitest run`, @tanstack/start-plugin-core appends
+	// an ephemeral `declare module '@tanstack/react-start'` registration footer
+	// to src/routeTree.gen.ts and never writes it back into the committed file
+	// (this repo declares the same interface in src/router.tsx). Because CI's
+	// "Build front" step runs BEFORE "Test front", the guard always meets the
+	// file with that suffix on disk; it must not read as drift. This fixture
+	// reproduces the exact bytes observed in the #1300 triage logs.
+	const root = await buildFixtureRoot();
+	try {
+		await generateRouteTree(root);
+		const generatedPath = path.join(root, GENERATED_RELATIVE_PATH);
+		const committedBytes = await readFile(generatedPath, 'utf8');
+
+		const pluginFooter = [
+			'',
+			"import type { getRouter } from './router.tsx'",
+			"import type { createStart } from '@tanstack/react-start'",
+			"declare module '@tanstack/react-start' {",
+			'  interface Register {',
+			'    ssr: true',
+			'    router: Awaited<ReturnType<typeof getRouter>>',
+			'  }',
+			'}',
+			'',
+		].join('\n');
+		const onDiskBeforeCheck = committedBytes + pluginFooter;
+		await writeFile(generatedPath, onDiskBeforeCheck);
+
+		const result = await checkFreshness({ frontRoot: root });
+
+		assert.equal(result.stale, false);
+		// On a fresh verdict the guard leaves the freshly regenerated canonical
+		// bytes on disk: the ephemeral footer is gone and the tree matches the
+		// committed form (restore-to-pre-check only applies to the stale path,
+		// where preserving the caller's bytes matters).
+		assert.equal(await readFile(generatedPath, 'utf8'), committedBytes);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
+
+test('a substantive edit under the injected footer still reports stale: true', async () => {
+	// Tolerating the footer must not open a drift hole: real route drift with
+	// the plugin suffix on top remains stale.
+	const root = await buildFixtureRoot();
+	try {
+		await generateRouteTree(root);
+		const generatedPath = path.join(root, GENERATED_RELATIVE_PATH);
+		const committedBytes = await readFile(generatedPath, 'utf8');
+
+		await writeFile(
+			generatedPath,
+			`${committedBytes}\n// hand drift\nimport type { getRouter } from './router.tsx'\n`,
+		);
+
+		const result = await checkFreshness({ frontRoot: root });
+
+		assert.equal(result.stale, true);
+	} finally {
+		await rm(root, { recursive: true, force: true });
+	}
+});
