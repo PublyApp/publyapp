@@ -295,7 +295,9 @@ const matrixJobNameExpression = ({ key, expected }) =>
  * so that run can never collide with `gateName` as a duplicate report for
  * the same commit — see the file-level comment.
  */
-const GATE_WORKFLOWS = [
+// Exported so the structure test can pin the table's own pinnedTestFiles
+// contents against EXPECTED_PINNED_TEST_FILES (PR #1312 round 2).
+export const GATE_WORKFLOWS = [
 	{
 		file: 'front-e2e.yml',
 		changesJob: 'changes',
@@ -377,6 +379,17 @@ const GATE_WORKFLOWS = [
 		// gate-selftest, and the required front-ci-gate) until the pin is
 		// consciously re-made. This is a strengthening pin, not an allowlist:
 		// nothing is exempted from anything.
+		//
+		// PR #1312 round 2 (review MAJOR/BLOCKS_PR): THIS ARRAY is itself the
+		// attack surface — the reviewer deleted the entry and every check
+		// stayed green, because an ABSENT pin is a compliant default (no pin
+		// => no enforcement => no findings). The exact contents are therefore
+		// pinned by EXPECTED_PINNED_TEST_FILES + findPinnedTestFilesProblems
+		// below, asserted inside findCiGateStructureProblems itself, so the
+		// real-tree self-test, this script's CLI, gate-selftest, and
+		// `just ci-drift` all enforce it: deleting the entry, renaming its
+		// path, swapping its runnerConfig, or quietly adding an undeclared
+		// pin goes RED naming the difference.
 		pinnedTestFiles: [
 			{
 				path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
@@ -424,6 +437,31 @@ const GATE_WORKFLOWS = [
 	},
 ];
 
+// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. GATE_WORKFLOWS
+// above is code, so deleting the front-ci entry's `pinnedTestFiles` array (or a
+// member of it) is itself an unguarded "compliant default": the round-1
+// enforcement loop only runs over entries that EXIST, and no test asserted that
+// any does — the reviewer's mutation left every check green while the
+// trans-render guard lost its CI enforcement silently. This declared
+// expectation pins the exact multiset of `pinnedTestFiles` across the real
+// table; findPinnedTestFilesProblems below asserts
+// expectation == workflow-derived == on-disk existence, symmetrically: removing
+// an entry goes RED naming it, adding an undeclared one goes RED naming it.
+//
+// This list MUST stay in lock-step with the `pinnedTestFiles` arrays in
+// GATE_WORKFLOWS — which is exactly the point: any change to either side is a
+// conscious, reviewed edit to both.
+// Exported for the structure test's symmetric RED assertions (see above).
+export const EXPECTED_PINNED_TEST_FILES = [
+	{
+		file: 'front-ci.yml',
+		path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+		runnerConfig: 'apps/front/vitest.config.ts',
+		reason:
+			'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
+	},
+];
+
 // @ts-expect-error rung-0: add proper type in later rung
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
@@ -439,6 +477,97 @@ const normalizeNeeds = (needs) => {
 
 // @ts-expect-error rung-0: add proper type in later rung
 const asSet = (values) => new Set(values);
+
+const PINNED_TEST_FILES_EXPECTATION_HEADER =
+	'PR #1312 round 2: the declared pinnedTestFiles expectation';
+
+/**
+ * PR #1312 round 2 (review MAJOR/BLOCKS_PR): pins the EXACT multiset of
+ * `pinnedTestFiles` entries across the real GATE_WORKFLOWS against
+ * EXPECTED_PINNED_TEST_FILES, symmetrically — removing a declared entry is
+ * RED naming it; adding an undeclared one is RED naming it; changing an
+ * entry's runnerConfig or reason without re-making the expectation is RED
+ * naming it — AND requires every pinned file to exist on disk, so the
+ * expectation can never quietly outlive its target.
+ *
+ * This closes the round-1 gap where deleting the front-ci entry's
+ * `pinnedTestFiles` array itself left every check green: the enforcement loop
+ * above only iterates over pins that exist, so an ABSENT pin was a compliant
+ * default and the trans-render guard's CI enforcement could be switched off
+ * silently. Deliberately asserted inside findCiGateStructureProblems (not only
+ * in a test): the real-tree self-test, this script's CLI, gate-selftest, and
+ * `just ci-drift` then all carry it with no new wiring to drop.
+ */
+export const findPinnedTestFilesProblems = async ({
+	rootDir,
+	// Test seam ONLY: lets the structure test derive from a mutated copy of
+	// the table to prove the comparison flips RED symmetrically. Every
+	// production caller omits it, so the check always runs against the real
+	// GATE_WORKFLOWS.
+	workflows = GATE_WORKFLOWS,
+}) => {
+	const findings = [];
+
+	/** file → path → {runnerConfig, reason}; derived from the given table. */
+	const derived = [];
+	for (const workflow of workflows) {
+		for (const pin of workflow.pinnedTestFiles ?? []) {
+			derived.push({
+				file: workflow.file,
+				path: pin.path,
+				runnerConfig: pin.runnerConfig,
+				reason: pin.reason,
+			});
+		}
+	}
+
+	// Multiset comparison over stable string keys, so duplicate entries are
+	// caught too (one removed while a twin remains would otherwise pass).
+	const entryKey = (pin) =>
+		JSON.stringify([pin.file, pin.path, pin.runnerConfig, pin.reason]);
+	const derivedByKey = new Map();
+	for (const pin of derived) {
+		derivedByKey.set(entryKey(pin), [
+			...(derivedByKey.get(entryKey(pin)) ?? []),
+			pin,
+		]);
+	}
+	const expectedByKey = new Map();
+	for (const pin of EXPECTED_PINNED_TEST_FILES) {
+		expectedByKey.set(entryKey(pin), [
+			...(expectedByKey.get(entryKey(pin)) ?? []),
+			pin,
+		]);
+	}
+
+	for (const [key, expected] of expectedByKey) {
+		if (derivedByKey.has(key)) continue;
+		findings.push(
+			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS no longer carries ${expected.length > 1 ? 'any of' : 'the'} ${expected.length > 1 ? 'entries' : 'entry'} for \`${expected[0].file}\` -> \`${expected[0].path}\`. Removing or editing a pinned-test-file entry switches that coverage's CI enforcement off silently — restore the entry in check-ci-gate-structure.ts exactly as declared by EXPECTED_PINNED_TEST_FILES, or consciously re-make BOTH lists together.`,
+		);
+	}
+
+	for (const [key, actual] of derivedByKey) {
+		if (expectedByKey.has(key)) continue;
+		findings.push(
+			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS carries an undeclared pinnedTestFiles entry for \`${actual[0].file}\` -> \`${actual[0].path}\`. Every pin must be declared in EXPECTED_PINNED_TEST_FILES (check-ci-gate-structure.ts) — add it there consciously, or remove the undeclared entry.`,
+		);
+	}
+
+	// A matching declaration whose file has vanished fails closed here too:
+	// the expectation must never describe coverage that no longer exists.
+	for (const pin of EXPECTED_PINNED_TEST_FILES) {
+		try {
+			await access(path.join(rootDir, pin.path));
+		} catch {
+			findings.push(
+				`${PINNED_TEST_FILES_EXPECTATION_HEADER}: the declared pin \`${pin.file}\` -> \`${pin.path}\` points at a file that does not exist on disk. Re-point both lists at the file's reviewed new path.`,
+			);
+		}
+	}
+
+	return findings;
+};
 
 /**
  * Checks whether `onSection` (a parsed workflow's `on:` value) declares
@@ -1232,6 +1361,17 @@ export const findCiGateStructureProblems = async ({
 
 		// @ts-expect-error rung-0: TS2345
 		findings.push(...(await checkWorkflow(workflow, document, rootDir)));
+	}
+
+	// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. Asserted
+	// here so EVERY caller of this function — the real-tree self-test below,
+	// gate-selftest, front-ci-gate's own step, and `just ci-drift` via this
+	// script's CLI — enforces that the pinnedTestFiles entries actually exist,
+	// without any new wiring that could itself be silently dropped (the exact
+	// false-negative shape this closes). Fixture-based callers are unaffected:
+	// the expectation is checked against the REAL table only.
+	if (workflows === GATE_WORKFLOWS) {
+		findings.push(...(await findPinnedTestFilesProblems({ rootDir })));
 	}
 
 	return findings;
