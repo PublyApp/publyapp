@@ -83,7 +83,7 @@ or the fix costs more than the skip); **rewrite now** = done in #1234;
 | `src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx` | — (was try/finally) | **rewritten in #1234.** Now compiles. |
 | `src/routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx` | suppression (resolver family) | **follow-up.** Same family. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles.tsx` | ref access during render ×4 + preserve-memo (`openEditDrawerRef` latest-callback pattern) | **follow-up.** The "latest callback in a ref" indirection exists to keep handlers stable; under the compiler it can collapse to plain functions. Needs its own careful pass. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/_assign-members-drawer.tsx` | suppression ×2 (documented reset-key rationales) | **acceptable skip.** Both suppressions document deliberate narrower-trigger semantics. |
+| `src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx` | suppression ×2 (documented reset-key rationales) | **acceptable skip.** Both suppressions document deliberate narrower-trigger semantics. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx` | suppression ×2 (resolver family + draft-protection effect) | **follow-up** (resolver half); draft-protection half acceptable. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer.tsx` | suppression (resolver family) | **follow-up.** Same family. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-permissions-tab.tsx` | suppression (`grantedSignature` stable key) | **acceptable skip.** Documented signature-key rationale. |
