@@ -15,8 +15,19 @@ import { createServer } from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
 import { createInterface } from 'node:readline';
+import { fileURLToPath } from 'node:url';
 
-import { parseWorktrees, parseTrackedChangesFromStatus } from './review-worktree.resolve.ts';
+import {
+	GH_AUTH_FAILURE,
+	GH_INVOCATION_FAILURE,
+	GH_NETWORK_FAILURE,
+	getBranchPathByMap,
+	parseWorktrees,
+	parseTrackedChangesFromStatus,
+	resolveTarget,
+	runIssueByNumber,
+	runPrByNumber,
+} from './review-worktree.resolve.ts';
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -38,10 +49,9 @@ export const REDACTED = '[REDACTED]';
 // Used to keep a connection string's password out of any rendered command error —
 // whether the secret leaked into argv, stdout, or stderr.
 // @ts-expect-error rung-0: add proper type in later rung
-export const redactSecrets = (text, secrets = []) => {
+export const redactSecrets = (text, secrets) => {
 	let redacted = text;
-	for (const secret of secrets) {
-		// @ts-expect-error rung-0: TS2339
+	for (const secret of secrets ?? []) {
 		if (typeof secret === 'string' && secret.length > 0) {
 			redacted = redacted.split(secret).join(REDACTED);
 		}
@@ -50,239 +60,30 @@ export const redactSecrets = (text, secrets = []) => {
 	return redacted;
 };
 
-// The whitespace a keyword/value pair may carry around its separators, matched precisely
-// against real Npgsql 10.0.0 rather than guessed. Round-6 review reproduced a leak: the
-// previous predicate skipped only the literal ASCII space (U+0020) before deciding whether a
-// value was quoted, so `Password=\t"secret"` (a tab, not a space, before the opening quote) —
-// a form real Npgsql parses and extracts `secret` from — fell through to the unquoted branch
-// instead, which captured the literal text `\t"secret"` (quotes included) as the "value".
-// That never matches what the subprocess actually receives and echoes back, so the real
-// secret reached rendered output unredacted.
-//
-// This is exactly Unicode's "White_Space" property, which is also the documented definition
-// of .NET's `System.Char.IsWhiteSpace(char)` (categories SpaceSeparator/LineSeparator/
-// ParagraphSeparator, plus the six control characters U+0009-U+000D and U+0085) — the
-// predicate Npgsql's own connection-string tokenizer defers to. Verified directly against the
-// repository's real Npgsql 10.0.0 assembly (`~/.nuget/packages/npgsql/10.0.0`) with a
-// synthetic marker password, one accepted/rejected form at a time:
-//   accepted before/after a quote: SPACE, TAB, LF, CR, CRLF, FF, VT, NBSP (U+00A0),
-//     NEL (U+0085), OGHAM SPACE MARK (U+1680), EN QUAD (U+2000), HAIR SPACE (U+200A),
-//     LINE SEPARATOR (U+2028), PARAGRAPH SEPARATOR (U+2029), NARROW NBSP (U+202F),
-//     MEDIUM MATHEMATICAL SPACE (U+205F), IDEOGRAPHIC SPACE (U+3000)
-//   rejected (throws FormatException, so no connection is ever attempted): ZERO WIDTH NO-BREAK
-//     SPACE / BOM (U+FEFF) — deliberately excluded below even though some whitespace-ish JS
-//     regexes (and V8's own `String.prototype.trim`) treat it as trimmable
-// `\p{White_Space}` is the one built-in JS regex class whose membership matches this list
-// exactly (unlike `\s`, which matches U+FEFF but not U+0085).
-const CONNECTION_STRING_WHITESPACE = /\p{White_Space}/u;
-// @ts-expect-error rung-0: add proper type in later rung
-const isConnectionStringWhitespace = (char) =>
-	char !== undefined && CONNECTION_STRING_WHITESPACE.test(char);
-
-// Trims exactly the whitespace set above — not JS's native `.trim()`, which (via V8) also
-// strips U+FEFF, a character real Npgsql refuses to treat as whitespace at all. Using the same
-// predicate everywhere keeps "skip" and "trim" from silently disagreeing with each other.
-// @ts-expect-error rung-0: add proper type in later rung
-const trimConnectionStringWhitespace = (value) => {
-	let start = 0;
-	let end = value.length;
-	while (start < end && isConnectionStringWhitespace(value[start])) {
-		start += 1;
-	}
-	while (end > start && isConnectionStringWhitespace(value[end - 1])) {
-		end -= 1;
-	}
-
-	return value.slice(start, end);
-};
-
-// Tokenizes an ADO.NET/Npgsql-style connection string into ordered [key, value] pairs,
-// correctly handling double- and single-quoted values — which may themselves contain
-// literal semicolons — and doubled-quote escaping inside them
-// (https://www.npgsql.org/doc/connection-string-parameters.html). Round-3 review found the
-// previous naive `;`-splitting regex truncated a valid `Password="pa;ss word"` at the first
-// semicolon, so only `pa` was ever redacted and the rest of the password reached error
-// output. This walks the string character-by-character instead of assuming values never
-// contain the pair delimiter.
-// @ts-expect-error rung-0: add proper type in later rung
-export const parseConnectionStringPairs = (connectionString) => {
-	const pairs = [];
-	const text = connectionString ?? '';
-	let index = 0;
-
-	// @ts-expect-error rung-0: add proper type in later rung
-	const skipWhile = (predicate) => {
-		while (index < text.length && predicate(text[index])) {
-			index += 1;
-		}
-	};
-
-	while (index < text.length) {
-		// @ts-expect-error rung-0: add proper type in later rung
-		skipWhile((char) => isConnectionStringWhitespace(char) || char === ';');
-		if (index >= text.length) {
-			break;
-		}
-
-		const keyStart = index;
-		while (index < text.length && text[index] !== '=' && text[index] !== ';') {
-			index += 1;
-		}
-
-		const key = trimConnectionStringWhitespace(text.slice(keyStart, index));
-		if (text[index] !== '=') {
-			// Malformed segment (no '=' before the next ';' or end) — skip past it rather
-			// than guess at a key/value split.
-			index += 1;
-			continue;
-		}
-
-		index += 1; // consume '='
-		// @ts-expect-error rung-0: add proper type in later rung
-		skipWhile((char) => isConnectionStringWhitespace(char));
-
-		let value = '';
-		const quote =
-			text[index] === '"' || text[index] === "'" ? text[index] : null;
-
-		if (quote) {
-			index += 1; // consume the opening quote
-			while (index < text.length) {
-				if (text[index] === quote) {
-					if (text[index + 1] === quote) {
-						value += quote; // a doubled quote is an escaped literal quote char
-						index += 2;
-						continue;
-					}
-
-					index += 1; // consume the closing quote
-					break;
-				}
-
-				value += text[index];
-				index += 1;
-			}
-
-			// Discard anything between the closing quote and the next ';' — whitespace
-			// only in a well-formed connection string.
-			while (index < text.length && text[index] !== ';') {
-				index += 1;
-			}
-		} else {
-			const valueStart = index;
-			while (index < text.length && text[index] !== ';') {
-				index += 1;
-			}
-
-			value = trimConnectionStringWhitespace(text.slice(valueStart, index));
-		}
-
-		if (key.length > 0) {
-			pairs.push([key, value]);
-		}
-	}
-
-	return pairs;
-};
-
-// Full-string redaction alone misses the password appearing on its own (e.g. a child that
-// echoes only the credential it failed to authenticate with, not the whole connection
-// string) — round-2 review reproduced exactly that. Redacting the extracted password as its
-// own secret closes that gap for both quoted and unquoted values (round-3).
-// @ts-expect-error rung-0: add proper type in later rung
-export const extractConnectionStringPassword = (connectionString) => {
-	for (const [key, value] of parseConnectionStringPairs(connectionString)) {
-		if (/^password$/i.test(key) && value.length > 0) {
-			return value;
-		}
-	}
-
-	return undefined;
-};
-
-// Npgsql connection strings can carry MORE than one credential-bearing parameter: the
-// primary `Password`, and a separate `SSL Password` for a client certificate
-// (https://www.npgsql.org/doc/connection-string-parameters.html). Round-4 review reproduced
-// a child process echoing only the SSL Password value back on its own — redacting just the
-// primary Password (as extractConnectionStringPassword alone did) left that credential to
-// reach rendered command errors unredacted. This collects every secret-bearing key's value,
-// in the order it appears, so every occurrence of every known credential parameter is caught.
-//
-// Round-5 review (BLOCKER-adjacent IMPORTANT): `Password` is not the only spelling Npgsql
-// accepts for the same property. Verified directly against Npgsql 10.0.0's own tagged source
-// (https://github.com/npgsql/npgsql/blob/v10.0.0/src/Npgsql/NpgsqlConnectionStringBuilder.cs):
-//
-//   [DisplayName("Password")]
-//   [NpgsqlConnectionStringProperty("PSW", "PWD")]
-//   public string? Password
-//
-//   [DisplayName("SSL Password")]
-//   [NpgsqlConnectionStringProperty]
-//   public string? SslPassword
-//
-// `Password` has exactly two accepted synonyms, `PSW` and `PWD` — no more, confirmed by
-// grepping the whole file for every `NpgsqlConnectionStringProperty`/`DisplayName` attribute
-// that mentions a password-shaped keyword. `SSL Password` carries no further synonym beyond
-// its own (already-covered) collapsed/spaced spelling. `Passfile`, `SSL Key`, and
-// `SSL Certificate` are also in that file but hold PATHS to credential material, not credential
-// values themselves, so they are deliberately not in this list.
-const SECRET_CONNECTION_STRING_KEY_PATTERNS = [
-	/^password$/i,
-	/^psw$/i,
-	/^pwd$/i,
-	/^ssl\s*password$/i,
-];
-
-// @ts-expect-error rung-0: add proper type in later rung
-export const extractConnectionStringSecretValues = (connectionString) => {
-	const values = [];
-	for (const [key, value] of parseConnectionStringPairs(connectionString)) {
-		if (
-			value.length > 0 &&
-			SECRET_CONNECTION_STRING_KEY_PATTERNS.some((pattern) => pattern.test(key))
-		) {
-			values.push(value);
-		}
-	}
-
-	return values;
-};
-
-// The full set of values a connection string should never let leak into a rendered error:
-// the string itself, and every secret-bearing parameter's value in isolation (at least
-// Password and SSL Password — round-4 review).
-// @ts-expect-error rung-0: add proper type in later rung
-export const connectionStringSecrets = (connectionString) => {
-	return [
-		connectionString,
-		...extractConnectionStringSecretValues(connectionString),
-	].filter((value) => typeof value === 'string' && value.length > 0);
-};
-
-// Round-5 review IMPORTANT: the connection string is not the only credential source a
-// launched subprocess can echo back. libpq/Npgsql also honor the standalone `PGPASSWORD`
-// environment variable as a password
-// (https://www.npgsql.org/doc/connection-string-parameters.html), and `runCommand` below
+// The connection string is not the only credential source a launched subprocess can echo
+// back. libpq/Npgsql also honor the standalone `PGPASSWORD` environment variable as a
+// password (https://www.npgsql.org/doc/connection-string-parameters.html), and `runCommand`
 // inherits the ambient `process.env` for every subprocess it spawns. If the operator's own
 // shell happens to export `PGPASSWORD`, that value is a real credential regardless of what
-// the connection string itself contains, and must be redacted the same way. Read fresh (not
-// cached) so a test can set/unset it around a single assertion.
+// any connection string contains, and must be redacted the same way. Read fresh (not cached)
+// so a test can set/unset it around a single assertion.
 //
 // Living in the SHARED layer (#1020) is what makes the frontend launcher inherit credential
-// redaction: neither launcher has to remember to pass secrets — every rendered command
-// failure goes through collectEffectiveSecrets below, which merges the caller-declared
-// secrets with these ambient credentials.
+// redaction: every launcher's rendered command failure goes through collectEffectiveSecrets,
+// which merges the caller-declared secrets with these ambient credentials — no entrypoint has
+// to remember.
 export const ambientCredentialSecrets = () => {
-	return [process.env.PGPASSWORD].filter(
-		(value) => typeof value === 'string' && value.length > 0,
-	);
+	const password = process.env.PGPASSWORD;
+	return typeof password === 'string' && password.length > 0 ? [password] : [];
 };
 
 // Every secret a rendered command error must respect: the caller-declared list plus the
-// ambient credentials, deduplicated. Declared last-wins ordering does not matter —
-// redactSecrets replaces occurrences independently.
-// @ts-expect-error rung-0: add proper type in later rung
-export const collectEffectiveSecrets = (secrets = []) => {
+// ambient credentials, deduplicated. Ordering does not matter — redactSecrets replaces
+// occurrences independently.
+export const collectEffectiveSecrets = (
+	// @ts-expect-error rung-0: add proper type in later rung
+	secrets,
+) => {
 	return [...new Set([...secrets, ...ambientCredentialSecrets()])];
 };
 
@@ -301,7 +102,7 @@ export const DEFAULT_COMMAND_TIMEOUT_MS = 60_000;
 // @ts-expect-error rung-0: add proper type in later rung
 export const runCommand = (command, args, options = {}) => {
 	// @ts-expect-error rung-0: TS2339
-	const secrets = collectEffectiveSecrets(options.secrets);
+	const secrets = collectEffectiveSecrets(options.secrets ?? []);
 	const result = spawnSync(command, args, {
 		// @ts-expect-error rung-0: TS2339
 		cwd: options.cwd,
@@ -358,5 +159,453 @@ export const runCommandOptional = (command, args, options = {}) => {
 			stderr: String(error?.message ?? ''),
 			error,
 		};
+	}
+};
+
+// ---------------------------------------------------------------------------
+// Argument parsing
+// ---------------------------------------------------------------------------
+
+// Whole-string decimal check — `Number.parseInt` stops at the first non-digit character and
+// happily returns 5000 for "5000junk" or "5000.5" (round-3 review), silently accepting
+// garbage input as a valid port.
+// @ts-expect-error rung-0: add proper type in later rung
+export const parseStrictPort = (rawValue) => {
+	if (!/^\d+$/.test(rawValue)) {
+		err(`Invalid --port value: ${rawValue}.`);
+	}
+
+	const parsed = Number.parseInt(rawValue, 10);
+	if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65_535) {
+		err(`Invalid --port value: ${rawValue}.`);
+	}
+
+	return parsed;
+};
+
+/**
+ * Parses launcher argv: `[ref] [--port <n>|--port=<n>] [--flag]`.
+ *
+ * The single shared implementation of the two launchers' argument grammar
+ * (#1020 reconciliation: argument parsing was previously exported and unit-tested in one
+ * copy only). `extraFlags` maps additional boolean flag names (`--allow-migrations`) to
+ * their camelCase result key (`allowMigrations`) with their default value; unknown
+ * `--`-prefixed options are rejected immediately regardless of whether a ref has been
+ * assigned yet — round-3 review found a leading unknown option was silently accepted as the
+ * requested ref.
+ */
+export const parseLauncherArgs = (
+	// @ts-expect-error rung-0: add proper type in later rung
+	args,
+	// @ts-expect-error rung-0: TS7031
+	{ defaultPort, extraFlags = {} },
+) => {
+	let requestedRef = '';
+	let port = defaultPort;
+	const flagNames = new Map(
+		Object.entries(extraFlags).map(([flagName, resultKey]) => [
+			flagName,
+			{ resultKey, value: false },
+		]),
+	);
+
+	for (let index = 0; index < args.length; index += 1) {
+		const argument = args[index];
+		if (argument === '--port') {
+			const requestedPort = args[index + 1];
+			if (!requestedPort) {
+				err('Missing value for --port.');
+			}
+
+			index += 1;
+			port = parseStrictPort(requestedPort);
+			continue;
+		}
+
+		if (argument.startsWith('--port=')) {
+			port = parseStrictPort(argument.slice('--port='.length));
+			continue;
+		}
+
+		const flag = flagNames.get(argument);
+		if (flag) {
+			flag.value = true;
+			continue;
+		}
+
+		// Reject any unrecognized `--`-prefixed option immediately, regardless of whether a
+		// ref has been assigned yet — round-3 review found a leading unknown option (e.g.
+		// `--bogus`) was silently accepted as the requested ref instead.
+		if (argument.startsWith('--')) {
+			err(`Unknown option: ${argument}`);
+		}
+
+		if (requestedRef.length > 0) {
+			err(`Unexpected extra argument: ${argument}.`);
+		}
+
+		requestedRef = argument;
+	}
+
+	const result = { requestedRef, port };
+	for (const { resultKey, value } of flagNames.values()) {
+		// @ts-expect-error rung-0: TS2538 - result keys are open-ended until a later rung types them
+		result[resultKey] = value;
+	}
+
+	return result;
+};
+
+// ---------------------------------------------------------------------------
+// Worktree discovery and root resolution
+// ---------------------------------------------------------------------------
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, '../../..');
+const rootRepoCache = { path: null };
+
+export const getRepoRoot = () => repoRoot;
+
+export const getThisFilePath = () => fileURLToPath(import.meta.url);
+
+export const getWorktrees = () => {
+	const output = runCommand('git', ['worktree', 'list', '--porcelain'], {
+		cwd: repoRoot,
+	}).stdout;
+
+	return parseWorktrees(output);
+};
+
+export const getRootClonePath = () => {
+	if (rootRepoCache.path) {
+		return rootRepoCache.path;
+	}
+
+	const result = runCommand(
+		'git',
+		['rev-parse', '--path-format=absolute', '--git-common-dir'],
+		{ cwd: repoRoot },
+	);
+	const gitCommonDir = result.stdout.trim();
+	if (!gitCommonDir) {
+		// @ts-expect-error rung-0: TS2322
+		rootRepoCache.path = repoRoot;
+		return rootRepoCache.path;
+	}
+
+	const commonDir = path.resolve(gitCommonDir);
+	// @ts-expect-error rung-0: TS2322
+	rootRepoCache.path = path.resolve(commonDir, '..');
+	return rootRepoCache.path;
+};
+
+// ---------------------------------------------------------------------------
+// Optional GitHub execution
+// ---------------------------------------------------------------------------
+
+/** Builds the `gh` runner the resolver expects: optional by design — a gh failure
+ * degrades to an error result the resolver classifies, it never kills the process here. */
+export const makeRunGh = () => {
+	// @ts-expect-error rung-0: add proper type in later rung
+	return async (args) =>
+		runCommandOptional('gh', args, {
+			cwd: repoRoot,
+			label: 'gh',
+		});
+};
+
+// ---------------------------------------------------------------------------
+// Port probing
+// ---------------------------------------------------------------------------
+
+// @ts-expect-error rung-0: add proper type in later rung
+export const isPortAvailableOnHost = async (host, port) => {
+	return await new Promise((resolve) => {
+		const server = createServer();
+		server.once('error', () => {
+			resolve(false);
+		});
+		server.listen(port, host, () => {
+			server.close(() => {
+				resolve(true);
+			});
+		});
+	});
+};
+
+/** Exits when `port` is already taken on `host` — with a shared message whose subject
+ * (`what`) differs per launcher ("frontend" vs "API"). */
+export const ensurePortOpen = async (
+	// @ts-expect-error rung-0: add proper type in later rung
+	port,
+	// @ts-expect-error rung-0: TS7031/TS2339
+	{ host = '127.0.0.1', what } = {},
+) => {
+	const available = await isPortAvailableOnHost(host, port);
+	if (!available) {
+		err(
+			`Port ${String(
+				port,
+			)} is already in use. The root clone's ${what ?? 'app'} or another review launcher is likely running.\n` +
+				'Stop that process, or run with --port <n> to force a different port.',
+		);
+	}
+};
+
+// ---------------------------------------------------------------------------
+// Env-file copying + hardlink checks
+// ---------------------------------------------------------------------------
+
+// @ts-expect-error rung-0: add proper type in later rung
+const isHardlinkToSource = (source, destination) => {
+	const sourceStats = statSync(source);
+	const destinationStats = statSync(destination);
+	if (
+		destinationStats.dev === sourceStats.dev &&
+		destinationStats.ino === sourceStats.ino
+	) {
+		return true;
+	}
+
+	return destinationStats.nlink > 1;
+};
+
+/** Copies `<root clone>/<envFile>` into the worktree unless a standalone copy already
+ * exists there; refuses to touch a hardlinked file that would rewrite the root clone's. */
+export const ensureEnvCopy = (
+	// @ts-expect-error rung-0: add proper type in later rung
+	worktreePath,
+	envFile = '.env.development',
+) => {
+	// @ts-expect-error rung-0: TS2345
+	const source = path.join(getRootClonePath(), envFile);
+	const target = path.join(worktreePath, envFile);
+
+	if (!existsSync(source)) {
+		err(
+			`Missing ${source}; copy .env.example to .env.development in the root clone before continuing.`,
+		);
+	}
+
+	if (!existsSync(target)) {
+		copyFileSync(source, target);
+		console.log(`Copied ${source} -> ${target}.`);
+		return;
+	}
+
+	if (isHardlinkToSource(source, target)) {
+		err(
+			`Refusing to proceed: ${target} is linked to ${source}. ` +
+				'Copying would rewrite the root clone file. Use a standalone worktree env file.',
+		);
+	}
+
+	console.log(`Using existing ${target}; leaving it unchanged.`);
+};
+
+// ---------------------------------------------------------------------------
+// Tracked-file checks
+// ---------------------------------------------------------------------------
+
+export const trackedChanges = (
+	// @ts-expect-error rung-0: add proper type in later rung
+	worktreePath,
+) => {
+	const output = runCommand(
+		'git',
+		['-C', worktreePath, 'status', '--short', '--untracked-files=no'],
+		{
+			stdio: 'pipe',
+		},
+	).stdout;
+
+	return parseTrackedChangesFromStatus(output);
+};
+
+/** Reports tracked files that became dirty during the session (after minus before). */
+// @ts-expect-error rung-0: add proper type in later rung
+export const reportNewlyDirtyFiles = (beforeDirty, afterDirty) => {
+	const newlyDirty = [...afterDirty].filter((entry) => !beforeDirty.has(entry));
+	if (newlyDirty.length > 0) {
+		console.error('Warning: tracked files became dirty while the session ran.');
+		for (const entry of newlyDirty) {
+			console.error(`  ${entry}`);
+		}
+	}
+
+	return newlyDirty;
+};
+
+// ---------------------------------------------------------------------------
+// Interactive selection
+// ---------------------------------------------------------------------------
+
+const hasInteractiveTerminal = process.stdin.isTTY && process.stdout.isTTY;
+
+export const getHasInteractiveTerminal = () => hasInteractiveTerminal;
+
+// @ts-expect-error rung-0: add proper type in later rung
+export const askChoice = async (title, rows) => {
+	console.log(title);
+	// @ts-expect-error rung-0: add proper type in later rung
+	rows.forEach((row, index) => {
+		console.log(`${index + 1}. ${row}`);
+	});
+
+	if (!hasInteractiveTerminal) {
+		err('Interactive selection required but terminal is not interactive.');
+	}
+
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+
+	const selected = await new Promise((resolve) => {
+		rl.question(`Select 1-${rows.length}: `, (input) => {
+			rl.close();
+			resolve(input.trim());
+		});
+	});
+
+	// @ts-expect-error rung-0: TS2345
+	const index = Number.parseInt(selected, 10);
+	if (!Number.isInteger(index) || index < 1 || index > rows.length) {
+		err(`Invalid selection: ${selected}`);
+	}
+
+	return index - 1;
+};
+
+// ---------------------------------------------------------------------------
+// Resolution error handling
+// ---------------------------------------------------------------------------
+
+/** Turns a resolveTarget() outcome into either a worktree or a precise exit error —
+ * the exact not-found / issue-ambiguous / pr-unmatched handling both launchers repeat. */
+export const requireResolvedWorktree = (
+	// @ts-expect-error rung-0: add proper type in later rung
+	resolved,
+	// @ts-expect-error rung-0: add proper type in later rung
+	requestedRef,
+) => {
+	const worktree = resolved?.worktree;
+	if (worktree?.path) {
+		return worktree;
+	}
+
+	if (resolved?.kind === 'not-found') {
+		err(
+			`No PR or issue found for ${String(
+				resolved.requested,
+			)}. Add this PR to a local worktree first.`,
+		);
+	}
+
+	if (resolved?.kind === 'issue-ambiguous') {
+		// @ts-expect-error rung-0: add proper type in later rung
+		const candidates = resolved.worktrees.map((w) => w.path).join('\n  ');
+		err(
+			`Issue ${String(
+				resolved.requested,
+			)} matched multiple worktrees; pick the target directly by PR number or by path.\n  ${candidates}`,
+		);
+	}
+
+	if (resolved?.kind === 'pr-unmatched') {
+		err(`Could not resolve PR #${resolved.requested} to a local worktree.`);
+	}
+
+	err(`Could not determine worktree for ${String(requestedRef)}.`);
+};
+
+/** Shared resolveTarget wiring: gh-backed runners plus this module's interactive picker. */
+export const resolveReviewTarget = async ({
+	// @ts-expect-error rung-0: add proper type in later rung
+	requestedRef,
+	// @ts-expect-error rung-0: add proper type in later rung
+	preferCwdPath,
+}) => {
+	const worktrees = getWorktrees();
+	const byBranch = getBranchPathByMap(worktrees);
+	const runGh = makeRunGh();
+
+	return await resolveTarget(worktrees, byBranch, {
+		requestedRef,
+		hasInteractiveTerminal,
+		askChoice,
+		preferCwdPath,
+		// @ts-expect-error rung-0: add proper type in later rung
+		runPrByNumber: (number) => runPrByNumber(number, { runGh }),
+		// @ts-expect-error rung-0: add proper type in later rung
+		runIssueByNumber: (number) => runIssueByNumber(number, { runGh }),
+		runGh,
+	});
+};
+
+// ---------------------------------------------------------------------------
+// Child signal handling
+// ---------------------------------------------------------------------------
+
+/** Forwards SIGINT/SIGTERM on this process to `onSignal`, once each. Both launchers
+ * register exactly these two handlers around their child. */
+// @ts-expect-error rung-0: add proper type in later rung
+export const forwardTerminationSignals = (onSignal) => {
+	process.on('SIGINT', () => onSignal('SIGINT'));
+	process.on('SIGTERM', () => onSignal('SIGTERM'));
+};
+
+// ---------------------------------------------------------------------------
+// Startup / exit plumbing
+// ---------------------------------------------------------------------------
+
+// The gh failure codes are re-exported from review-worktree.resolve.ts so entrypoints can
+// keep importing everything launcher-related from this one module.
+
+// @ts-expect-error rung-0: add proper type in later rung
+const exitWithError = (error) => {
+	switch (error?.code) {
+		case GH_AUTH_FAILURE: {
+			err(`${error.message}\nRun: gh auth login`);
+			break;
+		}
+
+		case GH_NETWORK_FAILURE:
+		case GH_INVOCATION_FAILURE: {
+			err(error.message);
+			break;
+		}
+
+		default: {
+			err(error?.message ?? String(error));
+		}
+	}
+};
+
+/** Runs `main()` only when this module IS the direct entrypoint (`entryFilePath`) and
+ * maps known failure codes onto exits. `extraErrorCases` lets review-api.ts extend the
+ * switch with its migration-guard codes without forking this plumbing. */
+export const runLauncherCli = async (
+	// @ts-expect-error rung-0: add proper type in later rung
+	main,
+	// @ts-expect-error rung-0: add proper type in later rung
+	entryFilePath,
+	extraErrorCases = {},
+) => {
+	if (process.argv[1] !== entryFilePath) {
+		return;
+	}
+
+	try {
+		await main();
+	} catch (error) {
+		// @ts-expect-error rung-0: TS2339/TS2538 - error is unknown, the cases map is open-ended
+		const handled = extraErrorCases[error?.code];
+		if (handled) {
+			err(handled(error));
+			return;
+		}
+
+		exitWithError(error);
 	}
 };
