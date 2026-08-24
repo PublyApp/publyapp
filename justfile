@@ -108,11 +108,11 @@ dev-db: dev-services
 # also keeps document generation on the API-only surface instead of composing the job
 # engine. Exported by just (a `$`-prefixed parameter), not shell syntax, so it works
 # under both bash and pwsh.
-build-api $APP_ROLE="api":
+build-api $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   cd {{api_dir}} && dotnet build --no-restore
 
 # Build API (with restore)
-build-api-full $APP_ROLE="api":
+build-api-full $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   cd {{api_dir}} && dotnet build
 
 # Publish API
@@ -351,6 +351,17 @@ ci-lint:
   pnpm check:frontend-barrels
   pnpm --filter @org/lint-ts test
 
+# @org/shared-ts: typecheck + vitest (issue #1270). The package ships the
+# repo-wide logger, i18n, query-factory and ApiFailure contracts consumed by
+# every front surface, but nothing standing verified it after its i18next
+# range moved two majors (#1262) — no typecheck script and no gate ran its 82
+# vitest tests. Both now run here and in quality-gate.yml::quality, exactly
+# as CI runs them.
+ci-shared-ts:
+  @echo "=== [gate] @org/shared-ts typecheck + tests ==="
+  pnpm --filter @org/shared-ts typecheck
+  pnpm --filter @org/shared-ts test
+
 # front: build, bundle guards, smoke start, typecheck, design system, unit tests
 ci-front:
   @echo "=== [gate] front build + checks ==="
@@ -359,6 +370,11 @@ ci-front:
   pnpm --filter front smoke:start
   pnpm --filter front typecheck
   pnpm --filter front check:design-system
+  # Built-artifact guard (#1234): proves the React Compiler actually ran on
+  # the dist produced above (runtime chunk present, compiled-module count
+  # >= floor). Same pattern as check:design-system: a step of `pnpm --filter
+  # front test` AND an explicit front-ci.yml::supply-chain step.
+  pnpm --filter front check:react-compiler
   pnpm --filter front test
   @echo "=== [gate] production dependency audit (mirrors front-ci.yml::supply-chain) ==="
   pnpm audit --prod --audit-level=high
@@ -377,7 +393,7 @@ ci-quality: ci-format ci-quality-dotnet test-analyzers
 # .NET solution build with warnings-as-errors (the quality gate's dotnet half).
 # APP_ROLE + TRUSTED_PROXY_CIDRS pinned for the same reason as build-api: `dotnet build`
 # boots the app to emit openapi.json and AppEnvironment requires APP_ROLE in Production.
-ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
+ci-quality-dotnet $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   dotnet restore PublyApp.slnx
   dotnet build PublyApp.slnx --no-restore
 
@@ -412,7 +428,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
@@ -453,7 +469,7 @@ generate-response-keys:
 # Build API + generate TypeScript client from OpenAPI
 # APP_ROLE pinned for the same reason as build-api: this `dotnet build` boots the app to
 # regenerate openapi.json before kiota reads it (design §3.1 item 3).
-generate-client $APP_ROLE="api":
+generate-client $APP_ROLE="api" $SOCIAL_ACCOUNTS_MASTER_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=":
   cd {{api_dir}} && dotnet build --no-restore
   cd {{js_client_dir}} && dotnet kiota generate -d ../../{{api_dir}}/openapi.json -o src -l typescript -n PublyApp.Api.Client -c ApiClient
   cd {{js_client_dir}} && node -e "const fs=require('fs'),path=require('path'); const walk=(d)=>fs.readdirSync(d,{withFileTypes:true}).flatMap(e=>{const p=path.join(d,e.name); return e.isDirectory()?walk(p):[p];}); for (const f of walk('src')) { if (f.endsWith('.ts')||f.endsWith('.json')) { const c=fs.readFileSync(f,'utf8'); const n=c.replace(/\r\n?/g,'\n'); if (n!==c) fs.writeFileSync(f,n); } }"

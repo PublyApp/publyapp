@@ -194,20 +194,7 @@ const StaffUserEditError = ({
 	);
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/staff-users/$userId/edit',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-users'],
-		crumbs: (params) => [
-			...staffUserCrumbsBase(params),
-			{ kind: 'label', labelKey: 'common:edit' },
-		],
-	},
-	component: StaffUserEditPage,
-});
-
-function StaffUserEditPage() {
+const StaffUserEditPage = () => {
 	const { userId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
@@ -770,4 +757,17 @@ function StaffUserEditPage() {
 			/>
 		</FormPageLayout>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/staff-users/$userId/edit',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: (params) => [
+			...staffUserCrumbsBase(params),
+			{ kind: 'label', labelKey: 'common:edit' },
+		],
+	},
+	component: StaffUserEditPage,
+});

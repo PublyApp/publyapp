@@ -127,17 +127,7 @@ const buildColumns = (
 	},
 ];
 
-export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
-	staticData: {
-		i18nNamespaces: ['staff-users'],
-		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-breadcrumb' }],
-	},
-	validateSearch: (search) =>
-		validateTableSearchParams(search as TableSearchParamInput),
-	component: StaffUsersPage,
-});
-
-function StaffUsersPage() {
+const StaffUsersPage = () => {
 	const navigate = Route.useNavigate();
 	const search = parseTableSearchParams(
 		Route.useSearch() as TableSearchParamInput,
@@ -238,4 +228,14 @@ function StaffUsersPage() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: () => [{ kind: 'label', labelKey: 'nav-staff-breadcrumb' }],
+	},
+	validateSearch: (search) =>
+		validateTableSearchParams(search as TableSearchParamInput),
+	component: StaffUsersPage,
+});

@@ -20,6 +20,10 @@ export const getNewStaffProfileSchema = (z: InterZod) => {
 		emails: z
 			.array(z.string().trim().email(z.t('invalid-email-address')))
 			.default([]),
+		// #980: same style contract as tenant profiles — the picker always
+		// submits catalogue-valid values; empty strings mean "not chosen".
+		icon: z.string().optional(),
+		tone: z.string().optional(),
 	});
 };
 

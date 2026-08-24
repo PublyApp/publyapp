@@ -47,6 +47,7 @@ other gates' `Determine changed paths` pattern and covers: the workflow itself,
 | Exact-pin + frozen-lockfile install                                                               | yes       | yes            |
 | `pnpm format` (repo-wide oxfmt)                                                                   | yes       | yes            |
 | Lint (oxlint scope CI uses, disables audit, barrel check)                                         | yes       | yes            |
+| shared-ts typecheck + vitest suite (#1270)                                                        | yes       | yes            |
 | front build, CSS-asset check, bundle isolation, smoke start, typecheck, design system, unit tests | yes       | yes            |
 | ~~old-front unit characterization + typecheck~~ (deleted 2026-08-22, archived) | — | — |
 | `openapi.json` / `client-ts` drift + OpenAPI contract spec                                        | yes       | yes            |
@@ -240,16 +241,10 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
   maintainer could not already do. The alternative, a privileged base-controlled reporting workflow
   immune to PR commit messages, would have to run with elevated permissions against
   pull-request-authored input, which is a worse trade than the gap it would close.
-- **A fork pull request that touches the frontend cannot satisfy `front-e2e-gate`.** The repository
-  is public, so pull requests can come from forks. `front-e2e-gate`'s build job needs
-  `packages: write` to push four container images, and GitHub downgrades fork PR tokens to
-  read-only regardless of contributor approval. A fork PR that genuinely changes frontend code
-  therefore goes red on `front-e2e-gate` — correctly, not falsely green — and cannot become
-  mergeable without moving the branch into the base repository. Current settings: the repository is
-  public, default workflow permissions are read, and fork PR contributor approval is
-  `first_time_contributors`. Accepted because there are no fork contributors today. When the first
-  one arrives, the fix is a one-line instruction, not a redesign: **have them (or a maintainer) push
-  the branch into the base repository** so the workflow runs with base-repo write permissions.
+- ~~**A fork pull request that touches the frontend cannot satisfy `front-e2e-gate`.**~~
+  Fixed by #1021 — see [Fork pull requests](#fork-pull-requests-1021) below. Recorded as accepted
+  between #1017 and #1021 because there were no fork contributors yet; when #1021 landed, the
+  recorded decision became moot rather than acted on.
 - **A YAML-valid but semantically-invalid expression can prevent a required job from ever being
   created.** GitHub validates a workflow's expressions (e.g. `${{ ... }}` syntax, undefined
   functions) when the run starts, separately from YAML syntax. A mutation such as setting
@@ -286,6 +281,39 @@ rather than fixed in code — recorded here rather than hidden, so they can be j
   new, undertested privileged reporting path. If this ever needs revisiting, that watchdog design is
   the place to start — but it should get its own round of adversarial review before merging, not
   ride in in a rushed final commit of a five-round PR.
+
+## Fork pull requests (#1021)
+
+`front-e2e-gate` is required on every pull request, and this repository is public — so pull
+requests can come from forks, where GitHub downgrades `GITHUB_TOKEN` to read-only
+(`packages: write` is stripped regardless of contributor approval). The workflow's original
+design pushed four per-run images to GHCR from the `build` job and pulled them in each shard,
+which a fork token can never do: a fork PR that touched frontend code went red — correctly,
+never falsely green — and was unmergeable without moving its branch into the base repository.
+That behaviour is recorded as an accepted limitation above; #1021 replaced it.
+
+The fix deliberately does **not** use `pull_request_target`: that trigger runs fork-authored
+code with a base-repository write-capable token, handing untrusted input the registry
+credentials. Instead, `front-e2e.yml` runs **the same four-shard matrix** on both paths,
+switched by the build job's `fork` output (`github.event.pull_request.head.repo.fork`):
+
+- **Same-repo path (unchanged):** login to GHCR, build with Compose Bake + gha cache export,
+  push the four images, shards pull them, cleanup deletes this run's versions.
+- **Fork path (registry-free):** skip GHCR login/push entirely; build with
+  `apps/front/docker-compose.fork-overlay.yml`, which strips the four services'
+  `cache_from`/`cache_to` (compose's `!reset` tag) because the gha cache backend needs both a
+  writable destination and the Actions runtime credential a fork run does not get; save the
+  four tagged images with `docker save | gzip`; hand them to each shard as a versioned
+  artifact (`retention-days: 1`); each shard `docker load`s them locally so
+  `up --no-build` resolves the same `${E2E_IMAGE_NS}-${service}:${E2E_IMAGE_TAG}` tags. The
+  images never leave GitHub's infrastructure, and nothing is written to any registry.
+- The `cleanup` job short-circuits to success on fork runs (`::notice::`, nothing pushed →
+  nothing to delete) but keeps its `if: always()` aggregation role for the gate.
+
+The gate aggregation (`front-e2e-gate`) is untouched: `needs.build.outputs.fork` only routes
+steps inside jobs; job results, the matrix (`shard: [1, 2, 3, 4]`), and the required-check
+name are identical on both paths, which is what makes a green fork run proof of the same work
+a same-repo run performs.
 
 ## Partial re-run of failed `front-e2e` jobs (accepted, guarded)
 

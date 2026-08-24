@@ -18,18 +18,7 @@ const getActiveSection = (pathname: string): AccountSection => {
 	return match ?? 'profile';
 };
 
-export const Route = createFileRoute('/_authed-layout/tenant/account')({
-	// Always matched alongside a profile/security/notifications child (never
-	// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
-	// contract requires every route to declare its own trail.
-	staticData: {
-		crumbs: () => [{ kind: 'label', labelKey: 'account-settings' }],
-		i18nNamespaces: ['account'],
-	},
-	component: TenantAccountLayout,
-});
-
-function TenantAccountLayout() {
+const TenantAccountLayout = () => {
 	const { t } = useTranslation('common');
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
@@ -63,4 +52,15 @@ function TenantAccountLayout() {
 			</Tabs>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/account')({
+	// Always matched alongside a profile/security/notifications child (never
+	// the deepest match on its own — see `deriveBreadcrumbTrail`), but the
+	// contract requires every route to declare its own trail.
+	staticData: {
+		crumbs: () => [{ kind: 'label', labelKey: 'account-settings' }],
+		i18nNamespaces: ['account'],
+	},
+	component: TenantAccountLayout,
+});

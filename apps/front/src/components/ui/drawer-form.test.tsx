@@ -247,6 +247,26 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 	invalidateTenantPosts: vi.fn(),
 }));
 
+vi.mock('~/lib/query/staff-global-tenant-users', async (importOriginal) => {
+	const actual =
+		await importOriginal<
+			typeof import('~/lib/query/staff-global-tenant-users')
+		>();
+
+	return {
+		...actual,
+		useGlobalTenantUsersPickerQuery: () => ({
+			data: undefined,
+			isPending: true,
+		}),
+		useLinkGlobalTenantUserCompaniesMutation: () => ({
+			isPending: false,
+			mutate: vi.fn(),
+			mutateAsync: vi.fn().mockResolvedValue(undefined),
+		}),
+	};
+});
+
 vi.mock('~/components/ui/button', () => ({
 	Button: ({
 		children,
@@ -345,6 +365,7 @@ vi.mock(
 );
 
 import { ChangeStaffUserEmailDialog } from '../../routes/authed/staff/staff-users/_change-email-dialog';
+import { LinkCompaniesDrawerHost } from '../../routes/authed/staff/tenant-users/$userId-organizations-drawer';
 import { InviteTenantUserDrawer } from '../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer';
 import { ProfileEditDetailsDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer';
 import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer';
@@ -5632,6 +5653,24 @@ const resolveValueIdentity = (
 		// A local value — never the drawer module's symbol.
 		return null;
 	}
+	if (
+		kind === SyntaxKind.ArrowFunction ||
+		kind === SyntaxKind.FunctionExpression
+	) {
+		// An inline arrow/function-expression initializer IS a freshly
+		// created local value: the binding can never be identical to the
+		// drawer module's exported symbol, whatever the body renders. A
+		// FunctionDeclaration binding always had exactly this verdict
+		// (DEFINITE_LOCAL_DECLARATION_KINDS) without anyone inspecting its
+		// body — the arrow-function-component conversion (#1210) moved
+		// components like `ui/badge.tsx` (which delegates to
+		// `useRender(...)`, a shape extractComponentBody cannot see
+		// through) under THIS branch, and the old fall-through classified
+		// them UNVERIFIABLE, reddening every file that renders them. Body
+		// extraction stays the WALK's job (it expands the definition's JSX
+		// and judges the geometry); identity here is decidable without it.
+		return null;
+	}
 	if (kind === SyntaxKind.CallExpression) {
 		const call = unwrapped as CallExpression;
 		if (isFactoryCall(call)) {
@@ -9347,6 +9386,11 @@ const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
 	},
 	'tenant-post-create': () => {
 		render(<CreatePostDrawer open onOpenChange={noop} tenantId="tenant-1" />);
+	},
+	'tenant-user-link-companies': () => {
+		render(
+			<LinkCompaniesDrawerHost userId="user-1" isOpen onOpenChange={noop} />,
+		);
 	},
 };
 

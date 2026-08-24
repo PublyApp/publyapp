@@ -60,27 +60,21 @@ vi.mock('~/components/error-views/View403', () => ({
 	View403: () => <div data-testid="forbidden-view">forbidden</div>,
 }));
 
-vi.mock('~/lib/query/staff-profiles', () => ({
-	toAssignedStaffPermissionGroups: vi.fn(() => []),
-	toStaffProfileDetails: vi.fn(
-		(result: { profile?: Record<string, unknown> }) => {
-			const profile = result.profile ?? {};
+vi.mock('~/lib/query/staff-profiles', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('~/lib/query/staff-profiles')>();
 
-			return {
-				id: profile.id ?? '11111111-1111-1111-1111-111111111111',
-				name: profile.name ?? 'Platform admin',
-				description: profile.description ?? null,
-				userAccountCount:
-					'userAccountCount' in profile ? profile.userAccountCount : 2,
-				icon: 'shield',
-				iconTone: '0',
-			};
-		},
-	),
-	useStaffProfileDetailsQuery: mocks.useStaffProfileDetailsQuery,
-	useStaffProfilePermissionKeysQuery: mocks.useStaffProfilePermissionKeysQuery,
-	useStaffPermissionCatalogQuery: mocks.useStaffPermissionCatalogQuery,
-}));
+	return {
+		toAssignedStaffPermissionGroups: vi.fn(() => []),
+		// #980: the real mapper derives the fallback style, so the identity-tile
+		// tests below exercise the production mapping path, not a mock.
+		toStaffProfileDetails: vi.fn(actual.toStaffProfileDetails),
+		useStaffProfileDetailsQuery: mocks.useStaffProfileDetailsQuery,
+		useStaffProfilePermissionKeysQuery:
+			mocks.useStaffProfilePermissionKeysQuery,
+		useStaffPermissionCatalogQuery: mocks.useStaffPermissionCatalogQuery,
+	};
+});
 
 vi.mock('~/lib/query/staff-profile-users', () => ({
 	toStaffProfileUserRows: vi.fn(
@@ -127,6 +121,8 @@ describe('staff profile details route', () => {
 						name: 'Platform admin',
 						description: 'Full access',
 						userAccountCount: 2,
+						icon: 'shield-check',
+						tone: '5',
 					},
 				},
 			}),
@@ -233,6 +229,15 @@ describe('staff profile details route', () => {
 		const header = within(screen.getByTestId('staff-profile-identity-header'));
 		expect(header.queryByText('Custom')).toBeNull();
 		expect(header.getByText('profile')).toBeTruthy();
+	});
+
+	test('renders the persisted icon tone on the identity tile (#980)', () => {
+		renderPage();
+
+		const header = screen.getByTestId('staff-profile-identity-header');
+		const tile = header.querySelector('.publy-profile-detail-tile');
+		expect(tile).not.toBeNull();
+		expect(tile?.getAttribute('data-tone')).toBe('5');
 	});
 
 	test('renders loading state for the members preview while users query is pending', () => {

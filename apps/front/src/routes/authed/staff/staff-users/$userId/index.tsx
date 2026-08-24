@@ -220,17 +220,7 @@ const AccountCard = ({ displayId }: { displayId: string }) => {
 	);
 };
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/staff-users/$userId/',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-users'],
-		crumbs: staffUserCrumbsBase,
-	},
-	component: StaffUserOverviewTab,
-});
-
-function StaffUserOverviewTab() {
+const StaffUserOverviewTab = () => {
 	const { t } = useTranslation(['staff-users', 'common']);
 	const {
 		user,
@@ -328,4 +318,14 @@ function StaffUserOverviewTab() {
 			</DetailAside>
 		</DetailGrid>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/staff-users/$userId/',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: staffUserCrumbsBase,
+	},
+	component: StaffUserOverviewTab,
+});

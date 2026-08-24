@@ -8,11 +8,11 @@ import { cn } from '~/lib/utils';
  * in app.css (`.publy-form-page`, `.publy-form-action-bar`).
  */
 
-function FormPageLayout({
+const FormPageLayout = ({
 	width = 860,
 	className,
 	...props
-}: React.ComponentProps<'div'> & { width?: 760 | 860 | 960 }) {
+}: React.ComponentProps<'div'> & { width?: 760 | 860 | 960 }) => {
 	return (
 		<div
 			data-slot="form-page"
@@ -21,14 +21,14 @@ function FormPageLayout({
 			{...props}
 		/>
 	);
-}
+};
 
-function FormActionBar({
+const FormActionBar = ({
 	status,
 	className,
 	children,
 	...props
-}: React.ComponentProps<'div'> & { status?: React.ReactNode }) {
+}: React.ComponentProps<'div'> & { status?: React.ReactNode }) => {
 	return (
 		<div
 			data-slot="form-action-bar"
@@ -48,6 +48,6 @@ function FormActionBar({
 			<div className="flex items-center gap-2.5">{children}</div>
 		</div>
 	);
-}
+};
 
 export { FormActionBar, FormPageLayout };

@@ -206,6 +206,14 @@ jobs:
       - name: Check front design system
         run: pnpm --filter front check:design-system
 
+      # #1234: built-artifact guard — asserts on the dist emitted by the
+      # "Build front" step above that the React Compiler actually ran (its
+      # runtime chunk is present and the compiled-module count is at or
+      # above a pinned floor). Without this, flipping vite.config.ts to a
+      # compilation mode that compiles nothing keeps every other gate green.
+      - name: Check front React Compiler artifacts
+        run: pnpm --filter front check:react-compiler
+
       # Round 19 I3: the drawer-description contrast guard is the ONLY
       # browser-launching test in the front unit suite. It no longer runs in
       # this lane — the ordinary suite is browser-free, so no unit-lane

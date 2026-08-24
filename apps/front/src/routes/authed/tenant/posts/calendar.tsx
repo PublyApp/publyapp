@@ -6,22 +6,11 @@ import { StateSurface } from '~/components/ui/state-surface';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/posts/')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
-			{ kind: 'label', labelKey: 'calendar' },
-		],
-		i18nNamespaces: ['posts'],
-	},
-	component: TenantPostsCalendarPage,
-});
-
 /**
  * Honest read-only calendar section: no posts API exists, so the page is a
  * coming-later state — never fabricated schedule data or fake post rows.
  */
-function TenantPostsCalendarPage() {
+const TenantPostsCalendarPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 
 	return (
@@ -44,4 +33,15 @@ function TenantPostsCalendarPage() {
 			</Card>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/posts/')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'posts', to: '/tenant/posts' },
+			{ kind: 'label', labelKey: 'calendar' },
+		],
+		i18nNamespaces: ['posts'],
+	},
+	component: TenantPostsCalendarPage,
+});

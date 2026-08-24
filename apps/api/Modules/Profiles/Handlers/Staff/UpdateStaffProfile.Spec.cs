@@ -243,6 +243,11 @@ public sealed class UpdateStaffProfileSpec
 		updated.Should().NotBeNull();
 		Assert.NotNull(updated);
 
+		// #980: the read contract must expose the stored style so the UI can
+		// render it without re-deriving it from the profile name.
+		updated.Profile.Icon.Should().Be("users-group");
+		updated.Profile.Tone.Should().Be("6");
+
 		var persistedProfile = await GetProfileByIdAsync(updated.Profile.Id);
 		persistedProfile.Icon.Should().Be("users-group");
 		persistedProfile.Tone.Should().Be("6");
@@ -278,6 +283,15 @@ public sealed class UpdateStaffProfileSpec
 
 		using var clearResponse = await _http.SendAsync(clearRequest);
 		clearResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var updated = await clearResponse.Content.ReadFromJsonAsync<GetStaffProfileByIdResponse>();
+		updated.Should().NotBeNull();
+		Assert.NotNull(updated);
+
+		// #980: clearing must also be reflected in the read contract, not only
+		// in the stored row.
+		updated.Profile.Icon.Should().BeNull();
+		updated.Profile.Tone.Should().BeNull();
 
 		var persistedProfile = await GetProfileByIdAsync(Guid.Parse(profileId));
 		persistedProfile.Icon.Should().BeNull();
@@ -405,5 +419,7 @@ public sealed class UpdateStaffProfileSpec
 		public Guid Id { get; init; }
 		public string Name { get; init; } = string.Empty;
 		public string? Description { get; init; }
+		public string? Icon { get; init; }
+		public string? Tone { get; init; }
 	}
 }

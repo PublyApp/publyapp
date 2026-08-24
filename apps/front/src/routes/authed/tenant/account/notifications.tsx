@@ -9,63 +9,12 @@ import {
 	ReadOnlyFieldRow,
 } from '../_workspace-page-parts';
 
-export const Route = createFileRoute(
-	'/_authed-layout/tenant/account/notifications',
-)({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'account-settings', to: '/tenant/account' },
-			{ kind: 'label', labelKey: 'notifications' },
-		],
-		i18nNamespaces: ['account'],
-	},
-	component: AccountNotificationsPage,
-});
-
-type NotificationPreference = {
-	labelKey: string;
-	descriptionKey: string;
-};
-
-// The preference LABELS resolve from the `common` bundle (i18next falls back
-// across namespaces at render time, exactly like `security-alerts`); the
-// `*-description` copy is account-surface-specific and lives in `account`.
-// Nothing here may duplicate a key already declared in `common.json`.
-const EMAIL_PREFERENCES: readonly NotificationPreference[] = [
-	{
-		labelKey: 'marketing-emails',
-		descriptionKey: 'marketing-emails-description',
-	},
-	{
-		labelKey: 'product-updates',
-		descriptionKey: 'product-updates-description',
-	},
-	{
-		labelKey: 'security-alerts',
-		descriptionKey: 'security-alerts-description',
-	},
-];
-
-const PUSH_PREFERENCES: readonly NotificationPreference[] = [
-	{ labelKey: 'new-messages', descriptionKey: 'new-messages-description' },
-	{ labelKey: 'mentions', descriptionKey: 'mentions-description' },
-	{ labelKey: 'comments', descriptionKey: 'comments-description' },
-];
-
-const DIGEST_PREFERENCES: readonly NotificationPreference[] = [
-	{ labelKey: 'weekly-digest', descriptionKey: 'weekly-digest-description' },
-	{
-		labelKey: 'monthly-report',
-		descriptionKey: 'monthly-report-description',
-	},
-];
-
 /**
  * Read-only port of old-front's account notifications page. Every preference
  * renders as a disabled switch (never pre-checked — there is no preferences
  * API to read real values from) with the read-only badge on the card.
  */
-function AccountNotificationsPage() {
+const AccountNotificationsPage = () => {
 	const { t } = useTranslation(['account', 'common']);
 
 	// Card titles/descriptions are translated HERE (not passed as keys to
@@ -119,4 +68,55 @@ function AccountNotificationsPage() {
 			)}
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/tenant/account/notifications',
+)({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'account-settings', to: '/tenant/account' },
+			{ kind: 'label', labelKey: 'notifications' },
+		],
+		i18nNamespaces: ['account'],
+	},
+	component: AccountNotificationsPage,
+});
+
+type NotificationPreference = {
+	labelKey: string;
+	descriptionKey: string;
+};
+
+// The preference LABELS resolve from the `common` bundle (i18next falls back
+// across namespaces at render time, exactly like `security-alerts`); the
+// `*-description` copy is account-surface-specific and lives in `account`.
+// Nothing here may duplicate a key already declared in `common.json`.
+const EMAIL_PREFERENCES: readonly NotificationPreference[] = [
+	{
+		labelKey: 'marketing-emails',
+		descriptionKey: 'marketing-emails-description',
+	},
+	{
+		labelKey: 'product-updates',
+		descriptionKey: 'product-updates-description',
+	},
+	{
+		labelKey: 'security-alerts',
+		descriptionKey: 'security-alerts-description',
+	},
+];
+
+const PUSH_PREFERENCES: readonly NotificationPreference[] = [
+	{ labelKey: 'new-messages', descriptionKey: 'new-messages-description' },
+	{ labelKey: 'mentions', descriptionKey: 'mentions-description' },
+	{ labelKey: 'comments', descriptionKey: 'comments-description' },
+];
+
+const DIGEST_PREFERENCES: readonly NotificationPreference[] = [
+	{ labelKey: 'weekly-digest', descriptionKey: 'weekly-digest-description' },
+	{
+		labelKey: 'monthly-report',
+		descriptionKey: 'monthly-report-description',
+	},
+];

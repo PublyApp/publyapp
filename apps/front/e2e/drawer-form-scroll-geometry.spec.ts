@@ -513,6 +513,107 @@ const openTenantPostCreateDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
+// The link-companies drawer lives on the GLOBAL tenant-user organizations
+// tab; the staff-admin storageState reaches it directly, with the drawer
+// opened through its trigger button (no deep-link query param exists).
+const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await page.route('**/staff/tenant-users/**', async (route) => {
+		const request = route.request();
+		// The glob also matches the SPA document navigation itself; only the
+		// data calls are mocked, so let the real HTML document through or
+		// goto() resolves to raw JSON and nothing ever renders.
+		if (request.resourceType() === 'document') {
+			await route.fallback();
+			return;
+		}
+		const url = request.url();
+		if (request.method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+
+		const json = (body: unknown): Parameters<typeof route.fulfill>[0] => ({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify(body),
+		});
+
+		if (/\/tenants(?:\?|$)/.test(url)) {
+			await route.fulfill(
+				json({
+					data: [
+						{
+							id: '11111111-2222-4333-8444-555555555555',
+							name: 'Acme Corp',
+							logoUrl: null,
+							status: 'Active',
+						},
+					],
+				}),
+			);
+			return;
+		}
+
+		if (/\/tenants(?:\?|$)/.test(url)) {
+			await route.fulfill(
+				json({
+					data: [
+						{
+							id: '11111111-2222-4333-8444-555555555555',
+							name: 'Acme Corporation',
+							logoUrl: null,
+							status: 'Active',
+						},
+					],
+				}),
+			);
+			return;
+		}
+
+		if (/\/companies(?:\?|$)/.test(url)) {
+			await route.fulfill(
+				json({ data: [], nextCursor: null, hasPreviousPage: false }),
+			);
+			return;
+		}
+		if (/\/tenants\?/.test(url) || /\/pickers?/.test(url)) {
+			await route.fulfill(json({ data: [] }));
+			return;
+		}
+		await route.fulfill(
+			json({
+				id: '7f9c24e8-3b12-4c5d-9e8f-1a2b3c4d5e6f',
+				email: 'member@acme.example',
+				firstName: 'Ada',
+				lastName: 'Lovelace',
+				status: 'Active',
+				avatarUrl: null,
+				companyCount: 0,
+				createdAt: '2026-07-01T09:00:00Z',
+				updatedAt: null,
+			}),
+		);
+	});
+	await page.goto(
+		'/staff/tenant-users/details/7f9c24e8-3b12-4c5d-9e8f-1a2b3c4d5e6f/organizations',
+	);
+	await expect(page.getByTestId('link-companies-button')).toBeVisible({
+		timeout: 10_000,
+	});
+	await page.getByTestId('link-companies-button').click();
+	await expect(page.getByTestId('link-companies-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+	// The footer submit is disabled until a picker row is selected; check the
+	// first one so the geometry assertions can trial-click the action.
+	await page
+		.getByTestId('link-companies-options')
+		.getByRole('checkbox')
+		.first()
+		.check();
+};
+
 const openDrawerByCallSiteId: Record<
 	DrawerFormCallSiteId,
 	(page: Page) => Promise<void>
@@ -522,6 +623,7 @@ const openDrawerByCallSiteId: Record<
 	'tenant-user-invite': openInviteUserDrawer,
 	'staff-user-email-change': openChangeEmailDrawer,
 	'tenant-post-create': openTenantPostCreateDrawer,
+	'tenant-user-link-companies': openLinkCompaniesDrawer,
 };
 
 test.describe(

@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
@@ -23,7 +24,7 @@ namespace PublyApp.Api.Data.DbContext;
 /// <summary>
 /// Main database context with automatic audit tracking for all entities.
 /// </summary>
-public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
+public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtectionKeyContext {
 	private static readonly Lazy<List<Type>> SeederTypeCache = new(DiscoverSeedersInternal, LazyThreadSafetyMode.ExecutionAndPublication);
 
 	public DbSet<Session> Session {
@@ -118,6 +119,20 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 	// Tenant content entities
 	public DbSet<Post> Post {
 		get { return Set<Post>(); }
+	}
+
+	// Data Protection key ring (C1-bis): keys persisted in Postgres, encrypted at rest
+	// with SOCIAL_ACCOUNTS_MASTER_KEY.
+	public DbSet<DataProtectionKey> DataProtectionKeys {
+		get { return Set<DataProtectionKey>(); }
+	}
+
+	// Social accounts (C1-bis)
+	public DbSet<Modules.SocialAccounts.Entities.SocialAccount> SocialAccount {
+		get { return Set<Modules.SocialAccounts.Entities.SocialAccount>(); }
+	}
+	public DbSet<Modules.SocialAccounts.Entities.SocialAccountProject> SocialAccountProject {
+		get { return Set<Modules.SocialAccounts.Entities.SocialAccountProject>(); }
 	}
 
 	public Guid? TenantId { get; set; }
@@ -255,6 +270,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext {
 			// Without this check, it would be processed as a regular INoTenantEntity (no filtering)
 			// or potentially cause duplicate entity configuration issues
 			if (entityType.ClrType == typeof(UserAccountProfile)) {
+				continue;
+			}
+
+			// DataProtectionKey (C1-bis) is managed by the Data Protection
+			// framework, not our tenant-convention model builder.
+			if (entityType.ClrType == typeof(Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey)) {
 				continue;
 			}
 

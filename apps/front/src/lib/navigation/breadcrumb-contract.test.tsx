@@ -47,6 +47,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { AppShell } from '~/components/app-shell/app-shell';
 import { staffAuditLogCrumbQuery } from '~/lib/query/staff-audit-logs';
+import { globalTenantUserCrumbQuery } from '~/lib/query/staff-global-tenant-users';
 import { staffInvitationCrumbQuery } from '~/lib/query/staff-invitations';
 import { staffProfileCrumbQuery } from '~/lib/query/staff-profiles';
 import { staffTenantProfileCrumbQuery } from '~/lib/query/staff-tenant-profiles';
@@ -131,6 +132,8 @@ const isEntitySpec = (
  * below honors — anything else declaring `'shell'` on a dynamic route fails.
  */
 const LEGACY_REDIRECT_STUB_PATHS = new Set([
+	'/staff/tenant-users/details/$userId',
+	'/staff/tenant-users/details/$userId/$tab',
 	'/staff/tenants/$tenantId/profiles/new',
 	'/staff/tenants/$tenantId/profiles/$profileId/edit',
 	'/staff/tenants/$tenantId/users/invite',
@@ -213,6 +216,16 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 		query: staffTenantProfileCrumbQuery,
 		buildPayload: (marker) => ({
 			profile: { id: 'probe-tenant-profile-id', name: marker },
+		}),
+	},
+	{
+		query: globalTenantUserCrumbQuery,
+		buildPayload: (marker) => ({
+			id: 'probe-global-tenant-user-id',
+			email: marker,
+			firstName: null,
+			lastName: null,
+			displayName: marker,
 		}),
 	},
 	{

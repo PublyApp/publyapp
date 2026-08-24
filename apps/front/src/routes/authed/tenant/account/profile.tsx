@@ -40,46 +40,6 @@ import {
 	ReadOnlyValue,
 } from '../_workspace-page-parts';
 
-export const Route = createFileRoute('/_authed-layout/tenant/account/')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'account-settings', to: '/tenant/account' },
-			{ kind: 'label', labelKey: 'profile' },
-		],
-		i18nNamespaces: ['account'],
-	},
-	component: AccountProfilePage,
-});
-
-const ALLOWED_AVATAR_URL_PROTOCOLS = ['http:', 'https:'];
-
-const getAccountProfileSchema = (t: (key: string) => string) =>
-	z.object({
-		firstName: z.string().trim().max(128).or(z.literal('')),
-		lastName: z.string().trim().max(128).or(z.literal('')),
-		avatarUrl: z
-			.string()
-			.trim()
-			.max(1024)
-			.refine((value) => {
-				if (!value) {
-					return true;
-				}
-
-				try {
-					return ALLOWED_AVATAR_URL_PROTOCOLS.includes(new URL(value).protocol);
-				} catch {
-					return false;
-				}
-			}, t('invalid-avatar-url')),
-		// Read-only display field; never submitted to the PATCH endpoint.
-		email: z.string().trim().email().or(z.literal('')),
-	});
-
-type AccountProfileValues = z.infer<ReturnType<typeof getAccountProfileSchema>>;
-
-const EDITABLE_FIELDS = ['firstName', 'lastName', 'avatarUrl'] as const;
-
 /**
  * The tenant user's own profile, editable through the real tenant-scoped
  * PATCH endpoint (`/account/profile`). Identity fields (avatar, first/last
@@ -87,7 +47,7 @@ const EDITABLE_FIELDS = ['firstName', 'lastName', 'avatarUrl'] as const;
  * not editable through this endpoint and stays read-only. Bio/language/
  * timezone still have no backend and keep the read-only affordance.
  */
-function AccountProfilePage() {
+const AccountProfilePage = () => {
 	const { t, i18n } = useTranslation(['account', 'common']);
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
@@ -339,4 +299,44 @@ function AccountProfilePage() {
 			)}
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/tenant/account/')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'account-settings', to: '/tenant/account' },
+			{ kind: 'label', labelKey: 'profile' },
+		],
+		i18nNamespaces: ['account'],
+	},
+	component: AccountProfilePage,
+});
+
+const ALLOWED_AVATAR_URL_PROTOCOLS = ['http:', 'https:'];
+
+const getAccountProfileSchema = (t: (key: string) => string) =>
+	z.object({
+		firstName: z.string().trim().max(128).or(z.literal('')),
+		lastName: z.string().trim().max(128).or(z.literal('')),
+		avatarUrl: z
+			.string()
+			.trim()
+			.max(1024)
+			.refine((value) => {
+				if (!value) {
+					return true;
+				}
+
+				try {
+					return ALLOWED_AVATAR_URL_PROTOCOLS.includes(new URL(value).protocol);
+				} catch {
+					return false;
+				}
+			}, t('invalid-avatar-url')),
+		// Read-only display field; never submitted to the PATCH endpoint.
+		email: z.string().trim().email().or(z.literal('')),
+	});
+
+type AccountProfileValues = z.infer<ReturnType<typeof getAccountProfileSchema>>;
+
+const EDITABLE_FIELDS = ['firstName', 'lastName', 'avatarUrl'] as const;

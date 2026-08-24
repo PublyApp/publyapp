@@ -86,6 +86,29 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 		createElement('div', { 'data-testid': 'logout-redirect' }, 'logout'),
 }));
 
+// #980: the create form embeds the shared profile-style picker. The mock
+// mirrors the real contract: value in, full {icon, tone} out on change.
+vi.mock('~/components/ui/icon-color-picker', () => ({
+	IconColorPicker: ({
+		value,
+		onChange,
+	}: {
+		value: { icon?: string | null; tone?: string | null };
+		onChange: (next: { icon: string; tone: string }) => void;
+	}) =>
+		createElement(
+			'button',
+			{
+				type: 'button',
+				'aria-label': 'Choose icon and color',
+				'data-icon': value.icon ?? '',
+				'data-tone': value.tone ?? '',
+				onClick: () => onChange({ icon: 'briefcase', tone: '6' }),
+			},
+			'Choose icon and color',
+		),
+}));
+
 vi.mock('~/components/field', () => ({
 	Form: ({
 		children,
@@ -197,7 +220,8 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import { Route, buildStaffPermissionOptions } from './profiles-new';
+import { buildStaffPermissionOptions } from './_staff-permission-options';
+import { Route } from './profiles-new';
 
 const buildPermissionCatalogQuery = (
 	overrides: Record<string, unknown> = {},
@@ -342,6 +366,16 @@ describe('staff profile create route', () => {
 
 		renderPage();
 
+		const picker = screen.getByRole('button', {
+			name: 'Choose icon and color',
+		});
+		// #980: an untouched picker submits no style (null on the wire), and
+		// picking a style flows through to the create payload.
+		expect(picker.getAttribute('data-icon')).toBe('');
+		fireEvent.click(picker);
+		expect(picker.getAttribute('data-icon')).toBe('briefcase');
+		expect(picker.getAttribute('data-tone')).toBe('6');
+
 		fireEvent.change(screen.getByRole('textbox', { name: 'Profile name' }), {
 			target: { value: 'Platform admin' },
 		});
@@ -359,6 +393,8 @@ describe('staff profile create route', () => {
 				description: 'Full access',
 				permissions: ['staff.users.read'],
 				emails: [],
+				icon: 'briefcase',
+				tone: '6',
 			}),
 		);
 		await waitFor(() =>

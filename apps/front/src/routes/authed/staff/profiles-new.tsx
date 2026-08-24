@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
 import { useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useWatch, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -12,11 +12,11 @@ import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { IconColorPicker } from '~/components/ui/icon-color-picker';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { FALLBACK_LANGUAGE, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
 	invalidateStaffProfiles,
-	type StaffPermissionCatalogEntry,
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
 } from '~/lib/query/staff-profiles';
@@ -29,15 +29,11 @@ import {
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 
+import { buildStaffPermissionOptions } from './_staff-permission-options';
+
 type NewStaffProfileValues = z.infer<
 	ReturnType<typeof getNewStaffProfileSchema>
 >;
-
-type StaffPermissionOption = {
-	value: string;
-	label: string;
-	description?: string;
-};
 
 type InterZodOptions = ConstructorParameters<typeof InterZod>[0];
 type InterZodI18nLike = InterZodOptions['i18n'];
@@ -45,6 +41,8 @@ type InterZodI18nLike = InterZodOptions['i18n'];
 const STAFF_PROFILE_FORM_FIELDS = [
 	'name',
 	'description',
+	'icon',
+	'tone',
 	'permissions',
 	'emails',
 ] as const satisfies readonly (keyof NewStaffProfileValues)[];
@@ -59,86 +57,8 @@ const DEFAULT_VALUES: NewStaffProfileValues = {
 	description: '',
 	permissions: [],
 	emails: [],
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === 'object' && value !== null;
-
-const normalizeOptionalString = (value: unknown): string | undefined => {
-	if (typeof value !== 'string') {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
-	return trimmed.length > 0 ? trimmed : undefined;
-};
-
-const formatModuleLabel = (moduleKey: string): string =>
-	moduleKey
-		.trim()
-		.replace(/[_-]+/g, ' ')
-		.replace(/\b\w/g, (value) => value.toUpperCase());
-
-const buildPermissionDescription = (
-	moduleKey: string,
-	permission: StaffPermissionCatalogEntry,
-): string | undefined => {
-	const segments = [formatModuleLabel(moduleKey)];
-	const name = normalizeOptionalString(permission.name);
-	const description = normalizeOptionalString(permission.description);
-
-	if (name) {
-		segments.push(name);
-	}
-
-	if (description) {
-		segments.push(description);
-	}
-
-	return segments.length > 0 ? segments.join(' • ') : undefined;
-};
-
-export const buildStaffPermissionOptions = (
-	catalog: unknown,
-): StaffPermissionOption[] => {
-	if (!isRecord(catalog)) {
-		return [];
-	}
-
-	const options: StaffPermissionOption[] = [];
-
-	for (const [moduleKey, permissions] of Object.entries(catalog)) {
-		if (!isRecord(permissions)) {
-			continue;
-		}
-
-		for (const permission of Object.values(permissions)) {
-			if (!isRecord(permission)) {
-				continue;
-			}
-
-			const key = normalizeOptionalString(permission.key);
-			if (!key) {
-				continue;
-			}
-
-			const entry: StaffPermissionCatalogEntry = {
-				key,
-				name: normalizeOptionalString(permission.name),
-				description: normalizeOptionalString(permission.description),
-			};
-
-			options.push({
-				value: key,
-				label: key,
-				description: buildPermissionDescription(moduleKey, entry),
-			});
-		}
-	}
-
-	return [...options].sort((left, right) =>
-		left.label.localeCompare(right.label),
-	);
+	icon: '',
+	tone: '',
 };
 
 const getInterZodForI18n = (instance: I18nInstance) => {
@@ -156,20 +76,11 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 	});
 };
 
-export const Route = createFileRoute('/_authed-layout/staff/profiles/new')({
-	staticData: {
-		crumbs: () => [
-			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
-			{ kind: 'label', labelKey: 'common:create-profile' },
-		],
-	},
-	component: NewStaffProfileRoute,
-});
-
-function NewStaffProfileRoute() {
+const NewStaffProfileRoute = () => {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
 	const { t, i18n } = useTranslation('common');
+	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const hasSavedRef = useRef(false);
 
@@ -193,6 +104,9 @@ function NewStaffProfileRoute() {
 	});
 	const createProfile = useCreateStaffProfileMutation();
 
+	const icon = useWatch({ control: methods.control, name: 'icon' });
+	const tone = useWatch({ control: methods.control, name: 'tone' });
+
 	const permissionOptions = useMemo(
 		() => buildStaffPermissionOptions(permissionsQuery.data?.additionalData),
 		[permissionsQuery.data],
@@ -214,6 +128,8 @@ function NewStaffProfileRoute() {
 				description: values.description,
 				permissions: values.permissions,
 				emails: values.emails,
+				icon: values.icon ? values.icon : null,
+				tone: values.tone ? values.tone : null,
 			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -308,12 +224,31 @@ function NewStaffProfileRoute() {
 
 					return (
 						<Form methods={methods} onSubmit={onSubmit}>
-							<Field.Text
-								name="name"
-								label={t('profile-name')}
-								placeholder={t('profile-name-placeholder')}
-								disabled={createProfile.isPending}
-							/>
+							<div className="space-y-1.5">
+								<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
+									<IconColorPicker
+										value={{ icon, tone }}
+										disabled={createProfile.isPending}
+										onChange={(next) => {
+											methods.setValue('icon', next.icon ?? icon, {
+												shouldDirty: true,
+											});
+											methods.setValue('tone', next.tone ?? tone, {
+												shouldDirty: true,
+											});
+										}}
+									/>
+									<Field.Text
+										name="name"
+										label={t('profile-name')}
+										placeholder={t('profile-name-placeholder')}
+										disabled={createProfile.isPending}
+									/>
+								</div>
+								<p className="text-xs text-muted-foreground sm:pl-[68px]">
+									{tProfiles('profile-icon-picker-hint')}
+								</p>
+							</div>
 							<Field.Text
 								name="description"
 								label={t('description')}
@@ -362,4 +297,17 @@ function NewStaffProfileRoute() {
 			/>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute('/_authed-layout/staff/profiles/new')({
+	staticData: {
+		crumbs: () => [
+			{ kind: 'label', labelKey: 'nav-staff-profiles', to: '/staff/profiles' },
+			{ kind: 'label', labelKey: 'common:create-profile' },
+		],
+		// #980: the shared profile-style picker reads its labels from the
+		// scope-neutral `staff-tenant-profiles` catalogue.
+		i18nNamespaces: ['staff-tenant-profiles'],
+	},
+	component: NewStaffProfileRoute,
+});

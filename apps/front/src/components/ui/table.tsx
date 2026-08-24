@@ -1,11 +1,11 @@
 import type * as React from 'react';
 import { cn } from '~/lib/utils';
 
-function Table({
+const Table = ({
 	className,
 	containerClassName,
 	...props
-}: React.ComponentProps<'table'> & { containerClassName?: string }) {
+}: React.ComponentProps<'table'> & { containerClassName?: string }) => {
 	return (
 		<div
 			data-slot="table-container"
@@ -20,19 +20,25 @@ function Table({
 			/>
 		</div>
 	);
-}
+};
 
-function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
+const TableHeader = ({
+	className,
+	...props
+}: React.ComponentProps<'thead'>) => {
 	return <thead className={cn('border-b', className)} {...props} />;
-}
+};
 
-function TableBody({ className, ...props }: React.ComponentProps<'tbody'>) {
+const TableBody = ({ className, ...props }: React.ComponentProps<'tbody'>) => {
 	return (
 		<tbody className={cn('[&_tr:last-child]:border-0', className)} {...props} />
 	);
-}
+};
 
-function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
+const TableFooter = ({
+	className,
+	...props
+}: React.ComponentProps<'tfoot'>) => {
 	return (
 		<tfoot
 			className={cn(
@@ -42,13 +48,13 @@ function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>) {
 			{...props}
 		/>
 	);
-}
+};
 
-function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
+const TableRow = ({ className, ...props }: React.ComponentProps<'tr'>) => {
 	return <tr className={cn('transition-colors', className)} {...props} />;
-}
+};
 
-function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
+const TableHead = ({ className, ...props }: React.ComponentProps<'th'>) => {
 	return (
 		<th
 			className={cn(
@@ -58,23 +64,23 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
 			{...props}
 		/>
 	);
-}
+};
 
-function TableCell({ className, ...props }: React.ComponentProps<'td'>) {
+const TableCell = ({ className, ...props }: React.ComponentProps<'td'>) => {
 	return <td className={cn('align-middle', className)} {...props} />;
-}
+};
 
-function TableCaption({
+const TableCaption = ({
 	className,
 	...props
-}: React.ComponentProps<'caption'>) {
+}: React.ComponentProps<'caption'>) => {
 	return (
 		<caption
 			className={cn('text-sm text-muted-foreground', className)}
 			{...props}
 		/>
 	);
-}
+};
 
 export {
 	Table,

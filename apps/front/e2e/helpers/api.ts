@@ -8,8 +8,11 @@ import {
 
 /** Shared across every e2e spec that mocks/asserts against the real API
  * origin — previously copy-pasted as a local const in 14 spec files
- * (review-r1-tests.md F29). */
-export const API_BASE_URL = 'https://api.front.localhost:8443';
+ * (review-r1-tests.md F29). `E2E_API_BASE_URL` lets a private docker-compose
+ * instance (remapped host ports) retarget every spec's mock matcher at once;
+ * the default is the shared-stack URL. */
+export const API_BASE_URL =
+	process.env.E2E_API_BASE_URL ?? 'https://api.front.localhost:8443';
 
 /**
  * The session token to put in `X-Session-Token` when a spec calls the API

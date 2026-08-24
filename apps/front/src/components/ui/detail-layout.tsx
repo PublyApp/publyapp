@@ -10,7 +10,7 @@ import { cn } from '~/lib/utils';
  * Values live in app.css (`.publy-detail-*`, `.publy-danger-*`).
  */
 
-function DetailGrid({ className, ...props }: React.ComponentProps<'div'>) {
+const DetailGrid = ({ className, ...props }: React.ComponentProps<'div'>) => {
 	return (
 		<div
 			data-slot="detail-grid"
@@ -18,22 +18,25 @@ function DetailGrid({ className, ...props }: React.ComponentProps<'div'>) {
 			{...props}
 		/>
 	);
-}
+};
 
-function DetailMain({ className, ...props }: React.ComponentProps<'div'>) {
+const DetailMain = ({ className, ...props }: React.ComponentProps<'div'>) => {
 	return <div data-slot="detail-main" className={className} {...props} />;
-}
+};
 
-function DetailAside({ className, ...props }: React.ComponentProps<'aside'>) {
+const DetailAside = ({
+	className,
+	...props
+}: React.ComponentProps<'aside'>) => {
 	return <aside data-slot="detail-aside" className={className} {...props} />;
-}
+};
 
-function DangerZoneCard({
+const DangerZoneCard = ({
 	title,
 	className,
 	children,
 	...props
-}: React.ComponentProps<'section'> & { title: string }) {
+}: React.ComponentProps<'section'> & { title: string }) => {
 	return (
 		<section
 			data-slot="danger-zone"
@@ -44,9 +47,9 @@ function DangerZoneCard({
 			{children}
 		</section>
 	);
-}
+};
 
-function DangerZoneRow({
+const DangerZoneRow = ({
 	title,
 	description,
 	action,
@@ -54,7 +57,7 @@ function DangerZoneRow({
 	title: string;
 	description?: string;
 	action: React.ReactNode;
-}) {
+}) => {
 	return (
 		<div data-slot="danger-zone-row" className="publy-danger-zone-row">
 			<div className="flex min-w-0 flex-col gap-px">
@@ -68,6 +71,6 @@ function DangerZoneRow({
 			<div className="shrink-0">{action}</div>
 		</div>
 	);
-}
+};
 
 export { DangerZoneCard, DangerZoneRow, DetailAside, DetailGrid, DetailMain };

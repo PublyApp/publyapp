@@ -7,7 +7,7 @@ vi.mock('@tanstack/react-router', () => ({
 	Link: (props: { children?: ReactNode }) => props.children ?? null,
 }));
 
-import { buildColumns } from './profiles';
+import { buildColumns } from './_profile-columns';
 
 const t = (key: string): string => key;
 

@@ -250,556 +250,7 @@ export const tenantProfileTypeChipClassName = (isDefault: boolean): string =>
 		? 'publy-detail-chip publy-detail-chip--amber'
 		: 'publy-detail-chip publy-detail-chip--outline';
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/tenants/$tenantId/profiles',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-tenant-profiles'],
-		crumbs: (params) => [
-			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
-			{
-				kind: 'entity',
-				to: `/staff/tenants/${params.tenantId}`,
-				query: staffTenantCrumbQuery,
-				select: selectStaffTenantCrumbName,
-			},
-			{ kind: 'label', labelKey: 'common:profiles' },
-		],
-	},
-	validateSearch: (search) =>
-		serializeStaffTenantProfilesSearchParams(
-			parseStaffTenantProfilesSearchParams(
-				search as StaffTenantProfilesSearchParamInput,
-			),
-		),
-	component: StaffTenantProfilesPage,
-});
-
-const ProfileCardGridSkeleton = ({ testId }: { testId: string }) => (
-	<div className="publy-profile-card-grid" data-testid={`${testId}-loading`}>
-		{['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5', 'sk-6'].map((key) => (
-			<Card key={key} className="flex flex-col gap-3 p-4">
-				<Skeleton className="size-10 rounded-[10px]" />
-				<Skeleton className="h-3 w-2/3" />
-				<Skeleton className="h-3 w-full" />
-				<Skeleton className="h-3 w-1/3" />
-			</Card>
-		))}
-	</div>
-);
-
-const ProfileRowActions = ({
-	tenantId,
-	profile,
-	onEditRequest,
-	onDeleteRequest,
-}: {
-	tenantId: string;
-	profile: StaffTenantProfileRow;
-	onEditRequest: (profile: StaffTenantProfileRow) => void;
-	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
-}) => {
-	const { t } = useTranslation('common');
-
-	return (
-		<DataTableRowActions
-			ariaLabel={t('actions-for', { name: profile.name || t('profile') })}
-			testId={`staff-tenant-profile-actions-${profile.id}`}
-		>
-			<DropdownMenuItem
-				render={
-					<Link
-						to="/staff/tenants/$tenantId/profiles/$profileId"
-						params={{ tenantId, profileId: profile.id }}
-					/>
-				}
-			>
-				<IconEye className="size-[15px]" />
-				{t('view-details')}
-			</DropdownMenuItem>
-			{/* #972: NOT a <Link> to `.../$profileId/edit`. That route is a frozen
-			 * redirect stub kept only for old bookmarks, so linking to it cost a
-			 * full navigation to the detail page and threw away this list's
-			 * filters, cursor page, selection and scroll. Editing is a list-local
-			 * search-state change (`?edit=<profileId>`) that opens the same drawer
-			 * over the list. */}
-			<DropdownMenuItem
-				data-testid={`staff-tenant-profile-edit-${profile.id}`}
-				onClick={() => onEditRequest(profile)}
-			>
-				<IconPencil className="size-[15px]" />
-				{t('edit')}
-			</DropdownMenuItem>
-			<DropdownMenuItem
-				variant="destructive"
-				disabled={profile.isDefault}
-				title={
-					profile.isDefault ? t('default-profile-delete-disabled') : undefined
-				}
-				data-testid={`staff-tenant-profile-delete-${profile.id}`}
-				onClick={() => onDeleteRequest(profile)}
-			>
-				<IconTrash className="size-[15px]" />
-				{t('delete')}
-			</DropdownMenuItem>
-		</DataTableRowActions>
-	);
-};
-
-const ProfileCard = ({
-	tenantId,
-	profile,
-	onEditRequest,
-	onDeleteRequest,
-	isSelected,
-	isSelectionMode,
-	onToggleSelect,
-}: {
-	tenantId: string;
-	profile: StaffTenantProfileRow;
-	onEditRequest: (profile: StaffTenantProfileRow) => void;
-	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
-	isSelected: boolean;
-	isSelectionMode: boolean;
-	onToggleSelect: (profileId: string) => void;
-}) => {
-	const { t } = useTranslation('common');
-	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
-		profile.name,
-		profile.icon,
-		profile.tone,
-	);
-
-	return (
-		<Card
-			className={cn(
-				'group/profile-card relative flex items-start gap-3 p-4',
-				isSelected && 'publy-profile-card--selected',
-			)}
-			data-testid={`staff-tenant-profile-card-${profile.id}`}
-		>
-			<span
-				className={cn(
-					'absolute left-3 top-3 z-(--publy-z-raised) flex size-4 shrink-0 items-center justify-center rounded-[7px] bg-background transition-opacity',
-					isSelectionMode
-						? 'opacity-100'
-						: 'opacity-0 group-hover/profile-card:opacity-100 focus-within:opacity-100',
-				)}
-			>
-				<Checkbox
-					checked={isSelected}
-					onCheckedChange={() => onToggleSelect(profile.id)}
-					aria-label={t('select-profile-checkbox-label', {
-						name: profile.name || t('profile'),
-					})}
-					data-testid={`staff-tenant-profile-card-select-${profile.id}`}
-				/>
-			</span>
-
-			<Link
-				to="/staff/tenants/$tenantId/profiles/$profileId"
-				params={{ tenantId, profileId: profile.id }}
-				className="shrink-0 no-underline"
-			>
-				<span
-					className="publy-profile-icon-tile publy-profile-icon-tile--lg"
-					data-tone={tone}
-				>
-					<ProfileIcon aria-hidden="true" />
-				</span>
-			</Link>
-
-			<div className="min-w-0 flex-1 space-y-1 pr-7">
-				<div className="flex min-w-0 flex-wrap items-center gap-2">
-					<Link
-						to="/staff/tenants/$tenantId/profiles/$profileId"
-						params={{ tenantId, profileId: profile.id }}
-						className="publy-record-link truncate text-[14px] font-semibold text-foreground no-underline"
-						title={profile.name}
-					>
-						{profile.name}
-					</Link>
-					<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
-						{profile.isDefault ? t('system') : t('custom')}
-					</span>
-				</div>
-				<p
-					className="truncate text-xs text-muted-foreground"
-					title={profile.description || undefined}
-				>
-					{profile.description || t('no-description-provided')}
-				</p>
-				<p className="text-[11px] text-muted-foreground">
-					{t('tenant-member-count', { count: profile.userAccountCount })}
-					{' · '}
-					{t('tenant-permission-count', { count: profile.permissionsCount })}
-				</p>
-			</div>
-
-			<div className="absolute right-3 top-3">
-				<ProfileRowActions
-					tenantId={tenantId}
-					profile={profile}
-					onEditRequest={onEditRequest}
-					onDeleteRequest={onDeleteRequest}
-				/>
-			</div>
-		</Card>
-	);
-};
-
-const ProfileNameCell = ({
-	tenantId,
-	profile,
-	t,
-}: {
-	tenantId: string;
-	profile: StaffTenantProfileRow;
-	t: (key: string, options?: Record<string, unknown>) => string;
-}) => {
-	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
-		profile.name,
-		profile.icon,
-		profile.tone,
-	);
-
-	return (
-		<Link
-			to="/staff/tenants/$tenantId/profiles/$profileId"
-			params={{ tenantId, profileId: profile.id }}
-			className="flex min-w-0 items-center gap-2.5 no-underline"
-		>
-			<span className="publy-profile-icon-tile" data-tone={tone}>
-				<ProfileIcon aria-hidden="true" />
-			</span>
-			<span className="flex min-w-0 flex-wrap items-center gap-2">
-				<span
-					className="publy-record-link truncate text-[13px] font-medium"
-					title={profile.name}
-				>
-					{profile.name}
-				</span>
-				<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
-					{profile.isDefault ? t('system') : t('custom')}
-				</span>
-			</span>
-		</Link>
-	);
-};
-
-export const makeTenantProfileColumns = (
-	tenantId: string,
-	t: (key: string, options?: Record<string, unknown>) => string,
-	onEditRequest: (profile: StaffTenantProfileRow) => void,
-	onDeleteRequest: (profile: StaffTenantProfileRow) => void,
-): ColumnDef<StaffTenantProfileRow>[] => [
-	{
-		id: 'name',
-		header: t('profile'),
-		cell: ({ row }) => (
-			<ProfileNameCell tenantId={tenantId} profile={row.original} t={t} />
-		),
-	},
-	{
-		id: 'description',
-		header: t('description'),
-		enableSorting: false,
-		cell: ({ row }) => (
-			<span
-				className="block truncate text-xs text-muted-foreground"
-				title={row.original.description || undefined}
-			>
-				{row.original.description || t('no-description-provided')}
-			</span>
-		),
-	},
-	{
-		id: 'members',
-		header: t('members'),
-		accessorKey: 'userAccountCount',
-		enableSorting: false,
-		meta: { width: '110px' },
-		cell: ({ getValue }) => (
-			<span className="text-[13px] text-foreground">{getValue<number>()}</span>
-		),
-	},
-	{
-		id: 'permissions',
-		header: t('permissions'),
-		accessorKey: 'permissionsCount',
-		enableSorting: false,
-		meta: { width: '120px' },
-		cell: ({ getValue }) => (
-			<span className="text-[13px] text-foreground">{getValue<number>()}</span>
-		),
-	},
-	{
-		id: 'actions',
-		header: () => <span className="sr-only">{t('actions')}</span>,
-		enableSorting: false,
-		meta: { width: '40px', align: 'center' },
-		cell: ({ row }) => (
-			<ProfileRowActions
-				tenantId={tenantId}
-				profile={row.original}
-				onEditRequest={onEditRequest}
-				onDeleteRequest={onDeleteRequest}
-			/>
-		),
-	},
-];
-
-const ProfileBulkActions = ({
-	tenantId,
-	rows,
-	selection,
-	onSessionExpired,
-}: {
-	tenantId: string;
-	rows: StaffTenantProfileRow[];
-	selection: UseRowSelectionResult;
-	onSessionExpired: () => void;
-}) => {
-	const { t } = useTranslation('common');
-	const queryClient = useQueryClient();
-	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-	const bulkDeleteMutation = useBulkDeleteStaffTenantProfilesMutation();
-
-	const selectedRows = rows.filter((row) => selection.rowSelection[row.id]);
-	const eligibleIds = selectedRows
-		.filter((row) => !row.isDefault)
-		.map((row) => row.id);
-	const selectedCount = selection.selectedCount;
-	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
-
-	const performBulkDelete = async () => {
-		let result;
-		try {
-			result = await bulkDeleteMutation.mutateAsync({
-				tenantId,
-				profileIds: eligibleIds,
-			});
-		} catch (error) {
-			setIsDeleteDialogOpen(false);
-			if (shouldLogoutForFailure(error)) {
-				onSessionExpired();
-				return;
-			}
-
-			await displayLocalMutationFailure(
-				error,
-				t('tenant-profile-bulk-delete-failure'),
-			);
-			return;
-		}
-
-		setIsDeleteDialogOpen(false);
-		selection.clearSelection();
-
-		const summary = toStaffTenantProfileBulkActionSummary(result);
-		if (summary.failedCount > 0) {
-			toastLocalMutationResult.error(
-				t('tenant-profile-bulk-delete-partial-success', {
-					succeeded: summary.succeededCount,
-					failed: summary.failedCount,
-				}),
-			);
-		} else {
-			toastLocalMutationResult.success(
-				t('tenant-profile-bulk-delete-success', {
-					count: summary.succeededCount,
-				}),
-			);
-		}
-
-		await invalidateAllStaffTenantScopes(queryClient);
-	};
-
-	return (
-		<>
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				disabled={isOverLimit}
-				title={
-					isOverLimit
-						? t('bulk-action-max-count-exceeded', {
-								max: BULK_ACTION_MAX_COUNT,
-								count: selectedCount,
-							})
-						: undefined
-				}
-				className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
-				onClick={() => {
-					if (eligibleIds.length === 0) {
-						toastLocalMutationResult.warning(
-							t('bulk-delete-disabled-only-default-profiles'),
-						);
-						return;
-					}
-					setIsDeleteDialogOpen(true);
-				}}
-			>
-				<IconTrash className="size-[15px]" />
-				{t('bulk-delete')}
-			</Button>
-
-			<ConfirmDialog
-				isOpen={isDeleteDialogOpen}
-				title={t('bulk-delete')}
-				description={t('confirm-bulk-delete-tenant-profiles', {
-					count: eligibleIds.length,
-				})}
-				confirmLabel={t('delete')}
-				isPending={bulkDeleteMutation.isPending}
-				onConfirm={() => {
-					void performBulkDelete();
-				}}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) setIsDeleteDialogOpen(false);
-				}}
-			/>
-		</>
-	);
-};
-
-const ProfileViewToggle = ({
-	view,
-	onChange,
-	testId,
-}: {
-	view: StaffTenantProfilesViewMode;
-	onChange: (next: StaffTenantProfilesViewMode) => void;
-	testId: string;
-}) => {
-	const { t } = useTranslation('common');
-
-	return (
-		<div
-			className="publy-data-table-view-toggle border border-border bg-background p-0.5"
-			role="group"
-			aria-label={t('view-toggle-aria-label')}
-		>
-			<button
-				type="button"
-				className={cn(
-					'publy-data-table-view-toggle-item flex size-8 items-center justify-center',
-					view === 'cards'
-						? 'bg-muted text-foreground'
-						: 'text-muted-foreground',
-				)}
-				aria-pressed={view === 'cards'}
-				aria-label={t('cards-view')}
-				data-testid={`${testId}-view-toggle-cards`}
-				onClick={() => onChange('cards')}
-			>
-				<IconLayoutGrid className="size-4" />
-			</button>
-			<button
-				type="button"
-				className={cn(
-					'publy-data-table-view-toggle-item flex size-8 items-center justify-center',
-					view === 'table'
-						? 'bg-muted text-foreground'
-						: 'text-muted-foreground',
-				)}
-				aria-pressed={view === 'table'}
-				aria-label={t('table-view')}
-				data-testid={`${testId}-view-toggle-table`}
-				onClick={() => onChange('table')}
-			>
-				<IconTable className="size-4" />
-			</button>
-		</div>
-	);
-};
-
-const formatProfileTypeFilterLabel = (
-	value: StaffTenantProfileTypeFilter | undefined,
-	t: (key: string) => string,
-): string => {
-	if (value === 'true') {
-		return t('system');
-	}
-
-	if (value === 'false') {
-		return t('custom');
-	}
-
-	return t('all-types');
-};
-
-const ProfileTypeFilter = ({
-	value,
-	onChange,
-	testId,
-	disabled,
-}: {
-	value: StaffTenantProfileTypeFilter | undefined;
-	onChange: (next: StaffTenantProfileTypeFilter | undefined) => void;
-	testId: string;
-	disabled?: boolean;
-}) => {
-	const { t } = useTranslation('common');
-	const label = formatProfileTypeFilterLabel(value, t);
-
-	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger
-				render={
-					<Button
-						type="button"
-						variant="outline"
-						className="publy-data-table-filter-button max-w-64 text-[13px]"
-						data-testid={`${testId}-type-filter-trigger`}
-						disabled={disabled}
-						title={disabled ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
-					/>
-				}
-			>
-				<IconFilter
-					aria-hidden="true"
-					className="size-[15px] text-[var(--publy-foreground-secondary)]"
-				/>
-				<span className="truncate">{label}</span>
-				<IconChevronDown aria-hidden="true" className="size-3" />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" sideOffset={6}>
-				<DropdownMenuCheckboxItem
-					checked={value === undefined}
-					closeOnClick
-					data-testid={`${testId}-type-filter-all`}
-					onCheckedChange={() => onChange(undefined)}
-				>
-					{t('all-types')}
-				</DropdownMenuCheckboxItem>
-				<DropdownMenuCheckboxItem
-					checked={value === 'true'}
-					closeOnClick
-					data-testid={`${testId}-type-filter-system`}
-					onCheckedChange={() => onChange('true')}
-				>
-					{t('system')}
-				</DropdownMenuCheckboxItem>
-				<DropdownMenuCheckboxItem
-					checked={value === 'false'}
-					closeOnClick
-					data-testid={`${testId}-type-filter-custom`}
-					onCheckedChange={() => onChange('false')}
-				>
-					{t('custom')}
-				</DropdownMenuCheckboxItem>
-				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={() => onChange(undefined)}>
-					{t('clear')}
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
-	);
-};
-
-function StaffTenantProfilesPage() {
+const StaffTenantProfilesPage = () => {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = parseStaffTenantProfilesSearchParams(
@@ -871,6 +322,10 @@ function StaffTenantProfilesPage() {
 	const openEditDrawer = (profile: StaffTenantProfileRow): void => {
 		editDrawerNavBypassRef.current = false;
 		editDrawerPushedHistoryRef.current = true;
+		// react-doctor: this handler only ever runs from event callbacks
+		// (`onEditRequest`), never during render — the rule cannot see the
+		// call sites, so the hydration concern does not apply here.
+		// eslint-disable-next-line react-doctor/tanstack-start-no-navigate-in-render
 		void navigate({
 			search: serializeStaffTenantProfilesSearchParams({
 				...search,
@@ -968,12 +423,12 @@ function StaffTenantProfilesPage() {
 	const isEditDrawerOpen = editingProfile !== undefined;
 	// Keep the last edited row so the drawer stays mounted through its close
 	// animation, exactly as the always-mounted drawer on the detail page does.
-	// Assigning during render is safe here: it is idempotent and derived purely
-	// from this render's own props/state.
 	const lastEditedProfileRef = useRef<StaffTenantProfileRow | null>(null);
-	if (editingProfile) {
-		lastEditedProfileRef.current = editingProfile;
-	}
+	useEffect(() => {
+		if (editingProfile) {
+			lastEditedProfileRef.current = editingProfile;
+		}
+	}, [editingProfile]);
 	const editDrawerProfile = editingProfile ?? lastEditedProfileRef.current;
 
 	// Both drawers' open flags live in the URL (`?new=1`, `?edit=<id>`); a
@@ -1028,9 +483,14 @@ function StaffTenantProfilesPage() {
 	// `openEditDrawer` closes over `search`, which is a fresh object every
 	// render, so handing it to the memo directly would rebuild every column
 	// definition on every render. The columns get this stable indirection
-	// instead; it always calls the current render's handler.
+	// instead; it always calls the current render's handler. The ref-write is
+	// an idempotent latest-value sync during render — the documented escape
+	// hatch for the “no ref writes in render” rule.
 	const openEditDrawerRef = useRef(openEditDrawer);
-	openEditDrawerRef.current = openEditDrawer;
+	// eslint-disable-next-line react-hooks/exhaustive-deps -- latest-value sync, see comment above
+	useEffect(() => {
+		openEditDrawerRef.current = openEditDrawer;
+	}); // react-doctor-disable-line react-doctor/exhaustive-deps, react-doctor/no-effect-with-fresh-deps
 	const onEditRequest = useCallback((profile: StaffTenantProfileRow) => {
 		openEditDrawerRef.current(profile);
 	}, []);
@@ -1389,4 +849,553 @@ function StaffTenantProfilesPage() {
 			/>
 		</TenantDetailsPageShell>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/tenants/$tenantId/profiles',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-tenant-profiles'],
+		crumbs: (params) => [
+			{ kind: 'label', labelKey: 'nav-tenants', to: '/staff/tenants' },
+			{
+				kind: 'entity',
+				to: `/staff/tenants/${params.tenantId}`,
+				query: staffTenantCrumbQuery,
+				select: selectStaffTenantCrumbName,
+			},
+			{ kind: 'label', labelKey: 'common:profiles' },
+		],
+	},
+	validateSearch: (search) =>
+		serializeStaffTenantProfilesSearchParams(
+			parseStaffTenantProfilesSearchParams(
+				search as StaffTenantProfilesSearchParamInput,
+			),
+		),
+	component: StaffTenantProfilesPage,
+});
+
+const ProfileCardGridSkeleton = ({ testId }: { testId: string }) => (
+	<div className="publy-profile-card-grid" data-testid={`${testId}-loading`}>
+		{['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5', 'sk-6'].map((key) => (
+			<Card key={key} className="flex flex-col gap-3 p-4">
+				<Skeleton className="size-10 rounded-[10px]" />
+				<Skeleton className="h-3 w-2/3" />
+				<Skeleton className="h-3 w-full" />
+				<Skeleton className="h-3 w-1/3" />
+			</Card>
+		))}
+	</div>
+);
+
+const ProfileRowActions = ({
+	tenantId,
+	profile,
+	onEditRequest,
+	onDeleteRequest,
+}: {
+	tenantId: string;
+	profile: StaffTenantProfileRow;
+	onEditRequest: (profile: StaffTenantProfileRow) => void;
+	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
+}) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<DataTableRowActions
+			ariaLabel={t('actions-for', { name: profile.name || t('profile') })}
+			testId={`staff-tenant-profile-actions-${profile.id}`}
+		>
+			<DropdownMenuItem
+				render={
+					<Link
+						to="/staff/tenants/$tenantId/profiles/$profileId"
+						params={{ tenantId, profileId: profile.id }}
+					/>
+				}
+			>
+				<IconEye className="size-[15px]" />
+				{t('view-details')}
+			</DropdownMenuItem>
+			{/* #972: NOT a <Link> to `.../$profileId/edit`. That route is a frozen
+			 * redirect stub kept only for old bookmarks, so linking to it cost a
+			 * full navigation to the detail page and threw away this list's
+			 * filters, cursor page, selection and scroll. Editing is a list-local
+			 * search-state change (`?edit=<profileId>`) that opens the same drawer
+			 * over the list. */}
+			<DropdownMenuItem
+				data-testid={`staff-tenant-profile-edit-${profile.id}`}
+				onClick={() => onEditRequest(profile)}
+			>
+				<IconPencil className="size-[15px]" />
+				{t('edit')}
+			</DropdownMenuItem>
+			<DropdownMenuItem
+				variant="destructive"
+				disabled={profile.isDefault}
+				title={
+					profile.isDefault ? t('default-profile-delete-disabled') : undefined
+				}
+				data-testid={`staff-tenant-profile-delete-${profile.id}`}
+				onClick={() => onDeleteRequest(profile)}
+			>
+				<IconTrash className="size-[15px]" />
+				{t('delete')}
+			</DropdownMenuItem>
+		</DataTableRowActions>
+	);
+};
+
+const ProfileCard = ({
+	tenantId,
+	profile,
+	onEditRequest,
+	onDeleteRequest,
+	isSelected,
+	isSelectionMode,
+	onToggleSelect,
+}: {
+	tenantId: string;
+	profile: StaffTenantProfileRow;
+	onEditRequest: (profile: StaffTenantProfileRow) => void;
+	onDeleteRequest: (profile: StaffTenantProfileRow) => void;
+	isSelected: boolean;
+	isSelectionMode: boolean;
+	onToggleSelect: (profileId: string) => void;
+}) => {
+	const { t } = useTranslation('common');
+	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
+		profile.name,
+		profile.icon,
+		profile.tone,
+	);
+
+	return (
+		<Card
+			className={cn(
+				'group/profile-card relative flex items-start gap-3 p-4',
+				isSelected && 'publy-profile-card--selected',
+			)}
+			data-testid={`staff-tenant-profile-card-${profile.id}`}
+		>
+			<span
+				className={cn(
+					'absolute left-3 top-3 z-(--publy-z-raised) flex size-4 shrink-0 items-center justify-center rounded-[7px] bg-background transition-opacity',
+					isSelectionMode
+						? 'opacity-100'
+						: 'opacity-0 group-hover/profile-card:opacity-100 focus-within:opacity-100',
+				)}
+			>
+				<Checkbox
+					checked={isSelected}
+					onCheckedChange={() => onToggleSelect(profile.id)}
+					aria-label={t('select-profile-checkbox-label', {
+						name: profile.name || t('profile'),
+					})}
+					data-testid={`staff-tenant-profile-card-select-${profile.id}`}
+				/>
+			</span>
+
+			<Link
+				to="/staff/tenants/$tenantId/profiles/$profileId"
+				params={{ tenantId, profileId: profile.id }}
+				className="shrink-0 no-underline"
+			>
+				<span
+					className="publy-profile-icon-tile publy-profile-icon-tile--lg"
+					data-tone={tone}
+				>
+					<ProfileIcon aria-hidden="true" />
+				</span>
+			</Link>
+
+			<div className="min-w-0 flex-1 space-y-1 pr-7">
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
+					<Link
+						to="/staff/tenants/$tenantId/profiles/$profileId"
+						params={{ tenantId, profileId: profile.id }}
+						className="publy-record-link truncate text-[14px] font-semibold text-foreground no-underline"
+						title={profile.name}
+					>
+						{profile.name}
+					</Link>
+					<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
+						{profile.isDefault ? t('system') : t('custom')}
+					</span>
+				</div>
+				<p
+					className="truncate text-xs text-muted-foreground"
+					title={profile.description || undefined}
+				>
+					{profile.description || t('no-description-provided')}
+				</p>
+				<p className="text-[11px] text-muted-foreground">
+					{t('tenant-member-count', { count: profile.userAccountCount })}
+					{' · '}
+					{t('tenant-permission-count', { count: profile.permissionsCount })}
+				</p>
+			</div>
+
+			<div className="absolute right-3 top-3">
+				<ProfileRowActions
+					tenantId={tenantId}
+					profile={profile}
+					onEditRequest={onEditRequest}
+					onDeleteRequest={onDeleteRequest}
+				/>
+			</div>
+		</Card>
+	);
+};
+
+const ProfileNameCell = ({
+	tenantId,
+	profile,
+	t,
+}: {
+	tenantId: string;
+	profile: StaffTenantProfileRow;
+	t: (key: string, options?: Record<string, unknown>) => string;
+}) => {
+	const { Icon: ProfileIcon, tone } = deriveTenantProfileCardStyle(
+		profile.name,
+		profile.icon,
+		profile.tone,
+	);
+
+	return (
+		<Link
+			to="/staff/tenants/$tenantId/profiles/$profileId"
+			params={{ tenantId, profileId: profile.id }}
+			className="flex min-w-0 items-center gap-2.5 no-underline"
+		>
+			<span className="publy-profile-icon-tile" data-tone={tone}>
+				<ProfileIcon aria-hidden="true" />
+			</span>
+			<span className="flex min-w-0 flex-wrap items-center gap-2">
+				<span
+					className="publy-record-link truncate text-[13px] font-medium"
+					title={profile.name}
+				>
+					{profile.name}
+				</span>
+				<span className={tenantProfileTypeChipClassName(profile.isDefault)}>
+					{profile.isDefault ? t('system') : t('custom')}
+				</span>
+			</span>
+		</Link>
+	);
+};
+
+export const makeTenantProfileColumns = (
+	tenantId: string,
+	t: (key: string, options?: Record<string, unknown>) => string,
+	onEditRequest: (profile: StaffTenantProfileRow) => void,
+	onDeleteRequest: (profile: StaffTenantProfileRow) => void,
+): ColumnDef<StaffTenantProfileRow>[] => [
+	{
+		id: 'name',
+		header: t('profile'),
+		cell: ({ row }) => (
+			<ProfileNameCell tenantId={tenantId} profile={row.original} t={t} />
+		),
+	},
+	{
+		id: 'description',
+		header: t('description'),
+		enableSorting: false,
+		cell: ({ row }) => (
+			<span
+				className="block truncate text-xs text-muted-foreground"
+				title={row.original.description || undefined}
+			>
+				{row.original.description || t('no-description-provided')}
+			</span>
+		),
+	},
+	{
+		id: 'members',
+		header: t('members'),
+		accessorKey: 'userAccountCount',
+		enableSorting: false,
+		meta: { width: '110px' },
+		cell: ({ getValue }) => (
+			<span className="text-[13px] text-foreground">{getValue<number>()}</span>
+		),
+	},
+	{
+		id: 'permissions',
+		header: t('permissions'),
+		accessorKey: 'permissionsCount',
+		enableSorting: false,
+		meta: { width: '120px' },
+		cell: ({ getValue }) => (
+			<span className="text-[13px] text-foreground">{getValue<number>()}</span>
+		),
+	},
+	{
+		id: 'actions',
+		header: () => <span className="sr-only">{t('actions')}</span>,
+		enableSorting: false,
+		meta: { width: '40px', align: 'center' },
+		cell: ({ row }) => (
+			<ProfileRowActions
+				tenantId={tenantId}
+				profile={row.original}
+				onEditRequest={onEditRequest}
+				onDeleteRequest={onDeleteRequest}
+			/>
+		),
+	},
+];
+
+const ProfileBulkActions = ({
+	tenantId,
+	rows,
+	selection,
+	onSessionExpired,
+}: {
+	tenantId: string;
+	rows: StaffTenantProfileRow[];
+	selection: UseRowSelectionResult;
+	onSessionExpired: () => void;
+}) => {
+	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+	const bulkDeleteMutation = useBulkDeleteStaffTenantProfilesMutation();
+
+	const selectedRows = rows.filter((row) => selection.rowSelection[row.id]);
+	const eligibleIds = selectedRows.flatMap((row) =>
+		row.isDefault ? [] : [row.id],
+	);
+	const selectedCount = selection.selectedCount;
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+
+	const performBulkDelete = async () => {
+		let result;
+		try {
+			result = await bulkDeleteMutation.mutateAsync({
+				tenantId,
+				profileIds: eligibleIds,
+			});
+		} catch (error) {
+			setIsDeleteDialogOpen(false);
+			if (shouldLogoutForFailure(error)) {
+				onSessionExpired();
+				return;
+			}
+
+			await displayLocalMutationFailure(
+				error,
+				t('tenant-profile-bulk-delete-failure'),
+			);
+			return;
+		}
+
+		setIsDeleteDialogOpen(false);
+		selection.clearSelection();
+
+		const summary = toStaffTenantProfileBulkActionSummary(result);
+		if (summary.failedCount > 0) {
+			toastLocalMutationResult.error(
+				t('tenant-profile-bulk-delete-partial-success', {
+					succeeded: summary.succeededCount,
+					failed: summary.failedCount,
+				}),
+			);
+		} else {
+			toastLocalMutationResult.success(
+				t('tenant-profile-bulk-delete-success', {
+					count: summary.succeededCount,
+				}),
+			);
+		}
+
+		await invalidateAllStaffTenantScopes(queryClient);
+	};
+
+	return (
+		<>
+			<Button
+				type="button"
+				variant="ghost"
+				size="sm"
+				disabled={isOverLimit}
+				title={
+					isOverLimit
+						? t('bulk-action-max-count-exceeded', {
+								max: BULK_ACTION_MAX_COUNT,
+								count: selectedCount,
+							})
+						: undefined
+				}
+				className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
+				onClick={() => {
+					if (eligibleIds.length === 0) {
+						toastLocalMutationResult.warning(
+							t('bulk-delete-disabled-only-default-profiles'),
+						);
+						return;
+					}
+					setIsDeleteDialogOpen(true);
+				}}
+			>
+				<IconTrash className="size-[15px]" />
+				{t('bulk-delete')}
+			</Button>
+
+			<ConfirmDialog
+				isOpen={isDeleteDialogOpen}
+				title={t('bulk-delete')}
+				description={t('confirm-bulk-delete-tenant-profiles', {
+					count: eligibleIds.length,
+				})}
+				confirmLabel={t('delete')}
+				isPending={bulkDeleteMutation.isPending}
+				onConfirm={() => {
+					void performBulkDelete();
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setIsDeleteDialogOpen(false);
+				}}
+			/>
+		</>
+	);
+};
+
+const ProfileViewToggle = ({
+	view,
+	onChange,
+	testId,
+}: {
+	view: StaffTenantProfilesViewMode;
+	onChange: (next: StaffTenantProfilesViewMode) => void;
+	testId: string;
+}) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<div
+			className="publy-data-table-view-toggle border border-border bg-background p-0.5"
+			role="group"
+			aria-label={t('view-toggle-aria-label')}
+		>
+			<button
+				type="button"
+				className={cn(
+					'publy-data-table-view-toggle-item flex size-8 items-center justify-center',
+					view === 'cards'
+						? 'bg-muted text-foreground'
+						: 'text-muted-foreground',
+				)}
+				aria-pressed={view === 'cards'}
+				aria-label={t('cards-view')}
+				data-testid={`${testId}-view-toggle-cards`}
+				onClick={() => onChange('cards')}
+			>
+				<IconLayoutGrid className="size-4" />
+			</button>
+			<button
+				type="button"
+				className={cn(
+					'publy-data-table-view-toggle-item flex size-8 items-center justify-center',
+					view === 'table'
+						? 'bg-muted text-foreground'
+						: 'text-muted-foreground',
+				)}
+				aria-pressed={view === 'table'}
+				aria-label={t('table-view')}
+				data-testid={`${testId}-view-toggle-table`}
+				onClick={() => onChange('table')}
+			>
+				<IconTable className="size-4" />
+			</button>
+		</div>
+	);
+};
+
+const formatProfileTypeFilterLabel = (
+	value: StaffTenantProfileTypeFilter | undefined,
+	t: (key: string) => string,
+): string => {
+	if (value === 'true') {
+		return t('system');
+	}
+
+	if (value === 'false') {
+		return t('custom');
+	}
+
+	return t('all-types');
+};
+
+const ProfileTypeFilter = ({
+	value,
+	onChange,
+	testId,
+	disabled,
+}: {
+	value: StaffTenantProfileTypeFilter | undefined;
+	onChange: (next: StaffTenantProfileTypeFilter | undefined) => void;
+	testId: string;
+	disabled?: boolean;
+}) => {
+	const { t } = useTranslation('common');
+	const label = formatProfileTypeFilterLabel(value, t);
+
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger
+				render={
+					<Button
+						type="button"
+						variant="outline"
+						className="publy-data-table-filter-button max-w-64 text-[13px]"
+						data-testid={`${testId}-type-filter-trigger`}
+						disabled={disabled}
+						title={disabled ? t(SELECTION_LOCKED_TITLE_KEY) : undefined}
+					/>
+				}
+			>
+				<IconFilter
+					aria-hidden="true"
+					className="size-[15px] text-[var(--publy-foreground-secondary)]"
+				/>
+				<span className="truncate">{label}</span>
+				<IconChevronDown aria-hidden="true" className="size-3" />
+			</DropdownMenuTrigger>
+			<DropdownMenuContent align="end" sideOffset={6}>
+				<DropdownMenuCheckboxItem
+					checked={value === undefined}
+					closeOnClick
+					data-testid={`${testId}-type-filter-all`}
+					onCheckedChange={() => onChange(undefined)}
+				>
+					{t('all-types')}
+				</DropdownMenuCheckboxItem>
+				<DropdownMenuCheckboxItem
+					checked={value === 'true'}
+					closeOnClick
+					data-testid={`${testId}-type-filter-system`}
+					onCheckedChange={() => onChange('true')}
+				>
+					{t('system')}
+				</DropdownMenuCheckboxItem>
+				<DropdownMenuCheckboxItem
+					checked={value === 'false'}
+					closeOnClick
+					data-testid={`${testId}-type-filter-custom`}
+					onCheckedChange={() => onChange('false')}
+				>
+					{t('custom')}
+				</DropdownMenuCheckboxItem>
+				<DropdownMenuSeparator />
+				<DropdownMenuItem onClick={() => onChange(undefined)}>
+					{t('clear')}
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
+};

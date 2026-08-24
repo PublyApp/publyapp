@@ -8,6 +8,21 @@ import type { ESTree } from '@oxlint/plugins';
  * Rationale (AGENTS.md -> "Frontend Coding Standards"):
  *   "Arrow function components only — never `function` declarations for
  *    components."
+ *
+ * A PascalCase `FunctionDeclaration` is a component regardless of HOW it
+ * renders — the declaration shape is the signal, not the render call-site:
+ *   - a body `return` of JSX (directly, ternary/logical/TS-wrapped);
+ *   - a `return` of a known renderer call (`useRender`, `createElement`,
+ *     `jsx`, `jsxs` — bare or React namespace member; Base UI components
+ *     delegate to `useRender(...)`);
+ *   - a `return` delegating to a top-level LOCAL helper whose own body
+ *     yields JSX the same way (#1283) — so a `customRender(...)` wrapper
+ *     invisible to the renderer list cannot hide a component;
+ *   - or hook calls with only-null/JSX returns.
+ *
+ * Boundaries (documented, heuristic-free by design): callees that cannot be
+ * resolved locally (imports, member expressions) and JSX routed through
+ * local variables are not followed.
  */
 
 /** Any function-like node that has a body and optional id. */
@@ -25,11 +40,22 @@ interface BodyAnalysis {
 	returnsJsx: boolean;
 	returnsOnlyNullOrJsx: boolean;
 	callsHook: boolean;
+	returnsRendererCall: boolean;
 }
 
 const isPascalCase = (name: string): boolean => /^[A-Z]/.test(name);
 const isHookLike = (name: string): boolean => /^use[A-Z]/.test(name);
 const WRAPPER_FNS: ReadonlySet<string> = new Set(['memo', 'forwardRef']);
+
+// Known renderer functions whose return value indicates the function is a
+// component. PascalCase functions returning useRender(...), createElement(...),
+// jsx(...), or jsxs(...) are components even without a direct JSX return.
+const KNOWN_RENDERERS: ReadonlySet<string> = new Set([
+	'useRender',
+	'createElement',
+	'jsx',
+	'jsxs',
+]);
 
 const isJsxNode = (node: ESTree.Node | null | undefined): boolean =>
 	node !== null &&
@@ -171,11 +197,13 @@ const analyseBody = (
 	body: ESTree.FunctionBody | null | undefined,
 	importInfo: ImportInfo,
 	recursingFor: Set<string> = new Set(),
+	visiting: Set<string> = new Set(),
 ): BodyAnalysis => {
 	const result: BodyAnalysis = {
 		returnsJsx: false,
 		returnsOnlyNullOrJsx: true,
 		callsHook: false,
+		returnsRendererCall: false,
 	};
 	if (!body) return result;
 
@@ -185,6 +213,33 @@ const analyseBody = (
 		importedNames,
 		localFunctionDecls,
 	} = importInfo;
+
+	/**
+	 * Whether a CallExpression callee is a known renderer function
+	 * (useRender, createElement, jsx, jsxs) — bare identifier or React
+	 * namespace member expression.
+	 */
+	const isKnownRendererCallee = (
+		callee: ESTree.Expression | undefined,
+	): boolean => {
+		if (!callee) return false;
+
+		if (callee.type === 'Identifier' && KNOWN_RENDERERS.has(callee.name)) {
+			return true;
+		}
+
+		if (
+			callee.type === 'MemberExpression' &&
+			callee.object.type === 'Identifier' &&
+			reactNamespaces.has(callee.object.name) &&
+			callee.property.type === 'Identifier' &&
+			KNOWN_RENDERERS.has(callee.property.name)
+		) {
+			return true;
+		}
+
+		return false;
+	};
 
 	const isHookCallee = (callee: ESTree.Expression | undefined): boolean => {
 		if (!callee) return false;
@@ -258,6 +313,23 @@ const analyseBody = (
 				if (arg === null || arg === undefined) continue;
 				if (expressionContainsJsx(arg)) {
 					result.returnsJsx = true;
+				} else if (
+					arg.type === 'CallExpression' &&
+					isKnownRendererCallee(arg.callee)
+				) {
+					// PascalCase function returning useRender(...), createElement(...),
+					// jsx(...), or jsxs(...) — component even without direct JSX.
+					result.returnsRendererCall = true;
+				} else if (
+					arg.type === 'CallExpression' &&
+					arg.callee.type === 'Identifier' &&
+					isLocalRenderDelegate(arg.callee.name, importInfo, visiting)
+				) {
+					// #1283: `return someLocalHelper(...)` where the helper's own body
+					// yields JSX (directly, through further such helpers, or through a
+					// known renderer). The declaration shape is the signal, so a
+					// non-allowlisted render wrapper cannot hide the component.
+					result.returnsRendererCall = true;
 				} else {
 					const isNullLike =
 						(arg.type === 'Literal' && arg.value === null) ||
@@ -309,15 +381,49 @@ const analyseBody = (
 	return result;
 };
 
+/**
+ * Whether a `return name(...)` call delegates rendering to a top-level LOCAL
+ * helper whose own body yields JSX — directly, through further such helpers,
+ * or through a known renderer call (#1283). Imported and member-expression
+ * callees are not resolved. `visiting` carries the resolution stack so
+ * mutually recursive helpers terminate.
+ */
+const isLocalRenderDelegate = (
+	name: string,
+	importInfo: ImportInfo,
+	visiting: Set<string>,
+): boolean => {
+	const { importedNames, localFunctionDecls } = importInfo;
+	if (importedNames.has(name)) return false;
+	const localFn = localFunctionDecls.get(name);
+	if (!localFn) return false;
+	if (visiting.has(name)) return false;
+
+	const fnBody = localFn.body;
+	if (!fnBody) return false;
+	const next = new Set(visiting).add(name);
+
+	if (fnBody.type === 'BlockStatement') {
+		const nested = analyseBody(fnBody, importInfo, next, next);
+		return nested.returnsJsx || nested.returnsRendererCall;
+	}
+
+	// Concise arrow body (`const h = (props) => <div {...props} />`).
+	if (expressionContainsJsx(fnBody)) return true;
+	if (fnBody.type === 'CallExpression' && fnBody.callee.type === 'Identifier') {
+		return isLocalRenderDelegate(fnBody.callee.name, importInfo, next);
+	}
+	return false;
+};
+
 const bodyLooksLikeComponent = (
 	body: ESTree.FunctionBody | null | undefined,
 	importInfo: ImportInfo,
 ): boolean => {
-	const { returnsJsx, returnsOnlyNullOrJsx, callsHook } = analyseBody(
-		body,
-		importInfo,
-	);
+	const { returnsJsx, returnsOnlyNullOrJsx, callsHook, returnsRendererCall } =
+		analyseBody(body, importInfo);
 	if (returnsJsx) return true;
+	if (returnsRendererCall) return true;
 	if (callsHook && returnsOnlyNullOrJsx) return true;
 	return false;
 };

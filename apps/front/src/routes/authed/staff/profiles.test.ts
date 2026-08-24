@@ -234,4 +234,28 @@ describe('buildCreateStaffProfileBody', () => {
 		expect(body.permissions).toBeUndefined();
 		expect(body.emails).toBeUndefined();
 	});
+
+	test('#980: serializes a chosen icon and tone onto the create body', () => {
+		const body = buildCreateStaffProfileBody({
+			name: 'Styled profile',
+			permissions: [],
+			icon: 'star',
+			tone: '6',
+		});
+
+		expect(unwrapUntyped(body.icon)).toBe('star');
+		expect(unwrapUntyped(body.tone)).toBe('6');
+	});
+
+	test('#980: omits icon and tone from the create body when none was chosen', () => {
+		const body = buildCreateStaffProfileBody({
+			name: 'Bare profile',
+			permissions: [],
+			icon: null,
+			tone: null,
+		});
+
+		expect(body.icon).toBeUndefined();
+		expect(body.tone).toBeUndefined();
+	});
 });

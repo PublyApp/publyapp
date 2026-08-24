@@ -86,7 +86,7 @@
 	},
 	{
 		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx",
+		"file": "src/routes/authed/staff/tenants/$tenantId/users/_user-detail-cards.tsx",
 		"reason": "avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data"
 	},
 	{

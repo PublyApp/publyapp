@@ -3,20 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { staffUserCrumbsBase } from './_crumbs';
 
-export const Route = createFileRoute(
-	'/_authed-layout/staff/staff-users/$userId/permissions',
-)({
-	staticData: {
-		i18nNamespaces: ['staff-users'],
-		crumbs: (params) => [
-			...staffUserCrumbsBase(params),
-			{ kind: 'label', labelKey: 'common:permissions' },
-		],
-	},
-	component: StaffUserPermissionsTab,
-});
-
-function StaffUserPermissionsTab() {
+const StaffUserPermissionsTab = () => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
 	return (
@@ -29,4 +16,17 @@ function StaffUserPermissionsTab() {
 			</p>
 		</div>
 	);
-}
+};
+
+export const Route = createFileRoute(
+	'/_authed-layout/staff/staff-users/$userId/permissions',
+)({
+	staticData: {
+		i18nNamespaces: ['staff-users'],
+		crumbs: (params) => [
+			...staffUserCrumbsBase(params),
+			{ kind: 'label', labelKey: 'common:permissions' },
+		],
+	},
+	component: StaffUserPermissionsTab,
+});

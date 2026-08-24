@@ -61,6 +61,7 @@ import { Route as authedStaffTenantsTenantIdUsersRouteImport } from './routes/au
 import { Route as authedStaffTenantsTenantIdProfilesRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles'
 import { Route as authedStaffTenantsTenantIdInvitationsRouteImport } from './routes/authed/staff/tenants/$tenantId/invitations'
 import { Route as authedStaffTenantsTenantIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId-edit'
+import { Route as authedStaffTenantUsersDetailsUserIdRouteImport } from './routes/authed/staff/tenant-users-details-$userId'
 import { Route as authedStaffStaffUsersUserIdSettingsRouteImport } from './routes/authed/staff/staff-users/$userId/settings'
 import { Route as authedStaffStaffUsersUserIdPermissionsRouteImport } from './routes/authed/staff/staff-users/$userId/permissions'
 import { Route as authedStaffStaffUsersUserIdEditRouteImport } from './routes/authed/staff/staff-users/$userId-edit'
@@ -70,6 +71,9 @@ import { Route as authedStaffTenantsTenantIdUsersInviteRouteImport } from './rou
 import { Route as authedStaffTenantsTenantIdUsersUserIdRouteImport } from './routes/authed/staff/tenants/$tenantId/users/$userId'
 import { Route as authedStaffTenantsTenantIdProfilesNewRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles-new'
 import { Route as authedStaffTenantsTenantIdProfilesProfileIdRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId'
+import { Route as authedStaffTenantUsersUserIdOrganizationsRouteImport } from './routes/authed/staff/tenant-users/$userId-organizations'
+import { Route as authedStaffTenantUsersUserIdGeneralRouteImport } from './routes/authed/staff/tenant-users/$userId-general'
+import { Route as authedStaffTenantUserDetailsTabFallbackRouteImport } from './routes/authed/staff/_tenant-user-details-tab-fallback'
 import { Route as authedStaffTenantsTenantIdProfilesProfileIdIndexRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId/index'
 import { Route as authedStaffTenantsTenantIdUsersUserIdEditRouteImport } from './routes/authed/staff/tenants/$tenantId/users/$userId-edit'
 import { Route as authedStaffTenantsTenantIdProfilesProfileIdUsersRouteImport } from './routes/authed/staff/tenants/$tenantId/profiles/$profileId/users'
@@ -365,6 +369,12 @@ const authedStaffTenantsTenantIdEditRoute =
     path: '/staff/tenants/$tenantId/edit',
     getParentRoute: () => authedLayoutRoute,
   } as any)
+const authedStaffTenantUsersDetailsUserIdRoute =
+  authedStaffTenantUsersDetailsUserIdRouteImport.update({
+    id: '/staff/tenant-users/details/$userId',
+    path: '/staff/tenant-users/details/$userId',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
 const authedStaffStaffUsersUserIdSettingsRoute =
   authedStaffStaffUsersUserIdSettingsRouteImport.update({
     id: '/settings',
@@ -417,6 +427,24 @@ const authedStaffTenantsTenantIdProfilesProfileIdRoute =
   authedStaffTenantsTenantIdProfilesProfileIdRouteImport.update({
     id: '/staff/tenants/$tenantId/profiles/$profileId',
     path: '/staff/tenants/$tenantId/profiles/$profileId',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffTenantUsersUserIdOrganizationsRoute =
+  authedStaffTenantUsersUserIdOrganizationsRouteImport.update({
+    id: '/staff/tenant-users/details/$userId/organizations',
+    path: '/staff/tenant-users/details/$userId/organizations',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffTenantUsersUserIdGeneralRoute =
+  authedStaffTenantUsersUserIdGeneralRouteImport.update({
+    id: '/staff/tenant-users/details/$userId/general',
+    path: '/staff/tenant-users/details/$userId/general',
+    getParentRoute: () => authedLayoutRoute,
+  } as any)
+const authedStaffTenantUserDetailsTabFallbackRoute =
+  authedStaffTenantUserDetailsTabFallbackRouteImport.update({
+    id: '/staff/tenant-users/details/$userId/$tab',
+    path: '/staff/tenant-users/details/$userId/$tab',
     getParentRoute: () => authedLayoutRoute,
   } as any)
 const authedStaffTenantsTenantIdProfilesProfileIdIndexRoute =
@@ -507,12 +535,16 @@ export interface FileRoutesByFullPath {
   '/staff/staff-users/$userId/edit': typeof authedStaffStaffUsersUserIdEditRoute
   '/staff/staff-users/$userId/permissions': typeof authedStaffStaffUsersUserIdPermissionsRoute
   '/staff/staff-users/$userId/settings': typeof authedStaffStaffUsersUserIdSettingsRoute
+  '/staff/tenant-users/details/$userId': typeof authedStaffTenantUsersDetailsUserIdRoute
   '/staff/tenants/$tenantId/edit': typeof authedStaffTenantsTenantIdEditRoute
   '/staff/tenants/$tenantId/invitations': typeof authedStaffTenantsTenantIdInvitationsRoute
   '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
   '/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
   '/tenant/posts/$postId/edit': typeof authedTenantPostsPostIdEditRoute
   '/staff/staff-users/$userId/': typeof authedStaffStaffUsersUserIdIndexRoute
+  '/staff/tenant-users/details/$userId/$tab': typeof authedStaffTenantUserDetailsTabFallbackRoute
+  '/staff/tenant-users/details/$userId/general': typeof authedStaffTenantUsersUserIdGeneralRoute
+  '/staff/tenant-users/details/$userId/organizations': typeof authedStaffTenantUsersUserIdOrganizationsRoute
   '/staff/tenants/$tenantId/profiles/$profileId': typeof authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren
   '/staff/tenants/$tenantId/profiles/new': typeof authedStaffTenantsTenantIdProfilesNewRoute
   '/staff/tenants/$tenantId/users/$userId': typeof authedStaffTenantsTenantIdUsersUserIdRoute
@@ -570,12 +602,16 @@ export interface FileRoutesByTo {
   '/staff/staff-users/$userId/edit': typeof authedStaffStaffUsersUserIdEditRoute
   '/staff/staff-users/$userId/permissions': typeof authedStaffStaffUsersUserIdPermissionsRoute
   '/staff/staff-users/$userId/settings': typeof authedStaffStaffUsersUserIdSettingsRoute
+  '/staff/tenant-users/details/$userId': typeof authedStaffTenantUsersDetailsUserIdRoute
   '/staff/tenants/$tenantId/edit': typeof authedStaffTenantsTenantIdEditRoute
   '/staff/tenants/$tenantId/invitations': typeof authedStaffTenantsTenantIdInvitationsRoute
   '/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
   '/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
   '/tenant/posts/$postId/edit': typeof authedTenantPostsPostIdEditRoute
   '/staff/staff-users/$userId': typeof authedStaffStaffUsersUserIdIndexRoute
+  '/staff/tenant-users/details/$userId/$tab': typeof authedStaffTenantUserDetailsTabFallbackRoute
+  '/staff/tenant-users/details/$userId/general': typeof authedStaffTenantUsersUserIdGeneralRoute
+  '/staff/tenant-users/details/$userId/organizations': typeof authedStaffTenantUsersUserIdOrganizationsRoute
   '/staff/tenants/$tenantId/profiles/new': typeof authedStaffTenantsTenantIdProfilesNewRoute
   '/staff/tenants/$tenantId/users/$userId': typeof authedStaffTenantsTenantIdUsersUserIdRoute
   '/staff/tenants/$tenantId/users/invite': typeof authedStaffTenantsTenantIdUsersInviteRoute
@@ -639,12 +675,16 @@ export interface FileRoutesById {
   '/_authed-layout/staff/staff-users/$userId/edit': typeof authedStaffStaffUsersUserIdEditRoute
   '/_authed-layout/staff/staff-users/$userId/permissions': typeof authedStaffStaffUsersUserIdPermissionsRoute
   '/_authed-layout/staff/staff-users/$userId/settings': typeof authedStaffStaffUsersUserIdSettingsRoute
+  '/_authed-layout/staff/tenant-users/details/$userId': typeof authedStaffTenantUsersDetailsUserIdRoute
   '/_authed-layout/staff/tenants/$tenantId/edit': typeof authedStaffTenantsTenantIdEditRoute
   '/_authed-layout/staff/tenants/$tenantId/invitations': typeof authedStaffTenantsTenantIdInvitationsRoute
   '/_authed-layout/staff/tenants/$tenantId/profiles': typeof authedStaffTenantsTenantIdProfilesRoute
   '/_authed-layout/staff/tenants/$tenantId/users': typeof authedStaffTenantsTenantIdUsersRoute
   '/_authed-layout/tenant/posts/$postId/edit': typeof authedTenantPostsPostIdEditRoute
   '/_authed-layout/staff/staff-users/$userId/': typeof authedStaffStaffUsersUserIdIndexRoute
+  '/_authed-layout/staff/tenant-users/details/$userId/$tab': typeof authedStaffTenantUserDetailsTabFallbackRoute
+  '/_authed-layout/staff/tenant-users/details/$userId/general': typeof authedStaffTenantUsersUserIdGeneralRoute
+  '/_authed-layout/staff/tenant-users/details/$userId/organizations': typeof authedStaffTenantUsersUserIdOrganizationsRoute
   '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId': typeof authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren
   '/_authed-layout/staff/tenants/$tenantId/profiles/new': typeof authedStaffTenantsTenantIdProfilesNewRoute
   '/_authed-layout/staff/tenants/$tenantId/users/$userId': typeof authedStaffTenantsTenantIdUsersUserIdRoute
@@ -709,12 +749,16 @@ export interface FileRouteTypes {
     | '/staff/staff-users/$userId/edit'
     | '/staff/staff-users/$userId/permissions'
     | '/staff/staff-users/$userId/settings'
+    | '/staff/tenant-users/details/$userId'
     | '/staff/tenants/$tenantId/edit'
     | '/staff/tenants/$tenantId/invitations'
     | '/staff/tenants/$tenantId/profiles'
     | '/staff/tenants/$tenantId/users'
     | '/tenant/posts/$postId/edit'
     | '/staff/staff-users/$userId/'
+    | '/staff/tenant-users/details/$userId/$tab'
+    | '/staff/tenant-users/details/$userId/general'
+    | '/staff/tenant-users/details/$userId/organizations'
     | '/staff/tenants/$tenantId/profiles/$profileId'
     | '/staff/tenants/$tenantId/profiles/new'
     | '/staff/tenants/$tenantId/users/$userId'
@@ -772,12 +816,16 @@ export interface FileRouteTypes {
     | '/staff/staff-users/$userId/edit'
     | '/staff/staff-users/$userId/permissions'
     | '/staff/staff-users/$userId/settings'
+    | '/staff/tenant-users/details/$userId'
     | '/staff/tenants/$tenantId/edit'
     | '/staff/tenants/$tenantId/invitations'
     | '/staff/tenants/$tenantId/profiles'
     | '/staff/tenants/$tenantId/users'
     | '/tenant/posts/$postId/edit'
     | '/staff/staff-users/$userId'
+    | '/staff/tenant-users/details/$userId/$tab'
+    | '/staff/tenant-users/details/$userId/general'
+    | '/staff/tenant-users/details/$userId/organizations'
     | '/staff/tenants/$tenantId/profiles/new'
     | '/staff/tenants/$tenantId/users/$userId'
     | '/staff/tenants/$tenantId/users/invite'
@@ -840,12 +888,16 @@ export interface FileRouteTypes {
     | '/_authed-layout/staff/staff-users/$userId/edit'
     | '/_authed-layout/staff/staff-users/$userId/permissions'
     | '/_authed-layout/staff/staff-users/$userId/settings'
+    | '/_authed-layout/staff/tenant-users/details/$userId'
     | '/_authed-layout/staff/tenants/$tenantId/edit'
     | '/_authed-layout/staff/tenants/$tenantId/invitations'
     | '/_authed-layout/staff/tenants/$tenantId/profiles'
     | '/_authed-layout/staff/tenants/$tenantId/users'
     | '/_authed-layout/tenant/posts/$postId/edit'
     | '/_authed-layout/staff/staff-users/$userId/'
+    | '/_authed-layout/staff/tenant-users/details/$userId/$tab'
+    | '/_authed-layout/staff/tenant-users/details/$userId/general'
+    | '/_authed-layout/staff/tenant-users/details/$userId/organizations'
     | '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId'
     | '/_authed-layout/staff/tenants/$tenantId/profiles/new'
     | '/_authed-layout/staff/tenants/$tenantId/users/$userId'
@@ -1236,6 +1288,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authedStaffTenantsTenantIdEditRouteImport
       parentRoute: typeof authedLayoutRoute
     }
+    '/_authed-layout/staff/tenant-users/details/$userId': {
+      id: '/_authed-layout/staff/tenant-users/details/$userId'
+      path: '/staff/tenant-users/details/$userId'
+      fullPath: '/staff/tenant-users/details/$userId'
+      preLoaderRoute: typeof authedStaffTenantUsersDetailsUserIdRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
     '/_authed-layout/staff/staff-users/$userId/settings': {
       id: '/_authed-layout/staff/staff-users/$userId/settings'
       path: '/settings'
@@ -1297,6 +1356,27 @@ declare module '@tanstack/react-router' {
       path: '/staff/tenants/$tenantId/profiles/$profileId'
       fullPath: '/staff/tenants/$tenantId/profiles/$profileId'
       preLoaderRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/tenant-users/details/$userId/organizations': {
+      id: '/_authed-layout/staff/tenant-users/details/$userId/organizations'
+      path: '/staff/tenant-users/details/$userId/organizations'
+      fullPath: '/staff/tenant-users/details/$userId/organizations'
+      preLoaderRoute: typeof authedStaffTenantUsersUserIdOrganizationsRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/tenant-users/details/$userId/general': {
+      id: '/_authed-layout/staff/tenant-users/details/$userId/general'
+      path: '/staff/tenant-users/details/$userId/general'
+      fullPath: '/staff/tenant-users/details/$userId/general'
+      preLoaderRoute: typeof authedStaffTenantUsersUserIdGeneralRouteImport
+      parentRoute: typeof authedLayoutRoute
+    }
+    '/_authed-layout/staff/tenant-users/details/$userId/$tab': {
+      id: '/_authed-layout/staff/tenant-users/details/$userId/$tab'
+      path: '/staff/tenant-users/details/$userId/$tab'
+      fullPath: '/staff/tenant-users/details/$userId/$tab'
+      preLoaderRoute: typeof authedStaffTenantUserDetailsTabFallbackRouteImport
       parentRoute: typeof authedLayoutRoute
     }
     '/_authed-layout/staff/tenants/$tenantId/profiles/$profileId/': {
@@ -1498,10 +1578,14 @@ interface authedLayoutRouteChildren {
   authedStaffTenantsNewRoute: typeof authedStaffTenantsNewRoute
   authedStaffProfilesProfileIdUsersRoute: typeof authedStaffProfilesProfileIdUsersRoute
   authedStaffStaffUsersUserIdEditRoute: typeof authedStaffStaffUsersUserIdEditRoute
+  authedStaffTenantUsersDetailsUserIdRoute: typeof authedStaffTenantUsersDetailsUserIdRoute
   authedStaffTenantsTenantIdEditRoute: typeof authedStaffTenantsTenantIdEditRoute
   authedStaffTenantsTenantIdInvitationsRoute: typeof authedStaffTenantsTenantIdInvitationsRoute
   authedStaffTenantsTenantIdProfilesRoute: typeof authedStaffTenantsTenantIdProfilesRoute
   authedStaffTenantsTenantIdUsersRoute: typeof authedStaffTenantsTenantIdUsersRoute
+  authedStaffTenantUserDetailsTabFallbackRoute: typeof authedStaffTenantUserDetailsTabFallbackRoute
+  authedStaffTenantUsersUserIdGeneralRoute: typeof authedStaffTenantUsersUserIdGeneralRoute
+  authedStaffTenantUsersUserIdOrganizationsRoute: typeof authedStaffTenantUsersUserIdOrganizationsRoute
   authedStaffTenantsTenantIdProfilesProfileIdRoute: typeof authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren
   authedStaffTenantsTenantIdProfilesNewRoute: typeof authedStaffTenantsTenantIdProfilesNewRoute
   authedStaffTenantsTenantIdUsersUserIdRoute: typeof authedStaffTenantsTenantIdUsersUserIdRoute
@@ -1533,12 +1617,20 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedStaffProfilesProfileIdUsersRoute:
     authedStaffProfilesProfileIdUsersRoute,
   authedStaffStaffUsersUserIdEditRoute: authedStaffStaffUsersUserIdEditRoute,
+  authedStaffTenantUsersDetailsUserIdRoute:
+    authedStaffTenantUsersDetailsUserIdRoute,
   authedStaffTenantsTenantIdEditRoute: authedStaffTenantsTenantIdEditRoute,
   authedStaffTenantsTenantIdInvitationsRoute:
     authedStaffTenantsTenantIdInvitationsRoute,
   authedStaffTenantsTenantIdProfilesRoute:
     authedStaffTenantsTenantIdProfilesRoute,
   authedStaffTenantsTenantIdUsersRoute: authedStaffTenantsTenantIdUsersRoute,
+  authedStaffTenantUserDetailsTabFallbackRoute:
+    authedStaffTenantUserDetailsTabFallbackRoute,
+  authedStaffTenantUsersUserIdGeneralRoute:
+    authedStaffTenantUsersUserIdGeneralRoute,
+  authedStaffTenantUsersUserIdOrganizationsRoute:
+    authedStaffTenantUsersUserIdOrganizationsRoute,
   authedStaffTenantsTenantIdProfilesProfileIdRoute:
     authedStaffTenantsTenantIdProfilesProfileIdRouteWithChildren,
   authedStaffTenantsTenantIdProfilesNewRoute:
@@ -1573,12 +1665,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
