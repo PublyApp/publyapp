@@ -209,6 +209,10 @@ For the social accounts master key (`SOCIAL_ACCOUNTS_MASTER_KEY`), the boot cana
 verifies it, its one structured pass log line, and the db-less OpenAPI build path where the
 canary is skipped, see: [`docs/guides/social-accounts.md`](docs/guides/social-accounts.md)
 
+For upload admission control (durable byte budgets reserved atomically before a file is
+opened) and the `UploadAsset` lifecycle with atomic reference transitions (no TOCTOU
+deletes), see: [`docs/guides/uploads.md`](docs/guides/uploads.md)
+
 **Key facts (always apply):**
 - Staff/Tenant mutual exclusivity: a `User` can only have accounts of ONE scope type (Staff or Tenant/Project, never both); suspended accounts still count
 - PostgreSQL 18 with UUID v7 PKs, soft deletes (`IsDeleted`), and audit tracking

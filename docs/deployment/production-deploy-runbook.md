@@ -68,6 +68,9 @@ Before triggering the stack deployment:
   [`first-deploy-runbook.md`](first-deploy-runbook.md) §5a.
 - Confirm `SOCIAL_ACCOUNTS_MASTER_KEY` is set for `api`, `worker`, and `migrate` (one generated `openssl rand -base64 32` value shared by all three; a missing or divergent value refuses to boot them). The committed all-zero base64 string is the build/e2e placeholder only — never a deployable value.
 - Confirm the migration service joins a network that resolves and reaches PostgreSQL.
+- Confirm the upload budget variables (`UPLOAD_GLOBAL_MAX_BYTES`, `UPLOAD_PER_STAFF_MAX_BYTES`,
+  `UPLOAD_ORPHAN_GRACE_DAYS`) are set for `api` and `worker` (safe defaults apply when omitted;
+  semantics: [`guides/uploads.md`](../guides/uploads.md)).
 - Confirm the persistent API storage volume is mounted and writable by the runtime UID.
 
 During deployment:
