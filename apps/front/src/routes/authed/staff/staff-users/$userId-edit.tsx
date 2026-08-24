@@ -77,6 +77,20 @@ const getStaffUserEditSchema = (t: (key: string) => string) =>
 
 type StaffUserEditValues = z.infer<ReturnType<typeof getStaffUserEditSchema>>;
 
+/** What a successful save committed, tagged with the user it belongs to. */
+type SavedStaffUserEditValues = StaffUserEditValues & { userId: string };
+
+// #1314-r1: the nav guard must decide from values it can read LIVE at the
+// moment a navigation runs. `history.block` stacks every registered closure
+// and consults them ALL, so no render-frozen snapshot qualifies: a closure
+// registered on an earlier render would read stale data exactly during the
+// post-save redirect (the reviewed MAJOR). These module-level snapshots are
+// written only outside render (hydration effect / submit handler) and read
+// only inside the guard's callback, so every stacked closure sees the truth
+// without any render-time ref access.
+const pristineValuesByUserId = new Map<string, SavedStaffUserEditValues>();
+const lastSavedValuesByUserId = new Map<string, SavedStaffUserEditValues>();
+
 const normalizeAccountLevel = (
 	value: string | null,
 ): StaffUserEditValues['accountLevel'] =>
@@ -84,6 +98,27 @@ const normalizeAccountLevel = (
 
 const normalizeStatus = (value: string | null): StaffUserEditValues['status'] =>
 	value === 'Suspended' ? 'Suspended' : 'Active';
+
+/**
+ * Strict per-field equality over the edit form's values. The nav guard
+ * compares the LIVE form values against the last hydrated (pristine) and the
+ * last successfully saved snapshots — both held in component refs that are
+ * written outside render and read only inside the guard's callback.
+ */
+const staffUserEditValuesMatch = (
+	left: StaffUserEditValues,
+	right: StaffUserEditValues,
+): boolean =>
+	left.firstName === right.firstName &&
+	left.lastName === right.lastName &&
+	left.avatarUrl === right.avatarUrl &&
+	left.email === right.email &&
+	left.accountLevel === right.accountLevel &&
+	left.status === right.status &&
+	left.profileIds.length === right.profileIds.length &&
+	left.profileIds.every(
+		(profileId, index) => profileId === right.profileIds[index],
+	);
 
 const isProblemStatus = (
 	error: unknown,
@@ -205,7 +240,6 @@ const StaffUserEditPage = () => {
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const isProfileSearchSettled = profileSearch.trim() === deferredProfileSearch;
-	const [hasSaved, setHasSaved] = useState(false);
 
 	const detailsQuery = useStaffUserDetailsQuery(
 		{ userId },
@@ -264,21 +298,28 @@ const StaffUserEditPage = () => {
 	// absorbed through React's documented "adjust state during render"
 	// pattern: guarded, keyed setState calls that React replays by discarding
 	// the in-flight render, so the store converges without effects or refs.
+	// Hoisted like the pending/error flags below (#1305 idiom): the keyed
+	// absorption logic branches on a plain local, not a raw query flag.
+	const profilesIsSuccess = profilesQuery.isSuccess;
 	const [knownProfileNamesById, setKnownProfileNamesById] = useState(() => {
 		const seeded = new Map<string, string>();
 		rememberStaffProfileNames(seeded, assignedProfiles);
-		if (profilesQuery.isSuccess) {
+		if (profilesIsSuccess) {
 			rememberStaffProfileNames(seeded, profilesQuery.data?.data);
 		}
 
 		return seeded;
 	});
-	// Seen-payload keys are content hashes rather than object identity so a
-	// caller recreating payload objects per render cannot loop the store.
-	const catalogueSeenKey = JSON.stringify([
-		profilesQuery.isSuccess,
-		profilesQuery.data?.data ?? null,
-	]);
+	// Seen-payload keys derive from stable row identities (ids + names) —
+	// the same content the assigned-side key below uses. Serialising the raw
+	// payload with JSON.stringify here would throw DURING RENDER if the
+	// catalogue ever carried a cyclic value (#1314-r1); ids/names cannot.
+	const catalogueSeenKey = [
+		profilesIsSuccess ? 'success' : 'pending',
+		...(profilesQuery.data?.data ?? []).map(
+			(profile) => `${profile.id}·${profile.name ?? ''}`,
+		),
+	].join('¦');
 	const assignedSeenKey = assignedProfiles
 		.map((profile) => `${profile.id}·${profile.name ?? ''}`)
 		.join('¦');
@@ -289,7 +330,7 @@ const StaffUserEditPage = () => {
 	);
 	if (seenCatalogueKey !== catalogueSeenKey) {
 		setSeenCatalogueKey(catalogueSeenKey);
-		if (profilesQuery.isSuccess) {
+		if (profilesIsSuccess) {
 			setHasLoadedProfiles(true);
 			setKnownProfileNamesById((previous) => {
 				const merged = new Map<string, string>(previous);
@@ -343,7 +384,7 @@ const StaffUserEditPage = () => {
 			return;
 		}
 
-		reset({
+		const nextValues: StaffUserEditValues = {
 			firstName: user.firstName ?? '',
 			lastName: user.lastName ?? '',
 			avatarUrl: user.avatarUrl ?? '',
@@ -351,8 +392,15 @@ const StaffUserEditPage = () => {
 			accountLevel: normalizeAccountLevel(user.accountLevel),
 			status: normalizeStatus(user.status),
 			profileIds: assignedProfiles.map((profile) => profile.id),
-		});
+		};
+		reset(nextValues);
 		hydratedUserIdRef.current = userId;
+		// Pristine-truth snapshot for the guard, kept in lockstep with the
+		// reset above. A fresh hydration also invalidates any saved snapshot
+		// left over from a previous visit: the server state it described may
+		// have diverged since.
+		pristineValuesByUserId.set(userId, { ...nextValues, userId });
+		lastSavedValuesByUserId.delete(userId);
 	}, [
 		assignedProfiles,
 		formState.isDirty,
@@ -365,7 +413,22 @@ const StaffUserEditPage = () => {
 	]);
 
 	const blocker = useBlocker({
-		shouldBlockFn: () => formState.isDirty && !hasSaved,
+		// Decides from the LIVE form values compared against the pristine
+		// (hydration-time) or last-saved snapshot — never from a
+		// render-frozen copy. Every closure `history.block` has stacked is
+		// consulted at navigation time, so a state-based `hasSaved` flag can
+		// never answer synchronously here without reading stale data exactly
+		// on the post-save redirect (#1314-r1 MAJOR).
+		shouldBlockFn: () => {
+			const saved = lastSavedValuesByUserId.get(userId);
+			const hydrated = pristineValuesByUserId.get(userId);
+			const baseline = saved ?? hydrated;
+			if (!baseline) {
+				return false;
+			}
+
+			return !staffUserEditValuesMatch(methods.getValues(), baseline);
+		},
 		withResolver: true,
 	});
 
@@ -543,7 +606,10 @@ const StaffUserEditPage = () => {
 			await invalidateStaffUsers(queryClient);
 		}
 
-		setHasSaved(true);
+		// Recorded synchronously BEFORE the redirect below: the guard compares
+		// against this snapshot live, so the stacked blocker closures see the
+		// post-save truth in the same tick `navigate()` runs.
+		lastSavedValuesByUserId.set(userId, { ...values, userId });
 		toastLocalMutationResult.success(t('staff-user-updated-success'));
 		void navigate({
 			to: '/staff/staff-users/$userId',
