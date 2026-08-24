@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
@@ -104,44 +104,40 @@ const StaffTenantInvitationsPage = () => {
 		},
 	);
 
-	const handleRevoke = useCallback(
-		async (row: StaffTenantInvitationRow) => {
-			try {
-				await revokeInvitation.mutateAsync({
-					tenantId,
-					invitationId: row.id,
-				});
-				await invalidateAllStaffTenantScopes(queryClient);
-			} catch (error) {
-				// Reset pending state on every exit path — no try/finally,
-				// which the React Compiler cannot lower yet.
-				if (shouldLogoutForFailure(error)) {
-					setShouldRedirectToLogout(true);
-					setPendingRevokeRowId(null);
-					return;
-				}
+	// Plain functions + unwrapped columns: the React Compiler caches each per
+	// value, and the manual useCallback/useMemo chain triggered preserve-memo
+	// diagnostics that skipped optimizing this component.
+	const handleRevoke = async (row: StaffTenantInvitationRow) => {
+		try {
+			await revokeInvitation.mutateAsync({
+				tenantId,
+				invitationId: row.id,
+			});
+			await invalidateAllStaffTenantScopes(queryClient);
+		} catch (error) {
+			// Reset pending state on every exit path — no try/finally,
+			// which the React Compiler cannot lower yet.
+			if (shouldLogoutForFailure(error)) {
+				setShouldRedirectToLogout(true);
 				setPendingRevokeRowId(null);
 				return;
 			}
 			setPendingRevokeRowId(null);
-		},
-		[queryClient, revokeInvitation, tenantId],
-	);
+			return;
+		}
+		setPendingRevokeRowId(null);
+	};
 
-	const promptRevoke = useCallback((row: StaffTenantInvitationRow) => {
+	const promptRevoke = (row: StaffTenantInvitationRow) => {
 		setPendingRevokeRowId(row.id);
-	}, []);
+	};
 
-	const columns = useMemo(
-		() =>
-			createTenantInvitationColumns({
-				locale: i18n.language,
-				t,
-				isRevokePending: revokeInvitation.isPending,
-				onRevoke: promptRevoke,
-			}),
-		[i18n.language, t, revokeInvitation.isPending, promptRevoke],
-	);
+	const columns = createTenantInvitationColumns({
+		locale: i18n.language,
+		t,
+		isRevokePending: revokeInvitation.isPending,
+		onRevoke: promptRevoke,
+	});
 
 	const rows = toStaffTenantInvitationRows(invitationsQuery.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
