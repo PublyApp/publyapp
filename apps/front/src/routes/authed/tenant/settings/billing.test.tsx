@@ -6,7 +6,10 @@ import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 }));
 
 const EN_LABELS: Record<string, string> = {

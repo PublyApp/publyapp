@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useParams: () => ({
 			profileId: '11111111-1111-1111-1111-111111111111',
 		}),

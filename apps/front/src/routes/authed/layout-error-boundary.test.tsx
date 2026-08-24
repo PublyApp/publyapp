@@ -21,7 +21,10 @@ import frResource from '@org/shared-ts/lib/i18n/locales/fr';
 // `AppErrorView` under a REAL i18next instance in both locales, so a
 // hardcoded English literal shows up as English in the French render.
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	useRouter: () => ({ invalidate: vi.fn() }),
 	Link: ({ children, to }: { children?: ReactNode; to: string }) => (
 		<a href={to}>{children}</a>

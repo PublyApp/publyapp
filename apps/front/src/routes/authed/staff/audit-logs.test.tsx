@@ -3,7 +3,10 @@ import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	Link: (props: { children?: ReactNode }) => props.children ?? null,
 }));
 

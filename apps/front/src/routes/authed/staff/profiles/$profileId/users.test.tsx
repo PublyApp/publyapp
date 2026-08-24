@@ -33,6 +33,7 @@ const labelMap: Record<string, Record<string, string>> = {
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useParams: () => ({ profileId: 'profile-1' }),
 		useSearch: () => ({}),
 		useNavigate: () => mocks.navigate,
