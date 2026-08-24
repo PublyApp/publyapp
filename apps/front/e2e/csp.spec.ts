@@ -49,7 +49,7 @@ const extractAttribute = (
 ): string | undefined => {
 	const match = text.match(
 		new RegExp(
-			`\\b${attribute}(?:\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'>]+)))?`,
+			`\\b${attribute}(?:\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'>]+)))?`,
 		),
 	);
 

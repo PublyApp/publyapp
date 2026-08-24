@@ -1,0 +1,102 @@
+import assert from 'node:assert/strict';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import { test } from 'vitest';
+
+// Guard against dangling script-path references in the gate configuration
+// surfaces (workflows, justfile, root package.json, AGENTS.md).
+//
+// WHY THIS EXISTS
+// ---------------
+// PR #1238's bulk scripts/ -> packages/scripts-ts/src replacement rewrote the
+// justfile `ci-install` recipe to invoke
+// `apps/front/packages/scripts-ts/src/assert-pinned.ts`, a path that never
+// existed (the real script stayed at `apps/front/scripts/assert-pinned.mjs`).
+// `just ci-drift` stayed green because it reconciles only `.github/workflows`,
+// so the broken recipe sat invisibly in the documented local gate until a
+// review round ran `just ci-install` and got MODULE_NOT_FOUND.
+//
+// WHAT THIS PROVES
+// ----------------
+// Every `packages/scripts-ts/src/**` and `apps/front/scripts/*.mjs` path that
+// appears in a gate configuration surface resolves to a file that exists on
+// disk. A renamed, moved, or hallucinated script path in any of these surfaces
+// now fails the scripts-ts suite in CI instead of failing at 2am on someone's
+// machine.
+//
+// WHAT THIS DOES NOT PROVE
+// ------------------------
+// That the referenced script does what the referencing recipe assumes, or that
+// a correct-looking path is invoked with the right arguments. Semantic
+// equivalence between a recipe and its target remains a human judgement, made
+// in review and pinned elsewhere (see docs/guides/local-ci-gate.md).
+//
+// The whole path token is captured, not just the `packages/scripts-ts/src/...`
+// suffix: the original bug hid a nonexistent `apps/front/packages/...` prefix
+// in front of a suffix that DOES exist, and a suffix-only match would have
+// blessed it.
+
+const repoRoot = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	'..',
+	'..',
+	'..',
+);
+
+// Config surfaces whose script references must actually resolve. Workflows are
+// discovered rather than enumerated so a new workflow is covered by default.
+const staticSurfaces = ['AGENTS.md', 'justfile', 'package.json'];
+
+const workflowSurfaces = readdirSync(path.join(repoRoot, '.github/workflows'), {
+	withFileTypes: true,
+})
+	.filter((entry) => entry.isFile())
+	.filter(
+		(entry) => entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'),
+	)
+	.map((entry) => `.github/workflows/${entry.name}`)
+	.sort();
+
+// Whole-token path matches, including any caller-side prefix such as `./`,
+// `apps/front/`, or the bogus `apps/front/packages/` from the original bug.
+const referencedPathPatterns = [
+	/(?:[A-Za-z0-9._-]+\/)*packages\/scripts-ts\/src\/[A-Za-z0-9._-]+\.(?:ts|mjs|json)/g,
+	/(?:[A-Za-z0-9._-]+\/)*apps\/front\/scripts\/[A-Za-z0-9._-]+\.mjs/g,
+];
+
+// `base-ref/packages/scripts-ts/...` names the same package checked out at the
+// merge base inside CI diff jobs; it is intentionally not present locally.
+const exemptPrefixes = ['base-ref/'];
+
+test('every script path referenced by gate config surfaces exists', () => {
+	const dangling = [];
+
+	for (const surface of [...staticSurfaces, ...workflowSurfaces]) {
+		const contents = readFileSync(path.join(repoRoot, surface), 'utf8');
+
+		for (const pattern of referencedPathPatterns) {
+			for (const match of contents.matchAll(pattern)) {
+				const referenced = match[0].replace(/^\.\//, '');
+
+				if (exemptPrefixes.some((prefix) => referenced.startsWith(prefix))) {
+					continue;
+				}
+
+				if (!existsSync(path.join(repoRoot, referenced))) {
+					dangling.push(`${surface}: ${match[0]}`);
+				}
+			}
+		}
+	}
+
+	assert.deepEqual(
+		dangling,
+		[],
+		'Dangling script references found (these paths do not exist):\n' +
+			`${dangling.join('\n')}\n` +
+			'Fix the reference or restore the file. A gate recipe pointing at a\n' +
+			'missing script fails only when someone runs it, which is too late.',
+	);
+});

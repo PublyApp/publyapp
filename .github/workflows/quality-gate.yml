@@ -35,7 +35,7 @@ on:
       - 'PublyApp.slnx'
       - 'apps/**'
       - 'packages/**'
-      - 'scripts/**'
+      - 'packages/scripts-ts/**'
 
 permissions:
   contents: read
@@ -89,7 +89,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: |
-            scripts/ci-changed-paths.mjs
+            packages/scripts-ts/src/ci-changed-paths.ts
           sparse-checkout-cone-mode: false
           path: base-ref
 
@@ -105,23 +105,23 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         # Mirrors the push paths above. The classifier itself
-        # (scripts/ci-changed-paths.mjs) fails closed to relevant=true when
+        # (packages/scripts-ts/src/ci-changed-paths.ts) fails closed to relevant=true when
         # the changed-file list can't be verified complete (GitHub's
         # 3,000-file API ceiling) rather than trusting a truncated list — see
-        # scripts/ci-changed-paths.test.mjs.
+        # packages/scripts-ts/src/ci-changed-paths.test.ts.
         #
         # The base-pinned checkout above can legitimately be empty (see its
         # comment). If so, this fails closed to relevant=true on a path that
         # never invokes the classifier at all, kept structurally separate
         # from the classifier's own answer so a real relevant=false can never
         # be mistaken for "missing" and vice versa. See
-        # scripts/ci-gate-bootstrap.test.mjs, which executes this exact
+        # packages/scripts-ts/src/ci-gate-bootstrap.test.ts, which executes this exact
         # inline script (parsed from this file) against both cases.
         run: |
-          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+          CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/|scripts/)'
+            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -216,13 +216,13 @@ jobs:
         env:
           APP_ROLE: api
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
-        run: node scripts/nuget-audit.mjs
+        run: node packages/scripts-ts/src/nuget-audit.ts
 
       - name: Run NuGet audit fixture tests
         env:
           APP_ROLE: api
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
-        run: node --test ./scripts/nuget-audit.test.mjs
+        run: pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
 
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers
@@ -241,7 +241,7 @@ jobs:
     # `(pull_request || merge_group) && required || push-check` means any
     # future event added to `on:` resolves to the non-required name by
     # default.
-    # scripts/check-ci-gate-structure.mjs pins this exact expression, caps
+    # packages/scripts-ts/src/check-ci-gate-structure.ts pins this exact expression, caps
     # this workflow's `on:` to pull_request/merge_group/push, and scans
     # every job in every workflow so no other job can report one of the
     # required names either.
@@ -264,7 +264,7 @@ jobs:
         # nonempty JSON object whose every entry's result is exactly
         # "success" or "skipped" (GitHub documents only
         # success/failure/cancelled/skipped for needs.<job>.result — see
-        # scripts/ci-gate-aggregation.test.mjs). An empty object/array, a
+        # packages/scripts-ts/src/ci-gate-aggregation.test.ts). An empty object/array, a
         # missing `.result`, or an unrecognized result value (a documented
         # future addition, a typo, a job whose result GitHub reports in a
         # shape this was not written against) must never silently pass
@@ -339,7 +339,7 @@ jobs:
       # `steps.check-required-jobs.outcome` here is not fooled by
       # continue-on-error on that step. `if: always()` so this still runs
       # (and still fails the job) even if the step above failed for real
-      # without continue-on-error. scripts/check-ci-gate-structure.mjs
+      # without continue-on-error. packages/scripts-ts/src/check-ci-gate-structure.ts
       # separately hard-rejects continue-on-error anywhere in this job, as
       # an independent second layer.
       - name: Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)

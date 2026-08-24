@@ -150,6 +150,14 @@ const resolveColor = (
 	}
 	const trimmed = value.trim();
 
+	// #824 (ui F3): the CSS keyword `transparent` is fully transparent — it
+	// composites to the background at alpha 0 and bottoms any contrast ratio
+	// out at 1:1. Modelling it explicitly (instead of discarding it at parse
+	// time) is what makes a winning transparent ring fail the floor loudly.
+	if (trimmed === 'transparent') {
+		return { r: 0, g: 0, b: 0, a: 0 };
+	}
+
 	const varMatch = /^var\((--[\w-]+)\)$/.exec(trimmed);
 	if (varMatch) {
 		const referenced = declarations.get(varMatch[1]);
@@ -312,6 +320,13 @@ const parseRingTokens = (
 			if (ARBITRARY_RING_COLOR_VALUE_PATTERN.test(bracketValue)) {
 				tokens.push({ variants, rawValue: bracketValue, alpha });
 			}
+		} else if (rawColorGroup === 'transparent') {
+			// #824 (ui F3): a REAL Tailwind colour keyword (`ring-transparent`),
+			// previously discarded here — neither bracket nor `--color-*` key — so
+			// a later-authored transparent override could erase a compliant ring
+			// from the simulation while the guard certified clean. Parse it into
+			// an explicit token; resolveColor renders it at alpha 0 (1:1 contrast).
+			tokens.push({ variants, rawValue: 'transparent', alpha });
 		} else if (knownColorNames.has(rawColorGroup)) {
 			tokens.push({ variants, color: rawColorGroup, alpha });
 		}
@@ -345,6 +360,10 @@ const parseFocusBorderTokens = (
 				throw new Error(`Unsupported focused border colour: ${bracketValue}`);
 			}
 			tokens.push({ variants, rawValue: bracketValue, alpha });
+		} else if (rawColorGroup === 'transparent') {
+			// #824 (ui F3): model the keyword instead of silently dropping a real
+			// utility; resolveColor renders it at alpha 0.
+			tokens.push({ variants, rawValue: 'transparent', alpha });
 		} else if (knownColorNames.has(rawColorGroup)) {
 			tokens.push({ variants, color: rawColorGroup, alpha });
 		} else {
@@ -389,6 +408,10 @@ const parseRingOffsetTokens = (
 			if (ARBITRARY_RING_COLOR_VALUE_PATTERN.test(bracketValue)) {
 				tokens.push({ variants, rawValue: bracketValue, alpha: 1 });
 			}
+		} else if (rawColorGroup === 'transparent') {
+			// #824 (ui F3): same silent-discard hole as parseRingTokens above —
+			// parse `ring-offset-transparent` into an explicit token too.
+			tokens.push({ variants, rawValue: 'transparent', alpha: 1 });
 		} else if (knownColorNames.has(rawColorGroup)) {
 			tokens.push({ variants, color: rawColorGroup, alpha: 1 });
 		}
@@ -762,8 +785,14 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			const winnerRgb = winner.color
 				? resolveKnownColorRgb(winner.color)
 				: resolveColor(winner.rawValue as string, declarations, surfaceHex);
+			// #824 (ui F3): the resolved colour can itself carry alpha (the
+			// `transparent` keyword resolves to a:0); the utility's /NN suffix
+			// multiplies it rather than replacing it — matching CSS, where the
+			// rendered colour is composited at the product of both alphas.
+			// (Every non-transparent resolution path returns a:1, so existing
+			// behaviour is unchanged.)
 			const renderedRgb = composite(
-				{ ...winnerRgb, a: winner.alpha },
+				{ ...winnerRgb, a: winner.alpha * winnerRgb.a },
 				surfaceRgb,
 			);
 			return contrastRatio(renderedRgb, surfaceRgb);
@@ -926,6 +955,52 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			).not.toThrow();
 		});
 
+		// F824 ui F3: `ring-transparent` is a REAL, valid Tailwind utility —
+		// Tailwind generates it from the bare keyword `transparent`, which is
+		// why no `--color-transparent` entry exists in the app's `@theme inline`
+		// map. The old parser only accepted names found in `knownColorNames`,
+		// so a focus-visible ring set to transparent produced ZERO tokens and
+		// vanished from this guard entirely: an element whose ONLY authored
+		// focus indicator is `focus-visible:ring-3 focus-visible:ring-transparent`
+		// was certified as compliant ("no resolvable authored focus indicator"
+		// never fired because... there were no tokens at all) while rendering
+		// NO visible focus ring. A token that resolves to full transparency
+		// must be evaluated like any other colour value and fail the contrast
+		// floor, never silently dropped.
+		test(`parseRingTokens resolves the real utility ring-transparent instead of dropping it in ${theme.name} mode (evasion proof)`, () => {
+			expect(
+				parseRingTokens(
+					'focus-visible:ring-3 focus-visible:ring-transparent',
+					knownColorNames,
+				),
+			).toEqual([
+				{ variants: ['focus-visible'], rawValue: 'transparent', alpha: 1 },
+			]);
+			expect(
+				parseRingTokens('focus-visible:ring-transparent', knownColorNames),
+			).toEqual([
+				{ variants: ['focus-visible'], rawValue: 'transparent', alpha: 1 },
+			]);
+			// The width-only utilities stay non-colours.
+			expect(parseRingTokens('ring-3', knownColorNames)).toEqual([]);
+		});
+
+		test(`a ring-transparent-only focus indicator fails closed in ${theme.name} mode (evasion proof)`, () => {
+			// Under the old parser this call saw zero ring tokens and returned
+			// without asserting anything — the invisible-evasion shape. It must
+			// throw: either "no resolvable authored focus indicator" (the
+			// element renders nothing on focus) or a sub-floor contrast ratio
+			// for the fully transparent colour.
+			expect(() =>
+				assertStateCompliant(
+					'evasion-fixture',
+					'focus-visible:ring-3 focus-visible:ring-transparent',
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow();
+		});
+
 		for (const consumerPath of discoveredConsumerPaths) {
 			const consumerLabel = path.relative(srcRootDir, consumerPath);
 			const consumerSource = readFileSync(consumerPath, 'utf8');
@@ -1037,6 +1112,54 @@ describe('focus-ring contrast (W4-GUARDS ui-F1, hardened W5-UI ui-F1)', () => {
 			expect(
 				parseRingTokens('ring-3 ring-offset-2 ring-[3px]', knownColorNames),
 			).toEqual([]);
+		});
+
+		// #824 (ui F3): `ring-transparent` is a REAL authored utility (the
+		// deliberate way to suppress the ring on a state) and used to be
+		// silently discarded by this parser — `transparent` is neither a
+		// bracket value nor a `--color-*` key, so the class produced zero
+		// tokens and a later-authored transparent override could erase a
+		// compliant ring from the simulation while the guard certified the
+		// class as clean. Parse it into an explicit token; `resolveColor`
+		// renders it as fully transparent (contrast bottoms out at 1:1
+		// against any surface), so a winning transparent ring fails the
+		// floor loudly instead of vanishing from the evaluation.
+		test(`parseRingTokens parses ring-transparent into an explicit fully-transparent token in ${theme.name} mode (#824 ui F3)`, () => {
+			expect(
+				parseRingTokens('focus-visible:ring-transparent', knownColorNames),
+			).toEqual([
+				{ variants: ['focus-visible'], rawValue: 'transparent', alpha: 1 },
+			]);
+			expect(
+				parseRingOffsetTokens(
+					'focus-visible:ring-offset-transparent',
+					knownColorNames,
+				),
+			).toEqual([
+				{ variants: ['focus-visible'], rawValue: 'transparent', alpha: 1 },
+			]);
+		});
+
+		test(`a transparent ring overriding a compliant ring on the same variant chain fails loudly in ${theme.name} mode (#824 ui F3 evasion proof)`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'transparent-ring-fixture',
+					'focus-visible:ring-3 focus-visible:ring-ring focus-visible:ring-transparent',
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).toThrow();
+		});
+
+		test(`a transparent ring BEFORE a compliant ring loses the source-order tie-break and stays compliant in ${theme.name} mode (#824 ui F3 companion)`, () => {
+			expect(() =>
+				assertStateCompliant(
+					'transparent-first-fixture',
+					'focus-visible:ring-3 focus-visible:ring-transparent focus-visible:ring-ring',
+					FOCUS_ONLY,
+					'focused only',
+				),
+			).not.toThrow();
 		});
 
 		// W5-VERIFY2's two evasions: an arbitrary-value ring the old parser

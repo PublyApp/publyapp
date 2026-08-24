@@ -512,7 +512,7 @@ const parseFontFaceDeclarations = (cssFile) => {
 	let match;
 	while ((match = faceRegex.exec(cssText)) !== null) {
 		const block = match[1];
-		const urlMatch = /url\((?:'|")?(\/[^'"\)]+\.woff2)(?:'|")?\)/i.exec(block);
+		const urlMatch = /url\((?:'|")?(\/[^'")]+\.woff2)(?:'|")?\)/i.exec(block);
 		if (!urlMatch) {
 			continue;
 		}

@@ -15,7 +15,7 @@ const BASE_URL = 'https://front.localhost:8443';
 const extractAttribute = (tag: string, attribute: string): string | null => {
 	const match = tag.match(
 		new RegExp(
-			`\\b${attribute}\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`,
+			`\\b${attribute}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`,
 			'i',
 		),
 	);

@@ -210,12 +210,17 @@ const statusMenuViolations = (relativePath, source) => {
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.css']);
 const APP_CSS_PATH = 'src/styles/app.css';
 const ROUNDED_RULE_ID = 'no-rounded-full-or-999-radius';
+// F824 (ui F5): referenced by the composed-hex fixture-debt entries below.
+const RAW_COLOR_RULE_ID = 'no-raw-visual-color';
 const KNOWN_HANDOFF_GUARD_DEBT = [
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/query-display.tsx',
 		sourceIncludes: 'animate-spin rounded-full border-2',
 		reason: 'Legacy loading spinner; spinner cleanup is outside Task 1.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
@@ -223,42 +228,63 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 		sourceIncludes:
 			'<Skeleton className="size-[26px] shrink-0 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/table/data-table.tsx',
 		sourceIncludes: '<Skeleton className="h-3 w-40 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/table/data-table.tsx',
 		sourceIncludes: '<Skeleton className="h-3 w-56 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/table/data-table.tsx',
 		sourceIncludes: '<Skeleton className="ml-auto h-5 w-16 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/table/data-table.tsx',
 		sourceIncludes: '<Skeleton className="h-5 w-16 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/table/data-table.tsx',
 		sourceIncludes: 'size-3.5 animate-spin rounded-full',
 		reason: 'Legacy pagination spinner; Task 4 table pass owns this.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/routes/authed/staff/staff-users/$userId.tsx',
 		sourceIncludes: 'h-2 w-2 rounded-full bg-primary',
 		reason: 'Legacy status dot; Staff module pass owns this.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
@@ -269,6 +295,9 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 			'An inline `design-system-ignore` comment cannot suppress this: the rule id ' +
 			'"no-rounded-full-or-999-radius" itself contains the substring "rounded-full" and would ' +
 			'self-trigger a new violation on the comment line, so this is a debt-list entry instead.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 ];
 
@@ -287,6 +316,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'height: 22px !important;',
 		reason:
 			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge h-5 default — real conflict, see rule comment.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 2,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -294,6 +326,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'font-size: 11px !important;',
 		reason:
 			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge text-xs default — real conflict.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 2,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -301,6 +336,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'border-radius: var(--publy-radius-chip) !important;',
 		reason:
 			'.app-shell-workspace-pill/.app-shell-tenant-pill — same computed value as the Badge utility today, but kept explicit and important so a future Badge radius change cannot silently drift the shell chip.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 2,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -308,6 +346,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'padding: 0 8px !important;',
 		reason:
 			'.app-shell-workspace-pill/.app-shell-tenant-pill vs Badge px-2 py-0.5 default — real conflict.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 2,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -315,6 +356,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'background: var(--publy-surface-muted) !important;',
 		reason:
 			'.app-shell-workspace-pill/.app-shell-tenant-pill — Badge outline has no base bg utility, kept important for symmetry with the rest of the rule.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 2,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -322,6 +366,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'color: var(--publy-foreground-muted) !important;',
 		reason:
 			'.app-shell-workspace-pill/.app-shell-tenant-pill/.app-shell-topbar-action-btn vs Badge text-foreground / Button outline defaults — real conflict.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 3,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -329,24 +376,36 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'height: 36px !important;',
 		reason:
 			'.app-shell-topbar-action-btn — matches the Button size="icon" utility value; kept important for symmetry with the radius/border-color overrides in the same rule.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'min-height: 36px !important;',
 		reason: '.app-shell-topbar-action-btn — see height: 36px entry above.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'width: 36px !important;',
 		reason: '.app-shell-topbar-action-btn — see height: 36px entry above.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
 		sourceIncludes: 'min-width: 36px !important;',
 		reason: '.app-shell-topbar-action-btn — see height: 36px entry above.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -354,6 +413,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'border-radius: 999px !important;',
 		reason:
 			".app-shell-topbar-action-btn — deliberately circular vs the Button size utility 12px radius; this is the guard's own documented rounded-full exception for this selector.",
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -361,6 +423,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'border-color: var(--publy-border) !important;',
 		reason:
 			'.app-shell-topbar-action-btn vs Button outline border-(--publy-border-strong) default — real conflict.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -368,6 +433,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'transition-duration: 1ms !important;',
 		reason:
 			'prefers-reduced-motion: reduce — must beat every component/utility transition unconditionally; permanent by design.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -375,6 +443,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'animation-duration: 1ms !important;',
 		reason:
 			'prefers-reduced-motion: reduce — see transition-duration entry above.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -382,6 +453,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'animation-iteration-count: 1 !important;',
 		reason:
 			'prefers-reduced-motion: reduce — see transition-duration entry above.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -389,6 +463,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'scroll-behavior: auto !important;',
 		reason:
 			'prefers-reduced-motion: reduce — see transition-duration entry above.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -396,6 +473,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'transition: none !important;',
 		reason:
 			'html[data-theme-changing] — suppresses cross-fade during the .dark class swap; must beat every transition unconditionally, permanent by design.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	// F4: src/components/ui/ joined the scan this round; each pre-existing
 	// `!`-suffix usage there is now recorded here instead of being invisible.
@@ -405,6 +485,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: '[&>svg]:size-3!',
 		reason:
 			'Pins every Badge icon to 12px regardless of the icon component’s own default size (Tabler icons default to size-4/16px) — a caller’s icon className would otherwise win and break the compact 20px badge.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -412,6 +495,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'border-transparent!',
 		reason:
 			'TabsTrigger renders a native <button> by default (nativeButton); pins the border transparent against the user-agent button border independent of Tailwind’s utility generation order.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -419,6 +505,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 		sourceIncludes: 'top-1/2!',
 		reason:
 			'Overrides Base UI’s own inline arrow-positioning style for the inline-end/inline-start/left/right sides; the default `top` set by the primitive otherwise wins over a plain (non-important) utility.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 4,
 	},
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
@@ -429,6 +518,45 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 			'text constructed as test DATA to verify the cascade resolver now honours ' +
 			'`!important`, not shipped styling — the parser under test genuinely needs ' +
 			'the literal CSS token to exercise the code path the reviewer defeated.',
+		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
+
+		maxOccurrences: 1,
+	},
+	// F824 (ui F5): these three contrast-suite fixtures deliberately compose
+	// their fixture hexes (`'#' + 'ff0000'` etc.) precisely SO THAT the raw-
+	// colour guard cannot see them — they exist to prove the contrast
+	// resolvers still RESOLVE raw values correctly without tripping this very
+	// scan on every run. They are recorded debt against the NEW composition
+	// detectors, not silent exemptions: each carries a hard occurrence budget
+	// and the matched source text is pinned, so editing a fixture past its
+	// budget (or adding another composed colour anywhere) fails the guard.
+	{
+		ruleId: RAW_COLOR_RULE_ID,
+		file: 'src/styles/focus-ring-contrast.test.ts',
+		sourceIncludes: "'#' + 'ffffff'",
+		reason:
+			'Contrast-suite fixture input (ARBITRARY_HEX_FIXTURE) — deliberate ' +
+			'evasion spelling so this guard stays green while the fixture proves ' +
+			'raw arbitrary-value rings still resolve. Test DATA, not shipped styling.',
+		maxOccurrences: 1,
+	},
+	{
+		ruleId: RAW_COLOR_RULE_ID,
+		file: 'src/styles/drawer-description-contrast.test.ts',
+		sourceIncludes: "'#' + 'ff0000'",
+		reason:
+			'Contrast-suite fixture input (rawRed) — same deliberate evasion ' +
+			'spelling as the focus-ring fixture; test DATA for resolver coverage.',
+		maxOccurrences: 1,
+	},
+	{
+		ruleId: RAW_COLOR_RULE_ID,
+		file: 'src/styles/drawer-description-contrast.test.ts',
+		sourceIncludes: "'#' + '111111'",
+		reason:
+			'Contrast-suite fixture input (rawNearBlack) — same deliberate ' +
+			'evasion spelling as rawRed above; test DATA for resolver coverage.',
+		maxOccurrences: 1,
 	},
 ];
 
@@ -453,10 +581,27 @@ for (const debt of KNOWN_HANDOFF_GUARD_DEBT) {
 	}
 }
 
-const KNOWN_GUARD_DEBT = [
+// r1-fix: exported for the permanent zero-slack test, which re-measures every
+// entry against its real file through the production path.
+export const KNOWN_GUARD_DEBT = [
 	...KNOWN_HANDOFF_GUARD_DEBT,
 	...KNOWN_IMPORTANT_FOUNDATION_DEBT,
 ];
+
+// F824 ui F1/tests F2: every entry must carry an explicit, positive integer
+// budget. It cannot be derived from the status quo here (that would quietly
+// re-bless whatever the entry happens to match today), so a missing or
+// non-positive budget fails the module load: fix the code or measure the
+// current occurrences and write them down — do not omit the number.
+for (const debt of KNOWN_GUARD_DEBT) {
+	if (!Number.isInteger(debt.maxOccurrences) || debt.maxOccurrences < 1) {
+		throw new Error(
+			`KNOWN_GUARD_DEBT entry ${debt.ruleId} @ ${debt.file} (${debt.sourceIncludes}) ` +
+				'must declare a positive integer maxOccurrences budget — occurrences beyond the ' +
+				'budget are reported as real violations, so the budget must be explicit.',
+		);
+	}
+}
 
 const escapeRegExpLiteral = (value) =>
 	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -788,6 +933,11 @@ const checkTokenGuardViolations = (fileContentsByRelativePath) => {
 
 	// token-theme-parity: every colour-valued :root token needs an html.dark
 	// counterpart, unless it's on the theme-invariant allowlist above.
+
+	// F824 ui F2: parity ran in ONE direction only — :root tokens were
+	// required to have a dark counterpart, but a token declared ONLY in
+	// html.dark passed as clean, its light-mode value silently falling back
+	// to whatever the cascade default is. The check is now symmetric.
 	for (const [name, value] of rootDeclarations) {
 		if (!COLOR_LITERAL_PATTERN.test(value)) {
 			continue;
@@ -805,6 +955,28 @@ const checkTokenGuardViolations = (fileContentsByRelativePath) => {
 			file: APP_CSS_PATH,
 			line: rootRange
 				? findDeclarationLine(appCssLines, rootRange[0], rootRange[1], name)
+				: 0,
+			source: `${name}: ${value}`,
+		});
+	}
+
+	for (const [name, value] of darkDeclarations) {
+		if (!COLOR_LITERAL_PATTERN.test(value)) {
+			continue;
+		}
+
+		if (isThemeInvariantToken(name) || rootDeclarations.has(name)) {
+			continue;
+		}
+
+		violations.push({
+			ruleId: 'token-theme-parity',
+			message:
+				'Colour-valued token declared in html.dark has no :root counterpart and is not on the ' +
+				'theme-invariant allowlist — light mode will render no value at all instead of this one.',
+			file: APP_CSS_PATH,
+			line: darkRange
+				? findDeclarationLine(appCssLines, darkRange[0], darkRange[1], name)
 				: 0,
 			source: `${name}: ${value}`,
 		});
@@ -868,44 +1040,175 @@ const isConfirmDialogFile = (relativePath) =>
 	relativePath === 'src/components/ui/confirm-dialog.tsx' ||
 	relativePath === 'src/components/ui/drawer.tsx';
 
-const isKnownHandoffGuardDebt = ({ ruleId, file, source }) => {
-	for (const debt of KNOWN_GUARD_DEBT) {
-		if (
-			debt.ruleId === ruleId &&
-			debt.file === file &&
-			source.includes(debt.sourceIncludes)
-		) {
-			return true;
-		}
-	}
+// F824 ui F1/tests F2: a debt entry is a BUDGET, not an unlimited licence.
+// The old matcher ran `source.includes(snippet)` over the whole FILE, so a
+// single occurrence anywhere let EVERY violation of the same rule through —
+// including second, unrelated offenses on other lines, and duplicates of the
+// debt line itself riding the same exemption forever (tests F2).
+//
+// r1-fix (round-1 review CRITICAL): budgets are charged PER OCCURRENCE of the
+// entry's snippet, not once per violating LINE. The previous ledger
+// decremented exactly one unit per reported violation, so an entry whose
+// snippet appears several times on ONE line consumed a single unit of a
+// budget measured in occurrences — tooltip.tsx carries four `top-1/2!` on its
+// Arrow className line, so its `maxOccurrences: 4` spent 1 and left 3 units of
+// permanent slack that silently re-permitted three NEW violations (proven in
+// review: three planted `top-1/2!` lines stayed green). Now every violation
+// event spends as many units as ITS OWN offending text carries occurrences of
+// the snippet (up to what remains): the tooltip Arrow line spends 4 of 4 in
+// one event, and any further occurrence — anywhere, on any line — finds the
+// budget empty and is reported. One unit per occurrence, wherever it sits,
+// is exactly how every `maxOccurrences` in this file is measured; the
+// zero-slack check (`checkGuardDebtBudgetSlack`, r1-fix below) keeps
+// budget == exact current occurrence count so a correctly-measured entry can
+// never be exhausted early by status-quo content.
+//
+// The ledger closes over the EFFECTIVE debt list (the caller-supplied
+// `guardDebt` in fixture tests, `KNOWN_GUARD_DEBT` in the real CLI run), so
+// a narrow fixture exercises the same budget mechanics the production scan
+// runs.
+const countSnippetOccurrences = (source, snippet) => {
+	const pattern = new RegExp(`(?<!-)${escapeRegExpLiteral(snippet)}`, 'g');
+	return [...source.matchAll(pattern)].length;
+};
 
-	return false;
+// r1-fix (round-1 review): a debt entry's `maxOccurrences` must equal the
+// file's EXACT current occurrence count of its snippet (`(?!-)snippet`,
+// non-overlapping, wherever they sit). A budget ABOVE the real count leaves
+// permanent slack that silently re-permits new violations of the same rule
+// (the round-1 CRITICAL: tooltip.tsx's four `top-1/2!` share one line); a
+// budget BELOW it fails the guard on the very code the entry records. Opt-in
+// like the other whole-repo checks: only the real CLI run enables it, plus
+// the permanent zero-slack test which measures the REAL repo.
+const checkGuardDebtBudgetSlack = (guardDebt, fileContentsByRelativePath) => {
+	const findings = [];
+	for (const debt of guardDebt) {
+		const content = fileContentsByRelativePath.get(debt.file);
+		if (content === undefined) {
+			continue;
+		}
+		const actual = countSnippetOccurrences(content, debt.sourceIncludes);
+		if (actual === debt.maxOccurrences) {
+			continue;
+		}
+		findings.push({
+			ruleId: 'guard-debt-budget-slack',
+			message:
+				`guardDebt entry ${debt.ruleId} @ ${debt.file} (${debt.sourceIncludes}) declares maxOccurrences ${String(debt.maxOccurrences)} but the file currently carries ${String(actual)} occurrence(s) — a budget must equal the exact measured occurrence count (zero slack). ` +
+				(actual > debt.maxOccurrences
+					? 'Raise the budget only together with the code that adds the occurrence(s), each with a reason.'
+					: 'Lower the budget to match — leftover slack silently re-permits new violations of this rule.'),
+			file: debt.file,
+			line: 0,
+			source: `${debt.ruleId}: ${debt.sourceIncludes}`,
+		});
+	}
+	return findings;
+};
+
+const createHandoffGuardDebtLedger = (debtList) => {
+	const remainingByEntryIndex = new Map();
+	return ({ ruleId, file, source }) => {
+		const matchingIndexes = [];
+		for (let index = 0; index < debtList.length; index += 1) {
+			const debt = debtList[index];
+			if (debt.ruleId !== ruleId || debt.file !== file) {
+				continue;
+			}
+			if (!source.includes(debt.sourceIncludes)) {
+				continue;
+			}
+			const pattern = new RegExp(
+				`(?<!-)${escapeRegExpLiteral(debt.sourceIncludes)}`,
+			);
+			if (!pattern.test(source)) {
+				continue;
+			}
+			matchingIndexes.push(index);
+		}
+		for (const index of matchingIndexes) {
+			if (!remainingByEntryIndex.has(index)) {
+				remainingByEntryIndex.set(index, debtList[index].maxOccurrences ?? 0);
+			}
+		}
+		for (const index of matchingIndexes) {
+			// Charge PER OCCURRENCE carried by this violating text, capped at
+			// what the entry still has: a line bearing N snippets spends N
+			// units in this one event (tooltip.tsx's Arrow line spends all 4),
+			// so no multi-occurrence line can ride a budget measured in
+			// occurrences while leaving silent slack behind.
+			const occurrencesInSource = Math.min(
+				countSnippetOccurrences(source, debtList[index].sourceIncludes),
+				remainingByEntryIndex.get(index),
+			);
+			if (occurrencesInSource > 0) {
+				remainingByEntryIndex.set(
+					index,
+					remainingByEntryIndex.get(index) - occurrencesInSource,
+				);
+				return true;
+			}
+		}
+		return false;
+	};
+};
+
+// r1-fix: read-only probe over the REAL ledger, for the permanent zero-slack
+// test. It feeds the given file content's debt-matching lines through the
+// actual createHandoffGuardDebtLedger closure, then counts how many further
+// single-occurrence violations the entry would still absorb. Zero means the
+// status quo consumes the whole budget (no silent slack); anything above zero
+// is exactly the over-budget slack the round-1 review proved exploitable
+// (three planted `top-1/2!` lines staying green). Because this closes over
+// the production ledger, reverting the per-occurrence charging flips the
+// test that asserts on it back to red.
+export const createHandoffLedgerProbe = (debtList) => {
+	const allows = createHandoffGuardDebtLedger(debtList);
+	return {
+		remainingAfterStatusQuo: (ruleId, file, content) => {
+			const debt = debtList.find(
+				(entry) => entry.ruleId === ruleId && entry.file === file,
+			);
+			if (!debt) {
+				return 0;
+			}
+			for (const line of content.split('\n')) {
+				if (line.includes(debt.sourceIncludes)) {
+					allows({ ruleId, file, source: line });
+				}
+			}
+			let remaining = 0;
+			while (allows({ ruleId, file, source: debt.sourceIncludes })) {
+				remaining += 1;
+			}
+			return remaining;
+		},
+	};
 };
 
 // An opt-out comment on the line directly above the offending line. Requires a
 // reason after the rule id so the suppression has to be argued, not just added.
 //
-// W5-HARDEN2: this used to be its own `previous.indexOf(marker)` scan, which
-// (unlike inventory discovery) honoured a marker embedded anywhere on the
-// previous line — including after real code. It now defers entirely to
-// `isPreviousLineSuppressed`, the single shared parser also used by
-// `findSuppressionSitesInSource`/the inventory diff below, so this guard and
-// the inventory can never again disagree about what counts as a suppression
-// site. See suppression-reason.ts for the full rationale.
+// W5-HARDEN2: this defers entirely to `isPreviousLineSuppressed`, the single
+// shared parser also used by `findSuppressionSitesInSource`/the inventory
+// diff below, so this guard and the inventory can never again disagree about
+// what counts as a suppression site. See suppression-reason.ts for the full
+// rationale.
 const isInlineSuppressed = (lines, line, ruleId) =>
 	isPreviousLineSuppressed(lines, line, 'design-system-ignore', ruleId);
 
-const recordViolation = (violations, violation, lines) => {
-	if (isKnownHandoffGuardDebt(violation)) {
-		return;
-	}
+const makeRecordViolation =
+	(handoffGuardDebtAllows) => (violations, violation, lines) => {
+		if (handoffGuardDebtAllows(violation)) {
+			return;
+		}
 
-	if (lines && isInlineSuppressed(lines, violation.line, violation.ruleId)) {
-		return;
-	}
+		if (lines && isInlineSuppressed(lines, violation.line, violation.ruleId)) {
+			return;
+		}
 
-	violations.push(violation);
-};
+		violations.push(violation);
+	};
 
 // no-raw-visual-color's two property-based colour patterns, and their
 // multi-line-aware counterparts (F4): a value can legitimately wrap across
@@ -1378,6 +1681,31 @@ const hasRawColorMixOperand = (text) =>
 
 const COLOR_MIX_RAW_OPERAND_PATTERN = { test: hasRawColorMixOperand };
 
+// F824 (ui F5): a raw colour assembled by STRING COMPOSITION never contains a
+// complete raw-colour literal, so every literal-shaped detector above sails
+// past it. Two runtime-equivalent spellings exist in this codebase:
+//   '#' + 'ff0000'   — hash prefix concatenated with a quoted hex body
+//   `#${'00ccff'}`   — template literal interpolating a quoted hex body
+// Both evaluate to a raw hex string a stylesheet/style object will happily
+// consume. Deliberately narrow shapes:
+//  - Pattern 1 requires BOTH operands fully quoted ('#' / "#" / `#`) so a
+//    DOM id selector built from a variable (`'#' + elementId`, querySelector
+//    anchors) never matches — only a hex-digit body does.
+//  - Pattern 2 requires the interpolated expression to START with a quote,
+//    so `` `#${sectionId}` `` anchors and e2e labels stay unscanned; only an
+//    interpolated string literal whose contents are pure hex digits match.
+// A composed colour split across THREE or more fragments, or assembled via
+// variables/constants instead of inline literals, remains outside regex
+// reach by design — this rule catches the idiom as written, not a dataflow
+// analysis (the same boundary every other pattern here accepts).
+const QUOTE_CLASS = `["'\`]`;
+const COMPOSED_HASH_CONCAT_PATTERN = new RegExp(
+	`${QUOTE_CLASS}#${QUOTE_CLASS}\\s*\\+\\s*${QUOTE_CLASS}[0-9a-fA-F]{3,8}${QUOTE_CLASS}`,
+);
+const COMPOSED_TEMPLATE_INTERP_PATTERN = new RegExp(
+	'`\\s*#\\$\\{\\s*' + `${QUOTE_CLASS}[0-9a-fA-F]{3,8}${QUOTE_CLASS}\\s*\\}`,
+);
+
 const rules = [
 	{
 		id: 'no-heroui-import',
@@ -1426,6 +1754,9 @@ const rules = [
 			isAppCssTokenLayerLine(relativePath, lineIndex, lines),
 		patterns: [
 			/["'`][#][0-9a-fA-F]{3,8}["'`]/, // quoted/templated raw color tokens
+			// F824 (ui F5): runtime-composed raw hex (see declaration above).
+			COMPOSED_HASH_CONCAT_PATTERN,
+			COMPOSED_TEMPLATE_INTERP_PATTERN,
 			/\b(?:bg|text|border|ring|shadow|from|to|via|fill|stroke|outline|accent|decoration|divide)-\[#(?:[0-9a-fA-F]{3,8})\]/,
 			RAW_COLOR_PROPERTY_HEX_PATTERN,
 			/\b(?:bg|text|border|ring|from|to|via|fill|stroke|outline|accent|decoration|divide)-(?:slate|zinc|gray|neutral)-\d{2,3}\b/,
@@ -1597,9 +1928,17 @@ const rules = [
 		// specs widely compose globs as `` `**${suffix}` ``/`` `${BASE}${path}` ``
 		// template literals, and the interpolated portion is never itself the
 		// trailing-star boundary in any current usage.
+		//
+		// F824 (tests F4): the receiver anchor was a bare `\w+` identifier, so a
+		// CHAINED receiver (`page.context().route(`) ended in `)` before the
+		// `.route(` and never matched — a single-star glob hung off such a chain
+		// was structurally invisible. The anchor now consumes the full receiver
+		// chain (identifier/call/index segments joined by dots, ending in any of
+		// word char/$/)/]), so the emitted violation source quotes the whole call
+		// (`page.context().route(glob`) instead of a meaningless tail.
 		patterns: [
-			/\b\w+\.route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g,
-			/\b\w+\.route\(\s*(?!['"`/])\S[^,)]*/g,
+			/(?:[\w$\])]+(?:\((?:[^()]|\([^()]*\))*\))?(?:\[[^\][]*\])?\.)+route\(\s*(['"`])(?:(?!\1)[^\\])*[^*]\*\1/g,
+			/(?:[\w$\])]+(?:\((?:[^()]|\([^()]*\))*\))?(?:\[[^\][]*\])?\.)+route\(\s*(?!['"`/])\S[^,)]*/g,
 		],
 	},
 ];
@@ -1632,6 +1971,45 @@ const collectFiles = async (dir) => {
 	return files;
 };
 
+// F824 (shell F3): a suppression naming a rule id nobody defined used to be
+// honoured silently (or, worse, silently absorbed the real id it merely
+// prefixed). The guard now rejects any `design-system-ignore:` comment whose
+// leading rule id is not one of the rules declared in this file — the author
+// gets an explicit "unknown suppression rule id" finding instead of silence.
+// This walks the ONE shared parser (`findSuppressionSitesInSource`) line by
+// line, so what counts as a suppression site here can never diverge from the
+// live suppression check or the committed inventory.
+const KNOWN_DESIGN_SYSTEM_RULE_IDS = new Set(rules.map((rule) => rule.id));
+
+const unknownSuppressionRuleIdViolations = (relativePath, source) => {
+	const findings = [];
+	const lines = source.split('\n');
+	for (let index = 0; index < lines.length; index += 1) {
+		for (const site of findSuppressionSitesInSource(
+			lines[index],
+			relativePath,
+		)) {
+			if (site.convention !== 'design-system-ignore') {
+				continue;
+			}
+			const statedRuleId = site.reason.trim().split(/\s+/)[0] ?? '';
+			if (KNOWN_DESIGN_SYSTEM_RULE_IDS.has(statedRuleId)) {
+				continue;
+			}
+			findings.push({
+				ruleId: 'unknown-suppression-rule-id',
+				message:
+					`design-system-ignore names rule id "${statedRuleId}", which is not a known rule id — ` +
+					'the suppression is rejected. Fix the typo or remove the comment.',
+				file: relativePath,
+				line: index + 1,
+				source: lines[index].trim(),
+			});
+		}
+	}
+	return findings;
+};
+
 export const scanFront2DesignSystem = async ({
 	baseDir = rootDir,
 	sourceDir,
@@ -1654,7 +2032,14 @@ export const scanFront2DesignSystem = async ({
 	// with the real, committed suppression-inventory.json, so comparing a
 	// fixture scan against it would spuriously fail every such test.
 	checkSuppressionInventory = false,
+	// Same opt-in reasoning again (r1-fix): a fixture temp dir rarely carries
+	// the real debt-listed files, so measuring budgets against it is
+	// meaningless; only the real CLI run opts in, plus the permanent
+	// zero-slack test which measures the REAL repo directly.
+	checkDebtBudgetSlack = false,
 } = {}) => {
+	const handoffGuardDebtAllows = createHandoffGuardDebtLedger(guardDebt);
+	const recordViolation = makeRecordViolation(handoffGuardDebtAllows);
 	const files = [];
 	const emptyDirs = [];
 	for (const dir of sourceDirs) {
@@ -1695,6 +2080,9 @@ export const scanFront2DesignSystem = async ({
 		const lines = source.split('\n');
 		fileContentsByRelativePath.set(relativePath, source);
 		violations.push(...statusMenuViolations(relativePath, source));
+		violations.push(
+			...unknownSuppressionRuleIdViolations(relativePath, source),
+		);
 
 		for (const rule of rules) {
 			if (!rule.appliesTo(relativePath) || rule.allow?.(relativePath)) {
@@ -1745,6 +2133,14 @@ export const scanFront2DesignSystem = async ({
 								source: statementText.trim().replace(/\s+/g, ' '),
 							},
 							lines,
+							violations,
+							{
+								ruleId: rule.id,
+								message: rule.message,
+								file: relativePath,
+								line: lineIndex + 1,
+								source: statementText.trim().replace(/\s+/g, ' '),
+							},
 						);
 					}
 				}
@@ -1771,6 +2167,14 @@ export const scanFront2DesignSystem = async ({
 								source: match[0].trim(),
 							},
 							lines,
+							violations,
+							{
+								ruleId: rule.id,
+								message: rule.message,
+								file: relativePath,
+								line,
+								source: match[0].trim(),
+							},
 						);
 					}
 				}
@@ -1805,6 +2209,14 @@ export const scanFront2DesignSystem = async ({
 								source: line.trim(),
 							},
 							lines,
+							violations,
+							{
+								ruleId: rule.id,
+								message: rule.message,
+								file: relativePath,
+								line: index + 1,
+								source: line.trim(),
+							},
 						);
 					}
 				}
@@ -1861,6 +2273,14 @@ export const scanFront2DesignSystem = async ({
 					source: lines[lineIndex].trim(),
 				},
 				lines,
+				violations,
+				{
+					ruleId: colorMixRule.id,
+					message: colorMixRule.message,
+					file: relativePath,
+					line: lineIndex + 1,
+					source: lines[lineIndex].trim(),
+				},
 			);
 		}
 	}
@@ -1905,6 +2325,14 @@ export const scanFront2DesignSystem = async ({
 				});
 			}
 		}
+	}
+
+	// r1-fix: every budget must equal the file's exact current occurrence
+	// count — see checkGuardDebtBudgetSlack above.
+	if (checkDebtBudgetSlack) {
+		violations.push(
+			...checkGuardDebtBudgetSlack(guardDebt, fileContentsByRelativePath),
+		);
 	}
 
 	if (checkTokenGuards) {
@@ -1969,6 +2397,7 @@ if (
 		checkStaleDebt: true,
 		checkTokenGuards: true,
 		checkSuppressionInventory: true,
+		checkDebtBudgetSlack: true,
 	});
 
 	console.error(

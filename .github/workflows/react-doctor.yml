@@ -22,7 +22,7 @@ on:
       - 'packages/shared-ts/**'
       - 'packages/client-ts/**'
       - 'packages/_tsconfig/**'
-      - 'scripts/**'
+      - 'packages/scripts-ts/**'
       - 'turbo.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
@@ -87,7 +87,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: |
-            scripts/ci-changed-paths.mjs
+            packages/scripts-ts/src/ci-changed-paths.ts
           sparse-checkout-cone-mode: false
           path: base-ref
 
@@ -103,10 +103,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          CLASSIFIER=base-ref/scripts/ci-changed-paths.mjs
+          CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|scripts/|\.github/workflows/react-doctor\.yml$|turbo\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
+            node "$CLASSIFIER" '^(apps/front/|packages/shared-ts/|packages/client-ts/|packages/_tsconfig/|packages/scripts-ts/|\.github/workflows/react-doctor\.yml$|turbo\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong -- investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -215,7 +215,7 @@ jobs:
         # nonempty JSON object whose every entry's result is exactly
         # "success" or "skipped" (GitHub documents only
         # success/failure/cancelled/skipped for needs.<job>.result -- see
-        # scripts/ci-gate-aggregation.test.mjs). An empty object/array, a
+        # packages/scripts-ts/src/ci-gate-aggregation.test.ts). An empty object/array, a
         # missing .result, or an unrecognized result value must never
         # silently pass "nothing to flag" -- and neither may examining
         # zero jobs.

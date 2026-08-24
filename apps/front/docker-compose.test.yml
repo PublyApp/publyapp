@@ -13,10 +13,13 @@ x-api-test-environment: &api-test-environment
   FRONT_URL: https://front.localhost:8443
   RESEND_API_KEY: e2e-disabled
   # Required by AppEnvironment.Initialize() since #1239 (ParseMasterKey:
-  # base64, exactly 32 bytes). All-zero committed build placeholder — the e2e
-  # stack passes no canary store to the master-key witness, so nothing real is
-  # ever encrypted under it.
-  SOCIAL_ACCOUNTS_MASTER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+  # base64, exactly 32 bytes). Since #1294 the witness refuses the committed
+  # all-zero build placeholder at any REAL boot, and these containers boot
+  # with a live PostgresKeyRingCanaryStore — so they carry a committed,
+  # deterministic throwaway value instead (derived from a public string,
+  # protects nothing, never a production secret; distinct from every build
+  # surface so a placeholder regression cannot silently match here).
+  SOCIAL_ACCOUNTS_MASTER_KEY: Knf1UC9xADnUkGzLVSUOdyM/5nhMVP9JLHqjUpiws5M=
   # Pinned like every other non-dev booting surface (quality-gate.yml, the
   # Dockerfile stages): loopback-only, matches AppEnvironment's default.
   TRUSTED_PROXY_CIDRS: "127.0.0.1/32,::1/128"

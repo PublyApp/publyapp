@@ -55,7 +55,7 @@ const CHECKS: PlaceholderCheck[] = [
 	{
 		name: 'raw-dash-fallback',
 		description:
-			"a raw '-'/'—' literal used as a JSX fallback for otherwise-real data (`value || '-'`, `cond ? '—' : value`, `value ?? '—'`), which reads as real data to an administrator",
+			"a raw '-'/'—' literal (quoted or backtick-delimited, including inside a template-literal composition) used as a JSX fallback for otherwise-real data (`value || '-'`, `cond ? '—' : value`, `value ?? '—'`, `` `${x ?? `—`}` ``), which reads as real data to an administrator",
 		// W6-GUARDS (tests F7 / users-auth F11): the nullish-coalescing form
 		// (`value ?? '—'`) matched NONE of the three branches — `||`, the
 		// ternary `? '-' :`, and a bare `: '-'` — even though it is
@@ -64,8 +64,12 @@ const CHECKS: PlaceholderCheck[] = [
 		// renders a dash as if it were real data). Added as its own branch
 		// rather than folded into `||`'s branch so each shape stays independently
 		// readable/testable.
+		// F824 (tests F8): the dash literal's delimiter class was ['"] only, so
+		// a BACKTICK-delimited dash — e.g. the template-literal composition
+		// `${x ?? `—`}` — escaped every branch while rendering exactly the same
+		// fabricated placeholder. All four branches now accept ` as a delimiter.
 		pattern:
-			/(\|\|\s*['"][-—]['"])|(\?\?\s*['"][-—]['"])|(\?\s*['"][-—]['"]\s*:)|(:\s*['"][-—]['"](?!\s*[a-zA-Z]))/,
+			/(\|\|\s*['"`][-—]['"`])|(\?\?\s*['"`][-—]['"`])|(\?\s*['"`][-—]['"`]\s*:)|(:\s*['"`][-—]['"`](?!\s*[a-zA-Z]))/,
 	},
 	{
 		name: 'not-available-key-as-content',
@@ -192,6 +196,18 @@ describe('raw-dash-fallback pattern catches the nullish-coalescing (??) shape', 
 
 	test("matches a `value ?? '-'` fallback (plain hyphen)", () => {
 		expect(pattern.test("value={user.tenantId ?? '-'}")).toBe(true);
+	});
+
+	// F824 (tests F8): the dash literal's delimiters only allowed `'`/`"`, so
+	// a backtick-delimited dash — including inside the template-literal
+	// composition `` `${x ?? `—`}` `` — escaped the pattern entirely while
+	// rendering exactly the same fabricated placeholder.
+	test('F824-tests-F8: matches a backtick-dash fallback (`x ?? `—``)', () => {
+		expect(pattern.test('value={x ?? `—`}')).toBe(true);
+	});
+
+	test('F824-tests-F8: matches a backtick dash inside a template-literal interpolation', () => {
+		expect(pattern.test('`${x ?? `—`}`')).toBe(true);
 	});
 
 	test('does not match an ordinary ?? fallback to a non-dash default', () => {
