@@ -25,10 +25,17 @@
  * itself, including this file's own direct-mode `<Trans>` mounts), `*.d.ts`
  * (ambient declarations never render), and the e2e/__tests__ directories
  * (browser specs, not app source). A parse failure anywhere scanned throws
- * instead of walking a recovered partial tree. Two documented residuals: an
- * aliased import (`Trans as X`) and a spread-only `<Trans {...props} />`
- * carry no static `i18nKey` identity and stay outside discovery — neither
- * shape exists in src today.
+ * instead of walking a recovered partial tree. The remaining documented
+ * residual is a spread-only `<Trans {...props} />`, which carries no static
+ * `i18nKey` identity — that shape does not exist in src today.
+ *
+ * Aliased bindings ARE covered (#1312 round 2, closing the round-1 MEDIUM
+ * follow-up): an aliased default/named import (`Trans as T`) is resolved to
+ * its local name before matching JSX tags, and a namespace import
+ * (`import * as i18n from 'react-i18next'`) covers `<i18n.Trans>` member-tag
+ * elements. An aliased call site with no static `i18nKey` still lands in the
+ * unpinned list (its key reads null), so it turns this guard red exactly like
+ * a direct one.
  *
  * Pinned per language (EN + FR) for the four production call sites (one
  * `<Trans>` in accept-invitation feeds two mismatch views, so 5 keys):
@@ -63,7 +70,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -475,10 +482,23 @@ const countOccurrences = (haystack: string, needle: string): number =>
 // - `*.d.ts` — ambient declarations never render;
 // - `e2e/` trees — browser specs, not app source.
 //
-// Documented residuals rather than silent blind spots: an aliased import
-// (`Trans as T`) and a spread-only element (`<Trans {...props} />`) carry no
-// static identity this scan can pin. Neither shape exists in src today; if
-// one lands, discovery cannot see it and this comment is where the gap lives.
+// Aliased react-i18next Trans bindings are DISCOVERED (#1312 round 2,
+// closing the round-1 documented residual): the scanner first collects every
+// local name bound to react-i18next's `Trans` — a named import
+// (`import { Trans } from …` binds "Trans"), an aliased one
+// (`import { Trans as T } from …` binds "T", including the default-import
+// alias `react-i18next`'s CJS interop allows), and a namespace import
+// (`import * as i18n from 'react-i18next'`, binding member tags like
+// `<i18n.Trans>`). JSX elements whose tag resolves to any of those local
+// names are collected exactly like direct `<Trans>` elements; an aliased
+// site without a static `i18nKey` lands in the unpinned list with
+// `i18nKey: null` and turns discovery red, same as a direct one. A file that
+// only aliases `Trans` without using it produces no sites and is ignored.
+//
+// Remaining documented residual rather than a silent blind spot: a
+// spread-only element (`<Trans {...props} />`) carries no static identity
+// this scan can pin. That shape does not exist in src today; if one lands,
+// discovery cannot see it and this comment is where the gap lives.
 // ---------------------------------------------------------------------------
 
 // vitest's import.meta.url may be a plain path rather than a file:// URL,
@@ -590,27 +610,86 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 		if (!source.includes('react-i18next')) continue;
 
 		const sourceFile = createScannedSourceFile(source, relative);
-		const visit = (node: ts.Node): void => {
-			if (ts.isImportDeclaration(node)) {
-				const module_ = node.moduleSpecifier;
-				if (
-					ts.isStringLiteral(module_) &&
-					module_.text === 'react-i18next' &&
-					node.importClause?.namedBindings &&
-					ts.isNamedImports(node.importClause.namedBindings)
-				) {
-					sawTransImport =
-						sawTransImport ||
-						node.importClause.namedBindings.elements.some(
-							(element) => element.name.text === 'Trans',
-						);
-				}
+
+		// Every LOCAL name this file binds to react-i18next's `Trans`
+		// (#1312 round 2): a named import binds "Trans", an aliased named
+		// import (`Trans as T`) binds "T", a default import spelled/aliased
+		// "Trans" binds "Trans", and a namespace import (`import * as i18n`)
+		// binds qualified member tags like `<i18n.Trans>`. Matching JSX tags
+		// against these LOCAL names keeps aliased call sites inside the
+		// guarded set instead of documenting them as a blind spot.
+		const transLocalNames = new Set<string>();
+		const namespaceLocalNames = new Set<string>();
+
+		const collectTransBindings = (node: ts.Node): void => {
+			if (!ts.isImportDeclaration(node)) return;
+
+			const module_ = node.moduleSpecifier;
+			if (
+				!ts.isStringLiteral(module_) ||
+				module_.text !== 'react-i18next' ||
+				node.importClause === undefined
+			) {
+				return;
 			}
 
 			if (
-				ts.isJsxElement(node) &&
-				node.openingElement.tagName.getText() === 'Trans'
+				node.importClause.name !== undefined &&
+				node.importClause.name.text === 'Trans'
 			) {
+				// Default-import shape spelled/aliased as Trans (react-i18next's
+				// CJS interop exposes the module surface as its default).
+				transLocalNames.add(node.importClause.name.text);
+			}
+
+			const { namedBindings } = node.importClause;
+			if (namedBindings === undefined) return;
+
+			if (ts.isNamedImports(namedBindings)) {
+				for (const element of namedBindings.elements) {
+					// Plain `{ Trans }` has no propertyName; `{ Trans as T }` does.
+					const importedName = element.propertyName ?? element.name;
+					if (importedName.text === 'Trans') {
+						transLocalNames.add(element.name.text);
+					}
+				}
+			} else if (namedBindings.kind === ts.SyntaxKind.NamespaceImport) {
+				namespaceLocalNames.add(namedBindings.name.text);
+			}
+		};
+
+		/** Local tag text of a JSX tag name: `Trans` or `i18n.Trans`. */
+		const tagNameOf = (tagName: ts.JsxTagNameExpression): string | null => {
+			if (ts.isIdentifier(tagName)) return tagName.text;
+			if (
+				ts.isPropertyAccessExpression(tagName) &&
+				ts.isIdentifier(tagName.expression)
+			) {
+				return `${tagName.expression.text}.${tagName.name.text}`;
+			}
+			return null;
+		};
+
+		const isTransTag = (node: ts.Node): boolean => {
+			if (!ts.isJsxElement(node) && !ts.isJsxSelfClosingElement(node)) {
+				return false;
+			}
+			const tagText = tagNameOf(
+				ts.isJsxElement(node) ? node.openingElement.tagName : node.tagName,
+			);
+			if (tagText === null) return false;
+			if (transLocalNames.has(tagText)) return true;
+			for (const alias of namespaceLocalNames) {
+				if (`${alias}.Trans` === tagText) return true;
+			}
+			return false;
+		};
+
+		const visit = (node: ts.Node): void => {
+			collectTransBindings(node);
+
+			if (isTransTag(node) && ts.isJsxElement(node)) {
+				sawTransImport = true;
 				sites.push(
 					describeSite(relative, sourceFile, node.openingElement.attributes),
 				);
@@ -618,10 +697,8 @@ const discoverTransCallSites = (): DiscoveredTransSite[] => {
 				// outer element's own text; react-i18next does not nest them and
 				// none exist in src, but keep walking anyway so a nested one is
 				// still discovered as its own site.
-			} else if (
-				ts.isJsxSelfClosingElement(node) &&
-				node.tagName.getText() === 'Trans'
-			) {
+			} else if (isTransTag(node) && ts.isJsxSelfClosingElement(node)) {
+				sawTransImport = true;
 				sites.push(describeSite(relative, sourceFile, node.attributes));
 			}
 
@@ -809,6 +886,76 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 
 		expect(unpinned).toEqual([]);
 	});
+
+	// #1312 round 2 (closing the round-1 MEDIUM follow-up): an aliased import
+	// (`Trans as T`) and a namespace import (`import * as i18n`) must land
+	// their `<Trans>` call sites INSIDE the guarded set, not outside it. The
+	// scanner walks real files under src at module-eval time, so each proof
+	// plants a scratch source file (the `_` prefix keeps it out of routing
+	// and the shape is excluded from barrels), asserts DISCOVERED_SITES now
+	// names it, and removes it in a finally so no other test sees it.
+	const aliasedProofBody = [
+		"import { Trans as Alias } from 'react-i18next';",
+		'',
+		'export function AliasedProof() {',
+		'	return <Alias i18nKey="auth.proof" ns="auth">x</Alias>;',
+		'}',
+	].join('\n');
+	const namespaceProofBody = [
+		"import * as ReactI18n from 'react-i18next';",
+		'',
+		'export function NamespaceProof() {',
+		'	return <ReactI18n.Trans i18nKey="auth.proof" ns="auth">x</ReactI18n.Trans>;',
+		'}',
+	].join('\n');
+
+	for (const { title, fileName, body } of [
+		{
+			title:
+				'an aliased `Trans as Alias` call site is DISCOVERED, not a blind spot (#1312 round 2)',
+			fileName: '_trans-alias-red-proof.tsx',
+			body: aliasedProofBody,
+		},
+		{
+			title:
+				'a namespace-import `i18n.Trans` call site is DISCOVERED, not a blind spot (#1312 round 2)',
+			fileName: '_trans-namespace-red-proof.tsx',
+			body: namespaceProofBody,
+		},
+	] as const) {
+		test(title, () => {
+			const relative = `routes/${fileName}`;
+			writeFileSync(path.join(SRC_ROOT, relative), `${body}\n`);
+
+			try {
+				const sites = discoverTransCallSites();
+				const found = sites.filter((site) => site.file === relative);
+
+				expect(
+					found.length,
+					`${relative} must be discovered with its static key`,
+				).toBe(1);
+				expect(found[0]?.i18nKey).toBe('auth.proof');
+				expect(found[0]?.namespace).toBe('auth');
+
+				// And the standing discovery assertion treats it exactly like a
+				// direct <Trans>: unpinned until a spec covers it.
+				const discoveredByFile = new Map<string, DiscoveredTransSite[]>();
+				for (const discoveredSite of sites) {
+					discoveredByFile.set(discoveredSite.file, [
+						...(discoveredByFile.get(discoveredSite.file) ?? []),
+						discoveredSite,
+					]);
+				}
+				const remaining = discoveredByFile.get(relative) ?? [];
+				expect(remaining.map(({ line }) => `${relative}:${line}`)).toHaveLength(
+					1,
+				);
+			} finally {
+				unlinkSync(path.join(SRC_ROOT, relative));
+			}
+		});
+	}
 
 	test('react-i18next is NOT mocked in this file', () => {
 		// #1269 exists because the rest of the suite fakes `<Trans>` with a
