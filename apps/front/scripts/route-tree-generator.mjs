@@ -1,16 +1,11 @@
-import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
-// Standalone route-tree regeneration + freshness guard, mirroring what
-// tanstackStart's router plugin does at dev/build time
-// (virtualRouteConfig: ./src/routes.ts).
+// Standalone route-tree regeneration, mirroring what tanstackStart's router
+// plugin does at dev/build time (virtualRouteConfig: ./src/routes.ts).
 //
 // CLI usage:
 //   node scripts/route-tree-generator.mjs            # regenerate routeTree.gen.ts
-//   node scripts/route-tree-generator.mjs --check    # guard mode (CI): exit 1 if stale
 //
-// Library usage (tests):
+// Library usage (tests + the freshness guard in check-route-tree-freshness.mjs):
 //   generateRouteTree(root)                          # regenerate into any root
-//   checkRouteTreeFreshness()                        # guard as a boolean result
 //   resolveGeneratorEntryUrl()                       # the derived generator entry
 //
 // #1300 — the generator used to be pinned by exact version and store path.
@@ -114,56 +109,7 @@ export const generateRouteTree = async (root) => {
 	return `${effectiveRoot}/${ROUTE_TREE_OUTPUT_PATH}`;
 };
 
-/**
- * Freshness guard: regenerates the committed route tree in place and reports
- * whether the working-tree copy changed. `git checkout -- <file>` afterwards
- * restores the committed content either way, so running the guard never
- * mutates tracked state.
- *
- * @returns {Promise<{stale: boolean, outputPath: string}>}
- */
-export const checkRouteTreeFreshness = async () => {
-	const root = new URL('..', import.meta.url).pathname;
-	const outputPath = `${root}${ROUTE_TREE_OUTPUT_PATH}`;
-
-	const before = await readFile(outputPath, 'utf8');
-
-	await generateRouteTree(root);
-
-	let after;
-	try {
-		after = await readFile(outputPath, 'utf8');
-	} catch (error) {
-		return { stale: true, outputPath };
-	}
-
-	return { stale: before !== after, outputPath };
-};
-
 if (isCli()) {
-	if (process.argv.includes('--check')) {
-		const { stale, outputPath } = await checkRouteTreeFreshness();
-
-		if (!stale) {
-			console.log('routeTree.gen.ts is up to date');
-			process.exit(0);
-		}
-
-		const repoRelative = path.relative(process.cwd(), outputPath) || outputPath;
-		spawnSync('git', ['checkout', '--', repoRelative], {
-			cwd: process.cwd(),
-			stdio: 'inherit',
-		});
-		console.error(
-			[
-				'routeTree.gen.ts is STALE.',
-				'Regenerate it with: just db-route-tree  (or: pnpm --filter front generate:route-tree)',
-				'The committed file was restored; fix the drift before committing.',
-			].join('\n'),
-		);
-		process.exit(1);
-	}
-
 	await generateRouteTree();
 	console.log('routeTree.gen.ts regenerated');
 }
