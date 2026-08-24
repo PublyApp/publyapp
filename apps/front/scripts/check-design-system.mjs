@@ -224,7 +224,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes:
 			'<Skeleton className="size-[26px] shrink-0 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
@@ -234,7 +234,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="h-3 w-40 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -243,7 +243,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="h-3 w-56 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -252,7 +252,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="ml-auto h-5 w-16 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -261,7 +261,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="h-5 w-16 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -279,7 +279,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/staff-users/$userId.tsx',
+		file: 'src/routes/authed/staff/staff-users/$userId/_detail-views.tsx',
 		sourceIncludes: 'h-2 w-2 rounded-full bg-primary',
 		reason: 'Legacy status dot; Staff module pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
