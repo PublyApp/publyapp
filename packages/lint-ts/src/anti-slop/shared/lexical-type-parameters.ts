@@ -17,9 +17,10 @@ function collectInferTypeParameterNames(
 	names: Set<string>,
 ): void {
 	if (node.type === 'TSInferType') names.add(node.typeParameter.name.name);
-	const record = node as Readonly<Record<string, unknown>>;
 	for (const key of visitorKeys[node.type] ?? []) {
-		const value = record[key];
+		// Dynamic access by visitor key on an arbitrary AST node — no
+		// assertion needed; isNode narrows whatever comes back.
+		const value: unknown = Reflect.get(node, key);
 		if (isNode(value)) {
 			collectInferTypeParameterNames(value, visitorKeys, names);
 			continue;
