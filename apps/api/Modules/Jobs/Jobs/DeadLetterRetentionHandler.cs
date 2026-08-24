@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Jobs.Entities;
 
 namespace PublyApp.Api.Modules.Jobs.Jobs;
 
@@ -77,5 +78,17 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 		}
 
 		return JobOutcome.Succeeded;
+	}
+
+	/// <summary>
+	/// Rows currently HELD by the #864 exemption: missing-anomaly job types with no
+	/// operator acknowledgement. Public seam (the repo's determinism discipline) so specs
+	/// assert the skip report directly and the monitor samples the identical predicate.
+	/// </summary>
+	public async Task<long> CountUntriagedMissingRowsAsync(CancellationToken cancellationToken) {
+		return await _dbContext.JobDeadLetter.LongCountAsync(
+			d => d.TriagedAt == null && d.JobType.StartsWith(JobDeadLetter.MissingJobTypePrefix),
+			cancellationToken
+		);
 	}
 }

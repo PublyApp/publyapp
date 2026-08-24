@@ -13,6 +13,7 @@ using Npgsql;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 
 using Xunit;
@@ -83,6 +84,23 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			.Should().Contain("dlq_growth");
 		monitor.EvaluateAndAlert(JobQueueSample.Empty with { DeadLetterGrowth1h = 0 })
 			.Should().NotContain("dlq_growth");
+	}
+
+	// #864/K-2: rows retention HOLDS past its window because nobody has triaged them.
+	// Same anomaly semantics as dlq_growth — re-breaches every sample while > 0, silent at 0.
+	[Fact]
+	public void ItShouldAlertWhileUntriagedMissingRowsAreHeldAndStaySilentAtZero() {
+		using var monitor = CreateMonitor();
+
+		monitor.EvaluateAndAlert(JobQueueSample.Empty with { MissingTriagedCount = 1 })
+			.Should().Contain("dlq_untriaged_missing");
+		monitor.EvaluateAndAlert(JobQueueSample.Empty with { MissingTriagedCount = 5 })
+			.Should().Contain(
+				"dlq_untriaged_missing",
+				"the condition re-breaches on every sample while any row remains held"
+			);
+		monitor.EvaluateAndAlert(JobQueueSample.Empty)
+			.Should().NotContain("dlq_untriaged_missing");
 	}
 
 	[Fact]
@@ -175,7 +193,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				0, "a due bulk row aged 5 minutes in the past has positive age"
 			);
 
-			// Every gauge/tag series emits exactly the sampled value (nine series total).
+			// Every gauge/tag series emits exactly the sampled value (ten series total).
 			var gauges = ReadGauges();
 			gauges.DueHigh.Should().Be(after.DueDepthHigh);
 			gauges.DueBulk.Should().Be(after.DueDepthBulk);
@@ -209,6 +227,47 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			@"FROM job_dead_letter\s+WHERE failed_at",
 			"DLQ growth must remain an indexable one-hour range query"
 		);
+	}
+
+	// #864/K-2, sampled end to end: a durable untriaged missing-anomaly row shows up in
+	// the sample's MissingTriagedCount and the jobs.dlq.untriaged_missing gauge with the
+	// exact seeded delta — triaging it (the acknowledgement stamp) drops both back.
+	[Fact]
+	public async Task ItShouldSampleAndEmitTheUntriagedMissingCountUntilTriaged() {
+		var jobType = $"{JobDeadLetter.MissingJobTypePrefix}spec.monitor-missing.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			var before = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			await SeedDeadLetterAsync(dbContext, jobType, count: 2);
+			var held = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			held.MissingTriagedCount.Should().Be(
+				before.MissingTriagedCount + 2,
+				"two durable untriaged missing-anomaly rows are counted exactly"
+			);
+			ReadGauges().UntriagedMissing.Should().Be(held.MissingTriagedCount);
+
+			// The operator acknowledgement releases them from the held set (#636 will be
+			// the real writer; here the stamp itself is what is under test).
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				UPDATE job_dead_letter
+				SET triaged_at = now(), triaged_by = 'spec'
+				WHERE job_type = {jobType}
+				"""
+			);
+			var released = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			released.MissingTriagedCount.Should().Be(
+				before.MissingTriagedCount,
+				"triage empties the held set — the alert recovers only then"
+			);
+		} finally {
+			await DeleteByTypeAsync(jobType, $"spec.monitor-cleanup.{Guid.NewGuid():N}@example.com");
+		}
 	}
 
 	[Fact]
@@ -258,7 +317,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		long DlqSize,
 		long DlqGrowth,
 		long EmailFailures,
-		long DeadTuples
+		long DeadTuples,
+		long UntriagedMissing
 	);
 
 	private static GaugeReadings ReadGauges() {
@@ -270,6 +330,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		long dlqGrowth = -1;
 		long emailFailures = -1;
 		long deadTuples = -1;
+		long untriagedMissing = -1;
 		var oldestHigh = -1.0;
 		var oldestBulk = -1.0;
 
@@ -280,6 +341,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 			if (instrument.Name is "jobs.due_depth" or "jobs.oldest_due_age_seconds"
 				or "jobs.processing_over_lease" or "jobs.dlq_size" or "jobs.dlq_growth_1h"
+				or "jobs.dlq.untriaged_missing"
 				or "email.log_failures_1h" or "jobs.queue_dead_tuples") {
 				activeListener.EnableMeasurementEvents(instrument);
 			}
@@ -301,6 +363,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				emailFailures = measurement;
 			} else if (instrument.Name == "jobs.queue_dead_tuples") {
 				deadTuples = measurement;
+			} else if (instrument.Name == "jobs.dlq.untriaged_missing") {
+				untriagedMissing = measurement;
 			}
 		});
 		listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) => {
@@ -325,7 +389,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			dlqSize,
 			dlqGrowth,
 			emailFailures,
-			deadTuples
+			deadTuples,
+			untriagedMissing
 		);
 	}
 

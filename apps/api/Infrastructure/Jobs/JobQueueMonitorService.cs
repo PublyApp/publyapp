@@ -23,6 +23,9 @@ public sealed record JobQueueSample {
 	// Approximate pg_class row estimate: avoids an exact full-table count every minute.
 	public required long DeadLetterSize { get; init; }
 	public required long DeadLetterGrowth1h { get; init; }
+	// #864/K-2: rows retention is HOLDING past its window — missing-anomaly job types with
+	// no operator acknowledgement yet. Wired to the dlq_metrics counter in the fix commit.
+	public required long MissingTriagedCount { get; init; }
 	public required long EmailLogFailures1h { get; init; }
 	public required long JobQueueDeadTuples { get; init; }
 
@@ -49,6 +52,7 @@ public sealed record JobQueueSample {
 		ProcessingOverLeaseCount = 0,
 		DeadLetterSize = 0,
 		DeadLetterGrowth1h = 0,
+		MissingTriagedCount = 0,
 		EmailLogFailures1h = 0,
 		JobQueueDeadTuples = 0,
 		// Pre-first-sample state is UNKNOWN, not healthy: null so the gauge emits nothing
@@ -298,6 +302,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			ProcessingOverLeaseCount = row.ProcessingOverLeaseCount,
 			DeadLetterSize = row.DeadLetterSize,
 			DeadLetterGrowth1h = row.DeadLetterGrowth1h,
+			MissingTriagedCount = 0,
 			EmailLogFailures1h = row.EmailLogFailures1h,
 			JobQueueDeadTuples = row.JobQueueDeadTuples,
 			LeaderPresent = row.LeaderPresent,
