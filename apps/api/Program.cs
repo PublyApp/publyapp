@@ -47,6 +47,12 @@ public class Program {
 	public static void Main(string[] args) {
 		AppEnvironment.Initialize(); // ! must be called before anything else
 
+		// #1309 boot-log probe (test-only): lets the integration suite observe the canary
+		// pass line a REAL boot emits. Arg-gated — every normal boot (local dev, docker,
+		// deployed containers, build-time doc-gen) never passes the arg, so this is an
+		// instant no-op everywhere except the probe process.
+		CanaryBootLogProbe.ActivateIfRequested(args);
+
 		// CLI commands (e.g., seed-bulk, seed-bulk-reset)
 		if (BulkSeedCli.TryRun(args)) {
 			return;
@@ -106,6 +112,10 @@ public class Program {
 						nameof(Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness)
 					)
 				);
+			if (CanaryBootLogProbe.TryExitAfterBootGate()) {
+				return; // probe run: boot gates verified, do not start the job engine
+			}
+
 			workerHost.Run();
 			return;
 		}
@@ -132,6 +142,10 @@ public class Program {
 					nameof(Modules.SocialAccounts.Infrastructure.SocialAccountsMasterKeyWitness)
 				)
 			);
+
+		if (CanaryBootLogProbe.TryExitAfterBootGate()) {
+			return; // probe run: boot gate verified, do not bind a socket or serve requests
+		}
 
 		app.LogDiManifestIfPresent();
 
