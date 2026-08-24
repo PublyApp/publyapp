@@ -30,7 +30,7 @@ export const SettingsGeneralRegionalCard = ({
 }: SettingsGeneralRegionalCardProps) => (
 	<Card>
 		<CardHeader>
-			<CardTitle>{t('regional-and-contact-settings')}</CardTitle>
+			<CardTitle>{t('settings:regional-and-contact-settings')}</CardTitle>
 		</CardHeader>
 		<CardContent>
 			{isPending ? (

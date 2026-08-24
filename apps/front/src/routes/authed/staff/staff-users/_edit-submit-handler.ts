@@ -111,7 +111,7 @@ export const submitStaffUserEdit = async ({
 				return 'stay';
 			}
 
-			await displayLocalMutationFailure(error, t('unknown-error'));
+			await displayLocalMutationFailure(error, t('staff-users:unknown-error'));
 			return 'stay';
 		}
 
@@ -133,17 +133,20 @@ export const submitStaffUserEdit = async ({
 
 			if (hasIdentityChanges) {
 				const partialFailureMessage = t(
-					'staff-user-identity-saved-profiles-failed',
+					'staff-users:staff-user-identity-saved-profiles-failed',
 					{
 						reason: getFailureMessage(toApiFailure(error), {
-							fallback: t('unknown-error'),
+							fallback: t('staff-users:unknown-error'),
 						}),
 					},
 				);
 				setServerError(partialFailureMessage);
 				toastLocalMutationResult.error(partialFailureMessage);
 			} else {
-				await displayLocalMutationFailure(error, t('unknown-error'));
+				await displayLocalMutationFailure(
+					error,
+					t('staff-users:unknown-error'),
+				);
 			}
 			return 'stay';
 		}
@@ -152,7 +155,7 @@ export const submitStaffUserEdit = async ({
 	}
 
 	hasSavedRef.current = true;
-	toastLocalMutationResult.success(t('staff-user-updated-success'));
+	toastLocalMutationResult.success(t('staff-users:staff-user-updated-success'));
 
 	return 'navigate';
 };
@@ -167,7 +170,7 @@ export const computeActionBarStatus = (
 	}
 
 	if (attentionCount > 0) {
-		return `${t('common:unsaved-changes')} · ${t('fields-need-attention', { count: attentionCount })}`;
+		return `${t('common:unsaved-changes')} · ${t('staff-users:fields-need-attention', { count: attentionCount })}`;
 	}
 
 	return t('common:unsaved-changes');

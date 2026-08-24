@@ -21,8 +21,8 @@ export const SettingsGeneralDangerCard = ({
 		<CardContent>
 			<StateSurface
 				icon={IconAlertTriangle}
-				title={t('danger-zone-coming-later-title')}
-				description={t('danger-zone-coming-later-description')}
+				title={t('settings:danger-zone-coming-later-title')}
+				description={t('settings:danger-zone-coming-later-description')}
 				testId="tenant-settings-general-danger-empty"
 			/>
 		</CardContent>

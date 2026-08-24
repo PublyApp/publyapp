@@ -62,13 +62,17 @@ describe('getSettingsGeneralSchema', () => {
 		test('rejects a javascript: URL', () => {
 			const result = parse({ logoUrl: 'javascript:alert(1)' });
 			expect(result.success).toBe(false);
-			expect(firstIssueMessageFor(result, 'logoUrl')).toBe('invalid-logo-url');
+			expect(firstIssueMessageFor(result, 'logoUrl')).toBe(
+				'settings:invalid-logo-url',
+			);
 		});
 
 		test('rejects a non-http(s) protocol like ftp', () => {
 			const result = parse({ logoUrl: 'ftp://example.com/logo.png' });
 			expect(result.success).toBe(false);
-			expect(firstIssueMessageFor(result, 'logoUrl')).toBe('invalid-logo-url');
+			expect(firstIssueMessageFor(result, 'logoUrl')).toBe(
+				'settings:invalid-logo-url',
+			);
 		});
 
 		test('accepts an empty value (optional)', () => {
@@ -85,7 +89,7 @@ describe('getSettingsGeneralSchema', () => {
 			const result = parse({ websiteUrl: 'not-a-url' });
 			expect(result.success).toBe(false);
 			expect(firstIssueMessageFor(result, 'websiteUrl')).toBe(
-				'invalid-website-url',
+				'settings:invalid-website-url',
 			);
 		});
 
@@ -103,7 +107,7 @@ describe('getSettingsGeneralSchema', () => {
 			const result = parse({ billingEmail: 'not-an-email' });
 			expect(result.success).toBe(false);
 			expect(firstIssueMessageFor(result, 'billingEmail')).toBe(
-				'invalid-email',
+				'settings:invalid-email',
 			);
 		});
 
@@ -115,7 +119,7 @@ describe('getSettingsGeneralSchema', () => {
 			const result = parse({ supportEmail: 'still-not-email' });
 			expect(result.success).toBe(false);
 			expect(firstIssueMessageFor(result, 'supportEmail')).toBe(
-				'invalid-email',
+				'settings:invalid-email',
 			);
 		});
 
@@ -128,7 +132,9 @@ describe('getSettingsGeneralSchema', () => {
 		test('rejects a name shorter than 5 characters', () => {
 			const result = parse({ name: 'abc' });
 			expect(result.success).toBe(false);
-			expect(firstIssueMessageFor(result, 'name')).toBe('name-min-length');
+			expect(firstIssueMessageFor(result, 'name')).toBe(
+				'settings:name-min-length',
+			);
 		});
 
 		test('accepts a name of at least 5 characters', () => {

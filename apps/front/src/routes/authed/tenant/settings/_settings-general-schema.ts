@@ -13,12 +13,12 @@ export const getSettingsGeneralSchema = (t: (key: string) => string) =>
 		name: z
 			.string()
 			.trim()
-			.min(5, { message: t('name-min-length') })
-			.max(256, { message: t('name-max-length') }),
+			.min(5, { message: t('settings:name-min-length') })
+			.max(256, { message: t('settings:name-max-length') }),
 		logoUrl: z
 			.string()
 			.trim()
-			.max(2048, { message: t('logo-url-max-length') })
+			.max(2048, { message: t('settings:logo-url-max-length') })
 			.refine((value) => {
 				if (!value) {
 					return true;
@@ -33,40 +33,40 @@ export const getSettingsGeneralSchema = (t: (key: string) => string) =>
 					// Root-relative served-upload paths are valid logo values.
 					return value.startsWith(API_FILES_PREFIX);
 				}
-			}, t('invalid-logo-url')),
+			}, t('settings:invalid-logo-url')),
 		legalName: z
 			.string()
 			.trim()
-			.max(256, { message: t('legal-name-max-length') })
+			.max(256, { message: t('settings:legal-name-max-length') })
 			.optional(),
 		description: z
 			.string()
 			.trim()
-			.max(1024, { message: t('description-max-length') })
+			.max(1024, { message: t('settings:description-max-length') })
 			.optional(),
 		websiteUrl: z
 			.string()
 			.trim()
-			.max(2048, { message: t('website-max-length') })
+			.max(2048, { message: t('settings:website-max-length') })
 			.optional()
 			.refine((value) => !value || isAbsoluteHttpUrl(value), {
-				message: t('invalid-website-url'),
+				message: t('settings:invalid-website-url'),
 			}),
 		billingEmail: z
 			.string()
 			.trim()
-			.max(320, { message: t('email-max-length') })
+			.max(320, { message: t('settings:email-max-length') })
 			.optional()
 			.refine((value) => !value || isValidEmailAddress(value), {
-				message: t('invalid-email'),
+				message: t('settings:invalid-email'),
 			}),
 		supportEmail: z
 			.string()
 			.trim()
-			.max(320, { message: t('email-max-length') })
+			.max(320, { message: t('settings:email-max-length') })
 			.optional()
 			.refine((value) => !value || isValidEmailAddress(value), {
-				message: t('invalid-email'),
+				message: t('settings:invalid-email'),
 			}),
 		defaultLocale: z.string().optional(),
 		timezone: z.string().optional(),

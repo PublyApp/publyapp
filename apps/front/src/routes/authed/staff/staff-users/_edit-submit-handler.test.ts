@@ -7,7 +7,7 @@ describe('computeActionBarStatus', () => {
 		if (key === 'common:unsaved-changes') {
 			return 'Unsaved changes';
 		}
-		if (key === 'fields-need-attention') {
+		if (key === 'staff-users:fields-need-attention') {
 			return `${opts?.count ?? 0} fields need attention`;
 		}
 		return key;

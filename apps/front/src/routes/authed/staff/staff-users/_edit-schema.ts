@@ -27,7 +27,7 @@ export const getStaffUserEditSchema = (t: (key: string) => string) =>
 				} catch {
 					return false;
 				}
-			}, t('invalid-url')),
+			}, t('staff-users:invalid-url')),
 		email: z.string().trim().email().or(z.literal('')),
 		accountLevel: z.enum(ACCOUNT_LEVEL_OPTIONS),
 		status: z.enum(STATUS_OPTIONS),
