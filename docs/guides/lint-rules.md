@@ -111,6 +111,7 @@ The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as
 | `anti-slop/no-widen-then-assert`               | `error`  | 0                   | rung 2         |
 | `anti-slop/no-shape-in-symbol-names`           | `error`  | 69 (fixed)          | rung 3         |
 | `anti-slop/no-unknown-returns`                 | `error`  | 73 (fixed)          | rung 4         |
+| `anti-slop/no-chained-type-assertions`         | `error`  | 126 (fixed)         | rung 5         |
 
 ## Roslyn analyzers (`packages/lint-cs/`)
 
