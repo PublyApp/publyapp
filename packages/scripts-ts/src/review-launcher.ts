@@ -49,9 +49,10 @@ export const REDACTED = '[REDACTED]';
 // Used to keep a connection string's password out of any rendered command error —
 // whether the secret leaked into argv, stdout, or stderr.
 // @ts-expect-error rung-0: add proper type in later rung
-export const redactSecrets = (text, secrets) => {
+export const redactSecrets = (text, secrets = []) => {
 	let redacted = text;
-	for (const secret of secrets ?? []) {
+	for (const secret of secrets) {
+		// @ts-expect-error rung-0: TS2339
 		if (typeof secret === 'string' && secret.length > 0) {
 			redacted = redacted.split(secret).join(REDACTED);
 		}
@@ -117,6 +118,7 @@ export const runCommand = (command, args, options = {}) => {
 
 	if (result.error) {
 		if (typeof result.error.message === 'string') {
+			// @ts-expect-error rung-0: TS2345 - secrets stays untyped until a later rung
 			result.error.message = redactSecrets(result.error.message, secrets);
 		}
 
@@ -128,11 +130,14 @@ export const runCommand = (command, args, options = {}) => {
 	// through the exact same throw path as any other command failure.
 	const status = result.status ?? -1;
 	if (status !== 0) {
+		// @ts-expect-error rung-0: TS2345 - secrets stays untyped until a later rung
 		const stderr = redactSecrets(String(result.stderr ?? '').trim(), secrets);
+		// @ts-expect-error rung-0: TS2345 - secrets stays untyped until a later rung
 		const stdout = redactSecrets(String(result.stdout ?? '').trim(), secrets);
 		// @ts-expect-error rung-0: TS2339
 		const prefix = options.label ? `${options.label}: ` : '';
 		const detail = stderr || stdout ? `\n${stderr || stdout}` : '';
+		// @ts-expect-error rung-0: TS2345 - secrets stays untyped until a later rung
 		const renderedArgs = redactSecrets(args.join(' '), secrets);
 		const timedOut = result.signal && !result.status ? ' (timed out)' : '';
 		throw new Error(
