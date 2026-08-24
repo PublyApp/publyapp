@@ -965,6 +965,71 @@ describe('staff user edit route', () => {
 		expect(screen.getByRole('checkbox', { name: 'Archive' })).toBeTruthy();
 	});
 
+	test('remembers the label of a deselected off-page profile after it leaves the fetched page', async () => {
+		setProfileState(USER_A, {
+			data: {
+				assignedProfiles: [
+					{ id: 'profile-101', name: 'Archive', description: null },
+				],
+			},
+			isPending: false,
+			isSuccess: true,
+		});
+		mocks.toAssignedStaffProfiles.mockReturnValue([
+			{ id: 'profile-101', name: 'Archive', description: null },
+		]);
+
+		renderPage();
+
+		const archive = await screen.findByRole('checkbox', { name: 'Archive' });
+		fireEvent.click(archive);
+
+		// Once deselected, the off-page profile leaves the rendered option list
+		// (it is no longer selected and the fetched page never contained it).
+		// Its remembered label must not resurface it as a ghost option.
+		await waitFor(() =>
+			expect(screen.queryByRole('checkbox', { name: 'Archive' })).toBeNull(),
+		);
+		expect(screen.getByRole('checkbox', { name: 'Publishing' })).toBeTruthy();
+		expect(screen.getByRole('checkbox', { name: 'Billing' })).toBeTruthy();
+	});
+
+	test('does not return to the loading view once profiles have loaded, even if the query goes transient', async () => {
+		const rendered = renderPage();
+		await screen.findByDisplayValue('Alex');
+
+		let catalogueCallCount = 0;
+		mocks.useStaffProfilesQuery.mockImplementation(() => {
+			catalogueCallCount += 1;
+			if (catalogueCallCount === 1) {
+				return buildQueryResult({
+					data: {
+						data: [
+							{ id: 'profile-1', name: 'Publishing', description: null },
+							{ id: 'profile-2', name: 'Billing', description: null },
+						],
+						nextCursor: null,
+					},
+					isFetching: true,
+				});
+			}
+
+			return buildQueryResult({
+				isPending: true,
+				isSuccess: false,
+				isFetching: true,
+			});
+		});
+
+		rendered.rerender(<Component />);
+
+		// A successful load happened earlier in this mount, so a later
+		// transient pending/fetching state must keep the edit page visible
+		// instead of flashing the loading view over the user's context.
+		expect(screen.getByTestId('staff-user-edit-page')).toBeTruthy();
+		expect(screen.queryByTestId('staff-user-edit-loading')).toBeNull();
+	});
+
 	test('preserves an assigned off-page profile when another profile is assigned', async () => {
 		setProfileState(USER_A, {
 			data: {
