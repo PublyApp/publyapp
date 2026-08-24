@@ -1,7 +1,14 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+	act,
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	within,
+} from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -11,6 +18,15 @@ const mocks = vi.hoisted(() => ({
 	useStaffPermissionCatalogQuery: vi.fn(),
 	useStaffProfileUsersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn((..._args: unknown[]) => false),
+	navigate: vi.fn(),
+	search: {} as Record<string, unknown>,
+	blockerResolver: {
+		status: 'idle' as 'idle' | 'blocked',
+		proceed: undefined as (() => void) | undefined,
+		reset: undefined as (() => void) | undefined,
+	},
+	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
+	drawerProps: undefined as Record<string, unknown> | undefined,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -20,6 +36,8 @@ vi.mock('@tanstack/react-router', () => ({
 		useParams: () => ({
 			profileId: '11111111-1111-1111-1111-111111111111',
 		}),
+		useNavigate: () => mocks.navigate,
+		useSearch: () => mocks.search,
 	}),
 	Link: ({
 		children,
@@ -41,6 +59,13 @@ vi.mock('@tanstack/react-router', () => ({
 				{children}
 			</a>
 		);
+	},
+	useBlocker: (opts: {
+		enableBeforeUnload?: boolean;
+		shouldBlockFn: () => boolean;
+	}) => {
+		mocks.capturedShouldBlockFn = opts.shouldBlockFn;
+		return mocks.blockerResolver;
 	},
 }));
 
@@ -86,6 +111,41 @@ vi.mock('~/lib/query/staff-profile-users', () => ({
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
+}));
+
+// #819: the drawer itself has its own suite — here it is a recording stub so
+// these tests prove the PAGE wires it up (open flag from ?edit=1, profile,
+// save/close callbacks).
+vi.mock('./$profileId/_profile-edit-details-drawer', () => ({
+	StaffProfileEditDetailsDrawer: (props: Record<string, unknown>) => {
+		mocks.drawerProps = props;
+
+		return (
+			<div data-testid="staff-profile-edit-details-drawer-stub">
+				{props.isOpen ? 'drawer-open' : 'drawer-closed'}
+			</div>
+		);
+	},
+}));
+
+vi.mock('~/components/ui/confirm-dialog', () => ({
+	ConfirmDialog: ({
+		isOpen,
+		title,
+		onConfirm,
+	}: {
+		isOpen: boolean;
+		title?: string;
+		onConfirm?: () => void;
+	}) =>
+		isOpen ? (
+			<div data-testid="confirm-dialog" role="alertdialog">
+				{title}
+				<button type="button" onClick={onConfirm}>
+					leave-page
+				</button>
+			</div>
+		) : null,
 }));
 
 import { Route } from './$profileId';
@@ -348,5 +408,185 @@ describe('staff profile details route', () => {
 		const page = within(screen.getByTestId('staff-profile-details-page'));
 		expect(page.queryByText('Type')).toBeNull();
 		expect(page.queryByText('Custom')).toBeNull();
+	});
+});
+
+// #819 — the detail page hosts the edit drawer behind `?edit=1`, with an
+// Edit button in the identity header and a nav guard over a dirty draft.
+describe('staff profile details route — edit drawer (#819)', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mocks.shouldLogoutForFailure.mockReturnValue(false);
+		mocks.search = {};
+		mocks.blockerResolver.status = 'idle';
+		mocks.blockerResolver.proceed = undefined;
+		mocks.blockerResolver.reset = undefined;
+		mocks.capturedShouldBlockFn = undefined;
+		mocks.drawerProps = undefined;
+		mocks.useStaffProfileDetailsQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					profile: {
+						id: '11111111-1111-1111-1111-111111111111',
+						name: 'Platform admin',
+						description: 'Full access',
+						userAccountCount: 2,
+						icon: 'shield-check',
+						tone: '5',
+					},
+				},
+			}),
+		);
+		mocks.useStaffProfilePermissionKeysQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					permissionKeys: ['staff.users.read'],
+				},
+			}),
+		);
+		mocks.useStaffPermissionCatalogQuery.mockReturnValue(buildQueryResult());
+		mocks.useStaffProfileUsersQuery.mockReturnValue(buildQueryResult());
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('renders an Edit button in the identity header that opens the drawer via ?edit=1', async () => {
+		renderPage();
+
+		fireEvent.click(
+			screen.getByRole('button', { name: 'edit-profile-aria-label' }),
+		);
+
+		expect(mocks.navigate).toHaveBeenCalledTimes(1);
+		const [options] = mocks.navigate.mock.calls[0] as [
+			{
+				search: (previous: Record<string, unknown>) => Record<string, unknown>;
+			},
+		];
+		expect(options.search({})).toEqual({ edit: 1 });
+	});
+
+	test('opens the drawer when ?edit=1 is set, feeding it the loaded profile', () => {
+		mocks.search = { edit: 1 };
+
+		renderPage();
+
+		expect(mocks.drawerProps).toBeTruthy();
+		expect(mocks.drawerProps?.isOpen).toBe(true);
+		expect(mocks.drawerProps?.profile).toEqual({
+			id: '11111111-1111-1111-1111-111111111111',
+			name: 'Platform admin',
+			description: 'Full access',
+			userAccountCount: 2,
+			icon: 'shield-check',
+			iconTone: '5',
+		});
+		expect(
+			screen.getByTestId('staff-profile-edit-details-drawer-stub').textContent,
+		).toBe('drawer-open');
+	});
+
+	test('keeps the drawer closed without ?edit=1', () => {
+		renderPage();
+
+		expect(mocks.drawerProps?.isOpen).toBe(false);
+		expect(
+			screen.getByTestId('staff-profile-edit-details-drawer-stub').textContent,
+		).toBe('drawer-closed');
+	});
+
+	test('closing the drawer drops ?edit from the URL and preserves other search keys', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		const onOpenChange = mocks.drawerProps?.onOpenChange as (
+			isOpen: boolean,
+		) => void;
+		onOpenChange(false);
+
+		expect(mocks.navigate).toHaveBeenCalledTimes(1);
+		const [options] = mocks.navigate.mock.calls[0] as [
+			{
+				search: (previous: Record<string, unknown>) => Record<string, unknown>;
+			},
+		];
+		const nextSearch = options.search({ q: 'x', edit: 1 });
+		expect(nextSearch.edit).toBeUndefined();
+		expect(nextSearch.q).toBe('x');
+	});
+
+	test('a successful save closes the drawer via the same URL flag', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		const onSaved = mocks.drawerProps?.onSaved as (profileId: string) => void;
+		onSaved('11111111-1111-1111-1111-111111111111');
+
+		expect(mocks.navigate).toHaveBeenCalledTimes(1);
+		const [options] = mocks.navigate.mock.calls[0] as [
+			{
+				search: (previous: Record<string, unknown>) => Record<string, unknown>;
+			},
+		];
+		expect(options.search({ edit: 1 }).edit).toBeUndefined();
+	});
+
+	test('the session-expiry callback redirects to logout', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		const onSessionExpired = mocks.drawerProps?.onSessionExpired as () => void;
+		act(() => {
+			onSessionExpired();
+		});
+
+		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+	});
+
+	test('the nav guard blocks only while the open drawer reports a dirty draft', () => {
+		mocks.search = { edit: 1 };
+		renderPage();
+
+		// Clean draft: never blocks.
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		// Dirty report from the drawer while open: blocks.
+		const onDirtyChange = mocks.drawerProps?.onDirtyChange as (
+			isDirty: boolean,
+		) => void;
+		act(() => {
+			onDirtyChange(true);
+		});
+		expect(mocks.capturedShouldBlockFn?.()).toBe(true);
+
+		// App-initiated close bypasses its own transition...
+		const onOpenChange = mocks.drawerProps?.onOpenChange as
+			| ((isOpen: boolean) => void)
+			| undefined;
+		act(() => {
+			onDirtyChange(false);
+			onOpenChange?.(false);
+		});
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+
+		// ...and a stale dirty flag after close must not re-arm it.
+		act(() => {
+			onDirtyChange(true);
+		});
+		expect(mocks.capturedShouldBlockFn?.()).toBe(false);
+	});
+
+	test('shows the unsaved-changes dialog when blocked, and Leave page proceeds', () => {
+		mocks.search = { edit: 1 };
+		mocks.blockerResolver.status = 'blocked';
+		mocks.blockerResolver.proceed = vi.fn();
+		renderPage();
+
+		expect(screen.getByTestId('confirm-dialog')).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'leave-page' }));
+		expect(mocks.blockerResolver.proceed).toHaveBeenCalled();
 	});
 });

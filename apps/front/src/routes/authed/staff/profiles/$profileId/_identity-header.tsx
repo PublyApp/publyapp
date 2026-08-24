@@ -1,5 +1,7 @@
+import { IconPencil } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import { Button } from '~/components/ui/button';
 import { deriveProfileCardStyle } from '~/lib/profile-card-style';
 import type { StaffProfileDetails } from '~/lib/query/staff-profiles';
 
@@ -9,10 +11,12 @@ export const StaffProfileIdentityHeader = ({
 	details,
 	profileId,
 	assignedCount,
+	onEdit,
 }: {
 	details: StaffProfileDetails;
 	profileId: string;
 	assignedCount: number;
+	onEdit?: () => void;
 }) => {
 	const { t } = useTranslation('common');
 
@@ -68,6 +72,19 @@ export const StaffProfileIdentityHeader = ({
 				</div>
 			</div>
 			<div className="flex items-center gap-2.5">
+				{onEdit ? (
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onClick={onEdit}
+						data-testid="staff-profile-edit-button"
+						aria-label={t('edit-profile-aria-label')}
+					>
+						<IconPencil aria-hidden="true" className="size-4" />
+						{t('edit')}
+					</Button>
+				) : null}
 				<Link
 					to="/staff/profiles/$profileId/users"
 					params={{ profileId }}

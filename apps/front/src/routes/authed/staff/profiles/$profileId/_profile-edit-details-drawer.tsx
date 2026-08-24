@@ -135,19 +135,30 @@ const StaffProfileEditDetailsDrawer = ({
 	);
 	const hasCustomStyle = icon !== null || tone !== null;
 
+	// Re-seed the draft when the drawer opens for a given profile. The profile
+	// object is deliberately read inside (not listed as a dependency): a
+	// background refetch may replace the object, and that must never clobber an
+	// in-progress draft. Keying a split-out body on `profile.id` would also
+	// re-seed, but it would unmount mid-close-animation and break the drawer's
+	// Escape/outside-click close contract, so this effect is the honest shape.
+	// react-doctor-disable-next-line react-doctor/no-reset-all-state-on-prop-change -- deliberate open-triggered re-seed; see above
 	useEffect(() => {
 		if (!isOpen) {
 			return;
 		}
 
+		// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change -- deliberate open-triggered re-seed; see above
 		setIsDiscardConfirmOpen(false);
 		reset(getProfileEditDetailsValues(profile));
-		// Re-seed only for a newly opened/changed profile. A refetch may replace
-		// the profile object and must not discard an in-progress draft.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen, profile.id, reset]);
 
+	// Bridge RHF's dirty flag to the page's nav guard. This is an external-
+	// store subscription (react.dev/learn/you-might-not-need-an-effect), not
+	// derived state: reporting during render would call setState on the parent
+	// mid-render, and moving the form up would put route state in the page.
 	useEffect(() => {
+		// react-doctor-disable-next-line react-doctor/no-pass-data-to-parent react-doctor/no-pass-live-state-to-parent react-doctor/no-prop-callback-in-effect -- external-store bridge; see above
 		onDirtyChange?.(isDirty);
 	}, [isDirty, onDirtyChange]);
 
