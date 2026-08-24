@@ -14,36 +14,36 @@ type ProfileOption = {
 
 export const EditAccessSection = ({
 	isSubmittingForm,
-	isProfilesFetching,
-	isProfilesPending,
+	profiles,
 	profileOptions,
-	hasNoServerProfileRows,
-	isProfileSearchSettled,
 	deferredProfileSearch,
 	profileSearch,
 	onProfileSearchChange,
-	hasPagination,
-	pageIndex,
-	hasPreviousPage,
-	hasNextCursor,
-	onPreviousPage,
-	onNextPage,
+	pagination,
 }: {
 	isSubmittingForm: boolean;
-	isProfilesFetching: boolean;
-	isProfilesPending: boolean;
+	/** State of the assigned-profiles query driving this section's busy,
+	 * empty and settled rendering. */
+	profiles: {
+		isFetching: boolean;
+		isPending: boolean;
+		hasNoServerRows: boolean;
+		isSearchSettled: boolean;
+	};
 	profileOptions: ProfileOption[];
-	hasNoServerProfileRows: boolean;
-	isProfileSearchSettled: boolean;
 	deferredProfileSearch: string;
 	profileSearch: string;
 	onProfileSearchChange: (value: string) => void;
-	hasPagination: boolean;
-	pageIndex: number;
-	hasPreviousPage: boolean;
-	hasNextCursor: boolean;
-	onPreviousPage: () => void;
-	onNextPage: () => void;
+	pagination: {
+		/** Renders the page line + prev/next pair; on while another page of
+		 * profile rows exists in either direction. */
+		hasPagination: boolean;
+		pageIndex: number;
+		hasPreviousPage: boolean;
+		hasNextCursor: boolean;
+		onPreviousPage: () => void;
+		onNextPage: () => void;
+	};
 }) => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
@@ -99,7 +99,7 @@ export const EditAccessSection = ({
 						data-testid="staff-user-profile-search"
 					/>
 				</div>
-				{isProfilesFetching ? (
+				{profiles.isFetching ? (
 					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<LoadingSpinner />
 						<span>{t('common:profiles')}</span>
@@ -111,25 +111,25 @@ export const EditAccessSection = ({
 						label={t('common:select-profiles')}
 						options={profileOptions}
 						isDisabled={
-							isSubmittingForm || isProfilesPending || isProfilesFetching
+							isSubmittingForm || profiles.isPending || profiles.isFetching
 						}
 					/>
 				) : null}
-				{hasNoServerProfileRows &&
-				isProfileSearchSettled &&
-				!isProfilesPending &&
-				!isProfilesFetching ? (
+				{profiles.hasNoServerRows &&
+				profiles.isSearchSettled &&
+				!profiles.isPending &&
+				!profiles.isFetching ? (
 					<p role="status" className="text-sm text-muted-foreground">
 						{deferredProfileSearch
 							? t('common:list-no-match-default-description')
 							: t('common:no-profiles-available')}
 					</p>
 				) : null}
-				{hasPagination ? (
+				{pagination.hasPagination ? (
 					<div className="flex items-center justify-between gap-3">
 						<p className="text-xs text-muted-foreground">
 							{t('common:page-n', {
-								page: pageIndex + 1,
+								page: pagination.pageIndex + 1,
 							})}
 						</p>
 						<div className="flex items-center gap-2">
@@ -139,9 +139,11 @@ export const EditAccessSection = ({
 								size="sm"
 								aria-label={t('common:previous-page')}
 								disabled={
-									isSubmittingForm || isProfilesFetching || !hasPreviousPage
+									isSubmittingForm ||
+									profiles.isFetching ||
+									!pagination.hasPreviousPage
 								}
-								onClick={onPreviousPage}
+								onClick={pagination.onPreviousPage}
 							>
 								{t('common:previous-page')}
 							</Button>
@@ -151,9 +153,11 @@ export const EditAccessSection = ({
 								size="sm"
 								aria-label={t('common:next-page')}
 								disabled={
-									isSubmittingForm || isProfilesFetching || !hasNextCursor
+									isSubmittingForm ||
+									profiles.isFetching ||
+									!pagination.hasNextCursor
 								}
-								onClick={onNextPage}
+								onClick={pagination.onNextPage}
 							>
 								{t('common:next-page')}
 							</Button>

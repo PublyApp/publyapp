@@ -62,6 +62,12 @@ const commitIdentityFields = (
 	}
 };
 
+/** Outcome the page must act on. The handler never navigates itself:
+ * `react-doctor/tanstack-start-no-navigate-in-render` flags router calls in
+ * non-component modules, and navigation belongs at the call site anyway.
+ * `'stay'`: nothing to navigate from (failure paths keep the form open). */
+export type SubmitStaffUserEditOutcome = 'navigate' | 'stay';
+
 export const submitStaffUserEdit = async ({
 	userId,
 	values,
@@ -73,7 +79,6 @@ export const submitStaffUserEdit = async ({
 	setShouldLogout,
 	setServerError,
 	hasSavedRef,
-	navigate,
 	t,
 }: {
 	userId: string;
@@ -89,9 +94,8 @@ export const submitStaffUserEdit = async ({
 	setShouldLogout: (v: boolean) => void;
 	setServerError: (v: string) => void;
 	hasSavedRef: { current: boolean };
-	navigate: (opts: { to: string; params: Record<string, string> }) => void;
 	t: (key: string, opts?: Record<string, unknown>) => string;
-}): Promise<void> => {
+}): Promise<SubmitStaffUserEditOutcome> => {
 	const updateInput = buildIdentityUpdateInput(userId, values, dirtyFields);
 	const hasIdentityChanges = Object.keys(updateInput).length > 1;
 	const hasProfileChanges = Boolean(dirtyFields.profileIds);
@@ -104,11 +108,11 @@ export const submitStaffUserEdit = async ({
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
-				return;
+				return 'stay';
 			}
 
 			await displayLocalMutationFailure(error, t('unknown-error'));
-			return;
+			return 'stay';
 		}
 
 		commitIdentityFields(methods, values, dirtyFields);
@@ -124,7 +128,7 @@ export const submitStaffUserEdit = async ({
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				setShouldLogout(true);
-				return;
+				return 'stay';
 			}
 
 			if (hasIdentityChanges) {
@@ -141,7 +145,7 @@ export const submitStaffUserEdit = async ({
 			} else {
 				await displayLocalMutationFailure(error, t('unknown-error'));
 			}
-			return;
+			return 'stay';
 		}
 
 		await invalidateStaffUsers(queryClient);
@@ -149,10 +153,8 @@ export const submitStaffUserEdit = async ({
 
 	hasSavedRef.current = true;
 	toastLocalMutationResult.success(t('staff-user-updated-success'));
-	navigate({
-		to: '/staff/staff-users/$userId',
-		params: { userId },
-	});
+
+	return 'navigate';
 };
 
 export const computeActionBarStatus = (
