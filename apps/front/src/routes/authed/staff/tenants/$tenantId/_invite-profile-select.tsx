@@ -70,8 +70,11 @@ export const InviteProfileSelect = ({
 			control={control}
 			render={({ field, fieldState: { error } }) => {
 				const selectedIds = toStringArray(field.value);
+				// O(1) membership for the two per-profile checks below instead of
+				// an Array.includes scan per row (react-doctor/js-set-map-lookups).
+				const selectedIdSet = new Set(selectedIds);
 				const selectedProfiles = profiles.filter((profile) =>
-					selectedIds.includes(profile.id),
+					selectedIdSet.has(profile.id),
 				);
 				const queryError = profilesIsError
 					? getFailureMessage(toApiFailure(profilesError), {
@@ -128,7 +131,7 @@ export const InviteProfileSelect = ({
 									profiles.map((profile) => (
 										<DropdownMenuCheckboxItem
 											key={profile.id}
-											checked={selectedIds.includes(profile.id)}
+											checked={selectedIdSet.has(profile.id)}
 											closeOnClick={false}
 											showCheckbox
 											onCheckedChange={(checked) => {

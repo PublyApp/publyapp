@@ -1,25 +1,21 @@
 import { IconBuilding, IconLoader2 } from '@tabler/icons-react';
 import {
 	createFileRoute,
+	Navigate,
 	Outlet,
-	useNavigate,
 	useRouterState,
 } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { SimpleLayout } from '~/layouts/simple-layout';
+import { useSelectedTenantId } from '~/lib/hooks/use-selected-tenant-id';
 import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
 import {
 	resolveWorkspaceTenant,
 	type TenantsForPickerData,
 	type TenantForPickerRow,
 } from '~/lib/query/tenants-for-picker';
-import {
-	readSelectedTenantId,
-	writeSelectedTenantId,
-} from '~/lib/selected-tenant-storage';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
@@ -40,6 +36,23 @@ const resolveWorkspaceTenantWhenLoaded = (
 	selectedTenantId: string | null,
 ): TenantForPickerRow | undefined =>
 	data ? resolveWorkspaceTenant(data, selectedTenantId) : undefined;
+
+/**
+ * Neutral full-screen spinner shown while an unresolved `/tenant/*` child path
+ * waits for the picker query to settle. Declared once as an element (not a
+ * component) so passing it to `QueryDisplay` never remounts anything.
+ */
+const childRedirectingSurface = (
+	<div
+		className="flex min-h-svh items-center justify-center"
+		data-testid="tenant-portal-redirecting"
+	>
+		<IconLoader2
+			aria-hidden="true"
+			className="size-8 animate-spin text-muted-foreground"
+		/>
+	</div>
+);
 
 /**
  * The tenant workspace shell: rendered by the resolved branch of
@@ -92,50 +105,19 @@ const TenantWorkspaceShell = ({ tenant }: { tenant: TenantForPickerRow }) => {
 
 const TenantPortalRoute = () => {
 	const query = useTenantsForPickerQuery();
-	const navigate = useNavigate();
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
 	});
-	const [selectedTenantId, setSelectedTenantId] = useState<string | null>(() =>
-		readSelectedTenantId(),
-	);
+	// Persisted UI preference read through `useSyncExternalStore`: server and
+	// hydration share the stable `null` snapshot, then the store value applies
+	// after mount (react-doctor/no-hydration-branch-on-browser-global).
+	const [selectedTenantId, setSelectedTenantId] = useSelectedTenantId();
 	const isTenantRoot = pathname.replace(/\/+$/, '') === '/tenant';
 	const resolvedTenant = resolveWorkspaceTenantWhenLoaded(
 		query.data,
 		selectedTenantId,
 	);
 	const isResolvedToWorkspace = resolvedTenant !== undefined;
-
-	// The workspace root never hosts the shell: the shell only renders inside
-	// the AppShell (whose rail is the workspace navigation), and the root
-	// renders bare for the picker. Once a workspace resolves, bounce to the
-	// first section — the same shape as `/staff` -> `/staff/staff-users`.
-	//
-	// A CHILD path with no resolvable workspace (0 actives, or 2+ actives
-	// with no valid stored selection) redirects to `/tenant`: the bare picker
-	// is the single unresolved surface, and painting it inside the AppShell
-	// would nest SimpleLayout in the platform chrome (PR #1131 round 3
-	// finding 1 — fixed by redirecting instead of bypassing the shell).
-	useEffect(() => {
-		if (isTenantRoot) {
-			if (isResolvedToWorkspace) {
-				void navigate({ to: '/tenant/account', replace: true });
-			}
-			return;
-		}
-
-		// Settled = success or error; computed inside the effect (not render)
-		// because it gates navigation, never a rendered query state.
-		if ((query.isSuccess || query.isError) && !isResolvedToWorkspace) {
-			void navigate({ to: '/tenant', replace: true });
-		}
-	}, [
-		isResolvedToWorkspace,
-		isTenantRoot,
-		navigate,
-		query.isSuccess,
-		query.isError,
-	]);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
 	// QueryDisplay owns state rendering below. `shouldLogoutForFailure` only
@@ -152,11 +134,18 @@ const TenantPortalRoute = () => {
 
 	if (isResolvedToWorkspace) {
 		if (isTenantRoot) {
+			// Once a workspace resolves, bounce to the first section — the same
+			// shape as `/staff` -> `/staff/staff-users`. Declared in JSX so the
+			// redirect can never land a frame late
+			// (react-doctor/no-event-handler) and renders identically on the
+			// server and during hydration
+			// (react-doctor/no-hydration-branch-on-browser-global).
 			return (
 				<div
 					className="flex min-h-svh items-center justify-center"
 					data-testid="tenant-portal-redirecting"
 				>
+					<Navigate to="/tenant/account" replace />
 					<IconLoader2
 						aria-hidden="true"
 						className="size-8 animate-spin text-muted-foreground"
@@ -183,8 +172,8 @@ const TenantPortalRoute = () => {
 							<TenantPortalPickerView
 								data={data}
 								onSelect={(tenantId) => {
+									// Persists AND notifies subscribers (same-tab) via the external store.
 									setSelectedTenantId(tenantId);
-									writeSelectedTenantId(tenantId);
 								}}
 							/>
 						)
@@ -194,19 +183,23 @@ const TenantPortalRoute = () => {
 		);
 	}
 
-	// Unresolved child path: the effect above is redirecting to `/tenant`,
-	// where the bare picker lives. Render a neutral spinner here — never the
-	// picker itself, which would nest SimpleLayout inside the AppShell.
+	// Unresolved child path: once the picker query settles without a
+	// resolvable workspace, redirect to `/tenant`, where the bare picker is
+	// the single unresolved surface. `QueryDisplay` owns every query state:
+	// pending keeps the neutral spinner (never the picker itself, which would
+	// nest SimpleLayout inside the AppShell); error, empty catalog, and a
+	// loaded list that fails to resolve the persisted preference all declare
+	// the same redirect in JSX. Nothing here branches on query-state booleans
+	// or browser-only values, so server and hydration render identically.
 	return (
-		<div
-			className="flex min-h-svh items-center justify-center"
-			data-testid="tenant-portal-redirecting"
+		<QueryDisplay
+			query={query}
+			LoadingSlot={childRedirectingSurface}
+			ErrorSlot={<Navigate to="/tenant" replace />}
+			EmptySlot={<Navigate to="/tenant" replace />}
 		>
-			<IconLoader2
-				aria-hidden="true"
-				className="size-8 animate-spin text-muted-foreground"
-			/>
-		</div>
+			{() => <Navigate to="/tenant" replace />}
+		</QueryDisplay>
 	);
 };
 

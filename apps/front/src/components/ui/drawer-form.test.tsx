@@ -369,6 +369,10 @@ import { LinkCompaniesDrawerHost } from '../../routes/authed/staff/tenant-users/
 import { InviteTenantUserDrawer } from '../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer';
 import { ProfileEditDetailsDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer';
 import { ProfileFormDrawer } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer';
+import {
+	getProfileFormValues,
+	type ProfileFormValues,
+} from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-schema';
 import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-drawer';
 
 const noop = () => undefined;
@@ -9333,15 +9337,27 @@ const scanDrawerSurfaces = (): {
 
 const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
 	'profile-create': () => {
-		render(
-			<ProfileFormDrawer
-				tenantId="tenant-1"
-				isOpen
-				onOpenChange={noop}
-				onSaved={noop}
-				onSessionExpired={noop}
-			/>,
-		);
+		// ProfileFormDrawer receives its RHF instance from its host page, so
+		// the guard mounts it through a minimal owner component mirroring
+		// that contract instead of rendering it bare.
+		const ProfileCreateGuardHarness = () => {
+			const methods = useForm<ProfileFormValues>({
+				defaultValues: getProfileFormValues(),
+			});
+
+			return (
+				<ProfileFormDrawer
+					tenantId="tenant-1"
+					isOpen
+					onOpenChange={noop}
+					onSaved={noop}
+					onSessionExpired={noop}
+					methods={methods}
+				/>
+			);
+		};
+
+		render(<ProfileCreateGuardHarness />);
 	},
 	'profile-edit': () => {
 		render(

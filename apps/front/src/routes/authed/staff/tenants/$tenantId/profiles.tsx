@@ -19,6 +19,7 @@ import {
 } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -97,6 +98,15 @@ import {
 import { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
 import { ProfileEditDetailsDrawer } from './profiles/_profile-edit-details-drawer';
 import { ProfileFormDrawer } from './profiles/_profile-form-drawer';
+import {
+	getProfileFormValues,
+	profileFormResolver,
+	type ProfileFormValues,
+} from './profiles/_profile-form-schema';
+
+// Re-exported so route-local specs can type the mocked drawer's `methods`
+// prop against the exact shape the page owns.
+export type { ProfileFormValues as StaffTenantProfileFormValues };
 
 export { deriveTenantProfileCardStyle } from './profiles/_profile-card-style';
 
@@ -261,9 +271,21 @@ const StaffTenantProfilesPage = () => {
 	const queryClient = useQueryClient();
 	const [deleteTarget, setDeleteTarget] =
 		useState<StaffTenantProfileRow | null>(null);
+	// The create form lives here, not inside ProfileFormDrawer: the nav guard
+	// below reads `createMethods.formState.isDirty` during THIS component's
+	// render, so blocking decisions never wait on a child effect to relay
+	// dirtiness upward (tenants-r1-F2, react-doctor/no-pass-data-to-parent).
+	// The drawer re-seeds values by remounting under a fresh key.
+	const profileFormResolverMemo = useMemo(() => profileFormResolver(t), [t]);
+	const createMethods = useForm<ProfileFormValues>({
+		resolver: profileFormResolverMemo,
+		defaultValues: getProfileFormValues(),
+	});
+	const {
+		formState: { isDirty: isCreateFormDirty },
+	} = createMethods;
 	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
 	const deleteProfile = useDeleteStaffTenantProfileMutation();
-	const [isCreateFormDirty, setIsCreateFormDirty] = useState(false);
 	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
 
 	const isCreateDrawerOpen = search.new === 1;
@@ -439,6 +461,9 @@ const StaffTenantProfilesPage = () => {
 	// transition can never raise two competing confirm dialogs.
 	const drawerBlocker = useBlocker({
 		shouldBlockFn: ({ current, next }) => {
+			// `isCreateFormDirty` is read from this render's form state. The
+			// bypass ref is set synchronously by every app-initiated
+			// close/submit path so the guard never blocks its own transition.
 			if (
 				isCreateDrawerOpen &&
 				isCreateFormDirty &&
@@ -802,14 +827,17 @@ const StaffTenantProfilesPage = () => {
 						/>
 
 						<ProfileFormDrawer
+							key={`create-${tenantId}:${isCreateDrawerOpen}`}
 							tenantId={tenantId}
 							isOpen={isCreateDrawerOpen}
+							methods={createMethods}
 							onOpenChange={setCreateDrawerOpen}
 							onSessionExpired={() => setShouldRedirectToLogout(true)}
-							onDirtyChange={setIsCreateFormDirty}
 							onSaved={(profileId) => {
-								// A successful submit must never be blocked by the parent's own
-								// nav guard reading a not-yet-flushed dirty flag (W8-DRAWER).
+								// A successful submit must never be blocked by the parent's
+								// own nav guard while the navigation `onSaved` performs is
+								// still in flight — the guard reads this render's dirty flag,
+								// which stays stale until React commits the reset remount.
 								createDrawerNavBypassRef.current = true;
 
 								if (profileId) {

@@ -292,9 +292,7 @@ const StaffTenantInvitationsPage = () => {
 					selectedStatuses.length === 0
 						? t('all-statuses')
 						: selectedStatuses
-								.map((status) =>
-									formatTenantInvitationStatusLabel(status, t),
-								)
+								.map((status) => formatTenantInvitationStatusLabel(status, t))
 								.join(', ');
 
 				const setLevels = (nextLevels: KnownInvitationAccountLevel[]): void => {
@@ -417,7 +415,10 @@ const StaffTenantInvitationsPage = () => {
 						{/* #838: meaningful selected-row action — client-side CSV of the
 							selected visible invitations (no tenant bulk endpoints exist;
 							bulk revoke is explicitly out of scope for this issue). */}
-						<TenantInvitationsSelectionExport rows={rows} selection={selection} />
+						<TenantInvitationsSelectionExport
+							rows={rows}
+							selection={selection}
+						/>
 
 						<InviteTenantUserDrawerHost
 							tenantId={tenantId}
