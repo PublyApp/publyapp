@@ -2,7 +2,6 @@
 	"$schema": "https://react.doctor/schema/config.json",
 	"rules": {
 		"react-doctor/no-multi-component-file": "off",
-		"react-doctor/only-export-components": "off",
-		"react-doctor/no-giant-component": "off"
+		"react-doctor/only-export-components": "off"
 	}
 }
