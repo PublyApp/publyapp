@@ -52,6 +52,10 @@ export const DataTableHeaderRow = <TData,>({
 	onSortChange,
 	selectionHeader,
 }: DataTableHeaderRowProps<TData>) => {
+	// "use no memo" — reads the mutable TanStack `table` instance during
+	// render (header groups); compiler memoization skipped this component's
+	// body when only the parent re-rendered. Full explanation in data-table.tsx.
+	'use no memo';
 	const { t } = useTranslation('common');
 
 	const handleSort = (columnId: string): void => {

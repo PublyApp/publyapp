@@ -41,6 +41,9 @@ export const DataTableGrid = <TData extends { id: string }>({
 	focusedCell,
 	onFocusedCellChange,
 }: DataTableGridProps<TData>) => {
+	// "use no memo" — derives every cell of the grid from the mutable TanStack
+	// `table` instance each render; see data-table.tsx for the full rationale.
+	'use no memo';
 	const hasSelection = selection != null;
 
 	const hasFixedColumns = table

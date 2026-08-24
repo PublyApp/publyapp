@@ -312,6 +312,18 @@ export const DataTable = <TData extends { id: string }>({
 	density,
 	getRowLabel = (row) => row.id,
 }: DataTableProps<TData>) => {
+	// "use no memo" — the table instance from `useReactTable` is MUTABLE and
+	// identity-stable across renders; its row model updates in place when the
+	// `data` option changes. The React Compiler (on in production builds,
+	// vite.config.ts) caches this component's JSX children, so after a search
+	// clear or pagination move only DataTable itself re-rendered while its
+	// extracted children kept showing the PREVIOUS page's rows. The CI e2e
+	// failures on 2026-08-24 across five specs (search-clear restore, status-
+	// filter reset, level-filter disabled state, pager Previous) were one
+	// root cause. Opting these three components out restores pre-split
+	// semantics: children re-render whenever the parent does. Keep any
+	// component that reads `table.*` during render out of the compiler.
+	'use no memo';
 	const { t } = useTranslation('common');
 	const isSelectionMode = selection?.isSelectionMode ?? false;
 	const displayBreakpoints = useMemo(
