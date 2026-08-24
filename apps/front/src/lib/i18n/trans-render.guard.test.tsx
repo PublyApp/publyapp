@@ -17,6 +17,19 @@
  * 213 front test files do — which is exactly the suite-wide blindness this
  * guard offsets.)
  *
+ * The guarded set is AUTO-DISCOVERED (#1312 round 1): every JSX `<Trans>`
+ * element under `apps/front/src` must resolve to a CALL_SITES entry, so a new
+ * call site anywhere — including a brand-new route file — turns this guard
+ * red until a spec renders it through its real route component. Deliberately
+ * excluded from the scan: `*.test.{ts,tsx}` / `*.spec.{ts,tsx}` (the suite
+ * itself, including this file's own direct-mode `<Trans>` mounts), `*.d.ts`
+ * (ambient declarations never render), and the e2e/__tests__ directories
+ * (browser specs, not app source). A parse failure anywhere scanned throws
+ * instead of walking a recovered partial tree. Two documented residuals: an
+ * aliased import (`Trans as X`) and a spread-only `<Trans {...props} />`
+ * carry no static `i18nKey` identity and stay outside discovery — neither
+ * shape exists in src today.
+ *
  * Pinned per language (EN + FR) for the four production call sites (one
  * `<Trans>` in accept-invitation feeds two mismatch views, so 5 keys):
  * - rendered `<strong>` tags: count, tag name, and the production
@@ -50,7 +63,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -58,6 +71,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import type { i18n as I18nInstance } from 'i18next';
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import { I18nextProvider, initReactI18next, Trans } from 'react-i18next';
+import { ts } from 'ts-morph';
 import { beforeEach, afterEach, describe, expect, test, vi } from 'vitest';
 
 import resourceEN from '../../i18n/locales/en';
@@ -243,15 +257,22 @@ const CURRENT_USER_EMAIL = 'other@example.com';
 const VERIFY_SENT_EMAIL = 'linus@example.com';
 
 /**
- * Every production `<Trans>` call site (`rg "<Trans" apps/front/src`):
- * reset-password.tsx x2, accept-invitation.tsx x1 (both mismatch views share
- * one `<Trans>` fed by INVITATION_MISMATCH_I18N_KEYS), verify-email.tsx x1.
+ * The hand-maintained half of the guard: one spec per production `<Trans>`
+ * call site, each carrying the route-mount state plus the verbatim EN/FR
+ * sentence pins. Discovery (above) supplies the OTHER half — the exhaustive
+ * list of sites in src — and the discovery test below fails while the two
+ * halves disagree, so a new call site cannot ship uncovered.
  *
  * `en`/`fr` pin the exact rendered text per language: resource markup
  * stripped, values interpolated. Update them deliberately when copy changes.
  */
 type CallSiteSpec = {
 	site: string;
+	/** The file discovery reports this site in; must match its real location. */
+	file:
+		| 'routes/reset-password.tsx'
+		| 'routes/_accept-invitation-views.tsx'
+		| 'routes/verify-email.tsx';
 	route: 'reset-password' | 'accept-invitation' | 'verify-email';
 	loaderData:
 		| ResetPasswordLoaderData
@@ -260,6 +281,8 @@ type CallSiteSpec = {
 	flow?: 'submit-reset-request';
 	scopeTestId?: string;
 	key: AuthTranslationKey;
+	/** The `ns` attribute on the real `<Trans>` element (all pinned sites use "auth"). */
+	ns: 'auth';
 	values: Record<string, string>;
 	en: string;
 	fr: string;
@@ -268,17 +291,20 @@ type CallSiteSpec = {
 const CALL_SITES: CallSiteSpec[] = [
 	{
 		site: 'routes/reset-password.tsx (request form -> sent confirmation)',
+		file: 'routes/reset-password.tsx',
 		route: 'reset-password',
 		loaderData: { view: 'request' },
 		flow: 'submit-reset-request',
 		scopeTestId: 'reset-password-request-sent',
 		key: 'reset-link-sent-description',
+		ns: 'auth',
 		values: { email: RESET_REQUEST_EMAIL },
 		en: "ada@example.com is valid, you'll receive an email with a link to reset your password.",
 		fr: 'Si ada@example.com est valide, vous recevrez un email avec un lien pour réinitialiser votre mot de passe.',
 	},
 	{
 		site: 'routes/reset-password.tsx (set-new-password form)',
+		file: 'routes/reset-password.tsx',
 		route: 'reset-password',
 		loaderData: {
 			view: 'set-new',
@@ -288,12 +314,14 @@ const CALL_SITES: CallSiteSpec[] = [
 			fromEmailVerification: false,
 		},
 		key: 'reset-password-description',
+		ns: 'auth',
 		values: { email: SET_NEW_EMAIL },
 		en: 'Enter your new password for grace@example.com',
 		fr: 'Entrez votre nouveau mot de passe pour grace@example.com',
 	},
 	{
 		site: 'routes/accept-invitation (existing-user mismatch view, via the real route component)',
+		file: 'routes/_accept-invitation-views.tsx',
 		route: 'accept-invitation',
 		loaderData: {
 			view: 'valid',
@@ -303,6 +331,7 @@ const CALL_SITES: CallSiteSpec[] = [
 			userExists: true,
 		},
 		key: 'auth-invitation-existing-user-mismatch-description',
+		ns: 'auth',
 		values: {
 			invitationEmail: INVITED_EMAIL,
 			currentUserEmail: CURRENT_USER_EMAIL,
@@ -312,6 +341,7 @@ const CALL_SITES: CallSiteSpec[] = [
 	},
 	{
 		site: 'routes/accept-invitation (new-user mismatch view, via the real route component)',
+		file: 'routes/_accept-invitation-views.tsx',
 		route: 'accept-invitation',
 		loaderData: {
 			view: 'valid',
@@ -321,6 +351,7 @@ const CALL_SITES: CallSiteSpec[] = [
 			userExists: false,
 		},
 		key: 'auth-invitation-new-user-mismatch-description',
+		ns: 'auth',
 		values: {
 			invitationEmail: INVITED_EMAIL,
 			currentUserEmail: CURRENT_USER_EMAIL,
@@ -330,10 +361,12 @@ const CALL_SITES: CallSiteSpec[] = [
 	},
 	{
 		site: 'routes/verify-email.tsx (verification email sent)',
+		file: 'routes/verify-email.tsx',
 		route: 'verify-email',
 		loaderData: { view: 'sent', email: VERIFY_SENT_EMAIL },
 		scopeTestId: 'verify-email-sent',
 		key: 'verify-email-sent-description',
+		ns: 'auth',
 		values: { email: VERIFY_SENT_EMAIL },
 		en: "linus@example.com is valid, you'll receive an email with a link to verify your account.",
 		fr: 'Si linus@example.com est valide, vous recevrez un email avec un lien pour vérifier votre compte.',
@@ -429,6 +462,25 @@ const renderCallSite = async (
 const countOccurrences = (haystack: string, needle: string): number =>
 	haystack.split(needle).length - 1;
 
+// ---------------------------------------------------------------------------
+// AUTO-DISCOVERY of every JSX `<Trans>` call site under apps/front/src
+// (#1312 round 1). The CALL_SITES table below stays hand-maintained because
+// each entry needs a route-mount state plus verbatim EN/FR sentence pins;
+// this AST walk is what keeps the two in lock-step: a `<Trans>` added
+// ANYWHERE in src turns the discovery test below red until a spec covers it.
+//
+// Deliberately excluded from the scan:
+// - `*.test.ts` / `*.test.tsx` / anything `.spec.` / `*.stories.tsx` — the
+//   suite itself, including THIS file's own direct-mode `<Trans>` mounts;
+// - `*.d.ts` — ambient declarations never render;
+// - `e2e/` trees — browser specs, not app source.
+//
+// Documented residuals rather than silent blind spots: an aliased import
+// (`Trans as T`) and a spread-only element (`<Trans {...props} />`) carry no
+// static identity this scan can pin. Neither shape exists in src today; if
+// one lands, discovery cannot see it and this comment is where the gap lives.
+// ---------------------------------------------------------------------------
+
 // vitest's import.meta.url may be a plain path rather than a file:// URL,
 // depending on transform mode — normalise both shapes.
 const THIS_FILE = import.meta.url.startsWith('file:')
@@ -437,6 +489,187 @@ const THIS_FILE = import.meta.url.startsWith('file:')
 const SRC_ROOT = path.resolve(THIS_FILE, '..', '..', '..');
 const readSource = (relative: string): string =>
 	readFileSync(path.join(SRC_ROOT, relative), 'utf8');
+
+/**
+ * Lists every source file under src, excluding the suite/spec/stories/d.ts
+ * shapes listed above.
+ */
+const listSourceFiles = (): string[] => {
+	const files: string[] = [];
+
+	const walk = (relative: string): void => {
+		for (const entry of readdirSync(path.join(SRC_ROOT, relative), {
+			withFileTypes: true,
+		})) {
+			const child = `${relative}${relative === '' ? '' : '/'}${entry.name}`;
+
+			if (entry.isDirectory()) {
+				if (child === 'e2e') continue;
+				walk(child);
+				continue;
+			}
+
+			if (!/\.(ts|tsx)$/.test(child)) continue;
+			if (/\.d\.ts$/.test(child)) continue;
+			if (/\.test\.(ts|tsx)$/.test(child)) continue;
+			if (/\.spec\./.test(child)) continue;
+			if (/\.stories\.tsx$/.test(child)) continue;
+			files.push(child);
+		}
+	};
+
+	walk('');
+
+	return files.sort();
+};
+
+type SourceFileWithParseDiagnostics = ts.SourceFile & {
+	parseDiagnostics: readonly ts.Diagnostic[];
+};
+
+/**
+ * ts-morph exposes the vendored compiler's concrete SourceFile; its
+ * parseDiagnostics live on the classic compiler's object and are @internal,
+ * so the typed surface needs this cast (same idiom as
+ * i18n-key-coverage.test.ts). A parse failure throws instead of scanning a
+ * recovered partial tree.
+ */
+const createScannedSourceFile = (
+	source: string,
+	relativePath: string,
+): ts.SourceFile => {
+	const sourceFile = ts.createSourceFile(
+		relativePath,
+		source,
+		ts.ScriptTarget.Latest,
+		true,
+		childEndsWithTsx(relativePath) ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+	);
+	const diagnostics = (sourceFile as SourceFileWithParseDiagnostics)
+		.parseDiagnostics;
+
+	if (diagnostics.length > 0) {
+		const messages = diagnostics
+			.map((diagnostic) =>
+				ts.flattenDiagnosticMessageText(diagnostic.messageText, ' '),
+			)
+			.join('; ');
+		throw new Error(
+			`the <Trans> discovery scan could not parse ${relativePath} — refusing to scan a partial/recovered syntax tree: ${messages}`,
+		);
+	}
+
+	return sourceFile;
+};
+
+const childEndsWithTsx = (relativePath: string): boolean =>
+	relativePath.endsWith('.tsx');
+
+/** One discovered production `<Trans>` call site. */
+export type DiscoveredTransSite = {
+	file: string;
+	line: number;
+	i18nKey: string | null;
+	namespace: string | null;
+};
+
+/**
+ * Walks every listed file's syntax tree and collects each JSX element whose
+ * tag name is exactly `Trans`, with its static `i18nKey` / `ns` attributes
+ * when present.
+ */
+const discoverTransCallSites = (): DiscoveredTransSite[] => {
+	const sites: DiscoveredTransSite[] = [];
+	let sawTransImport = false;
+
+	for (const relative of listSourceFiles()) {
+		const source = readFileSync(path.join(SRC_ROOT, relative), 'utf8');
+
+		if (!source.includes('react-i18next')) continue;
+
+		const sourceFile = createScannedSourceFile(source, relative);
+		const visit = (node: ts.Node): void => {
+			if (ts.isImportDeclaration(node)) {
+				const module_ = node.moduleSpecifier;
+				if (
+					ts.isStringLiteral(module_) &&
+					module_.text === 'react-i18next' &&
+					node.importClause?.namedBindings &&
+					ts.isNamedImports(node.importClause.namedBindings)
+				) {
+					sawTransImport =
+						sawTransImport ||
+						node.importClause.namedBindings.elements.some(
+							(element) => element.name.text === 'Trans',
+						);
+				}
+			}
+
+			if (
+				ts.isJsxElement(node) &&
+				node.openingElement.tagName.getText() === 'Trans'
+			) {
+				sites.push(
+					describeSite(relative, sourceFile, node.openingElement.attributes),
+				);
+				// Nested <Trans> inside <Trans> children would double-count the
+				// outer element's own text; react-i18next does not nest them and
+				// none exist in src, but keep walking anyway so a nested one is
+				// still discovered as its own site.
+			} else if (
+				ts.isJsxSelfClosingElement(node) &&
+				node.tagName.getText() === 'Trans'
+			) {
+				sites.push(describeSite(relative, sourceFile, node.attributes));
+			}
+
+			node.forEachChild(visit);
+		};
+
+		sourceFile.forEachChild(visit);
+	}
+
+	if (!sawTransImport && sites.length > 0) {
+		throw new Error(
+			'the <Trans> discovery scan collected call sites without ever seeing a real react-i18next Trans import — the scanner is matching something that is not a Trans',
+		);
+	}
+
+	return sites;
+};
+
+const describeSite = (
+	file: string,
+	sourceFile: ts.SourceFile,
+	attributes: ts.JsxAttributes,
+): DiscoveredTransSite => {
+	const readAttribute = (name: string): string | null => {
+		for (const property of attributes.properties) {
+			if (
+				ts.isJsxAttribute(property) &&
+				property.name.getText() === name &&
+				property.initializer &&
+				ts.isStringLiteral(property.initializer)
+			) {
+				return property.initializer.text;
+			}
+		}
+
+		return null;
+	};
+	const { line } = sourceFile.getLineAndCharacterOfPosition(
+		attributes.getStart(sourceFile),
+	);
+
+	return {
+		file,
+		line: line + 1,
+		i18nKey: readAttribute('i18nKey'),
+		namespace: readAttribute('ns'),
+	};
+};
+
+const DISCOVERED_SITES: DiscoveredTransSite[] = discoverTransCallSites();
 
 // The exact production components-map snippet every call site passes.
 const STRONG_MAP_SNIPPET =
@@ -458,6 +691,50 @@ afterEach(() => {
 });
 
 describe('real-<Trans> render guard over the real route files (#1285)', () => {
+	test('every JSX <Trans> in src is discovered and pinned to a spec', () => {
+		expect(DISCOVERED_SITES.length).toBeGreaterThan(0);
+
+		const discoveredByFile = new Map<string, DiscoveredTransSite[]>();
+		for (const discoveredSite of DISCOVERED_SITES) {
+			discoveredByFile.set(discoveredSite.file, [
+				...(discoveredByFile.get(discoveredSite.file) ?? []),
+				discoveredSite,
+			]);
+		}
+
+		for (const spec of CALL_SITES) {
+			const sitesInFile = discoveredByFile.get(spec.file);
+			expect(sitesInFile, `no discovered site in ${spec.file}`).toBeDefined();
+			if (!sitesInFile) continue;
+
+			const remaining = [...sitesInFile];
+			// A single spec may cover several identical-key sites
+			// (accept-invitation's two mismatch views share one key), so each
+			// spec consumes at most one match from its file's list.
+			const matchedIndex = remaining.findIndex(
+				(discoveredSite) =>
+					discoveredSite.i18nKey === spec.key &&
+					discoveredSite.namespace === spec.ns,
+			);
+			expect(
+				matchedIndex,
+				`no discovered <Trans> with key ${spec.key} in ${spec.file}`,
+			).toBeGreaterThanOrEqual(0);
+			if (matchedIndex >= 0) remaining.splice(matchedIndex, 1);
+			discoveredByFile.set(spec.file, remaining);
+		}
+
+		const unpinned = [...discoveredByFile.entries()]
+			.flatMap(([file, remainingSites]) =>
+				remainingSites.map(
+					(discoveredSite) => `${file}:${discoveredSite.line}`,
+				),
+			)
+			.sort();
+
+		expect(unpinned).toEqual([]);
+	});
+
 	test('react-i18next is NOT mocked in this file', () => {
 		// #1269 exists because the rest of the suite fakes `<Trans>` with a
 		// regex. If this file ever grows a react-i18next module mock, the
