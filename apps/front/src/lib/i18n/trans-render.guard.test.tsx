@@ -946,11 +946,28 @@ const assertTransDom = (
 
 	expect(strongs.map((el) => el.textContent)).toEqual(expectedEmails);
 
-	// Scope the text pins to the <p> hosting the rendered <Trans>: the real
-	// routes render plenty of other copy (headings, labels, buttons) around
-	// the call site, and this guard must judge only the Trans DOM.
-	const host =
-		(strongs[0]?.closest('p') as Element | null | undefined) ?? scope;
+	// Scope the text pins to the BLOCK-LEVEL element hosting the rendered
+	// <Trans> (#1312 round 1): the real routes render plenty of other copy
+	// (headings, labels, buttons) around the call site, and this guard must
+	// judge only the Trans DOM. Generic over the usual block hosts instead of
+	// hardcoding <p>, and the host is ASSERTED, never silently swapped for
+	// the whole scope — a missing block host is a markup regression and gets
+	// its own explicit failure instead of a misleading sentence-drift one.
+	const BLOCK_HOST_SELECTOR = 'p, li, dd, dt, blockquote';
+	let host = strongs[0]?.closest<Element>(BLOCK_HOST_SELECTOR) ?? null;
+
+	if (mode === 'call-site') {
+		expect(
+			host,
+			`${language}/${spec.key}: the <Trans> must render inside a block-level element (${BLOCK_HOST_SELECTOR})`,
+		).toBeTruthy();
+	} else {
+		// Bare-resource mounts render straight into the testing-library
+		// container, which IS the intended scope there.
+		host ??= scope;
+	}
+
+	if (!host) throw new Error('unreachable: host asserted above');
 
 	// Never escaped-markup text (`&lt;strong&gt;…`): that is how a broken
 	// parser renders these resources.
