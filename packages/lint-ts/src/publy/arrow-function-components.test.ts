@@ -43,6 +43,16 @@
  *   default exports included). Imported or member-expression callees are not
  *   resolved (documented boundary), and mutually recursive helpers must not
  *   hang the analysis.
+ * - Round-7 (#1293): JSX routed through LOCAL VARIABLES is followed — a
+ *   `const el = <div/>; return el;` body yields JSX, directly or inside a
+ *   delegated local helper or object-literal member. MEMBER-EXPRESSION render
+ *   delegates are resolved too: `kit.customRender()` where `kit` is a
+ *   top-level local object whose member yields JSX flags the PascalCase
+ *   caller. Negative cases pin precision: local variables carrying non-JSX
+ *   values stay un-flagged even when a JSX-valued sibling variable exists,
+ *   member delegates that yield no JSX stay un-flagged, imported namespaces
+ *   and computed member accesses remain unresolvable boundaries, and cyclic
+ *   member delegates terminate.
  */
 import assert from 'node:assert/strict';
 
@@ -274,6 +284,74 @@ const runCases = (rule, label) => {
 						'function Widget() { return loopA(); }',
 					].join('\n'),
 					filename: 'apps/front/src/utils/loops.ts',
+				},
+
+				// Round-7 valid: a local variable carrying a NON-JSX value and then
+				// returned must not flag the PascalCase function (no false positive).
+				{
+					code: [
+						'function GetName(user) { const n = user.name; return n; }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/get-name.ts',
+				},
+
+				// Round-7 valid: a JSX-valued local variable EXISTS but a different,
+				// non-JSX variable is what gets returned — precision probe.
+				{
+					code: [
+						'function Choose({ useBig }) { const big = <Big />; const small = "small"; return small; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/choose.tsx',
+				},
+
+				// Round-7 valid: reading a PROPERTY off a JSX-valued local variable
+				// returns a non-element value — the identifier base of a member
+				// expression must not be mistaken for a JSX-variable return.
+				{
+					code: [
+						'function FallbackKind() { const fallback = <Spinner />; return fallback.type; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/fallback-kind.tsx',
+				},
+
+				// Round-7 valid: member-expression delegate that yields NO JSX —
+				// resolving `utils.format(...)` must not flag the caller.
+				{
+					code: [
+						'const utils = { format(v) { return String(v); } };',
+						'function Scale(props) { return utils.format(props.n); }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/scale.ts',
+				},
+
+				// Round-7 valid: imported namespace member access stays an unresolved
+				// boundary — the rule cannot see inside `./ui-kit`.
+				{
+					code: [
+						"import * as ui from './ui-kit';",
+						'function Panel() { return ui.renderPanel(); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/panel.tsx',
+				},
+
+				// Round-7 valid: COMPUTED member access stays an unresolved boundary
+				// (only static `obj.prop` delegates are followed).
+				{
+					code: [
+						'const kit = { customRender: () => <hr /> };',
+						'function Rule() { return kit["customRender"](); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/rule.tsx',
+				},
+
+				// Round-7 valid: mutually recursive MEMBER delegates with no JSX —
+				// the cycle guard must terminate and stay un-flagged.
+				{
+					code: [
+						'const loop = { a() { return loop.b(); }, b() { return loop.a(); } };',
+						'function Cycle() { return loop.a(); }',
+					].join('\n'),
+					filename: 'apps/front/src/utils/cycle.ts',
 				},
 			],
 			invalid: [
@@ -578,6 +656,102 @@ const runCases = (rule, label) => {
 						'function Label(props) { return customRender(props); }',
 					].join('\n'),
 					filename: 'apps/front/src/components/label.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #1 (#1293): JSX routed through a local variable inside
+				// a delegated local helper — the issue's canonical shape.
+				{
+					code: [
+						'function r(p) { const el = <div {...p} />; return el; }',
+						'function Foo(p) { return r(p); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/foo.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #2: JSX routed through a local variable in the
+				// component body ITSELF (`const node = ...; return node;`).
+				{
+					code: [
+						'function Bar({ label }) { const node = <span>{label}</span>; return node; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/bar.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #3: the local variable initializer carries JSX behind
+				// a ternary — expressionContainsJsx applies to initializers too.
+				{
+					code: [
+						'function MaybeTag({ ok }) { const node = ok ? <i>{ok}</i> : null; return node; }',
+					].join('\n'),
+					filename: 'apps/front/src/components/maybe-tag.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #4: local-variable routing composes through a helper
+				// CHAIN — Foo -> m -> r, where only r's body holds the JSX variable.
+				{
+					code: [
+						'function r(p) { const el = <em>{p.t}</em>; return el; }',
+						'function m(p) { return r(p); }',
+						'function Quoted(props) { return m(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/quoted.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #5 (#1293): member-expression render delegate —
+				// object-literal METHOD shorthand whose body returns JSX.
+				{
+					code: [
+						'const kit = { customRender(props) { return <b>{props.bold}</b>; } };',
+						'function Strong(props) { return kit.customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/strong.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #6: member-expression render delegate — ARROW property.
+				{
+					code: [
+						'const kit = { customRender: (props) => <u>{props.t}</u> };',
+						'function Underline(props) { return kit.customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/underline.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #7: member-expression render delegate — FUNCTION
+				// EXPRESSION property.
+				{
+					code: [
+						'const kit = { customRender: function (props) { return <s>{props.t}</s>; } };',
+						'function Strike(props) { return kit.customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/strike.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #8: BOTH new resolutions compose — the member delegate
+				// routes its JSX through a local variable before returning it.
+				{
+					code: [
+						'const kit = { customRender(props) { const el = <code>{props.src}</code>; return el; } };',
+						'function Snippet(props) { return kit.customRender(props); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/snippet.tsx',
+					errors: [{ messageId: 'useArrowFunction' }],
+				},
+
+				// Round-7 finding #9: exported top-level object literal member delegate.
+				{
+					code: [
+						'export const icons = { renderCheck() { return <Check />; } };',
+						'function CheckBadge() { return icons.renderCheck(); }',
+					].join('\n'),
+					filename: 'apps/front/src/components/check-badge.tsx',
 					errors: [{ messageId: 'useArrowFunction' }],
 				},
 			],
