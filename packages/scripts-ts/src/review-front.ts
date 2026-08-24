@@ -34,7 +34,8 @@ const FRONTEND_ENV_FILE = '.env.development';
 const requestedArgs = process.argv.slice(2);
 
 // @ts-expect-error rung-0: add proper type in later rung
-const parseArgs = (args) => parseLauncherArgs(args, { defaultPort: DEFAULT_PORT });
+const parseArgs = (args) =>
+	parseLauncherArgs(args, { defaultPort: DEFAULT_PORT });
 
 const ensureApi = async () => {
 	for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -204,7 +205,9 @@ const main = async () => {
 	console.log('Launching PR frontend review server');
 	console.log(`worktree: ${worktree.path}`);
 	console.log(`open:     http://localhost:${String(port)}`);
-	console.log(`Tip: keep a second terminal for API/debug while both sessions run.`);
+	console.log(
+		`Tip: keep a second terminal for API/debug while both sessions run.`,
+	);
 	console.log('');
 
 	const beforeDirty = trackedChanges(worktree.path);

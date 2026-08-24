@@ -860,15 +860,11 @@ const main = async () => {
 	}
 };
 
-await runLauncherCli(
-	main,
-	fileURLToPath(import.meta.url),
-	{
-		MIGRATION_GUARD_BLOCKED:
-			// @ts-expect-error rung-0: TS18046
-			(error) => error.message,
-		MIGRATION_GUARD_INDETERMINATE:
-			// @ts-expect-error rung-0: TS18046
-			(error) => error.message,
-	},
-);
+await runLauncherCli(main, fileURLToPath(import.meta.url), {
+	MIGRATION_GUARD_BLOCKED:
+		// @ts-expect-error rung-0: TS18046
+		(error) => error.message,
+	MIGRATION_GUARD_INDETERMINATE:
+		// @ts-expect-error rung-0: TS18046
+		(error) => error.message,
+});
