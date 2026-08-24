@@ -23,12 +23,15 @@ import type { ESTree } from '@oxlint/plugins';
  *     `kit.customRender()` cannot hide a component either;
  *   - or hook calls with only-null/JSX returns.
  *
- * JSX routed through LOCAL VARIABLES is followed too (#1293): within one
- * function body, `const el = <div/>; ...; return el;` counts as a JSX
- * return, directly or inside a delegated helper/object member. Resolution
- * is statement-order based and deliberately shallow: reassignment is not
- * tracked (last JSX-carrying binding wins), and reads of a property off a
- * JSX-valued variable (`el.type`) are not treated as element returns.
+ * JSX routed through LOCAL VARIABLES is followed too (#1293, #1322): within
+ * one function body, `const el = <div/>; ...; return el;` counts as a JSX
+ * return — and so does `let el = null; el = <div/>; return el;`, where the
+ * JSX reaches the local only through an assignment statement (#1322) —
+ * directly or inside a delegated helper/object member. Resolution is
+ * statement-order based and deliberately shallow: the LAST JSX-carrying
+ * initializer or assignment wins (reassignment order is not modelled), and
+ * reads of a property off a JSX-valued variable (`el.type`) are not treated
+ * as element returns.
  *
  * Boundaries (documented, heuristic-free by design): callees that cannot be
  * resolved locally (imports, imported namespaces) and COMPUTED member
@@ -378,6 +381,19 @@ const analyseBody = (
 			}
 			if (stmt.type === 'ExpressionStatement') {
 				walkExprForHooks(stmt.expression);
+				// #1322: an AssignmentExpression whose LHS is a plain LOCAL
+				// identifier and whose RHS carries JSX marks that variable the
+				// same way a JSX-carrying initializer does. Only `=` compounds
+				// re-assign the variable itself; member targets are never locals.
+				const expr = stmt.expression;
+				if (
+					expr.type === 'AssignmentExpression' &&
+					expr.operator === '=' &&
+					expr.left.type === 'Identifier' &&
+					expressionContainsJsx(expr.right)
+				) {
+					localJsxVars.add(expr.left.name);
+				}
 				continue;
 			}
 			if (stmt.type === 'ReturnStatement') {
