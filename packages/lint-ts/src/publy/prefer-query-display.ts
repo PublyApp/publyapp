@@ -260,12 +260,13 @@ const isConditionalExpr = (node: ESTree.Node | null | undefined): boolean =>
  * render-prop callback containing an inline event handler stays a render
  * prop only because of its own expression. Covers concise bodies too
  * (`(…) => (cond ? <A/> : <B/>)`, `(…) => <A/>`).
+ *
+ * Type note: @oxlint/plugins@1.x models declaration+expression functions as
+ * one exported `Function` type (there is no `FunctionDeclaration` /
+ * `FunctionExpression` pair in its ESTree namespace).
  */
 const directlyReturnsJsx = (
-	fn:
-		| ESTree.FunctionDeclaration
-		| ESTree.FunctionExpression
-		| ESTree.ArrowFunctionExpression,
+	fn: ESTree.Function | ESTree.ArrowFunctionExpression,
 ): boolean => {
 	const body = fn.body;
 	if (!body) return false;
@@ -382,10 +383,18 @@ const scan = (
 				scanInner(node.body, conditional, false);
 				return;
 			}
-			case 'SwitchStatement':
+			case 'SwitchStatement': {
+				// The discriminant is a value read, so it is render context.
+				// Case bodies are walked too: a hand-rolled state ladder inside
+				// `switch` is as much a conditional render as an `if` chain.
 				scanInner(node.discriminant, true, false);
-				for (const c of node.cases) scanInner(c.consequent, conditional, false);
+				for (const caseClause of node.cases) {
+					for (const statement of caseClause.consequent) {
+						scanInner(statement, conditional, false);
+					}
+				}
 				return;
+			}
 			case 'JSXElement':
 			case 'JSXFragment': {
 				// Opening elements carry the attributes (render props live there).
@@ -450,10 +459,7 @@ const scan = (
 
 /** Does a function body contain any JSX (i.e. is it a render function)? */
 const containsJsx = (
-	fn:
-		| ESTree.FunctionDeclaration
-		| ESTree.FunctionExpression
-		| ESTree.ArrowFunctionExpression,
+	fn: ESTree.Function | ESTree.ArrowFunctionExpression,
 ): boolean => {
 	const body = fn.body;
 	if (!body) return false;
@@ -522,10 +528,7 @@ export const preferQueryDisplay = {
 
 		return {
 			'FunctionDeclaration, FunctionExpression, ArrowFunctionExpression'(
-				node:
-					| ESTree.FunctionDeclaration
-					| ESTree.FunctionExpression
-					| ESTree.ArrowFunctionExpression,
+				node: ESTree.Function | ESTree.ArrowFunctionExpression,
 			) {
 				if (!containsJsx(node)) return;
 				const body = node.body;
