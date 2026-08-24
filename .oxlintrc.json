@@ -84,5 +84,15 @@
 		"anti-slop/no-unsafe-dictionary-type": "off",
 		"anti-slop/no-widen-then-assert": "error",
 		"anti-slop/require-safety-comment-for-type-assertion": "off"
-	}
+	},
+	"overrides": [
+		{
+			"files": [
+				"apps/front/src/routes/authed/staff/staff-users/$userId-edit.tsx"
+			],
+			"rules": {
+				"react/refs": "error"
+			}
+		}
+	]
 }
