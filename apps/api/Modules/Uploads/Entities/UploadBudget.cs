@@ -8,7 +8,7 @@ namespace PublyApp.Api.Modules.Uploads.Entities;
 /// <summary>
 /// Single-row durable byte budget for upload admission control (#807 F1). One row
 /// per scope kind: the global pool (<see cref="UploadBudgetScope.Global"/>) plus,
-/// when per-scope budgets are configured, one row per creator or purpose. All
+/// when configured, one row per creator (<see cref="UploadBudgetScope.CreatorUser"/>). All
 /// budget arithmetic happens inside the database via a conditional
 /// <c>UPDATE ... SET reserved_bytes = reserved_bytes + n WHERE headroom &gt;= n</c>
 /// executed on a serialisable transaction against THIS row — Postgres row-locks
@@ -50,5 +50,4 @@ public class UploadBudget : INoTenantEntity {
 public enum UploadBudgetScope {
 	Global = 10,
 	CreatorUser = 20,
-	Purpose = 30,
 }

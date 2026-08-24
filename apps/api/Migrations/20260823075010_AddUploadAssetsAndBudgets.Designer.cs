@@ -1436,7 +1436,7 @@ namespace PublyApp.Api.Migrations
 
                             t.HasCheckConstraint("CK_UploadBudgets_MaxBytes", "max_bytes > 0");
 
-                            t.HasCheckConstraint("CK_UploadBudgets_ScopeKind", "scope_kind IN (10, 20, 30)");
+                            t.HasCheckConstraint("CK_UploadBudgets_ScopeKind", "scope_kind IN (10, 20)");
                         });
                 });
 

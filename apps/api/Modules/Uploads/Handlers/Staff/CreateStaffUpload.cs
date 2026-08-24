@@ -103,7 +103,6 @@ public sealed class CreateStaffUpload {
 			var scopeName = rejected.ExhaustedScope switch {
 				UploadBudgetScope.Global => "the shared storage budget",
 				UploadBudgetScope.CreatorUser => "your personal storage budget",
-				UploadBudgetScope.Purpose => $"the '{UploadAdmissionService.StaffUploadPurpose}' purpose budget",
 				_ => throw new ArgumentOutOfRangeException(
 					nameof(rejected), rejected.ExhaustedScope, "Unhandled UploadBudgetScope"
 				),

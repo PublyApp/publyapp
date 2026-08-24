@@ -15,7 +15,7 @@ public sealed class UploadBudgetConfiguration : IEntityTypeConfiguration<UploadB
 		builder.ToTable(table => {
 			table.HasCheckConstraint(
 				"CK_UploadBudgets_ScopeKind",
-				"scope_kind IN (10, 20, 30)"
+				"scope_kind IN (10, 20)"
 			);
 			table.HasCheckConstraint(
 				"CK_UploadBudgets_MaxBytes",

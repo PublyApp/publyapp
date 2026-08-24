@@ -59,7 +59,7 @@ namespace PublyApp.Api.Migrations
                     table.PrimaryKey("PK_upload_budgets", x => x.id);
                     table.CheckConstraint("CK_UploadBudgets_Accounting", "reserved_bytes >= 0 AND committed_bytes >= 0");
                     table.CheckConstraint("CK_UploadBudgets_MaxBytes", "max_bytes > 0");
-                    table.CheckConstraint("CK_UploadBudgets_ScopeKind", "scope_kind IN (10, 20, 30)");
+                    table.CheckConstraint("CK_UploadBudgets_ScopeKind", "scope_kind IN (10, 20)");
                 });
 
             migrationBuilder.CreateIndex(
