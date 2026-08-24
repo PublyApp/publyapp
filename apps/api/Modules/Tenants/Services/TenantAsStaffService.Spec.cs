@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
+using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Tenants.Entities;
@@ -45,6 +46,7 @@ public sealed class TenantAsStaffServiceSpec
 		var service = new TenantAsStaffService(
 			serviceDbContext,
 			new InvitationEmailOutboxSignal(),
+			new UploadAssetReferenceService(serviceDbContext),
 			NullLogger<TenantAsStaffService>.Instance
 		);
 
@@ -235,6 +237,7 @@ public sealed class TenantAsStaffServiceSpec
 		var service = new TenantAsStaffService(
 			serviceDbContext,
 			fakeOutboxSignal,
+			new UploadAssetReferenceService(serviceDbContext),
 			NullLogger<TenantAsStaffService>.Instance
 		);
 
