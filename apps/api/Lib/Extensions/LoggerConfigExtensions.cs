@@ -1,5 +1,6 @@
 using System.Globalization;
 
+using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Logging;
 
 using Serilog;
@@ -84,6 +85,13 @@ public static class LoggerConfigExtensions {
 		}
 
 		loggerConfig.WriteTo.Sanitized(writeTo => {
+			// #1309 boot-log probe (test-only): the canary-pass line must be observable as
+			// the REAL artifact emits it. The probe attaches its in-memory capture sink
+			// HERE, inside the sanitized wrapper — the structural invariant above leaves no
+			// direct path around it, and a no-op for every normal boot keeps production
+			// behavior byte-identical.
+			CanaryBootLogProbe.AttachSinkIfRequested(writeTo);
+
 			writeTo
 				.Async(w => w.Logger(l => l
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Information)
