@@ -196,6 +196,16 @@ export const isPreviousLineSuppressed = (
 	if (!site.reason.startsWith(ruleId)) {
 		return false;
 	}
+	// F824-shell-F3: a bare `startsWith` let any text merely BEGINNING with the
+	// real id absorb it — `no-raw-visual-colors` (real id + stray character)
+	// silently suppressed `no-raw-visual-color`, certifying the line clean
+	// under a rule name nobody defined. Require a word boundary after the id:
+	// the next character must be absent (id == whole reason) or outside the
+	// word/id alphabet (space, em dash, punctuation).
+	const nextCharacter = site.reason[ruleId.length];
+	if (nextCharacter !== undefined && /[\p{L}\p{N}_-]/u.test(nextCharacter)) {
+		return false;
+	}
 	return isSubstantiveSuppressionReason(site.reason.slice(ruleId.length));
 };
 

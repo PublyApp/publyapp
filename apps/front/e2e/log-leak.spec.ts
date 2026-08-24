@@ -198,7 +198,7 @@ const assertSecretAbsentFromSinks = (sinks: SinkCapture[], token: string) => {
 };
 
 const buildSentinelToken = (suffix: string, testInfo: TestInfo): string => {
-	return `LEAK_SENTINEL_${suffix}_${process.pid}_worker_${testInfo.workerIndex}_front_2+%/\"?`;
+	return `LEAK_SENTINEL_${suffix}_${process.pid}_worker_${testInfo.workerIndex}_front_2+%/"?`;
 };
 
 const installBrowserLogCapture = async (page: Page): Promise<string[]> => {

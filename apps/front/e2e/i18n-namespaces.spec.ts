@@ -60,7 +60,7 @@ test.describe('i18n namespaces', { tag: ['@i18n', '@909'] }, () => {
 		await page.addInitScript(() => {
 			new MutationObserver(() => {
 				if (document.body?.textContent?.includes('No account yet?')) {
-					void window.recordEnglishFlash('No account yet?');
+					window.recordEnglishFlash('No account yet?');
 				}
 			}).observe(document.documentElement, { childList: true, subtree: true });
 		});

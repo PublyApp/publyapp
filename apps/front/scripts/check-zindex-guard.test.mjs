@@ -521,9 +521,7 @@ test('raw sinks (round 17 I1): JSX link attributes follow the source-ordered spr
 	// verdict is paired with the artifact React actually renders.
 	const href = 'data:text/css,.x%7Bz-index%3A2147483573%7D';
 	const render = (rel, spread) =>
-		renderToStaticMarkup(
-			React.createElement('link', { rel, ...(spread ?? {}), href }),
-		);
+		renderToStaticMarkup(React.createElement('link', { rel, ...spread, href }));
 	// False negative direction: the shipped artifact is a stylesheet, the
 	// guard must red it — the spread is a later write.
 	const fn =

@@ -1174,29 +1174,37 @@ export const findContextInventoryViolations = (
 	contextInventory,
 	projectDirectory,
 ) => {
-	const discoveredContexts = new Set(
-		contexts.map(
-			(context) =>
-				`${context.name} in ${path.relative(projectDirectory, context.sourceFile)}`,
-		),
-	);
-	const expectedContexts = new Set(
-		contextInventory.map(
-			(context) => `${context.name} in ${context.sourceFile}`,
-		),
-	);
+	// F824 (ui F6): the two sides are compared as MULTISETS, not sets. The
+	// previous `${name} in ${file}` Set comparison collapsed every distinct
+	// minting site a module hosts under one identity (two anonymous holder
+	// mints in one file both discover as `<anonymous context> in <file>`) to
+	// a single entry: one inventory entry silently certified both sites, and
+	// kept certifying one after the other was deleted — per-file coverage
+	// despite this guard claiming per-`createContext` verdicts.
+	const discoveredCounts = new Map();
+	for (const context of contexts) {
+		const key = `${context.name} in ${path.relative(projectDirectory, context.sourceFile)}`;
+		discoveredCounts.set(key, (discoveredCounts.get(key) ?? 0) + 1);
+	}
+
+	const expectedCounts = new Map();
+	for (const context of contextInventory) {
+		const key = `${context.name} in ${context.sourceFile}`;
+		expectedCounts.set(key, (expectedCounts.get(key) ?? 0) + 1);
+	}
+
 	const violations = [];
 
-	for (const expectedContext of expectedContexts) {
-		if (!discoveredContexts.has(expectedContext)) {
+	for (const [expectedContext, expectedCount] of expectedCounts) {
+		if ((discoveredCounts.get(expectedContext) ?? 0) < expectedCount) {
 			violations.push(
 				`Expected context inventory entry ${expectedContext} is missing from the TypeScript program.`,
 			);
 		}
 	}
 
-	for (const discoveredContext of discoveredContexts) {
-		if (!expectedContexts.has(discoveredContext)) {
+	for (const [discoveredContext, discoveredCount] of discoveredCounts) {
+		if ((expectedCounts.get(discoveredContext) ?? 0) < discoveredCount) {
 			violations.push(
 				`Discovered React context ${discoveredContext} is missing from the checked-in inventory.`,
 			);

@@ -16,7 +16,11 @@ import {
 	makeFixture,
 	registerFixtureSignalHandlers,
 } from './check-design-system-fixtures.mjs';
-import { scanFront2DesignSystem } from './check-design-system.mjs';
+import {
+	createHandoffLedgerProbe,
+	KNOWN_GUARD_DEBT,
+	scanFront2DesignSystem,
+} from './check-design-system.mjs';
 
 const testFilePath = fileURLToPath(import.meta.url);
 let fixtureParent;
@@ -1183,6 +1187,32 @@ test('W6-GUARDS: does not flag a token reference whose name happens to contain a
 	);
 });
 
+// F824 (ui F5): a raw colour assembled by STRING COMPOSITION contains no
+// complete raw-colour literal at all — `'#' + 'ff0000'` and `` `#${'00ccff'}` ``
+// evaluate to raw hex at runtime while every literal-shaped detector sails
+// past, so the guard certified the evasion idiom itself as clean.
+test('F824-ui-F5: flags a raw hex colour built by string composition (evasion proof)', async () => {
+	const root = await makeFixture({
+		'src/components/table/data-table.tsx': [
+			"const rawRed = '#' + 'ff0000';",
+			"const tint = `#${'00ccff'}`;",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+	const colorViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-raw-visual-color',
+	);
+
+	const bySource = (needle) =>
+		colorViolations.filter((violation) => violation.source.includes(needle));
+	assert.equal(bySource("'#' + 'ff0000'").length, 1, 'hash-prefix concat');
+	assert.equal(bySource("`#${'00ccff'}`").length, 1, 'template interpolation');
+});
+
 // W6-GUARDS (ui F5): `box-shadow` was only present in the colour-FUNCTION
 // pattern, not the hex/named-colour patterns — a raw hex or named-colour
 // shadow sailed through while the equivalent rgba() shadow was already
@@ -1715,6 +1745,33 @@ test('flags a page.route glob whose trailing single star cannot cross a path sep
 	assert.equal(globViolations.length, 1);
 	assert.equal(globViolations[0].line, 1);
 	assert.match(globViolations[0].source, /staff\/tenants\*/);
+});
+
+// F824 (tests F4): the rule's receiver was anchored to a bare `\w+\.route(`
+// identifier — a chained receiver like `page.context().route(` ends in `)`
+// before the `.`, so the pattern never matched and a single-star glob hung
+// off a chained Playwright receiver was structurally invisible to the guard.
+test('F824-tests-F4: flags a single-star glob on a chained receiver (page.context().route)', async () => {
+	const root = await makeFixture({
+		'e2e/chained.spec.ts':
+			"await page.context().route('**/staff/tenants*', handler);\nawait page.context().route('**/staff/profiles**', handler);",
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDirs: [path.join(root, 'e2e')],
+	});
+
+	const globViolations = violations.filter(
+		(violation) => violation.ruleId === 'no-single-star-route-glob',
+	);
+
+	assert.equal(
+		globViolations.length,
+		1,
+		'the chained-receiver single-star glob must be flagged',
+	);
+	assert.equal(globViolations[0].line, 1);
 });
 
 test('a design-system-ignore marker suppresses only when it carries a reason', async () => {
@@ -2278,6 +2335,305 @@ test('F9: no-important-foundation now scans app.css, where the real !important d
 	);
 });
 
+// F824 ui F1: a debt entry is a BUDGET, not an unlimited licence. The old
+// matcher did `source.includes(snippet)` against the whole FILE, so one
+// occurrence anywhere let EVERY violation of the same rule in that file
+// through — including a second, unrelated offense on a different line.
+test('F824 ui F1: a guardDebt entry covers only its budgeted occurrences — violations beyond it are reported', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full">budgeted</div>',
+			'<div className="rounded-full">beyond budget</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 1,
+				reason: 'fixture: budget of exactly one occurrence',
+			},
+		],
+	});
+
+	const debtRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+	assert.equal(debtRuleHits.length, 1);
+	assert.match(debtRuleHits[0]?.source ?? '', /beyond budget/);
+});
+
+// F824 tests F2: duplicates of the SAME snippet each consume one unit of the
+// entry's budget — a copy-pasted repeat of the debt line cannot ride the same
+// single-shot exemption forever.
+test('F824 tests F2: duplicate occurrences of a debt snippet consume the budget one-for-one', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full">duplicate</div>',
+			'<div className="rounded-full">duplicate</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 1,
+				reason:
+					'fixture: one occurrence allowed, second duplicate must surface',
+			},
+		],
+	});
+
+	const debtRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+	assert.equal(debtRuleHits.length, 1);
+	assert.equal(debtRuleHits[0].line, 2);
+});
+
+test('F824: occurrences within an explicit budget stay suppressed', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full">a</div>',
+			'<div className="rounded-full">b</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 2,
+				reason: 'fixture: budget of exactly two occurrences',
+			},
+		],
+	});
+
+	assert.equal(
+		violations.some(
+			(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+		),
+		false,
+	);
+});
+
+// r1-fix (PR #1298 round 1, CRITICAL): budgets are charged PER OCCURRENCE,
+// so occurrences stacked on ONE line each consume their unit. The old
+// per-line ledger let a line bearing N occurrences of the snippet spend a
+// single unit of an N-measured budget, leaving N−1 units of permanent slack
+// that silently re-permitted N−1 NEW violations (tooltip.tsx: four
+// `top-1/2!` on one Arrow line against maxOccurrences 4).
+test('r1-fix: a multi-occurrence line spends one budget unit per occurrence it carries', async () => {
+	const root = await makeFixture({
+		'src/routes/authed/staff/example.tsx': [
+			'<div className="rounded-full" data-alt="rounded-full">both on one line</div>',
+			'<div className="rounded-full">beyond the occurrence budget</div>',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/routes/authed/staff/example.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 2,
+				reason: 'fixture: budget of exactly the two stacked occurrences',
+			},
+		],
+	});
+
+	const debtRuleHits = violations.filter(
+		(violation) => violation.ruleId === 'no-rounded-full-or-999-radius',
+	);
+	assert.equal(debtRuleHits.length, 1);
+	assert.match(debtRuleHits[0]?.source ?? '', /beyond the occurrence budget/);
+});
+
+// r1-fix: measure a debt entry's snippet occurrences in its REAL file
+// (`(?!-)snippet`, non-overlapping \u2014 the same shape the guard's own
+// countSnippetOccurrences uses).
+const countSnippetOccurrencesInFile = async (debt) => {
+	const content = await readFile(
+		fileURLToPath(new URL(`../${debt.file}`, import.meta.url)),
+		'utf8',
+	);
+	const pattern = new RegExp(
+		`(?<!-)${debt.sourceIncludes.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+		'g',
+	);
+	return [...content.matchAll(pattern)].length;
+};
+
+// r1-fix: the zero-slack invariant as a PERMANENT test over the REAL repo,
+// through the same production code path the real CLI run uses
+// (checkDebtBudgetSlack): budget − current occurrences == 0 for EVERY
+// KNOWN_GUARD_DEBT entry. An entry whose budget exceeds the file's real
+// occurrence count leaves slack that silently re-permits new violations; one
+// below it fails the guard on recorded code. Either way this test (and the
+// real CLI run) now goes red instead of carrying the slack silently.
+//
+// Liveness coupling (paired red proof, PR #1298 round 1): reverting ONLY the
+// ledger change (per-occurrence charging + checkDebtBudgetSlack) makes this
+// exact assertion fail on today's real data — the tooltip entry then carries
+// budget 4 against one consuming LINE, i.e. slack 3. The tooltip assertions
+// below pin the concrete case so the proof cannot decay into vacuity.
+test('r1-fix: every KNOWN_GUARD_DEBT budget equals the exact current occurrence count (zero slack)', async () => {
+	const violations = await scanFront2DesignSystem({
+		checkStaleDebt: false,
+		checkTokenGuards: false,
+		checkSuppressionInventory: false,
+		checkDebtBudgetSlack: true,
+	});
+
+	const slackFindings = violations.filter(
+		(violation) => violation.ruleId === 'guard-debt-budget-slack',
+	);
+	assert.deepEqual(
+		slackFindings,
+		[],
+		'every debt budget must equal the exact current occurrence count of its snippet',
+	);
+
+	// The round-1 CRITICAL case, pinned to real repo data: the tooltip entry
+	// is measured per occurrence (4 stacked on one Arrow line), and the
+	// per-occurrence ledger consumes exactly its whole budget — zero units
+	// left after the status quo, so ANY new occurrence anywhere in the file
+	// surfaces. If the ledger ever reverts to per-line charging, this
+	// assertion fails with 3 remaining units (the review's proven slack).
+	const tooltipEntry = KNOWN_GUARD_DEBT.find(
+		(debt) =>
+			debt.ruleId === 'no-important-foundation' &&
+			debt.file === 'src/components/ui/tooltip.tsx',
+	);
+	assert.ok(tooltipEntry, 'the tooltip top-1/2! debt entry must exist');
+	assert.equal(
+		tooltipEntry.maxOccurrences,
+		await countSnippetOccurrencesInFile(tooltipEntry),
+		'tooltip budget must equal its real occurrence count',
+	);
+	const tooltipContent = await readFile(
+		fileURLToPath(new URL('../src/components/ui/tooltip.tsx', import.meta.url)),
+		'utf8',
+	);
+	const probe = createHandoffLedgerProbe(KNOWN_GUARD_DEBT);
+	assert.equal(
+		probe.remainingAfterStatusQuo(
+			'no-important-foundation',
+			'src/components/ui/tooltip.tsx',
+			tooltipContent,
+		),
+		0,
+		'the tooltip budget must be fully consumed by the status quo occurrences — any slack silently re-permits new violations',
+	);
+});
+
+// r1-fix: the slack detector itself works — an over-budgeted entry in a
+// fixture produces an explicit guard-debt-budget-slack finding naming both
+// numbers (this is the exact shape the round-1 review proved exploitable).
+test('r1-fix: checkDebtBudgetSlack flags an entry whose budget exceeds the real occurrence count', async () => {
+	const root = await makeFixture({
+		'src/components/table/r1-slack.tsx':
+			'<div className="rounded-full">single occurrence</div>',
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/components/table/r1-slack.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 4,
+				reason: 'fixture: dishonest budget of four against one real occurrence',
+			},
+		],
+		checkDebtBudgetSlack: true,
+	});
+
+	const slackFindings = violations.filter(
+		(violation) => violation.ruleId === 'guard-debt-budget-slack',
+	);
+	assert.equal(slackFindings.length, 1);
+	assert.match(slackFindings[0]?.message ?? '', /maxOccurrences 4/);
+	assert.match(slackFindings[0]?.message ?? '', /carries 1 occurrence/);
+
+	// Control: the same fixture with the honest budget of 1 produces no slack
+	// finding (and the occurrence itself stays suppressed within budget).
+	const honestViolations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		guardDebt: [
+			{
+				ruleId: 'no-rounded-full-or-999-radius',
+				file: 'src/components/table/r1-slack.tsx',
+				sourceIncludes: 'rounded-full',
+				maxOccurrences: 1,
+				reason: 'fixture: honest budget of exactly one occurrence',
+			},
+		],
+		checkDebtBudgetSlack: true,
+	});
+	assert.deepEqual(
+		honestViolations.filter(
+			(violation) =>
+				violation.ruleId === 'guard-debt-budget-slack' ||
+				violation.ruleId === 'no-rounded-full-or-999-radius',
+		),
+		[],
+	);
+});
+
+// F824 ui F2: parity ran in ONE direction only (:root tokens needing a dark
+// counterpart), so a token defined ONLY in html.dark passed as clean while
+// its light-mode value silently fell back to whatever cascade default
+// applied. Dark-only colour tokens are flagged by the same rule.
+test('F824 ui F2: token-theme-parity flags a colour token declared only in html.dark', async () => {
+	const root = await makeFixture({
+		'src/styles/app.css': [
+			':root {',
+			'\t--publy-background: #ffffff;',
+			'}',
+			'',
+			'html.dark {',
+			'\t--publy-background: #18181b;',
+			'\t--publy-alert-critical-bg: #7f1d1d;',
+			'}',
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+		checkTokenGuards: true,
+	});
+
+	const darkOnlyHits = violations.filter(
+		(violation) =>
+			violation.ruleId === 'token-theme-parity' &&
+			violation.source.includes('--publy-alert-critical-bg'),
+	);
+
+	assert.equal(darkOnlyHits.length, 1);
+});
+
 test('F3: token-theme-parity flags a colour token declared in :root with no html.dark counterpart', async () => {
 	const root = await makeFixture({
 		'src/styles/app.css': [
@@ -2298,7 +2654,13 @@ test('F3: token-theme-parity flags a colour token declared in :root with no html
 	});
 
 	const parityHits = violations.filter(
-		(violation) => violation.ruleId === 'token-theme-parity',
+		(violation) =>
+			violation.ruleId === 'token-theme-parity' &&
+			// F824 ui F2: the symmetric check now also flags dark-only colour
+			// tokens; this fixture's html.dark --publy-background is one, and its
+			// flag is asserted by the F824 ui F2 test below. Scope this legacy
+			// assertion to the light-only token it has always been about.
+			violation.source.includes('--publy-alert-critical-bg'),
 	);
 
 	assert.equal(parityHits.length, 1);
@@ -2339,6 +2701,7 @@ test('F3: token-theme-parity does not flag the documented theme-invariant allowl
 			'\t--publy-avatar-1: #0f766e;',
 			'\t--publy-auth-panel-bg: #18181b;',
 			'\t--publy-shadow-chrome: 0 2px 2px rgba(255, 255, 255, 0.1) inset;',
+			'\t--publy-background: #ffffff;',
 			'}',
 			'',
 			'html.dark {',
@@ -2858,4 +3221,82 @@ test('the live guard and suppression-inventory discovery never disagree on wheth
 			`${name}: live guard suppressed=${liveSuppressed} but inventory discovery found=${inventoryFound}`,
 		);
 	}
+});
+
+// F824 (shell F3): the live guard matched a suppression's rule id with a bare
+// `reason.startsWith(ruleId)` — any text merely BEGINNING with the real id
+// absorbed it. A typo'd id like `no-raw-visual-colors` (real id + stray
+// character) is a DIFFERENT, unknown rule id, yet it silently suppressed
+// `no-raw-visual-color` violations: the guard certified the line as clean
+// under a rule name nobody defined.
+test('F824-shell-F3: a typoed rule id that merely prefixes the real id does not suppress the real rule', async () => {
+	const root = await makeFixture({
+		'src/components/table/shell-f3-typo.tsx': [
+			'// design-system-ignore: no-raw-visual-colors — stray-character id must not absorb the real rule',
+			"export const shellF3TypoColour = '#abcdef';",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.equal(
+		violations.some((violation) => violation.ruleId === 'no-raw-visual-color'),
+		true,
+		'the typoed id must leave the real no-raw-visual-color violation standing',
+	);
+});
+
+// Second half of the gap: an unknown id is not merely ignored — it should be
+// REJECTED with an explicit finding, never silently honoured (and never
+// silently swallowed either, which hides dead suppressions).
+test('F824-shell-F3: an unknown rule id in a design-system-ignore suppression is rejected with an explicit finding', async () => {
+	const root = await makeFixture({
+		'src/components/table/shell-f3-unknown.tsx': [
+			'// design-system-ignore: no-such-rule-anywhere — invented id',
+			"export const shellF3UnknownColour = '#abcdef';",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	const rejections = violations.filter(
+		(violation) =>
+			violation.ruleId === 'unknown-suppression-rule-id' &&
+			violation.message.includes('no-such-rule-anywhere'),
+	);
+	assert.equal(
+		rejections.length,
+		1,
+		'the unknown id must produce an explicit rejection naming the bad id',
+	);
+});
+
+// Companion regression control: the exact-id form (id followed by a word
+// boundary) keeps suppressing as before — the boundary fix must not
+// overcorrect into rejecting every legitimate suppression.
+test('F824-shell-F3: the exact rule id still suppresses (boundary-fix control)', async () => {
+	const root = await makeFixture({
+		'src/components/table/shell-f3-ok.tsx': [
+			'// design-system-ignore: no-raw-visual-color — legacy palette probe kept deliberately raw',
+			"export const shellF3OkColour = '#abcdef';",
+		].join('\n'),
+	});
+
+	const violations = await scanFront2DesignSystem({
+		baseDir: root,
+		sourceDir: path.join(root, 'src'),
+	});
+
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
 });
