@@ -999,17 +999,18 @@ describe('staff user edit route', () => {
 		await screen.findByDisplayValue('Alex');
 
 		let catalogueCallCount = 0;
+		const loadedCatalogue = {
+			data: [
+				{ id: 'profile-1', name: 'Publishing', description: null },
+				{ id: 'profile-2', name: 'Billing', description: null },
+			],
+			nextCursor: null,
+		};
 		mocks.useStaffProfilesQuery.mockImplementation(() => {
 			catalogueCallCount += 1;
 			if (catalogueCallCount === 1) {
 				return buildQueryResult({
-					data: {
-						data: [
-							{ id: 'profile-1', name: 'Publishing', description: null },
-							{ id: 'profile-2', name: 'Billing', description: null },
-						],
-						nextCursor: null,
-					},
+					data: loadedCatalogue,
 					isFetching: true,
 				});
 			}

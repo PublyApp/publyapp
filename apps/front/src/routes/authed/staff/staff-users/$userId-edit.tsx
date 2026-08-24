@@ -205,9 +205,7 @@ const StaffUserEditPage = () => {
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const isProfileSearchSettled = profileSearch.trim() === deferredProfileSearch;
-	const hasSavedRef = useRef(false);
-	const hasLoadedProfilesRef = useRef(false);
-	const knownProfileNamesRef = useRef(new Map<string, string>());
+	const [hasSaved, setHasSaved] = useState(false);
 
 	const detailsQuery = useStaffUserDetailsQuery(
 		{ userId },
@@ -261,9 +259,63 @@ const StaffUserEditPage = () => {
 		name: 'profileIds',
 	});
 	const selectedProfileIds = collectSelectedProfileIds([watchedProfileIds]);
-	const knownProfileNames = new Map(knownProfileNamesRef.current);
-	rememberStaffProfileNames(knownProfileNames, assignedProfiles);
-	rememberStaffProfileNames(knownProfileNames, profilesQuery.data?.data);
+	// #1301: the remembered-label map lives in state instead of a ref so
+	// nothing reads mutable data during render. New query payloads are
+	// absorbed through React's documented "adjust state during render"
+	// pattern: guarded, keyed setState calls that React replays by discarding
+	// the in-flight render, so the store converges without effects or refs.
+	const [knownProfileNamesById, setKnownProfileNamesById] = useState(() => {
+		const seeded = new Map<string, string>();
+		rememberStaffProfileNames(seeded, assignedProfiles);
+		if (profilesQuery.isSuccess) {
+			rememberStaffProfileNames(seeded, profilesQuery.data?.data);
+		}
+
+		return seeded;
+	});
+	// Seen-payload keys are content hashes rather than object identity so a
+	// caller recreating payload objects per render cannot loop the store.
+	const catalogueSeenKey = JSON.stringify([
+		profilesQuery.isSuccess,
+		profilesQuery.data?.data ?? null,
+	]);
+	const assignedSeenKey = assignedProfiles
+		.map((profile) => `${profile.id}·${profile.name ?? ''}`)
+		.join('¦');
+	const [seenCatalogueKey, setSeenCatalogueKey] = useState(catalogueSeenKey);
+	const [seenAssignedKey, setSeenAssignedKey] = useState(assignedSeenKey);
+	const [hasLoadedProfiles, setHasLoadedProfiles] = useState(
+		profilesQuery.isSuccess,
+	);
+	if (seenCatalogueKey !== catalogueSeenKey) {
+		setSeenCatalogueKey(catalogueSeenKey);
+		if (profilesQuery.isSuccess) {
+			setHasLoadedProfiles(true);
+			setKnownProfileNamesById((previous) => {
+				const merged = new Map<string, string>(previous);
+				rememberStaffProfileNames(merged, profilesQuery.data?.data);
+				return merged;
+			});
+		}
+	}
+
+	if (seenAssignedKey !== assignedSeenKey) {
+		setSeenAssignedKey(assignedSeenKey);
+		setKnownProfileNamesById((previous) => {
+			const merged = new Map<string, string>(previous);
+			rememberStaffProfileNames(merged, assignedProfiles);
+			return merged;
+		});
+	}
+
+	// Pure per-render merge of remembered profile labels with what the
+	// current queries provide; only state and props are read here.
+	const knownProfileNames = useMemo(() => {
+		const merged = new Map<string, string>(knownProfileNamesById);
+		rememberStaffProfileNames(merged, assignedProfiles);
+		rememberStaffProfileNames(merged, profilesQuery.data?.data);
+		return merged;
+	}, [knownProfileNamesById, assignedProfiles, profilesQuery.data]);
 	const profileOptions = buildStaffProfileOptions({
 		profiles: profilesQuery.data?.data,
 		selectedProfileIds,
@@ -275,21 +327,6 @@ const StaffUserEditPage = () => {
 	// case still hydrates, and forces a fresh reset on a dirty userId transition
 	// so a previous user's in-progress edits can never survive into the next one.
 	const hydratedUserIdRef = useRef<string | null>(null);
-
-	useEffect(() => {
-		if (profilesQuery.isSuccess) {
-			hasLoadedProfilesRef.current = true;
-		}
-
-		rememberStaffProfileNames(
-			knownProfileNamesRef.current,
-			profilesQuery.data?.data,
-		);
-	}, [profilesQuery.data, profilesQuery.isSuccess]);
-
-	useEffect(() => {
-		rememberStaffProfileNames(knownProfileNamesRef.current, assignedProfiles);
-	}, [assignedProfiles]);
 
 	useEffect(() => {
 		if (
@@ -328,7 +365,7 @@ const StaffUserEditPage = () => {
 	]);
 
 	const blocker = useBlocker({
-		shouldBlockFn: () => formState.isDirty && !hasSavedRef.current,
+		shouldBlockFn: () => formState.isDirty && !hasSaved,
 		withResolver: true,
 	});
 
@@ -361,7 +398,7 @@ const StaffUserEditPage = () => {
 	if (
 		detailsIsPending ||
 		assignedProfilesIsPending ||
-		(profilesIsPending && !hasLoadedProfilesRef.current)
+		(profilesIsPending && !hasLoadedProfiles)
 	) {
 		return <StaffUserEditLoading />;
 	}
@@ -506,7 +543,7 @@ const StaffUserEditPage = () => {
 			await invalidateStaffUsers(queryClient);
 		}
 
-		hasSavedRef.current = true;
+		setHasSaved(true);
 		toastLocalMutationResult.success(t('staff-user-updated-success'));
 		void navigate({
 			to: '/staff/staff-users/$userId',
