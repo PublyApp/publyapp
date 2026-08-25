@@ -2,6 +2,8 @@ import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+import { assertFocusRingUtilitiesPinned } from './compiled-focus-ring-pins';
+
 const FRONT_ROOT = path.resolve(import.meta.dirname, '../..');
 const CLIENT_ASSETS_DIR = path.join(FRONT_ROOT, 'dist/client/assets');
 
@@ -153,6 +155,13 @@ export const assertUsableCompiledCss = (css: string): void => {
 				'against.',
 		);
 	}
+
+	// #1415 — the box-shadow-ring half of the allowlisted primitives'
+	// contract, pinned structurally on every read: the compiled sheet must
+	// still carry the `:focus-visible` ring rules at the widths DESIGN.md
+	// ("Focus rings") documents (3px family + checkbox's 2px). Zero matching
+	// rules fails loud here — never "0 rules → pass".
+	assertFocusRingUtilitiesPinned(css);
 };
 
 export const readCompiledAppCss = (): string => {
