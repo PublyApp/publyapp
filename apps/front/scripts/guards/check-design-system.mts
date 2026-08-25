@@ -37,7 +37,7 @@ interface GuardDebtCharge {
 	source: string;
 }
 
-interface GuardDebtEntry {
+export interface GuardDebtEntry {
 	ruleId: string;
 	file: string;
 	sourceIncludes: string;

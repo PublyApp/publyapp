@@ -22,9 +22,10 @@ import {
 	scanFront2DesignSystem,
 	scanFront2DesignSystemInternals,
 } from './check-design-system.mts';
+import type { GuardDebtEntry } from './check-design-system.mts';
 
 const testFilePath = fileURLToPath(import.meta.url);
-let fixtureParent;
+let fixtureParent: string | undefined;
 
 // The probe's own two handshake lines and the grand-child runner's TAP stream
 // share one pipe, so under load (or a pty) TAP banners interleave between them
@@ -49,7 +50,10 @@ let fixtureParent;
 // whole buffer in its message instead of touching a process or path we do
 // not own.
 const HANDSHAKE_NONCE_RE = /^[A-Za-z0-9+/=]{32,}$/;
-export const matchRunnerHandshake = (output, expectedNonce) => {
+export const matchRunnerHandshake = (
+	output: string,
+	expectedNonce: string,
+) => {
 	if (
 		typeof expectedNonce !== 'string' ||
 		!HANDSHAKE_NONCE_RE.test(expectedNonce)
@@ -701,12 +705,18 @@ test('#1352: resolveRunnerProbeBudgetMs fails loud on a non-positive RUNNER_PROB
 // verbatim against a synthetic emitter; the first test proves a foreign
 // commented-only buffer NEVER resolves and the timeout rejects naming the
 // buffer; the second pins the positive case end-to-end over the same wiring.
-const runProbeHandshakeWiring = ({ nonce, chunks }) => {
+const runProbeHandshakeWiring = ({
+	nonce,
+	chunks,
+}: {
+	nonce: string;
+	chunks: ReadonlyArray<string>;
+}) => {
 	const stdout = new EventEmitter();
 	let buffered = '';
-	const promise = new Promise((resolve, reject) => {
-		let timeout;
-		const onData = (chunk) => {
+	const promise = new Promise<{ pid: number; root: string }>((resolve, reject) => {
+		let timeout: ReturnType<typeof setTimeout>;
+		const onData = (chunk: Buffer) => {
 			buffered += chunk.toString();
 			try {
 				const handshake = matchRunnerHandshake(buffered, nonce);
@@ -737,7 +747,7 @@ test('real handler wiring: a foreign commented root alone never resolves and the
 	].join('\n');
 	await assert.rejects(
 		() => runProbeHandshakeWiring({ nonce, chunks: [attack] }),
-		(error) => {
+		(error: Error) => {
 			assert.match(error.message, /runner probe did not start/);
 			assert.ok(
 				error.message.includes(attack),
@@ -870,7 +880,7 @@ after(async () => {
 	await assert.rejects(access(fixtureParent), { code: 'ENOENT' });
 });
 
-const startFixtureProbe = async (mode) => {
+const startFixtureProbe = async (mode: string) => {
 	const reportDirectory = await makeOwnedTempDirectory('probe-report');
 	const reportPath = path.join(reportDirectory, 'parent');
 	const child = spawn(
@@ -903,30 +913,40 @@ const startFixtureProbe = async (mode) => {
 				clearTimeout(timeout);
 				return parent;
 			} catch (error) {
-				if (error.code !== 'ENOENT') throw error;
+				const isEnoent =
+					typeof error === 'object' &&
+					error != null &&
+					'code' in error &&
+					error.code === 'ENOENT';
+				if (!isEnoent) {
+					throw error;
+				}
 				await new Promise((resolve) => setTimeout(resolve, 25));
 			}
 		}
 	};
 	const marker = waitForProbeMarker();
-	const exit = new Promise((resolve, reject) => {
+	const exit = new Promise<{
+		code: number | null;
+		signal: NodeJS.Signals | null;
+	}>((resolve, reject) => {
 		child.once('error', reject);
 		child.once('exit', (code, signal) => resolve({ code, signal }));
 	});
 	return { child, exit, marker, reportDirectory };
 };
 
-const assertParentGone = async (parent) => {
+const assertParentGone = async (parent: string) => {
 	await assert.rejects(access(parent), { code: 'ENOENT' });
 };
 
 for (const [mode, signal, expectedCode] of [
 	['SIGINT', 'SIGINT', 130],
 	['SIGTERM', 'SIGTERM', 143],
-]) {
+] as const) {
 	test(`fixture cleanup handles ${signal} in a child process`, async () => {
 		const probe = await startFixtureProbe(mode);
-		let fixtureParent;
+		let fixtureParent: string | undefined;
 		try {
 			fixtureParent = await probe.marker;
 			probe.child.kill(signal);
@@ -965,7 +985,7 @@ test('fixture cleanup handles a failing node:test child process', async () => {
 	}
 });
 
-const scanStatusFixture = async (source) => {
+const scanStatusFixture = async (source: string) => {
 	const root = await makeFixture({
 		'src/routes/authed/staff/status-fixture.tsx': source,
 	});
@@ -1569,7 +1589,7 @@ test('primary button chrome is on .btn-primary-chrome, with no border-radius ove
 
 	// chrome properties live on the real class, .btn-primary-chrome
 	const chromeRuleMatch = css.match(/\.btn-primary-chrome\s*\{([^}]*)\}/);
-	assert.notEqual(chromeRuleMatch, null, '.btn-primary-chrome rule not found');
+	assert.ok(chromeRuleMatch, '.btn-primary-chrome rule not found');
 	const chromeRuleBody = chromeRuleMatch[1];
 
 	// F3: the border literal moved into a named, theme-invariant token
@@ -1755,7 +1775,7 @@ test('F824-ui-F5: flags a raw hex colour built by string composition (evasion pr
 		(violation) => violation.ruleId === 'no-raw-visual-color',
 	);
 
-	const bySource = (needle) =>
+	const bySource = (needle: string) =>
 		colorViolations.filter((violation) => violation.source.includes(needle));
 	assert.equal(bySource("'#' + 'ff0000'").length, 1, 'hash-prefix concat');
 	assert.equal(bySource("`#${'00ccff'}`").length, 1, 'template interpolation');
@@ -1823,7 +1843,7 @@ test('r4-ui-F3: flags hsl/hwb/lab/lch/oklab/oklch/color() literals in property v
 	// dropping the total below 9 — fails this test. An aggregate `length ===
 	// 9` alone would still pass if two detectors merged onto the same line or
 	// a detector silently swapped which literal it caught.
-	const bySource = (needle) =>
+	const bySource = (needle: string) =>
 		colorViolations.filter((violation) => violation.source.includes(needle));
 	assert.equal(bySource('hsl(0 100% 50%)').length, 1, 'hsl() in background');
 	assert.equal(bySource('hwb(220 30% 20%)').length, 1, 'hwb() in border-color');
@@ -2332,7 +2352,7 @@ test('a design-system-ignore marker suppresses only when it carries a reason', a
 			"// design-system-ignore: no-single-star-route-glob — collection-only mock\nawait page.route('**/staff/tenants*', handler);",
 	});
 
-	const countFor = async (root) => {
+	const countFor = async (root: string) => {
 		const violations = await scanFront2DesignSystem({
 			baseDir: root,
 			sourceDirs: [path.join(root, 'e2e')],
@@ -2351,7 +2371,7 @@ test('a design-system-ignore marker suppresses only when it carries a reason', a
 // same emptiness bug the data-honesty and i18n-guard suppression conventions
 // shared.
 test('a design-system-ignore marker in JSX-comment form still requires a reason beyond `*/}`', async () => {
-	const countForSource = async (source) => {
+	const countForSource = async (source: string) => {
 		const root = await makeFixture({ 'e2e/jsx.spec.ts': source });
 		const violations = await scanFront2DesignSystem({
 			baseDir: root,
@@ -2671,7 +2691,7 @@ test('r3 F4: a design-system-ignore marker suppresses a default line-scan rule (
 			'// design-system-ignore: no-prototype-icons — legacy fixture pending redesign\n<AppErrorView icon="!" title="Error" />',
 	});
 
-	const countFor = async (root) => {
+	const countFor = async (root: string) => {
 		const violations = await scanFront2DesignSystem({
 			baseDir: root,
 			sourceDir: path.join(root, 'src'),
@@ -2750,6 +2770,7 @@ test('F7: self-pruning stale-debt check flags a guardDebt entry whose source tex
 				file: 'src/routes/authed/staff/example.tsx',
 				sourceIncludes: 'this substring was never in the file',
 				reason: 'fixture: intentionally stale',
+				maxOccurrences: 1,
 			},
 		],
 	});
@@ -2778,6 +2799,7 @@ test('F7: self-pruning stale-debt check does not flag a guardDebt entry that sti
 				file: 'src/routes/authed/staff/example.tsx',
 				sourceIncludes: 'rounded-full',
 				reason: 'fixture: still valid',
+				maxOccurrences: 1,
 			},
 		],
 	});
@@ -2807,6 +2829,7 @@ test('r3 F10: self-pruning stale-debt check flags a guardDebt entry whose file n
 				file: 'src/routes/authed/staff/deleted-file.tsx',
 				sourceIncludes: 'rounded-full',
 				reason: 'fixture: file no longer exists',
+				maxOccurrences: 1,
 			},
 		],
 	});
@@ -3017,7 +3040,7 @@ test('r1-fix: a multi-occurrence line spends one budget unit per occurrence it c
 // r1-fix: measure a debt entry's snippet occurrences in its REAL file
 // (`(?!-)snippet`, non-overlapping \u2014 the same shape the guard's own
 // countSnippetOccurrences uses).
-const countSnippetOccurrencesInFile = async (debt) => {
+const countSnippetOccurrencesInFile = async (debt: GuardDebtEntry) => {
 	const content = await readFile(
 		fileURLToPath(new URL(`../../${debt.file}`, import.meta.url)),
 		'utf8',
@@ -3508,7 +3531,7 @@ test('F4: the real .publy-selection-bar rule no longer hardcodes a raw rgb() sha
 	);
 
 	const ruleMatch = css.match(/\.publy-selection-bar\s*\{([^}]*)\}/);
-	assert.notEqual(ruleMatch, null, '.publy-selection-bar rule not found');
+	assert.ok(ruleMatch, '.publy-selection-bar rule not found');
 	assert.doesNotMatch(ruleMatch[1], /rgb\(/);
 	assert.match(ruleMatch[1], /var\(--publy-shadow-selection-bar\)/);
 });
@@ -3605,9 +3628,9 @@ test('F1: the --publy-z-* popup stacking scale keeps popups above the drawer/dia
 		'utf8',
 	);
 
-	const valueOf = (tokenName) => {
+	const valueOf = (tokenName: string) => {
 		const match = css.match(new RegExp(`${tokenName}:\\s*([0-9]+)\\s*;`));
-		assert.notEqual(match, null, `${tokenName} not declared in app.css`);
+		assert.ok(match, `${tokenName} not declared in app.css`);
 		return Number(match[1]);
 	};
 
