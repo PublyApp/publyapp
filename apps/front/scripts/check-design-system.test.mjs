@@ -20,6 +20,7 @@ import {
 	createHandoffLedgerProbe,
 	KNOWN_GUARD_DEBT,
 	scanFront2DesignSystem,
+	scanFront2DesignSystemInternals,
 } from './check-design-system.mjs';
 
 const testFilePath = fileURLToPath(import.meta.url);
@@ -3097,6 +3098,37 @@ test('F3: the real app.css token layer passes both guards with zero violations',
 				violation.ruleId === 'token-must-be-declared',
 		),
 		[],
+	);
+});
+
+// W6-FLAKE #827: the no-raw-visual-color rule consults the app.css token
+// layer for EVERY candidate match it finds anywhere in the tree. Recomputing
+// getBlockLineRanges per match re-brace-counts the whole app.css token layer
+// hundreds of times per scan — pure waste that only shows up as CPU burn
+// while vitest workers are starving (the flake's condition). The ranges must
+// be derived once per distinct lines array and reused.
+test('app.css token-layer block ranges are computed once per scan, not per matched line', async () => {
+	scanFront2DesignSystemInternals.resetTokenLayerRangeCacheForTestObservation();
+
+	const violations = await scanFront2DesignSystem({ checkTokenGuards: true });
+	assert.deepEqual(
+		violations.filter(
+			(violation) => violation.ruleId === 'no-raw-visual-color',
+		),
+		[],
+	);
+
+	const { computeCalls } =
+		scanFront2DesignSystemInternals.getTokenLayerComputeStatsForTestObservation();
+	assert.ok(
+		computeCalls >= 1,
+		'the token-layer ranges must be computed at least once when app.css is scanned',
+	);
+	assert.ok(
+		computeCalls <= 2,
+		`app.css token-layer ranges were recomputed ${computeCalls} times for one scan; ` +
+			'expected at most one :root + one html.dark derivation per lines array ' +
+			'(W6-FLAKE #827: per-match recomputation burns CPU under worker contention)',
 	);
 });
 
