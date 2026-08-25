@@ -143,6 +143,7 @@ vi.mock('react-i18next', () => ({
 				'invitation-bulk-revoke-reason-not-found': '{{count}} not found',
 				'invitation-bulk-revoke-reason-already-accepted':
 					'{{count}} already accepted',
+				'invitation-bulk-revoke-reason-other': '{{count}} could not be revoked',
 				'invitation-bulk-revoke-failure':
 					'Failed to revoke selected invitations.',
 			};
@@ -529,6 +530,118 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 				'1 already accepted; 1 not found',
 			),
 		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('a partial-success revoke also clears the selection and invalidates the list', async () => {
+		// r2 MAJOR contract: the post-success bookkeeping is not gated on FULL
+		// success. A 200 with succeededCount ≥ 1 AND failedCount ≥ 1 must ALSO
+		// reset the toolbar selection (every row checkbox unchecked, selection
+		// bar unmounted), flip the real cache entry to isInvalidated, and name
+		// the grouped per-item reasons in plain words.
+		const bothPending = invitationPayload();
+		bothPending.data[1]!.status = 'Pending';
+		mocks.useStaffInvitationsQuery.mockImplementation(() =>
+			settledQuery(bothPending),
+		);
+
+		mocks.bulkRevoke.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [{ invitationId: ACCEPTED_B, reason: 'not_found' }],
+		});
+
+		const { queryClient } = await renderAtList();
+		queryClient.setQueryData(STAFF_INVITATIONS_SCOPED_KEY, { seeded: true });
+		expect(
+			queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
+		).toBe(false);
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+		);
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+		);
+		expect(await screen.findByText('2 selected')).toBeTruthy();
+
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
+
+		// The grouped reasons reach the toast as its description...
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Revoked 1 invitation(s), 1 failed.',
+				'1 not found',
+			),
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+
+		// ...AND the shared post-success bookkeeping ran on the partial path:
+		// genuine invalidation on THIS harness's QueryClient...
+		await waitFor(() => {
+			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledTimes(1);
+			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledWith(
+				queryClient,
+			);
+			expect(
+				queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
+			).toBe(true);
+		});
+		// ...every row checkbox unchecked...
+		await waitFor(() => {
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${PENDING_A}` })
+					.getAttribute('data-checked'),
+			).toBeNull();
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` })
+					.getAttribute('data-checked'),
+			).toBeNull();
+		});
+		// ...and the selection bar leaves after its 220ms exit animation.
+		await waitFor(() =>
+			expect(screen.queryByTestId('floating-selection-bar')).toBeNull(),
+		);
+	});
+
+	test('an unknown failure reason falls back to the generic translated reason', async () => {
+		// r2 MEDIUM contract: the `-other` fallback. A server-side reason the
+		// client has never heard of must render through the TRANSLATED
+		// `invitation-bulk-revoke-reason-other` text — never the raw wire
+		// string and never a raw i18n key.
+		mocks.bulkRevoke.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [
+				{ invitationId: PENDING_A, reason: 'storage_quota_exhausted' },
+			],
+		});
+
+		await renderAtList();
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+		);
+
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
+		expect(
+			await screen.findByText(/revoke 1 selected invitation/),
+		).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Revoked 0 invitation(s), 1 failed.',
+				'1 could not be revoked',
+			),
+		);
+		const reasonsText = mocks.toastError.mock.calls[0]?.[1];
+		expect(reasonsText).toBe('1 could not be revoked');
+		expect(reasonsText).not.toContain('storage_quota_exhausted');
+		expect(reasonsText).not.toContain('invitation-bulk-revoke-reason-other');
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
