@@ -2,6 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { readCompiledAppCss } from './helpers/compiled-app-css';
 import {
+	CHECKBOX_RING_PX,
+	FOCUS_RING_FAMILY_PX,
+	OUTLINE_TOKEN_ALLOWLIST,
+} from './helpers/compiled-focus-ring-pins';
+import {
 	closeFocusRingRenderer,
 	renderFocusProbeCases,
 } from './helpers/render-focus-ring';
@@ -54,33 +59,18 @@ const CONTRAST_FLOOR = 3.0;
 
 const PROBE_ATTR = 'data-e2e-focus-probe';
 
-/**
- * #1379 — probes allowed to rely on the box-shadow ring ALONE at
- * `:focus-visible`, i.e. allowed to paint NO outline. Deliberately kept
- * narrow: every entry is a primitive whose focus treatment is documented in
- * DESIGN.md ("Focus rings") as the Tailwind ring utility family
- * (`focus-visible:ring-3` / `ring-2` + `focus-visible:border-ring`) over an
- * `outline-none` reset — button, badge, input, textarea, select, switch at
- * 3px, checkbox at 2px. None of these ships an outline today; if one starts
- * painting an outline the drift must be looked at and this list updated BY A
- * DESIGN DECISION, never silently. A probe NOT listed here must paint the
- * full contractual outline triad (solid, 2px, `--publy-focus-ring`) — see
- * `assertOutlineMemberOfFocusVisible`.
+/** #1379/#1415 — probes allowed to rely on the box-shadow ring ALONE at
+ * `:focus-visible`, i.e. allowed to paint NO outline. Lives in
+ * `helpers/compiled-focus-ring-pins.ts` so the structural half of the same
+ * contract (`assertFocusRingUtilitiesPinned`) and this rendered half read
+ * ONE list: adding a primitive here silently opts it out of BOTH the
+ * outline-absence assertion below AND the ring-presence assertion — exactly
+ * why the list carries the DESIGN.md citation next to every entry. Every
+ * member is documented there as the Tailwind ring family (`ring-3` at 3px,
+ * `ring-2` for checkbox) over an `outline-none` reset. A probe NOT listed
+ * here must paint the full contractual outline triad (solid, 2px,
+ * `--publy-focus-ring`) — see `assertOutlineMemberOfFocusVisible`.
  */
-const OUTLINE_TOKEN_ALLOWLIST: ReadonlySet<string> = new Set([
-	'button-default',
-	'button-outline',
-	// #1405: DESIGN.md ("Focus rings") lists input.tsx in the 3px
-	// box-shadow-ring family (`focus-visible:ring-3` + `border-ring` over an
-	// `outline-none` reset, input.tsx line-borne), so its contract at
-	// :focus-visible is NO outline — asserted in the negative below like the
-	// other allowlisted probes.
-	'input',
-	'select-trigger',
-	'switch',
-	'checkbox',
-	'textarea',
-]);
 
 /** Computed colours are compared channel-wise against the token with a 1/255
  * slack for engine-side gamma/colour-space rounding — Chromium may serialise
@@ -487,6 +477,86 @@ const assertOutlineMemberOfFocusVisible = (
 };
 
 /**
+ * Spread (px) of one serialized box-shadow layer: Chromium serialises
+ * `<colour> <offset-x> <offset-y> <blur> <spread>`, so the spread is the last
+ * whitespace-separated token.
+ */
+const boxShadowLayerSpreadPx = (rawLayer: string): number => {
+	const parts = rawLayer.trim().split(/\s+/);
+	return Number.parseFloat(parts[parts.length - 1] ?? '');
+};
+
+/** Largest channel delta between the layer colour composited over the
+ * surface and the surface itself, rounded down to whole 1/255 steps — the
+ * paint-existence test for a candidate ring layer. A fully (or near-fully)
+ * transparent ring colour composites to the surface unchanged and must not
+ * count toward the ring-width pin below. */
+const layerPaintsOverSurface = (color: Rgba, surface: SurfaceRgb): boolean => {
+	const composited = compositeOver(color, surface);
+	const delta = Math.max(
+		Math.abs(composited.r - surface.r),
+		Math.abs(composited.g - surface.g),
+		Math.abs(composited.b - surface.b),
+	);
+	return Math.floor(delta) >= 1;
+};
+
+/**
+ * #1415 — the box-shadow-ring member of `:focus-visible` for the SAME
+ * allowlisted probes whose outline absence `assertOutlineMemberOfFocusVisible`
+ * asserts. The allowlist's bargain has two halves: such a primitive paints no
+ * outline BECAUSE its documented focus indicator is the ring
+ * (`focus-visible:ring-3` / `ring-2` + `focus-visible:border-ring`, DESIGN.md
+ * "Focus rings"). Until #1415 only the outline half was measured, so a
+ * primitive could keep `outline: none` and silently lose the ring — focus
+ * becomes invisible while the guard stays green (the exact defect report).
+ *
+ * Measured as PAINT, not class strings: among the box-shadow layers that
+ * APPEAR at focus relative to rest (same definition the contrast assertion
+ * uses), at least one must actually paint over the element's surface (a
+ * transparent ring colour composites to nothing and cannot qualify) AND its
+ * spread must reach the probe's pinned ring width (3px family, checkbox 2px)
+ * — so `ring-0`/`ring-1` regressions go red too. A later-layer rule shadowing
+ * the ring utilities shows up here as missing or undersized paint by
+ * construction, because this reads the engine-resolved result after the real
+ * cascade.
+ */
+const assertBoxShadowRingMemberOfFocusVisible = (
+	probeId: string,
+	focused: ProbePaint,
+	rest: ProbePaint,
+	surface: SurfaceRgb,
+): void => {
+	if (!OUTLINE_TOKEN_ALLOWLIST.has(probeId)) {
+		return;
+	}
+	const requiredPx =
+		probeId === 'checkbox' ? CHECKBOX_RING_PX : FOCUS_RING_FAMILY_PX;
+
+	const restKeys = new Set(
+		parseBoxShadowLayers(rest.boxShadow).map((layer) => layer.key),
+	);
+	const qualifyingSpreadsPx = parseBoxShadowLayers(focused.boxShadow)
+		.filter((layer) => !restKeys.has(layer.key))
+		.filter((layer) => layerPaintsOverSurface(layer.color, surface))
+		.map((layer) => boxShadowLayerSpreadPx(layer.key))
+		.filter((spread) => Number.isFinite(spread));
+	const widestNewLayerPx =
+		qualifyingSpreadsPx.length > 0 ? Math.max(...qualifyingSpreadsPx) : 0;
+
+	expect(
+		widestNewLayerPx >= requiredPx,
+		`${probeId}: missing focus ring at :focus-visible — the probe is ` +
+			'allowlisted as a box-shadow-ring-only primitive (DESIGN.md ' +
+			'"Focus rings"), so its focus indicator IS the ring, but the ' +
+			'focused-path box-shadow gained no VISIBLE ring layer of at least ' +
+			`${requiredPx}px spread (widest new painting layer: ` +
+			`${widestNewLayerPx}px). The ring utilities were likely dropped, ` +
+			'shrunk, recoloured to transparent, or shadowed in the cascade.',
+	).toBe(true);
+};
+
+/**
  * The single load-bearing assertion of this spec, run against whatever
  * stylesheet the caller loaded into the page: every probe must be reachable
  * by a real keyboard Tab, satisfy `:focus-visible`, and GAIN a VISIBLE
@@ -630,6 +700,12 @@ const assertRenderedFocusRingCompliant = async (
 		).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
 
 		assertOutlineMemberOfFocusVisible(probeCase.id, styles, focusRingTokenRgb);
+		assertBoxShadowRingMemberOfFocusVisible(
+			probeCase.id,
+			styles,
+			rest,
+			surface,
+		);
 	}
 };
 
@@ -680,6 +756,40 @@ test.describe(
 			).rejects.toThrow(
 				/NO visible focus indicator|focus-indicator colour|does not paint the contractual outline/,
 			);
+		});
+
+		/**
+		 * #1415 mutation proof, paired with the defect report: an allowlisted
+		 * box-shadow-ring primitive that KEEPS `outline: none` (and even keeps
+		 * the `focus-visible:border-ring` repaint) but loses its RING must go
+		 * red naming the primitive and the missing ring. The defect is
+		 * reproduced at cascade level on the REAL compiled stylesheet: an
+		 * appended UNLAYERED rule resets the probe's `--tw-ring-shadow` to the
+		 * property's invisible initial (`0 0 #0000`), which wins over the
+		 * layered `focus-visible:ring-3` utility — the focused box-shadow then
+		 * carries only the same ring layer it already had at rest (i.e. NO
+		 * ring appeared) while the border repaint keeps the older assertions
+		 * satisfied. Exactly the #1415 blind spot: before this change the
+		 * guard stayed green here (see
+		 * `.dump/red-baseline-guard-green-with-defect.txt`; the paired
+		 * source-level drop of `focus-visible:ring-3` from input.tsx goes red
+		 * with the same message — `.dump/red-input-ring-dropped.txt`).
+		 */
+		test('is caught when an allowlisted primitive loses its ring but keeps outline:none (ring-drop mutation proof)', async ({
+			page,
+		}) => {
+			const css = readCompiledAppCss();
+			const mutatedCss = [
+				css,
+				/* NOTE: the planted rule below is deliberate test-only mutation
+				 * content inside a spec fixture string — it reproduces the #1415
+				 * defect (invisible keyboard focus on input) to prove it caught. */
+				'[data-e2e-focus-probe="input"]{--tw-ring-shadow:0 0 #0000}',
+			].join('\n');
+
+			await expect(
+				assertRenderedFocusRingCompliant(page, mutatedCss),
+			).rejects.toThrow(/input.*missing focus ring|missing focus ring/i);
 		});
 	},
 );

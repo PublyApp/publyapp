@@ -40,7 +40,49 @@
 export const FOCUS_RING_FAMILY_PX = 3;
 
 /** The checkbox's documented 2px ring (DESIGN.md "Focus rings"). */
-const CHECKBOX_RING_PX = 2;
+export const CHECKBOX_RING_PX = 2;
+
+/**
+ * #1379/#1415 — probes allowed to rely on the box-shadow ring ALONE at
+ * `:focus-visible`, i.e. allowed to paint NO outline. Single source of truth
+ * for BOTH halves of the allowlist bargain: the rendered guard
+ * (`focus-ring-cascade.spec.ts`) asserts these probes paint no outline AND
+ * that they DO gain a >= pinned-width box-shadow ring at focus; this module's
+ * structural gate pins the ring families' compiled existence at those widths.
+ *
+ * Deliberately kept narrow: every entry is a primitive whose focus treatment
+ * is documented in DESIGN.md ("Focus rings") as the Tailwind ring utility
+ * family (`focus-visible:ring-3` / `ring-[3px]` / `ring-2` +
+ * `focus-visible:border-ring`) over an `outline-none` reset — button, badge,
+ * input, textarea, select, switch at 3px, checkbox at 2px. None of these
+ * ships an outline today; if one starts painting an outline the drift must be
+ * looked at and this list updated BY A DESIGN DECISION, never silently.
+ */
+export const OUTLINE_TOKEN_ALLOWLIST: ReadonlySet<string> = new Set([
+	// button.tsx — `focus-visible:ring-3 focus-visible:ring-ring` over
+	// `outline-none` (DESIGN.md "Focus rings", 3px family).
+	'button-default',
+	// button.tsx variant="outline" — same 3px family as above; the variant
+	// changes the resting chrome, not the focus contract.
+	'button-outline',
+	// #1405/#1415: input.tsx — `focus-visible:ring-3 focus-visible:ring-ring/30`
+	// + `focus-visible:border-ring` over `outline-none` (DESIGN.md "Focus
+	// rings", 3px family, line-borne).
+	'input',
+	// select.tsx SelectTrigger — same 3px family over `outline-none`.
+	'select-trigger',
+	// switch.tsx — `focus-visible:ring-3 focus-visible:ring-ring`.
+	'switch',
+	// checkbox.tsx — the documented 2px exception (`focus-visible:ring-2`).
+	'checkbox',
+	// textarea.tsx — same 3px family as input.tsx.
+	'textarea',
+	// NOTE: the badge probes (badge-link / badge-outline-link) are NOT
+	// members: badge.tsx carries the 3px ring on its base AND the contractual
+	// outline behind `[a]:focus-visible:outline-2 [a]:focus-visible:outline-ring`
+	// (#1405) — through the badge-as-link pattern it paints BOTH, so it is
+	// measured against the full outline triad, not this allowlist.
+]);
 
 type RingRule = {
 	/** The full matched rule text — carried into error messages so a red
