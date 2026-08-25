@@ -35,6 +35,14 @@ import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 type PendingAction = 'unassign' | null;
 
+// Wire reasons (apps/api … BulkStaffProfileUserUnassignFailureReasons) →
+// translated copy. Wire reasons arrive from the API as plain strings and an
+// unknown future reason falls back to its raw value (transparent-failure
+// principle), so this map stays an open dictionary by contract.
+interface ProfileUserUnassignReasonLabelMap {
+	[reason: string]: string;
+}
+
 export const ProfileUsersListBulkActions = ({
 	profileId,
 	rows,
@@ -107,7 +115,7 @@ export const ProfileUsersListBulkActions = ({
 			// gets its reason in plain words beside the counts, so "1 failed"
 			// never strands the user without the next action. Names resolve from
 			// the loaded rows; an unknown id falls back to its raw value.
-			const reasonLabels: Record<string, string> = {
+			const reasonLabels: ProfileUserUnassignReasonLabelMap = {
 				not_assigned: t('bulk-unassign-failed-item-not-assigned'),
 				not_found: t('bulk-unassign-failed-item-not-found'),
 			};
