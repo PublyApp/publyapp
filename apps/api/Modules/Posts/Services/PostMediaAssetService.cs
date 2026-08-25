@@ -120,13 +120,19 @@ public sealed class PostMediaAssetService(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var previousPath = await (
+		// A post owns at most ONE live image (partial unique index): replacing
+		// means hard-deleting the stale live row(s) in THIS unit of work —
+		// otherwise the insert violates ix_post_media_assets_live_post_id.
+		var replacedAssets = await (
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == args.TenantId
 				&& a.PostId == args.PostId
 				&& !a.IsDeleted
-			select a.RelativePath
-		).FirstOrDefaultAsync(cancellationToken);
+			select a
+		).ToListAsync(cancellationToken);
+		var replacedPath = replacedAssets.Count > 0
+			? replacedAssets[0].RelativePath
+			: null;
 
 		// Acquire the new blob's reference BEFORE the entity write so the URL
 		// can never commit while its asset still reads zero references (#807 F5).
@@ -147,13 +153,20 @@ public sealed class PostMediaAssetService(
 			UploadedByUserId = args.UploadedByUserId,
 		};
 		await dbContext.PostMediaAsset.AddAsync(asset, cancellationToken);
+
+		foreach (var replaced in replacedAssets) {
+			dbContext.ForceHardDelete(replaced);
+		}
+
+		// One commit: the insert and the replacement's purge land atomically
+		// (EF Core issues same-table deletes before inserts in the batch).
 		await dbContext.SaveChangesAsync(cancellationToken);
 
-		// Release the replaced image's reference in the SAME unit of work as
-		// the new row's commit; physical deletion stays exclusively sweeper's.
-		if (previousPath is not null) {
+		// Release the replaced image's reference AFTER the commit (#807 F5);
+		// physical deletion stays exclusively sweeper's.
+		if (replacedPath is not null) {
 			await uploadReferences.TryReleaseReferenceAsync(
-				previousPath,
+				replacedPath,
 				cancellationToken
 			);
 		}

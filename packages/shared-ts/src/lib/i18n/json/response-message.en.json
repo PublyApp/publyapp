@@ -110,6 +110,7 @@
 	"post-image-required": "An image file is required",
 	"post-image-too-large": "Image exceeds the maximum allowed size",
 	"post-image-unsupported-type": "Image must be a PNG, JPEG, WEBP, or GIF",
+	"post-image-dimensions-invalid": "Image dimensions are invalid",
 	"post-image-missing": "No image is attached to this post",
 	"post-image-attached-success": "Post image attached successfully",
 	"post-image-removed-success": "Post image removed successfully"

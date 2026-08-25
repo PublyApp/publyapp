@@ -240,6 +240,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostImageAttachedSuccess = new("post-image-attached-success");
 
 	/// <summary>
+	/// Image dimensions are invalid
+	/// </summary>
+	public static readonly TranslationKey PostImageDimensionsInvalid = new("post-image-dimensions-invalid");
+
+	/// <summary>
 	/// No image is attached to this post
 	/// </summary>
 	public static readonly TranslationKey PostImageMissing = new("post-image-missing");

@@ -80,7 +80,6 @@ public sealed class AttachPostImageForTenant {
 				ResponseKeys.PostImageRequired
 			);
 		}
-
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
 			return TypedProblems.PayloadTooLarge(
@@ -93,13 +92,23 @@ public sealed class AttachPostImageForTenant {
 		// section before the handler runs): inspect headers, then rewind so the
 		// storage writer sees the full payload.
 		await using var uploadStream = file.OpenReadStream();
-		var inspected = ImageInspector.Inspect(uploadStream);
-		if (inspected is null) {
+		var inspection = ImageInspector.Inspect(uploadStream);
+		if (inspection is ImageInspector.UnknownType) {
 			return ValidationFailure(
 				"File must be a PNG, JPEG, WEBP, or GIF image",
 				ResponseKeys.PostImageUnsupportedType
 			);
 		}
+		if (inspection is ImageInspector.DegenerateDimensions) {
+			// A recognized image type declaring a zero/negative canvas: name the
+			// DIMENSIONS as the cause, not the (known) type.
+			return ValidationFailure(
+				"Image dimensions are invalid",
+				ResponseKeys.PostImageDimensionsInvalid
+			);
+		}
+		var inspected =
+			(ImageInspector.Inspected)inspection;
 		uploadStream.Position = 0;
 
 		// Durable admission (#807 F1): reserve bytes and create the Reserved
@@ -138,10 +147,10 @@ public sealed class AttachPostImageForTenant {
 		string relativePath;
 		try {
 			relativePath = await fileStorage.SaveAsync(
-				uploadStream, inspected.Value.Extension, cancellationToken
+				uploadStream, inspected.Extension, cancellationToken
 			);
 			asset.RelativePath = relativePath;
-			asset.ContentType = inspected.Value.ContentType;
+			asset.ContentType = inspected.ContentType;
 			admissionScope.MarkCommitPending();
 		} catch (Exception exception) {
 			var cleanupConfirmed = exception is StorageWriteException {
@@ -184,7 +193,7 @@ public sealed class AttachPostImageForTenant {
 					PostId = postIdGuid,
 					Path = relativePath,
 					SizeBytes = file.Length,
-					ContentType = inspected.Value.ContentType,
+					ContentType = inspected.ContentType,
 				}
 			),
 			cancellationToken
@@ -201,9 +210,9 @@ public sealed class AttachPostImageForTenant {
 				TenantId: tenantId,
 				PostId: postIdGuid,
 				RelativePath: relativePath,
-				ContentType: inspected.Value.ContentType,
-				WidthPx: inspected.Value.WidthPx,
-				HeightPx: inspected.Value.HeightPx,
+				ContentType: inspected.ContentType,
+				WidthPx: inspected.WidthPx,
+				HeightPx: inspected.HeightPx,
 				SizeBytes: file.Length,
 				UploadedByUserId: account.UserId
 			),
@@ -215,9 +224,9 @@ public sealed class AttachPostImageForTenant {
 			new PostImageAttached {
 				Url = $"/files/{relativePath}",
 				Path = relativePath,
-				ContentType = inspected.Value.ContentType,
-				WidthPx = inspected.Value.WidthPx,
-				HeightPx = inspected.Value.HeightPx,
+				ContentType = inspected.ContentType,
+				WidthPx = inspected.WidthPx,
+				HeightPx = inspected.HeightPx,
 				AltText = null,
 			}
 		);

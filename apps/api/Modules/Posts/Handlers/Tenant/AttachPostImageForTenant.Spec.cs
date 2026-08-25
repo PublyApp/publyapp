@@ -10,6 +10,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
+using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
@@ -149,6 +151,206 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldRefuseAttachWithoutPermission() {
+		var (tenantId, adminToken) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, adminToken);
+		var userToken = await _authClient.LoginAsync(
+			TestConstants.AcmeUserEmail,
+			TestConstants.SeedPassword
+		);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(userToken)
+			.WithTenantId(tenantId);
+		request.Content = BuildFileContent(PngBytes(width: 8, height: 8));
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+		var problem =
+			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should()
+			.Be("user-does-not-have-the-necessary-permissions");
+	}
+
+	[Fact]
+	public async Task ItShouldNameMissingFileCause() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		// A browser form submitted without choosing a file carries no usable
+		// file part: bind the "file" field WITHOUT a filename so the IFormFile
+		// stays absent — the refusal must still name its cause.
+		var noFileContent = new MultipartFormDataContent();
+		noFileContent.Add(new ByteArrayContent([]), "file");
+		request.Content = noFileContent;
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("post-image-required");
+	}
+
+	[Fact]
+	public async Task ItShouldNameOversizeFileCause() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+
+		// One byte past the budget: under the multipart request limit (which
+		// adds header headroom), past the handler's own size gate.
+		var oversize = new byte[
+			AppEnvironment.Instance.UPLOAD_MAX_BYTES + 1
+		];
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = BuildFileContent(oversize);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.RequestEntityTooLarge);
+		var problem =
+			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("post-image-too-large");
+	}
+
+	[Fact]
+	public async Task ItShouldNameUnsupportedTypeCause() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = BuildFileContent(
+			"definitely not an image"u8.ToArray(),
+			fileName: "disguised.png"
+		);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("post-image-unsupported-type");
+	}
+
+	[Fact]
+	public async Task ItShouldNameDegenerateDimensionsCause() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+
+		// A structurally valid PNG whose canvas is zero-sized: the type is
+		// known, so the refusal must name the DIMENSIONS, not the type.
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		request.Content = BuildFileContent(PngBytes(width: 0, height: 0));
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.UnprocessableEntity);
+		var problem = await response.Content
+			.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be("post-image-dimensions-invalid");
+	}
+
+	[Fact]
+	public async Task ItShouldReplaceExistingImageWithoutOrphan() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+
+		using var firstRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		firstRequest.Content =
+			BuildFileContent(PngBytes(width: 64, height: 32));
+		string firstPath;
+		using (firstRequest) {
+			using var firstResponse = await _http.SendAsync(firstRequest);
+			firstResponse.EnsureSuccessStatusCode();
+			var first = await firstResponse.Content
+				.ReadFromJsonAsync<PostImageAttached>();
+			Assert.NotNull(first);
+			firstPath = first.Path;
+		}
+
+		using var secondRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		secondRequest.Content =
+			BuildFileContent(PngBytes(width: 128, height: 64));
+		string secondPath;
+		using (secondRequest) {
+			using var secondResponse = await _http.SendAsync(secondRequest);
+			secondResponse.EnsureSuccessStatusCode();
+			var second = await secondResponse.Content
+				.ReadFromJsonAsync<PostImageAttached>();
+			Assert.NotNull(second);
+			secondPath = second.Path;
+		}
+
+		// Exactly ONE live asset row remains — the replacement — pointing at
+		// the new blob; the old blob's reference dropped back to zero.
+		var postIdGuid = Guid.Parse(postId);
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var livePaths = await (
+			from a in db.PostMediaAsset.AsNoTracking()
+			where a.PostId == postIdGuid && !a.IsDeleted
+			select a.RelativePath
+		).ToListAsync();
+		livePaths.Should().BeEquivalentTo([secondPath]);
+
+		var oldReferenceCount = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where u.RelativePath == firstPath && !u.IsDeleted
+			select (int?)u.ReferenceCount
+		).SingleOrDefaultAsync();
+		oldReferenceCount.Should().Be(0,
+			"a replaced image must release its blob reference — no orphans");
+
+		var newReferenceCount = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where u.RelativePath == secondPath && !u.IsDeleted
+			select (int?)u.ReferenceCount
+		).SingleAsync();
+		newReferenceCount.Should().BeGreaterThanOrEqualTo(1);
+	}
+
+	[Fact]
 	public async Task ItShouldPurgeAssetWhenPostDeleted() {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 		var postId = await CreatePostAsync(tenantId, token);
@@ -206,12 +408,15 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	// ── helpers ────────────────────────────────────────────────────────
 
-	private static MultipartFormDataContent BuildFileContent(byte[] bytes) {
+	private static MultipartFormDataContent BuildFileContent(
+		byte[] bytes,
+		string fileName = "logo.png"
+	) {
 		var content = new MultipartFormDataContent();
 		var fileContent = new ByteArrayContent(bytes);
 		fileContent.Headers.ContentType =
 			new MediaTypeHeaderValue("image/png");
-		content.Add(fileContent, "file", "logo.png");
+		content.Add(fileContent, "file", fileName);
 		return content;
 	}
 

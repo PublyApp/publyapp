@@ -16,18 +16,26 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// stored-XSS vector this would otherwise open; a full decode needs a hardened
 /// image library and stays out of scope here.
 ///
-/// Returns null for anything it cannot confidently classify (unknown
-/// signature, truncated header, degenerate zero-size canvas): callers turn
-/// that into a named validation refusal, never a persisted row. Leaves the
-/// stream position unspecified on return; callers rewind before reading again.
+/// Returns a typed outcome for anything it cannot confidently accept:
+/// <see cref="UnknownType"/> (unknown signature, truncated header) or
+/// <see cref="DegenerateDimensions"/> (a recognized type declaring a ≤ 0 px
+/// canvas) — callers turn each into its own named validation refusal, never a
+/// persisted row. Leaves the stream position unspecified on return; callers
+/// rewind before reading again.
 /// </summary>
 public static class ImageInspector {
-	public readonly record struct Inspected(
+	public abstract record Inspection;
+
+	public sealed record Inspected(
 		string ContentType,
 		string Extension,
 		int WidthPx,
 		int HeightPx
-	);
+	) : Inspection;
+
+	public sealed record UnknownType : Inspection;
+
+	public sealed record DegenerateDimensions : Inspection;
 
 	// Fixed initial read window covering every format's fixed-size header
 	// (PNG IHDR ends at byte 24, WebP VP8X canvas at 30, WebP frames at 30).
@@ -40,7 +48,7 @@ public static class ImageInspector {
 	// tens of KB), so that format walks markers streaming-style under a bound.
 	private const long MaxJpegScanBytes = 64 * 1024;
 
-	public static Inspected? Inspect(Stream stream) {
+	public static Inspection Inspect(Stream stream) {
 		Span<byte> header = stackalloc byte[SniffWindowBytes];
 		var read = stream.ReadAtLeast(
 			header,
@@ -48,7 +56,7 @@ public static class ImageInspector {
 			throwOnEndOfStream: false
 		);
 		if (read < MinimumBytes) {
-			return null;
+			return new UnknownType();
 		}
 
 		ReadOnlySpan<byte> view = header[..read];
@@ -66,7 +74,7 @@ public static class ImageInspector {
 			return ParseJpeg(stream);
 		}
 
-		return null;
+		return new UnknownType();
 	}
 
 	private static bool IsPng(ReadOnlySpan<byte> header) {
@@ -77,15 +85,15 @@ public static class ImageInspector {
 			&& header[12..16].SequenceEqual("IHDR"u8);
 	}
 
-	private static Inspected? ParsePng(ReadOnlySpan<byte> header) {
+	private static Inspection ParsePng(ReadOnlySpan<byte> header) {
 		// IHDR payload: 4-byte big-endian width then height, bytes 16..23.
 		if (header.Length < 24) {
-			return null;
+			return new UnknownType();
 		}
 		var width = BinaryPrimitives.ReadInt32BigEndian(header[16..20]);
 		var height = BinaryPrimitives.ReadInt32BigEndian(header[20..24]);
 		if (width <= 0 || height <= 0) {
-			return null;
+			return new DegenerateDimensions();
 		}
 		return new Inspected("image/png", ".png", width, height);
 	}
@@ -96,13 +104,13 @@ public static class ImageInspector {
 				|| header[..6].SequenceEqual("GIF89a"u8));
 	}
 
-	private static Inspected? ParseGif(ReadOnlySpan<byte> header) {
+	private static Inspection ParseGif(ReadOnlySpan<byte> header) {
 		// Logical screen descriptor: little-endian uint16 width then height.
 		// Zero-sized canvases stay rejected (round-5 F5 bar).
 		var width = header[6] | (header[7] << 8);
 		var height = header[8] | (header[9] << 8);
 		if (width <= 0 || height <= 0) {
-			return null;
+			return new DegenerateDimensions();
 		}
 		return new Inspected("image/gif", ".gif", width, height);
 	}
@@ -113,12 +121,12 @@ public static class ImageInspector {
 			&& header[8..12].SequenceEqual("WEBP"u8);
 	}
 
-	private static Inspected? ParseWebP(ReadOnlySpan<byte> header) {
+	private static Inspection ParseWebP(ReadOnlySpan<byte> header) {
 		if (header.Length >= 16 && header[12..16].SequenceEqual("VP8X"u8)) {
 			// Extended format: flags + 3 reserved bytes at 20..23, then canvas
 			// (dimension - 1) as three little-endian bytes each at 24..29.
 			if (header.Length < 30) {
-				return null;
+				return new UnknownType();
 			}
 			var width = 1 + header[24]
 				+ (header[25] << 8)
@@ -127,7 +135,7 @@ public static class ImageInspector {
 				+ (header[28] << 8)
 				+ (header[29] << 16);
 			if (width <= 0 || height <= 0) {
-				return null;
+				return new DegenerateDimensions();
 			}
 			return new Inspected("image/webp", ".webp", width, height);
 		}
@@ -136,15 +144,15 @@ public static class ImageInspector {
 			// Simple lossy: frame tag 20..22, sync code 9D 01 2A at 23..25,
 			// then 14-bit little-endian width/height at 26..29.
 			if (header.Length < 30) {
-				return null;
+				return new UnknownType();
 			}
 			if (header[23] != 0x9D || header[24] != 0x01 || header[25] != 0x2A) {
-				return null;
+				return new UnknownType();
 			}
 			var width = header[26] | ((header[27] & 0x3F) << 8);
 			var height = header[28] | ((header[29] & 0x3F) << 8);
 			if (width <= 0 || height <= 0) {
-				return null;
+				return new DegenerateDimensions();
 			}
 			return new Inspected("image/webp", ".webp", width, height);
 		}
@@ -153,18 +161,18 @@ public static class ImageInspector {
 			// Lossless: 0x2F signature at 20, then 32 bits where the low 14
 			// bits encode width-1 and the next 14 encode height-1.
 			if (header.Length < 25 || header[20] != 0x2F) {
-				return null;
+				return new UnknownType();
 			}
 			var bits = BinaryPrimitives.ReadInt32LittleEndian(header[21..25]);
 			var width = (bits & 0x3FFF) + 1;
 			var height = ((bits >> 14) & 0x3FFF) + 1;
 			if (width <= 0 || height <= 0) {
-				return null;
+				return new DegenerateDimensions();
 			}
 			return new Inspected("image/webp", ".webp", width, height);
 		}
 
-		return null;
+		return new UnknownType();
 	}
 
 	private static bool IsJpeg(ReadOnlySpan<byte> header) {
@@ -172,7 +180,7 @@ public static class ImageInspector {
 			&& header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
 	}
 
-	private static Inspected? ParseJpeg(Stream stream) {
+	private static Inspection ParseJpeg(Stream stream) {
 		// Walk marker segments from the stream start (the sniff left the
 		// position unspecified) until an SOFn carries the dimensions. Bounded
 		// by MaxJpegScanBytes so a malformed stream cannot spin the walk.
@@ -183,11 +191,11 @@ public static class ImageInspector {
 
 		while (scanned <= MaxJpegScanBytes) {
 			if (!TryReadExactly(stream, pair)) {
-				return null;
+				return new UnknownType();
 			}
 			scanned += pair.Length;
 			if (pair[0] != 0xFF) {
-				return null;
+				return new UnknownType();
 			}
 			var marker = pair[1];
 			if (marker is 0xFF or 0xD8 or 0x01 or (>= 0xD0 and <= 0xD7)) {
@@ -196,12 +204,12 @@ public static class ImageInspector {
 			}
 
 			if (!TryReadExactly(stream, pair)) {
-				return null;
+				return new UnknownType();
 			}
 			scanned += pair.Length;
 			var segmentLength = (pair[0] << 8) | pair[1];
 			if (segmentLength < 2) {
-				return null;
+				return new UnknownType();
 			}
 
 			var isStartOfFrame = marker is >= 0xC0 and <= 0xCF
@@ -210,12 +218,12 @@ public static class ImageInspector {
 				// SOFn body: precision byte, then big-endian uint16 height and
 				// width (height first per the JPEG spec).
 				if (!TryReadExactly(stream, sofHead)) {
-					return null;
+					return new UnknownType();
 				}
 				var height = (sofHead[1] << 8) | sofHead[2];
 				var width = (sofHead[3] << 8) | sofHead[4];
 				if (width <= 0 || height <= 0) {
-					return null;
+					return new DegenerateDimensions();
 				}
 				return new Inspected("image/jpeg", ".jpg", width, height);
 			}
@@ -227,7 +235,7 @@ public static class ImageInspector {
 			scanned += skip;
 		}
 
-		return null;
+		return new UnknownType();
 	}
 
 	private static bool TryReadExactly(Stream stream, byte[] buffer) {
