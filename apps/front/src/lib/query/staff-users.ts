@@ -112,7 +112,9 @@ export const STAFF_USER_PROFILES_QUERY_KEY = [
 /** Invalidates the staff-users list, every user's details entry, and its
  * assigned-profiles entry — both nest under `STAFF_USERS_QUERY_KEY`, so a
  * single prefix invalidation covers all three (see F19/F16). */
-export const invalidateStaffUsers = (queryClient: QueryClient) =>
+export const invalidateStaffUsers = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_USERS_QUERY_KEY),
 	});

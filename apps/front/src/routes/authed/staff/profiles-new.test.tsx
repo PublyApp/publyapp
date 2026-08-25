@@ -322,7 +322,7 @@ describe('staff profile create route', () => {
 				},
 				audit: null,
 				settings: 'not-an-object',
-			} as never),
+			}),
 		).toEqual([
 			{
 				value: 'staff.users.read',

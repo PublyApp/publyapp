@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test, vi } from 'vitest';
 
 import {
@@ -64,7 +65,10 @@ describe('invalidateStaffInvitations', () => {
 	test('invalidates the shared staff-invitations scope prefix', () => {
 		const invalidateQueries = vi.fn();
 
-		void invalidateStaffInvitations({ invalidateQueries } as never);
+		void invalidateStaffInvitations({ invalidateQueries } satisfies Pick<
+			QueryClient,
+			'invalidateQueries'
+		>);
 
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', ...STAFF_INVITATIONS_QUERY_KEY],

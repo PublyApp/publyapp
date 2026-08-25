@@ -30,7 +30,9 @@ export const STAFF_INVITATIONS_QUERY_KEY = ['staff-invitations'] as const;
 
 /** Invalidates the staff-invitations list and every invitation's details
  * entry — both nest under `STAFF_INVITATIONS_QUERY_KEY` (see F19/F16). */
-export const invalidateStaffInvitations = (queryClient: QueryClient) =>
+export const invalidateStaffInvitations = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_INVITATIONS_QUERY_KEY),
 	});

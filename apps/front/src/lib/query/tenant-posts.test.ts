@@ -3,6 +3,11 @@
  */
 import { describe, expect, test } from 'vitest';
 
+import type {
+	FindPostsForTenantResponse,
+	PostDetail,
+} from '@org/client-ts/models/index';
+
 import {
 	buildFindTenantPostsQueryParameters,
 	toTenantPostRows,
@@ -66,7 +71,7 @@ describe('tenant-posts helpers', () => {
 					bodyPreview: '',
 				},
 			],
-		} as never);
+		} as FindPostsForTenantResponse);
 
 		expect(rows).toHaveLength(1);
 		expect(rows[0].excerpt).toBe('hello');
@@ -83,13 +88,13 @@ describe('tenant-posts helpers', () => {
 			toTenantPostDetails({
 				id: '11111111-1111-7111-8111-111111111111',
 				body: null,
-			} as never),
+			} as PostDetail),
 		).toBeNull();
 		expect(
 			toTenantPostDetails({
 				id: null,
 				body: 'has body',
-			} as never),
+			} as PostDetail),
 		).toBeNull();
 		expect(toTenantPostDetails(null)).toBeNull();
 	});
@@ -101,9 +106,9 @@ describe('tenant-posts helpers', () => {
 			projectId: '22222222-2222-7222-8222-222222222222',
 			status: 'draft',
 			createdByUserId: '33333333-3333-7333-8333-333333333333',
-			createdAt: '2026-01-01T00:00:00Z',
-			updatedAt: '2026-01-02T00:00:00Z',
-		} as never);
+			createdAt: new Date('2026-01-01T00:00:00Z'),
+			updatedAt: new Date('2026-01-02T00:00:00Z'),
+		} as PostDetail);
 
 		expect(details).not.toBeNull();
 		expect(details!.id).toBe('11111111-1111-7111-8111-111111111111');

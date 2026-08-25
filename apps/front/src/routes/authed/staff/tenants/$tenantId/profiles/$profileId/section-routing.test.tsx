@@ -660,8 +660,9 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 			search: '',
 			hash: '',
 			// BlockerFnArgs.state is ParsedHistoryState; the production
-			// predicate never inspects it, so opt out of checking the literal.
-			state: {} as never,
+			// predicate never inspects it, but TanStack's own shape carries the
+			// render index, so mirror what a real history location has.
+			state: { __TSR_index: 0 },
 		});
 		const blocked = blockers.map((blockerFn) =>
 			blockerFn({

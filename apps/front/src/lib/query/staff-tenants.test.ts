@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	buildCreateStaffTenantBody,
@@ -789,7 +790,10 @@ describe('toStaffTenantDetails', () => {
 describe('invalidateStaffTenants / invalidateAllStaffTenantScopes', () => {
 	test('both invalidate the shared staff-tenants scope prefix', () => {
 		const invalidateQueries = vi.fn();
-		const queryClient = { invalidateQueries } as never;
+		const queryClient = { invalidateQueries } satisfies Pick<
+			QueryClient,
+			'invalidateQueries'
+		>;
 
 		void invalidateStaffTenants(queryClient);
 		void invalidateAllStaffTenantScopes(queryClient);

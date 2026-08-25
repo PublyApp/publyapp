@@ -123,7 +123,7 @@ const TenantPostsDraftsPage = () => {
 					<DataTableRowActions
 						ariaLabel={t('common:actions-for', {
 							name: row.original.excerpt.slice(0, 40),
-						} as never)}
+						})}
 					>
 						<DropdownMenuItem
 							onClick={() =>
