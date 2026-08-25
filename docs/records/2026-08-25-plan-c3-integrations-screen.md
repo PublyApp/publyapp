@@ -623,3 +623,260 @@ The page itself keeps its route shell (`WorkspacePageHeader titleKey="integratio
 
 **Spec proof:** §3 list bullet rendered exactly (handle, provider, pill colours, last success, visible-in semantics); §1 decision 5 visibility of ACTIONS follows manage.
 **Adversarial mutation:** remove the `useCanManageSocialAccounts()` gate around actions → the view-only component test added in Step 1's third case (`ItShouldHideRowActionsForViewOnlyHolders`) goes red.
+
+---
+
+## Task 5: Connect / Reconnect drawer + attach-projects checklist
+
+**Files:** new `_bluesky-connect-drawer.tsx` (+ `.test.tsx`), new `_attach-projects-field.tsx` — all under `apps/front/src/routes/authed/tenant/settings/`.
+
+**Interfaces:**
+- Produces: `<BlueskyConnectDrawer mode="connect" | "reconnect" open onOpenChange tenantId account?: SocialAccountRow />`.
+- Consumes: `DrawerForm` (`~/components/ui/drawer`, exists — `methods: UseFormReturn`, `onSubmit`), `Field.Textarea`/`FieldText` (`~/components/field`, exists), Task 3's connect/reconnect mutations, `useTenantProjectsQuery` (exists), `FieldCheckboxGroup` (`~/components/field/field-checkbox-group.tsx`, exists) via the attach field.
+- The drawer is the ONLY place the app-password string exists; it lives in RHF state, never in a store, and the form resets on close.
+
+- [ ] **Step 1 (RED):**
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/_bluesky-connect-drawer.test.tsx
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+
+import { renderWithProviders } from '~/lib/test/render-with-providers';
+import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
+
+describe('bluesky connect drawer', () => {
+	it('ItShouldSubmitIdentifierAndPasswordAndCloseOnSuccess', async () => {
+		const onOpenChange = vi.fn();
+		const connect = vi.fn().mockResolvedValue(undefined);
+		renderWithProviders(
+			<BlueskyConnectDrawer mode="connect" open onOpenChange={onOpenChange} tenantId="t1" />,
+			{ fixtures: { connectSocialAccount: connect, projects: [{ id: 'p1', label: 'Acme' }] } },
+		);
+
+		await userEvent.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
+		await userEvent.type(screen.getByLabelText(/app password/i), 'correct-horse-battery-staple');
+		await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+		expect(connect).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'team.bsky.social' }));
+	});
+
+	it('ItShouldShowTheProviderRefusalAsIsWhenCredentialsAreRefused', async () => {
+		renderWithProviders(
+			<BlueskyConnectDrawer mode="connect" open onOpenChange={vi.fn()} tenantId="t1" />,
+			{ fixtures: { connectFailure: { status: 422, key: 'credentials_refused' } } },
+		);
+
+		await userEvent.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
+		await userEvent.type(screen.getByLabelText(/app password/i), 'wrong');
+		await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+
+		const alert = await screen.findByRole('alert');
+		expect(alert).toHaveTextContent(/Bluesky refused these credentials/i);
+	});
+});
+```
+
+Run: expected FAIL — module missing.
+
+- [ ] **Step 2 (GREEN):**
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/_bluesky-connect-drawer.tsx
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
+import { Field } from '~/components/field';
+import { Button } from '~/components/ui/button';
+import {
+	Drawer,
+	DrawerBody,
+	DrawerContent,
+	DrawerFooter,
+	DrawerForm,
+	DrawerHeader,
+	DrawerTitle,
+} from '~/components/ui/drawer';
+
+import type { SocialAccountRow } from '~/lib/query/social-accounts';
+import {
+	useConnectSocialAccountMutation,
+	useReconnectSocialAccountMutation,
+} from '~/lib/query/social-accounts';
+
+import { AttachProjectsField } from './_attach-projects-field';
+import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+const APP_PASSWORD_HELP_URL = 'https://bsky.app/settings/app-passwords';
+
+const getSchema = (t: (k: string) => string, mode: DrawerMode) =>
+	z.object({
+		identifier: mode === 'reconnect'
+			? z.string()
+			: z.string().trim().min(3, { message: t('drawer-identifier-help') }),
+		appPassword: z.string().min(1, { message: t('drawer-app-password-help') }),
+		projectIds: z.array(z.string()),
+	});
+
+type FormValues = z.infer<ReturnType<typeof getSchema>>;
+export type DrawerMode = 'connect' | 'reconnect';
+
+/** Connect AND reconnect share this drawer (spec §3): reconnect prefills the
+ * handle, keeps the identifier read-only (C2 resolves by stored DID), and
+ * hides the attachments step. Provider failures are surfaced AS-IS through
+ * their settings-namespace keys; nothing generic. */
+export const BlueskyConnectDrawer = ({
+	mode,
+	open,
+	onOpenChange,
+	tenantId,
+	account,
+}: {
+	mode: DrawerMode;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	tenantId: string;
+	account?: SocialAccountRow;
+}) => {
+	const { t } = useTranslation(['settings']);
+	const connectMutation = useConnectSocialAccountMutation();
+	const reconnectMutation = useReconnectSocialAccountMutation();
+	const methods = useForm<FormValues>({
+		resolver: zodResolver(getSchema(t, mode)),
+		defaultValues: {
+			identifier: account?.displayHandle ?? '',
+			appPassword: '',
+			projectIds: [],
+		},
+	});
+
+	const onSubmit = methods.handleSubmit(async (values) => {
+		try {
+			if (mode === 'reconnect' && account) {
+				await reconnectMutation.mutateAsync({
+					tenantId,
+					socialAccountId: account.id,
+					appPassword: values.appPassword,
+				});
+			} else {
+				await connectMutation.mutateAsync({
+					tenantId,
+					identifier: values.identifier,
+					appPassword: values.appPassword,
+					projectIds: values.projectIds,
+				});
+			}
+			methods.reset();
+			onOpenChange(false);
+		} catch (error) {
+			const failure = toApiFailure(error);
+			methods.setError('root', {
+				message:
+					getFailureMessage(failure, {
+						fallback: t('error-provider-unreachable'),
+					}) ?? undefined,
+			});
+		}
+	});
+
+	return (
+		<Drawer open={open} onOpenChange={(next) => { if (!next) methods.reset(); onOpenChange(next); }}>
+			<DrawerContent width={560} data-testid={`bluesky-${mode}-drawer`}>
+				<DrawerHeader>
+					<DrawerTitle>
+						{t(mode === 'connect' ? 'drawer-connect-title' : 'drawer-reconnect-title')}
+					</DrawerTitle>
+				</DrawerHeader>
+				<DrawerForm methods={methods} onSubmit={onSubmit}>
+					<DrawerBody>
+						<Field.Text
+							name="identifier"
+							label={t('drawer-identifier-label')}
+							isDisabled={mode === 'reconnect'}
+							data-testid="bluesky-identifier"
+						/>
+						<Field.Text
+							name="appPassword"
+							type="password"
+							label={t('drawer-app-password-label')}
+							helperText={t('drawer-app-password-help')}
+							data-testid="bluesky-app-password"
+						/>
+						<a href={APP_PASSWORD_HELP_URL} target="_blank" rel="noreferrer">
+							{t('drawer-app-password-help-link')}
+						</a>
+						{mode === 'connect' ? (
+							<AttachProjectsField name="projectIds" tenantId={tenantId} />
+						) : null}
+					</DrawerBody>
+					<DrawerFooter>
+						<Button type="submit">
+							{t(mode === 'connect' ? 'drawer-submit-connect' : 'drawer-submit-reconnect')}
+						</Button>
+					</DrawerFooter>
+				</DrawerForm>
+			</DrawerContent>
+		</Drawer>
+	);
+};
+```
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/_attach-projects-field.tsx
+import { useTranslation } from 'react-i18next';
+import { Controller, useFormContext } from 'react-hook-form';
+import { FieldCheckboxGroup } from '~/components/field/field-checkbox-group';
+import {
+	toTenantProjectItems,
+	useTenantProjectsQuery,
+} from '~/lib/query/tenant-projects';
+
+/** Spec §3: checklist of the tenant's projects; none checked = all. */
+export const AttachProjectsField = ({
+	name,
+	tenantId,
+}: {
+	name: string;
+	tenantId: string;
+}) => {
+	const { t } = useTranslation(['settings']);
+	const { control } = useFormContext();
+	const projectsQuery = useTenantProjectsQuery({ tenantId });
+	const options = toTenantProjectItems(projectsQuery.data).map((project) => ({
+		value: project.id,
+		label: project.label,
+	}));
+
+	return (
+		<div data-testid="attach-projects-field">
+			<p>{t('attach-projects-title')}</p>
+			<p className="text-muted-foreground text-xs">{t('attach-projects-none-hint')}</p>
+			<Controller
+				control={control}
+				name={name}
+				render={({ field }) => (
+					<FieldCheckboxGroup
+						name={name}
+						label=""
+						options={options}
+						// selection binding handled through RHF's onChange below
+						{...{}}
+					/>
+				)}
+			/>
+		</div>
+	);
+};
+```
+
+(During implementation, wire the checkbox group's change handler to `field.onChange` per `FieldCheckboxGroupProps`; the snippet above shows placement — final code follows that component's real props exactly.)
+
+- [ ] **Step 3:** run drawer suite green + `pnpm --filter front exec vitest run src/routes/authed/tenant/settings && pnpm --filter front typecheck && just react-doctor`.
+- [ ] **Step 4:** `git commit -m "front(social): bluesky connect/reconnect drawer with attach-to-projects checklist" && git push`
+
+**Spec proof:** §3 connect bullet complete (identifier + app password + help link + errors as-is); attach checklist with none-checked-means-all; reconnect reuses the same drawer with handle prefilled.
+**Adversarial mutation:** swallow the 422 into a generic toast instead of the root alert → the refusal test goes red (errors-shown-as-is guard).
