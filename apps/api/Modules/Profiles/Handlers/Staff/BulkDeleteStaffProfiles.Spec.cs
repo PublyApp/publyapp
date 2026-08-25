@@ -340,6 +340,98 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	// #1408 r1: the response must account for EVERY requested id — an id the
+	// service refuses for any reason (missing, wrong scope, or otherwise
+	// undeletable) is a per-item failure with a plain-language reason, never a
+	// silent drop. SucceededCount + FailedCount always equals the requested
+	// count.
+	[Fact]
+	public async Task ItShouldAccountForEveryRequestedStaffProfileId() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var deletableProfileId = await CreateStaffProfileAsync(staffToken);
+		var notFoundProfileId = Guid.NewGuid();
+		var startedAt = DateTime.UtcNow;
+
+		using var response = await BulkDeleteAsync(
+			staffToken,
+			new { profileIds = new[] { deletableProfileId, notFoundProfileId } }
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<BulkProfileActionResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(1);
+		(result.SucceededCount + result.FailedCount).Should()
+			.Be(2, "every requested id is either succeeded or failed");
+		result.FailedItems.Should().ContainSingle(item =>
+			item.ProfileId == notFoundProfileId
+			&& item.Error == "Profile not found"
+		);
+
+		await AssertStaffProfileDeletedAsync(deletableProfileId);
+		await AssertLatestBulkDeleteAuditLogAsync(
+			startedAt,
+			expectedRequestedCount: 2,
+			expectedSucceededCount: 1,
+			expectedFailedCount: 1,
+			expectedProfileIds: [deletableProfileId, notFoundProfileId],
+			expectedFailedItems: new Dictionary<Guid, string> {
+				[notFoundProfileId] = "Profile not found",
+			}
+		);
+	}
+
+	// #1408 r1: the service must never drop a requested id silently. A
+	// default profile is not deletable on any scope, so it must come back as a
+	// per-item failure with a plain-language reason — not as a phantom success.
+	// The staff scope cannot create one through its API surface
+	// (`Profile.CreateStaffProfile` hardcodes IsDefault=false), so this seeds
+	// the row directly to pin the accounting invariant at the boundary.
+	[Fact]
+	public async Task ItShouldReportDefaultStaffProfileAsFailedInsteadOfDroppingIt() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var deletableProfileId = await CreateStaffProfileAsync(staffToken);
+		var defaultProfileId = await SeedStaffDefaultProfileAsync();
+		var startedAt = DateTime.UtcNow;
+
+		using var response = await BulkDeleteAsync(
+			staffToken,
+			new { profileIds = new[] { deletableProfileId, defaultProfileId } }
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<BulkProfileActionResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.SucceededCount.Should().Be(1);
+		result.FailedCount.Should().Be(1);
+		(result.SucceededCount + result.FailedCount).Should()
+			.Be(2, "every requested id is either succeeded or failed");
+		result.FailedItems.Should().ContainSingle(item =>
+			item.ProfileId == defaultProfileId
+			&& item.Error == "Default profiles cannot be deleted"
+		);
+
+		await AssertStaffProfileDeletedAsync(deletableProfileId);
+		await AssertProfileNotDeletedAsync(defaultProfileId);
+		await AssertLatestBulkDeleteAuditLogAsync(
+			startedAt,
+			expectedRequestedCount: 2,
+			expectedSucceededCount: 1,
+			expectedFailedCount: 1,
+			expectedProfileIds: [deletableProfileId, defaultProfileId],
+			expectedFailedItems: new Dictionary<Guid, string> {
+				[defaultProfileId] = "Default profiles cannot be deleted",
+			}
+		);
+	}
+
 	[Fact]
 	public async Task ItShouldRejectTenantProfilesInStaffProfileBulkDelete() {
 		var staffToken = await _authClient.LoginAsStaffAdminAsync();
@@ -441,6 +533,26 @@ public sealed class BulkDeleteStaffProfilesSpec : IClassFixture<ApiFixture> {
 			token,
 			SeedConstants.Tenants.AcmeName
 		);
+	}
+
+	// The staff scope cannot hold a default profile through any API or seeder
+	// path (CreateStaffProfile hardcodes IsDefault=false and
+	// ValidateProfileType rejects the combination), but the bulk-delete
+	// boundary must still account for one if it ever reaches the database.
+	// Seeding directly is what lets the spec pin that accounting contract.
+	private async Task<Guid> SeedStaffDefaultProfileAsync() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var profile = Profile.CreateStaffProfile(
+			"Seeded Staff Default " + Guid.NewGuid().ToString("N")[..8],
+			"Default-flagged profile seeded for bulk delete accounting tests"
+		);
+		profile.IsDefault = true;
+
+		await dbContext.Profile.AddAsync(profile);
+		await dbContext.SaveChangesAsync();
+
+		return profile.GetRequiredId();
 	}
 
 	private async Task<Guid> SeedTenantProfileAsync(Guid tenantId) {
