@@ -23,6 +23,13 @@ import process from 'node:process';
 // regenerates byte-for-byte; `--check` fails if it would differ (so the
 // evidence cannot silently rot while the decision inputs change).
 //
+// Diff fidelity: `--check` also cross-validates the rendered inventory
+// against `git diff -M --name-status` between the audited tree and HEAD.
+// Git's rename detection is independent ground truth for what actually
+// moved, so a decision-table omission (a real rename left unmapped, hence
+// rendered as a deletion) fails the gate instead of regenerating
+// identically-wrong evidence (round-2 review, #1357).
+//
 // Per #1357, these NEVER count as references: docs/README.md, the archive
 // indexes, and the archive-records guard manifest (ci-gate-manifest.json).
 
@@ -56,9 +63,13 @@ const EXCLUDED_SURFACES = new Set([
 // justfile). Anything under docs/ outside guides/, deployment/, assets/ that
 // is neither listed as `move` nor `keep` is DELETED.
 //
-// Every `move` below is a file the sweep found referenced by at least one
-// surface; every unreferenced file is deliberately absent (delete). When the
+// Every `move` below is either a file the sweep found referenced by at least
+// one surface, or a documented exception (paid-modules: merged into develop
+// mid-flight by #1355, deliberately preserved as a record instead of deleted);
+// every other unreferenced file is deliberately absent (delete). When the
 // sweep and this table disagree, the table is wrong — fix the table.
+// `--check` cross-validates every rendered row against git rename detection,
+// so a table that disagrees with what actually moved fails loudly.
 //
 // `type` follows the records vocabulary (spec, plan, review, audit, spike,
 // analysis, roadmap). When the source basename already starts with a
@@ -128,6 +139,16 @@ const MOVES: Record<string, Decision> = {
 	'docs/audits/2026-07-31-kiota-cross-origin-redirect-header-leak.md': {
 		action: 'move',
 		type: 'audit',
+	},
+
+	// Added to develop by #1355 while this lane was in flight; this branch
+	// moves its content to docs/records/ (git detects it as an R100 rename).
+	// The record name keeps `-open-core-` via an explicit topic: deriveTopic()
+	// alone would yield `paid-modules`, which is not what landed.
+	'docs/superpowers/specs/2026-08-25-paid-modules-design.md': {
+		action: 'move',
+		type: 'spec',
+		topic: 'open-core-paid-modules',
 	},
 };
 
@@ -299,6 +320,72 @@ const deriveDate = (rev: string, source: string): string => {
 	return match ? match[1] : firstAddDate(rev, source);
 };
 
+// Git's OWN view of what happened to docs/ between the audited pre-prune
+// tree and HEAD. `git diff -M --name-status` applies real rename detection
+// (R100 = byte-identical content move), so it is ground truth about which
+// paths were MOVED versus DELETED — independent of this script's hand-kept
+// decision table.
+export const listGitDocRenames = (rev: string): Map<string, string> => {
+	const renames = new Map<string, string>();
+	for (const line of runGit([
+		'diff',
+		'-M',
+		'--name-status',
+		rev,
+		'HEAD',
+		'--',
+		'docs',
+	]).split('\n')) {
+		const columns = line.split('\t');
+		if (columns.length < 3 || !/^[RC]/.test(columns[0] ?? '')) {
+			continue;
+		}
+		renames.set(columns[1].trim(), columns[2].trim());
+	}
+	return renames;
+};
+
+// Fails with a named, per-row diagnosis whenever the rendered inventory's
+// classification disagrees with git's rename detection. This is what makes
+// `--check` able to catch the class of error the byte-equality comparison
+// structurally cannot: a misclassification the decision table itself shares
+// regenerates identically, so only a source OUTSIDE the script (git) can
+// flag it.
+export const assertGitFidelity = (
+	rev: string,
+	rows: ReturnType<typeof buildRows>,
+	gitMoves: Map<string, string>,
+): void => {
+	const problems: string[] = [];
+
+	for (const row of rows) {
+		const renamedTo = gitMoves.get(row.source);
+		if (renamedTo && row.decision !== 'move') {
+			problems.push(
+				`${row.source}: git records a rename to ${renamedTo}, but the inventory classifies it as "${row.decision}".`,
+			);
+			continue;
+		}
+		if (!renamedTo && row.decision === 'move') {
+			problems.push(
+				`${row.source}: the inventory claims a move to ${row.target}, but git diff -M shows no such rename.`,
+			);
+			continue;
+		}
+		if (renamedTo && row.target !== renamedTo) {
+			problems.push(
+				`${row.source}: the inventory names ${row.target} as the destination, but git renamed it to ${renamedTo}.`,
+			);
+		}
+	}
+
+	if (problems.length > 0) {
+		throw new Error(
+			`Inventory disagrees with git diff -M (${rev}..HEAD) on ${problems.length} row(s):\n${problems.map((problem) => `  - ${problem}`).join('\n')}`,
+		);
+	}
+};
+
 const buildRows = (rev: string, candidates: string[], index: SurfaceIndex) => {
 	const rows = [];
 	const seenTargets = new Set<string>();
@@ -384,9 +471,13 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'## Notes',
 		'',
 		'- PR #1355 added `docs/superpowers/specs/2026-08-25-paid-modules-design.md` to develop',
-		'  after this lane branched, so it appears above once the merge-base includes it.',
-		'  This lane lands its content at `docs/records/2026-08-25-spec-open-core-paid-modules.md`;',
-		'  the row maps the now-deleted pre-prune path.',
+		'  while this lane was in flight, so it appears above once the merge-base includes it.',
+		'  No survival surface references it, but the lane deliberately preserves work develop',
+		'  already merged instead of deleting it in the prune: it lands at',
+		'  `docs/records/2026-08-25-spec-open-core-paid-modules.md` (explicit `topic`:',
+		'  deriveTopic() alone would name it `-paid-modules`, not what landed). `--check`',
+		'  cross-validates every row against git rename detection, so this mapping cannot',
+		'  drift from what actually moved.',
 		'- From this change on, the superpowers skills write specs/plans/reviews into `docs/records/`',
 		'  (`YYYY-MM-DD-<type>-<topic>.md`), not into `docs/superpowers/`.',
 		'- Guards that enumerated the pruned trees (`check-archive-records*`, the docs-archive',
@@ -417,6 +508,7 @@ const main = () => {
 	const rev = resolveRev();
 	const candidates = listTrackedDocsCandidates(rev);
 	const index = buildSurfaceIndex(rev);
+	const gitDocRenames = listGitDocRenames(rev);
 
 	for (const source of Object.keys(MOVES)) {
 		if (!candidates.includes(source)) {
@@ -430,6 +522,17 @@ const main = () => {
 	const absoluteOutput = path.join(rootDir, outputPath);
 
 	if (checkOnly) {
+		// Fidelity to git's OWN rename detection comes FIRST. Byte-equality
+		// against a regeneration from this same script cannot see a
+		// misclassification the script itself shares (round-2 MAJOR, #1357):
+		// `git diff -M` is the independent source of truth about what moved.
+		try {
+			assertGitFidelity(rev, rows, gitDocRenames);
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : String(error));
+			process.exit(1);
+		}
+
 		// Audit INPUTS come from `rev` (pre-prune tree); the committed evidence
 		// lives on this branch's HEAD, so equality is checked against that.
 		const current = runGit(['show', `HEAD:${outputPath}`]);
@@ -443,6 +546,7 @@ const main = () => {
 		return;
 	}
 
+	assertGitFidelity(rev, rows, gitDocRenames);
 	mkdirSync(path.dirname(absoluteOutput), { recursive: true });
 	writeFileSync(absoluteOutput, rendered);
 
