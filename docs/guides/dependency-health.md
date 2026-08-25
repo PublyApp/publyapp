@@ -34,6 +34,44 @@ pnpm audit --prod --audit-level=high
 
 after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-ts` postinstall. It **fails** on any `high` or `critical` in the production graph and **passes** otherwise. Rung 1 of #1187 (PR #1198) cleared the 4 high alerts that were open on `develop`, so the step is green from the day it lands; it fails loud on an unreachable registry as well (no silent pass).
 
+The .NET side is audited by **Scan .NET packages for known vulnerabilities**
+(`quality-gate.yml::quality`, mirrored locally by `just nuget-audit`, script
+`packages/scripts-ts/src/nuget-audit.ts`). It scans every tracked `.csproj`
+(`git ls-files '*.csproj'` — five projects, including the `lint-cs` pair that
+`PublyApp.slnx` omits) with `dotnet list package --vulnerable
+--include-transitive`, parsed from machine-readable JSON because
+`TreatWarningsAsErrors` turns the text format's NU1903 warning into a build error
+before a grep could match it. It fails loud on anything it cannot fully inspect:
+an unreachable registry, an unrestored project, or unparseable output is exit 1
+(`could not inspect … <cause>`), never a silent pass.
+
+Proven working, both directions, on 2026-08-25:
+
+- **RED:** a scratch project pinned to genuinely vulnerable versions
+  (Newtonsoft.Json 12.0.1, RestSharp 106.6.5, SixLabors.ImageSharp 2.1.0) makes
+  the guard exit 1 naming every package, severity, and advisory URL.
+  (This closes the live-proof gap PR #1199 recorded — the advisory database now
+  flags those versions.)
+- **GREEN:** the repo tree audits clean — five projects inspected, zero
+  vulnerable, exit 0.
+
+The scan-set contract itself is spec-pinned: `parseGitLsFilesCsproj` (exported,
+covered by `nuget-audit.test.ts`) parses the `git ls-files` output, so a
+regression cannot silently shrink which projects get audited.
+
+Rung-3 record (issue #1197): at the rung's start (base `1ea296005`, 2026-08-25)
+the audit already reported **zero vulnerable packages** across all five projects,
+and GitHub's Dependabot alert list for the repository was empty (0 open, all
+ecosystems). Earlier findings were closed on `develop` by direct bumps and
+transitive security pins — e.g. `System.Security.Cryptography.Xml` `10.0.10` for
+the DataProtection chain (advisories GHSA-37gx-xxp4-5rgx / GHSA-cvvh-rhrc-wg4q)
+and `SSH.NET` `2026.0.0` (NU1903) — recorded in the `Directory.Packages.props`
+comments. **Exit condition for any future finding:** direct bump, or a transitive
+pin in the `TransitiveSecurityPins` group of `Directory.Packages.props`, with
+`just nuget-audit` re-run green; an accepted risk, if one is ever unavoidable, is
+documented here with the alert ID, impact, and expiry — never silenced without
+that note.
+
 ## How to handle an alert
 
 1. **Bump** the direct dependency (or its parent) so the vulnerable range is no longer pulled.
@@ -70,9 +108,12 @@ full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
 
 ```bash
 pnpm audit --prod --audit-level=high   # what CI gates (fail on high+)
-pnpm audit --prod --audit-level=critical  # today: passes (no critical in prod; highs remain until rung 1)
+pnpm audit --prod --audit-level=critical  # today: passes (no critical in prod)
 pnpm audit                              # full graph including dev
 
+just nuget-audit                        # the NuGet gate CI runs (all five csproj)
+
+# Underlying commands the recipe wraps:
 dotnet list apps/api/PublyApp.Api.csproj package --vulnerable --include-transitive
 dotnet list packages/scripts-cs/PublyApp.Scripts.csproj package --vulnerable --include-transitive
 ```
