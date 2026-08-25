@@ -339,13 +339,13 @@ The `RkeyStoringFakePds` handler (same file, lines 294-324) STORES records by rk
 atproto repo, so a duplicate is observable: `CreateAttempts += 1` then, when `StoredRkeys`
 already contains the rkey, it answers with the existing record instead of storing again.
 
-- [ ] **Step 1:** `md5sum apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs` (pre-mutation, recorded in transcript). Mutate `For` to `Convert.ToHexString(Guid.NewGuid().ToByteArray()).ToLowerInvariant()[..16];` (randomness replaces derivation).
-- [ ] **Step 2:** Run the REAL mutation-sensitive spec:
+- [x] Step 1:** `md5sum apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs` (pre-mutation, recorded in transcript). Mutate `For` to `Convert.ToHexString(Guid.NewGuid().ToByteArray()).ToLowerInvariant()[..16];` (randomness replaces derivation).
+- [x] Step 2:** Run the REAL mutation-sensitive spec:
   `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~BlueskyPublishProviderSpec.ItShouldNotCreateADuplicateWhenTheRecordAlreadyExistsAfterATimeout"` — MUST go RED. Expected failure shape (each run now derives a DIFFERENT random rkey, so the replay stores a SECOND record instead of colliding):
   - `fakePds.StoredRkeys.Should().ContainSingle(...)` → `Expected fakePds.StoredRkeys to contain 1 item(s), but found 2`
   - followed by `second.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>()` → `Expected second to be PublyApp.Api.Modules.Publishing.Providers.PublishResult+AlreadyExistsTreatedAsPublished, but found PublishResult.Published` (a fresh create succeeds instead of adopting).
   Full transcript → `.dump/mutation-deterministic-key-d2.md`. Sanity check recorded in the same transcript: `...--filter "FullyQualifiedName~PublishPublicationJobHandlerSpec.ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate"` stays GREEN under the same mutant (documented as the reason the OLD headline claim was vacuous — the handler-side fact observes only the stored constant, lines 112-113 + 206-209 above).
-- [ ] **Step 3:** `git checkout -- apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs`; md5 matches; rerun both filters green. Tree unchanged; no commit; transcript updated with restore proof.
+- [x] Step 3:** `git checkout -- apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs`; md5 matches; rerun both filters green. Tree unchanged; no commit; transcript updated with restore proof.
 
 ## Task 11: Gates + tagged e2e + PR
 
