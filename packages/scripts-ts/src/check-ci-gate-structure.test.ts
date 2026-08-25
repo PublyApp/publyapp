@@ -7,8 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 
 import {
+	EXPECTED_PINNED_TEST_FILES,
 	findCiGateStructureProblems,
+	findPinnedTestFilesProblems,
 	findRequiredContextCollisionProblems,
+	GATE_WORKFLOWS,
 } from './check-ci-gate-structure.ts';
 
 // These tests are the standing proof that the #1017 aggregate-gate job graph
@@ -1545,5 +1548,289 @@ test('#1227: a non-push workflow using `origin/${{ github.base_ref }}` is NOT fl
 			/origin\/\$\{\{ github\.base_ref \}\}/.test(finding),
 		),
 		`expected no origin/\${{ github.base_ref }} finding for a non-push workflow, got:\n${findings.join('\n')}`,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// PR #1312 round 1: `pinnedTestFiles` — explicit CI enforcement for the
+// real-<Trans> render guard. Renaming, moving, deleting, or quietly excluding
+// that file keeps `pnpm --filter front test` green (the file simply stops
+// running), so this structural check is what fails the gate instead.
+// ---------------------------------------------------------------------------
+
+// The pin fixture carries `pinnedTestFiles`, which only exists on the real
+// front-ci entry of GATE_WORKFLOWS — and that entry additionally REQUIRES
+// `selfTestCoverage`/`requiresSelfCheck`, fields a minimal fixture cannot
+// fake (their checks inspect the changes job's real classifier patterns),
+// while every other union member pins `pinnedTestFiles` to undefined. Each
+// use site below therefore carries the file's standing rung-0 escape hatch.
+const pinnedConfig = [
+	{
+		file: 'fixture.yml',
+		changesJob: 'changes',
+		gateJob: 'gate',
+		gateName: 'fixture-gate',
+		pushCheckName: 'fixture-push-check',
+		relevanceGatedJobs: [{ id: 'heavy', needs: ['changes'] }],
+		alwaysJobs: [],
+		pinnedTestFiles: [
+			{
+				path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+				runnerConfig: 'apps/front/vitest.config.ts',
+				reason: 'the real-<Trans> render guard',
+			},
+		],
+	},
+];
+
+test('pinnedTestFiles: the real tree still pins the trans-render guard and its vitest discovery', async () => {
+	assert.deepEqual(
+		await findCiGateStructureProblems({ rootDir: repoRoot }),
+		[],
+	);
+});
+
+test('pinnedTestFiles: a renamed/moved/deleted pinned file is a finding', async () => {
+	// The renamed/moved/deleted shape: the runner config still exists, but
+	// no file sits at the path the pin expects.
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await mkdir(path.join(rootDir, 'apps/front'), { recursive: true });
+	await writeFile(
+		path.join(rootDir, 'apps/front/vitest.config.ts'),
+		"export default { test: { include: ['src/**/*.test.tsx'] } };\n",
+	);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
+		workflows: pinnedConfig,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/trans-render\.guard\.test\.tsx` is missing/.test(finding),
+		),
+		`expected a missing-pinned-file finding, got:\n${findings.join('\n')}`,
+	);
+});
+
+test('pinnedTestFiles: a present file no vitest include glob discovers is a finding', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
+		recursive: true,
+	});
+	await writeFile(
+		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
+		'export {};\n',
+	);
+	await writeFile(
+		path.join(rootDir, 'apps/front/vitest.config.ts'),
+		"export default { test: { include: ['src/**/*.nope.test.tsx'] } };\n",
+	);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
+		workflows: pinnedConfig,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/no `include` pattern in `apps\/front\/vitest\.config\.ts` discovers/.test(
+				finding,
+			),
+		),
+		`expected a not-discovered-by-runner finding, got:\n${findings.join('\n')}`,
+	);
+});
+
+test('pinnedTestFiles: a file matched by the runner exclude list is a finding', async () => {
+	const rootDir = await buildFixture(goodWorkflow);
+
+	await mkdir(path.join(rootDir, 'apps/front/src/lib/i18n'), {
+		recursive: true,
+	});
+	await writeFile(
+		path.join(rootDir, 'apps/front/src/lib/i18n/trans-render.guard.test.tsx'),
+		'export {};\n',
+	);
+	await writeFile(
+		path.join(rootDir, 'apps/front/vitest.config.ts'),
+		"export default { test: { include: ['src/**/*.test.tsx'], exclude: ['src/**/trans-render.guard.test.tsx'] } };\n",
+	);
+
+	const findings = await findCiGateStructureProblems({
+		rootDir,
+		// @ts-expect-error rung-0: TS2322 — minimal pin fixture omits selfTestCoverage/requiresSelfCheck
+		workflows: pinnedConfig,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/matched by the `exclude` pattern\(s\)/.test(finding),
+		),
+		`expected an excluded-from-runner finding, got:\n${findings.join('\n')}`,
+	);
+});
+
+// ---------------------------------------------------------------------------
+// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. Round 1
+// proved the enforcement loop fires on a moved/renamed/excluded FILE — but the
+// reviewer's actual mutation deleted the `pinnedTestFiles` ENTRY itself from
+// GATE_WORKFLOWS, and every check stayed green: an absent pin is a compliant
+// default, so the guard's own switch had no switch-guard. These tests pin the
+// table's exact contents against EXPECTED_PINNED_TEST_FILES, symmetrically.
+// ---------------------------------------------------------------------------
+
+const frontCiWorkflow = GATE_WORKFLOWS.find(
+	(workflow) => workflow.file === 'front-ci.yml',
+);
+
+test('round 2: GATE_WORKFLOWS.front-ci declares a pinnedTestFiles list containing exactly the trans-render guard pin', () => {
+	assert.ok(
+		frontCiWorkflow,
+		'the front-ci.yml entry must exist in GATE_WORKFLOWS',
+	);
+
+	const pins = frontCiWorkflow.pinnedTestFiles ?? [];
+	assert.deepEqual(
+		pins.map(({ path }) => path),
+		['apps/front/src/lib/i18n/trans-render.guard.test.tsx'],
+		'front-ci pinnedTestFiles must be EXACTLY [the trans-render guard] — removing the entry silently switches the round-1 enforcement off; adding anything else must be a conscious, reviewed change to this assertion too',
+	);
+
+	const expectation = EXPECTED_PINNED_TEST_FILES.filter(
+		(pin) =>
+			pin.file === 'front-ci.yml' &&
+			pin.path === 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+	);
+	assert.equal(
+		expectation.length,
+		1,
+		'EXPECTED_PINNED_TEST_FILES must declare exactly one trans-render guard pin for front-ci.yml',
+	);
+});
+
+test('round 2: findPinnedTestFilesProblems is green on the real tree', async () => {
+	assert.deepEqual(
+		await findPinnedTestFilesProblems({ rootDir: repoRoot }),
+		[],
+	);
+});
+
+test('round 2: REMOVING the pinnedTestFiles entry goes RED naming it (the exact review mutation, via the test seam)', async () => {
+	// Reproduce the reviewer's mutation against a mutated COPY of the real
+	// table: the front-ci entry loses its `pinnedTestFiles` array entirely.
+	// The production check runs against the REAL table (see the real-tree
+	// green above); this proves the comparison flips symmetrically. The full
+	// source-level reproduction — entry deleted from check-ci-gate-structure.ts
+	// itself, whole suite RED — lives in .dump/fix-r2-proof.md.
+	const mutatedTable = GATE_WORKFLOWS.map((workflow) =>
+		workflow.file === 'front-ci.yml'
+			? { ...workflow, pinnedTestFiles: undefined }
+			: workflow,
+	);
+
+	const findings = await findPinnedTestFilesProblems({
+		rootDir: repoRoot,
+		workflows: mutatedTable,
+	});
+
+	assert.ok(
+		findings.length > 0,
+		'expected a finding when the pinnedTestFiles entry is deleted',
+	);
+	assert.ok(
+		findings.every((finding) => /pinnedTestFiles/.test(finding)),
+		`every finding must name pinnedTestFiles, got:\n${findings.join('\n')}`,
+	);
+	assert.ok(
+		findings.some((finding) =>
+			/front-ci\.yml.*trans-render\.guard\.test\.tsx|trans-render\.guard\.test\.tsx.*front-ci\.yml/s.test(
+				finding,
+			),
+		),
+		`the finding must name the removed entry (front-ci.yml + the trans-render guard), got:\n${findings.join('\n')}`,
+	);
+});
+
+test('round 2: ADDING an undeclared pin goes RED naming it', async () => {
+	const mutatedTable = GATE_WORKFLOWS.map((workflow) =>
+		workflow.file === 'front-ci.yml'
+			? {
+					...workflow,
+					pinnedTestFiles: [
+						...(workflow.pinnedTestFiles ?? []),
+						{
+							path: 'apps/front/src/lib/i18n/some-undeclared.guard.test.tsx',
+							runnerConfig: 'apps/front/vitest.config.ts',
+							reason: 'an undeclared extra pin',
+						},
+					],
+				}
+			: workflow,
+	);
+
+	const findings = await findPinnedTestFilesProblems({
+		rootDir: repoRoot,
+		workflows: mutatedTable,
+	});
+
+	assert.ok(
+		findings.some((finding) =>
+			/undeclared pinnedTestFiles entry.*some-undeclared\.guard\.test\.tsx/.test(
+				finding,
+			),
+		),
+		`expected an undeclared-entry finding naming the added pin, got:\n${findings.join('\n')}`,
+	);
+});
+
+test('round 2: EDITING an existing pin (runnerConfig swap) goes RED naming both spellings', async () => {
+	const mutatedTable = GATE_WORKFLOWS.map((workflow) =>
+		workflow.file === 'front-ci.yml'
+			? {
+					...workflow,
+					pinnedTestFiles: [
+						{
+							path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+							runnerConfig: 'apps/front/vitest.config.other.ts',
+							reason: 'swapped runner config',
+						},
+					],
+				}
+			: workflow,
+	);
+
+	const findings = await findPinnedTestFilesProblems({
+		rootDir: repoRoot,
+		workflows: mutatedTable,
+	});
+
+	assert.ok(
+		findings.some((finding) => /no longer carries/.test(finding)) &&
+			findings.some((finding) =>
+				/undeclared pinnedTestFiles entry/.test(finding),
+			),
+		`an edited pin must produce BOTH the missing-declared-entry and undeclared-entry findings, got:\n${findings.join('\n')}`,
+	);
+});
+
+test('round 2: the declared expectation fails closed when its file is missing on disk', async () => {
+	// The expectation must never quietly describe coverage that no longer
+	// exists: point the comparison at a rootDir where the guard file is gone.
+	const rootDir = await buildFixture(goodWorkflow);
+
+	const findings = await findPinnedTestFilesProblems({ rootDir });
+
+	assert.ok(
+		findings.some(
+			(finding) =>
+				/points at a file that does not exist on disk/.test(finding) &&
+				/trans-render\.guard\.test\.tsx/.test(finding),
+		),
+		`expected a fail-closed finding naming the vanished pinned file, got:\n${findings.join('\n')}`,
 	);
 });

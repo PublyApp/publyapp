@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { access, readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -185,6 +185,69 @@ const EXPECTED_NEEDS_JSON_EXPR = '${{ toJSON(needs) }}';
 const EXPECTED_CHECK_REQUIRED_JOBS_STEP_ID = 'check-required-jobs';
 
 /**
+ * Converts a glob pattern to a RegExp over POSIX paths. Deliberately NOT a
+ * general glob engine: it supports exactly the constructs the pinned
+ * runners' configs use (`**`, `*`, `{a,b}` alternation, literals) and treats
+ * everything else as a literal, so an exotic future pattern can only fail
+ * the include check loudly (fail closed), never silently widen.
+ */
+const globToRegExp = (pattern: string): RegExp => {
+	const escapeRegex = (value: string): string =>
+		value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	let expression = '';
+
+	for (let i = 0; i < pattern.length; i += 1) {
+		const char = pattern[i];
+
+		if (char === '*' && pattern[i + 1] === '*') {
+			expression += '[\\s\\S]*';
+			i += 1;
+		} else if (char === '*') {
+			expression += '[^/]*';
+		} else if (char === '{') {
+			const closing = pattern.indexOf('}', i);
+
+			if (closing === -1) {
+				expression += '\\{';
+			} else {
+				expression += `(?:${pattern
+					.slice(i + 1, closing)
+					.split(',')
+					.map((alternative: string) => escapeRegex(alternative))
+					.join('|')})`;
+				i = closing;
+			}
+		} else if ('\\^$.|+()[]{}'.includes(char)) {
+			expression += `\\${char}`;
+		} else {
+			expression += char;
+		}
+	}
+
+	return new RegExp(`^${expression}$`);
+};
+
+/**
+ * Extracts a top-level `key: [...]` string array (the shape vitest configs
+ * use for `include`/`exclude`) from a config's source text. Returns null
+ * when the key or its array is absent, so callers can fail closed.
+ */
+const extractStringArrayField = (
+	source: string,
+	key: string,
+): string[] | null => {
+	const field = source.match(
+		new RegExp(`\\b${key}\\s*:\\s*\\[([\\s\\S]*?)\\]`),
+	);
+
+	if (field === null) {
+		return null;
+	}
+
+	return [...field[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]);
+};
+
+/**
  * Round 6 BLOCKER: the ONLY events whose runs may report a gate's externally
  * required check name. Everything else resolves to the non-required
  * push-check name, so no event added to a gate workflow later can produce a
@@ -232,7 +295,9 @@ const matrixJobNameExpression = ({ key, expected }) =>
  * so that run can never collide with `gateName` as a duplicate report for
  * the same commit — see the file-level comment.
  */
-const GATE_WORKFLOWS = [
+// Exported so the structure test can pin the table's own pinnedTestFiles
+// contents against EXPECTED_PINNED_TEST_FILES (PR #1312 round 2).
+export const GATE_WORKFLOWS = [
 	{
 		file: 'front-e2e.yml',
 		changesJob: 'changes',
@@ -301,6 +366,38 @@ const GATE_WORKFLOWS = [
 		// own job graph's correctness rather than relying solely on
 		// gate-selftest (see the file-level comment).
 		requiresSelfCheck: true,
+		// PR #1312 round 1 (review MAJOR/BLOCKS_PR): the real-`<Trans>` render
+		// guard is the ONLY front-suite file that mounts react-i18next's
+		// `<Trans>` unmocked over the real route components (85 of 213 front
+		// test files mock react-i18next — that is the suite-wide blindness it
+		// offsets). Its entire value therefore depends on this exact file
+		// staying at this exact path AND still being discovered by the vitest
+		// config: renamed, moved, deleted, or quietly excluded from the glob,
+		// `pnpm --filter front test` stays green while the unmocked coverage
+		// is gone and no other guard notices. Pinning the path here makes all
+		// four moves fail this guard (and therefore `just ci-drift`,
+		// gate-selftest, and the required front-ci-gate) until the pin is
+		// consciously re-made. This is a strengthening pin, not an allowlist:
+		// nothing is exempted from anything.
+		//
+		// PR #1312 round 2 (review MAJOR/BLOCKS_PR): THIS ARRAY is itself the
+		// attack surface — the reviewer deleted the entry and every check
+		// stayed green, because an ABSENT pin is a compliant default (no pin
+		// => no enforcement => no findings). The exact contents are therefore
+		// pinned by EXPECTED_PINNED_TEST_FILES + findPinnedTestFilesProblems
+		// below, asserted inside findCiGateStructureProblems itself, so the
+		// real-tree self-test, this script's CLI, gate-selftest, and
+		// `just ci-drift` all enforce it: deleting the entry, renaming its
+		// path, swapping its runnerConfig, or quietly adding an undeclared
+		// pin goes RED naming the difference.
+		pinnedTestFiles: [
+			{
+				path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+				runnerConfig: 'apps/front/vitest.config.ts',
+				reason:
+					'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
+			},
+		],
 	},
 	{
 		file: 'openapi-spec-drift.yml',
@@ -340,6 +437,31 @@ const GATE_WORKFLOWS = [
 	},
 ];
 
+// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. GATE_WORKFLOWS
+// above is code, so deleting the front-ci entry's `pinnedTestFiles` array (or a
+// member of it) is itself an unguarded "compliant default": the round-1
+// enforcement loop only runs over entries that EXIST, and no test asserted that
+// any does — the reviewer's mutation left every check green while the
+// trans-render guard lost its CI enforcement silently. This declared
+// expectation pins the exact multiset of `pinnedTestFiles` across the real
+// table; findPinnedTestFilesProblems below asserts
+// expectation == workflow-derived == on-disk existence, symmetrically: removing
+// an entry goes RED naming it, adding an undeclared one goes RED naming it.
+//
+// This list MUST stay in lock-step with the `pinnedTestFiles` arrays in
+// GATE_WORKFLOWS — which is exactly the point: any change to either side is a
+// conscious, reviewed edit to both.
+// Exported for the structure test's symmetric RED assertions (see above).
+export const EXPECTED_PINNED_TEST_FILES = [
+	{
+		file: 'front-ci.yml',
+		path: 'apps/front/src/lib/i18n/trans-render.guard.test.tsx',
+		runnerConfig: 'apps/front/vitest.config.ts',
+		reason:
+			'the real-<Trans> render guard: the only suite file exercising react-i18next unmocked over the production route files, so losing it silently would reintroduce the exact #1269/#1285 blindness this guard offsets',
+	},
+];
+
 // @ts-expect-error rung-0: add proper type in later rung
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
@@ -355,6 +477,97 @@ const normalizeNeeds = (needs) => {
 
 // @ts-expect-error rung-0: add proper type in later rung
 const asSet = (values) => new Set(values);
+
+const PINNED_TEST_FILES_EXPECTATION_HEADER =
+	'PR #1312 round 2: the declared pinnedTestFiles expectation';
+
+/**
+ * PR #1312 round 2 (review MAJOR/BLOCKS_PR): pins the EXACT multiset of
+ * `pinnedTestFiles` entries across the real GATE_WORKFLOWS against
+ * EXPECTED_PINNED_TEST_FILES, symmetrically — removing a declared entry is
+ * RED naming it; adding an undeclared one is RED naming it; changing an
+ * entry's runnerConfig or reason without re-making the expectation is RED
+ * naming it — AND requires every pinned file to exist on disk, so the
+ * expectation can never quietly outlive its target.
+ *
+ * This closes the round-1 gap where deleting the front-ci entry's
+ * `pinnedTestFiles` array itself left every check green: the enforcement loop
+ * above only iterates over pins that exist, so an ABSENT pin was a compliant
+ * default and the trans-render guard's CI enforcement could be switched off
+ * silently. Deliberately asserted inside findCiGateStructureProblems (not only
+ * in a test): the real-tree self-test, this script's CLI, gate-selftest, and
+ * `just ci-drift` then all carry it with no new wiring to drop.
+ */
+export const findPinnedTestFilesProblems = async ({
+	rootDir,
+	// Test seam ONLY: lets the structure test derive from a mutated copy of
+	// the table to prove the comparison flips RED symmetrically. Every
+	// production caller omits it, so the check always runs against the real
+	// GATE_WORKFLOWS.
+	workflows = GATE_WORKFLOWS,
+}) => {
+	const findings = [];
+
+	/** file → path → {runnerConfig, reason}; derived from the given table. */
+	const derived = [];
+	for (const workflow of workflows) {
+		for (const pin of workflow.pinnedTestFiles ?? []) {
+			derived.push({
+				file: workflow.file,
+				path: pin.path,
+				runnerConfig: pin.runnerConfig,
+				reason: pin.reason,
+			});
+		}
+	}
+
+	// Multiset comparison over stable string keys, so duplicate entries are
+	// caught too (one removed while a twin remains would otherwise pass).
+	const entryKey = (pin) =>
+		JSON.stringify([pin.file, pin.path, pin.runnerConfig, pin.reason]);
+	const derivedByKey = new Map();
+	for (const pin of derived) {
+		derivedByKey.set(entryKey(pin), [
+			...(derivedByKey.get(entryKey(pin)) ?? []),
+			pin,
+		]);
+	}
+	const expectedByKey = new Map();
+	for (const pin of EXPECTED_PINNED_TEST_FILES) {
+		expectedByKey.set(entryKey(pin), [
+			...(expectedByKey.get(entryKey(pin)) ?? []),
+			pin,
+		]);
+	}
+
+	for (const [key, expected] of expectedByKey) {
+		if (derivedByKey.has(key)) continue;
+		findings.push(
+			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS no longer carries ${expected.length > 1 ? 'any of' : 'the'} ${expected.length > 1 ? 'entries' : 'entry'} for \`${expected[0].file}\` -> \`${expected[0].path}\`. Removing or editing a pinned-test-file entry switches that coverage's CI enforcement off silently — restore the entry in check-ci-gate-structure.ts exactly as declared by EXPECTED_PINNED_TEST_FILES, or consciously re-make BOTH lists together.`,
+		);
+	}
+
+	for (const [key, actual] of derivedByKey) {
+		if (expectedByKey.has(key)) continue;
+		findings.push(
+			`${PINNED_TEST_FILES_EXPECTATION_HEADER}: GATE_WORKFLOWS carries an undeclared pinnedTestFiles entry for \`${actual[0].file}\` -> \`${actual[0].path}\`. Every pin must be declared in EXPECTED_PINNED_TEST_FILES (check-ci-gate-structure.ts) — add it there consciously, or remove the undeclared entry.`,
+		);
+	}
+
+	// A matching declaration whose file has vanished fails closed here too:
+	// the expectation must never describe coverage that no longer exists.
+	for (const pin of EXPECTED_PINNED_TEST_FILES) {
+		try {
+			await access(path.join(rootDir, pin.path));
+		} catch {
+			findings.push(
+				`${PINNED_TEST_FILES_EXPECTATION_HEADER}: the declared pin \`${pin.file}\` -> \`${pin.path}\` points at a file that does not exist on disk. Re-point both lists at the file's reviewed new path.`,
+			);
+		}
+	}
+
+	return findings;
+};
 
 /**
  * Checks whether `onSection` (a parsed workflow's `on:` value) declares
@@ -441,7 +654,7 @@ const setsEqual = (a, b) => {
  * Checks one workflow's job graph against its expected shape. Returns an
  * array of human-readable findings (empty when the graph matches).
  */
-const checkWorkflow = (
+const checkWorkflow = async (
 	{
 		// @ts-expect-error rung-0: add proper type in later rung
 		file,
@@ -463,9 +676,13 @@ const checkWorkflow = (
 		selfTestCoverage,
 		// @ts-expect-error rung-0: add proper type in later rung
 		requiresSelfCheck,
+		// @ts-expect-error rung-0: add proper type in later rung
+		pinnedTestFiles,
 	},
 	// @ts-expect-error rung-0: add proper type in later rung
 	document,
+	// @ts-expect-error rung-0: add proper type in later rung
+	rootDir,
 ) => {
 	const findings = [];
 	const jobs = document?.jobs ?? {};
@@ -1061,6 +1278,68 @@ const checkWorkflow = (
 		}
 	}
 
+	// PR #1312 round 1 (review MAJOR/BLOCKS_PR): a pinned test file must still
+	// exist at its pinned path AND still be discovered by its runner's config
+	// (matched by an `include` glob, not matched by any `exclude`). Renaming,
+	// moving, deleting, or quietly excluding the file keeps the test runner
+	// itself green — the file simply stops executing — so this structural
+	// check is what fails the gate instead.
+	if (pinnedTestFiles !== undefined) {
+		for (const { path: pinnedPath, runnerConfig, reason } of pinnedTestFiles) {
+			const pinnedAbsolute = path.join(rootDir, pinnedPath);
+			let exists = true;
+
+			try {
+				await access(pinnedAbsolute);
+			} catch {
+				exists = false;
+			}
+
+			if (!exists) {
+				findings.push(
+					`${file}: the pinned test file \`${pinnedPath}\` is missing (${reason}). A rename, move, or delete silences that coverage while every other step stays green; re-point this pin at the file's reviewed new path.`,
+				);
+			}
+
+			let runnerSource;
+
+			try {
+				runnerSource = await readFile(path.join(rootDir, runnerConfig), 'utf8');
+			} catch {
+				findings.push(
+					`${file}: the runner config \`${runnerConfig}\` for pinned test file \`${pinnedPath}\` is missing or unreadable (${reason}); discovery cannot be verified, which fails closed.`,
+				);
+				continue;
+			}
+			// Runner globs resolve relative to the config file's own directory
+			// (vitest semantics); the pin is repository-root-relative, so both
+			// spellings are tried.
+			const configDirectory = path.dirname(path.join(rootDir, runnerConfig));
+			const candidatePaths = [
+				toPosixPath(pinnedPath),
+				toPosixPath(path.relative(configDirectory, pinnedAbsolute)),
+			];
+			const matchesPattern = (entry: string) =>
+				candidatePaths.some((candidate) => globToRegExp(entry).test(candidate));
+			const includes = extractStringArrayField(runnerSource, 'include');
+			const excludes = extractStringArrayField(runnerSource, 'exclude') ?? [];
+
+			if (includes === null || !includes.some(matchesPattern)) {
+				findings.push(
+					`${file}: no \`include\` pattern in \`${runnerConfig}\` discovers the pinned test file \`${pinnedPath}\` (${reason}), so the runner would skip it even though the gate still counts its coverage. Restore discovery in the runner config — never satisfy this check by removing or narrowing the pin.`,
+				);
+			}
+
+			const excludedBy = excludes.filter(matchesPattern);
+
+			if (excludedBy.length > 0) {
+				findings.push(
+					`${file}: the pinned test file \`${pinnedPath}\` is matched by the \`exclude\` pattern(s) ${JSON.stringify(excludedBy)} in \`${runnerConfig}\` (${reason}); the runner would skip it while this gate still counts its coverage.`,
+				);
+			}
+		}
+	}
+
 	return findings;
 };
 
@@ -1081,7 +1360,18 @@ export const findCiGateStructureProblems = async ({
 		const document = parse(raw);
 
 		// @ts-expect-error rung-0: TS2345
-		findings.push(...checkWorkflow(workflow, document));
+		findings.push(...(await checkWorkflow(workflow, document, rootDir)));
+	}
+
+	// PR #1312 round 2 (review MAJOR/BLOCKS_PR): the pin-of-the-pin. Asserted
+	// here so EVERY caller of this function — the real-tree self-test below,
+	// gate-selftest, front-ci-gate's own step, and `just ci-drift` via this
+	// script's CLI — enforces that the pinnedTestFiles entries actually exist,
+	// without any new wiring that could itself be silently dropped (the exact
+	// false-negative shape this closes). Fixture-based callers are unaffected:
+	// the expectation is checked against the REAL table only.
+	if (workflows === GATE_WORKFLOWS) {
+		findings.push(...(await findPinnedTestFilesProblems({ rootDir })));
 	}
 
 	return findings;
