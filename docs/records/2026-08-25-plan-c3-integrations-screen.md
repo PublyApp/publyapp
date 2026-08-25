@@ -994,3 +994,128 @@ export const DisconnectDialog = ({
 
 **Spec proof:** §3 "A confirmation states these consequences" is asserted word-for-word by the component test.
 **Adversarial mutation:** replace the consequence copy with a generic "Are you sure?" → the first test goes red.
+
+---
+
+## Task 7: NeedsReconnect workspace banner
+
+**Files:** new `apps/front/src/components/app-shell/_needs-reconnect-banner.tsx` (+ `.test.tsx`); modify `apps/front/src/components/app-shell/app-shell.tsx`.
+
+**Interfaces:**
+- Produces: `<NeedsReconnectBanner tenantId={string} />` rendering `null` when no account is `needs_reconnect`.
+- Consumes: Task 3's `useSocialAccountsQuery`; Task 2's `useCanManageSocialAccounts`.
+- Mount point: inside `AppShell`, between `<header>` and `<main className="app-shell-main">` (verified structure at develop), rendered only on the tenant surface.
+
+- [ ] **Step 1 (RED):**
+
+```tsx
+// apps/front/src/components/app-shell/_needs-reconnect-banner.test.tsx
+import { screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { renderWithProviders } from '~/lib/test/render-with-providers';
+import { NeedsReconnectBanner } from './_needs-reconnect-banner';
+
+describe('needs-reconnect banner', () => {
+	it('ItShouldNameTheAccountAndLinkToIntegrationsWhenOneNeedsReconnect', () => {
+		renderWithProviders(<NeedsReconnectBanner tenantId="t1" />, {
+			fixtures: { socialAccounts: [{ id: 'a2', displayHandle: '@old.bsky.social', status: 'needs_reconnect' }] },
+		});
+
+		const banner = screen.getByTestId('needs-reconnect-banner');
+		expect(banner).toHaveTextContent('@old.bsky.social');
+		const link = screen.getByRole('link', { name: /reconnect|integrations/i });
+		expect(link).toHaveAttribute('href', expect.stringContaining('/tenant/settings/integrations'));
+	});
+
+	it('ItShouldRenderNullWhenEveryAccountIsActive', () => {
+		renderWithProviders(<NeedsReconnectBanner tenantId="t1" />, {
+			fixtures: { socialAccounts: [{ id: 'a1', displayHandle: '@team.bsky.social', status: 'active' }] },
+		});
+		expect(screen.queryByTestId('needs-reconnect-banner')).toBeNull();
+	});
+
+	it('ItShouldHideTheReconnectButtonFromHoldersWithoutManage', () => {
+		renderWithProviders(<NeedsReconnectBanner tenantId="t1" />, {
+			fixtures: { socialAccounts: [{ id: 'a2', displayHandle: '@old.bsky.social', status: 'needs_reconnect' }], permissions: ['tenant.socialaccounts.view'] },
+		});
+
+		expect(screen.getByTestId('needs-reconnect-banner')).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: /^reconnect$/i })).toBeNull();
+	});
+});
+```
+
+Run: expected FAIL — module missing.
+
+- [ ] **Step 2 (GREEN):**
+
+```tsx
+// apps/front/src/components/app-shell/_needs-reconnect-banner.tsx
+import { Link } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
+import { Button } from '~/components/ui/button';
+
+import {
+	useCanManageSocialAccounts,
+} from '~/lib/permissions/use-has-tenant-permission';
+import {
+	useSocialAccountsQuery,
+	toSocialAccountRows,
+} from '~/lib/query/social-accounts';
+
+/** Spec §3 workspace banner: persistent while any account is
+ * `needs_reconnect`; names the account(s); the Reconnect button renders ONLY
+ * for holders of `tenant.socialaccounts.manage` — everyone else gets the
+ * message plus a link to the Integrations page. */
+export const NeedsReconnectBanner = ({ tenantId }: { tenantId: string }) => {
+	const { t } = useTranslation(['settings']);
+	const accountsQuery = useSocialAccountsQuery({ tenantId });
+	const rows = toSocialAccountRows(accountsQuery.data);
+	const stalled = rows.filter((row) => row.statusWire === 'needs_reconnect');
+	const canManage = useCanManageSocialAccounts();
+
+	if (stalled.length === 0) {
+		return null;
+	}
+
+	const handles = stalled.map((row) => row.displayHandle).join(', ');
+
+	return (
+		<div
+			data-testid="needs-reconnect-banner"
+			role="status"
+			className="border-warning/40 bg-warning/10 text-warning-foreground flex items-center justify-between gap-4 border-b px-4 py-2"
+		>
+			<p>
+				{stalled.length === 1
+					? t('banner-needs-reconnect-single', { handle: handles })
+					: t('banner-needs-reconnect-plural', { count: stalled.length, handles })}
+			</p>
+			{canManage ? (
+				<Button render={<Link to="/tenant/settings/integrations" />}>
+					{t('reconnect')}
+				</Button>
+			) : (
+				<Link to="/tenant/settings/integrations">{t('integrations-list-title')}</Link>
+			)}
+		</div>
+	);
+};
+```
+
+(If `bg-warning`/`text-warning-foreground` are not token classes in this repo, substitute the banner tokens DESIGN.md prescribes — resolve against `check-design-system` before committing; never raw hex.)
+
+Then in `app-shell.tsx`, immediately above `<main className="app-shell-main">{children}</main>`:
+
+```tsx
+{surface === 'tenant' ? <NeedsReconnectBanner tenantId={activeTenantId} /> : null}
+```
+
+(wire `surface`/`activeTenantId` from the props/context the shell already has — read the component first; if the shell holds no tenant id, lift the banner into `_authed-layout`'s tenant branch instead so it still spans every tenant page).
+
+- [ ] **Step 3:** run suite green + typecheck + design-system guard (`pnpm --filter front test:design-guards`) + `just react-doctor`.
+- [ ] **Step 4:** `git commit -m "front(social): persistent needs-reconnect workspace banner with manage-gated action" && git push`
+
+**Spec proof:** §3 banner bullet and §5 "shows the banner"; §1 decision 5 gating (button only for manage holders).
+**Adversarial mutation:** render the Reconnect button unconditionally → the view-only holder test goes red.
