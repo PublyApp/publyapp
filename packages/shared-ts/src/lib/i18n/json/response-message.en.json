@@ -105,5 +105,12 @@
 	"upload-budget-exhausted": "Upload storage capacity is temporarily exhausted. Please try again later.",
 	"dead-letter-resolved-success": "Dead-letter triage resolved",
 	"dead-letter-not-found": "Dead-letter entry not found",
-	"dead-letter-not-unclassified": "Dead-letter entry is not awaiting unclassified triage"
+	"dead-letter-not-unclassified": "Dead-letter entry is not awaiting unclassified triage",
+	"post-not-found": "Post not found",
+	"post-image-required": "An image file is required",
+	"post-image-too-large": "Image exceeds the maximum allowed size",
+	"post-image-unsupported-type": "Image must be a PNG, JPEG, WEBP, or GIF",
+	"post-image-missing": "No image is attached to this post",
+	"post-image-attached-success": "Post image attached successfully",
+	"post-image-removed-success": "Post image removed successfully"
 }

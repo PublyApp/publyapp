@@ -105,5 +105,12 @@
 	"upload-budget-exhausted": "La capacité de stockage pour les téléversements est temporairement épuisée. Veuillez réessayer plus tard.",
 	"dead-letter-resolved-success": "Triage de la dead-letter résolu",
 	"dead-letter-not-found": "Entrée dead-letter introuvable",
-	"dead-letter-not-unclassified": "L'entrée dead-letter n'est pas en attente de triage non classé"
+	"dead-letter-not-unclassified": "L'entrée dead-letter n'est pas en attente de triage non classé",
+	"post-not-found": "Article introuvable",
+	"post-image-required": "Un fichier image est requis",
+	"post-image-too-large": "L'image dépasse la taille maximale autorisée",
+	"post-image-unsupported-type": "L'image doit être un PNG, JPEG, WEBP ou GIF",
+	"post-image-missing": "Aucune image n'est attachée à cet article",
+	"post-image-attached-success": "Image de l'article ajoutée avec succès",
+	"post-image-removed-success": "Image de l'article retirée avec succès"
 }

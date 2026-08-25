@@ -26,6 +26,11 @@ public static partial class Routes {
 			public static string DeleteFn(string postId) {
 				return $"/{postId}";
 			}
+
+			public const string AttachImage = "/{postId}/image";
+			public static string AttachImageFn(string postId) {
+				return $"/{postId}/image";
+			}
 		}
 	}
 }

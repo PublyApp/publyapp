@@ -1,8 +1,11 @@
+using Microsoft.AspNetCore.Mvc;
+
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Filters;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Modules.Posts.Handlers.Tenant;
+using PublyApp.Api.Modules.Uploads;
 
 namespace PublyApp.Api.Modules.Posts.Endpoints;
 
@@ -61,6 +64,35 @@ public static class PostEndpointsForTenant {
 			.WithName("DeletePostForTenant")
 			.WithSummary("Delete a post for the current tenant")
 			.WithTenantPermission([AppPermissions.Tenant.Posts.DELETE]);
+
+		group.MapPost(
+				Routes.Posts.ForTenant.AttachImage,
+				AttachPostImageForTenant.Handle
+			)
+			.WithName("AttachPostImageForTenant")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.Upload
+			)
+			.WithSummary("Attach one image to a post (multipart 'file' field)")
+			.DisableAntiforgery()
+			// Rejects oversize bodies at the transport level (413) before the
+			// multipart body is spooled, mirroring CreateStaffUpload: the
+			// handler's own UPLOAD_MAX_BYTES check stays authoritative.
+			.WithMetadata(
+				new RequestSizeLimitAttribute(
+					AppEnvironment.Instance.UPLOAD_MAX_BYTES
+					+ UploadLimits.MultipartHeaderHeadroomBytes
+				)
+			)
+			.WithTenantPermission([AppPermissions.Tenant.Posts.CREATE]);
+
+		group.MapDelete(
+			Routes.Posts.ForTenant.AttachImage,
+			RemovePostImageForTenant.Handle
+		)
+			.WithName("RemovePostImageForTenant")
+			.WithSummary("Remove a post's attached image")
+			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
 
 		return routes;
 	}
