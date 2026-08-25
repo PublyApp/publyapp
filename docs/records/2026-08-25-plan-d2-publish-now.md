@@ -15,7 +15,7 @@
 - Migrations are **expand-only** (new tables/indexes only) applied by the one-shot `migrate` service; locally `just db-add <Name> && just db-migrate`; `just ci-migration-expand-contract` stays green.
 - `LastError` ≤ 2 KB sanitised via `PublyApp.Api.Modules.SocialAccounts.Lib.LastErrorSanitiser.Sanitize` (reuse F20 — exists on develop). Never log secrets or session tokens. Every failure surfaced carries a human-readable cause and, where one exists, the next action (owner product rule 2026-08-22).
 - Errors are RFC 7807 via `TypedProblems.*`; `422` validation problems carry stable `errors` keys; malformed GUID in route → 400 via `Guid.TryParse`; entity not found → 404. Success shapes: action-only success → `200 Ok<ApiResponse>` with message + translationKey; list success → 200 with items + next cursor.
-- URL/query parameter names snake_case (`account_ids` body field may be camelCase JSON; query params `cursor`, `size`, `sort_id`, `sort_order`); wire option values snake_case (`published`, `failed`, `in_progress` via `PublicationWire.FormatStatus` — `origin/lane/wt-644`).
+- URL/query parameter names snake_case (`account_ids` body field may be camelCase JSON; query params `cursor`, `limit`, `sort_id`, `sort_order` — the exact wire names of the base record `CursorPaginatedQuery`); wire option values snake_case (`published`, `failed`, `in_progress` via `PublicationWire.FormatStatus` — `origin/lane/wt-644`).
 - Heavy commands run under `~/ai-orchestration-playbook/tools/heavy.sh` (serialised host-wide); focused test filters first, module suites once near the end, never > 20 min under the lock.
 - One task = one commit, push after EVERY commit (provider deaths are frequent tonight). Never touch develop. Secrets never in output. The plan file itself lives flat under `docs/records/` (never recreate `docs/superpowers/` — pruned by #1357; docs-archive CI rejects it).
 - **Symbol honesty:** every symbol cited below exists on `origin/develop` (a.k.a. current `lane/wt-645` base `a9653b1b0`), on `origin/lane/wt-644` (D1), or on `origin/lane/wt-641` (C2) — the branch is named next to each citation. Nothing may be invented; anything D2 needs that exists on neither develops in-task before use.
@@ -144,9 +144,19 @@ LivePublicationsExist / AccountsNotFound · 403 via PermissionFilter middleware.
 // List<T>?. Precedent read verbatim from origin/develop:
 // Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs (string? Actions +
 // AuditLogActionsCsv.Parse/GetValidationError).
+// Pagination: derive from the BASE record CursorPaginatedQuery
+// (Lib/CursorPaginatedQuery.cs, origin/develop) whose wire params are exactly
+// cursor|limit|sort_id|sort_order — it declares Limit, NOT size. The inherited
+// validator CursorPaginatedQueryValidator<T>
+// (Lib/Validation/CursorPaginatedQueryValidator.cs:16-22, origin/develop)
+// caps ONLY Limit via BeValidNullableLimit (PaginationPredicates.cs:44-53:
+// int.TryParse && num >= 1 && num <= AppEnvironment.Instance.PAGINATION_MAX_LIMIT).
+// A self-declared Size property would bypass that cap (unbounded Take → DoS),
+// so there is NO Size: the handler consumes query.GetLimit() ??
+// AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT exactly like FindPostsForTenant.cs:80
+// and FindAuditLogs.cs:198 (origin/develop). No "size" precedent exists in the API.
 public sealed class FindPublicationsQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "status")] public string? Status { get; set; }   // csv: published,in_progress,paused
-	[FromQuery(Name = "size")]  public int? Size { get; set; }
 
 	public IReadOnlyList<PublicationStatus>? GetStatusList() {
 		return PublicationStatusCsv.Parse(Status);
@@ -167,7 +177,7 @@ public sealed record PublicationListItem {
 ```
 
 - [ ] **Step 1 (RED):** Spec: seeds published+failed+scheduled mix across two tenants; asserts newest-first `(UpdatedAt desc, Id desc)` keyset via `query.GetCursor()` (pattern: `FindPostsForTenant.Handle`, `origin/develop`); tenant isolation (foreign rows invisible); `status=published,failed` (ONE comma-separated value) parses through `PublicationStatusCsv.Parse` — tokens are the snake_case wire values of `PublicationWire.FormatStatus` (`origin/lane/wt-644`, `Publication.cs`), so parsing maps `"in_progress" → PublicationStatus.InProgress` via an explicit switch with `StringComparer.OrdinalIgnoreCase` (PUBLY0003 forbids ToLower dispatch); unknown token (`?status=bogus`) → 422 with stable `status` errors key; `LastError` surfaced verbatim (already sanitised at write time); excerpt capped at 280 chars.
-- [ ] **Step 2 (GREEN):** Service: single EF query joining `Publication`→`Post`→`SocialAccount`, keyset predicate `(p.UpdatedAt < c) || (p.UpdatedAt == c && p.Id < cursorId)`, `Take(size + 1)`; handler maps to items, `NextCursor` from the last row. Validator: inherit `CursorPaginatedQueryValidator<FindPublicationsQuery>` and add `RuleFor(x => x.Status).Custom(...)` reusing a `PublicationStatusCsv.GetValidationError(raw)` twin of `AuditLogActionsCsv.GetValidationError` (failure keyed under the wire name `status`) — byte-for-byte shape of `FindAuditLogsQueryValidator`, `origin/develop`. Endpoint on the `/publishing` group: `.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)` + `.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW])` (mirror of FindPosts, `origin/develop`). Register `MapPublishingEndpointsForTenant` at the discovered call site (File structure note).
+- [ ] **Step 2 (GREEN):** Service: single EF query joining `Publication`→`Post`→`SocialAccount`, keyset predicate `(p.UpdatedAt < c) || (p.UpdatedAt == c && p.Id < cursorId)`, `Take(limit + 1)` where the handler computes `var limit = query.GetLimit() ?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT` — the exact consumption pattern of `FindPostsForTenant.cs:80` → `PostService.cs:147` and `FindAuditLogs.cs:198` → `AuditLogQueryService.cs:116` (`origin/develop`); any explicitly passed `limit` is already bounded to 1..PAGINATION_MAX_LIMIT by the inherited validator (CursorPaginatedQueryValidator.cs:16-22); handler maps to items, `NextCursor` from the last row. Validator: inherit `CursorPaginatedQueryValidator<FindPublicationsQuery>` and add `RuleFor(x => x.Status).Custom(...)` reusing a `PublicationStatusCsv.GetValidationError(raw)` twin of `AuditLogActionsCsv.GetValidationError` (failure keyed under the wire name `status`) — byte-for-byte shape of `FindAuditLogsQueryValidator`, `origin/develop`. Endpoint on the `/publishing` group: `.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)` + `.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW])` (mirror of FindPosts, `origin/develop`). Register `MapPublishingEndpointsForTenant` at the discovered call site (File structure note).
 - [ ] **Step 3:** Green; commit `feat(publishing): keyset publications history endpoint`; push.
 
 ## Task 4: Composer targets — `GET /publishing/publish-targets`
@@ -242,7 +252,7 @@ export const hasTenantPermission = (
 **Files:** generated `packages/client-ts/**`; new `apps/front/src/lib/query/tenant-publications.ts` + test.
 
 - [ ] **Step 1:** `just build-api && just generate-client && pnpm --filter front typecheck` (AGENTS mandate after contract change). Verify `packages/client-ts` gained `publishNow`, `findPublications`, `getPublishTargets` operations and `git diff --stat packages/client-ts` shows ONLY generated churn.
-- [ ] **Step 2 (RED):** `tenant-publications.test.ts` mirrors `staff-audit-logs.ts`'s parameter builder pattern (`origin/develop`): typed query variables `{ statuses?: Array<'published'|'in_progress'|'paused'>; cursor?: string; size?: number }`, `buildFindTenantPublicationsQueryParameters` joining them into the ONE primitive CSV param the Kiota client types as `status?: string` (exactly how `buildFindStaffAuditLogsQueryParameters` joins `actions` — the generated builder carries a primitive because the DTO keeps it `string?`, see `packages/client-ts/src/staff/auditLogs/index.ts` `AuditLogsRequestBuilderGetQueryParameters.actions?: string`), key factories `TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications']`, `publishNowMutation` calling the Kiota op via the same client acquisition `tenant-posts.ts` uses (`getClientManager`, `origin/develop`), `invalidateTenantPublications(qc)`. Tests fail before implementation exists.
+- [ ] **Step 2 (RED):** `tenant-publications.test.ts` mirrors `staff-audit-logs.ts`'s parameter builder pattern (`origin/develop`): typed query variables `{ statuses?: Array<'published'|'in_progress'|'paused'>; cursor?: string; limit?: number }`, `buildFindTenantPublicationsQueryParameters` joining them into the ONE primitive CSV param the Kiota client types as `status?: string` (exactly how `buildFindStaffAuditLogsQueryParameters` joins `actions` — the generated builder carries a primitive because the DTO keeps it `string?`, see `packages/client-ts/src/staff/auditLogs/index.ts` `AuditLogsRequestBuilderGetQueryParameters.actions?: string`), key factories `TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications']`, `publishNowMutation` calling the Kiota op via the same client acquisition `tenant-posts.ts` uses (`getClientManager`, `origin/develop`), `invalidateTenantPublications(qc)`. Tests fail before implementation exists.
 - [ ] **Step 3 (GREEN):** Implement; tests green; commit `feat(front): tenant-publications query layer over regenerated client`; push.
 
 ## Task 8: Composer "Publish on" block + Publish now action
