@@ -1,9 +1,25 @@
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
+import type {
+	ApiResponse,
+	ReactivateTenantUserResult,
+	SuspendTenantUserResult,
+} from '@org/client-ts/models/index';
+
+/**
+ * Domain payloads the membership/remove mutations resolve to. The actions
+ * below only await completion and never read the value, but the contract
+ * stays honest instead of widening through `unknown`.
+ */
+type MembershipMutationResult =
+	| ApiResponse
+	| ReactivateTenantUserResult
+	| SuspendTenantUserResult;
+
 type MembershipMutationFn = (input: {
 	tenantId: string;
 	userId: string;
-}) => Promise<unknown>;
+}) => Promise<MembershipMutationResult | undefined>;
 
 export const performMembershipAction = async ({
 	action,
