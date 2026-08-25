@@ -786,11 +786,40 @@ const collectProseLiteralValues = (
 // `findHardcodedUiLiterals` and `extractLabelKeyPropertyUsages` so the two
 // AST walks in this file can never diverge on script-kind selection or
 // parse-failure handling.
+//
+// W6-FLAKE (#827): this file's whole-tree sweeps used to re-parse every
+// production file once per walker (`extractLabelKeyPropertyUsages` inside the
+// cached `extractI18nKeyUsages`, plus the `findHardcodedUiLiterals` sweep) —
+// 2x full-tree AST parse bursts per run in this worker, wasted CPU that under
+// external contention starved render workers past testing-library's findBy*
+// budget. The per-(source, path) memoization below collapses those repeats to
+// one parse per distinct input; `parseCallCountForTestObservation` exists so
+// the suite can pin that behaviour.
+let parseCallCount = 0;
+
+const parseCallCountForTestObservation = (): number => parseCallCount;
+
+// W6-FLAKE (#827): the per-(source, path) tree cache. Keyed on `relativePath`
+// AND validated against the exact source text before reuse, so a fixture that
+// reuses a real file's path with different content (or two fixtures sharing a
+// `canary.tsx` name with different sources) always triggers a fresh parse —
+// a stale tree can never be served. Only successfully parsed (zero
+// diagnostics) trees are cached; a parse that threw is not remembered.
+const parsedSourceCache = new Map<
+	string,
+	{ source: string; sourceFile: ts.SourceFile }
+>();
+
 const createParsedSourceFile = (
 	source: string,
 	relativePath: string,
 	guardName: string,
 ): ts.SourceFile => {
+	const cached = parsedSourceCache.get(relativePath);
+	if (cached && cached.source === source) {
+		return cached.sourceFile;
+	}
+
 	const sourceFile = ts.createSourceFile(
 		relativePath,
 		source,
@@ -800,6 +829,7 @@ const createParsedSourceFile = (
 			? ts.ScriptKind.TSX
 			: ts.ScriptKind.TS,
 	);
+	parseCallCount += 1;
 
 	const parseDiagnostics = getParseDiagnostics(sourceFile);
 	if (parseDiagnostics.length > 0) {
@@ -813,6 +843,8 @@ const createParsedSourceFile = (
 				`refusing to scan a partial/recovered syntax tree: ${messages}`,
 		);
 	}
+
+	parsedSourceCache.set(relativePath, { source, sourceFile });
 
 	return sourceFile;
 };
@@ -1660,6 +1692,44 @@ describe('i18n key coverage', () => {
 		}
 
 		expect(findings, 'hardcoded English literals bypassing t()').toEqual([]);
+	});
+
+	// W6-FLAKE (#827) canary: the two whole-tree sweeps in this file
+	// (`findHardcodedUiLiterals` here, `extractLabelKeyPropertyUsages` inside
+	// `extractI18nKeyUsages`) must share one AST parse per distinct
+	// (source, path) input instead of re-parsing the same production file per
+	// walker. Re-parsing was pure wasted CPU that starved render workers under
+	// external load (see vitest.config.ts's W6-FLAKE notes). The memoized
+	// helper returns the SAME tree object for a repeated identical input, so
+	// this pins sharing without touching any detection logic.
+	test('the two whole-tree sweeps share one AST parse per distinct input (W6-FLAKE parse-sharing canary)', () => {
+		const fixtureSource = [
+			'export const confirmCopy = { title: "Delete account" };',
+			'void confirmCopy;',
+		].join('\n');
+
+		const firstPass = findHardcodedUiLiterals(fixtureSource, 'canary.tsx');
+		expect(firstPass).toContainEqual(
+			expect.stringContaining('title: "Delete account"'),
+		);
+		const secondPass = findHardcodedUiLiterals(fixtureSource, 'canary.tsx');
+		expect(secondPass).toContainEqual(
+			expect.stringContaining('title: "Delete account"'),
+		);
+
+		const parsesAfterRepeat = parseCallCountForTestObservation();
+		extractLabelKeyPropertyUsages(
+			fixtureSource,
+			'canary.tsx',
+			new Map<string, string[]>(),
+		);
+		const labelKeyParses =
+			parseCallCountForTestObservation() - parsesAfterRepeat;
+
+		expect(
+			labelKeyParses,
+			'a third walk over an already-parsed (source, path) must reuse the memoized tree, not re-parse it',
+		).toBe(0);
 	});
 });
 
