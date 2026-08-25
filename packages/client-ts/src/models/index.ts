@@ -1689,11 +1689,65 @@ export function createPostCreatedFromDiscriminatorValue(parseNode: ParseNode | u
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostDetail_imageMember1 | PostImageReadModel}
+ */
+// @ts-ignore
+export function createPostDetail_imageFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostDetail_image;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostDetail_imageMember1}
+ */
+// @ts-ignore
+export function createPostDetail_imageMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostDetail_imageMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {PostDetail}
  */
 // @ts-ignore
 export function createPostDetailFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoPostDetail;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostImageAttached}
+ */
+// @ts-ignore
+export function createPostImageAttachedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostImageAttached;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostImageReadModel}
+ */
+// @ts-ignore
+export function createPostImageReadModelFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostImageReadModel;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostImageReadModel | PostListItem_imageMember1}
+ */
+// @ts-ignore
+export function createPostListItem_imageFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostListItem_image;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PostListItem_imageMember1}
+ */
+// @ts-ignore
+export function createPostListItem_imageMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPostListItem_imageMember1;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -4309,10 +4363,63 @@ export function deserializeIntoPostDetail(postDetail: Partial<PostDetail> | unde
         "createdAt": n => { postDetail.createdAt = n.getDateValue(); },
         "createdByUserId": n => { postDetail.createdByUserId = n.getGuidValue(); },
         "id": n => { postDetail.id = n.getGuidValue(); },
+        "image": n => { postDetail.image = n.getObjectValue<PostDetail_imageMember1>(createPostDetail_imageMember1FromDiscriminatorValue) ?? n.getObjectValue<PostImageReadModel>(createPostImageReadModelFromDiscriminatorValue); },
         "projectId": n => { postDetail.projectId = n.getGuidValue(); },
         "status": n => { postDetail.status = n.getStringValue(); },
         "tenantId": n => { postDetail.tenantId = n.getGuidValue(); },
         "updatedAt": n => { postDetail.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PostDetail_image The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostDetail_image(postDetail_image: Partial<PostDetail_imageMember1 | PostImageReadModel> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoPostDetail_imageMember1(postDetail_image as PostDetail_imageMember1),
+        ...deserializeIntoPostImageReadModel(postDetail_image as PostImageReadModel),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PostDetail_imageMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostDetail_imageMember1(postDetail_imageMember1: Partial<PostDetail_imageMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PostImageAttached The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostImageAttached(postImageAttached: Partial<PostImageAttached> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "altText": n => { postImageAttached.altText = n.getStringValue(); },
+        "contentType": n => { postImageAttached.contentType = n.getStringValue(); },
+        "heightPx": n => { postImageAttached.heightPx = n.getNumberValue(); },
+        "path": n => { postImageAttached.path = n.getStringValue(); },
+        "url": n => { postImageAttached.url = n.getStringValue(); },
+        "widthPx": n => { postImageAttached.widthPx = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PostImageReadModel The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostImageReadModel(postImageReadModel: Partial<PostImageReadModel> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "altText": n => { postImageReadModel.altText = n.getStringValue(); },
+        "heightPx": n => { postImageReadModel.heightPx = n.getNumberValue(); },
+        "url": n => { postImageReadModel.url = n.getStringValue(); },
+        "widthPx": n => { postImageReadModel.widthPx = n.getNumberValue(); },
     }
 }
 /**
@@ -4327,9 +4434,32 @@ export function deserializeIntoPostListItem(postListItem: Partial<PostListItem> 
         "createdAt": n => { postListItem.createdAt = n.getDateValue(); },
         "createdByUserId": n => { postListItem.createdByUserId = n.getGuidValue(); },
         "id": n => { postListItem.id = n.getGuidValue(); },
+        "image": n => { postListItem.image = n.getObjectValue<PostImageReadModel>(createPostImageReadModelFromDiscriminatorValue) ?? n.getObjectValue<PostListItem_imageMember1>(createPostListItem_imageMember1FromDiscriminatorValue); },
         "projectId": n => { postListItem.projectId = n.getGuidValue(); },
         "status": n => { postListItem.status = n.getStringValue(); },
         "updatedAt": n => { postListItem.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PostListItem_image The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostListItem_image(postListItem_image: Partial<PostImageReadModel | PostListItem_imageMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoPostImageReadModel(postListItem_image as PostImageReadModel),
+        ...deserializeIntoPostListItem_imageMember1(postListItem_image as PostListItem_imageMember1),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PostListItem_imageMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPostListItem_imageMember1(postListItem_imageMember1: Partial<PostListItem_imageMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
     }
 }
 /**
@@ -5128,6 +5258,7 @@ export function deserializeIntoUpdateAccountProfileBody(updateAccountProfileBody
 export function deserializeIntoUpdatePostBody(updatePostBody: Partial<UpdatePostBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "body": n => { updatePostBody.body = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<UpdatePostBody_bodyMember1>(createUpdatePostBody_bodyMember1FromDiscriminatorValue); },
+        "imageAltText": n => { updatePostBody.imageAltText = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "projectId": n => { updatePostBody.projectId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
@@ -6146,6 +6277,10 @@ export interface PostDetail extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The image property
+     */
+    image?: PostDetail_imageMember1 | PostImageReadModel | null;
+    /**
      * The projectId property
      */
     projectId?: Guid | null;
@@ -6161,6 +6296,56 @@ export interface PostDetail extends AdditionalDataHolder, Parsable {
      * The updatedAt property
      */
     updatedAt?: Date | null;
+}
+export type PostDetail_image = PostDetail_imageMember1 | PostImageReadModel;
+export interface PostDetail_imageMember1 extends AdditionalDataHolder, Parsable {
+}
+export interface PostImageAttached extends AdditionalDataHolder, Parsable {
+    /**
+     * The altText property
+     */
+    altText?: string | null;
+    /**
+     * The contentType property
+     */
+    contentType?: string | null;
+    /**
+     * The heightPx property
+     */
+    heightPx?: number | null;
+    /**
+     * The path property
+     */
+    path?: string | null;
+    /**
+     * The url property
+     */
+    url?: string | null;
+    /**
+     * The widthPx property
+     */
+    widthPx?: number | null;
+}
+/**
+ * The attached post image projection served by detail and list read models.URL follows the anonymously-served `/files` convention documented onCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.
+ */
+export interface PostImageReadModel extends AdditionalDataHolder, Parsable {
+    /**
+     * The altText property
+     */
+    altText?: string | null;
+    /**
+     * The heightPx property
+     */
+    heightPx?: number | null;
+    /**
+     * The url property
+     */
+    url?: string | null;
+    /**
+     * The widthPx property
+     */
+    widthPx?: number | null;
 }
 export interface PostListItem extends AdditionalDataHolder, Parsable {
     /**
@@ -6180,6 +6365,10 @@ export interface PostListItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The image property
+     */
+    image?: PostImageReadModel | PostListItem_imageMember1 | null;
+    /**
      * The projectId property
      */
     projectId?: Guid | null;
@@ -6191,6 +6380,9 @@ export interface PostListItem extends AdditionalDataHolder, Parsable {
      * The updatedAt property
      */
     updatedAt?: Date | null;
+}
+export type PostListItem_image = PostImageReadModel | PostListItem_imageMember1;
+export interface PostListItem_imageMember1 extends AdditionalDataHolder, Parsable {
 }
 export interface PostUpdated extends AdditionalDataHolder, Parsable {
     /**
@@ -8065,11 +8257,66 @@ export function serializePostDetail(writer: SerializationWriter, postDetail: Par
     writer.writeDateValue("createdAt", postDetail.createdAt);
     writer.writeGuidValue("createdByUserId", postDetail.createdByUserId);
     writer.writeGuidValue("id", postDetail.id);
+    writer.writeObjectValue<PostDetail_imageMember1 | PostImageReadModel>("image", postDetail.image, serializePostDetail_image);
     writer.writeGuidValue("projectId", postDetail.projectId);
     writer.writeStringValue("status", postDetail.status);
     writer.writeGuidValue("tenantId", postDetail.tenantId);
     writer.writeDateValue("updatedAt", postDetail.updatedAt);
     writer.writeAdditionalData(postDetail.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostDetail_image The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostDetail_image(writer: SerializationWriter, postDetail_image: Partial<PostDetail_imageMember1 | PostImageReadModel> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializePostDetail_imageMember1(writer, postDetail_image as PostDetail_imageMember1);
+    serializePostImageReadModel(writer, postDetail_image as PostImageReadModel);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostDetail_imageMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostDetail_imageMember1(writer: SerializationWriter, postDetail_imageMember1: Partial<PostDetail_imageMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!postDetail_imageMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(postDetail_imageMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostImageAttached The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostImageAttached(writer: SerializationWriter, postImageAttached: Partial<PostImageAttached> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!postImageAttached || isSerializingDerivedType) { return; }
+    writer.writeStringValue("altText", postImageAttached.altText);
+    writer.writeStringValue("contentType", postImageAttached.contentType);
+    writer.writeNumberValue("heightPx", postImageAttached.heightPx);
+    writer.writeStringValue("path", postImageAttached.path);
+    writer.writeStringValue("url", postImageAttached.url);
+    writer.writeNumberValue("widthPx", postImageAttached.widthPx);
+    writer.writeAdditionalData(postImageAttached.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostImageReadModel The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostImageReadModel(writer: SerializationWriter, postImageReadModel: Partial<PostImageReadModel> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!postImageReadModel || isSerializingDerivedType) { return; }
+    writer.writeStringValue("altText", postImageReadModel.altText);
+    writer.writeNumberValue("heightPx", postImageReadModel.heightPx);
+    writer.writeStringValue("url", postImageReadModel.url);
+    writer.writeNumberValue("widthPx", postImageReadModel.widthPx);
+    writer.writeAdditionalData(postImageReadModel.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8084,10 +8331,33 @@ export function serializePostListItem(writer: SerializationWriter, postListItem:
     writer.writeDateValue("createdAt", postListItem.createdAt);
     writer.writeGuidValue("createdByUserId", postListItem.createdByUserId);
     writer.writeGuidValue("id", postListItem.id);
+    writer.writeObjectValue<PostImageReadModel | PostListItem_imageMember1>("image", postListItem.image, serializePostListItem_image);
     writer.writeGuidValue("projectId", postListItem.projectId);
     writer.writeStringValue("status", postListItem.status);
     writer.writeDateValue("updatedAt", postListItem.updatedAt);
     writer.writeAdditionalData(postListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostListItem_image The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostListItem_image(writer: SerializationWriter, postListItem_image: Partial<PostImageReadModel | PostListItem_imageMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializePostImageReadModel(writer, postListItem_image as PostImageReadModel);
+    serializePostListItem_imageMember1(writer, postListItem_image as PostListItem_imageMember1);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PostListItem_imageMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePostListItem_imageMember1(writer: SerializationWriter, postListItem_imageMember1: Partial<PostListItem_imageMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!postListItem_imageMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(postListItem_imageMember1.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8937,6 +9207,7 @@ export function serializeUpdateAccountProfileBody(writer: SerializationWriter, u
 export function serializeUpdatePostBody(writer: SerializationWriter, updatePostBody: Partial<UpdatePostBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!updatePostBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue<JsonElement | UpdatePostBody_bodyMember1>("body", updatePostBody.body, serializeUpdatePostBody_body);
+    writer.writeObjectValue("imageAltText", updatePostBody.imageAltText);
     writer.writeObjectValue("projectId", updatePostBody.projectId);
     writer.writeAdditionalData(updatePostBody.additionalData);
 }
@@ -10219,6 +10490,10 @@ export interface UpdatePostBody extends AdditionalDataHolder, Parsable {
      * The body property
      */
     body?: JsonElement | UpdatePostBody_bodyMember1 | null;
+    /**
+     * The imageAltText property
+     */
+    imageAltText?: UntypedNode | null;
     /**
      * The projectId property
      */
