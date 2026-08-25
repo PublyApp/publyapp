@@ -1,15 +1,25 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ApiFailure } from '@org/shared-ts/lib/api-failure/types';
+import type {
+	ApiFailure,
+	ValidationFailure,
+} from '@org/shared-ts/lib/api-failure/types';
 
 import { applyTenantUserUpdateFailure } from './_edit-submit-handler';
 
-const validationFailure = (fieldErrors: Record<string, string[]>): ApiFailure =>
-	({
-		kind: 'validation',
-		status: 422,
-		fieldErrors,
-	}) as unknown as ApiFailure;
+// Full ValidationFailure literal: the mapper never reads the i18n metadata,
+// but building the real member keeps the fixture free of discarded-evidence
+// assertion chains.
+const validationFailure = (
+	fieldErrors: Record<string, string[]>,
+): ValidationFailure => ({
+	kind: 'validation',
+	status: 422,
+	translationKey: undefined,
+	detail: undefined,
+	title: undefined,
+	fieldErrors,
+});
 
 const run = (failure: ApiFailure) => {
 	const setError = vi.fn();
@@ -63,7 +73,10 @@ describe('applyTenantUserUpdateFailure', () => {
 		const { setError, setRootValidationError } = run({
 			kind: 'problem',
 			status: 500,
-		} as unknown as ApiFailure);
+			translationKey: undefined,
+			detail: undefined,
+			title: undefined,
+		});
 
 		expect(setError).not.toHaveBeenCalled();
 		expect(setRootValidationError).not.toHaveBeenCalled();

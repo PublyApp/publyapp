@@ -7,6 +7,7 @@ import {
 import { invalidateStaffUsers } from '~/lib/query/staff-users';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
+import type { GetStaffUserByIdResult } from '@org/client-ts/models/index';
 import {
 	getFailureMessage,
 	toApiFailure,
@@ -85,11 +86,13 @@ export const submitStaffUserEdit = async ({
 	values: StaffUserEditValues;
 	dirtyFields: DirtyFields;
 	methods: UseFormReturn<StaffUserEditValues>;
-	updateStaffUserAsync: (input: IdentityUpdateInput) => Promise<unknown>;
+	updateStaffUserAsync: (
+		input: IdentityUpdateInput,
+	) => Promise<GetStaffUserByIdResult | undefined>;
 	updateStaffUserProfilesAsync: (input: {
 		userId: string;
 		profileIds: string[];
-	}) => Promise<unknown>;
+	}) => Promise<GetStaffUserByIdResult | undefined>;
 	queryClient: QueryClient;
 	setShouldLogout: (v: boolean) => void;
 	setServerError: (v: string) => void;

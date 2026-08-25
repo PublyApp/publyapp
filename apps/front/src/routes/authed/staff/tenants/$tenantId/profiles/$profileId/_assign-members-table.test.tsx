@@ -121,8 +121,16 @@ const t = (key: string, options?: Record<string, unknown>): string => {
 	return labels[key] ?? key;
 };
 
+// Partial query/controller fakes are intentional: the table only reads the
+// members below. The helper is the ONE widening point (a single assert
+// through a named shape), matching the repo's other real-route suites
+// (see $userId-edit.blocker.test.tsx).
+function widenFake<T>(value: unknown): T {
+	return value as T;
+}
+
 const buildController = () =>
-	({
+	widenFake<ReturnType<typeof useTableController>>({
 		apiVariables: {},
 		search: { committed: null, draft: '', onDraftChange: () => {} },
 		sort: { id: 'created_at', order: 'desc' },
@@ -135,24 +143,24 @@ const buildController = () =>
 			onNextPage: () => {},
 			onPreviousPage: () => {},
 		},
-	}) as unknown as ReturnType<typeof useTableController>;
+	});
 
 const buildUsersQuery = () =>
-	({
+	widenFake<ReturnType<typeof useStaffTenantUsersQuery>>({
 		isPending: false,
 		isError: false,
 		isFetching: false,
 		refetch: () => Promise.resolve(),
 		data: { data: [ROW], nextCursor: null },
-	}) as unknown as ReturnType<typeof useStaffTenantUsersQuery>;
+	});
 
 const buildResolutionQuery = () =>
-	({
+	widenFake<
+		ReturnType<typeof useStaffTenantProfileMemberAssignmentResolutionQuery>
+	>({
 		isError: false,
 		refetch: () => Promise.resolve(),
-	}) as unknown as ReturnType<
-		typeof useStaffTenantProfileMemberAssignmentResolutionQuery
-	>;
+	});
 
 const renderTable = (
 	overrides: Partial<Parameters<typeof AssignMembersTable>[0]> = {},
