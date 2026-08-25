@@ -304,7 +304,20 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts
   node ./packages/scripts-ts/src/check-actions-pinned.ts
+  pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
+  node ./packages/scripts-ts/src/check-actions-pins.ts
   pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
+
+# Bind every pinned action SHA to the version its "# vX.Y.Z" comment claims
+# (#1392): resolves each tag through `gh api` (annotated tags peeled to their
+# commit) and compares against the pinned SHA; unparseable input fails loud.
+# Network-dependent: the live second command needs gh auth. Skip ONLY that
+# half locally with `just ci-actions-pins ARGS="--offline"` (air-gapped work);
+# CI never passes --offline.
+ci-actions-pins ARGS='':
+    @echo "=== [gate] actions pin/comment binding ==="
+    pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
+    node ./packages/scripts-ts/src/check-actions-pins.ts {{ARGS}}
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:

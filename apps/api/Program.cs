@@ -46,13 +46,17 @@ public class Program {
 	}
 
 	public static void Main(string[] args) {
-		AppEnvironment.Initialize(); // ! must be called before anything else
-
-		// #1309 boot-log probe (test-only): lets the integration suite observe the canary
-		// pass line a REAL boot emits. Arg-gated — every normal boot (local dev, docker,
-		// deployed containers, build-time doc-gen) never passes the arg, so this is an
-		// instant no-op everywhere except the probe process.
+		// #1309/#1319 boot-log probe (test-only): lets the integration suite observe the
+		// canary pass line a REAL boot emits. Arg-gated AND hard-gated (#1319): the arg
+		// without PUBLYAPP_TEST_BOOT_PROBE=1|true exits 78 with a plain-words cause
+		// BEFORE anything else runs — a refused boot must not depend on any other
+		// configuration being present, and a deployed container misconfigured with the
+		// arg must die loudly instead of getting the clean-looking exit-0 no-host outage.
 		CanaryBootLogProbe.ActivateIfRequested(args);
+
+		// Must precede everything except the #1319 probe gate above: the probe refusal
+		// must not depend on any other configuration being present.
+		AppEnvironment.Initialize();
 
 		// CLI commands (e.g., seed-bulk, seed-bulk-reset)
 		if (BulkSeedCli.TryRun(args)) {

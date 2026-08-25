@@ -1448,7 +1448,7 @@ test("the repo's own aggregate-gate workflows have the required job graph", asyn
 // `origin/${{ github.base_ref }}` — that expression is empty on `push` (and
 // `merge_group`), so the fetch resolves to `origin/` and react-doctor aborts
 // with "Diff base branch \"origin/\" does not exist". The real run
-// https://github.com/radandevist/publyapp/actions/runs/32585167025 died on
+// https://github.com/PublyApp/publyapp/actions/runs/32585167025 died on
 // exactly this. The base must instead be resolved per event (see the
 // react-doctor.yml fix). This guard catches the raw pattern reappearing in any
 // workflow that also declares a `push` trigger — including the one we are
