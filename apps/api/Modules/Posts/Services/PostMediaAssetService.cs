@@ -60,13 +60,25 @@ public interface IPostMediaAssetService {
 	);
 
 	/// <summary>
-	/// Post-deletion cascade: hard-deletes any live asset row for the post and
-	/// releases its blob reference after SaveChanges, inside the caller's unit
-	/// of work. Called by DeletePostForTenant before its own SaveChanges so the
-	/// purge commits atomically with the post deletion.
+	/// Post-deletion cascade, phase 1: stages a hard delete of every live asset
+	/// row for the post in the caller's unit of work WITHOUT saving, and returns
+	/// the blob paths whose references must be released after the commit. Called
+	/// by DeletePostForTenant BEFORE deleting the post so the purge commits
+	/// atomically with the post deletion.
 	/// </summary>
-	Task ReleaseOnPostDeleteAsync(
-		Post post,
+	Task<IReadOnlyList<string>> StagePurgeOnPostDeleteAsync(
+		Guid tenantId,
+		Guid postId,
+		CancellationToken cancellationToken = default
+	);
+
+	/// <summary>
+	/// Post-deletion cascade, phase 2: releases the blob references collected by
+	/// <see cref="StagePurgeOnPostDeleteAsync"/> AFTER the caller committed the
+	/// deletion (#807 F5: never release before the owning write is durable).
+	/// </summary>
+	Task ReleaseReferencesAsync(
+		IReadOnlyList<string> relativePaths,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -174,27 +186,35 @@ public sealed class PostMediaAssetService(
 		return true;
 	}
 
-	public async Task ReleaseOnPostDeleteAsync(
-		Post post,
+	public async Task<IReadOnlyList<string>> StagePurgeOnPostDeleteAsync(
+		Guid tenantId,
+		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
+		// Tracked query on purpose: the entities must sit in the change tracker
+		// as Deleted when the caller saves its own unit of work.
 		var assets = await (
 			from a in dbContext.PostMediaAsset
-			where a.TenantId == post.TenantId
-				&& a.PostId == post.GetRequiredId()
+			where a.TenantId == tenantId
+				&& a.PostId == postId
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);
 		if (assets.Count == 0) {
-			return;
+			return [];
 		}
 
-		var releasedPaths = assets.Select(a => a.RelativePath).ToList();
 		dbContext.ForceHardDeleteRange(assets);
 		// No SaveChanges here on purpose: the caller (DeletePostForTenant)
 		// commits this together with the post deletion in one transaction.
+		return assets.Select(a => a.RelativePath).ToList();
+	}
 
-		foreach (var path in releasedPaths) {
+	public async Task ReleaseReferencesAsync(
+		IReadOnlyList<string> relativePaths,
+		CancellationToken cancellationToken = default
+	) {
+		foreach (var path in relativePaths) {
 			await uploadReferences.TryReleaseReferenceAsync(path, cancellationToken);
 		}
 	}

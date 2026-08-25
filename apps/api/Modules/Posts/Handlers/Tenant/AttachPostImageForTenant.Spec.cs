@@ -148,6 +148,62 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		leaked.Should().BeFalse();
 	}
 
+	[Fact]
+	public async Task ItShouldPurgeAssetWhenPostDeleted() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+
+		using var attachRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		attachRequest.Content = BuildFileContent(PngBytes(width: 24, height: 24));
+		using (attachRequest) {
+			using var attachResponse = await _http.SendAsync(attachRequest);
+			attachResponse.EnsureSuccessStatusCode();
+			var attached = await attachResponse.Content
+				.ReadFromJsonAsync<PostImageAttached>();
+			Assert.NotNull(attached);
+			attachedPath = attached.Path;
+		}
+
+		// Deleting the post must purge the asset row (hard delete, no soft
+		// residue) and drop the blob's reference to zero — no orphans.
+		using var deleteRequest = new HttpRequestMessage(
+			HttpMethod.Delete,
+			PathUtils.Join("/posts", postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using (deleteRequest) {
+			using var deleteResponse = await _http.SendAsync(deleteRequest);
+			deleteResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+		}
+
+		var postIdGuid = Guid.Parse(postId);
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var remaining = await (
+			from a in db.PostMediaAsset.AsNoTracking()
+			where a.PostId == postIdGuid
+			select a
+		).CountAsync();
+		remaining.Should().Be(0, "the asset row must be hard-deleted with its post");
+
+		var referenceCount = await (
+			from u in db.UploadAsset.AsNoTracking()
+			where u.RelativePath == attachedPath && !u.IsDeleted
+			select (int?)u.ReferenceCount
+		).SingleOrDefaultAsync();
+		referenceCount.Should().Be(0,
+			"the blob reference must be released when the owning post dies");
+	}
+
+	private string attachedPath = string.Empty;
+
 	// ── helpers ────────────────────────────────────────────────────────
 
 	private static MultipartFormDataContent BuildFileContent(byte[] bytes) {
