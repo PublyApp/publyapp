@@ -978,6 +978,20 @@ describe('staff tenants route', () => {
 			expect(screen.getByTestId('floating-selection-bar')).toBeTruthy();
 		});
 
+		// #1400 (WCAG 2.5.3 label-in-name): the bulk trigger's accessible name
+		// must EQUAL its visible "Bulk actions" label — both from one i18n key.
+		test('the bulk trigger accessible name equals its visible Bulk actions label', () => {
+			renderPage();
+
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
+			);
+
+			const trigger = screen.getByRole('button', { name: 'Bulk actions' });
+			expect(trigger.getAttribute('aria-label')).toBe('Bulk actions');
+			expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
+		});
+
 		test('the toolbar does not swap during selection — no filters to hide on this page', () => {
 			renderPage();
 

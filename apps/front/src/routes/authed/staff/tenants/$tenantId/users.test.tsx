@@ -673,6 +673,18 @@ describe('staff tenant users route', () => {
 		);
 	});
 
+	// #1400 (WCAG 2.5.3 label-in-name): the bulk trigger's accessible name
+	// must EQUAL its visible "Bulk actions" label — both from one i18n key.
+	test('the bulk trigger accessible name equals its visible Bulk actions label', async () => {
+		renderPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+
+		const trigger = screen.getByRole('button', { name: 'Bulk actions' });
+		expect(trigger.getAttribute('aria-label')).toBe('Bulk actions');
+		expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
+	});
+
 	test('shows a reactivate action for a suspended user and a suspend action for an active one', async () => {
 		const user = userEvent.setup();
 		mocks.toStaffTenantUserRows.mockReturnValue([
