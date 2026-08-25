@@ -45,6 +45,19 @@ const makeRepo = (files: Record<string, string>): string => {
 	return root;
 };
 
+// Writes files into an already-created fixture repo WITHOUT staging them, so
+// they are visible to the working tree but invisible to `git ls-files`.
+const plantUntracked = (
+	root: string,
+	files: Record<string, string>,
+): void => {
+	for (const [relative, content] of Object.entries(files)) {
+		const absolute = path.join(root, relative);
+		mkdirSync(path.dirname(absolute), { recursive: true });
+		writeFileSync(absolute, content);
+	}
+};
+
 afterAll(() => {
 	for (const root of roots) {
 		rmSync(root, { recursive: true, force: true });
@@ -134,4 +147,38 @@ test('reference-style definitions are checked like inline links', () => {
 	const result = runGuard(root);
 	assert.equal(result.status, 1);
 	assert.match(result.stderr, /README\.md:1: -> nowhere\/target\.md/);
+});
+
+// Round-1 review (r1 MAJOR): the RED proof planted a broken link as an
+// UNTRACKED file and the guard — scanning `git ls-files` only — stayed green.
+// A local run must catch an unstaged broken link too: the guard now scans
+// tracked files PLUS untracked non-ignored working-tree files.
+test('a broken link in an untracked non-ignored file fails the guard', () => {
+	const root = makeRepo({
+		'docs/guides/a.md': 'content\n',
+	});
+	plantUntracked(root, {
+		'docs/guides/unstaged.md': 'broken [link](./no-such-target.md) here.\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken relative link/);
+	assert.match(
+		result.stderr,
+		/docs\/guides\/unstaged\.md:1: -> docs\/guides\/no-such-target\.md/,
+	);
+});
+
+test('untracked files are scanned but ignored files stay out of scope', () => {
+	const root = makeRepo({
+		'.gitignore': 'ignored-dir/\n',
+		'docs/guides/a.md': 'content\n',
+	});
+	plantUntracked(root, {
+		'ignored-dir/skip-me.md': 'broken [link](../nope.md)\n',
+		'docs/guides/unstaged-ok.md': '[resolves](a.md) fine.\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
 });

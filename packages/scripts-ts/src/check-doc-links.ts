@@ -3,16 +3,19 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-// Repo-wide dead-relative-link guard for tracked Markdown (#1357).
+// Repo-wide dead-relative-link guard (#1357).
 //
 // WHAT THIS PROVES
 // ----------------
 // After the #1357 prune, docs/ shrank to exactly guides/, deployment/,
-// records/, assets/. This guard keeps every tracked *.md file's RELATIVE
-// links resolving: a link whose target is not tracked (file or directory),
-// or that escapes the repository, fails naming file:line. Absolute URLs
-// (scheme-prefixed), pure-anchor links (#...) and empty targets are out of
-// scope; only repo-local navigation is enforced.
+// records/, assets/. This guard keeps every *.md file's RELATIVE
+// links resolving: a link whose target does not exist in the working tree
+// (file or directory), or that escapes the repository, fails naming
+// file:line. The scan covers TRACKED files plus untracked NON-IGNORED files
+// (`git ls-files --others --exclude-standard`) so a local run catches a
+// broken link even before it is staged; gitignored files are out of scope.
+// Absolute URLs (scheme-prefixed), pure-anchor links (#...) and empty
+// targets are out of scope; only repo-local navigation is enforced.
 //
 // Write-once exception: bodies under docs/records/ are point-in-time
 // evidence — the same policy the retired docs/archive had. Their links are
@@ -86,26 +89,30 @@ const runGit = (args: string[]): string => {
 	return result.stdout;
 };
 
-const trackedFiles = (): string[] =>
-	runGit(['ls-files', '-z'])
-		.split('\0')
-		.filter((entry) => entry.length > 0);
+// Tracked files plus untracked NON-IGNORED working-tree files. The second
+// listing is what makes a local (pre-commit) run catch a broken link planted
+// in an unstaged file — the round-1 RED proof relied on exactly that gap.
+// Ignored files stay out of scope: build output is not navigation.
+export const workingTreeFiles = (): string[] => [
+	...runGit(['ls-files', '-z']).split('\0'),
+	...runGit(['ls-files', '--others', '--exclude-standard', '-z']).split('\0'),
+].filter((entry) => entry.length > 0);
 
 const main = (): void => {
-	const allTracked = trackedFiles();
-	const trackedSet = new Set(allTracked);
-	const trackedDirs = new Set<string>();
-	for (const file of allTracked) {
+	const allFiles = workingTreeFiles();
+	const existingSet = new Set(allFiles);
+	const existingDirs = new Set<string>();
+	for (const file of allFiles) {
 		const segments = file.split('/');
 		segments.pop();
 		let prefix = '';
 		for (const segment of segments) {
 			prefix = prefix.length > 0 ? `${prefix}/${segment}` : segment;
-			trackedDirs.add(prefix);
+			existingDirs.add(prefix);
 		}
 	}
 
-	const markdownFiles = allTracked.filter((file) => file.endsWith('.md'));
+	const markdownFiles = allFiles.filter((file) => file.endsWith('.md'));
 	const problems: Problem[] = [];
 	let linksChecked = 0;
 
@@ -137,9 +144,9 @@ const main = (): void => {
 				}
 				linksChecked += 1;
 				const resolves =
-					trackedSet.has(target) ||
-					trackedDirs.has(target) ||
-					trackedSet.has(`${target}.md`);
+					existingSet.has(target) ||
+					existingDirs.has(target) ||
+					existingSet.has(`${target}.md`);
 				if (!resolves) {
 					problems.push({ file, line: index + 1, target });
 				}
@@ -149,7 +156,7 @@ const main = (): void => {
 
 	if (problems.length > 0) {
 		console.error(
-			`${problems.length} broken relative link(s) in tracked Markdown:`,
+			`${problems.length} broken relative link(s) in tracked or untracked non-ignored Markdown:`,
 		);
 		for (const problem of problems) {
 			console.error(`  ${problem.file}:${problem.line}: -> ${problem.target}`);
