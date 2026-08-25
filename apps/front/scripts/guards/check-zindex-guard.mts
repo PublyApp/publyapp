@@ -10,7 +10,158 @@ import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
 import postcss from 'postcss';
 import { ts } from 'ts-morph';
-import { createBuilder, isCSSRequest } from 'vite';
+import { createBuilder, isCSSRequest, type Plugin } from 'vite';
+
+/**
+ * Shared type aliases for the guard. The guard is a standalone `.mts` script
+ * (no declaration emit), so these exist purely to keep strict checking green
+ * without widening anything to `any`.
+ */
+type PostcssNode = postcss.Node;
+type PostcssRoot = postcss.Root;
+type TsSourceFile = ts.SourceFile;
+type TsNode = ts.Node;
+/** A diagnostic row every z-index guard check reports. */
+export type ZIndexViolation = {
+	ruleId: string;
+	message: string;
+	file?: string;
+	line?: number;
+	source?: string;
+};
+
+/**
+ * The scanner is only consumed through its candidate extractor, so the guard
+ * types it structurally: the real `@tailwindcss/oxide` Scanner satisfies it,
+ * and unit fixtures can supply the same surface.
+ */
+export type ZIndexCandidateScanner = {
+	getCandidatesWithPositions: (input: {
+		file: string;
+		content: string;
+		extension: string;
+	}) => Array<{ candidate: string; position: number }>;
+};
+
+/** Every node `nearestBinding` can resolve a name to. */
+type ScriptBindingDeclaration =
+	| ts.VariableDeclaration
+	| ts.FunctionDeclaration
+	| ts.FunctionExpression
+	| ts.ClassDeclaration
+	| ts.EnumDeclaration
+	| ts.ParameterDeclaration
+	| ts.ImportClause
+	| ts.NamespaceImport
+	| ts.ImportSpecifier;
+
+export type RawImportBindingKind = 'default' | 'namespace' | 'named-non-default';
+export type RawImportBindingEntry = {
+	specifier: string;
+	declaration: ScriptBindingDeclaration;
+	kind: RawImportBindingKind;
+};
+
+type StaticStringValuesResult = {
+	values: ReadonlySet<string> | null;
+	partial: boolean;
+	overflow?: boolean;
+};
+type StaticStringOutcome =
+	| { kind: 'value'; value: string }
+	| { kind: 'overflow' }
+	| { kind: 'not-static' };
+type MemberChainResult = { node: TsNode | null; overflow: boolean };
+type RawSpecifierResolution = { specifiers: string[]; unresolved: boolean };
+type StaticObjectMemberResult = {
+	node: TsNode | null;
+	unresolved: boolean;
+	opaqueOnly: boolean;
+	opaqueSpreadNode: TsNode | null;
+	overflowKeys: boolean;
+};
+type LastJsxAttributeOccurrence = {
+	valueNode: TsNode | null;
+	established: boolean;
+	unresolved: boolean;
+	opaqueOnly: boolean;
+	opaqueSpreadNode: TsNode | null;
+	overflowKeys: boolean;
+};
+type DangerousHtmlPayloadResult = {
+	payloadObject: ts.ObjectLiteralExpression | null;
+	found: boolean;
+	unresolved: boolean;
+	opaqueOnly: boolean;
+	opaqueSpreadNode: TsNode | null;
+	overflowKeys: boolean;
+};
+type StaticMemberInfo = {
+	owner: TsNode;
+	name: string | null;
+	overflow: boolean;
+};
+type StaticStylePayload = {
+	css: ReadonlyArray<string> | null;
+	staticParts: ReadonlyArray<string> | null;
+	childrenSuppressed: boolean;
+	overflow: boolean;
+};
+type CssContainerDescription =
+	| { type: 'rule'; selector: string }
+	| { type: 'at-rule'; name: string; params: string };
+type ScannedCssDeclaration = {
+	ancestors: CssContainerDescription[];
+	decodedProperty: string;
+	selector: string;
+	property: string;
+	value: string;
+	line: number;
+};
+export type KnownRawZIndexDeclaration = {
+	ancestors: CssContainerDescription[];
+	selector: string;
+	declaration: string;
+	count: number;
+	reason?: string;
+};
+type CssomReceiverKind = 'style-decl' | 'plain-object' | 'unresolved' | 'other';
+type CssSetterCallKind = CssomReceiverKind | 'overflow';
+type HeadFunction =
+	| ts.ArrowFunction
+	| ts.FunctionExpression
+	| ts.FunctionDeclaration;
+export type ModuleClassification = {
+	filePath: string;
+	hasQuery: boolean;
+	kind:
+		| 'css'
+		| 'inline-css'
+		| 'css-url'
+		| 'url-asset'
+		| 'raw'
+		| 'script'
+		| 'other';
+};
+export type ProductionBuildResult = {
+	emittedCssRoot: string;
+	authoredCssPaths: string[];
+	authoredScriptPaths: string[];
+	inlineCssPaths: string[];
+	rawTextPaths: string[];
+	rawTextIds: string[];
+	queriedPaths: string[];
+	cleanup: () => Promise<void>;
+};
+export type ZIndexGuardRunResult = {
+	violations: ZIndexViolation[];
+	compiled: string;
+	emittedCssAssets: Array<{ path: string; content: string }>;
+	candidateCount: number;
+	fileCount: number;
+};
+type ScannerOptions = NonNullable<ConstructorParameters<typeof Scanner>[0]>;
+type ScannerSource = NonNullable<ScannerOptions['sources']>[number];
 
 const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const appCssPath = path.join(rootDir, 'src/styles/app.css');
@@ -26,7 +177,7 @@ const SCRIPT_EXTENSIONS = new Set([
 	'.cts',
 ]);
 
-const scriptKindForPath = (filePath) => {
+const scriptKindForPath = (filePath: string): ts.ScriptKind => {
 	if (filePath.endsWith('.tsx')) {
 		return ts.ScriptKind.TSX;
 	}
@@ -44,8 +195,20 @@ const scriptKindForPath = (filePath) => {
 // child that sweeps it without the parent holding its lifecycle. A SIGKILL
 // (kill -9) bypasses both — that residual is bounded to a stale
 // `publy-zindex-guard-*` temp dir in the OS temp root, never the working tree.
-const activeBuildDirectories = new Set();
-const sweepBuildDirectories = (directories) => {
+/** Mirrors TypeScript's `FunctionLikeDeclaration` family for honest narrowing. */
+const isFunctionLikeDeclaration = (
+	node: TsNode,
+): node is ts.FunctionLikeDeclaration =>
+	ts.isFunctionDeclaration(node) ||
+	ts.isMethodDeclaration(node) ||
+	ts.isGetAccessorDeclaration(node) ||
+	ts.isSetAccessorDeclaration(node) ||
+	ts.isConstructorDeclaration(node) ||
+	ts.isFunctionExpression(node) ||
+	ts.isArrowFunction(node);
+
+const activeBuildDirectories = new Set<string>();
+const sweepBuildDirectories = (directories: string[]): void => {
 	if (directories.length === 0) {
 		return;
 	}
@@ -153,11 +316,11 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 // literal is never mistaken for a comment. Comment bodies are replaced with
 // same-length whitespace so candidate character offsets stay valid.
 // ---------------------------------------------------------------------------
-export const stripComments = (source) => {
+export const stripComments = (source: string): string => {
 	const chars = source.split('');
 	const n = chars.length;
 
-	const blank = (from, to) => {
+	const blank = (from: number, to: number): void => {
 		for (let k = from; k < to; k += 1) {
 			if (chars[k] !== '\n') {
 				chars[k] = ' ';
@@ -165,7 +328,7 @@ export const stripComments = (source) => {
 		}
 	};
 
-	const scanTemplate = (openIndex) => {
+	const scanTemplate = (openIndex: number): number => {
 		let j = openIndex + 1;
 		while (j < n) {
 			const c = chars[j];
@@ -185,7 +348,7 @@ export const stripComments = (source) => {
 		return n;
 	};
 
-	const scanCode = (start, terminator) => {
+	const scanCode = (start: number, terminator: string): number => {
 		let j = start;
 		while (j < n) {
 			const c = chars[j];
@@ -249,7 +412,7 @@ export const stripComments = (source) => {
 // segment, with leading/trailing `!` stripped) is `z-…` or `-z-…`. `z-index`
 // is a CSS property name, never a utility, so it is excluded.
 // ---------------------------------------------------------------------------
-const splitUtilityPart = (candidate) => {
+const splitUtilityPart = (candidate: string): string => {
 	let depth = 0;
 	let lastSplit = -1;
 	for (let index = 0; index < candidate.length; index += 1) {
@@ -266,7 +429,7 @@ const splitUtilityPart = (candidate) => {
 	return utility.replace(/^!/, '').replace(/!$/, '');
 };
 
-const isZIndexUtility = (utility) =>
+const isZIndexUtility = (utility: string): boolean =>
 	/^z-(?!index)/.test(utility) ||
 	utility.startsWith('-z-') ||
 	isZIndexArbitraryProperty(utility);
@@ -284,7 +447,7 @@ const NON_STACKING_KEYWORDS = new Set([
 	'revert-layer',
 ]);
 
-const asciiLowerCase = (text) =>
+const asciiLowerCase = (text: string): string =>
 	text.replace(/[A-Z]/g, (character) =>
 		String.fromCharCode(character.charCodeAt(0) + 32),
 	);
@@ -310,7 +473,9 @@ const asciiLowerCase = (text) =>
 // static payload the guard cannot enumerate may ship unread, exactly like an
 // unparseable one; it is never silently dropped into the runtime bucket.
 export const CARTESIAN_WORK_BUDGET = 20_000_000;
-const cartesianStringJoin = (sets) => {
+const cartesianStringJoin = (
+	sets: ReadonlyArray<ReadonlySet<string>>,
+): Set<string> | null => {
 	let results = [''];
 	let work = 0;
 	for (const set of sets) {
@@ -333,8 +498,21 @@ const cartesianStringJoin = (sets) => {
 // PostCSS failures on arbitrary static payloads carry a terse `reason`; the
 // diagnostics name it so a developer can find the offending syntax without a
 // stack trace into PostCSS internals.
-const cssParseFailureReason = (error) =>
-	error?.reason ?? error?.message ?? String(error);
+const cssParseFailureReason = (error: unknown): string => {
+	if (typeof error === 'object' && error != null && 'reason' in error) {
+		const reason: unknown = error.reason;
+		if (typeof reason === 'string') {
+			return reason;
+		}
+	}
+	if (typeof error === 'object' && error != null && 'message' in error) {
+		const message: unknown = error.message;
+		if (typeof message === 'string') {
+			return message;
+		}
+	}
+	return String(error);
+};
 
 // ---------------------------------------------------------------------------
 // CSS identifier canonicalisation. CSS property names are ASCII-case-
@@ -344,7 +522,7 @@ const cssParseFailureReason = (error) =>
 const CSS_WHITESPACE = /[\t\n\f\r ]/;
 const HEX_ESCAPE = /[0-9a-fA-F]/;
 
-const decodeCssIdentifier = (raw) => {
+const decodeCssIdentifier = (raw: string): string => {
 	let out = '';
 	for (let i = 0; i < raw.length;) {
 		const character = raw[i];
@@ -381,13 +559,13 @@ const decodeCssIdentifier = (raw) => {
 	return out;
 };
 
-const canonicaliseCssProperty = (raw) =>
+const canonicaliseCssProperty = (raw: string): string =>
 	asciiLowerCase(decodeCssIdentifier(raw));
 
-const isNonStackingKeyword = (value) =>
+const isNonStackingKeyword = (value: string): boolean =>
 	NON_STACKING_KEYWORDS.has(canonicaliseCssProperty(value.trim()));
 
-const scaleVarReferenceToken = (value) => {
+const scaleVarReferenceToken = (value: string): string | null => {
 	const trimmed = value.trim();
 	const openParen = trimmed.indexOf('(');
 	if (openParen <= 0 || !trimmed.endsWith(')')) {
@@ -405,12 +583,12 @@ const scaleVarReferenceToken = (value) => {
 	return null;
 };
 
-const isScaleVarReference = (value) => scaleVarReferenceToken(value) != null;
+const isScaleVarReference = (value: string): boolean => scaleVarReferenceToken(value) != null;
 
 // First top-level `:` — the property/value separator. `:` inside parentheses,
 // brackets, strings, or escapes never counts, so `url(http://…)` and
 // attribute-selector values are not split by accident.
-const findTopLevelColon = (text) => {
+const findTopLevelColon = (text: string): number => {
 	let depth = 0;
 	for (let i = 0; i < text.length; i += 1) {
 		const character = text[i];
@@ -446,7 +624,7 @@ const findTopLevelColon = (text) => {
 // shim: they emit `z-index: <value>` into the compiled stylesheet. The
 // property name is canonicalised (`[Z-INDEX:5]` is the same declaration);
 // `[-z-index:5]` emits a bogus `-z-index` property and is not a z-index shim.
-const isZIndexArbitraryProperty = (utility) => {
+const isZIndexArbitraryProperty = (utility: string): boolean => {
 	if (utility[0] !== '[' || utility[utility.length - 1] !== ']') {
 		return false;
 	}
@@ -458,13 +636,13 @@ const isZIndexArbitraryProperty = (utility) => {
 	return canonicaliseCssProperty(inner.slice(0, colon).trim()) === 'z-index';
 };
 
-const arbitraryPropertyValue = (utility) => {
+const arbitraryPropertyValue = (utility: string): string => {
 	const inner = utility.slice(1, -1);
 	const colon = findTopLevelColon(inner);
 	return inner.slice(colon + 1).trim();
 };
 
-const scaleTokenFromUtility = (utility) => {
+const scaleTokenFromUtility = (utility: string): string | null => {
 	const directReference = /^z-\((--publy-z-[\w-]+)\)$/.exec(utility);
 	if (directReference != null) {
 		return directReference[1];
@@ -482,7 +660,10 @@ const scaleTokenFromUtility = (utility) => {
 	return null;
 };
 
-const isAllowedScaleToken = (utility, canonicalScaleTokens) => {
+const isAllowedScaleToken = (
+	utility: string,
+	canonicalScaleTokens: ReadonlySet<string> | null,
+): boolean => {
 	const token = scaleTokenFromUtility(utility);
 	if (token == null) {
 		return true;
@@ -490,7 +671,10 @@ const isAllowedScaleToken = (utility, canonicalScaleTokens) => {
 	return (canonicalScaleTokens ?? DEFAULT_CANONICAL_SCALE_TOKENS).has(token);
 };
 
-const isAllowedZIndexUtility = (utility, canonicalScaleTokens = null) => {
+const isAllowedZIndexUtility = (
+	utility: string,
+	canonicalScaleTokens: ReadonlySet<string> | null = null,
+): boolean => {
 	if (isZIndexArbitraryProperty(utility)) {
 		// Only a pure scale reference (`var(--publy-z-…)`) or a non-stacking
 		// keyword may ship through an arbitrary-property shim. A bare custom
@@ -533,7 +717,10 @@ const isAllowedZIndexUtility = (utility, canonicalScaleTokens = null) => {
 };
 
 // Returns 'allowed' | 'raw' | null (null = not a z-index candidate).
-export const classifyZUtility = (candidate, canonicalScaleTokens = null) => {
+export const classifyZUtility = (
+	candidate: string,
+	canonicalScaleTokens: ReadonlySet<string> | null = null,
+): 'allowed' | 'raw' | null => {
 	const utility = splitUtilityPart(candidate);
 	if (!isZIndexUtility(utility)) {
 		return null;
@@ -570,8 +757,11 @@ const COMPARISON_OPERATORS = new Set([
 
 const CLASS_ATTRIBUTE_NAMES = new Set(['className', 'class']);
 
-const collectScriptSuppressionRanges = (relativePath, source) => {
-	const ranges = [];
+const collectScriptSuppressionRanges = (
+	relativePath: string,
+	source: string,
+): Array<[number, number]> => {
+	const ranges: Array<[number, number]> = [];
 	const sourceFile = ts.createSourceFile(
 		relativePath,
 		source,
@@ -580,7 +770,7 @@ const collectScriptSuppressionRanges = (relativePath, source) => {
 		scriptKindForPath(relativePath),
 	);
 
-	const addLiteralRange = (node) => {
+	const addLiteralRange = (node: TsNode | null | undefined): void => {
 		if (
 			node != null &&
 			(ts.isStringLiteral(node) ||
@@ -591,7 +781,7 @@ const collectScriptSuppressionRanges = (relativePath, source) => {
 		}
 	};
 
-	const visit = (node) => {
+	const visit = (node: TsNode): void => {
 		if (ts.isLiteralTypeNode(node) || ts.isTemplateLiteralTypeNode(node)) {
 			ranges.push([node.getStart(sourceFile), node.getEnd()]);
 		} else if (ts.isJsxAttribute(node)) {
@@ -626,8 +816,10 @@ const collectScriptSuppressionRanges = (relativePath, source) => {
 };
 
 const CSS_STRING_PATTERN = /(["'])(?:\\.|(?!\1)[^\\])*\1/g;
-const collectCssSuppressionRanges = (source) => {
-	const ranges = [];
+const collectCssSuppressionRanges = (
+	source: string,
+): Array<[number, number]> => {
+	const ranges: Array<[number, number]> = [];
 	let match;
 	while ((match = CSS_STRING_PATTERN.exec(source))) {
 		ranges.push([match.index, match.index + match[0].length]);
@@ -635,7 +827,10 @@ const collectCssSuppressionRanges = (source) => {
 	return ranges;
 };
 
-const isInsideAnyRange = (position, ranges) => {
+const isInsideAnyRange = (
+	position: number,
+	ranges: ReadonlyArray<readonly [number, number]>,
+): boolean => {
 	for (const [start, end] of ranges) {
 		if (position >= start && position < end) {
 			return true;
@@ -644,7 +839,7 @@ const isInsideAnyRange = (position, ranges) => {
 	return false;
 };
 
-const lineForOffset = (source, offset) =>
+const lineForOffset = (source: string, offset: number): number =>
 	source.slice(0, offset).split('\n').length;
 
 // ---------------------------------------------------------------------------
@@ -692,11 +887,24 @@ export const scanZIndexFile = ({
 	rawTextPaths = null,
 	rawTextIds = null,
 	queriedPaths = null,
-}) => {
-	const violations = [];
+}: {
+	scanner: ZIndexCandidateScanner;
+	relativePath: string;
+	content: string;
+	productionCandidates?: ReadonlySet<string> | null;
+	canonicalScaleTokens?: ReadonlySet<string> | null;
+	checkBuildReachableScript?: boolean;
+	checkClassDelivery?: boolean;
+	baseDir?: string | null;
+	rawImportTexts?: ReadonlyMap<string, string> | null;
+	rawTextPaths?: ReadonlySet<string> | null;
+	rawTextIds?: ReadonlySet<string> | null;
+	queriedPaths?: ReadonlySet<string> | null;
+}): ZIndexViolation[] => {
+	const violations: ZIndexViolation[] = [];
 	const extension = path.extname(relativePath);
 	const deCommented = stripComments(content);
-	let suppressionRanges = [];
+	let suppressionRanges: Array<[number, number]> = [];
 	if (extension === '.css') {
 		suppressionRanges = collectCssSuppressionRanges(content);
 	} else if (SCRIPT_EXTENSIONS.has(extension)) {
@@ -777,7 +985,7 @@ export const scanZIndexFile = ({
 			true,
 			scriptKindForPath(relativePath),
 		);
-		const visitTemplates = (node) => {
+		const visitTemplates = (node: TsNode): void => {
 			if (ts.isTemplateExpression(node)) {
 				const start = node.getStart(sourceFile);
 				if (!isInsideAnyRange(start, suppressionRanges)) {
@@ -809,8 +1017,10 @@ export const scanZIndexFile = ({
 			visitTemplates(sourceFile);
 		}
 
-		const unwrapTransparentExpression = (node) => {
-			let expression = node;
+		const unwrapTransparentExpression = (
+			node: TsNode | null | undefined,
+		): TsNode | null => {
+			let expression: TsNode | null | undefined = node;
 			while (
 				expression != null &&
 				(ts.isParenthesizedExpression(expression) ||
@@ -821,9 +1031,9 @@ export const scanZIndexFile = ({
 			) {
 				expression = expression.expression;
 			}
-			return expression;
+			return expression ?? null;
 		};
-		const literalText = (node) => {
+		const literalText = (node: TsNode | null | undefined): string | null => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
 				return null;
@@ -842,7 +1052,10 @@ export const scanZIndexFile = ({
 		// object rules (a `const` bound to an object literal is a transparent
 		// spread source), and the `?raw` binding rules (a `const` bound to a
 		// raw import is the same binding).
-		const moduleConstInitializers = new Map();
+		const moduleConstInitializers = new Map<
+			string,
+			{ declaration: ts.VariableDeclaration; initializer: ts.Expression }
+		>();
 		for (const statement of sourceFile.statements) {
 			if (
 				!ts.isVariableStatement(statement) ||
@@ -862,7 +1075,13 @@ export const scanZIndexFile = ({
 				}
 			}
 		}
-		const bindingNameIncludes = (bindingName, name) => {
+		const bindingNameIncludes = (
+			bindingName:
+				| ts.Identifier
+				| ts.ObjectBindingPattern
+				| ts.ArrayBindingPattern,
+			name: string,
+		): boolean => {
 			if (ts.isIdentifier(bindingName)) {
 				return bindingName.text === name;
 			}
@@ -876,11 +1095,17 @@ export const scanZIndexFile = ({
 			}
 			return false;
 		};
-		const variableBindingIn = (declarationList, name) =>
+		const variableBindingIn = (
+			declarationList: ts.VariableDeclarationList,
+			name: string,
+		): ts.VariableDeclaration | null =>
 			declarationList.declarations.find((declaration) =>
 				bindingNameIncludes(declaration.name, name),
 			) ?? null;
-		const statementBinding = (statement, name) => {
+		const statementBinding = (
+			statement: ts.Statement,
+			name: string,
+		): ScriptBindingDeclaration | null => {
 			if (ts.isVariableStatement(statement)) {
 				return variableBindingIn(statement.declarationList, name);
 			}
@@ -911,9 +1136,12 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const hoistedVarBinding = (scope, name) => {
-			let binding = null;
-			const visit = (node) => {
+		const hoistedVarBinding = (
+			scope: TsNode,
+			name: string,
+		): ts.VariableDeclaration | null => {
+			let binding: ts.VariableDeclaration | null = null;
+			const visit = (node: TsNode): void => {
 				if (
 					binding != null ||
 					(node !== scope.body &&
@@ -937,7 +1165,10 @@ export const scanZIndexFile = ({
 			}
 			return binding;
 		};
-		const bindingInScope = (scope, name) => {
+		const bindingInScope = (
+			scope: TsNode,
+			name: string,
+		): ScriptBindingDeclaration | null => {
 			if (
 				ts.isSourceFile(scope) ||
 				ts.isBlock(scope) ||
@@ -950,7 +1181,7 @@ export const scanZIndexFile = ({
 					}
 				}
 			}
-			if (ts.isFunctionLike(scope)) {
+			if (isFunctionLikeDeclaration(scope)) {
 				for (const parameter of scope.parameters) {
 					if (bindingNameIncludes(parameter.name, name)) {
 						return parameter;
@@ -995,8 +1226,11 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const nearestBinding = (node, name) => {
-			let scope = node.parent;
+		const nearestBinding = (
+			node: TsNode,
+			name: string,
+		): ScriptBindingDeclaration | null => {
+			let scope: TsNode | null | undefined = node.parent;
 			while (scope != null) {
 				const binding = bindingInScope(scope, name);
 				if (binding != null) {
@@ -1013,7 +1247,10 @@ export const scanZIndexFile = ({
 		// one hop is exactly the "I stopped looking" defect round 13 exists
 		// to remove — the language allows unbounded alias chains, so the
 		// resolver does not bound them.
-		const resolveModuleConstFixpoint = (node, visitedConsts = new Set()) => {
+		const resolveModuleConstFixpoint = (
+			node: TsNode | null | undefined,
+			visitedConsts: ReadonlySet<string> = new Set(),
+		): TsNode | null => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
 				return null;
@@ -1048,7 +1285,10 @@ export const scanZIndexFile = ({
 		// member identity is unresolvable, so the consumer must not treat the
 		// read as a benign runtime value, and callers that reach a CSS sink
 		// fail loud by name.
-		const resolveMemberChain = (node, visitedConsts = new Set()) => {
+		const resolveMemberChain = (
+			node: TsNode,
+			visitedConsts: ReadonlySet<string> = new Set(),
+		): MemberChainResult => {
 			const unwrapped = unwrapTransparentExpression(node);
 			if (unwrapped == null) {
 				return { node: null, overflow: false };
@@ -1112,7 +1352,7 @@ export const scanZIndexFile = ({
 		// `String(x)` preserves the imported bytes exactly; only the unshadowed
 		// global spelling counts (a locally shadowed `String` is not a
 		// coercion the guard can reason about).
-		const isStringCoercion = (expression) => {
+		const isStringCoercion = (expression: TsNode): boolean => {
 			if (
 				!ts.isCallExpression(expression) ||
 				expression.arguments.length !== 1
@@ -1147,7 +1387,10 @@ export const scanZIndexFile = ({
 		// caller treats the expression as runtime for everything else (the
 		// raw-sink walk covers recorded `?raw` bindings). Returns null when
 		// no string provably ships.
-		const staticStringValues = (node, visitedConsts = new Set()) => {
+		const staticStringValues = (
+			node: TsNode,
+			visitedConsts: ReadonlySet<string> = new Set(),
+		): StaticStringValuesResult | null => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
 				return null;
@@ -1292,9 +1535,9 @@ export const scanZIndexFile = ({
 			return null;
 		};
 		const staticStringRawTemplateValues = (
-			template,
-			visitedConsts = new Set(),
-		) => {
+			template: TsNode,
+			visitedConsts: ReadonlySet<string> = new Set(),
+		): StaticStringValuesResult => {
 			if (ts.isNoSubstitutionTemplateLiteral(template)) {
 				return { values: new Set([template.rawText]), partial: false };
 			}
@@ -1337,7 +1580,7 @@ export const scanZIndexFile = ({
 		// call site of this function in the guard script and fails when a new
 		// consumption bypasses the funnel (round-23 B1 — a hand-written audit
 		// of the consumers failed once on this exact property).
-		const staticStringRaw = (node) => {
+		const staticStringRaw = (node: TsNode): StaticStringOutcome => {
 			const result = staticStringValues(node);
 			if (result == null) {
 				return { kind: 'not-static' };
@@ -1359,7 +1602,12 @@ export const scanZIndexFile = ({
 		// `null` by a `?? null` or a truthiness-guarded `.value` read at a
 		// future call site. The mechanical test verifies that every call site
 		// names all three outcomes.
-		const staticString = (node, onValue, onOverflow, onNotStatic) => {
+		const staticString = <R>(
+			node: TsNode,
+			onValue: (value: string) => R,
+			onOverflow: () => R,
+			onNotStatic: () => R,
+		): R => {
 			if (
 				typeof onValue !== 'function' ||
 				typeof onOverflow !== 'function' ||
@@ -1379,7 +1627,7 @@ export const scanZIndexFile = ({
 			}
 			return onNotStatic();
 		};
-		const propertyName = (name) => {
+		const propertyName = (name: TsNode): string | null => {
 			if (ts.isComputedPropertyName(name)) {
 				// A computed key goes through the funnel with all three
 				// outcomes named (round-23 B1). An unnameable key (overflow
@@ -1400,7 +1648,9 @@ export const scanZIndexFile = ({
 			}
 			return literalText(name);
 		};
-		const spreadSourceObjectLiteral = (expression) => {
+		const spreadSourceObjectLiteral = (
+			expression: TsNode,
+		): ts.ObjectLiteralExpression | null => {
 			// Resolves a spread source to the object literal it provably is: a
 			// literal (through transparent wrappers) or a module-scope `const`
 			// chain bound to one, followed to a cycle-guarded fixpoint — the
@@ -1415,10 +1665,10 @@ export const scanZIndexFile = ({
 				: null;
 		};
 		const staticObjectMemberNode = (
-			object,
-			name,
-			visitedObjects = new Set(),
-		) => {
+			object: ts.ObjectLiteralExpression,
+			name: string,
+			visitedObjects: ReadonlySet<ts.ObjectLiteralExpression> = new Set(),
+		): StaticObjectMemberResult => {
 			// Order-aware member resolution mirroring real object semantics:
 			// the last member with the name wins, and a static object-literal
 			// spread is transparent (its member is hoisted in place). A spread
@@ -1454,14 +1704,14 @@ export const scanZIndexFile = ({
 			}
 			const nextVisitedObjects = new Set(visitedObjects);
 			nextVisitedObjects.add(object);
-			let foundNode = null;
+			let foundNode: TsNode | null = null;
 			let lastOccurrenceIndex = -1;
 			let lastOpaqueSpreadIndex = -1;
-			let opaqueSpreadNode = null;
+			let opaqueSpreadNode: TsNode | null = null;
 			let overflowKeys = false;
 			for (let index = 0; index < object.properties.length; index += 1) {
 				const candidate = object.properties[index];
-				let valueNode = null;
+				let valueNode: TsNode | null = null;
 				if (ts.isPropertyAssignment(candidate)) {
 					if (ts.isComputedPropertyName(candidate.name)) {
 						// An overflowing computed key (round-21 B1) is an
@@ -1536,7 +1786,10 @@ export const scanZIndexFile = ({
 				overflowKeys,
 			};
 		};
-		const staticObjectProperty = (object, name) => {
+		const staticObjectProperty = (
+			object: ts.ObjectLiteralExpression,
+			name: string,
+		): StaticObjectMemberResult => {
 			const member = staticObjectMemberNode(object, name);
 			return {
 				node: member.node,
@@ -1560,11 +1813,14 @@ export const scanZIndexFile = ({
 		// caller dismisses only when the position is not provably
 		// style-capable. Every JSX attribute reader goes through this one
 		// walker, so the readers cannot disagree about spreads.
-		const lastJsxAttributeValueNode = (attributes, attributeName) => {
-			let valueNode = null;
+		const lastJsxAttributeValueNode = (
+			attributes: ts.JsxAttributes,
+			attributeName: string,
+		): LastJsxAttributeOccurrence => {
+			let valueNode: TsNode | null = null;
 			let lastOccurrenceIndex = -1;
 			let lastOpaqueSpreadIndex = -1;
-			let opaqueSpreadNode = null;
+			let opaqueSpreadNode: TsNode | null = null;
 			let overflowKeys = false;
 			for (let index = 0; index < attributes.properties.length; index += 1) {
 				const property = attributes.properties[index];
@@ -1624,7 +1880,17 @@ export const scanZIndexFile = ({
 				overflowKeys,
 			};
 		};
-		const staticJsxAttributeValues = (attributes, attributeName) => {
+		const staticJsxAttributeValues = (
+			attributes: ts.JsxAttributes,
+			attributeName: string,
+		): {
+			values: ReadonlySet<string> | null;
+			overflow: boolean;
+			unresolved: boolean;
+			opaqueOnly: boolean;
+			opaqueSpreadNode: TsNode | null;
+			overflowKeys: boolean;
+		} => {
 			// The candidate set of a JSX attribute value over the transparent
 			// expression family — a conditional `rel` can provably evaluate to
 			// `stylesheet`, so the link rule must see it. Source-order
@@ -1653,7 +1919,9 @@ export const scanZIndexFile = ({
 				overflowKeys: occurrence.overflowKeys,
 			};
 		};
-		const dangerousHtmlPayloadObject = (attributes) => {
+		const dangerousHtmlPayloadObject = (
+			attributes: ts.JsxAttributes,
+		): DangerousHtmlPayloadResult => {
 			// Resolves the `dangerouslySetInnerHTML={{ __html: … }}` payload
 			// object of a JSX attributes list with real JSX semantics through
 			// the shared source-ordered walker: the last occurrence wins,
@@ -1688,7 +1956,7 @@ export const scanZIndexFile = ({
 				overflowKeys: occurrence.overflowKeys,
 			};
 		};
-		const staticMember = (expression) => {
+		const staticMember = (expression: TsNode): StaticMemberInfo | null => {
 			const member = unwrapTransparentExpression(expression);
 			if (member != null && ts.isPropertyAccessExpression(member)) {
 				return {
@@ -1725,7 +1993,7 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const isDirectGlobalString = (candidate) => {
+		const isDirectGlobalString = (candidate: TsNode): boolean => {
 			const expression = unwrapTransparentExpression(candidate);
 			if (expression == null) {
 				return false;
@@ -1922,7 +2190,7 @@ export const scanZIndexFile = ({
 				overflow,
 			};
 		};
-		const tagNameText = (node) => {
+		const tagNameText = (node: TsNode): string => {
 			if (
 				ts.isJsxElement(node) &&
 				ts.isIdentifier(node.openingElement.tagName)
@@ -1934,7 +2202,7 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const scanHtmlStyleEscapes = (html) => {
+		const scanHtmlStyleEscapes = (html: string): StaticHtmlStyleEscape[] => {
 			// Static-HTML payloads can embed a `<style>` element (declaration
 			// walk over its text) or a `<link rel="stylesheet">` (opaque, same
 			// as the JSX link rule). Only literal attribute values are read, so
@@ -1946,7 +2214,7 @@ export const scanZIndexFile = ({
 			// `<style>` still ships its CSS and must be walked — an unparseable
 			// or partial static payload is never treated as compliant
 			// (round-19 B3).
-			const escapes = [];
+			const escapes: StaticHtmlStyleEscape[] = [];
 			const stylePattern = /<style\b[^>]*>([\s\S]*?)(?:<\/style\s*>|$)/gi;
 			let match;
 			while ((match = stylePattern.exec(html))) {
@@ -2038,7 +2306,10 @@ export const scanZIndexFile = ({
 			rawTextIds,
 			queriedPaths,
 		});
-		const rawImportEntryForExpression = (expression, visitedConsts) => {
+		const rawImportEntryForExpression = (
+			expression: TsNode,
+			visitedConsts: ReadonlySet<string>,
+		): RawImportBindingEntry | null => {
 			// Resolves an expression to the `?raw` import entry it reaches —
 			// the default import directly, the namespace form through
 			// `.default`, or a module-scope `const` alias of either (following
@@ -2077,7 +2348,10 @@ export const scanZIndexFile = ({
 		// expression the guard cannot statically evaluate still carries raw
 		// bytes into a style sink — the fail-loud condition for the resolver
 		// family (round-12 B2).
-		const expressionContainsRawBinding = (node, visitedConsts = new Set()) => {
+		const expressionContainsRawBinding = (
+			node: TsNode,
+			visitedConsts: ReadonlySet<string> = new Set(),
+		): boolean => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
 				return false;
@@ -2192,9 +2466,9 @@ export const scanZIndexFile = ({
 			};
 		};
 		const rawBindingSpecifiersForExpression = (
-			node,
-			visitedConsts = new Set(),
-		) => {
+			node: TsNode,
+			visitedConsts: ReadonlySet<string> = new Set(),
+		): RawSpecifierResolution => {
 			// Every `?raw` specifier whose bytes reach the expression, over
 			// the statically transparent expression family: the import
 			// binding directly (or through module-scope const alias chains,
@@ -2321,7 +2595,11 @@ export const scanZIndexFile = ({
 				unresolved: expressionContainsRawBinding(expression, visitedConsts),
 			};
 		};
-		const reportRawImportSink = (specifier, kind, sinkNode) => {
+		const reportRawImportSink = (
+			specifier: string,
+			kind: 'css' | 'html',
+			sinkNode: TsNode,
+		): void => {
 			// A `?raw` import whose binding reaches a style-capable sink is
 			// shipped text the emitted gate can never see. The raw bytes are
 			// walked only when the import binding is consumed by such a sink:
@@ -2502,9 +2780,9 @@ export const scanZIndexFile = ({
 		// = {...}; createRootRoute(config)`). A `head:` slot inside one of
 		// these literals is the only shape the literal rules police
 		// (round-23 I2 — reachability, not shape).
-		const routeConfigObjectLiterals = new Set();
+		const routeConfigObjectLiterals = new Set<ts.ObjectLiteralExpression>();
 		{
-			const recordRouteConfigArgument = (argument) => {
+			const recordRouteConfigArgument = (argument: TsNode): void => {
 				const unwrapped = unwrapTransparentExpression(argument);
 				if (unwrapped == null) {
 					return;
@@ -2520,7 +2798,7 @@ export const scanZIndexFile = ({
 					}
 				}
 			};
-			const visitForRouteConfigs = (node) => {
+			const visitForRouteConfigs = (node: TsNode): void => {
 				if (ts.isCallExpression(node) && isRouteCreatorCall(node)) {
 					for (const argument of node.arguments) {
 						recordRouteConfigArgument(argument);
@@ -2534,7 +2812,7 @@ export const scanZIndexFile = ({
 		// function expression, a module-scope const chain resolving to one
 		// (`head: routeHead` — a normal, genuine route path), or a function
 		// declaration. Returns null when the value's identity is unprovable.
-		const headFunctionValueOf = (valueNode) => {
+		const headFunctionValueOf = (valueNode: TsNode): HeadFunction | null => {
 			const unwrapped = unwrapTransparentExpression(valueNode);
 			if (unwrapped == null) {
 				return null;
@@ -2559,7 +2837,10 @@ export const scanZIndexFile = ({
 		};
 		// Computed once per file: every `head:` property assignment mapped to
 		// the head function its value provably is (null when unprovable).
-		const headFunctionByConfigObject = new Map();
+		const headFunctionByConfigObject = new Map<
+			ts.ObjectLiteralExpression,
+			HeadFunction | null
+		>();
 		{
 			const visitForHeadSlots = (node) => {
 				if (ts.isPropertyAssignment(node) && isHeadPropertyAssignment(node)) {
@@ -2579,7 +2860,9 @@ export const scanZIndexFile = ({
 		// of the head function — inline, block-bodied, or supplied by
 		// identifier — and that head function must sit in a `head:` slot of a
 		// route config object the file provably hands to a route creator.
-		const isHeadConfigObject = (configObject) => {
+		const isHeadConfigObject = (
+			configObject: ts.ObjectLiteralExpression,
+		): boolean => {
 			const parent = transparentWrapperParent(configObject);
 			if (parent == null) {
 				return false;
@@ -2622,7 +2905,7 @@ export const scanZIndexFile = ({
 			}
 			return false;
 		};
-		const isHeadConfiguredLinkDescriptor = (node) => {
+		const isHeadConfiguredLinkDescriptor = (node: TsNode): boolean => {
 			const arrayNode = node.parent;
 			if (arrayNode == null || !ts.isArrayLiteralExpression(arrayNode)) {
 				return false;
@@ -2641,7 +2924,9 @@ export const scanZIndexFile = ({
 				isHeadConfigObject(linksOwnerObject)
 			);
 		};
-		const relTokenValues = (values) => {
+		const relTokenValues = (
+			values: Iterable<string> | null,
+		): Set<string> | null => {
 			if (values == null) {
 				return null;
 			}
@@ -2657,14 +2942,16 @@ export const scanZIndexFile = ({
 		// (every enumerable candidate lacks it) cannot load a stylesheet, so an
 		// overflowing or static `href` on such a link is inert — `<link
 		// rel="icon">` with an overflowing href must stay green (round-21 I2).
-		const relProvablyNotStylesheet = (values) => {
+		const relProvablyNotStylesheet = (
+			values: Iterable<string> | null,
+		): boolean => {
 			if (values == null) {
 				return false;
 			}
 			const tokens = relTokenValues(values);
 			return tokens != null && !tokens.has('stylesheet');
 		};
-		const visitStaticStyleEscapes = (node) => {
+		const visitStaticStyleEscapes = (node: TsNode): void => {
 			const styleResult = staticStyleElementCss(node);
 			const styleCssCandidates = styleResult == null ? null : styleResult.css;
 			const staticParts = styleResult?.staticParts ?? null;
@@ -3731,7 +4018,7 @@ export const scanZIndexFile = ({
 // documented out-of-scope bucket for raw CSS declarations — it is seen here,
 // named, bound to its exact selector list and expected occurrence count, and
 // reasoned about, not silently ignored.
-export const KNOWN_RAW_Z_INDEX_DECLARATIONS = [
+export const KNOWN_RAW_Z_INDEX_DECLARATIONS: KnownRawZIndexDeclaration[] = [
 	{
 		ancestors: [{ type: 'at-rule', name: 'layer', params: 'components' }],
 		selector:
@@ -3749,7 +4036,7 @@ export const KNOWN_RAW_Z_INDEX_DECLARATIONS = [
 	},
 ];
 
-const KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS = [
+const KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS: KnownRawZIndexDeclaration[] = [
 	{
 		...KNOWN_RAW_Z_INDEX_DECLARATIONS[0],
 		selector:
@@ -3759,9 +4046,10 @@ const KNOWN_EMITTED_RAW_Z_INDEX_DECLARATIONS = [
 	},
 ];
 
-const normalizeWhitespace = (text) => text.replace(/[\t\n\f\r ]+/g, ' ').trim();
+const normalizeWhitespace = (text: string): string =>
+	text.replace(/[\t\n\f\r ]+/g, ' ').trim();
 
-const stripImportant = (value) => {
+const stripImportant = (value: string): string => {
 	const bang = value.lastIndexOf('!');
 	if (bang === -1) {
 		return value.trim();
@@ -3773,7 +4061,7 @@ const stripImportant = (value) => {
 	return value.slice(0, bang).trim();
 };
 
-const describeCssContainer = (node) => {
+const describeCssContainer = (node: PostcssNode): CssContainerDescription => {
 	if (node.type === 'rule') {
 		return {
 			type: 'rule',
@@ -3787,9 +4075,9 @@ const describeCssContainer = (node) => {
 	};
 };
 
-const cssAncestorsFor = (declaration) => {
-	const ancestors = [];
-	let node =
+const cssAncestorsFor = (declaration: PostcssNode): CssContainerDescription[] => {
+	const ancestors: CssContainerDescription[] = [];
+	let node: PostcssNode | null | undefined =
 		declaration.parent?.type === 'rule'
 			? declaration.parent.parent
 			: declaration.parent;
@@ -3800,15 +4088,18 @@ const cssAncestorsFor = (declaration) => {
 	return ancestors;
 };
 
-const cssAncestorsEqual = (left, right) =>
+const cssAncestorsEqual = (
+	left: CssContainerDescription[],
+	right: CssContainerDescription[],
+): boolean =>
 	JSON.stringify(left) === JSON.stringify(right);
 
 // Parse the compiled stylesheet with a CSS grammar and return each real
 // declaration. PostCSS keeps comment syntax, nested rules, at-rules, and
 // component-value braces distinct, so declaration ownership comes from the
 // AST instead of delimiter counting.
-const scanCssDeclarations = (root) => {
-	const declarations = [];
+const scanCssDeclarations = (root: PostcssRoot): ScannedCssDeclaration[] => {
+	const declarations: ScannedCssDeclaration[] = [];
 	root.walkDecls((declaration) => {
 		const rule = declaration.parent;
 		declarations.push({
@@ -3823,7 +4114,10 @@ const scanCssDeclarations = (root) => {
 	return declarations;
 };
 
-const isGlobalScaleDefinition = (declaration, emitted) => {
+const isGlobalScaleDefinition = (
+	declaration: ScannedCssDeclaration,
+	emitted: boolean,
+): boolean => {
 	if (declaration.selector === ':root' && declaration.ancestors.length === 0) {
 		return true;
 	}
@@ -3836,8 +4130,11 @@ const isGlobalScaleDefinition = (declaration, emitted) => {
 	);
 };
 
-const findReservedScaleTokenRegistrations = (root, sourceName) => {
-	const violations = [];
+const findReservedScaleTokenRegistrations = (
+	root: PostcssRoot,
+	sourceName: string,
+): ZIndexViolation[] => {
+	const violations: ZIndexViolation[] = [];
 	root.walkAtRules((atRule) => {
 		if (canonicaliseCssProperty(atRule.name) !== 'property') {
 			return;
@@ -3862,16 +4159,21 @@ const findReservedScaleTokenRegistrations = (root, sourceName) => {
 };
 
 export const checkCompiledCssZIndex = (
-	compiledCss,
-	allowlisted = KNOWN_RAW_Z_INDEX_DECLARATIONS,
+	compiledCss: string,
+	allowlisted: readonly KnownRawZIndexDeclaration[] = KNOWN_RAW_Z_INDEX_DECLARATIONS,
 	sourceName = 'compiled stylesheet',
 	{
 		emitted = false,
 		scaleDefinitionCounts = new Map(),
 		canonicalScaleTokens = null,
 		allowlistCounts = new Map(),
+	}: {
+		emitted?: boolean;
+		scaleDefinitionCounts?: Map<string, number>;
+		canonicalScaleTokens?: ReadonlySet<string> | null;
+		allowlistCounts?: Map<string, number>;
 	} = {},
-) => {
+): ZIndexViolation[] => {
 	const effectiveCanonicalScaleTokens =
 		canonicalScaleTokens ?? DEFAULT_CANONICAL_SCALE_TOKENS;
 	const root = postcss.parse(compiledCss, { from: undefined });
@@ -3986,7 +4288,11 @@ export const checkAuthoredCssScaleDefinitions = ({
 	css,
 	relativePath,
 	isCanonicalAppCss,
-}) => {
+}: {
+	css: string;
+	relativePath: string;
+	isCanonicalAppCss: boolean;
+}): ZIndexViolation[] => {
 	let root;
 	try {
 		root = postcss.parse(css, { from: undefined });
@@ -4052,9 +4358,9 @@ export const checkAuthoredCssScaleDefinitions = ({
 	return violations;
 };
 
-const findCanonicalScaleTokens = (css) => {
+const findCanonicalScaleTokens = (css: string): Set<string> => {
 	const root = postcss.parse(css, { from: undefined });
-	const tokens = new Set();
+	const tokens = new Set<string>();
 	root.walkDecls((declaration) => {
 		const property = decodeCssIdentifier(declaration.prop);
 		const selector =
@@ -4158,9 +4464,17 @@ const collectCssPaths = async (
 // that is plainly a bare path, without ever parsing the query itself; the
 // raw/inline answer still comes from the build's record alone.
 export const classifyModuleKind = (
-	id,
-	{ code, meta, assetPluginLoad } = {},
-) => {
+	id: string,
+	{
+		code,
+		meta,
+		assetPluginLoad,
+	}: {
+		code?: string;
+		meta?: Record<string, unknown>;
+		assetPluginLoad?: ReadonlySet<string>;
+	} = {},
+): ModuleClassification => {
 	const filePath = id.replace(/[?#].*$/s, '');
 	const hasQuery = id.includes('?') || id.includes('#');
 	if (!path.isAbsolute(filePath)) {
@@ -4351,7 +4665,9 @@ export const collectRawImportBindings = (
 	return bindings;
 };
 
-export const buildProductionApp = async (baseDir) => {
+export const buildProductionApp = async (
+	baseDir: string,
+): Promise<ProductionBuildResult> => {
 	const emittedCssRoot = await mkdtemp(
 		path.join(tmpdir(), 'publy-zindex-guard-'),
 	);
@@ -4485,9 +4801,12 @@ const cssImportSpecifier = (params) => {
 	return url == null ? null : (url[1] ?? url[2] ?? url[3]);
 };
 
-const collectReachableAuthoredCssPaths = async (baseDir, entryPaths) => {
-	const queuedPaths = [];
-	const reachablePaths = new Set();
+const collectReachableAuthoredCssPaths = async (
+	baseDir: string,
+	entryPaths: ReadonlyArray<string>,
+): Promise<string[]> => {
+	const queuedPaths: string[] = [];
+	const reachablePaths = new Set<string>();
 	const addPath = (filePath) => {
 		const absolutePath = path.resolve(filePath);
 		if (
@@ -4554,11 +4873,15 @@ export const runZIndexGuard = async ({
 	baseDir = rootDir,
 	appCssPath: configuredAppCssPath = appCssPath,
 	productionBuild = () => buildProductionApp(baseDir),
-} = {}) => {
+}: {
+	baseDir?: string;
+	appCssPath?: string;
+	productionBuild?: (baseDir: string) => Promise<ProductionBuildResult>;
+} = {}): Promise<ZIndexGuardRunResult> => {
 	const css = await readFile(configuredAppCssPath, 'utf8');
 	const cssDir = path.dirname(configuredAppCssPath);
 	const compiler = await compile(css, { base: cssDir, onDependency: () => {} });
-	let sources;
+	let sources: Array<{ base: string; pattern: string; negated: boolean }>;
 	if (compiler.root === 'none') {
 		sources = [];
 	} else if (compiler.root === null) {
@@ -4640,7 +4963,7 @@ export const runZIndexGuard = async ({
 			.sort((left, right) => left.localeCompare(right));
 		// The script pass resolves each `?raw` import binding to one of these
 		// recorded modules and walks its bytes only at a style-capable sink.
-		const rawImportTexts = new Map();
+		const rawImportTexts = new Map<string, string>();
 		for (const rawPath of rawTextPaths) {
 			rawImportTexts.set(rawPath, await readFile(rawPath, 'utf8'));
 		}
@@ -4726,8 +5049,8 @@ export const runZIndexGuard = async ({
 			);
 		}
 		const emittedCssAssets = [];
-		const emittedScaleDefinitionCounts = new Map();
-		const emittedAllowlistCounts = new Map();
+		const emittedScaleDefinitionCounts = new Map<string, number>();
+		const emittedAllowlistCounts = new Map<string, number>();
 		for (const cssPath of emittedCssPaths) {
 			const content = await readFile(cssPath, 'utf8');
 			const relativePath = buildAssetDisplayPath(
