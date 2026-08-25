@@ -329,12 +329,14 @@ ci-migration-expand-contract:
 ci-review-worktree-resolution:
   pnpm test:review-worktree-resolution
 
-# Archive records: verify metadata and body immutability (link checks are
-# intentionally skipped, see docs/README.md's archive policy)
-ci-docs-archive-records:
-  @echo "=== [gate] docs archive records ==="
-  pnpm --filter scripts-ts exec vitest run src/check-archive-records.test.ts
-  node ./packages/scripts-ts/src/check-archive-records.ts
+# Repo-wide dead relative links in tracked Markdown (docs/records/ bodies
+# are write-once evidence and exempt) + prune-inventory freshness (--check
+# fails when the committed audit record no longer matches its generator)
+ci-doc-links:
+  @echo "=== [gate] doc links ==="
+  pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts
+  node ./packages/scripts-ts/src/check-doc-links.ts
+  node ./packages/scripts-ts/src/audit-docs-prune.ts --check
 
 # Ensure the shared PR-closure projection cannot drift from the project's
 # durable config, board contract, or fail-closed security rules.
@@ -445,7 +447,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-docs-archive-records ci-project-closure-adapter ci-install ci-format ci-lint ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-project-closure-adapter ci-install ci-format ci-lint ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

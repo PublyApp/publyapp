@@ -6865,7 +6865,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiResponse"
+                  "$ref": "#/components/schemas/BulkStaffProfileUserUnassignActionResult"
                 }
               }
             }
@@ -12225,6 +12225,48 @@
           }
         }
       },
+      "BulkStaffProfileUserUnassignActionFailedItem": {
+        "required": [
+          "userId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkStaffProfileUserUnassignActionResult": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkStaffProfileUserUnassignActionFailedItem"
+            }
+          }
+        }
+      },
       "BulkStaffUserActionResult": {
         "required": [
           "succeededCount",
@@ -15175,6 +15217,9 @@
         }
       },
       "UnassignStaffProfileUsersBody": {
+        "required": [
+          "userIds"
+        ],
         "type": "object",
         "properties": {
           "userIds": {

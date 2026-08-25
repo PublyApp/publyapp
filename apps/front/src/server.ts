@@ -98,7 +98,7 @@ export const resolveSeoTranslator = async (
 	const instance = await createBackendI18n(locale);
 	await loadNamespacesStrict(instance, GLOBAL_I18N_NAMESPACES);
 	const t = instance.getFixedT(locale, 'common');
-	return (key: string) => t(key as never);
+	return t;
 };
 
 export const injectSeoMarkup = (

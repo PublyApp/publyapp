@@ -249,11 +249,10 @@ vi.mock('~/components/field', () => ({
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: SubmitEventHandler<HTMLFormElement>;
 	}) =>
-		createElement(
-			FormProvider as never,
-			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
-		),
+		createElement(FormProvider, {
+			...methods,
+			children: createElement('form', { onSubmit }, children),
+		}),
 	FormPageLayout: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
 	FormActionBar: ({

@@ -130,7 +130,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   (colour), `--publy-motion-medium 240ms` (layout). — source: `app.css`
 - Marketing landing adds two durations: `--publy-landing-motion-press 50ms` (direct-manipulation
   feel on press) and `--publy-landing-motion-entrance 560ms` (hero/scroll-reveal arrival). These are
-  theme-invariant. — source: `app.css`, `docs/superpowers/specs/2026-08-01-marketing-landing-bands-design.md`
+  theme-invariant. — source: `app.css`, `docs/records/2026-08-01-spec-marketing-landing-bands.md`
 - No bespoke easing curves outside these tokens.
 
 ### Focus rings
@@ -269,7 +269,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
   because Sonner's un-layered stylesheet would defeat the app cascade. — source: `app.css`, `e2e/toast-contrast.spec.ts`
 
 ### Empty / error / loading states
-- **Every failure state shows its cause in plain words and the next action; never a bare "something went wrong".** This is the owner's product UI rule (decision 2026-08-22, spec `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` §1.7, on branch `docs/spec-epic-c-social-accounts`). A failed or paused state names what went wrong in one short sentence and offers the concrete recovery action (Retry / Reconnect the account / Reschedule), not a generic error string. — source: owner decision 2026-08-22, `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` §1.7
+- **Every failure state shows its cause in plain words and the next action; never a bare "something went wrong".** This is the owner's product UI rule (decision 2026-08-22, spec `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` §1.7, on branch `docs/spec-epic-c-social-accounts`). A failed or paused state names what went wrong in one short sentence and offers the concrete recovery action (Retry / Reconnect the account / Reschedule), not a generic error string. — source: owner decision 2026-08-22, `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` §1.7
 - One shared primitive `state-view.tsx` (`StateView`, `StateSurface`, `ErrorStateSurface`,
   `NoMatchStateSurface`) at a **single visual scale**: 48px tone-coloured glyph (no disc/ring/box),
   matching title/description/action sizing. Full-page states use `h1`; in-list states use a non-`h1`.
@@ -282,7 +282,7 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 ### Dark mode
 - Toggled via `ui-store` and the `.dark` class on `<html>` (`@custom-variant dark (&:is(.dark *))`).
   The toggle is **instant** (no flash). Dark values are authored at implementation time from the
-  `gray-ui-csm` template; light is the design canvas. — source: `conventions.md` (Navigation & layout), `app.css` (`@custom-variant dark`), `docs/archive/2026/designs/2026-07-09-front-2-gray-ui-stack-migration-design.md`
+  `gray-ui-csm` template; light is the design canvas. — source: `conventions.md` (Navigation & layout), `app.css` (`@custom-variant dark`), `docs/records/2026-07-09-spec-front-2-gray-ui-stack-migration.md`
 - Theme-invariant tokens (avatar palette, auth panel, chrome bevel) intentionally do **not** swap. — source: `check-design-system.mjs` (`THEME_INVARIANT_TOKENS`)
 
 ### Mutation feedback
@@ -309,12 +309,12 @@ and error branches). — source: `conventions.md` (Marketing Surfaces)
 - **Contrast is measured, not assumed**: `styles/marketing-contrast.test.ts` pins the pairs the shell
   paints in both themes; small text on a muted surface uses `--publy-foreground-secondary`, not
   `--publy-foreground-muted`. — source: `conventions.md`, `apps/front/src/styles/marketing-contrast.test.ts`
-- **Landing bands** (spec `2026-08-01-marketing-landing-bands-design.md`): the landing page keeps its
+- **Landing bands** (spec `docs/records/2026-08-01-spec-marketing-landing-bands.md`): the landing page keeps its
   hero → claims → tour → bento → timeline → FAQ → closing flow; new bands (pricing always-on;
   customer-logo and social-proof behind `FEATURES.marketing.customerLogos` / `.socialProof`, default
   off) are inserted immediately before the FAQ. Off bands contribute **no** DOM. All copy uses
   `landing-*` i18n keys; no new CSS tokens, raw colours, inline styles, images, avatars, or personal
-  names. — source: `docs/superpowers/specs/2026-08-01-marketing-landing-bands-design.md`
+  names. — source: `docs/records/2026-08-01-spec-marketing-landing-bands.md`
 - Cookie consent fails closed (absent/malformed/old → "no optional cookies" + asks again); Accept and
   Reject are equal-sized; preferences open a right-side drawer, not a centred modal; categories use
   squared `Checkbox` (a fully-rounded switch track is guard-banned). — source: `conventions.md`
@@ -369,9 +369,9 @@ These are factual observations from the tree; this document reports them rather 
    There is no single enforced case rule in the tree — both coexist in `common.en.json`.
    — source: `packages/shared-ts/src/lib/i18n/json/common.en.json`
 2. **`conventions.md` references `apps/front` while the archive design references `apps/front-2`.**
-   The gray-UI migration design (`docs/archive/2026/designs/2026-07-09-front-2-gray-ui-stack-migration-design.md`)
+   The gray-UI migration design (`docs/records/2026-07-09-spec-front-2-gray-ui-stack-migration.md`)
    describes the stack that became `apps/front`; its component list predates the current `components/ui/*`
-   set and is historical, not normative. — source: `docs/archive/2026/designs/2026-07-09-front-2-gray-ui-stack-migration-design.md`, `AGENTS.md`
+   set and is historical, not normative. — source: `docs/records/2026-07-09-spec-front-2-gray-ui-stack-migration.md`, `AGENTS.md`
 3. **`--publy-foreground-subtle` is a documented intentional contrast failure** (2.5:1), permitted only
    for non-text roles, yet three classes (`publy-type-helper`, `publy-field-helper`, `publy-type-eyebrow`)
    are pinned to it by the drawer-description guard as intentional exceptions. The token is therefore

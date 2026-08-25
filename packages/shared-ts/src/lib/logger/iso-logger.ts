@@ -13,7 +13,6 @@ if (isServer) {
 	winstonLogger = winston.createLogger();
 
 	serverConsoleTransport = new winston.transports.Console({
-		['name' as never]: 'console',
 		level: 'debug',
 		format: winston.format.combine(
 			winston.format.colorize({ all: true }),

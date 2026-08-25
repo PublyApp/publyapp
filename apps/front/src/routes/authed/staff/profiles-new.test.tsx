@@ -120,11 +120,10 @@ vi.mock('~/components/field', () => ({
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: SubmitEventHandler<HTMLFormElement>;
 	}) =>
-		createElement(
-			FormProvider as never,
-			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
-		),
+		createElement(FormProvider, {
+			...methods,
+			children: createElement('form', { onSubmit }, children),
+		}),
 	Field: {
 		Text: ({
 			name,
@@ -323,7 +322,7 @@ describe('staff profile create route', () => {
 				},
 				audit: null,
 				settings: 'not-an-object',
-			} as never),
+			}),
 		).toEqual([
 			{
 				value: 'staff.users.read',

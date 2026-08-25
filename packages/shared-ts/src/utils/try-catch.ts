@@ -2,6 +2,23 @@ import { logger } from '../lib/logger/iso-logger';
 import { isAsyncFunction, isPromise } from './any.utils';
 import { getErrorMessage } from './error.utils';
 
+/**
+ * Outcome of a wrapped call: the handler's own value, its awaited form,
+ * or nothing when an error was handled instead of producing a value.
+ */
+type TryCatchResult<F extends GenericFunction> =
+	| ReturnType<F>
+	| Awaited<ReturnType<F>>
+	| void;
+
+/**
+ * The wrapper keeps the original handler's parameter list and admits every
+ * outcome it can actually produce, so callers lose no type evidence.
+ */
+type TryCatchWrapped<F extends GenericFunction> = (
+	...args: Parameters<F>
+) => TryCatchResult<F> | Promise<TryCatchResult<F>>;
+
 type Handler = (error: unknown) => void;
 type AsyncHandler = (error: unknown) => Promise<void>;
 type ErrorHandler<T extends GenericFunction = () => void> =
@@ -24,7 +41,7 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 }: {
 	handler: F;
 	onError?: ErrorHandler<F>;
-}): F => {
+}): TryCatchWrapped<F> => {
 	const handleError = onError ?? (defaultErrorHandler as ErrorHandler<F>);
 	const originalHandler = handler;
 
@@ -43,7 +60,7 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 			}
 		};
 
-		return wrappedFunctionAsync as never;
+		return wrappedFunctionAsync;
 	}
 
 	if (isAsyncFunction(handleError)) {
@@ -57,7 +74,7 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 			const result = handler(...args);
 
 			if (isPromise(result)) {
-				return result.catch(handleError as never);
+				return result.catch(handleError);
 			}
 
 			return result;
@@ -66,5 +83,5 @@ export const tryCatchWrapper = <F extends GenericFunction>({
 		}
 	};
 
-	return wrappedFunctionSync as never;
+	return wrappedFunctionSync;
 };

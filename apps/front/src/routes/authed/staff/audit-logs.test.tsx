@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 import { render, screen } from '@testing-library/react';
 
-import { makeAuditLogColumns } from './audit-logs';
+import { makeAuditLogColumns } from './audit-logs/_audit-log-columns';
 
 const t = (key: string): string => key;
 

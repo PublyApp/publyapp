@@ -17,7 +17,7 @@ import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import type { TableSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
@@ -45,7 +45,7 @@ import {
 import { StaffUserNameCell } from './_staff-user-name-cell';
 import { StaffUsersListBulkActions } from './staff-users/_list-bulk-actions';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-// Locked contract default (docs/front-migration/parity-contract.md): 100,
+// Locked contract default (docs/records/2026-07-29-spec-front-parity-contract.md): 100,
 // matching the current app and the selectable page-size options.
 const DEFAULT_SIZE = 100;
 
@@ -201,7 +201,7 @@ const StaffUsersPage = () => {
 				description={t('staff-users-page-description')}
 				actions={
 					<Link
-						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
+						to="/staff/invitations/new"
 						className={buttonVariants({ variant: 'default' })}
 					>
 						<IconUserPlus aria-hidden="true" className="size-4" />

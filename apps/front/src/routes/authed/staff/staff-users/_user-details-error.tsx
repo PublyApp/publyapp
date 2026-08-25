@@ -3,13 +3,14 @@ import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
 
-export const isProblemStatus = (
+const isProblemStatus = (
 	error: unknown,
 	status: number,
 	translationKey?: string,
@@ -25,10 +26,7 @@ export const isProblemStatus = (
 	);
 };
 
-export const getFailureDescription = (
-	error: unknown,
-	fallback: string,
-): string => {
+const getFailureDescription = (error: unknown, fallback: string): string => {
 	const failure = toApiFailure(error);
 
 	if (failure.kind === 'problem' && failure.detail) {

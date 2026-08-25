@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { cn } from '~/lib/utils';
 
 /**

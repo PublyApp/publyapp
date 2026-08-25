@@ -260,13 +260,11 @@ describe('MarketingHeader — no dead ends', () => {
 
 		expect(hrefs.length).toBeGreaterThan(0);
 		for (const href of hrefs) {
+			const pathOnly = href.split('#')[0];
 			// `matchRoutes` is the router's own resolution: an href no route
 			// matches comes back with only the root match, which is how a dead
 			// link would show up here.
-			const matches = router.matchRoutes({
-				pathname: href.split('#')[0],
-				search: {},
-			} as never);
+			const matches = router.matchRoutes(pathOnly);
 			expect(matches.length).toBeGreaterThan(1);
 		}
 	});

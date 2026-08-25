@@ -32,7 +32,7 @@
  *   - `publy/no-iife` → "error"
  *   - `publy/arrow-function-components` → "error" (enforced since #1210)
  *   - `publy/prefer-query-display` → "off" (dormant)
- *   - `publy/no-never-any-casts` → "off" (dormant; #1337 candidate rung)
+ *   - `publy/no-never-any-casts` → "error" (enforced since #1346)
  */
 import { arrowFunctionComponents } from './publy/arrow-function-components.ts';
 import { noArrayReduce } from './publy/no-array-reduce.ts';
