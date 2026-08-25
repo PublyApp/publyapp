@@ -10,38 +10,51 @@ namespace PublyApp.Api.Modules.Publishing.Services;
 /// <summary>
 /// Contract of the single legal writer of <see cref="Publication.Status"/>.
 /// </summary>
+public sealed record MarkPublicationInProgressArgs(Guid PublicationId, Guid TenantId);
+
+public sealed record MarkPublicationPublishedArgs(
+	Guid PublicationId,
+	Guid TenantId,
+	string ExternalRecordId,
+	string ExternalUrl
+);
+
+public sealed record MarkPublicationFailedArgs(
+	Guid PublicationId,
+	Guid TenantId,
+	string Cause
+);
+
+public sealed record MarkPublicationPausedArgs(Guid PublicationId, Guid TenantId, string Cause);
+
+public sealed record ReschedulePublicationToNowArgs(Guid PublicationId, Guid TenantId);
+
+/// <summary>
+/// Contract of the single legal writer of <see cref="Publication.Status"/>.
+/// </summary>
 public interface IPublicationStatusTransitionService {
 	public Task<bool> MarkInProgressAsync(
-		Guid publicationId,
-		Guid tenantId,
+		MarkPublicationInProgressArgs args,
 		CancellationToken cancellationToken
 	);
 
 	public Task<bool> MarkPublishedAsync(
-		Guid publicationId,
-		Guid tenantId,
-		string externalRecordId,
-		string externalUrl,
+		MarkPublicationPublishedArgs args,
 		CancellationToken cancellationToken
 	);
 
 	public Task<bool> MarkFailedAsync(
-		Guid publicationId,
-		Guid tenantId,
-		string cause,
+		MarkPublicationFailedArgs args,
 		CancellationToken cancellationToken
 	);
 
 	public Task<bool> MarkPausedAsync(
-		Guid publicationId,
-		Guid tenantId,
-		string cause,
+		MarkPublicationPausedArgs args,
 		CancellationToken cancellationToken
 	);
 
 	public Task<bool> RescheduleToNowAsync(
-		Guid publicationId,
-		Guid tenantId,
+		ReschedulePublicationToNowArgs args,
 		CancellationToken cancellationToken
 	);
 }
@@ -79,11 +92,10 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 	}
 
 	public async Task<bool> MarkInProgressAsync(
-		Guid publicationId,
-		Guid tenantId,
+		MarkPublicationInProgressArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await LoadAsync(publicationId, tenantId, cancellationToken);
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
@@ -96,68 +108,60 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 	}
 
 	public async Task<bool> MarkPublishedAsync(
-		Guid publicationId,
-		Guid tenantId,
-		string externalRecordId,
-		string externalUrl,
+		MarkPublicationPublishedArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await LoadAsync(publicationId, tenantId, cancellationToken);
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
 		TransitionOrThrow(publication.Status, PublicationStatus.Published);
 		publication.Status = PublicationStatus.Published;
-		publication.ExternalRecordId = externalRecordId;
-		publication.ExternalUrl = externalUrl;
+		publication.ExternalRecordId = args.ExternalRecordId;
+		publication.ExternalUrl = args.ExternalUrl;
 		publication.LastError = null;
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
 	public async Task<bool> MarkFailedAsync(
-		Guid publicationId,
-		Guid tenantId,
-		string cause,
+		MarkPublicationFailedArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await LoadAsync(publicationId, tenantId, cancellationToken);
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
 		TransitionOrThrow(publication.Status, PublicationStatus.Failed);
 		publication.Status = PublicationStatus.Failed;
-		publication.LastError = LastErrorSanitiser.Sanitize(cause);
+		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
 	public async Task<bool> MarkPausedAsync(
-		Guid publicationId,
-		Guid tenantId,
-		string cause,
+		MarkPublicationPausedArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await LoadAsync(publicationId, tenantId, cancellationToken);
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}
 
 		TransitionOrThrow(publication.Status, PublicationStatus.Paused);
 		publication.Status = PublicationStatus.Paused;
-		publication.LastError = LastErrorSanitiser.Sanitize(cause);
+		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
 
 	public async Task<bool> RescheduleToNowAsync(
-		Guid publicationId,
-		Guid tenantId,
+		ReschedulePublicationToNowArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await LoadAsync(publicationId, tenantId, cancellationToken);
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
 		if (publication is null) {
 			return false;
 		}

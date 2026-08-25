@@ -63,7 +63,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 
 		var publicationId = publication.GetRequiredId();
 		if (!await _transitions.MarkInProgressAsync(
-				publicationId, publication.TenantId, cancellationToken
+				new MarkPublicationInProgressArgs(publicationId, publication.TenantId),
+				cancellationToken
 			)) {
 			return new JobOutcome.Cancelled("publication_not_found");
 		}
@@ -94,9 +95,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		);
 		if (post is null) {
 			await _transitions.MarkFailedAsync(
-				publicationId,
-				publication.TenantId,
-				"the post behind this publication no longer exists",
+				new MarkPublicationFailedArgs(
+					publicationId,
+					publication.TenantId,
+					"the post behind this publication no longer exists"
+				),
 				cancellationToken
 			);
 			return JobOutcome.Succeeded;
@@ -120,9 +123,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				return await SucceedAsync(publication, alreadyExists.RecordId, alreadyExists.RecordUrl, cancellationToken);
 			case PublishResult.ContentFailure content:
 				await _transitions.MarkFailedAsync(
-					publicationId,
-					publication.TenantId,
-					$"Bluesky refused the content: {content.Cause}",
+					new MarkPublicationFailedArgs(
+						publicationId,
+						publication.TenantId,
+						$"Bluesky refused the content: {content.Cause}"
+					),
 					cancellationToken
 				);
 				return JobOutcome.Succeeded;
@@ -170,10 +175,12 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		CancellationToken cancellationToken
 	) {
 		await _transitions.MarkPublishedAsync(
-			publication.GetRequiredId(),
-			publication.TenantId,
-			recordId,
-			recordUrl,
+			new MarkPublicationPublishedArgs(
+				publication.GetRequiredId(),
+				publication.TenantId,
+				recordId,
+				recordUrl
+			),
 			cancellationToken
 		);
 		await StampAccountLastSuccessAsync(publication.SocialAccountId, cancellationToken);
@@ -189,7 +196,12 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			$"the social account needs reconnecting: "
 				+ $"{LastErrorSanitiser.Sanitize(rawCause) ?? rawCause}";
 		await _transitions.MarkPausedAsync(
-			publication.GetRequiredId(), publication.TenantId, cause, cancellationToken
+			new MarkPublicationPausedArgs(
+				publication.GetRequiredId(),
+				publication.TenantId,
+				cause
+			),
+			cancellationToken
 		);
 		await FlagAccountNeedsReconnectAsync(publication.SocialAccountId, cause, cancellationToken);
 	}
@@ -203,9 +215,11 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		var cause = LastErrorSanitiser.Sanitize(rawCause) ?? rawCause;
 		if (context.Attempts + 1 >= context.MaxAttempts) {
 			await _transitions.MarkFailedAsync(
-				publication.GetRequiredId(),
-				publication.TenantId,
-				$"publishing did not succeed after {context.MaxAttempts} attempts: {cause}",
+				new MarkPublicationFailedArgs(
+					publication.GetRequiredId(),
+					publication.TenantId,
+					$"publishing did not succeed after {context.MaxAttempts} attempts: {cause}"
+				),
 				cancellationToken
 			);
 			return new JobOutcome.PermanentFailure(

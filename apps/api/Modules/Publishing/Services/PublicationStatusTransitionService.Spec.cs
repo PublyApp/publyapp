@@ -103,8 +103,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var service = NewService(db);
 
 		var moved = await service.MarkInProgressAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
+			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), seeded.TenantId),
 			CancellationToken.None
 		);
 
@@ -123,10 +122,12 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var service = NewService(db);
 
 		var published = await service.MarkPublishedAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
-			"at://did.example/app.bsky.feed.post/abc123",
-			"https://bsky.app/profile/did.example/post/abc123",
+			new MarkPublicationPublishedArgs(
+				seeded.GetRequiredId(),
+				seeded.TenantId,
+				"at://did.example/app.bsky.feed.post/abc123",
+				"https://bsky.app/profile/did.example/post/abc123"
+			),
 			CancellationToken.None
 		);
 
@@ -146,9 +147,11 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var cause = "Bluesky refused the record: 'super-secret-token-value' is invalid";
 
 		await service.MarkFailedAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
-			cause,
+			new MarkPublicationFailedArgs(
+				seeded.GetRequiredId(),
+				seeded.TenantId,
+				cause
+			),
 			CancellationToken.None
 		);
 
@@ -166,9 +169,11 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var service = NewService(db);
 
 		await service.MarkPausedAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
-			"The Bluesky session could not be opened.",
+			new MarkPublicationPausedArgs(
+				seeded.GetRequiredId(),
+				seeded.TenantId,
+				"The Bluesky session could not be opened."
+			),
 			CancellationToken.None
 		);
 
@@ -187,8 +192,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var service = NewService(db);
 
 		await service.RescheduleToNowAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
+			new ReschedulePublicationToNowArgs(seeded.GetRequiredId(), seeded.TenantId),
 			CancellationToken.None
 		);
 
@@ -207,10 +211,12 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var service = NewService(db);
 
 		var act = async () => await service.MarkPublishedAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
-			"at://x",
-			"https://example.test/x",
+			new MarkPublicationPublishedArgs(
+				seeded.GetRequiredId(),
+				seeded.TenantId,
+				"at://x",
+				"https://example.test/x"
+			),
 			CancellationToken.None
 		);
 
@@ -226,8 +232,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var service = NewService(db);
 
 		var found = await service.MarkInProgressAsync(
-			seeded.GetRequiredId(),
-			Guid.NewGuid(),
+			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), Guid.NewGuid()),
 			CancellationToken.None
 		);
 
@@ -244,9 +249,11 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		var oversized = new string('x', 5000);
 
 		await service.MarkFailedAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
-			oversized,
+			new MarkPublicationFailedArgs(
+				seeded.GetRequiredId(),
+				seeded.TenantId,
+				oversized
+			),
 			CancellationToken.None
 		);
 
@@ -264,13 +271,11 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 		// Legal retry cycle: a failed publication is rescheduled first, then claimed.
 		await service.RescheduleToNowAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
+			new ReschedulePublicationToNowArgs(seeded.GetRequiredId(), seeded.TenantId),
 			CancellationToken.None
 		);
 		await service.MarkInProgressAsync(
-			seeded.GetRequiredId(),
-			seeded.TenantId,
+			new MarkPublicationInProgressArgs(seeded.GetRequiredId(), seeded.TenantId),
 			CancellationToken.None
 		);
 
