@@ -255,6 +255,13 @@ const assertStaticReactElementAccess = (
 	}
 };
 
+/** Symbols the context scan needs from React's declaration file. */
+interface ReactContextSymbols {
+	contextType: TsSymbol;
+	createContext: TsSymbol;
+	reactModule: TsSymbol | undefined;
+}
+
 const findReactContextSymbols = (
 	program: {
 		getSourceFileNames(): readonly string[];
@@ -262,11 +269,7 @@ const findReactContextSymbols = (
 	},
 	checker: Checker,
 	tsconfigPath: string,
-): {
-	contextType: TsSymbol;
-	createContext: TsSymbol;
-	reactModule: TsSymbol | undefined;
-} => {
+): ReactContextSymbols => {
 	const reactDeclaration = program
 		.getSourceFileNames()
 		.map((fileName) => program.getSourceFile(fileName))

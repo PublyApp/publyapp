@@ -1906,17 +1906,18 @@ export const scanZIndexFile = ({
 				overflowKeys,
 			};
 		};
-		const staticJsxAttributeValues = (
-			attributes: ts.JsxAttributes,
-			attributeName: string,
-		): {
+		interface StaticJsxAttributeValuesResult {
 			values: ReadonlySet<string> | null;
 			overflow: boolean;
 			unresolved: boolean;
 			opaqueOnly: boolean;
 			opaqueSpreadNode: TsNode | null;
 			overflowKeys: boolean;
-		} => {
+		}
+		const staticJsxAttributeValues = (
+			attributes: ts.JsxAttributes,
+			attributeName: string,
+		): StaticJsxAttributeValuesResult => {
 			// The candidate set of a JSX attribute value over the transparent
 			// expression family — a conditional `rel` can provably evaluate to
 			// `stylesheet`, so the link rule must see it. Source-order

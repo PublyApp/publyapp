@@ -38,12 +38,15 @@ const canonicalArtifactCss =
  * SHIPPED_SOURCE_ROOTS, so the fixture exercises the same root set the real
  * scan uses. `files` are workspace-relative paths.
  */
-const createWorkspace = (
-	files: Record<string, string> = {},
-): {
+/** A throwaway workspace root plus its writer. */
+interface SearchCancelWorkspace {
 	workspaceRoot: string;
 	write: (relativePath: string, contents: string) => void;
-} => {
+}
+
+const createWorkspace = (
+	files: Record<string, string> = {},
+): SearchCancelWorkspace => {
 	const workspaceRoot = mkdtempSync(path.join(tmpdir(), 'search-cancel-'));
 
 	const write = (relativePath: string, contents: string): void => {

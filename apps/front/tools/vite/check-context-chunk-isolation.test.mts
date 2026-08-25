@@ -4088,6 +4088,8 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 			mappings: '',
 		},
 	};
+	/** Emitted-bundle output keyed by bundle path, per the plugin contract. */
+	type BundleOutputMap = Record<string, BundleOutputEntry>;
 	const run = (assetSource: string): BundleOutputEntry | undefined => {
 		const plugin = contextChunkIsolationPlugin({
 			contextInventory: [],
@@ -4095,7 +4097,7 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 			workspaceDirectory: frontDirectory,
 		});
 		plugin.config.call({}, { environments: { client: { build: {} } } });
-		const bundle: Record<string, BundleOutputEntry> = {
+		const bundle: BundleOutputMap = {
 			'assets/index.js': mappedChunk,
 			'index.map': {
 				type: 'asset',

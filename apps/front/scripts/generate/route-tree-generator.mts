@@ -99,7 +99,14 @@ export const loadRouteTreeGenerator =
 	async (): Promise<RouteTreeGeneratorModule> =>
 		import(resolveGeneratorEntryUrl()) as Promise<RouteTreeGeneratorModule>;
 
-const GENERATOR_CONFIG_OVERRIDES: Record<string, string> = {
+/** Route-tree generator option overrides applied on top of the generator's
+ * own defaults; keys are generator config option names. */
+interface GeneratorConfigOverrides {
+	virtualRouteConfig: string;
+	routeFileIgnorePrefix: string;
+}
+
+const GENERATOR_CONFIG_OVERRIDES: GeneratorConfigOverrides = {
 	virtualRouteConfig: './src/routes.ts',
 	routeFileIgnorePrefix: '-',
 };

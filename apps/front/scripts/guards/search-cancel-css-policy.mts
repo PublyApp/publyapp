@@ -528,13 +528,16 @@ export const collectShippedSourcePaths = (workspaceRoot: string): string[] => {
  * folded the pieces back into one literal. See the exact ceiling in
  * `apps/front/src/components/ui/search-input.test.tsx`.
  */
-export const assertShippedSourceSearchCancelCss = (
-	workspaceRoot: string,
-): {
+/** Count report of the shipped-source scan across the workspace roots. */
+interface ShippedSourceScanReport {
 	inventoriedMentionCount: number;
 	inventorySize: number;
 	sourceFileCount: number;
-} => {
+}
+
+export const assertShippedSourceSearchCancelCss = (
+	workspaceRoot: string,
+): ShippedSourceScanReport => {
 	const sourceFiles = collectShippedSourcePaths(workspaceRoot).map(
 		(sourcePath) => ({
 			source: readFileSync(sourcePath, 'utf8'),
@@ -630,9 +633,15 @@ export const assertShippedSourceSearchCancelCss = (
  * `bundles` are `{ source, sourceName }` records for every emitted file whose
  * extension is in `EMITTED_BUNDLE_FILE_EXTENSIONS`.
  */
+/** Count report of the emitted-bundle scan: how many emitted files were
+ * checked for the search-cancel token. */
+interface EmittedBundleScanReport {
+	scannedFileCount: number;
+}
+
 export const assertEmittedBundlesFreeOfSearchCancel = (
 	bundles: SourceRecord[],
-): { scannedFileCount: number } => {
+): EmittedBundleScanReport => {
 	const occurrences = [];
 	for (const bundle of bundles) {
 		occurrences.push(

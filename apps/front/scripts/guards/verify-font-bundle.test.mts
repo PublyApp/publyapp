@@ -31,7 +31,13 @@ after(() => {
  * the declared font file itself, and an empty locales directory. Returns the
  * `--dist` and `--locales-dir` values to hand to the verifier.
  */
-const createFixture = (fontBytes: Uint8Array): { distDir: string; localesDir: string } => {
+/** Fixture paths handed to the verifier process (`--dist`, `--locales-dir`). */
+interface FontBundleFixturePaths {
+	distDir: string;
+	localesDir: string;
+}
+
+const createFixture = (fontBytes: Uint8Array): FontBundleFixturePaths => {
 	const root = mkdtempSync(path.join(tmpdir(), 'verify-font-bundle-'));
 	createdDirectories.push(root);
 

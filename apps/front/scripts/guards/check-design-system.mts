@@ -1351,15 +1351,18 @@ const createHandoffGuardDebtLedger = (
 // (three planted `top-1/2!` lines staying green). Because this closes over
 // the production ledger, reverting the per-occurrence charging flips the
 // test that asserts on it back to red.
-export const createHandoffLedgerProbe = (
-	debtList: GuardDebtEntry[],
-): {
+/** Probe handle over the handoff guard-debt ledger used by the specs. */
+interface HandoffLedgerProbe {
 	remainingAfterStatusQuo: (
 		ruleId: string,
 		file: string,
 		content: string,
 	) => number;
-} => {
+}
+
+export const createHandoffLedgerProbe = (
+	debtList: GuardDebtEntry[],
+): HandoffLedgerProbe => {
 	const allows = createHandoffGuardDebtLedger(debtList);
 	return {
 		remainingAfterStatusQuo: (ruleId, file, content) => {
