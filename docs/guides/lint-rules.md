@@ -126,35 +126,38 @@ angle-bracket forms, parenthesized keyword annotations), one report per chain
 link landing on a banned keyword. It ships **dormant** (`"off"`); enabling it
 at `error` is a separate follow-up PR per the ladder policy above.
 
-**Measured baseline (2026-08-25, oxlint 1.79.0):** report-mode scan over the
-whole repo (config-copy of `.oxlintrc.json` with only this rule flipped to
-`warn`; JSON output aggregated per package).
+**Measured baseline (2026-08-25, oxlint 1.79.0, at this branch's tip
+after rebasing onto #1335):** report-mode scan over the whole repo
+(config-copy of `.oxlintrc.json` with only this rule flipped to `warn`;
+JSON output aggregated per package).
 
 | Package               | Diagnostics |
 | --------------------- | ----------- |
-| `apps/front`          | 152         |
+| `apps/front`          | 154         |
 | `packages/shared-ts`  | 15          |
 | `packages/lint-ts`    | 8           |
 | `packages/scripts-ts` | 0           |
 | `apps/api`            | 0           |
-| **Total**             | **175**     |
+| **Total**             | **177**     |
 
-All 175 hits are `as never`; **zero** `as any` casts exist in linted source
-(the 71 word-boundary `as any` sites all live in the generated
+All 177 hits are `as never`; **zero** `as any` casts exist in linted source
+(every word-boundary `as any` site lives in the generated
 `apps/front/src/routeTree.gen.ts`, excluded via `ignorePatterns`, and
 explicit `any` annotations are already governed by
-`typescript/no-explicit-any`). Counts were cross-checked against literal
-`\bas never\b` greps: 189 matching lines repo-wide = 175 real casts + 14
-comment/doc mentions. The 175 casts sit in 48 files — 28 test/spec files and
-20 source files; heaviest:
+`typescript/no-explicit-any`). Counts reconcile exactly against literal
+`\bas never\b` greps: 222 matching lines repo-wide (`git grep -w`) = 177
+real casts + 75 comment/doc mention lines (largest: a superseded
+superpowers plan at 25, this rule's own spec and implementation at 10).
+The 177 casts sit in 49 files — 29 test/spec files and 20 source files;
+heaviest:
 `staff-tenant-profiles.test.ts` 26, `staff-tenant-users.test.ts` 21,
 `staff-tenant-invitations.test.ts` 14, `InterZod.ts` 8,
 `query-display.test.tsx` 6, `drafts.tsx` 6. The `packages/lint-ts` 8 are
 genuine lib sites (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1,
 `no-package-src-import.ts` 1), not spec fixtures.
 
-Enforcement estimate: ~175 fixes across 48 files (28 front/shared-ts test
-files + 20 sources), concentrated in tests that stub validators/parsers —
+Enforcement estimate: ~177 fixes across 49 files (29 test/spec files +
+20 sources), concentrated in tests that stub validators/parsers —
 the same fix shape as #1337's two-site repair (typed record plumbing or real
 construction instead of the cast).
 
