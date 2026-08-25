@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -9,7 +11,7 @@ const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useParams: vi.fn(() => ({ postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa' })),
 	invalidateQueries: vi.fn(),
-	useTenantPostDetailsQuery: vi.fn((): Record<string, unknown> => ({
+	useTenantPostDetailsQuery: vi.fn(() => ({
 		data: undefined,
 		isPending: true,
 		isError: false,
@@ -137,7 +139,7 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	'posts:edit-post': 'Edit post',
 	'posts:back-to-drafts': 'Back to drafts',
 	'posts:body-label': 'Body',
@@ -160,7 +162,7 @@ const EN_LABELS = {
 	'common:not-found': 'Not found',
 	'common:error-loading-data': 'Error loading data',
 	'common:an-error-occurred': 'An error occurred',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

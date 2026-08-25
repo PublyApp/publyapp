@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -12,7 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	billing: 'Billing',
 	'common:current-plan': 'Current plan',
 	'common:payment-method': 'Payment method',
@@ -31,7 +33,7 @@ const EN_LABELS = {
 	'usage-coming-later-description':
 		'Seat and feature usage will appear here once the billing API ships.',
 	'read-only': 'Read only',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

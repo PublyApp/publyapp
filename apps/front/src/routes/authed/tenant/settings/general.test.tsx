@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -70,7 +72,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 	toastLocalMutationResult: mocks.toastLocalMutationResult,
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	general: 'General',
 	'organization-details': 'Organization details',
 	logo: 'Logo',
@@ -106,7 +108,7 @@ const EN_LABELS = {
 	'invalid-logo-url': 'Enter a valid http(s) URL or /files/ upload path',
 	'invalid-website-url': 'Enter a valid http(s) URL',
 	'invalid-email': 'Enter a valid email address',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

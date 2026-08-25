@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -112,7 +114,7 @@ vi.mock('@tanstack/react-router', () => ({
 	useRouter: () => ({ history: { back: mocks.historyBack } }),
 }));
 
-const TRANSLATIONS = {
+const TRANSLATIONS: TestLabelMap = {
 	basics: 'Basics',
 	profiles: 'Profiles',
 	invitations: 'Invitations',
@@ -180,7 +182,7 @@ const TRANSLATIONS = {
 	'error-500-code': '500 — Server Error',
 	'tenant-details-error-title': 'Unable to load this tenant',
 	'tenant-response-incomplete': 'The tenant response was incomplete.',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

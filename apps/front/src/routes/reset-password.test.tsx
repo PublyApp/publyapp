@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -67,7 +69,7 @@ vi.mock('~/lib/auth-route-guard', () => ({
 	redirectAuthenticatedUserAwayFromAuthPage: mocks.guard,
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	'reset-your-password': 'Reset your password',
 	'reset-password-request-description':
 		"Enter your account email and we'll send a link to set a new password.",
@@ -102,7 +104,7 @@ const EN_LABELS = {
 	'an-error-occurred': 'An error occurred',
 	'show-password': 'Show password',
 	'hide-password': 'Hide password',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

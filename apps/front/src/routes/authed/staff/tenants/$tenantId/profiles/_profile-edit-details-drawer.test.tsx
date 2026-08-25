@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -28,7 +30,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				'edit-details': 'Edit details',
 				'edit-details-subtitle': 'Rename or restyle the {{name}} profile.',
 				'profile-icon-picker-hint': 'Tap the tile to change icon & color',
@@ -46,7 +48,7 @@ vi.mock('react-i18next', () => ({
 				'save-changes': 'Save changes',
 				'profile-updated-successfully': 'Profile updated successfully.',
 				'profile-save-failed': 'Unable to save this profile.',
-			} satisfies Record<string, string>;
+			};
 			let text = labels[key] ?? key;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${optionKey}}}`, String(value));

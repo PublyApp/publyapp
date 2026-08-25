@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -41,7 +43,7 @@ vi.mock('react-i18next', () => ({
 		t: (key: string) => {
 			const normalize = (value: string): string =>
 				value.includes(':') ? value.split(':').at(-1)! : value;
-			const labels = {
+			const labels: TestLabelMap = {
 				revoke: 'revoke',
 				'staff-invitations': 'Staff invitations',
 				'copy-link': 'Copy link',
@@ -75,7 +77,7 @@ vi.mock('react-i18next', () => ({
 					'Try again or return to the invitations list.',
 				'invitation-status-pending': 'Pending',
 				'try-again': 'Try again',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[normalize(key)] ?? labels[key] ?? key;
 		},

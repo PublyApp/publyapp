@@ -91,7 +91,7 @@ describe('serializeTableSearchParams', () => {
 			sort_id: 'created_at',
 			sort_order: 'asc',
 			cursor: 'cursor-token',
-			size: '20',
+			size: 20,
 		});
 		expect(Object.keys(serialized)).toEqual([
 			'q',

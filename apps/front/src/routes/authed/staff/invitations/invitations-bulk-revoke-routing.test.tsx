@@ -105,7 +105,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels: Record<string, string> = {
+			const labels = {
 				'staff-invitations': 'Staff invitations',
 				'invite-staff-users-to-the-platform':
 					'Invite staff users to the platform.',
@@ -146,7 +146,7 @@ vi.mock('react-i18next', () => ({
 				'invitation-bulk-revoke-reason-other': '{{count}} could not be revoked',
 				'invitation-bulk-revoke-failure':
 					'Failed to revoke selected invitations.',
-			};
+			} satisfies Record<string, string>;
 
 			return (labels[bare] ?? bare).replace(
 				/\{\{(\w+)\}\}/g,

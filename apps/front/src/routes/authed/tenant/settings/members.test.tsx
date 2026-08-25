@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -12,7 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	members: 'Members',
 	'common:team-members': 'Team members',
 	'common:pending-invitations': 'Pending invitations',
@@ -24,7 +26,7 @@ const EN_LABELS = {
 	'pending-invitations-coming-later-description':
 		"Invitations you've sent will appear here once the members API ships.",
 	'read-only': 'Read only',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -70,7 +70,7 @@ beforeEach(() => {
 	);
 });
 
-const renderUseMediaQuery = (query: string): { result: () => boolean } => {
+const renderUseMediaQuery = (query: string) => {
 	let latest: boolean | undefined;
 
 	const Probe = (): null => {

@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -52,7 +54,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS = {
+const TRANSLATIONS: TestLabelMap = {
 	members: 'Members',
 	'assign-members': 'Assign members',
 	'assign-members-drawer-description':
@@ -72,7 +74,7 @@ const TRANSLATIONS = {
 	'page-n': 'Page {{page}}',
 	'previous-page': 'Previous page',
 	'next-page': 'Next page',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

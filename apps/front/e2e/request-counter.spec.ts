@@ -32,10 +32,9 @@ const getCounter = async (
 	path: string,
 	method?: 'GET' | 'OPTIONS',
 ): Promise<number> => {
-	const counterParams = { path } satisfies Record<string, string>;
-	if (method) {
-		counterParams.method = method;
-	}
+	const counterParams = method
+		? { path, method }
+		: { path };
 	const response = await page.request.get(`${COUNTER_BASE_URL}/__counter`, {
 		params: counterParams,
 	});

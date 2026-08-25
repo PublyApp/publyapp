@@ -1,3 +1,5 @@
+import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -15,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
-const labelMap = {
+const labelMap: TestLocaleLabelMap = {
 	en: {
 		'status-active': 'Active',
 		'status-suspended': 'Suspended',
@@ -28,7 +30,7 @@ const labelMap = {
 		'globally-suspended': 'Suspendu globalement',
 		'status-unknown': 'Inconnu',
 	},
-} satisfies Record<string, Record<string, string>>;
+};
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({

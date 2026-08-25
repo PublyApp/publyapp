@@ -171,13 +171,7 @@ const getDisplayName = ({
 
 export const buildFindStaffUsersQueryParameters = (
 	variables: StaffUsersQueryVariables,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-} => {
+) => {
 	return {
 		q: normalizeString(variables.q),
 		sortId: normalizeString(variables.sortId),

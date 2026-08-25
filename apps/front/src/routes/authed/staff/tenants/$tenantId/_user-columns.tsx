@@ -50,10 +50,16 @@ type TFunctionLike = (key: string, options?: Record<string, unknown>) => string;
  * from the pending action (falls back to the remove-user copy when nothing
  * is pending).
  */
+type TenantUserDialogConfig = {
+	title: string;
+	description: string;
+	confirmLabel: string;
+};
+
 const getTenantUserDialogConfig = (
 	pendingAction: TenantUserPendingAction,
 	t: TFunctionLike,
-): { title: string; description: string; confirmLabel: string } => {
+): TenantUserDialogConfig => {
 	if (pendingAction === 'suspend') {
 		return {
 			title: t('suspend'),

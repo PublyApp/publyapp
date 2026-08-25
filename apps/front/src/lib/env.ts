@@ -192,9 +192,7 @@ export const getServerEnv = (): Readonly<ServerEnv> => {
 	return (serverMemo ??= Object.freeze(parseServerEnv()));
 };
 
-const toPublicWirePayload = (
-	values: Readonly<PublicEnv>,
-): Partial<Record<PublicWireKey, string>> => {
+const toPublicWirePayload = (values: Readonly<PublicEnv>) => {
 	const payload: Partial<Record<PublicWireKey, string>> = {};
 
 	for (const name of Object.keys(envDefinition.public) as PublicName[]) {

@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -52,21 +54,26 @@ vi.mock('~/components/ui/select', () => {
 	// Forwards every prop (aria-labelledby, aria-invalid, onBlur, ...) so the
 	// mocked native control below can re-apply them — Field.Select puts the
 	// accessible-name wiring on SelectTrigger, not on the outer Select.
+	type SelectProbeProps = {
+		children?: ReactNode;
+		[key: string]: unknown;
+	};
+
 	const SelectTrigger = ({
 		children,
 		...triggerProps
-	}: {
-		children?: ReactNode;
-		[key: string]: unknown;
-	}) => createElement('div', triggerProps, children);
+	}: SelectProbeProps) => createElement('div', triggerProps, children);
 
 	const SelectValue = () => null;
 
-	const collectSelectContent = (
-		children: ReactNode,
-	): { options: ReactNode[]; triggerProps: Record<string, unknown> } => {
-		let triggerProps: Record<string, unknown> = {};
+	const omitSelectChildren = ({
+		children: _children,
+		...rest
+	}: SelectProbeProps) => rest;
+
+	const collectSelectContent = (children: ReactNode) => {
 		const options: ReactNode[] = [];
+		let selectedTrigger: React.ReactElement<SelectProbeProps> | undefined;
 
 		for (const child of React.Children.toArray(children)) {
 			if (!React.isValidElement(child)) {
@@ -74,8 +81,7 @@ vi.mock('~/components/ui/select', () => {
 			}
 
 			if (child.type === SelectTrigger) {
-				triggerProps = { ...(child.props as Record<string, unknown>) };
-				delete triggerProps.children;
+				selectedTrigger = child;
 				continue;
 			}
 
@@ -94,7 +100,12 @@ vi.mock('~/components/ui/select', () => {
 			options.push(child);
 		}
 
-		return { options, triggerProps };
+		return {
+			options,
+			triggerProps: selectedTrigger
+				? omitSelectChildren(selectedTrigger.props as SelectProbeProps)
+				: {},
+		};
 	};
 
 	return {
@@ -173,7 +184,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				'back-to-user': 'Back to tenant user',
 				'edit-tenant-user': 'Edit tenant user',
 				'first-name': 'First name',
@@ -189,7 +200,7 @@ vi.mock('react-i18next', () => ({
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'unsaved-changes-dialog-description':
 					'You have unsaved changes that will be lost if you leave this page.',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[key] ?? key;
 		},

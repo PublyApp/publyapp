@@ -106,15 +106,7 @@ const isPositiveSafeInteger = (value: number | undefined): value is number =>
 
 export const buildFindStaffTenantInvitationsQueryParameters = (
 	variables: Omit<StaffTenantInvitationsQueryVariables, 'tenantId'>,
-): {
-	q?: string;
-	status?: string;
-	level?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
 	level: normalizeString(variables.level),

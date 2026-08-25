@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -12,7 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	security: 'Security',
 	'change-password': 'Change password',
 	'current-password': 'Current password',
@@ -30,7 +32,7 @@ const EN_LABELS = {
 		'Devices and sign-in activity will appear here once the session API ships.',
 	'read-only': 'Read only',
 	'not-available-yet': 'Not available yet',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

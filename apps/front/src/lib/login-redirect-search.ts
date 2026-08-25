@@ -23,7 +23,7 @@ type BuildLoginRedirectSearchArgs = {
 export const buildLoginRedirectSearch = ({
 	hadSession,
 	returnTo,
-}: BuildLoginRedirectSearchArgs): Record<string, string> => {
+}: BuildLoginRedirectSearchArgs) => {
 	const result: Record<string, string> = {};
 	if (hadSession) {
 		result[queryParamKey.login_page.redirect_cause] =

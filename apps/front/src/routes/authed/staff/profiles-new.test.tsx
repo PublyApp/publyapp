@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -54,7 +56,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				'staff-profiles': 'Staff profiles',
 				'new-item': 'New profile',
 				'profile-name': 'Profile name',
@@ -70,7 +72,7 @@ vi.mock('react-i18next', () => ({
 					'You have unsaved changes that will be lost if you leave this page.',
 				'leave-page': 'Leave page',
 				cancel: 'Cancel',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[key] ?? key;
 		},

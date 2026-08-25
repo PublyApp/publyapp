@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -60,7 +62,7 @@ vi.mock('~/components/ui/button', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				'drag-image-here': 'Drag an image here, or',
 				browse: 'browse',
 				'uploading-logo': 'Uploading…',
@@ -70,7 +72,7 @@ vi.mock('react-i18next', () => ({
 				'logo-upload-failed': "Couldn't upload the image. Please try again.",
 				'image-uploaded-success': 'Image uploaded successfully.',
 				'clear-logo': 'Clear logo',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[key] ?? key;
 		},

@@ -17,7 +17,7 @@ const shouldRedactHeader = (name: string): boolean =>
 
 export const redactHeaders = (
 	headers: HeaderInput | undefined,
-): Record<string, string> => {
+) => {
 	const output: Record<string, string> = {};
 
 	const normalized = new Headers();

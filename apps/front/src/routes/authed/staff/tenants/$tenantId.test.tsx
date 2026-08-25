@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -72,7 +74,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS = {
+const TRANSLATIONS: TestLabelMap = {
 	'back-to-staff-tenants': 'Back to staff tenants',
 	edit: 'Edit',
 	unknown: 'Unknown',
@@ -139,7 +141,7 @@ const TRANSLATIONS = {
 	'unable-to-suspend-tenant': 'Unable to suspend this tenant.',
 	'unable-to-reactivate-tenant': 'Unable to reactivate this tenant.',
 	'unable-to-delete-tenant': 'Unable to delete this tenant.',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

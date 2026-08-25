@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -39,7 +41,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				'new-profile': 'New profile',
 				'profile-form-drawer-description': 'Configure this profile.',
 				'profile-name': 'Profile name',
@@ -62,7 +64,7 @@ vi.mock('react-i18next', () => ({
 				'unsaved-changes-dialog-description':
 					'You have unsaved changes that will be lost if you leave this page.',
 				'leave-page': 'Leave page',
-			} satisfies Record<string, string>;
+			};
 
 			let text = labels[key] ?? key;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {

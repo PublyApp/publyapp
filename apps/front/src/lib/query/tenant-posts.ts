@@ -92,13 +92,7 @@ const isPositiveSafeInteger = (value: number | undefined): boolean =>
 
 export const buildFindTenantPostsQueryParameters = (
 	variables: TenantPostsQueryVariables,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,

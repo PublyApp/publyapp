@@ -24,8 +24,6 @@ export const parseInviteUserSearchParams = (
 	invite: parseInviteUserSearchFlag(search?.invite),
 });
 
-export const serializeInviteUserSearchParams = (
-	params: InviteUserSearchState,
-): Record<string, string | 1 | undefined> => ({
+export const serializeInviteUserSearchParams = (params: InviteUserSearchState) => ({
 	invite: parseInviteUserSearchFlag(params.invite),
 });

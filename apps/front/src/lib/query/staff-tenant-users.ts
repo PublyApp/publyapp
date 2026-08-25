@@ -229,15 +229,7 @@ const getDisplayName = ({
 
 export const buildFindStaffTenantUsersQueryParameters = (
 	variables: Omit<StaffTenantUsersQueryVariables, 'tenantId'>,
-): {
-	q?: string;
-	status?: string;
-	level?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
 	level: normalizeString(variables.level),
@@ -354,12 +346,7 @@ export const buildBulkRemoveStaffTenantUsersBody = (
 
 export const buildExportStaffTenantUsersQueryParameters = (
 	variables: Omit<StaffTenantUserExportInput, 'tenantId'>,
-): {
-	q?: string;
-	status?: string;
-	level?: string;
-	ids?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
 	level: normalizeString(variables.level),

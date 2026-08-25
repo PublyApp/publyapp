@@ -5,6 +5,7 @@ import {
 import type {
 	TableSearchParamInput,
 	TableSearchParams,
+	TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 export type ProfileMembersSearchParams = TableSearchParams & { assign?: 1 };
@@ -25,12 +26,16 @@ export const parseProfileMembersSearchParams = (
 	return { ...base, assign: isAssignOpen ? 1 : undefined };
 };
 
+export type ProfileMembersWireParams = {
+	assign?: 1;
+} & TableSearchWireParams;
+
 /** The counterpart to `parseProfileMembersSearchParams` — every `navigate`
  * call must serialize through this before writing to the URL, so table
  * state never leaks camelCase keys (`sortId`) into the query string. */
 export const serializeProfileMembersSearchParams = (
 	params: ProfileMembersSearchParams,
-): Record<string, string | 1 | undefined> => ({
+): ProfileMembersWireParams => ({
 	...serializeTableSearchParams(params),
 	assign: params.assign,
 });

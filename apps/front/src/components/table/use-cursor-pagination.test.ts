@@ -41,12 +41,7 @@ afterEach(() => {
 	}
 });
 
-const renderCursorPagination = (
-	generation: CursorGeneration,
-): {
-	rerender: (next: CursorGeneration) => void;
-	result: () => UseCursorPaginationResult;
-} => {
+const renderCursorPagination = (generation: CursorGeneration) => {
 	let latest: UseCursorPaginationResult | undefined;
 
 	const Probe = (props: { generation: CursorGeneration }): null => {

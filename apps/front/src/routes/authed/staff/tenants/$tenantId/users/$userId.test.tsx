@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -68,7 +70,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS = {
+const TRANSLATIONS: TestLabelMap = {
 	'back-to-users': 'Back to users',
 	'edit-tenant-user': 'Edit tenant user',
 	'account-level': 'Account level',
@@ -121,7 +123,7 @@ const TRANSLATIONS = {
 	'status-unknown': 'Unknown',
 	admin: 'Admin',
 	user: 'User',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

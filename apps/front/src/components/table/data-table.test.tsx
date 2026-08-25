@@ -1,5 +1,6 @@
 import { IconUsers } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /**
  * @vitest-environment jsdom
  */
@@ -13,7 +14,7 @@ import type { UseRowSelectionResult } from './use-row-selection';
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				'list-unavailable-title': 'List unavailable',
 				'list-error-default-description':
 					'There was a problem loading this list.',
@@ -24,7 +25,7 @@ vi.mock('react-i18next', () => ({
 				'list-no-match-title': 'No matches for that search',
 				'list-no-match-default-description': 'No results match your search.',
 				'select-row-named': 'Select {{name}}',
-			} satisfies Record<string, string>;
+			};
 
 			let text = labels[key] ?? key;
 			if (!options) {

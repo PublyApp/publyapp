@@ -1,3 +1,5 @@
+import type { TestLocaleLabelMap, TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -32,7 +34,7 @@ const mocks = vi.hoisted(() => ({
 
 let currentLanguage = 'en';
 
-const translationsByLanguage = {
+const translationsByLanguage: TestLocaleLabelMap = {
 	en: {
 		admin: 'Admin',
 		access: 'Access',
@@ -43,7 +45,7 @@ const translationsByLanguage = {
 		access: 'Accès',
 		user: 'Utilisateur',
 	},
-} satisfies Record<string, Record<string, string>>;
+};
 
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({
@@ -92,7 +94,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS = {
+const TRANSLATIONS: TestLabelMap = {
 	access: 'Access',
 	basics: 'Basics',
 	profiles: 'Profiles',
@@ -142,7 +144,7 @@ const TRANSLATIONS = {
 	'clear-selection': 'Clear selection',
 	'select-all-visible': 'Select all {{count}}',
 	'export-selected': 'Export selected',
-} satisfies Record<string, string>;
+};
 
 vi.mock('~/lib/download-file', () => ({
 	downloadFile: mocks.downloadFile,

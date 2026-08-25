@@ -1,3 +1,5 @@
+import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -13,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 	),
 }));
 
-const labelMap = {
+const labelMap: TestLocaleLabelMap = {
 	en: {
 		name: 'Name',
 		level: 'Level',
@@ -30,7 +32,7 @@ const labelMap = {
 		'status-active': 'Actif',
 		'status-suspended': 'Suspendu',
 	},
-} satisfies Record<string, Record<string, string>>;
+};
 
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({}),

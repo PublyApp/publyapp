@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /** @vitest-environment jsdom */
 /**
  * #977 Tier-2 guard: the tenant-profile detail sections as REAL path
@@ -68,7 +69,7 @@ const mocks = vi.hoisted(() => ({
 		status: 'active',
 		usersCount: 12,
 		maxUsers: 50,
-	} as Record<string, unknown>,
+	},
 	profileDetails: {
 		profile: {
 			id: '22222222-2222-2222-2222-222222222222',
@@ -77,7 +78,7 @@ const mocks = vi.hoisted(() => ({
 			isDefault: false,
 			userAccountCount: 7,
 		},
-	} as Record<string, unknown>,
+	},
 	permissionKeys: ['tenant.users.read'],
 	permissionCatalog: {
 		tenant: {
@@ -92,7 +93,7 @@ const mocks = vi.hoisted(() => ({
 				description: null,
 			},
 		},
-	} as Record<string, unknown>,
+	},
 	deleteProfile: vi.fn().mockResolvedValue(undefined),
 	assignPermission: vi.fn().mockResolvedValue(undefined),
 	unassignPermission: vi.fn().mockResolvedValue(undefined),
@@ -160,7 +161,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const bare = key.includes(':') ? (key.split(':').at(-1) ?? key) : key;
-			const labels = {
+			const labels: TestLabelMap = {
 				overview: 'Overview',
 				permissions: 'Permissions',
 				members: 'Members',
@@ -168,7 +169,7 @@ vi.mock('react-i18next', () => ({
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'leave-page': 'Leave page',
 				cancel: 'Cancel',
-			} satisfies Record<string, string>;
+			};
 			let text = labels[bare] ?? bare;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${optionKey}}}`, String(value));

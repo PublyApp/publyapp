@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -268,7 +270,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				'back-to-tenant': 'Back to tenant',
 				organization: 'Organization',
 				'organization-name': 'Organization name',
@@ -315,7 +317,7 @@ vi.mock('react-i18next', () => ({
 				tenant: 'Tenant',
 				'edit-item': 'Edit Tenant',
 				'edit-tenant-description': 'Update this tenant’s core details.',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[key] ?? key;
 		},

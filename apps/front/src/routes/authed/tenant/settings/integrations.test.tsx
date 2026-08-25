@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -12,7 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	integrations: 'Integrations',
 	'common:connected': 'Connected',
 	'common:available-integrations': 'Available integrations',
@@ -29,7 +31,7 @@ const EN_LABELS = {
 	'api-access-coming-later-description':
 		'API keys and webhook configuration will appear here once the integrations API ships.',
 	'read-only': 'Read only',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

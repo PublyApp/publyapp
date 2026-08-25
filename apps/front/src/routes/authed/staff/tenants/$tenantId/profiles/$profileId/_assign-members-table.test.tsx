@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /**
  * @vitest-environment jsdom
  *
@@ -111,13 +112,13 @@ const ROW: StaffTenantUserRow = {
 };
 
 const t = (key: string, options?: Record<string, unknown>): string => {
-	const labels = {
+	const labels: TestLabelMap = {
 		members: 'Members',
 		'assign-members': 'Assign members',
 		'assign-member-toggle-label': `Toggle profile assignment for ${String(
 			(options?.name as string | undefined) ?? '',
 		)}`,
-	} satisfies Record<string, string>;
+	};
 	return labels[key] ?? key;
 };
 

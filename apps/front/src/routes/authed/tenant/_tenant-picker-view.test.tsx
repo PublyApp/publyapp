@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 /**
  * @vitest-environment jsdom
@@ -22,13 +23,13 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	useLogout: () => ({ logout: vi.fn(), isLoggingOut: false }),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	'select-organization': 'Select Organization',
 	'select-organization-description':
 		'Choose which organization you want to access',
 	suspended: 'Suspended',
 	'log-out': 'Log out',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

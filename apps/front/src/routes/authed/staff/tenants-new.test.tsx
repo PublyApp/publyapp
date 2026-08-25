@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /** @vitest-environment jsdom */
 import {
 	cleanup,
@@ -29,7 +31,7 @@ const mocks = vi.hoisted(() => ({
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
-const LABELS = {
+const LABELS: TestLabelMap = {
 	'back-to-staff-tenants': 'Back to staff tenants',
 	'create-tenant': 'Create tenant',
 	'create-tenant-description': 'Provision a new organization workspace.',
@@ -110,7 +112,7 @@ const LABELS = {
 	'invalid-email-address': 'Invalid email address',
 	'tenant-name-too-short': 'Enter at least 5 characters.',
 	logo: 'Logo',
-} satisfies Record<string, string>;
+};
 
 const translate = (key: string, params?: Record<string, unknown>): string => {
 	let value = LABELS[key] ?? key;

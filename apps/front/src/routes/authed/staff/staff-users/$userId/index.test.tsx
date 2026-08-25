@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 /**
  * @vitest-environment jsdom
@@ -44,7 +45,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const I18N_LABELS = {
+const I18N_LABELS: TestLabelMap = {
 	'contact-details': 'Contact details',
 	name: 'Name',
 	email: 'Email',
@@ -77,7 +78,7 @@ const I18N_LABELS = {
 	'common-loading': 'Loading...',
 	'loading-assigned-profiles': 'Loading assigned profiles…',
 	'try-again': 'Try again',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -12,14 +14,14 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	queue: 'Queue',
 	'queue-coming-later-title': 'The posting queue is coming later',
 	'queue-coming-later-description':
 		'Posts waiting to be published will appear here once the posts API ships.',
 	'common:queue': 'Queue',
 	'read-only': 'Read only',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

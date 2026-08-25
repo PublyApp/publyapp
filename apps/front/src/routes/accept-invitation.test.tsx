@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -121,7 +123,7 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	}),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	'invited-email': 'Invited email',
 	profile: 'Profile',
 	'common-loading': 'Loading...',
@@ -175,7 +177,7 @@ const EN_LABELS = {
 		'This invite belongs to a different account.',
 	'accept-invitation-brand-subtitle-mismatch':
 		"Switch to the invited email and you'll be right back here to join.",
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

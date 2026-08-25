@@ -3,6 +3,7 @@ import {
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
+	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 export const KNOWN_INVITATION_STATUSES = [
@@ -138,9 +139,13 @@ export const parseInvitationListSearchParams = (
 	return { ...base, status: status || undefined };
 };
 
+export type InvitationListWireParams = {
+	status?: string;
+} & TableSearchWireParams;
+
 export const serializeInvitationListSearchParams = (
 	params: InvitationListSearchParams,
-): Record<string, string | undefined> => {
+): InvitationListWireParams => {
 	const next = serializeTableSearchParams(params);
 	const status = serializeInvitationStatusFilter(
 		parseInvitationStatusFilter(params.status),

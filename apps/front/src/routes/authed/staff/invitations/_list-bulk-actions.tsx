@@ -46,10 +46,10 @@ const INVITATION_BULK_REVOKE_PARTIAL_SUCCESS_KEY =
 // Wire reasons (apps/api … BulkStaffInvitationActionFailureReasons) → i18n
 // keys. Unknown future reasons fall back to a generic translated key — never
 // a hardcoded literal (transparent-failure principle, #1387 r1 MINOR).
-const INVITATION_BULK_REVOKE_REASON_I18N_KEYS: Record<string, string> = {
+const INVITATION_BULK_REVOKE_REASON_I18N_KEYS = {
 	already_accepted: 'invitation-bulk-revoke-reason-already-accepted',
 	not_found: 'invitation-bulk-revoke-reason-not-found',
-};
+} satisfies Record<string, string>;
 const INVITATION_BULK_REVOKE_REASON_OTHER_KEY =
 	'invitation-bulk-revoke-reason-other';
 

@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -12,14 +14,14 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	history: 'History',
 	'history-coming-later-title': 'Post history is coming later',
 	'history-coming-later-description':
 		'Published posts and their performance will appear here once the posts API ships.',
 	'common:history': 'History',
 	'read-only': 'Read only',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -63,12 +63,11 @@ const STAFF_USER_BULK_SUCCESS_KEYS = {
 	delete: 'staff-user-bulk-delete-success',
 } satisfies Record<StaffUserActionKey, string>;
 
-const STAFF_USER_BULK_PARTIAL_SUCCESS_KEYS: Record<StaffUserActionKey, string> =
-	{
-		suspend: 'staff-user-bulk-suspend-partial-success',
-		reactivate: 'staff-user-bulk-reactivate-partial-success',
-		delete: 'staff-user-bulk-delete-partial-success',
-	};
+const STAFF_USER_BULK_PARTIAL_SUCCESS_KEYS = {
+	suspend: 'staff-user-bulk-suspend-partial-success',
+	reactivate: 'staff-user-bulk-reactivate-partial-success',
+	delete: 'staff-user-bulk-delete-partial-success',
+} satisfies Record<StaffUserActionKey, string>;
 
 const getConfirmDialogConfig = (
 	action: StaffUserPendingAction,

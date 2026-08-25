@@ -567,14 +567,7 @@ export const buildStaffTenantPermissionCatalogGroups = (
 
 export const buildFindStaffTenantProfilesQueryParameters = (
 	variables: Omit<StaffTenantProfilesQueryVariables, 'tenantId'>,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-	isDefault?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
@@ -751,13 +744,7 @@ export const buildFindStaffTenantProfileMembersQueryParameters = (
 		StaffTenantProfileMembersQueryVariables,
 		'tenantId' | 'profileId'
 	>,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	page: string;
-	limit?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
@@ -826,7 +813,7 @@ export const buildResolveStaffTenantProfileMemberAssignmentsBody = (
 
 export const toStaffTenantProfileMemberAssignmentMap = (
 	result: ResolveTenantProfileUserAssignmentsAsStaffResult | null | undefined,
-): StaffTenantProfileUserAssignmentMap => {
+) => {
 	const map: StaffTenantProfileUserAssignmentMap = {};
 
 	for (const assignment of result?.assignments ?? []) {

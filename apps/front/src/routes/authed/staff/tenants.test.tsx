@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /** @vitest-environment jsdom */
 import {
 	cleanup,
@@ -54,7 +56,7 @@ vi.mock('@tanstack/react-router', () => ({
 		createElement('a', { href: to, ...props }, children),
 }));
 
-const TRANSLATIONS = {
+const TRANSLATIONS: TestLabelMap = {
 	tenant: 'Tenant',
 	'bulk-suspend': 'Suspend selected',
 	'bulk-reactivate': 'Reactivate selected',
@@ -116,7 +118,7 @@ const TRANSLATIONS = {
 	'unable-to-delete-tenant': 'Unable to delete this tenant.',
 	cancel: 'Cancel',
 	'list-no-match-default-description': 'No results match your search.',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

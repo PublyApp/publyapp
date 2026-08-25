@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -10,11 +12,11 @@ vi.mock('@tanstack/react-router', () => ({
 		createElement('a', { href: to, ...props }, children),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	'invalid-link-title': 'This link is invalid or expired',
 	'request-a-new-link': 'Request a new link',
 	'back-to-login': 'Back to login',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -166,7 +168,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 	},
 }));
 
-const TRANSLATIONS = {
+const TRANSLATIONS: TestLabelMap = {
 	basics: 'Basics',
 	profiles: 'Profiles',
 	invitations: 'Invitations',
@@ -208,7 +210,7 @@ const TRANSLATIONS = {
 	'create-profile': 'Create profile',
 	'loading-permissions': 'Loading permissions…',
 	'no-permissions-available': 'No permissions available.',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

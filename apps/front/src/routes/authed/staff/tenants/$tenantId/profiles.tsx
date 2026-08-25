@@ -77,9 +77,7 @@ const StaffTenantProfilesPage = () => {
 	const applySearch = useCallback(
 		(next: StaffTenantProfilesSearchParams): void => {
 			void navigate({
-				search: serializeStaffTenantProfilesSearchParams(
-					next,
-				) as TableSearchParams,
+				search: serializeStaffTenantProfilesSearchParams(next),
 				replace: true,
 			});
 		},
@@ -89,9 +87,7 @@ const StaffTenantProfilesPage = () => {
 	const pushSearch = useCallback(
 		(next: StaffTenantProfilesSearchParams): void => {
 			void navigate({
-				search: serializeStaffTenantProfilesSearchParams(
-					next,
-				) as TableSearchParams,
+				search: serializeStaffTenantProfilesSearchParams(next),
 			});
 		},
 		[navigate],

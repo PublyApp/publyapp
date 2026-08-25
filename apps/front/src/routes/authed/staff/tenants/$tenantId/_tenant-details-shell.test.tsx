@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -54,12 +56,12 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels = {
+			const labels: TestLabelMap = {
 				basics: 'Basics',
 				profiles: 'Profiles',
 				invitations: 'Invitations',
 				users: 'Users',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[key] ?? key;
 		},

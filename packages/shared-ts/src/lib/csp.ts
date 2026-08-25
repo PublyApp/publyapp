@@ -47,7 +47,7 @@ export const createCSPDirectives = ({
 	isDevelopment = false,
 	nonce,
 	additionalConnectSrc = [],
-}: CSPConfigOptions): HelmetCSPDirectives => {
+}: CSPConfigOptions) => {
 	const _nonce = nonce ? `'nonce-${nonce}'` : '';
 
 	const baseDirectives: CSPDirectives = {

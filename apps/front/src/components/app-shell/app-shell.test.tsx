@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	isDesktop: true,
-	linkPrevSearch: {} as unknown,
+	linkPrevSearch: {} as Record<string, unknown>,
 	// Not exercising breadcrumb behavior in this file (this app-shell unit
 	// suite mocks the router wholesale — the AUTHORITATIVE breadcrumb tests
 	// use a real router + real routeTree, see breadcrumb-contract.test.tsx).

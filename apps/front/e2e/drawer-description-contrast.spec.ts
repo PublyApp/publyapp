@@ -874,10 +874,7 @@ const assertDrawerDescriptionContrast = async (
 // linkage test below (and `DRAWER_OPENERS[testId]` being undefined would throw
 // at module load). The source guard asserts the same inventory files are
 // exactly its enumerated call sites, so one edit extends both guards.
-const DRAWER_OPENERS: Record<
-	string,
-	{ name: string; open: (page: Page) => Promise<void> }
-> = {
+const DRAWER_OPENERS = {
 	'cookie-prefs-drawer': {
 		name: 'cookie preferences',
 		open: openCookiePrefsDrawer,
@@ -914,7 +911,10 @@ const DRAWER_OPENERS: Record<
 		name: 'link companies',
 		open: openLinkCompaniesDrawer,
 	},
-};
+} satisfies Record<
+	string,
+	{ name: string; open: (page: Page) => Promise<void> }
+>;
 
 // A missing opener is deliberately NOT a module-load crash: it drops the case
 // from DRAWER_CASES so the linkage test below can report it by name. Without

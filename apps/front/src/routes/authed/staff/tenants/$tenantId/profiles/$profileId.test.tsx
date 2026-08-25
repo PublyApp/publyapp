@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -351,7 +353,7 @@ vi.mock('react-i18next', () => ({
 			const resourceKey = key.includes(':')
 				? (key.split(':').at(-1) ?? key)
 				: key;
-			const labels = {
+			const labels: TestLabelMap = {
 				basics: 'Basics',
 				custom: 'Custom',
 				'custom-profile': 'Custom profile',
@@ -464,7 +466,7 @@ vi.mock('react-i18next', () => ({
 				'days-ago': '{{count}} days ago',
 				'months-ago': '{{count}} months ago',
 				'years-ago': '{{count}} years ago',
-			} satisfies Record<string, string>;
+			};
 
 			// Mirror i18next plural resolution: a numeric `count` selects the
 			// `_one`/`_other` suffixed key when the dictionary provides it.

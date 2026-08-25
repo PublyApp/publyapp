@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /** @vitest-environment jsdom */
 /**
  * #1314-r1 MAJOR regression guard: the both-dirty save→redirect path driven
@@ -131,7 +133,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels = {
+			const labels: TestLabelMap = {
 				'first-name': 'First name',
 				'last-name': 'Last name',
 				'email-address': 'Email address',
@@ -158,7 +160,7 @@ vi.mock('react-i18next', () => ({
 				'edit-staff-user': 'Edit staff user',
 				identity: 'Identity',
 				access: 'Access',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[bare] ?? bare;
 		},

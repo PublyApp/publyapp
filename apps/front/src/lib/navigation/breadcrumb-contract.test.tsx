@@ -139,14 +139,10 @@ const LEGACY_REDIRECT_STUB_PATHS = new Set([
 	'/staff/tenants/$tenantId/users/invite',
 ]);
 
-const buildSyntheticParams = (segments: string[]): Record<string, string> => {
-	const params: Record<string, string> = {};
-	for (const segment of segments) {
-		params[segment] = `synthetic-${segment}`;
-	}
-
-	return params;
-};
+const buildSyntheticParams = (segments: string[]) =>
+	Object.fromEntries(
+		segments.map((segment) => [segment, `synthetic-${segment}`]),
+	);
 
 /**
  * #973 BLOCKER remediation: counting `kind: 'entity'` specs (the test above)

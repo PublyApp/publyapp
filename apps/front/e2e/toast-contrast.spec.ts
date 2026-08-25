@@ -188,6 +188,7 @@ type Variant = (typeof VARIANTS)[number];
 type ViewportPreset = (typeof VIEWPORTS)[number];
 type TargetKind = 'glyph' | 'text';
 type Rgba = { r: number; g: number; b: number; a: number };
+type BoxRect = { bottom: number; left: number; right: number; top: number };
 type ContrastMeasurement = {
 	background: Rgba;
 	foreground: Rgba;
@@ -599,12 +600,7 @@ const readBrowserPaint = async (
 					return match ? Number(value.slice(0, -2)) : undefined;
 				};
 
-				let containing: {
-					bottom: number;
-					left: number;
-					right: number;
-					top: number;
-				};
+				let containing: BoxRect;
 				if (style.position === 'absolute') {
 					// An absolutely positioned pseudo's containing block is its
 					// originating element's padding box when that element is
@@ -1026,12 +1022,7 @@ const readBrowserPaint = async (
 			// 100+ px away from where the text is, which is where every paint
 			// that matters would have to reach (round-7 B1), and the click-through
 			// scan and the pixel cross-check intersect the same area.
-			const computeGlyphArea = (): {
-				bottom: number;
-				left: number;
-				right: number;
-				top: number;
-			} => {
+			const computeGlyphArea = () => {
 				const rects: DOMRect[] = [];
 				if (targetKind === 'text') {
 					const textNodes: Node[] = [];
@@ -1538,12 +1529,7 @@ const measurePaintedContrast = async (
 
 			const dpr = devicePixelRatio;
 			const elementBox = element.getBoundingClientRect();
-			const computeCanvasGlyphArea = (): {
-				bottom: number;
-				left: number;
-				right: number;
-				top: number;
-			} => {
+			const computeCanvasGlyphArea = () => {
 				const rects: DOMRect[] = [];
 				if (kind === 'text') {
 					const textNodes: Node[] = [];

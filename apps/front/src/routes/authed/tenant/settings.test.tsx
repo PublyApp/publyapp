@@ -1,3 +1,5 @@
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
 /**
  * @vitest-environment jsdom
  */
@@ -32,7 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 		select?.({ location: { pathname: mocks.pathname } }),
 }));
 
-const EN_LABELS = {
+const EN_LABELS: TestLabelMap = {
 	general: 'General',
 	security: 'Security',
 	members: 'Members',
@@ -40,7 +42,7 @@ const EN_LABELS = {
 	'roles-and-permissions': 'Roles & permissions',
 	integrations: 'Integrations',
 	billing: 'Billing',
-} satisfies Record<string, string>;
+};
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

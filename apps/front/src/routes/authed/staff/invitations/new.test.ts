@@ -5,6 +5,7 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /**
  * @vitest-environment jsdom
  */
@@ -56,7 +57,7 @@ vi.mock('react-i18next', () => ({
 		t: (key: string, options?: { count?: number }) => {
 			const normalize = (value: string): string =>
 				value.startsWith('common:') ? value.replace(/^common:/, '') : value;
-			const labels = {
+			const labels: TestLabelMap = {
 				'staff-invitations': 'Staff invitations',
 				'invite-users': 'Invite users',
 				profiles: 'Profiles',
@@ -75,7 +76,7 @@ vi.mock('react-i18next', () => ({
 					'You have unsaved changes that will be lost if you leave this page.',
 				'leave-page': 'Leave page',
 				cancel: 'Cancel',
-			} satisfies Record<string, string>;
+			};
 
 			return labels[normalize(key)] ?? labels[key] ?? key;
 		},

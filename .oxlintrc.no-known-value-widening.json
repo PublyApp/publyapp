@@ -1,0 +1,100 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["unicorn", "typescript", "oxc", "react"],
+	"jsPlugins": [
+		"./packages/lint-ts/src/index.ts",
+		{
+			"name": "anti-slop",
+			"specifier": "./packages/lint-ts/src/anti-slop/index.ts"
+		}
+	],
+	"options": {
+		"typeAware": true
+	},
+	"ignorePatterns": [
+		"**/node_modules",
+		"**/build",
+		"**/dist",
+		"**/.turbo",
+		"**/.husky/_",
+		"**/.react-router",
+		"**/routeTree.gen.ts",
+		"packages/client-ts",
+		"apps/api/openapi",
+		"apps/api/Migrations",
+		"apps/api/bin",
+		".config/dotnet-tools.json",
+		"apps/api/Generated",
+		".dump",
+		".mcp.json",
+		".claude/settings.local.json",
+		".agent/**",
+		".agents/**",
+		".claude/**",
+		".codex/**",
+		".continue/**",
+		".cursor/**",
+		".gemini/**",
+		".opencode/**",
+		".pi/**",
+		".roo/**",
+		".windsurf/**",
+		"packages/lint-ts/src/anti-slop/**"
+	],
+	"rules": {
+		"no-else-return": "error",
+		"no-nested-ternary": "error",
+		"no-param-reassign": "error",
+		"default-param-last": "error",
+		"react/self-closing-comp": "error",
+		"react/rules-of-hooks": "error",
+		"typescript/no-deprecated": "error",
+		"typescript/no-explicit-any": "error",
+		"typescript/no-inferrable-types": "error",
+		"typescript/no-misused-spread": "off",
+		"typescript/unbound-method": "off",
+		"typescript/no-unnecessary-template-expression": "error",
+		"typescript/prefer-as-const": "error",
+		"typescript/prefer-enum-initializers": "error",
+		"unicorn/no-array-for-each": "off",
+		"unicorn/no-array-reduce": "error",
+		"unicorn/no-document-cookie": "off",
+		"unicorn/prefer-number-properties": "error",
+		"publy/no-op": "off",
+		"publy/no-package-src-import": "error",
+		"publy/no-iife": "error",
+		"publy/no-array-reduce": "error",
+		"publy/prefer-specific-lodash-imports": "error",
+		"publy/no-console-in-source": "error",
+		"publy/no-direct-dayjs-in-components": "error",
+		"publy/no-manual-response-message-translation": "error",
+		"publy/arrow-function-components": "error",
+		"publy/prefer-query-display": "error",
+		"publy/no-never-any-casts": "off",
+		"anti-slop/no-chained-type-assertions": "error",
+		"anti-slop/no-conditional-empty-object-spread": "error",
+		"anti-slop/no-known-value-widening": "error",
+		"anti-slop/no-module-mocking": "off",
+		"anti-slop/no-object-parameters": "error",
+		"anti-slop/no-reflect-apply": "error",
+		"anti-slop/no-reflect-get": "error",
+		"anti-slop/no-runtime-typeof": "off",
+		"anti-slop/no-shape-in-symbol-names": "error",
+		"anti-slop/no-unknown-parameters": "off",
+		"anti-slop/no-unknown-returns": "error",
+		"anti-slop/no-unknown-type-aliases": "error",
+		"anti-slop/no-unsafe-dictionary-type": "off",
+		"anti-slop/no-widen-then-assert": "error",
+		"anti-slop/require-safety-comment-for-type-assertion": "off"
+	},
+	"overrides": [
+		{
+			"files": [
+				"apps/front/src/routes/authed/staff/staff-users/$userId-edit.tsx"
+			],
+			"rules": {
+				"react/refs": "error"
+			}
+		}
+	]
+}

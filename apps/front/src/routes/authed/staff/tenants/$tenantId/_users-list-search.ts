@@ -3,6 +3,7 @@ import {
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
+	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 import {
@@ -117,9 +118,15 @@ export const parseTenantUsersListSearchParams = (
 	};
 };
 
+export type TenantUsersListWireParams = {
+	status?: string;
+	level?: string;
+	invite?: 1;
+} & TableSearchWireParams;
+
 export const serializeTenantUsersListSearchParams = (
 	params: TenantUsersListSearchParams,
-): Record<string, string | 1 | undefined> => {
+): TenantUsersListWireParams => {
 	const next = serializeTableSearchParams(params);
 	const status = serializeTenantUserStatusFilter(
 		parseTenantUserStatusFilter(params.status),
