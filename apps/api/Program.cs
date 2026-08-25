@@ -16,6 +16,7 @@ using PublyApp.Api.Modules.Account.Endpoints;
 using PublyApp.Api.Modules.AuditLogs.Endpoints;
 using PublyApp.Api.Modules.Auth.Endpoints;
 using PublyApp.Api.Modules.Invitations.Endpoints;
+using PublyApp.Api.Modules.Jobs.Endpoints;
 using PublyApp.Api.Modules.Permissions.Endpoints;
 using PublyApp.Api.Modules.Posts.Endpoints;
 using PublyApp.Api.Modules.Profiles.Endpoints;
@@ -302,6 +303,7 @@ public class Program {
 		staffGroup.MapSystemNoticeEndpointsForStaff();
 		staffGroup.MapAuditLogEndpointsForStaff();
 		staffGroup.MapUploadEndpointsForStaff();
+		staffGroup.MapJobDeadLetterEndpointsForStaff();
 
 		// First real tenant-scoped surface (root `/`): the signed-in user's
 		// own account profile. Posts shipped as the first real permission-gated

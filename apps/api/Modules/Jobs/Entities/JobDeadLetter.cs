@@ -115,6 +115,24 @@ public class JobDeadLetter : INoTenantEntity {
 	[Column("created_at")]
 	public DateTime CreatedAt { get; set; }
 
+	// External-side-effect triage state (jobs-infra design §5.1; K-1 / issue #863).
+	// 0 None is the backfill default for existing rows and keeps them retention-
+	// eligible; the engine never writes this column today — only evidence-table
+	// writers (operator triage endpoint now, sweep batches later) do.
+	[Column("external_state_status")]
+	public int ExternalStateStatus { get; set; }
+
+	// Classification bounds: when a status other than None/NeverPrepared is stamped,
+	// these carry the window over which prepared effects were believed to exist.
+	[Column("external_state_prepared_at")]
+	public DateTime? ExternalStatePreparedAt { get; set; }
+
+	[Column("external_state_expires_at")]
+	public DateTime? ExternalStateExpiresAt { get; set; }
+
+	[Column("external_state_expired_at")]
+	public DateTime? ExternalStateExpiredAt { get; set; }
+
 	public static JobDeadLetter FromJob(JobQueueItem job, int attempts, string? lastError) {
 		if (job.Id is null) {
 			throw new InvalidOperationException(

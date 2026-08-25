@@ -102,5 +102,8 @@
 	"upload-file-required": "A file is required",
 	"upload-file-too-large": "File exceeds the maximum allowed size",
 	"upload-file-unsupported-type": "File must be a PNG, JPEG, WEBP, or GIF image",
-	"upload-budget-exhausted": "Upload storage capacity is temporarily exhausted. Please try again later."
+	"upload-budget-exhausted": "Upload storage capacity is temporarily exhausted. Please try again later.",
+	"dead-letter-resolved-success": "Dead-letter triage resolved",
+	"dead-letter-not-found": "Dead-letter entry not found",
+	"dead-letter-not-unclassified": "Dead-letter entry is not awaiting unclassified triage"
 }

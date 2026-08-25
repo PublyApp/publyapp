@@ -11,6 +11,30 @@ public sealed class JobDeadLetterConfiguration : IEntityTypeConfiguration<JobDea
 		builder.Property(entity => entity.FailedAt).HasDefaultValueSql("now()");
 		builder.Property(entity => entity.CreatedAt).HasDefaultValueSql("now()");
 
+		// K-1 external-state triage (§5.1). Default 0 = None (backfill value for
+		// pre-existing rows); the bounds stay NULL unless a classification sets them.
+		builder.Property(entity => entity.ExternalStateStatus).HasDefaultValue(0);
+
+		builder.ToTable(table => {
+			table.HasCheckConstraint(
+				"ck_job_dead_letter_external_state_bounds",
+				"(external_state_status IN (0, 3) AND external_state_prepared_at IS NULL "
+				+ "AND external_state_expires_at IS NULL AND external_state_expired_at IS NULL)"
+				+ " OR (external_state_status IN (1, 2, 4, 5, 6) "
+				+ "AND external_state_prepared_at IS NOT NULL "
+				+ "AND external_state_expires_at IS NOT NULL)"
+			);
+			table.HasCheckConstraint(
+				"ck_job_dead_letter_external_state_expired_at",
+				"(external_state_status = 2 AND external_state_expired_at IS NOT NULL) "
+				+ "OR (external_state_status <> 2 AND external_state_expired_at IS NULL)"
+			);
+			table.HasCheckConstraint(
+				"ck_job_dead_letter_external_state_status",
+				"external_state_status IN (0, 1, 2, 3, 4, 5, 6)"
+			);
+		});
+
 		builder
 			.HasIndex(entity => new { entity.FailedAt, entity.Id })
 			.HasDatabaseName("ix_job_dead_letter_failed_at_id");
@@ -39,5 +63,12 @@ public sealed class JobDeadLetterConfiguration : IEntityTypeConfiguration<JobDea
 			.HasIndex(entity => entity.FailedAt)
 			.HasDatabaseName("ix_job_dead_letter_untriaged_missing")
 			.HasFilter($"triaged_at IS NULL AND job_type LIKE '{JobDeadLetter.MissingJobTypePrefix}%'");
+
+		// Serves the retention sweep's exemption predicate and future triage queues:
+		// only classified rows (status <> 0) are of interest there.
+		builder
+			.HasIndex(entity => entity.ExternalStateStatus)
+			.HasDatabaseName("ix_job_dead_letter_external_state")
+			.HasFilter("external_state_status <> 0");
 	}
 }
