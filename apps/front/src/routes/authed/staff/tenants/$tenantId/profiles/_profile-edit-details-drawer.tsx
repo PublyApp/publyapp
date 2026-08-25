@@ -23,14 +23,10 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
+import { resolveProfileSaveFailure } from '~/lib/profile-edit-details-save-failure';
 import { useUpdateStaffTenantProfileMutation } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { deriveTenantProfileCardStyle } from './_profile-card-style';
 
@@ -146,6 +142,10 @@ const ProfileEditDetailsDrawer = ({
 	}, [isDirty, onDirtyChange]);
 
 	const isFormLocked = updateProfile.isPending || isSubmitting;
+	// #1342 — "no change → no request / disabled Save": a pristine form must
+	// not be savable, at either layer (disabled button AND submit-handler
+	// guard, so a programmatic submit cannot send a no-op PATCH either).
+	const canSave = !isFormLocked && isDirty;
 	const requestClose = (): void => {
 		if (isDirty) {
 			setIsDiscardConfirmOpen(true);
@@ -160,39 +160,43 @@ const ProfileEditDetailsDrawer = ({
 			return;
 		}
 
-		const failure = toApiFailure(error);
-		if (failure.kind === 'validation') {
-			const rootMessages: string[] = [];
-			for (const [field, messages] of Object.entries(failure.fieldErrors)) {
-				if (isProfileEditDetailsField(field)) {
-					methods.setError(field, {
-						type: 'server',
-						message: messages.join(' '),
-					});
-				} else {
-					rootMessages.push(...messages);
-				}
-			}
-
-			if (Object.keys(failure.fieldErrors).length === 0) {
-				rootMessages.push(
-					getFailureMessage(failure, {
-						fallback: t('profile-save-failed'),
-					}),
-				);
-			}
-			if (rootMessages.length > 0) {
-				methods.setError('root.server', {
+		// Shared with the staff drawer (see `resolveProfileSaveFailure`): a 422
+		// belongs to this form whether or not its `errors` map carried entries;
+		// everything else keeps going to the local failure toast.
+		const outcome = resolveProfileSaveFailure({
+			error,
+			isKnownField: isProfileEditDetailsField,
+			fallbackMessage: t('profile-save-failed'),
+		});
+		if (outcome.kind === 'field-errors') {
+			for (const [field, message] of outcome.fieldErrors) {
+				methods.setError(field, {
 					type: 'server',
-					message: Array.from(new Set(rootMessages)).join(' '),
+					message,
 				});
 			}
+			if (outcome.rootMessages.length > 0) {
+				methods.setError('root.server', {
+					type: 'server',
+					message: outcome.rootMessages.join(' '),
+				});
+			}
+			return;
+		}
+		if (outcome.kind === 'root-message') {
+			methods.setError('root.server', {
+				type: 'server',
+				message: outcome.message,
+			});
 			return;
 		}
 
 		await displayLocalMutationFailure(error, t('profile-save-failed'));
 	};
 	const onSubmit = methods.handleSubmit(async (values) => {
+		if (!canSave) {
+			return;
+		}
 		methods.clearErrors('root');
 		try {
 			await updateProfile.mutateAsync({
@@ -318,7 +322,7 @@ const ProfileEditDetailsDrawer = ({
 						>
 							{t('cancel')}
 						</Button>
-						<Button type="submit" disabled={isFormLocked}>
+						<Button type="submit" disabled={!canSave}>
 							{t('save-changes')}
 						</Button>
 					</DrawerFooter>

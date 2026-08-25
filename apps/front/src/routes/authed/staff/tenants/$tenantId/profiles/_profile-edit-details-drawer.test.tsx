@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -100,7 +101,7 @@ vi.mock('~/components/ui/drawer', () => ({
 		createElement(
 			FormProvider as never,
 			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
+			createElement('form', { onSubmit, role: 'form' }, children),
 		),
 }));
 
@@ -117,7 +118,7 @@ vi.mock('~/components/field', () => ({
 		createElement(
 			FormProvider as never,
 			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
+			createElement('form', { onSubmit, role: 'form' }, children),
 		),
 	Field: {
 		Text: ({ name, label }: { name: string; label: string }) => {
@@ -203,6 +204,85 @@ describe('ProfileEditDetailsDrawer', () => {
 
 	afterEach(cleanup);
 
+	// #1342 — paired contract: pristine means zero requests, and the contract
+	// "no change → no request / disabled Save" is enforced at BOTH layers
+	// (disabled button + submit-handler guard). Submitting the form directly,
+	// bypassing the button, proves the handler layer.
+	test('pristine submit sends no PATCH and Save stays disabled', async () => {
+		const onSaved = vi.fn();
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={onSaved}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty(
+			'disabled',
+			true,
+		);
+
+		act(() => {
+			fireEvent.submit(screen.getByRole('form'));
+		});
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).not.toHaveBeenCalled(),
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(onSaved).not.toHaveBeenCalled();
+	});
+
+	test('dirty submit sends exactly one PATCH and re-enables Save', async () => {
+		const onSaved = vi.fn();
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={onSaved}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Create and edit posts' },
+		});
+		expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty(
+			'disabled',
+			false,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).toHaveBeenCalledTimes(1),
+		);
+		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
+		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalledTimes(1);
+		expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty(
+			'disabled',
+			false,
+		);
+	});
+
 	test('submits only name, description, concrete icon, and concrete tone', async () => {
 		const onSaved = vi.fn();
 		render(
@@ -256,7 +336,7 @@ describe('ProfileEditDetailsDrawer', () => {
 		expect(onSaved).toHaveBeenCalledWith('profile-1');
 	});
 
-	test('preserves automatic style when an unmodified null-style profile is saved', async () => {
+	test('first edit sends the derived automatic style for an unmodified null-style profile', async () => {
 		render(
 			<ProfileEditDetailsDrawer
 				tenantId="tenant-1"
@@ -280,6 +360,11 @@ describe('ProfileEditDetailsDrawer', () => {
 		expect(picker.getAttribute('data-icon')).toBeTruthy();
 		expect(picker.getAttribute('data-tone')).toBeTruthy();
 
+		// #1342: a pristine form must never PATCH, so the automatic-style body
+		// is proven on the first real (dirty) save instead.
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Draft posts, updated' },
+		});
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
@@ -287,7 +372,7 @@ describe('ProfileEditDetailsDrawer', () => {
 				tenantId: 'tenant-1',
 				profileId: 'profile-1',
 				name: 'Author',
-				description: 'Draft posts',
+				description: 'Draft posts, updated',
 				icon: null,
 				tone: null,
 			}),
