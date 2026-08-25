@@ -19,19 +19,32 @@ public static class CanaryBootLogCli {
 	/// <summary>
 	/// Launches the API assembly in emit mode. Throws if the child exits non-zero, emits no
 	/// markers (probe not wired into Main), or emits markers without a begin line.
+	/// <para>
+	/// Round-1 fix (#1319): the probe is honoured ONLY in test-shaped hosting
+	/// environments, so the default emit shape pins Development (the suite's sanctioned
+	/// acceptance environment) alongside the test-only flag. A caller may still pin its
+	/// own host environment through <paramref name="env"/>; it is then used verbatim.
+	/// </para>
 	/// </summary>
 	public static IReadOnlyList<string> CaptureBootLogLines(
 		string[] assemblyArgs,
-		Dictionary<string, string> env
+		Dictionary<string, string>? env = null
 	) {
 		// #1319: emit mode IS the probe's acceptance path, so the call must present the
-		// test-only flag explicitly — the #1319 boot gate hard-rejects the probe arg
-		// without it (exit 78). RunBootProcess strips any ambient copy of the flag first;
-		// this entry deliberately re-adds it for emit calls only, leaving the refusal
-		// cases (which go through RunBootProcess directly) fully hermetic.
-		var childEnv = new Dictionary<string, string>(env) {
+		// test-only flag explicitly — the boot gate hard-rejects the probe arg without
+		// it (exit 78). RunBootProcess strips any ambient copy of the flag first; this
+		// entry deliberately re-adds it for emit calls only, leaving refusal cases
+		// (which go through RunBootProcess directly) fully hermetic.
+		var callerEnv = env ?? [];
+		var childEnv = new Dictionary<string, string>(callerEnv) {
 			[CanaryBootLogProbe.TestOnlyFlagName] = "true",
 		};
+		var pinsAHostEnvironment = callerEnv.Keys.Any(
+			key => key is "ASPNETCORE_ENVIRONMENT" or "DOTNET_ENVIRONMENT"
+		);
+		if (!pinsAHostEnvironment) {
+			childEnv["ASPNETCORE_ENVIRONMENT"] = EnvironmentNames.Development;
+		}
 
 		var (exitCode, stdout, _) = RunBootProcess(assemblyArgs, childEnv);
 
@@ -81,8 +94,34 @@ public static class CanaryBootLogCli {
 
 		// The child inherits the parent's environment (all AppEnvironment config values are
 		// present as real process env vars); these keys pin/override what the boot needs.
-		startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = EnvironmentNames.Production;
-		startInfo.Environment.Remove("DOTNET_ENVIRONMENT");
+		// Round-1 fix (#1319): a caller may PIN the child's host environment explicitly —
+		// the guard specs must be able to drive Production/Staging/unset to prove the
+		// probe's environment clause refuses there even with the flag. Only when NO host
+		// environment key is provided do we still default the child to Production, so
+		// every pre-existing refusal case keeps running against the deployed-container
+		// shape it was written for. A BLANK pinned value means the variable must be
+		// ABSENT in the child (the bare-container shape), never inherited from this test
+		// process and never an empty string.
+		var pinsAHostEnvironment = env.Keys.Any(
+			key => key is "ASPNETCORE_ENVIRONMENT" or "DOTNET_ENVIRONMENT"
+		);
+		if (pinsAHostEnvironment) {
+			foreach (var key in new[] { "ASPNETCORE_ENVIRONMENT", "DOTNET_ENVIRONMENT" }) {
+				if (!env.TryGetValue(key, out var pinnedValue)
+					|| string.IsNullOrWhiteSpace(pinnedValue)) {
+					// Not pinned, or pinned-absent: the child must not inherit this
+					// process's copy (GetHostEnvironmentName would read it otherwise).
+					startInfo.Environment.Remove(key);
+					continue;
+				}
+
+				startInfo.Environment[key] = pinnedValue;
+			}
+		} else {
+			startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = EnvironmentNames.Production;
+			startInfo.Environment.Remove("DOTNET_ENVIRONMENT");
+		}
+
 		// Hermeticity for the #1319 guard specs: strip the test-only flag unless THIS call
 		// explicitly provides it, so the refusal cases below cannot be defeated by an
 		// ambient PUBLYAPP_TEST_BOOT_PROBE leaking in from the test process.
