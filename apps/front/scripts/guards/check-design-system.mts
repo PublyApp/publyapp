@@ -17,49 +17,153 @@ import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
 	isPreviousLineSuppressed,
+	type SuppressionSite,
 } from '../../src/lib/suppression-reason.ts';
 
 const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
+
+interface DesignViolation {
+	ruleId: string;
+	message: string;
+	file: string;
+	line: number;
+	source: string;
+}
+
+/** The subset of a violation the guard-debt ledger actually charges on. */
+interface GuardDebtCharge {
+	ruleId: string;
+	file: string;
+	source: string;
+}
+
+interface GuardDebtEntry {
+	ruleId: string;
+	file: string;
+	sourceIncludes: string;
+	reason: string;
+	maxOccurrences: number;
+}
+
+/** A single-line pattern object (the `{ test }` half) participates in the
+ * multi-line-aware statement scan exactly like a RegExp, so both shapes are
+ * accepted everywhere a rule declares patterns. */
+type RulePattern = RegExp | { test: (text: string) => boolean };
+
+interface DesignSystemRule {
+	id: string;
+	message: string;
+	appliesTo: (relativePath: string) => boolean;
+	patterns: RulePattern[];
+	ignoreMatch?: (
+		relativePath: string,
+		line: string,
+		lineIndex: number,
+		lines: string[],
+	) => boolean;
+	ignoreFile?: (relativePath: string) => boolean;
+	mode?: 'source';
+	allow?: (relativePath: string) => boolean;
+}
+
+interface ThemeInvariantTokenEntry {
+	prefix?: string;
+	exact?: string;
+	reason: string;
+}
+
+interface TokenDecl {
+	value: string;
+	line: number;
+}
+
+interface ScopedCustomPropertyPair {
+	light: Map<string, TokenDecl>;
+	dark: Map<string, TokenDecl>;
+}
+
+// ts-morph's SourceFile type omits parseDiagnostics, but its vendored
+// compiler always populates it (verified behaviour this guard relies on).
+interface SourceFileWithParseDiagnostics {
+	parseDiagnostics: readonly ts.Diagnostic[];
+}
+
+interface ColorMixCall {
+	openerIndex: number;
+	argsText: string;
+}
+
+interface ScanOptions {
+	baseDir?: string;
+	sourceDir?: string;
+	sourceDirs?: string[];
+	checkStaleDebt?: boolean;
+	guardDebt?: GuardDebtEntry[];
+	checkTokenGuards?: boolean;
+	checkSuppressionInventory?: boolean;
+	checkDebtBudgetSlack?: boolean;
+}
+
+type DesignViolationScanResult = DesignViolation[] & {
+	scannedFileCount: number;
+};
 const srcDir = path.join(rootDir, 'src');
 const e2eDir = path.join(rootDir, 'e2e');
 
 const STATUS_FILTER_RULE_ID = 'status-filter-checkbox-contract';
 
-const jsxTagName = (node) => {
+const jsxTagName = (
+	node: ts.JsxElement | ts.JsxSelfClosingElement,
+): string => {
 	const tagName = ts.isJsxElement(node)
 		? node.openingElement.tagName
 		: node.tagName;
 	return tagName.getText();
 };
 
-const visitDescendants = (node, visitor) => {
+const visitDescendants = (
+	node: ts.Node,
+	visitor: (node: ts.Node) => void,
+): void => {
 	visitor(node);
 	node.forEachChild((child) => visitDescendants(child, visitor));
 };
 
-const attributeNamed = (opening, name) =>
+const attributeNamed = (
+	opening: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
+	name: string,
+): ts.JsxAttribute | undefined =>
 	opening.attributes.properties.find(
-		(attribute) => ts.isJsxAttribute(attribute) && attribute.name.text === name,
+		(attribute): attribute is ts.JsxAttribute =>
+			ts.isJsxAttribute(attribute) && attribute.name.getText() === name,
 	);
 
-const hasSpreadAttribute = (opening) =>
-	opening.attributes.properties.some(ts.isJsxSpreadAttribute);
+const hasSpreadAttribute = (
+	opening: ts.JsxOpeningElement | ts.JsxSelfClosingElement,
+): boolean => opening.attributes.properties.some(ts.isJsxSpreadAttribute);
 
-const isExplicitFalse = (attribute) =>
-	attribute?.initializer &&
-	ts.isJsxExpression(attribute.initializer) &&
-	attribute.initializer.expression?.kind === ts.SyntaxKind.FalseKeyword;
+const isExplicitFalse = (attribute: ts.JsxAttribute | undefined): boolean =>
+	Boolean(
+		attribute?.initializer &&
+			ts.isJsxExpression(attribute.initializer) &&
+			attribute.initializer.expression?.kind === ts.SyntaxKind.FalseKeyword,
+	);
 
-const isExplicitTrue = (attribute) =>
-	Boolean(attribute) &&
-	(attribute.initializer == null ||
+const isExplicitTrue = (attribute: ts.JsxAttribute | undefined): boolean => {
+	if (!attribute) {
+		return false;
+	}
+	return (
+		attribute.initializer == null ||
 		(ts.isJsxExpression(attribute.initializer) &&
-			attribute.initializer.expression?.kind === ts.SyntaxKind.TrueKeyword));
+			attribute.initializer.expression?.kind === ts.SyntaxKind.TrueKeyword)
+	);
+};
 
-const lineForNode = (sourceFile, node) =>
+const lineForNode = (sourceFile: ts.SourceFile, node: ts.Node): number =>
 	sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 
-const containsStatusMap = (menu, sourceFile) => {
+const containsStatusMap = (menu: ts.Node, sourceFile: ts.SourceFile): boolean => {
 	let found = false;
 	visitDescendants(menu, (node) => {
 		if (
@@ -74,7 +178,10 @@ const containsStatusMap = (menu, sourceFile) => {
 	return found;
 };
 
-const statusMenuViolations = (relativePath, source) => {
+const statusMenuViolations = (
+	relativePath: string,
+	source: string,
+): DesignViolation[] => {
 	if (!relativePath.startsWith('src/') || !relativePath.endsWith('.tsx')) {
 		return [];
 	}
@@ -86,8 +193,10 @@ const statusMenuViolations = (relativePath, source) => {
 		true,
 		ts.ScriptKind.TSX,
 	);
-	if (sourceFile.parseDiagnostics.length > 0) {
-		return sourceFile.parseDiagnostics.map((diagnostic) => ({
+	const { parseDiagnostics } =
+		sourceFile as unknown as SourceFileWithParseDiagnostics;
+	if (parseDiagnostics.length > 0) {
+		return parseDiagnostics.map((diagnostic): DesignViolation => ({
 			ruleId: STATUS_FILTER_RULE_ID,
 			message: `cannot parse TSX status-menu candidate safely: ${ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ')}`,
 			file: relativePath,
@@ -105,7 +214,7 @@ const statusMenuViolations = (relativePath, source) => {
 		}));
 	}
 
-	const violations = [];
+	const violations: DesignViolation[] = [];
 	visitDescendants(sourceFile, (node) => {
 		if (!ts.isJsxElement(node) || jsxTagName(node) !== 'DropdownMenuContent') {
 			return;
@@ -115,7 +224,7 @@ const statusMenuViolations = (relativePath, source) => {
 			/all-statuses/i.test(menuText) || containsStatusMap(node, sourceFile);
 		if (!isStatusMenu) return;
 
-		const items = [];
+		const items: (ts.JsxElement | ts.JsxSelfClosingElement)[] = [];
 		visitDescendants(node, (child) => {
 			if (
 				(ts.isJsxElement(child) || ts.isJsxSelfClosingElement(child)) &&
@@ -212,7 +321,7 @@ const APP_CSS_PATH = 'src/styles/app.css';
 const ROUNDED_RULE_ID = 'no-rounded-full-or-999-radius';
 // F824 (ui F5): referenced by the composed-hex fixture-debt entries below.
 const RAW_COLOR_RULE_ID = 'no-raw-visual-color';
-const KNOWN_HANDOFF_GUARD_DEBT = [
+const KNOWN_HANDOFF_GUARD_DEBT: GuardDebtEntry[] = [
 	{
 		ruleId: ROUNDED_RULE_ID,
 		file: 'src/components/query-display.tsx',
@@ -309,7 +418,7 @@ const IMPORTANT_FOUNDATION_RULE_ID = 'no-important-foundation';
 // here (per rule) so the guard can still see and reason about every
 // `!important` in the file instead of being blind to the one file that has
 // the most of them.
-const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
+const KNOWN_IMPORTANT_FOUNDATION_DEBT: GuardDebtEntry[] = [
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
 		file: 'src/styles/app.css',
@@ -576,7 +685,7 @@ for (const debt of KNOWN_HANDOFF_GUARD_DEBT) {
 
 // r1-fix: exported for the permanent zero-slack test, which re-measures every
 // entry against its real file through the production path.
-export const KNOWN_GUARD_DEBT = [
+export const KNOWN_GUARD_DEBT: GuardDebtEntry[] = [
 	...KNOWN_HANDOFF_GUARD_DEBT,
 	...KNOWN_IMPORTANT_FOUNDATION_DEBT,
 ];
@@ -596,7 +705,7 @@ for (const debt of KNOWN_GUARD_DEBT) {
 	}
 }
 
-const escapeRegExpLiteral = (value) =>
+const escapeRegExpLiteral = (value: string): string =>
 	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // #992 review follow-up: `.includes(selector)` matched any selector that
@@ -612,7 +721,7 @@ const escapeRegExpLiteral = (value) =>
 // `.app-shell-rail-link[data-rail-item='account']`, where the character
 // immediately before `[` is the preceding class's own last letter), and a
 // left boundary would break that legitimate case.
-const selectorAppearsExactly = (line, selector) => {
+const selectorAppearsExactly = (line: string, selector: string): boolean => {
 	const pattern = new RegExp(`${escapeRegExpLiteral(selector)}(?![\\w-])`);
 	return pattern.test(line);
 };
@@ -621,7 +730,11 @@ const selectorAppearsExactly = (line, selector) => {
 // or `}` above the match instead of scanning a fixed 8-line lookback window,
 // so a `rounded-full` in one rule can't ride on an unrelated selector's name
 // merely because it sits a few lines above.
-const hasNearbySelector = (lines, lineIndex, selector) => {
+const hasNearbySelector = (
+	lines: string[],
+	lineIndex: number,
+	selector: string,
+): boolean => {
 	for (let index = lineIndex; index >= 0; index--) {
 		if (selectorAppearsExactly(lines[index], selector)) {
 			return true;
@@ -641,8 +754,11 @@ const hasNearbySelector = (lines, lineIndex, selector) => {
 // only the `:root { … }` / `html.dark { … }` token-declaration blocks in
 // app.css may contain raw colour literals; every other rule in the file is
 // scanned like any other source file.
-const getBlockLineRanges = (lines, selectorPattern) => {
-	const ranges = [];
+const getBlockLineRanges = (
+	lines: string[],
+	selectorPattern: RegExp,
+): [number, number][] => {
+	const ranges: [number, number][] = [];
 	for (let index = 0; index < lines.length; index += 1) {
 		if (!selectorPattern.test(lines[index])) {
 			continue;
@@ -715,7 +831,12 @@ export const scanFront2DesignSystemInternals = {
 	getTokenLayerComputeStatsForTestObservation,
 };
 
-const isAppCssTokenLayerLine = (relativePath, lineIndex, lines) => {
+const isAppCssTokenLayerLine = (
+	relativePath: string,
+	lineIndex: number,
+	lines: string[],
+): boolean => {
+
 	if (relativePath !== APP_CSS_PATH) {
 		return false;
 	}
@@ -725,7 +846,12 @@ const isAppCssTokenLayerLine = (relativePath, lineIndex, lines) => {
 	);
 };
 
-const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {
+const isRoundedRadiusAllowed = (
+	relativePath: string,
+	line: string,
+	lineIndex: number,
+	lines: string[],
+): boolean => {
 	if (
 		relativePath === 'src/components/ui/avatar.tsx' ||
 		relativePath === 'src/components/ui/person-avatar.tsx'
@@ -805,7 +931,7 @@ const COLOR_LITERAL_PATTERN = new RegExp(
 // Tokens whose colour is deliberately fixed across both themes — documented
 // per-entry so the guard can still see and reason about every exemption
 // instead of being blind to the whole class (F3, mirrors KNOWN_GUARD_DEBT).
-const THEME_INVARIANT_TOKENS = [
+const THEME_INVARIANT_TOKENS: ThemeInvariantTokenEntry[] = [
 	{
 		prefix: '--publy-avatar-',
 		reason:
@@ -828,9 +954,11 @@ const THEME_INVARIANT_TOKENS = [
 	},
 ];
 
-const isThemeInvariantToken = (name) =>
+const isThemeInvariantToken = (name: string): boolean =>
 	THEME_INVARIANT_TOKENS.some((entry) =>
-		entry.exact ? entry.exact === name : name.startsWith(entry.prefix),
+		entry.exact !== undefined
+			? entry.exact === name
+			: entry.prefix !== undefined && name.startsWith(entry.prefix),
 	);
 
 // W6-GUARDS (ui F3): this raw regex used to scan comments along with real
@@ -843,13 +971,16 @@ const isThemeInvariantToken = (name) =>
 // consumer of this function — token parity, the scoped custom-property
 // pairing walk, and the whole-source declared-names set — shares this one
 // parser, so stripping comments here closes the hole everywhere at once.
-const stripCssComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '');
+const stripCssComments = (text: string): string =>
+	text.replace(/\/\*[\s\S]*?\*\//g, '');
 
 // Parses `--publy-x: value;` pairs out of a block of CSS text, tolerating
 // multi-line values (e.g. a wrapped `box-shadow` declaration) since this
 // operates on the whole block instead of scanning line-by-line.
-const extractTokenDeclarations = (blockText) => {
-	const declarations = new Map();
+const extractTokenDeclarations = (
+	blockText: string,
+): Map<string, string> => {
+	const declarations = new Map<string, string>();
 	const pattern = /(--publy-[\w-]+)\s*:\s*([^;]+);/g;
 	let match;
 	while ((match = pattern.exec(stripCssComments(blockText)))) {
@@ -858,7 +989,12 @@ const extractTokenDeclarations = (blockText) => {
 	return declarations;
 };
 
-const findDeclarationLine = (lines, start, end, tokenName) => {
+const findDeclarationLine = (
+	lines: string[],
+	start: number,
+	end: number,
+	tokenName: string,
+): number => {
 	for (let index = start; index <= end; index += 1) {
 		if (lines[index].trim().startsWith(`${tokenName}:`)) {
 			return index + 1;
@@ -879,8 +1015,10 @@ const findDeclarationLine = (lines, start, end, tokenName) => {
 // block, keyed by the last selector in a possibly comma-separated list —
 // which is how every existing dark counterpart in this file is spelled
 // (`html.dark .foo, html.dark .bar { … }` mirrors `.foo, .bar { … }`).
-const collectScopedCustomPropertyDeclarations = (appCssLines) => {
-	const byKey = new Map();
+const collectScopedCustomPropertyDeclarations = (
+	appCssLines: string[],
+): Map<string, ScopedCustomPropertyPair> => {
+	const byKey = new Map<string, ScopedCustomPropertyPair>();
 
 	for (let index = 0; index < appCssLines.length; index += 1) {
 		const trimmed = appCssLines[index].trim();
@@ -916,7 +1054,10 @@ const collectScopedCustomPropertyDeclarations = (appCssLines) => {
 		const blockText = appCssLines.slice(index + 1, endLine).join('\n');
 		const declarations = extractTokenDeclarations(blockText);
 		if (declarations.size > 0) {
-			const entry = byKey.get(key) ?? { light: new Map(), dark: new Map() };
+			const entry: ScopedCustomPropertyPair = byKey.get(key) ?? {
+			light: new Map<string, TokenDecl>(),
+			dark: new Map<string, TokenDecl>(),
+		};
 			const bucket = isDark ? entry.dark : entry.light;
 			for (const [name, value] of declarations) {
 				if (!bucket.has(name)) {
@@ -939,8 +1080,10 @@ const collectScopedCustomPropertyDeclarations = (appCssLines) => {
 // instead of per-line — the r1 dead-token deletion left conventions.md
 // prescribing `--publy-shadow-card`, a token that no longer exists, and nothing
 // today would have caught a light-only colour token shipping the same way.
-const checkTokenGuardViolations = (fileContentsByRelativePath) => {
-	const violations = [];
+const checkTokenGuardViolations = (
+	fileContentsByRelativePath: Map<string, string>,
+): DesignViolation[] => {
+	const violations: DesignViolation[] = [];
 	const appCssSource = fileContentsByRelativePath.get(APP_CSS_PATH);
 	if (appCssSource === undefined) {
 		return violations;
@@ -1071,7 +1214,7 @@ const checkTokenGuardViolations = (fileContentsByRelativePath) => {
 	return violations;
 };
 
-const isConfirmDialogFile = (relativePath) =>
+const isConfirmDialogFile = (relativePath: string): boolean =>
 	relativePath === 'src/components/ui/confirm-dialog.tsx' ||
 	relativePath === 'src/components/ui/drawer.tsx';
 
@@ -1102,7 +1245,7 @@ const isConfirmDialogFile = (relativePath) =>
 // `guardDebt` in fixture tests, `KNOWN_GUARD_DEBT` in the real CLI run), so
 // a narrow fixture exercises the same budget mechanics the production scan
 // runs.
-const countSnippetOccurrences = (source, snippet) => {
+const countSnippetOccurrences = (source: string, snippet: string): number => {
 	const pattern = new RegExp(`(?<!-)${escapeRegExpLiteral(snippet)}`, 'g');
 	return [...source.matchAll(pattern)].length;
 };
@@ -1115,8 +1258,11 @@ const countSnippetOccurrences = (source, snippet) => {
 // budget BELOW it fails the guard on the very code the entry records. Opt-in
 // like the other whole-repo checks: only the real CLI run enables it, plus
 // the permanent zero-slack test which measures the REAL repo.
-const checkGuardDebtBudgetSlack = (guardDebt, fileContentsByRelativePath) => {
-	const findings = [];
+const checkGuardDebtBudgetSlack = (
+	guardDebt: GuardDebtEntry[],
+	fileContentsByRelativePath: Map<string, string>,
+): DesignViolation[] => {
+	const findings: DesignViolation[] = [];
 	for (const debt of guardDebt) {
 		const content = fileContentsByRelativePath.get(debt.file);
 		if (content === undefined) {
@@ -1141,10 +1287,12 @@ const checkGuardDebtBudgetSlack = (guardDebt, fileContentsByRelativePath) => {
 	return findings;
 };
 
-const createHandoffGuardDebtLedger = (debtList) => {
-	const remainingByEntryIndex = new Map();
-	return ({ ruleId, file, source }) => {
-		const matchingIndexes = [];
+const createHandoffGuardDebtLedger = (
+	debtList: GuardDebtEntry[],
+): ((charge: GuardDebtCharge) => boolean) => {
+	const remainingByEntryIndex = new Map<number, number>();
+	const matchingIndexes: number[] = [];
+	return ({ ruleId, file, source }: GuardDebtCharge): boolean => {
 		for (let index = 0; index < debtList.length; index += 1) {
 			const debt = debtList[index];
 			if (debt.ruleId !== ruleId || debt.file !== file) {
@@ -1174,12 +1322,12 @@ const createHandoffGuardDebtLedger = (debtList) => {
 			// occurrences while leaving silent slack behind.
 			const occurrencesInSource = Math.min(
 				countSnippetOccurrences(source, debtList[index].sourceIncludes),
-				remainingByEntryIndex.get(index),
+				remainingByEntryIndex.get(index) ?? 0,
 			);
 			if (occurrencesInSource > 0) {
 				remainingByEntryIndex.set(
 					index,
-					remainingByEntryIndex.get(index) - occurrencesInSource,
+					(remainingByEntryIndex.get(index) ?? 0) - occurrencesInSource,
 				);
 				return true;
 			}
@@ -1197,7 +1345,15 @@ const createHandoffGuardDebtLedger = (debtList) => {
 // (three planted `top-1/2!` lines staying green). Because this closes over
 // the production ledger, reverting the per-occurrence charging flips the
 // test that asserts on it back to red.
-export const createHandoffLedgerProbe = (debtList) => {
+export const createHandoffLedgerProbe = (
+	debtList: GuardDebtEntry[],
+): {
+	remainingAfterStatusQuo: (
+		ruleId: string,
+		file: string,
+		content: string,
+	) => number;
+} => {
 	const allows = createHandoffGuardDebtLedger(debtList);
 	return {
 		remainingAfterStatusQuo: (ruleId, file, content) => {
@@ -1229,11 +1385,26 @@ export const createHandoffLedgerProbe = (debtList) => {
 // diff below, so this guard and the inventory can never again disagree about
 // what counts as a suppression site. See suppression-reason.ts for the full
 // rationale.
-const isInlineSuppressed = (lines, line, ruleId) =>
+const isInlineSuppressed = (
+	lines: string[],
+	line: number,
+	ruleId: string,
+): boolean =>
 	isPreviousLineSuppressed(lines, line, 'design-system-ignore', ruleId);
 
+// (The two trailing optional parameters exist because several call sites
+// pass a legacy duplicate push (a repeated violations array + violation
+// object); both have been inert at runtime for a long time and are accepted
+// here purely to keep those call shapes honest — they are never read.)
 const makeRecordViolation =
-	(handoffGuardDebtAllows) => (violations, violation, lines) => {
+	(handoffGuardDebtAllows: (violation: GuardDebtCharge) => boolean) =>
+	(
+		violations: DesignViolation[],
+		violation: DesignViolation,
+		lines?: string[],
+		_legacyDuplicateViolations?: DesignViolation[],
+		_legacyDuplicateViolation?: DesignViolation,
+	): void => {
 		if (handoffGuardDebtAllows(violation)) {
 			return;
 		}
@@ -1477,7 +1648,7 @@ const RAW_COLOR_PROPERTY_NAMED_PATTERN_MULTILINE = new RegExp(
 const RAW_COLOR_CUSTOM_PROPERTY_PATTERN = new RegExp(
 	`^\\s*--[\\w-]+\\s*:[^;]*(?:#[0-9a-fA-F]{3,8}\\b|\\b(?:${DIRECT_COLOR_FUNCTION_NAMES})\\()`,
 );
-const RAW_COLOR_MULTILINE_PATTERN_OVERRIDES = new Map([
+const RAW_COLOR_MULTILINE_PATTERN_OVERRIDES = new Map<RegExp, RegExp>([
 	[RAW_COLOR_PROPERTY_HEX_PATTERN, RAW_COLOR_PROPERTY_HEX_PATTERN_MULTILINE],
 	[RAW_COLOR_PROPERTY_RGBA_PATTERN, RAW_COLOR_PROPERTY_RGBA_PATTERN_MULTILINE],
 	[
@@ -1544,8 +1715,8 @@ const COLOR_MIX_SAFE_KEYWORDS = new Set([
 /** Splits `text` on top-level occurrences of `separator`, treating any
  * substring inside matching parens as opaque (so `var(--x)`/`rgba(0,0,0,.4)`
  * never contribute a false split point). */
-const splitTopLevel = (text, separator) => {
-	const parts = [];
+const splitTopLevel = (text: string, separator: string): string[] => {
+	const parts: string[] = [];
 	let depth = 0;
 	let start = 0;
 	for (let index = 0; index < text.length; index += 1) {
@@ -1568,7 +1739,7 @@ const splitTopLevel = (text, separator) => {
  * its own nested parens (another `var()`, a `color-mix()`, a colour
  * function) is captured whole instead of truncated at the first `)`. Returns
  * `null` for an unbalanced/malformed call. */
-const extractVarArgs = (value) => {
+const extractVarArgs = (value: string): string | null => {
 	const openParenIndex = value.indexOf('(');
 	if (openParenIndex === -1) {
 		return null;
@@ -1605,7 +1776,7 @@ const RELATIVE_COLOR_BASE_PATTERN =
  * syntax (`rgb(from var(--x) r g b)`) based on a safe colour. Anything else —
  * hex, `rgb()`/`hsl()`/`oklch()`/`color()` given literal channels, or a bare
  * named colour keyword like `white`/`red` — is a raw literal. */
-const isSafeColorMixValue = (withoutPercentage) => {
+const isSafeColorMixValue = (withoutPercentage: string): boolean => {
 	if (/^var\(/i.test(withoutPercentage)) {
 		// W6-GUARDS (tests F5): a bare `var(--x)` operand is always safe — the
 		// referenced custom property is itself a theme-aware token by
@@ -1647,7 +1818,7 @@ const isSafeColorMixValue = (withoutPercentage) => {
 	return false;
 };
 
-const isRawColorMixOperand = (segment) => {
+const isRawColorMixOperand = (segment: string): boolean => {
 	const trimmed = segment.trim();
 	if (trimmed === '') {
 		return false;
@@ -1664,8 +1835,8 @@ const isRawColorMixOperand = (segment) => {
  * characters and does not care about newlines. Matching is case-insensitive
  * (W5-HARDEN2 item 4A — see isSafeColorMixValue). Returns the opener's
  * character offset and its raw argument-list text for each call found. */
-const findColorMixArgLists = (text) => {
-	const calls = [];
+const findColorMixArgLists = (text: string): ColorMixCall[] => {
+	const calls: ColorMixCall[] = [];
 	const openerPattern = /color-mix\(/gi;
 	let openerMatch;
 	while ((openerMatch = openerPattern.exec(text))) {
@@ -1700,7 +1871,7 @@ const findColorMixArgLists = (text) => {
 /** The first comma-separated segment inside a color-mix() argument list is
  * the `in <space>[ <method> hue]` colour-interpolation clause, never a
  * colour operand — it's skipped. */
-const colorMixArgsHaveRawOperand = (argsText) =>
+const colorMixArgsHaveRawOperand = (argsText: string): boolean =>
 	splitTopLevel(argsText, ',')
 		.slice(1)
 		.some((segment) => isRawColorMixOperand(segment));
@@ -1709,7 +1880,7 @@ const colorMixArgsHaveRawOperand = (argsText) =>
  * colour operand — used both by the shared per-line/per-statement pattern
  * object below (COLOR_MIX_RAW_OPERAND_PATTERN, CSS files) and recursively by
  * isSafeColorMixValue to evaluate a nested color-mix() operand. */
-const hasRawColorMixOperand = (text) =>
+const hasRawColorMixOperand = (text: string): boolean =>
 	findColorMixArgLists(text).some((call) =>
 		colorMixArgsHaveRawOperand(call.argsText),
 	);
@@ -1741,7 +1912,7 @@ const COMPOSED_TEMPLATE_INTERP_PATTERN = new RegExp(
 	'`\\s*#\\$\\{\\s*' + `${QUOTE_CLASS}[0-9a-fA-F]{3,8}${QUOTE_CLASS}\\s*\\}`,
 );
 
-const rules = [
+const rules: DesignSystemRule[] = [
 	{
 		id: 'no-heroui-import',
 		message: 'Use local Gray UI primitives instead of HeroUI.',
@@ -1910,7 +2081,6 @@ const rules = [
 			'Use the local confirm dialog path; keep DialogPopup direct usage for future non-confirmation overlays.',
 		appliesTo: (relativePath) => relativePath.startsWith('src/'),
 		patterns: [/DialogPopup\b/, /DialogPrimitive\.Popup/],
-		source: 'source',
 		mode: 'source',
 		ignoreFile: isConfirmDialogFile,
 	},
@@ -1978,7 +2148,7 @@ const rules = [
 	},
 ];
 
-const pathExists = async (dir) => {
+const pathExists = async (dir: string): Promise<boolean> => {
 	try {
 		await readdir(dir);
 		return true;
@@ -1987,9 +2157,9 @@ const pathExists = async (dir) => {
 	}
 };
 
-const collectFiles = async (dir) => {
+const collectFiles = async (dir: string): Promise<string[]> => {
 	const entries = await readdir(dir, { withFileTypes: true });
-	const files = [];
+	const files: string[] = [];
 
 	for (const entry of entries) {
 		const absolutePath = path.join(dir, entry.name);
@@ -2016,8 +2186,11 @@ const collectFiles = async (dir) => {
 // live suppression check or the committed inventory.
 const KNOWN_DESIGN_SYSTEM_RULE_IDS = new Set(rules.map((rule) => rule.id));
 
-const unknownSuppressionRuleIdViolations = (relativePath, source) => {
-	const findings = [];
+const unknownSuppressionRuleIdViolations = (
+	relativePath: string,
+	source: string,
+): DesignViolation[] => {
+	const findings: DesignViolation[] = [];
 	const lines = source.split('\n');
 	for (let index = 0; index < lines.length; index += 1) {
 		for (const site of findSuppressionSitesInSource(
@@ -2072,11 +2245,11 @@ export const scanFront2DesignSystem = async ({
 	// meaningless; only the real CLI run opts in, plus the permanent
 	// zero-slack test which measures the REAL repo directly.
 	checkDebtBudgetSlack = false,
-} = {}) => {
+}: ScanOptions = {}): Promise<DesignViolationScanResult> => {
 	const handoffGuardDebtAllows = createHandoffGuardDebtLedger(guardDebt);
 	const recordViolation = makeRecordViolation(handoffGuardDebtAllows);
-	const files = [];
-	const emptyDirs = [];
+	const files: string[] = [];
+	const emptyDirs: string[] = [];
 	for (const dir of sourceDirs) {
 		const dirFiles = (await pathExists(dir)) ? await collectFiles(dir) : [];
 		if (dirFiles.length === 0) {
@@ -2103,8 +2276,8 @@ export const scanFront2DesignSystem = async ({
 		);
 	}
 
-	const violations = [];
-	const fileContentsByRelativePath = new Map();
+	const violations: DesignViolation[] = [];
+	const fileContentsByRelativePath = new Map<string, string>();
 
 	for (const absolutePath of files) {
 		const relativePath = path
@@ -2146,8 +2319,11 @@ export const scanFront2DesignSystem = async ({
 					const lineIndex =
 						source.slice(0, statementMatch.index).split('\n').length - 1;
 					for (const pattern of rule.patterns) {
-						const effectivePattern =
-							RAW_COLOR_MULTILINE_PATTERN_OVERRIDES.get(pattern) ?? pattern;
+						const effectivePattern: RulePattern =
+							pattern instanceof RegExp
+								? (RAW_COLOR_MULTILINE_PATTERN_OVERRIDES.get(pattern) ??
+									pattern)
+								: pattern;
 						if (!effectivePattern.test(statementText)) {
 							continue;
 						}
@@ -2185,6 +2361,14 @@ export const scanFront2DesignSystem = async ({
 
 			if (rule.mode === 'source') {
 				for (const pattern of rule.patterns) {
+					// Every mode-'source' rule in this file declares plain RegExp
+					// patterns; fail fast rather than widen the type if that ever
+					// changes.
+					if (!(pattern instanceof RegExp)) {
+						throw new Error(
+							`internal invariant: rule ${rule.id} declares mode 'source' with a non-RegExp pattern`,
+						);
+					}
 					const globalPattern = new RegExp(
 						pattern.source,
 						pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`,
@@ -2270,7 +2454,14 @@ export const scanFront2DesignSystem = async ({
 	// the FULL file text (not one line at a time) finds the matching paren
 	// regardless of how many newlines it crosses, exactly like the CSS
 	// statement branch already does for its own declarations.
-	const colorMixRule = rules.find((rule) => rule.id === 'no-raw-visual-color');
+	const colorMixRule: DesignSystemRule | undefined = rules.find(
+		(rule) => rule.id === 'no-raw-visual-color',
+	);
+	if (!colorMixRule) {
+		throw new Error(
+			'internal invariant: no-raw-visual-color rule must exist in rules',
+		);
+	}
 	for (const [relativePath, source] of fileContentsByRelativePath) {
 		if (
 			relativePath.endsWith('.css') ||
@@ -2381,7 +2572,7 @@ export const scanFront2DesignSystem = async ({
 	// regenerating it), or an inventory entry no longer found in code, both
 	// fail the guard.
 	if (checkSuppressionInventory) {
-		const found = [];
+		const found: SuppressionSite[] = [];
 		for (const [relativePath, source] of fileContentsByRelativePath) {
 			found.push(
 				...findSuppressionSitesInSource(source, relativePath).filter(
@@ -2390,7 +2581,9 @@ export const scanFront2DesignSystem = async ({
 			);
 		}
 		const relevantInventory = suppressionInventory.filter(
-			(site) => site.convention === 'design-system-ignore',
+			(site): site is SuppressionSite & {
+				convention: 'design-system-ignore';
+			} => site.convention === 'design-system-ignore',
 		);
 		const { undocumented, stale } = diffSuppressionInventory(
 			found,
@@ -2420,8 +2613,7 @@ export const scanFront2DesignSystem = async ({
 		}
 	}
 
-	violations.scannedFileCount = files.length;
-	return violations;
+	return Object.assign(violations, { scannedFileCount: files.length });
 };
 
 if (

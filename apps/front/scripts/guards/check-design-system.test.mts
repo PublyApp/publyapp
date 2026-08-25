@@ -3019,7 +3019,7 @@ test('r1-fix: a multi-occurrence line spends one budget unit per occurrence it c
 // countSnippetOccurrences uses).
 const countSnippetOccurrencesInFile = async (debt) => {
 	const content = await readFile(
-		fileURLToPath(new URL(`../${debt.file}`, import.meta.url)),
+		fileURLToPath(new URL(`../../${debt.file}`, import.meta.url)),
 		'utf8',
 	);
 	const pattern = new RegExp(
