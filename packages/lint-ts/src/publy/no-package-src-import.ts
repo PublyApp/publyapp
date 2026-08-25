@@ -1,4 +1,5 @@
 import type { Context, Visitor } from '@oxlint/plugins';
+import type { ESTree } from '@oxlint/plugins';
 
 import { normalizeFilename } from './path-scopes.ts';
 
@@ -77,8 +78,8 @@ export const noPackageSrcImport = {
 		}
 
 		/** Check a source string node and report if it matches a banned prefix. */
-		const checkSource = (sourceNode: { value?: unknown }): void => {
-			const source = sourceNode?.value;
+		const checkSource = (sourceNode: ESTree.StringLiteral): void => {
+			const source = sourceNode.value;
 
 			if (typeof source !== 'string') {
 				return;
@@ -95,7 +96,7 @@ export const noPackageSrcImport = {
 				: 'shared-ts';
 
 			context.report({
-				node: sourceNode as never,
+				node: sourceNode,
 				messageId: 'banned',
 				data: { pkg },
 			});

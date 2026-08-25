@@ -11,7 +11,7 @@ import { describe, expect, test } from 'vitest';
 // chain closure and the validated-output type flows through them, so no
 // cast is needed at all. This guard keeps every escape hatch (`as never`,
 // `as unknown`, `as any`) out of both files that share the stub. The
-// repo-wide ban is the dormant candidate rule `publy/no-never-any-casts`,
+// repo-wide ban is the enforced rule `publy/no-never-any-casts`,
 // measured in docs/guides/lint-rules.md.
 const SERVER_FN_STUB_FILES = [
 	'auth-actions.test.ts',

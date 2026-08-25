@@ -176,7 +176,9 @@ export const STAFF_TENANT_DETAILS_QUERY_KEY = [
  * `STAFF_TENANT_DETAILS_QUERY_KEY` nests under `STAFF_TENANTS_QUERY_KEY`, so
  * a single prefix invalidation covers both. Prefer this over hand-assembling
  * `['staff', ...STAFF_TENANTS_QUERY_KEY]` at a call site (see F19/F16). */
-export const invalidateStaffTenants = (queryClient: QueryClient) =>
+export const invalidateStaffTenants = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
 	});
@@ -187,7 +189,9 @@ export const invalidateStaffTenants = (queryClient: QueryClient) =>
  * resource call sites that pair a mutation with "and refresh the parent
  * tenant too". A prior name (`invalidateStaffTenantDetails`) implied a
  * narrow details-only scope it never had (r3-tenants-F9). */
-export const invalidateAllStaffTenantScopes = (queryClient: QueryClient) =>
+export const invalidateAllStaffTenantScopes = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_TENANTS_QUERY_KEY),
 	});

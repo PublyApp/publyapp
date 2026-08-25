@@ -251,7 +251,9 @@ export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
  * permission-keys entry, and its members entry — all nest under
  * `STAFF_TENANT_PROFILES_QUERY_KEY`, so a single prefix invalidation covers
  * every one. */
-export const invalidateStaffTenantProfiles = (queryClient: QueryClient) =>
+export const invalidateStaffTenantProfiles = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_TENANT_PROFILES_QUERY_KEY),
 	});

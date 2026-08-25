@@ -327,7 +327,7 @@ export const Route = createFileRoute(
 				kind: 'entity',
 				query: tenantPostCrumbQuery,
 				select: selectTenantPostCrumbName,
-			} as never,
+			},
 		],
 		i18nNamespaces: ['posts'],
 	},

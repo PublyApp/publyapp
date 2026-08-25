@@ -17,8 +17,11 @@ import process from 'node:process';
 // docs/records/2026-08-25-audit-docs-prune.md as committed evidence.
 //
 // Reproducibility: the audit reads a git REVISION, not the working tree —
-// by default the merge-base of origin/develop and HEAD (the pre-prune tree
-// being pruned), overridable with `--rev <sha>`. Re-run
+// by default the youngest tree on origin/develop's first-parent history
+// that still carries every decision-table source (normally the merge-base
+// of origin/develop and HEAD; once the prune has landed on develop, the
+// walk steps back over pruned commits to keep reading a pre-prune tree),
+// overridable with `--rev <sha>`. Re-run
 // `node packages/scripts-ts/src/audit-docs-prune.ts` any time and the file
 // regenerates byte-for-byte; `--check` fails if it would differ (so the
 // evidence cannot silently rot while the decision inputs change).
@@ -181,11 +184,56 @@ const revFlagIndex = argv.indexOf('--rev');
 const explicitRev = revFlagIndex >= 0 ? argv[revFlagIndex + 1] : undefined;
 
 // Default audit target: the pre-prune tree this inventory is evidence for.
+// True when `rev`'s tree carries every file the decision table moves. Those
+// keys exist only in the PRE-prune tree, so this is the test that separates
+// a usable audit base from an already-pruned one.
+const revCarriesAllDecisionSources = (rev: string): boolean => {
+	for (const source of Object.keys(MOVES)) {
+		try {
+			runGit(['cat-file', '-e', `${rev}:${source}`]);
+		} catch {
+			return false;
+		}
+	}
+	return true;
+};
+
+// Youngest first-parent commit of origin/develop whose tree still contains
+// every decision-table source — i.e. the youngest pre-prune tree. Null when
+// even develop's tip still carries them (pre-prune world) or the bounded
+// walk found nothing (history rewritten beyond recognition).
+const youngestPrePruneCommit = (): string | null => {
+	for (const line of runGit([
+		'rev-list',
+		'--max-count=100',
+		'--first-parent',
+		'origin/develop',
+	]).split('\n')) {
+		const rev = line.trim();
+		if (rev.length === 0) {
+			continue;
+		}
+		if (revCarriesAllDecisionSources(rev)) {
+			return rev;
+		}
+	}
+	return null;
+};
+
 const resolveRev = (): string => {
 	if (explicitRev) {
 		return explicitRev;
 	}
-	return runGit(['merge-base', 'origin/develop', 'HEAD']).trim();
+	const mergeBase = runGit(['merge-base', 'origin/develop', 'HEAD']).trim();
+	if (revCarriesAllDecisionSources(mergeBase)) {
+		return mergeBase;
+	}
+	// Post-#1395 world: the prune landed on develop, so any lane cut from
+	// the pruned tip has a merge-base whose docs/ no longer holds the
+	// audited candidates. Step back to the youngest pre-prune tree so the
+	// audit keeps reading the inputs its evidence was defined over; the
+	// freshness comparison below is unchanged and still guards HEAD's copy.
+	return youngestPrePruneCommit() ?? mergeBase;
 };
 
 const listTrackedDocsCandidates = (rev: string): string[] =>
@@ -460,7 +508,9 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'',
 		'Date: 2026-08-25. Generated evidence for the #1357 docs prune; regenerate with',
 		'`node packages/scripts-ts/src/audit-docs-prune.ts` (`--check` enforces byte equality).',
-		'The audit reads the merge-base of origin/develop and HEAD (the pre-prune tree), so the',
+		'The audit reads the youngest origin/develop first-parent tree that still carries every',
+		'decision-table source (the pre-prune tree — normally the merge-base of origin/develop',
+		'and HEAD; once the prune has landed, the walk steps back over pruned commits), so the',
 		'evidence stays reproducible after the prune lands; `--rev <sha>` overrides. The decision',
 		'table lives in that script, so the prune is mechanical rather than hand-curated.',
 		'',

@@ -52,7 +52,9 @@ export const STAFF_TENANT_INVITATIONS_QUERY_KEY = [
 	'invitations',
 ] as const;
 
-export const invalidateStaffTenantInvitations = (queryClient: QueryClient) =>
+export const invalidateStaffTenantInvitations = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_TENANT_INVITATIONS_QUERY_KEY),
 	});

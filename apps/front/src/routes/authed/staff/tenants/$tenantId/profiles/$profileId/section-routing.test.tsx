@@ -34,6 +34,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
  * thing being proved.
  */
 import type { BlockerFn } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import {
 	createBrowserHistory,
 	createMemoryHistory,
@@ -245,7 +246,7 @@ const buildRouter = (
 		id: '/_authed-layout',
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
-	} as never);
+	});
 	const detailsRoute = mountRealRoute(ProfileDetailsRoute, {
 		id: '/staff/tenants/$tenantId/profiles/$profileId',
 		path: '/staff/tenants/$tenantId/profiles/$profileId',
@@ -290,7 +291,7 @@ const buildRouter = (
 		path: '/staff/tenants/$tenantId/profiles',
 		staticData: { crumbs: 'shell' },
 		component: () => <div data-testid="profiles-list-page" />,
-	} as never);
+	});
 
 	// `.addChildren` exists at runtime on every route but is absent from the
 	// exported `options` union; the helper is the one widening point and each
@@ -332,11 +333,13 @@ const buildRouter = (
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = createRouter({
-		routeTree,
-		history,
-		context: { queryClient },
-	} as never);
+	const router: AnyRouter = createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({
+			routeTree,
+			history,
+			context: { queryClient },
+		}),
+	);
 
 	return { router, history, queryClient, blockers };
 };
@@ -350,7 +353,7 @@ const renderAt = async (
 
 	render(
 		<QueryClientProvider client={harness.queryClient}>
-			<RouterProvider router={harness.router as never} />
+			<RouterProvider router={harness.router} />
 		</QueryClientProvider>,
 	);
 	await waitFor(() =>
@@ -657,8 +660,9 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 			search: '',
 			hash: '',
 			// BlockerFnArgs.state is ParsedHistoryState; the production
-			// predicate never inspects it, so opt out of checking the literal.
-			state: {} as never,
+			// predicate never inspects it, but TanStack's own shape carries the
+			// render index, so mirror what a real history location has.
+			state: { __TSR_index: 0 },
 		});
 		const blocked = blockers.map((blockerFn) =>
 			blockerFn({
