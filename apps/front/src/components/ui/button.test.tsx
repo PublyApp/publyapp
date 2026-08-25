@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { buttonVariants } from './button';
+import { buttonVariants } from './button.variants';
 
 const SIZE_RADIUS_TOKENS = [
 	['default', 'var(--publy-radius-medium-control)'],

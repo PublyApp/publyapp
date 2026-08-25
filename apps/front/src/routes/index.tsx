@@ -20,7 +20,7 @@ import { LandingSectionHeader } from '~/components/marketing/landing/landing-sec
 import { LandingTour } from '~/components/marketing/landing/landing-tour';
 import { LandingTrial } from '~/components/marketing/landing/landing-trial';
 import { useLandingReveal } from '~/components/marketing/landing/use-landing-reveal';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { FEATURES } from '~/lib/flags';
 import { createI18nFromResources } from '~/lib/i18n.shared';
 import { cn } from '~/lib/utils';

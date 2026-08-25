@@ -2,7 +2,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 
 export const StaffUserDetailsLoading = () => {
 	const { t } = useTranslation(['staff-users', 'common']);

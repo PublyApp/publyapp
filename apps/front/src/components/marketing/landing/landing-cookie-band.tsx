@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { useCookieConsentStore } from '~/lib/store/cookie-consent-store';
 import { cn } from '~/lib/utils';
 

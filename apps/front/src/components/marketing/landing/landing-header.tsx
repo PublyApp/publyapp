@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { ThemeToggle } from '~/components/app-shell/theme/theme-toggle';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { cn } from '~/lib/utils';
 
 import { MarketingBrand } from '../marketing-brand';

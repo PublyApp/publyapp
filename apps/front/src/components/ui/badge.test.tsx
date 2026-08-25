@@ -4,7 +4,8 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { Badge, badgeVariants } from './badge';
+import { Badge } from './badge';
+import { badgeVariants } from './badge.variants';
 
 afterEach(cleanup);
 

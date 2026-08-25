@@ -18,7 +18,8 @@ import { EmailSentConfirmation } from '~/components/auth/email-sent-confirmation
 import { InvalidLinkView } from '~/components/auth/invalid-link-view';
 import { PasswordField } from '~/components/auth/password-field';
 import { PrecheckUnavailableView } from '~/components/auth/precheck-unavailable-view';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { Input } from '~/components/ui/input';
 import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';

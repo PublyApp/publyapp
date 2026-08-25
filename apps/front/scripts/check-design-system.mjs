@@ -481,10 +481,10 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 	// `!`-suffix usage there is now recorded here instead of being invisible.
 	{
 		ruleId: IMPORTANT_FOUNDATION_RULE_ID,
-		file: 'src/components/ui/badge.tsx',
+		file: 'src/components/ui/badge.variants.ts',
 		sourceIncludes: '[&>svg]:size-3!',
 		reason:
-			'Pins every Badge icon to 12px regardless of the icon component’s own default size (Tabler icons default to size-4/16px) — a caller’s icon className would otherwise win and break the compact 20px badge.',
+			'Pins every Badge icon to 12px regardless of the icon component’s own default size (Tabler icons default to size-4/16px) — a caller’s icon className would otherwise win and break the compact 20px badge. (File: the cva definition moved here from badge.tsx for react-doctor rung 2, #1417.)',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
 
 		maxOccurrences: 1,

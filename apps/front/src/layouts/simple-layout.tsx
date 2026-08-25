@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import logoSvg from '~/assets/gray-ui/logo.svg';
 import { ThemeToggle } from '~/components/app-shell/theme/theme-toggle';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
