@@ -20,6 +20,8 @@ import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
+
 type MockMatch = {
 	_notFound?: boolean;
 	pathname: string;
@@ -46,7 +48,7 @@ const mocks = vi.hoisted(() => ({
 		| undefined,
 	isHydrated: true,
 	matches: [] as MockMatch[],
-	tokens: { staffToken: 'staff-tok' } as Record<string, unknown>,
+	tokens: { staffToken: 'staff-tok' } satisfies ParsedSessionTokens,
 }));
 
 // Capture the options the shell passes to TanStack Query for the

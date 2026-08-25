@@ -11,6 +11,7 @@ import {
 } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	settingsQuery: {
@@ -70,7 +71,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 	toastLocalMutationResult: mocks.toastLocalMutationResult,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	general: 'General',
 	'organization-details': 'Organization details',
 	logo: 'Logo',

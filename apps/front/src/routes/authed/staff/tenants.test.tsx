@@ -10,6 +10,7 @@ import {
 import type { JSX, ReactNode } from 'react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 const mocks = vi.hoisted(() => ({
@@ -54,7 +55,7 @@ vi.mock('@tanstack/react-router', () => ({
 		createElement('a', { href: to, ...props }, children),
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS: TestLabelMap = {
 	tenant: 'Tenant',
 	'bulk-suspend': 'Suspend selected',
 	'bulk-reactivate': 'Reactivate selected',

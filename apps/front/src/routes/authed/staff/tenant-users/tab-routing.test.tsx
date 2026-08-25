@@ -59,7 +59,7 @@ const mocks = vi.hoisted(() => ({
 		createdAt: new Date('2026-07-01T09:00:00Z'),
 		updatedAt: null,
 		displayName: 'Ada Lovelace',
-	} as Record<string, unknown>,
+	},
 	companies: [] as unknown[],
 	updateIdentity: vi.fn().mockResolvedValue(undefined),
 }));

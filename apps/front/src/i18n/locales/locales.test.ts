@@ -114,7 +114,7 @@ const frFutureMarkers = [
 const marketingCopy = (bundle: {
 	common: Record<string, string>;
 	landing: Record<string, string>;
-}): Record<string, string> => ({ ...bundle.common, ...bundle.landing });
+}) => ({ ...bundle.common, ...bundle.landing });
 
 const enMarketing = marketingCopy(en);
 const frMarketing = marketingCopy(fr);

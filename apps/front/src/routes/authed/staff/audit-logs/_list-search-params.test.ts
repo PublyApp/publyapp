@@ -63,7 +63,7 @@ describe('audit log list search params', () => {
 				end_date: '2026-01-31',
 				sort_id: 'created_at',
 				sort_order: 'desc',
-				size: '50',
+				size: 50,
 			});
 
 			expect(parsed).toEqual({
@@ -81,7 +81,7 @@ describe('audit log list search params', () => {
 				end_date: '2026-01-31',
 				sort_id: 'created_at',
 				sort_order: 'desc',
-				size: '50',
+				size: 50,
 			});
 		});
 

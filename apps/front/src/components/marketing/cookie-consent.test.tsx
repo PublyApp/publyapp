@@ -17,7 +17,10 @@ const readStored = () => {
 	return raw === null ? null : JSON.parse(raw);
 };
 
-const storeDecision = (consent: Record<string, boolean>, version?: string) => {
+const storeDecision = (
+	consent: Partial<Record<'functional' | 'analytics' | 'marketing', boolean>>,
+	version?: string,
+) => {
 	window.localStorage.setItem(
 		COOKIE_CONSENT_STORAGE_KEY,
 		JSON.stringify({
@@ -43,7 +46,6 @@ describe('CookieConsentBand', () => {
 
 	test('stays hidden once a decision is stored', async () => {
 		storeDecision({ functional: true, analytics: false, marketing: false });
-
 		await renderMarketing(<CookieConsentBand onCustomize={vi.fn()} />);
 
 		await waitFor(() =>
@@ -123,7 +125,7 @@ describe('cookie consent fails closed', () => {
 	});
 
 	test('a partially-shaped stored decision is treated as corrupt, not defaulted', async () => {
-		storeDecision({ functional: true } as Record<string, boolean>);
+		storeDecision({ functional: true });
 
 		await renderMarketing(<CookieConsentBand onCustomize={vi.fn()} />);
 

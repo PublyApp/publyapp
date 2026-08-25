@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -48,7 +49,7 @@ vi.mock('~/lib/flags', () => ({
 	},
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'create-your-account': 'Create your account',
 	'already-have-account-question': 'Already have an account?',
 	'log-in': 'Log in',

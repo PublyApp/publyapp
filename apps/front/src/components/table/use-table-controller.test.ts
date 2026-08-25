@@ -42,12 +42,7 @@ afterEach(() => {
 	}
 });
 
-const renderTableController = (
-	options: UseTableControllerOptions,
-): {
-	rerender: (next: UseTableControllerOptions) => void;
-	result: () => UseTableControllerResult;
-} => {
+const renderTableController = (options: UseTableControllerOptions) => {
 	let latest: UseTableControllerResult | undefined;
 
 	const Probe = (props: { options: UseTableControllerOptions }): null => {

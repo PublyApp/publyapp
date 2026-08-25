@@ -7,6 +7,7 @@ import {
 	invalidateStaffInvitations,
 	STAFF_INVITATIONS_QUERY_KEY,
 } from './staff-invitations';
+import type { StaffInvitationsQueryVariables } from './staff-invitations';
 
 describe('buildFindStaffInvitationsQueryParameters', () => {
 	test('keeps only api-supported filters and stringifies size', () => {
@@ -43,16 +44,15 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 	// this pins that a caller cannot smuggle one through even via an `as`
 	// cast/spread, since the builder only ever reads the fields it knows.
 	test('drops an unsupported q field even if present on the input object', () => {
-		expect(
-			buildFindStaffInvitationsQueryParameters({
-				cursor: 'cursor-123',
-				size: 50,
-				sortId: 'created_at',
-				sortOrder: 'desc',
-				status: 'pending,accepted',
-				...({ q: 'staff-admin' } as object),
-			}),
-		).toEqual({
+		const inputWithQ: StaffInvitationsQueryVariables & { q?: string } = {
+			cursor: 'cursor-123',
+			size: 50,
+			sortId: 'created_at',
+			sortOrder: 'desc',
+			status: 'pending,accepted',
+			q: 'staff-admin',
+		};
+		expect(buildFindStaffInvitationsQueryParameters(inputWithQ)).toEqual({
 			cursor: 'cursor-123',
 			limit: '50',
 			sortId: 'created_at',

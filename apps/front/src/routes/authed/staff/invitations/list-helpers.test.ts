@@ -54,7 +54,7 @@ describe('serializeInvitationListSearchParams', () => {
 			sort_id: 'created_at',
 			sort_order: 'desc',
 			cursor: 'cursor-123',
-			size: '25',
+			size: 25,
 			status: 'pending,accepted',
 		});
 	});

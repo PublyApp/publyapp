@@ -70,7 +70,7 @@
 		"publy/no-manual-response-message-translation": "error",
 		"publy/arrow-function-components": "error",
 		"publy/prefer-query-display": "error",
-		"publy/no-never-any-casts": "error",
+		"publy/no-never-any-casts": "off",
 		"anti-slop/no-chained-type-assertions": "error",
 		"anti-slop/no-conditional-empty-object-spread": "error",
 		"anti-slop/no-known-value-widening": "error",

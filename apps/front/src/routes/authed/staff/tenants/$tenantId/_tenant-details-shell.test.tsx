@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({
@@ -54,7 +55,7 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				basics: 'Basics',
 				profiles: 'Profiles',
 				invitations: 'Invitations',

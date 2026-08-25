@@ -247,10 +247,15 @@ const countBySiteKey = (sites: SuppressionSite[]): Map<string, number> => {
  * plausible sentence, but it cannot make a NEW suppression invisible in the
  * diff, because the diff must also touch this file.
  */
+type SuppressionInventoryDiff = {
+	undocumented: SuppressionSite[];
+	stale: SuppressionSite[];
+};
+
 export const diffSuppressionInventory = (
 	found: SuppressionSite[],
 	inventory: SuppressionSite[],
-): { undocumented: SuppressionSite[]; stale: SuppressionSite[] } => {
+): SuppressionInventoryDiff => {
 	const remainingInventory = countBySiteKey(inventory);
 	const undocumented = found.filter((site) => {
 		const key = siteKey(site);

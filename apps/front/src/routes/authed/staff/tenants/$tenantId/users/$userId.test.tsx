@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
@@ -68,7 +69,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS: TestLabelMap = {
 	'back-to-users': 'Back to users',
 	'edit-tenant-user': 'Edit tenant user',
 	'account-level': 'Account level',

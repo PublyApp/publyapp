@@ -4,12 +4,26 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+/** Named owner contract: each mock feeds a different slice of the hook
+ * result across tests, so the shape stays an open dictionary instead of
+ * relying on inference from whichever mock runs first. */
+interface TenantPostDetailsQueryResultMock {
+	data?: unknown;
+	isPending?: boolean;
+	isSuccess?: boolean;
+	isError?: boolean;
+	error?: unknown;
+	refetch?: unknown;
+	isFetching?: boolean;
+}
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useParams: vi.fn(() => ({ postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa' })),
 	invalidateQueries: vi.fn(),
-	useTenantPostDetailsQuery: vi.fn((): Record<string, unknown> => ({
+	useTenantPostDetailsQuery: vi.fn((): TenantPostDetailsQueryResultMock => ({
 		data: undefined,
 		isPending: true,
 		isError: false,
@@ -137,7 +151,7 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'posts:edit-post': 'Edit post',
 	'posts:back-to-drafts': 'Back to drafts',
 	'posts:body-label': 'Body',

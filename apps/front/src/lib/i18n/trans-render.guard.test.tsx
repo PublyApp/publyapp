@@ -412,14 +412,11 @@ const routeComponentThunk = (route: {
 	return (): RouteComponent => component;
 };
 
-const ROUTE_COMPONENTS: Record<
-	CallSiteSpec['route'],
-	() => () => ReactElement
-> = {
+const ROUTE_COMPONENTS = {
 	'reset-password': routeComponentThunk(ResetPasswordRoute),
 	'accept-invitation': routeComponentThunk(AcceptInvitationRoute),
 	'verify-email': routeComponentThunk(VerifyEmailRoute),
-};
+} satisfies Record<CallSiteSpec['route'], () => () => ReactElement>;
 
 const setRouteLoader = (
 	route: CallSiteSpec['route'],
@@ -435,7 +432,7 @@ const setRouteLoader = (
 const renderThroughRealI18n = (
 	ui: ReactElement,
 	language: SupportedLanguage,
-): { container: HTMLElement; instance: I18nInstance } => {
+) => {
 	const instance = makeAppI18n(language);
 	const { container } = render(
 		<I18nextProvider i18n={instance}>

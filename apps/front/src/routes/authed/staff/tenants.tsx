@@ -466,23 +466,23 @@ const getBulkConfirmDialogConfig = (
 
 type TenantBulkActionKey = 'suspend' | 'reactivate' | 'delete';
 
-const TENANT_BULK_FAILURE_KEYS: Record<TenantBulkActionKey, string> = {
+const TENANT_BULK_FAILURE_KEYS = {
 	suspend: 'tenant-bulk-suspend-failure',
 	reactivate: 'tenant-bulk-reactivate-failure',
 	delete: 'tenant-bulk-delete-failure',
-};
+} satisfies Record<TenantBulkActionKey, string>;
 
-const TENANT_BULK_SUCCESS_KEYS: Record<TenantBulkActionKey, string> = {
+const TENANT_BULK_SUCCESS_KEYS = {
 	suspend: 'tenant-bulk-suspend-success',
 	reactivate: 'tenant-bulk-reactivate-success',
 	delete: 'tenant-bulk-delete-success',
-};
+} satisfies Record<TenantBulkActionKey, string>;
 
-const TENANT_BULK_PARTIAL_SUCCESS_KEYS: Record<TenantBulkActionKey, string> = {
+const TENANT_BULK_PARTIAL_SUCCESS_KEYS = {
 	suspend: 'tenant-bulk-suspend-partial-success',
 	reactivate: 'tenant-bulk-reactivate-partial-success',
 	delete: 'tenant-bulk-delete-partial-success',
-};
+} satisfies Record<TenantBulkActionKey, string>;
 
 export const TenantBulkActions = ({
 	rows,

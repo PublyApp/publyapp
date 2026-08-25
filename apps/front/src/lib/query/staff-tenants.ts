@@ -198,14 +198,7 @@ export const invalidateAllStaffTenantScopes = (
 
 export const buildFindStaffTenantsQueryParameters = (
 	variables: StaffTenantsQueryVariables,
-): {
-	q?: string;
-	status?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	status: normalizeString(variables.status),
 	sortId: normalizeString(variables.sortId),

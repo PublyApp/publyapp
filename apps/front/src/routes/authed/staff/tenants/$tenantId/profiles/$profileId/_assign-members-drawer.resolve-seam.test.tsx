@@ -29,6 +29,7 @@ import {
 } from '@testing-library/react';
 import type { JSX, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	getOrCreateStaffClient: vi.fn(),
@@ -65,7 +66,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS: TestLabelMap = {
 	members: 'Members',
 	'assign-members': 'Assign members',
 	'assign-members-drawer-description': 'Toggle a member to assign or remove.',

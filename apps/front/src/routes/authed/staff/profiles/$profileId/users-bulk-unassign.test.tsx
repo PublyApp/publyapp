@@ -118,7 +118,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				name: 'Name',
 				status: 'Status',
 				users: 'Users',
@@ -169,6 +169,7 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 import { Route as ProfileUsersRoute } from './users';

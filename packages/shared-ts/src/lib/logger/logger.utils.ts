@@ -1,6 +1,6 @@
 export type LogLevel = (typeof LogLevelEnum)[keyof typeof LogLevelEnum];
 
-export const logLevelHierarchy: Record<LogLevel, number> = {
+export const logLevelHierarchy = {
 	debug: 0,
 	info: 1,
 	warn: 2,

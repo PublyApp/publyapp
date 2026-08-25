@@ -6,6 +6,8 @@ import { cleanup, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
+
 // PR #997 round 6 finding: the surface-redirect-code query key gained
 // `hasAuthedRouteMatch` so the observer detaches (and the in-flight request
 // aborts) the moment a route stops being an exact authenticated match — see
@@ -44,7 +46,7 @@ const mocks = vi.hoisted(() => ({
 	fetchCount: 0,
 	isHydrated: true,
 	matches: [] as MockMatch[],
-	tokens: { staffToken: 'staff-tok' } as Record<string, unknown>,
+	tokens: { staffToken: 'staff-tok' } satisfies ParsedSessionTokens,
 }));
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {

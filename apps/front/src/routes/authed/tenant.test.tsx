@@ -6,6 +6,7 @@ import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
 import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/selected-tenant-storage';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	query: {
@@ -139,7 +140,7 @@ vi.mock('~/components/app-shell/user-menu', () => ({
 	AppShellUserMenu: () => <div data-testid="user-menu-stub" />,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'select-organization': 'Select Organization',
 	'select-organization-description':
 		'Choose which organization you want to access',

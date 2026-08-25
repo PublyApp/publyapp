@@ -11,6 +11,7 @@ import {
 } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	useStaffInvitationDetailsQuery: vi.fn(),
@@ -41,7 +42,7 @@ vi.mock('react-i18next', () => ({
 		t: (key: string) => {
 			const normalize = (value: string): string =>
 				value.includes(':') ? value.split(':').at(-1)! : value;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				revoke: 'revoke',
 				'staff-invitations': 'Staff invitations',
 				'copy-link': 'Copy link',

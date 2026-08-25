@@ -672,10 +672,7 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
 		.check();
 };
 
-const openDrawerByCallSiteId: Record<
-	DrawerFormCallSiteId,
-	(page: Page) => Promise<void>
-> = {
+const openDrawerByCallSiteId = {
 	'profile-create': openProfileCreateDrawer,
 	'profile-edit': openProfileEditDrawer,
 	'tenant-user-invite': openInviteUserDrawer,
@@ -683,7 +680,7 @@ const openDrawerByCallSiteId: Record<
 	'tenant-post-create': openTenantPostCreateDrawer,
 	'tenant-user-link-companies': openLinkCompaniesDrawer,
 	'staff-profile-edit': openStaffProfileEditDrawer,
-};
+} satisfies Record<DrawerFormCallSiteId, (page: Page) => Promise<void>>;
 
 test.describe(
 	'form-bearing drawer scroll geometry (#990 / PR #1054)',

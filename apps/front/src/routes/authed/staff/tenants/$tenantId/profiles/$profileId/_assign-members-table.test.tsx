@@ -11,6 +11,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('~/components/table/data-table', () => ({
 	// Minimal stub: renders each row and invokes each column's `cell` so the
@@ -111,7 +112,7 @@ const ROW: StaffTenantUserRow = {
 };
 
 const t = (key: string, options?: Record<string, unknown>): string => {
-	const labels: Record<string, string> = {
+	const labels: TestLabelMap = {
 		members: 'Members',
 		'assign-members': 'Assign members',
 		'assign-member-toggle-label': `Toggle profile assignment for ${String(

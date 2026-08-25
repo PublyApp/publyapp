@@ -6874,13 +6874,7 @@ const buildDrawerPassGraph = (
 	declaredNamesByFile: Map<string, Set<string>>,
 	reassignedNamesByFile: Map<string, Set<string>>,
 	drawerTagName: (tagNameNode: Node) => DrawerTagNameResult,
-): {
-	anchoredReceivers: Set<string>;
-	pairAnchors: Set<string>;
-	unresolvedAnchoredReceivers: Set<string>;
-	unverifiableByFile: Set<string>;
-	importsDrawerByFile: Set<string>;
-} => {
+) => {
 	const passesInto = new Map<string, Set<string>>();
 	const unresolvedPassesInto = new Map<string, Set<string>>();
 	const unverifiableByFile = new Set<string>();
@@ -9030,11 +9024,7 @@ const walkTag = (
 	}
 };
 
-const scanDrawerSurfaces = (): {
-	discovered: string[];
-	violations: string[];
-	formBearing: string[];
-} => {
+const scanDrawerSurfaces = () => {
 	const project = getScanProject();
 	// The project is loaded once (round 16 — see getScanProject) and the
 	// scan only refreshes files whose CONTENT changed: a fixture rewritten
@@ -9335,7 +9325,7 @@ const scanDrawerSurfaces = (): {
 	};
 };
 
-const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
+const renderDrawerByCallSiteId = {
 	'profile-create': () => {
 		// ProfileFormDrawer receives its RHF instance from its host page, so
 		// the guard mounts it through a minimal owner component mirroring
@@ -9425,7 +9415,7 @@ const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
 			/>,
 		);
 	},
-};
+} satisfies Record<DrawerFormCallSiteId, () => void>;
 
 const expectDrawerFormChain = (testId: string): void => {
 	const surface = screen.getByTestId(testId);

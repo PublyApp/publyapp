@@ -4,13 +4,14 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
 		createElement('a', { href: to, ...props }, children),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'invalid-link-title': 'This link is invalid or expired',
 	'request-a-new-link': 'Request a new link',
 	'back-to-login': 'Back to login',

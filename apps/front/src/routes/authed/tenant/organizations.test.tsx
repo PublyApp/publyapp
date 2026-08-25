@@ -5,6 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => {
 	const pickerData: TenantsForPickerData = {
@@ -52,7 +53,7 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	organizations: 'Organizations',
 	'common:organization-details': 'Organization details',
 	'common:logo': 'Logo',

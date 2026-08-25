@@ -65,12 +65,7 @@ const buildBadResponseProperties = ({
 	method,
 	status,
 	locale,
-}: BadResponseCaptureArgs): {
-	path: string;
-	method: string;
-	status: number;
-	locale?: string;
-} => ({
+}: BadResponseCaptureArgs) => ({
 	path,
 	method,
 	status,

@@ -8,6 +8,7 @@ import type {
 	StaffTenantProfileDetails,
 	StaffTenantProfileMemberRow,
 } from '~/lib/query/staff-tenant-profiles';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({
@@ -61,7 +62,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const resourceKey = key.includes(':') ? key.split(':')[1] : key;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				members: 'Members',
 				permissions: 'Permissions',
 				modules: 'Modules',

@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -46,7 +47,7 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	postBroadcast: mocks.postBroadcast,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'sign-in': 'Sign in',
 	'welcome-back': 'Welcome back',
 	'no-account-yet': 'No account yet?',

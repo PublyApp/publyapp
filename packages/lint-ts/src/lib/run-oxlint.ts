@@ -48,14 +48,14 @@ export interface OxlintResult {
 
 const parseOutput = (
 	output: string,
-	status: unknown,
+	status: number | null,
 	stderr: string,
 ): OxlintResult => {
 	const trimmed = output.trim();
 
 	if (trimmed.length === 0) {
 		throw new Error(
-			`oxlint produced no parseable JSON (exit ${status}): ${stderr || '<no stderr>'}`,
+			`oxlint produced no parseable JSON (exit ${status ?? 'unknown'}): ${stderr || '<no stderr>'}`,
 		);
 	}
 
@@ -65,7 +65,7 @@ const parseOutput = (
 		parsed = JSON.parse(trimmed);
 	} catch {
 		throw new Error(
-			`oxlint produced no parseable JSON (exit ${status}): ${stderr || '<no stderr>'}`,
+			`oxlint produced no parseable JSON (exit ${status ?? 'unknown'}): ${stderr || '<no stderr>'}`,
 		);
 	}
 
@@ -94,7 +94,7 @@ export const runOxlint = (
 
 	let output = '';
 	let stderr = '';
-	let status: unknown = 0;
+	let status: number | null = 0;
 
 	try {
 		output = execFileSyncImpl(
@@ -122,7 +122,9 @@ export const runOxlint = (
 
 		output = String(execError.stdout ?? '');
 		stderr = String(execError.stderr ?? '');
-		status = execError.status ?? 'unknown';
+		// execFileSync reports null for a signal kill; keep that honest instead of
+		// smuggling a string through a numeric field.
+		status = execError.status ?? null;
 
 		return parseOutput(output, status, stderr);
 	}

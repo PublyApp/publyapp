@@ -32,10 +32,10 @@ const RECORDS_DIR = 'docs/records/';
 // inventory counts these files among the survival surfaces, so a code
 // comment naming a moved/deleted doc is exactly as broken as a dead markdown
 // link. Markdown files are already link-scanned above; this adds the rest.
-const CODE_SURFACES: { dirs: string[]; rootFiles: string[] } = {
+const CODE_SURFACES = {
 	dirs: ['apps', 'packages', '.github'],
 	rootFiles: ['justfile', 'AGENTS.md', 'DESIGN.md'],
-};
+} satisfies { dirs: string[]; rootFiles: string[] };
 
 // A literal must look like a repo path: its LAST segment carries a dot with a
 // plausible extension. This keeps branch names (`docs/spec-epic-c-social-accounts`,

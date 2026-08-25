@@ -7,6 +7,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -64,7 +65,7 @@ vi.mock('~/lib/query/auth', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'log-out': 'Log out',
 				'un-named': 'No name',
 				language: 'Language',

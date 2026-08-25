@@ -125,7 +125,7 @@ const oklabToLinearSRGBChannels = (
 	bigL: number,
 	axisA: number,
 	axisB: number,
-): { r: number; g: number; b: number } => {
+) => {
 	const l = bigL + 0.3963377774 * axisA + 0.2158037573 * axisB;
 	const m = bigL - 0.1055613458 * axisA - 0.0638541728 * axisB;
 	const s = bigL - 0.0894841775 * axisA - 1.291485548 * axisB;
@@ -181,15 +181,7 @@ const parseComputedColor = (value: string): Rgba => {
 	return { r, g, b, a: legacyAlpha ?? alpha };
 };
 
-const gammaEncodeAll = ({
-	r,
-	g,
-	b,
-}: {
-	r: number;
-	g: number;
-	b: number;
-}): { r: number; g: number; b: number } => ({
+const gammaEncodeAll = ({ r, g, b }: { r: number; g: number; b: number }) => ({
 	r: gammaEncodeSrgbChannel(r),
 	g: gammaEncodeSrgbChannel(g),
 	b: gammaEncodeSrgbChannel(b),

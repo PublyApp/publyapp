@@ -25,6 +25,7 @@ import {
 } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const USER_A = '11111111-1111-1111-1111-111111111111';
 const USER_B = '22222222-2222-2222-2222-222222222222';
@@ -75,7 +76,7 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'more-actions': 'More actions',
 				'bulk-actions': 'Bulk actions',
 				'bulk-reactivate': 'Reactivate selected',

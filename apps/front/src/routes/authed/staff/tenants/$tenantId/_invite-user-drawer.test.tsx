@@ -12,6 +12,7 @@ import {
 import { createElement, type ReactNode } from 'react';
 import { FormProvider, useFormContext } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
@@ -37,7 +38,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'invite-tenant-user': 'Invite tenant user',
 				'invite-tenant-users-description': 'Send tenant invitations.',
 				email: 'Email',
@@ -124,11 +125,11 @@ vi.mock('~/components/ui/drawer', () => ({
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
-	}) =>
-		createElement(FormProvider, {
-			...methods,
-			children: createElement('form', { onSubmit }, children),
-		}),
+	}) => (
+		<FormProvider {...methods}>
+			<form onSubmit={onSubmit}>{children}</form>
+		</FormProvider>
+	),
 }));
 
 vi.mock('~/components/field', () => ({
@@ -140,11 +141,11 @@ vi.mock('~/components/field', () => ({
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
-	}) =>
-		createElement(FormProvider, {
-			...methods,
-			children: createElement('form', { onSubmit }, children),
-		}),
+	}) => (
+		<FormProvider {...methods}>
+			<form onSubmit={onSubmit}>{children}</form>
+		</FormProvider>
+	),
 	Field: {
 		Email: ({
 			name,

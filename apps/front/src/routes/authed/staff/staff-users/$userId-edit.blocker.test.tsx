@@ -41,6 +41,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const USER_A = '11111111-1111-1111-1111-111111111111';
 // The route is mounted under its PARAMETERIZED path (as routeTree.gen wires
@@ -131,7 +132,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'first-name': 'First name',
 				'last-name': 'Last name',
 				'email-address': 'Email address',
