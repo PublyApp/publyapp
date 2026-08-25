@@ -8,6 +8,7 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
 using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.SystemNotices.Services;
 
 using Xunit;
@@ -186,6 +187,31 @@ public sealed class ServiceArgsRecordConventionSpec {
 		AssertMethodParameterTypeNames<ISystemNoticeService>(
 			"FindAsync",
 			"FindSystemNoticesArgs",
+			nameof(CancellationToken)
+		);
+		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+			"MarkInProgressAsync",
+			"MarkPublicationInProgressArgs",
+			nameof(CancellationToken)
+		);
+		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+			"MarkPublishedAsync",
+			"MarkPublicationPublishedArgs",
+			nameof(CancellationToken)
+		);
+		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+			"MarkFailedAsync",
+			"MarkPublicationFailedArgs",
+			nameof(CancellationToken)
+		);
+		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+			"MarkPausedAsync",
+			"MarkPublicationPausedArgs",
+			nameof(CancellationToken)
+		);
+		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+			"RescheduleToNowAsync",
+			"ReschedulePublicationToNowArgs",
 			nameof(CancellationToken)
 		);
 	}

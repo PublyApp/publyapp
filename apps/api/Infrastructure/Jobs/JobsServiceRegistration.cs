@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 using PublyApp.Api.Infrastructure.Jobs.Quartz;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
@@ -5,6 +7,8 @@ using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
+using PublyApp.Api.Modules.Publishing.Jobs;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.Uploads.Jobs;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
@@ -91,9 +95,35 @@ public static class JobsServiceRegistration {
 		// composition guard enumerates EVERY IHostedService rather than one namespace.
 		// 2C-R1 retains it as-is; R2 deletes it.
 		builder.Services.AddHostedService<InvitationEmailOutboxDispatcher>();
+		// Publishing (Epic D/D1, lane wt-644) converges with Epic C (lane wt-641),
+		// which owns the REAL ISocialSessionProvider implementation. Until the lanes
+		// rebase onto each other this branch legitimately carries none, so register a
+		// fail-fast placeholder ONLY when the interface is still unregistered: the
+		// LAST registration wins in Microsoft.Extensions.DependencyInjection, so once
+		// wt-641's AddAppServices registers BlueskySessionProvider AFTER this block,
+		// its real implementation silently replaces the placeholder — no code change
+		// needed at the convergence rebase. The placeholder must stay RESOLVABLE:
+		// JobHandlerRegistry.ValidateRegistrationConsistency composes every handler
+		// once at startup, so throwing from resolution would brick the whole worker.
+		// Instead it throws on first USE — a publish job that actually runs without
+		// a real seam dies loudly instead of publishing with a fake session.
+		builder.Services.TryAddScoped<ISocialSessionProvider>(_ => {
+			return new UnimplementedSocialSessionProvider();
+		});
+
 		AddEmailJobHandlers(builder);
+		AddPublishingJobHandlers(builder);
 
 		return builder;
+	}
+
+	// Publishing job handlers (Epic D §3/D1): the worker-side delivery of one
+	// publication. Same scoped-handler contract as the email handlers above; the
+	// provider seam and the transition service resolve from the same per-job scope.
+	private static void AddPublishingJobHandlers(IHostApplicationBuilder builder) {
+		builder.AddJobHandler<PublishPublicationJobHandler>(
+			PublishingJobs.PublishPublicationV1.JobType
+		);
 	}
 
 	// Email job handlers (design §5.4). Built to the finalized engine contract: SCOPED,
@@ -170,5 +200,25 @@ public static class JobsServiceRegistration {
 		);
 
 		return builder;
+	}
+}
+
+/// <summary>
+/// Transitional placeholder for <see cref="ISocialSessionProvider"/> while Epic C
+/// (lane wt-641) has not landed its real Bluesky implementation. RESOLVABLE but
+/// never usable: every call throws loudly, so a publish job can never run against
+/// a fake session. Deleted naturally at the convergence rebase, where wt-641's
+/// last-wins registration replaces this placeholder entirely.
+/// </summary>
+public sealed class UnimplementedSocialSessionProvider : ISocialSessionProvider {
+	public Task<SocialSessionResult> OpenSessionAsync(
+		Guid socialAccountId,
+		CancellationToken cancellationToken
+	) {
+		throw new InvalidOperationException(
+			"ISocialSessionProvider has no implementation registered. "
+				+ "Epic C (lane wt-641) owns the Bluesky implementation; D1 only "
+				+ "consumes the seam."
+		);
 	}
 }
