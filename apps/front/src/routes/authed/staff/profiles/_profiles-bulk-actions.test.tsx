@@ -67,7 +67,7 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'more-actions': 'More actions',
 				'bulk-actions': 'Bulk actions',
 				'bulk-delete': 'Delete selected',
@@ -100,6 +100,7 @@ vi.mock('react-i18next', () => ({
 
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import type { StaffProfileRow } from '~/lib/query/staff-profiles';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 import { ProfilesListBulkActions } from './_profiles-bulk-actions';
 
