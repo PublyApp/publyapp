@@ -522,7 +522,9 @@ test('#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_
 					}),
 					new Promise((_, reject) => {
 						watchdogTimer = setTimeout(() => {
-							killFixtureTreeFromReport(reportPath).finally(() => {
+							// Fire-and-forget on purpose: the rejection below is the
+							// outcome; the tree kill must happen either way.
+							void killFixtureTreeFromReport(reportPath).finally(() => {
 								reject(
 									new Error(
 										'#1352 r2 watchdog: the real flow did not fail within 15s — the resolved budget no longer bounds the real wait',
