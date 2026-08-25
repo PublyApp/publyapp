@@ -330,11 +330,13 @@ ci-review-worktree-resolution:
   pnpm test:review-worktree-resolution
 
 # Repo-wide dead relative links in tracked Markdown (docs/records/ bodies
-# are write-once evidence and exempt)
+# are write-once evidence and exempt) + prune-inventory freshness (--check
+# fails when the committed audit record no longer matches its generator)
 ci-doc-links:
   @echo "=== [gate] doc links ==="
   pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts
   node ./packages/scripts-ts/src/check-doc-links.ts
+  node ./packages/scripts-ts/src/audit-docs-prune.ts --check
 
 # Ensure the shared PR-closure projection cannot drift from the project's
 # durable config, board contract, or fail-closed security rules.
