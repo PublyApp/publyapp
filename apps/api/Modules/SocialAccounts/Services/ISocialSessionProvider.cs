@@ -1,3 +1,6 @@
+using System.Text;
+using System.Text.Json.Serialization;
+
 namespace PublyApp.Api.Modules.SocialAccounts.Services;
 
 /// <summary>
@@ -13,13 +16,50 @@ public interface ISocialSessionProvider {
 	);
 }
 
-/// <summary>A live provider session: identity plus the short-lived access token.</summary>
+/// <summary>
+/// A live provider session: identity plus the short-lived access token. Positional
+/// records synthesize a <see cref="ToString"/> that prints every property, so
+/// <see cref="AccessJwt"/> is rendered as <c>[REDACTED]</c> here and in
+/// <see cref="PrintMembers"/>, and is ignored by JSON serializers (what structured log
+/// sinks emit). Direct property access stays available to the Epic D consumer; the D1
+/// positional construction <c>SocialSession(Did, Handle, AccessJwt, PdsHost)</c> is
+/// unchanged.
+/// </summary>
 public sealed record SocialSession(
 	string Did,
 	string Handle,
-	string AccessJwt,
+	[property: JsonIgnore] string AccessJwt,
 	string PdsHost
-);
+) {
+	public sealed override string ToString() {
+		var builder = new StringBuilder();
+		builder.Append(nameof(SocialSession));
+		builder.Append(" { ");
+		PrintMembers(builder);
+		builder.Append(' ');
+		builder.Append('}');
+		return builder.ToString();
+	}
+
+	private bool PrintMembers(StringBuilder builder) {
+		builder.Append(nameof(Did));
+		builder.Append(" = ");
+		builder.Append(Did);
+		builder.Append(", ");
+		builder.Append(nameof(Handle));
+		builder.Append(" = ");
+		builder.Append(Handle);
+		builder.Append(", ");
+		builder.Append(nameof(AccessJwt));
+		builder.Append(" = ");
+		builder.Append("[REDACTED]");
+		builder.Append(", ");
+		builder.Append(nameof(PdsHost));
+		builder.Append(" = ");
+		builder.Append(PdsHost);
+		return true;
+	}
+}
 
 /// <summary>
 /// Typed outcome of a session open. Account-caused refusals are distinguished from

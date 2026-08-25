@@ -1,12 +1,39 @@
+using System.Text;
+
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
 /// <summary>
 /// Credentials presented to a Bluesky session open (Epic C §1 decision 3: app password
 /// now, OAuth later). The app password is write-only from this seam's point of view: it
 /// travels inside the session-open request and must never be logged, returned, or
-/// persisted in cleartext anywhere (Epic C §4).
+/// persisted in cleartext anywhere (Epic C §4). <see cref="ToString"/> and
+/// <see cref="PrintMembers"/> render <see cref="AppPassword"/> as <c>[REDACTED]</c> so
+/// no logging path can leak it — positional records otherwise synthesize a ToString()
+/// that prints every property. Request-body serialization still carries the real value
+/// (the PDS requires it); direct property access stays available to the client seam.
 /// </summary>
-public sealed record BlueskyCredentials(string Identifier, string AppPassword);
+public sealed record BlueskyCredentials(string Identifier, string AppPassword) {
+	public sealed override string ToString() {
+		var builder = new StringBuilder();
+		builder.Append(nameof(BlueskyCredentials));
+		builder.Append(" { ");
+		PrintMembers(builder);
+		builder.Append(' ');
+		builder.Append('}');
+		return builder.ToString();
+	}
+
+	private bool PrintMembers(StringBuilder builder) {
+		builder.Append(nameof(Identifier));
+		builder.Append(" = ");
+		builder.Append(Identifier);
+		builder.Append(", ");
+		builder.Append(nameof(AppPassword));
+		builder.Append(" = ");
+		builder.Append("[REDACTED]");
+		return true;
+	}
+}
 
 /// <summary>The resolved session identity: stable DID plus current handle.</summary>
 public sealed record BlueskyIdentity(string Did, string Handle);
@@ -30,8 +57,9 @@ public abstract record BlueskySessionResult {
 		string PdsHost
 	) : BlueskySessionResult;
 
-	/// <summary>Bluesky refused these credentials/identifier (401/400-class). Nothing
-	/// about the account changed server-side; the caller must not persist anything.</summary>
+	/// <summary>Bluesky refused these credentials/identifier (401/400-class). The caller
+	/// (session provider) treats this as an account-caused problem: the stored row flips
+	/// to NeedsReconnect with the sanitised reason persisted as its cause.</summary>
 	public sealed record AccountFailure(string Reason) : BlueskySessionResult;
 
 	/// <summary>Network failure, timeout, or Bluesky-side 5xx. Not an account problem;
