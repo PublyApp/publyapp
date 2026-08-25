@@ -74,29 +74,36 @@ export const matchRunnerHandshake = (output, expectedNonce) => {
 // completes, and nothing bounded the exit wait. This budget keeps ~8x
 // headroom over the slowest measured run while turning the observed
 // 26-minute hang into a loud failure within two minutes.
-// #1352 ROOT CAUSE of the Node 24 hang (analysis, 2026-08-25): the probe
-// chain is three levels deep — this test's process → the spawned
-// runner-probe wrapper (`check-design-system-runner-probe.mjs`) → its own
-// `node --test` grand-child running the live probe test. Interrupting it
-// means SIGINT lands on the wrapper, whose registered fixture handler runs
-// ASYNC cleanup (rm -rf of the owned root) before calling process.exit(130)
-// — see registerFixtureSignalHandlers — while the grand-child node:test
-// runner performs its own interruption teardown. On Node v24.19.0 that
-// combined teardown race sometimes never completes: the wrapper keeps
-// waiting on its grand-child and our old code kept waiting on the wrapper,
-// with NO ceiling anywhere — hence the two observed ~26-minute holds
-// (2026-08-23, 2026-08-25). Controlled experiments today could NOT
-// re-trigger it deterministically (a manual replay of the whole chain
-// exited 25 ms after SIGINT; a full run under a pty completed in ~5 s),
-// which matches upstream reports that node:test interruption teardown is
-// environment-sensitive (nodejs/node#62037 signal-exit-code rework;
-// teardown-hang fixes #57394/#62056; `--test-force-exit` exists precisely
-// because the runner can keep the event loop alive after tests end).
-// Because the hang lives inside node:test's own teardown — not in code
-// this repo controls — there is no fix we can apply AND prove without a
-// deterministic reproduction, so none was applied; the budget below stays
-// as the standing guard regardless and turns any recurrence into a loud
-// failure within two minutes instead of a silent 26-minute lock hold.
+// #1352 Node 24 hang — HYPOTHESIS, NOT a reproduced root cause (rewritten
+// 2026-08-25, r1 finding 3; full dated record with every measurement:
+// docs/issues/1352/2026-08-25-node24-probe-hang-hypothesis.md). MEASURED:
+// this exact probe flow held a lane ~26 minutes twice (2026-08-25,
+// captain-reported in issue #1352; 2026-08-23 per the lane brief — no raw
+// log survives for that earlier occurrence), while
+// local replays could NOT re-trigger it deterministically — a manual replay
+// of the whole chain exited 25 ms after SIGINT, a
+// full run under a pty completed in ~5 s, and three timed full-file runs
+// took 14342/5313/5319 ms (timings recorded in the dated record). HYPOTHESIS
+// (plausible, unproven): the chain is three levels deep — this test's
+// process → the spawned runner-probe wrapper
+// (`check-design-system-runner-probe.mjs`) → its own `node --test`
+// grand-child running the live probe test — and SIGINT makes the wrapper
+// run ASYNC fixture cleanup (see registerFixtureSignalHandlers) while the
+// grand-child runner performs its own interruption teardown; IF that
+// combined race never completes, the wrapper keeps waiting on its
+// grand-child and our old code kept waiting on the wrapper with NO ceiling
+// anywhere — matching the two observed ~26-minute holds. Related upstream
+// work (titles/states verified via the GitHub API on 2026-08-25; NONE is
+// confirmed to describe this exact hang): nodejs/node#62037 `test_runner:
+// use default signal exit codes when interrupted` (closed), #57394
+// `test_runner: ensure proper teardown when tests run without isolation`
+// (open), #62056 `test_runner: fix run() none-isolation teardown hang`
+// (closed). If the hypothesis is right, the hang lives inside node:test's
+// own teardown — not in code this repo controls — so no fix can be applied
+// AND proven without a deterministic reproduction, and none was attempted;
+// the budget below stays as the standing guard REGARDLESS of cause and
+// turns any recurrence into a loud failure within two minutes instead of a
+// silent 26-minute lock hold.
 export const RUNNER_PROBE_BUDGET_MS = 120_000;
 
 // #1352 r1 finding 2: the budget is overridable from the environment (CI vs
