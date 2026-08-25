@@ -227,8 +227,13 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 		node.forEachChild(visit);
 	};
 	visit(sourceFile);
-	assert.ok(funnelArrow != null, 'the staticString funnel must exist');
-	const funnel = funnelArrow;
+	const requireFunnel = (
+		value: ts.ArrowFunction | null,
+	): ts.ArrowFunction => {
+		assert.ok(value, 'the staticString funnel must exist');
+		return value;
+	};
+	const funnel = requireFunnel(funnelArrow);
 	// The funnel itself must dispatch on all three outcomes — a rewrite that
 	// folds overflow back into the benign branch is a B1 regression. The
 	// markers are anchored to the dispatch statements, not the outcome kind
@@ -5673,11 +5678,15 @@ test('unmodified repository passes with zero violations', async () => {
 		candidateCount > 10000,
 		`expected real candidates, got ${candidateCount}`,
 	);
-	const recordedBuild: ProductionBuildResult | null = capturedBuild;
-	assert.ok(recordedBuild != null, 'the production build must be captured');
-	const scripts = recordedBuild.authoredScriptPaths.map((filePath: string) =>
-		path.resolve(filePath),
-	);
+	const requireCapturedBuild = (
+		value: ProductionBuildResult | null,
+	): ProductionBuildResult => {
+		assert.ok(value != null, 'the production build must be captured');
+		return value;
+	};
+	const scripts = requireCapturedBuild(
+		capturedBuild,
+	).authoredScriptPaths.map((filePath: string) => path.resolve(filePath));
 	assert.ok(
 		scripts.includes(path.resolve(frontDir, 'src/server.ts')),
 		'src/server.ts must be recorded as build-reachable (SSR environment)',
