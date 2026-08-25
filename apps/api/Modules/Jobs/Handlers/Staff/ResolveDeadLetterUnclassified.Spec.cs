@@ -242,7 +242,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 	public async Task ItShouldResolveAProducerClassifiedRowEndToEnd() {
 		var token = await _authClient.LoginAsStaffAdminAsync();
 		var jobType = $"spec.dlq-e2e.{Guid.NewGuid():N}";
-		Guid deadLetterId;
+		var deadLetterId = Guid.Empty;
 
 		try {
 			// Producer leg: dead-letter a real job_queue row through the engine.
