@@ -635,7 +635,7 @@ Update exports (PUBLIC API only - internal helpers stay unexported):
 ```typescript
 // =============================================================================
 // Tenant Hint Cookie - Public API
-// See: docs/implementation-plans/identity-scoped-tenant-cookie.md
+// See: docs/records/2026-01-31-plan-identity-scoped-tenant-cookie.md
 // =============================================================================
 
 export {

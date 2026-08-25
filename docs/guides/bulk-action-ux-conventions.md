@@ -186,8 +186,8 @@ The two MUST stay in sync. Comment on both sides referencing the other.
 
 Cite as canonical when in doubt:
 
-- Frontend selection menu (archived): `docs/archive/old-front/screens/staff-tenant-users.md` (old path `apps/old-front/src/routes/authed/staff/invitations/list/_parts/staff-invitations-selection-actions.tsx`)
-- Frontend mutation hook (archived): `docs/archive/old-front/screens/staff-tenant-users.md` (old path `apps/old-front/src/routes/authed/staff/invitations/list/_parts/use-staff-invitation-bulk-revoke.ts`)
+- Frontend selection menu (archived): `docs/records/2026-08-22-review-old-front-staff-tenant-users-screens.md` (old path `apps/old-front/src/routes/authed/staff/invitations/list/_parts/staff-invitations-selection-actions.tsx`)
+- Frontend mutation hook (archived): `docs/records/2026-08-22-review-old-front-staff-tenant-users-screens.md` (old path `apps/old-front/src/routes/authed/staff/invitations/list/_parts/use-staff-invitation-bulk-revoke.ts`)
 - Backend handler: `apps/api/Modules/Invitations/Handlers/Staff/BulkRevokeStaffInvitations.cs`
 - Backend service method: `InvitationService.BulkRevokeStaffInvitationsAsync` in
   `apps/api/Modules/Invitations/Services/InvitationService.cs`

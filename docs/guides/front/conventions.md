@@ -367,7 +367,7 @@ they are intentionally excluded — PR 3 of #1250 folds that mechanism into `Que
 
 These are standing design decisions Radan has ratified across the front parity review
 (rounds 1–6, 2026-07). They are **defaults, not per-screen requests** — apply them to every new
-surface without waiting to be told. `docs/front-migration/parity-contract.md` is the dated
+surface without waiting to be told. `docs/records/2026-07-29-spec-front-parity-contract.md` is the dated
 decision log; this section is the forward-looking rulebook. When a new screen forces a genuinely
 new choice, decide in this spirit and add the rule here.
 

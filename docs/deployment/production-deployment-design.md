@@ -8,7 +8,7 @@ applies database migrations. The decisions below are in force; where the origina
 something that turned out not to be true on the real instance, the assumption is marked
 **SUPERSEDED** in place rather than deleted, so the reasoning stays auditable.
 
-It supersedes `docs/archive/2026/guides/deployment-guide.md` (archived copy) and
+It supersedes `docs/records/2026-07-29-spec-deployment-guide.md` (archived copy) and
 `docs/misc/database-migration-deployment.md` (removed): the artifact-upload deployment flow, and a
 generic note that referenced SQL Server `sqlcmd` and a DbContext class that no longer exists.
 
