@@ -880,3 +880,117 @@ export const AttachProjectsField = ({
 
 **Spec proof:** §3 connect bullet complete (identifier + app password + help link + errors as-is); attach checklist with none-checked-means-all; reconnect reuses the same drawer with handle prefilled.
 **Adversarial mutation:** swallow the 422 into a generic toast instead of the root alert → the refusal test goes red (errors-shown-as-is guard).
+
+---
+
+## Task 6: Disconnect confirmation dialog
+
+**Files:** new `_disconnect-dialog.tsx` (+ `.test.tsx`) under `apps/front/src/routes/authed/tenant/settings/`.
+
+**Interfaces:**
+- Produces: `<DisconnectDialog account={SocialAccountRow} isOpen onOpenChange tenantId />`.
+- Consumes: `ConfirmDialog` (`~/components/ui/confirm-dialog`, exists — props verified: `title`, `description`, `confirmLabel`, `tone='danger'`, `isPending`, `children`), Task 3's `useDisconnectSocialAccountMutation`.
+
+- [ ] **Step 1 (RED):**
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/_disconnect-dialog.test.tsx
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+
+import { renderWithProviders } from '~/lib/test/render-with-providers';
+import { DisconnectDialog } from './_disconnect-dialog';
+
+describe('disconnect dialog', () => {
+	it('ItShouldNameTheConsequencesBeforeConfirming', () => {
+		renderWithProviders(
+			<DisconnectDialog
+				account={{ id: 'a1', displayHandle: '@team.bsky.social' } as never}
+				isOpen
+				onOpenChange={vi.fn()}
+				tenantId="t1"
+			/>,
+			{ fixtures: {} },
+		);
+
+		const dialog = screen.getByRole('alertdialog');
+		expect(dialog).toHaveTextContent(/pauses every scheduled post/i);
+		expect(dialog).toHaveTextContent(/erases the stored credentials/i);
+		expect(dialog).toHaveTextContent(/keeps your publication history/i);
+	});
+
+	it('ItShouldCallDisconnectOnlyAfterExplicitConfirmation', async () => {
+		const onOpenChange = vi.fn();
+		const disconnect = vi.fn().mockResolvedValue(undefined);
+		renderWithProviders(
+			<DisconnectDialog
+				account={{ id: 'a1', displayHandle: '@team.bsky.social' } as never}
+				isOpen
+				onOpenChange={onOpenChange}
+				tenantId="t1"
+			/>,
+			{ fixtures: { disconnectSocialAccount: disconnect } },
+		);
+
+		await userEvent.click(screen.getByRole('button', { name: /disconnect/i }));
+		expect(disconnect).toHaveBeenCalledWith(expect.objectContaining({ socialAccountId: 'a1' }));
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+	});
+});
+```
+
+Run: expected FAIL — module missing.
+
+- [ ] **Step 2 (GREEN):**
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/_disconnect-dialog.tsx
+import { useTranslation } from 'react-i18next';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+
+import type { SocialAccountRow } from '~/lib/query/social-accounts';
+import { useDisconnectSocialAccountMutation } from '~/lib/query/social-accounts';
+
+/** Spec §3 Disconnect bullet: the confirmation STATES the consequences —
+ * pause scheduled posts, erase the secret, keep publication history. */
+export const DisconnectDialog = ({
+	account,
+	isOpen,
+	onOpenChange,
+	tenantId,
+}: {
+	account: SocialAccountRow;
+	isOpen: boolean;
+	onOpenChange: (isOpen: boolean) => void;
+	tenantId: string;
+}) => {
+	const { t } = useTranslation(['settings']);
+	const disconnectMutation = useDisconnectSocialAccountMutation();
+
+	return (
+		<ConfirmDialog
+			isOpen={isOpen}
+			title={t('disconnect-title')}
+			description={t('disconnect-consequences', { handle: account.displayHandle })}
+			confirmLabel={t('disconnect')}
+			tone="danger"
+			isPending={disconnectMutation.isPending}
+			onConfirm={async () => {
+				await disconnectMutation.mutateAsync({
+					tenantId,
+					socialAccountId: account.id,
+				});
+				onOpenChange(false);
+			}}
+			onOpenChange={onOpenChange}
+		/>
+	);
+};
+```
+
+- [ ] **Step 3:** run suite green + typecheck + `just react-doctor`.
+- [ ] **Step 4:** `git commit -m "front(social): disconnect confirmation naming the spec consequences" && git push`
+
+**Spec proof:** §3 "A confirmation states these consequences" is asserted word-for-word by the component test.
+**Adversarial mutation:** replace the consequence copy with a generic "Are you sure?" → the first test goes red.
