@@ -34,6 +34,7 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import {
 	cleanup,
 	fireEvent,
@@ -195,7 +196,7 @@ const buildHarness = () => {
 		id: '/_authed-layout',
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
-	} as never);
+	});
 	const listRoute = mountRealRoute(StaffProfilesListRoute, {
 		id: LIST_ROUTE_PATH,
 		path: LIST_ROUTE_PATH,
@@ -216,11 +217,13 @@ const buildHarness = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = createRouter({
-		routeTree,
-		history,
-		context: { queryClient },
-	} as never);
+	const router: AnyRouter = createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({
+			routeTree,
+			history,
+			context: { queryClient },
+		}),
+	);
 
 	return { router, history, queryClient };
 };
@@ -231,7 +234,7 @@ const renderAtList = async () => {
 
 	render(
 		<QueryClientProvider client={harness.queryClient}>
-			<RouterProvider router={harness.router as never} />
+			<RouterProvider router={harness.router} />
 		</QueryClientProvider>,
 	);
 	await waitFor(() =>
