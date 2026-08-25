@@ -7,21 +7,37 @@ using Microsoft.EntityFrameworkCore;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Npgsql;
+
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
 
 using Xunit;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 
 /// <summary>
-/// #1424 (follow-up to #1420, adversarial review round 1): with Postgres UNREACHABLE at
-/// boot, the canary read/write let the raw Npgsql connectivity exception escape the
-/// witness — an operator staring at crash-loop logs saw a bare driver stack trace instead
-/// of a plain-words cause. Transparent-failure rule: every persisted or returned failure
-/// carries a human-readable cause and, where one exists, the next action. These specs pin
-/// the contract: a connection string aimed at a CLOSED port must refuse the boot with
-/// "database unreachable at &lt;host&gt;:&lt;port&gt; … the API will not start" — naming the
-/// endpoint, never the credentials embedded in the connection string.
+/// #1424, adversarial review round 2: the canary boot refusal must (a) tell the truth
+/// about WHICH database infrastructure failure happened, and (b) never carry
+/// credentials. Two genuinely different shapes exist, and the round-1 classifier
+/// confused them — <see cref="PostgresException"/> DERIVES from
+/// <see cref="NpgsqlException"/>, so a base-type-first match relabelled every
+/// server-answered error (missing table 42P01, wrong password 28P01, CHECK violations)
+/// as "database unreachable":
+/// <list type="bullet">
+/// <item>TRANSPORT: nothing answered (refused connection, timeout, broken connection)
+/// — "cannot reach the database at &lt;host&gt;:&lt;port&gt; …".</item>
+/// <item>SERVER ANSWERED, schema missing (SqlState 42P01/42703): the deploy-ordering
+/// race — dokploy.yml starts api/worker/migrate concurrently and only the worker graph
+/// waits for migrations — so the refusal must send the operator to the migrate task,
+/// NOT to connectivity.</item>
+/// <item>SERVER ANSWERED, anything else the boot translates (SQLSTATE class 08, …):
+/// the refusal names the SqlState and the server's own message text.</item>
+/// </list>
+/// The credential spec below drives BOTH a transport failure and a server-delivered
+/// 28P01 with a recognisable fake password: the 28P01 driver text quotes the USERNAME
+/// verbatim, so only the store's redaction keeps the guarantee — against the pre-fix
+/// classifier this spec provably fails (paired RED/GREEN logs in the PR description).
 /// </summary>
 public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 	private const string PlantedUsername = "probe_user_1424";
@@ -45,7 +61,7 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 				+ "escape as a raw Npgsql driver exception").Which;
 
 		refusal.Message.Should().StartWith(
-			"database unreachable at 127.0.0.1:",
+			PostgresKeyRingCanaryStore.UnreachablePrefix + "127.0.0.1:",
 			"the plain-words cause must name the endpoint the boot tried");
 		refusal.Message.Should().Contain(
 			"the master-key check could not run",
@@ -53,6 +69,9 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 		refusal.Message.Should().Contain(
 			"the API will not start",
 			"the cause must say the CONSEQUENCE");
+		refusal.Message.Should().Contain(
+			"running and reachable",
+			"for a TRANSPORT failure the right operator action is the reachability check");
 	}
 
 	[Fact]
@@ -77,33 +96,129 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 				+ "boot with the same plain-words cause").Which;
 
 		refusal.Message.Should().StartWith(
-			"database unreachable at 127.0.0.1:",
+			PostgresKeyRingCanaryStore.UnreachablePrefix + "127.0.0.1:",
 			"the plain-words cause must name the endpoint the boot tried");
 		refusal.Message.Should().Contain("the API will not start");
 	}
 
 	[Fact]
-	public async Task ItShouldNeverLeakCredentialsInTheUnreachableRefusal() {
-		var port = FreeClosedPort();
-		var services = new ServiceCollection();
-		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(
-			$"Host=127.0.0.1;Port={port};Database=canary_unreachable_test;"
-				+ $"Username={PlantedUsername};Password={PlantedPassword}"));
-		await using var provider = services.BuildServiceProvider();
-		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+	public async Task ItShouldNeverLeakCredentialsInTheRefusalWhenTheTransportFailsOrTheServerAnswers() {
+		// Round-1 review: the old credential spec drove ONLY the closed-port case, where
+		// the driver never got far enough to echo anything — it passed BEFORE the fix
+		// existed and proved nothing. This rewrite drives BOTH shapes against connection
+		// strings carrying the planted markers:
+		//   1. transport failure (closed port) — the driver text is its own;
+		//   2. a REACHABLE server answering 28P01 for the planted user — the driver text
+		//      quotes the username VERBATIM unless the refusal redacts it.
+		var containerFixture = await PostgresContainerFixture.GetSharedAsync();
+		var dbName = $"canaryleak_{Guid.NewGuid():N}";
+		await CreateDatabaseAsync(containerFixture.AdminConnectionString, dbName);
 
-		var boot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
-			TestKey(),
-			new PostgresKeyRingCanaryStore(scopeFactory));
+		try {
+			var transportShape = $"Host=127.0.0.1;Port={FreeClosedPort()};Database={dbName};"
+				+ $"Username={PlantedUsername};Password={PlantedPassword};Pooling=false";
+			var serverAnsweredShape = new NpgsqlConnectionStringBuilder(
+				containerFixture.AdminConnectionString) {
+				Database = dbName,
+				Username = PlantedUsername,
+				Password = PlantedPassword,
+				Pooling = false
+			}.ConnectionString;
 
-		var refusal = boot.Should().Throw<InvalidOperationException>().Which;
+			var shapes = new[] {
+				new {
+					Kind = "transport failure (connection refused)",
+					ConnectionString = transportShape
+				},
+				new {
+					Kind = "server-delivered 28P01 (wrong password)",
+					ConnectionString = serverAnsweredShape
+				}
+			};
 
-		refusal.Message.Should().NotContain(
-			PlantedPassword,
-			"the refusal travels to crash-loop logs; credentials never appear in output");
-		refusal.Message.Should().NotContain(PlantedUsername);
-		refusal.Message.Should().NotContain("Password=");
-		refusal.Message.Should().NotContain("Username=");
+			foreach (var shape in shapes) {
+				var services = new ServiceCollection();
+				services.AddDbContext<AppDbContext>(options =>
+					options.UseNpgsql(shape.ConnectionString));
+				using var provider = services.BuildServiceProvider();
+				var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+
+				var boot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
+					TestKey(),
+					new PostgresKeyRingCanaryStore(scopeFactory));
+
+				var refusal = boot.Should().Throw<InvalidOperationException>(
+					"the " + shape.Kind + " must refuse the boot, never escape as a raw "
+						+ "driver exception").Which;
+
+				refusal.Message.Should().NotContain(
+					PlantedPassword,
+					"the refusal travels to crash-loop logs; the planted password marker "
+						+ "must never surface in any shape (" + shape.Kind + ")");
+				refusal.Message.Should().NotContain(
+					PlantedUsername,
+					"a server that answers quotes the connection-string username in its "
+						+ "error text; the refusal must redact it (" + shape.Kind + ")");
+				refusal.Message.Should().NotContain("Password=")
+					.And.NotContain("Username=");
+				WholeChainText(refusal).Should().NotContain(
+					PlantedPassword,
+					"crash-loop logs print the whole exception chain, so the password "
+						+ "marker must be absent from EVERY link (" + shape.Kind + ")");
+			}
+		} finally {
+			NpgsqlConnection.ClearAllPools();
+			await DropDatabaseAsync(containerFixture.AdminConnectionString, dbName);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldSendTheOperatorToTheMigratorNotToConnectivityWhenTheServerAnswersWithoutTheCanaryTable() {
+		// The production-reachable deploy-ordering shape (round-1 review, MAJOR): a
+		// database that ANSWERS but has no data_protection_keys yet, because dokploy.yml
+		// starts api/worker/migrate concurrently and only the worker graph waits for
+		// pending migrations. Relabelling this as "unreachable" orders the operator to
+		// verify reachability of a database that demonstrably answers.
+		var containerFixture = await PostgresContainerFixture.GetSharedAsync();
+		var dbName = $"canary42p01_{Guid.NewGuid():N}";
+		await CreateDatabaseAsync(containerFixture.AdminConnectionString, dbName);
+
+		try {
+			var connectionString = new NpgsqlConnectionStringBuilder(
+				containerFixture.AdminConnectionString) {
+				Database = dbName,
+				Pooling = false
+			}.ConnectionString;
+			var services = new ServiceCollection();
+			services.AddDbContext<AppDbContext>(options =>
+				options.UseNpgsql(connectionString));
+			using var provider = services.BuildServiceProvider();
+			var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+
+			var boot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
+				TestKey(),
+				new PostgresKeyRingCanaryStore(scopeFactory));
+
+			var refusal = boot.Should().Throw<InvalidOperationException>(
+				"a reachable but unmigrated database must refuse with its own cause, not "
+					+ "an unreachable claim").Which;
+
+			refusal.Message.Should().Contain(
+				"migrations have not been applied yet",
+				"SqlState 42P01 on the canary table means the SCHEMA is missing — the "
+					+ "operator action is to wait for/run the migrations");
+			refusal.Message.Should().Contain(
+				"42P01",
+				"the SqlState pins exactly which schema object was missing");
+			refusal.Message.Should().NotContain(
+				"unreachable",
+				"the server answered, so the database is by definition reachable; sending "
+					+ "operators to check connectivity wastes the incident");
+			refusal.Message.Should().Contain("the API will not start");
+		} finally {
+			NpgsqlConnection.ClearAllPools();
+			await DropDatabaseAsync(containerFixture.AdminConnectionString, dbName);
+		}
 	}
 
 	// ---- helpers ----
@@ -128,6 +243,37 @@ public sealed class PostgresKeyRingCanaryStoreUnreachableDatabaseSpec {
 		var key = new byte[32];
 		System.Security.Cryptography.RandomNumberGenerator.Fill(key);
 		return key;
+	}
+
+	/// <summary>
+	/// Every message the crash-loop log would print for this exception: the refusal plus
+	/// each link of its InnerException chain (including the Postgres-specific
+	/// MessageText).
+	/// </summary>
+	private static string WholeChainText(Exception ex) {
+		var text = string.Empty;
+		for (var current = (Exception?)ex; current is not null; current = current.InnerException) {
+			text += "\n" + current.Message;
+			if (current is PostgresException pg) {
+				text += "\n" + pg.MessageText;
+			}
+		}
+
+		return text;
+	}
+
+	private static async Task CreateDatabaseAsync(string adminConnectionString, string dbName) {
+		await using var adminConn = new NpgsqlConnection(adminConnectionString);
+		await adminConn.OpenAsync();
+		await using var createCmd = new NpgsqlCommand($"CREATE DATABASE {dbName}", adminConn);
+		await createCmd.ExecuteNonQueryAsync();
+	}
+
+	private static async Task DropDatabaseAsync(string adminConnectionString, string dbName) {
+		await using var adminConn = new NpgsqlConnection(adminConnectionString);
+		await adminConn.OpenAsync();
+		await using var dropCmd = new NpgsqlCommand($"DROP DATABASE IF EXISTS {dbName}", adminConn);
+		await dropCmd.ExecuteNonQueryAsync();
 	}
 
 	/// <summary>
