@@ -410,12 +410,15 @@ test('#1352: the probe budget fires on a never-ending child, kills the whole pro
 // The source anchor below additionally pins the real probe call site to the
 // seam, so deleting the indirection cannot pass silently either.
 test('#1352 r1: the REAL probe budget wiring fires under an injected small RUNNER_PROBE_BUDGET_MS', async () => {
-	// Anchor: the real probe must acquire its budget through the shared seam.
+	// Anchor: BOTH real-probe branches (the child-side live probe flow and
+	// the parent-side bounded exit wait) must acquire the budget through the
+	// shared seam — hardcoding or bypassing EITHER one must turn this RED.
 	const source = await readFile(testFilePath, 'utf8');
-	assert.match(
-		source,
-		/const budgetMs = realProbeBudget\(\);/,
-		'the real probe must read its budget through the shared realProbeBudget seam',
+	const seamCallSites = source.match(/const budgetMs = realProbeBudget\(\);/g);
+	assert.equal(
+		seamCallSites?.length,
+		2,
+		'both real-probe budget acquisitions must read the shared realProbeBudget seam',
 	);
 
 	const root = await makeFixture({
