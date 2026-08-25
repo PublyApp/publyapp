@@ -260,7 +260,7 @@ import {
 	formatTenantUserStatusLabel,
 	tenantUserLevelChipClassName,
 } from './_tenant-details-shell';
-import { makeTenantUserColumns } from './_user-columns';
+import { makeTenantUserColumns } from './_users-columns';
 import {
 	parseTenantUserLevelFilter,
 	parseTenantUserStatusFilter,

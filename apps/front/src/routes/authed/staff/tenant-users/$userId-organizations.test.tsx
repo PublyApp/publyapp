@@ -49,11 +49,11 @@ vi.mock('~/components/table/data-table', () => ({
 	DataTable: () => document.createElement('div'),
 }));
 
-vi.mock('../tenants/$tenantId/_tenant-details-shell', () => ({
+vi.mock('../tenants/$tenantId/_tenant-display', () => ({
 	formatTenantStatusLabel: mocks.formatTenantStatusLabel,
 }));
 
-import { buildOrganizationColumnsForTests } from './$userId-organizations';
+import { buildOrganizationColumns as buildOrganizationColumnsForTests } from './_organizations-columns';
 
 afterEach(() => {
 	cleanup();

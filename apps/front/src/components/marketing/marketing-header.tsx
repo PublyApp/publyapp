@@ -1,10 +1,17 @@
 import { IconChevronDown, IconMenu2 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+	useCallback,
+	useEffect,
+	useEffectEvent,
+	useRef,
+	useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { ThemeToggle } from '~/components/app-shell/theme/theme-toggle';
 import { Badge } from '~/components/ui/badge';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { cn } from '~/lib/utils';
 
 import { MarketingBrand } from './marketing-brand';
@@ -87,6 +94,11 @@ type HeaderNavProps = {
 const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 	const { t } = useTranslation('common');
 	const [openTriggerId, setOpenTriggerId] = useState<string | null>(null);
+	// Pathname the panel was opened on. The panel closes when the route
+	// changes (derived below): TanStack `Link` does not unmount the header,
+	// so an in-page anchor jump would otherwise leave the panel hanging open
+	// over the section it just scrolled to.
+	const [openedAtPathname, setOpenedAtPathname] = useState<string | null>(null);
 	const navRef = useRef<HTMLDivElement | null>(null);
 	const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -107,6 +119,7 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 		(triggerId: string) => {
 			clearTimers();
 			setOpenTriggerId(null);
+			setOpenedAtPathname(null);
 			openByHoverRef.current = false;
 			navRef.current
 				?.querySelector<HTMLButtonElement>(`[data-nav-trigger='${triggerId}']`)
@@ -151,45 +164,43 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 
 	// Closing the panel on navigation matters here: TanStack `Link` does not
 	// unmount the header, so an in-page anchor jump would otherwise leave the
-	// panel hanging open over the section it just scrolled to.
-	useEffect(() => {
-		openByHoverRef.current = false;
+	// panel hanging open over the section it just scrolled to. Derived close:
+	// the panel cannot outlive its opening route.
+	if (openTriggerId !== null && openedAtPathname !== pathname) {
 		setOpenTriggerId(null);
-	}, [pathname]);
+		setOpenedAtPathname(null);
+	}
 
-	useEffect(() => {
-		if (openTriggerId === null) {
+	const handleEscapeKey = useEffectEvent((event: KeyboardEvent) => {
+		if (event.key !== 'Escape' || !openByHoverRef.current || !openTriggerId) {
 			return;
 		}
 
-		const handleEscape = (event: KeyboardEvent) => {
-			if (event.key !== 'Escape' || !openByHoverRef.current || !openTriggerId) {
-				return;
-			}
+		const active = document.activeElement;
+		const isActiveInNav = active !== null && navRef.current?.contains(active);
+		const isActiveInModal =
+			active instanceof Element &&
+			active.closest('[role="dialog"], [aria-modal="true"]') !== null;
 
-			const active = document.activeElement;
-			const isActiveInNav = active !== null && navRef.current?.contains(active);
-			const isActiveInModal =
-				active instanceof Element &&
-				active.closest('[role="dialog"], [aria-modal="true"]') !== null;
+		if (isActiveInNav || isActiveInModal) {
+			return;
+		}
 
-			if (isActiveInNav || isActiveInModal) {
-				return;
-			}
+		closeAndRestoreFocus(openTriggerId);
+	});
 
-			closeAndRestoreFocus(openTriggerId);
-		};
+	useEffect(() => {
+		document.addEventListener('keydown', handleEscapeKey);
 
-		document.addEventListener('keydown', handleEscape);
-
-		return () => document.removeEventListener('keydown', handleEscape);
-	}, [openTriggerId, closeAndRestoreFocus]);
+		return () => document.removeEventListener('keydown', handleEscapeKey);
+	}, []);
 
 	const scheduleOpen = (triggerId: string) => {
 		clearTimers();
 		openTimerRef.current = setTimeout(() => {
 			openByHoverRef.current = true;
 			setOpenTriggerId(triggerId);
+			setOpenedAtPathname(pathname);
 		}, MARKETING_NAV_INTENT_OPEN_DELAY_MS);
 	};
 
@@ -272,6 +283,11 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 								onClick={() => {
 									clearTimers();
 									openByHoverRef.current = false;
+									if (isOpen) {
+										setOpenedAtPathname(null);
+									} else {
+										setOpenedAtPathname(pathname);
+									}
 									setOpenTriggerId(isOpen ? null : trigger.id);
 								}}
 								onKeyDown={(event) => {
@@ -279,6 +295,7 @@ const DesktopNav = ({ pathname, triggers }: HeaderNavProps) => {
 										event.preventDefault();
 										clearTimers();
 										openByHoverRef.current = false;
+										setOpenedAtPathname(pathname);
 										setOpenTriggerId(trigger.id);
 										focusFirstPanelLink(trigger.id);
 									}
