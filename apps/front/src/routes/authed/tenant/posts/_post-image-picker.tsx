@@ -38,21 +38,28 @@ export type DeferredImageSelection = {
  *
  * - Online (`postId` set): picks attach/remove against the API immediately
  *   and commits alt-text edits on blur through the post PATCH.
- * - Deferred (no `postId`, `onSelect` set — create drawer): collects the
- *   file locally; the parent attaches it right after the post exists, so
- *   the composer can offer an image before there is anything to attach to.
+ * - Deferred (no `postId`, `onSelect` set — create drawer): reports the
+ *   picked file and alt draft to the parent through `onSelect`; the parent
+ *   owns the selection and attaches it right after the post exists, so the
+ *   composer can offer an image before there is anything to attach to.
  *
  * Every server failure is surfaced inline through `getFailureMessage`
  * (never hand-translated at the call site).
  */
 export const PostImagePicker = ({
 	postId,
+	tenantId,
 	existingImage = null,
+	selection = null,
 	onSelect,
 	disabled,
 }: {
 	postId?: string;
+	/** Required for the online mode's tenant-scoped API client. */
+	tenantId?: string;
 	existingImage?: PostImagePickerExisting | null;
+	/** Deferred mode: the parent-owned selection (single source of truth). */
+	selection?: DeferredImageSelection | null;
 	onSelect?: (selection: DeferredImageSelection | null) => void;
 	disabled?: boolean;
 }) => {
@@ -63,36 +70,36 @@ export const PostImagePicker = ({
 	const updateAlt = useUpdatePostImageAltMutation();
 	const invalidateCaches = useInvalidatePostImageCaches();
 
-	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
-	const [pendingSelection, setPendingSelection] =
-		useState<DeferredImageSelection | null>(null);
-	const [altDraft, setAltDraft] = useState('');
+	// Alt text typed before a file is picked (deferred mode). A ref, not
+	// state: the draft is only ever read inside handlers — the visible value
+	// comes from the parent-owned selection once it exists.
+	const altDraftRef = useRef('');
 	const [altOverride, setAltOverride] = useState<string | null>(null);
 	const [failureMessage, setFailureMessage] = useState('');
-	const previewRef = useRef<string | null>(null);
 
-	// Revoke object URLs when replaced or unmounted so blobs don't leak.
+	// The preview blob URL is derived from one source of truth per mode:
+	// online keeps the last attached file here; deferred previews the
+	// parent-owned selection. One effect owns create/revoke so every URL
+	// dies with the component (or is replaced), never leaking a blob.
+	const [pickedFile, setPickedFile] = useState<File | null>(null);
+	const previewSource: File | null = isOnline
+		? pickedFile
+		: (selection?.file ?? null);
+	const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
+
 	useEffect(() => {
-		return () => {
-			if (previewRef.current) {
-				URL.revokeObjectURL(previewRef.current);
-			}
-		};
-	}, []);
+		if (!previewSource) {
+			setPreviewObjectUrl(null);
+			return;
+		}
 
-	const setPreview = (blob: Blob | null) => {
-		if (previewRef.current) {
-			URL.revokeObjectURL(previewRef.current);
-			previewRef.current = null;
-		}
-		if (blob) {
-			const objectUrl = URL.createObjectURL(blob);
-			previewRef.current = objectUrl;
-			setLocalPreviewUrl(objectUrl);
-		} else {
-			setLocalPreviewUrl(null);
-		}
-	};
+		const objectUrl = URL.createObjectURL(previewSource);
+		setPreviewObjectUrl(objectUrl);
+
+		return () => {
+			URL.revokeObjectURL(objectUrl);
+		};
+	}, [previewSource]);
 
 	const showFailure = (error: unknown) => {
 		setFailureMessage(
@@ -112,18 +119,20 @@ export const PostImagePicker = ({
 		if (!isOnline) {
 			const next: DeferredImageSelection = {
 				file,
-				altText: altDraft.trim(),
+				altText: altDraftRef.current.trim(),
 			};
-			setPendingSelection(next);
-			setPreview(file);
 			onSelect?.(next);
 			return;
 		}
 
 		try {
-			await attachImage.mutateAsync({ postId: postId as string, file });
+			await attachImage.mutateAsync({
+				postId: postId as string,
+				tenantId: tenantId ?? '',
+				file,
+			});
 			invalidateCaches();
-			setPreview(file);
+			setPickedFile(file);
 		} catch (error) {
 			showFailure(error);
 		}
@@ -133,16 +142,18 @@ export const PostImagePicker = ({
 		setFailureMessage('');
 
 		if (!isOnline) {
-			setPendingSelection(null);
-			setPreview(null);
+			altDraftRef.current = '';
 			onSelect?.(null);
 			return;
 		}
 
 		try {
-			await removeImage.mutateAsync({ postId: postId as string });
+			await removeImage.mutateAsync({
+				postId: postId as string,
+				tenantId: tenantId ?? '',
+			});
 			invalidateCaches();
-			setPreview(null);
+			setPickedFile(null);
 			setAltOverride(null);
 		} catch (error) {
 			showFailure(error);
@@ -154,7 +165,7 @@ export const PostImagePicker = ({
 			return;
 		}
 		// The API rejects alt-text edits without an attached image.
-		if (!existingImage && !localPreviewUrl) {
+		if (!existingImage && !previewObjectUrl) {
 			return;
 		}
 
@@ -171,6 +182,7 @@ export const PostImagePicker = ({
 		try {
 			await updateAlt.mutateAsync({
 				postId: postId as string,
+				tenantId: tenantId ?? '',
 				altText: next,
 			});
 			invalidateCaches();
@@ -185,23 +197,22 @@ export const PostImagePicker = ({
 			return;
 		}
 
-		setAltDraft(value);
-		if (pendingSelection) {
-			const next = { ...pendingSelection, altText: value.trim() };
-			setPendingSelection(next);
-			onSelect?.(next);
+		altDraftRef.current = value;
+		if (selection) {
+			onSelect?.({ file: selection.file, altText: value.trim() });
 		}
 	};
 
 	const previewSrc =
-		localPreviewUrl ??
+		previewObjectUrl ??
 		(existingImage ? resolveApiFileUrl(existingImage.url) : null);
 	const altValue = isOnline
 		? (altOverride ?? existingImage?.altText ?? '')
-		: altDraft;
+		: (selection?.altText ?? '');
 	// Server-side, alt text only exists on an attached image.
 	const canEditAlt =
-		!isOnline || Boolean(existingImage) || Boolean(localPreviewUrl);
+		!isOnline || Boolean(existingImage) || Boolean(previewObjectUrl);
+	const showRemove = Boolean(isOnline ? previewSrc : selection);
 
 	return (
 		<div className="space-y-1.5">
@@ -239,7 +250,7 @@ export const PostImagePicker = ({
 						</p>
 					) : null}
 				</div>
-				{previewSrc !== null ? (
+				{showRemove ? (
 					<Button
 						type="button"
 						variant="ghost"
@@ -259,6 +270,7 @@ export const PostImagePicker = ({
 					disabled={isControlDisabled}
 					className="sr-only"
 					data-testid="tenant-posts-create-image-input"
+					aria-label={t('posts:image-label')}
 					onChange={(event) => {
 						const file = event.target.files?.[0];
 						event.target.value = '';

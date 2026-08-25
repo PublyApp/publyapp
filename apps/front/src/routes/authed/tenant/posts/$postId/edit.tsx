@@ -287,6 +287,7 @@ const TenantPostEditPage = () => {
 								{/* Image since Lane 639; account & schedule follow in Epics C/D */}
 								<PostImagePicker
 									postId={postId}
+									tenantId={tenantId ?? ''}
 									existingImage={details.image ?? null}
 								/>
 							</div>

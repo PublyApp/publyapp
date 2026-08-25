@@ -3,6 +3,7 @@
  */
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createElement, useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -59,7 +60,7 @@ const pngFile = () =>
 
 describe('PostImagePicker (online mode)', () => {
 	test('renders input, alt field and help text', () => {
-		render(<PostImagePicker postId="post-1" />);
+		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
 
 		expect(screen.getByTestId('tenant-posts-create-image-input')).toBeTruthy();
 		expect(screen.getByTestId('tenant-posts-create-image-alt')).toBeTruthy();
@@ -68,7 +69,7 @@ describe('PostImagePicker (online mode)', () => {
 
 	test('attaches a picked file and shows a local preview', async () => {
 		const user = userEvent.setup();
-		render(<PostImagePicker postId="post-1" />);
+		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
 
 		const input = screen.getByTestId(
 			'tenant-posts-create-image-input',
@@ -80,12 +81,14 @@ describe('PostImagePicker (online mode)', () => {
 		});
 		const call = mocks.attachMutateAsync.mock.calls[0][0] as {
 			postId: string;
+			tenantId: string;
 			file: File;
-			altText?: string;
 		};
 		expect(call.postId).toBe('post-1');
+		// Regression (#1444 r2): the tenant-scoped factory threw before any
+		// request was sent when the scope was missing.
+		expect(call.tenantId).toBe('tenant-1');
 		expect(call.file.name).toBe('logo.png');
-		expect(call.altText).toBeUndefined();
 
 		expect(
 			screen.getByTestId('tenant-posts-create-image-preview'),
@@ -97,6 +100,7 @@ describe('PostImagePicker (online mode)', () => {
 		render(
 			<PostImagePicker
 				postId="post-1"
+				tenantId="tenant-1"
 				existingImage={{
 					url: 'https://api.example.test/files/x.png',
 					widthPx: 32,
@@ -115,6 +119,7 @@ describe('PostImagePicker (online mode)', () => {
 		await waitFor(() => {
 			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
 				postId: 'post-1',
+				tenantId: 'tenant-1',
 				altText: 'a tiny logo',
 			});
 		});
@@ -125,6 +130,7 @@ describe('PostImagePicker (online mode)', () => {
 		render(
 			<PostImagePicker
 				postId="post-1"
+				tenantId="tenant-1"
 				existingImage={{
 					url: 'https://api.example.test/files/x.png',
 					widthPx: 32,
@@ -142,6 +148,7 @@ describe('PostImagePicker (online mode)', () => {
 		await waitFor(() => {
 			expect(mocks.removeMutateAsync).toHaveBeenCalledWith({
 				postId: 'post-1',
+				tenantId: 'tenant-1',
 			});
 			expect(mocks.invalidateFn).toHaveBeenCalled();
 		});
@@ -159,7 +166,7 @@ describe('PostImagePicker (online mode)', () => {
 			},
 		});
 
-		render(<PostImagePicker postId="post-1" />);
+		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
 
 		const input = screen.getByTestId(
 			'tenant-posts-create-image-input',
@@ -174,10 +181,26 @@ describe('PostImagePicker (online mode)', () => {
 });
 
 describe('PostImagePicker (deferred create-drawer mode)', () => {
-	test('collects the selection locally and reports it to the parent', async () => {
-		const onSelect = vi.fn();
+	test('reports the picked file to the parent and previews it from the parent-owned selection', async () => {
 		const user = userEvent.setup();
-		render(<PostImagePicker onSelect={onSelect} />);
+		const onSelect = vi.fn();
+		let report: (selection: DeferredImageSelection | null) => void = () => {};
+		// The parent OWNS the selection state; the picker only reports through
+		// onSelect. The spy observes every report without stealing ownership.
+		const Harness = () => {
+			const [selection, setSelection] = useState<DeferredImageSelection | null>(
+				null,
+			);
+			report = setSelection;
+			return createElement(PostImagePicker, {
+				onSelect: (next: DeferredImageSelection | null) => {
+					onSelect(next);
+					setSelection(next);
+				},
+				selection,
+			});
+		};
+		render(createElement(Harness));
 
 		const input = screen.getByTestId(
 			'tenant-posts-create-image-input',
@@ -190,9 +213,12 @@ describe('PostImagePicker (deferred create-drawer mode)', () => {
 				| undefined;
 			expect(call?.file.name).toBe('logo.png');
 		});
-		expect(
-			screen.getByTestId('tenant-posts-create-image-preview'),
-		).toBeTruthy();
+		// The preview is derived from the parent-owned selection.
+		await waitFor(() => {
+			expect(
+				screen.getByTestId('tenant-posts-create-image-preview'),
+			).toBeTruthy();
+		});
 
 		await user.type(screen.getByTestId('tenant-posts-create-image-alt'), 'x');
 		await waitFor(() => {
@@ -209,5 +235,6 @@ describe('PostImagePicker (deferred create-drawer mode)', () => {
 		expect(
 			screen.queryByTestId('tenant-posts-create-image-preview'),
 		).toBeNull();
+		expect(report).toBeDefined();
 	});
 });

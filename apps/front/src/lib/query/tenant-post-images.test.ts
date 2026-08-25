@@ -90,6 +90,7 @@ describe('buildAttachPostImageBody', () => {
 		const bytes = new Uint8Array([1, 2, 3]);
 		const body = await buildAttachPostImageBody({
 			postId: 'post-1',
+			tenantId: 'tenant-1',
 			file: new File([bytes], 'logo.png', { type: 'image/png' }),
 		});
 

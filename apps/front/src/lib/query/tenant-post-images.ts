@@ -56,12 +56,16 @@ export const toTenantPostImage = (raw: unknown): TenantPostImage | null => {
 
 export type AttachPostImageInput = {
 	postId: string;
+	/** Scopes the tenant API client (X-Tenant-Id); required by the factory. */
+	tenantId: string;
 	file: File;
 };
 
-const buildMultipart = async (
-	input: Omit<AttachPostImageInput, 'postId'>,
-): Promise<MultipartBody> => {
+/** Multipart builders touch only the file bytes; postId/tenantId are
+ * transport concerns owned by the mutation factories. */
+const buildMultipart = async (input: {
+	file: File;
+}): Promise<MultipartBody> => {
 	const body = new MultipartBody();
 	const content = new Uint8Array(await input.file.arrayBuffer());
 	body.addOrReplacePart(
@@ -86,14 +90,16 @@ export const buildAttachPostImageBody = async (
 export const attachPostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; file: File }
+	{ postId: string; tenantId: string; file: File }
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'attach'],
 		mutationFn: async (client, variables) =>
-			client.posts
-				.byPostId(variables.postId)
-				.image.post(await buildMultipart({ file: variables.file })),
+			client.posts.byPostId(variables.postId).image.post(
+				await buildMultipart({
+					file: variables.file,
+				}),
+			),
 		// The picker owns attach/remove/alt errors inline next to the input.
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
@@ -108,7 +114,7 @@ export const useAttachPostImageMutation = () =>
 export const removePostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string }
+	{ postId: string; tenantId: string }
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'remove'],
@@ -141,7 +147,7 @@ export const buildImageAltTextPatch = (
 export const updatePostImageAltMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; altText: string }
+	{ postId: string; tenantId: string; altText: string }
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'alt'],
