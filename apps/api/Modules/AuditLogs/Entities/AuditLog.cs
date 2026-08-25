@@ -89,6 +89,7 @@ public static class AuditActions {
 	// Distinguish bulk delete of staff profiles from single-profile delete audit events.
 	public const string StaffProfileBulkDeleted = "staff.profile.bulk.deleted";
 	public const string StaffProfileUserAssigned = "staff.profile.user.assigned";
+	public const string StaffProfileUserUnassigned = "staff.profile.user.unassigned";
 	public const string TenantProfileCreated = "tenant.profile.created";
 	public const string TenantProfileUpdated = "tenant.profile.updated";
 	public const string TenantProfileDeleted = "tenant.profile.deleted";
