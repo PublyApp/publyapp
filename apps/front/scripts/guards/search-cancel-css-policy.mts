@@ -1,6 +1,31 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+interface ParsedRule {
+	body: string;
+	selector: string;
+}
+
+interface SourceRecord {
+	source: string;
+	sourceName: string;
+}
+
+interface TokenOccurrence {
+	context: string;
+	lineNumber: number;
+	rule: ParsedRule | undefined;
+	selector: string;
+	sourceName: string;
+}
+
+interface SearchCancelCanonical {
+	declarations: [property: string, value: string][];
+	label: string;
+	selector: string;
+	sourceName?: string;
+}
+
 const SEARCH_CANCEL_TOKEN = '::-webkit-search-cancel-button';
 
 /**
@@ -84,7 +109,7 @@ const IGNORED_DIRECTORY_NAMES = new Set([
 	'.turbo',
 ]);
 
-export const SOURCE_SEARCH_CANCEL_CANONICAL = {
+export const SOURCE_SEARCH_CANCEL_CANONICAL: SearchCancelCanonical = {
 	label: 'shipped frontend source',
 	sourceName: 'apps/front/src/styles/app.css',
 	selector: ".publy-search-input[type='search']::-webkit-search-cancel-button",
@@ -95,7 +120,7 @@ export const SOURCE_SEARCH_CANCEL_CANONICAL = {
 	],
 };
 
-export const ARTIFACT_SEARCH_CANCEL_CANONICAL = {
+export const ARTIFACT_SEARCH_CANCEL_CANONICAL: SearchCancelCanonical = {
 	label: 'emitted production CSS',
 	selector: '.publy-search-input[type=search]::-webkit-search-cancel-button',
 	declarations: [
@@ -113,12 +138,15 @@ export const ARTIFACT_SEARCH_CANCEL_CANONICAL = {
  * has no line comments; the `:` lookbehind keeps `https://` from swallowing the
  * rest of its line.
  */
-const maskComments = (source, { lineComments = false } = {}) => {
+const maskComments = (
+	source: string,
+	{ lineComments = false }: { lineComments?: boolean } = {},
+): string => {
 	const characters = source.split('');
 	const { length } = characters;
 	let index = 0;
 
-	const blank = (from, to) => {
+	const blank = (from: number, to: number): void => {
 		for (let cursor = from; cursor < to; cursor += 1) {
 			if (characters[cursor] !== '\n') {
 				characters[cursor] = ' ';
@@ -162,13 +190,17 @@ const maskComments = (source, { lineComments = false } = {}) => {
 	return characters.join('');
 };
 
-const findRuleAtToken = (source, maskedSource, tokenIndex) => {
+const findRuleAtToken = (
+	source: string,
+	maskedSource: string,
+	tokenIndex: number,
+): ParsedRule | undefined => {
 	const openIndex = maskedSource.indexOf(
 		'{',
 		tokenIndex + SEARCH_CANCEL_TOKEN.length,
 	);
 	if (openIndex === -1) {
-		return undefined;
+		return;
 	}
 
 	const previousBoundaries = [
@@ -185,7 +217,7 @@ const findRuleAtToken = (source, maskedSource, tokenIndex) => {
 			: selectorBoundary + 1 + leadingWhitespace;
 	const selector = source.slice(selectorStart, openIndex).trim();
 	if (!selector.includes(SEARCH_CANCEL_TOKEN)) {
-		return undefined;
+		return;
 	}
 
 	let depth = 1;
@@ -213,7 +245,7 @@ const findRuleAtToken = (source, maskedSource, tokenIndex) => {
 	};
 };
 
-const lineNumberAt = (source, index) => {
+const lineNumberAt = (source: string, index: number): number => {
 	let lineNumber = 1;
 	for (let cursor = 0; cursor < index; cursor += 1) {
 		if (source[cursor] === '\n') {
@@ -226,7 +258,8 @@ const lineNumberAt = (source, index) => {
 const CONTEXT_LIMIT = 120;
 const CONTEXT_WINDOW = 40;
 
-const collapseWhitespace = (text) => text.replace(/\s+/g, ' ').trim();
+const collapseWhitespace = (text: string): string =>
+	text.replace(/\s+/g, ' ').trim();
 
 /**
  * A readable one-line excerpt centred on the token, used only for reporting.
@@ -237,9 +270,14 @@ const collapseWhitespace = (text) => text.replace(/\s+/g, ' ').trim();
  * (single line, not absurdly long); otherwise the token's own source line wins,
  * windowed so a minified asset does not dump its entire first line.
  */
-const occurrenceContext = (source, tokenIndex, rule) => {
+const occurrenceContext = (
+	source: string,
+	tokenIndex: number,
+	rule: ParsedRule | undefined,
+): string => {
 	const selector = rule ? collapseWhitespace(rule.selector) : undefined;
 	if (
+		rule !== undefined &&
 		selector &&
 		!rule.selector.includes('\n') &&
 		selector.length <= CONTEXT_LIMIT
@@ -270,9 +308,12 @@ const occurrenceContext = (source, tokenIndex, rule) => {
 };
 
 const findTokenOccurrences = (
-	{ source, sourceName },
-	{ lineComments = false, maskCommentSyntax = true } = {},
-) => {
+	{ source, sourceName }: SourceRecord,
+	{
+		lineComments = false,
+		maskCommentSyntax = true,
+	}: { lineComments?: boolean; maskCommentSyntax?: boolean } = {},
+): TokenOccurrence[] => {
 	const maskedSource = maskCommentSyntax
 		? maskComments(source, { lineComments })
 		: source;
@@ -300,8 +341,8 @@ const findTokenOccurrences = (
 	return occurrences;
 };
 
-const parseDeclarations = (body) => {
-	const declarations = [];
+const parseDeclarations = (body: string): [string, string][] => {
+	const declarations: [string, string][] = [];
 
 	for (const rawDeclaration of body.split(';')) {
 		const declaration = rawDeclaration.trim();
@@ -326,19 +367,22 @@ const parseDeclarations = (body) => {
 	return declarations;
 };
 
-const sortedDeclarations = (declarations) =>
+const sortedDeclarations = (declarations: [string, string][]) =>
 	[...declarations].sort(([leftProperty], [rightProperty]) =>
 		leftProperty.localeCompare(rightProperty),
 	);
 
-const declarationsEqual = (left, right) =>
+const declarationsEqual = (
+	left: [string, string][],
+	right: [string, string][],
+) =>
 	JSON.stringify(sortedDeclarations(left)) ===
 	JSON.stringify(sortedDeclarations(right));
 
-const formatDeclarations = (declarations) =>
+const formatDeclarations = (declarations: [string, string][]) =>
 	declarations.map(([property, value]) => `${property}: ${value}`).join('; ');
 
-const formatOccurrences = (occurrences) =>
+const formatOccurrences = (occurrences: TokenOccurrence[]) =>
 	occurrences
 		.map(
 			(occurrence) =>
@@ -346,7 +390,10 @@ const formatOccurrences = (occurrences) =>
 		)
 		.join('\n');
 
-export const assertCanonicalSearchCancelCss = (stylesheets, canonical) => {
+export const assertCanonicalSearchCancelCss = (
+	stylesheets: SourceRecord[],
+	canonical: SearchCancelCanonical,
+): void => {
 	const occurrences = [];
 	for (const stylesheet of stylesheets) {
 		occurrences.push(...findTokenOccurrences(stylesheet));
@@ -403,11 +450,14 @@ export const assertCanonicalSearchCancelCss = (stylesheets, canonical) => {
 	}
 };
 
-const collectFilesUnder = (directory, collected) => {
+const collectFilesUnder = (directory: string, collected: string[]): void => {
 	const stack = [directory];
 
 	while (stack.length > 0) {
 		const currentDirectory = stack.pop();
+		if (currentDirectory === undefined) {
+			break;
+		}
 		for (const entry of readdirSync(currentDirectory, {
 			withFileTypes: true,
 		})) {
@@ -423,7 +473,7 @@ const collectFilesUnder = (directory, collected) => {
 	}
 };
 
-export const collectShippedSourcePaths = (workspaceRoot) => {
+export const collectShippedSourcePaths = (workspaceRoot: string): string[] => {
 	const sourcePaths = [];
 
 	for (const root of SHIPPED_SOURCE_ROOTS) {
@@ -478,7 +528,13 @@ export const collectShippedSourcePaths = (workspaceRoot) => {
  * folded the pieces back into one literal. See the exact ceiling in
  * `apps/front/src/components/ui/search-input.test.tsx`.
  */
-export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
+export const assertShippedSourceSearchCancelCss = (
+	workspaceRoot: string,
+): {
+	inventoriedMentionCount: number;
+	inventorySize: number;
+	sourceFileCount: number;
+} => {
 	const sourceFiles = collectShippedSourcePaths(workspaceRoot).map(
 		(sourcePath) => ({
 			source: readFileSync(sourcePath, 'utf8'),
@@ -489,8 +545,8 @@ export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
 		}),
 	);
 	const inventory = new Set(SEARCH_CANCEL_MENTION_INVENTORY);
-	const violations = [];
-	const inventoried = [];
+	const violations: TokenOccurrence[] = [];
+	const inventoried: TokenOccurrence[] = [];
 	for (const sourceFile of sourceFiles) {
 		const found = findTokenOccurrences(sourceFile, {
 			lineComments: !sourceFile.sourceName.endsWith('.css'),
@@ -574,7 +630,9 @@ export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
  * `bundles` are `{ source, sourceName }` records for every emitted file whose
  * extension is in `EMITTED_BUNDLE_FILE_EXTENSIONS`.
  */
-export const assertEmittedBundlesFreeOfSearchCancel = (bundles) => {
+export const assertEmittedBundlesFreeOfSearchCancel = (
+	bundles: SourceRecord[],
+): { scannedFileCount: number } => {
 	const occurrences = [];
 	for (const bundle of bundles) {
 		occurrences.push(

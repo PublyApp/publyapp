@@ -23,6 +23,12 @@ const canonicalSourceCss = `
 }
 `;
 
+/** Extracts the thrown Error so its message can be asserted. */
+const thrownError = (error: unknown): Error => {
+	assert.ok(error instanceof Error);
+	return error;
+};
+
 const canonicalArtifactCss =
 	'.publy-search-input[type=search]::-webkit-search-cancel-button' +
 	'{appearance:none;display:none}';
@@ -32,10 +38,15 @@ const canonicalArtifactCss =
  * SHIPPED_SOURCE_ROOTS, so the fixture exercises the same root set the real
  * scan uses. `files` are workspace-relative paths.
  */
-const createWorkspace = (files) => {
+const createWorkspace = (
+	files: Record<string, string> = {},
+): {
+	workspaceRoot: string;
+	write: (relativePath: string, contents: string) => void;
+} => {
 	const workspaceRoot = mkdtempSync(path.join(tmpdir(), 'search-cancel-'));
 
-	const write = (relativePath, contents) => {
+	const write = (relativePath: string, contents: string): void => {
 		const fullPath = path.join(workspaceRoot, relativePath);
 		mkdirSync(path.dirname(fullPath), { recursive: true });
 		writeFileSync(fullPath, contents);
@@ -103,13 +114,13 @@ test('rejects an attribute-selector spelling and reports both selectors and sour
 				SOURCE_SEARCH_CANCEL_CANONICAL,
 			),
 		(error) => {
-			assert.match(error.message, /found 2 occurrences/i);
+			assert.match(thrownError(error).message, /found 2 occurrences/i);
 			assert.match(
-				error.message,
+				thrownError(error).message,
 				/src\/styles\/app\.css:\d+ .*\.publy-search-input/,
 			);
 			assert.match(
-				error.message,
+				thrownError(error).message,
 				/src\/styles\/review-override\.css:\d+ \[class~=/,
 			);
 			return true;
@@ -139,9 +150,9 @@ test('rejects a second rule inside a conditional at-rule', () => {
 				SOURCE_SEARCH_CANCEL_CANONICAL,
 			),
 		(error) => {
-			assert.match(error.message, /found 2 occurrences/i);
+			assert.match(thrownError(error).message, /found 2 occurrences/i);
 			assert.match(
-				error.message,
+				thrownError(error).message,
 				/src\/styles\/app\.css:\d+ input\[type='search'\]/,
 			);
 			return true;
@@ -167,9 +178,9 @@ test('rejects important on the canonical source declarations', () => {
 				SOURCE_SEARCH_CANCEL_CANONICAL,
 			),
 		(error) => {
-			assert.match(error.message, /canonical declarations/i);
-			assert.match(error.message, /display: none !important/);
-			assert.match(error.message, /apps\/front\/src\/styles\/app\.css:\d+/);
+			assert.match(thrownError(error).message, /canonical declarations/i);
+			assert.match(thrownError(error).message, /display: none !important/);
+			assert.match(thrownError(error).message, /apps\/front\/src\/styles\/app\.css:\d+/);
 			return true;
 		},
 	);
@@ -192,9 +203,9 @@ test('rejects a second emitted rule and identifies the built asset', () => {
 				ARTIFACT_SEARCH_CANCEL_CANONICAL,
 			),
 		(error) => {
-			assert.match(error.message, /found 2 occurrences/i);
-			assert.match(error.message, /dist\/client\/assets\/app-mutated\.css:1/);
-			assert.match(error.message, /\[class~=publy-search-input\]/);
+			assert.match(thrownError(error).message, /found 2 occurrences/i);
+			assert.match(thrownError(error).message, /dist\/client\/assets\/app-mutated\.css:1/);
+			assert.match(thrownError(error).message, /\[class~=publy-search-input\]/);
 			return true;
 		},
 	);
@@ -233,20 +244,20 @@ export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/found 1 occurrence\(s\).*outside the committed mention inventory/is,
 				);
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/apps\/front\/src\/components\/search-input\.tsx:\d+/,
 				);
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/input\[type='search'\]::-webkit-search-cancel-button/,
 				);
 				// The inventoried canonical stylesheet is not itself a violation.
 				assert.doesNotMatch(
-					error.message,
+					thrownError(error).message,
 					/- apps\/front\/src\/styles\/app\.css:\d+/,
 				);
 				return true;
@@ -267,8 +278,8 @@ test('rejects a sole canonical rule moved out of app.css into another stylesheet
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /outside the committed mention inventory/i);
-				assert.match(error.message, /apps\/front\/src\/styles\/other\.css:\d+/);
+				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
+				assert.match(thrownError(error).message, /apps\/front\/src\/styles\/other\.css:\d+/);
 				return true;
 			},
 		);
@@ -286,9 +297,9 @@ test('rejects a canonical stylesheet that has lost the suppression rule entirely
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /found 0 occurrences/i);
+				assert.match(thrownError(error).message, /found 0 occurrences/i);
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/required canonical rule: \.publy-search-input/i,
 				);
 				return true;
@@ -317,9 +328,9 @@ export const SEARCH_CANCEL_OVERRIDE_CSS = \`
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /outside the committed mention inventory/i);
+				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/packages\/shared-ts\/src\/lib\/profile-style\/search-cancel-style\.ts:\d+/,
 				);
 				return true;
@@ -355,12 +366,12 @@ const css = \`
 				() => assertShippedSourceSearchCancelCss(workspaceRoot),
 				(error) => {
 					assert.match(
-						error.message,
+						thrownError(error).message,
 						/outside the committed mention inventory/i,
 					);
 					assert.ok(
-						error.message.includes(relativePath),
-						`expected the failure to name ${relativePath}:\n${error.message}`,
+						thrownError(error).message.includes(relativePath),
+						`expected the failure to name ${relativePath}:\n${thrownError(error).message}`,
 					);
 					return true;
 				},
@@ -434,9 +445,9 @@ export const SearchInput = () => <style>{SEARCH_CANCEL_OVERRIDE}</style>;
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /outside the committed mention inventory/i);
+				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/apps\/front\/src\/components\/ui\/search-input\.tsx:\d+/,
 				);
 				return true;
@@ -466,9 +477,9 @@ export const SEARCH_CANCEL_OVERRIDE = \`
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /outside the committed mention inventory/i);
+				assert.match(thrownError(error).message, /outside the committed mention inventory/i);
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/packages\/shared-ts\/src\/lib\/search-cancel-override\.ts:\d+/,
 				);
 				return true;
@@ -491,7 +502,7 @@ test('fails closed when a shipped source root is missing', () => {
 		assert.throws(
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
-				assert.match(error.message, /missing root "packages\/shared-ts"/);
+				assert.match(thrownError(error).message, /missing root "packages\/shared-ts"/);
 				return true;
 			},
 		);
@@ -520,10 +531,10 @@ export { OVERRIDE };
 			() => assertShippedSourceSearchCancelCss(workspaceRoot),
 			(error) => {
 				assert.match(
-					error.message,
+					thrownError(error).message,
 					/apps\/front\/src\/components\/search-input\.tsx:8 input\[type='search'\]::-webkit-search-cancel-button \{ appearance: auto; \}/,
 				);
-				assert.doesNotMatch(error.message, /documentation block/);
+				assert.doesNotMatch(thrownError(error).message, /documentation block/);
 				return true;
 			},
 		);
@@ -605,14 +616,14 @@ test('rejects a runtime style injection compiled into the client and server bund
 				},
 			]),
 		(error) => {
-			assert.match(error.message, /expected 0 occurrences/i);
-			assert.match(error.message, /found 2/i);
+			assert.match(thrownError(error).message, /expected 0 occurrences/i);
+			assert.match(thrownError(error).message, /found 2/i);
 			assert.match(
-				error.message,
+				thrownError(error).message,
 				/dist\/server\/assets\/router-D21ze5za\.js:\d+/,
 			);
 			assert.match(
-				error.message,
+				thrownError(error).message,
 				/dist\/client\/assets\/index-DUlSrzKh\.js:\d+/,
 			);
 			return true;
@@ -633,8 +644,8 @@ test('rejects the token in emitted output even inside comment syntax', () => {
 				},
 			]),
 		(error) => {
-			assert.match(error.message, /expected 0 occurrences/i);
-			assert.match(error.message, /dist\/client\/assets\/index-abc\.js:1/);
+			assert.match(thrownError(error).message, /expected 0 occurrences/i);
+			assert.match(thrownError(error).message, /dist\/client\/assets\/index-abc\.js:1/);
 			return true;
 		},
 	);
@@ -651,7 +662,7 @@ test('rejects the token in emitted HTML', () => {
 				},
 			]),
 		(error) => {
-			assert.match(error.message, /dist\/client\/index\.html:1/);
+			assert.match(thrownError(error).message, /dist\/client\/index\.html:1/);
 			return true;
 		},
 	);
