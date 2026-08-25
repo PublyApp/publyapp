@@ -166,7 +166,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS = {
 	basics: 'Basics',
 	profiles: 'Profiles',
 	invitations: 'Invitations',
@@ -208,7 +208,7 @@ const TRANSLATIONS: Record<string, string> = {
 	'create-profile': 'Create profile',
 	'loading-permissions': 'Loading permissions…',
 	'no-permissions-available': 'No permissions available.',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

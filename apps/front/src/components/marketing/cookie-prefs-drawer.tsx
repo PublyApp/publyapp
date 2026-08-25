@@ -19,17 +19,17 @@ import {
 	useCookieConsentStore,
 } from '~/lib/store/cookie-consent-store';
 
-const CATEGORY_LABEL_KEYS: Record<string, string> = {
+const CATEGORY_LABEL_KEYS = {
 	functional: 'marketing-cookies-functional',
 	analytics: 'marketing-cookies-analytics',
 	marketing: 'marketing-cookies-marketing',
-};
+} satisfies Record<string, string>;
 
-const CATEGORY_DESCRIPTION_KEYS: Record<string, string> = {
+const CATEGORY_DESCRIPTION_KEYS = {
 	functional: 'marketing-cookies-functional-description',
 	analytics: 'marketing-cookies-analytics-description',
 	marketing: 'marketing-cookies-marketing-description',
-};
+} satisfies Record<string, string>;
 
 /**
  * Cookie preferences (#1038) — a right-side drawer, never a centred modal.

@@ -42,7 +42,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const resourceKey = key.includes(':') ? key.split(':')[1] : key;
-			const labels: Record<string, string> = {
+			const labels = {
 				permissions: 'Permissions',
 				'profile-permissions-subtitle':
 					'Toggle what this profile can do. Changes save when you hit Save.',
@@ -70,7 +70,7 @@ vi.mock('react-i18next', () => ({
 				'permissions-saved-count_other': '{{count}} changes saved',
 				'permissions-failed-count_one': '{{count}} change failed',
 				'permissions-failed-count_other': '{{count}} changes failed',
-			};
+			} satisfies Record<string, string>;
 
 			const pluralKey =
 				typeof options?.count === 'number'

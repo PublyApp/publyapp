@@ -5,13 +5,13 @@ import { cn } from '~/lib/utils';
 
 type PersonAvatarSize = 'xs' | 'sm' | 'md' | 'lg';
 
-const sizeClassNames: Record<PersonAvatarSize | 'default', string> = {
+const sizeClassNames = {
 	default: 'size-[26px] text-[10px]',
 	xs: 'size-5 text-[8px]',
 	sm: 'size-8 text-[11px]',
 	md: 'size-9 text-xs',
 	lg: 'size-14 text-lg',
-};
+} satisfies Record<PersonAvatarSize | 'default', string>;
 
 export const EntityAvatar = ({
 	name,

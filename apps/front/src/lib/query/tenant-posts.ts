@@ -263,9 +263,9 @@ export const savePost = async (
 		return details;
 	}
 
-	const createBody: Record<string, unknown> = {
+	const createBody = {
 		body: createUntypedString(body),
-	};
+	} satisfies Record<string, unknown>;
 
 	if (input.projectId) {
 		createBody.projectId = createUntypedString(input.projectId);

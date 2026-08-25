@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	integrations: 'Integrations',
 	'common:connected': 'Connected',
 	'common:available-integrations': 'Available integrations',
@@ -29,7 +29,7 @@ const EN_LABELS: Record<string, string> = {
 	'api-access-coming-later-description':
 		'API keys and webhook configuration will appear here once the integrations API ships.',
 	'read-only': 'Read only',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

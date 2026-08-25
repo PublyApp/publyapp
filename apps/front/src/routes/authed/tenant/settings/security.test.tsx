@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	security: 'Security',
 	'password-policy': 'Password policy',
 	'password-policy-coming-later-title': 'Password policy is coming later',
@@ -27,7 +27,7 @@ const EN_LABELS: Record<string, string> = {
 	'active-sessions-coming-later-description':
 		'Devices and sign-in activity across your organization will appear here once the session API ships.',
 	'read-only': 'Read only',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

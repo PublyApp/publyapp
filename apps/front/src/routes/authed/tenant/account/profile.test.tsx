@@ -69,7 +69,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 	toastLocalMutationResult: mocks.toastLocalMutationResult,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	profile: 'Profile',
 	'personal-information': 'Personal information',
 	preferences: 'Preferences',
@@ -95,7 +95,7 @@ const EN_LABELS: Record<string, string> = {
 	'profile-updated-success': 'Profile updated successfully',
 	'invalid-avatar-url': 'Enter a valid http(s) URL',
 	'unknown-error': 'Unknown error',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

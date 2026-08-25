@@ -12,14 +12,14 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	history: 'History',
 	'history-coming-later-title': 'Post history is coming later',
 	'history-coming-later-description':
 		'Published posts and their performance will appear here once the posts API ships.',
 	'common:history': 'History',
 	'read-only': 'Read only',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

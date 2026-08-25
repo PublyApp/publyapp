@@ -159,13 +159,13 @@ export const formatInvitationStatusLabel = (
 	return `${status.slice(0, 1).toUpperCase()}${status.slice(1)}`;
 };
 
-const INVITATION_STATUS_LABEL_KEYS: Record<InvitationDisplayStatus, string> = {
+const INVITATION_STATUS_LABEL_KEYS = {
 	pending: 'staff-invitations:invitation-status-pending',
 	accepted: 'staff-invitations:invitation-status-accepted',
 	expired: 'staff-invitations:invitation-status-expired',
 	revoked: 'staff-invitations:invitation-status-revoked',
 	unknown: 'unknown',
-};
+} satisfies Record<InvitationDisplayStatus, string>;
 
 /** Translation key for an invitation status, for callers that render through
  * `t()` instead of the untranslated `formatInvitationStatusLabel`. */

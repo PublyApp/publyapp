@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	members: 'Members',
 	'common:team-members': 'Team members',
 	'common:pending-invitations': 'Pending invitations',
@@ -24,7 +24,7 @@ const EN_LABELS: Record<string, string> = {
 	'pending-invitations-coming-later-description':
 		"Invitations you've sent will appear here once the members API ships.",
 	'read-only': 'Read only',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

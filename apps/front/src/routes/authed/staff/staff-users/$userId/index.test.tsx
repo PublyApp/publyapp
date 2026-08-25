@@ -44,7 +44,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const I18N_LABELS: Record<string, string> = {
+const I18N_LABELS = {
 	'contact-details': 'Contact details',
 	name: 'Name',
 	email: 'Email',
@@ -77,7 +77,7 @@ const I18N_LABELS: Record<string, string> = {
 	'common-loading': 'Loading...',
 	'loading-assigned-profiles': 'Loading assigned profiles…',
 	'try-again': 'Try again',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

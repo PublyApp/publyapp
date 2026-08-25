@@ -77,7 +77,7 @@ vi.mock('~/lib/query/tenants-for-picker', () => ({
 	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'posts:drafts': 'Drafts',
 	'posts:drafts-description': 'Your draft posts will appear here.',
 	'posts:new-post': 'New post',
@@ -89,7 +89,7 @@ const EN_LABELS: Record<string, string> = {
 	'common:updated-at': 'Updated at',
 	'common:edit': 'Edit',
 	'common:an-error-occurred': 'An error occurred',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

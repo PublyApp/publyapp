@@ -22,13 +22,13 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	useLogout: () => ({ logout: vi.fn(), isLoggingOut: false }),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'select-organization': 'Select Organization',
 	'select-organization-description':
 		'Choose which organization you want to access',
 	suspended: 'Suspended',
 	'log-out': 'Log out',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

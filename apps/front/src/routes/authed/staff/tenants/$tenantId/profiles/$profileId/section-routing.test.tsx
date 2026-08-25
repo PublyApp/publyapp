@@ -160,7 +160,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const bare = key.includes(':') ? (key.split(':').at(-1) ?? key) : key;
-			const labels: Record<string, string> = {
+			const labels = {
 				overview: 'Overview',
 				permissions: 'Permissions',
 				members: 'Members',
@@ -168,7 +168,7 @@ vi.mock('react-i18next', () => ({
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'leave-page': 'Leave page',
 				cancel: 'Cancel',
-			};
+			} satisfies Record<string, string>;
 			let text = labels[bare] ?? bare;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${optionKey}}}`, String(value));

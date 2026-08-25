@@ -93,7 +93,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS = {
 	basics: 'Basics',
 	profiles: 'Profiles',
 	invitations: 'Invitations',
@@ -164,7 +164,7 @@ const TRANSLATIONS: Record<string, string> = {
 	'page-n': 'Page {{page}}',
 	'previous-page': 'Previous page',
 	'next-page': 'Next page',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

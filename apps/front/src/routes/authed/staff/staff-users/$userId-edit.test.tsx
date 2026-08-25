@@ -166,7 +166,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
 			const resolvedKey = key.replace(/^(common|staff-users):/, '');
-			const labels: Record<string, string> = {
+			const labels = {
 				'back-to-user': 'Back to staff user',
 				'email-address': 'Email address',
 				'email-managed-separately': 'Email changes are managed separately.',
@@ -208,7 +208,7 @@ vi.mock('react-i18next', () => ({
 				close: 'Close',
 				'staff-user-identity-saved-profiles-failed':
 					'Identity saved, but profile assignments failed to save.',
-			};
+			} satisfies Record<string, string>;
 
 			return labels[resolvedKey] ?? resolvedKey;
 		},

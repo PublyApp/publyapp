@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 
-const labelMap: Record<string, Record<string, string>> = {
+const labelMap = {
 	en: {
 		'status-active': 'Active',
 		'status-suspended': 'Suspended',
@@ -28,7 +28,7 @@ const labelMap: Record<string, Record<string, string>> = {
 		'status-suspended': 'Suspendu',
 		'status-unknown': 'Inconnu',
 	},
-};
+} satisfies Record<string, Record<string, string>>;
 
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({

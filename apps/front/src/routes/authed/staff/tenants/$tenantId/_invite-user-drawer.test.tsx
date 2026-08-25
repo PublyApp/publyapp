@@ -37,7 +37,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels = {
 				'invite-tenant-user': 'Invite tenant user',
 				'invite-tenant-users-description': 'Send tenant invitations.',
 				email: 'Email',
@@ -65,7 +65,7 @@ vi.mock('react-i18next', () => ({
 				// hardcode — proves the placeholder is sourced from t(), not a
 				// hardcoded English string, by matching the real FR bundle value.
 				'email-placeholder': 'nom@entreprise.com',
-			};
+			} satisfies Record<string, string>;
 
 			return labels[key] ?? key;
 		},

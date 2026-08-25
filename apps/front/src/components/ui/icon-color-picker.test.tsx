@@ -9,7 +9,7 @@ import { TENANT_PROFILE_ICON_NAMES } from '@org/shared-ts/lib/profile-style/tena
 import { IconColorPicker } from './icon-color-picker';
 import { ICON_COLOR_PICKER_OPTIONS } from './icon-color-picker-options';
 
-const translations: Record<string, string> = {
+const translations = {
 	'choose-icon-and-color': 'Choose icon and color',
 	'choose-icon': 'Choose icon',
 	'choose-color': 'Choose color',
@@ -22,7 +22,7 @@ const translations: Record<string, string> = {
 	'profile-icon-shield-check': 'Shield check',
 	'profile-icon-briefcase': 'Briefcase',
 	'profile-icon-calendar': 'Calendar',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

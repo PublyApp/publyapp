@@ -23,11 +23,11 @@ type SearchInputProps = Omit<
 	size?: SearchInputSize;
 };
 
-const SIZE_CLASS_NAME: Record<SearchInputSize, string | undefined> = {
+const SIZE_CLASS_NAME = {
 	default: undefined,
 	compact: 'h-9',
 	table: 'publy-data-table-search-input',
-};
+} satisfies Record<SearchInputSize, string | undefined>;
 
 /**
  * The one search-input primitive for the whole app (#975) — owns the

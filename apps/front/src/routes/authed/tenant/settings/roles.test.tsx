@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'roles-and-permissions': 'Roles & permissions',
 	'common:roles': 'Roles',
 	'common:permissions': 'Permissions',
@@ -23,7 +23,7 @@ const EN_LABELS: Record<string, string> = {
 	'permissions-coming-later-description':
 		'The permission matrix editor will appear here once the roles API ships.',
 	'read-only': 'Read only',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

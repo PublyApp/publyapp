@@ -54,12 +54,12 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels = {
 				basics: 'Basics',
 				profiles: 'Profiles',
 				invitations: 'Invitations',
 				users: 'Users',
-			};
+			} satisfies Record<string, string>;
 
 			return labels[key] ?? key;
 		},

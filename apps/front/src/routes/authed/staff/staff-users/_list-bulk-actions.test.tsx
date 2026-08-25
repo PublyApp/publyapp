@@ -75,7 +75,7 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: Record<string, string> = {
+			const labels = {
 				'more-actions': 'More actions',
 				'bulk-actions': 'Bulk actions',
 				'bulk-reactivate': 'Reactivate selected',
@@ -116,7 +116,7 @@ vi.mock('react-i18next', () => ({
 					'Only suspended staff members can be deleted. Clear active users from the selection first.',
 				'bulk-action-max-count-exceeded':
 					'Reduce your selection to at most {{max}} items ({{count}} selected).',
-			};
+			} satisfies Record<string, string>;
 
 			return (labels[key] ?? key).replace(/\{\{(\w+)\}\}/g, (_, name: string) =>
 				String(options?.[name] ?? ''),

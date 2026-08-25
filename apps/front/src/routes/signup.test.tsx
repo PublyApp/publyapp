@@ -48,7 +48,7 @@ vi.mock('~/lib/flags', () => ({
 	},
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'create-your-account': 'Create your account',
 	'already-have-account-question': 'Already have an account?',
 	'log-in': 'Log in',
@@ -73,7 +73,7 @@ const EN_LABELS: Record<string, string> = {
 	'an-error-occurred': 'An error occurred',
 	'show-password': 'Show password',
 	'hide-password': 'Hide password',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

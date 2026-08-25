@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
 	),
 }));
 
-const labelMap: Record<string, Record<string, string>> = {
+const labelMap = {
 	en: {
 		name: 'Name',
 		level: 'Level',
@@ -30,7 +30,7 @@ const labelMap: Record<string, Record<string, string>> = {
 		'status-active': 'Actif',
 		'status-suspended': 'Suspendu',
 	},
-};
+} satisfies Record<string, Record<string, string>>;
 
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({}),

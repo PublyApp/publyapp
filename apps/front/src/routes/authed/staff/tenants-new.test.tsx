@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => ({
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
-const LABELS: Record<string, string> = {
+const LABELS = {
 	'back-to-staff-tenants': 'Back to staff tenants',
 	'create-tenant': 'Create tenant',
 	'create-tenant-description': 'Provision a new organization workspace.',
@@ -110,7 +110,7 @@ const LABELS: Record<string, string> = {
 	'invalid-email-address': 'Invalid email address',
 	'tenant-name-too-short': 'Enter at least 5 characters.',
 	logo: 'Logo',
-};
+} satisfies Record<string, string>;
 
 const translate = (key: string, params?: Record<string, unknown>): string => {
 	let value = LABELS[key] ?? key;

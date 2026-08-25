@@ -173,7 +173,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels = {
 				'back-to-user': 'Back to tenant user',
 				'edit-tenant-user': 'Edit tenant user',
 				'first-name': 'First name',
@@ -189,7 +189,7 @@ vi.mock('react-i18next', () => ({
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'unsaved-changes-dialog-description':
 					'You have unsaved changes that will be lost if you leave this page.',
-			};
+			} satisfies Record<string, string>;
 
 			return labels[key] ?? key;
 		},

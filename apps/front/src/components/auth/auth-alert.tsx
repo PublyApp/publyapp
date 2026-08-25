@@ -11,7 +11,7 @@ type AuthAlertProps = {
 	testId?: string;
 };
 
-const TONE_CLASSES: Record<AuthAlertTone, string> = {
+const TONE_CLASSES = {
 	danger:
 		'bg-(--publy-alert-danger-bg) border-(--publy-alert-danger-border) text-(--publy-alert-danger-text)',
 	amber:
@@ -19,7 +19,7 @@ const TONE_CLASSES: Record<AuthAlertTone, string> = {
 	blue: 'bg-(--publy-alert-info-bg) border-(--publy-alert-info-border) text-(--publy-alert-info-text)',
 	success:
 		'bg-(--publy-alert-success-bg) border-(--publy-alert-success-border) text-(--publy-alert-success-text)',
-};
+} satisfies Record<AuthAlertTone, string>;
 
 /** Inline single-line notice (danger/amber/blue) used above or inside auth forms (A1–A6). */
 export const AuthAlert = ({

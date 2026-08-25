@@ -265,7 +265,7 @@ test('resolver errors propagate as thrown failures (API error fails the guard)',
 
 // --- annotated tag peel (unit-tested through the lookup-injected layer) ---
 
-const FAKE_GITHUB: Record<string, GitObject | null> = {
+const FAKE_GITHUB = {
 	// GET /repos/pnpm/action-setup/git/ref/tags/v6.0.10 → an annotated tag
 	// object, NOT the commit the workflow pins.
 	'ref/pnpm/action-setup/v6.0.10': {
@@ -282,7 +282,7 @@ const FAKE_GITHUB: Record<string, GitObject | null> = {
 		type: 'commit',
 		sha: PINNED,
 	},
-};
+} satisfies Record<string, GitObject | null>;
 
 const fakeLookup: TagLookup = async ({ repo, what }) => {
 	if (what.kind === 'tag-ref') {
@@ -374,10 +374,10 @@ test('a pin carrying the TAG-OBJECT sha of an annotated tag is a mismatch', asyn
 test('resolves each distinct repo once per run (cache)', async () => {
 	let calls = 0;
 	const callsByRepo: Record<string, number> = {};
-	const shasByRepo: Record<string, string> = {
+	const shasByRepo = {
 		'actions/checkout': PINNED,
 		'actions/setup-node': SETUP_NODE_SHA,
-	};
+	} satisfies Record<string, string>;
 	const resolver: CommitResolver = async ({ repo }) => {
 		calls += 1;
 		callsByRepo[repo] = (callsByRepo[repo] ?? 0) + 1;

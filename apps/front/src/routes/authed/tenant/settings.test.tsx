@@ -32,7 +32,7 @@ vi.mock('@tanstack/react-router', () => ({
 		select?.({ location: { pathname: mocks.pathname } }),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	general: 'General',
 	security: 'Security',
 	members: 'Members',
@@ -40,7 +40,7 @@ const EN_LABELS: Record<string, string> = {
 	'roles-and-permissions': 'Roles & permissions',
 	integrations: 'Integrations',
 	billing: 'Billing',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -37,7 +37,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
 			const resolvedKey = key.replace(/^common:/, '');
-			const labels: Record<string, string> = {
+			const labels = {
 				'change-email': 'Change email',
 				'change-staff-user-email-description':
 					'Send this user a new sign-in email address.',
@@ -52,7 +52,7 @@ vi.mock('react-i18next', () => ({
 					'You have unsaved changes that will be lost if you leave this page.',
 				'leave-page': 'Leave page',
 				close: 'Close',
-			};
+			} satisfies Record<string, string>;
 
 			return labels[resolvedKey] ?? resolvedKey;
 		},

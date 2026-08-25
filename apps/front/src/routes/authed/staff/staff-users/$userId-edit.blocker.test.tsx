@@ -131,7 +131,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels: Record<string, string> = {
+			const labels = {
 				'first-name': 'First name',
 				'last-name': 'Last name',
 				'email-address': 'Email address',
@@ -158,7 +158,7 @@ vi.mock('react-i18next', () => ({
 				'edit-staff-user': 'Edit staff user',
 				identity: 'Identity',
 				access: 'Access',
-			};
+			} satisfies Record<string, string>;
 
 			return labels[bare] ?? bare;
 		},

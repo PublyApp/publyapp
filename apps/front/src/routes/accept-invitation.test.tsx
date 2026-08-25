@@ -121,7 +121,7 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'invited-email': 'Invited email',
 	profile: 'Profile',
 	'common-loading': 'Loading...',
@@ -175,7 +175,7 @@ const EN_LABELS: Record<string, string> = {
 		'This invite belongs to a different account.',
 	'accept-invitation-brand-subtitle-mismatch':
 		"Switch to the invited email and you'll be right back here to join.",
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -52,7 +52,7 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	workspaces: 'Workspaces',
 	'common:all-workspaces': 'All workspaces',
 	'common:default-workspace': 'Default workspace',
@@ -70,7 +70,7 @@ const EN_LABELS: Record<string, string> = {
 	'failed-to-load-organization': 'Failed to load organization',
 	'failed-to-load-organization-description':
 		'Your organization details could not be loaded. Try again.',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

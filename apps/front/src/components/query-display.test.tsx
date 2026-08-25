@@ -11,10 +11,10 @@ import QueryDisplay from './query-display';
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels = {
 				loading: 'Loading…',
 				'query-display-error-default': 'An error occurred while loading data.',
-			};
+			} satisfies Record<string, string>;
 			return labels[key] ?? key;
 		},
 	}),

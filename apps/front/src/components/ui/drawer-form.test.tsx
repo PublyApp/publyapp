@@ -9335,7 +9335,7 @@ const scanDrawerSurfaces = (): {
 	};
 };
 
-const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
+const renderDrawerByCallSiteId = {
 	'profile-create': () => {
 		// ProfileFormDrawer receives its RHF instance from its host page, so
 		// the guard mounts it through a minimal owner component mirroring
@@ -9425,7 +9425,7 @@ const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
 			/>,
 		);
 	},
-};
+} satisfies Record<DrawerFormCallSiteId, () => void>;
 
 const expectDrawerFormChain = (testId: string): void => {
 	const surface = screen.getByTestId(testId);

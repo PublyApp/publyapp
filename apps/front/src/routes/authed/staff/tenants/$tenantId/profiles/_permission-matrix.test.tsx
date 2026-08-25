@@ -14,7 +14,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: Record<string, string> = {
+			const labels = {
 				'filter-permissions': 'Filter permissions…',
 				'clear-permissions-filter': 'Clear permission filter',
 				'expand-all': 'Expand all',
@@ -24,7 +24,7 @@ vi.mock('react-i18next', () => ({
 				'toggle-all-module-permissions': 'Toggle all {{module}} permissions',
 				'permission-changed-indicator': 'changed',
 				'no-matching-permissions': 'No matching permissions.',
-			};
+			} satisfies Record<string, string>;
 			let text = labels[key.includes(':') ? key.split(':')[1] : key] ?? key;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {
 				text = text.replaceAll(`{{${optionKey}}}`, String(value));

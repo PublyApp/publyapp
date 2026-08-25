@@ -61,7 +61,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const resourceKey = key.includes(':') ? key.split(':')[1] : key;
-			const labels: Record<string, string> = {
+			const labels = {
 				members: 'Members',
 				permissions: 'Permissions',
 				modules: 'Modules',
@@ -103,7 +103,7 @@ vi.mock('react-i18next', () => ({
 				'loading-members': 'Loading members…',
 				'members-load-error': 'Unable to load members.',
 				'members-more-count': '+{{count}} more',
-			};
+			} satisfies Record<string, string>;
 			// Mirror i18next plural resolution: a numeric `count` selects the
 			// `_one`/`_other` suffixed key when the dictionary provides it.
 			const pluralKey =

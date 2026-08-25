@@ -46,7 +46,7 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	postBroadcast: mocks.postBroadcast,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'sign-in': 'Sign in',
 	'welcome-back': 'Welcome back',
 	'no-account-yet': 'No account yet?',
@@ -74,7 +74,7 @@ const EN_LABELS: Record<string, string> = {
 	'privacy-policy': 'Privacy policy',
 	'go-to-home': 'Go to home',
 	retry: 'Retry',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

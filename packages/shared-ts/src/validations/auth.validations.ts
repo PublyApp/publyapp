@@ -10,10 +10,10 @@ export const getEmailFieldSchema = (z: InterZod) => {
 const SPECIAL_CHAR_REGEX = /[`!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/;
 
 const getPasswordFieldSchema = (z: InterZod) => {
-	const regexMap: Record<AppLocale, string> = {
+	const regexMap = {
 		en: 'At least 8 chars and 1 special char',
 		fr: 'Au moins 8 caractères dont 1 caractère spécial',
-	};
+	} satisfies Record<AppLocale, string>;
 
 	return z
 		.string()

@@ -51,7 +51,7 @@ vi.mock('~/lib/auth-route-guard', () => ({
 	redirectAuthenticatedUserAwayFromAuthPage: mocks.guard,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'verify-your-email': 'Verify your email',
 	'verify-your-email-description':
 		"Enter your account email and we'll send you a fresh verification link.",
@@ -72,7 +72,7 @@ const EN_LABELS: Record<string, string> = {
 	'back-to-login': 'Back to login',
 	'enter-valid-email-address': 'Enter a valid email address.',
 	'an-error-occurred': 'An error occurred',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

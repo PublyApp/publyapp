@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	billing: 'Billing',
 	'common:current-plan': 'Current plan',
 	'common:payment-method': 'Payment method',
@@ -31,7 +31,7 @@ const EN_LABELS: Record<string, string> = {
 	'usage-coming-later-description':
 		'Seat and feature usage will appear here once the billing API ships.',
 	'read-only': 'Read only',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

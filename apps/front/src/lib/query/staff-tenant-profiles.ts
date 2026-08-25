@@ -378,7 +378,7 @@ export const buildStaffTenantPermissionGroupColumns = (
 	return [leftGroups, rightGroups];
 };
 
-const TENANT_PERMISSION_ACTION_ORDER: Record<string, readonly string[]> = {
+const TENANT_PERMISSION_ACTION_ORDER = {
 	posts: ['view', 'create', 'edit', 'publish', 'schedule', 'delete'],
 	media: ['view', 'upload', 'edit', 'delete'],
 	calendar: ['view', 'manage'],
@@ -404,7 +404,7 @@ const TENANT_PERMISSION_ACTION_ORDER: Record<string, readonly string[]> = {
 		'access_settings',
 		'access_users',
 	],
-};
+} satisfies Record<string, readonly string[]>;
 
 const getPermissionAction = (permissionKey: string): string =>
 	permissionKey.slice(permissionKey.lastIndexOf('.') + 1);

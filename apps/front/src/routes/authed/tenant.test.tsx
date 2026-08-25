@@ -139,7 +139,7 @@ vi.mock('~/components/app-shell/user-menu', () => ({
 	AppShellUserMenu: () => <div data-testid="user-menu-stub" />,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'select-organization': 'Select Organization',
 	'select-organization-description':
 		'Choose which organization you want to access',
@@ -152,7 +152,7 @@ const EN_LABELS: Record<string, string> = {
 	'log-out': 'Log out',
 	'common-loading': 'Loading...',
 	'unnamed-tenant': 'Unnamed tenant',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -118,7 +118,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const I18N_LABELS: Record<string, string> = {
+const I18N_LABELS = {
 	'back-to-staff-users': 'Back to staff users',
 	'staff-user-not-found-title': 'staff member not found',
 	'staff-user-not-found-description':
@@ -162,7 +162,7 @@ const I18N_LABELS: Record<string, string> = {
 	'unable-to-suspend-staff-user': 'Unable to suspend this staff user.',
 	'unable-to-reactivate-staff-user': 'Unable to reactivate this staff user.',
 	'unable-to-delete-staff-user': 'Unable to delete this staff user.',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -51,17 +51,17 @@ type StaffUserActionKey = Exclude<StaffUserPendingAction, null>;
 const STAFF_USER_STATUS_ACTIVE = 'active';
 const STAFF_USER_STATUS_SUSPENDED = 'suspended';
 
-const STAFF_USER_BULK_FAILURE_KEYS: Record<StaffUserActionKey, string> = {
+const STAFF_USER_BULK_FAILURE_KEYS = {
 	suspend: 'staff-user-bulk-suspend-failure',
 	reactivate: 'staff-user-bulk-reactivate-failure',
 	delete: 'staff-user-bulk-delete-failure',
-};
+} satisfies Record<StaffUserActionKey, string>;
 
-const STAFF_USER_BULK_SUCCESS_KEYS: Record<StaffUserActionKey, string> = {
+const STAFF_USER_BULK_SUCCESS_KEYS = {
 	suspend: 'staff-user-bulk-suspend-success',
 	reactivate: 'staff-user-bulk-reactivate-success',
 	delete: 'staff-user-bulk-delete-success',
-};
+} satisfies Record<StaffUserActionKey, string>;
 
 const STAFF_USER_BULK_PARTIAL_SUCCESS_KEYS: Record<StaffUserActionKey, string> =
 	{

@@ -137,7 +137,7 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'posts:edit-post': 'Edit post',
 	'posts:back-to-drafts': 'Back to drafts',
 	'posts:body-label': 'Body',
@@ -160,7 +160,7 @@ const EN_LABELS: Record<string, string> = {
 	'common:not-found': 'Not found',
 	'common:error-loading-data': 'Error loading data',
 	'common:an-error-occurred': 'An error occurred',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

@@ -95,7 +95,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels: Record<string, string> = {
+			const labels = {
 				'staff-users-page-title': 'Staff users',
 				'staff-users-page-description': 'Manage staff users',
 				'invite-users': 'Invite users',
@@ -128,7 +128,7 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'bulk-suspend-staff-users-confirm':
 					'Are you sure you want to suspend {{count}} staff member(s)?',
-			};
+			} satisfies Record<string, string>;
 
 			return (labels[bare] ?? bare).replace(
 				/\{\{(\w+)\}\}/g,

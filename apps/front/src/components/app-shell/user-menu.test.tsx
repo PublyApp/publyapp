@@ -64,13 +64,13 @@ vi.mock('~/lib/query/auth', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels = {
 				'log-out': 'Log out',
 				'un-named': 'No name',
 				language: 'Language',
 				'switch-to-light-mode': 'Switch to light mode',
 				'switch-to-dark-mode': 'Switch to dark mode',
-			};
+			} satisfies Record<string, string>;
 			return labels[key] ?? key;
 		},
 		i18n: { resolvedLanguage: mocks.resolvedLanguage },

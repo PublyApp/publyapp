@@ -10,11 +10,11 @@ vi.mock('@tanstack/react-router', () => ({
 		createElement('a', { href: to, ...props }, children),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	'invalid-link-title': 'This link is invalid or expired',
 	'request-a-new-link': 'Request a new link',
 	'back-to-login': 'Back to login',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

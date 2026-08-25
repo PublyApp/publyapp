@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => ({
 
 let currentLanguage = 'en';
 
-const translationsByLanguage: Record<string, Record<string, string>> = {
+const translationsByLanguage = {
 	en: {
 		admin: 'Admin',
 		access: 'Access',
@@ -43,7 +43,7 @@ const translationsByLanguage: Record<string, Record<string, string>> = {
 		access: 'Accès',
 		user: 'Utilisateur',
 	},
-};
+} satisfies Record<string, Record<string, string>>;
 
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({
@@ -92,7 +92,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS = {
 	access: 'Access',
 	basics: 'Basics',
 	profiles: 'Profiles',
@@ -142,7 +142,7 @@ const TRANSLATIONS: Record<string, string> = {
 	'clear-selection': 'Clear selection',
 	'select-all-visible': 'Select all {{count}}',
 	'export-selected': 'Export selected',
-};
+} satisfies Record<string, string>;
 
 vi.mock('~/lib/download-file', () => ({
 	downloadFile: mocks.downloadFile,

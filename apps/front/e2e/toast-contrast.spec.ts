@@ -849,12 +849,12 @@ const readBrowserPaint = async (
 				z: number;
 				index: number;
 			};
-			const STEP_RANK: Record<PaintStep, number> = {
+			const STEP_RANK = {
 				negative: -1,
 				'in-flow': 0,
 				'positioned-auto': 1,
 				positive: 2,
-			};
+			} satisfies Record<PaintStep, number>;
 
 			const paintStep = (position: string, zIndex: string): PaintStep => {
 				if (position === 'static') {

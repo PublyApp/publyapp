@@ -5,10 +5,10 @@ import { loginAsStaffAdmin } from './helpers/login';
 const otherLocale = (locale: string | null): 'en' | 'fr' =>
 	locale === 'fr' ? 'en' : 'fr';
 
-const LOGOUT_LABEL: Record<'en' | 'fr', string> = {
+const LOGOUT_LABEL = {
 	en: 'Log out',
 	fr: 'Se déconnecter',
-};
+} satisfies Record<'en' | 'fr', string>;
 
 test.describe('locale switch', { tag: ['@i18n', '@806'] }, () => {
 	test('switching locale from the user menu updates html lang and translated copy, and persists across reload', async ({

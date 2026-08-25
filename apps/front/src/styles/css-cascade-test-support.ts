@@ -267,14 +267,14 @@ type SimpleSelectorToken = {
 	text: string;
 };
 
-const SPECIFICITY_WEIGHTS: Record<SimpleSelectorToken['kind'], number> = {
+const SPECIFICITY_WEIGHTS = {
 	id: 100,
 	class: 10,
 	attribute: 10,
 	'pseudo-class': 10,
 	'pseudo-element': 1,
 	type: 1,
-};
+} satisfies Record<SimpleSelectorToken['kind'], number>;
 
 /** Tokenizes ONE compound selector run (no combinators/whitespace) into its
  * simple selectors — classes, an id, attribute selectors, pseudo-classes,

@@ -70,7 +70,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 	toastLocalMutationResult: mocks.toastLocalMutationResult,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	general: 'General',
 	'organization-details': 'Organization details',
 	logo: 'Logo',
@@ -106,7 +106,7 @@ const EN_LABELS: Record<string, string> = {
 	'invalid-logo-url': 'Enter a valid http(s) URL or /files/ upload path',
 	'invalid-website-url': 'Enter a valid http(s) URL',
 	'invalid-email': 'Enter a valid email address',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({

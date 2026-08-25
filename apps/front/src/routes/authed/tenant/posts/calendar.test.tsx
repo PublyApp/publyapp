@@ -12,14 +12,14 @@ vi.mock('@tanstack/react-router', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS = {
 	calendar: 'Calendar',
 	'calendar-coming-later-title': 'The calendar is coming later',
 	'calendar-coming-later-description':
 		'Scheduled posts across your connected profiles will appear here once the posts API ships.',
 	'common:calendar': 'Calendar',
 	'read-only': 'Read only',
-};
+} satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
