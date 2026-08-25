@@ -36,7 +36,6 @@ import {
 	buildAttachPostImageBody,
 	buildImageAltTextPatch,
 	toTenantPostImage,
-	toTenantPostRowImage,
 } from './tenant-post-images';
 
 describe('toTenantPostImage', () => {
@@ -66,10 +65,10 @@ describe('toTenantPostImage', () => {
 	});
 });
 
-describe('toTenantPostRowImage', () => {
+describe('toTenantPostImage (list projection shape)', () => {
 	test('maps the list read-model image projection', () => {
 		expect(
-			toTenantPostRowImage({
+			toTenantPostImage({
 				url: '/files/x.gif',
 				widthPx: 10,
 				heightPx: 4,
@@ -81,8 +80,8 @@ describe('toTenantPostRowImage', () => {
 			heightPx: 4,
 			altText: 'a gif',
 		});
-		expect(toTenantPostRowImage(null)).toBeNull();
-		expect(toTenantPostRowImage(undefined)).toBeNull();
+		expect(toTenantPostImage(null)).toBeNull();
+		expect(toTenantPostImage(undefined)).toBeNull();
 	});
 });
 

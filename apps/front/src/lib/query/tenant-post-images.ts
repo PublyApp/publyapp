@@ -53,10 +53,6 @@ export const toTenantPostImage = (
 	};
 };
 
-export const toTenantPostRowImage = (
-	raw: RawPostImage | null | undefined,
-): TenantPostImage | null => toTenantPostImage(raw);
-
 // ── Attach (multipart POST) ────────────────────────────────────────
 
 export type AttachPostImageInput = {
