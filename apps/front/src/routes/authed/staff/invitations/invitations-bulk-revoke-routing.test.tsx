@@ -292,6 +292,70 @@ const renderAtList = async () => {
 	return harness;
 };
 
+/**
+ * ONE parameterised post-mutation contract over EVERY 200-response shape
+ * (#1387 r3 MAJOR): full success, partial success, AND all-failure. Whatever
+ * the succeeded/failed mix, the bookkeeping is unconditional — selection
+ * cleared (row checkboxes unchecked, FloatingSelectionBar unmounted after its
+ * exit animation) and the scoped cache entry flipped to isInvalidated on the
+ * REAL QueryClient — while the toast renders the outcome (success count vs
+ * failure counts plus the grouped per-item reasons). Any FOURTH response
+ * shape must be added to this table and inherits every assertion; leaving the
+ * all-failure shape out of the pinned paths is exactly what let the round-3
+ * "skip invalidation unless succeededCount > 0" mutant survive 10/10.
+ */
+type BulkRevokeResponseShape = {
+	succeededCount: number;
+	failedCount: number;
+	failedItems?: { invitationId: string; reason: string }[];
+};
+
+type BulkRevokeOutcomeCase =
+	| {
+			name: string;
+			outcome: 'success';
+			response: BulkRevokeResponseShape;
+			successToastText: string;
+	  }
+	| {
+			name: string;
+			outcome: 'error';
+			response: BulkRevokeResponseShape;
+			errorToastArgs: unknown[];
+	  };
+
+const BULK_REVOKE_OUTCOME_CASES: BulkRevokeOutcomeCase[] = [
+	{
+		name: 'a full-success',
+		outcome: 'success',
+		response: { succeededCount: 2, failedCount: 0 },
+		successToastText: 'Successfully revoked 2 invitation(s).',
+	},
+	{
+		name: 'a partial-success',
+		outcome: 'error',
+		response: {
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [{ invitationId: ACCEPTED_B, reason: 'not_found' }],
+		},
+		errorToastArgs: ['Revoked 1 invitation(s), 1 failed.', '1 not found'],
+	},
+	{
+		name: 'an all-failure',
+		outcome: 'error',
+		response: {
+			succeededCount: 0,
+			failedCount: 1,
+			failedItems: [{ invitationId: PENDING_A, reason: 'already_accepted' }],
+		},
+		errorToastArgs: [
+			'Revoked 0 invitation(s), 1 failed.',
+			'1 already accepted',
+		],
+	},
+];
+
 describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -388,62 +452,84 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
 	});
 
-	test('a successful bulk revoke clears the selection and invalidates the list', async () => {
-		// Post-success contract (#1387 r1 MAJOR fix): the 200 response must clear
-		// the toolbar selection (every row checkbox unchecked, selection bar
-		// gone after its exit animation) AND invalidate the staff-invitations
-		// cache. Both halves are pinned: the invalidation spy receives THIS
-		// harness's queryClient, and the real QueryClient marks the scoped list
-		// key invalidated.
-		const { queryClient } = await renderAtList();
-		// Seed the scoped list entry so the REAL QueryClient can flip it to
-		// isInvalidated when the success path calls invalidateStaffInvitations.
-		queryClient.setQueryData(STAFF_INVITATIONS_SCOPED_KEY, { seeded: true });
-		expect(
-			queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
-		).toBe(false);
-
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
-		);
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
-		);
-		expect(await screen.findByText('2 selected')).toBeTruthy();
-
-		await chooseBulkAction('Revoke selected', 'Bulk actions');
-		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
-
-		await waitFor(() => {
-			expect(mocks.toastSuccess).toHaveBeenCalledOnce();
-			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledTimes(1);
-			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledWith(
-				queryClient,
+	test.each(BULK_REVOKE_OUTCOME_CASES)(
+		'$name response clears the selection, invalidates the list, and renders the outcome',
+		async (c) => {
+			// Both rows are made pending so BOTH ids are genuinely eligible AND
+			// sent; the response shape alone decides what the flow must do next.
+			const bothPending = invitationPayload();
+			bothPending.data[1]!.status = 'Pending';
+			mocks.useStaffInvitationsQuery.mockImplementation(() =>
+				settledQuery(bothPending),
 			);
+			mocks.bulkRevoke.mockResolvedValue(c.response);
+
+			const { queryClient } = await renderAtList();
+			// Seed the scoped list entry so the REAL QueryClient can flip it to
+			// isInvalidated when the post-mutation bookkeeping runs.
+			queryClient.setQueryData(STAFF_INVITATIONS_SCOPED_KEY, { seeded: true });
 			expect(
 				queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
-			).toBe(true);
-		});
+			).toBe(false);
 
-		// Selection cleared: the row checkboxes stay mounted (the column is
-		// permanent while a selection prop exists) but every box is unchecked...
-		await waitFor(() => {
-			expect(
-				screen
-					.getByRole('checkbox', { name: `Select ${PENDING_A}` })
-					.getAttribute('data-checked'),
-			).toBeNull();
-			expect(
-				screen
-					.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` })
-					.getAttribute('data-checked'),
-			).toBeNull();
-		});
-		// ...and the selection bar leaves after its 220ms exit animation.
-		await waitFor(() =>
-			expect(screen.queryByTestId('floating-selection-bar')).toBeNull(),
-		);
-	});
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+			);
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+			);
+			expect(await screen.findByText('2 selected')).toBeTruthy();
+
+			await chooseBulkAction('Revoke selected', 'Bulk actions');
+			fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
+
+			// Exactly ONE result toast, matching the response shape: the success
+			// count on full success, the failure counts PLUS the grouped reasons
+			// whenever the body carries failures.
+			if (c.outcome === 'error') {
+				await waitFor(() =>
+					expect(mocks.toastError).toHaveBeenCalledWith(...c.errorToastArgs),
+				);
+				expect(mocks.toastSuccess).not.toHaveBeenCalled();
+			} else {
+				await waitFor(() =>
+					expect(mocks.toastSuccess).toHaveBeenCalledWith(c.successToastText),
+				);
+				expect(mocks.toastError).not.toHaveBeenCalled();
+			}
+
+			// The bookkeeping is UNCONDITIONAL on every 200 shape (r3 MAJOR):
+			// genuine invalidation on THIS harness's QueryClient...
+			await waitFor(() => {
+				expect(mocks.invalidateStaffInvitations).toHaveBeenCalledTimes(1);
+				expect(mocks.invalidateStaffInvitations).toHaveBeenCalledWith(
+					queryClient,
+				);
+				expect(
+					queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)
+						?.isInvalidated,
+				).toBe(true);
+			});
+			// ...every row checkbox unchecked (the boxes stay mounted; the column
+			// is permanent while a selection prop exists)...
+			await waitFor(() => {
+				expect(
+					screen
+						.getByRole('checkbox', { name: `Select ${PENDING_A}` })
+						.getAttribute('data-checked'),
+				).toBeNull();
+				expect(
+					screen
+						.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` })
+						.getAttribute('data-checked'),
+				).toBeNull();
+			});
+			// ...and the selection bar leaves after its 220ms exit animation.
+			await waitFor(() =>
+				expect(screen.queryByTestId('floating-selection-bar')).toBeNull(),
+			);
+		},
+	);
 
 	test('an all-ineligible selection warns without ever opening the dialog or firing the mutation', async () => {
 		await renderAtList();
@@ -531,80 +617,6 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			),
 		);
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
-	});
-
-	test('a partial-success revoke also clears the selection and invalidates the list', async () => {
-		// r2 MAJOR contract: the post-success bookkeeping is not gated on FULL
-		// success. A 200 with succeededCount ≥ 1 AND failedCount ≥ 1 must ALSO
-		// reset the toolbar selection (every row checkbox unchecked, selection
-		// bar unmounted), flip the real cache entry to isInvalidated, and name
-		// the grouped per-item reasons in plain words.
-		const bothPending = invitationPayload();
-		bothPending.data[1]!.status = 'Pending';
-		mocks.useStaffInvitationsQuery.mockImplementation(() =>
-			settledQuery(bothPending),
-		);
-
-		mocks.bulkRevoke.mockResolvedValue({
-			succeededCount: 1,
-			failedCount: 1,
-			failedItems: [{ invitationId: ACCEPTED_B, reason: 'not_found' }],
-		});
-
-		const { queryClient } = await renderAtList();
-		queryClient.setQueryData(STAFF_INVITATIONS_SCOPED_KEY, { seeded: true });
-		expect(
-			queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
-		).toBe(false);
-
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
-		);
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
-		);
-		expect(await screen.findByText('2 selected')).toBeTruthy();
-
-		await chooseBulkAction('Revoke selected', 'Bulk actions');
-		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
-
-		// The grouped reasons reach the toast as its description...
-		await waitFor(() =>
-			expect(mocks.toastError).toHaveBeenCalledWith(
-				'Revoked 1 invitation(s), 1 failed.',
-				'1 not found',
-			),
-		);
-		expect(mocks.toastSuccess).not.toHaveBeenCalled();
-
-		// ...AND the shared post-success bookkeeping ran on the partial path:
-		// genuine invalidation on THIS harness's QueryClient...
-		await waitFor(() => {
-			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledTimes(1);
-			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledWith(
-				queryClient,
-			);
-			expect(
-				queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
-			).toBe(true);
-		});
-		// ...every row checkbox unchecked...
-		await waitFor(() => {
-			expect(
-				screen
-					.getByRole('checkbox', { name: `Select ${PENDING_A}` })
-					.getAttribute('data-checked'),
-			).toBeNull();
-			expect(
-				screen
-					.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` })
-					.getAttribute('data-checked'),
-			).toBeNull();
-		});
-		// ...and the selection bar leaves after its 220ms exit animation.
-		await waitFor(() =>
-			expect(screen.queryByTestId('floating-selection-bar')).toBeNull(),
-		);
 	});
 
 	test('an unknown failure reason falls back to the generic translated reason', async () => {
