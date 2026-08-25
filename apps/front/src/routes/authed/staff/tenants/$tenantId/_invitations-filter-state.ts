@@ -22,6 +22,8 @@ type InvitationsToolbarState = {
 	selectedLevels: KnownInvitationAccountLevel[];
 	statusFilterLabel: string;
 	levelFilterLabel: string;
+	/** #838: filters lock while row-selection mode is active. */
+	selectionLocked: boolean;
 	onSetStatuses: (nextStatuses: KnownInvitationStatus[]) => void;
 	onToggleStatus: (status: KnownInvitationStatus) => void;
 	onSetLevels: (nextLevels: KnownInvitationAccountLevel[]) => void;
@@ -128,6 +130,7 @@ export const buildInvitationsFilterState = ({
 			selectedLevels,
 			statusFilterLabel,
 			levelFilterLabel,
+			selectionLocked: selection.isSelectionMode,
 			onSetStatuses: setStatuses,
 			onToggleStatus: toggleStatus,
 			onSetLevels: setLevels,
