@@ -595,3 +595,41 @@ again. Dismissing is rejecting — there is no "ask me later". Accept and Reject
 and equally placed: the deliberate exception to one-primary-CTA, because an unequal pair here is
 a dark pattern. Preferences open a right-side drawer, never a centred modal, and the categories
 are squared `Checkbox` primitives (a fully-rounded switch track is guard-banned).
+
+## `<Trans>` render guard
+
+Normative. Every production `<Trans>` call site under `apps/front/src` is guarded by
+`src/lib/i18n/trans-render.guard.test.tsx`: each site renders through its REAL exported route
+component and the REAL `createI18nFromResources` init fed the real shipped EN/FR bundles, with
+per-language DOM pins (strong-tag count/class, interpolated-value placement, verbatim sentence).
+react-i18next is never mocked in that file, and `check-ci-gate-structure` pins the file into CI
+so its enforcement cannot be silently lost (#1285/#1312).
+
+Discovery is automatic (#1312): an AST walk collects every JSX element whose tag resolves to a
+react-i18next `Trans` binding — plain, aliased (`import { Trans as T }`), default-import spelled
+`Trans`, or namespace (`<i18n.Trans>`) — across `apps/front/src`, excluding only the suite itself
+(`*.test.*`, `*.spec.*`, `*.stories.*`, including the guard's own direct-mode mounts), `*.d.ts`,
+and `e2e/`. A discovered site without a matching spec entry lands in the standing unpinned list
+and turns the guard red naming `file:line`; a parse failure anywhere scanned throws instead of
+scanning a recovered partial tree. Adding a call site therefore means adding its spec in the same
+change — the failing test names the exact spot.
+
+Boundaries, each pinned by a standing test in the guard file (never widen them silently):
+
+- A **spread-only** `<Trans {...props} />` is NOT a blind spot (#1333). It carries no static
+  `i18nKey`/`ns` identity to pin, but tag matching happens before attribute reading, so the site
+  is still discovered with `i18nKey: null`, still lands unpinned, and still goes red naming
+  `file:line` like any other uncovered site. Earlier notes calling this shape invisible were
+  wrong — do not reintroduce that claim.
+- Precision: a spread on a NON-`Trans` element contributes zero sites; discovery matches Trans
+  tags only.
+- The true residual blind spot (#1333): a `Trans` binding reached through a LOCAL re-export
+  (`export { Trans } from 'react-i18next'` in some shared module) is not resolved. Neither the
+  literal-string pre-filter nor the react-i18next import-binding walk can see through it. The
+  shape does not exist in src today, and the boundary test pins that fact on purpose: if such a
+  shape ever becomes necessary, grow binding resolution BEFORE shipping it and update this
+  disclosure in the same change.
+
+When copy changes, update the verbatim EN/FR pins deliberately; when the `components={{
+strong: … }}` map moves or changes class, both the map pin and the sentence pins follow. There
+are no suppressions for this guard.

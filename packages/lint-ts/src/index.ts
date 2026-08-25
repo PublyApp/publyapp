@@ -32,6 +32,7 @@
  *   - `publy/no-iife` → "error"
  *   - `publy/arrow-function-components` → "error" (enforced since #1210)
  *   - `publy/prefer-query-display` → "off" (dormant)
+ *   - `publy/no-never-any-casts` → "off" (dormant; #1337 candidate rung)
  */
 import { arrowFunctionComponents } from './publy/arrow-function-components.ts';
 import { noArrayReduce } from './publy/no-array-reduce.ts';
@@ -39,6 +40,7 @@ import { noConsoleInSource } from './publy/no-console-in-source.ts';
 import { noDirectDayjsInComponents } from './publy/no-direct-dayjs-in-components.ts';
 import { noIife } from './publy/no-iife.ts';
 import { noManualResponseMessageTranslation } from './publy/no-manual-response-message-translation.ts';
+import { noNeverAnyCasts } from './publy/no-never-any-casts.ts';
 import { noOp } from './publy/no-op.ts';
 import { noPackageSrcImport } from './publy/no-package-src-import.ts';
 import { preferQueryDisplay } from './publy/prefer-query-display.ts';
@@ -61,6 +63,7 @@ const publyPlugin = {
 		'no-iife': noIife,
 		'arrow-function-components': arrowFunctionComponents,
 		'prefer-query-display': preferQueryDisplay,
+		'no-never-any-casts': noNeverAnyCasts,
 	},
 };
 

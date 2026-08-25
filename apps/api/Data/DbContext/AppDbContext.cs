@@ -80,6 +80,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	public DbSet<JobDeadLetter> JobDeadLetter {
 		get { return Set<JobDeadLetter>(); }
 	}
+	public DbSet<JobDeadLetterEvent> JobDeadLetterEvent {
+		get { return Set<JobDeadLetterEvent>(); }
+	}
 
 	// Dashboard-configurable recurring system jobs, reconciled into the leader's Quartz
 	// scheduler by SyncSystemJobsJob (design §4.3).

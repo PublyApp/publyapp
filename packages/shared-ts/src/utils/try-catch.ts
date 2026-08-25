@@ -2,9 +2,9 @@ import { logger } from '../lib/logger/iso-logger';
 import { isAsyncFunction, isPromise } from './any.utils';
 import { getErrorMessage } from './error.utils';
 
-type Handler = (error: unknown) => unknown;
-type AsyncHandler = (error: unknown) => Promise<unknown>;
-type ErrorHandler<T extends GenericFunction = () => unknown> =
+type Handler = (error: unknown) => void;
+type AsyncHandler = (error: unknown) => Promise<void>;
+type ErrorHandler<T extends GenericFunction = () => void> =
 	ReturnType<T> extends PromiseLike<unknown> ? Handler | AsyncHandler : Handler;
 
 const defaultErrorHandler: ErrorHandler = (error) => {

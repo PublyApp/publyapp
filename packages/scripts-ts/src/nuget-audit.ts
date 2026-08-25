@@ -16,8 +16,9 @@
 // Usage: node packages/scripts-ts/src/nuget-audit.ts [--no-restore]
 //   --no-restore   Skip `dotnet restore` (caller already restored)
 //
-// Exit 0 on clean, exit 1 on vulnerability found, unparseable output, or
-// uninspectable project.
+// Exit 0 on clean, exit 1 on vulnerability found, unparseable output,
+// uninspectable project, or a listed package carrying an empty vulnerabilities
+// array (output dotnet never emits today; #1348).
 
 import { execSync } from 'node:child_process';
 import path from 'node:path';
@@ -192,31 +193,29 @@ export const evaluateProject = (
 		return { ok: true, vulnerabilities: [] };
 	}
 
-	// Check for vulnerable packages in the frameworks.
+	// Check for vulnerable packages in the frameworks. A LISTED package with
+	// an empty/missing vulnerabilities array is output dotnet never emits
+	// today (#1348) — the guard cannot interpret it as clean, so it fails loud
+	// naming the package instead of silently passing.
 	const vulnerabilities: Vulnerability[] = [];
+	const uninterpretable: string[] = [];
 	for (const framework of vulnFrameworks) {
 		for (const pkg of framework.topLevelPackages ?? []) {
-			if ((pkg.vulnerabilities?.length ?? 0) > 0) {
-				vulnerabilities.push({
-					project: proj,
-					id: pkg.id,
-					version: pkg.resolvedVersion,
-					severity: pkg.vulnerabilities.map((v) => v.severity).join(', '),
-					advisories: pkg.vulnerabilities.map((v) => v.advisoryurl),
-				});
-			}
+			collectPackageVerdict(pkg, proj, vulnerabilities, uninterpretable);
 		}
 		for (const pkg of framework.transitivePackages ?? []) {
-			if ((pkg.vulnerabilities?.length ?? 0) > 0) {
-				vulnerabilities.push({
-					project: proj,
-					id: pkg.id,
-					version: pkg.resolvedVersion,
-					severity: pkg.vulnerabilities.map((v) => v.severity).join(', '),
-					advisories: pkg.vulnerabilities.map((v) => v.advisoryurl),
-				});
-			}
+			collectPackageVerdict(pkg, proj, vulnerabilities, uninterpretable);
 		}
+	}
+
+	if (uninterpretable.length > 0) {
+		return {
+			ok: false,
+			error:
+				`${proj}: could not inspect ${name}: ` +
+				`listed package(s) with an empty vulnerabilities array (feed cannot be interpreted): ` +
+				uninterpretable.join(', '),
+		};
 	}
 
 	return { ok: true, vulnerabilities };
@@ -267,6 +266,32 @@ export const evaluateAudit = (
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Sort one listed package (top-level or transitive) from the vulnerability
+ * call: packages WITH advisories become `Vulnerability` entries; a package
+ * LISTED with an empty/missing vulnerabilities array is output the guard
+ * cannot interpret as clean (#1348), so its id lands in `uninterpretable`
+ * for the fail-loud verdict.
+ */
+const collectPackageVerdict = (
+	pkg: DotnetPackage,
+	proj: string,
+	vulnerabilities: Vulnerability[],
+	uninterpretable: string[],
+): void => {
+	if ((pkg.vulnerabilities?.length ?? 0) > 0) {
+		vulnerabilities.push({
+			project: proj,
+			id: pkg.id,
+			version: pkg.resolvedVersion,
+			severity: pkg.vulnerabilities.map((v) => v.severity).join(', '),
+			advisories: pkg.vulnerabilities.map((v) => v.advisoryurl),
+		});
+	} else {
+		uninterpretable.push(pkg.id ?? '<unnamed package>');
+	}
+};
+
 const runDotnet = (args: string, proj: string): DotnetReport => {
 	let stdout: string;
 	let dotnetExitCode = 0;
@@ -309,6 +334,32 @@ const runDotnet = (args: string, proj: string): DotnetReport => {
 // Direct-run mode: discover csproj files via git, run dotnet, evaluate.
 // ---------------------------------------------------------------------------
 
+/**
+ * Parse `git ls-files '*.csproj'` stdout into the list of projects the audit
+ * must scan: one path per line, blank/whitespace-only lines dropped,
+ * duplicates removed, sorted so scan order is deterministic.
+ *
+ * Exported because this contract decides WHICH projects get audited — an
+ * untested regression here could silently shrink the scan set (the exact
+ * silent-pass class the JSON-based rewrite in #1199 exists to prevent).
+ *
+ * Discovery boundary (deliberate, #1348): this scans COMMITTED .csproj files
+ * only — `git ls-files` never walks the filesystem, so an untracked or
+ * ignored csproj is invisible to the audit. Accepted because CI commits
+ * before running the gate; do not "fix" this into a filesystem walk without
+ * thinking: a walk would silently widen (or, via ignore rules, wobble) the
+ * scan set the gate was proven against.
+ */
+export const parseGitLsFilesCsproj = (lsFilesStdout: string): string[] =>
+	[
+		...new Set(
+			lsFilesStdout
+				.split('\n')
+				.map((line) => line.trim())
+				.filter((line) => line.length > 0),
+		),
+	].sort();
+
 // @ts-expect-error rung-0: add proper type in later rung
 const toPosixPath = (value) => value.split(path.sep).join('/');
 
@@ -321,12 +372,11 @@ const isDirectRun =
 if (isDirectRun) {
 	const NO_RESTORE = argv.includes('--no-restore');
 
-	const csprojFiles = execSync("git ls-files '*.csproj'", {
-		encoding: 'utf8',
-	})
-		.trim()
-		.split('\n')
-		.filter(Boolean);
+	const csprojFiles = parseGitLsFilesCsproj(
+		execSync("git ls-files '*.csproj'", {
+			encoding: 'utf8',
+		}),
+	);
 
 	if (csprojFiles.length === 0) {
 		console.error('nuget-audit: no .csproj files found');

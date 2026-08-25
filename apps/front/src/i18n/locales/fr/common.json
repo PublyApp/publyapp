@@ -30,6 +30,7 @@
 	"created-at": "Créé le",
 	"draft": "Brouillon",
 	"edit": "Éditer",
+	"edit-profile-aria-label": "Modifier le profil",
 	"delete": "Supprimer",
 	"published": "Publié",
 	"invalid-number": "Nombre invalide",

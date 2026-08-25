@@ -11,7 +11,16 @@ import type {
 	StaffProfileItem,
 } from '@org/client-ts/models/index';
 
-const unwrapUntyped = (value: unknown): unknown => {
+/** A Kiota payload with its `getValue()` wrappers recursively stripped. */
+type Unwrapped =
+	| string
+	| number
+	| boolean
+	| null
+	| Unwrapped[]
+	| { [key: string]: Unwrapped };
+
+const unwrapUntyped = (value: unknown): Unwrapped => {
 	if (
 		typeof value === 'object' &&
 		value !== null &&
@@ -34,7 +43,9 @@ const unwrapUntyped = (value: unknown): unknown => {
 		);
 	}
 
-	return value;
+	// Exhaustive by construction: primitives pass through, wrappers/arrays/
+	// objects recurse. The cast documents the invariant TS cannot infer.
+	return value as Unwrapped;
 };
 
 describe('toStaffProfileRows', () => {

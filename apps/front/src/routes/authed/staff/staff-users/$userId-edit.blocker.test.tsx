@@ -180,7 +180,7 @@ type QueryState = {
 	isError: boolean;
 	isFetching: boolean;
 	isSuccess: boolean;
-	refetch: () => Promise<unknown>;
+	refetch: () => Promise<void>;
 };
 
 const settledQuery = (data: unknown): QueryState => ({
@@ -198,11 +198,20 @@ const settledQuery = (data: unknown): QueryState => ({
  * generated `routeTree.gen.ts` does, with exactly this `.update()` call.
  * Doing the same here mounts the REAL route object under a throwaway parent.
  */
+// `.addChildren`/`.update` exist at runtime on every route but are absent
+// from the exported `options` union; the helper is the ONE widening point
+// (a single assert through a named shape), matching the repo's other
+// real-route suites.
+function widenOptions<T>(value: unknown): T {
+	return value as T;
+}
 const mountRealRoute = <TRoute,>(
 	route: TRoute,
 	options: Record<string, unknown>,
 ): TRoute => {
-	(route as { update: (options: unknown) => unknown }).update(options);
+	widenOptions<{ update: (options: Record<string, unknown>) => void }>(
+		route,
+	).update(options);
 
 	return route;
 };
@@ -216,10 +225,6 @@ const destroyOpenHistories = (): void => {
 	while (openHistories.length > 0) {
 		openHistories.pop()?.destroy();
 	}
-};
-
-type BlockerRegistration = {
-	shouldBlockFn?: () => boolean | Promise<boolean>;
 };
 
 const buildHarness = () => {
@@ -252,28 +257,25 @@ const buildHarness = () => {
 		),
 	} as never);
 
-	const routeTree = (
-		rootRoute as unknown as {
-			addChildren: (children: unknown[]) => unknown;
-		}
-	).addChildren([
-		(
-			layoutRoute as unknown as {
-				addChildren: (children: unknown[]) => unknown;
-			}
-		).addChildren([editRoute, detailStubRoute]),
+	function addChildrenOf(route: unknown) {
+		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
+			.addChildren;
+	}
+	const routeTree = addChildrenOf(rootRoute)([
+		addChildrenOf(layoutRoute)([editRoute, detailStubRoute]),
 	]);
 
 	const history = createMemoryHistory({ initialEntries: [editUrl(USER_A)] });
 	// Capture every blocker registration the same way the router hands them
-	// to `history.block` — purely observational, never re-implemented.
-	const blockers: BlockerRegistration[] = [];
+	// to `history.block` — purely observational, never re-implemented. Typed
+	// straight off the bound method so the shim needs no assertion.
 	const originalBlock = history.block.bind(history);
-	history.block = ((registration: BlockerRegistration) => {
+	const blockers: Parameters<typeof originalBlock>[0][] = [];
+	history.block = (registration) => {
 		blockers.push(registration);
 
-		return originalBlock(registration as never);
-	}) as unknown as typeof history.block;
+		return originalBlock(registration);
+	};
 
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },

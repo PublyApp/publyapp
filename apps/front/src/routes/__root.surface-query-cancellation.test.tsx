@@ -56,7 +56,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 			<a {...props}>{children}</a>
 		),
 		useLocation: () => ({ pathname: '/staff/staff-users', searchStr: '' }),
-		useMatches: ({ select }: { select: (matches: MockMatch[]) => unknown }) =>
+		useMatches: ({ select }: { select: (matches: MockMatch[]) => void }) =>
 			select(mocks.matches),
 	};
 });

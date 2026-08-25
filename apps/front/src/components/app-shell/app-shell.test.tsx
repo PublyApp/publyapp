@@ -40,7 +40,9 @@ vi.mock('@tanstack/react-router', () => ({
 	}) => {
 		const resolvedSearch =
 			typeof search === 'function'
-				? (search as (prev: unknown) => unknown)(mocks.linkPrevSearch)
+				? (search as (prev: unknown) => Record<string, unknown>)(
+						mocks.linkPrevSearch,
+					)
 				: search;
 		return createElement(
 			'a',
@@ -55,7 +57,7 @@ vi.mock('@tanstack/react-router', () => ({
 			children,
 		);
 	},
-	useMatches: ({ select }: { select: (matches: unknown[]) => unknown }) =>
+	useMatches: ({ select }: { select: (matches: unknown[]) => void }) =>
 		select(mocks.matches),
 }));
 

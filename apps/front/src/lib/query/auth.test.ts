@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 		| {
 				staleTime?: number;
 				refetchOnWindowFocus?: boolean;
-				queryFn?: () => unknown;
+				queryFn?: () => void;
 				meta?: { skipAuthedErrorBackstop?: boolean };
 		  }
 		| undefined,

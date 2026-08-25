@@ -12,7 +12,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 
 using Xunit;
@@ -83,6 +85,23 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			.Should().Contain("dlq_growth");
 		monitor.EvaluateAndAlert(JobQueueSample.Empty with { DeadLetterGrowth1h = 0 })
 			.Should().NotContain("dlq_growth");
+	}
+
+	// #864/K-2: rows retention HOLDS past its window because nobody has triaged them.
+	// Same anomaly semantics as dlq_growth — re-breaches every sample while > 0, silent at 0.
+	[Fact]
+	public void ItShouldAlertWhileUntriagedMissingRowsAreHeldAndStaySilentAtZero() {
+		using var monitor = CreateMonitor();
+
+		monitor.EvaluateAndAlert(JobQueueSample.Empty with { MissingTriagedCount = 1 })
+			.Should().Contain("dlq_untriaged_missing");
+		monitor.EvaluateAndAlert(JobQueueSample.Empty with { MissingTriagedCount = 5 })
+			.Should().Contain(
+				"dlq_untriaged_missing",
+				"the condition re-breaches on every sample while any row remains held"
+			);
+		monitor.EvaluateAndAlert(JobQueueSample.Empty)
+			.Should().NotContain("dlq_untriaged_missing");
 	}
 
 	[Fact]
@@ -175,7 +194,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				0, "a due bulk row aged 5 minutes in the past has positive age"
 			);
 
-			// Every gauge/tag series emits exactly the sampled value (nine series total).
+			// Every gauge/tag series emits exactly the sampled value (ten series total).
 			var gauges = ReadGauges();
 			gauges.DueHigh.Should().Be(after.DueDepthHigh);
 			gauges.DueBulk.Should().Be(after.DueDepthBulk);
@@ -209,6 +228,47 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			@"FROM job_dead_letter\s+WHERE failed_at",
 			"DLQ growth must remain an indexable one-hour range query"
 		);
+	}
+
+	// #864/K-2, sampled end to end: a durable untriaged missing-anomaly row shows up in
+	// the sample's MissingTriagedCount and the jobs.dlq.untriaged_missing gauge with the
+	// exact seeded delta — triaging it (the acknowledgement stamp) drops both back.
+	[Fact]
+	public async Task ItShouldSampleAndEmitTheUntriagedMissingCountUntilTriaged() {
+		var jobType = $"{JobDeadLetter.MissingJobTypePrefix}spec.monitor-missing.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			var before = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			await SeedDeadLetterAsync(dbContext, jobType, count: 2);
+			var held = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			held.MissingTriagedCount.Should().Be(
+				before.MissingTriagedCount + 2,
+				"two durable untriaged missing-anomaly rows are counted exactly"
+			);
+			ReadGauges().UntriagedMissing.Should().Be(held.MissingTriagedCount);
+
+			// The operator acknowledgement releases them from the held set (#636 will be
+			// the real writer; here the stamp itself is what is under test).
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				UPDATE job_dead_letter
+				SET triaged_at = now(), triaged_by = 'spec'
+				WHERE job_type = {jobType}
+				"""
+			);
+			var released = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			released.MissingTriagedCount.Should().Be(
+				before.MissingTriagedCount,
+				"triage empties the held set — the alert recovers only then"
+			);
+		} finally {
+			await DeleteByTypeAsync(jobType, $"spec.monitor-cleanup.{Guid.NewGuid():N}@example.com");
+		}
 	}
 
 	[Fact]
@@ -258,7 +318,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		long DlqSize,
 		long DlqGrowth,
 		long EmailFailures,
-		long DeadTuples
+		long DeadTuples,
+		long UntriagedMissing
 	);
 
 	private static GaugeReadings ReadGauges() {
@@ -270,6 +331,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		long dlqGrowth = -1;
 		long emailFailures = -1;
 		long deadTuples = -1;
+		long untriagedMissing = -1;
 		var oldestHigh = -1.0;
 		var oldestBulk = -1.0;
 
@@ -280,6 +342,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 			if (instrument.Name is "jobs.due_depth" or "jobs.oldest_due_age_seconds"
 				or "jobs.processing_over_lease" or "jobs.dlq_size" or "jobs.dlq_growth_1h"
+				or "jobs.dlq.untriaged_missing"
 				or "email.log_failures_1h" or "jobs.queue_dead_tuples") {
 				activeListener.EnableMeasurementEvents(instrument);
 			}
@@ -301,6 +364,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 				emailFailures = measurement;
 			} else if (instrument.Name == "jobs.queue_dead_tuples") {
 				deadTuples = measurement;
+			} else if (instrument.Name == "jobs.dlq.untriaged_missing") {
+				untriagedMissing = measurement;
 			}
 		});
 		listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) => {
@@ -325,7 +390,8 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			dlqSize,
 			dlqGrowth,
 			emailFailures,
-			deadTuples
+			deadTuples,
+			untriagedMissing
 		);
 	}
 
@@ -604,6 +670,176 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 		return new SchedulerGaugeReadings(leaderPresent, lastSyncAt);
 	}
+
+	// --- #865: prepared-state sweep-lag observability ------------------------------------
+
+	// The eligible-vs-deleted gap, sampled from the durable table (R6-4's rule): the age of
+	// the OLDEST prepared-send row that is already deletable — a resolved-job orphan past
+	// the retention floor — yet still on disk. Healthy: oscillates between 0 and the
+	// seeded 10-minute cadence. A disabled or failing sweep drives it up forever; the
+	// EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES threshold turns that into an alert.
+	[Fact]
+	public async Task ItShouldSamplePreparedStateOverdueSecondsFromTheOldestDeletableOrphan() {
+		var marker = $"spec.monitor-prepared.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			var orphanJobId = Guid.NewGuid();
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				INSERT INTO email_prepared_sends
+					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
+				VALUES (
+					{orphanJobId}, {EmptyJson}::jsonb, 'sha', {marker},
+					now() - make_interval(days => {OverdueFloorDays}, mins => {OverdueMinutes})
+				)
+				"""
+			);
+
+			var after = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			var floorSeconds = OverdueFloorDays * 24 * 60 * 60;
+			after.PreparedStateOverdueSeconds.Should().BeGreaterThanOrEqualTo(
+				floorSeconds + (OverdueMinutes * 60) - 30,
+				"the sampled gauge carries the age of the oldest deletable prepared row "
+				+ "(retention floor + the extra minutes it has been waiting)"
+			);
+			after.PreparedStateOverdueSeconds.Should().BeLessThanOrEqualTo(
+				floorSeconds + ((OverdueMinutes + 5) * 60),
+				"sampling must not fabricate overdue ages far above the oldest real row"
+			);
+		} finally {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"DELETE FROM email_prepared_sends WHERE provider_idempotency_key = {marker}"
+			);
+		}
+	}
+
+	// A young orphan (inside its retention floor) is NOT overdue: nothing is deletable, so
+	// the gap reads 0 — a lagging-but-healthy sweep must not page anyone.
+	[Fact]
+	public async Task ItShouldReadZeroPreparedStateOverdueWhenNothingIsEligibleForDeletion() {
+		var marker = $"spec.monitor-young.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				INSERT INTO email_prepared_sends
+					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
+				VALUES (
+					{Guid.NewGuid()}, {EmptyJson}::jsonb, 'sha', {marker}, now()
+				)
+				"""
+			);
+
+			(await monitor.SampleAsync(dbContext, CancellationToken.None))
+				.PreparedStateOverdueSeconds.Should().Be(
+					0, "a row inside its retention floor is not deletable, so nothing is overdue"
+				);
+		} finally {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"DELETE FROM email_prepared_sends WHERE provider_idempotency_key = {marker}"
+			);
+		}
+	}
+
+	// The alert boundary, pinned exactly at the configured lag threshold (strict exceedance):
+	// above it the sample breaches with the cause and next action named in the WARNING;
+	// at/below it stays silent.
+	[Fact]
+	public void ItShouldAlertOnPreparedStateSweepLagOnlyPastTheConfiguredThreshold() {
+		var logger = new CapturingLogger<JobQueueMonitorService>();
+		var thresholdSeconds =
+			AppEnvironment.Instance.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES * 60;
+
+		var capturingMonitor = new JobQueueMonitorService(
+			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			logger,
+			new SchedulerSyncState()
+		);
+
+		capturingMonitor.EvaluateAndAlert(
+			JobQueueSample.Empty with { PreparedStateOverdueSeconds = thresholdSeconds + 1 }
+		).Should().Contain("prepared_state_sweep_overdue");
+		logger.Warnings.Should().ContainSingle(
+			entry => entry.Message.Contains("prepared", StringComparison.OrdinalIgnoreCase),
+			"the warning names the lagging prepared-state sweep"
+		);
+
+		logger.Clear();
+		capturingMonitor.EvaluateAndAlert(
+			JobQueueSample.Empty with { PreparedStateOverdueSeconds = thresholdSeconds }
+		).Should().NotContain(
+			"prepared_state_sweep_overdue",
+			"the threshold is a strict exceedance — at-threshold is not yet a breach"
+		);
+	}
+
+	// The overdue gauge emits the sampled value through the meter like every other §7.2
+	// signal — no series, no alerting backend can read what the sampler never emits.
+	[Fact]
+	public async Task ItShouldEmitThePreparedStateOverdueGaugeWithTheSampledValue() {
+		var marker = $"spec.monitor-gauge.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			var orphanJobId = Guid.NewGuid();
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				INSERT INTO email_prepared_sends
+					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
+				VALUES (
+					{orphanJobId}, {EmptyJson}::jsonb, 'sha', {marker},
+					now() - make_interval(days => {OverdueFloorDays}, mins => {OverdueMinutes})
+				)
+				"""
+			);
+
+			var sample = await monitor.SampleAsync(dbContext, CancellationToken.None);
+			ReadOverdueGauge().Should().Be(
+				sample.PreparedStateOverdueSeconds,
+				"the observable gauge observes the latest sample, exactly like jobs.dlq_size"
+			);
+		} finally {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"DELETE FROM email_prepared_sends WHERE provider_idempotency_key = {marker}"
+			);
+		}
+	}
+
+	private static double ReadOverdueGauge() {
+		using var listener = new MeterListener();
+		// NaN, never -1: the unsampled sample member defaults to -1, so a -1 listener seed
+		// could coincide with it and fake a pass before the gauge exists.
+		var overdue = double.NaN;
+
+		listener.InstrumentPublished = (instrument, activeListener) => {
+			if (instrument.Meter.Name == JobsMetrics.MeterName
+				&& instrument.Name == "jobs.prepared_state_overdue_seconds") {
+				activeListener.EnableMeasurementEvents(instrument);
+			}
+		};
+		listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) => {
+			if (instrument.Name == "jobs.prepared_state_overdue_seconds") {
+				overdue = measurement;
+			}
+		});
+
+		listener.Start();
+		listener.RecordObservableInstruments();
+
+		return overdue;
+	}
+
+	private const int OverdueFloorDays = 7;
+
+	// Extra minutes past the floor the seeded orphan has been waiting, comfortably inside a
+	// healthy cadence gap so the assertion never straddles the alert threshold.
+	private const int OverdueMinutes = 5;
 
 	private JobQueueMonitorService CreateMonitor() {
 		return new JobQueueMonitorService(

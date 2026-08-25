@@ -186,6 +186,9 @@ react-doctor base="origin/develop":
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
   node packages/scripts-ts/src/nuget-audit.ts
   pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
+  # Mirrors quality-gate.yml::quality::Run dependency-health pin-location
+  # contract test (#1334 fix round 1).
+  pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts
 
 # =============================================================================
 # Database

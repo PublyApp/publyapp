@@ -104,15 +104,124 @@ The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as
 
 ### Enabled rules
 
-| Rule                                           | Severity | Baseline violations | Enabled in     |
-| ---------------------------------------------- | -------- | ------------------- | -------------- |
-| `anti-slop/no-conditional-empty-object-spread` | `error`  | 30 (fixed)          | #1170 (rung 1) |
-| `anti-slop/no-object-parameters`               | `error`  | 0                   | rung 2         |
-| `anti-slop/no-reflect-apply`                   | `error`  | 0                   | rung 2         |
-| `anti-slop/no-reflect-get`                     | `error`  | 0                   | rung 2         |
-| `anti-slop/no-unknown-type-aliases`            | `error`  | 0                   | rung 2         |
-| `anti-slop/no-widen-then-assert`               | `error`  | 0                   | rung 2         |
-| `anti-slop/no-shape-in-symbol-names`           | `error`  | 69 (fixed)          | rung 3         |
+| `anti-slop/no-conditional-empty-object-spread` | `error` | 30 (fixed) | #1170 (rung 1) |
+| `anti-slop/no-object-parameters` | `error` | 0 | rung 2 |
+| `anti-slop/no-reflect-apply` | `error` | 0 | rung 2 |
+| `anti-slop/no-reflect-get` | `error` | 0 | rung 2 |
+| `anti-slop/no-unknown-type-aliases` | `error` | 0 | rung 2 |
+| `anti-slop/no-widen-then-assert` | `error` | 0 | rung 2 |
+| `anti-slop/no-shape-in-symbol-names` | `error` | 69 (fixed) | rung 3 |
+| `anti-slop/no-unknown-returns` | `error` | 73 (fixed) | rung 4 |
+| `anti-slop/no-chained-type-assertions` | `error` | 126 (fixed) | rung 5 |
+
+### Candidate next rung: `publy/no-never-any-casts` (#1337)
+
+Rungs 4+5 cover only CHAINED assertions; #1337 showed single, non-chained
+casts to the evidence-discarding keywords slipping through. The vendored
+anti-slop set has no keyword-ban rule (`no-chained-type-assertions` owns the
+chain shape only), so a small `publy` rule was sketched:
+[`packages/lint-ts/src/publy/no-never-any-casts.ts`](../../packages/lint-ts/src/publy/no-never-any-casts.ts).
+It flags single assertions to `never`/`any` (`x as never`, `x as any`,
+angle-bracket forms, parenthesized keyword annotations), one report per chain
+link landing on a banned keyword. Since [#1346](https://github.com/radandevist/publyapp/issues/1346)
+it ALSO flags the keyword annotations under the `satisfies` operator
+(`x satisfies never`, `x satisfies any`, `TSSatisfiesExpression`) — paired
+RED/GREEN proof in its spec, including the adversarial case that defeats a
+matcher hunting the literal word `never` instead of the `TSNeverKeyword` node
+(`type NeverAlias = never; x satisfies NeverAlias` stays GREEN). It ships
+**dormant** (`"off"`); enabling it at `error` is a separate follow-up PR per
+the ladder policy above.
+
+**Measured baseline (2026-08-25, oxlint 1.79.0, re-measured at the
+wt-1346 tip AFTER the #1346 `satisfies` extension):** report-mode scan over
+the whole repo (config-copy of `.oxlintrc.json` with only this rule flipped
+to `warn`; JSON output aggregated per package). Command + measured result:
+
+```sh
+python3 -c 'import json; c = json.load(open(".oxlintrc.json")); c["rules"]["publy/no-never-any-casts"] = "warn"; json.dump(c, open(".oxlintrc.tmp-1346.json", "w"), indent=1)'
+pnpm exec oxlint -c .oxlintrc.tmp-1346.json -f json . \
+  | python3 -c 'import sys, json, collections; n = [e for e in json.load(sys.stdin)["diagnostics"] if "no-never-any-casts" in e["code"]]; print(len(n)); print(collections.Counter("/".join(e["filename"].split("/")[:2]) for e in n))'
+rm .oxlintrc.tmp-1346.json
+```
+
+→ prints `177` and `Counter({'apps/front': 154, 'packages/shared-ts': 15,
+'packages/lint-ts': 8})` (scan data kept out of the tree).
+
+| Package               | Diagnostics |
+| --------------------- | ----------- |
+| `apps/front`          | 154         |
+| `packages/shared-ts`  | 15          |
+| `packages/lint-ts`    | 8           |
+| `packages/scripts-ts` | 0           |
+| `apps/api`            | 0           |
+| **Total**             | **177**     |
+
+All 177 hits are `as never`; **zero** `as any` casts exist in linted source
+(every word-boundary `as any` site lives in the generated
+`apps/front/src/routeTree.gen.ts`, excluded via `ignorePatterns`, and
+explicit `any` annotations are already governed by
+`typescript/no-explicit-any`). The #1346 `satisfies` extension adds ZERO new
+offenders: a regex scan for `satisfies\s+(never|any)` over linted source
+returns 10 matching lines, all inside the rule's own spec and implementation
+(fixture/comment text), none in shipped code. Counts reconcile against
+literal `\bas never\b` greps: 222 matching lines repo-wide (`git grep -w`)
+= 177 real casts + 45 comment/doc mention lines (largest: a superseded
+superpowers plan at 25, this rule's own spec and implementation at 10).
+The 177 casts sit in 49 files — 29 test/spec files and 20 source files;
+heaviest:
+`staff-tenant-profiles.test.ts` 26, `staff-tenant-users.test.ts` 21,
+`staff-tenant-invitations.test.ts` 14, `InterZod.ts` 8,
+`query-display.test.tsx` 6, `drafts.tsx` 6. The `packages/lint-ts` 8 are
+genuine lib sites (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1,
+`no-package-src-import.ts` 1), not spec fixtures.
+
+**Enable-at-error ladder plan (#1346):** fix in slices — one slice per PR,
+each keeping the rule `off` and shrinking the warn-scan total above; the
+final PR flips `.oxlintrc.json` to `"error"` once the scan reports 0 and
+proves the guard red on a reintroduced single `x satisfies never` cast
+(then removes it). Measured slice sizes at the same tip:
+
+| Slice | Scope | Sites | Owner |
+| ----- | ----- | ----- | ----- |
+| A | `apps/front/src/lib/query/**` (validator-stub tests: staff-tenant-profiles 26, staff-tenant-users 21, staff-tenant-invitations 14, …) | 70 | front lane |
+| B | `apps/front/src/**` remaining test/spec files | 64 | front lane |
+| C | `apps/front/src/**` non-test sources (heaviest: `drafts.tsx` 6) | 20 | front lane |
+| D | `packages/shared-ts/src/**` (heaviest: `InterZod.ts` 8) | 15 | shared lane |
+| E | `packages/lint-ts/src/**` (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1, `no-package-src-import.ts` 1) | 8 | lint-ts lane |
+| | **Total** | **177** | |
+
+Slice owners are the dispatching captain's lane assignments at execution
+time (see `~/ai-orchestration-playbook/PLAYBOOK.md`); a slice may be split
+further if one PR grows past review comfort, but the sizes above are the
+planned PR granularity. At the error rung BOTH assertion spellings are
+banned — `as never`/`as any` AND `satisfies never`/`satisfies any` — because
+of the #1346 coverage.
+
+## Guard test suites (`apps/front/src`, not lint rules)
+
+These enforce repo invariants as vitest suites rather than linter diagnostics, but belong in this
+reference because a reviewer looking for "what enforces X" ends up here. Each entry names its
+detection surface and its pinned boundaries; the normative home for front guards is
+[`docs/guides/front/conventions.md`](front/conventions.md).
+
+### real-`<Trans>` render guard
+
+- **Enforced:** vitest suite, pinned into CI by `check-ci-gate-structure`
+- **Source:** `apps/front/src/lib/i18n/trans-render.guard.test.tsx`
+- **Guide:** [`docs/guides/front/conventions.md`](front/conventions.md) ("<Trans> render guard")
+- **What it catches:** every JSX `<Trans>` element under `apps/front/src` must resolve to a
+  pinned spec that renders through its real route component and the real i18n init — a new call
+  site without a spec turns red naming `file:line`; dropped `components={{ strong: … }}` maps,
+  copy drift, and parser regressions flip dedicated pins.
+- **Detection:** AST walk (ts-morph vendored compiler) matching JSX tags against every local name
+  bound to react-i18next's `Trans` (plain, aliased, default-import spelled `Trans`, namespace
+  member tags), excluding the suite itself (`*.test.*` / `*.spec.*` / `*.stories.*`), `*.d.ts`,
+  and `e2e/`. A spread-only `<Trans {...props} />` IS discovered (#1333 — tag match first,
+  attributes second): it lands unpinned with `i18nKey: null` exactly like any uncovered site.
+- **Pinned boundaries (#1333):** spreads on non-`Trans` elements contribute zero sites; a
+  `Trans` re-exported through a local module is NOT resolved (the one true residual blind spot,
+  does not exist in src today — both facts pinned by standing tests so any change must update the
+  disclosure deliberately).
 
 ## Roslyn analyzers (`packages/lint-cs/`)
 

@@ -26,21 +26,31 @@ vi.mock('../api-client/client-manager', () => ({
  * directly (bypassing `useServerFn`, as these unit tests do) throws outside
  * that runtime. This stub reproduces just the `.validator().handler()`
  * chain so the enumeration-safety swallow logic can be exercised directly.
+ *
+ * Every mocked server fn validates an object payload through zod, so the
+ * stub speaks `Record<string, unknown>` end to end: the validated shape
+ * flows into the handler context WITHOUT an escape-hatch cast (#1337).
  */
 vi.mock('@tanstack/react-start', () => ({
 	createServerFn: () => {
-		let validatorFn: ((data: unknown) => unknown) | undefined;
+		let validatorFn:
+			| ((data: Record<string, unknown>) => Record<string, unknown>)
+			| undefined;
 		const chain = {
-			validator: (fn: (data: unknown) => unknown) => {
+			validator: (
+				fn: (data: Record<string, unknown>) => Record<string, unknown>,
+			) => {
 				validatorFn = fn;
 				return chain;
 			},
-			handler: (handlerFn: (ctx: { data: unknown }) => unknown) => {
-				return (input: { data: unknown }) =>
+			handler:
+				<TResult>(
+					handlerFn: (ctx: { data: Record<string, unknown> }) => TResult,
+				) =>
+				(input: { data: Record<string, unknown> }): TResult =>
 					handlerFn({
 						data: validatorFn ? validatorFn(input.data) : input.data,
-					});
-			},
+					}),
 		};
 		return chain;
 	},

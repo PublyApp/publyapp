@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	redirect: mocks.redirect,
 }));
 
@@ -16,14 +19,17 @@ import { Route } from './$profileId-edit';
 
 describe('staff tenant profiles/$profileId/edit legacy route', () => {
 	test('redirects to the profile detail page with the edit-drawer flag', () => {
-		const RouteConfig = Route as unknown as {
+		function widenOptions<T>(value: unknown): T {
+			return value as T;
+		}
+		const { beforeLoad } = widenOptions<{
 			beforeLoad: (context: {
 				params: { tenantId: string; profileId: string };
-			}) => unknown;
-		};
+			}) => void;
+		}>(Route);
 
 		expect(() =>
-			RouteConfig.beforeLoad({
+			beforeLoad({
 				params: {
 					tenantId: '11111111-1111-1111-1111-111111111111',
 					profileId: '22222222-2222-2222-2222-222222222222',

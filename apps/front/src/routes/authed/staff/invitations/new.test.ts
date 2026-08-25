@@ -40,6 +40,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useNavigate: () => mocks.navigate,
 	}),
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
@@ -226,9 +227,9 @@ const buildProfilesQuery = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as { component: () => ReturnType<typeof createElement> }
-	).component;
+	const Component = Route.options.component as () => ReturnType<
+		typeof createElement
+	>;
 	return render(createElement(Component));
 };
 

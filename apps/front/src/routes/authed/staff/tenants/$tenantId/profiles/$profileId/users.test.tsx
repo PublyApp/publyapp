@@ -170,11 +170,7 @@ import {
 } from './users';
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+	const Component = Route.options.component as () => JSX.Element;
 
 	return render(<Component />);
 };
@@ -675,11 +671,7 @@ describe('StaffTenantProfileMembersPage — roster rendering', () => {
 		);
 
 		const { rerender } = renderPage();
-		const Component = (
-			Route as unknown as {
-				component: () => JSX.Element;
-			}
-		).component;
+		const Component = Route.options.component as () => JSX.Element;
 
 		const nextButton = screen.getByTestId(
 			'staff-tenant-profile-members-table-next-page',

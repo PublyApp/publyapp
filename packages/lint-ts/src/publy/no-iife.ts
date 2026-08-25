@@ -50,9 +50,14 @@ export const unwrapCallee = (node: ESTree.Expression): ESTree.Expression[] => {
 				continue;
 			}
 			case 'TSInstantiationExpression': {
-				// oxlint's ESTree typings omit the `expression` child on this node.
-				current = (current as unknown as { expression: ESTree.Expression })
-					.expression;
+				// oxlint's ESTree typings omit the `expression` child on this
+				// node; one intersect assert names the missing member without a
+				// chain through unknown.
+				current = (
+					current as ESTree.Expression & {
+						expression: ESTree.Expression;
+					}
+				).expression;
 				continue;
 			}
 			case 'SequenceExpression': {

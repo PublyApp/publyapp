@@ -5,7 +5,12 @@ import type {
 	StaffProfileItem,
 } from '@org/client-ts/models/index';
 
-import { toStaffProfileDetails, toStaffProfileRows } from './staff-profiles';
+import {
+	buildUpdateStaffProfileBody,
+	toStaffProfileDetails,
+	toStaffProfileRows,
+	type UpdateStaffProfileInput,
+} from './staff-profiles';
 
 // shell-r5-F3: a row/payload missing its required `name` used to be kept
 // with a `'—'` placeholder (and an icon derived from a fabricated
@@ -116,5 +121,76 @@ describe('toStaffProfileDetails', () => {
 
 		expect(result?.icon).toBeTruthy();
 		expect(result?.iconTone).toMatch(/^[0-7]$/);
+	});
+});
+
+// #819 — the PATCH body builder mirrors `buildUpdateStaffTenantProfileBody`:
+// an absent key means "omit" (keep current value) and an explicit null means
+// "clear", matching UpdateStaffProfile's omit/set/clear wire semantics.
+describe('buildUpdateStaffProfileBody', () => {
+	const baseInput: UpdateStaffProfileInput = {
+		profileId: 'profile-1',
+		name: 'Editors',
+	};
+
+	test('sends name and omits unset optional fields', () => {
+		const body = buildUpdateStaffProfileBody({ ...baseInput });
+
+		expect(body.name).toBeDefined();
+		expect(body.description).toBeUndefined();
+		expect(body.icon).toBeUndefined();
+		expect(body.tone).toBeUndefined();
+	});
+
+	test('sends a non-empty description as a string', () => {
+		const body = buildUpdateStaffProfileBody({
+			...baseInput,
+			description: '  Handles tickets  ',
+		});
+
+		expect(body.description).toBeDefined();
+		expect(body.description).not.toBeNull();
+	});
+
+	test('an empty/whitespace description clears the field with an explicit null', () => {
+		const body = buildUpdateStaffProfileBody({
+			...baseInput,
+			description: '   ',
+		});
+
+		expect(body.description).toBeNull();
+	});
+
+	test('a concrete icon/tone pair is sent as strings', () => {
+		const body = buildUpdateStaffProfileBody({
+			...baseInput,
+			icon: 'briefcase',
+			tone: '6',
+		});
+
+		expect(body.icon).toBeDefined();
+		expect(body.icon).not.toBeNull();
+		expect(body.tone).toBeDefined();
+		expect(body.tone).not.toBeNull();
+	});
+
+	test('null icon/tone clear the automatic-style override with explicit nulls', () => {
+		const body = buildUpdateStaffProfileBody({
+			...baseInput,
+			icon: null,
+			tone: null,
+		});
+
+		expect(body.icon).toBeNull();
+		expect(body.tone).toBeNull();
+	});
+
+	test('trims the name', () => {
+		const body = buildUpdateStaffProfileBody({
+			...baseInput,
+			name: '  Editors  ',
+		});
+
+		expect(body.name).toBeDefined();
 	});
 });

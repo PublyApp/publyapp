@@ -298,21 +298,15 @@ const readBrowserPaint = async (
 					earlyAssert(
 						{
 							backgroundClip: ps.backgroundClip,
-							webkitBackgroundClip: (
-								ps as unknown as Record<string, string | undefined>
-							)['webkitBackgroundClip'],
-							webkitTextFillColor: (
-								ps as unknown as Record<string, string | undefined>
-							)['webkitTextFillColor'],
+							webkitBackgroundClip:
+								ps.getPropertyValue('-webkit-background-clip') || undefined,
+							webkitTextFillColor:
+								ps.getPropertyValue('-webkit-text-fill-color') || undefined,
 							color: ps.color,
 							opacity: ps.opacity,
-							maskImage: (ps as unknown as Record<string, string | undefined>)[
-								'maskImage'
-							],
-							mask: (ps as unknown as Record<string, string | undefined>)[
-								'mask'
-							],
-						} as Record<string, string | undefined>,
+							maskImage: ps.getPropertyValue('mask-image') || undefined,
+							mask: ps.getPropertyValue('mask') || undefined,
+						},
 						label,
 					);
 					for (
@@ -1242,21 +1236,18 @@ const readBrowserPaint = async (
 					evaluateClassifier(
 						{
 							backgroundClip: painterStyle.backgroundClip,
-							webkitBackgroundClip: (
-								painterStyle as unknown as Record<string, string | undefined>
-							)['webkitBackgroundClip'],
-							webkitTextFillColor: (
-								painterStyle as unknown as Record<string, string | undefined>
-							)['webkitTextFillColor'],
+							webkitBackgroundClip:
+								painterStyle.getPropertyValue('-webkit-background-clip') ||
+								undefined,
+							webkitTextFillColor:
+								painterStyle.getPropertyValue('-webkit-text-fill-color') ||
+								undefined,
 							color: painterStyle.color,
 							opacity: painterStyle.opacity,
-							maskImage: (
-								painterStyle as unknown as Record<string, string | undefined>
-							)['maskImage'],
-							mask: (
-								painterStyle as unknown as Record<string, string | undefined>
-							)['mask'],
-						} as Record<string, string | undefined>,
+							maskImage:
+								painterStyle.getPropertyValue('mask-image') || undefined,
+							mask: painterStyle.getPropertyValue('mask') || undefined,
+						},
 						painterName,
 					);
 					// Walk ancestors for opacity:0 — text inherits invisibility even if painter itself is opaque
@@ -1279,9 +1270,7 @@ const readBrowserPaint = async (
 						);
 					}
 					toSrgb(
-						(painterStyle as unknown as Record<string, string | undefined>)[
-							'webkitTextFillColor'
-						] || painterStyle.color,
+						painterStyle.webkitTextFillColor || painterStyle.color,
 						`${painterName} text fill colour`,
 					);
 				}
@@ -1502,7 +1491,7 @@ const measurePaintedContrast = async (
 			const canvas = {
 				width: __publyImageData.width,
 				height: __publyImageData.height,
-			} as unknown as HTMLCanvasElement;
+			} as HTMLCanvasElement;
 			const data = __publyImageData.data;
 
 			const luminance = ([r, g, b]: number[]): number => {

@@ -76,7 +76,7 @@ const StaffInvitationsPage = () => {
 				...search,
 				...next,
 				status: search.status,
-			}) as unknown as InvitationListSearchParams,
+			}) as InvitationListSearchParams,
 			replace: true,
 		});
 	};
@@ -118,7 +118,7 @@ const StaffInvitationsPage = () => {
 				...search,
 				status: serializeInvitationStatusFilter(nextStatuses),
 				cursor: undefined,
-			}) as unknown as InvitationListSearchParams,
+			}) as InvitationListSearchParams,
 			replace: true,
 		});
 	};

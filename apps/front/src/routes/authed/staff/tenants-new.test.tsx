@@ -212,6 +212,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useNavigate: () => mocks.navigate,
 	}),
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
@@ -443,7 +444,7 @@ vi.mock('~/components/field', () => ({
 
 vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateStaffTenants: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
+		invalidateQueries: (arg: unknown) => void;
 	}) =>
 		queryClient.invalidateQueries({
 			queryKey: ['staff', 'staff-tenants'],
@@ -466,11 +467,9 @@ vi.mock('~/lib/mutation-toast', () => ({
 import { Route } from './tenants-new';
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => ReturnType<typeof createElement>;
-		}
-	).component;
+	const Component = Route.options.component as () => ReturnType<
+		typeof createElement
+	>;
 
 	return render(<Component />);
 };

@@ -10,7 +10,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	Link: ({
 		to,
 		children,
@@ -25,7 +28,7 @@ vi.mock('@tanstack/react-router', () => ({
 		</a>
 	),
 	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
-	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
+	useRouterState: ({ select }: { select?: (state: unknown) => void }) =>
 		select?.({ location: { pathname: mocks.pathname } }),
 }));
 
@@ -49,8 +52,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './settings';
 
-const TenantSettingsLayout = (Route as unknown as { component: ComponentType })
-	.component;
+const TenantSettingsLayout = Route.options.component as ComponentType;
 
 const TAB_DESTINATIONS = [
 	['/tenant/settings', 'General'],

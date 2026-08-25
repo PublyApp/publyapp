@@ -5,6 +5,7 @@ using PublyApp.Api.Modules.Billing.Permissions;
 using PublyApp.Api.Modules.Calendar.Permissions;
 using PublyApp.Api.Modules.Channels.Permissions;
 using PublyApp.Api.Modules.Invitations.Permissions;
+using PublyApp.Api.Modules.Jobs.Permissions;
 using PublyApp.Api.Modules.Media.Permissions;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Permissions;
@@ -37,6 +38,9 @@ public class StaffScopePermissions : IScopePermissions {
 	public SystemNoticePermissionsForStaff SystemNotices { get; } = new SystemNoticePermissionsForStaff();
 	public AuditLogPermissionsForStaff AuditLogs { get; } = new AuditLogPermissionsForStaff();
 	public UploadPermissionsForStaff Uploads { get; } = new UploadPermissionsForStaff();
+	// K-1 (#863): the jobs slice ships permission-first; its only surface today is
+	// the dead-letter resolve-unclassified triage endpoint.
+	public JobsPermissionsForStaff Jobs { get; } = new JobsPermissionsForStaff();
 }
 
 public class TenantScopePermissions : IScopePermissions {

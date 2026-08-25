@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { API_BASE_URL } from './helpers/api';
+import { API_BASE_URL, getSessionTokenFromBrowser } from './helpers/api';
 import {
 	DRAWER_FORM_CALL_SITES,
 	type DrawerFormCallSiteId,
@@ -280,6 +280,49 @@ const openChangeEmailDrawer = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('change-staff-user-email-dialog')).toBeVisible({
 		timeout: 10_000,
 	});
+};
+
+/** Throwaway profiles created by openStaffProfileEditDrawer, deleted in the
+ * suite's afterEach. Real rows beat a mock matrix here: the detail route
+ * fans out to several profile sub-endpoints and all of them must succeed
+ * for the page (and therefore the drawer) to render. */
+const createdStaffProfileIds: string[] = [];
+
+const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	const token = await getSessionTokenFromBrowser(page, 'staff');
+	expect(token, 'staff session token for the API').toBeDefined();
+	const response = await page.request.post(`${API_BASE_URL}/staff/profiles/`, {
+		headers: token ? { 'X-Session-Token': token } : undefined,
+		data: {
+			name: `#990 geometry ${Date.now()}-${Math.random()
+				.toString(36)
+				.slice(2, 8)}`,
+			description: 'Scroll-geometry fixture profile',
+			// Read-only permission satisfying the at-least-one-key create rule.
+			permissions: ['staff.users.list_for_staff'],
+		},
+	});
+	expect(response.status(), 'create throwaway profile').toBe(201);
+	const payload = (await response.json()) as { profileId?: string };
+	expect(payload.profileId, 'created profile id').toBeTruthy();
+	const profileId = payload.profileId as string;
+	createdStaffProfileIds.push(profileId);
+
+	// This call site navigates to a route whose chunks are requested for the
+	// FIRST time in the run (every other call site's routes were already pulled
+	// in by earlier specs). On a cold local stack that first chunk fetch plus
+	// the page's four data queries can exceed the shared 10s open timeout even
+	// though nothing is wrong — the trace of the one local failure shows the
+	// 201 create and the '?edit=1' navigation landing while route chunks were
+	// still resolving. CI (the evidence lane) starts from a warm stack, but the
+	// registration itself must not be the thing that flakes locally, so this
+	// one open waits a little longer. The geometry assertions keep the shared
+	// timeouts.
+	await page.goto(`/staff/profiles/${profileId}?edit=1`);
+	await expect(
+		page.getByTestId('staff-profile-edit-details-drawer'),
+	).toBeVisible({ timeout: 25_000 });
 };
 
 const measureDrawer = async (
@@ -624,12 +667,27 @@ const openDrawerByCallSiteId: Record<
 	'staff-user-email-change': openChangeEmailDrawer,
 	'tenant-post-create': openTenantPostCreateDrawer,
 	'tenant-user-link-companies': openLinkCompaniesDrawer,
+	'staff-profile-edit': openStaffProfileEditDrawer,
 };
 
 test.describe(
 	'form-bearing drawer scroll geometry (#990 / PR #1054)',
 	{ tag: ['@design', '@990'] },
 	() => {
+		test.afterEach(async ({ page }) => {
+			const token = await getSessionTokenFromBrowser(page, 'staff');
+			while (createdStaffProfileIds.length > 0) {
+				const id = createdStaffProfileIds.pop();
+				if (!id || !token) {
+					continue;
+				}
+				// Tolerate 404: a failed test may have left nothing to clean up.
+				await page.request.delete(`${API_BASE_URL}/staff/profiles/${id}`, {
+					headers: { 'X-Session-Token': token },
+				});
+			}
+		});
+
 		for (const viewport of DRAWER_VIEWPORTS) {
 			test.describe(`${viewport.name} ${viewport.width}x${viewport.height} viewport`, () => {
 				test.beforeEach(async ({ page }) => {

@@ -74,7 +74,7 @@ const getThemeState = async (page: Page) =>
 	}));
 
 const extractSeededEmails = async (response: {
-	json: () => Promise<unknown>;
+	json: () => Promise<{ data?: unknown }>;
 }): Promise<string[]> => {
 	const payload = (await response.json()) as {
 		data?: unknown;
@@ -97,7 +97,7 @@ const mapRowsEmails = (rows: unknown[]): string[] => {
 };
 
 const extractProfiles = async (response: {
-	json: () => Promise<unknown>;
+	json: () => Promise<{ data?: unknown }>;
 }): Promise<StaffProfileFixture[]> => {
 	const payload = (await response.json()) as {
 		data?: unknown;

@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 
@@ -23,6 +24,10 @@ public sealed record JobQueueSample {
 	// Approximate pg_class row estimate: avoids an exact full-table count every minute.
 	public required long DeadLetterSize { get; init; }
 	public required long DeadLetterGrowth1h { get; init; }
+	// Rows retention is HOLDING past its window (#864/K-2): missing-anomaly job types
+	// with no operator acknowledgement. > 0 means an integrity anomaly survived its
+	// retention horizon because nobody has triaged it — exactly what must stay visible.
+	public required long MissingTriagedCount { get; init; }
 	public required long EmailLogFailures1h { get; init; }
 	public required long JobQueueDeadTuples { get; init; }
 
@@ -37,6 +42,15 @@ public sealed record JobQueueSample {
 	// leader and therefore owes no sync (design §7.2 — last_sync_at is leader-emitted).
 	public required double? SchedulerSyncAgeSeconds { get; init; }
 
+	// #865 (K-3): age of the OLDEST email_prepared_sends row that is ALREADY deletable —
+	// its job fully resolved (the sweep's own live-state anti-join) AND past the
+	// configured retention floor — yet still on disk. This is the eligibility-to-deletion
+	// gap: healthy, it oscillates between 0 and the seeded 10-minute cadence; a disabled
+	// or failing sweep drives it up forever. -1 means UNKNOWN (no sample yet) and keeps
+	// every threshold comparison silent until a real sample reports, mirroring the
+	// LeaderPresent null discipline.
+	public double PreparedStateOverdueSeconds { get; init; } = -1;
+
 	public long DueDepthTotal {
 		get { return DueDepthHigh + DueDepthBulk; }
 	}
@@ -49,6 +63,7 @@ public sealed record JobQueueSample {
 		ProcessingOverLeaseCount = 0,
 		DeadLetterSize = 0,
 		DeadLetterGrowth1h = 0,
+		MissingTriagedCount = 0,
 		EmailLogFailures1h = 0,
 		JobQueueDeadTuples = 0,
 		// Pre-first-sample state is UNKNOWN, not healthy: null so the gauge emits nothing
@@ -130,11 +145,19 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		_meter.CreateObservableGauge("jobs.dlq_size", () => _last.DeadLetterSize);
 		_meter.CreateObservableGauge("jobs.dlq_growth_1h", () => _last.DeadLetterGrowth1h);
 		_meter.CreateObservableGauge(
+			"jobs.dlq.untriaged_missing", () => _last.MissingTriagedCount
+		);
+		_meter.CreateObservableGauge(
 			"email.log_failures_1h", () => _last.EmailLogFailures1h
 		);
 		_meter.CreateObservableGauge(
 			"jobs.queue_dead_tuples", () => _last.JobQueueDeadTuples
 		);
+
+		// Prepared-state sweep lag (#865/K-3): observes the latest sample like every
+		// other §7.2 gauge. The UNKNOWN (-1, pre-first-sample) state emits NOTHING, so
+		// the series never carries a fabricated age before a real sample lands.
+		_meter.CreateObservableGauge("jobs.prepared_state_overdue_seconds", ObservePreparedStateOverdue);
 
 		// Leader observability (design §7.2/R2-10). scheduler.leader_present is emitted by
 		// EVERY replica — that is the whole point: the round-1 design leader-gated the
@@ -191,6 +214,10 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		const int processing = (int)JobQueueStatus.Processing;
 		const long lockKey = SchedulerLeaderService.SchedulerLeaderLockKey;
 
+		// The retention floor is read at execution time (the sweep handler's idiom): the
+		// gauge must judge lag against the floor an operator may have just tightened.
+		var retentionDays = AppEnvironment.Instance.EMAIL_PREPARED_SEND_RETENTION_DAYS;
+
 		// One statement gives all signals one PostgreSQL statement snapshot and one
 		// transaction_timestamp(). Each table is aggregated once instead of queried per
 		// metric; retention indexes support the exact time-window scans, while DLQ size
@@ -245,13 +272,40 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 						WHERE failed_at >= (
 							SELECT sampled_at FROM clock
 						) - interval '1 hour'
-					) AS "DeadLetterGrowth1h"
+					) AS "DeadLetterGrowth1h",
+					COALESCE((
+						SELECT count(*) FROM job_dead_letter d
+						WHERE d.triaged_at IS NULL
+							AND d.job_type LIKE 'jobs.missing.%'
+					), 0)::bigint AS "MissingTriagedCount"
 			),
 			email_metrics AS (
 				SELECT count(*)::bigint AS "EmailLogFailures1h"
 				FROM email_log
 				WHERE outcome = {(int)EmailLogOutcome.PermanentlyFailed}
 					AND occurred_at >= (SELECT sampled_at FROM clock) - interval '1 hour'
+			),
+			-- Prepared-state sweep lag (#865/K-3): the age of the OLDEST prepared-send row
+			-- that is ALREADY deletable — its job fully resolved (the retention sweep's own
+			-- live-state anti-join: no job_queue and no job_dead_letter row) AND past the
+			-- configured EMAIL_PREPARED_SEND_RETENTION_DAYS floor (read at execution, the
+			-- handler's idiom) — yet still on disk. Healthy: oscillates between 0 and the
+			-- seeded 10-minute cadence; a disabled or failing sweep drives it up forever.
+			prepared_state_metrics AS (
+				SELECT COALESCE(EXTRACT(EPOCH FROM (
+					(SELECT sampled_at FROM clock) - (
+						SELECT min(p.prepared_at)
+						FROM email_prepared_sends p
+						WHERE p.prepared_at < (SELECT sampled_at FROM clock)
+							- make_interval(days => {retentionDays})
+							AND NOT EXISTS (
+								SELECT 1 FROM job_queue q WHERE q.id = p.job_id
+							)
+							AND NOT EXISTS (
+								SELECT 1 FROM job_dead_letter d WHERE d.original_job_id = p.job_id
+							)
+					)
+				)), 0)::double precision AS "PreparedStateOverdueSeconds"
 			),
 			-- Leader presence (design §7.2, verbatim probe). A pg_locks CATALOG READ, never
 			-- an acquire attempt: acquiring the advisory lock would let the monitor momentarily
@@ -277,6 +331,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 				queue_metrics.*,
 				dlq_metrics.*,
 				email_metrics.*,
+				prepared_state_metrics.*,
 				leader_metrics.*,
 				COALESCE((
 					SELECT n_dead_tup
@@ -286,6 +341,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			FROM queue_metrics
 			CROSS JOIN dlq_metrics
 			CROSS JOIN email_metrics
+			CROSS JOIN prepared_state_metrics
 			CROSS JOIN leader_metrics
 			"""
 		).SingleAsync(cancellationToken);
@@ -298,8 +354,10 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			ProcessingOverLeaseCount = row.ProcessingOverLeaseCount,
 			DeadLetterSize = row.DeadLetterSize,
 			DeadLetterGrowth1h = row.DeadLetterGrowth1h,
+			MissingTriagedCount = row.MissingTriagedCount,
 			EmailLogFailures1h = row.EmailLogFailures1h,
 			JobQueueDeadTuples = row.JobQueueDeadTuples,
+			PreparedStateOverdueSeconds = row.PreparedStateOverdueSeconds,
 			LeaderPresent = row.LeaderPresent,
 			SchedulerSyncAgeSeconds = ReadSyncAgeSeconds(),
 		};
@@ -323,7 +381,8 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 				"jobs.queue_sample due_high={DueHigh} due_bulk={DueBulk} "
 				+ "oldest_high_s={OldestHigh} oldest_bulk_s={OldestBulk} "
 				+ "processing_over_lease={OverLease} dlq_size={DlqSize} "
-				+ "dlq_growth_1h={DlqGrowth} email_failures_1h={EmailFailures} "
+				+ "dlq_growth_1h={DlqGrowth} untriaged_missing={UntriagedMissing} "
+				+ "email_failures_1h={EmailFailures} "
 				+ "dead_tuples={DeadTuples} leader_present={LeaderPresent} "
 				+ "sync_age_s={SyncAge}",
 				sample.DueDepthHigh,
@@ -333,6 +392,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 				sample.ProcessingOverLeaseCount,
 				sample.DeadLetterSize,
 				sample.DeadLetterGrowth1h,
+				sample.MissingTriagedCount,
 				sample.EmailLogFailures1h,
 				sample.JobQueueDeadTuples,
 				sample.LeaderPresent,
@@ -392,6 +452,20 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			);
 		}
 
+		// Untriaged missing anomalies (#864/K-2): rows retention is deliberately HOLDING
+		// past its own window because nobody has acknowledged them yet. Same anomaly
+		// semantics as dlq_growth — re-breaches on every sample while any row remains,
+		// recovers when the count reaches 0 (i.e. when each row is triaged or deleted).
+		if (sample.MissingTriagedCount > 0) {
+			breaches.Add("dlq_untriaged_missing");
+			_logger.LogWarning(
+				"jobs.alert dlq_untriaged_missing={Count} dead-letter row(s) hold an "
+				+ "untriaged missing-state anomaly; retention keeps them past its window "
+				+ "until each row is explicitly acknowledged",
+				sample.MissingTriagedCount
+			);
+		}
+
 		// Leader absence (design §7.2/R2-10). Evaluated by EVERY replica, including — in
 		// fact, especially — a follower: this sampler was deliberately un-gated so that
 		// the fleet can still see and report the total loss of a leader, which is the one
@@ -418,6 +492,27 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 				+ "threshold — this replica holds leadership but its reconcile has stalled",
 				sample.SchedulerSyncAgeSeconds,
 				SchedulerSyncStaleSeconds
+			);
+		}
+
+		// Prepared-state sweep lag (#865/K-3). The seven-day cap bounds eligibility, not
+		// residency: this is the alert that makes a lagging/disabled sweep visible past
+		// the documented EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES window. Read per evaluation
+		// so an operator's retune takes effect without a restart; UNKNOWN (-1) never
+		// breaches, mirroring LeaderPresent's null discipline.
+		var preparedLagThresholdSeconds =
+			AppEnvironment.Instance.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES * 60;
+		if (sample.PreparedStateOverdueSeconds > preparedLagThresholdSeconds) {
+			breaches.Add("prepared_state_sweep_overdue");
+			_logger.LogWarning(
+				"jobs.alert prepared_state_sweep_overdue overdue_seconds={OverdueSeconds} "
+					+ "threshold_seconds={ThresholdSeconds} - deletable token-bearing prepared "
+					+ "bytes are still on disk past the configured lag window; the "
+					+ "email-prepared-sends-retention sweep is lagging, failing, or not "
+					+ "scheduled - inspect system_job_definitions job_key="
+					+ "'email-prepared-sends-retention' and its recent occurrences",
+				sample.PreparedStateOverdueSeconds,
+				preparedLagThresholdSeconds
 			);
 		}
 
@@ -481,6 +576,19 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		return [new Measurement<int>(leaderPresent.Value ? 1 : 0)];
 	}
 
+	// Emits the sampled overdue age; UNKNOWN (-1, pre-first-sample) emits NOTHING —
+	// mirroring ObserveLeaderPresent's null discipline so no alerting backend can read
+	// a fabricated value before any sample completed.
+	private IEnumerable<Measurement<double>> ObservePreparedStateOverdue() {
+		var overdue = _last.PreparedStateOverdueSeconds;
+
+		if (overdue < 0) {
+			return [];
+		}
+
+		return [new Measurement<double>(overdue)];
+	}
+
 	private IEnumerable<Measurement<long>> ObserveLastSyncAt() {
 		var lastSyncAt = _syncState.LastSyncAt;
 
@@ -499,8 +607,10 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		public required long ProcessingOverLeaseCount { get; init; }
 		public required long DeadLetterSize { get; init; }
 		public required long DeadLetterGrowth1h { get; init; }
+		public required long MissingTriagedCount { get; init; }
 		public required long EmailLogFailures1h { get; init; }
 		public required long JobQueueDeadTuples { get; init; }
+		public required double PreparedStateOverdueSeconds { get; init; }
 		public required bool LeaderPresent { get; init; }
 	}
 

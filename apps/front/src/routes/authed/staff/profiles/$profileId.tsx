@@ -1,10 +1,12 @@
 import { IconArrowLeft, IconSearchOff } from '@tabler/icons-react';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { buttonVariants } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	DetailAside,
 	DetailGrid,
@@ -34,9 +36,30 @@ import {
 import { StaffProfileIdentityHeader } from './$profileId/_identity-header';
 import { renderStaffProfileMembersCard } from './$profileId/_members-card-content';
 import { PermissionMatrix } from './$profileId/_permission-matrix';
+import { StaffProfileEditDetailsDrawer } from './$profileId/_profile-edit-details-drawer';
+
+/** Search state for the staff-profile detail page (#819): the edit drawer's
+ * open flag, mirroring the tenant profile detail layout's `?edit=1`. */
+type StaffProfileDetailsSearchParams = {
+	edit?: 1;
+};
+
+/** The flag round-trips as the NUMBER 1; a raw string "1" is accepted, and
+ * anything else drops the key instead of persisting a default. */
+const parseStaffProfileDetailsSearchParams = (
+	search: Record<string, unknown>,
+): StaffProfileDetailsSearchParams => ({
+	edit:
+		search.edit === 1 ||
+		(typeof search.edit === 'string' && search.edit.trim() === '1')
+			? 1
+			: undefined,
+});
 
 const StaffProfileDetailsPage = () => {
 	const { profileId } = Route.useParams();
+	const navigate = Route.useNavigate();
+	const search = Route.useSearch();
 	const { t, i18n } = useTranslation('common');
 
 	const detailQuery = useStaffProfileDetailsQuery({ profileId });
@@ -45,6 +68,44 @@ const StaffProfileDetailsPage = () => {
 		language: i18n.language,
 	});
 	const usersQuery = useStaffProfileUsersQuery({ profileId, size: 5 });
+
+	// #819 — the edit drawer's open flag lives in the URL (`?edit=1`), the way
+	// the tenant profile detail page hosts its own drawer.
+	const [isEditFormDirty, setIsEditFormDirty] = useState(false);
+	const [shouldRedirectToLogout, setShouldRedirectToLogout] = useState(false);
+	// An app-initiated close/save navigation is the page closing its OWN
+	// drawer; the guard below must never block that transition even while the
+	// drawer's dirty flag is being flushed asynchronously (W8-DRAWER).
+	const editDrawerNavBypassRef = useRef(false);
+	const isEditDrawerOpen = search.edit === 1;
+	const setEditDrawerOpen = (isOpen: boolean): void => {
+		// Opening re-arms the guard for the new draft; every close here is
+		// either a clean close or an already-confirmed discard/save.
+		editDrawerNavBypassRef.current = !isOpen;
+		void navigate({
+			search: (
+				previous: StaffProfileDetailsSearchParams,
+			): StaffProfileDetailsSearchParams => ({
+				...previous,
+				edit: isOpen ? 1 : undefined,
+			}),
+			replace: true,
+		});
+	};
+
+	// Only an OPEN drawer holding a DIRTY draft is work the user can lose; the
+	// bypass ref keeps the app's own close/save transition unblocked.
+	const hasUnsavedWork = isEditDrawerOpen && isEditFormDirty;
+	const editDrawerBlocker = useBlocker({
+		enableBeforeUnload: hasUnsavedWork,
+		shouldBlockFn: () =>
+			isEditDrawerOpen && isEditFormDirty && !editDrawerNavBypassRef.current,
+		withResolver: true,
+	});
+
+	if (shouldRedirectToLogout) {
+		return <LogoutRedirect />;
+	}
 
 	// Hoisted so the fatal-error gates read plain locals, not query flags.
 	const detailError = detailQuery.error;
@@ -176,6 +237,7 @@ const StaffProfileDetailsPage = () => {
 				details={details}
 				profileId={profileId}
 				assignedCount={assignedKeys.length}
+				onEdit={() => setEditDrawerOpen(true)}
 			/>
 
 			<DetailGrid>
@@ -252,6 +314,29 @@ const StaffProfileDetailsPage = () => {
 					</Card>
 				</DetailAside>
 			</DetailGrid>
+
+			<StaffProfileEditDetailsDrawer
+				isOpen={isEditDrawerOpen}
+				profile={details}
+				onOpenChange={setEditDrawerOpen}
+				onSessionExpired={() => setShouldRedirectToLogout(true)}
+				onDirtyChange={setIsEditFormDirty}
+				onSaved={() => setEditDrawerOpen(false)}
+			/>
+			<ConfirmDialog
+				isOpen={editDrawerBlocker.status === 'blocked'}
+				title={t('unsaved-changes-dialog-title')}
+				description={t('unsaved-changes-dialog-description')}
+				confirmLabel={t('leave-page')}
+				cancelLabel={t('cancel')}
+				tone="danger"
+				onConfirm={() => editDrawerBlocker.proceed?.()}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) {
+						editDrawerBlocker.reset?.();
+					}
+				}}
+			/>
 		</div>
 	);
 };
@@ -268,6 +353,11 @@ export const Route = createFileRoute(
 				select: selectStaffProfileCrumbName,
 			},
 		],
+		// #819: the edit drawer reads its scope-neutral picker labels from the
+		// shared `staff-tenant-profiles` catalogue.
+		i18nNamespaces: ['staff-tenant-profiles'],
 	},
+	validateSearch: (search) =>
+		parseStaffProfileDetailsSearchParams(search as Record<string, unknown>),
 	component: StaffProfileDetailsPage,
 });

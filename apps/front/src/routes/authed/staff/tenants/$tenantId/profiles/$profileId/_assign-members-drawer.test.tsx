@@ -202,7 +202,7 @@ const renderDrawer = (
 		...overrides,
 	};
 
-	return render((<AssignMembersDrawer {...props} />) as unknown as JSX.Element);
+	return render((<AssignMembersDrawer {...props} />) as JSX.Element);
 };
 
 /** Default: both fixture members are RESOLVED (a real resolve answer exists)
@@ -296,7 +296,7 @@ describe('AssignMembersDrawer', () => {
 					onOpenChange={() => {}}
 					onSessionExpired={() => {}}
 				/>
-			) as unknown as JSX.Element,
+			) as JSX.Element,
 		);
 
 		expect(
@@ -550,7 +550,7 @@ describe('AssignMembersDrawer', () => {
 					onOpenChange={() => {}}
 					onSessionExpired={() => {}}
 				/>
-			) as unknown as JSX.Element,
+			) as JSX.Element,
 		);
 
 		expect(screen.queryByText('Ada Lovelace')).toBeNull();
@@ -619,7 +619,7 @@ describe('AssignMembersDrawer', () => {
 					onOpenChange={() => {}}
 					onSessionExpired={() => {}}
 				/>
-			) as unknown as JSX.Element,
+			) as JSX.Element,
 		);
 
 		expect(screen.queryByText('Ada Lovelace')).toBeNull();
@@ -651,7 +651,7 @@ describe('AssignMembersDrawer', () => {
 					onOpenChange={() => {}}
 					onSessionExpired={() => {}}
 				/>
-			) as unknown as JSX.Element,
+			) as JSX.Element,
 		);
 
 		expect(screen.getByText('Ada Lovelace')).toBeTruthy();
@@ -714,7 +714,7 @@ describe('AssignMembersDrawer', () => {
 					onOpenChange={() => {}}
 					onSessionExpired={() => {}}
 				/>
-			) as unknown as JSX.Element,
+			) as JSX.Element,
 		);
 		expect(screen.queryByText('Ada Lovelace')).toBeNull();
 
@@ -741,7 +741,7 @@ describe('AssignMembersDrawer', () => {
 					onOpenChange={() => {}}
 					onSessionExpired={() => {}}
 				/>
-			) as unknown as JSX.Element,
+			) as JSX.Element,
 		);
 
 		// Still disabled — the write has not settled yet. A user cannot fire a

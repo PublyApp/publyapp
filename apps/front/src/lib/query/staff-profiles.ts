@@ -17,6 +17,7 @@ import type {
 	GetStaffProfileByIdResult,
 	StaffProfileItem,
 	StaffProfileCreated,
+	UpdateStaffProfileBody,
 } from '@org/client-ts/models/index';
 import type { StaffGetResponse } from '@org/client-ts/staff/permissions/scopes/staff/index';
 import {
@@ -39,6 +40,18 @@ export type CreateStaffProfileInput = {
 	permissions: string[];
 	emails?: string[];
 	/** Persisted profile style (#980); omitted values stay null on the wire. */
+	icon?: string | null;
+	tone?: string | null;
+};
+
+/** #819 — PATCH body input for the staff-profile edit drawer. Optional keys
+ * that are present follow the API's omit/set/clear semantics:
+ * `undefined` = omit (keep the stored value), a non-empty string = set,
+ * and an explicit empty/whitespace string or `null` = clear. */
+export type UpdateStaffProfileInput = {
+	profileId: string;
+	name: string;
+	description?: string | null;
 	icon?: string | null;
 	tone?: string | null;
 };
@@ -354,6 +367,46 @@ export const buildCreateStaffProfileBody = (
 	return body;
 };
 
+/**
+ * #819 — builds the PATCH body for `UpdateStaffProfile`, mirroring
+ * `buildUpdateStaffTenantProfileBody`. The API's PATCH semantics are:
+ * omitted key = keep the stored value, string = set, null = clear. A blank
+ * form field is normalized to an explicit `null` so clearing a description or
+ * style on the wire is unambiguous, while an absent key never reaches the body.
+ */
+export const buildUpdateStaffProfileBody = (
+	input: Omit<UpdateStaffProfileInput, 'profileId'>,
+): UpdateStaffProfileBody => {
+	const body: UpdateStaffProfileBody = {};
+	const description = normalizeString(input.description ?? undefined);
+	const icon = normalizeString(input.icon ?? undefined);
+	const tone = normalizeString(input.tone ?? undefined);
+
+	body.name = createUntypedString(input.name.trim()) as typeof body.name;
+
+	if (description !== undefined) {
+		body.description = createUntypedString(
+			description,
+		) as typeof body.description;
+	} else if (input.description !== undefined) {
+		body.description = null;
+	}
+
+	if (icon !== undefined) {
+		body.icon = createUntypedString(icon) as typeof body.icon;
+	} else if (input.icon !== undefined) {
+		body.icon = null;
+	}
+
+	if (tone !== undefined) {
+		body.tone = createUntypedString(tone) as typeof body.tone;
+	} else if (input.tone !== undefined) {
+		body.tone = null;
+	}
+
+	return body;
+};
+
 const staffProfilesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffProfilesResult,
@@ -475,6 +528,34 @@ export const useStaffProfilesQuery = (variables: StaffProfilesQueryVariables) =>
 
 export const useCreateStaffProfileMutation = () =>
 	useMutation(createStaffProfileMutationOptions);
+
+const updateStaffProfileMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	GetStaffProfileByIdResult | undefined,
+	UpdateStaffProfileInput
+>(
+	{
+		mutationKeyFn: () => ['staff-profiles', 'update'],
+		mutationFn: (client, variables) =>
+			client.staff.profiles.byProfileId(variables.profileId).patch(
+				buildUpdateStaffProfileBody({
+					name: variables.name,
+					description: variables.description,
+					icon: variables.icon,
+					tone: variables.tone,
+				}),
+			),
+		meta: {
+			silentSuccess: true,
+			skipGlobalErrorHandler: true,
+			validationHandledByForm: true,
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useUpdateStaffProfileMutation = () =>
+	useMutation(updateStaffProfileMutationOptions);
 
 export const useStaffProfileDetailsQuery = (
 	variables: StaffProfileDetailsQueryVariables,

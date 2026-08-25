@@ -12,17 +12,26 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
-const unwrapUntyped = (value: unknown): unknown => {
+/** A Kiota payload with its `getValue()` wrappers recursively stripped. */
+type Unwrapped =
+	| string
+	| number
+	| boolean
+	| null
+	| Unwrapped[]
+	| { [key: string]: Unwrapped };
+
+const unwrapUntyped = (value: unknown): Unwrapped => {
 	if (
 		typeof value === 'object' &&
 		value !== null &&
 		'getValue' in value &&
 		typeof (value as { getValue: unknown }).getValue === 'function'
 	) {
-		return (value as { getValue: () => unknown }).getValue();
+		return (value as { getValue: () => Unwrapped }).getValue() as Unwrapped;
 	}
 
-	return value;
+	return value as Unwrapped;
 };
 
 describe('toTenantSettingsGeneral', () => {

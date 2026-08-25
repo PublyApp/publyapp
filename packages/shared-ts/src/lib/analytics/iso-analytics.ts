@@ -108,7 +108,7 @@ export class IsoAnalytics implements IAnalytics {
 
 	private async initBrowser(): Promise<void> {
 		const posthog = await import('posthog-js');
-		this.posthogBrowser = posthog.default as unknown as IPostHogBrowser;
+		this.posthogBrowser = posthog.default as IPostHogBrowser;
 		this.posthogBrowser.init(this.apiKey, {
 			api_host: 'https://us.i.posthog.com',
 			capture_exceptions: true,

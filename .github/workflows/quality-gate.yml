@@ -36,6 +36,12 @@ on:
       - 'apps/**'
       - 'packages/**'
       - 'packages/scripts-ts/**'
+      # #1334 fix round 1: the dependency-health.md pin-location contract
+      # (packages/scripts-ts/src/dependency-health-pin-location.test.ts) runs in
+      # this workflow, so a pull request touching ONLY the guarded doc must
+      # still wake the gate — otherwise the sentence could drift straight past
+      # the contract test that exists to catch it.
+      - 'docs/guides/dependency-health.md'
 
 permissions:
   contents: read
@@ -121,7 +127,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/)'
+            node "$CLASSIFIER" '^(\.github/workflows/quality-gate\.yml$|\.oxlintrc\.json$|\.oxfmtrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|turbo\.json$|\.npmrc$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|PublyApp\.slnx$|apps/|packages/|docs/guides/dependency-health\.md$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -223,6 +229,17 @@ jobs:
           APP_ROLE: api
           TRUSTED_PROXY_CIDRS: "127.0.0.1/32"
         run: pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
+
+      # #1334 fix round 1 (review r1 MAJOR): this contract test pins the
+      # dependency-health.md sentence that says WHERE the patched
+      # @microsoft/kiota-http-fetchlibrary pin lives against the real
+      # manifests. It shipped unwired in #1334's first push, so it never
+      # executed in CI and the doc could still have drifted past it — an
+      # orphaned test is a claim, not a guard. Runs here next to the other
+      # scripts-ts contract test (nuget-audit.test.ts); mirrored locally by
+      # `just nuget-audit`.
+      - name: Run dependency-health pin-location contract test
+        run: pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts
 
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers
