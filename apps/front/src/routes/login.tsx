@@ -14,7 +14,7 @@ import {
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -24,12 +24,14 @@ import { PasswordField } from '~/components/auth/password-field';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import {
 	getSafeSearchRedirect,
-	isSafeRelativePath,
+	isAllowedRedirectPath,
 	resolveRouteRedirect,
 } from '~/lib/safe-redirect-path';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
@@ -44,12 +46,6 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
 
-// Re-exported for `login.test.tsx` and `~/lib/hooks/use-logout.ts` — the
-// implementation lives in `~/lib/safe-redirect-path` (shared, not
-// login-specific), but these remain part of this route's tested public
-// surface.
-export { getSafeSearchRedirect, resolveRouteRedirect };
-
 type LoginFormValues = {
 	email: string;
 	password: string;
@@ -62,37 +58,6 @@ const getLoginFormSchema = (t: Translate) =>
 		email: z.string().max(120).email(t('enter-valid-email-address')),
 		password: z.string().min(1, t('password-is-required')),
 	});
-
-/**
- * Auth-surface routes that a redirect_to may legitimately point back at even
- * though they aren't under the resolved workspace surface — e.g. an
- * invitation link's `/accept-invitation?id=…&token=…`, which the user must
- * return to after signing in for the invitation to actually get accepted
- * (see F4). Compared against the path only; the query string is stripped
- * before matching.
- */
-const RETURNABLE_AUTH_PATHS = ['/accept-invitation'];
-
-export const isAllowedRedirectPath = (
-	requested: string,
-	surfacePath: string,
-): boolean => {
-	if (!requested || !isSafeRelativePath(requested)) {
-		return false;
-	}
-
-	const requestedPath = requested.split('?')[0] ?? requested;
-	if (RETURNABLE_AUTH_PATHS.includes(requestedPath)) {
-		return true;
-	}
-
-	const normalizedSurface = surfacePath.replace(/\/$/, '');
-	if (requestedPath === normalizedSurface) {
-		return true;
-	}
-
-	return requestedPath.startsWith(`${normalizedSurface}/`);
-};
 
 const isSessionExpiredFromSearch = (search: string): boolean => {
 	const params = new URLSearchParams(search);
@@ -135,11 +100,7 @@ const LoginRoute = () => {
 	const [errorMessage, setErrorMessage] = useState('');
 	const [invalidCredentialsMessage, setInvalidCredentialsMessage] =
 		useState('');
-	const [isMounted, setIsMounted] = useState(false);
-
-	useEffect(() => {
-		setIsMounted(true);
-	}, []);
+	const isMounted = useHydrated();
 
 	const loginAction = useServerFn(login);
 	const completeRedirect = useServerFn(completeLoginRedirect);

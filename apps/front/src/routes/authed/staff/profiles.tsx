@@ -6,7 +6,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { PageHeader } from '~/components/ui/product-page';
 import {
 	toStaffProfileRows,

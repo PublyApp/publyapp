@@ -9,7 +9,8 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { Skeleton } from '~/components/ui/skeleton';
 import {
 	selectStaffAuditLogCrumbName,

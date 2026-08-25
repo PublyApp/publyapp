@@ -17,7 +17,8 @@ import type { i18n as I18nInstance } from 'i18next';
 import * as React from 'react';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { NeutralAuthedShell } from '~/components/app-shell/neutral-authed-shell';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { AppToaster } from '~/components/ui/toaster';
 import {
 	createClient,

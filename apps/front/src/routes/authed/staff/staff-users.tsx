@@ -17,7 +17,7 @@ import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import type { TableSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';

@@ -139,7 +139,8 @@ vi.mock('~/components/table/data-table', () => ({
 		createElement('div', { 'data-testid': testId ?? 'data-table' }),
 }));
 
-import { buildColumns, Route } from './users';
+import { buildColumns } from './_users-columns';
+import { Route } from './users';
 
 const Component = Route.options.component as () => JSX.Element;
 

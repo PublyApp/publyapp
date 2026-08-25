@@ -1,7 +1,7 @@
 import { IconArrowLeft, IconPencil } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
