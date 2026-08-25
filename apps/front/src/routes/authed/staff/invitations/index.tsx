@@ -18,13 +18,11 @@ import { PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-import {
-	InvitationsListBulkActions,
-} from './_list-bulk-actions';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 
 import type { InvitationListItem } from '@org/client-ts/models/index';
 
+import { InvitationsListBulkActions } from './_list-bulk-actions';
 import {
 	getInvitationStatusLabelKey,
 	type InvitationListSearchParamInput,
@@ -266,8 +264,7 @@ const StaffInvitationsPage = () => {
 						},
 						{
 							header: t('common:status'),
-							getValue: (row) =>
-								t(getInvitationStatusLabelKey(row.status)),
+							getValue: (row) => t(getInvitationStatusLabelKey(row.status)),
 						},
 						{
 							header: t('common:expires'),

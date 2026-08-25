@@ -118,8 +118,7 @@ vi.mock('react-i18next', () => ({
 				'invitation-status-revoked': 'Revoked',
 				unknown: 'Unknown',
 				'no-invitations-found': 'No invitations found.',
-				'no-invitations-match-your-search':
-					'No invitations match your search.',
+				'no-invitations-match-your-search': 'No invitations match your search.',
 				'select-row-named': 'Select {{name}}',
 				'clear-selection': 'Clear selection',
 				'more-actions': 'More actions',
@@ -383,9 +382,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 				'Only pending invitations can be revoked.',
 			),
 		);
-		expect(
-			screen.queryByText(/revoke .* selected invitation/),
-		).toBeNull();
+		expect(screen.queryByText(/revoke .* selected invitation/)).toBeNull();
 		expect(mocks.bulkRevoke).not.toHaveBeenCalled();
 	});
 
