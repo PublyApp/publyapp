@@ -16,8 +16,9 @@
 // Usage: node packages/scripts-ts/src/nuget-audit.ts [--no-restore]
 //   --no-restore   Skip `dotnet restore` (caller already restored)
 //
-// Exit 0 on clean, exit 1 on vulnerability found, unparseable output, or
-// uninspectable project.
+// Exit 0 on clean, exit 1 on vulnerability found, unparseable output,
+// uninspectable project, or a listed package carrying an empty vulnerabilities
+// array (output dotnet never emits today; #1348).
 
 import { execSync } from 'node:child_process';
 import path from 'node:path';
@@ -192,31 +193,29 @@ export const evaluateProject = (
 		return { ok: true, vulnerabilities: [] };
 	}
 
-	// Check for vulnerable packages in the frameworks.
+	// Check for vulnerable packages in the frameworks. A LISTED package with
+	// an empty/missing vulnerabilities array is output dotnet never emits
+	// today (#1348) — the guard cannot interpret it as clean, so it fails loud
+	// naming the package instead of silently passing.
 	const vulnerabilities: Vulnerability[] = [];
+	const uninterpretable: string[] = [];
 	for (const framework of vulnFrameworks) {
 		for (const pkg of framework.topLevelPackages ?? []) {
-			if ((pkg.vulnerabilities?.length ?? 0) > 0) {
-				vulnerabilities.push({
-					project: proj,
-					id: pkg.id,
-					version: pkg.resolvedVersion,
-					severity: pkg.vulnerabilities.map((v) => v.severity).join(', '),
-					advisories: pkg.vulnerabilities.map((v) => v.advisoryurl),
-				});
-			}
+			collectPackageVerdict(pkg, proj, vulnerabilities, uninterpretable);
 		}
 		for (const pkg of framework.transitivePackages ?? []) {
-			if ((pkg.vulnerabilities?.length ?? 0) > 0) {
-				vulnerabilities.push({
-					project: proj,
-					id: pkg.id,
-					version: pkg.resolvedVersion,
-					severity: pkg.vulnerabilities.map((v) => v.severity).join(', '),
-					advisories: pkg.vulnerabilities.map((v) => v.advisoryurl),
-				});
-			}
+			collectPackageVerdict(pkg, proj, vulnerabilities, uninterpretable);
 		}
+	}
+
+	if (uninterpretable.length > 0) {
+		return {
+			ok: false,
+			error:
+				`${proj}: could not inspect ${name}: ` +
+				`listed package(s) with an empty vulnerabilities array (feed cannot be interpreted): ` +
+				uninterpretable.join(', '),
+		};
 	}
 
 	return { ok: true, vulnerabilities };
@@ -266,6 +265,32 @@ export const evaluateAudit = (
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Sort one listed package (top-level or transitive) from the vulnerability
+ * call: packages WITH advisories become `Vulnerability` entries; a package
+ * LISTED with an empty/missing vulnerabilities array is output the guard
+ * cannot interpret as clean (#1348), so its id lands in `uninterpretable`
+ * for the fail-loud verdict.
+ */
+const collectPackageVerdict = (
+	pkg: DotnetPackage,
+	proj: string,
+	vulnerabilities: Vulnerability[],
+	uninterpretable: string[],
+): void => {
+	if ((pkg.vulnerabilities?.length ?? 0) > 0) {
+		vulnerabilities.push({
+			project: proj,
+			id: pkg.id,
+			version: pkg.resolvedVersion,
+			severity: pkg.vulnerabilities.map((v) => v.severity).join(', '),
+			advisories: pkg.vulnerabilities.map((v) => v.advisoryurl),
+		});
+	} else {
+		uninterpretable.push(`${pkg.id ?? '<unnamed package>'}`);
+	}
+};
 
 const runDotnet = (args: string, proj: string): DotnetReport => {
 	let stdout: string;
