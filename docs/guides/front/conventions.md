@@ -101,7 +101,7 @@ purely performance-driven memoisation.
   ([`.github/workflows/react-doctor.yml`](../../../.github/workflows/react-doctor.yml),
   `pnpm dlx react-doctor@0.9.12 --scope files --base <base> --blocking warning`). Run
   `just react-doctor` locally before pushing — see
-  [`docs/guides/react-doctor.md`](react-doctor.md).
+  [`docs/guides/react-doctor.md`](../react-doctor.md).
 
 **Known compiler skip patterns (informational):**
 - `throw` inside `try/catch` — the compiler cannot lower this yet (Todo upstream)

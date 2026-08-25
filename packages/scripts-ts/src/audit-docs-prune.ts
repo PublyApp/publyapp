@@ -73,14 +73,19 @@ type Decision =
 const MOVES: Record<string, Decision> = {
 	// Referenced three times by DESIGN.md source annotations (dark mode,
 	// navigation/layout, historical-context pointer).
-	'docs/archive/2026/designs/2026-07-09-front-2-gray-ui-stack-migration-design.md': {
-		action: 'move',
-		type: 'spec',
-	},
+	'docs/archive/2026/designs/2026-07-09-front-2-gray-ui-stack-migration-design.md':
+		{
+			action: 'move',
+			type: 'spec',
+		},
 
 	// Referenced by docs/deployment/production-deployment-design.md
 	// ("supersedes" pointer — still a live reference under the survival rule).
-	'docs/archive/2026/guides/deployment-guide.md': { action: 'move', type: 'spec', topic: 'deployment-guide' },
+	'docs/archive/2026/guides/deployment-guide.md': {
+		action: 'move',
+		type: 'spec',
+		topic: 'deployment-guide',
+	},
 	// Referenced twice by DESIGN.md (source annotations).
 	'docs/superpowers/specs/2026-08-01-marketing-landing-bands-design.md': {
 		action: 'move',
@@ -162,16 +167,10 @@ const listTrackedDocsCandidates = (rev: string): string[] =>
 				entry.length > 0 &&
 				!/\/$/.test(entry) &&
 				!/^docs\/(guides|deployment|assets)\//.test(entry),
-	);
+		);
 
 const listSurfaceFiles = (rev: string): string[] =>
-	runGit([
-		'ls-tree',
-		'-r',
-		'--name-only',
-		rev,
-		...SURFACES,
-	])
+	runGit(['ls-tree', '-r', '--name-only', rev, ...SURFACES])
 		.split('\n')
 		.map((entry) => entry.trim())
 		.filter((entry) => entry.length > 0 && !EXCLUDED_SURFACES.has(entry))
@@ -246,10 +245,7 @@ const buildSurfaceIndex = (rev: string): SurfaceIndex => {
 	return index;
 };
 
-const findReferences = (
-	candidate: string,
-	index: SurfaceIndex,
-): string[] => {
+const findReferences = (candidate: string, index: SurfaceIndex): string[] => {
 	const referencing: string[] = [];
 
 	for (const [surfacePath, text] of index.rawTexts) {
@@ -276,7 +272,10 @@ const firstAddDate = (rev: string, relative: string): string => {
 		'--',
 		relative,
 	]);
-	const date = output.split('\n').map((line) => line.trim()).find(Boolean);
+	const date = output
+		.split('\n')
+		.map((line) => line.trim())
+		.find(Boolean);
 	if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 		throw new Error(`No first-add date found for ${relative}`);
 	}
@@ -334,10 +333,25 @@ const buildRows = (rev: string, candidates: string[], index: SurfaceIndex) => {
 			continue;
 		}
 
-		rows.push({ source: candidate, decision: 'delete', target: '', references });
+		rows.push({
+			source: candidate,
+			decision: 'delete',
+			target: '',
+			references,
+		});
 	}
 
 	return rows;
+};
+
+const renderDecision = (row: ReturnType<typeof buildRows>[number]): string => {
+	if (row.decision === 'move') {
+		return `move → \`${row.target}\``;
+	}
+	if (row.decision === 'delete') {
+		return 'delete';
+	}
+	return row.decision;
 };
 
 const render = (rows: ReturnType<typeof buildRows>): string => {
@@ -374,7 +388,7 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'- From this change on, the superpowers skills write specs/plans/reviews into `docs/records/`',
 		'  (`YYYY-MM-DD-<type>-<topic>.md`), not into `docs/superpowers/`.',
 		'- Guards that enumerated the pruned trees (`check-archive-records*`, the docs-archive',
-		'  workflow\'s archive steps, their manifest entries) are removed or retargeted in the',
+		"  workflow's archive steps, their manifest entries) are removed or retargeted in the",
 		'  following commits — a guard left asserting an empty set would pass vacuously.',
 		'- Dates for records without a date in their filename are the git first-add date',
 		'  (`git log --reverse --diff-filter=A`), so the flattening renames carry provenance.',
@@ -388,12 +402,7 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 	for (const row of rows) {
 		const referencedBy =
 			row.references.length > 0 ? row.references.join(', ') : '_(nothing)_';
-		const decision =
-			row.decision === 'move'
-				? `move → \`${row.target}\``
-				: row.decision === 'delete'
-					? 'delete'
-					: row.decision;
+		const decision = renderDecision(row);
 		lines.push(`| \`${row.source}\` | ${referencedBy} | ${decision} |`);
 	}
 
@@ -419,9 +428,9 @@ const main = () => {
 	const absoluteOutput = path.join(rootDir, outputPath);
 
 	if (checkOnly) {
-	// Audit INPUTS come from `rev` (pre-prune tree); the committed evidence
-	// lives on this branch's HEAD, so equality is checked against that.
-	const current = runGit(['show', `HEAD:${outputPath}`]);
+		// Audit INPUTS come from `rev` (pre-prune tree); the committed evidence
+		// lives on this branch's HEAD, so equality is checked against that.
+		const current = runGit(['show', `HEAD:${outputPath}`]);
 		if (current !== rendered) {
 			console.error(
 				`${outputPath} differs from a fresh regeneration. Re-run node packages/scripts-ts/src/audit-docs-prune.ts and commit the result.`,
