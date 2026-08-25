@@ -28,6 +28,12 @@ public static class CanaryBootLogProbe {
 	public const string BeginMarker = "CANARY_BOOT_LOG_BEGIN";
 	public const string EndMarker = "CANARY_BOOT_LOG_END";
 	public const int SuccessExitCode = 0;
+	// #1319: the probe arg is rejected unless this exact test-only environment flag is
+	// also set (value "1" or "true"); see IsTestOnlyFlagSatisfied in this file.
+	public const string TestOnlyFlagName = "PUBLYAPP_TEST_BOOT_PROBE";
+	// Exit code for a refused boot: 78 = EX_CONFIG (sysexits.h), "configuration error",
+	// so a misconfigured container command dies with a distinctly non-zero, non-crash code.
+	public const int RejectedExitCode = 78;
 
 	private static bool _requested;
 	private static BootLogCaptureSink? _sink;
@@ -36,14 +42,58 @@ public static class CanaryBootLogProbe {
 	/// Program.Main calls this before any host builder runs, so the capture sink exists
 	/// when ConfigureLogger composes the pipeline. Returns true when the probe arg is
 	/// present; every normal boot returns false and nothing is captured anywhere.
+	/// <para>
+	/// #1319: presence of <see cref="EmitArg"/> alone is HARD-REJECTED — the process exits
+	/// non-zero (<see cref="RejectedExitCode"/>) with a plain-words cause naming
+	/// <see cref="TestOnlyFlagName"/>, before any host or database connection exists.
+	/// With the arg, the shipped Main would otherwise return right after the witness
+	/// gates with exit code 0 and NO host started (worker: no job engine; web api: no
+	/// socket) — a misconfigured container command would produce a clean-looking total
+	/// outage. Only an explicit test-only flag value ("1" or "true") lets the probe run;
+	/// any other value fails loud.
+	/// </para>
 	/// </summary>
 	public static bool ActivateIfRequested(string[] args) {
-		_requested = args.Any(arg => arg.Equals(EmitArg, StringComparison.Ordinal));
-		if (_requested) {
-			_sink = new BootLogCaptureSink();
+		if (!args.Any(arg => arg.Equals(EmitArg, StringComparison.Ordinal))) {
+			return false;
 		}
 
-		return _requested;
+		EnforceTestOnlyGate();
+		_requested = true;
+		_sink = new BootLogCaptureSink();
+		return true;
+	}
+
+	// Exits the process when the probe arg is present without an explicit test-only
+	// opt-in. Never returns on the refusal path.
+	private static void EnforceTestOnlyGate() {
+		var rawValue = Environment.GetEnvironmentVariable(TestOnlyFlagName);
+		if (IsTestOnlyFlagValueAccepted(rawValue)) {
+			return;
+		}
+
+		Console.Error.WriteLine(
+			$"{EmitArg} was refused: this boot-log probe argument must never reach a "
+				+ $"deployed container or a normal boot. It only works when the environment "
+				+ $"variable {TestOnlyFlagName} is set to exactly '1' or 'true', which is "
+				+ $"reserved for the API integration suite."
+				+ (string.IsNullOrWhiteSpace(rawValue)
+					? $" {TestOnlyFlagName} is not set."
+					: $" {TestOnlyFlagName} has the unaccepted value '{rawValue}'."));
+		Environment.Exit(RejectedExitCode);
+	}
+
+	// Exact-value contract: unset/blank refuses, "1"/"true" (case-insensitive) accepts,
+	// anything else refuses loudly (never a silent fallback). Ordinal comparisons —
+	// never ToLower() dispatch (PUBLY0003).
+	private static bool IsTestOnlyFlagValueAccepted(string? rawValue) {
+		if (string.IsNullOrWhiteSpace(rawValue)) {
+			return false;
+		}
+
+		var trimmed = rawValue.Trim();
+		return trimmed.Equals("1", StringComparison.Ordinal)
+			|| trimmed.Equals("true", StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>
