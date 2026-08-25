@@ -21,7 +21,40 @@ import {
 	findContextInventoryViolations,
 	findReactContextDeclarations,
 } from './check-context-chunk-isolation.mts';
+import type {
+	BundleOutputEntry,
+	ClientChunk,
+	ContextInventoryEntry,
+} from './check-context-chunk-isolation.mts';
 import { findEmittedCallExtents } from './context-source-map.mts';
+import type { SourceSpan } from './context-source-map.mts';
+import type { RawSourceMapShape } from './context-source-map.mts';
+
+/** One mapping segment handed to the hand-fed source-map encoder. */
+type SourceMapSegmentInput =
+	| { genLine: number; genCol: number }
+	| {
+			genLine: number;
+			genCol: number;
+			sourceIndex: number;
+			origLine: number;
+			origCol: number;
+	  };
+
+/** One mapping segment tied to a resolved original source id. */
+interface ChunkSegmentInput {
+	source: string;
+	origLine: number;
+	origCol: number;
+	genLine: number;
+	genCol: number;
+}
+
+/** One dumped chunk row of the harness bundle-map.json trace. */
+interface TraceChunk {
+	fileName: string;
+	modules: Record<string, string>;
+}
 
 const frontDirectory = path.resolve(import.meta.dirname, '..', '..');
 const execFileAsync = promisify(execFile);
@@ -33,7 +66,7 @@ const execFileAsync = promisify(execFile);
 const SOURCE_MAP_BASE64 =
 	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-const encodeVlq = (value) => {
+const encodeVlq = (value: number): string => {
 	let encoded = '';
 	let vlq = value < 0 ? (-value << 1) | 1 : value << 1;
 	do {
@@ -52,7 +85,13 @@ const encodeVlq = (value) => {
 // origLine/origCol and the resolved source id are the original coordinates
 // it ties to the recorded mint spans. A copy is attributed a mint only when
 // the same segment lands both inside an emitted call and inside a mint span.
-const encodeSourceMap = ({ sources, segments }) => {
+const encodeSourceMap = ({
+	sources,
+	segments,
+}: {
+	sources: string[];
+	segments: SourceMapSegmentInput[];
+}) => {
 	let mappings = '';
 	let prevSource = 0;
 	let prevOrigLine = 0;
@@ -67,13 +106,16 @@ const encodeSourceMap = ({ sources, segments }) => {
 	}
 	for (let line = 0; line <= maxLine; line++) {
 		const lineSegments = byLine.get(line) ?? [];
-		lineSegments.sort((a, b) => a.genCol - b.genCol);
+		lineSegments.sort(
+			(a: SourceMapSegmentInput, b: SourceMapSegmentInput) =>
+				a.genCol - b.genCol,
+		);
 		let genCol = 0;
 		const encodedSegments = [];
 		for (const segment of lineSegments) {
 			const fields = [segment.genCol - genCol];
 			genCol = segment.genCol;
-			if (segment.sourceIndex !== undefined) {
+			if ('sourceIndex' in segment) {
 				fields.push(segment.sourceIndex - prevSource);
 				prevSource = segment.sourceIndex;
 				fields.push(segment.origLine - prevOrigLine);
@@ -93,7 +135,11 @@ const encodeSourceMap = ({ sources, segments }) => {
 // also receives an anchor segment at original 0:0, the way real maps anchor
 // the first emitted token, so single-segment fixtures stay distinguishable
 // from a collapsed map (which resolves a copy to exactly one position).
-const chunkWithMap = (fileName, modules, segments) => {
+const chunkWithMap = (
+	fileName: string,
+	modules: Record<string, { code?: string | undefined }>,
+	segments: ChunkSegmentInput[],
+): ClientChunk => {
 	const sources = [...new Set(segments.map((segment) => segment.source))];
 	const sourceIndexes = new Map(
 		sources.map((source, index) => [source, index]),
@@ -109,6 +155,7 @@ const chunkWithMap = (fileName, modules, segments) => {
 		...segments,
 	];
 	return {
+		type: 'chunk',
 		fileName,
 		modules,
 		map: encodeSourceMap({
@@ -124,7 +171,12 @@ const chunkWithMap = (fileName, modules, segments) => {
 // A hand-fed chunk that also carries the emitted code the map's generated
 // positions refer to — the shape a real build hands the guard, where the
 // emitted-call tie is enforced.
-const chunkWithCode = (fileName, code, modules, segments) => ({
+const chunkWithCode = (
+	fileName: string,
+	code: string,
+	modules: Record<string, { code?: string | undefined }>,
+	segments: ChunkSegmentInput[],
+): ClientChunk => ({
 	...chunkWithMap(fileName, modules, segments),
 	code,
 });
@@ -133,7 +185,7 @@ const chunkWithCode = (fileName, code, modules, segments) => ({
 // through close paren), which only the call's own execution can emit. The
 // helper locates the needle's open paren and spans from there to the end of
 // the needle, the way the source scan records mint spans.
-const mintSpanOfText = (sourceText, needle) => {
+const mintSpanOfText = (sourceText: string, needle: string): SourceSpan => {
 	const index = sourceText.indexOf(needle);
 	assert.notEqual(index, -1, `mint span needle ${needle} not found in source`);
 	const openParenOffset = needle.indexOf('(');
@@ -151,7 +203,10 @@ const mintSpanOfText = (sourceText, needle) => {
 
 // The chunk source map a real build emitted for a chunk, as written by the
 // harness dump plugin before the guard strips the maps from the output.
-const readChunkMap = async (fixtureDirectory, chunkFileName) => {
+const readChunkMap = async (
+	fixtureDirectory: string,
+	chunkFileName: string,
+) => {
 	const raw = await readFile(
 		path.join(
 			fixtureDirectory,
@@ -160,10 +215,10 @@ const readChunkMap = async (fixtureDirectory, chunkFileName) => {
 		),
 		'utf8',
 	);
-	return JSON.parse(raw).map;
+	return (JSON.parse(raw) as { map: RawSourceMapShape | null }).map;
 };
 
-const createFixture = async (files) => {
+const createFixture = async (files: Record<string, string>) => {
 	const fixtureDirectory = await mkdtemp(
 		path.join(os.tmpdir(), 'publy-context-isolation-fixture-'),
 	);
@@ -219,7 +274,28 @@ const buildRouteFixture = async ({
 	keepMapContentEqualsChunkMap = false,
 	replaceOwnedMapAsset = false,
 	renameModuleCallee = false,
+}: {
+	files: Record<string, string>;
+	groupProbeModules?: boolean;
+	inventory: readonly ContextInventoryEntry[];
+	rootImportsProbe?: boolean;
+	customSourcemapFileNames?: boolean | string;
+	coarsenSplitMap?: boolean;
+	forgeSplitMap?: boolean;
+	forgeSplitMapInCall?: boolean;
+	emitKeepMap?: boolean;
+	keepMapContentEqualsChunkMap?: boolean;
+	replaceOwnedMapAsset?: boolean | 'trimmed' | 'stub';
+	renameModuleCallee?: boolean;
 }) => {
+	// Which asset bytes the r26 fixture emits over the guard's own forced
+	// map: the default foreign artifact, or one of the round-27 subsets.
+	const ownedMapAssetSource =
+		replaceOwnedMapAsset === 'trimmed'
+			? 'JSON.stringify({ ...chunk.map, sourcesContent: undefined })'
+			: replaceOwnedMapAsset === 'stub'
+				? '\'{"version":3}\''
+				: '\'{"version":3,"sources":[],"mappings":"","foreign":true}\'';
 	let buildOptions = '';
 	if (groupProbeModules) {
 		buildOptions =
@@ -241,7 +317,10 @@ const buildRouteFixture = async ({
 			import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 			import viteReact from '@vitejs/plugin-react';
 			import { contextChunkIsolationPlugin } from ${JSON.stringify(
-				path.join(frontDirectory, 'tools/vite/check-context-chunk-isolation.mts'),
+				path.join(
+					frontDirectory,
+					'tools/vite/check-context-chunk-isolation.mts',
+				),
 			)};
 			${
 				forgeSplitMapInCall
@@ -353,14 +432,7 @@ const buildRouteFixture = async ({
 							for (const chunk of Object.values(bundle)) {
 								if (chunk.type !== 'chunk' || chunk.map === undefined || chunk.map === null) continue;
 								const fileName = \`\${chunk.name}.map\`;
-								const source = ${
-									{
-										trimmed:
-											'JSON.stringify({ ...chunk.map, sourcesContent: undefined })',
-										stub: '\'{"version":3}\'',
-									}[replaceOwnedMapAsset] ??
-									'\'{"version":3,"sources":[],"mappings":"","foreign":true}\''
-								};
+								const source = ${ownedMapAssetSource};
 								this.emitFile({ type: 'asset', fileName, source });
 								writeFileSync(path.join(rootDirectory, 'replaced-chunk.json'), JSON.stringify({ fileName, source }));
 								break;
@@ -467,10 +539,15 @@ const buildRouteFixture = async ({
 			),
 		};
 	} catch (error) {
+		const failure = error as {
+			stdout?: string;
+			stderr?: string;
+			code?: number;
+		};
 		return {
 			fixtureDirectory,
-			output: `${error.stdout ?? ''}${error.stderr ?? ''}`,
-			status: error.code ?? 1,
+			output: `${failure.stdout ?? ''}${failure.stderr ?? ''}`,
+			status: failure.code ?? 1,
 			trace: await readFile(
 				path.join(fixtureDirectory, 'bundle-map.json'),
 				'utf8',
@@ -643,7 +720,7 @@ void test('discovers contexts minted through a cross-file factory', async () => 
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const nameInSourceFile = (name, relativeSourceFile) =>
+		const nameInSourceFile = (name: string, relativeSourceFile: string) =>
 			contexts.some(
 				(context) =>
 					context.name === name &&
@@ -694,7 +771,7 @@ void test('discovers contexts minted through a factory whose return type is a br
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const nameInSourceFile = (name, relativeSourceFile) =>
+		const nameInSourceFile = (name: string, relativeSourceFile: string) =>
 			contexts.some(
 				(context) =>
 					context.name === name &&
@@ -870,7 +947,7 @@ void test('discovers contexts destructured out of a cross-file factory call', as
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const nameInSourceFile = (name, relativeSourceFile) =>
+		const nameInSourceFile = (name: string, relativeSourceFile: string) =>
 			contexts.some(
 				(context) =>
 					context.name === name &&
@@ -1008,14 +1085,14 @@ void test('records the exact source span of each discovered holder mint', async 
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const spansIn = (relativeSourceFile) =>
+		const spansIn = (relativeSourceFile: string) =>
 			contexts.find(
 				(context) =>
 					context.name === '<anonymous context>' &&
 					context.sourceFile ===
 						path.join(fixtureDirectory, relativeSourceFile),
 			)?.mintSpans;
-		const sourceOf = (relativeSourceFile) =>
+		const sourceOf = (relativeSourceFile: string) =>
 			readFile(path.join(fixtureDirectory, relativeSourceFile), 'utf8');
 		assert.deepEqual(spansIn('src/object-holder.tsx'), [
 			mintSpanOfText(
@@ -1072,7 +1149,7 @@ void test('tracks a comma-chain holder mint only when the call is the chain valu
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const discoveredIn = (relativeSourceFile) =>
+		const discoveredIn = (relativeSourceFile: string) =>
 			contexts.some(
 				(context) =>
 					context.sourceFile ===
@@ -1110,14 +1187,14 @@ void test('discovers each mint inside a conditional holder expression with its o
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const discoveredIn = (relativeSourceFile) =>
+		const discoveredIn = (relativeSourceFile: string) =>
 			contexts.filter(
 				(context) =>
 					context.name === '<anonymous context>' &&
 					context.sourceFile ===
 						path.join(fixtureDirectory, relativeSourceFile),
 			);
-		const sourceOf = (relativeSourceFile) =>
+		const sourceOf = (relativeSourceFile: string) =>
 			readFile(path.join(fixtureDirectory, relativeSourceFile), 'utf8');
 
 		// Each branch of the conditional is a separate mint at its own span,
@@ -1143,10 +1220,12 @@ void test('discovers each mint inside a conditional holder expression with its o
 			0,
 			secondOccurrence + secondNeedle.length,
 		);
-		const secondSpan = {
-			startCol: secondBefore.split('\n').at(-1).length,
+		const secondLastBefore = secondBefore.split('\n').at(-1) ?? '';
+		const secondLastAfter = secondAfter.split('\n').at(-1) ?? '';
+		const secondSpan: SourceSpan = {
+			startCol: secondLastBefore.length,
 			startLine: secondBefore.split('\n').length - 1,
-			endCol: secondAfter.split('\n').at(-1).length,
+			endCol: secondLastAfter.length,
 			endLine: secondAfter.split('\n').length - 1,
 		};
 		assert.deepEqual(
@@ -1198,10 +1277,11 @@ void test('records a named conditional createContext declaration as one inventor
 			['ConditionalContext'],
 		);
 		const [entry] = contexts;
-		assert.equal(entry.mintSpans.length, 2);
-		assert.notDeepEqual(entry.mintSpans[0], entry.mintSpans[1]);
-		assert.equal(entry.mintSpans[0].startLine, 3);
-		assert.equal(entry.mintSpans[1].startLine, 4);
+		const mintSpans = entry.mintSpans ?? [];
+		assert.equal(mintSpans.length, 2);
+		assert.notDeepEqual(mintSpans[0], mintSpans[1]);
+		assert.equal(mintSpans[0]?.startLine, 3);
+		assert.equal(mintSpans[1]?.startLine, 4);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
@@ -1448,7 +1528,7 @@ void test('keeps any-typed, unknown-typed, and unannotated let bindings invisibl
 		const contexts = findReactContextDeclarations(
 			path.join(fixtureDirectory, 'tsconfig.json'),
 		);
-		const nameInSourceFile = (name, relativeSourceFile) =>
+		const nameInSourceFile = (name: string, relativeSourceFile: string) =>
 			contexts.some(
 				(context) =>
 					context.name === name &&
@@ -1685,7 +1765,7 @@ void test('fails closed for a dynamic React element access', async () => {
 				findReactContextDeclarations(
 					path.join(fixtureDirectory, 'tsconfig.json'),
 				),
-			(error) => {
+			(error: Error) => {
 				assert.match(
 					error.message,
 					/cannot prove a dynamic React element access/i,
@@ -1715,7 +1795,7 @@ void test('fails closed when a dynamic React element access is hoisted before th
 				findReactContextDeclarations(
 					path.join(fixtureDirectory, 'tsconfig.json'),
 				),
-			(error) => {
+			(error: Error) => {
 				assert.match(
 					error.message,
 					/cannot prove a dynamic React element access/i,
@@ -1749,7 +1829,7 @@ void test('fails closed when a dynamic object-holder access could be React creat
 				findReactContextDeclarations(
 					path.join(fixtureDirectory, 'tsconfig.json'),
 				),
-			(error) => {
+			(error: Error) => {
 				assert.match(
 					error.message,
 					/cannot prove a dynamic React element access/i,
@@ -1828,11 +1908,7 @@ void test('reports each React context whose source module is in multiple client 
 		const SecondContext = createContext(null);
 	`;
 	const firstSpan = mintSpanOfText(sourceText, 'createContext(null)');
-	const secondSpan = mintSpanOfText(
-		sourceText,
-		'createContext(null)',
-		firstSpan.startLine * 1000 + firstSpan.startCol,
-	);
+	const secondSpan = mintSpanOfText(sourceText, 'createContext(null)');
 	const contexts = [
 		{ name: 'FirstContext', sourceFile, mintSpans: [firstSpan] },
 		{ name: 'SecondContext', sourceFile, mintSpans: [secondSpan] },
@@ -3008,6 +3084,7 @@ void test('fails closed when a chunk delivering a context source emits no source
 								code: 'var contexts = { probe: createStrictContext(null) };',
 							},
 						},
+						type: 'chunk',
 					},
 					chunkWithMap(
 						'assets/route-component.js',
@@ -3057,6 +3134,7 @@ void test('passes a single delivered copy when its chunk emits no source map', (
 							code: 'var contexts = { probe: createStrictContext(null) };',
 						},
 					},
+					type: 'chunk',
 				},
 			],
 			frontDirectory,
@@ -3247,6 +3325,7 @@ void test('decodes a real emitted chunk source map into standard positions', asy
 				fileName: 'assets/route.js',
 				modules: { [splitModule]: { code: '' } },
 				map,
+				type: 'chunk',
 			},
 		],
 		frontDirectory,
@@ -3264,7 +3343,7 @@ void test('scans emitted call argument lists without inventing or missing calls'
 	// direct optional call `maybe?.(value)` was missed. The scanner is a real
 	// oracle now: statement/grouping parens and function parameter lists are
 	// never calls, and optional calls are.
-	const inside = (code) =>
+	const inside = (code: string) =>
 		findEmittedCallExtents(code).map((extent) => ({
 			startCol: extent.startCol,
 			endCol: extent.endCol,
@@ -3398,6 +3477,7 @@ void test('fails with a named diagnostic instead of hanging on a malformed sourc
 						fileName: 'assets/route.js',
 						modules: { [sourceFile]: { code: '' } },
 						map: { version: 3, sources: [sourceFile], mappings: '!' },
+						type: 'chunk',
 					},
 				],
 				frontDirectory,
@@ -3445,13 +3525,19 @@ void test('bounds the malformed VLQ decode in a child process instead of letting
 		);
 		assert.match(stderr, /invalid VLQ character/i);
 	} catch (error) {
-		if (error.killed) {
+		const failure = error as {
+			killed?: boolean;
+			signal?: string | null;
+			code?: number | string;
+			stderr?: string;
+		};
+		if (failure.killed) {
 			assert.fail(
-				`the decode hung and was killed by the test's own timeout (signal ${error.signal}) instead of throwing a named diagnostic`,
+				`the decode hung and was killed by the test's own timeout (signal ${failure.signal}) instead of throwing a named diagnostic`,
 			);
 		}
 		assert.fail(
-			`expected the child process to exit 0 with the invalid VLQ diagnostic; it exited ${error.code} with stderr: ${error.stderr}`,
+			`expected the child process to exit 0 with the invalid VLQ diagnostic; it exited ${failure.code} with stderr: ${failure.stderr}`,
 		);
 	}
 });
@@ -3477,6 +3563,7 @@ void test('fails with a named diagnostic on a truncated source map VLQ field', (
 						fileName: 'assets/route.js',
 						modules: { [sourceFile]: { code: '' } },
 						map: { version: 3, sources: [sourceFile], mappings: 'g' },
+						type: 'chunk',
 					},
 				],
 				frontDirectory,
@@ -3506,6 +3593,7 @@ void test('fails with a named diagnostic when a source map VLQ field exceeds the
 						fileName: 'assets/route.js',
 						modules: { [sourceFile]: { code: '' } },
 						map: { version: 3, sources: [sourceFile], mappings: 'ggggggg' },
+						type: 'chunk',
 					},
 				],
 				frontDirectory,
@@ -3535,6 +3623,7 @@ void test('fails with a named diagnostic on a source map segment with invalid fi
 						fileName: 'assets/route.js',
 						modules: { [sourceFile]: { code: '' } },
 						map: { version: 3, sources: [sourceFile], mappings: 'AA' },
+						type: 'chunk',
 					},
 				],
 				frontDirectory,
@@ -3564,6 +3653,7 @@ void test('fails with a named diagnostic when a source map is not a version-3 ma
 						fileName: 'assets/route.js',
 						modules: { [sourceFile]: { code: '' } },
 						map: { version: 2, sources: [sourceFile], mappings: 'AAAA' },
+						type: 'chunk',
 					},
 				],
 				frontDirectory,
@@ -3593,6 +3683,7 @@ void test('fails with a named diagnostic when a source map segment references an
 						fileName: 'assets/route.js',
 						modules: { [sourceFile]: { code: '' } },
 						map: { version: 3, sources: [sourceFile], mappings: 'ACAA' },
+						type: 'chunk',
 					},
 				],
 				frontDirectory,
@@ -3651,6 +3742,7 @@ void test('does not count a generated-only segment as an original position', () 
 								code: 'var contexts = { probe: createStrictContext(null) };',
 							},
 						},
+						type: 'chunk',
 						map: encodeSourceMap({
 							sources: [splitModule],
 							segments: [
@@ -3725,6 +3817,7 @@ void test('fails closed when a map places no position inside a call the copy emi
 								code: 'var contexts={probe:createStrictContext(null)};',
 							},
 						},
+						type: 'chunk',
 						map: {
 							version: 3,
 							sources: [splitModule],
@@ -3824,7 +3917,13 @@ void test('fails closed when a wrong map lands a forged generated position insid
 	// Both copies emit the mint (`m` is its minified callee); the reference
 	// copy's map is honest, the split copy's is forged with its generated
 	// column 2 inside the `m(null)` argument list.
-	const mkMap = ({ source, segments }) =>
+	const mkMap = ({
+		source,
+		segments,
+	}: {
+		source: string;
+		segments: (Omit<ChunkSegmentInput, 'source'> | ChunkSegmentInput)[];
+	}) =>
 		encodeSourceMap({
 			sources: [...new Set([source])],
 			segments: [
@@ -3851,6 +3950,7 @@ void test('fails closed when a wrong map lands a forged generated position insid
 						fileName: 'assets/route.js',
 						code: 'm(null)',
 						modules: { [sourceFile]: { code: 'm(null)' } },
+						type: 'chunk',
 						map: mkMap({
 							source: sourceFile,
 							segments: [
@@ -3867,6 +3967,7 @@ void test('fails closed when a wrong map lands a forged generated position insid
 						fileName: 'assets/route-component.js',
 						code: 'm(null)',
 						modules: { [splitModule]: { code: 'm(null)' } },
+						type: 'chunk',
 						map: mkMap({
 							source: splitModule,
 							segments: [
@@ -3967,7 +4068,12 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 	// serialization of that chunk's map object — the identity the guard
 	// recorded when it forced the map — so the same-key unrelated asset
 	// survives. Both halves are driven through the production plugin hooks.
-	const mappedChunk = {
+	// The map carries `sourcesContent`, a field real bundler maps include
+	// and the guard's cleanup compares byte-for-byte, even though the
+	// guard's own `RawSourceMapShape` only names the fields it reads.
+	const mappedChunk: ClientChunk & {
+		map: RawSourceMapShape & { sourcesContent: string[] };
+	} = {
 		type: 'chunk',
 		fileName: 'assets/index.js',
 		name: 'index',
@@ -3980,14 +4086,14 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 			mappings: '',
 		},
 	};
-	const run = (assetSource) => {
+	const run = (assetSource: string): BundleOutputEntry | undefined => {
 		const plugin = contextChunkIsolationPlugin({
 			contextInventory: [],
 			tsconfigPath: path.join(frontDirectory, 'tsconfig.json'),
 			workspaceDirectory: frontDirectory,
 		});
 		plugin.config.call({}, { environments: { client: { build: {} } } });
-		const bundle = {
+		const bundle: Record<string, BundleOutputEntry> = {
 			'assets/index.js': mappedChunk,
 			'index.map': {
 				type: 'asset',
@@ -4009,20 +4115,23 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 	// stripped) — is not the map the guard wrote and survives byte-for-byte
 	// (round 27's data-loss reproduction at the hook boundary).
 	const stub = run('{"version":3}');
-	assert.equal(stub.source, '{"version":3}', 'the version stub must survive');
+	const stubSource = stub?.type === 'asset' ? stub.source : undefined;
+	assert.equal(stubSource, '{"version":3}', 'the version stub must survive');
 	const trimmedSource = JSON.stringify({
 		...mappedChunk.map,
 		sourcesContent: undefined,
 	});
 	const trimmed = run(trimmedSource);
+	const trimmedEntrySource =
+		trimmed?.type === 'asset' ? trimmed.source : undefined;
 	assert.equal(
-		trimmed.source,
+		trimmedEntrySource,
 		trimmedSource,
 		'the sourcesContent-stripped map must survive',
 	);
 	// The unrelated asset that merely occupies the pinned key survives
 	// byte-for-byte.
-	const unrelated = run('{"version":3,"sources":[],"mappings":"AAAA"}');
+	run('{"version":3,"sources":[],"mappings":"AAAA"}');
 });
 
 void test('type-checks the guard\u2019s source-declared public API against a real consumer probe', async () => {
@@ -4258,7 +4367,7 @@ void test('runs only for client builds and fails the plugin for unmapped or unty
 		assert.equal(plugin.applyToEnvironment({ name: 'ssr' }), false);
 		plugin.buildStart();
 
-		let errorMessage;
+		let errorMessage: string | undefined;
 		plugin.generateBundle.call(
 			{
 				error(message) {
@@ -4277,8 +4386,14 @@ void test('runs only for client builds and fails the plugin for unmapped or unty
 			},
 		);
 
-		assert.match(errorMessage, /FirstContext.*not present in a client chunk/i);
-		assert.match(errorMessage, /untyped-context\.jsx.*TypeScript program/i);
+		assert.match(
+			errorMessage ?? '',
+			/FirstContext.*not present in a client chunk/i,
+		);
+		assert.match(
+			errorMessage ?? '',
+			/untyped-context\.jsx.*TypeScript program/i,
+		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
@@ -4318,7 +4433,7 @@ void test('fails the plugin for a bundled first-party module outside front src t
 		});
 		plugin.buildStart();
 
-		let errorMessage;
+		let errorMessage: string | undefined;
 		plugin.generateBundle.call(
 			{
 				error(message) {
@@ -4349,7 +4464,10 @@ void test('fails the plugin for a bundled first-party module outside front src t
 			},
 		);
 
-		assert.match(errorMessage, /packages\/outside\.ts.*TypeScript program/i);
+		assert.match(
+			errorMessage ?? '',
+			/packages\/outside\.ts.*TypeScript program/i,
+		);
 	} finally {
 		await rm(fixtureDirectory, { force: true, recursive: true });
 	}
@@ -4388,7 +4506,7 @@ void test(
 
 		try {
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -4497,7 +4615,7 @@ void test(
 
 		try {
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -4635,7 +4753,7 @@ void test(
 
 		try {
 			const creatorLocations = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -4787,7 +4905,7 @@ void test(
 	},
 );
 
-const holderFactoryFixture = (probeBody) => ({
+const holderFactoryFixture = (probeBody: string) => ({
 	'src/make-context.ts': `
 		import { createContext } from 'react';
 		import type { Context } from 'react';
@@ -5268,7 +5386,7 @@ void test(
 
 		try {
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -5340,7 +5458,7 @@ void test(
 
 		try {
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -5407,7 +5525,7 @@ void test(
 
 		try {
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -5493,17 +5611,18 @@ void test(
 			assert.doesNotMatch(result.output, /cannot classify/i);
 			// The guard attributed through the bundler's own maps: both the
 			// reference and the split chunks must carry one.
-			const referenceChunk = JSON.parse(result.trace).find((chunk) =>
-				Object.keys(chunk.modules).some(
-					(id) => id.includes('probe.tsx') && !id.includes('?'),
-				),
+			const referenceChunk = (JSON.parse(result.trace) as TraceChunk[]).find(
+				(chunk) =>
+					Object.keys(chunk.modules).some(
+						(id) => id.includes('probe.tsx') && !id.includes('?'),
+					),
 			);
 			const referenceMap = await readChunkMap(
 				result.fixtureDirectory,
-				referenceChunk.fileName,
+				referenceChunk?.fileName ?? '',
 			);
 			assert.ok(
-				referenceMap.sources.some((source) =>
+				referenceMap?.sources.some((source: string) =>
 					source.includes('src/routes/probe.tsx'),
 				),
 				'reference chunk map must attribute the route source',
@@ -5625,7 +5744,7 @@ void test(
 			// The real split copy genuinely mints — prove the duplicated mint
 			// shipped before asserting the guard's verdict.
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -5682,7 +5801,7 @@ void test(
 			// copies of the mint. The map never touches a call the copy
 			// emits, so the copy must fail closed instead.
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -5736,7 +5855,7 @@ void test(
 
 		try {
 			const mintingCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (
 						moduleId.includes('/src/routes/probe.tsx') &&
@@ -5935,7 +6054,7 @@ void test(
 					'client',
 					clientFiles.find(
 						(file) => file.endsWith('.js') && !file.endsWith('.map'),
-					),
+					) ?? '',
 				),
 				'utf8',
 			);
@@ -6020,7 +6139,7 @@ void test(
 					'client',
 					clientFiles.find(
 						(file) => file.endsWith('.js') && !file.endsWith('.map'),
-					),
+					) ?? '',
 				),
 				'utf8',
 			);
@@ -6209,7 +6328,7 @@ void test(
 
 		try {
 			const renamedCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (moduleId.includes('/src/routes/probe.tsx')) {
 						renamedCopies.push(`${chunk.fileName} :: ${moduleId} :: ${code}`);
@@ -6285,7 +6404,7 @@ void test(
 
 		try {
 			const renamedCopies = [];
-			for (const chunk of JSON.parse(result.trace)) {
+			for (const chunk of JSON.parse(result.trace) as TraceChunk[]) {
 				for (const [moduleId, code] of Object.entries(chunk.modules)) {
 					if (moduleId.includes('/src/routes/probe.tsx')) {
 						renamedCopies.push(`${chunk.fileName} :: ${moduleId} :: ${code}`);

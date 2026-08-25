@@ -33,7 +33,11 @@ import {
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
-import type { Checker, Symbol as TsSymbol, Type } from 'typescript/unstable/sync';
+import type {
+	Checker,
+	Symbol as TsSymbol,
+	Type,
+} from 'typescript/unstable/sync';
 
 import {
 	classifyCopyAttribution,
@@ -82,9 +86,16 @@ export interface ClientChunk {
 	map?: RawSourceMapShape | null | undefined;
 }
 
-/** An asset-shaped output entry the guard may delete when it owns it. */
+/**
+ * An asset-shaped output entry the guard may delete when it owns it.
+ * `fileName` and `name` mirror what real bundler-emitted assets carry; the
+ * forced-map cleanup keys its delete on `chunk.name + '.map'`, never on
+ * these fields, so they stay informational.
+ */
 export interface OutputAsset {
 	type: 'asset';
+	fileName?: string | undefined;
+	name?: string | undefined;
 	source: unknown;
 }
 
@@ -132,7 +143,10 @@ interface ViteBuildConfigShape {
 		| {
 				output?:
 					| {
-							sourcemapFileNames?: string | ((chunk: unknown) => string) | undefined;
+							sourcemapFileNames?:
+								| string
+								| ((chunk: unknown) => string)
+								| undefined;
 					  }
 					| undefined;
 		  }
@@ -142,10 +156,7 @@ interface ViteBuildConfigShape {
 interface ViteConfigShape {
 	build?: ViteBuildConfigShape | undefined;
 	environments?:
-		| Record<
-				string,
-				{ build?: ViteBuildConfigShape | undefined } | undefined
-		  >
+		| Record<string, { build?: ViteBuildConfigShape | undefined } | undefined>
 		| undefined;
 }
 
@@ -246,11 +257,17 @@ const findReactContextSymbols = (
 	},
 	checker: Checker,
 	tsconfigPath: string,
-): { contextType: TsSymbol; createContext: TsSymbol; reactModule: TsSymbol | undefined } => {
+): {
+	contextType: TsSymbol;
+	createContext: TsSymbol;
+	reactModule: TsSymbol | undefined;
+} => {
 	const reactDeclaration = program
 		.getSourceFileNames()
 		.map((fileName) => program.getSourceFile(fileName))
-		.find((sourceFile) => REACT_TYPE_DECLARATION.test(sourceFile?.fileName ?? ''));
+		.find((sourceFile) =>
+			REACT_TYPE_DECLARATION.test(sourceFile?.fileName ?? ''),
+		);
 
 	if (!reactDeclaration) {
 		throw new Error(
@@ -462,10 +479,7 @@ const resolvesToReactCreateContext = (
 		);
 	}
 
-	if (
-		!isVariableDeclaration(declaration) ||
-		!declaration.initializer
-	) {
+	if (!isVariableDeclaration(declaration) || !declaration.initializer) {
 		return false;
 	}
 
@@ -572,7 +586,9 @@ const contextNameForCall = (callExpression: Node): string => {
 const declarationBinding = (
 	checker: Checker,
 	node: Node,
-): { symbol: TsSymbol; name: string; initializer: Node | undefined } | undefined => {
+):
+	| { symbol: TsSymbol; name: string; initializer: Node | undefined }
+	| undefined => {
 	if (isVariableDeclaration(node) || isPropertyDeclaration(node)) {
 		if (!isIdentifier(node.name)) {
 			return undefined;
@@ -1237,13 +1253,12 @@ export const findContextChunkIsolationViolations = (
 							(segment) => segment.source === moduleChunk.moduleId,
 						)
 					: [];
-				const { precise, tiedSpanKeys }: CopyAttribution = classifyCopyAttribution(
-					copySegments,
-					allMintSpans,
-					chunkAnalysis.hasMap
-						? chunkAnalysis.emittedCallExtents
-						: undefined,
-				);
+				const { precise, tiedSpanKeys }: CopyAttribution =
+					classifyCopyAttribution(
+						copySegments,
+						allMintSpans,
+						chunkAnalysis.hasMap ? chunkAnalysis.emittedCallExtents : undefined,
+					);
 				moduleCopies.push({
 					chunkName: moduleChunk.chunkName,
 					hasMap: chunkAnalysis.hasMap,
