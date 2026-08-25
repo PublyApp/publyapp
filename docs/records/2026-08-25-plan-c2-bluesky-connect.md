@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship Epic C delivery step 2 (spec `docs/superpowers/specs/2026-08-22-epic-c-social-accounts-design.md`, §6 item 2, closing #641): a minimal Bluesky client (session open with an app password, DID/handle resolution), the three tenant permissions (`tenant.socialaccounts.view|manage|publish`), and the routes **list / connect / reconnect / disconnect / attach (+ detach)** with audit entries, a stricter rate-limit policy for the routes that call Bluesky, and the regenerated Kiota client.
+**Goal:** Ship Epic C delivery step 2 (spec `2026-08-22-epic-c-social-accounts-design.md`, pruned from `docs/` on 2026-08-25 — see `2026-08-25-audit-docs-prune.md`; §6 item 2 preserved here, closing #641): a minimal Bluesky client (session open with an app password, DID/handle resolution), the three tenant permissions (`tenant.socialaccounts.view|manage|publish`), and the routes **list / connect / reconnect / disconnect / attach (+ detach)** with audit entries, a stricter rate-limit policy for the routes that call Bluesky, and the regenerated Kiota client.
 
 **Architecture:** The existing C1-bis slice (`apps/api/Modules/SocialAccounts`: entities, `CredentialProtector`, master-key witness, `LastErrorSanitiser`, `VisibleIn`) is extended in place. The Bluesky HTTP call sits behind an **infrastructure seam** (`IBlueskySessionProvider`, namespace `PublyApp.Api.Infrastructure.Social`) so `SocialAccountService` keeps depending only on `AppDbContext` + infrastructure abstractions (the `ServiceDependencyBoundaryGuard` rule: services never inject other domain services; handlers orchestrate). Failure classification happens inside the adapter: account-caused refusals (bad credentials, unknown identifier) vs transient (network/5xx) surface as a typed result, never as exceptions crossing the seam.
 
@@ -45,7 +45,7 @@
   - `apps/api/Modules/SocialAccounts/SocialAccountVisibility.Spec.cs` — VisibleIn through the list endpoint.
   - `apps/api/Modules/SocialAccounts/SocialAccountPermissions.Spec.cs` — 403 per route without the verb.
   - `apps/api/Modules/SocialAccounts/SocialAccountRefusal.Spec.cs` — Bluesky refusal stores nothing (both failure classes); reconnect on Revoked → 404; disconnect pauses nothing here (C4) but sets Revoked + erases secret.
-- `docs/superpowers/plans/2026-08-25-c2-bluesky-connect.md` — this file.
+- `docs/records/2026-08-25-plan-c2-bluesky-connect.md` — this file (moved round 2 from `docs/superpowers/plans/`, which develop pruned).
 
 **Modify**
 - `apps/api/Lib/AppPermissions.cs` — `public SocialAccountPermissionsForTenant SocialAccounts { get; } = new();` in `TenantScopePermissions`.
