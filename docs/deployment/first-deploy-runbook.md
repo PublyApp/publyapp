@@ -33,13 +33,18 @@ pay for them twice.
 
 - Dokploy installed and reachable (admin UI), on the VPS.
 - The app images exist in GHCR — CI (`.github/workflows/deploy-images.yml`) builds and pushes
-  `ghcr.io/radandevist/publyapp/{api,migrate,front}` tagged by commit SHA on push to the
+  `ghcr.io/publyapp/publyapp/{api,migrate,front}` tagged by commit SHA on push to the
   target branch. Pick the SHA tag you want to deploy (that becomes `RELEASE_TAG`).
-  If Actions is billing-stalled, first run `docker login ghcr.io -u radandevist`, then run
+  If Actions is billing-stalled, first run `docker login ghcr.io -u <your-github-user>`, then run
   `just deploy-images [ref]` locally (the ref defaults to `origin/develop`), or invoke
   `node packages/scripts-ts/src/deploy-images.ts [ref]` directly. The wrapper mirrors the workflow's three builds
   and pushes, using a pristine detached git worktree at the resolved commit rather than the current
   working tree. Copy its final `RELEASE_TAG=<full-SHA>` into Dokploy.
+  > ⚠️ **ORG MOVE (2026-08-25, #1362):** GHCR packages did NOT move with the repository. Images
+  > published before the move still live under `ghcr.io/radandevist/publyapp/*` and keep working.
+  > After the first successful `deploy-images` run under the `PublyApp` organization, deploy from
+  > the new names and refresh the §2 registry credential with a classic PAT carrying
+  > **org-level `read:packages`** scope — the new org `api` and `migrate` packages are private.
 - A GitHub **classic PAT** with `read:packages` (and `write:packages`) scope, for GHCR pulls.
 - A domain (or subdomain) pointed at the VPS for the front + api, if you want HTTPS via Traefik.
 
@@ -276,7 +281,7 @@ checks". They are now answered; that section is closed out.
   commit touching only e.g. `dokploy.yml` correctly builds nothing — deploy the last commit
   that did build. If GitHub Actions cannot run at all (e.g. the account is over its Actions
   spending limit, which shows as **every** job failing in ~3s with 0 steps and no runner),
-  authenticate with `docker login ghcr.io -u radandevist`, then run
+  authenticate with `docker login ghcr.io -u <your-github-user>`, then run
   `just deploy-images [ref]` (or `node packages/scripts-ts/src/deploy-images.ts [ref]`). It mirrors
   `deploy-images.yml` exactly and tags all three images with the **same full commit SHA**, from a
   clean detached worktree at that commit.

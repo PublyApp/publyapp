@@ -61,7 +61,7 @@ Line numbers drift; treat them as of this writing.
 
 Decision vocabulary: **acceptable skip** = leave it (the pattern is load-bearing
 or the fix costs more than the skip); **rewrite now** = done in #1234;
-**follow-up** = queued in [#1264](https://github.com/radandevist/publyapp/issues/1264).
+**follow-up** = queued in [#1264](https://github.com/PublyApp/publyapp/issues/1264).
 
 | File | Pattern | Decision |
 | --- | --- | --- |

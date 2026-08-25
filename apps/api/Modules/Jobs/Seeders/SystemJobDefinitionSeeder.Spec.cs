@@ -72,6 +72,36 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	// #1349 round 1: GetCodeDefinedDefaults() is the source of truth the protection
+	// restore reverts FROM (SyncSystemJobsJob), so any change to its SHAPE must be a
+	// visible decision rather than silent drift through an untested accessor. The
+	// per-key values themselves are asserted against the accessor in the job spec.
+	[Fact]
+	public void ItShouldPinTheCodeDefinedDefaultsShapeThatProtectionRestoresFrom() {
+		var defaults = SystemJobDefinitionSeeder.GetCodeDefinedDefaults();
+
+		defaults.Select(definition => definition.JobKey).Should().BeEquivalentTo(
+			ExpectedKeys,
+			"the restore source must cover exactly the code-defined system jobs"
+		);
+		defaults.Should().OnlyContain(
+			definition => CronExpression.IsValidExpression(definition.CronExpression),
+			"a default Quartz cannot parse trips the restore's programming-error gate "
+				+ "and refuses the whole pass"
+		);
+		defaults.Should().OnlyContain(
+			definition => definition.IsEnabled,
+			"protection restores enabled=true — a disabled code default would fight "
+				+ "the K-3 guard it feeds"
+		);
+		defaults.Single(
+			definition => definition.JobKey == EmailPreparedSendsRetentionHandler.JobKey
+		).CronExpression.Should().Be(
+			"0 0/10 * * * ?",
+			"the privacy-load-bearing cadence stays pinned at every 10 minutes (§7.3/K-3)"
+		);
+	}
+
 	// K-3. §7.3 states the requirement and then says "nothing in this design enforces
 	// that" — so this spec is the enforcement. email-prepared-sends-retention deletes
 	// token-bearing bytes, and a row is only ELIGIBLE at its predicate: the bytes leave on
