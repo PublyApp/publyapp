@@ -23,11 +23,23 @@ const OXLINTRC_PATH = fileURLToPath(
 // there instead of two levels above (which escapes the checkout in CI).
 const OXLINT_BIN = join(WORKSPACE_ROOT, 'node_modules/.bin/oxlint');
 
+/**
+ * Minimal contract `runOxlint` needs from `execFileSync`. Declaring the
+ * narrow shape here (instead of `typeof execFileSync`, whose overloads
+ * force evidence-discarding casts on test doubles) keeps both the wrapper
+ * and its fakes fully typed.
+ */
+export type ExecFileSyncLike = (
+	file: string,
+	args: readonly string[],
+	options: { encoding: 'utf8'; cwd: string },
+) => string;
+
 export interface RunOxlintOptions {
 	cwd?: string;
 	oxlintBin?: string;
 	oxlintrcPath?: string;
-	execFileSyncImpl?: typeof execFileSync;
+	execFileSyncImpl?: ExecFileSyncLike;
 }
 
 export interface OxlintResult {
@@ -78,7 +90,7 @@ export const runOxlint = (
 		oxlintBin = OXLINT_BIN,
 		oxlintrcPath = OXLINTRC_PATH,
 		execFileSyncImpl = execFileSync,
-	} = options;
+	}: RunOxlintOptions = options;
 
 	let output = '';
 	let stderr = '';
@@ -88,8 +100,8 @@ export const runOxlint = (
 		output = execFileSyncImpl(
 			oxlintBin,
 			['--config', oxlintrcPath, '--format', 'json', '--quiet', ...filePaths],
-			{ encoding: 'utf8', cwd } as never,
-		) as string;
+			{ encoding: 'utf8', cwd },
+		);
 	} catch (error) {
 		if (
 			!(

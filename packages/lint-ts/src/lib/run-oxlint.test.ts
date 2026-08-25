@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 
 import { describe, it, vi } from 'vitest';
 
+import type { ExecFileSyncLike } from './run-oxlint.ts';
 import { runOxlint } from './run-oxlint.ts';
 
 const makeExecError = (stdout: string, stderr: string, status: number) => {
@@ -28,12 +29,12 @@ const makeExecError = (stdout: string, stderr: string, status: number) => {
 
 describe('runOxlint fail-loud contract', () => {
 	it('throws with the cause when oxlint exits non-zero and stdout is empty', () => {
-		const fakeExec = vi.fn(() => {
+		const fakeExec = vi.fn<ExecFileSyncLike>(() => {
 			throw makeExecError('', 'error: could not resolve config', 1);
 		});
 
 		assert.throws(
-			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec as never }),
+			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec }),
 			(error) => {
 				const message = (error as Error).message;
 
@@ -47,12 +48,12 @@ describe('runOxlint fail-loud contract', () => {
 	});
 
 	it('throws with the cause when oxlint exits non-zero and stdout is unparseable', () => {
-		const fakeExec = vi.fn(() => {
+		const fakeExec = vi.fn<ExecFileSyncLike>(() => {
 			throw makeExecError('not json at all', 'unknown error', 2);
 		});
 
 		assert.throws(
-			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec as never }),
+			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec }),
 			(error) => {
 				const message = (error as Error).message;
 
@@ -66,10 +67,10 @@ describe('runOxlint fail-loud contract', () => {
 	});
 
 	it('throws with the cause when oxlint succeeds (status 0) but stdout is empty', () => {
-		const fakeExec = vi.fn(() => '');
+		const fakeExec = vi.fn<ExecFileSyncLike>(() => '');
 
 		assert.throws(
-			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec as never }),
+			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec }),
 			(error) => {
 				const message = (error as Error).message;
 
@@ -83,10 +84,10 @@ describe('runOxlint fail-loud contract', () => {
 	});
 
 	it('throws with the cause when oxlint succeeds but stdout is unparseable', () => {
-		const fakeExec = vi.fn(() => '<<garbage>>');
+		const fakeExec = vi.fn<ExecFileSyncLike>(() => '<<garbage>>');
 
 		assert.throws(
-			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec as never }),
+			() => runOxlint(['x.ts'], { execFileSyncImpl: fakeExec }),
 			(error) => {
 				const message = (error as Error).message;
 
@@ -97,13 +98,13 @@ describe('runOxlint fail-loud contract', () => {
 	});
 
 	it('returns diagnostics when oxlint emits valid JSON (no throw)', () => {
-		const fakeExec = vi.fn(() =>
+		const fakeExec = vi.fn<ExecFileSyncLike>(() =>
 			JSON.stringify({
 				diagnostics: [{ code: 'publy(no-array-reduce)', severity: 'error' }],
 			}),
 		);
 
-		const result = runOxlint(['y.ts'], { execFileSyncImpl: fakeExec as never });
+		const result = runOxlint(['y.ts'], { execFileSyncImpl: fakeExec });
 
 		assert.deepStrictEqual(result.diagnostics, [
 			{ code: 'publy(no-array-reduce)', severity: 'error' },
@@ -112,12 +113,12 @@ describe('runOxlint fail-loud contract', () => {
 
 	it('rethrows unexpected (non-oxlint) errors unchanged', () => {
 		const boom = new RangeError('out of range');
-		const fakeExec = vi.fn(() => {
+		const fakeExec = vi.fn<ExecFileSyncLike>(() => {
 			throw boom;
 		});
 
 		assert.throws(
-			() => runOxlint(['z.ts'], { execFileSyncImpl: fakeExec as never }),
+			() => runOxlint(['z.ts'], { execFileSyncImpl: fakeExec }),
 			(error) => error === boom,
 			'should rethrow non-oxlint errors as-is',
 		);

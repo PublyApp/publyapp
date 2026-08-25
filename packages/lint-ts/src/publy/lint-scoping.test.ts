@@ -43,6 +43,7 @@ const OXLINTRC_PATH = fileURLToPath(
 const ROOT_RULES = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8')).rules;
 
 const PUBLY_RULES = [
+	'no-never-any-casts',
 	'no-array-reduce',
 	'no-console-in-source',
 	'no-direct-dayjs-in-components',

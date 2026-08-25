@@ -32,6 +32,7 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import {
 	cleanup,
 	fireEvent,
@@ -229,17 +230,23 @@ import { Route as ProfilesRoute } from './profiles';
  * `routeTree.gen.ts` re-parents it onto the authed layout. Sibling stubs stand
  * in for the routes the page's own links point at, so a click that DID leave
  * the list would land somewhere observable instead of erroring. */
+function widenOptions<T>(value: unknown): T {
+	return value as T;
+}
+
 const buildRouter = (initialUrl: string) => {
 	const rootRoute = createRootRoute({
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
 	});
 
-	ProfilesRoute.update({
-		id: '/staff/tenants/$tenantId/profiles',
-		path: '/staff/tenants/$tenantId/profiles',
-		getParentRoute: () => rootRoute,
-	} as never);
+	ProfilesRoute.update(
+		widenOptions<Parameters<typeof ProfilesRoute.update>[0]>({
+			id: '/staff/tenants/$tenantId/profiles',
+			path: '/staff/tenants/$tenantId/profiles',
+			getParentRoute: () => rootRoute,
+		}),
+	);
 
 	const stubRoute = (path: string, testId: string) =>
 		createRoute({
@@ -250,7 +257,7 @@ const buildRouter = (initialUrl: string) => {
 		});
 
 	const routeTree = rootRoute.addChildren([
-		ProfilesRoute as never,
+		ProfilesRoute,
 		stubRoute('/staff/tenants', 'stub-tenants'),
 		stubRoute('/staff/tenants/$tenantId', 'stub-tenant-details'),
 		stubRoute('/staff/tenants/$tenantId/edit', 'stub-tenant-edit'),
@@ -269,7 +276,9 @@ const buildRouter = (initialUrl: string) => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = createRouter({ routeTree, history } as never);
+	const router: AnyRouter = createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({ routeTree, history }),
+	);
 
 	return { router, history, queryClient };
 };
@@ -279,7 +288,7 @@ const renderList = async (initialUrl = LIST_PATH) => {
 
 	render(
 		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router as never} />
+			<RouterProvider router={router} />
 		</QueryClientProvider>,
 	);
 
