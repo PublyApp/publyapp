@@ -800,10 +800,12 @@ const getBlockLineRanges = (
 // and a WeakMap entry dies with its array — no cross-scan staleness, no
 // retention, safe for the fixture tests that pass fresh temp-dir content
 // through this path.
-let tokenLayerRangesByLines = new WeakMap();
+let tokenLayerRangesByLines = new WeakMap<string[], [number, number][]>();
 let tokenLayerRangeComputeCalls = 0;
 
-const getTokenLayerBlockRanges = (lines) => {
+const getTokenLayerBlockRanges = (
+	lines: string[],
+): [number, number][] => {
 	const cached = tokenLayerRangesByLines.get(lines);
 	if (cached !== undefined) {
 		return cached;

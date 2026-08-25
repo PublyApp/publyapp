@@ -90,11 +90,6 @@
 		"reason": "avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data"
 	},
 	{
-		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx",
-		"reason": "avatarUrl is a documented OPTIONAL field — a user with no uploaded avatar has none, this is not fabricated identity data"
-	},
-	{
 		"convention": "i18n-guard-ignore",
 		"file": "src/lib/server/server-failure.ts",
 		"reason": "no-hardcoded-ui-literal — see comment above."

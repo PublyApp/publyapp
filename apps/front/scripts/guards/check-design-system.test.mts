@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -7,7 +7,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { findSuppressionSitesInSource } from '../src/lib/suppression-reason.ts';
+import { findSuppressionSitesInSource } from '../../src/lib/suppression-reason.ts';
 import {
 	cleanupFixtures,
 	getOwnedRootPath,
@@ -153,7 +153,13 @@ export const realProbeBudget = () => resolveRunnerProbeBudgetMs();
 // the budget is resolved from AND the child's base environment; `runnerPath`
 // is the wrapper script to spawn. Returns the exit result plus the probe's
 // owned root; throws if the handshake never resolves within 20 s.
-export const runRunnerInterruptionProbe = async ({ env, runnerPath }) => {
+export const runRunnerInterruptionProbe = async ({
+	env,
+	runnerPath,
+}: {
+	env: NodeJS.ProcessEnv;
+	runnerPath: string;
+}) => {
 	const handshakeNonce = randomBytes(24).toString('base64');
 	// The budget is resolved FIRST, through the shared seam, BEFORE any child
 	// is spawned — a bad RUNNER_PROBE_BUDGET_MS override must fail loud with
@@ -176,9 +182,9 @@ export const runRunnerInterruptionProbe = async ({ env, runnerPath }) => {
 	let output = '';
 	let probe;
 	try {
-		probe = await new Promise((resolve, reject) => {
-			let timeout;
-			const onData = (chunk) => {
+		probe = await new Promise<{ pid: number; root: string }>((resolve, reject) => {
+			let timeout: ReturnType<typeof setTimeout>;
+			const onData = (chunk: Buffer) => {
 				output += chunk.toString();
 				// The probe's own two handshake lines and the grand-child
 				// runner's TAP stream share one pipe, so under load (or a pty)
@@ -199,7 +205,12 @@ export const runRunnerInterruptionProbe = async ({ env, runnerPath }) => {
 			timeout = setTimeout(() => {
 				// A start failure must not leak the child either — kill the whole
 				// tree before failing loud with the whole buffer.
-				killProcessTree(child.pid);
+				const childPid = child.pid;
+				assert.ok(
+					childPid !== undefined,
+				`probe child pid expected, got: ${String(childPid)}`,
+				);
+				killProcessTree(childPid);
 				reject(new Error(`runner probe did not start:\n${output}`));
 			}, 20_000);
 			// An early death (e.g. a broken wrapper) must reject NOW, not leave
@@ -219,7 +230,12 @@ export const runRunnerInterruptionProbe = async ({ env, runnerPath }) => {
 	} catch (error) {
 		// A start failure already killed the tree; make sure no partial child
 		// survives an 'error'-path rejection either.
-		killProcessTree(child.pid);
+		const childPid = child.pid;
+		assert.ok(
+			childPid !== undefined,
+		`probe child pid expected, got: ${String(childPid)}`,
+		);
+		killProcessTree(childPid);
 		throw error;
 	}
 	process.kill(probe.pid, 'SIGINT');
@@ -244,7 +260,7 @@ export const runRunnerInterruptionProbe = async ({ env, runnerPath }) => {
 // writes at startup. Used by the proof's watchdog so a mutant whose wait
 // ignores the resolved budget can neither leak processes nor pin this
 // file's event loop with its runaway timer after the RED lands.
-export const killFixtureTreeFromReport = async (reportPath) => {
+export const killFixtureTreeFromReport = async (reportPath: string) => {
 	let pids;
 	try {
 		pids = (await readFile(reportPath, 'utf8'))
@@ -263,7 +279,7 @@ export const killFixtureTreeFromReport = async (reportPath) => {
 // its own children (the grand-child node:test runner) too — then the pid
 // itself as the fallback for timings where the group is already gone.
 // Standard library only: no tree-kill dependency.
-export const killProcessTree = (pid) => {
+export const killProcessTree = (pid: number) => {
 	try {
 		process.kill(-pid, 'SIGKILL');
 	} catch {
@@ -279,7 +295,15 @@ export const killProcessTree = (pid) => {
 // The fail-loud contract: on expiry the tree is killed and the error NAMES
 // the probe, the budget and the last output line — never a silent pass,
 // never a skipped probe.
-export const formatProbeTimeoutMessage = ({ probeName, budgetMs, output }) => {
+export const formatProbeTimeoutMessage = ({
+	probeName,
+	budgetMs,
+	output,
+}: {
+	probeName: string;
+	budgetMs: number;
+	output: string;
+}) => {
 	const lastLine =
 		output
 			.split('\n')
@@ -297,10 +321,16 @@ export const awaitExitWithinBudget = ({
 	budgetMs,
 	probeName,
 	getLastOutput,
+}: {
+	child: ChildProcess;
+	budgetMs: number;
+	probeName: string;
+	getLastOutput: () => string;
 }) =>
-	new Promise((resolve, reject) => {
-		let expired = false;
-		let graceTimer;
+	new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
+		(resolve, reject) => {
+			let expired = false;
+			let graceTimer: ReturnType<typeof setTimeout> | undefined;
 		const timeoutMessage = () =>
 			formatProbeTimeoutMessage({
 				probeName,
@@ -309,10 +339,15 @@ export const awaitExitWithinBudget = ({
 			});
 		const timer = setTimeout(() => {
 			expired = true;
-			killProcessTree(child.pid);
+			const childPid = child.pid;
+			assert.ok(
+				childPid !== undefined,
+			`probe child pid expected, got: ${String(childPid)}`,
+			);
+			killProcessTree(childPid);
 			graceTimer = setTimeout(() => reject(new Error(timeoutMessage())), 1_000);
 		}, budgetMs);
-		child.once('exit', (code, signal) => {
+		child.once('exit', (code: number | null, signal: NodeJS.Signals | null) => {
 			clearTimeout(timer);
 			if (graceTimer !== undefined) clearTimeout(graceTimer);
 			if (expired) {
@@ -415,7 +450,7 @@ test('#1352: the probe budget fires on a never-ending child, kills the whole pro
 				probeName: '#1352 never-ending fixture',
 				getLastOutput: () => output,
 			}),
-		(error) => {
+		(error: Error) => {
 			assert.match(
 				error.message,
 				/#1352 never-ending fixture exceeded its 300ms budget/,
@@ -443,8 +478,13 @@ test('#1352: the probe budget fires on a never-ending child, kills the whole pro
 	// No orphan pids: the fixture child AND its own grand-child must be
 	// dead. A zombie can survive briefly between SIGKILL and reaping, so
 	// poll briefly before failing.
+	const childPid = child.pid;
+	assert.ok(
+		childPid !== undefined,
+		`fixture child pid expected, got: ${String(childPid)}`,
+	);
 	const deadline = Date.now() + 5_000;
-	for (const pid of [Number(pidMatch[1]), Number(grandMatch[1]), child.pid]) {
+	for (const pid of [Number(pidMatch[1]), Number(grandMatch[1]), childPid]) {
 		let gone = false;
 		while (Date.now() < deadline) {
 			try {
@@ -503,7 +543,9 @@ test('#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_
 	const reportPath = path.join(root, 'pids.txt');
 	// Registered so the module-level test:fail cleanup below can reach this
 	// run's fixture tree even when an assertion throws mid-test.
-	globalThis.__r2FixtureReportPath = reportPath;
+		// Registered so the module-level test:fail cleanup below can reach
+		// this run's fixture tree even when an assertion throws mid-test.
+		r2FixtureReportPath = reportPath;
 	// Extra keys ride through the shared function's env spread into the
 	// fixture's environment; the budget override rides the same way.
 	const env = {
@@ -539,7 +581,7 @@ test('#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_
 						}, 15_000);
 					}),
 				]),
-			(error) => {
+			(error: Error) => {
 				// ONLY the genuine budget-expiry message counts: the matcher
 				// demands the real probe name AND the injected 800ms number, so
 				// neither the watchdog error nor any other failure can satisfy it.
@@ -599,16 +641,18 @@ test('#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_
 // Post-failure safety net for the r2 proof only: if any of its assertions
 // throws while a mutant keeps the fixture alive, kill its tree so neither
 // stray processes nor its runaway timers outlive this RED run.
-const r2ProofFailureCleanup = (event) => {
+// Module-level binding replacing the previous globalThis side-channel
+// one-for-one (same storage, same lifetime) so the compiler can type it.
+let r2FixtureReportPath: string | undefined;
+const r2ProofFailureCleanup = (event: { name?: string } | undefined) => {
 	if (
 		event?.name !==
 		'#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_BUDGET_MS and kills its tree'
 	) {
 		return;
 	}
-	const { __r2FixtureReportPath: reportPath } = globalThis;
-	if (typeof reportPath === 'string') {
-		void killFixtureTreeFromReport(reportPath);
+	if (typeof r2FixtureReportPath === 'string') {
+		void killFixtureTreeFromReport(r2FixtureReportPath);
 	}
 };
 process.on('test:fail', r2ProofFailureCleanup);
@@ -666,7 +710,7 @@ test('#1352: resolveRunnerProbeBudgetMs fails loud naming the value on an unpars
 				resolveRunnerProbeBudgetMs({
 					env: { RUNNER_PROBE_BUDGET_MS: bad },
 				}),
-			(error) => {
+			(error: Error) => {
 				assert.match(error.message, /RUNNER_PROBE_BUDGET_MS/);
 				assert.ok(
 					error.message.includes(JSON.stringify(bad)),
@@ -686,7 +730,7 @@ test('#1352: resolveRunnerProbeBudgetMs fails loud on a non-positive RUNNER_PROB
 				resolveRunnerProbeBudgetMs({
 					env: { RUNNER_PROBE_BUDGET_MS: bad },
 				}),
-			(error) => {
+			(error: Error) => {
 				assert.match(error.message, /RUNNER_PROBE_BUDGET_MS/);
 				assert.ok(
 					error.message.includes(JSON.stringify(bad)),
@@ -1578,7 +1622,7 @@ test('reports the actual internal anchor when another anchor appears first', asy
 
 test('primary button chrome is on .btn-primary-chrome, with no border-radius override (F6/F9)', async () => {
 	const css = await readFile(
-		new URL('../src/styles/app.css', import.meta.url),
+		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
@@ -1613,7 +1657,7 @@ test('primary button chrome is on .btn-primary-chrome, with no border-radius ove
 
 test('handoff design tokens are present in app.css', async () => {
 	const css = await readFile(
-		new URL('../src/styles/app.css', import.meta.url),
+		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
@@ -3100,7 +3144,7 @@ test('r1-fix: every KNOWN_GUARD_DEBT budget equals the exact current occurrence 
 		'tooltip budget must equal its real occurrence count',
 	);
 	const tooltipContent = await readFile(
-		fileURLToPath(new URL('../src/components/ui/tooltip.tsx', import.meta.url)),
+		fileURLToPath(new URL('../../src/components/ui/tooltip.tsx', import.meta.url)),
 		'utf8',
 	);
 	const probe = createHandoffLedgerProbe(KNOWN_GUARD_DEBT);
@@ -3526,7 +3570,7 @@ test('F4: no-raw-visual-color multi-line scanning still respects the :root/html.
 
 test('F4: the real .publy-selection-bar rule no longer hardcodes a raw rgb() shadow (moved to a token)', async () => {
 	const css = await readFile(
-		new URL('../src/styles/app.css', import.meta.url),
+		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
@@ -3538,7 +3582,7 @@ test('F4: the real .publy-selection-bar rule no longer hardcodes a raw rgb() sha
 
 test('F6: .publy-state-icon svg is declared exactly once (the un-layered copy); the layered duplicate is gone', async () => {
 	const css = await readFile(
-		new URL('../src/styles/app.css', import.meta.url),
+		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
@@ -3548,7 +3592,7 @@ test('F6: .publy-state-icon svg is declared exactly once (the un-layered copy); 
 
 test('F6: the tbody last-child border-bottom rule no longer has a dead layered `{ border-bottom: 0 }` duplicate, and its comment no longer claims a specificity/order win', async () => {
 	const css = await readFile(
-		new URL('../src/styles/app.css', import.meta.url),
+		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
@@ -3565,7 +3609,7 @@ test('F6: the tbody last-child border-bottom rule no longer has a dead layered `
 
 test('F6: the auth panel, T6B, TEN-2 and P3 component rules moved into @layer components', async () => {
 	const css = await readFile(
-		new URL('../src/styles/app.css', import.meta.url),
+		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 	const lines = css.split('\n');
@@ -3624,7 +3668,7 @@ test('F6: the auth panel, T6B, TEN-2 and P3 component rules moved into @layer co
 
 test('F1: the --publy-z-* popup stacking scale keeps popups above the drawer/dialog surface, which is above the overlay backdrop', async () => {
 	const css = await readFile(
-		new URL('../src/styles/app.css', import.meta.url),
+		new URL('../../src/styles/app.css', import.meta.url),
 		'utf8',
 	);
 
