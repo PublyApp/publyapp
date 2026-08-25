@@ -5,13 +5,18 @@ import {
 } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { DataTable } from '~/components/table/data-table';
+import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
+import {
+	type TableSelection,
+	useRowSelection,
+} from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button, buttonVariants } from '~/components/ui/button';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
@@ -43,6 +48,7 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getUserFullName } from '@org/shared-ts/utils/user.utils';
 
 import { formatStaffStatusLabel } from '../../staff-users/status-labels';
+import { ProfileUsersListBulkActions } from './_users-bulk-actions';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
@@ -242,6 +248,28 @@ const StaffProfileUsersPage = () => {
 	const rows = toStaffProfileUserRows(usersQuery.data?.users);
 	const columns = useMemo(() => buildColumns(t), [t]);
 	const details = toStaffProfileDetails(detailQuery.data);
+	const [shouldLogout, setShouldLogout] = useState(false);
+	const selection = useRowSelection(rows.map((row) => row.id));
+
+	// Entering selection mode discards an uncommitted table-search draft (the
+	// search box is locked while rows are selected, so a live draft would sit
+	// hidden until exit). Handled inside the selection-change path below rather
+	// than a render-side effect — see the no-event-handler React Doctor rule.
+	const { resetDraftToCommitted } = controller.search;
+	const baseOnSelectionChange = selection.onSelectionChange;
+	const onSelectionChange = useCallback(
+		(next: TableSelection) => {
+			if (!selection.isSelectionMode) {
+				resetDraftToCommitted();
+			}
+			baseOnSelectionChange(next);
+		},
+		[selection.isSelectionMode, baseOnSelectionChange, resetDraftToCommitted],
+	);
+	const wrappedSelection = useMemo(
+		() => ({ ...selection, onSelectionChange }),
+		[selection, onSelectionChange],
+	);
 
 	// A deliberate reset (profile identity, search, sort, or size change)
 	// must always win over a clamp derived from the destination query's
@@ -272,6 +300,12 @@ const StaffProfileUsersPage = () => {
 
 	const usersError = usersQuery.error;
 	if (usersError !== null && shouldLogoutForFailure(usersError)) {
+		return <LogoutRedirect />;
+	}
+
+	// A bulk mutation hit an auth failure mid-session — log out through the
+	// same central path as every other surface.
+	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
@@ -423,7 +457,30 @@ const StaffProfileUsersPage = () => {
 						onSizeChange={controller.onSizeChange}
 						searchDraft={controller.search.draft}
 						onSearchDraftChange={controller.search.onDraftChange}
+						selection={wrappedSelection}
 					/>
+
+					<FloatingSelectionBar
+						selectedCount={selection.selectedCount}
+						visibleCount={rows.length}
+						allVisibleSelected={
+							rows.length > 0 &&
+							rows.every((row) => wrappedSelection.rowSelection[row.id])
+						}
+						onClear={wrappedSelection.clearSelection}
+						onSelectAllVisible={() =>
+							wrappedSelection.onSelectionChange(
+								new Set(rows.map((row) => row.id)),
+							)
+						}
+					>
+						<ProfileUsersListBulkActions
+							profileId={profileId}
+							rows={rows}
+							selection={selection}
+							onSessionExpired={() => setShouldLogout(true)}
+						/>
+					</FloatingSelectionBar>
 				</TabsContent>
 			</Tabs>
 		</div>
