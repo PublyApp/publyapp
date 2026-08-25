@@ -731,6 +731,7 @@
 	"bulk-unassign-failed-item-not-assigned": "cet utilisateur n'est pas assigné à ce profil.",
 	"bulk-unassign-failed-item-not-found": "cet utilisateur n'existe pas ou n'est pas un membre du staff.",
 	"staff-profile-user-bulk-unassign-failure": "Échec de la désassignation des utilisateurs sélectionnés.",
+	"bulk-delete-profiles-confirm": "Êtes-vous sûr de vouloir supprimer {{count}} profil(s) sélectionné(s) ? Les membres assignés perdront ce profil.",
 	"tenant-profile-bulk-delete-confirm": "Êtes-vous sûr de vouloir supprimer {{count}} profil(s) sélectionné(s) ? Cette action est irréversible.",
 	"tenant-profile-bulk-delete-success": "{{count}} profil(s) supprimé(s) avec succès.",
 	"tenant-profile-bulk-delete-partial-success": "{{succeeded}} profil(s) supprimé(s), {{failed}} échec(s).",

@@ -1,8 +1,10 @@
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Badge } from '~/components/ui/badge';
+import { BulkActionsTrigger } from '~/components/ui/bulk-actions-trigger';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
+import { DropdownMenu } from '~/components/ui/dropdown-menu';
 import { Input } from '~/components/ui/input';
 import { Select, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { Switch } from '~/components/ui/switch';
@@ -98,6 +100,21 @@ const probeNodes: { id: string; node: ReactElement }[] = [
 	{
 		id: 'input',
 		node: <Input placeholder="Probe" {...{ [PROBE_ATTR]: 'input' }} />,
+	},
+	// #1400: the selection-bar bulk-actions trigger is a real shipping
+	// focusable primitive (ghost sm button inside the floating bar). It only
+	// mounts inside a menu root, so the probe mirrors that documented pattern
+	// exactly like the select-trigger probe above.
+	{
+		id: 'bulk-actions-trigger',
+		node: (
+			<DropdownMenu>
+				<BulkActionsTrigger
+					{...{ [PROBE_ATTR]: 'bulk-actions-trigger' }}
+					triggerLabel="Probe"
+				/>
+			</DropdownMenu>
+		),
 	},
 	{ id: 'switch', node: <Switch {...{ [PROBE_ATTR]: 'switch' }} /> },
 	{ id: 'checkbox', node: <Checkbox {...{ [PROBE_ATTR]: 'checkbox' }} /> },

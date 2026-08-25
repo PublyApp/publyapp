@@ -1,24 +1,20 @@
-import { IconChevronDown, IconLink, IconUserMinus } from '@tabler/icons-react';
+import { IconLink, IconUserMinus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
-import {
-	FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME,
-	FloatingSelectionBar,
-} from '~/components/table/floating-selection-bar';
+import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
+import {
+	BulkActionsMenu,
+	BulkActionsTrigger,
+} from '~/components/ui/bulk-actions-trigger';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu';
+import { DropdownMenu } from '~/components/ui/dropdown-menu';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -292,41 +288,28 @@ const OrganizationsBulkActions = ({
 	return (
 		<>
 			<DropdownMenu>
-				<DropdownMenuTrigger
-					render={
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							disabled={isOverLimit}
-							title={
-								isOverLimit
-									? t('bulk-action-max-count-exceeded', {
-											max: BULK_ACTION_MAX_COUNT,
-											count: selectedIds.length,
-										})
-									: t('more-actions')
-							}
-							aria-label={t('more-actions')}
-							className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
-						/>
-					}
-				>
-					{t('bulk-actions')}
-					<IconChevronDown aria-hidden="true" className="size-3" />
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" side="top" sideOffset={6}>
-					<DropdownMenuItem
-						variant="destructive"
-						disabled={bulkUnlink.isPending}
-						onClick={() => {
-							setOpen(true);
-						}}
-					>
-						<IconUserMinus />
-						{t('remove-selected-organizations')}
-					</DropdownMenuItem>
-				</DropdownMenuContent>
+				<BulkActionsTrigger
+					triggerLabel={t('bulk-actions')}
+					isOverLimit={isOverLimit}
+					overLimitMessage={t('bulk-action-max-count-exceeded', {
+						max: BULK_ACTION_MAX_COUNT,
+						count: selectedIds.length,
+					})}
+				/>
+				<BulkActionsMenu
+					items={[
+						{
+							key: 'remove',
+							label: t('remove-selected-organizations'),
+							icon: <IconUserMinus />,
+							variant: 'destructive',
+							disabled: bulkUnlink.isPending,
+						},
+					]}
+					onMenuItemClick={() => {
+						setOpen(true);
+					}}
+				/>
 			</DropdownMenu>
 
 			<ConfirmDialog

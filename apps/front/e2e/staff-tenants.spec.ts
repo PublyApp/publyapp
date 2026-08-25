@@ -336,7 +336,7 @@ test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 		await expectFloatingSelectionBarAtViewportBottom(page);
 
 		const bar = page.getByTestId('floating-selection-bar');
-		await bar.getByRole('button', { name: 'More actions' }).click();
+		await bar.getByRole('button', { name: 'Bulk actions' }).click();
 		await page.getByRole('menuitem', { name: 'Suspend selected' }).click();
 
 		await expect(
@@ -400,7 +400,7 @@ test.describe('staff tenants list', { tag: ['@staff-tenants', '@806'] }, () => {
 			.click();
 		const bar = page.getByTestId('floating-selection-bar');
 		await expectFloatingSelectionBarAtViewportBottom(page);
-		await bar.getByRole('button', { name: 'More actions' }).click();
+		await bar.getByRole('button', { name: 'Bulk actions' }).click();
 		await page.getByRole('menuitem', { name: 'Suspend selected' }).click();
 
 		await expect(

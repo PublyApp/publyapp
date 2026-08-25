@@ -731,6 +731,7 @@
 	"bulk-unassign-failed-item-not-assigned": "this user is not assigned to this profile.",
 	"bulk-unassign-failed-item-not-found": "this user does not exist or is not a staff member.",
 	"staff-profile-user-bulk-unassign-failure": "Failed to unassign selected users.",
+	"bulk-delete-profiles-confirm": "Are you sure you want to delete {{count}} selected profile(s)? Assigned members lose this profile.",
 	"tenant-profile-bulk-delete-confirm": "Are you sure you want to delete {{count}} selected profile(s)? This action cannot be undone.",
 	"tenant-profile-bulk-delete-success": "Successfully deleted {{count}} profile(s).",
 	"tenant-profile-bulk-delete-partial-success": "Deleted {{succeeded}} profile(s), {{failed}} failed.",

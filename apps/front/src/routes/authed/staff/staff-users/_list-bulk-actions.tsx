@@ -1,23 +1,15 @@
-import {
-	IconChevronDown,
-	IconPlayerPause,
-	IconRefresh,
-	IconTrash,
-} from '@tabler/icons-react';
+import { IconPlayerPause, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME } from '~/components/table/floating-selection-bar';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
-import { Button } from '~/components/ui/button';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu';
+	type BulkActionMenuItem,
+	BulkActionsMenu,
+	BulkActionsTrigger,
+} from '~/components/ui/bulk-actions-trigger';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { DropdownMenu } from '~/components/ui/dropdown-menu';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -226,58 +218,39 @@ export const StaffUsersListBulkActions = ({
 		t,
 	);
 
+	const menuItems: readonly BulkActionMenuItem<StaffUserActionKey>[] = [
+		{ key: 'reactivate', label: t('bulk-reactivate'), icon: <IconRefresh /> },
+		{
+			key: 'suspend',
+			label: t('bulk-suspend'),
+			icon: <IconPlayerPause />,
+			variant: 'destructive',
+			disabled: isActionPending,
+		},
+		{
+			key: 'delete',
+			label: t('bulk-delete'),
+			icon: <IconTrash />,
+			variant: 'destructive',
+			disabled: isActionPending,
+		},
+	];
+
 	return (
 		<>
 			<DropdownMenu>
-				<DropdownMenuTrigger
-					render={
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							disabled={isOverLimit}
-							title={
-								isOverLimit
-									? t('bulk-action-max-count-exceeded', {
-											max: BULK_ACTION_MAX_COUNT,
-											count: selectedCount,
-										})
-									: t('more-actions')
-							}
-							aria-label={t('more-actions')}
-							className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
-						/>
-					}
-				>
-					{t('bulk-actions')}
-					<IconChevronDown aria-hidden="true" className="size-3" />
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" side="top" sideOffset={6}>
-					<DropdownMenuItem
-						disabled={isActionPending}
-						onClick={() => handleMenuItemClick('reactivate')}
-					>
-						<IconRefresh />
-						{t('bulk-reactivate')}
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						variant="destructive"
-						disabled={isActionPending}
-						onClick={() => handleMenuItemClick('suspend')}
-					>
-						<IconPlayerPause />
-						{t('bulk-suspend')}
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						variant="destructive"
-						disabled={isActionPending}
-						onClick={() => handleMenuItemClick('delete')}
-					>
-						<IconTrash />
-						{t('bulk-delete')}
-					</DropdownMenuItem>
-				</DropdownMenuContent>
+				<BulkActionsTrigger
+					triggerLabel={t('bulk-actions')}
+					isOverLimit={isOverLimit}
+					overLimitMessage={t('bulk-action-max-count-exceeded', {
+						max: BULK_ACTION_MAX_COUNT,
+						count: selectedCount,
+					})}
+				/>
+				<BulkActionsMenu
+					items={menuItems}
+					onMenuItemClick={handleMenuItemClick}
+				/>
 			</DropdownMenu>
 
 			<ConfirmDialog
