@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Land Epic D step 6 (#645, part of #631) — the milestone "a customer really publishes on Bluesky". The publish-now endpoint (`POST /posts/{postId}/publish-now`) creates one `Publication` per chosen account with `ScheduledAtUtc = now`, enqueues one `publishing.publish-publication.v1` job per publication through `IJobEnqueuer`, and answers immediately (spec §1 decision 1: always through the job queue, one code path with D3 scheduling). The composer gains the "Publish on" block: checkboxes of the accounts visible in the project per the Epic C rule, shown only with `tenant.socialaccounts.publish` (the exact wire value `GET /auth/scope-auth-data` emits — `Permission.CreateTenantPermission` prefixes every tenant key with `tenant.`). The History page is wired to real `Published` (link to Bluesky) and `Failed` (cause in one sentence, Retry button = D4 stub noted) publications, and refreshes ("In progress…") by invalidating its query every few seconds while any publication is `InProgress`. Plus: permissions, rate limit, Kiota regen, integration specs (each failure kind → status + plain cause, isolation, permissions), architecture tests, the D2 adversarial mutation (remove the deterministic key → the "no duplicate after timeout" spec goes red), and ONE tagged e2e: "publish now (faked Bluesky) → appears in history with a link".
+**Goal:** Land Epic D step 6 (#645, part of #631) — the milestone "a customer really publishes on Bluesky". The publish-now endpoint (`POST /posts/{postId}/publish-now`) creates one `Publication` per chosen account with `ScheduledAtUtc = now`, enqueues one `publishing.publish-publication.v1` job per publication through `IJobEnqueuer`, and answers immediately (spec §1 decision 1: always through the job queue, one code path with D3 scheduling). The composer gains the "Publish on" block: checkboxes of the accounts visible in the project per the Epic C rule, shown only with `tenant.socialaccounts.publish` (the exact wire value `GET /auth/scope-auth-data` emits — `Permission.CreateTenantPermission` prefixes every tenant key with `tenant.`). The History page is wired to real `Published` (link to Bluesky) and `Failed` (cause in one sentence, Retry button = D4 stub noted) publications, and refreshes ("In progress…") by invalidating its query every few seconds while any publication is `InProgress`. Plus: permissions, rate limit, Kiota regen, integration specs (each failure kind → status + plain cause, isolation, permissions), architecture tests, the D2 adversarial mutation (remove the deterministic key → the mutation-sensitive "no duplicate after timeout" spec `BlueskyPublishProviderSpec.ItShouldNotCreateADuplicateWhenTheRecordAlreadyExistsAfterATimeout` goes red — see Task 10 for why that exact spec, and only it, detects the mutant), and ONE tagged e2e: "publish now (faked Bluesky) → appears in history with a link".
 
 **Architecture:** Builds directly on D1's `Modules/Publishing` slice (`origin/lane/wt-644`: `Publication` entity, single `PublicationStatusTransitionService` writer, `IPublishProvider`, `BlueskyPublishProvider`, `PublishPublicationJobHandler`) and C2's `Modules/SocialAccounts` seam (`origin/lane/wt-641`: `ISocialSessionProvider`, `VisibleIn`, `socialaccounts.*` permissions). The publish-now ROUTE hangs off the existing posts resource (`Routes.Posts.ForTenant`, matching `PostEndpointsForTenant` on develop) but ALL publishing logic lives in the Publishing slice: a new `PublishNowService` owns creation of publications + enqueue; handlers orchestrate only (no DbContext in handlers). A new publications read endpoint (`GET /publications`, keyset newest-first) serves History. The frontend stays inside the landed B2 posts surfaces (`apps/front/src/routes/authed/tenant/posts/`). Bluesky is faked in EVERY spec — never the real network. Jobs go through `IJobEnqueuer` only (Epic A §5.3); external idempotency stays the deterministic Bluesky record key (Epic A §4.1).
 
@@ -274,9 +274,62 @@ export const hasTenantPermission = (
 
 ## Task 10: D2 adversarial mutation — remove the deterministic key
 
+**Why the old target was vacuous (round-2 F3, verified against `origin/lane/wt-644`):**
+`PublishPublicationJobHandlerSpec.ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate`
+(`Jobs/PublishPublicationJobHandler.Spec.cs:189`, wt-644) NEVER re-derives the key through
+`PublicationIdempotencyKey.For`. Its seed writes one fixed value
+(`publication.IdempotencyKey = PublicationIdempotencyKey.For(publication.GetRequiredId())` at
+spec lines 112-113), then the fact reuses that stored constant:
+`new PublishPublicationPayload { PublicationId = seeded.PublicationId,
+IdempotencyKey = seeded.IdempotencyKey }` (lines 206-209) against a `FakePublishProvider`
+seeded with `AlreadyExistsTreatedAsPublished` (lines 196-199). The provider fake never calls
+`For`, and the payload carries a literal string — mutating `For` changes NOTHING this fact
+observes, so it stays GREEN under the mutation. The claim "remove the key → this spec goes
+red" was false; the mutation-sensitive proof lives elsewhere:
+
+**The REAL detector — `BlueskyPublishProviderSpec.ItShouldNotCreateADuplicateWhenTheRecordAlreadyExistsAfterATimeout`**
+(`Providers/BlueskyPublishProvider.Spec.cs:198`, wt-644; hardened by wt-644 commit `72db83239`
+"make the no-duplicate-after-timeout proof mutation-sensitive"): each simulated run builds its
+request FRESH, deriving the key from the publication id exactly as an engine retry would —
+
+```csharp
+PublishRequest FreshRequest() {
+	return new PublishRequest {
+		PublicationId = PublicationId,
+		IdempotencyKey =
+			PublyApp.Api.Modules.Publishing.Lib.PublicationIdempotencyKey.For(
+				PublicationId
+			),
+		PostBody = "hello from the publishing slice",
+		ScheduledAtUtc = ScheduledInstant(),
+		Session = NewSession(),
+	};
+}
+
+var fakePds = new RkeyStoringFakePds();
+var provider = new BlueskyPublishProvider(FactoryFromHandler(fakePds));
+
+var first = await provider.PublishAsync(FreshRequest(), CancellationToken.None);
+var second = await provider.PublishAsync(FreshRequest(), CancellationToken.None);
+
+first.Should().BeOfType<PublishResult.Published>("the first delivery creates the record");
+fakePds.StoredRkeys.Should().ContainSingle(
+	"the deterministic key means the replay collides with the SAME record"
+);
+fakePds.CreateAttempts.Should().Be(2, "two runs, but only ONE stored record");
+```
+
+The `RkeyStoringFakePds` handler (same file, lines 294-324) STORES records by rkey like a real
+atproto repo, so a duplicate is observable: `CreateAttempts += 1` then, when `StoredRkeys`
+already contains the rkey, it answers with the existing record instead of storing again.
+
 - [ ] **Step 1:** `md5sum apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs` (pre-mutation, recorded in transcript). Mutate `For` to `Convert.ToHexString(Guid.NewGuid().ToByteArray()).ToLowerInvariant()[..16];` (randomness replaces derivation).
-- [ ] **Step 2:** Run `dotnet test ... --filter "FullyQualifiedName~PublishPublicationJobHandlerSpec.ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate"` (exact method verified on `origin/lane/wt-644` line 189) — MUST go red: the second attempt creates a duplicate instead of colliding. Full transcript → `.dump/mutation-deterministic-key-d2.md`.
-- [ ] **Step 3:** `git checkout -- apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs`; md5 matches; rerun green. Tree unchanged; no commit; transcript updated with restore proof.
+- [ ] **Step 2:** Run the REAL mutation-sensitive spec:
+  `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~BlueskyPublishProviderSpec.ItShouldNotCreateADuplicateWhenTheRecordAlreadyExistsAfterATimeout"` — MUST go RED. Expected failure shape (each run now derives a DIFFERENT random rkey, so the replay stores a SECOND record instead of colliding):
+  - `fakePds.StoredRkeys.Should().ContainSingle(...)` → `Expected fakePds.StoredRkeys to contain 1 item(s), but found 2`
+  - followed by `second.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>()` → `Expected second to be PublyApp.Api.Modules.Publishing.Providers.PublishResult+AlreadyExistsTreatedAsPublished, but found PublishResult.Published` (a fresh create succeeds instead of adopting).
+  Full transcript → `.dump/mutation-deterministic-key-d2.md`. Sanity check recorded in the same transcript: `...--filter "FullyQualifiedName~PublishPublicationJobHandlerSpec.ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate"` stays GREEN under the same mutant (documented as the reason the OLD headline claim was vacuous — the handler-side fact observes only the stored constant, lines 112-113 + 206-209 above).
+- [ ] **Step 3:** `git checkout -- apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs`; md5 matches; rerun both filters green. Tree unchanged; no commit; transcript updated with restore proof.
 
 ## Task 11: Gates + tagged e2e + PR
 
@@ -287,6 +340,6 @@ export const hasTenantPermission = (
 
 ## Self-review
 
-1. **Spec coverage (§6 D2):** publish now creates publication+job (T1/T2 specs, job_queue assertions); worker→Published+link (D1 handler spec cited wt-644 line 154; e2e proves it live through the fake); content error→Failed no retry (D1 T6b cited; D2 T2 asserts plain cause reaches `last_error` through `MarkFailedAsync`); account→Paused+NeedsReconnect (D1-cited; D2 history shows Paused pill via `PublicationWire`); transient→retry×3→Failed (D1 line 355 cited); isolation (T2 d/e, T3, T4 specs); permissions each verb refused (T2/T4); architecture guards incl. endpoint permission/rate-limit + DbContext-free handlers (T5); composer gate consumes the real `useTenantPermissions` hook CREATED by T6 over `/auth/scope-auth-data` using the FULL wire key `tenant.socialaccounts.publish` (nothing invented); adversarial mutation deterministic-key removal (T10, exact red spec named); one tagged e2e with REAL B2 testids (T11); "In progress…" invalidation loop (T9); Retry=D4 stub noted honestly (T9, reconciliation 5).
+1. **Spec coverage (§6 D2):** publish now creates publication+job (T1/T2 specs, job_queue assertions); worker→Published+link (D1 handler spec cited wt-644 line 154; e2e proves it live through the fake); content error→Failed no retry (D1 T6b cited; D2 T2 asserts plain cause reaches `last_error` through `MarkFailedAsync`); account→Paused+NeedsReconnect (D1-cited; D2 history shows Paused pill via `PublicationWire`); transient→retry×3→Failed (D1 line 355 cited); isolation (T2 d/e, T3, T4 specs); permissions each verb refused (T2/T4); architecture guards incl. endpoint permission/rate-limit + DbContext-free handlers (T5); composer gate consumes the real `useTenantPermissions` hook CREATED by T6 over `/auth/scope-auth-data` using the FULL wire key `tenant.socialaccounts.publish` (nothing invented); adversarial mutation deterministic-key removal (T10: the REAL detector is `BlueskyPublishProviderSpec.ItShouldNotCreateADuplicateWhenTheRecordAlreadyExistsAfterATimeout`, wt-644 line 198; the handler-side `ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate` stays green under the mutant because it never re-derives the key — documented in-task); one tagged e2e with REAL B2 testids (T11); "In progress…" invalidation loop (T9); Retry=D4 stub noted honestly (T9, reconciliation 5).
 2. **No placeholders:** every step names real files/signatures. Round-1 F1 resolved at the source: the false "deliberate discovery" of a permissions hook is gone — Task 6 CREATES `useTenantPermissions` from the REAL `/auth/scope-auth-data` payload (`GetScopeAuthDataTenant`, DTO quoted verbatim in Prerequisites; `/auth/user-auth-data` proven to carry zero permission fields), and Task 8 consumes that exact interface. One deliberate discovery remains (the endpoint-registration call site) and ships with the exact grep that resolves it; Task 3's multi-value filter cites the real develop precedent (`FindAuditLogsQuery`) instead of an invented binding.
 3. **Type consistency:** `PublishPublicationPayload`/`PublishingJobs`/transition-service signatures match `origin/lane/wt-644` byte-for-byte as read; wire status strings match `PublicationWire.FormatStatus`; query params stay snake_case; no `Dto` suffixes on wire types.
