@@ -6,12 +6,15 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Jobs.Entities;
@@ -228,7 +231,116 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 		}
 	}
 
+	// --- #1350: producer → triage end-to-end --------------------------------------
+
+	// The full #1350 chain with NO hand-stamped status anywhere: the engine's own
+	// classification (a settlement no handler was reached for) produces a REAL
+	// Unclassified row through JobQueueProcessor, then the staff endpoint resolves it
+	// and the row lands retention-eligible at 4 Missing. Proves the producer and the
+	// shipped resolution path agree on one contract.
+	[Fact]
+	public async Task ItShouldResolveAProducerClassifiedRowEndToEnd() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var jobType = $"spec.dlq-e2e.{Guid.NewGuid():N}";
+		Guid deadLetterId;
+
+		try {
+			// Producer leg: dead-letter a real job_queue row through the engine.
+			await using (var dbContext = await CreateDbContextAsync()) {
+				var row = new JobQueueItem { JobType = jobType };
+				await dbContext.JobQueue.AddAsync(row);
+				await dbContext.SaveChangesAsync();
+
+				var claimed = await JobQueueProcessor.ClaimBatchAsync(
+					dbContext, "spec-worker", 300, 100, CancellationToken.None
+				);
+				await dbContext.Entry(row).ReloadAsync();
+
+				var processor = CreateProcessor();
+				var result = await processor.ProcessOneAsync(
+					row, claimed.Single(c => c.Id == row.Id).LockToken,
+					CancellationToken.None
+				);
+				result.Should().Be(JobQueueProcessor.JobExecutionResult.Completed);
+
+				var deadLetter = await dbContext.JobDeadLetter
+					.SingleAsync(d => d.OriginalJobId == row.Id);
+				deadLetter.ExternalStateStatus.Should().Be(
+					(int)ExternalStateStatus.Unclassified,
+					"the producer must hand the endpoint a real status-6 row"
+				);
+				deadLetterId = deadLetter.Id ?? throw new InvalidOperationException(
+					"Producer-created job_dead_letter row came back with a NULL id."
+				);
+			}
+
+			// Resolution leg: the operator triage endpoint on that same row.
+			var request = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+				.WithSessionToken(token);
+			request.Content = JsonContent.Create(new {
+				note = "Producer-classified row; provider resource confirmed absent."
+			});
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			// Final state: 4 Missing — out of the exempt class, retention-eligible again.
+			await using var verify = await CreateDbContextAsync();
+			var resolved = await verify.JobDeadLetter.SingleAsync(d => d.Id == deadLetterId);
+			resolved.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Missing);
+		} finally {
+			if (deadLetterId != Guid.Empty) {
+				await CleanupAsync(deadLetterId);
+			}
+			await using var sweep = await CreateDbContextAsync();
+			await sweep.Database.ExecuteSqlAsync(
+				$"DELETE FROM job_queue WHERE job_type = {jobType}"
+			);
+		}
+	}
+
+	// #1350 item 2: the outcome is transparent — the 200 body carries the stable
+	// response key so callers read the result in plain words instead of inferring
+	// it from the status code alone.
+	[Fact]
+	public async Task ItShouldReturnTheResolvedSuccessResponseKeyOnSuccess() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+		var (deadLetterId, _, _) = await InsertDeadLetterAsync(
+			status: (int)ExternalStateStatus.Unclassified
+		);
+
+		try {
+			var request = new HttpRequestMessage(HttpMethod.Post, Url(deadLetterId))
+				.WithSessionToken(token);
+			request.Content = JsonContent.Create(new { });
+
+			using var response = await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var problem = await response.Content.ReadFromJsonAsync<JsonDocument>();
+			Assert.NotNull(problem);
+			problem.RootElement.GetProperty("key").GetString().Should().Be(
+				ResponseKeys.DeadLetterResolvedSuccess.Value,
+				"the success response names its outcome with the stable translation key"
+			);
+		} finally {
+			await CleanupAsync(deadLetterId);
+		}
+	}
+
 	// --- helpers ------------------------------------------------------------------------
+
+	// Builds a real processor against the fixture host's DI scope factory; its per-job
+	// scope shares this test host, exactly as production wiring does.
+	private JobQueueProcessor CreateProcessor() {
+		return new JobQueueProcessor(
+			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			new JobHandlerRegistry([]),
+			new JobsMetrics(new JobWorkerInstance(), NullLogger<JobsMetrics>.Instance),
+			new JobWorkerInstance(),
+			NullLogger<JobQueueProcessor>.Instance
+		);
+	}
 
 	private async Task<(string Token, Guid UserId)> CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-dlq-{Guid.NewGuid():N}@example.com";
