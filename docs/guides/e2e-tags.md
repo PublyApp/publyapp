@@ -109,6 +109,7 @@ breaks the gate.
 | `smoke.spec.ts` | `@public` | `@733` |
 | `ssr-auth-shell.spec.ts` | `@security` | `@997` |
 | `staff-invitations.spec.ts` | `@staff-invitations` | `@742` |
+| `staff-profile-edit-flow.spec.ts` | `@staff-profiles` | `@819` |
 | `staff-profiles.spec.ts` | `@staff-profiles` | `@744` |
 | `staff-tenant-create.spec.ts` | `@staff-tenants` | `@806` |
 | `staff-tenant-details.spec.ts` | `@staff-tenants` | `@806` |

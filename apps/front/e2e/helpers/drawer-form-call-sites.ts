@@ -14,6 +14,13 @@ export const DRAWER_FORM_CALL_SITES = [
 		drawerTestId: 'profile-edit-details-drawer',
 	},
 	{
+		id: 'staff-profile-edit',
+		name: 'edit-staff-profile',
+		sourceFile:
+			'src/routes/authed/staff/profiles/$profileId/_profile-edit-details-drawer.tsx',
+		drawerTestId: 'staff-profile-edit-details-drawer',
+	},
+	{
 		id: 'tenant-user-invite',
 		name: 'invite-user',
 		sourceFile:

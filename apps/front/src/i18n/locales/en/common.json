@@ -31,6 +31,7 @@
 	"created-at": "Created at",
 	"draft": "Draft",
 	"edit": "Edit",
+	"edit-profile-aria-label": "Edit profile",
 	"delete": "Delete",
 	"published": "Published",
 	"invalid-number": "Invalid number",

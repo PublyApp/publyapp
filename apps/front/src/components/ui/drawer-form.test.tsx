@@ -318,6 +318,14 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateAllStaffTenantScopes: () => Promise.resolve(),
 }));
 
+vi.mock('~/lib/query/staff-profiles', () => ({
+	invalidateStaffProfiles: () => Promise.resolve(),
+	useUpdateStaffProfileMutation: () => ({
+		mutateAsync: () => Promise.resolve(undefined),
+		isPending: false,
+	}),
+}));
+
 vi.mock('~/lib/query/staff-tenant-profiles', async () => {
 	const actual = await vi.importActual<
 		typeof import('~/lib/query/staff-tenant-profiles')
@@ -365,6 +373,7 @@ vi.mock(
 	}),
 );
 
+import { StaffProfileEditDetailsDrawer } from '../../routes/authed/staff/profiles/$profileId/_profile-edit-details-drawer';
 import { ChangeStaffUserEmailDialog } from '../../routes/authed/staff/staff-users/_change-email-dialog';
 import { LinkCompaniesDrawerHost } from '../../routes/authed/staff/tenant-users/$userId-organizations-drawer';
 import { InviteTenantUserDrawer } from '../../routes/authed/staff/tenants/$tenantId/_invite-user-drawer';
@@ -9397,6 +9406,23 @@ const renderDrawerByCallSiteId: Record<DrawerFormCallSiteId, () => void> = {
 	'tenant-user-link-companies': () => {
 		render(
 			<LinkCompaniesDrawerHost userId="user-1" isOpen onOpenChange={noop} />,
+		);
+	},
+	'staff-profile-edit': () => {
+		render(
+			<StaffProfileEditDetailsDrawer
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={noop}
+				onSaved={noop}
+				onSessionExpired={noop}
+			/>,
 		);
 	},
 };
