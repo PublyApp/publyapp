@@ -42,8 +42,11 @@ The .NET side is audited by **Scan .NET packages for known vulnerabilities**
 --include-transitive`, parsed from machine-readable JSON because
 `TreatWarningsAsErrors` turns the text format's NU1903 warning into a build error
 before a grep could match it. It fails loud on anything it cannot fully inspect:
-an unreachable registry, an unrestored project, or unparseable output is exit 1
-(`could not inspect … <cause>`), never a silent pass.
+an unreachable registry, an unrestored project, unparseable output, or a listed
+package carrying an empty `vulnerabilities` array (#1348 — output dotnet never
+emits today) is exit 1 (`could not inspect … <cause>`), never a silent pass.
+Its scan-set discovery is committed-csproj-only by design (see the boundary note
+on `parseGitLsFilesCsproj`).
 
 Proven working, both directions, on 2026-08-25:
 
