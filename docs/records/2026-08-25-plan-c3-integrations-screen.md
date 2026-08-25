@@ -37,7 +37,7 @@ C2 (`origin/lane/wt-641`, plan `docs/superpowers/plans/2026-08-25-c2-bluesky-con
 - Permissions exist and are seeded by C2: class `PublyApp.Api.Modules.SocialAccounts.Permissions.SocialAccountPermissionsForTenant` exposing `VIEW` / `MANAGE` / `PUBLISH` with keys `tenant.socialaccounts.view|manage|publish` (`apps/api/Modules/SocialAccounts/Permissions/SocialAccountPermissionsForTenant.cs`, branch named above). Tenant admins hold them implicitly (spec §1 decision 5).
 - Routes (C2 plan §Task 4 route table, branch `origin/lane/wt-641`):
   - `GET /social-accounts` → `CursorPaginatedResult<SocialAccountListItem>` (view)
-  - `POST /social-accounts/connect` → 201, `SocialAccountCreated{item}` (manage, rate bucket `SocialConnect`)
+  - `POST /social-accounts/connect` → 201, body IS `SocialAccountCreated` (no wrapper — verified on `CreateSocialAccountForTenant.cs`: `TypedResults.Created(null, new SocialAccountCreated { … })`) (manage, rate bucket `SocialConnect`)
   - `POST /social-accounts/{id}/reconnect` → 200 `ApiResponse` (manage, `SocialConnect`)
   - `POST /social-accounts/{id}/disconnect` → 200 `ApiResponse` (manage)
   - `PUT /social-accounts/{id}/projects` → 200 `ApiResponse` (manage; replace-all attach/detach)
@@ -46,7 +46,7 @@ C2 (`origin/lane/wt-641`, plan `docs/superpowers/plans/2026-08-25-c2-bluesky-con
 - Session-open seam `ISocialSessionProvider.OpenSessionAsync(Guid socialAccountId, CancellationToken)` with typed results `Opened | AccountFailure(Cause) | Transient(Cause)` exists (`apps/api/Modules/SocialAccounts/Services/ISocialSessionProvider.cs`, branch named above) — the banner copy and error mapping align with its sanitised cause phrases.
 - Test fake `FakeBlueskyClient` (`apps/api/Lib/Testing/Fakes/FakeBlueskyClient.cs`, branch named above) backs API integration specs; the C3 e2e needs its own browser-level fake (open question below).
 
-**[ASSUMPTION] A1 — list item shape:** `SocialAccountListItem` carries `id`, `displayHandle`, `provider` (`bluesky`), `status` (wire string above), `lastSuccessAt` (nullable), `lastError` (nullable, sanitised cause), and the attachment info needed to render "Visible in: …". C2's plan fixes the wrapper (`CursorPaginatedResult<SocialAccountListItem>`) but not every item member; C3 codes against the member list above and reconciles at `just generate-client` time.
+**[RESOLVED] A1 — list item + wrapper shapes (read from C2's committed code):** the wrapper is real and simple — `CursorPaginatedResult<T>` carries exactly `{ Data: List<T>, NextCursor: string? }` (`apps/api/Lib/CursorPaginatedResult.cs`, branch `origin/lane/wt-641`), so the list wire payload is `{ data, nextCursor }`, NOT a bare array and NOT `{ value: [...] }`. `SocialAccountListItem` (`apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs`) carries `id`, `provider`, `externalAccountId`, `displayHandle`, `status` (wire string above), `credentialType`, `lastSuccessAt` (nullable), `lastError` (nullable, sanitised cause), `projectIds: Guid[]` — confirmed against the branch's committed `apps/api/openapi.json`. The attachment read model A2 needed is therefore already in the item: `projectIds`.
 
 **[ASSUMPTION] A2 — attachment read model:** the replace-all `PUT /social-accounts/{id}/projects` implies the list item exposes current attachments (ids, ideally resolved names or a companion tenant-projects lookup C2 already uses for validation). If C2 ships ids only, Task 1 joins against the existing tenant projects/organizations query the workspaces settings page uses.
 
@@ -337,7 +337,7 @@ plus `use-has-tenant-permission.test.ts` asserting false-before-load, false-with
 **Interfaces:**
 - Produces (consumed by Tasks 4–6):
   - `SOCIAL_ACCOUNTS_QUERY_KEY = ['tenant-social-accounts'] as const`
-  - `type SocialAccountRow = { id, displayHandle, providerLabelKey, statusWire, tone, statusLabelKey, lastSuccessAt: Date|null, visibleProjectIds: string[] }`
+  - `type SocialAccountRow = { id, displayHandle, providerLabelKey, statusWire, tone, statusLabelKey, lastSuccessAt: Date|null, projectIds: string[] }`
   - `toSocialAccountRows(response: unknown): SocialAccountRow[]`
   - `useSocialAccountsQuery(variables: { tenantId: string })`
   - `invalidateSocialAccounts(queryClient, tenantId)`
@@ -355,11 +355,13 @@ import { toSocialAccountRows } from './social-accounts';
 describe('toSocialAccountRows', () => {
 	it('ItShouldMapWireStatusToSpecTonesGreenOrangeGrey', () => {
 		const rows = toSocialAccountRows({
-			value: [
-				{ id: 'a1', displayHandle: '@team.bsky.social', provider: 'bluesky', status: 'active', lastSuccessAt: '2026-08-25T10:00:00Z', projectIds: [] },
-				{ id: 'a2', displayHandle: '@old.bsky.social', provider: 'bluesky', status: 'needs_reconnect', lastSuccessAt: null, projectIds: ['p1'] },
-				{ id: 'a3', displayHandle: '@gone.bsky.social', provider: 'bluesky', status: 'revoked', lastSuccessAt: null, projectIds: [] },
+			// Real C2 wrapper shape: CursorPaginatedResult serialises as { data, nextCursor }.
+			data: [
+				{ id: 'a1', provider: 'bluesky', externalAccountId: 'did:plc:a1', displayHandle: '@team.bsky.social', status: 'active', credentialType: 'app_password', lastSuccessAt: '2026-08-25T10:00:00Z', lastError: null, projectIds: [] },
+				{ id: 'a2', provider: 'bluesky', externalAccountId: 'did:plc:a2', displayHandle: '@old.bsky.social', status: 'needs_reconnect', credentialType: 'app_password', lastSuccessAt: null, lastError: 'Invalid credentials', projectIds: ['p1'] },
+				{ id: 'a3', provider: 'bluesky', externalAccountId: 'did:plc:a3', displayHandle: '@gone.bsky.social', status: 'revoked', credentialType: 'app_password', lastSuccessAt: null, lastError: null, projectIds: [] },
 			],
+			nextCursor: null,
 		});
 
 		expect(rows.map((row) => row.tone)).toEqual(['success', 'warning', 'neutral']);
@@ -417,15 +419,24 @@ export type SocialAccountRow = {
 	projectIds: string[];
 };
 
+/** Wire shape of GET /social-accounts on C2: `FindSocialAccountsForTenantResponse`
+ * extends `CursorPaginatedResult<SocialAccountListItem>`, which serialises as
+ * `{ data, nextCursor }` (apps/api/Lib/CursorPaginatedResult.cs, branch
+ * origin/lane/wt-641) — NOT a bare array, NOT `{ value: [...] }`. Item members
+ * per resolved A1. */
 export type SocialAccountsResponse = {
-	value: Array<{
+	data: Array<{
 		id: string;
-		displayHandle: string;
 		provider: string;
+		externalAccountId: string;
+		displayHandle: string;
 		status: string;
+		credentialType: string;
 		lastSuccessAt: string | null;
+		lastError: string | null;
 		projectIds: string[];
 	}>;
+	nextCursor: string | null;
 };
 
 const toWireStatus = (status: string | null | undefined): SocialAccountStatusWire =>
@@ -442,9 +453,9 @@ export const SOCIAL_ACCOUNTS_QUERY_KEY = ['tenant-social-accounts'] as const;
 export const toSocialAccountRows = (
 	response: SocialAccountsResponse | null | undefined,
 ): SocialAccountRow[] => {
-	if (!response?.value) return [];
+	if (!response?.data) return [];
 
-	return response.value.map((item) => {
+	return response.data.map((item) => {
 		const statusWire = toWireStatus(item.status);
 		return {
 			id: item.id,
@@ -490,7 +501,7 @@ export const invalidateSocialAccounts = (
 };
 ```
 
-Mutations live in the same file below the query (each returns void-typed API responses and invalidates through `invalidateSocialAccounts`; bodies use `createUntypedString` per repo convention):
+Mutations live in the same file below the query (each invalidates through `invalidateSocialAccounts`; bodies use `createUntypedString` per repo convention; connect resolves to C2's flat `SocialAccountCreated`, reconnect/set-projects to `SocialAccountCreated`, disconnect to `ApiResponse`):
 
 ```ts
 // …continued in social-accounts.ts
@@ -500,7 +511,6 @@ export type ConnectSocialAccountInput = {
 	tenantId: string;
 	identifier: string;
 	appPassword: string;
-	projectIds: string[];
 };
 
 export const useConnectSocialAccountMutation = () => {
@@ -508,13 +518,14 @@ export const useConnectSocialAccountMutation = () => {
 
 	return useMutation({
 		mutationKey: [...SOCIAL_ACCOUNTS_QUERY_KEY, 'connect'],
-		mutationFn: async ({ tenantId, identifier, appPassword, projectIds }: ConnectSocialAccountInput) => {
+		mutationFn: async ({ tenantId, identifier, appPassword }: ConnectSocialAccountInput) => {
 			const client = getClientManager().getOrCreateClient(tenantId);
 			await client.socialAccounts.connect.post({
 				identifier: createUntypedString(identifier),
 				appPassword: createUntypedString(appPassword),
-				projectIds: projectIds.map((id) => createUntypedString(id)),
-			}); // [A3]
+			}); // [A3] — C2's ConnectSocialAccountBody carries ONLY identifier +
+			// appPassword (verified on CreateSocialAccountForTenant.cs); the
+			// attachment step goes through the PUT projects endpoint afterwards.
 		},
 		onSuccess: (_data, variables) => invalidateSocialAccounts(queryClient, variables.tenantId),
 		meta: { successMessage: 'social-account-connected', validationHandledByForm: true },
@@ -825,7 +836,6 @@ export const BlueskyConnectDrawer = ({
 					tenantId,
 					identifier: values.identifier,
 					appPassword: values.appPassword,
-					projectIds: values.projectIds,
 				});
 			}
 			methods.reset();
@@ -1206,12 +1216,16 @@ test.describe('social accounts integrations', {
 		await loginAsTenantUser(page);
 
 		let connectCalled = false;
+		// Wire members per resolved A1 (SocialAccountListItem on wt-641).
 		const connected = {
 			id: '0197b8f0-3333-7ccc-8ccc-cccccccccccc',
-			displayHandle: '@e2e.bsky.social',
 			provider: 'bluesky',
+			externalAccountId: 'did:plc:e2e000000000000000000000',
+			displayHandle: '@e2e.bsky.social',
 			status: 'active',
+			credentialType: 'app_password',
 			lastSuccessAt: new Date().toISOString(),
+			lastError: null,
 			projectIds: [],
 		};
 
@@ -1222,14 +1236,16 @@ test.describe('social accounts integrations', {
 			route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify({ value: connectCalled ? [connected] : [] }),
+				// Real C2 list wrapper: CursorPaginatedResult → { data, nextCursor }.
+				body: JSON.stringify({ data: connectCalled ? [connected] : [], nextCursor: null }),
 			}),
 		);
 		await page.route(
 			(url) => isApiPath(url, CONNECT_PATH),
 			async (route) => {
 				connectCalled = true;
-				await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ item: connected }) });
+				// C2 returns the created item FLAT as the 201 body (no { item } wrapper).
+				await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(connected) });
 			},
 		);
 
