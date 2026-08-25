@@ -7,6 +7,13 @@ Compose applies `deploy.restart_policy` when it is present and falls back to the
 `restart:` field only when it is absent. The migrator sets both controls to no restart, and an
 unhealthy container remains running rather than being rescheduled.
 
+> **ORG MOVE (2026-08-25, #1362):** GHCR packages did NOT move with the repository. Images already
+> deployed from `ghcr.io/radandevist/publyapp/*` keep working. After the first `deploy-images` run
+> under the `PublyApp` organization, repoint Dokploy to the four new image names
+> (`ghcr.io/publyapp/publyapp/{api,migrate,front}`, the worker reusing `api`) and give Dokploy's
+> GHCR credential a token with **org-level `read:packages`** scope — the org `api` and `migrate`
+> packages are private.
+
 ## Ratified approach A: one-shot migrate plus application gates
 
 Every release uses one immutable `RELEASE_TAG`. It tags **three** published images — `api`,

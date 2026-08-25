@@ -1,6 +1,6 @@
 # PublyApp Lint Rules — Reference
 
-This guide enumerates every custom lint rule in the repo. For the framework design and roadmap context, see [#350](https://github.com/radandevist/publyapp/issues/350).
+This guide enumerates every custom lint rule in the repo. For the framework design and roadmap context, see [#350](https://github.com/PublyApp/publyapp/issues/350).
 
 ## Custom Oxlint rules (`packages/lint-ts/`)
 
@@ -123,7 +123,7 @@ chain shape only), so a small `publy` rule was sketched:
 [`packages/lint-ts/src/publy/no-never-any-casts.ts`](../../packages/lint-ts/src/publy/no-never-any-casts.ts).
 It flags single assertions to `never`/`any` (`x as never`, `x as any`,
 angle-bracket forms, parenthesized keyword annotations), one report per chain
-link landing on a banned keyword. Since [#1346](https://github.com/radandevist/publyapp/issues/1346)
+link landing on a banned keyword. Since [#1346](https://github.com/PublyApp/publyapp/issues/1346)
 it ALSO flags the keyword annotations under the `satisfies` operator
 (`x satisfies never`, `x satisfies any`, `TSSatisfiesExpression`) — paired
 RED/GREEN proof in its spec, including the adversarial case that defeats a
