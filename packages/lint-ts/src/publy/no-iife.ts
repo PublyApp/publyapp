@@ -15,17 +15,29 @@ import type { ESTree } from '@oxlint/plugins';
  * `TSAsExpression`, `TSSatisfiesExpression`, `TSNonNullExpression`,
  * `TSTypeAssertion`, and `TSInstantiationExpression`. The comma-operator form
  * `(0, fn)()` (`SequenceExpression` callee, last expression taken) is peeled
- * too, so `(0, () => {})()` is reported. A function literal used as a tagged-
+ * too, so `(0, () => {})()` is reported. Branching callees are peeled into
+ * every reachable branch (#1327): `(cond ? () => 1 : () => 2)()`,
+ * `(cond && (() => 3))()`, and `(a ?? (() => 4))()` are reported when ANY
+ * branch is a function literal. A function literal used as a tagged-
  * template tag (`(() => x)`t`)`) is an immediate invocation as well and is
  * reported via `TaggedTemplateExpression`.
  */
 
 /**
- * Peels transparent syntactic wrappers off a callee expression until the
- * underlying expression is reached. Returns the input unchanged when there
- * are no wrappers.
+ * Peels transparent syntactic wrappers off a callee expression and returns
+ * every UNDERLYING candidate expression reached.
+ *
+ * - Transparent wrappers (`ParenthesizedExpression`, TS casts/non-null,
+ *   `TSInstantiationExpression`) yield exactly one candidate: their child.
+ * - The comma-operator callee `(0, fn)()` (`SequenceExpression`) yields one
+ *   candidate: the LAST expression in the sequence.
+ * - Branching forms are peeled structurally, without heuristics:
+ *   `ConditionalExpression` yields the peeled `consequent` AND `alternate`
+ *   (the `test` is never a callee and is ignored); `LogicalExpression`
+ *   yields the peeled `left` AND `right`. A callee is an immediate
+ *   invocation when ANY candidate is a function literal.
  */
-export const unwrapCallee = (node: ESTree.Expression): ESTree.Expression => {
+export const unwrapCallee = (node: ESTree.Expression): ESTree.Expression[] => {
 	let current: ESTree.Expression = node;
 	for (;;) {
 		switch (current.type) {
@@ -50,8 +62,20 @@ export const unwrapCallee = (node: ESTree.Expression): ESTree.Expression => {
 				current = expressions[expressions.length - 1];
 				continue;
 			}
+			case 'ConditionalExpression': {
+				// `(cond ? f : g)()` — the effective callee is whichever branch
+				// runs, so BOTH branches are candidates.
+				const { consequent, alternate } = current;
+				return [...unwrapCallee(consequent), ...unwrapCallee(alternate)];
+			}
+			case 'LogicalExpression': {
+				// `(a && f)()`, `(a ?? f)()`, `(a || f)()` — both operands are
+				// reachable callees.
+				const { left, right } = current;
+				return [...unwrapCallee(left), ...unwrapCallee(right)];
+			}
 			default: {
-				return current;
+				return [current];
 			}
 		}
 	}
@@ -61,11 +85,12 @@ const isFunctionLiteral = (node: ESTree.Expression): boolean =>
 	node.type === 'ArrowFunctionExpression' || node.type === 'FunctionExpression';
 
 /**
- * True when the callee is (behind transparent wrappers) an inline function
- * literal being invoked immediately.
+ * True when the callee is (behind transparent wrappers or across
+ * conditional/logical branches) an inline function literal being invoked
+ * immediately.
  */
 export const isIifeCallee = (callee: ESTree.Expression): boolean =>
-	isFunctionLiteral(unwrapCallee(callee));
+	unwrapCallee(callee).some(isFunctionLiteral);
 export const noIife = {
 	meta: {
 		type: 'suggestion' as const,
