@@ -99,6 +99,32 @@ export const matchRunnerHandshake = (output, expectedNonce) => {
 // failure within two minutes instead of a silent 26-minute lock hold.
 export const RUNNER_PROBE_BUDGET_MS = 120_000;
 
+// #1352 r1 finding 2: the budget is overridable from the environment (CI vs
+// local). Parsing is STRICT: unset → the documented 120_000ms default;
+// present → a plain base-10 positive integer is required. Anything else —
+// whitespace, an explicit sign, a decimal or exponent form, garbage — fails
+// LOUD naming the variable and the exact bad value. A mistyped override must
+// never silently restore the default.
+export const resolveRunnerProbeBudgetMs = ({ env = process.env } = {}) => {
+	const raw = env.RUNNER_PROBE_BUDGET_MS;
+	if (raw === undefined) {
+		return RUNNER_PROBE_BUDGET_MS;
+	}
+	const fail = () => {
+		throw new TypeError(
+			`RUNNER_PROBE_BUDGET_MS must be a positive integer number of milliseconds, got RUNNER_PROBE_BUDGET_MS=${JSON.stringify(raw)}`,
+		);
+	};
+	if (!/^-?\d+$/.test(raw)) {
+		fail();
+	}
+	const parsed = Number(raw);
+	if (parsed <= 0) {
+		fail();
+	}
+	return parsed;
+};
+
 // Kill the whole process group first — the probe child is spawned
 // `detached`, so it leads its own group and the negative-PID signal reaches
 // its own children (the grand-child node:test runner) too — then the pid
@@ -251,7 +277,7 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 	// last output line.
 	const result = await awaitExitWithinBudget({
 		child,
-		budgetMs: RUNNER_PROBE_BUDGET_MS,
+		budgetMs: resolveRunnerProbeBudgetMs(),
 		probeName: 'check-design-system runner-interruption probe',
 		getLastOutput: () => output,
 	});
@@ -365,6 +391,76 @@ test('#1352: the probe budget does not disturb a child that exits on its own (po
 		getLastOutput: () => '',
 	});
 	assert.deepEqual(result, { code: 7, signal: null });
+});
+
+// #1352 r1 finding 2: the budget must be overridable from the environment
+// (CI vs local) and parsed STRICTLY. Four cases pinned below: unset → the
+// documented default; valid positive integer → parsed; unparseable → LOUD
+// failure naming the bad value; ≤ 0 / non-positive → LOUD failure. Never a
+// silent default: a mistyped override must fail loud, not quietly restore
+// the default.
+test('#1352: resolveRunnerProbeBudgetMs falls back to the documented default when RUNNER_PROBE_BUDGET_MS is unset', () => {
+	assert.equal(resolveRunnerProbeBudgetMs({ env: {} }), 120_000);
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { UNRELATED: '1' } }),
+		120_000,
+	);
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { RUNNER_PROBE_BUDGET_MS: undefined } }),
+		120_000,
+	);
+	assert.equal(RUNNER_PROBE_BUDGET_MS, 120_000);
+});
+
+test('#1352: resolveRunnerProbeBudgetMs parses a valid RUNNER_PROBE_BUDGET_MS override', () => {
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { RUNNER_PROBE_BUDGET_MS: '5000' } }),
+		5_000,
+	);
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { RUNNER_PROBE_BUDGET_MS: '1' } }),
+		1,
+	);
+});
+
+test('#1352: resolveRunnerProbeBudgetMs fails loud naming the value on an unparseable RUNNER_PROBE_BUDGET_MS', () => {
+	for (const bad of ['abc', '', '12.5', '1e3', ' 3000', '3000 ', '+3000']) {
+		assert.throws(
+			() =>
+				resolveRunnerProbeBudgetMs({
+					env: { RUNNER_PROBE_BUDGET_MS: bad },
+				}),
+			(error) => {
+				assert.match(error.message, /RUNNER_PROBE_BUDGET_MS/);
+				assert.ok(
+					error.message.includes(JSON.stringify(bad)),
+					`the error must name the bad value, got: ${error.message}`,
+				);
+				return true;
+			},
+			`RUNNER_PROBE_BUDGET_MS=${JSON.stringify(bad)} must fail loud`,
+		);
+	}
+});
+
+test('#1352: resolveRunnerProbeBudgetMs fails loud on a non-positive RUNNER_PROBE_BUDGET_MS', () => {
+	for (const bad of ['0', '-1', '-120000']) {
+		assert.throws(
+			() =>
+				resolveRunnerProbeBudgetMs({
+					env: { RUNNER_PROBE_BUDGET_MS: bad },
+				}),
+			(error) => {
+				assert.match(error.message, /RUNNER_PROBE_BUDGET_MS/);
+				assert.ok(
+					error.message.includes(JSON.stringify(bad)),
+					`the error must name the bad value, got: ${error.message}`,
+				);
+				return true;
+			},
+			`RUNNER_PROBE_BUDGET_MS=${JSON.stringify(bad)} must fail loud`,
+		);
+	}
 });
 
 // #1272 packet item 2: the fail-loud artifact, driven through the REAL
