@@ -120,20 +120,41 @@ public sealed partial class CanaryProbeContainmentSpec {
 	public void ItShouldNeverPassTheProbeArgOrFlagThroughDeployManifests() {
 		var repoRoot = FindRepoRoot();
 		var offenders = new List<string>();
+		var unreadable = new List<string>();
 
 		foreach (var relative in DeployManifests()) {
 			var path = Path.Combine(repoRoot, relative);
 			if (!File.Exists(path)) {
+				// Fail loud, never silently skip: a manifest that vanished or was renamed
+				// must be reconciled here, not quietly dropped from the scan.
+				unreadable.Add(relative);
 				continue;
 			}
 
-			var content = File.ReadAllText(path);
+			string content;
+			try {
+				content = File.ReadAllText(path);
+			} catch (Exception exception) {
+				// Round-1 fix (#1319 review): an unreadable manifest must fail the scan
+				// loudly instead of being skipped.
+				unreadable.Add($"{relative} ({exception.GetType().Name})");
+				continue;
+			}
+
 			if (content.Contains(ProbeEmitArgText)
 				|| content.Contains(ProbeFlagNameText)
 			) {
 				offenders.Add(relative);
 			}
 		}
+
+		unreadable.Should().BeEmpty(
+			"the containment scan is only as strong as its manifest list: a listed "
+				+ "manifest that cannot be read means the list drifted from the repo "
+				+ "(renamed/moved file) or the file became unreadable — reconcile it "
+				+ "instead of scanning around it. Unreadable manifests:\n"
+				+ string.Join("\n", unreadable)
+		);
 
 		offenders.Should().BeEmpty(
 			"a deployed container passing --emit-canary-boot-log gets the clean-looking "
@@ -204,12 +225,19 @@ public sealed partial class CanaryProbeContainmentSpec {
 	}
 
 	// Repo-root-relative paths a misconfigured container command or env file could
-	// travel through. Extend when deployment topology changes.
+	// travel through. Extend when deployment topology changes. Round-1 fix (#1319
+	// review): the reviewer noted launchSettings.json and the front compose files were
+	// omitted — every committed file that can inject environment variables or carry a
+	// launch command must be scanned, so the detector covers every file that can carry
+	// the probe arg or its flag.
 	private static IEnumerable<string> DeployManifests() {
 		return [
 			"apps/api/Dockerfile",
 			"dokploy.yml",
 			"docker-compose.services.yml",
+			"apps/api/Properties/launchSettings.json",
+			"apps/front/docker-compose.test.yml",
+			"apps/front/docker-compose.fork-overlay.yml",
 			".env.example",
 		];
 	}
