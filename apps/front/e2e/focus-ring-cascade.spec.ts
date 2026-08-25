@@ -40,6 +40,12 @@ import {
  * the default rendered focus path of every shipping focusable primitive;
  * the `aria-invalid` ring combinations stay covered by the vitest guard's
  * token-contrast math, which needs no cascade model to compare two colours.
+ *
+ * #1379 additionally pins the `outline` member of `:focus-visible`: every
+ * probed primitive must paint the contractual outline (`2px solid
+ * var(--publy-focus-ring)`, DESIGN.md "Focus rings") unless it is explicitly
+ * allowlisted as a box-shadow-ring-only primitive. The allowlist carries the
+ * DESIGN.md citation, so a silent drift in EITHER direction goes red.
  */
 
 /** WCAG 2.x non-text contrast floor for focus indicators — the same floor
@@ -48,6 +54,34 @@ const CONTRAST_FLOOR = 3.0;
 
 const PROBE_ATTR = 'data-e2e-focus-probe';
 
+/**
+ * #1379 — probes allowed to rely on the box-shadow ring ALONE at
+ * `:focus-visible`, i.e. allowed to paint NO outline. Deliberately kept
+ * narrow: every entry is a primitive whose focus treatment is documented in
+ * DESIGN.md ("Focus rings") as the Tailwind ring utility family
+ * (`focus-visible:ring-3` / `ring-2` + `focus-visible:border-ring`) over an
+ * `outline-none` reset — button, badge, input, textarea, select, switch at
+ * 3px, checkbox at 2px. None of these ships an outline today; if one starts
+ * painting an outline the drift must be looked at and this list updated BY A
+ * DESIGN DECISION, never silently. A probe NOT listed here must paint the
+ * full contractual outline triad (solid, 2px, `--publy-focus-ring`) — see
+ * `assertOutlineMemberOfFocusVisible`.
+ */
+const OUTLINE_TOKEN_ALLOWLIST: ReadonlySet<string> = new Set([
+	'button-default',
+	'button-outline',
+	'select-trigger',
+	'switch',
+	'checkbox',
+	'textarea',
+]);
+
+/** Computed colours are compared channel-wise against the token with a 1/255
+ * slack for engine-side gamma/colour-space rounding — Chromium may serialise
+ * the winning declaration in oklch and resample it on the way out. Anything
+ * looser would stop being a token assertion. */
+const OUTLINE_TOKEN_CHANNEL_TOLERANCE = 1;
+
 /** Paint-relevant engine styles shared by the resting baseline and the
  * focused read. */
 type ProbePaint = {
@@ -55,6 +89,9 @@ type ProbePaint = {
 	borderTopStyle: string;
 	borderTopWidth: string;
 	borderTopColor: string;
+	outlineStyle: string;
+	outlineWidth: string;
+	outlineColor: string;
 	backgroundColor: string;
 };
 
@@ -288,6 +325,9 @@ const readProbeStyles = (
 				borderTopStyle: styles.borderTopStyle,
 				borderTopWidth: styles.borderTopWidth,
 				borderTopColor: styles.borderTopColor,
+				outlineStyle: styles.outlineStyle,
+				outlineWidth: styles.outlineWidth,
+				outlineColor: styles.outlineColor,
 				backgroundColor: styles.backgroundColor,
 				rootBackground: window.getComputedStyle(document.documentElement)
 					.backgroundColor,
@@ -322,6 +362,125 @@ const resolveEffectiveCanvasRgb = (pageBackgrounds: {
 };
 
 /**
+ * Reads `--publy-focus-ring` the way any consumer of the cascade would: off
+ * `<html>` (where app.css defines it, `.dark` override included) through
+ * `getComputedStyle`, then resolved to a computed colour on a scratch
+ * element that is removed again. Deliberately NOT hard-coded here: a token
+ * re-tune (or the landing-page local override pattern) can never stale-date
+ * this assertion, and a renamed/removed token throws instead of comparing
+ * loose.
+ */
+const readFocusRingTokenRgb = async (page: Page): Promise<Rgba> => {
+	const serialized = await page.evaluate(() => {
+		const value = window
+			.getComputedStyle(document.documentElement)
+			.getPropertyValue('--publy-focus-ring')
+			.trim();
+		if (!value) {
+			throw new Error(
+				'--publy-focus-ring is not defined on <html> — the token the ' +
+					'outline focus contract is written against was renamed or removed',
+			);
+		}
+		const scratch = document.createElement('div');
+		document.body.appendChild(scratch);
+		scratch.style.color = 'rgb(1, 2, 3)';
+		const fallback = window.getComputedStyle(scratch).color;
+		scratch.style.color = value;
+		const resolved = window.getComputedStyle(scratch).color;
+		scratch.remove();
+		if (resolved === fallback) {
+			throw new Error(
+				`--publy-focus-ring did not resolve to a colour (raw: "${value}")`,
+			);
+		}
+		return resolved;
+	});
+	return parseComputedColor(serialized);
+};
+
+/**
+ * #1379 — the `outline` member of `:focus-visible`, read from the SAME
+ * engine-resolved focused-path paint the box-shadow indicator is measured
+ * from. The design-system contract is `outline: 2px solid
+ * var(--publy-focus-ring)`; a primitive either paints exactly that, or it is
+ * in `OUTLINE_TOKEN_ALLOWLIST` (box-shadow-ring-only per DESIGN.md) and must
+ * paint NO outline at all. Both directions are asserted so the contract
+ * cannot rot quietly in either direction: an outline beaten by a cascade
+ * override fails HERE even when the shadow ring still paints, and an
+ * allowlisted primitive growing an outline fails too — that is a design
+ * decision someone must record, then move the id out of the list.
+ */
+const assertOutlineMemberOfFocusVisible = (
+	probeId: string,
+	focused: ProbePaint,
+	tokenRgb: Rgba,
+): void => {
+	if (OUTLINE_TOKEN_ALLOWLIST.has(probeId)) {
+		expect(
+			focused.outlineStyle === 'none' ||
+				Number.parseFloat(focused.outlineWidth) === 0,
+			`${probeId}: allowlisted as a box-shadow-ring-only primitive ` +
+				'(DESIGN.md "Focus rings": the ring utilities over ' +
+				'`outline-none`) yet :focus-visible now computes outline ' +
+				`${focused.outlineStyle} ${focused.outlineWidth} — a design ` +
+				'decision changed the contract; move the id out of ' +
+				'OUTLINE_TOKEN_ALLOWLIST deliberately.',
+		).toBe(true);
+		return;
+	}
+
+	const deviations: string[] = [];
+	if (focused.outlineStyle !== 'solid') {
+		deviations.push(
+			`outlineStyle is "${focused.outlineStyle}", expected "solid"`,
+		);
+	}
+	if (focused.outlineStyle !== 'none') {
+		// Width only means anything when a style would actually paint; a
+		// `none` style already failed above.
+		const width = Number.parseFloat(focused.outlineWidth);
+		if (!Number.isFinite(width) || Math.round(width) !== 2) {
+			deviations.push(
+				`outlineWidth is "${focused.outlineWidth}", expected "2px"`,
+			);
+		}
+	}
+	let paintedColor: Rgba | undefined;
+	try {
+		paintedColor = parseComputedColor(focused.outlineColor);
+	} catch {
+		deviations.push(
+			`outlineColor "${focused.outlineColor}" is not a parseable computed ` +
+				'colour',
+		);
+	}
+	if (paintedColor) {
+		const channelDelta = Math.max(
+			Math.abs(paintedColor.r - tokenRgb.r),
+			Math.abs(paintedColor.g - tokenRgb.g),
+			Math.abs(paintedColor.b - tokenRgb.b),
+		);
+		if (
+			channelDelta > OUTLINE_TOKEN_CHANNEL_TOLERANCE ||
+			paintedColor.a !== tokenRgb.a
+		) {
+			deviations.push(
+				`outlineColor is "${focused.outlineColor}", expected the ` +
+					'--publy-focus-ring token resolved through getComputedStyle',
+			);
+		}
+	}
+
+	expect(
+		deviations,
+		`${probeId}: :focus-visible does not paint the contractual outline ` +
+			'(`2px solid var(--publy-focus-ring)`) — ' +
+			deviations.join('; '),
+	).toHaveLength(0);
+};
+
+/**
  * The single load-bearing assertion of this spec, run against whatever
  * stylesheet the caller loaded into the page: every probe must be reachable
  * by a real keyboard Tab, satisfy `:focus-visible`, and GAIN a VISIBLE
@@ -331,6 +490,10 @@ const resolveEffectiveCanvasRgb = (pageBackgrounds: {
  * that beat the layered utilities shows up here exactly as users experience
  * it: either no new paint at all, or only sub-floor paint, never a missing
  * utility in a class string.
+ *
+ * Since #1379 every probe must ALSO satisfy the outline member: the
+ * contractual `2px solid var(--publy-focus-ring)` at `:focus-visible`, or an
+ * explicit `OUTLINE_TOKEN_ALLOWLIST` entry (see that constant).
  */
 const assertRenderedFocusRingCompliant = async (
 	page: Page,
@@ -357,6 +520,11 @@ const assertRenderedFocusRingCompliant = async (
 			'*, *::before, *::after { transition: none !important; animation: none !important; }',
 	});
 
+	// The outline contract's reference colour, resolved straight from <html>
+	// AFTER the compiled CSS is in the page — see readFocusRingTokenRgb for
+	// why it is never hard-coded.
+	const focusRingTokenRgb = await readFocusRingTokenRgb(page);
+
 	// RESTING-state baselines, read from the pristine copy of every probe —
 	// the indicator is defined as paint that APPEARS at focus, so the
 	// before-state must be genuinely un-focused (keyboard traversal below
@@ -371,6 +539,9 @@ const assertRenderedFocusRingCompliant = async (
 					borderTopStyle: styles.borderTopStyle,
 					borderTopWidth: styles.borderTopWidth,
 					borderTopColor: styles.borderTopColor,
+					outlineStyle: styles.outlineStyle,
+					outlineWidth: styles.outlineWidth,
+					outlineColor: styles.outlineColor,
 					backgroundColor: styles.backgroundColor,
 				};
 			};
@@ -451,6 +622,8 @@ const assertRenderedFocusRingCompliant = async (
 				`${bestRatio.toFixed(2)}:1 against the element surface ` +
 				`(floor ${CONTRAST_FLOOR}:1)`,
 		).toBeGreaterThanOrEqual(CONTRAST_FLOOR);
+
+		assertOutlineMemberOfFocusVisible(probeCase.id, styles, focusRingTokenRgb);
 	}
 };
 
@@ -477,12 +650,14 @@ test.describe(
 		 * the working tree dirty for a test-only check), the #823 defect is
 		 * reproduced EXACTLY as reviewers described it — an UNLAYERED appended
 		 * rule setting `box-shadow`/`border` unconditionally, which wins the
-		 * real cascade over Tailwind's layered `focus-visible:*` utilities — and
-		 * the assertion above must go red on it. This is the property the old
-		 * vitest simulator could never have: its class-string model saw no
-		 * difference at all.
+		 * real cascade over Tailwind's layered `focus-visible:*` utilities —
+		 * plus, since #1379, the `outline:none !important` half of the same
+		 * defect class on the outline-contract primitives — and the assertion
+		 * above must go red on BOTH. This is the property the old vitest
+		 * simulator could never have: its class-string model saw no difference
+		 * at all.
 		 */
-		test('is caught by an unlayered rule beating the ring utilities (CSS-mutation proof)', async ({
+		test('is caught by an unlayered rule beating the ring/outline utilities (CSS-mutation proof)', async ({
 			page,
 		}) => {
 			const css = readCompiledAppCss();
@@ -491,12 +666,14 @@ test.describe(
 				/* NOTE: the planted hex below is deliberate test-only mutation
 				 * content inside a spec fixture string — it is the defect being
 				 * proven caught, not shipped styling. */
-				'[data-e2e-focus-probe]{box-shadow:none;border:2px solid rgba(228,228,231,1)!important}',
+				'[data-e2e-focus-probe]{box-shadow:none;border:2px solid rgba(228,228,231,1)!important;outline:none!important}',
 			].join('\n');
 
 			await expect(
 				assertRenderedFocusRingCompliant(page, mutatedCss),
-			).rejects.toThrow(/NO visible focus indicator|focus-indicator colour/);
+			).rejects.toThrow(
+				/NO visible focus indicator|focus-indicator colour|does not paint the contractual outline/,
+			);
 		});
 	},
 );
