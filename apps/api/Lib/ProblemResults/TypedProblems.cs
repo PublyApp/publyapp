@@ -178,4 +178,22 @@ public static class TypedProblems {
 	) {
 		return new(ValidationProblemDetails.Create(detail, translationKey, errors));
 	}
+
+	/// <summary>
+	/// Creates a 503 Service Unavailable response for a downstream provider outage.
+	/// Reserved for transient upstream failures (e.g. Bluesky unreachable) — safe to
+	/// retry; never used for validation or auth failures.
+	/// </summary>
+	public static AppProviderUnavailableHttpResult ProviderUnavailable(
+		string detail,
+		TranslationKey translationKey,
+		string title = "Provider Unavailable"
+	) {
+		return new(AppProblemDetails.Create(
+		StatusCodes.Status503ServiceUnavailable,
+		title,
+		detail,
+		translationKey
+	));
+	}
 }

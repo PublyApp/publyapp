@@ -105,5 +105,10 @@
 	"upload-budget-exhausted": "Upload storage capacity is temporarily exhausted. Please try again later.",
 	"dead-letter-resolved-success": "Dead-letter triage resolved",
 	"dead-letter-not-found": "Dead-letter entry not found",
-	"dead-letter-not-unclassified": "Dead-letter entry is not awaiting unclassified triage"
+	"dead-letter-not-unclassified": "Dead-letter entry is not awaiting unclassified triage",
+	"social-account-not-found": "Social account not found",
+	"social-account-disconnected-success": "Social account disconnected and stored secret erased",
+	"credentials-refused": "Bluesky refused these credentials",
+	"provider-unreachable": "The provider could not be reached; nothing was stored",
+	"project-not-found": "Project not found in this tenant"
 }
