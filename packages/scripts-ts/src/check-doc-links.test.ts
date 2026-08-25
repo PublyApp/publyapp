@@ -47,10 +47,7 @@ const makeRepo = (files: Record<string, string>): string => {
 
 // Writes files into an already-created fixture repo WITHOUT staging them, so
 // they are visible to the working tree but invisible to `git ls-files`.
-const plantUntracked = (
-	root: string,
-	files: Record<string, string>,
-): void => {
+const plantUntracked = (root: string, files: Record<string, string>): void => {
 	for (const [relative, content] of Object.entries(files)) {
 		const absolute = path.join(root, relative);
 		mkdirSync(path.dirname(absolute), { recursive: true });
@@ -181,4 +178,58 @@ test('untracked files are scanned but ignored files stay out of scope', () => {
 	const result = runGuard(root);
 	assert.equal(result.status, 0, result.stderr);
 	assert.match(result.stdout, /doc links OK/);
+});
+
+// Round-1 review (r1 MEDIUM): the prune inventory counted code files among
+// the survival surfaces, but the guard only scanned *.md — a code comment
+// referencing a deleted docs path went unguarded. The guard now scans the
+// code surfaces (apps/, packages/, .github/, justfile, AGENTS.md, DESIGN.md)
+// for docs/ path literals that do not exist.
+test('existing docs/ literals in code surfaces pass', () => {
+	const root = makeRepo({
+		'docs/guides/real.md': 'content\n',
+		'docs/records/2026-01-01-analysis-x.md': 'frozen\n',
+		'apps/pkg/constants.ts':
+			'// Rules: docs/guides/real.md and docs/records/2026-01-01-analysis-x.md.\n',
+		justfile: '# see docs/guides/real.md\nlint:\n\techo lint\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('a broken docs/ literal in code fails naming file and line', () => {
+	const root = makeRepo({
+		'docs/guides/other.md': 'content\n',
+		'apps/pkg/constants.ts': 'export const GUIDE = "docs/guides/missing.md";\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 1);
+	assert.match(result.stderr, /broken docs\/ path literal/);
+	assert.match(
+		result.stderr,
+		/apps\/pkg\/constants\.ts:1: -> docs\/guides\/missing\.md/,
+	);
+});
+
+test('URLs, branch names, and test files stay out of the literal scan', () => {
+	const root = makeRepo({
+		'packages/lint/src/rule.ts':
+			'// See https://oxc.rs/docs/guide/usage/linter/js-plugins.html\n',
+		'DESIGN.md':
+			'decision recorded on branch `docs/spec-epic-c-social-accounts`.\n',
+		'apps/pkg/fake.test.ts': '// fixture claims docs/guides/fake.md exists\n',
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
+	assert.match(result.stdout, /doc links OK/);
+});
+
+test('the audit decision table is exempt: it maps the pre-prune tree', () => {
+	const root = makeRepo({
+		'packages/scripts-ts/src/audit-docs-prune.ts':
+			"const MOVES = {\n\t'docs/superpowers/specs/2026-08-01-x-design.md': { action: 'move' },\n};\n",
+	});
+	const result = runGuard(root);
+	assert.equal(result.status, 0, result.stderr);
 });
