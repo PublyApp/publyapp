@@ -13,6 +13,8 @@ import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	ApiResponse,
 	BulkCreateStaffInvitationsBody,
+	BulkRevokeStaffInvitationsBody,
+	BulkStaffInvitationActionResult,
 	BulkStaffInvitationsCreated,
 	FindStaffInvitationsResult,
 	GetStaffInvitationLinkResult,
@@ -128,6 +130,39 @@ const bulkCreateStaffInvitationsMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+export type BulkRevokeStaffInvitationsInput = {
+	invitationIds: string[];
+};
+
+// The kiota body model is untyped-node based; this builder is the one place
+// that owns the `{ invitationIds: [...] }` wire shape for
+// POST /staff/invitations/bulk-revoke.
+export const buildBulkRevokeStaffInvitationsBody = (
+	input: BulkRevokeStaffInvitationsInput,
+): BulkRevokeStaffInvitationsBody => ({
+	invitationIds: createUntypedArray(
+		input.invitationIds.map((invitationId) =>
+			createUntypedString(invitationId),
+		),
+	),
+});
+
+const bulkRevokeStaffInvitationsMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkStaffInvitationActionResult | undefined,
+	BulkRevokeStaffInvitationsInput
+>(
+	{
+		mutationKeyFn: () => ['staff-invitations', 'bulk-revoke'],
+		mutationFn: (client, variables) =>
+			client.staff.invitations.bulkRevoke.post(
+				buildBulkRevokeStaffInvitationsBody(variables),
+			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
 const staffInvitationsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffInvitationsResult,
@@ -227,6 +262,9 @@ const revokeStaffInvitationMutationOptions = buildStaffMutationOptions<
 
 export const useBulkCreateStaffInvitationsMutation = () =>
 	useMutation(bulkCreateStaffInvitationsMutationOptions);
+
+export const useBulkRevokeStaffInvitationsMutation = () =>
+	useMutation(bulkRevokeStaffInvitationsMutationOptions);
 
 export const useStaffInvitationsQuery = (
 	variables: StaffInvitationsQueryVariables,

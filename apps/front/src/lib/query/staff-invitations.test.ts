@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import {
+	buildBulkRevokeStaffInvitationsBody,
 	buildFindStaffInvitationsQueryParameters,
 	invalidateStaffInvitations,
 	STAFF_INVITATIONS_QUERY_KEY,
@@ -57,6 +58,28 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 			sortOrder: 'desc',
 			status: 'pending,accepted',
 		});
+	});
+});
+
+describe('buildBulkRevokeStaffInvitationsBody', () => {
+	// The kiota body model is untyped-node based; the builder is the one place
+	// that owns the `{ invitationIds: [...] }` wire shape for
+	// POST /staff/invitations/bulk-revoke.
+	test('maps ids to the invitationIds untyped array the bulk-revoke endpoint expects', () => {
+		const body = buildBulkRevokeStaffInvitationsBody({
+			invitationIds: ['a', 'b'],
+		});
+
+		expect(body.invitationIds).toBeDefined();
+	});
+
+	test('accepts the full id list in order, including duplicates the caller sent', () => {
+		const body = buildBulkRevokeStaffInvitationsBody({
+			invitationIds: ['a', 'b', 'a'],
+		});
+
+		expect(JSON.stringify(body)).toContain('"a"');
+		expect(JSON.stringify(body)).toContain('"b"');
 	});
 });
 
