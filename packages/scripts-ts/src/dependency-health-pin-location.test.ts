@@ -10,10 +10,11 @@ import { test } from 'vitest';
 // a doc naming the wrong package.json fails this suite, and so does the doc
 // or a manifest dropping the pin entirely.
 //
-// Paired proof: with the doc saying `apps/front/package.json` AND
-// `packages/client-ts/package.json` carry the patched version (the
-// #1331-review state) the second test is RED; after correcting it to
-// `apps/front/package.json` alone the whole file is GREEN. Reverting either
+// Paired proof (fix round 1): mutating the #880 record to a PARAPHRASED false
+// attribution ("`packages/client-ts/package.json` also pins the fetch
+// library") makes the second test RED, and so does the original #1331-review
+// wording ("…AND `packages/client-ts/package.json` carry the patched…");
+// restoring the doc makes the whole file GREEN again. Reverting either
 // manifest's pin makes the first test RED.
 
 const docPath = new URL(
@@ -66,6 +67,48 @@ const findExactPinGroup = (
 	return null;
 };
 
+const clientTsPackagePath = 'packages/client-ts/package.json';
+
+// A record sentence naming packages/client-ts/package.json may only EXCLUDE it
+// from carrying the fetch-library pin; these are the markers such an exclusion
+// can use. A plain attribution ("…also pins…", "…carry the patched…") carries
+// none of them, whatever its wording.
+const exclusionMarkerPattern =
+	/\b(?:not|never|rather than|unlike|whereas|excluding)\b/;
+
+// The #880 record bullet that mentions the fetch library, joined and
+// whitespace-normalized: the bullet wraps across several source lines and ends
+// at the next blank line.
+const recordBlock = (rawDoc: string): string => {
+	const lines = rawDoc.split('\n');
+	const start = lines.findIndex((line) => line.includes(fetchLibrary));
+	assert.ok(
+		start !== -1,
+		`dependency-health.md must mention ${fetchLibrary} in its #880 record`,
+	);
+
+	const blockLines = [lines[start]];
+	for (let index = start + 1; index < lines.length; index += 1) {
+		if (lines[index].trim() === '') break;
+		blockLines.push(lines[index]);
+	}
+
+	return normalizeWhitespace(blockLines.join(' '));
+};
+
+// Sentence-shaped chunks of a normalized block. Version numbers are masked
+// first (dots become middle dots) so "1.0.0-preview.103" cannot pose as a
+// sentence boundary; a sentence then ends only at a period followed by
+// whitespace and a capital letter, backtick, asterisk, or em dash. Residual
+// limit, stated honestly: two claims fused into ONE sentence — a true
+// exclusion and a false attribution — read as one sentence here, so an editor
+// must keep them in separate sentences for the guard to see both.
+const sentencesOf = (block: string): string[] =>
+	block
+		.replace(/\d+(?:\.\d+)+/g, (version) => version.replaceAll('.', '·'))
+		.split(/\.\s+(?=[A-Z`*—])/)
+		.map((sentence) => sentence.replaceAll('·', '.'));
+
 test('both manifests still declare exactly where the kiota chain pins live', async () => {
 	const frontManifest = await readJson(frontManifestPath);
 	const clientTsManifest = await readJson(clientTsManifestPath);
@@ -86,22 +129,42 @@ test('both manifests still declare exactly where the kiota chain pins live', asy
 });
 
 test('dependency-health.md attributes the fetch-library pin to apps/front/package.json only', async () => {
-	const doc = normalizeWhitespace(await readFile(docPath, 'utf8'));
+	const rawDoc = await readFile(docPath, 'utf8');
+	const block = recordBlock(rawDoc);
+	const recordSentences = sentencesOf(block).filter((sentence) =>
+		sentence.includes(fetchLibrary),
+	);
 
-	// Direction 1 (must hold): the corrected sentence names front as THE carrier.
+	// Direction 1 (must hold): the #880 record names apps/front/package.json as
+	// THE carrier, in carry-the-patched language, and the canonical corrected
+	// sentence survives somewhere in the doc.
+	const carrierSentence = recordSentences.find((sentence) =>
+		/`apps\/front\/package\.json`\s+carries\b/.test(sentence),
+	);
+	assert.ok(
+		carrierSentence,
+		'the #880 fetch-library record must name `apps/front/package.json` as the manifest carrying the patched pin',
+	);
+
 	const correctClaim =
 		'`apps/front/package.json` carries the patched `1.0.0-preview.103`';
 	assert.ok(
-		doc.includes(correctClaim),
+		normalizeWhitespace(rawDoc).includes(correctClaim),
 		`dependency-health.md must state the pin location as: ${correctClaim}`,
 	);
 
-	// Direction 2 (must never come back): the #1331-review wording that credited
-	// BOTH manifests with carrying the patched fetch library.
-	const wrongClaim =
-		'`apps/front/package.json` and `packages/client-ts/package.json` carry the patched';
-	assert.ok(
-		!doc.includes(wrongClaim),
-		'dependency-health.md must not attribute the fetch-library pin to packages/client-ts/package.json',
-	);
+	// Direction 2 (must never come back, in ANY wording): a record sentence
+	// naming packages/client-ts/package.json must explicitly exclude it from
+	// carrying the pin ("…but not this fetch library"). A plain attribution —
+	// the #1331-review wording or any paraphrase of it — has no exclusion
+	// marker and fails here regardless of phrasing.
+	for (const sentence of sentencesOf(block)) {
+		if (!sentence.includes(clientTsPackagePath)) continue;
+
+		assert.match(
+			sentence,
+			exclusionMarkerPattern,
+			`a #880-record sentence naming ${clientTsPackagePath} must explicitly exclude it from carrying the fetch-library pin (e.g. "…but not this fetch library"), never attribute the pin to it: ${sentence}`,
+		);
+	}
 });
