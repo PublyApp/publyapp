@@ -74,6 +74,29 @@ export const matchRunnerHandshake = (output, expectedNonce) => {
 // completes, and nothing bounded the exit wait. This budget keeps ~8x
 // headroom over the slowest measured run while turning the observed
 // 26-minute hang into a loud failure within two minutes.
+// #1352 ROOT CAUSE of the Node 24 hang (analysis, 2026-08-25): the probe
+// chain is three levels deep — this test's process → the spawned
+// runner-probe wrapper (`check-design-system-runner-probe.mjs`) → its own
+// `node --test` grand-child running the live probe test. Interrupting it
+// means SIGINT lands on the wrapper, whose registered fixture handler runs
+// ASYNC cleanup (rm -rf of the owned root) before calling process.exit(130)
+// — see registerFixtureSignalHandlers — while the grand-child node:test
+// runner performs its own interruption teardown. On Node v24.19.0 that
+// combined teardown race sometimes never completes: the wrapper keeps
+// waiting on its grand-child and our old code kept waiting on the wrapper,
+// with NO ceiling anywhere — hence the two observed ~26-minute holds
+// (2026-08-23, 2026-08-25). Controlled experiments today could NOT
+// re-trigger it deterministically (a manual replay of the whole chain
+// exited 25 ms after SIGINT; a full run under a pty completed in ~5 s),
+// which matches upstream reports that node:test interruption teardown is
+// environment-sensitive (nodejs/node#62037 signal-exit-code rework;
+// teardown-hang fixes #57394/#62056; `--test-force-exit` exists precisely
+// because the runner can keep the event loop alive after tests end).
+// Because the hang lives inside node:test's own teardown — not in code
+// this repo controls — there is no fix we can apply AND prove without a
+// deterministic reproduction, so none was applied; the budget below stays
+// as the standing guard regardless and turns any recurrence into a loud
+// failure within two minutes instead of a silent 26-minute lock hold.
 export const RUNNER_PROBE_BUDGET_MS = 120_000;
 
 // Kill the whole process group first — the probe child is spawned
