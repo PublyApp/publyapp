@@ -129,6 +129,14 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'confirm-bulk-revoke-invitations':
 					'Are you sure you want to revoke {{count}} selected invitation(s)?',
+				'only-pending-invitations-can-be-revoked':
+					'Only pending invitations can be revoked.',
+				'invitation-bulk-revoke-success':
+					'Successfully revoked {{count}} invitation(s).',
+				'invitation-bulk-revoke-partial-success':
+					'Revoked {{succeeded}} invitation(s), {{failed}} failed.',
+				'invitation-bulk-revoke-failure':
+					'Failed to revoke selected invitations.',
 			};
 
 			return (labels[bare] ?? bare).replace(
@@ -143,7 +151,6 @@ vi.mock('react-i18next', () => ({
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 import { Route as InvitationsListRoute } from './index';
-
 type QueryState = {
 	data?: unknown;
 	error?: unknown;
@@ -308,7 +315,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		);
 
 		const trigger = await screen.findByRole('button', {
-			name: 'More actions',
+			name: 'Bulk actions',
 			expanded: false,
 		});
 		fireEvent.click(trigger);
@@ -345,7 +352,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
 		);
 
-		await chooseBulkAction('Revoke selected');
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
 
 		// Destructive action requires a confirmation dialog naming the eligible count.
 		expect(
@@ -369,7 +376,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
 		);
 
-		await chooseBulkAction('Revoke selected');
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
 
 		await waitFor(() =>
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
@@ -391,7 +398,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
 		);
 
-		await chooseBulkAction('Revoke selected');
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
 		expect(
 			await screen.findByText(/revoke 1 selected invitation/),
 		).toBeTruthy();
@@ -414,7 +421,7 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
 		);
 
-		await chooseBulkAction('Revoke selected');
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
 		expect(
 			await screen.findByText(/revoke 1 selected invitation/),
 		).toBeTruthy();
