@@ -161,6 +161,32 @@ Enforcement estimate: ~177 fixes across 49 files (29 test/spec files +
 the same fix shape as #1337's two-site repair (typed record plumbing or real
 construction instead of the cast).
 
+## Guard test suites (`apps/front/src`, not lint rules)
+
+These enforce repo invariants as vitest suites rather than linter diagnostics, but belong in this
+reference because a reviewer looking for "what enforces X" ends up here. Each entry names its
+detection surface and its pinned boundaries; the normative home for front guards is
+[`docs/guides/front/conventions.md`](front/conventions.md).
+
+### real-`<Trans>` render guard
+
+- **Enforced:** vitest suite, pinned into CI by `check-ci-gate-structure`
+- **Source:** `apps/front/src/lib/i18n/trans-render.guard.test.tsx`
+- **Guide:** [`docs/guides/front/conventions.md`](front/conventions.md) ("<Trans> render guard")
+- **What it catches:** every JSX `<Trans>` element under `apps/front/src` must resolve to a
+  pinned spec that renders through its real route component and the real i18n init — a new call
+  site without a spec turns red naming `file:line`; dropped `components={{ strong: … }}` maps,
+  copy drift, and parser regressions flip dedicated pins.
+- **Detection:** AST walk (ts-morph vendored compiler) matching JSX tags against every local name
+  bound to react-i18next's `Trans` (plain, aliased, default-import spelled `Trans`, namespace
+  member tags), excluding the suite itself (`*.test.*` / `*.spec.*` / `*.stories.*`), `*.d.ts`,
+  and `e2e/`. A spread-only `<Trans {...props} />` IS discovered (#1333 — tag match first,
+  attributes second): it lands unpinned with `i18nKey: null` exactly like any uncovered site.
+- **Pinned boundaries (#1333):** spreads on non-`Trans` elements contribute zero sites; a
+  `Trans` re-exported through a local module is NOT resolved (the one true residual blind spot,
+  does not exist in src today — both facts pinned by standing tests so any change must update the
+  disclosure deliberately).
+
 ## Roslyn analyzers (`packages/lint-cs/`)
 
 Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in `.editorconfig`. `isEnabledByDefault: false` ships dormant; `.editorconfig` flips to `warning` for enforcement (`TreatWarningsAsErrors=true` makes warning a build error).
