@@ -12,14 +12,14 @@ is a dev-time scaffolding/CSS-import dependency only, not a component library co
 runtime.
 
 This intentionally diverges from the MUI + `sx` rules and app-local primitive patterns that
-governed `apps/old-front` (retired 2026-08-22, archived in `docs/archive/old-front`). Those rules were scoped to `apps/old-front`; they do not apply
+governed `apps/old-front` (retired 2026-08-22). Those rules were scoped to `apps/old-front`; they do not apply
 to `apps/front`. Examples include:
 
 - `publy/no-native-html-in-mui-surfaces`
 - `publy/no-raw-mui-textfield-register`
 - `publy/no-raw-img-in-product-surfaces`
 
-Do not import MUI or archived `apps/old-front` patterns (see `docs/archive/old-front`) into `apps/front` to reuse retired-app
+Do not import MUI or retired `apps/old-front` patterns into `apps/front` to reuse retired-app
 components. Rebuild the surface with the `components/ui/*` primitive layer (Base UI + `cva` +
 Tailwind), and front-local equivalents where needed, keeping shared behavior behind
 framework-agnostic contracts where possible.
@@ -101,7 +101,7 @@ purely performance-driven memoisation.
   ([`.github/workflows/react-doctor.yml`](../../../.github/workflows/react-doctor.yml),
   `pnpm dlx react-doctor@0.9.12 --scope files --base <base> --blocking warning`). Run
   `just react-doctor` locally before pushing — see
-  [`docs/guides/react-doctor.md`](react-doctor.md).
+  [`docs/guides/react-doctor.md`](../react-doctor.md).
 
 **Known compiler skip patterns (informational):**
 - `throw` inside `try/catch` — the compiler cannot lower this yet (Todo upstream)
@@ -367,7 +367,7 @@ they are intentionally excluded — PR 3 of #1250 folds that mechanism into `Que
 
 These are standing design decisions Radan has ratified across the front parity review
 (rounds 1–6, 2026-07). They are **defaults, not per-screen requests** — apply them to every new
-surface without waiting to be told. `docs/front-migration/parity-contract.md` is the dated
+surface without waiting to be told. `docs/records/2026-07-29-spec-front-parity-contract.md` is the dated
 decision log; this section is the forward-looking rulebook. When a new screen forces a genuinely
 new choice, decide in this spirit and add the rule here.
 

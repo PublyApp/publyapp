@@ -52,9 +52,9 @@
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
 		"docs-archive.yml::changes::Check whether docs-archive paths changed": {
-			"hash": "9191bf369be31518",
+			"hash": "3efb7a2850412b9d",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts",
-			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored."
+			"reason": "The step now inlines the fallback directly (round-3 review fix: replaced a separate PR-controlled wrapper script with a few lines of shell, since a separate file has no different trust level than inline YAML content — both are read from the pull request's merge commit): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all four workflows. The classifier's own decision logic (including the 3,000-file API-ceiling fail-closed check) remains covered by ci-changed-paths.test.ts. The live gh api calls remain GitHub-only and unmirrored. #1357 fix round 1: the inline regex gained a packages/scripts-ts/src/audit-docs-prune.ts alternative so an edit to the inventory generator itself wakes this gate now that the gate also enforces record freshness via --check."
 		},
 		"docs-archive.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "99333e5810d54009",
@@ -65,11 +65,6 @@
 			"hash": "6c699edc403fc068",
 			"mirror": null,
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
-		},
-		"docs-archive.yml::docs-archive::Check archive records": {
-			"hash": "17388b61cfeb609d",
-			"mirror": "node packages/scripts-ts/src/check-archive-records.ts",
-			"reason": "Run locally to catch archive-record body drift and header/provenance issues before docs-only reviews land. Link checks inside docs/archive are intentionally skipped, per docs/README.md's archive policy."
 		},
 		"docs-archive.yml::docs-archive::Checkout": {
 			"hash": "f6bbd86f711cad8c",
@@ -85,11 +80,6 @@
 			"hash": "8985553731d304dc",
 			"mirror": null,
 			"reason": "GitHub-only pnpm provisioning added so this job can run its vitest fixture-test step; local development already assumes pnpm is installed via corepack/the repo's pinned version."
-		},
-		"docs-archive.yml::docs-archive::Run archive guard fixture tests": {
-			"hash": "9caa46cf0e89e88d",
-			"mirror": "pnpm --filter scripts-ts exec vitest run src/check-archive-records.test.ts",
-			"reason": "Identical invocation to the CI step itself: since the scripts-ts migration the test runs under vitest (node --test no longer works on the .ts file), and CI gained pnpm/node/install steps so this exact command can execute there. Run locally so the fixture suite that pins the guard's own failure modes gates PRs before the production guard executes."
 		},
 		"docs-archive.yml::docs-archive::Setup Node": {
 			"hash": "6c699edc403fc068",
@@ -710,6 +700,21 @@
 			"hash": "6c699edc403fc068",
 			"mirror": null,
 			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
+		},
+		"docs-archive.yml::docs-archive::Run doc-links guard fixture tests": {
+			"hash": "9e11b169ee35df67",
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts",
+			"reason": "Identical invocation to the CI step itself: the fixture suite executes the real check-doc-links.ts against throwaway git repositories and pins the records exemption, the fence/code-span stripping, and the failure output shape. Run locally so the guard's own failure modes gate PRs before the production guard executes."
+		},
+		"docs-archive.yml::docs-archive::Check doc links": {
+			"hash": "51d2c598be463995",
+			"mirror": "node ./packages/scripts-ts/src/check-doc-links.ts",
+			"reason": "#1357 retarget: the docs-archive required gate now runs the repo-wide dead-relative-link guard over tracked Markdown instead of the deleted archive-records guard. docs/records/ bodies are write-once evidence and exempt; every other Markdown surface is enforced. Run locally to catch broken links in AGENTS.md, DESIGN.md, README.md, guides and deployment docs before docs changes land."
+		},
+		"docs-archive.yml::docs-archive::Check prune inventory freshness (--check)": {
+			"hash": "b9aa1c412d04bf5c",
+			"mirror": "node ./packages/scripts-ts/src/audit-docs-prune.ts --check",
+			"reason": "#1357 fix round 1 (review r1 CRITICAL): the prune-inventory record is generated evidence, so a record that no longer matches what audit-docs-prune.ts produces must fail the required gate instead of rotting silently — the committed 91-row record was already stale against its own script at the reviewed tip. The step is the identical invocation to this local mirror: it regenerates from the merge-base tree in memory and exits nonzero on any byte difference with HEAD's committed record. Runs locally inside just ci-doc-links."
 		},
 		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)": {
 			"hash": "a049d6a6ead6e452",

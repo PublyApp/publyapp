@@ -389,6 +389,38 @@ test('#1334: an unrelated docs page stays outside quality-gate selection', () =>
 });
 
 // ---------------------------------------------------------------------------
+// #1357 fix round 1: docs-archive.yml now also runs the prune-inventory
+// freshness step (`node packages/scripts-ts/src/audit-docs-prune.ts --check`),
+// so an edit to that generator itself must wake the gate. Its classifier
+// pattern previously listed only check-doc-links.ts/.test.ts and the workflow
+// file, so a PR touching only audit-docs-prune.ts skipped the gate entirely.
+// Pin the path against the REAL pattern extracted from the workflow YAML, not
+// a restatement. Paired proof: this case is RED against the pre-round-1
+// pattern (no audit-docs-prune alternative) and GREEN against the shipped one.
+// ---------------------------------------------------------------------------
+
+const docsArchiveClassifierPattern = readFileSync(
+	new URL('../../../.github/workflows/docs-archive.yml', import.meta.url),
+	'utf8',
+).match(/node "\$CLASSIFIER" '([^']*)'/)?.[1];
+
+test('#1357 r1: docs-archive classifier selects packages/scripts-ts/src/audit-docs-prune.ts as relevant', () => {
+	assert.ok(
+		docsArchiveClassifierPattern,
+		'classifier invocation found in docs-archive.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['packages/scripts-ts/src/audit-docs-prune.ts'],
+		changedFilesTotal: 1,
+		pattern: docsArchiveClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
+// ---------------------------------------------------------------------------
 // CLI boundary: spawn the real scripts/ci-changed-paths.mjs entry point
 // against a stubbed `gh`, exactly as the round-2 review demanded. The unit
 // tests above prove classifyRelevance() and parseChangedFilesTotal() are

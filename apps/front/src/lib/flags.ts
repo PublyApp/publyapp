@@ -10,7 +10,7 @@ const readFlag = (envKey: string, defaultValue: boolean): boolean => {
 };
 
 /**
- * Static feature-flag registry (front) — old-front equivalent was `apps/old-front/src/lib/features/flags.ts` (see `docs/archive/old-front/screens/marketing.md` for the retired flag set at retirement). Read at module load, so `import.meta.env` inlines
+ * Static feature-flag registry (front) — old-front equivalent was `apps/old-front/src/lib/features/flags.ts` (see `docs/records/2026-08-22-review-old-front-marketing-screens.md` for the retired flag set at retirement). Read at module load, so `import.meta.env` inlines
  * each value at BUILD time: flipping a flag means rebuilding and redeploying
  * the image, not changing a running container's environment. A flag also needs
  * an ARG/ENV pair in apps/front/Dockerfile to be settable at image-build time

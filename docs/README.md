@@ -3,93 +3,61 @@
 This is the filing index for `docs/`. It answers two questions: **which documents are normative**
 (you must follow them), and **where does a new document go**.
 
-> A restructure of this tree is planned as a later wave of the documentation remediation. This index
-> describes the tree **as it exists today** — it does not describe target directories, and you should
-> not create new top-level directories to match a future plan.
+## Layout
+
+`docs/` has exactly four directories:
+
+| Directory | Contents |
+| --- | --- |
+| [`guides/`](guides) | Standing rules and how-tos, including [`guides/front/`](guides/front) for the frontend. Maintained: when reality changes, the guide changes with it. |
+| [`deployment/`](deployment) | Live production operations — deployment design, migration gating, runbooks. Production has run on these since 2026-07-20. |
+| [`records/`](records) | Dated, write-once records named `YYYY-MM-DD-<type>-<topic>.md`, where `<type>` is one of `spec`, `plan`, `review`, `audit`, `spike`, `analysis`. Written once, never retro-edited; superseded rather than updated. |
+| `assets/` | Images and other binaries a doc embeds. |
 
 ## What is normative
 
 Normative means: an agent or contributor is expected to follow it, and it is kept true. Everything
-else in `docs/` is a **record** — accurate as of its date, not a standing instruction.
+in `records/` is evidence of a past decision — accurate as of its date, not a standing instruction.
 
 | Normative | What it governs |
 | --- | --- |
 | [`AGENTS.md`](../AGENTS.md) (repo root) | The behavioural contract. Architecture and conventions for the whole repo. Wins over anything in `docs/`. |
-| [`DESIGN.md`](../DESIGN.md) (repo root) | The product design language: tokens, the `components/ui/*` layer, interaction conventions, dark mode, i18n/copy rules, and the guards that enforce them. The human/agent distillation of `AGENTS.md` and `docs/guides/front/conventions.md`. |
-| [`docs/guides/`](guides) | The guides `AGENTS.md` links to. These are the long-form version of its rules. |
-| [`docs/guides/front/`](guides/front) | The frontend. `apps/front` is the only frontend under development and the only one deployed. |
-| [`docs/guides/e2e-coverage.md`](guides/e2e-coverage.md) | When a change needs an end-to-end test (five criteria). |
-| [`docs/guides/e2e-tags.md`](guides/e2e-tags.md) | E2E tag vocabulary and spec inventory. |
-| [`docs/guides/social-accounts.md`](guides/social-accounts.md) | The social accounts master key env var, the boot canary that verifies it (and its PASSED log line), and the db-less build-time OpenAPI path where the canary is skipped. |
-| [`docs/deployment/`](deployment) | Live production operations — deployment design, migration gating, and the first-deploy runbook. Production has run on these since 2026-07-20. |
+| [`DESIGN.md`](../DESIGN.md) (repo root) | The product design language: tokens, the `components/ui/*` layer, interaction conventions, dark mode, i18n/copy rules, and the guards that enforce them. |
+| [`docs/guides/`](guides) | The long-form version of `AGENTS.md`'s rules; the guides it links to are normative. |
 
 Two cautions about `docs/guides/`:
 
 - Some guides predate the front migration. Where a guide mixes still-valid backend/API/UX policy
-  with code examples from the retired `apps/old-front` (MUI) app, it now carries a header saying which
+  with code examples from the retired `apps/old-front` (MUI) app, it carries a header saying which
   half is which. Follow the policy; ignore the MUI mechanics.
 - `AGENTS.md` also links repository config/source files when a rule needs an implementation anchor.
   A `docs/guides/` file that `AGENTS.md` does not link is a record, not a rule.
 
-## Historical archive
-
-`docs/archive/` is deliberately outside normal contributor navigation and outside agent-required
-reading. Its files are curated historical evidence, explicitly non-normative, and must not be used
-as a substitute for a current guide or the implementation. Consult an archived record only when a
-task specifically needs the reasoning behind an old decision or incident.
-
-Do not file new work directly in the archive. Write it in the active directory selected below; move
-it to the archive only through an explicit documentation-curation change.
-
-**Archived records are point-in-time snapshots, and their links are not actively maintained.**
-A record describes what was true on the day it was written, so it may name paths that have since
-moved or been deleted. That is expected, and it is not a defect to repair. A record's relative links
-are relative to its `Original location:` directory, not to `docs/archive/`. Rebase the link against
-that directory to follow it; where the target has since been deleted, the reference stands as evidence
-that it once existed. If the cited target was archived in the same wave, it is expected to resolve to
-the co-archived copy next to the record under `docs/archive/`.
-
-**Never edit an archived record to make a reference resolve.** Archiving prepends the four-line
-header and keeps the body byte-identical to the original file. The header is curatorial metadata, so
-its values can be corrected without violating the body snapshot invariant. Rewriting a record to scrub a
-path still falsifies the evidence the archive exists to hold, and it is the specific mistake this
-repository has already had to undo (PR #985). If a stale reference genuinely obstructs someone, the fix
-is a note in the *current* guide, never a change to the record.
+A few `docs/records/` files are load-bearing despite being records: `AGENTS.md`, `DESIGN.md`, or a
+guide points at them for the reasoning behind a standing rule (for example the publishing/scheduling
+design behind AGENTS.md's transparent-failure rule). They stay accurate as history; the rule itself
+lives in the guide or root file that cites them.
 
 ## Where a new document goes
 
-One rule per directory. Pick the **first** row that matches; if two seem to fit, the earlier row
-wins.
+- **Standing rule or how-to** → `docs/guides/` (frontend-specific: `docs/guides/front/`). Guides are
+  maintained; if you add one, you own keeping it true, and `AGENTS.md` should link it.
+- **Production operations** → `docs/deployment/`.
+- **Everything else** — a spec written before work, an implementation plan, a review, an audit, a
+  spike, an analysis, a change note → `docs/records/` as `YYYY-MM-DD-<type>-<topic>.md`.
+  The superpowers skills write their specs/plans/reviews here too.
+- **Images and binaries** → `assets/`.
 
-| Directory | Put a document here when… |
-| --- | --- |
-| `guides/` | It is a standing rule or how-to that should still be true in six months, and `AGENTS.md` will link to it. Guides are maintained; if you add one, you own keeping it true. |
-| `guides/front/` | Same, but specific to `apps/front` styling/architecture. |
-| `deployment/` | It is operational: how the production stack is shaped, how a release is gated, how an operator deploys or recovers. |
-| `implementation-plans/` | It is a step-by-step plan for one specific change, written before the work, and it will be obsolete once merged. |
-| `plans/` | (Directory currently absent: create on first use.) It is higher-level than an implementation plan — issue planning, sequencing, a design sketch for work not yet broken down. Date-prefix the filename (`YYYY-MM-DD-topic.md`). |
-| `roadmaps/` | It spans many issues/phases over time (one subdirectory per roadmap). |
-| `refactoring-guides/` | (Directory currently absent: create on first use.) It is a repeatable refactor playbook or checklist, not a one-off plan. |
-| `analysis/` | (Directory currently absent: create on first use.) It weighs options and reaches a recommendation, before anyone commits to an approach. |
-| `audits/` | It systematically checks the codebase against a rule and reports the gaps. Date-prefix. |
-| `reviews/` | It is the output of reviewing work that exists — a code review, a review response, or review follow-ups. Date-prefix. |
-| `changes/` | (Directory currently absent: create on first use.) It records what a landed change did, after the fact. |
-| `implementation-summaries/` | (Directory currently absent: create on first use.) Same as `changes/`, for larger multi-phase work. Prefer `changes/` for anything small. |
-| `spikes/` | It records a time-boxed investigation whose only deliverable is the finding. Date-prefix. |
-| `issues/<number>/` | (Directory currently absent: create on first use.) It is scratch working material scoped to one GitHub issue. |
-| `front-migration/` | It concerns the front→front-2 migration specifically (parity contracts, characterization, staging). |
-| `misc/` | Nothing above fits. Treat a `misc/` file as scratch — never link one from `AGENTS.md`. |
-| `assets/` | It is an image or other binary a doc embeds. |
-| `superpowers/` | **Do not file here by hand.** This is the superpowers workflow's own output tree (`plans/`, `specs/`, `reviews/`) and it is written by that tooling. |
-| `old-front/` | **Closed.** `apps/old-front` retired 2026-08-22 — archive in `docs/archive/old-front` (tag `old-front-final`); do not add new notes here. |
+Never create a new top-level `docs/` directory; the four above are closed set maintained by guard
+and review. Never place a document at the `docs/` root except `README.md` itself.
 
 ## Rules
 
 - Architecture and convention rules live in `AGENTS.md`, not here. If you find a rule only stated in
   `docs/`, that is a bug — promote it or delete it.
-- **Never** add a file at the `docs/` root. Every document belongs in one of the directories above.
 - Directory names are kebab-case.
-- A record (plan, review, analysis, change note) is written once and then left alone. Do not
-  retro-edit it to match later reality — supersede it, and say what superseded it.
+- A record is written once and then left alone. Do not retro-edit it to match later reality —
+  supersede it with a new record, and say what superseded it in the new record.
 - A guide is the opposite: if reality changes, the guide changes with it.
-- When you move or retire a document, fix the links pointing at it; records generally are exempt.
+- When you move or retire a document, fix the links pointing at it; records generally are exempt,
+  and dead links across `*.md` are caught by the repo-wide link guard.
