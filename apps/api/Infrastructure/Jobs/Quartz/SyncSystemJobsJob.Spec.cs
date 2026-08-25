@@ -8,7 +8,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
+using PublyApp.Api.Modules.Messaging.Jobs;
 
 using Quartz;
 using Quartz.Impl;
@@ -25,6 +27,10 @@ namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 	private const string ValidCron = "0 0/5 * * * ?";
 	private const string InvalidCron = "definitely-not-a-cron";
+
+	// The template-seeded cadence of email-prepared-sends-retention (design §7.3):
+	// every 10 minutes, materially under EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES.
+	private const string PreparedSweepSeededCron = "0 0/10 * * * ?";
 
 	private readonly ApiFixture _fixture;
 
@@ -176,6 +182,125 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture> {
 			await CleanupJobAsync(dbContext, jobKeyName);
 			await scheduler.Shutdown(waitForJobsToComplete: false);
 		}
+	}
+
+	// --- #865: the privacy-load-bearing sweep's schedule cannot be silently disabled ----
+
+	// The K-3 bound, definition level: email-prepared-sends-retention deletes token-bearing
+	// bytes and is the only sweep whose cadence IS the privacy control (§7.3). An operator
+	// (or a bad dashboard write) flipping is_enabled=false must NOT remove its trigger:
+	// the next reconcile must re-enable the row (transparent cause in a WARNING), keep it
+	// scheduled, and leave every OTHER definition free to disable.
+	[Fact]
+	public async Task ItShouldRefuseToDisableThePrivacyLoadBearingPreparedSweepAndReEnableIt() {
+		await using var dbContext = await CreateDbContextAsync();
+		var scheduler = await CreateRamSchedulerAsync();
+
+		try {
+			var protectedKey = EmailPreparedSendsRetentionHandler.JobKey;
+			var jobKey = new JobKey(protectedKey, SyncSystemJobsJob.SystemJobsGroup);
+
+			// Earlier tests in this class wipe system_job_definitions wholesale; restore
+			// (or create) the seeded row rather than assuming anything about test order.
+			await EnsureDefinitionPresentAsync(dbContext, protectedKey, PreparedSweepSeededCron);
+			var definition = await dbContext.SystemJobDefinition
+				.AsNoTracking()
+				.SingleAsync(d => d.JobKey == protectedKey && !d.IsDeleted);
+			var originalCron = definition.CronExpression;
+
+			var job = new SyncSystemJobsJob(dbContext, NullLogger<SyncSystemJobsJob>.Instance);
+			await job.ReconcileAsync(scheduler, CancellationToken.None);
+			(await scheduler.CheckExists(jobKey)).Should().BeTrue("the enabled sweep is scheduled");
+
+			// The operator disables the privacy-load-bearing sweep...
+			await dbContext.SystemJobDefinition
+				.Where(d => d.JobKey == protectedKey)
+				.ExecuteUpdateAsync(s => s.SetProperty(d => d.IsEnabled, false));
+
+			// ...and the NEXT reconcile must refuse the silent drop: the row is re-enabled,
+			// persisted, and its trigger stays live.
+			await job.ReconcileAsync(scheduler, CancellationToken.None);
+
+			(await scheduler.CheckExists(jobKey)).Should().BeTrue(
+				"disabling the prepared-state retention sweep must not remove its trigger — "
+				+ "the cadence is a privacy control (K-3), so residency stays bounded"
+			);
+			var after = await dbContext.SystemJobDefinition
+				.AsNoTracking()
+				.FirstAsync(d => d.JobKey == protectedKey && !d.IsDeleted);
+			after.IsEnabled.Should().BeTrue(
+				"the refused disable is reverted with its cause logged, not dropped silently"
+			);
+			after.CronExpression.Should().Be(originalCron, "only the enable flag is touched");
+		} finally {
+			// Restore the seeded state for other spec classes sharing this database.
+			await dbContext.SystemJobDefinition
+				.Where(d => d.JobKey == EmailPreparedSendsRetentionHandler.JobKey)
+				.ExecuteUpdateAsync(s => s.SetProperty(d => d.IsEnabled, true));
+			await scheduler.Shutdown(waitForJobsToComplete: false);
+		}
+	}
+
+	// Non-vacuity twin: the guard must be keyed to the privacy-load-bearing sweep ONLY.
+	// A housekeeping sweep (session cleanup carries no sensitive bytes) must remain freely
+	// operator-disableable — a guard that blocks everything would break legitimate ops.
+	[Fact]
+	public async Task ItShouldStillHonorDisablingAHousekeepingSweep() {
+		await using var dbContext = await CreateDbContextAsync();
+		var scheduler = await CreateRamSchedulerAsync();
+
+		try {
+			var unprotectedKey = CleanupExpiredSessionsHandler.JobKey;
+			var jobKey = new JobKey(unprotectedKey, SyncSystemJobsJob.SystemJobsGroup);
+
+			// Same order-independence discipline as the protected-sweep spec above.
+			await EnsureDefinitionPresentAsync(dbContext, unprotectedKey, ValidCron);
+			var job = new SyncSystemJobsJob(dbContext, NullLogger<SyncSystemJobsJob>.Instance);
+			await job.ReconcileAsync(scheduler, CancellationToken.None);
+			(await scheduler.CheckExists(jobKey)).Should().BeTrue(
+				"the enabled housekeeping sweep is scheduled"
+			);
+
+			await dbContext.SystemJobDefinition
+				.Where(d => d.JobKey == unprotectedKey)
+				.ExecuteUpdateAsync(s => s.SetProperty(d => d.IsEnabled, false));
+			await job.ReconcileAsync(scheduler, CancellationToken.None);
+
+			(await scheduler.CheckExists(jobKey)).Should().BeFalse(
+				"a non-privacy sweep stays operator-disableable — the guard is scoped to the "
+				+ "prepared-state retention schedule only"
+			);
+		} finally {
+			await dbContext.SystemJobDefinition
+				.Where(d => d.JobKey == CleanupExpiredSessionsHandler.JobKey)
+				.ExecuteUpdateAsync(s => s.SetProperty(d => d.IsEnabled, true));
+			await scheduler.Shutdown(waitForJobsToComplete: false);
+		}
+	}
+
+	// Earlier tests in THIS class wipe system_job_definitions wholesale and every test
+	// class shares one cloned database, so the template's seeded rows cannot be assumed
+	// here. Restore (or create) the exact row a test needs instead of ordering tests.
+	private static async Task EnsureDefinitionPresentAsync(
+		AppDbContext dbContext,
+		string jobKey,
+		string cron
+	) {
+		var definition = await dbContext.SystemJobDefinition
+			.IgnoreQueryFilters()
+			.FirstOrDefaultAsync(d => d.JobKey == jobKey);
+		if (definition is null) {
+			await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
+				JobKey = jobKey,
+				CronExpression = cron,
+			});
+		} else {
+			definition.IsDeleted = false;
+			definition.IsEnabled = true;
+			definition.CronExpression = cron;
+		}
+
+		await dbContext.SaveChangesAsync();
 	}
 
 	// A real RAM-store scheduler; never started, since ScheduleJob/CheckExists/

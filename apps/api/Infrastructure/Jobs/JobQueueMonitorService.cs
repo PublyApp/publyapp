@@ -41,6 +41,11 @@ public sealed record JobQueueSample {
 	// leader and therefore owes no sync (design §7.2 — last_sync_at is leader-emitted).
 	public required double? SchedulerSyncAgeSeconds { get; init; }
 
+	// #865 (K-3): age of the OLDEST email_prepared_sends row that is ALREADY deletable
+	// and still on disk. -1 means UNKNOWN (no sample yet): every threshold comparison
+	// stays silent until a real sample reports (LeaderPresent's null discipline).
+	public double PreparedStateOverdueSeconds { get; init; } = -1;
+
 	public long DueDepthTotal {
 		get { return DueDepthHigh + DueDepthBulk; }
 	}
