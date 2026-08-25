@@ -1,22 +1,15 @@
-import {
-	IconChevronDown,
-	IconDownload,
-	IconUserMinus,
-} from '@tabler/icons-react';
+import { IconDownload, IconUserMinus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME } from '~/components/table/floating-selection-bar';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
-import { Button } from '~/components/ui/button';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from '~/components/ui/dropdown-menu';
+	type BulkActionMenuItem,
+	BulkActionsMenu,
+	BulkActionsTrigger,
+} from '~/components/ui/bulk-actions-trigger';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { DropdownMenu } from '~/components/ui/dropdown-menu';
 import { downloadFile, formatExportDateStamp } from '~/lib/download-file';
 import {
 	displayLocalMutationFailure,
@@ -59,6 +52,21 @@ export const TenantUserBulkActions = ({
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
 	const isActionPending =
 		bulkRemoveMutation.isPending || exportMutation.isPending;
+
+	const selectionBarMenuItems: readonly BulkActionMenuItem[] = [
+		{
+			key: 'export',
+			label: t('export-selected-users'),
+			icon: <IconDownload />,
+		},
+		{
+			key: 'remove',
+			label: t('remove-selected-from-tenant'),
+			icon: <IconUserMinus />,
+			variant: 'destructive',
+			disabled: isActionPending,
+		},
+	];
 
 	const performExport = async () => {
 		if (selectedIds.length === 0 || isOverLimit) {
@@ -154,49 +162,24 @@ export const TenantUserBulkActions = ({
 	return (
 		<>
 			<DropdownMenu>
-				<DropdownMenuTrigger
-					render={
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							disabled={isOverLimit}
-							title={
-								isOverLimit
-									? t('bulk-action-max-count-exceeded', {
-											max: BULK_ACTION_MAX_COUNT,
-											count: selectedCount,
-										})
-									: t('more-actions')
-							}
-							aria-label={t('more-actions')}
-							className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
-						/>
-					}
-				>
-					{t('bulk-actions')}
-					<IconChevronDown aria-hidden="true" className="size-3" />
-				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end" side="top" sideOffset={6}>
-					<DropdownMenuItem
-						disabled={isActionPending}
-						onClick={() => {
+				<BulkActionsTrigger
+					triggerLabel={t('bulk-actions')}
+					isOverLimit={isOverLimit}
+					overLimitMessage={t('bulk-action-max-count-exceeded', {
+						max: BULK_ACTION_MAX_COUNT,
+						count: selectedCount,
+					})}
+				/>
+				<BulkActionsMenu
+					items={selectionBarMenuItems}
+					onMenuItemClick={(key) => {
+						if (key === 'export') {
 							void performExport();
-						}}
-					>
-						<IconDownload />
-						{t('export-selected-users')}
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						variant="destructive"
-						disabled={isActionPending}
-						onClick={() => setIsRemoveDialogOpen(true)}
-					>
-						<IconUserMinus />
-						{t('remove-selected-from-tenant')}
-					</DropdownMenuItem>
-				</DropdownMenuContent>
+						} else if (key === 'remove') {
+							setIsRemoveDialogOpen(true);
+						}
+					}}
+				/>
 			</DropdownMenu>
 
 			<ConfirmDialog

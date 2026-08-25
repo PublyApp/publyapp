@@ -185,12 +185,12 @@ const renderBulkActions = ({
 
 const openMenu = async () => {
 	fireEvent.click(
-		screen.getByRole('button', { name: 'More actions', expanded: false }),
+		screen.getByRole('button', { name: 'Bulk actions', expanded: false }),
 	);
 	await waitFor(() =>
 		expect(
 			screen
-				.getByRole('button', { name: 'More actions' })
+				.getByRole('button', { name: 'Bulk actions' })
 				.getAttribute('aria-expanded'),
 		).toBe('true'),
 	);
@@ -234,12 +234,13 @@ describe('#820 StaffUsersListBulkActions', () => {
 			selectedIds: manyRows.map((r) => r.id),
 		});
 
-		// The trigger carries aria-label "More actions" for its accessible name;
-		// the max-count reason rides on the title attribute.
+		// #1400: the visible "Bulk actions" text IS the accessible name; the
+		// max-count reason rides on the title attribute (description, not name).
 		const trigger = screen.getByRole('button', {
-			name: 'More actions',
+			name: 'Bulk actions',
 		}) as HTMLButtonElement;
 		expect(trigger.disabled).toBe(true);
+		expect(trigger.textContent).toContain('Bulk actions');
 		expect(trigger.getAttribute('title')).toBe(
 			'Reduce your selection to at most 100 items (101 selected).',
 		);

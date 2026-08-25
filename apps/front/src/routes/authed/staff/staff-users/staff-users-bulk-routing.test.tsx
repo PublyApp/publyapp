@@ -334,7 +334,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
 
 		const trigger = await screen.findByRole('button', {
-			name: 'More actions',
+			name: 'Bulk actions',
 			expanded: false,
 		});
 		fireEvent.click(trigger);
@@ -353,12 +353,25 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 		).toBeTruthy();
 	});
 
+	// #1400 (WCAG 2.5.3 label-in-name): the trigger's accessible name must
+	// EQUAL its visible label — both come from the same i18n key, so the
+	// screen-reader announcement can drift away from what sighted users see.
+	test('the bulk trigger accessible name equals its visible Bulk actions label', async () => {
+		await renderAtList();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+
+		const trigger = await screen.findByRole('button', { name: 'Bulk actions' });
+		expect(trigger.getAttribute('aria-label')).toBe('Bulk actions');
+		expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
+	});
+
 	test('a confirmed suspend drives the real route component into the bulk mutation', async () => {
 		await renderAtList();
 
 		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
 
-		await chooseBulkAction('Suspend selected', 'More actions');
+		await chooseBulkAction('Suspend selected', 'Bulk actions');
 
 		// Destructive actions require confirmation before firing.
 		expect(
