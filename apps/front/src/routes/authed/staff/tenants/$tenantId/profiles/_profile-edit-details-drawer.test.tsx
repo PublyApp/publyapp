@@ -527,4 +527,42 @@ describe('ProfileEditDetailsDrawer', () => {
 		expect(screen.queryByRole('alert')).toBeNull();
 		expect(onSaved).not.toHaveBeenCalled();
 	});
+
+	// #1393 — the pristine-save lifecycle, pinned end to end: Save starts
+	// disabled while the form is pristine, the first change enables it, a
+	// successful save reports `onSaved` (the page closes the drawer), and a
+	// freshly opened drawer re-seeds from the saved profile, so Save is
+	// disabled again until the next real change.
+	test('disables Save while pristine, enables on change, and resets after a successful save', async () => {
+		const { onSaved } = renderDrawer();
+
+		const saveButton = () =>
+			screen.getByRole('button', { name: 'Save changes' });
+		expect(saveButton()).toHaveProperty('disabled', true);
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Draft posts, updated' },
+		});
+		expect(saveButton()).toHaveProperty('disabled', false);
+
+		fireEvent.click(saveButton());
+		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
+		expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
+
+		cleanup();
+		renderDrawer({
+			profile: {
+				id: 'profile-1',
+				name: 'Author',
+				description: 'Draft posts, updated',
+				icon: null,
+				tone: null,
+			},
+		});
+
+		expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty(
+			'disabled',
+			true,
+		);
+	});
 });
