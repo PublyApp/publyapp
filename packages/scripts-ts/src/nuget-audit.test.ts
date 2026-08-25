@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 
 import { test } from 'vitest';
 
-import { evaluateAudit, evaluateProject } from './nuget-audit.ts';
+import {
+	evaluateAudit,
+	evaluateProject,
+	parseGitLsFilesCsproj,
+} from './nuget-audit.ts';
 
 // ---------------------------------------------------------------------------
 // Fixture builders matching real `dotnet list package --format json` shapes.
@@ -401,4 +405,40 @@ test('missing projects key in inspectability is uninspectable', () => {
 	const r = evaluateAudit(reports);
 	assert.equal(r.exitCode, 1);
 	assert.equal(r.errors.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Project discovery (parse `git ls-files '*.csproj'`) — the contract that
+// decides WHICH projects the audit scans.
+// ---------------------------------------------------------------------------
+
+test('discovery parses one csproj path per line', () => {
+	assert.deepEqual(
+		parseGitLsFilesCsproj(
+			'apps/api/PublyApp.Api.csproj\npackages/scripts-cs/PublyApp.Scripts.csproj\n',
+		),
+		[
+			'apps/api/PublyApp.Api.csproj',
+			'packages/scripts-cs/PublyApp.Scripts.csproj',
+		],
+	);
+});
+
+test('discovery drops blank lines and trims whitespace (trailing-newline safe)', () => {
+	assert.deepEqual(parseGitLsFilesCsproj('a/A.csproj\n\n  b/B.csproj  \n'), [
+		'a/A.csproj',
+		'b/B.csproj',
+	]);
+});
+
+test('discovery dedupes repeated paths and sorts deterministically', () => {
+	assert.deepEqual(
+		parseGitLsFilesCsproj('z/Z.csproj\na/A.csproj\nz/Z.csproj\n'),
+		['a/A.csproj', 'z/Z.csproj'],
+	);
+});
+
+test('discovery parses empty output to an empty list; the caller fails loud on it', () => {
+	assert.deepEqual(parseGitLsFilesCsproj(''), []);
+	assert.deepEqual(parseGitLsFilesCsproj('\n \n'), []);
 });
