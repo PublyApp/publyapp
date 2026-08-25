@@ -84,7 +84,9 @@ interface ScopedCustomPropertyPair {
 
 // ts-morph's SourceFile type omits parseDiagnostics, but its vendored
 // compiler always populates it (verified behaviour this guard relies on).
-interface SourceFileWithParseDiagnostics {
+// Extending the public type keeps the single widening assertion comparable,
+// instead of an `as unknown as` chain that discards type evidence.
+interface SourceFileWithParseDiagnostics extends ts.SourceFile {
 	parseDiagnostics: readonly ts.Diagnostic[];
 }
 
@@ -193,8 +195,10 @@ const statusMenuViolations = (
 		true,
 		ts.ScriptKind.TSX,
 	);
-	const { parseDiagnostics } =
-		sourceFile as unknown as SourceFileWithParseDiagnostics;
+	// ts-morph omits parseDiagnostics from its public type even though its
+	// vendored compiler always populates it; widen once through the named
+	// view type instead of an assertion chain that would discard evidence.
+	const { parseDiagnostics } = sourceFile as SourceFileWithParseDiagnostics;
 	if (parseDiagnostics.length > 0) {
 		return parseDiagnostics.map((diagnostic): DesignViolation => ({
 			ruleId: STATUS_FILTER_RULE_ID,

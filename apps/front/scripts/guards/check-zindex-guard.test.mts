@@ -2084,12 +2084,15 @@ test('production-build contract failures still run supplied cleanup', async () =
 			'',
 			[],
 			null,
+			// Deliberately missing the contract fields: this test pins the
+			// guard's rejection of a malformed productionBuild result, so the
+			// single assertion (no `unknown` hop) must stay a lie at runtime.
 			async () =>
 				({
 					cleanup: async () => {
 						cleaned = true;
 					},
-				}) as unknown as ProductionBuildResult,
+				}) as ProductionBuildResult,
 		),
 		/productionBuild must return the exact emittedCssRoot/,
 	);

@@ -28,7 +28,7 @@ import type {
 } from './check-context-chunk-isolation.mts';
 import { findEmittedCallExtents } from './context-source-map.mts';
 import type { SourceSpan } from './context-source-map.mts';
-import type { RawSourceMapShape } from './context-source-map.mts';
+import type { RawSourceMap } from './context-source-map.mts';
 
 /** One mapping segment handed to the hand-fed source-map encoder. */
 type SourceMapSegmentInput =
@@ -215,7 +215,7 @@ const readChunkMap = async (
 		),
 		'utf8',
 	);
-	return (JSON.parse(raw) as { map: RawSourceMapShape | null }).map;
+	return (JSON.parse(raw) as { map: RawSourceMap | null }).map;
 };
 
 const createFixture = async (files: Record<string, string>) => {
@@ -290,12 +290,14 @@ const buildRouteFixture = async ({
 }) => {
 	// Which asset bytes the r26 fixture emits over the guard's own forced
 	// map: the default foreign artifact, or one of the round-27 subsets.
-	const ownedMapAssetSource =
-		replaceOwnedMapAsset === 'trimmed'
-			? 'JSON.stringify({ ...chunk.map, sourcesContent: undefined })'
-			: replaceOwnedMapAsset === 'stub'
-				? '\'{"version":3}\''
-				: '\'{"version":3,"sources":[],"mappings":"","foreign":true}\'';
+	let ownedMapAssetSource =
+		'\'{"version":3,"sources":[],"mappings":"","foreign":true}\'';
+	if (replaceOwnedMapAsset === 'trimmed') {
+		ownedMapAssetSource =
+			'JSON.stringify({ ...chunk.map, sourcesContent: undefined })';
+	} else if (replaceOwnedMapAsset === 'stub') {
+		ownedMapAssetSource = '\'{"version":3}\'';
+	}
 	let buildOptions = '';
 	if (groupProbeModules) {
 		buildOptions =
@@ -4070,9 +4072,9 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 	// survives. Both halves are driven through the production plugin hooks.
 	// The map carries `sourcesContent`, a field real bundler maps include
 	// and the guard's cleanup compares byte-for-byte, even though the
-	// guard's own `RawSourceMapShape` only names the fields it reads.
+	// guard's own `RawSourceMap` type only names the fields it reads.
 	const mappedChunk: ClientChunk & {
-		map: RawSourceMapShape & { sourcesContent: string[] };
+		map: RawSourceMap & { sourcesContent: string[] };
 	} = {
 		type: 'chunk',
 		fileName: 'assets/index.js',

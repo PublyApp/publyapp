@@ -26,14 +26,29 @@ type RouteTreeGeneratorInstance = {
 	run(): Promise<void>;
 };
 
-type RouteTreeGeneratorConstructor = new (options: {
+/** Constructor options: the generator's own resolved config plus the root. */
+type RouteTreeGeneratorOptions = {
 	config: unknown;
 	root: string;
-}) => RouteTreeGeneratorInstance;
+};
+
+type RouteTreeGeneratorConstructor = new (
+	options: RouteTreeGeneratorOptions,
+) => RouteTreeGeneratorInstance;
+
+/**
+ * The generator's own resolved config, handed to the Generator constructor
+ * verbatim. `getConfig` resolves it from the same package, so the pair is
+ * consumed as one opaque-but-named value rather than bare `unknown`.
+ */
+type RouterGeneratorConfig = RouteTreeGeneratorOptions['config'];
 
 interface RouteTreeGeneratorModule {
 	Generator: RouteTreeGeneratorConstructor;
-	getConfig(overrides: Record<string, string>, root: string): Promise<unknown>;
+	getConfig(
+		overrides: Record<string, string>,
+		root: string,
+	): Promise<RouterGeneratorConfig>;
 }
 
 let cachedGeneratorUrl: string | undefined;

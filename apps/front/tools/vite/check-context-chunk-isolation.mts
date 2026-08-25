@@ -49,7 +49,7 @@ import {
 import type {
 	CopyAttribution,
 	SourceSpan,
-	RawSourceMapShape,
+	RawSourceMap,
 } from './context-source-map.mts';
 
 // The retired hand-written .d.mts exported this shape; types now live in
@@ -83,7 +83,7 @@ export interface ClientChunk {
 	name?: string | undefined;
 	modules: Record<string, unknown>;
 	code?: string | undefined;
-	map?: RawSourceMapShape | null | undefined;
+	map?: RawSourceMap | null | undefined;
 }
 
 /**
@@ -137,7 +137,8 @@ interface FamilyCopyVerdict {
 	minted: boolean;
 }
 
-interface ViteBuildConfigShape {
+/** The client environment's resolved `build` options the guard reads and mutates. */
+interface ClientEnvironmentBuildConfig {
 	sourcemap?: boolean | 'hidden' | 'inline' | undefined;
 	rolldownOptions?:
 		| {
@@ -153,10 +154,14 @@ interface ViteBuildConfigShape {
 		| undefined;
 }
 
-interface ViteConfigShape {
-	build?: ViteBuildConfigShape | undefined;
+/** The slice of the user's Vite config the guard inspects to find the client build options. */
+interface GuardViteUserConfig {
+	build?: ClientEnvironmentBuildConfig | undefined;
 	environments?:
-		| Record<string, { build?: ViteBuildConfigShape | undefined } | undefined>
+		| Record<
+				string,
+				{ build?: ClientEnvironmentBuildConfig | undefined } | undefined
+		  >
 		| undefined;
 }
 
@@ -1448,7 +1453,7 @@ export const contextChunkIsolationPlugin = ({
 		// map lands at — `chunk.name + '.map'` — and can later delete
 		// precisely the assets it caused, never an unrelated asset that
 		// merely shares a suffix or bytes.
-		config(config: ViteConfigShape): void {
+		config(config: GuardViteUserConfig): void {
 			const clientBuild = config.environments?.client?.build ?? config.build;
 			if (clientBuild === undefined) {
 				throw new Error(
@@ -1486,7 +1491,7 @@ export const contextChunkIsolationPlugin = ({
 			}
 		},
 		generateBundle(
-			this: { error(message: string): unknown },
+			this: { error(message: string): void },
 			outputOptions: { dir?: string | undefined },
 			bundle: Record<string, BundleOutputEntry>,
 		): void {

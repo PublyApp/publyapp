@@ -85,7 +85,7 @@ const runVerifier = async ({
 		const failure = error as VerifierFailure;
 		return {
 			status: typeof failure.code === 'number' ? failure.code : 1,
-			stderr: `${failure.stderr ?? ''}`,
+			stderr: failure.stderr ?? '',
 		};
 	}
 };

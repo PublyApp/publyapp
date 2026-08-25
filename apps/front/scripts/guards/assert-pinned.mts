@@ -15,10 +15,10 @@ try {
 	// runtime behaviour stays exactly "use it only when installed".
 	const semverSpecifier = ['sem', 'ver'].join('');
 	const imported = (await import(semverSpecifier)) as MinimalSemverModule;
+	// CJS interop: when semver is transpiled without a default export, the
+	// namespace object itself carries `valid`, so no second assertion is needed.
 	const semver: MinimalSemver =
-		typeof imported.default?.valid === 'function'
-			? imported.default
-			: (imported as unknown as MinimalSemver);
+		typeof imported.default?.valid === 'function' ? imported.default : imported;
 	isExact = (range: string): boolean => Boolean(semver.valid(range));
 } catch {
 	// Strict SemVer 2.0.0 exact version: MAJOR.MINOR.PATCH(-prerelease)?(+build)?

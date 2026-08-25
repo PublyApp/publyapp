@@ -37,7 +37,7 @@ export type DecodedSegment =
 	  };
 
 /** The subset of a chunk's source map the decoder relies on. */
-export interface RawSourceMapShape {
+export interface RawSourceMap {
 	version: number;
 	mappings: string;
 	sources: string[];
@@ -99,7 +99,7 @@ export const readSourceMapVlq = (
 // not carried forward for it. Every mapped segment carries its generated line
 // and column as well, so consumers can tie it back to the emitted code.
 export const decodeSourceMapSegments = (
-	map: RawSourceMapShape,
+	map: RawSourceMap,
 	chunkFileName: string,
 ): DecodedSegment[] => {
 	const segments: DecodedSegment[] = [];

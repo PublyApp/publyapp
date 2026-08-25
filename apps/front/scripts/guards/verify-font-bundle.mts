@@ -163,10 +163,19 @@ const isAccessible = (path: string): boolean => {
 	}
 };
 
-const parseLocaleJson = (filePath: string): unknown => {
+/** Any value JSON text can produce; locale catalogs are plain data. */
+type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| { [key: string]: JsonValue };
+
+const parseLocaleJson = (filePath: string): JsonValue => {
 	const content = readFileSync(filePath, 'utf8');
 	try {
-		return JSON.parse(content);
+		return JSON.parse(content) as JsonValue;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(`Locale file ${filePath} is not valid JSON: ${message}.`);
