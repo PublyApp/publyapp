@@ -201,7 +201,7 @@ const StaffUsersPage = () => {
 				description={t('staff-users-page-description')}
 				actions={
 					<Link
-						to={'/staff/invitations/new' as never} // Route is not yet migrated for typed route checks; parity contract keeps this external path.
+						to="/staff/invitations/new"
 						className={buttonVariants({ variant: 'default' })}
 					>
 						<IconUserPlus aria-hidden="true" className="size-4" />

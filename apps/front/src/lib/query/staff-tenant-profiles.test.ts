@@ -809,7 +809,7 @@ describe('toStaffTenantProfileRows', () => {
 	test('normalizes API items and skips rows without usable ids', () => {
 		const items: TenantProfileItem[] = [
 			{
-				id: 'profile-1' as never,
+				id: 'profile-1',
 				name: ' Approvers ',
 				description: ' Can review approvals ',
 				icon: ' briefcase ',
@@ -819,7 +819,7 @@ describe('toStaffTenantProfileRows', () => {
 				permissionsCount: 12,
 			},
 			{
-				id: '' as never,
+				id: '',
 				name: 'Skip me',
 				description: 'Missing id',
 				isDefault: false,
@@ -848,7 +848,7 @@ describe('toStaffTenantProfileRows', () => {
 	test('drops a row with a blank/missing name rather than fabricating a placeholder', () => {
 		const items: TenantProfileItem[] = [
 			{
-				id: 'profile-2' as never,
+				id: 'profile-2',
 				name: null,
 				description: ' ',
 				isDefault: null,
@@ -856,7 +856,7 @@ describe('toStaffTenantProfileRows', () => {
 				permissionsCount: null,
 			},
 			{
-				id: 'profile-3' as never,
+				id: 'profile-3',
 				name: '   ',
 				description: null,
 				isDefault: false,
@@ -877,7 +877,7 @@ describe('toStaffTenantProfileDetails', () => {
 		expect(
 			toStaffTenantProfileDetails({
 				profile: {
-					id: 'profile-7' as never,
+					id: 'profile-7',
 					name: ' Approvers ',
 					description: ' Can review approvals ',
 					icon: ' briefcase ',
@@ -904,9 +904,9 @@ describe('toStaffTenantProfileDetails', () => {
 	test('nulls out missing or invalid timestamps', () => {
 		const result = toStaffTenantProfileDetails({
 			profile: {
-				id: 'profile-9' as never,
+				id: 'profile-9',
 				name: 'Approvers',
-				createdAt: new Date('invalid') as never,
+				createdAt: new Date('invalid'),
 			},
 		} as GetTenantProfileByIdResponse);
 
@@ -918,7 +918,7 @@ describe('toStaffTenantProfileDetails', () => {
 		expect(
 			toStaffTenantProfileDetails({
 				profile: {
-					id: ' ' as never,
+					id: ' ',
 					name: 'Approvers',
 				},
 			} as GetTenantProfileByIdResponse),
@@ -932,7 +932,7 @@ describe('toStaffTenantProfileDetails', () => {
 		expect(
 			toStaffTenantProfileDetails({
 				profile: {
-					id: 'profile-8' as never,
+					id: 'profile-8',
 					name: '   ',
 				},
 			} as GetTenantProfileByIdResponse),
@@ -972,7 +972,10 @@ describe('invalidateStaffTenantProfiles', () => {
 	test('invalidates the shared staff-tenant-profiles scope prefix', () => {
 		const invalidateQueries = vi.fn();
 
-		void invalidateStaffTenantProfiles({ invalidateQueries } as never);
+		void invalidateStaffTenantProfiles({ invalidateQueries } satisfies Pick<
+			QueryClient,
+			'invalidateQueries'
+		>);
 
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', ...STAFF_TENANT_PROFILES_QUERY_KEY],
@@ -1034,8 +1037,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 	test('normalizes API items, prefers the full name, and skips rows without a usable id, userId, or email', () => {
 		const items: TenantProfileUserItem[] = [
 			{
-				id: 'user-account-1' as never,
-				userId: 'user-1' as never,
+				id: 'user-account-1',
+				userId: 'user-1',
 				email: ' ada@example.com ',
 				firstName: ' Ada ',
 				lastName: ' Lovelace ',
@@ -1044,15 +1047,15 @@ describe('toStaffTenantProfileMemberRows', () => {
 				level: 'Admin',
 				otherProfiles: [
 					{
-						id: 'profile-1' as never,
+						id: 'profile-1',
 						name: ' Editors ',
 					},
 				],
 				joinedAt: new Date('2026-02-03T04:05:06Z'),
 			},
 			{
-				id: 'user-account-2' as never,
-				userId: 'user-2' as never,
+				id: 'user-account-2',
+				userId: 'user-2',
 				email: 'grace@example.com',
 				firstName: null,
 				lastName: null,
@@ -1063,8 +1066,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				joinedAt: null,
 			},
 			{
-				id: '' as never,
-				userId: 'user-skip' as never,
+				id: '',
+				userId: 'user-skip',
 				email: 'skip-me@example.com',
 				firstName: 'Skip',
 				lastName: 'Me',
@@ -1075,8 +1078,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				joinedAt: null,
 			},
 			{
-				id: 'user-account-4' as never,
-				userId: 'user-4' as never,
+				id: 'user-account-4',
+				userId: 'user-4',
 				email: '  ',
 				firstName: 'No',
 				lastName: 'Email',
@@ -1087,8 +1090,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 				joinedAt: null,
 			},
 			{
-				id: 'user-account-5' as never,
-				userId: '' as never,
+				id: 'user-account-5',
+				userId: '',
 				email: 'no-user-id@example.com',
 				firstName: 'No',
 				lastName: 'UserId',
@@ -1136,8 +1139,8 @@ describe('toStaffTenantProfileMemberRows', () => {
 	test('keeps id (user_account_id) and userId (global user id) as distinct fields', () => {
 		const [row] = toStaffTenantProfileMemberRows([
 			{
-				id: 'user-account-9' as never,
-				userId: 'user-9' as never,
+				id: 'user-account-9',
+				userId: 'user-9',
 				email: 'rae@example.com',
 				firstName: 'Rae',
 				lastName: 'Lee',
@@ -1184,8 +1187,8 @@ describe('toStaffTenantProfileMemberAssignmentMap', () => {
 	test('maps each user account id to its assigned boolean', () => {
 		const result: ResolveTenantProfileUserAssignmentsAsStaffResult = {
 			assignments: [
-				{ userAccountId: 'user-account-1' as never, isAssigned: true },
-				{ userAccountId: 'user-account-2' as never, isAssigned: false },
+				{ userAccountId: 'user-account-1', isAssigned: true },
+				{ userAccountId: 'user-account-2', isAssigned: false },
 			],
 		};
 
@@ -1198,7 +1201,7 @@ describe('toStaffTenantProfileMemberAssignmentMap', () => {
 	test('skips assignments without a usable user account id', () => {
 		const result: ResolveTenantProfileUserAssignmentsAsStaffResult = {
 			assignments: [
-				{ userAccountId: '' as never, isAssigned: true },
+				{ userAccountId: '', isAssigned: true },
 				{ userAccountId: null, isAssigned: true },
 			],
 		};
