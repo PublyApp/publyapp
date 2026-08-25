@@ -342,6 +342,13 @@ const runDotnet = (args: string, proj: string): DotnetReport => {
  * Exported because this contract decides WHICH projects get audited — an
  * untested regression here could silently shrink the scan set (the exact
  * silent-pass class the JSON-based rewrite in #1199 exists to prevent).
+ *
+ * Discovery boundary (deliberate, #1348): this scans COMMITTED .csproj files
+ * only — `git ls-files` never walks the filesystem, so an untracked or
+ * ignored csproj is invisible to the audit. Accepted because CI commits
+ * before running the gate; do not "fix" this into a filesystem walk without
+ * thinking: a walk would silently widen (or, via ignore rules, wobble) the
+ * scan set the gate was proven against.
  */
 export const parseGitLsFilesCsproj = (lsFilesStdout: string): string[] =>
 	[
