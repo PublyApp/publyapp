@@ -499,4 +499,32 @@ describe('ProfileEditDetailsDrawer', () => {
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
+
+	// #1393 — the other half of the routing contract, mirrored from the staff
+	// drawer (#1342): a non-validation problem (a 500) is NOT owned by this
+	// form; it keeps flowing to the local failure toast and must never raise
+	// the root banner, otherwise a broad 422 branch would silently swallow
+	// server failures.
+	test('routes non-validation failures to the local failure toast instead of the form banner', async () => {
+		mocks.updateProfileMutation.mockRejectedValue({
+			status: 500,
+			responseStatusCode: 500,
+			title: 'Internal error',
+		});
+		const { onSaved } = renderDrawer();
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Dirty so the submit reaches the API' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+				expect.objectContaining({ responseStatusCode: 500 }),
+				'Unable to save this profile.',
+			),
+		);
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(onSaved).not.toHaveBeenCalled();
+	});
 });
