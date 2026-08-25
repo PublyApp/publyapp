@@ -210,6 +210,9 @@ const renderDrawer = (
 		onOpenChange: vi.fn(),
 		onSaved: vi.fn(),
 		onSessionExpired: vi.fn(),
+		// #1406 — mirrors the staff renderDrawer: the bridge prop is always
+		// provided so the nav-guard contract is exercised in every test.
+		onDirtyChange: vi.fn(),
 		...overrides,
 	};
 
@@ -503,6 +506,28 @@ describe('ProfileEditDetailsDrawer', () => {
 		);
 	});
 
+	// #1406 — mirrors the staff drawer pin: clearing the description reaches
+	// the mutation as the raw cleared value. The '' -> explicit-null wire
+	// mapping happens in `buildUpdateStaffTenantProfileBody` and is proven in
+	// `src/lib/query/staff-tenant-profiles.test.ts`.
+	test('clearing the description submits an empty string, which the PATCH body turns into an explicit null', async () => {
+		renderDrawer();
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: '' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tenantId: 'tenant-1',
+					description: '',
+				}),
+			),
+		);
+	});
+
 	// #1393 — mirrors the staff drawer pin from #1342: a 422 whose `errors`
 	// map is empty classifies as a bare *problem* (`toValidationFailure`
 	// requires non-empty errors), so the pre-fix code fell through to the
@@ -596,5 +621,27 @@ describe('ProfileEditDetailsDrawer', () => {
 			'disabled',
 			true,
 		);
+	});
+
+	// #1406 — mirrors the staff drawer pin: the drawer bridges RHF's dirty flag
+	// to the parent so the route-level unsaved-changes guard arms while a draft
+	// is open. A successful save must also RESET the bridge before `onSaved`
+	// closes the drawer, otherwise the guard would trip on the very navigation
+	// the save just made safe.
+	test('reports dirty state changes so the page can arm its nav guard', async () => {
+		const { onDirtyChange, onSaved } = renderDrawer();
+
+		// Mount reports the pristine state...
+		expect(onDirtyChange).toHaveBeenCalledWith(false);
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Draft posts, updated' },
+		});
+		await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+
+		// ...and a successful save clears it before the parent closes.
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
+		expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 	});
 });
