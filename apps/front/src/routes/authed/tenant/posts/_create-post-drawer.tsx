@@ -18,6 +18,7 @@ import {
 import {
 	useAttachPostImageMutation,
 	useInvalidatePostImageCaches,
+	useUpdatePostImageAltMutation,
 } from '~/lib/query/tenant-post-images';
 import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
 import {
@@ -66,6 +67,7 @@ export const CreatePostDrawer = ({
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 
 	const attachImage = useAttachPostImageMutation();
+	const updateImageAlt = useUpdatePostImageAltMutation();
 	const invalidatePostImageCaches = useInvalidatePostImageCaches();
 
 	const onSubmit = methods.handleSubmit(async (values) => {
@@ -83,6 +85,14 @@ export const CreatePostDrawer = ({
 					postId: created.id,
 					file: deferredImage.file,
 				});
+				// Alt text lives on the attached asset and travels through the
+				// post PATCH; the attach endpoint carries only the file itself.
+				if (deferredImage.altText) {
+					await updateImageAlt.mutateAsync({
+						postId: created.id,
+						altText: deferredImage.altText,
+					});
+				}
 				invalidatePostImageCaches();
 			}
 
