@@ -2701,6 +2701,14 @@ export interface DeadLetterResolvedResponse extends AdditionalDataHolder, Parsab
      * The id property
      */
     id?: Guid | null;
+    /**
+     * The key property
+     */
+    key?: string | null;
+    /**
+     * The message property
+     */
+    message?: string | null;
 }
 /**
  * The deserialization information for the current model
@@ -3754,6 +3762,8 @@ export function deserializeIntoDeadLetterResolvedResponse(deadLetterResolvedResp
     return {
         "externalStateStatus": n => { deadLetterResolvedResponse.externalStateStatus = n.getNumberValue(); },
         "id": n => { deadLetterResolvedResponse.id = n.getGuidValue(); },
+        "key": n => { deadLetterResolvedResponse.key = n.getStringValue(); },
+        "message": n => { deadLetterResolvedResponse.message = n.getStringValue(); },
     }
 }
 /**
@@ -7467,6 +7477,8 @@ export function serializeDeadLetterResolvedResponse(writer: SerializationWriter,
     if (!deadLetterResolvedResponse || isSerializingDerivedType) { return; }
     writer.writeNumberValue("externalStateStatus", deadLetterResolvedResponse.externalStateStatus);
     writer.writeGuidValue("id", deadLetterResolvedResponse.id);
+    writer.writeStringValue("key", deadLetterResolvedResponse.key);
+    writer.writeStringValue("message", deadLetterResolvedResponse.message);
     writer.writeAdditionalData(deadLetterResolvedResponse.additionalData);
 }
 /**
