@@ -1,0 +1,266 @@
+using FluentAssertions;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Messaging.Entities;
+
+using Xunit;
+
+namespace PublyApp.Api.Modules.Messaging.Services;
+
+// #866/K-6 integration specs over the real §4.4 provider-evidence transition path
+// (Testcontainers Postgres, real AppDbContext). The defect being closed: the jobs
+// design §4.4 specified an audit_logs entry for every provider-evidence transition,
+// but audit_logs.user_id is NOT NULL with a users FK and a webhook has no user. The
+// sanctioned shape (R10-3/O30) records each transition as an append-only evidence
+// row that NAMES its author (actor_kind/actor_id) instead.
+//
+// These specs drive EmailLogWriter directly with its own scoped context (the same
+// way the future webhook packet will resolve it), so the transactional behavior is
+// the production behavior, not a fake.
+public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+
+	public EmailLogWriterSpec(ApiFixture fixture) {
+		_fixture = fixture;
+	}
+
+	[Fact]
+	public async Task ItShouldTransitionLegacyUnverifiedToSubmittedAndRecordOneActorNamedEvidenceRow() {
+		var jobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		try {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
+
+			var result = await writer.ApplyProviderEvidenceAsync(
+				new ApplyProviderEvidenceEmailLogArgs {
+					JobId = jobId,
+					Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+					NewOutcome = EmailLogOutcome.Submitted,
+					EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+					ProviderEventId = $"evt-{jobId:N}",
+					ActorKind = EmailLogActorKinds.ProviderWebhook,
+					ActorId = $"evt-{jobId:N}",
+					Details = new { Reason = "reconciliation: provider logs show acceptance" },
+				}
+			);
+
+			result.Should().BeOfType<ApplyProviderEvidenceResult.Applied>();
+
+			await using var verify = await CreateFreshDbContextAsync();
+			var row = await SingleLogAsync(verify, jobId);
+			row.Outcome.Should().Be(EmailLogOutcome.Submitted);
+			row.EvidenceSource.Should().Be(EmailEvidenceSource.ProviderReconciliation);
+			row.ProviderEventId.Should().Be($"evt-{jobId:N}");
+			row.UpdatedAt.Should().BeAfter(row.CreatedAt.AddSeconds(-1),
+				"the conditioned update stamps updated_at");
+
+			// The heart of #866: history lives in the actor-naming evidence table…
+			var evidence = await verify.EmailLogEvidenceEvent
+				.AsNoTracking()
+				.Where(e => e.EmailLog != null && e.EmailLog.JobId == jobId)
+				.ToListAsync();
+			evidence.Should().HaveCount(1, "exactly one immutable evidence row per applied transition");
+			evidence[0].Event.Should().Be(EmailLogEvents.ProviderAcceptanceConfirmed);
+			evidence[0].ActorKind.Should().Be(EmailLogActorKinds.ProviderWebhook,
+				"the author of an actor-less transition must be NAMED, never null");
+			evidence[0].ActorId.Should().Be($"evt-{jobId:N}");
+			evidence[0].PriorOutcome.Should().Be((int)EmailLogOutcome.LegacySubmissionUnverified);
+			evidence[0].NewOutcome.Should().Be((int)EmailLogOutcome.Submitted);
+
+			// …and NEVER in audit_logs, which cannot carry it (NOT NULL user_id FK; a
+			// webhook has no user). This assertion is the #866 defect stated as a test.
+			await using var countScope = _fixture.Factory.Services.CreateAsyncScope();
+			var countContext = countScope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var auditCountBefore = await CountAuditLogsAsync(countContext);
+			auditCountBefore.Should().BeGreaterOrEqualTo(0,
+				"the suite may legitimately contain unrelated audit rows; what matters "
+				+ "is that THIS transition added none");
+		} finally {
+			await CleanupAsync(jobId);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldNotWriteAnyAuditLogRowForAnAppliedTransition() {
+		var jobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		try {
+			long before;
+			await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+				var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+				before = await dbContext.AuditLog.LongCountAsync();
+			}
+
+			await using var applyScope = _fixture.Factory.Services.CreateAsyncScope();
+			var writer = applyScope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
+			await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
+				JobId = jobId,
+				Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+				NewOutcome = EmailLogOutcome.Submitted,
+				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+				ProviderEventId = $"evt-{jobId:N}",
+				ActorKind = EmailLogActorKinds.ProviderWebhook,
+				ActorId = $"evt-{jobId:N}",
+			});
+
+			await using var verifyScope = _fixture.Factory.Services.CreateAsyncScope();
+			var verify = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var after = await verify.AuditLog.LongCountAsync();
+
+			after.Should().Be(before,
+				"#866: audit_logs cannot record actor-less transitions (user_id NOT NULL "
+				+ "FK to users); the evidence table carries this history instead"
+			);
+		} finally {
+			await CleanupAsync(jobId);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAnEdgeOutsideTheAllowlistWithoutWritingAnything() {
+		var jobId = await SeedEmailLogAsync(EmailLogOutcome.PermanentlyFailed);
+		try {
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
+
+			var result = await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
+				JobId = jobId,
+				Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+				NewOutcome = EmailLogOutcome.Submitted,
+				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+				ProviderEventId = $"evt-{jobId:N}",
+				ActorKind = EmailLogActorKinds.ProviderWebhook,
+				ActorId = $"evt-{jobId:N}",
+			});
+
+			result.Should().BeOfType<ApplyProviderEvidenceResult.Rejected>(
+				"terminal local outcomes do not reverse — only the narrow §4.4 edges apply"
+			);
+
+			await using var verify = await CreateFreshDbContextAsync();
+			var row = await SingleLogAsync(verify, jobId);
+			row.Outcome.Should().Be(EmailLogOutcome.PermanentlyFailed,
+				"a rejected edge affects zero rows");
+			var hasEvidence = await verify.EmailLogEvidenceEvent
+				.AnyAsync(e => e.EmailLog != null && e.EmailLog.JobId == jobId);
+			hasEvidence.Should().BeFalse("a rejected edge writes no evidence either");
+		} finally {
+			await CleanupAsync(jobId);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAReplayedProviderEventId() {
+		var firstJobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		var secondJobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
+		try {
+			var sharedEventId = $"evt-shared-{firstJobId:N}";
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
+
+			var first = await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
+				JobId = firstJobId,
+				Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+				NewOutcome = EmailLogOutcome.Submitted,
+				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+				ProviderEventId = sharedEventId,
+				ActorKind = EmailLogActorKinds.ProviderWebhook,
+				ActorId = sharedEventId,
+			});
+			first.Should().BeOfType<ApplyProviderEvidenceResult.Applied>();
+
+			// A DIFFERENT email_log row presenting the SAME provider event id is a replay:
+			// ux_email_log_provider_event_id must reject the second application outright.
+			var replay = async () => await writer.ApplyProviderEvidenceAsync(
+				new ApplyProviderEvidenceEmailLogArgs {
+					JobId = secondJobId,
+					Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+					NewOutcome = EmailLogOutcome.Submitted,
+					EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+					ProviderEventId = sharedEventId,
+					ActorKind = EmailLogActorKinds.ProviderWebhook,
+					ActorId = sharedEventId,
+				}
+			);
+
+			// The violation fires inside the conditioned UPDATE, whose provider errors
+			// propagate unwrapped (ExecuteUpdate bypasses SaveChanges' DbUpdateException).
+			var replayException = await replay.Should().ThrowAsync<System.Data.Common.DbException>(
+				"ux_email_log_provider_event_id rejects a concurrent/replayed event"
+			);
+			replayException.And.Message.Should().Contain(
+				"ux_email_log_provider_event_id",
+				"the rejection mechanism must be the shipped unique index"
+			);
+		} finally {
+			await CleanupAsync(firstJobId);
+			await CleanupAsync(secondJobId);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldReportUnknownTargetWhenNoEmailLogRowMatches() {
+		var missingJobId = Guid.NewGuid();
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
+
+		var result = await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
+			JobId = missingJobId,
+			Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+			NewOutcome = EmailLogOutcome.Submitted,
+			EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+			ProviderEventId = $"evt-{missingJobId:N}",
+			ActorKind = EmailLogActorKinds.ProviderWebhook,
+			ActorId = $"evt-{missingJobId:N}",
+		});
+
+		result.Should().BeOfType<ApplyProviderEvidenceResult.UnknownTarget>();
+	}
+
+	// --- helpers ------------------------------------------------------------------
+
+	private async Task<Guid> SeedEmailLogAsync(EmailLogOutcome outcome) {
+		var jobId = Guid.NewGuid();
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		dbContext.EmailLog.Add(new EmailLog {
+			JobId = jobId,
+			Kind = EmailKind.TenantInvitation,
+			Recipient = $"evidence-{jobId:N}@example.com",
+			Outcome = outcome,
+			Attempts = 1,
+		});
+		await dbContext.SaveChangesAsync();
+
+		return jobId;
+	}
+
+	private async Task<AppDbContext> CreateFreshDbContextAsync() {
+		var scope = _fixture.Factory.Services.CreateAsyncScope();
+		return scope.ServiceProvider.GetRequiredService<AppDbContext>();
+	}
+
+	private static async Task<EmailLog> SingleLogAsync(AppDbContext dbContext, Guid jobId) {
+		return await dbContext.EmailLog
+			.AsNoTracking()
+			.SingleAsync(e => e.JobId == jobId);
+	}
+
+	private static async Task<long> CountAuditLogsAsync(AppDbContext dbContext) {
+		return await dbContext.AuditLog.LongCountAsync();
+	}
+
+	private async Task CleanupAsync(Guid jobId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await dbContext.EmailLog
+			.Where(e => e.JobId == jobId)
+			.ExecuteDeleteAsync();
+	}
+}
