@@ -30,7 +30,7 @@ const configureInterZodLocale = (locale: 'en' | 'fr') => {
 	const interZod = new InterZod({
 		i18n: {
 			getFixedT: i18n.getFixedT.bind(i18n),
-			t: i18n.t.bind(i18n) as never,
+			t: i18n.t.bind(i18n),
 		},
 		locale,
 	});

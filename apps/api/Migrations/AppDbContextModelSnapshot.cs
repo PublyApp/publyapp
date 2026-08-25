@@ -17,7 +17,7 @@ namespace PublyApp.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.7")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
@@ -38,6 +38,11 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("FriendlyName")
+                        .IsUnique()
+                        .HasDatabaseName("ux_data_protection_keys_canary_friendly_name")
+                        .HasFilter("\"FriendlyName\" = 'social-accounts-master-key-canary'");
 
                     b.ToTable("data_protection_keys", (string)null);
                 });
@@ -921,6 +926,75 @@ namespace PublyApp.Api.Migrations
                         .HasDatabaseName("ix_email_log_recipient_occurred_at");
 
                     b.ToTable("email_log");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailLogEvidenceEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("ActorId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("actor_id");
+
+                    b.Property<string>("ActorKind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("actor_kind");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("details");
+
+                    b.Property<Guid>("EmailLogId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("email_log_id");
+
+                    b.Property<string>("Event")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("event");
+
+                    b.Property<int>("NewOutcome")
+                        .HasColumnType("integer")
+                        .HasColumnName("new_outcome");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("PriorOutcome")
+                        .HasColumnType("integer")
+                        .HasColumnName("prior_outcome");
+
+                    b.Property<string>("ProviderEventId")
+                        .HasColumnType("text")
+                        .HasColumnName("provider_event_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_email_log_evidence_events");
+
+                    b.HasIndex("ProviderEventId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_email_log_evidence_events_provider_event_id")
+                        .HasFilter("provider_event_id IS NOT NULL");
+
+                    b.HasIndex("EmailLogId", "OccurredAt")
+                        .HasDatabaseName("ix_email_log_evidence_events_email_log_id");
+
+                    b.ToTable("email_log_evidence_events", t =>
+                        {
+                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_id", "length(actor_id) > 0 AND length(actor_id) <= 512");
+
+                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_kind", "actor_kind IN ('provider_webhook', 'provider_reconciliation')");
+                        });
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailPreparedSend", b =>
@@ -1932,6 +2006,18 @@ namespace PublyApp.Api.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_job_dead_letter_events_dead_letter_id");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailLogEvidenceEvent", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Messaging.Entities.EmailLog", "EmailLog")
+                        .WithMany()
+                        .HasForeignKey("EmailLogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_email_log_evidence_events_email_log_id");
+
+                    b.Navigation("EmailLog");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Posts.Entities.Post", b =>

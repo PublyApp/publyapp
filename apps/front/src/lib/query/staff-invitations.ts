@@ -13,6 +13,8 @@ import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	ApiResponse,
 	BulkCreateStaffInvitationsBody,
+	BulkRevokeStaffInvitationsBody,
+	BulkStaffInvitationActionResult,
 	BulkStaffInvitationsCreated,
 	FindStaffInvitationsResult,
 	GetStaffInvitationLinkResult,
@@ -30,7 +32,9 @@ export const STAFF_INVITATIONS_QUERY_KEY = ['staff-invitations'] as const;
 
 /** Invalidates the staff-invitations list and every invitation's details
  * entry — both nest under `STAFF_INVITATIONS_QUERY_KEY` (see F19/F16). */
-export const invalidateStaffInvitations = (queryClient: QueryClient) =>
+export const invalidateStaffInvitations = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_INVITATIONS_QUERY_KEY),
 	});
@@ -124,6 +128,39 @@ const bulkCreateStaffInvitationsMutationOptions = buildStaffMutationOptions<
 			successMessage: 'invitations-sent-successfully',
 			validationHandledByForm: true,
 		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export type BulkRevokeStaffInvitationsInput = {
+	invitationIds: string[];
+};
+
+// The kiota body model is untyped-node based; this builder is the one place
+// that owns the `{ invitationIds: [...] }` wire shape for
+// POST /staff/invitations/bulk-revoke.
+export const buildBulkRevokeStaffInvitationsBody = (
+	input: BulkRevokeStaffInvitationsInput,
+): BulkRevokeStaffInvitationsBody => ({
+	invitationIds: createUntypedArray(
+		input.invitationIds.map((invitationId) =>
+			createUntypedString(invitationId),
+		),
+	),
+});
+
+const bulkRevokeStaffInvitationsMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkStaffInvitationActionResult | undefined,
+	BulkRevokeStaffInvitationsInput
+>(
+	{
+		mutationKeyFn: () => ['staff-invitations', 'bulk-revoke'],
+		mutationFn: (client, variables) =>
+			client.staff.invitations.bulkRevoke.post(
+				buildBulkRevokeStaffInvitationsBody(variables),
+			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
 );
@@ -227,6 +264,9 @@ const revokeStaffInvitationMutationOptions = buildStaffMutationOptions<
 
 export const useBulkCreateStaffInvitationsMutation = () =>
 	useMutation(bulkCreateStaffInvitationsMutationOptions);
+
+export const useBulkRevokeStaffInvitationsMutation = () =>
+	useMutation(bulkRevokeStaffInvitationsMutationOptions);
 
 export const useStaffInvitationsQuery = (
 	variables: StaffInvitationsQueryVariables,

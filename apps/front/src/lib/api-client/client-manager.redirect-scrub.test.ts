@@ -20,7 +20,7 @@ import { buildCustomFetch } from './client-manager';
  * `1.0.0-preview.102`, which iterates the key set and compares lower-cased).
  *
  * Two layers are pinned here, because the audit record
- * (docs/audits/2026-07-31-kiota-cross-origin-redirect-header-leak.md)
+ * (docs/records/2026-07-31-audit-kiota-cross-origin-redirect-header-leak.md)
  * established that this app is protected by its own gate, not by the library:
  *
  * 1. Library level — the exact advisory defect. A bare kiota HTTP client

@@ -7,7 +7,7 @@ export const delay = <T = unknown>(timeout: number, value?: T) => {
 	logger.warn('delay function invoked', { timeout, value });
 	return new Promise<T>((resolve) => {
 		return setTimeout(() => {
-			resolve(value as never);
+			resolve(value as T | PromiseLike<T>);
 		}, timeout);
 	});
 };
@@ -58,7 +58,7 @@ export const deepFreeze = <T>(o: T): DeepReadonly<T> => {
 		}
 	});
 
-	return o as never;
+	return o as DeepReadonly<T>;
 };
 
 export const urlStartWithProtocol = (url: string) => {

@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('~/lib/api-client/client-manager', () => ({
@@ -122,7 +123,7 @@ describe('toStaffUserRows', () => {
 			},
 			{
 				id: 'user-4',
-				email: null as never,
+				email: null,
 			},
 		];
 
@@ -243,7 +244,10 @@ describe('invalidateStaffUsers', () => {
 	test('invalidates the shared staff-users scope prefix', () => {
 		const invalidateQueries = vi.fn();
 
-		void invalidateStaffUsers({ invalidateQueries } as never);
+		void invalidateStaffUsers({ invalidateQueries } satisfies Pick<
+			QueryClient,
+			'invalidateQueries'
+		>);
 
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', ...STAFF_USERS_QUERY_KEY],

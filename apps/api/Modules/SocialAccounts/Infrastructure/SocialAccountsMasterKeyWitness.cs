@@ -87,8 +87,26 @@ public static class SocialAccountsMasterKeyWitness {
 				// First boot (or canary lost): mint it under the current key. From now on
 				// every boot with a different key value fails below.
 				canaryStore.Write(ProtectSentinel(key));
-				logger?.LogInformation(CanaryPassedLogLine);
-				return;
+
+				// #1416: re-read what is ACTUALLY stored before declaring victory.
+				// Concurrent first boots all mint at once; with the unique partial index,
+				// exactly ONE insert survives and the losers' writes are refused (23505).
+				// Verifying the re-read blob under THIS key folds both outcomes into one
+				// path: our own blob verifies trivially when we won the race, and the
+				// winner's blob verifies too when every service shares the same key value
+				// (the deployment contract) — while a divergent api/worker key now FAILS
+				// here instead of being masked by an overwrite.
+				stored = canaryStore.Read();
+
+				if (string.IsNullOrEmpty(stored)) {
+					throw new InvalidOperationException(
+						"The master-key canary row (" + PostgresKeyRingCanaryStore.RowName
+							+ " in data_protection_keys) is missing immediately after minting it: "
+							+ "another process removed or replaced it mid-boot. Restart this "
+							+ "service; if it recurs, verify every service (api, worker, migrate) "
+							+ "uses the SAME SOCIAL_ACCOUNTS_MASTER_KEY value."
+					);
+				}
 			}
 
 			VerifyPersistedCanary(key, stored);

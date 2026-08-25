@@ -128,9 +128,9 @@ it ALSO flags the keyword annotations under the `satisfies` operator
 (`x satisfies never`, `x satisfies any`, `TSSatisfiesExpression`) — paired
 RED/GREEN proof in its spec, including the adversarial case that defeats a
 matcher hunting the literal word `never` instead of the `TSNeverKeyword` node
-(`type NeverAlias = never; x satisfies NeverAlias` stays GREEN). It ships
-**dormant** (`"off"`); enabling it at `error` is a separate follow-up PR per
-the ladder policy above.
+(`type NeverAlias = never; x satisfies NeverAlias` stays GREEN). It shipped
+**dormant** (`"off"`) through the fix slices and is now **enforced at
+`error`** (see the rung record below).
 
 **Measured baseline (2026-08-25, oxlint 1.79.0, re-measured at the
 wt-1346 tip AFTER the #1346 `satisfies` extension):** report-mode scan over
@@ -190,12 +190,21 @@ proves the guard red on a reintroduced single `x satisfies never` cast
 | E | `packages/lint-ts/src/**` (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1, `no-package-src-import.ts` 1) | 8 | lint-ts lane |
 | | **Total** | **177** | |
 
-Slice owners are the dispatching captain's lane assignments at execution
+Slice owners were the dispatching captain's lane assignments at execution
 time (see `~/ai-orchestration-playbook/PLAYBOOK.md`); a slice may be split
-further if one PR grows past review comfort, but the sizes above are the
-planned PR granularity. At the error rung BOTH assertion spellings are
-banned — `as never`/`as any` AND `satisfies never`/`satisfies any` — because
-of the #1346 coverage.
+further if one PR grows past review comfort. At the error rung BOTH
+assertion spellings are banned — `as never`/`as any` AND
+`satisfies never`/`satisfies any` — because of the #1346 coverage.
+
+**Rung executed (2026-08-25, #1346):** all five slices landed; the
+enable-at-error PR flipped the rule to `"error"` with the same warn-scan
+command reporting **0** diagnostics across all five scopes at its tip. Paired
+RED proof performed there: a single planted `const x = {} as never;` in
+`apps/front/src` turned `oxlint` exit non-zero naming
+`publy/no-never-any-casts`, then was reverted. The severity cannot be
+silently lowered: `publy/no-never-any-casts` is pinned in `PUBLY_RULES` by
+[`packages/lint-ts/src/publy/lint-scoping.test.ts`](../../packages/lint-ts/src/publy/lint-scoping.test.ts)
+alongside the other enforced `publy/*` rules.
 
 ## Guard test suites (`apps/front/src`, not lint rules)
 

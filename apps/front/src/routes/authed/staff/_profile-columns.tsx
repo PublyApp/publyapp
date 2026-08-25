@@ -36,8 +36,8 @@ export const buildColumns = (
 			const name = row.original.name;
 			return (
 				<Link
-					to={'/staff/profiles/$profileId' as never}
-					params={{ profileId: row.original.id } as never}
+					to="/staff/profiles/$profileId"
+					params={{ profileId: row.original.id }}
 					className="flex items-center gap-[11px] min-w-0 no-underline"
 				>
 					<span className="publy-profile-icon-tile" data-tone={tone}>
@@ -110,8 +110,8 @@ export const buildColumns = (
 				<DropdownMenuItem
 					render={
 						<Link
-							to={'/staff/profiles/$profileId' as never}
-							params={{ profileId: row.original.id } as never}
+							to="/staff/profiles/$profileId"
+							params={{ profileId: row.original.id }}
 						/>
 					}
 				>

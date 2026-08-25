@@ -705,11 +705,24 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 		var profileById = profiles.ToDictionary(p => p.GetRequiredId());
 		var failedItems = new List<BulkProfileActionFailedItem>();
 		foreach (var requestedProfileId in requestedProfileIds) {
-			if (!profileById.ContainsKey(requestedProfileId)) {
+			if (!profileById.TryGetValue(requestedProfileId, out var profile)) {
 				failedItems.Add(
 					new BulkProfileActionFailedItem(
 						requestedProfileId,
 						"Profile not found"
+					)
+				);
+				continue;
+			}
+
+			// A default staff profile is never deleted here, so it must appear
+			// in FailedItems with its reason — dropping it silently would make
+			// "requested - failed" account it as succeeded.
+			if (profile.IsDefault) {
+				failedItems.Add(
+					new BulkProfileActionFailedItem(
+						requestedProfileId,
+						"Default profiles cannot be deleted"
 					)
 				);
 			}

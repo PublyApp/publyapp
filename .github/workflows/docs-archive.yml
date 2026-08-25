@@ -14,8 +14,8 @@ on:
   push:
     paths:
       - 'docs/**'
-      - 'packages/scripts-ts/src/check-archive-records.ts'
-      - 'packages/scripts-ts/src/check-archive-records.test.ts'
+      - 'packages/scripts-ts/src/check-doc-links.ts'
+      - 'packages/scripts-ts/src/check-doc-links.test.ts'
       - '.github/workflows/docs-archive.yml'
 
 permissions:
@@ -99,7 +99,7 @@ jobs:
           CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
 
           if [ -f "$CLASSIFIER" ]; then
-            node "$CLASSIFIER" '^(docs/|packages/scripts-ts/src/check-archive-records\.ts$|packages/scripts-ts/src/check-archive-records\.test\.ts$|\.github/workflows/docs-archive\.yml$)'
+            node "$CLASSIFIER" '^(docs/|packages/scripts-ts/src/check-doc-links\.ts$|packages/scripts-ts/src/check-doc-links\.test\.ts$|packages/scripts-ts/src/audit-docs-prune\.ts$|\.github/workflows/docs-archive\.yml$)'
           else
             echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
             echo "relevant=true" >> "$GITHUB_OUTPUT"
@@ -131,11 +131,18 @@ jobs:
       - name: Install (frozen lockfile, no scripts)
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Run archive guard fixture tests
-        run: pnpm --filter scripts-ts exec vitest run src/check-archive-records.test.ts
+      - name: Run doc-links guard fixture tests
+        run: pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts
 
-      - name: Check archive records
-        run: node packages/scripts-ts/src/check-archive-records.ts
+      - name: Check doc links
+        run: node packages/scripts-ts/src/check-doc-links.ts
+
+      # Round-1 review CRITICAL: the prune inventory is generated evidence,
+      # and a stale record must fail the gate rather than rot silently —
+      # --check regenerates from the pre-prune merge-base tree in memory and
+      # compares against HEAD's committed record (exit 1 on any drift).
+      - name: Check prune inventory freshness (--check)
+        run: node packages/scripts-ts/src/audit-docs-prune.ts --check
 
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of relying on the trigger. It always
