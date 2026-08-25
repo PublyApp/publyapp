@@ -35,6 +35,7 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
@@ -196,7 +197,7 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 			id: '/_authed-layout',
 			staticData: { crumbs: 'shell' },
 			component: () => createElement(Outlet),
-		} as never);
+		});
 		// The PARAMETERIZED path, exactly as `routeTree.gen.ts` declares it —
 		// a literal path here would drop `$userId` from `useParams`.
 		const ROUTE_PATH = '/staff/tenant-users/details/$userId/organizations';
@@ -219,11 +220,13 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 			initialEntries: [LIST_URL],
 		});
 		const queryClient = new QueryClient();
-		const router = createRouter({
-			routeTree,
-			history,
-			context: { queryClient },
-		} as never);
+		const router: AnyRouter = createRouter(
+			widen<Parameters<typeof createRouter>[0]>({
+				routeTree,
+				history,
+				context: { queryClient },
+			}),
+		);
 
 		render(
 			createElement(
