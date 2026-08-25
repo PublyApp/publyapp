@@ -128,6 +128,40 @@ PASSED (#1284); on mismatch it refuses to start and names the recovery options. 
 a deploy, treat that PASSED line as the positive proof the key works — its absence means the
 boot was refused earlier, not that everything is fine.
 
+If a database infrastructure failure hits that check (`#1424`), the boot refuses with a
+plain-words cause instead of a raw driver stack trace. The cause names WHICH failure
+happened, because the right next action differs:
+
+- Postgres did not answer (connection refused, timeout, broken connection):
+
+  > cannot reach the database at `<host>:<port>`: *driver reason* — the master-key check
+  > could not run; the API will not start. Verify the database container/service is running
+  > and reachable from this service, then restart.
+
+- Postgres answered but has no `data_protection_keys` table yet (SqlState `42P01`). This is
+  NOT a connectivity problem, and it is production-reachable at deploy time: `dokploy.yml`
+  declares no `depends_on`, so api/worker/migrate start concurrently, only the worker graph
+  waits for pending migrations, and the api's canary runs immediately at boot — so on a
+  first deploy the api can reach the database while the one-shot migrator is still working:
+
+  > the master-key canary table is missing — database migrations have not been applied yet
+  > (SqlState `42P01`: …). The database at `<host>:<port>` answered, so it is reachable —
+  > the schema simply does not exist yet; the master-key check could not run and the API
+  > will not start. Wait for the one-shot migrate task (`publyapp-migrate`) to finish and
+  > restart this service; inspect its logs if it did not succeed.
+
+  The correct action here is the deployment checklist's own line: watch the
+  `publyapp-migrate` container to a zero exit and inspect its logs on non-zero exit — do
+  not chase reachability for a database that demonstrably answers.
+
+- Postgres answered and rejected the canary statement with any other server-side error:
+  the refusal quotes its SqlState and message text under "the database rejected the
+  master-key canary check", naming what came back instead of an unreachable claim.
+
+Every variant names only the endpoint, never the credentials in the connection string (a
+server that answers quotes the username in errors like 28P01; the refusal redacts it). The
+key check reruns automatically on the next boot.
+
 One deliberate exception: the build-time OpenAPI generation inside `dotnet build`
 (`just build-api` / `just generate-client`) runs this app's `Main` **without a database**, so
 the canary is skipped there by design — only the key parse/size contract runs, and no PASSED
