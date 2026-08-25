@@ -10,10 +10,16 @@
  *   at the same rule object exported from the rule module.
  * - `valid`: casts to concrete types, `as const`, parenthesized non-keyword
  *   types (`as (string | number)`), and casts to `unknown` — must NOT fire.
+ *   Since #1346 the same holds for `satisfies` against concrete types and
+ *   against an ALIAS whose definition mentions `never` — the ban is
+ *   syntactic on the keyword, so a matcher that only hunts the literal word
+ *   `never` is defeated by the alias fixture.
  * - `invalid`: single `x as never`, `x as any`, angle-bracket `<never>x` /
- *   `<any>x`, and parenthesized keyword annotations (`x as (never)`,
- *   `x as (any)`) — each reports with `messageId: 'noNeverAnyCast'` and the
- *   right `keyword` data. Chained links landing on the keywords still
+ *   `<any>x`, parenthesized keyword annotations (`x as (never)`,
+ *   `x as (any)`), and — since #1346 — `x satisfies never`, `x satisfies
+ *   any`, including the parenthesized form and links inside mixed chains
+ *   (`x as any satisfies never`) — each reports with
+ *   `messageId: 'noNeverAnyCast'` and the right `keyword` data. Chained links landing on the keywords still
  *   report here, ONCE PER LINK, ordered outermost first (`value as any as
  *   never` → `['never', 'any']`; chain overlap with rung 5 is by design,
  *   see rule header).
@@ -82,6 +88,18 @@ describe(`publy/${RULE_NAME}`, () => {
 			v(
 				'type NeverAlias = never;\ndeclare const value: string;\nconst aliased = value as NeverAlias;',
 			),
+			// `satisfies` against a concrete type — a static CHECK that keeps
+			// narrowing the expression; not an evidence-discarding cast (#1346).
+			v(
+				'declare const route: { path: string };\nconst home = { path: "/" } satisfies { path: string };',
+			),
+			// Alias to never under `satisfies` — same syntactic-keyword boundary
+			// as the `as NeverAlias` case above. This fixture DEFEATS a mutated
+			// rule that matches the word `never` textually instead of the
+			// `TSNeverKeyword` node.
+			v(
+				'type NeverAlias = never;\ndeclare const value: string;\nconst checked = value satisfies NeverAlias;',
+			),
 		],
 		invalid: [
 			// The #1337 shapes — single `as never` on a payload argument.
@@ -107,6 +125,29 @@ describe(`publy/${RULE_NAME}`, () => {
 			),
 			i(
 				'declare const value2: string;\nconst chained2 = value2 as any as never;',
+				['never', 'any'],
+			),
+			// `satisfies never` / `satisfies any` used to evade the ban entirely
+			// (#1346) — the operator discards type evidence exactly like `as`
+			// when its annotation lands on a bare keyword.
+			i(
+				'declare const validatorFn: (data: never) => unknown;\ndeclare const input: { data: unknown };\nvalidatorFn(input.data satisfies never);',
+				'never',
+			),
+			i(
+				'declare const value: string;\nconst loose3 = value satisfies any;',
+				'any',
+			),
+			// Parenthesized keyword annotation under `satisfies` peels too.
+			i(
+				'declare const value: string;\nconst p3 = value satisfies (never);',
+				'never',
+			),
+			// Mixed chain — an `as any` link feeding `satisfies never`: one
+			// report PER LINK, outermost first (the satisfies node is visited
+			// before its child assertion).
+			i(
+				'declare const value: string;\nconst mixed = value as any satisfies never;',
 				['never', 'any'],
 			),
 		],

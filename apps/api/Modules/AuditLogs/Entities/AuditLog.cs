@@ -82,6 +82,8 @@ public static class AuditActions {
 	public const string SystemNoticeCreated = "system.notice.created";
 	public const string SystemNoticeUpdated = "system.notice.updated";
 	public const string SystemNoticeDeleted = "system.notice.deleted";
+	// K-1 (#863): operator resolved a dead-letter row's external-state triage.
+	public const string JobDeadLetterTriageResolved = "job.dead_letter.triage.resolved";
 	public const string StaffProfileCreated = "staff.profile.created";
 	public const string StaffProfilePermissionsAssigned = "staff.profile.permissions.assigned";
 	// Distinguish bulk delete of staff profiles from single-profile delete audit events.

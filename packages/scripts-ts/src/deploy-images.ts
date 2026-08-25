@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 
 const DEFAULT_REF = 'origin/develop';
-const IMAGE_ROOT = 'ghcr.io/radandevist/publyapp';
+const IMAGE_ROOT = 'ghcr.io/publyapp/publyapp';
 
 const usage = `Usage: scripts/deploy-images.mjs [--no-push] [--dry-run] [REF]
 
@@ -321,7 +321,7 @@ const main = () => {
 
 		if (!options.noPush && !hasGhcrAuth()) {
 			throw new RuntimeError(
-				'Not logged into GHCR. Run: docker login ghcr.io -u radandevist',
+				'Not logged into GHCR. Run: docker login ghcr.io -u <your-github-username>',
 			);
 		}
 

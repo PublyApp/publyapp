@@ -186,6 +186,9 @@ react-doctor base="origin/develop":
 nuget-audit $APP_ROLE="api" $TRUSTED_PROXY_CIDRS="127.0.0.1/32":
   node packages/scripts-ts/src/nuget-audit.ts
   pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts
+  # Mirrors quality-gate.yml::quality::Run dependency-health pin-location
+  # contract test (#1334 fix round 1).
+  pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts
 
 # =============================================================================
 # Database
@@ -301,7 +304,20 @@ ci-drift:
   pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
   pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts
   node ./packages/scripts-ts/src/check-actions-pinned.ts
+  pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
+  node ./packages/scripts-ts/src/check-actions-pins.ts
   pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
+
+# Bind every pinned action SHA to the version its "# vX.Y.Z" comment claims
+# (#1392): resolves each tag through `gh api` (annotated tags peeled to their
+# commit) and compares against the pinned SHA; unparseable input fails loud.
+# Network-dependent: the live second command needs gh auth. Skip ONLY that
+# half locally with `just ci-actions-pins ARGS="--offline"` (air-gapped work);
+# CI never passes --offline.
+ci-actions-pins ARGS='':
+    @echo "=== [gate] actions pin/comment binding ==="
+    pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
+    node ./packages/scripts-ts/src/check-actions-pins.ts {{ARGS}}
 
 # Guard rails for database migration compatibility during zero-downtime rolling deploys.
 ci-migration-expand-contract:

@@ -11,6 +11,7 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Auth.Services;
 using PublyApp.Api.Modules.Impersonations.Services;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Jobs.Services;
 using PublyApp.Api.Modules.Messaging.Services;
 using PublyApp.Api.Modules.Permissions.Services;
 using PublyApp.Api.Modules.Posts.Services;
@@ -43,6 +44,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(IAuditLogService), typeof(AuditLogService)),
 		(typeof(IAuthService), typeof(AuthService)),
 		(typeof(IEmailLogWriter), typeof(EmailLogWriter)),
+		(typeof(IJobDeadLetterService), typeof(JobDeadLetterService)),
 		(typeof(ICreateStaffUserService), typeof(CreateStaffUserService)),
 		(typeof(IInvitationAcceptanceService), typeof(InvitationAcceptanceService)),
 		(typeof(IImpersonationService), typeof(ImpersonationService)),

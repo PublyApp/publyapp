@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Modules.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
+using PublyApp.Api.Modules.Jobs.Seeders;
 
 using Quartz;
 using Quartz.Impl.Matchers;
@@ -14,7 +16,9 @@ namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 /// definitions, updates the cron for changed ones, and removes triggers whose definition
 /// was disabled, deleted, or has become INVALID — a definition whose cron no longer
 /// parses must lose its previously-scheduled trigger, not keep firing the old schedule
-/// forever. One bad row never stops the sync: invalid/failed definitions are logged and
+/// forever. Protected definitions (#865/K-3, #1349) are reverted to their whole
+/// code-defined state BEFORE this pass, so a protected sweep can never reach that
+/// removal. One bad row never stops the sync: invalid/failed definitions are logged and
 /// skipped while the rest reconcile. Each managed trigger fires
 /// <see cref="EnqueueSystemJobJob"/>; the leader only enqueues. Runs ONLY on the leader
 /// (scheduled by <see cref="SchedulerLeaderService"/>).
@@ -27,9 +31,26 @@ public sealed class SyncSystemJobsJob : IJob {
 	private readonly AppDbContext _dbContext;
 	private readonly ILogger<SyncSystemJobsJob> _logger;
 
-	public SyncSystemJobsJob(AppDbContext dbContext, ILogger<SyncSystemJobsJob> logger) {
+	// Desired-state source for the whole-definition restore (#1349). Defaults to the
+	// seeder's accessor (the single source of truth); the seam exists so specs can prove
+	// the guard paths — a corrupted code-defined default and a drifted protected row with
+	// no default — that are unreachable from production data because the protection list
+	// and the seeder derive from the same handler constants.
+	private readonly Func<IReadOnlyList<SystemJobDefinition>> _codeDefinedDefaults;
+
+	[ActivatorUtilitiesConstructor]
+	public SyncSystemJobsJob(AppDbContext dbContext, ILogger<SyncSystemJobsJob> logger)
+		: this(dbContext, logger, codeDefinedDefaults: null) {
+	}
+
+	public SyncSystemJobsJob(
+		AppDbContext dbContext,
+		ILogger<SyncSystemJobsJob> logger,
+		Func<IReadOnlyList<SystemJobDefinition>>? codeDefinedDefaults
+	) {
 		_dbContext = dbContext;
 		_logger = logger;
+		_codeDefinedDefaults = codeDefinedDefaults ?? SystemJobDefinitionSeeder.GetCodeDefinedDefaults;
 	}
 
 	public async Task Execute(IJobExecutionContext context) {
@@ -39,6 +60,14 @@ public sealed class SyncSystemJobsJob : IJob {
 	// Public: lets specs drive one reconcile pass against a real scheduler directly
 	// (public-methods-for-determinism) without faking IJobExecutionContext.
 	public async Task ReconcileAsync(IScheduler scheduler, CancellationToken cancellationToken) {
+		// K-3 guard (#865): a disabled PRIVACY-LOAD-BEARING sweep is reverted before the
+		// desired-state read, so the row below reads back enabled — its trigger is
+		// reconciled like any other and can never be silently dropped. The revert is
+		// persisted immediately with per-attempt transparency: cause, the key to inspect,
+		// and the operator's next action. A sync failure here would be worse than the
+		// condition it guards, so faults are isolated to the offending row.
+		await RestoreProtectedDefinitionsAsync(cancellationToken);
+
 		var definitions = await (
 			from definition in _dbContext.SystemJobDefinition
 			where definition.IsEnabled && !definition.IsDeleted
@@ -82,7 +111,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		// check) is logged and skipped so it cannot starve the remaining definitions.
 		foreach (var definition in validDefinitions) {
 			try {
-					await SyncOneAsync(scheduler, definition, cancellationToken);
+				await SyncOneAsync(scheduler, definition, cancellationToken);
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
 				_logger.LogError(
 					ex,
@@ -90,6 +119,134 @@ public sealed class SyncSystemJobsJob : IJob {
 					definition.JobKey
 				);
 			}
+		}
+	}
+
+	// Reverts any non-deleted PROTECTED definition that drifted from its code-defined
+	// state — #865/K-3 refused the disable, #1349 extends the revert to the WHOLE
+	// definition: a disabled row is re-enabled AND an invalid or emptied cron is
+	// restored — persisting each revert immediately. Per-attempt WARNING naming the
+	// job, the rejected value, and the restored cadence — never a silent drop. One bad
+	// row never stops the sync: a fault is logged and skipped exactly like every other
+	// per-row fault below. Deliberately key-projection + ExecuteUpdate, never entity
+	// instances + SaveChanges: dashboard edits land through raw UPDATE statements that
+	// bypass the change tracker, so an already-tracked stale instance would make
+	// SaveChanges a silent no-op here — the exact silent-drop this guard exists to
+	// prevent.
+	private async Task RestoreProtectedDefinitionsAsync(CancellationToken cancellationToken) {
+		// Candidate projection stays translatable SQL (no Quartz parse in the query);
+		// protection and cron-validity filtering happen in memory over the tiny table.
+		var candidates = await (
+			from definition in _dbContext.SystemJobDefinition
+			where !definition.IsDeleted
+			select new {
+				definition.JobKey,
+				definition.IsEnabled,
+				definition.CronExpression,
+			}
+		).ToListAsync(cancellationToken);
+
+		var driftedProtectedJobs = candidates
+			.Where(candidate => SystemJobDisableProtection.IsDisableProtected(candidate.JobKey)
+				&& (!candidate.IsEnabled
+					|| !CronExpression.IsValidExpression(candidate.CronExpression)))
+			.ToList();
+
+		var codeDefinedDefaults = _codeDefinedDefaults();
+		var unrepairedFaults = 0;
+		foreach (var drifted in driftedProtectedJobs) {
+			var jobKey = drifted.JobKey;
+
+			// A protected row with NO code-defined default is a silent false negative
+			// waiting to happen: the protection list and the seeder's definitions have
+			// diverged, so there is nothing to restore the drift FROM. Never a bare
+			// continue — log the cause per row (owner product rule: every failure shows
+			// its cause) and let the sweep report the unrepaired count below.
+			var defaults = codeDefinedDefaults
+				.FirstOrDefault(definition => definition.JobKey == jobKey);
+			if (defaults is null) {
+				_logger.LogError(
+					"jobs.alert system_job_definition_unrepaired job_key={JobKey} — this "
+						+ "protected row is drifted (cron '{RejectedCron}', "
+						+ "enabled={DriftedEnabled}) but no code-defined default exists to "
+						+ "restore it from: the protection list and "
+						+ "SystemJobDefinitionSeeder.GetDefinitions() have diverged. The drift "
+						+ "is NOT repaired by this pass",
+						jobKey,
+						drifted.CronExpression,
+						drifted.IsEnabled
+					);
+				unrepairedFaults++;
+				continue;
+			}
+
+			// Programming-error gate, deliberately OUTSIDE the per-row fault isolation
+			// below: a code-defined cron Quartz cannot parse is a developer mistake
+			// shipped in the binary, not runtime data — writing it over the drifted row
+			// would corrupt the privacy-load-bearing schedule BY PROTECTION ITSELF (the
+			// cron-validity split would then delete its trigger). Refuse the whole pass
+			// loudly instead.
+			if (!CronExpression.IsValidExpression(defaults.CronExpression)) {
+				throw new InvalidOperationException(
+					$"SystemJobDefinitionSeeder.GetCodeDefinedDefaults() returns an invalid "
+						+ $"cron expression '{defaults.CronExpression}' for protected system "
+						+ $"job '{jobKey}' — refusing to persist corruption onto the "
+						+ $"privacy-load-bearing sweep. Fix the code-defined definition; this "
+						+ $"is a programming error, not operator-editable data"
+					);
+			}
+
+			try {
+				var restored = await _dbContext.SystemJobDefinition
+					.Where(definition => definition.JobKey == jobKey)
+					.ExecuteUpdateAsync(
+						setters => setters
+							.SetProperty(definition => definition.IsEnabled, defaults.IsEnabled)
+							.SetProperty(
+								definition => definition.CronExpression,
+								defaults.CronExpression
+							),
+						cancellationToken
+					);
+
+				if (restored > 0) {
+					_logger.LogWarning(
+						"jobs.alert system_job_definition_restored job_key={JobKey} — this "
+							+ "sweep deletes token-bearing prepared bytes and its cadence IS "
+							+ "the privacy control (K-3); the code-defined definition was "
+							+ "drifted (rejected cron '{RejectedCron}', enabled="
+							+ "{DriftedEnabled}) and has been reverted to cron "
+							+ "'{RestoredCron}', enabled=true. If the sweep must be stopped, "
+							+ "treat it as a privacy incident instead of editing the "
+							+ "definition",
+						jobKey,
+						drifted.CronExpression,
+						drifted.IsEnabled,
+						defaults.CronExpression
+					);
+				}
+			} catch (Exception ex) when (ex is not OperationCanceledException) {
+				_logger.LogError(
+					ex,
+					"Failed to restore the code-defined definition of protected system "
+						+ "job {JobKey}; continuing with the rest of the sync",
+					jobKey
+				);
+				unrepairedFaults++;
+			}
+		}
+
+		// Sweep-level report: per-attempt transparency alone can scroll away — the sweep
+		// itself must carry the unrepaired count so an operator query never finds a
+		// silent false negative (every failure shows its cause).
+		if (unrepairedFaults > 0) {
+			_logger.LogError(
+				"jobs.sweep system_job_definition_restore finished with {FaultCount} "
+					+ "unrepaired drifted protected row(s) out of {DriftedCount}; the cause of "
+					+ "each is in its per-row jobs.alert above",
+				unrepairedFaults,
+				driftedProtectedJobs.Count
+			);
 		}
 	}
 

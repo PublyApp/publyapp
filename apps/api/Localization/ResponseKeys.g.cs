@@ -50,6 +50,21 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey CreateFirstItem = new("create-first-item");
 
 	/// <summary>
+	/// Dead-letter entry not found
+	/// </summary>
+	public static readonly TranslationKey DeadLetterNotFound = new("dead-letter-not-found");
+
+	/// <summary>
+	/// Dead-letter entry is not awaiting unclassified triage
+	/// </summary>
+	public static readonly TranslationKey DeadLetterNotUnclassified = new("dead-letter-not-unclassified");
+
+	/// <summary>
+	/// Dead-letter triage resolved
+	/// </summary>
+	public static readonly TranslationKey DeadLetterResolvedSuccess = new("dead-letter-resolved-success");
+
+	/// <summary>
 	/// delete {{item}}
 	/// </summary>
 	public static readonly TranslationKey DeleteItem = new("delete-item");

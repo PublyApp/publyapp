@@ -16,8 +16,8 @@ do not wire production-adjacent secrets until the local compose harness is green
 | Front-2 service | `publyapp-front-2-staging` |
 | API service | `publyapp-api-staging` |
 | Database service | `publyapp-postgres-staging` |
-| Front-2 image | `ghcr.io/radandevist/publyapp/front:<sha>` |
-| Moving staging tag | `ghcr.io/radandevist/publyapp/front:staging` |
+| Front-2 image | `ghcr.io/publyapp/publyapp/front:<sha>` |
+| Moving staging tag | `ghcr.io/publyapp/publyapp/front:staging` |
 | API artifact | same API revision for runtime and migrate job |
 
 The staging API and staging Postgres are dedicated to front-2 staging. They must
@@ -47,7 +47,7 @@ The primary deferred staging mode is build-based: the deploy checks out one
 exact deploy SHA, then both `publyapp-api-staging-migrate` and
 `publyapp-api-staging` use `build:` from that same checkout. Do not build one
 from the working tree while running the other from
-`ghcr.io/radandevist/publyapp/api:latest`. Alternative: pin API runtime and
+`ghcr.io/publyapp/publyapp/api:latest`. Alternative: pin API runtime and
 migrate services to immutable images built from the same SHA.
 
 ```yaml
@@ -168,7 +168,7 @@ services:
       start_period: 40s
 
   publyapp-front-2-staging:
-    image: ghcr.io/radandevist/publyapp/front:<sha>
+    image: ghcr.io/publyapp/publyapp/front:<sha>
     container_name: publyapp-front-2-staging
     restart: unless-stopped
     environment:
@@ -233,7 +233,7 @@ Notes:
 - If Dokploy cannot build the `apps/api/Dockerfile` `migrate` and `runtime`
   targets from the same revision, publish an immutable staging API image and use
   the matching migration artifact from the same commit. Do not use
-  `ghcr.io/radandevist/publyapp/api:latest` for staging rollback-sensitive API
+  `ghcr.io/publyapp/publyapp/api:latest` for staging rollback-sensitive API
   changes.
 
 ## Migrate And Seed Job
@@ -486,7 +486,7 @@ The smoke must not touch production services. Browser/API traffic must go to
 Front-2-only rollback is image-based:
 
 1. Identify the last known-good immutable front-2 image tag:
-   `ghcr.io/radandevist/publyapp/front:<previous-sha>`.
+   `ghcr.io/publyapp/publyapp/front:<previous-sha>`.
 2. Point `publyapp-front-2-staging` back to the selected known-good front-2 image
    tag in Dokploy.
 3. Redeploy `publyapp-front-2-staging`.

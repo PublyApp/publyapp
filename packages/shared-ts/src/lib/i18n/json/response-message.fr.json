@@ -102,5 +102,8 @@
 	"upload-file-required": "Un fichier est requis",
 	"upload-file-too-large": "Le fichier dépasse la taille maximale autorisée",
 	"upload-file-unsupported-type": "Le fichier doit être une image PNG, JPEG, WEBP ou GIF",
-	"upload-budget-exhausted": "La capacité de stockage pour les téléversements est temporairement épuisée. Veuillez réessayer plus tard."
+	"upload-budget-exhausted": "La capacité de stockage pour les téléversements est temporairement épuisée. Veuillez réessayer plus tard.",
+	"dead-letter-resolved-success": "Triage de la dead-letter résolu",
+	"dead-letter-not-found": "Entrée dead-letter introuvable",
+	"dead-letter-not-unclassified": "L'entrée dead-letter n'est pas en attente de triage non classé"
 }
