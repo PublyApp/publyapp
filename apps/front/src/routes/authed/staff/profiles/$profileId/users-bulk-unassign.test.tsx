@@ -38,6 +38,7 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import {
 	cleanup,
 	fireEvent,
@@ -269,7 +270,7 @@ const buildHarness = () => {
 		id: '/_authed-layout',
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
-	} as never);
+	});
 	const pageRoute = mountRealRoute(ProfileUsersRoute, {
 		path: '/staff/profiles/$profileId/users',
 		getParentRoute: () => layoutRoute,
@@ -289,11 +290,13 @@ const buildHarness = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = createRouter({
-		routeTree,
-		history,
-		context: { queryClient },
-	} as never);
+	const router: AnyRouter = createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({
+			routeTree,
+			history,
+			context: { queryClient },
+		}),
+	);
 
 	return { router, history, queryClient };
 };
@@ -304,7 +307,7 @@ const renderAtPage = async () => {
 
 	render(
 		<QueryClientProvider client={harness.queryClient}>
-			<RouterProvider router={harness.router as never} />
+			<RouterProvider router={harness.router} />
 		</QueryClientProvider>,
 	);
 	await waitFor(() =>
@@ -392,7 +395,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 
 		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
 
-		await chooseBulkAction('Unassign selected');
+		await chooseBulkAction('Unassign selected', 'More actions');
 
 		// Destructive action requires confirmation before firing.
 		expect(
@@ -420,7 +423,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await renderAtPage();
 
 		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
-		await chooseBulkAction('Unassign selected');
+		await chooseBulkAction('Unassign selected', 'More actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
 
 		await waitFor(() => expect(mocks.bulkUnassign).toHaveBeenCalledOnce());
@@ -465,7 +468,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 			).toBe('true'),
 		);
 
-		await chooseBulkAction('Unassign selected');
+		await chooseBulkAction('Unassign selected', 'More actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
 
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
@@ -536,7 +539,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 			).toBe('true'),
 		);
 
-		await chooseBulkAction('Unassign selected');
+		await chooseBulkAction('Unassign selected', 'More actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
 
 		// Partial success takes the error-toast path, never plain success, and

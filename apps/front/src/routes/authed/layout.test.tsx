@@ -85,7 +85,7 @@ afterEach(() => {
 });
 
 type MockMatch = {
-	globalNotFound?: boolean;
+	_notFound?: boolean;
 	pathname?: string;
 	routeId?: string;
 };

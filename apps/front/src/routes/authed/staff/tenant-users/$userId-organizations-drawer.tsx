@@ -118,7 +118,7 @@ export const LinkCompaniesDrawerHost = ({
 				succeededCount: result?.succeededCount ?? 0,
 				failedCount: result?.failedCount ?? 0,
 				failedItems: [],
-			} as never);
+			});
 
 			await invalidateGlobalTenantUsers(queryClient);
 

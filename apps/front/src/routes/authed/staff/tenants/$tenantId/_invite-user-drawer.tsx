@@ -1,8 +1,7 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { i18n as I18nInstance } from 'i18next';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -19,6 +18,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -295,31 +295,34 @@ const InviteBatchSummary = ({
 	</div>
 );
 
-export const InviteTenantUserDrawer = ({
-	tenantId,
-	isOpen,
-	onOpenChange,
-	onInvited,
-	onSessionExpired,
-	onDirtyChange,
-}: {
+type InviteTenantUserDrawerProps = {
 	tenantId: string;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 	onInvited: () => void;
 	onSessionExpired: () => void;
 	onDirtyChange?: (isDirty: boolean) => void;
-}) => {
+};
+
+const InviteTenantUserDrawerInner = ({
+	tenantId,
+	isOpen,
+	onOpenChange,
+	onInvited,
+	onSessionExpired,
+	onDirtyChange,
+}: InviteTenantUserDrawerProps) => {
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const bulkInvite = useBulkInviteTenantUsersMutation();
 	const [rootValidationError, setRootValidationError] = useState('');
 	const [batchSummary, setBatchSummary] =
 		useState<StaffTenantInvitationBulkCreateSummary | null>(null);
-	const resolver = useMemo(
-		() => zodResolver(buildInviteUserSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+	// Language-keyed resolver: rebuilds when translations change so error
+	// messages stay localized; see use-language-keyed-zod-resolver.
+	const resolver = useLanguageKeyedZodResolver<InviteTenantUserFormValues>(
+		buildInviteUserSchema,
+		'common',
 	);
 	const methods = useForm<InviteTenantUserFormValues>({
 		resolver,
@@ -336,18 +339,35 @@ export const InviteTenantUserDrawer = ({
 	});
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
+	// Dirty-flag uplink, event-driven: RHF's change stream fires synchronously
+	// on the form mutation that owns each change (user input, setValue,
+	// append/replace, reset) and always carries the full form snapshot.
+	// Dirtiness derives from comparing that snapshot against the pristine
+	// defaults captured once at mount — not from React's render-lagged
+	// formState snapshot, and not from the isOpen prop, whose value at effect
+	// time belongs to the session the wrapper has already rotated past.
+	// Dirtiness itself comes from react-hook-form's own synchronous dirty
+	// computation (control._getDirty compares the live values against the
+	// pristine defaultValues this session mounted with); the dedup ref keeps
+	// repeated same-value emissions from reaching the host.
+	const lastReportedDirtyRef = useRef<boolean | null>(null);
 	useEffect(() => {
-		if (isOpen) {
-			setRootValidationError('');
-			setBatchSummary(null);
-			setIsDiscardConfirmOpen(false);
-			reset(DEFAULT_VALUES);
-		}
-	}, [isOpen, reset]);
-
-	useEffect(() => {
-		onDirtyChange?.(isDirty);
-	}, [isDirty, onDirtyChange]);
+		const report = (nextDirty: boolean) => {
+			if (lastReportedDirtyRef.current !== nextDirty) {
+				lastReportedDirtyRef.current = nextDirty;
+				onDirtyChange?.(nextDirty);
+			}
+		};
+		const computeNextDirty = () => methods.control._getDirty();
+		lastReportedDirtyRef.current = null;
+		report(computeNextDirty());
+		const subscription = methods.watch(() => {
+			report(computeNextDirty());
+		});
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [methods, onDirtyChange]);
 
 	const isFormLocked = bulkInvite.isPending || isSubmitting;
 
@@ -463,7 +483,7 @@ export const InviteTenantUserDrawer = ({
 						sharedProfileIds: values.sharedProfileIds,
 						invitations: failedInvitations,
 					},
-					{ keepDirty: true },
+					{ keepDirty: true, keepDefaultValues: true },
 				);
 			}
 			return;
@@ -563,4 +583,27 @@ export const InviteTenantUserDrawer = ({
 			/>
 		</Drawer>
 	);
+};
+
+/*
+ * Session-keyed mount: each closed -> opened transition bumps a key and
+ * remounts the drawer, which seeds itself from its defaultValues at mount.
+ * The reset effect this replaced also cleared transient state through
+ * prop-change effects; the fresh mount covers all of it exactly once per
+ * session. The 200ms exit animation keeps the closing instance mounted
+ * under its old key.
+ */
+export const InviteTenantUserDrawer = (
+	drawerProps: InviteTenantUserDrawerProps,
+) => {
+	const [sessionKey, setSessionKey] = useState(0);
+	const [wasOpen, setWasOpen] = useState(drawerProps.isOpen);
+	if (wasOpen !== drawerProps.isOpen) {
+		setWasOpen(drawerProps.isOpen);
+		if (drawerProps.isOpen) {
+			setSessionKey((key) => key + 1);
+		}
+	}
+
+	return <InviteTenantUserDrawerInner {...drawerProps} key={sessionKey} />;
 };

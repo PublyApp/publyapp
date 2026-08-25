@@ -15,7 +15,14 @@ describe('assertUsableCompiledCss', () => {
 		const sound = [
 			'@property --tw-outline-style{syntax:"*";inherits:false;initial-value:solid}',
 			'@layer theme{:root{--publy-focus-ring:#a16207}}',
-			'@layer utilities{.focus-visible\\:ring-3:focus-visible{--tw-ring-shadow:var(--tw-empty,)!important;box-shadow:var(--tw-ring-shadow)}}',
+			// #1415: "production-shaped" now includes the pinned box-shadow-ring
+			// families the structural gate asserts on every read.
+			'@layer utilities{.focus-visible\\:ring-3:focus-visible{' +
+				'--tw-ring-shadow:var(--tw-ring-inset,)0 0 0 calc(3px + var(--tw-ring-offset-width))var(--tw-ring-color,currentColor);' +
+				'box-shadow:var(--tw-inset-shadow),var(--tw-inset-ring-shadow),var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow)}}',
+			'@layer utilities{.focus-visible\\:ring-2:focus-visible{' +
+				'--tw-ring-shadow:var(--tw-ring-inset,)0 0 0 calc(2px + var(--tw-ring-offset-width))var(--tw-ring-color,currentColor);' +
+				'box-shadow:var(--tw-inset-shadow),var(--tw-inset-ring-shadow),var(--tw-ring-offset-shadow),var(--tw-ring-shadow),var(--tw-shadow)}}',
 		].join('\n');
 		expect(() => assertUsableCompiledCss(sound)).not.toThrow();
 	});

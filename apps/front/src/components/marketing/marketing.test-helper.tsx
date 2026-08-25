@@ -65,7 +65,7 @@ export const renderMarketing = async (
 			}),
 		),
 	]);
-	const router = createRouter({
+	const router: AnyRouter = createRouter({
 		routeTree,
 		history: createMemoryHistory({ initialEntries: ['/'] }),
 	});
@@ -73,7 +73,7 @@ export const renderMarketing = async (
 	const result = render(
 		// The router's own generated types are not registered for this ad-hoc
 		// tree; the runtime instance is the real one either way.
-		<RouterProvider router={router as never} />,
+		<RouterProvider router={router} />,
 	);
 
 	await waitFor(() => {

@@ -47,8 +47,8 @@ type InvitationInfoResult =
  * invalid-link state.
  */
 export const loadInvitationInfo = createServerFn({ method: 'POST' })
-	.validator(
-		(data): CheckInvitationInput => CheckInvitationInputSchema.parse(data),
+	.validator((data): CheckInvitationInput =>
+		CheckInvitationInputSchema.parse(data),
 	)
 	.handler(async ({ data }): Promise<InvitationInfoResult> => {
 		const client = createClient({ getSessionToken: () => undefined });
@@ -119,8 +119,8 @@ type AcceptInvitationResult = {
  * session token out of the incoming cookie and requires one to be present.
  */
 export const acceptInvitation = createServerFn({ method: 'POST' })
-	.validator(
-		(data): AcceptInvitationInput => AcceptInvitationInputSchema.parse(data),
+	.validator((data): AcceptInvitationInput =>
+		AcceptInvitationInputSchema.parse(data),
 	)
 	.handler(async ({ data }): Promise<AcceptInvitationResult> => {
 		let sessionTokenHeader: string | undefined;

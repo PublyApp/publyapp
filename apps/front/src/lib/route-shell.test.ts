@@ -39,7 +39,7 @@ describe('hasExactAuthedRouteMatch', () => {
 					{
 						routeId: '/_authed-layout',
 						pathname: '/',
-						globalNotFound: true,
+						_notFound: true,
 					},
 					{
 						routeId: '/_authed-layout/staff',

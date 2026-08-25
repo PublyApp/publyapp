@@ -1,6 +1,8 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test, vi } from 'vitest';
 
 import {
+	buildBulkRevokeStaffInvitationsBody,
 	buildFindStaffInvitationsQueryParameters,
 	invalidateStaffInvitations,
 	STAFF_INVITATIONS_QUERY_KEY,
@@ -60,11 +62,36 @@ describe('buildFindStaffInvitationsQueryParameters', () => {
 	});
 });
 
+describe('buildBulkRevokeStaffInvitationsBody', () => {
+	// The kiota body model is untyped-node based; the builder is the one place
+	// that owns the `{ invitationIds: [...] }` wire shape for
+	// POST /staff/invitations/bulk-revoke.
+	test('maps ids to the invitationIds untyped array the bulk-revoke endpoint expects', () => {
+		const body = buildBulkRevokeStaffInvitationsBody({
+			invitationIds: ['a', 'b'],
+		});
+
+		expect(body.invitationIds).toBeDefined();
+	});
+
+	test('accepts the full id list in order, including duplicates the caller sent', () => {
+		const body = buildBulkRevokeStaffInvitationsBody({
+			invitationIds: ['a', 'b', 'a'],
+		});
+
+		expect(JSON.stringify(body)).toContain('"a"');
+		expect(JSON.stringify(body)).toContain('"b"');
+	});
+});
+
 describe('invalidateStaffInvitations', () => {
 	test('invalidates the shared staff-invitations scope prefix', () => {
 		const invalidateQueries = vi.fn();
 
-		void invalidateStaffInvitations({ invalidateQueries } as never);
+		void invalidateStaffInvitations({ invalidateQueries } satisfies Pick<
+			QueryClient,
+			'invalidateQueries'
+		>);
 
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', ...STAFF_INVITATIONS_QUERY_KEY],

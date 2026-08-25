@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test, vi } from 'vitest';
 
 import type { StaffTenantInvitationListItem } from '@org/client-ts/models/index';
@@ -56,23 +57,23 @@ describe('toStaffTenantInvitationRows', () => {
 
 		const items: StaffTenantInvitationListItem[] = [
 			{
-				id: 'invite-1' as never,
+				id: 'invite-1',
 				email: ' invitee@example.com ',
 				status: ' Pending ',
 				scope: ' Tenant ',
 				profileName: ' Owners ',
 				profiles: [
-					{ id: 'profile-1' as never, name: ' Owners ' },
-					{ id: 'profile-2' as never, name: ' Reviewers ' },
+					{ id: 'profile-1', name: ' Owners ' },
+					{ id: 'profile-2', name: ' Reviewers ' },
 				],
-				accountLevel: 'User' as never,
+				accountLevel: 'User',
 				invitedByName: ' Alex Johnson ',
 				acceptedAt,
 				createdAt,
 				expiresAt,
 			},
 			{
-				id: '' as never,
+				id: '',
 				email: 'skip@example.com',
 				status: 'Accepted',
 			},
@@ -110,12 +111,12 @@ describe('toStaffTenantInvitationRows', () => {
 		(_label, overrides) => {
 			const items: StaffTenantInvitationListItem[] = [
 				{
-					id: 'invite-2' as never,
+					id: 'invite-2',
 					email: 'invitee@example.com',
 					status: 'Pending',
 					scope: 'Tenant',
 					profileName: 'Owners',
-					accountLevel: 'User' as never,
+					accountLevel: 'User',
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -132,11 +133,11 @@ describe('toStaffTenantInvitationRows', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
-					id: 'invite-user-no-profile' as never,
+					id: 'invite-user-no-profile',
 					email: 'user-no-profile@example.com',
 					status: ' Pending ',
 					scope: ' Tenant ',
-					accountLevel: 'User' as never,
+					accountLevel: 'User',
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -164,11 +165,11 @@ describe('toStaffTenantInvitationRows', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
-					id: 'invite-admin-no-profile' as never,
+					id: 'invite-admin-no-profile',
 					email: 'admin-no-profile@example.com',
 					status: ' Pending ',
 					scope: ' Tenant ',
-					accountLevel: 'Admin' as never,
+					accountLevel: 'Admin',
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -196,12 +197,12 @@ describe('toStaffTenantInvitationRows', () => {
 		expect(
 			toStaffTenantInvitationRows([
 				{
-					id: 'invite-profile-based' as never,
+					id: 'invite-profile-based',
 					email: 'profile-based@example.com',
 					status: 'Accepted',
 					scope: 'Tenant',
 					profileName: 'Owners',
-					accountLevel: 'User' as never,
+					accountLevel: 'User',
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -258,7 +259,10 @@ describe('invalidateStaffTenantInvitations', () => {
 	test('invalidates the shared staff-tenant-invitations scope prefix', () => {
 		const invalidateQueries = vi.fn();
 
-		void invalidateStaffTenantInvitations({ invalidateQueries } as never);
+		void invalidateStaffTenantInvitations({ invalidateQueries } satisfies Pick<
+			QueryClient,
+			'invalidateQueries'
+		>);
 
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', ...STAFF_TENANT_INVITATIONS_QUERY_KEY],

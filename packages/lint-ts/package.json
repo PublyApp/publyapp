@@ -16,6 +16,6 @@
 	"devDependencies": {
 		"@oxlint/plugins": "1.79.0",
 		"oxlint": "1.79.0",
-		"vitest": "4.1.9"
+		"vitest": "4.1.11"
 	}
 }

@@ -9,16 +9,14 @@ const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useParams: vi.fn(() => ({ postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa' })),
 	invalidateQueries: vi.fn(),
-	useTenantPostDetailsQuery: vi.fn(
-		(): Record<string, unknown> => ({
-			data: undefined,
-			isPending: true,
-			isError: false,
-			error: null,
-			refetch: vi.fn(),
-			isFetching: false,
-		}),
-	),
+	useTenantPostDetailsQuery: vi.fn((): Record<string, unknown> => ({
+		data: undefined,
+		isPending: true,
+		isError: false,
+		error: null,
+		refetch: vi.fn(),
+		isFetching: false,
+	})),
 	useTenantProjectsQuery: vi.fn(() => ({
 		data: undefined,
 		isPending: true,
@@ -87,7 +85,7 @@ vi.mock('~/components/field', () => ({
 		onSubmit,
 	}: {
 		children: ReactNode;
-		onSubmit?: React.FormEventHandler;
+		onSubmit?: React.SubmitEventHandler;
 	}) => (
 		<form onSubmit={onSubmit} data-testid="form-stub">
 			{children}

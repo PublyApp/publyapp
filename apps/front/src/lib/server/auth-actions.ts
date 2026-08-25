@@ -30,9 +30,22 @@ type RegisterResult = {
  * sync with the shared `getRegisterSchema` contract instead of drifting via
  * a second hand-maintained copy.
  */
-const identityTranslate = ((key: string) => key) as never;
+type IdentityTranslate = (
+	key: string,
+	options?: { defaultValue: string },
+) => string;
+
+/**
+ * Named contract instead of an evidence-discarding cast: i18next's real
+ * `t` accepts these calls, so the identity stand-in declares exactly that
+ * shape. Only `getFixedT` is supplied because this validator runs
+ * server-side (InterZod resolves its translator through `getFixedT` there)
+ * and never renders messages anyway — a thrown ZodError is caught and
+ * replaced with a translated fallback in `signup.tsx`.
+ */
+const identityTranslate: IdentityTranslate = (key) => key;
 const structuralZod = new InterZod({
-	i18n: { getFixedT: () => identityTranslate, t: identityTranslate },
+	i18n: { getFixedT: () => identityTranslate },
 });
 
 /**

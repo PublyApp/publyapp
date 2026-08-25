@@ -21,7 +21,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 type MockMatch = {
-	globalNotFound?: boolean;
+	_notFound?: boolean;
 	pathname: string;
 	routeId: string;
 	search?: Record<string, unknown>;

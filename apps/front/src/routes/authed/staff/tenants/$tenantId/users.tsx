@@ -1,6 +1,6 @@
 import { IconAlertCircle } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -29,8 +29,8 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './_tenant-details-shell';
-import { makeTenantUserColumns } from './_user-columns';
 import { TenantUserBulkActions } from './_users-bulk-actions';
+import { makeTenantUserColumns } from './_users-columns';
 import { TenantUsersFilterMenus } from './_users-filter-menus';
 import { TenantUsersPageHeader } from './_users-page-header';
 import {
@@ -128,11 +128,11 @@ const StaffTenantUsersPage = () => {
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
-	const onUserSessionExpired = useCallback(() => setShouldLogout(true), []);
-	const columns = useMemo(
-		() => makeTenantUserColumns(tenantId, t, onUserSessionExpired),
-		[tenantId, t, onUserSessionExpired],
-	);
+	// Plain function: the React Compiler caches the columns per value, so a
+	// stable handler identity is not needed — and the empty-deps useCallback
+	// here triggered a preserve-memo diagnostic that skipped the component.
+	const onUserSessionExpired = () => setShouldLogout(true);
+	const columns = makeTenantUserColumns(tenantId, t, onUserSessionExpired);
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;

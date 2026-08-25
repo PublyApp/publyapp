@@ -98,13 +98,12 @@ vi.mock('~/components/ui/drawer', () => ({
 	}: {
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
-		onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
+		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
 	}) =>
-		createElement(
-			FormProvider as never,
-			{ ...methods } as never,
-			createElement('form', { onSubmit, role: 'form' }, children),
-		),
+		createElement(FormProvider, {
+			...methods,
+			children: createElement('form', { onSubmit, role: 'form' }, children),
+		}),
 }));
 
 vi.mock('~/components/field', () => ({
@@ -115,13 +114,12 @@ vi.mock('~/components/field', () => ({
 	}: {
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
-		onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
+		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
 	}) =>
-		createElement(
-			FormProvider as never,
-			{ ...methods } as never,
-			createElement('form', { onSubmit, role: 'form' }, children),
-		),
+		createElement(FormProvider, {
+			...methods,
+			children: createElement('form', { onSubmit, role: 'form' }, children),
+		}),
 	Field: {
 		Text: ({ name, label }: { name: string; label: string }) => {
 			const { register, getFieldState, formState } = useFormContext();
@@ -210,6 +208,9 @@ const renderDrawer = (
 		onOpenChange: vi.fn(),
 		onSaved: vi.fn(),
 		onSessionExpired: vi.fn(),
+		// #1406 — mirrors the staff renderDrawer: the bridge prop is always
+		// provided so the nav-guard contract is exercised in every test.
+		onDirtyChange: vi.fn(),
 		...overrides,
 	};
 
@@ -440,6 +441,38 @@ describe('ProfileEditDetailsDrawer', () => {
 		);
 	});
 
+	// Round 2 (#1264): the dirty-flag uplink is event-driven (form watch),
+	// so the host learns each state change synchronously instead of one
+	// effect tick later.
+	test('reports dirtiness synchronously to the host', () => {
+		const onDirtyChange = vi.fn();
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+				onDirtyChange={onDirtyChange}
+			/>,
+		);
+
+		expect(onDirtyChange).toHaveBeenCalledWith(false);
+
+		fireEvent.change(screen.getByLabelText('Profile name'), {
+			target: { value: 'Editors' },
+		});
+
+		expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+	});
+
 	test('blocks submission when the profile name has only one character', async () => {
 		render(
 			<ProfileEditDetailsDrawer
@@ -468,6 +501,28 @@ describe('ProfileEditDetailsDrawer', () => {
 		);
 		expect(screen.getByRole('alert').textContent).toBe(
 			'Enter at least 2 characters.',
+		);
+	});
+
+	// #1406 — mirrors the staff drawer pin: clearing the description reaches
+	// the mutation as the raw cleared value. The '' -> explicit-null wire
+	// mapping happens in `buildUpdateStaffTenantProfileBody` and is proven in
+	// `src/lib/query/staff-tenant-profiles.test.ts`.
+	test('clearing the description submits an empty string, which the PATCH body turns into an explicit null', async () => {
+		renderDrawer();
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: '' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tenantId: 'tenant-1',
+					description: '',
+				}),
+			),
 		);
 	});
 
@@ -564,5 +619,27 @@ describe('ProfileEditDetailsDrawer', () => {
 			'disabled',
 			true,
 		);
+	});
+
+	// #1406 — mirrors the staff drawer pin: the drawer bridges RHF's dirty flag
+	// to the parent so the route-level unsaved-changes guard arms while a draft
+	// is open. A successful save must also RESET the bridge before `onSaved`
+	// closes the drawer, otherwise the guard would trip on the very navigation
+	// the save just made safe.
+	test('reports dirty state changes so the page can arm its nav guard', async () => {
+		const { onDirtyChange, onSaved } = renderDrawer();
+
+		// Mount reports the pristine state...
+		expect(onDirtyChange).toHaveBeenCalledWith(false);
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Draft posts, updated' },
+		});
+		await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
+
+		// ...and a successful save clears it before the parent closes.
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
+		expect(onDirtyChange).toHaveBeenLastCalledWith(false);
 	});
 });

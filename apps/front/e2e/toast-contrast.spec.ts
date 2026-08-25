@@ -430,7 +430,10 @@ const readBrowserPaint = async (
 			};
 
 			/** Each comma-separated computed background-image layer, in paint order. */
-			const backgroundImageLayers = (image: string, source: string): string[] =>
+			const backgroundImageLayers = (
+				image: string,
+				source: string,
+			): string[] =>
 				image === 'none'
 					? []
 					: splitTopLevel(image).map((layer) =>

@@ -1,4 +1,4 @@
-import type { i18n, TFunction } from 'i18next';
+import type { i18n, TFunction, TOptions } from 'i18next';
 import z, {
 	defaultErrorMap,
 	type Primitive,
@@ -14,13 +14,45 @@ import z, {
 import { makeZodI18nMap, type ZodI18nMapOption } from 'zod-i18n-map';
 
 import { isServer } from '../constants';
-import { type AppLocale, defaultLocale } from '../i18n/resources';
+import {
+	NS,
+	type AppLocale,
+	type NameSpace,
+	defaultLocale,
+} from '../i18n/resources';
 
 type I18nLike = {
 	// getFixedT: (locale: AppLocale) => TFunction;
 	// getFixedT: typeof i18next.getFixedT;
 	getFixedT: SyncFunction;
 	t?: TFunction;
+};
+
+/**
+ * `TFunction`'s options parameter for dynamically-built calls: i18next's
+ * strict overload demands a `defaultValue` whenever the key is not a
+ * statically-known resource key, which is exactly the zod-error case.
+ */
+type DynamicTOptions = TOptions & { defaultValue: string };
+
+/** Call a translation function with a runtime-computed key/options pair. */
+const callT = (t: TFunction, key: string, options: DynamicTOptions): string =>
+	t(key, options);
+
+/**
+ * Normalize a caller-supplied namespace (zod-i18n-map types it as any
+ * string) to one of this package's resource namespaces, falling back when
+ * the caller passes anything else.
+ */
+const toResourceNamespace = (
+	value: string | readonly string[] | undefined,
+	fallback: NameSpace,
+): NameSpace => {
+	const candidates = typeof value === 'string' ? [value] : [...(value ?? [])];
+	const match = candidates.find((candidate): candidate is NameSpace =>
+		(NS as readonly string[]).includes(candidate),
+	);
+	return match ?? fallback;
 };
 
 /**
@@ -71,69 +103,56 @@ class InterZod {
 	}
 
 	getErrorMap(option?: ZodI18nMapOption) {
-		const errorMap1 = makeZodI18nMap({ t: this.t as never });
+		const errorMap1 = makeZodI18nMap({ t: this.t });
 
 		const errorMap2: ZodErrorMap = (issue, ctx) => {
-			const defaultNs = 'zod';
-
-			const { t, ns, handlePath } = {
-				t: this.t,
-				ns: defaultNs,
-				...option,
-				handlePath:
-					option?.handlePath !== false
-						? {
-								context: 'with_path',
-								ns: option?.ns ?? defaultNs,
-								keyPrefix: undefined,
-								...option?.handlePath,
-							}
-						: null,
-			};
+			const defaultNs: NameSpace = 'zod';
+			const t = this.t;
+			const ns = toResourceNamespace(option?.ns, defaultNs);
+			const handlePath =
+				option?.handlePath !== false
+					? {
+							context: option?.handlePath?.context ?? 'with_path',
+							ns: toResourceNamespace(option?.handlePath?.ns, ns),
+							keyPrefix: option?.handlePath?.keyPrefix,
+						}
+					: null;
 
 			let message: string;
 			message = defaultErrorMap(issue, ctx).message;
 
 			const path =
-				issue.path.length > 0 && !!handlePath
+				issue.path.length > 0 && handlePath !== null
 					? {
 							context: handlePath.context,
-							path: (t as GenericFunction)(
+							path: callT(
+								t,
 								[handlePath.keyPrefix, issue.path.join('.')]
 									.filter(Boolean)
 									.join('.'),
 								{
 									ns: handlePath.ns,
 									defaultValue: issue.path.join('.'),
-								} as never,
+								},
 							),
 						}
 					: {};
 
 			switch (issue.code) {
 				case ZodIssueCode.invalid_type: {
-					message = (t as GenericFunction)(
-						'errors.invalid_type' as never,
-						{
-							expected: (t as GenericFunction)(
-								`types.${issue.expected}` as never,
-								{
-									defaultValue: issue.expected,
-									ns,
-								} as never,
-							),
-							received: (t as GenericFunction)(
-								`types.${issue.received}` as never,
-								{
-									defaultValue: issue.received,
-									ns,
-								} as never,
-							),
+					message = callT(t, 'errors.invalid_type', {
+						expected: callT(t, `types.${issue.expected}`, {
+							defaultValue: issue.expected,
 							ns,
-							defaultValue: message,
-							...path,
-						} as never,
-					);
+						}),
+						received: callT(t, `types.${issue.received}`, {
+							defaultValue: issue.received,
+							ns,
+						}),
+						ns,
+						defaultValue: message,
+						...path,
+					});
 					break;
 				}
 

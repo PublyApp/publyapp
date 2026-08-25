@@ -11,7 +11,7 @@ import {
 import {
 	createElement,
 	type ChangeEvent,
-	type FormEventHandler,
+	type SubmitEventHandler,
 	type ReactNode,
 } from 'react';
 import { Controller, FormProvider, useFormContext } from 'react-hook-form';
@@ -118,13 +118,12 @@ vi.mock('~/components/field', () => ({
 	}: {
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
-		onSubmit?: FormEventHandler<HTMLFormElement>;
+		onSubmit?: SubmitEventHandler<HTMLFormElement>;
 	}) =>
-		createElement(
-			FormProvider as never,
-			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
-		),
+		createElement(FormProvider, {
+			...methods,
+			children: createElement('form', { onSubmit }, children),
+		}),
 	Field: {
 		Text: ({
 			name,
@@ -323,7 +322,7 @@ describe('staff profile create route', () => {
 				},
 				audit: null,
 				settings: 'not-an-object',
-			} as never),
+			}),
 		).toEqual([
 			{
 				value: 'staff.users.read',

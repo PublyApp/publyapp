@@ -1,11 +1,11 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBlocker } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Form, FormPageLayout } from '~/components/field';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useCreateStaffTenantMutation } from '~/lib/query/staff-tenants';
 
 import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
@@ -46,7 +46,7 @@ export const TenantCreateForm = ({
 		params?: Record<string, string>;
 	}) => Promise<void>;
 }) => {
-	const { t, i18n } = useTranslation('common');
+	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [pendingCreateValues, setPendingCreateValues] =
@@ -58,15 +58,13 @@ export const TenantCreateForm = ({
 	// latest CSV import count without rebuilding on every parse.
 	const parsedMembersCountRef = useRef(0);
 
-	// `buildCreateTenantSchema` closes over `t`, so the resolver must rebuild
-	// whenever the active language changes; listing both keeps the dep array
-	// complete without a suppression.
-	const resolver = useMemo(
-		() =>
-			zodResolver(
-				buildCreateTenantSchema(t, () => parsedMembersCountRef.current),
-			),
-		[t, i18n.language],
+	// Language-keyed resolver: rebuilds when translations change so error
+	// messages stay localized; see use-language-keyed-zod-resolver. The
+	// max-seats check stays live through the ref-getter closed over here.
+	const resolver = useLanguageKeyedZodResolver<TenantCreateFormValues>(
+		(schemaT) =>
+			buildCreateTenantSchema(schemaT, () => parsedMembersCountRef.current),
+		'common',
 	);
 
 	const methods = useForm<TenantCreateFormValues>({

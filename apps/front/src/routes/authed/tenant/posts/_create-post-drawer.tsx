@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Field } from '~/components/field';
@@ -52,7 +52,10 @@ export const CreatePostDrawer = ({
 		resolver: zodResolver(getSchema(t)),
 		defaultValues: { body: '', projectId: null },
 	});
-	const body = methods.watch('body') ?? '';
+	// useWatch subscribes to the field instead of calling `methods.watch()`
+	// during render — the render-time `watch()` read makes React Hook Form an
+	// incompatible library for this component and the compiler skips it.
+	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		try {

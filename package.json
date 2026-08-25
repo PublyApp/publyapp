@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"check:frontend-barrels": "node ./packages/scripts-ts/src/check-frontend-barrels.ts",
-		"check:docs-archive-records": "node ./packages/scripts-ts/src/check-archive-records.ts",
+		"check:doc-links": "node ./packages/scripts-ts/src/check-doc-links.ts",
 		"format": "oxfmt --check \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
 		"format:write": "oxfmt --write \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
 		"lint": "oxlint --quiet . && pnpm lint:disables && pnpm check:frontend-barrels",
@@ -23,18 +23,19 @@
 	"devDependencies": {
 		"@types/node": "^20.19.7",
 		"chokidar": "^5.0.0",
-		"dotenv": "^17.2.0",
+		"dotenv": "^17.4.2",
 		"husky": "^9.0.11",
 		"json": "^11.0.0",
-		"knip": "6.12.2",
+		"knip": "6.32.2",
 		"lint-staged": "^17.3.0",
 		"lodash": "^4.17.21",
 		"markdownlint-cli": "^0.49.1",
-		"oxfmt": "0.49.0",
+		"@oxlint/plugins": "1.79.0",
+		"oxfmt": "0.64.0",
 		"oxlint": "1.79.0",
 		"oxlint-tsgolint": "7.0.2001",
 		"tsconfig": "workspace:*",
-		"turbo": "^2.9.14",
+		"turbo": "^2.10.11",
 		"typescript": "^7.0.2",
 		"yaml": "^2.8.3"
 	},
@@ -97,7 +98,7 @@
 	},
 	"dependencies": {
 		"cookie": "^1.0.2",
-		"isbot": "^5.1.28",
+		"isbot": "^5.2.1",
 		"nprogress": "^0.2.0",
 		"serialize-error": "^12.0.0"
 	}

@@ -12,14 +12,14 @@ is a dev-time scaffolding/CSS-import dependency only, not a component library co
 runtime.
 
 This intentionally diverges from the MUI + `sx` rules and app-local primitive patterns that
-governed `apps/old-front` (retired 2026-08-22, archived in `docs/archive/old-front`). Those rules were scoped to `apps/old-front`; they do not apply
+governed `apps/old-front` (retired 2026-08-22). Those rules were scoped to `apps/old-front`; they do not apply
 to `apps/front`. Examples include:
 
 - `publy/no-native-html-in-mui-surfaces`
 - `publy/no-raw-mui-textfield-register`
 - `publy/no-raw-img-in-product-surfaces`
 
-Do not import MUI or archived `apps/old-front` patterns (see `docs/archive/old-front`) into `apps/front` to reuse retired-app
+Do not import MUI or retired `apps/old-front` patterns into `apps/front` to reuse retired-app
 components. Rebuild the surface with the `components/ui/*` primitive layer (Base UI + `cva` +
 Tailwind), and front-local equivalents where needed, keeping shared behavior behind
 framework-agnostic contracts where possible.
@@ -101,7 +101,7 @@ purely performance-driven memoisation.
   ([`.github/workflows/react-doctor.yml`](../../../.github/workflows/react-doctor.yml),
   `pnpm dlx react-doctor@0.9.12 --scope files --base <base> --blocking warning`). Run
   `just react-doctor` locally before pushing — see
-  [`docs/guides/react-doctor.md`](react-doctor.md).
+  [`docs/guides/react-doctor.md`](../react-doctor.md).
 
 **Known compiler skip patterns (informational):**
 - `throw` inside `try/catch` — the compiler cannot lower this yet (Todo upstream)
@@ -115,6 +115,23 @@ specific components.
 ## Route-Local Private File Naming
 
 Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.
+
+## Component Files Export Components Only (#1417)
+
+A component file must not export anything that is not a component: the react-doctor
+`only-export-components` rule (enabled in `apps/front/doctor.config.json`) fails on any such
+export because it breaks Fast Refresh state preservation. The pattern, decided in
+[#1417](https://github.com/PublyApp/publyapp/issues/1417) (part of #1291):
+
+- **Style variants and cva calls** live in a sibling `*.variants.ts` module (see
+  `components/ui/button.variants.ts`, `badge.variants.ts`, `tabs.variants.ts`); consumers
+  import variants from there and components from the `.tsx`.
+- **Column builders, label formatters, redirect helpers** are either moved to a sibling
+  route-private module (`_*.ts(x)` next to their only consumer) or into `src/lib/*` when they
+  are cross-surface; tests import them from the new location.
+- A helper with **no importer outside its own file is simply privatized** (drop `export`)
+  rather than moved.
+- Route files (`routes/**`) additionally keep only the `Route` export plus component(s).
 
 ## Breadcrumb & Route Contract (#973)
 
@@ -367,7 +384,7 @@ they are intentionally excluded — PR 3 of #1250 folds that mechanism into `Que
 
 These are standing design decisions Radan has ratified across the front parity review
 (rounds 1–6, 2026-07). They are **defaults, not per-screen requests** — apply them to every new
-surface without waiting to be told. `docs/front-migration/parity-contract.md` is the dated
+surface without waiting to be told. `docs/records/2026-07-29-spec-front-parity-contract.md` is the dated
 decision log; this section is the forward-looking rulebook. When a new screen forces a genuinely
 new choice, decide in this spirit and add the rule here.
 

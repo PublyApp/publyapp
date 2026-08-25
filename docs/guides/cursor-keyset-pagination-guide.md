@@ -3,7 +3,7 @@
 > **Backend-normative.** The cursor/keyset contract in this guide — DTOs, service interfaces, query
 > shape, handler wiring, and the `sort_id`/`sort_order`/`cursor`/`size` wire names — is current and
 > applies to all new work. The one exception is the "Frontend note (Material React Table)" near the
-> end: Material React Table belonged to `apps/old-front` (retired 2026-08-22, archived in `docs/archive/old-front`), the retired MUI app. `apps/front` uses its own
+> end: Material React Table belonged to `apps/old-front` (retired 2026-08-22), the retired MUI app. `apps/front` uses its own
 > table components — see [`front/conventions.md`](front/conventions.md).
 
 ## Table of Contents

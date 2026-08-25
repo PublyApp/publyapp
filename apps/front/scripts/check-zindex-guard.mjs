@@ -346,7 +346,7 @@ const HEX_ESCAPE = /[0-9a-fA-F]/;
 
 const decodeCssIdentifier = (raw) => {
 	let out = '';
-	for (let i = 0; i < raw.length; ) {
+	for (let i = 0; i < raw.length;) {
 		const character = raw[i];
 		if (character === '\\') {
 			const next = raw[i + 1];

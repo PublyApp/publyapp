@@ -290,20 +290,20 @@ describe('dead PostHog env var guard', () => {
 	// The frontend reads the PostHog project token only through
 	// PUBLIC_POSTHOG_PROJECT_TOKEN (fallback POSTHOG_PROJECT_TOKEN). The
 	// VITE_POSTHOG_PROJECT_TOKEN key is dead config and must never reappear in
-	// tracked, non-archive files. Archive docs (docs/archive/**) are intentionally
-	// exempt because they capture historical state.
+	// tracked files. docs/records/** bodies are intentionally exempt because
+	// they capture point-in-time state.
 	const trackedFiles = execSync('git ls-files', {
 		cwd: REPO_ROOT,
 		encoding: 'utf8',
 	})
 		.split('\n')
 		.filter((line) => line.length > 0)
-		.filter((line) => !line.startsWith('docs/archive/'))
+		.filter((line) => !line.startsWith('docs/records/'))
 		// This test file legitimately names the dead var to assert its absence
 		// elsewhere; it must not flag itself.
 		.filter((line) => line !== 'apps/front/src/lib/env.test.ts');
 
-	test('no tracked non-archive file references the dead VITE_POSTHOG_PROJECT_TOKEN', () => {
+	test('no tracked non-record file references the dead VITE_POSTHOG_PROJECT_TOKEN', () => {
 		const offenders: string[] = [];
 
 		for (const file of trackedFiles) {

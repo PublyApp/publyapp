@@ -28,7 +28,7 @@ docker compose -f apps/front/docker-compose.test.yml down -v
 ## Running by tag
 
 Every top-level `test.describe` carries `@<domain>` and `@<ticket>` tags
-(vocabulary in [`docs/guides/e2e-tags.md`](../../docs/guides/e2e-tags.md)).
+(vocabulary in [`docs/guides/e2e-tags.md`](../../../docs/guides/e2e-tags.md)).
 Use the `test:e2e:tag` script to filter:
 
 ```bash
@@ -47,7 +47,7 @@ and fails when a top-level `test.describe` lacks a domain tag, uses a domain
 outside the vocabulary, or lacks a ticket tag. Adding a new spec without tags
 breaks the gate.
 
-See [`docs/guides/e2e-coverage.md`](../../docs/guides/e2e-coverage.md) for
+See [`docs/guides/e2e-coverage.md`](../../../docs/guides/e2e-coverage.md) for
 when to write an e2e test (the five criteria).
 
 ## Notes

@@ -134,10 +134,8 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import {
-	formatGlobalTenantUserStatusLabel,
-	TenantUserDetailsShell,
-} from './_details-shell';
+import { TenantUserDetailsShell } from './_details-shell';
+import { formatGlobalTenantUserStatusLabel } from './_tenant-user-status-label';
 
 const baseUser = {
 	id: 'user-1',

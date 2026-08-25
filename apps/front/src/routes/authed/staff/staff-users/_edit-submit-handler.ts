@@ -24,7 +24,13 @@ type IdentityUpdateInput = {
 	accountLevel?: StaffUserEditValues['accountLevel'];
 };
 
-type DirtyFields = Record<string, boolean | boolean[] | undefined>;
+// RHF 7.85 marks array-valued dirty flags as (boolean | undefined)[] (7.54 used
+// boolean[]); the readonly element union accepts both shapes without loosening
+// any consumer — every reader here only tests truthiness.
+type DirtyFields = Record<
+	string,
+	boolean | ReadonlyArray<boolean | undefined> | undefined
+>;
 
 const buildIdentityUpdateInput = (
 	userId: string,

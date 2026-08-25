@@ -1,3 +1,4 @@
+import { QueryObserver, QueryClient } from '@tanstack/react-query';
 /**
  * @vitest-environment jsdom
  */
@@ -21,28 +22,33 @@ vi.mock('react-i18next', () => ({
 
 afterEach(cleanup);
 
-const pendingQuery = {
-	isPending: true,
-	isLoading: true,
-	isFetching: true,
-	isError: false,
-} as never;
+// Real query results built through TanStack Query's own observer (fetching
+// disabled, state seeded directly), so every flag the component reads
+// (isPending/isLoading/isFetching/isError/data/error) carries the library's
+// actual semantics instead of hand-picked literals.
+const stubQueryClient = new QueryClient();
+const observerOf = (queryKey: readonly string[]) =>
+	new QueryObserver(stubQueryClient, {
+		queryKey: [...queryKey],
+		queryFn: () => 'payload',
+		enabled: false,
+	});
 
-const successQueryStub = {
-	isPending: false,
-	isLoading: false,
-	isFetching: false,
-	isError: false,
-	data: 'payload',
-};
+const pendingQuery = observerOf(['stub-pending']).getCurrentResult();
 
-const errorQuery = {
-	isPending: false,
-	isLoading: false,
-	isFetching: false,
-	isError: true,
+stubQueryClient.setQueryData(['stub-success'], 'payload');
+const successQueryStub = observerOf(['stub-success']).getCurrentResult();
+
+const errorStubQuery = stubQueryClient.getQueryCache().build(stubQueryClient, {
+	queryKey: ['stub-error'],
+	queryFn: () => Promise.reject(new Error('boom')),
+});
+errorStubQuery.setState({
+	status: 'error',
+	fetchStatus: 'idle',
 	error: new Error('boom'),
-} as never;
+});
+const errorQuery = observerOf(['stub-error']).getCurrentResult();
 
 describe('QueryDisplay', () => {
 	// shell F4: the default loading spinner and error fallback used to be
@@ -80,7 +86,7 @@ describe('QueryDisplay', () => {
 			return <span>probe</span>;
 		};
 
-		const firstQuery = { ...successQueryStub } as never;
+		const firstQuery = { ...successQueryStub };
 		const { rerender } = render(
 			<QueryDisplay query={firstQuery}>
 				{({ data }: { data: string }) => <Probe key={data} />}
@@ -90,7 +96,7 @@ describe('QueryDisplay', () => {
 
 		// Same data, fresh query object — as a background refetch would produce.
 		rerender(
-			<QueryDisplay query={{ ...successQueryStub } as never}>
+			<QueryDisplay query={{ ...successQueryStub }}>
 				{({ data }: { data: string }) => <Probe key={data} />}
 			</QueryDisplay>,
 		);
@@ -108,15 +114,13 @@ describe('QueryDisplay', () => {
 		};
 
 		const { rerender } = render(
-			<QueryDisplay query={successQueryStub as never}>
-				{() => <Probe />}
-			</QueryDisplay>,
+			<QueryDisplay query={successQueryStub}>{() => <Probe />}</QueryDisplay>,
 		);
 		fireEvent.click(screen.getByRole('button'));
 		expect(screen.getByRole('button').textContent).toBe('count:1');
 
 		rerender(
-			<QueryDisplay query={{ ...successQueryStub } as never}>
+			<QueryDisplay query={{ ...successQueryStub }}>
 				{() => <Probe />}
 			</QueryDisplay>,
 		);

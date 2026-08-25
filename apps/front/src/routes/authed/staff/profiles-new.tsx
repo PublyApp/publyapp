@@ -3,7 +3,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import type { i18n as I18nInstance } from 'i18next';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useWatch, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -70,7 +70,7 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 		: FALLBACK_LANGUAGE;
 	const i18nLike: InterZodI18nLike = {
 		getFixedT: instance.getFixedT.bind(instance),
-		t: instance.t.bind(instance) as never,
+		t: instance.t.bind(instance),
 	};
 
 	return new InterZod({
@@ -186,7 +186,6 @@ const NewStaffProfileRoute = () => {
 	const queryClient = useQueryClient();
 	const { t, i18n } = useTranslation('common');
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const hasSavedRef = useRef(false);
 
 	const resolver = useMemo(
 		() => zodResolver(getNewStaffProfileSchema(getInterZodForI18n(i18n))),
@@ -198,8 +197,13 @@ const NewStaffProfileRoute = () => {
 		defaultValues: DEFAULT_VALUES,
 	});
 
+	// Nav guard: block while the draft is dirty. After a successful save we
+	// re-arm the guard synchronously by clearing the dirty state
+	// (`reset(undefined, { keepValues: true })`) BEFORE navigating, so there is
+	// no window where a navigation could be wrongly blocked and no ref flag to
+	// read during render (which made this component an optimization skip).
 	const blocker = useBlocker({
-		shouldBlockFn: () => methods.formState.isDirty && !hasSavedRef.current,
+		shouldBlockFn: () => methods.formState.isDirty,
 		withResolver: true,
 	});
 
@@ -274,7 +278,13 @@ const NewStaffProfileRoute = () => {
 		}
 
 		await invalidateStaffProfiles(queryClient);
-		hasSavedRef.current = true;
+		// Re-arm the nav guard for the post-save navigation: clearing dirty
+		// state is synchronous, so the blocker's shouldBlockFn (which reads
+		// `methods.formState.isDirty` live at block time) sees a clean form.
+		// We are navigating away, so dropping the saved draft's values is safe;
+		// keeping them (`keepValues`) would leave them differing from the
+		// defaults and RHF would immediately re-mark the form dirty again.
+		methods.reset();
 		void navigate({
 			to: '/staff/profiles',
 		});

@@ -52,43 +52,72 @@ React Compiler artifact guard FAILED (MISSING_RUNTIME).
 Every other gate stayed green on that build; only this guard went red. The
 config was reverted immediately after the proof.
 
-## Skip inventory (production build, 2026-08-23, post-rewrite)
+## Skip inventory (production build, 2026-08-25, post-rebase)
 
-Measured on this lane's `pnpm --filter front build` after the cheap rewrites
-below landed: **36 diagnostics across 20 files**, against 90 successfully
-compiled client modules. Duplicate diagnostics for one file are collapsed.
+Measured on this lane's fresh `pnpm --filter front build` after the #1264
+follow-ups landed **and** the branch rebased onto the current develop, which
+now carries #1305 (QueryDisplay PR 2), #1310 (`publy/no-iife` extraction) and
+#1314 (staff-user edit refs out of render): **13 diagnostics across 9 files**,
+against **97 successfully compiled client modules** (pinned floor 72).
+Duplicate diagnostics for one file are collapsed.
+
+#1264 resolved the queued follow-ups: `useWatch()` in `_create-post-drawer`, a
+shared [`useLanguageKeyedZodResolver`](../../../apps/front/src/lib/hooks/use-language-keyed-zod-resolver.ts)
+hook replacing the resolver-on-language-change suppression family (7 files),
+collapse of both latest-callback ref patterns, state-based known-profile-names
+flow in the big forms, and preserve-memo drops. The rebase itself moved the
+needle both ways, recorded here so the next pass starts from truth:
+
+- **Fixed elsewhere:** `staff-users/$userId-edit.tsx` now compiles outright —
+  #1314 replaced the component-level mechanism with module-level snapshots
+  written outside render, removing even the submit-closure ref taint item 4 of
+  #1264 had worked around. `$tenantId-edit.tsx`'s remaining Refs diagnostic
+  stopped firing after #1305 restructured the page around QueryDisplay, and
+  one of `_assign-members-drawer`'s two suppressions went quiet in the same
+  restructuring. `__root.tsx` produces no diagnostic (the location write was
+  already effect-wrapped); the earlier inventory listed it in error and the
+  row is dropped.
+- **Regressed elsewhere:** #1305's ladder migration reinstated try/finally in
+  three action handlers whose #1234 rewrites had made them compile:
+  `staff-users/$userId.tsx` (suspend/reactivate + delete dialog-close
+  cleanup), tenant `users.tsx` (`performAction`), and tenant
+  `users/$userId.tsx` (remove). All three skip again; re-queued as
+  follow-ups, out of this PR's scope.
+- **Previously unlisted:** `_profile-edit-details-drawer.tsx` carries a
+  documented `exhaustive-deps` suppression on its open-transition reset
+  effect; the diagnostic predates this refresh but was missing from the
+  earlier inventory.
 Line numbers drift; treat them as of this writing.
 
 Decision vocabulary: **acceptable skip** = leave it (the pattern is load-bearing
 or the fix costs more than the skip); **rewrite now** = done in #1234;
-**follow-up** = queued in [#1264](https://github.com/PublyApp/publyapp/issues/1264).
+**fixed** = resolved on this or another lane after #1234; **follow-up** =
+queued for a future pass (#1264 is closed; its remaining work lives here and
+in the compiler issue tracker).
 
 | File | Pattern | Decision |
 | --- | --- | --- |
 | `src/components/table/data-table.tsx` | suppression ×2 (`exhaustive-deps` on breakpoint-keyed effects), incompatible library (`useReactTable()`) | **acceptable skip ×3.** TanStack Table is on the compiler's incompatible-library list (`useReactTable()` returns functions that cannot be memoized safely); the suppressions carry documented reset-semantics rationale. Rewriting means replacing the table foundation. |
 | `src/components/table/offset-pagination.ts` | suppression (`resetKeys` variable-length spread) | **acceptable skip.** Documented static-shape rationale; a rewrite would trade a working pagination primitive for compiler eligibility. |
 | `src/components/table/use-row-selection.ts` | suppression ×2 (`visibleKey` stable-key effects) | **acceptable skip.** Same table-family rationale. |
-| `src/routes/__root.tsx` | ref access during render (`locationRef.current = location`) | **acceptable skip.** Deliberate latest-value ref so the session-invalidation backstop reads the location without resubscribing per navigation (commented as such). Moving it into an effect would resubscribe the channel on every navigation. |
-| `src/routes/authed/staff/invitations/new.tsx` | ref access during render ×3 (`knownProfileNamesRef` read during render; timeout ref) | **follow-up.** The render-time Map read can become state + effect; needs care around the redirect-timeout cleanup. |
+| `src/routes/authed/staff/invitations/new.tsx` | — (was ref access during render ×3) | **fixed.** #1264 moved the known-names map and redirect timer into state/effect folds; #1305/#1310 later restructured the page (QueryDisplay ladder, IIFE extraction) without regressing it. Now compiles. |
 | `src/routes/authed/staff/invitations/table-columns.tsx` | — (was try/finally) | **rewritten in #1234.** Cleanup hoisted after the try/catch. Now compiles. |
-| `src/routes/authed/staff/profiles-new.tsx` | ref access during render (`hasSavedRef` read) | **follow-up.** Convert to state or move the read behind an event handler. |
-| `src/routes/authed/staff/staff-users/$userId-edit.tsx` | ref access during render ×5 (form-hydration refs: `hasSavedRef`, `knownProfileNamesRef` Map copy + `rememberStaffProfileNames` during render) | **follow-up.** The render-time `knownProfileNamesRef.current` copy is the blocker; it needs a redesign of how known profile names flow into option building. |
-| `src/routes/authed/staff/staff-users/$userId.tsx` | — (was try/finally ×2) | **rewritten in #1234.** Dialog-close cleanup hoisted onto every exit path. Now compiles. |
-| `src/routes/authed/staff/staff-users/_change-email-dialog.tsx` | suppression (`resolver` useMemo rebuilds on language change) | **follow-up.** Part of the shared "zod resolver memoised on `i18n.language` with a suppression" family below. |
-| `src/routes/authed/staff/tenants-new.tsx` | suppression (same resolver-on-language-change family) | **follow-up.** Same family. |
-| `src/routes/authed/staff/tenants/$tenantId-edit.tsx` | suppression (same resolver family) | **follow-up.** Same family. |
-| `src/routes/authed/staff/tenants/$tenantId/invitations.tsx` | preserve-memo (`handleRevoke` useCallback deps vs inferred), finally clause inside the callback body | **follow-up.** Dropping the manual `useCallback`/`useMemo` wrappers here would let the compiler take over, but the component also feeds columns through manual memoisation; do it together. |
-| `src/routes/authed/staff/tenants/$tenantId/users.tsx` | preserve-memo (`onUserSessionExpired` empty-deps `useCallback`) | **follow-up.** Drop the manual memoisation and let the compiler infer dependencies. |
-| `src/routes/authed/staff/tenants/$tenantId/users/$userId-edit.tsx` | suppression (resolver family) | **follow-up.** Same family. |
-| `src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx` | — (was try/finally) | **rewritten in #1234.** Now compiles. |
-| `src/routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx` | suppression (resolver family) | **follow-up.** Same family. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles.tsx` | ref access during render ×4 + preserve-memo (`openEditDrawerRef` latest-callback pattern) | **follow-up.** The "latest callback in a ref" indirection exists to keep handlers stable; under the compiler it can collapse to plain functions. Needs its own careful pass. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx` | suppression ×2 (documented reset-key rationales) | **acceptable skip.** Both suppressions document deliberate narrower-trigger semantics. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx` | suppression ×2 (resolver family + draft-protection effect) | **follow-up** (resolver half); draft-protection half acceptable. |
-| `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-form-drawer.tsx` | suppression (resolver family) | **follow-up.** Same family. |
+| `src/routes/authed/staff/profiles-new.tsx` | — (was ref access during render: `hasSavedRef` read) | **fixed in #1264.** The nav guard reads `formState.isDirty` directly; after a successful save the guard is re-armed synchronously via `reset()` before navigating. Now compiles. |
+| `src/routes/authed/staff/staff-users/$userId-edit.tsx` | — (was ref access during render ×5 + a tainted submit closure) | **fixed.** Item 4 of #1264 removed the five render-time reads; develop's #1314 then replaced the mechanism wholesale with module-level snapshots written outside render, which also untainted the submit closure. Now compiles. |
+| `src/routes/authed/staff/staff-users/$userId.tsx` | try/finally ×2 (suspend/reactivate + delete handlers close their dialogs in `finally`) | **follow-up (regressed).** Rewritten in #1234; #1305's QueryDisplay ladder migration reinstated the `finally` blocks, so the component skips again. Needs the hoist-cleanup pass redone. |
+| `src/routes/authed/staff/staff-users/_change-email-dialog.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
+| `src/routes/authed/staff/tenants-new.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId-edit.tsx` | — (was render-time ref read + resolver suppression) | **fixed.** The resolver suppression went in #1264; the remaining Refs diagnostic stopped firing after #1305 restructured the page around QueryDisplay. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId/invitations.tsx` | — (was preserve-memo on `handleRevoke` + columns chain) | **fixed in #1264.** Manual `useCallback`/`useMemo` wrappers dropped; handlers are plain functions and the compiler caches per value. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId/users.tsx` | try/finally (`performAction` clears the pending action in `finally`) | **follow-up (regressed).** Same #1234 → #1305 story as the staff-user detail page. Skips again; queued. |
+| `src/routes/authed/staff/tenants/$tenantId/users/$userId-edit.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId/users/$userId.tsx` | try/finally (remove handler clears `pendingRemove` in `finally`) | **follow-up (regressed).** Same #1234 → #1305 story. Skips again; queued. |
+| `src/routes/authed/staff/tenants/$tenantId/_invite-user-drawer.tsx` | — (was resolver suppression) | **fixed in #1264** via the shared language-keyed resolver hook. Now compiles. |
+| `src/routes/authed/staff/tenants/$tenantId/profiles/$profileId/_assign-members-drawer.tsx` | suppression (`rowAccountIdsKey` stable-key effect) | **acceptable skip.** Documented joined-key rationale; a second suppression stopped firing after #1305's QueryDisplay restructure. |
+| `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-edit-details-drawer.tsx` | suppression (`exhaustive-deps` on the open-transition reset effect) | **acceptable skip.** Deliberate re-seed keyed on open/profile-id so a refetch cannot discard an in-progress draft (commented as such). Newly listed: the diagnostic predates this refresh but the earlier inventory omitted it. |
 | `src/routes/authed/staff/tenants/$tenantId/profiles/_profile-permissions-tab.tsx` | suppression (`grantedSignature` stable key) | **acceptable skip.** Documented signature-key rationale. |
 | `src/routes/authed/tenant/posts/$postId/edit.tsx` | — (was try/finally) | **rewritten in #1234.** Now compiles. |
-| `src/routes/authed/tenant/posts/_create-post-drawer.tsx` | incompatible library (`useForm().watch()` read via `methods.watch('body')`) | **follow-up.** Subscribe with `useWatch()` instead of calling `watch()` in render; small but touches form wiring. |
+| `src/routes/authed/tenant/posts/_create-post-drawer.tsx` | — (was incompatible library: `watch()` read during render) | **fixed in #1264.** Subscribes with `useWatch()` instead of calling `watch()` in render. Now compiles. |
 | `src/routes/accept-invitation.tsx` | — (was throw-in-try + try/finally) | **rewritten in #1234.** Now compiles. |
 
 Rewrites landed in #1234 (9 files, all now compile): staff-user detail suspend/
@@ -97,6 +126,10 @@ delete handlers, tenant-user details membership/remove handlers, tenant users
 the invitations table revoke action, accept-invitation submit, and post-edit
 submit — each hoisting its `finally` cleanup onto every exit path — plus the
 invitation copy-link flow, which no longer throws from inside `try/catch`.
+#1264 resolved every follow-up it queued. Three of those handlers have since
+regressed under #1305 and are queued again (rows above); three further files
+were fixed outright by other lanes (#1305/#1314 restructures). Net today:
+13 skips across 9 files, 97 compiled modules.
 
 ## Skip patterns the compiler reports
 
@@ -128,8 +161,9 @@ the plugin source (`@vitejs/plugin-react` 6.1, `createReactCompilerPlugin`):
   candidate module to learn whether the compiler will skip it. When the
   compiler skips, oxc returns no map while the plugin still returns transformed
   code (JSX lowering still applied), and rolldown warns `SOURCEMAP_BROKEN`.
-- One warning is emitted per skipped module per environment (~36 skips in the
-  client graph plus SSR-side candidates ≈ the observed ~465).
+- One warning is emitted per skipped module per environment (the 13
+  client-graph skips inventoried above plus SSR-side candidates ≈ the 494
+  warnings observed on the 2026-08-25 build).
 
 This is upstream-shaped (plugin + oxc emitting an identity map for
 skipped-but-JSX-lowered modules would silence it); no local config removes it

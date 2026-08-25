@@ -65,18 +65,30 @@ describe('getRouter', () => {
 			title: 'Unauthorized',
 		});
 
-		queryClient.getQueryCache().config.onError?.(authFailure, {} as never);
+		// Real Query/Mutation objects built through the caches themselves: the
+		// wired handlers only read identity/meta off them, and building via
+		// cache.build() supplies exactly what the config signatures expect.
+		const probeQuery = queryClient
+			.getQueryCache()
+			.build<unknown, unknown, unknown, readonly unknown[]>(queryClient, {
+				queryKey: ['auth-backstop-probe'],
+				queryFn: () => 'payload',
+			});
+		queryClient.getQueryCache().config.onError?.(authFailure, probeQuery);
 		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(1);
 
+		const probeMutation = queryClient
+			.getMutationCache()
+			.build<unknown, unknown, unknown, unknown>(queryClient, {
+				mutationKey: ['auth-backstop-probe'],
+				mutationFn: async () => undefined,
+			});
 		queryClient
 			.getMutationCache()
-			.config.onError?.(
-				authFailure,
-				undefined,
-				undefined,
-				{} as never,
-				{} as never,
-			);
+			.config.onError?.(authFailure, undefined, undefined, probeMutation, {
+				client: queryClient,
+				meta: undefined,
+			});
 		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(2);
 
 		window.history.pushState({}, '', '/');
@@ -90,12 +102,18 @@ describe('getRouter', () => {
 		expect(mutationCache.config.onError).toBeTypeOf('function');
 		expect(mutationCache.config.onSuccess).toBeTypeOf('function');
 
+		const probeQuery = queryClient
+			.getQueryCache()
+			.build<unknown, unknown, unknown, readonly unknown[]>(queryClient, {
+				queryKey: ['query-backstop-probe'],
+				queryFn: () => 'payload',
+			});
 		queryClient.getQueryCache().config.onError?.(
 			Object.assign(new Error('Query failed'), {
 				responseStatusCode: 500,
 				title: 'Query failed',
 			}),
-			{} as never,
+			probeQuery,
 		);
 		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
 	});

@@ -8,7 +8,6 @@ import {
 	useDeferredValue,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 } from 'react';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
@@ -61,13 +60,16 @@ const DEFAULT_VALUES: InvitationFormValues = {
 
 export const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
 
+// Success-toast dwell time before redirecting to the invitations index.
+const REDIRECT_DELAY_MS = 600;
+
 const getInterZodForI18n = (instance: I18nInstance) => {
 	const locale = isSupportedLanguage(instance.language)
 		? instance.language
 		: FALLBACK_LANGUAGE;
 	const i18nLike: InterZodI18nLike = {
 		getFixedT: instance.getFixedT.bind(instance),
-		t: instance.t.bind(instance) as never,
+		t: instance.t.bind(instance),
 	};
 
 	return new InterZod({
@@ -127,10 +129,17 @@ const NewStaffInvitationsRoute = () => {
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const [serverErrors, setServerErrors] = useState<string[]>([]);
-	const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-		undefined,
+	// Post-success redirect is driven by state: the submit handler only arms
+	// a flag, and the effect below owns the timer (and its cleanup). A ref
+	// write inside onSubmit taints it for React Compiler, skipping the whole
+	// component.
+	const [redirectCountdown, setRedirectCountdown] = useState(0);
+	// Known profile names, accumulated as state. The render reads this map
+	// directly (a ref read here made React Compiler skip the component); the
+	// effect below folds each page of fetched profiles into it idempotently.
+	const [knownProfileNamesState, setKnownProfileNamesState] = useState(
+		() => new Map<string, string>(),
 	);
-	const knownProfileNamesRef = useRef(new Map<string, string>());
 
 	const resolver = useMemo(
 		() => zodResolver(getBulkCreateInvitationsSchema(getInterZodForI18n(i18n))),
@@ -170,19 +179,43 @@ const NewStaffInvitationsRoute = () => {
 	const createInvitations = useBulkCreateStaffInvitationsMutation();
 
 	useEffect(() => {
+		if (redirectCountdown === 0) {
+			return;
+		}
+		const remaining = redirectCountdown - Date.now();
+		const timeout = setTimeout(
+			() => {
+				startTransition(() => {
+					void navigate({
+						to: STAFF_INVITATIONS_INDEX_PATH,
+					});
+				});
+			},
+			Math.max(remaining, 0),
+		);
 		return () => {
-			if (redirectTimeoutRef.current) {
-				clearTimeout(redirectTimeoutRef.current);
-			}
+			clearTimeout(timeout);
 		};
-	}, []);
+	}, [navigate, redirectCountdown]);
 
 	useEffect(() => {
-		rememberStaffProfileNames(
-			knownProfileNamesRef.current,
-			profilesQuery.data?.data,
-		);
+		if (profilesQuery.data === undefined) {
+			return;
+		}
+		setKnownProfileNamesState((previous) => {
+			const next = new Map(previous);
+			rememberStaffProfileNames(next, profilesQuery.data?.data);
+			return next.size === previous.size ? previous : next;
+		});
 	}, [profilesQuery.data]);
+
+	// Fresh page rows are unioned synchronously so an option label never lags
+	// one render behind its data; the accumulated map only carries history.
+	const knownProfileNames = useMemo(() => {
+		const merged = new Map(knownProfileNamesState);
+		rememberStaffProfileNames(merged, profilesQuery.data?.data);
+		return merged;
+	}, [knownProfileNamesState, profilesQuery.data]);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
 	const profilesError = profilesQuery.error;
@@ -196,7 +229,7 @@ const NewStaffInvitationsRoute = () => {
 	const profileOptions = buildStaffProfileOptions({
 		profiles: profilesQuery.data?.data,
 		selectedProfileIds,
-		knownProfileNames: knownProfileNamesRef.current,
+		knownProfileNames,
 	});
 	const isPending = isSubmitting || createInvitations.isPending;
 	const profileLoadError =
@@ -215,13 +248,8 @@ const NewStaffInvitationsRoute = () => {
 			await invalidateStaffInvitations(queryClient);
 			methods.reset(DEFAULT_VALUES);
 
-			redirectTimeoutRef.current = setTimeout(() => {
-				startTransition(() => {
-					void navigate({
-						to: STAFF_INVITATIONS_INDEX_PATH,
-					});
-				});
-			}, 600);
+			// Arm the post-success redirect; the effect below owns the timer.
+			setRedirectCountdown(Date.now() + REDIRECT_DELAY_MS);
 		} catch (error) {
 			const failure = toApiFailure(error);
 			if (failure.kind === 'validation') {
