@@ -17,7 +17,7 @@ Copied from spec §7 ("Hard repo constraints that apply") as they touch this lan
 - Errors shown as-is with their cause: `credentials_refused` / account-not-found / `provider_unreachable` map to plain-words copy that names what went wrong (DESIGN.md error states; owner rule "transparent failure causes"). No generic "something went wrong".
 - Only `401` triggers centralized logout; `403` never logs out — a view-less user gets the Integrations nav hidden, and a denied action surfaces the problem detail message without logout.
 - URL/query parameter names snake_case; JSON fields camelCase; no collapsed lowercase wire values (`needs_reconnect`, never `needsreconnect`).
-- i18n keys added to **both** locales: `apps/front/src/i18n/locales/en/settings.json` AND `apps/front/src/i18n/locales/fr/settings.json` (+ `common.json` only if a shared key is genuinely cross-page). Missing fr key = failing gate (`check:i18n` parity in CI).
+- i18n keys added to **both** locales: `apps/front/src/i18n/locales/en/settings.json` AND `apps/front/src/i18n/locales/fr/settings.json`. The key-parity suite `apps/front/src/lib/i18n-key-coverage.test.ts` fails on any missing fr/en counterpart.
 - Design-token discipline is machine-checked (`pnpm --filter front check:design-system` runs inside tests): status pills use the existing `Badge` variants; no raw hex; every z-index utility through the `--publy-z-*` scale; dark mode via tokens only.
 - Lint hard rules: no `Array.reduce`, no IIFEs, arrow-function components only (`publy/arrow-function-components` at error), no direct dayjs imports in components, specific-lodash imports, no `console.*` in source, no manual translation of `response-message` keys at call sites (`getFailureMessage(toApiFailure(error), ...)` only).
 - React Doctor HARD gate: `just react-doctor` clean in every file this plan touches before each push.
@@ -52,15 +52,220 @@ C2 (`origin/lane/wt-641`, plan `docs/superpowers/plans/2026-08-25-c2-bluesky-con
 
 **[ASSUMPTION] A3 — Kiota client namespace:** after C2's Task 6 regeneration, `packages/client-ts` exposes the five operations above (names derived from the routes, e.g. `client.socialAccounts.list…`). Exact generated symbol names are confirmed right after regeneration; until then task code imports them through a single thin module (`src/lib/api/social-accounts.ts` created in Task 1) so a rename touches one file.
 
-**[ASSUMPTION] A4 — front permission source:** the session/me payload consumed by the authed layout already carries the holder's tenant permission keys (the same set `PermissionFilter` checks server-side). Task 1 verifies the exact accessor used by existing authed surfaces on develop before wiring button visibility; if no such accessor exists, the fallback is render-for-everyone + rely on 403 problem copy — raised as an open question rather than invented.
+**[ASSUMPTION] A4 — front permission source (RESOLVED by Task 2):** verified on develop: `GetUserAuthDataResult` (`apps/api/Modules/Auth/Handlers/GetUserAuthData.cs`) carries only id/email/avatar/names, and `TenantPermissionFilter` resolves the holder's permission set per request via `permissionService.GetTenantPermissionsAsync(userId, tenantId)` (`apps/api/Lib/Filters/TenantPermissionFilter.cs`) — nothing client-side knows the permission set today. Task 2 therefore adds `tenantPermissionKeys` to the auth-data payload (same service the filter uses), regenerates the client, and the front gates off that.
 
 **[ASSUMPTION] A5 — e2e Bluesky fake:** the e2e drives the real front against a backend whose `IBlueskyClient` is the C2 fake (env-switched composition like `ApiFactory`). The precise switch (test-only env var on the e2e compose stack) is confirmed in Task 7 against C2's `ApiFactory` changes on the same branch.
 
 **Open questions for the owner (also listed in the PR body):**
 
-1. A4 — is the tenant permission set available client-side today, or should C3 add a `me/permissions` read? (Decides banner/button gating mechanics.)
+1. RESOLVED as Task 2: auth-data payload gains `tenantPermissionKeys` (verified today it carries none). Owner: confirm this small Auth-module touch belongs in the C3 lane rather than C2.
 2. A5 — approved mechanism for faking Bluesky in e2e: env-selected fake in the API image vs. a mock transport at the front layer?
 3. Banner placement: spec §3 says "persistent banner" in the workspace — confirm it spans ALL authed tenant pages (layout-level) rather than settings-only, and whether a dismiss (per-account, per-session) is wanted or never.
 4. Does Disconnect require typed handle confirmation (like delete flows) or is the checkbox-style ConfirmDialog enough?
 
 ---
+
+## File Map
+
+Paths relative to repo root. "exists" = verified present at develop `a9653b1b0`; "new" = created by an earlier task of THIS plan only.
+
+**Backend (Task 2 only)**
+- Modify `apps/api/Modules/Auth/Handlers/GetUserAuthData.cs` (exists): add `TenantPermissionKeys` to `GetUserAuthDataResult`, populated from `IPermissionService.GetTenantPermissionsAsync(userId, tenantId)` — the exact service `apps/api/Lib/Filters/TenantPermissionFilter.cs` already calls.
+- New `apps/api/Modules/Auth/Handlers/GetUserAuthData.Spec.cs`: integration spec proving seeded admin payloads carry `socialaccounts.*` keys once C2 lands.
+
+**Generated**
+- Regenerated `packages/client-ts` (never hand-edited): auth-data model gains `tenantPermissionKeys`; after C2 merges, its five social-account operations live here.
+
+**Front data layer**
+- Modify `apps/front/src/lib/query/auth.ts` (exists): `CurrentUser` gains `tenantPermissionKeys: string[]`, mapper updated.
+- New `apps/front/src/lib/permissions/use-has-tenant-permission.ts` + `.test.ts`.
+- New `apps/front/src/lib/query/social-accounts.ts`: query key, row mapper (wire status → pill variant/label), cursor-paginated `socialAccountsQueryOptions`, mutations connect/reconnect/disconnect/saveProjects built on `buildTenantMutationOptions` (`packages/shared-ts/src/lib/query/create-hooks.ts`, exists), each invalidating the list key.
+- New `apps/front/src/lib/query/social-accounts.test.ts`.
+
+**Front page & parts** (route-local `_` prefix per conventions)
+- Modify `apps/front/src/routes/authed/tenant/settings/integrations.tsx` (exists) and its sibling `integrations.test.tsx` (exists).
+- New `_integrations-status-pill.tsx`, `_integrations-visible-in.tsx`, `_bluesky-connect-drawer.tsx` (+ test), `_attach-projects-field.tsx`, `_disconnect-dialog.tsx` (+ test).
+
+**Front banner**
+- New `apps/front/src/components/app-shell/_needs-reconnect-banner.tsx` (+ test).
+- Modify `apps/front/src/components/app-shell/app-shell.tsx` (exists): mount between `<header>` and `<main className="app-shell-main">`.
+
+**e2e**
+- New `apps/front/e2e/social-accounts-integrations.spec.ts`.
+
+**i18n**
+- Modify `apps/front/src/i18n/locales/en/settings.json` + `fr/settings.json` (both exist).
+- Modify `packages/shared-ts/src/lib/i18n/json/response-message.en.json` + `.fr.json` (both exist).
+
+---
+
+## Task 1: i18n keys (both locales) + response-message entries
+
+**Files:** the four JSON files above.
+**Interfaces:** produces the `settings:` namespace keys consumed verbatim by Tasks 4–8: `integrations-list-title`, `integrations-empty-title`, `integrations-empty-description`, `integrations-load-failed`, `integrations-load-failed-description`, `connect-bluesky`, `reconnect`, `disconnect`, `provider-bluesky`, `status-active`, `status-needs-reconnect`, `status-revoked`, `last-success-never`, `visible-in-all-projects`, `visible-in-projects`, `drawer-connect-title`, `drawer-reconnect-title`, `drawer-identifier-label`, `drawer-identifier-help`, `drawer-app-password-label`, `drawer-app-password-help`, `drawer-app-password-help-link`, `drawer-submit-connect`, `drawer-submit-reconnect`, `error-credentials-refused`, `error-provider-unreachable`, `error-already-connected`, `error-account-not-found`, `attach-projects-title`, `attach-projects-none-hint`, `disconnect-title`, `disconnect-consequences`, `banner-needs-reconnect-single`, `banner-needs-reconnect-plural`. Plus response-message keys `social-account-connected|reconnected|disconnected|projects-updated`.
+
+- [ ] **Step 1 (RED driver):** run the page spec first — it fails because the drawer module does not exist yet:
+
+Run: `pnpm --filter front exec vitest run src/routes/authed/tenant/settings/integrations.test.tsx`
+Expected: FAIL — cannot resolve `./_bluesky-connect-drawer` (the pull-through failure for the whole chain).
+
+- [ ] **Step 2 (GREEN, keys only):** append to BOTH locale files; fr strings are real French, not copies:
+
+```json
+// apps/front/src/i18n/locales/en/settings.json (append)
+{
+	"integrations-list-title": "Connected accounts",
+	"integrations-empty-title": "No connected accounts yet",
+	"integrations-empty-description": "Connect a Bluesky account to start publishing from your projects.",
+	"connect-bluesky": "Connect Bluesky",
+	"status-active": "Active",
+	"status-needs-reconnect": "Needs reconnect",
+	"status-revoked": "Disconnected",
+	"last-success-never": "Never connected successfully",
+	"visible-in-all-projects": "Visible in: all projects",
+	"visible-in-projects": "Visible in: {{names}}",
+	"drawer-app-password-help-link": "Create an app password on Bluesky",
+	"error-credentials-refused": "Bluesky refused these credentials. Check the identifier and app password, then retry.",
+	"error-provider-unreachable": "Bluesky is unreachable right now. Nothing was saved — retry in a moment.",
+	"disconnect-consequences": "Disconnecting pauses every scheduled post on {{handle}}, erases the stored credentials, and keeps your publication history. Reconnecting the same account resumes posts whose date is still ahead."
+}
+```
+
+```json
+// packages/shared-ts/src/lib/i18n/json/response-message.en.json (append)
+{
+	"social-account-connected": "Bluesky account connected",
+	"social-account-reconnected": "Bluesky account reconnected",
+	"social-account-disconnected": "Account disconnected — scheduled posts on it are paused",
+	"social-account-projects-updated": "Project visibility updated"
+}
+```
+
+French counterparts go into `settings.fr.json` and `response-message.fr.json` (e.g. `"social-account-disconnected": "Compte déconnecté — les publications programmées sur ce compte sont suspendues"`).
+
+- [ ] **Step 3:** prove parity:
+
+Run: `pnpm --filter front exec vitest run src/lib/i18n-key-coverage.test.ts`
+Expected: PASS.
+
+- [ ] **Step 4:** `just check-write && just react-doctor`, then `git commit -m "i18n: settings + response-message keys for C3 integrations screen" && git push`
+
+**Spec proof:** every §3 surface string exists translatable in BOTH locales before any component consumes it.
+**Adversarial mutation:** delete `status-needs-reconnect` from `fr` only → `i18n-key-coverage.test.ts` goes red (shown in PR body).
+
+---
+
+## Task 2: permissions reach the client (auth payload + hook)
+
+**Files:** `apps/api/Modules/Auth/Handlers/GetUserAuthData.cs` (modify), new `GetUserAuthData.Spec.cs`, regenerated `packages/client-ts`, modify `apps/front/src/lib/query/auth.ts`, new `apps/front/src/lib/permissions/use-has-tenant-permission.ts` (+ test).
+
+**Interfaces:**
+- Produces: `GetUserAuthDataResult.TenantPermissionKeys : IReadOnlyList<string>` (C#, wire `tenantPermissionKeys`) — empty array, never null, for users with no tenant permissions.
+- Consumes: `IPermissionService.GetTenantPermissionsAsync(Guid userId, Guid tenantId)` returning `HashSet<string>` (exists — used by `TenantPermissionFilter.cs` line ~66 on develop).
+- Front: `useHasTenantPermission(key: string): boolean` — true iff the cached current user's `tenantPermissionKeys` contains `key`.
+
+- [ ] **Step 1 (RED):** failing integration spec:
+
+```csharp
+// apps/api/Modules/Auth/Handlers/GetUserAuthData.Spec.cs
+using System.Net.Http.Json;
+using System.Text.Json;
+
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+
+using Xunit;
+
+namespace PublyApp.Api.Modules.Auth.Handlers;
+
+public sealed class GetUserAuthDataSpec(ApiFixture fixture) : IClassFixture<ApiFixture> {
+	[Fact]
+	public async void ItShouldExposeSeededAdminTenantPermissionKeysIncludingSocialAccounts() {
+		var (client, tenantId) = await fixture.LoginAsTenantAdminAsync(); // helper exists in Lib/Testing/Helpers
+
+		var payload = await client.GetFromJsonAsync<JsonElement>("/auth/me", fixture.JsonOptions);
+
+		var keys = payload.GetProperty("tenantPermissionKeys")
+			.EnumerateArray()
+			.Select(k => k.GetString())
+			.ToList();
+
+		keys.Should().Contain("tenant.socialaccounts.view");
+		keys.Should().Contain("tenant.socialaccounts.manage");
+		keys.Should().Contain("tenant.socialaccounts.publish");
+	}
+}
+```
+
+(The assertion set intentionally includes the C2 keys so the spec stays green after C2 merges; until then only the shape assertions hold — mark those three with a comment noting they activate with C2.)
+
+Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~GetUserAuthDataSpec"`
+Expected: FAIL — no `tenantPermissionKeys` property in the payload.
+
+- [ ] **Step 2 (GREEN backend):** in `GetUserAuthData.cs`, inject `IPermissionService permissionService` and `ITenantContext`/account-tenant resolution exactly as `TenantPermissionFilter` does, then return:
+
+```csharp
+public IReadOnlyList<string> TenantPermissionKeys { get; set; } =
+	(string[])[];
+// …in Handle, after the user load:
+var permissionKeys = await permissionService.GetTenantPermissionsAsync(userId, tenantId, cancellationToken);
+return TypedResults.Ok(new GetUserAuthDataResult {
+	// …existing fields…
+	TenantPermissionKeys = [.. permissionKeys]
+});
+```
+
+- [ ] **Step 3:** regenerate the client: `just build-api && just generate-client`
+- [ ] **Step 4 (GREEN front):**
+
+```ts
+// apps/front/src/lib/query/auth.ts — extend the mapper's return type
+export type CurrentUser = {
+	id: string;
+	email: string;
+	firstName: string | null;
+	lastName: string | null;
+	avatarUrl: string | null;
+	displayName: string | null;
+	tenantPermissionKeys: string[];
+};
+// toCurrentUser maps result?.tenantPermissionKeys ?? [] through a String() filter
+```
+
+```ts
+// apps/front/src/lib/permissions/use-has-tenant-permission.ts
+import { useMemo } from 'react';
+
+import { useCurrentUserQuery } from '~/lib/query/auth';
+
+const SOCIAL_VIEW_PERMISSION = 'tenant.socialaccounts.view';
+
+/** Permission gate for UI affordances. Defaults to `false` while the session
+ * loads — actions appear late, never act without the right. */
+export const useHasTenantPermission = (key: string): boolean => {
+	const { data } = useCurrentUserQuery();
+
+	return useMemo(() => {
+		if (!data || data.tenantPermissionKeys.length === 0) {
+			return false;
+		}
+
+		return data.tenantPermissionKeys.includes(key);
+	}, [data, key]);
+};
+
+/** Convenience wrapper for the social slice. */
+export const useCanManageSocialAccounts = (): boolean =>
+	useHasTenantPermission('tenant.socialaccounts.manage');
+
+export const useCanViewIntegrations = (): boolean =>
+	useHasTenantPermission(SOCIAL_VIEW_PERMISSION);
+```
+
+plus `use-has-tenant-permission.test.ts` asserting false-before-load, false-without-key, true-with-key (Testing Library `renderHook`).
+
+- [ ] **Step 5:** run `pnpm --filter front typecheck && pnpm --filter front exec vitest run src/lib/permissions`, then commit + push:
+`git commit -m "feat(auth): expose tenant permission keys to the front session (C3 gating)" && git push`
+
+**Spec proof:** §4 "routes carry their permission" becomes visible client-side; §3 "button only for holders of manage" gets its mechanism.
+**Adversarial mutation:** drop the `keys.Should().Contain(...)` lines and hard-code `["*"]` server-side → the spec still passes but the front shows buttons to everyone; the REAL guard is re-proven in Task 6's e2e (view-only user sees no Reconnect button). Mutation shown in PR body.
