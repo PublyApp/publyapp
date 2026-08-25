@@ -23,6 +23,10 @@ public sealed record JobQueueSample {
 	// Approximate pg_class row estimate: avoids an exact full-table count every minute.
 	public required long DeadLetterSize { get; init; }
 	public required long DeadLetterGrowth1h { get; init; }
+	// Rows retention is HOLDING past its window (#864/K-2): missing-anomaly job types
+	// with no operator acknowledgement. > 0 means an integrity anomaly survived its
+	// retention horizon because nobody has triaged it — exactly what must stay visible.
+	public required long MissingTriagedCount { get; init; }
 	public required long EmailLogFailures1h { get; init; }
 	public required long JobQueueDeadTuples { get; init; }
 
@@ -49,6 +53,7 @@ public sealed record JobQueueSample {
 		ProcessingOverLeaseCount = 0,
 		DeadLetterSize = 0,
 		DeadLetterGrowth1h = 0,
+		MissingTriagedCount = 0,
 		EmailLogFailures1h = 0,
 		JobQueueDeadTuples = 0,
 		// Pre-first-sample state is UNKNOWN, not healthy: null so the gauge emits nothing
@@ -129,6 +134,9 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		);
 		_meter.CreateObservableGauge("jobs.dlq_size", () => _last.DeadLetterSize);
 		_meter.CreateObservableGauge("jobs.dlq_growth_1h", () => _last.DeadLetterGrowth1h);
+		_meter.CreateObservableGauge(
+			"jobs.dlq.untriaged_missing", () => _last.MissingTriagedCount
+		);
 		_meter.CreateObservableGauge(
 			"email.log_failures_1h", () => _last.EmailLogFailures1h
 		);
@@ -245,7 +253,12 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 						WHERE failed_at >= (
 							SELECT sampled_at FROM clock
 						) - interval '1 hour'
-					) AS "DeadLetterGrowth1h"
+					) AS "DeadLetterGrowth1h",
+					COALESCE((
+						SELECT count(*) FROM job_dead_letter d
+						WHERE d.triaged_at IS NULL
+							AND d.job_type LIKE 'jobs.missing.%'
+					), 0)::bigint AS "MissingTriagedCount"
 			),
 			email_metrics AS (
 				SELECT count(*)::bigint AS "EmailLogFailures1h"
@@ -298,6 +311,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			ProcessingOverLeaseCount = row.ProcessingOverLeaseCount,
 			DeadLetterSize = row.DeadLetterSize,
 			DeadLetterGrowth1h = row.DeadLetterGrowth1h,
+			MissingTriagedCount = row.MissingTriagedCount,
 			EmailLogFailures1h = row.EmailLogFailures1h,
 			JobQueueDeadTuples = row.JobQueueDeadTuples,
 			LeaderPresent = row.LeaderPresent,
@@ -323,7 +337,8 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 				"jobs.queue_sample due_high={DueHigh} due_bulk={DueBulk} "
 				+ "oldest_high_s={OldestHigh} oldest_bulk_s={OldestBulk} "
 				+ "processing_over_lease={OverLease} dlq_size={DlqSize} "
-				+ "dlq_growth_1h={DlqGrowth} email_failures_1h={EmailFailures} "
+				+ "dlq_growth_1h={DlqGrowth} untriaged_missing={UntriagedMissing} "
+				+ "email_failures_1h={EmailFailures} "
 				+ "dead_tuples={DeadTuples} leader_present={LeaderPresent} "
 				+ "sync_age_s={SyncAge}",
 				sample.DueDepthHigh,
@@ -333,6 +348,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 				sample.ProcessingOverLeaseCount,
 				sample.DeadLetterSize,
 				sample.DeadLetterGrowth1h,
+				sample.MissingTriagedCount,
 				sample.EmailLogFailures1h,
 				sample.JobQueueDeadTuples,
 				sample.LeaderPresent,
@@ -389,6 +405,20 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 			_logger.LogWarning(
 				"jobs.alert dlq_growth_1h={Growth} new dead-letter row(s) in the last hour",
 				sample.DeadLetterGrowth1h
+			);
+		}
+
+		// Untriaged missing anomalies (#864/K-2): rows retention is deliberately HOLDING
+		// past its own window because nobody has acknowledged them yet. Same anomaly
+		// semantics as dlq_growth — re-breaches on every sample while any row remains,
+		// recovers when the count reaches 0 (i.e. when each row is triaged or deleted).
+		if (sample.MissingTriagedCount > 0) {
+			breaches.Add("dlq_untriaged_missing");
+			_logger.LogWarning(
+				"jobs.alert dlq_untriaged_missing={Count} dead-letter row(s) hold an "
+				+ "untriaged missing-state anomaly; retention keeps them past its window "
+				+ "until each row is explicitly acknowledged",
+				sample.MissingTriagedCount
 			);
 		}
 
@@ -499,6 +529,7 @@ public sealed class JobQueueMonitorService : BackgroundService, IDisposable {
 		public required long ProcessingOverLeaseCount { get; init; }
 		public required long DeadLetterSize { get; init; }
 		public required long DeadLetterGrowth1h { get; init; }
+		public required long MissingTriagedCount { get; init; }
 		public required long EmailLogFailures1h { get; init; }
 		public required long JobQueueDeadTuples { get; init; }
 		public required bool LeaderPresent { get; init; }

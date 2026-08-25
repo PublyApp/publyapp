@@ -14,6 +14,19 @@ namespace PublyApp.Api.Modules.Jobs.Entities;
 /// </summary>
 [Table("job_dead_letter")]
 public class JobDeadLetter : INoTenantEntity {
+	/// <summary>
+	/// Reserved <c>job_type</c> prefix for rows that record a MISSING-state integrity
+	/// anomaly (#864/K-2): the future external-state machinery stamps anomaly rows as
+	/// e.g. "jobs.missing.email-prepared-state.v1" (§4.5's resolution batch). The
+	/// retention sweep exempts untriaged rows carrying this prefix from age deletion,
+	/// and the monitor counts held ones for its dlq_untriaged_missing alert — so
+	/// nothing outside the anomaly producers may use it.
+	/// </summary>
+	public const string MissingJobTypePrefix = "jobs.missing.";
+
+	/// <summary>SQL LIKE pattern matching any missing-anomaly job type.</summary>
+	public const string MissingJobTypeLikePattern = "jobs.missing.%";
+
 	[Column("id")]
 	public Guid? Id { get; set; }
 
@@ -78,6 +91,22 @@ public class JobDeadLetter : INoTenantEntity {
 
 	[Column("requeued_at")]
 	public DateTime? RequeuedAt { get; set; }
+
+	// Explicit operator acknowledgement that someone LOOKED at this row (#864/K-2).
+	// All three stay NULL until a staff surface stamps them (#636, Phase 4 — there is
+	// deliberately no writer before that surface exists). "Triaged" means
+	// TriagedAt IS NOT NULL: an untriaged missing-anomaly row is NEVER eligible for
+	// retention deletion, no matter how old, so an integrity anomaly cannot age out
+	// of existence and silently clear its own alert. TriagedBy is free text for now:
+	// no actor can honestly fill a users FK before #636 defines the acting identity.
+	[Column("triaged_at")]
+	public DateTime? TriagedAt { get; set; }
+
+	[Column("triaged_by")]
+	public string? TriagedBy { get; set; }
+
+	[Column("triage_note")]
+	public string? TriageNote { get; set; }
 
 	// DB-generated defaults (F11): no C# initializers.
 	[Column("failed_at")]

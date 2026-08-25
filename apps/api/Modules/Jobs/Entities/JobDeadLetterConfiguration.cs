@@ -30,5 +30,14 @@ public sealed class JobDeadLetterConfiguration : IEntityTypeConfiguration<JobDea
 			.HasIndex(entity => entity.RequeuedFromDeadLetterId)
 			.HasDatabaseName("ix_job_dead_letter_requeued_from")
 			.HasFilter("requeued_from_dead_letter_id IS NOT NULL");
+
+		// Serves the untriaged-Missing counters (#864): the retention sweep's held-row
+		// report and the monitor's dlq_untriaged_missing alert both count rows that are
+		// missing-anomalies AND not yet triaged. Partial on exactly that class, so the
+		// normal (non-anomaly, triage-complete) majority stays out of the index entirely.
+		builder
+			.HasIndex(entity => entity.FailedAt)
+			.HasDatabaseName("ix_job_dead_letter_untriaged_missing")
+			.HasFilter($"triaged_at IS NULL AND job_type LIKE '{JobDeadLetter.MissingJobTypePrefix}%'");
 	}
 }

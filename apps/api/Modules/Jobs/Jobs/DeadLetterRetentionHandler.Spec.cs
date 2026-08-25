@@ -8,6 +8,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
 
@@ -112,6 +113,68 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	[Fact]
+	public async Task ItShouldHoldAnUntriagedMissingRowBeyondTheHorizonAndReportIt() {
+		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
+		var marker = $"spec.dlq-hold.{Guid.NewGuid():N}";
+		var untriagedMissing = $"{JobDeadLetter.MissingJobTypePrefix}{marker}";
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			// Far beyond the horizon: age alone must NEVER delete an untriaged
+			// missing-anomaly row (#864/K-2) — the integrity anomaly may not age out of
+			// existence and silently clear its own alert.
+			await InsertDeadLetterAsync(dbContext, untriagedMissing, days: retentionDays + 20);
+
+			var result = await RunAsync(dbContext);
+			result.Should().BeOfType<JobOutcome.Success>();
+
+			await using var verify = await CreateDbContextAsync();
+			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == untriagedMissing))
+				.Should().BeTrue("an untriaged missing-anomaly row is held however old it is");
+
+			// The skip report: the pass counts what it held back (the same predicate the
+			// monitor samples for jobs.dlq.untriaged_missing).
+			(await CountUntriagedMissingAsync(dbContext))
+				.Should().Be(1, "the pass reports exactly the row it skipped");
+		} finally {
+			await CleanupAsync(marker);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldDeleteATriagedMissingRowBeyondTheHorizonLikeAnyOtherRow() {
+		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
+		var marker = $"spec.dlq-triaged.{Guid.NewGuid():N}";
+		var triagedMissing = $"{JobDeadLetter.MissingJobTypePrefix}{marker}";
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			await InsertDeadLetterAsync(dbContext, triagedMissing, days: retentionDays + 20);
+
+			// The operator acknowledgement (the #636 staff surface will produce it): once
+			// someone has LOOKED at the row, retention applies again like any other row.
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				UPDATE job_dead_letter
+				SET triaged_at = now(), triaged_by = 'spec', triage_note = 'acknowledged'
+				WHERE job_type = {triagedMissing}
+				"""
+			);
+
+			var result = await RunAsync(dbContext);
+			result.Should().BeOfType<JobOutcome.Success>();
+
+			await using var verify = await CreateDbContextAsync();
+			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == triagedMissing))
+				.Should().BeFalse("a triaged missing-anomaly row past the horizon is swept");
+			(await CountUntriagedMissingAsync(dbContext))
+				.Should().Be(0, "triage releases the row from the held set");
+		} finally {
+			await CleanupAsync(marker);
+		}
+	}
+
 	// --- helpers ------------------------------------------------------------------------
 
 	private static async Task<JobOutcome> RunAsync(AppDbContext dbContext) {
@@ -119,6 +182,14 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			dbContext, NullLogger<DeadLetterRetentionHandler>.Instance
 		);
 		return await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+	}
+
+	// The skip-report seam (#864): how many missing-anomaly rows the sweep is holding.
+	private static async Task<long> CountUntriagedMissingAsync(AppDbContext dbContext) {
+		var handler = new DeadLetterRetentionHandler(
+			dbContext, NullLogger<DeadLetterRetentionHandler>.Instance
+		);
+		return await handler.CountUntriagedMissingRowsAsync(CancellationToken.None);
 	}
 
 	private static JobContext FakeContext(string jobType) {
@@ -157,8 +228,12 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 
 	private async Task CleanupAsync(string marker) {
 		await using var dbContext = await CreateDbContextAsync();
+
+		// Wildcards on BOTH sides: missing-anomaly rows embed the marker AFTER the
+		// reserved "jobs.missing." prefix, which a suffix-only pattern would miss.
+		var pattern = $"%{marker}%";
 		await dbContext.Database.ExecuteSqlAsync(
-			$"DELETE FROM job_dead_letter WHERE job_type LIKE {marker + "%"}"
+			$"DELETE FROM job_dead_letter WHERE job_type LIKE {pattern}"
 		);
 	}
 
