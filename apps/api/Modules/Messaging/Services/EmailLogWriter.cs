@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Messaging.Entities;
@@ -16,6 +18,58 @@ public interface IEmailLogWriter {
 	void WriteSubmitted(WriteSubmittedEmailLogArgs args);
 	void WriteCancelledIneligible(EmailLogEntry entry, string reasonCode);
 	void WritePermanentlyFailed(EmailLogEntry entry, string? lastError);
+
+	/// <summary>
+	/// §4.4's single conditioned provider-evidence transition path (#866/K-6): applies an
+	/// allowlisted edge to one email_log row and records the transition as an
+	/// actor-named <see cref="EmailLogEvidenceEvent"/> row — never as an audit_logs
+	/// entry, which is unbuildable for a webhook (user_id NOT NULL FK; a provider has no
+	/// user). Owns its transaction: the conditioned update and the evidence row commit
+	/// or roll back together. The caller names the author via
+	/// <see cref="ApplyProviderEvidenceEmailLogArgs.ActorKind"/>/
+	/// <see cref="ApplyProviderEvidenceEmailLogArgs.ActorId"/> — required, non-nullable.
+	/// </summary>
+	Task<ApplyProviderEvidenceResult> ApplyProviderEvidenceAsync(
+		ApplyProviderEvidenceEmailLogArgs args,
+		CancellationToken cancellationToken = default
+	);
+}
+
+/// <summary>
+/// Identity + evidence of one §4.4 provider-evidence transition (#866/K-6).
+/// <see cref="ActorKind"/>/<see cref="ActorId"/> are REQUIRED: a transition without a
+/// human actor still names its author (a controlled-vocabulary kind plus the provider
+/// correlation id), never null and never a fabricated users.id.
+/// </summary>
+public sealed record ApplyProviderEvidenceEmailLogArgs {
+	public required Guid JobId { get; init; }
+
+	// Vocabulary value from EmailLogEvents.
+	public required string Event { get; init; }
+	public required EmailLogOutcome NewOutcome { get; init; }
+
+	// Provenance stamped onto the email_log row alongside the outcome (§4.4).
+	public required string EvidenceSource { get; init; }
+	public required string ProviderEventId { get; init; }
+
+	// The named author (EmailLogActorKinds value + correlation text) — #866.
+	public required string ActorKind { get; init; }
+	public required string ActorId { get; init; }
+
+	// Bounded, sanitized context (F20); serialized into the evidence row's details.
+	public object? Details { get; init; }
+}
+
+/// <summary>
+/// Discriminated result of <see cref="IEmailLogWriter.ApplyProviderEvidenceAsync"/>
+/// (guard-clause friendly): Applied commits the update + evidence row; Rejected means
+/// the edge is outside §4.4's forward-only allowlist or lost a race (zero rows
+/// affected); UnknownTarget means no email_log row matches the given job id.
+/// </summary>
+public abstract record ApplyProviderEvidenceResult {
+	public sealed record Applied : ApplyProviderEvidenceResult;
+	public sealed record Rejected : ApplyProviderEvidenceResult;
+	public sealed record UnknownTarget : ApplyProviderEvidenceResult;
 }
 
 /// <summary>
@@ -64,6 +118,99 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 
 	public void WritePermanentlyFailed(EmailLogEntry entry, string? lastError) {
 		_dbContext.EmailLog.Add(Build(entry, EmailLogOutcome.PermanentlyFailed, lastError));
+	}
+
+	public async Task<ApplyProviderEvidenceResult> ApplyProviderEvidenceAsync(
+		ApplyProviderEvidenceEmailLogArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		await using var transaction =
+			await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+		var priorOutcome = await FindOutcomeAsync(args.JobId, cancellationToken);
+		if (priorOutcome is null) {
+			await transaction.RollbackAsync(cancellationToken);
+			return new ApplyProviderEvidenceResult.UnknownTarget();
+		}
+
+		if (!IsAllowedEdge(priorOutcome.Value, args.NewOutcome)) {
+			await transaction.RollbackAsync(cancellationToken);
+			return new ApplyProviderEvidenceResult.Rejected();
+		}
+
+		// §4.4's conditioned update, stated in SQL: the predicate RE-CHECKS the current
+		// outcome, so an edge racing a concurrent transition affects zero rows instead of
+		// clobbering it. The update stamps evidence_source / provider_event_id /
+		// updated_at = now() (Npgsql translates UtcNow inside the expression to now()).
+		var updatedRows = await _dbContext.EmailLog
+			.Where(entry => entry.JobId == args.JobId
+				&& entry.Outcome == priorOutcome.Value)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(entry => entry.Outcome, args.NewOutcome)
+					.SetProperty(entry => entry.EvidenceSource, args.EvidenceSource)
+					.SetProperty(entry => entry.ProviderEventId, args.ProviderEventId)
+					.SetProperty(entry => entry.UpdatedAt, entry => DateTime.UtcNow),
+				cancellationToken
+			);
+
+		if (updatedRows == 0) {
+			await transaction.RollbackAsync(cancellationToken);
+			return new ApplyProviderEvidenceResult.Rejected();
+		}
+
+		var emailLogId = await FindIdByJobAsync(args.JobId, cancellationToken);
+		if (emailLogId is null) {
+			// Unreachable while the read above succeeded inside this transaction; kept as
+			// an explicit guard because the FK below needs a real id.
+			await transaction.RollbackAsync(cancellationToken);
+			return new ApplyProviderEvidenceResult.UnknownTarget();
+		}
+
+		_dbContext.EmailLogEvidenceEvent.Add(new EmailLogEvidenceEvent {
+			EmailLogId = emailLogId.Value,
+			Event = args.Event,
+			ActorKind = args.ActorKind,
+			ActorId = args.ActorId,
+			PriorOutcome = (int)priorOutcome.Value,
+			NewOutcome = (int)args.NewOutcome,
+			Details = args.Details is not null
+				? System.Text.Json.JsonSerializer.Serialize(args.Details)
+				: "{}",
+		});
+
+		// Commits atomically with the update above (same transaction): the transition and
+		// its evidence row commit or roll back together. A provider-event-id replay
+		// surfaces here as the ux_email_log_provider_event_id violation.
+		await _dbContext.SaveChangesAsync(cancellationToken);
+		await transaction.CommitAsync(cancellationToken);
+
+		return new ApplyProviderEvidenceResult.Applied();
+	}
+
+	private async Task<EmailLogOutcome?> FindOutcomeAsync(
+		Guid jobId,
+		CancellationToken cancellationToken
+	) {
+		return await _dbContext.EmailLog
+			.Where(entry => entry.JobId == jobId)
+			.Select(entry => (EmailLogOutcome?)entry.Outcome)
+			.SingleOrDefaultAsync(cancellationToken);
+	}
+
+	private async Task<Guid?> FindIdByJobAsync(Guid jobId, CancellationToken cancellationToken) {
+		return await _dbContext.EmailLog
+			.Where(entry => entry.JobId == jobId)
+			.Select(entry => entry.Id)
+			.SingleOrDefaultAsync(cancellationToken);
+	}
+
+	// §4.4's forward-only allowlist. Today: legacy-unverified → Submitted on provider
+	// acceptance evidence. The Submitted → Delivered|Bounced|Complained edges arrive
+	// with the webhook packet's outcome members and extend — never reverse — this map.
+	private static bool IsAllowedEdge(EmailLogOutcome current, EmailLogOutcome next) {
+		return current == EmailLogOutcome.LegacySubmissionUnverified
+			&& next == EmailLogOutcome.Submitted;
 	}
 
 	private static EmailLog Build(EmailLogEntry entry, EmailLogOutcome outcome, string? lastError) {
