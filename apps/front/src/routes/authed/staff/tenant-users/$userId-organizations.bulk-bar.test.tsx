@@ -36,7 +36,13 @@ import {
 	RouterProvider,
 } from '@tanstack/react-router';
 import type { AnyRouter } from '@tanstack/react-router';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
@@ -271,8 +277,15 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		fireEvent.click(
 			await screen.findByRole('checkbox', { name: rowCheckboxName('en') }),
 		);
-		fireEvent.click(
-			await screen.findByRole('button', { name: 'Bulk actions' }),
+		// Same floating-trigger race as `choose-bulk-action.ts`: the trigger can
+		// render before Base UI wires its pointer props, swallowing the click.
+		const trigger = await screen.findByRole('button', {
+			name: 'Bulk actions',
+			expanded: false,
+		});
+		fireEvent.click(trigger);
+		await waitFor(() =>
+			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
 		);
 
 		expect(
@@ -288,8 +301,15 @@ describe('#1400 tenant-user organizations tab: bulk trigger label-in-name (real 
 		fireEvent.click(
 			await screen.findByRole('checkbox', { name: rowCheckboxName('fr') }),
 		);
-		fireEvent.click(
-			await screen.findByRole('button', { name: 'Actions groupées' }),
+		// Same floating-trigger race as `choose-bulk-action.ts`: the trigger can
+		// render before Base UI wires its pointer props, swallowing the click.
+		const trigger = await screen.findByRole('button', {
+			name: 'Actions groupées',
+			expanded: false,
+		});
+		fireEvent.click(trigger);
+		await waitFor(() =>
+			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
 		);
 
 		expect(
