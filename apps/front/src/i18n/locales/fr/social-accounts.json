@@ -1,0 +1,7 @@
+{
+	"reconnect-banner-title": "{{handle}} doit être reconnecté",
+	"reconnect-banner-description": "{{handle}} ne fonctionne plus et ses publications programmées ont été mises en pause.",
+	"reconnect-banner-more": "+{{count}} autre(s) compte(s)",
+	"reconnect-banner-button": "Reconnecter",
+	"reconnect-banner-contact-admin": "Demandez à une personne disposant de l'accès de gestion de reconnecter ce compte."
+}
