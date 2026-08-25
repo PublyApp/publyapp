@@ -6,6 +6,7 @@ import path from 'node:path';
 import { test } from 'vitest';
 
 import {
+	assertCertifiedScan,
 	findPinMismatches,
 	parsePinnedUseLine,
 	resolveTagCommit,
@@ -446,16 +447,61 @@ test('a dangling local reference fails loud instead of being skipped', async () 
 	assert.match(findings[0].message ?? '', /action\.yml/);
 });
 
-// --- real-tree scan (mirrors the sibling guard's always-green assertion) ---
+// --- real-tree scan (the live artifact assertion) ---
+//
+// Deliberately NOT a vitest test: unit tests here must be network-free
+// (injected resolver only), and CI already runs this exact scan live via the
+// quality-gate step `node packages/scripts-ts/src/check-actions-pins.ts`
+// against the real repository tree. The CLI hard-fails on zero files scanned,
+// so it cannot rot into an always-green check.
 
-test("the repo's own workflows are fully consistent with their version comments", async () => {
-	// Runs against the REAL repository tree; rootDir defaults to the repo root
-	// above this package. Network-dependent by design: CI runs it live via the
-	// quality-gate step, and `just ci-actions-pins` skips it with --offline.
-	const findings = await findPinMismatches();
+// --- anti-rot: the CLI must refuse to certify an empty scan ---
 
-	assert.deepStrictEqual(findings, []);
-}, 120_000);
+test('scanStats reports exactly what the scan judged', async () => {
+	const rootDir = await buildFixture({
+		workflowContent: makeWorkflow(
+			`      - uses: actions/checkout@${PINNED} # v7\n` +
+				`      - uses: ./tools/probe-action\n`,
+		),
+		extraFiles: [
+			{
+				path: 'tools/probe-action/action.yml',
+				content:
+					"name: 'probe'\ndescription: 'probe'\nruns:\n  using: composite\n  steps:\n" +
+					`      - uses: actions/setup-node@${SETUP_NODE_SHA} # v7\n`,
+			},
+		],
+	});
+
+	let stats = { filesScanned: 0, pinnedLines: 0 };
+	await findPinMismatches({
+		rootDir,
+		resolveTag: tableResolver({
+			'actions/checkout': { v7: PINNED },
+			'actions/setup-node': { v7: SETUP_NODE_SHA },
+		}),
+		scanStats: (measured) => {
+			stats = measured;
+		},
+	});
+
+	assert.strictEqual(stats.filesScanned, 2);
+	assert.strictEqual(stats.pinnedLines, 2);
+});
+
+test('assertCertifiedScan fails loud on zero files or zero pinned lines', () => {
+	assert.throws(
+		() => assertCertifiedScan({ filesScanned: 0, pinnedLines: 0 }),
+		/certifies nothing/,
+	);
+	assert.throws(
+		() => assertCertifiedScan({ filesScanned: 3, pinnedLines: 0 }),
+		/zero pinned uses: lines/,
+	);
+	assert.doesNotThrow(() =>
+		assertCertifiedScan({ filesScanned: 7, pinnedLines: 16 }),
+	);
+});
 
 // --- paired regression proof inside the suite ---
 

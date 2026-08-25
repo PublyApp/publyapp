@@ -273,6 +273,8 @@ jobs:
           pnpm --filter scripts-ts exec vitest run src/require-linked-issue.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-actions-pinned.test.ts
           node ./packages/scripts-ts/src/check-actions-pinned.ts
+          pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
+          node ./packages/scripts-ts/src/check-actions-pins.ts
           pnpm --filter scripts-ts exec vitest run src/ci-referenced-paths.test.ts
 
       # This must run in a required-check dependency, not only locally: the

@@ -329,6 +329,36 @@ const ghTagLookup: TagLookup = async (args) => {
 };
 
 /**
+ * What the scan actually examined, so the CLI can refuse to certify an empty
+ * one (a guard that judges nothing would print green over zero evidence).
+ */
+export type ScanStats = { filesScanned: number; pinnedLines: number };
+
+/**
+ * Fails loud unless the scan certified real work: at least one file judged
+ * AND at least one pinned `uses:` line compared. Zero pinned lines is not a
+ * legitimate outcome for this repository (every workflow carries SHA pins);
+ * seeing it means the parser stopped matching or the wrong tree was scanned,
+ * so an empty certification must never masquerade as green.
+ */
+export const assertCertifiedScan = ({
+	filesScanned,
+	pinnedLines,
+}: ScanStats): void => {
+	if (filesScanned === 0) {
+		throw new Error(
+			'actions-pins guard: scanned zero files — the scan certifies nothing, so this fails instead of passing silently. Run the guard from the repository root.',
+		);
+	}
+
+	if (pinnedLines === 0) {
+		throw new Error(
+			`actions-pins guard: judged zero pinned uses: lines across ${String(filesScanned)} file(s) — every reference being allowlisted (local/docker) is not a shape this repository ever has, so an empty scan fails instead of certifying nothing`,
+		);
+	}
+};
+
+/**
  * Deterministic lexicographic ordering for reported file paths.
  */
 const comparePosixPath = (a: string, b: string): number => {
@@ -429,9 +459,12 @@ export const findPinMismatches = async ({
 		'../../..',
 	),
 	resolveTag,
+	scanStats,
 }: {
 	rootDir?: string;
 	resolveTag?: CommitResolver;
+	/** Test-only observation hook: receives the per-file scan counts. */
+	scanStats?: (stats: { filesScanned: number; pinnedLines: number }) => void;
 } = {}): Promise<PinFinding[]> => {
 	// Per-run cache: one resolution per distinct repo+tag pair, however many
 	// steps pin the same action version across the whole scan.
@@ -462,6 +495,8 @@ export const findPinMismatches = async ({
 	const findings: PinFinding[] = [];
 	const pinnedEntries: PinnedEntry[] = [];
 	const visited = new Set<string>();
+	let filesScanned = 0;
+	let pinnedLineCount = 0;
 
 	// Mandatory half (see the sibling guard): no workflows dir certifies nothing.
 	let workflowFiles: string[];
@@ -496,6 +531,7 @@ export const findPinMismatches = async ({
 	}
 
 	const scanFile = async (file: string): Promise<void> => {
+		filesScanned += 1;
 		const content = await readFile(path.join(rootDir, file), 'utf8');
 		const lines = content.split('\n');
 
@@ -543,6 +579,7 @@ export const findPinMismatches = async ({
 				continue;
 			}
 
+			pinnedLineCount += 1;
 			pinnedEntries.push({
 				file,
 				line: i + 1,
@@ -561,6 +598,8 @@ export const findPinMismatches = async ({
 	for (const file of actionFiles) {
 		await scanFile(file);
 	}
+
+	scanStats?.({ filesScanned, pinnedLines: pinnedLineCount });
 
 	// Resolution happens after the scan so the report order is deterministic
 	// (scan order) even though resolutions hit the shared cache.
@@ -609,7 +648,17 @@ if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
 		process.exit(0);
 	}
 
-	const findings = await findPinMismatches();
+	let stats: ScanStats = { filesScanned: 0, pinnedLines: 0 };
+	const findings = await findPinMismatches({
+		scanStats: (measured) => {
+			stats = measured;
+		},
+	});
+
+	// Anti-rot: a green result over zero judged files or zero compared pins
+	// certifies nothing, so it exits red instead (same rule that keeps the
+	// sibling guard honest).
+	assertCertifiedScan(stats);
 
 	if (findings.length > 0) {
 		console.error(
