@@ -413,22 +413,80 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
 	});
 
-	test('a partial-success unassign surfaces the failure counts instead of plain success', async () => {
+	// Round-4 pin (PR #1413 review MAJOR): the FULLY-FAILED edge (succeeded =
+	// 0, failed ≥ 1) runs the SAME unconditional post-mutation bookkeeping as
+	// every other 200 shape. The #820 spec states the contract with no
+	// succeeded>0 exception ("success clears selection, invalidates via
+	// `invalidateStaffUsers`, toasts success or partial-success with counts"),
+	// and the sibling invitations flow pins all three shapes identically
+	// (invitations-bulk-revoke-routing.test.tsx — its comment records that
+	// leaving the all-failure shape out of the pinned paths is exactly what
+	// let a "skip invalidation unless succeededCount > 0" mutant survive).
+	// This kills the round-3 self-chosen survivor gating `clearSelection` +
+	// `invalidateStaffProfiles` behind `if (succeededCount > 0)`: that mutant
+	// leaves the checked box checked and the cache entry fresh here.
+	test('a fully-failed unassign still clears the selection, invalidates the list, and surfaces the failure counts', async () => {
 		mocks.bulkUnassign.mockResolvedValue({
 			succeededCount: 0,
 			failedCount: 1,
 			failedItems: [{ userId: USER_A, reason: 'not_assigned' }],
 		});
 
-		await renderAtPage();
+		const harness = await renderAtPage();
+
+		// Seed a REAL cache entry under the production users-list key so the
+		// post-response `isInvalidated` read below is meaningful, not vacuous.
+		const usersListKey = usersListCacheKey();
+		harness.queryClient.setQueryData(usersListKey, { users: [], count: 0 });
+		expect(
+			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+		).toBe(false);
 
 		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('true'),
+		);
+
 		await chooseBulkAction('Unassign selected', 'More actions');
 		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
 
+		// Fully-failed takes the error-toast path, never plain success, and
+		// carries the per-row cause in plain words beside the counts.
 		await waitFor(() => expect(mocks.bulkUnassign).toHaveBeenCalledOnce());
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			'Unassigned 0 user(s), 1 failed.',
+			'Alex User: this user is not assigned to this profile.',
+		);
+
+		// (a) Bookkeeping is UNCONDITIONAL even when NOTHING succeeded: the row
+		// checkbox unchecks and the selection bar unmounts.
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('false'),
+		);
+		await waitFor(() =>
+			expect(
+				screen.queryByRole('button', { name: 'Clear selection' }),
+			).toBeNull(),
+		);
+
+		// (b) ...and the profile users list went through the REAL invalidation
+		// helper over the harness's QueryClient.
+		await waitFor(() => {
+			expect(mocks.invalidateStaffProfiles).toHaveBeenCalledOnce();
+			expect(
+				harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+			).toBe(true);
+		});
 	});
 
 	// #1407-class post-success contract: a successful bulk unassign must clear
