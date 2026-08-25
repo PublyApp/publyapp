@@ -304,7 +304,7 @@ const renderAtList = async () => {
  * all-failure shape out of the pinned paths is exactly what let the round-3
  * "skip invalidation unless succeededCount > 0" mutant survive 10/10.
  */
-type BulkRevokeResponseShape = {
+type BulkStaffInvitationActionResult = {
 	succeededCount: number;
 	failedCount: number;
 	failedItems?: { invitationId: string; reason: string }[];
@@ -314,13 +314,13 @@ type BulkRevokeOutcomeCase =
 	| {
 			name: string;
 			outcome: 'success';
-			response: BulkRevokeResponseShape;
+			response: BulkStaffInvitationActionResult;
 			successToastText: string;
 	  }
 	| {
 			name: string;
 			outcome: 'error';
-			response: BulkRevokeResponseShape;
+			response: BulkStaffInvitationActionResult;
 			errorToastArgs: unknown[];
 	  };
 
