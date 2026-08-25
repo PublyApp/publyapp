@@ -165,7 +165,7 @@ const listTrackedDocsCandidates = (rev: string): string[] =>
 		.filter(
 			(entry) =>
 				entry.length > 0 &&
-				!/\/$/.test(entry) &&
+				!entry.endsWith('/') &&
 				!/^docs\/(guides|deployment|assets)\//.test(entry),
 		);
 
@@ -383,8 +383,10 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'',
 		'## Notes',
 		'',
-		'- PR #1355 carries `docs/superpowers/specs/2026-08-25-paid-modules-design.md` (unmerged).',
-		'  It is deliberately absent from this mapping; its home is decided on that PR, which this lane does not touch.',
+		'- PR #1355 added `docs/superpowers/specs/2026-08-25-paid-modules-design.md` to develop',
+		'  after this lane branched, so it appears above once the merge-base includes it.',
+		'  This lane lands its content at `docs/records/2026-08-25-spec-open-core-paid-modules.md`;',
+		'  the row maps the now-deleted pre-prune path.',
 		'- From this change on, the superpowers skills write specs/plans/reviews into `docs/records/`',
 		'  (`YYYY-MM-DD-<type>-<topic>.md`), not into `docs/superpowers/`.',
 		'- Guards that enumerated the pruned trees (`check-archive-records*`, the docs-archive',
