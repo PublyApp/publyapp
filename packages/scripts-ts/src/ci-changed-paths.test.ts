@@ -434,7 +434,7 @@ const runCli = (pattern, fakeGhDir) => {
 		...process.env,
 		PATH: `${fakeGhDir}:${process.env.PATH}`,
 		GITHUB_EVENT_NAME: 'pull_request',
-		GH_REPO: 'radandevist/publyapp',
+		GH_REPO: 'PublyApp/publyapp',
 		PR_NUMBER: '1',
 		GH_TOKEN: 'test-token',
 	};
@@ -567,7 +567,7 @@ const runCliWithRealOutput = (pattern, fakeGhDir, extraEnv = {}) => {
 				...process.env,
 				PATH: `${fakeGhDir}:${process.env.PATH}`,
 				GITHUB_EVENT_NAME: 'pull_request',
-				GH_REPO: 'radandevist/publyapp',
+				GH_REPO: 'PublyApp/publyapp',
 				PR_NUMBER: '1',
 				GH_TOKEN: 'test-token',
 				...extraEnv,

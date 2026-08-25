@@ -1,5 +1,5 @@
-using System.Globalization;
 using System.Collections.Concurrent;
+using System.Globalization;
 
 using Serilog.Configuration;
 using Serilog.Core;
@@ -28,6 +28,17 @@ public static class CanaryBootLogProbe {
 	public const string BeginMarker = "CANARY_BOOT_LOG_BEGIN";
 	public const string EndMarker = "CANARY_BOOT_LOG_END";
 	public const int SuccessExitCode = 0;
+	// #1319: the probe arg is rejected unless this exact test-only environment flag is
+	// also set (value "1" or "true"); see IsTestOnlyFlagSatisfied in this file.
+	public const string TestOnlyFlagName = "PUBLYAPP_TEST_BOOT_PROBE";
+	// Round-1 fix (#1319): refusal wording used when NEITHER host-environment variable is
+	// present (bare container): there is no resolved environment name to quote, so the
+	// message states explicitly that the environment did not resolve to a test one.
+	public const string UnresolvedEnvironmentText =
+		"the hosting environment is not set";
+	// Exit code for a refused boot: 78 = EX_CONFIG (sysexits.h), "configuration error",
+	// so a misconfigured container command dies with a distinctly non-zero, non-crash code.
+	public const int RejectedExitCode = 78;
 
 	private static bool _requested;
 	private static BootLogCaptureSink? _sink;
@@ -36,14 +47,98 @@ public static class CanaryBootLogProbe {
 	/// Program.Main calls this before any host builder runs, so the capture sink exists
 	/// when ConfigureLogger composes the pipeline. Returns true when the probe arg is
 	/// present; every normal boot returns false and nothing is captured anywhere.
+	/// <para>
+	/// #1319: presence of <see cref="EmitArg"/> alone is HARD-REJECTED — the process exits
+	/// non-zero (<see cref="RejectedExitCode"/>) with a plain-words cause naming
+	/// <see cref="TestOnlyFlagName"/>, before any host or database connection exists.
+	/// With the arg, the shipped Main would otherwise return right after the witness
+	/// gates with exit code 0 and NO host started (worker: no job engine; web api: no
+	/// socket) — a misconfigured container command would produce a clean-looking total
+	/// outage. Only an explicit test-only flag value ("1" or "true") lets the probe run;
+	/// any other value fails loud.
+	/// </para>
+	/// <para>
+	/// Round-1 fix (#1319 adversarial review): the flag alone is NOT containment — a
+	/// deployed container with <c>PUBLYAPP_TEST_BOOT_PROBE=1</c> in its environment would
+	/// re-enable the probe and reproduce the exact #1317 no-host exit-0 outage. The probe
+	/// argument is therefore refused EVERYWHERE except a test-shaped hosting environment:
+	/// it is honoured ONLY when ASPNETCORE_ENVIRONMENT/DOTNET_ENVIRONMENT resolves to
+	/// Development or Testing. Production, Staging, or an UNSET environment (what a bare
+	/// container gets) refuses with <see cref="RejectedExitCode"/> even WITH the flag —
+	/// fail closed. Same stance as unsigned module assemblies: refused everywhere except
+	/// non-production.
+	/// </para>
 	/// </summary>
 	public static bool ActivateIfRequested(string[] args) {
-		_requested = args.Any(arg => arg.Equals(EmitArg, StringComparison.Ordinal));
-		if (_requested) {
-			_sink = new BootLogCaptureSink();
+		if (!args.Any(arg => arg.Equals(EmitArg, StringComparison.Ordinal))) {
+			return false;
 		}
 
-		return _requested;
+		EnforceTestOnlyGate();
+		_requested = true;
+		_sink = new BootLogCaptureSink();
+		return true;
+	}
+
+	// Exits the process when the probe arg is present without an explicit test-only
+	// opt-in, or outside a test-shaped hosting environment. Never returns on the refusal
+	// path.
+	private static void EnforceTestOnlyGate() {
+		var rawValue = Environment.GetEnvironmentVariable(TestOnlyFlagName);
+		if (IsTestOnlyFlagValueAccepted(rawValue)
+			&& AppEnvironment.IsProbeAllowedHostEnvironment()) {
+			return;
+		}
+
+		Console.Error.WriteLine(
+			$"{EmitArg} was refused: {DescribeRefusalCause(rawValue)}.");
+		Environment.Exit(RejectedExitCode);
+	}
+
+	// Transparent-failure rule (owner product policy): the refusal names BOTH the probe
+	// argument (prefixed by the caller) and its cause in plain words. Cause order: the
+	// hosting-environment half first (round-1 #1319) — quoting the resolved environment
+	// name when there is one, stating the unset case explicitly for a bare container —
+	// then the flag half when the flag itself is absent/unaccepted, then the
+	// sanctioned-shape tail naming <see cref="TestOnlyFlagName"/>.
+	private static string DescribeRefusalCause(string? rawValue) {
+		var causes = new List<string>();
+		var flagAccepted = IsTestOnlyFlagValueAccepted(rawValue);
+
+		if (!AppEnvironment.IsProbeAllowedHostEnvironment()) {
+			causes.Add(AppEnvironment.TryGetHostEnvironmentName(out var resolved)
+				? $"refused: environment '{resolved}' is not a test environment; the "
+					+ "test-only flag is ignored here"
+				: $"{UnresolvedEnvironmentText}: neither ASPNETCORE_ENVIRONMENT nor "
+					+ "DOTNET_ENVIRONMENT is set, which counts as a production-shaped "
+					+ "process; the test-only flag is ignored here");
+		}
+
+		if (!flagAccepted) {
+			causes.Add(string.IsNullOrWhiteSpace(rawValue)
+				? $"{TestOnlyFlagName} is not set"
+				: $"{TestOnlyFlagName} has the unaccepted value '{rawValue}'.");
+		}
+
+		return string.Join("; ", causes)
+			+ " This boot-log probe argument must never reach a deployed container or a "
+			+ "normal boot: it only works when the hosting environment is a test "
+			+ $"environment ({EnvironmentNames.Development}/{EnvironmentNames.Testing}) "
+			+ $"AND {TestOnlyFlagName} is set to exactly '1' or 'true', which is "
+			+ "reserved for the API integration suite.";
+	}
+
+	// Exact-value contract: unset/blank refuses, "1"/"true" (case-insensitive) accepts,
+	// anything else refuses loudly (never a silent fallback). Ordinal comparisons —
+	// never ToLower() dispatch (PUBLY0003).
+	private static bool IsTestOnlyFlagValueAccepted(string? rawValue) {
+		if (string.IsNullOrWhiteSpace(rawValue)) {
+			return false;
+		}
+
+		var trimmed = rawValue.Trim();
+		return trimmed.Equals("1", StringComparison.Ordinal)
+			|| trimmed.Equals("true", StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>

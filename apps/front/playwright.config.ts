@@ -15,7 +15,12 @@ const helperSpecs = ['**/helpers/**', '**/__tests__/**'];
 // pattern as `feat/ui-profile-batch`'s `chromium-hermetic-source` project
 // (#992 review round 2) — kept as one convention rather than two. Must not
 // depend on `setup` and must not also run under `chromium`.
-const hermeticSourceSpecs = ['**/breadcrumb-entity-name-truncation.spec.ts'];
+const hermeticSourceSpecs = [
+	'**/breadcrumb-entity-name-truncation.spec.ts',
+	// #823: the rendered focus-ring cascade proof (real primitives, real
+	// compiled CSS, real keyboard focus) — same hermetic constraints.
+	'**/focus-ring-cascade.spec.ts',
+];
 const isCiShard = process.env.PLAYWRIGHT_CI_SHARD === 'true';
 
 export default defineConfig({
