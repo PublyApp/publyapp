@@ -519,3 +519,107 @@ Expected: PASS both (typecheck passes only after Task 4's consumers exist OR wit
 
 **Spec proof:** §2 visibility data (projectIds) and §3 pill colours land as typed mappings; every action invalidates the list so the UI never lies after a mutation.
 **Adversarial mutation:** change `TONES.revoked` to `'danger'` → the mapper spec goes red (spec-vs-convenience guard); shown in PR body.
+
+---
+
+## Task 4: Integrations list page (rework of the coming-later placeholder)
+
+**Files:** modify `apps/front/src/routes/authed/tenant/settings/integrations.tsx` (+ its existing `integrations.test.tsx`); new `_integrations-status-pill.tsx`, new `_integrations-visible-in.tsx`.
+
+**Interfaces:**
+- Consumes Task 3's `useSocialAccountsQuery`, `SocialAccountRow`; Task 2's `useCanViewIntegrations`, `useCanManageSocialAccounts`; `useTenantProjectsQuery`/`toTenantProjectItems` (`~/lib/query/tenant-projects`, exists).
+- Produces: `<IntegrationsStatusPill row={SocialAccountRow} />` and `<IntegrationsVisibleIn projectIds={string[]} projects={Array<{id,label}>} />` consumed only here.
+
+- [ ] **Step 1 (RED):** extend the EXISTING `integrations.test.tsx` (it currently asserts the coming-later surface — flip it):
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/integrations.test.tsx (replace body)
+import { renderWithProviders } from '~/lib/test/render-with-providers'; // same harness the file already imports
+import { screen, within } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { TenantSettingsIntegrationsPage } from './integrations';
+
+describe('tenant settings integrations', () => {
+	it('ItShouldRenderConnectedAccountRowsWithStatusTonesWhenListHasAccounts', () => {
+		renderWithProviders(<TenantSettingsIntegrationsPage />, {
+			fixtures: { socialAccounts: [/* active + needs_reconnect rows */] },
+		});
+
+		const table = screen.getByTestId('tenant-settings-social-accounts-table');
+		expect(within(table).getByText('@team.bsky.social')).toBeInTheDocument();
+		expect(screen.getByTestId('status-pill-active')).toHaveAttribute('data-tone', 'success');
+		expect(screen.getByTestId('status-pill-needs-reconnect')).toHaveAttribute('data-tone', 'warning');
+	});
+
+	it('ItShouldShowTheEmptyStateWhenNoAccountsAreConnected', () => {
+		renderWithProviders(<TenantSettingsIntegrationsPage />, {
+			fixtures: { socialAccounts: [] },
+		});
+		expect(screen.getByTestId('tenant-settings-connected-integrations-empty')).toBeInTheDocument();
+	});
+});
+```
+
+(The exact provider harness is whatever the current test file already uses — read it first and keep its conventions; the fixtures shape above is provided by a `QueryClient` default response stubbed per the file's existing patterns.)
+
+Run: `pnpm --filter front exec vitest run src/routes/authed/tenant/settings/integrations.test.tsx`
+Expected: FAIL — page still renders the placeholder cards.
+
+- [ ] **Step 2 (GREEN):**
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/_integrations-status-pill.tsx
+import { useTranslation } from 'react-i18next';
+import { StatusPill } from '~/components/ui/product-page';
+
+import type { SocialAccountRow } from '~/lib/query/social-accounts';
+
+export const IntegrationsStatusPill = ({ row }: { row: SocialAccountRow }) => {
+	const { t } = useTranslation(['settings']);
+
+	return (
+		<StatusPill tone={row.tone}>
+			<span data-testid={`status-pill-${row.statusWire}`}>
+				{t(row.statusLabelKey)}
+			</span>
+		</StatusPill>
+	);
+};
+```
+
+```tsx
+// apps/front/src/routes/authed/tenant/settings/_integrations-visible-in.tsx
+import { useTranslation } from 'react-i18next';
+
+export type VisibleInProject = { id: string; label: string };
+
+/** Spec §2: empty attachment set = visible everywhere; otherwise names. */
+export const IntegrationsVisibleIn = ({
+	projectIds,
+	projects,
+}: {
+	projectIds: string[];
+	projects: VisibleInProject[];
+}) => {
+	const { t } = useTranslation(['settings']);
+
+	if (projectIds.length === 0) {
+		return <span>{t('visible-in-all-projects')}</span>;
+	}
+
+	const names = projectIds
+		.map((id) => projects.find((project) => project.id === id)?.label ?? id)
+		.join(', ');
+
+	return <span>{t('visible-in-projects', { names })}</span>;
+};
+```
+
+The page itself keeps its route shell (`WorkspacePageHeader titleKey="integrations"`, crumbs, i18nNamespaces — unchanged), swaps the three placeholder cards for one `DataTable` over `toSocialAccountRows(useSocialAccountsQuery(...).data)` with columns handle / provider (`t('provider-bluesky')`) / status pill / last success (`formatDateTime(row.lastSuccessAt, locale)` or `t('last-success-never')`) / visible-in / actions (`Reconnect`, `Disconnect` when `useCanManageSocialAccounts()`; Connect button in the header action slot likewise gated). Loading/empty/error flow through `DataTableQueryState` (`isPending`/`isError`/`onRetry`/emptyContent reusing `StateSurface`).
+
+- [ ] **Step 3:** run page suite green + `pnpm --filter front typecheck && just react-doctor`.
+- [ ] **Step 4:** `git commit -m "front(social): integrations list page with spec tones and permission-gated actions" && git push`
+
+**Spec proof:** §3 list bullet rendered exactly (handle, provider, pill colours, last success, visible-in semantics); §1 decision 5 visibility of ACTIONS follows manage.
+**Adversarial mutation:** remove the `useCanManageSocialAccounts()` gate around actions → the view-only component test added in Step 1's third case (`ItShouldHideRowActionsForViewOnlyHolders`) goes red.
