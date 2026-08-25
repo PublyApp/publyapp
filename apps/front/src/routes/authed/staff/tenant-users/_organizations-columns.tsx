@@ -94,13 +94,13 @@ export function buildOrganizationColumns(
 	];
 }
 
-function ConfirmRemoveSingleOrganization({
+const ConfirmRemoveSingleOrganization = ({
 	userId,
 	row,
 }: {
 	userId: string;
 	row: OrganizationRow;
-}) {
+}) => {
 	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [isOpen, setOpen] = useState(false);
@@ -142,4 +142,4 @@ function ConfirmRemoveSingleOrganization({
 			onOpenChange={setOpen}
 		/>
 	);
-}
+};
