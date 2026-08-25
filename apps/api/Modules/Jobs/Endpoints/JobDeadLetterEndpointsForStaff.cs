@@ -18,11 +18,11 @@ public static class JobDeadLetterEndpointsForStaff {
 
 		group.MapPost(
 				Routes.Jobs.ForStaff.ResolveUnclassified,
-				ResolveDeadLetterUnclassified.Handle
+				ResolveDeadLetterUnclassifiedForStaff.Handle
 			)
 			.WithName("ResolveDeadLetterUnclassified")
 			.WithSummary("Confirm an unclassified dead-letter entry's external effects are absent")
-			.WithReqBodyValidation<ResolveDeadLetterUnclassifiedBody>()
+			.WithReqBodyValidation<ResolveDeadLetterUnclassifiedForStaffBody>()
 			.WithPermission([AppPermissions.Staff.Jobs.RESOLVE]);
 
 		return routes;

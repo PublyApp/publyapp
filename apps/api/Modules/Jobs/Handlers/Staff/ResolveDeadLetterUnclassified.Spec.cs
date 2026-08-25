@@ -25,12 +25,12 @@ namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 // path for dead-letter rows stuck at status 6 Unclassified. Fail-closed contract:
 // 404 unknown/malformed id, 409 when not Unclassified, 403 without the new
 // staff.jobs.resolve permission, and a race-safe single-statement transition.
-public sealed class ResolveDeadLetterUnclassifiedSpec : IClassFixture<ApiFixture> {
+public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public ResolveDeadLetterUnclassifiedSpec(ApiFixture fixture) {
+	public ResolveDeadLetterUnclassifiedForStaffSpec(ApiFixture fixture) {
 		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);

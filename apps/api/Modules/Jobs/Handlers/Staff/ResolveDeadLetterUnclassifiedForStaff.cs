@@ -17,7 +17,7 @@ using PublyApp.Api.Modules.Jobs.Services;
 
 namespace PublyApp.Api.Modules.Jobs.Handlers.Staff;
 
-public record ResolveDeadLetterUnclassifiedBody {
+public record ResolveDeadLetterUnclassifiedForStaffBody {
 	public JsonElement? Note { get; init; }
 
 	public string? GetNote() {
@@ -30,9 +30,9 @@ public record DeadLetterResolvedResponse {
 	public required int ExternalStateStatus { get; init; }
 }
 
-public class ResolveDeadLetterUnclassifiedBodyValidator
-	: AbstractValidator<ResolveDeadLetterUnclassifiedBody> {
-	public ResolveDeadLetterUnclassifiedBodyValidator() {
+public class ResolveDeadLetterUnclassifiedForStaffBodyValidator
+	: AbstractValidator<ResolveDeadLetterUnclassifiedForStaffBody> {
+	public ResolveDeadLetterUnclassifiedForStaffBodyValidator() {
 		RuleFor(x => x.Note)
 			.MustBeNullableStringWithMaxLength("Note", 500, trim: true);
 	}
@@ -49,14 +49,14 @@ public class ResolveDeadLetterUnclassifiedBodyValidator
 /// - current external_state_status ≠ 6 → 409 naming the actual state
 /// - success requires <see cref="AppPermissions.Staff"/> Jobs.RESOLVE.
 /// </summary>
-public sealed class ResolveDeadLetterUnclassified {
+public sealed class ResolveDeadLetterUnclassifiedForStaff {
 	public static async Task<Results<
 		Ok<DeadLetterResolvedResponse>,
 		AppNotFoundHttpResult,
 		AppConflictHttpResult
 	>> Handle(
 		string? deadLetterId,
-		[FromBody] ResolveDeadLetterUnclassifiedBody body,
+		[FromBody] ResolveDeadLetterUnclassifiedForStaffBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IJobDeadLetterService jobDeadLetterService,
 		[FromServices] IAuditLogService auditLogService,
