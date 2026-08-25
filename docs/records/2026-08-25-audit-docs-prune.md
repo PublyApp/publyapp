@@ -17,7 +17,7 @@ indexes, and the archive-records guard manifest (`ci-gate-manifest.json`) do NOT
 A reference is either the exact repo-relative path appearing verbatim in a surface file
 or a resolvable relative markdown link from one.
 
-Counts: 91 candidate file(s) — 9 moved to `docs/records/`, 1 kept in place, 81 deleted.
+Counts: 92 candidate file(s) — 9 moved to `docs/records/`, 1 kept in place, 82 deleted.
 
 ## Notes
 
@@ -126,5 +126,6 @@ Counts: 91 candidate file(s) — 9 moved to `docs/records/`, 1 kept in place, 81
 | `docs/superpowers/specs/2026-08-22-epic-c-social-accounts-design.md` | _(nothing)_ | delete |
 | `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` | AGENTS.md, DESIGN.md | move → `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` |
 | `docs/superpowers/specs/2026-08-22-scripts-ts-workspace-package-design.md` | _(nothing)_ | delete |
+| `docs/superpowers/specs/2026-08-25-paid-modules-design.md` | _(nothing)_ | delete |
 
-(91 rows — end of inventory)
+(92 rows — end of inventory)
