@@ -257,9 +257,11 @@ export const savePost = async (
 		return details;
 	}
 
-	const createBody = {
-		body: createUntypedString(body),
-	} satisfies Record<string, unknown>;
+	// Accumulate like patchBody above: Kiota's UntypedString fields are added
+	// conditionally, so an open accumulator beats a literal frozen by `satisfies`.
+	const createBody: Record<string, unknown> = {};
+
+	createBody.body = createUntypedString(body);
 
 	if (input.projectId) {
 		createBody.projectId = createUntypedString(input.projectId);

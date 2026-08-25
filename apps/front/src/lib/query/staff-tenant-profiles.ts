@@ -378,7 +378,14 @@ export const buildStaffTenantPermissionGroupColumns = (
 	return [leftGroups, rightGroups];
 };
 
-const TENANT_PERMISSION_ACTION_ORDER = {
+/** Named owner contract: `moduleKey` arrives as a plain string from the API
+ * permission key, so the order map must stay open to unknown future modules.
+ */
+interface TenantPermissionActionOrderMap {
+	[module: string]: readonly string[];
+}
+
+const TENANT_PERMISSION_ACTION_ORDER: TenantPermissionActionOrderMap = {
 	posts: ['view', 'create', 'edit', 'publish', 'schedule', 'delete'],
 	media: ['view', 'upload', 'edit', 'delete'],
 	calendar: ['view', 'manage'],
@@ -404,7 +411,7 @@ const TENANT_PERMISSION_ACTION_ORDER = {
 		'access_settings',
 		'access_users',
 	],
-} satisfies Record<string, readonly string[]>;
+};
 
 const getPermissionAction = (permissionKey: string): string =>
 	permissionKey.slice(permissionKey.lastIndexOf('.') + 1);

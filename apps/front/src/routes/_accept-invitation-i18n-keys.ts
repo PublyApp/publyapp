@@ -17,12 +17,6 @@ export type AcceptInvitationBrandKeyMap = {
 	subtitle: string;
 };
 
-type AcceptInvitationBranchKind =
-	| 'new-user'
-	| 'existing-match'
-	| 'existing-signed-out'
-	| 'mismatch';
-
 export const ACCEPT_INVITATION_BRAND_I18N_KEYS = {
 	'new-user': {
 		headline: 'auth:accept-invitation-brand-headline-new-user',
@@ -40,7 +34,7 @@ export const ACCEPT_INVITATION_BRAND_I18N_KEYS = {
 		headline: 'auth:accept-invitation-brand-headline-mismatch',
 		subtitle: 'auth:accept-invitation-brand-subtitle-mismatch',
 	},
-} satisfies Record<AcceptInvitationBranchKind, AcceptInvitationBrandKeyMap>;
+};
 
 /** Wrong-account view copy per signed-in user state. The CTA goes through
  * `t()` (which accepts the `auth:` prefix); the description is NOT kept here

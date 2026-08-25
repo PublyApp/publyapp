@@ -112,7 +112,7 @@ export type TableSearchWireParams = {
 export const serializeTableSearchParams = (
 	params: TableSearchParams,
 ): TableSearchWireParams => {
-	const next: Record<string, string> = {};
+	const next: TableSearchWireParams = {};
 
 	const q = trimIfString(params.q);
 	if (q) {

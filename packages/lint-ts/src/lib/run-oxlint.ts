@@ -122,7 +122,9 @@ export const runOxlint = (
 
 		output = String(execError.stdout ?? '');
 		stderr = String(execError.stderr ?? '');
-		status = execError.status ?? 'unknown';
+		// execFileSync reports null for a signal kill; keep that honest instead of
+		// smuggling a string through a numeric field.
+		status = execError.status ?? null;
 
 		return parseOutput(output, status, stderr);
 	}

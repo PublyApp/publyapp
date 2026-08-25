@@ -54,7 +54,11 @@ export const ProfileSectionNavLink = ({
 			// section you are looking at — and the drawer is hosted by the
 			// layout, so it survives a section switch. Carry the search across
 			// rather than silently dropping it.
-			search={(previous: ProfileDetailsSearchParams) => previous}
+			search={(previous): ProfileDetailsSearchParams => ({
+				// Only the details layout owns `?edit=1`; anything else in the
+				// merged search belongs to sibling routes, not to a section URL.
+				edit: previous.edit === 1 ? 1 : undefined,
+			})}
 			className="inline-flex items-center gap-2 border-b-2 border-transparent px-3 pb-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
 		>
 			{content}

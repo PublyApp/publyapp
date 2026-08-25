@@ -13,7 +13,6 @@ import {
 	toStaffTenantDetails,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import {
 	TenantDetailsError,

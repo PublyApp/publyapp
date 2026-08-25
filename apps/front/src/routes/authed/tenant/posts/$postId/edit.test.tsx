@@ -1,17 +1,29 @@
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+/** Named owner contract: each mock feeds a different slice of the hook
+ * result across tests, so the shape stays an open dictionary instead of
+ * relying on inference from whichever mock runs first. */
+interface TenantPostDetailsQueryResultMock {
+	data?: unknown;
+	isPending?: boolean;
+	isSuccess?: boolean;
+	isError?: boolean;
+	error?: unknown;
+	refetch?: unknown;
+	isFetching?: boolean;
+}
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	useParams: vi.fn(() => ({ postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa' })),
 	invalidateQueries: vi.fn(),
-	useTenantPostDetailsQuery: vi.fn(() => ({
+	useTenantPostDetailsQuery: vi.fn((): TenantPostDetailsQueryResultMock => ({
 		data: undefined,
 		isPending: true,
 		isError: false,

@@ -1,5 +1,3 @@
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
@@ -13,6 +11,7 @@ import {
 import * as React from 'react';
 import { createElement, type JSX, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
@@ -59,21 +58,24 @@ vi.mock('~/components/ui/select', () => {
 		[key: string]: unknown;
 	};
 
-	const SelectTrigger = ({
-		children,
-		...triggerProps
-	}: SelectProbeProps) => createElement('div', triggerProps, children);
+	const SelectTrigger = ({ children, ...triggerProps }: SelectProbeProps) =>
+		createElement('div', triggerProps, children);
 
 	const SelectValue = () => null;
 
-	const omitSelectChildren = ({
-		children: _children,
-		...rest
-	}: SelectProbeProps) => rest;
+	// Foreign elements carry `props: unknown`; narrow at runtime instead of casting.
+	const omitSelectChildren = (
+		element: React.ReactElement,
+	): SelectProbeProps => {
+		const source: Record<string, unknown> = {};
+		Object.assign(source, element.props);
+		const { children: _children, ...rest } = source;
+		return rest;
+	};
 
 	const collectSelectContent = (children: ReactNode) => {
 		const options: ReactNode[] = [];
-		let selectedTrigger: React.ReactElement<SelectProbeProps> | undefined;
+		let selectedTrigger: React.ReactElement | undefined;
 
 		for (const child of React.Children.toArray(children)) {
 			if (!React.isValidElement(child)) {
@@ -102,9 +104,7 @@ vi.mock('~/components/ui/select', () => {
 
 		return {
 			options,
-			triggerProps: selectedTrigger
-				? omitSelectChildren(selectedTrigger.props as SelectProbeProps)
-				: {},
+			triggerProps: selectedTrigger ? omitSelectChildren(selectedTrigger) : {},
 		};
 	};
 
