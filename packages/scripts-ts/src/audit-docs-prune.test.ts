@@ -10,7 +10,9 @@ import { afterAll, test } from 'vitest';
 // Executes the REAL audit-docs-prune.ts against throwaway git repositories,
 // the same way check-doc-links.test.ts executes the link guard: the gate's
 // behavior is asserted end-to-end (exit code + named offender), never via a
-// restatement of its logic.
+// restatement of its logic. Each fixture plants the real script with ONLY its
+// decision table rewritten to name the fixture's own candidate, then runs
+// THAT copy from inside the throwaway repo.
 //
 // These fixtures pin the round-2 (#1357) property the byte-equality --check
 // structurally could not see: a file git actually RENAMES must not be
@@ -56,22 +58,25 @@ const makeRepo = (mutate: (root: string) => void): string => {
 	return root;
 };
 
-// Retargets the real generator at the fixture's candidate/topic instead of
-// the repository's real paid-modules paths.
-const retargetedScript = (source: string, topic: string): string => {
+// Retargets the real generator's decision table at the fixture's own
+// candidate instead of the repository's ten real pruned paths (any real
+// entry left behind would trip the non-candidate guard before fidelity
+// runs). An empty table makes every candidate default to `delete` — exactly
+// the shared-omission shape of the paid-modules defect.
+const scriptWithTable = (entries: string): string => {
 	const self = readFileSync(scriptPath, 'utf8');
-	const patchedKey = self.replace(
-		"'docs/superpowers/specs/2026-08-25-paid-modules-design.md'",
-		`'${source}'`,
+	const rewritten = self.replace(
+		/const MOVES: Record<string, Decision> = \{[\s\S]*?\n\};/,
+		`const MOVES: Record<string, Decision> = {\n${entries}};`,
 	);
-	assert.notEqual(patchedKey, self, 'fixture relies on patching the MOVES key');
-	const patchedTopic = patchedKey.replace(
-		"topic: 'open-core-paid-modules'",
-		`topic: '${topic}'`,
-	);
-	assert.notEqual(patchedTopic, patchedKey, 'fixture relies on patching the topic');
-	return patchedTopic;
+	assert.notEqual(rewritten, self, 'fixture relies on rewriting the MOVES table');
+	return rewritten;
 };
+
+const widgetMoveEntry = (topic: string | null): string =>
+	topic === null
+		? ''
+		: `\t'${WIDGET_SOURCE}': { action: 'move', type: 'spec', topic: '${topic}' },\n`;
 
 const plantGenerator = (root: string, content: string) => {
 	mkdirSync(path.join(root, 'packages/scripts-ts/src'), { recursive: true });
@@ -104,8 +109,10 @@ const MOVE_TO_WIDGET_ROW =
 
 const WIDGET_SOURCE = 'docs/superpowers/specs/2026-08-25-widget-design.md';
 
+// Runs the generator PLANTED inside the fixture repo (never the worktree's
+// own copy, whose decision table names real repository paths).
 const runAudit = (root: string, ...args: string[]) =>
-	execFileSync('node', [scriptPath, ...args], {
+	execFileSync('node', ['packages/scripts-ts/src/audit-docs-prune.ts', ...args], {
 		cwd: root,
 		encoding: 'utf8',
 	});
@@ -133,7 +140,9 @@ test('a real rename classified as delete fails --check naming the row (paid-modu
 		// The prune's mutation done wrong on purpose: move the file in git
 		// (byte-identical rename) while the committed record still calls it a
 		// deletion — exactly how #1355's paid-modules spec was misrecorded.
-		// The generator here is the unpatched real one, sharing the omission.
+		// The planted generator carries an EMPTY table, sharing the omission:
+		// the real rename renders as a deletion and regenerates identically.
+		plantGenerator(repo, scriptWithTable(widgetMoveEntry(null)));
 		mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
 		execFileSync('git', ['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'], {
 			cwd: repo,
@@ -163,17 +172,14 @@ test('--check passes when the inventory matches both regeneration and git rename
 		// Same git mutation recorded correctly AND mapped in the generator's
 		// decision table via the same explicit-topic override the real fix
 		// carries.
-		plantGenerator(
-			repo,
-			retargetedScript(WIDGET_SOURCE, 'widget'),
-		);
+		plantGenerator(repo, scriptWithTable(widgetMoveEntry('widget')));
 		mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
 		execFileSync('git', ['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'], {
 			cwd: repo,
 			stdio: ['ignore', 'ignore', 'pipe'],
 		});
 	});
-	runAudit(root); // regenerate from the patched table
+	runAudit(root); // regenerate from the rewritten table
 	// --check reads the committed evidence from HEAD, so the fresh record
 	// must be committed first (mirroring the real workflow).
 	git(root, 'add', '-A');
@@ -186,11 +192,9 @@ test('an inventory claiming a move git does not show fails --check', () => {
 	const root = makeRepo((repo) => {
 		// Inverse lie: the table maps a "move" but the prune actually deleted
 		// the file; the committed record claims the move anyway.
-		plantGenerator(
-			repo,
-			retargetedScript(WIDGET_SOURCE, 'widget'),
-		);
-		git(root, 'rm', '-q', WIDGET_SOURCE);
+		plantGenerator(repo, scriptWithTable(widgetMoveEntry('widget')));
+		mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
+		git(repo, 'rm', '-q', WIDGET_SOURCE);
 		writeFileSync(
 			path.join(repo, 'docs/records/2026-08-25-audit-docs-prune.md'),
 			plantedRecord(
@@ -211,10 +215,7 @@ test("a destination mismatch between the mapping and git's rename target fails -
 	const root = makeRepo((repo) => {
 		// Third lie: right classification, wrong destination. git renamed to
 		// `-spec-open-core-widget.md`; the mapping names `-spec-widget.md`.
-		plantGenerator(
-			repo,
-			retargetedScript(WIDGET_SOURCE, 'widget'),
-		);
+		plantGenerator(repo, scriptWithTable(widgetMoveEntry('widget')));
 		mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
 		execFileSync(
 			'git',
