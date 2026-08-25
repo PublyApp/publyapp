@@ -20,8 +20,14 @@
  *    route component into the confirm dialog.
  *
  * What is faked: only the network-facing surface — the `~/lib/query/*`
- * hooks, mutation toasts, and i18n strings. Nothing about the toolbar, the
+ * data hooks, mutation toasts, and i18n strings. Nothing about the toolbar, the
  * selection model, or the bulk-action flow is re-implemented here.
+ *
+ * Post-success bookkeeping (#1407-class contract): the success path's
+ * `clearSelection` + `invalidateStaffProfiles` are asserted against LIVE
+ * behavior, not call logs — the invalidation spy delegates to the production
+ * helper running over the harness's real `QueryClient`, so the test fails if
+ * the list stops being invalidated.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -40,6 +46,8 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+import { scopedKey } from '@org/shared-ts/lib/query/create-hooks';
 
 const USER_A = '11111111-1111-1111-1111-111111111111';
 const PAGE_ROUTE_PATH = '/staff/profiles/profile-1/users';
@@ -72,19 +80,31 @@ vi.mock('~/lib/query/staff-profile-users', () => ({
 	useBulkUnassignStaffProfileUsersMutation: mocks.useBulkUnassign,
 }));
 
-vi.mock('~/lib/query/staff-profiles', () => ({
-	STAFF_PROFILES_QUERY_KEY: ['staff-profiles'],
-	invalidateStaffProfiles: mocks.invalidateStaffProfiles,
-	selectStaffProfileCrumbName: () => undefined,
-	staffProfileCrumbQuery: () => ({
-		queryKey: ['crumb'],
-		queryFn: () => Promise.resolve(null),
-	}),
-	toStaffProfileDetails: (
-		data: { id: string; name: string; userAccountCount: number } | undefined,
-	) => data ?? null,
-	useStaffProfileDetailsQuery: mocks.useDetailsQuery,
-}));
+vi.mock('~/lib/query/staff-profiles', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('~/lib/query/staff-profiles')>();
+
+	// The spy stays a spy (call-count assertions) but delegates to the REAL
+	// invalidation helper so the post-success test exercises production
+	// invalidation semantics against the harness's real QueryClient.
+	mocks.invalidateStaffProfiles.mockImplementation((queryClient: QueryClient) =>
+		actual.invalidateStaffProfiles(queryClient),
+	);
+
+	return {
+		STAFF_PROFILES_QUERY_KEY: ['staff-profiles'],
+		invalidateStaffProfiles: mocks.invalidateStaffProfiles,
+		selectStaffProfileCrumbName: () => undefined,
+		staffProfileCrumbQuery: () => ({
+			queryKey: ['crumb'],
+			queryFn: () => Promise.resolve(null),
+		}),
+		toStaffProfileDetails: (
+			data: { id: string; name: string; userAccountCount: number } | undefined,
+		) => data ?? null,
+		useStaffProfileDetailsQuery: mocks.useDetailsQuery,
+	};
+});
 
 vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
@@ -381,5 +401,72 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await waitFor(() => expect(mocks.bulkUnassign).toHaveBeenCalledOnce());
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	// #1407-class post-success contract: a successful bulk unassign must clear
+	// the selection AND invalidate the profile query family. Both behaviors are
+	// asserted against live state — the checkbox DOM for the selection, and the
+	// real QueryClient's invalidated flag for the list — so removing either
+	// bookkeeping step turns this test red.
+	test('a successful unassign clears the selection and invalidates the profile users list', async () => {
+		const harness = await renderAtPage();
+
+		// Seed a REAL cache entry under the production users-list key shape
+		// (scope prefix via the shared `scopedKey` helper; inner segments mirror
+		// staff-profile-users.ts's `queryKeyFn`). Without a live entry the
+		// `isInvalidated` read would be vacuously undefined.
+		const usersListKey = [
+			...scopedKey('staff', ['staff-profiles', 'users']),
+			{
+				profileId: 'profile-1',
+				q: '',
+				sortId: 'created_at',
+				sortOrder: 'desc',
+				pageIndex: 0,
+				size: 100,
+			},
+		];
+		harness.queryClient.setQueryData(usersListKey, { users: [], count: 0 });
+		expect(
+			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+		).toBe(false);
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('true'),
+		);
+
+		await chooseBulkAction('Unassign selected');
+		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
+
+		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
+
+		// Selection cleared: no row stays checked and the selection bar unmounts.
+		// Bar exit animates ~220ms before unmounting, so the gone-assertion needs
+		// its own waitFor (same as the staff-users routing precedent).
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('false'),
+		);
+		await waitFor(() =>
+			expect(
+				screen.queryByRole('button', { name: 'Clear selection' }),
+			).toBeNull(),
+		);
+
+		// The profile users list went through the REAL invalidation helper.
+		await waitFor(() => {
+			expect(mocks.invalidateStaffProfiles).toHaveBeenCalledOnce();
+			expect(
+				harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+			).toBe(true);
+		});
 	});
 });
