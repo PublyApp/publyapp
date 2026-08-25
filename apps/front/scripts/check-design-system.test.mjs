@@ -66,6 +66,81 @@ export const matchRunnerHandshake = (output, expectedNonce) => {
 	return rootMatch ? { pid: Number(pidMatch[1]), root: rootMatch[1] } : null;
 };
 
+// #1352: the runner-interruption probe chain is BOUNDED. Its normal runtime
+// is ~5 s warm (~14 s cold; measured 2026-08-25 on Node v24.19.0, three
+// full-file runs: 14342 ms / 5313 ms / 5319 ms), yet twice (2026-08-23 and
+// 2026-08-25) the same chain hung ~26 minutes on Node 24: after the
+// deliberate SIGINT the runner-interruption teardown sometimes never
+// completes, and nothing bounded the exit wait. This budget keeps ~8x
+// headroom over the slowest measured run while turning the observed
+// 26-minute hang into a loud failure within two minutes.
+export const RUNNER_PROBE_BUDGET_MS = 120_000;
+
+// Kill the whole process group first — the probe child is spawned
+// `detached`, so it leads its own group and the negative-PID signal reaches
+// its own children (the grand-child node:test runner) too — then the pid
+// itself as the fallback for timings where the group is already gone.
+// Standard library only: no tree-kill dependency.
+export const killProcessTree = (pid) => {
+	try {
+		process.kill(-pid, 'SIGKILL');
+	} catch {
+		// Group already gone: fall through to the direct kill.
+	}
+	try {
+		process.kill(pid, 'SIGKILL');
+	} catch {
+		// Already dead — exactly what we want.
+	}
+};
+
+// The fail-loud contract: on expiry the tree is killed and the error NAMES
+// the probe, the budget and the last output line — never a silent pass,
+// never a skipped probe.
+export const formatProbeTimeoutMessage = ({ probeName, budgetMs, output }) => {
+	const lastLine =
+		output
+			.split('\n')
+			.filter((line) => line.trim() !== '')
+			.at(-1) ?? '(no output)';
+	return `the ${probeName} exceeded its ${Math.round(budgetMs)}ms budget: the interrupt was delivered but the child never exited, so its whole process tree was killed. Last output line: ${JSON.stringify(lastLine)}`;
+};
+
+// Await a child's exit within a hard budget. On expiry KILL the whole
+// process tree and REJECT with the named message. An exit racing the
+// post-expiry grace window still rejects: once expired, the outcome is
+// failure, whatever the exit code — a budget breach is never a pass.
+export const awaitExitWithinBudget = ({
+	child,
+	budgetMs,
+	probeName,
+	getLastOutput,
+}) =>
+	new Promise((resolve, reject) => {
+		let expired = false;
+		let graceTimer;
+		const timeoutMessage = () =>
+			formatProbeTimeoutMessage({
+				probeName,
+				budgetMs,
+				output: getLastOutput(),
+			});
+		const timer = setTimeout(() => {
+			expired = true;
+			killProcessTree(child.pid);
+			graceTimer = setTimeout(() => reject(new Error(timeoutMessage())), 1_000);
+		}, budgetMs);
+		child.once('exit', (code, signal) => {
+			clearTimeout(timer);
+			if (graceTimer !== undefined) clearTimeout(graceTimer);
+			if (expired) {
+				reject(new Error(timeoutMessage()));
+				return;
+			}
+			resolve({ code, signal });
+		});
+	});
+
 if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
 	test('runner interruption probe leaves an active owned fixture', async () => {
 		const root = await makeFixture({
@@ -109,6 +184,10 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 				// resolve the handshake (see matchRunnerHandshake).
 				FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE: handshakeNonce,
 			},
+			// #1352: detached makes the child its own process-group leader, so
+			// budget expiry can SIGKILL the WHOLE tree (this child and its
+			// grand-child node:test runner) via a negative-PID kill.
+			detached: true,
 			stdio: ['ignore', 'pipe', 'pipe'],
 		},
 	);
@@ -132,18 +211,27 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 				// Unreachable: handshakeNonce is always a valid nonce.
 			}
 		};
-		timeout = setTimeout(
-			() => reject(new Error(`runner probe did not start:\n${output}`)),
-			20_000,
-		);
+		timeout = setTimeout(() => {
+			// #1352: a start failure must not leak the child either — kill the
+			// whole tree before failing loud with the whole buffer.
+			killProcessTree(child.pid);
+			reject(new Error(`runner probe did not start:\n${output}`));
+		}, 20_000);
 		child.stdout.on('data', onData);
 		child.stderr.on('data', onData);
 		child.once('error', reject);
 	});
 	process.kill(probe.pid, 'SIGINT');
-	const result = await new Promise((resolve) =>
-		child.once('exit', (code, signal) => resolve({ code, signal })),
-	);
+	// #1352: the exit wait is BOUNDED — this is the exact wait that hung ~26
+	// minutes twice on Node 24 with no ceiling. On expiry the helper kills
+	// the whole tree and fails loud naming the probe, the budget and the
+	// last output line.
+	const result = await awaitExitWithinBudget({
+		child,
+		budgetMs: RUNNER_PROBE_BUDGET_MS,
+		probeName: 'check-design-system runner-interruption probe',
+		getLastOutput: () => output,
+	});
 	assert.notEqual(result.code, 0);
 	await assert.rejects(access(probe.root), { code: 'ENOENT' });
 });
