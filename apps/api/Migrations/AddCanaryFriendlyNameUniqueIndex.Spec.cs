@@ -29,9 +29,11 @@ namespace PublyApp.Api.Migrations;
 /// </para>
 /// </summary>
 public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
-	// The migration immediately BEFORE the canary unique-index migration (hard-coded per
-	// house pattern, AddUserAccountMembershipUniquenessSpec).
-	private const string PreviousMigrationId = "20260825023350_AddJobDeadLetterExternalState";
+	// The migration under test. Its immediate PREDECESSOR is derived from the REAL
+	// migrations-assembly ordering instead of a hard-coded id (review round 2): a pinned
+	// predecessor silently drifts every time a migration is inserted above the target,
+	// widening what "the remaining migrations" means without failing anything.
+	private const string MigrationUnderTestSuffix = "_AddCanaryFriendlyNameUniqueIndex";
 
 	private PostgresContainerFixture _containerFixture = null!;
 	private string _dbName = null!;
@@ -71,7 +73,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		var migrator = dbContext.GetService<IMigrator>();
 
 		// 1) Schema as of the migration immediately BEFORE the unique index.
-		await migrator.MigrateAsync(PreviousMigrationId);
+		await migrator.MigrateAsync(PreviousMigrationId(dbContext));
 
 		// 2) Seed exactly what the first-boot race produced in production (#1416): two
 		//    canary rows (the earliest boot keeps the lowest id), plus an ordinary Data
@@ -194,6 +196,24 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		}
 	}
 
+	/// <summary>
+	/// The id of the migration immediately BEFORE the one under test, derived from the
+	/// REAL migrations-assembly ordering (review round 2): a hard-coded predecessor pin
+	/// drifts silently every time another migration is inserted above the target, so the
+	/// spec would migrate to an ever-staler schema point while staying green.
+	/// </summary>
+	private static string PreviousMigrationId(AppDbContext dbContext) {
+		var orderedIds = dbContext.GetService<IMigrationsAssembly>()
+			.Migrations.Keys
+			.ToList();
+		var index = orderedIds.FindIndex(id =>
+			id.EndsWith(MigrationUnderTestSuffix, StringComparison.Ordinal));
+		index.Should().BeGreaterThan(
+			0,
+			"the migration under test must have a predecessor in the migrations assembly");
+		return orderedIds[index - 1];
+	}
+
 	private async Task<int> CountRowsAsync(string friendlyName) {
 		await using var conn = new NpgsqlConnection(_connectionString);
 		await conn.OpenAsync();
@@ -238,7 +258,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 
 		// Schema as of the migration immediately BEFORE the unique index; no canary row
 		// seeded: the fresh-install shape.
-		await migrator.MigrateAsync(PreviousMigrationId);
+		await migrator.MigrateAsync(PreviousMigrationId(dbContext));
 		(await CountRowsAsync(PostgresKeyRingCanaryStore.RowName)).Should().Be(0);
 
 		var applyRemaining = async () => await migrator.MigrateAsync();
@@ -260,7 +280,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		await using var dbContext = NewMigratorDbContext();
 		var migrator = dbContext.GetService<IMigrator>();
 
-		await migrator.MigrateAsync(PreviousMigrationId);
+		await migrator.MigrateAsync(PreviousMigrationId(dbContext));
 
 		// Seed the healthy shape: exactly ONE canary row plus an ordinary key-ring row.
 		const int survivorId = 100;
