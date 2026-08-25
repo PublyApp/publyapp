@@ -201,10 +201,17 @@ public static class SocialAccountsMasterKeyWitness {
 		return count;
 	}
 
+	/// <summary>
+	/// Stable prefix of the plain-words WrongKey refusal (#1424): public so specs assert
+	/// against the REAL cause text instead of a drifted copy.
+	/// </summary>
+	public const string WrongKeyMessagePrefix =
+		"SOCIAL_ACCOUNTS_MASTER_KEY does not match the master-key canary stored beside "
+			+ "the Data Protection key ring:";
+
 	private static InvalidOperationException WrongKey(Exception cause) {
 		return new InvalidOperationException(
-			"SOCIAL_ACCOUNTS_MASTER_KEY does not match the master-key canary stored beside "
-				+ "the Data Protection key ring: credentials were encrypted under a DIFFERENT "
+			WrongKeyMessagePrefix + " credentials were encrypted under a DIFFERENT "
 				+ "key, so this process would silently fail to decrypt them. The API/worker "
 				+ "will not start. Restore the original SOCIAL_ACCOUNTS_MASTER_KEY value for "
 				+ "ALL services (api, worker, migrate), or deliberately rotate: export the old "
