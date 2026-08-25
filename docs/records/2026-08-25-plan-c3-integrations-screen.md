@@ -50,7 +50,7 @@ C2 (`origin/lane/wt-641`, plan `docs/superpowers/plans/2026-08-25-c2-bluesky-con
 
 **[ASSUMPTION] A2 — attachment read model:** the replace-all `PUT /social-accounts/{id}/projects` implies the list item exposes current attachments (ids, ideally resolved names or a companion tenant-projects lookup C2 already uses for validation). If C2 ships ids only, Task 1 joins against the existing tenant projects/organizations query the workspaces settings page uses.
 
-**[ASSUMPTION] A3 — Kiota client namespace:** after C2's Task 6 regeneration, `packages/client-ts` exposes the five operations above (names derived from the routes, e.g. `client.socialAccounts.list…`). Exact generated symbol names are confirmed right after regeneration; until then task code imports them through a single thin module (`src/lib/api/social-accounts.ts` created in Task 1) so a rename touches one file.
+**[ASSUMPTION] A3 — Kiota client namespace:** after C2's Task 6 regeneration, `packages/client-ts` exposes the five operations above (names derived from the routes, e.g. `client.socialAccounts.list…`). Exact generated symbol names are confirmed right after regeneration; until then task code imports them through the single thin data-layer module (`src/lib/query/social-accounts.ts`, created in Task 3) so a rename touches one file.
 
 **[ASSUMPTION] A4 — front permission source (RESOLVED by Task 2):** verified on develop: `GetUserAuthDataResult` (`apps/api/Modules/Auth/Handlers/GetUserAuthData.cs`) carries only id/email/avatar/names, and `TenantPermissionFilter` resolves the holder's permission set per request via `permissionService.GetTenantPermissionsAsync(userId, tenantId)` (`apps/api/Lib/Filters/TenantPermissionFilter.cs`) — nothing client-side knows the permission set today. Task 2 therefore adds `tenantPermissionKeys` to the auth-data payload (same service the filter uses), regenerates the client, and the front gates off that.
 
@@ -171,6 +171,8 @@ Expected: PASS.
 using System.Net.Http.Json;
 using System.Text.Json;
 
+using FluentAssertions;
+
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 
@@ -180,8 +182,12 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 
 public sealed class GetUserAuthDataSpec(ApiFixture fixture) : IClassFixture<ApiFixture> {
 	[Fact]
-	public async void ItShouldExposeSeededAdminTenantPermissionKeysIncludingSocialAccounts() {
-		var (client, tenantId) = await fixture.LoginAsTenantAdminAsync(); // helper exists in Lib/Testing/Helpers
+	public async Task ItShouldExposeSeededAdminTenantPermissionKeysIncludingSocialAccounts() {
+		// Real helpers on develop: TestAuthClient.LoginAsync(userId, password,
+		// tenantId) returns an authenticated HttpClient; TenantTestHelper seeds
+		// tenants/admins (both under apps/api/Lib/Testing/Helpers/).
+		var tenant = TenantTestHelper.CreateTenantWithAdminAsync(fixture);
+		var client = await fixture.AuthClient.LoginAsync(tenant.AdminUserId, SeedConstants.SeedPassword, tenant.TenantId);
 
 		var payload = await client.GetFromJsonAsync<JsonElement>("/auth/me", fixture.JsonOptions);
 
