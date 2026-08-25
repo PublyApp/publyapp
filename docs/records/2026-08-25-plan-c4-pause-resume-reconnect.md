@@ -2,618 +2,505 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Implement Epic C §5 "Failures, reconnection, pause" + §3 "Workspace banner" for C4 (pause & resume / reconnect banner). Status switch to `NeedsReconnect` on credential failure, workspace reconnect banner, pause/resume of scheduled publications, date-passed warning. Depends on D1 (Publication entity + `PublicationStatusTransitionService`) for the pause layer; if D1 is not yet merged, the plan ships the status switch + banner first and the pause lands with D1.
+**Round 2 revision note:** the round-1 adversarial review found this plan cited a pruned directory, fabricated APIs, non-existent front components/routes/locales, and spec sections that do not exist. Every symbol below was re-verified against `origin/develop`, `origin/lane/wt-641` (C2), and `origin/lane/wt-644` (D1) immediately before writing; Appendix A is the verification ledger. The two dependency branches are named wherever this plan consumes their code.
 
-**Architecture:** The `PublicationStatusTransitionService` (from D1, `apps/api/Modules/Publishing/Services/`) is the **single legal writer** of `Publication.Status` — enforced by `PublicationArchitecture.Spec`. All publication status moves go through it. `SocialAccountService` (C2) owns social-account state. The front banner reads the account list query (C2) and gates the reconnect button on `tenant.socialaccounts.manage`. D1's `BlueskyPublishProvider` classifies failures and calls `SwitchToNeedsReconnectAsync` on account errors.
+**Goal:** Implement Epic C §5 "Failures, reconnection, pause" + §3 "Workspace banner" for C4: switch `SocialAccount.Status` to `NeedsReconnect` on credential failure (completed by D1's job handler; this plan completes the sibling-pause sweep), workspace reconnect banner, pause/resume of scheduled publications, and the past-due pause policy.
 
-**Tech Stack:** .NET 10 / EF Core 10, xUnit, FluentAssertions, Testcontainers (via `ApiFixture`), TanStack Query + Zustand (front), `just` recipes. Front: Base UI + Tailwind v4, component tests.
+**Specs cited (real paths, verified):**
+- Epic C design lives on **`origin/lane/wt-641`** at `docs/superpowers/specs/2026-08-22-epic-c-social-accounts-design.md` (that branch predates the #1357 docs prune; it is not on develop). Cited by its real section numbers only: §1 decisions (table rows 4–5), §2 model, §3 screens/actions ("Reconnect" + "Workspace banner"), §4 security/permissions, §5 failures/reconnection/pause, §6 delivery, §7 hard repo constraints.
+- Epic D design is merged on develop: `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md`. Cited sections: §3 "Execution path" items 1–6 (schedule / due scan / run / classified failures / retry / resume-after-pause), §5 delivery order.
+- Service-boundary standing rule: [`docs/guides/api-module-structure.md`](../../guides/api-module-structure.md), "**Domain Service Split Rules**" ("Services must not depend on other domain/application services… Handlers orchestrate; services implement") — build-enforced by `apps/api/Lib/Architecture/ServiceDependencyBoundaryGuard.Spec.cs`.
+- Route-design and rate-limiting standing rules: [`docs/guides/api-route-design.md`](../../guides/api-route-design.md) and [`docs/guides/api-rate-limiting.md`](../../guides/api-rate-limiting.md) ("every endpoint declares a rate-limit policy").
+
+**Tech Stack:** .NET 10 / EF Core 10, xUnit, FluentAssertions, Testcontainers (via the real `ApiFixture` in `apps/api/Lib/Testing/Fixtures/ApiFixture.cs`: `Factory`, `HttpClient`, `CreateClient()`, `GetFakeEmailSender()`; helpers `TestAuthClient`, `HttpRequestMessageExtensions.WithSessionToken/.WithTenantId`, seeded tenants via `PublyApp.Api.Data.Seeding.SeedConstants`, constants in `Lib/Testing/Fixtures/TestConstants.cs`). Front: TanStack Start + Base UI wrappers in `apps/front/src/components/ui/*`, Vitest + Testing Library with plain `.toBeTruthy()`/`.toBe()`/`toContain()` assertions (**jest-dom is not installed in this repo — never use `toBeInTheDocument`**).
 
 ## Global Constraints
 
-- D1 dependency gate: tasks 4–7 (pause/resume, architecture guard, banner) require `PublicationStatusTransitionService` from D1. If D1 is not merged when implementation starts, complete tasks 1–3 (status switch + banner) first and commit them as a partial ship; tasks 4–7 land with D1.
-- `SocialAccountStatus` enum on develop: `Active = 10, NeedsReconnect = 20, Revoked = 30` (Epic C §2).
-- `PublicationStatus` enum from D1: `Scheduled = 10, InProgress = 20, Published = 30, Failed = 40, Paused = 50` (Epic D §2).
-- `PublicationStatusTransitionService` is the only writer of `Publication.Status` — the `PublicationArchitecture.Spec` (from D1) enforces this.
-- Epic C §5 rule: "Nothing is ever published late without an explicit action." Resuming a paused publication with a past instant must stay paused.
-- The secret (`ProtectedCredentials` cleartext) is **never** returned by any API, never logged, never in an error message, never in an audit row.
-- Analyzers `PUBLY0001`/`0002`/`0003`/`0004`/`0005`/`0006`/`0007` are errors: no `!`, no `?? throw`, no `ToLower()` dispatch, wire DTOs lack `Dto` suffix, cache repeated `JsonElement` getter results, services must not depend on other services, tenant-scoped service methods must use `tenantId`.
-- `just build-api && just generate-client` is run after any API contract change.
-- Migrations are applied only by the one-shot `migrate` service; locally run `just db-migrate`.
+- D1 gate: Tasks 3–5 require `IPublicationStatusTransitionService` from **D1 = `origin/lane/wt-644`**. Tasks 1–2 ship independently; if D1 is not merged when implementation starts, land Tasks 1–2 first and hold Tasks 3–5 (implement them stacked on a local merge of `origin/lane/wt-644`).
+- `SocialAccountStatus` enum (develop, `apps/api/Modules/SocialAccounts/Entities/SocialAccountStatus.cs`): `Active = 10, NeedsReconnect = 20, Revoked = 30`.
+- `PublicationStatus` enum (D1, `apps/api/Modules/Publishing/Entities/PublicationStatus.cs`): `Scheduled = 10, InProgress = 20, Published = 30, Failed = 40, Paused = 50`; the DB CHECK is `status IN (10, 20, 30, 40, 50)` (asserted by `PublicationArchitectureSpec`). This plan adds **no new enum value**, therefore **no migration**.
+- **The real transition interface (D1) has exactly five members, all `Task<bool>`, each taking an Args record** (verified verbatim on wt-644):
+  - `MarkInProgressAsync(MarkPublicationInProgressArgs { PublicationId, TenantId }, ct)`
+  - `MarkPublishedAsync(MarkPublicationPublishedArgs { PublicationId, TenantId, ExternalRecordId, ExternalUrl }, ct)`
+  - `MarkFailedAsync(MarkPublicationFailedArgs { PublicationId, TenantId, Cause }, ct)`
+  - `MarkPausedAsync(MarkPublicationPausedArgs { PublicationId, TenantId, Cause }, ct)`
+  - `RescheduleToNowAsync(ReschedulePublicationToNowArgs { PublicationId, TenantId }, ct)`
+
+  There is **no `MarkScheduledAsync`** anywhere on develop/wt-641/wt-644. Resuming a paused publication to `Scheduled` while preserving its instant requires extending the D1 interface — see Task 3.
+- **Why `RescheduleToNowAsync` cannot serve as resume:** its implementation stamps `ScheduledAtUtc = DateTime.UtcNow` and clears `LastError`/external fields. Using it for resume would fire past-due publications immediately — exactly the "published late without explicit action" outcome Epic C §5 forbids. Resume must preserve the original instant (future ones re-enter the due scan; past-due ones stay paused until the user picks a new time — see Open Questions).
+- **Transition-map reality (verified against `AllowedSources` on wt-644):**
+  - `[InProgress] ← [Scheduled, InProgress, Paused]`, `[Published] ← [InProgress]`, `[Failed] ← [InProgress]`, `[Paused] ← [InProgress]`, `[Scheduled] ← [Scheduled, Paused, Failed]`.
+  - `Paused → Scheduled` (resume) is **already legal**. The only missing move is **`Scheduled → Paused`** (pausing a not-yet-running publication when its account breaks). Task 3 makes exactly one map edit: `[Paused]` gains `Scheduled`.
+- `PublicationStatusTransitionService` is the only writer of `Publication.Status`; `apps/api/Lib/Architecture/PublicationArchitecture.Spec.cs` (ships with D1) scans **all** `Modules/**/*.cs` for `.Status =` writes whose line also mentions "publication"/"pub." outside the transition service. Consequences this plan respects: (a) all publication moves go through the transition service; (b) the one direct entity write this plan keeps — `account.Status = SocialAccountStatus.NeedsReconnect` in the job handler, matching D1's existing `FlagAccountNeedsReconnectAsync` — is safe because the line does not mention "publication"; (c) never write that assignment on a line containing the word "publication". This plan adds no second guard and must not weaken this one (red-proof protocol in Appendix B).
+- **Service boundary:** domain services never call other domain services (`ServiceDependencyBoundaryGuard.Spec.cs` fails the build on `Service → IService` constructor injection; allowlist covers only `AppDbContext`, infrastructure abstractions, `ILogger<T>`). Cross-service coordination lives in **handlers/jobs** (Tasks 4–5). A new read-only `PublicationQueueService` (Task 5, AppDbContext-only) is boundary-legal precisely because it never injects another service.
+- **No `DbContext` in handlers** (repo rule "handlers orchestrate, services implement"): handlers needing publication reads go through `PublicationQueueService`, not `_db` directly.
+- Epic C §5 rule: nothing is ever published late without an explicit action. Resume keeps past-due publications paused.
+- The secret (`ProtectedCredentials` cleartext) is never returned by any API, never logged, never in an error message, never in an audit row. Persisted causes pass through `LastErrorSanitiser.Sanitize` (real signature `public static string? Sanitize(string? raw)`, caps 2 KB, redacts credential-shaped tokens).
+- Analyzers PUBLY0001–0007 are errors: **no null-forgiving `!` in production code** — use `entity.GetRequiredId()` (defined on `BaseAttributes`, `apps/api/Data/BaseAttributes.cs`) instead of `entity.Id!.Value`; no `?? throw`; no `ToLower()` dispatch; wire DTOs lack a `Dto` suffix; cache repeated `JsonElement` getter results; tenant-scoped service methods must use their `tenantId`.
+- Adding `{Action}{Domain}Args`-style records requires updating `apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs` assertions (repo rule) — Task 3 includes that step.
+- Permission wiring follows C2's real pattern: `.WithTenantPermission([AppPermissions.Tenant.SocialAccounts.VIEW])` (keys `socialaccounts.view` / `socialaccounts.manage` from `SocialAccountPermissionsForTenant`, `KeyPrefix = "socialaccounts"`), defined in C2's module and exposed via `AppPermissions.Tenant.SocialAccounts`.
+- Every endpoint declares a rate-limit policy. C2's tenant group already wraps everything in `RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)` and pins `SocialConnect` on connect/reconnect; Task 1 inherits the group default (list endpoint, small payload).
+- `just build-api && just generate-client && pnpm --filter front typecheck` runs after any API contract change (Tasks 1 and 5).
+- Migrations are applied only by the one-shot `migrate` service; locally `just db-migrate`. (This plan generates none.)
 
 ## Dependency Chain
 
 ```
-develop (C1-bis: entities, credential protector, visibility, master key witness)
+develop (C1-bis: SocialAccount entity, CredentialProtector, LastErrorSanitiser, master key witness)
     ↓
-C2 (lane/wt-641): permissions, routes, handlers, ISocialSessionProvider
+C2 (lane/wt-641): SocialAccountPermissionsForTenant, Routes.SocialAccounts.cs,
+    SocialAccountEndpointsForTenant (+ registration in Program.cs),
+    SocialAccountService (find/connect/reconnect/disconnect/set-projects),
+    BlueskyClient/ISocialSessionProvider, SocialConnect rate-limit policy
     ↓
-D1 (lane/wt-644): Publication entity, PublicationStatusTransitionService, BlueskyPublishProvider
+D1 (lane/wt-644): Publication entity, IPublicationStatusTransitionService (five Args-record
+    members), PublicationArchitecture.Spec guard, PublishPublicationJobHandler
+    (PauseForAccountAsync pauses the failing publication + FlagAccountNeedsReconnectAsync)
     ↓
-C4 (this plan): SwitchToNeedsReconnect, SocialAccountService extensions, banner
+C4 (this plan): needs-reconnect listing endpoint, banner,
+    transition-map extension + MarkScheduledAsync, sibling-pause sweep, resume-on-reconnect
 ```
-
-**If D1 is NOT yet merged at start:** Tasks 1–3 ship independently. Tasks 4–7 declare a D1-pending dependency and wait.
 
 ---
 
 ## File Structure
 
-### Wave 1 — Status Switch + Banner (D1-independent)
+### Wave 1 — Banner data path (D1-independent)
 
 **Create**
-- `apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.cs` — `SwitchToNeedsReconnectAsync`, `ResumeForReconnectAsync` (stub, full logic lands with D1).
-- `apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.Spec.cs` — specs for both methods.
-- `apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.cs` — GET endpoint listing accounts with `NeedsReconnect` status (banner data source).
-- `apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.Spec.cs` — tenant isolation + permissions.
-- `apps/api/Modules/SocialAccounts/Endpoints/SocialAccountEndpoints.cs` — add the new endpoint route group.
-- `apps/front/src/components/social-accounts/reconnect-banner.tsx` — persistent banner naming the first `NeedsReconnect` account with a reconnect button (manage holders) or message (others).
-- `apps/front/src/components/social-accounts/reconnect-banner.test.tsx` — component test.
-- `apps/front/src/routes/authed/tenant/settings/integrations.tsx` — add banner slot (or the workspace index route once it exists). Note: develop currently has no tenant workspace index route; banner can be added to `integrations.tsx` as the first element of the page, or deferred to a future workspace shell.
-- `apps/front/src/i18n/locales/en/social-accounts.json` — i18n keys for the banner (account-name, reconnect button, message for non-manage holders).
+- `apps/api/Modules/SocialAccounts/Handlers/Tenant/FindNeedsReconnectAccountsForTenant.cs`
+- `apps/api/Modules/SocialAccounts/Handlers/Tenant/FindNeedsReconnectAccountsForTenant.Spec.cs`
 
 **Modify**
-- `apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs` — add `GetNeedsReconnectAccountsAsync` method.
-- `apps/api/Modules/SocialAccounts/Services/SocialAccountService.Spec.cs` — add specs for the new method.
-- `apps/api/Lib/Architecture/SocialAccountArchitecture.Spec.cs` — extend the tenant-isolation guard to cover the new method.
-- `apps/front/src/routes/authed/tenant/settings/integrations.tsx` — add banner slot above the first Card.
+- `apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs` — add `FindNeedsReconnectAccountsAsync` (method on the existing C2 service; no new service class).
+- `apps/api/Modules/SocialAccounts/Routes.SocialAccounts.cs` — add `FindNeedsReconnect = "/needs-reconnect-accounts"` inside the existing `Routes.SocialAccounts.ForTenant` partial (this is C2's real per-module routes partial; there is no social-accounts block in `Lib/Routes/Routes.cs`).
+- `apps/api/Modules/SocialAccounts/Endpoints/SocialAccountEndpointsForTenant.cs` — add one `group.MapGet(...)` to C2's existing group (the group's `MapGroup("/social-accounts").RequireRateLimiting(AuthenticatedDefault)` and its `Program.cs` registration already exist — do not re-register anything).
+- `packages/client-ts/**` — regenerated by `just generate-client`, never hand-edited.
+- `apps/front/src/i18n/locales/en/social-accounts.json` + `fr/social-accounts.json` — kebab-case flat keys, sibling of `en/posts.json`.
+- `apps/front/src/i18n/locales/en.ts` / `fr.ts` — register the bundle under `'social-accounts'`.
+- `apps/front/src/lib/i18n.namespaces.ts` — add `'social-accounts'` to `FEATURE_I18N_NAMESPACES`.
+- `apps/front/src/components/social-accounts/reconnect-banner.tsx` (+ `.test.tsx`) — presentational banner.
+- `apps/front/src/routes/authed/tenant/settings/integrations.tsx` (+ `.test.tsx`) — banner slot above the first Card (the real connections surface on develop; there is no `authed/tenant/workspace/index.tsx` — see Open Questions for the eventual workspace-shell home).
 
-### Wave 2 — Pause/Resume Layer (requires D1)
+### Wave 2 — Pause/Resume coordination (requires D1)
+
+**Modify (on D1 or its merge successor)**
+- `apps/api/Modules/Publishing/Services/PublicationStatusTransitionService.cs` — one `AllowedSources` edit (`[Paused]` gains `Scheduled`) + new `MarkScheduledAsync` on interface and implementation + new `MarkPublicationScheduledArgs` record (Task 3).
+- `apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs` — add the new Args record to its assertions (Task 3).
 
 **Create**
-- `apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.cs` — `PauseAllScheduledPublicationsAsync` (calls `IPublicationStatusTransitionService.MarkPausedAsync` for every scheduled publication of the account), `ResumePausedPublicationsAsync` (future instants → Scheduled; past instants stay Paused with date-passed cause).
-- `apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.Spec.cs` — integration specs.
-- `apps/api/Modules/SocialAccounts/Handlers/Tenant/ReconnectSocialAccountForTenant.Spec.cs` — extend C2's reconnect handler spec with resume assertions (or create a new spec if C2's reconnect handler does not exist on develop yet).
-- `apps/api/Modules/SocialAccounts/Lib/SocialAccountPauseServiceArchitecture.Spec.cs` — guard: `SocialAccountPauseService` may call `IPublicationStatusTransitionService` only; no direct `Publication.Status` writes.
+- `apps/api/Modules/Publishing/Services/PublicationQueueService.cs` (+ `.Spec.cs`) — read-only finder over `AppDbContext` (paused/scheduled publication ids per account), boundary-legal (Task 5).
+- `apps/api/Modules/Publishing/Jobs/PublishPublicationJobHandler` sibling-sweep — modifies `PauseForAccountAsync` to also pause the account's other `Scheduled` publications (Task 4).
 
 **Modify**
-- `apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs` — add `GetNeedsReconnectAccountsAsync` (already in wave 1) + extend reconnect path.
-- `apps/api/Data/DbContext/AppDbContext.cs` — add `DbSet<Publication>` if D1's migration has not landed yet on develop (D1 adds this; if develop does not have it, add here; if develop already has it, skip).
-- `apps/api/Modules/SocialAccounts/Infrastructure/ServiceRegistration.cs` (or `apps/api/Lib/ServiceRegistration.cs`) — register `IPublicationStatusTransitionService` (depends on D1 being merged).
-- Migration (if `Publication` DbSet is added here): `just db-add C4PublicationDbSet` then `just db-migrate`.
+- `apps/api/Modules/SocialAccounts/Handlers/Tenant/ReconnectSocialAccountForTenant.cs` — after C2's reconnect succeeds, orchestrate resume via `PublicationQueueService` + transitions (handler-level; Task 5).
+- `apps/api/Modules/SocialAccounts/Handlers/Tenant/DisconnectSocialAccountForTenant.cs` — after disconnect succeeds, orchestrate pause-all (Task 5).
 
 ---
 
-## Task 1: SocialAccountStatusService — SwitchToNeedsReconnect + Resume stub
+## Task 1: FindNeedsReconnectAccountsForTenant — banner data endpoint
 
 **Files:**
-- Create: `apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.cs`
-- Create: `apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.Spec.cs`
+- Create: `apps/api/Modules/SocialAccounts/Handlers/Tenant/FindNeedsReconnectAccountsForTenant.cs`
+- Create: `apps/api/Modules/SocialAccounts/Handlers/Tenant/FindNeedsReconnectAccountsForTenant.Spec.cs`
+- Modify: `apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs` — add `FindNeedsReconnectAccountsAsync`
+- Modify: `apps/api/Modules/SocialAccounts/Routes.SocialAccounts.cs` — add the route constant
+- Modify: `apps/api/Modules/SocialAccounts/Endpoints/SocialAccountEndpointsForTenant.cs` — add the `MapGet`
 
 **Interfaces:**
-- Consumes: `SocialAccount` entity, `AppDbContext`.
-- Produces: `SocialAccountStatusService.SwitchToNeedsReconnectAsync(Guid tenantId, Guid socialAccountId, string cause, CancellationToken)` — sets `SocialAccount.Status = NeedsReconnect`, records `LastError` (sanitised), returns `true`/`false`. Stub for `ResumeForReconnectAsync` (full logic in task 5).
+- Consumes: `AppDbContext`, `SocialAccountStatus.NeedsReconnect`, C2's `SocialAccountService` (concrete-class injection, exactly as `FindSocialAccountsForTenant` does).
+- Produces: `GET /social-accounts/needs-reconnect-accounts` → `200 Ok<…Response>` (camelCase JSON), tenant-isolated (a foreign tenant's accounts are simply absent — 200 with an empty list, never a leak), gated on `socialaccounts.view`, group rate-limit `AuthenticatedDefault`.
 
 - [ ] **Step 1: Write the failing test**
 
-```csharp
-// apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.Spec.cs
-using FluentAssertions;
-using Microsoft.EntityFrameworkCore;
-using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Lib.Testing.Fixtures;
-using PublyApp.Api.Modules.SocialAccounts.Entities;
-using Xunit;
-
-namespace PublyApp.Api.Modules.SocialAccounts.Services;
-
-public sealed class SocialAccountStatusServiceSpec {
-	private static async Task<(SocialAccountStatusService service, Guid tenantId, Guid accountId)>
-		BuildServiceAsync(Guid? tenantId = null, SocialAccountStatus initialStatus = SocialAccountStatus.Active)
-	{
-		var tenant = await ApiFixture.WithTenant();
-		var resolvedTenantId = tenantId ?? tenant.Id;
-		var account = new SocialAccount {
-			TenantId = resolvedTenantId,
-			ExternalAccountId = "did:plc:test",
-			DisplayHandle = "@test.bsky.social",
-			ProtectedCredentials = "x",
-			Status = initialStatus,
-		};
-		await using var db = await ApiFixture.WithDbContextAsync(tenant);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
-
-		return (new SocialAccountStatusService(db), resolvedTenantId, account.Id);
-	}
-
-	[Fact]
-	public async Task ItShouldSwitchToNeedsReconnectAndRecordSanitisedCause() {
-		var (service, tenantId, accountId) = await BuildServiceAsync();
-		var cause = "Bluesky refused: invalid app password 'hunter2-secret'";
-
-		var result = await service.SwitchToNeedsReconnectAsync(accountId, tenantId, cause);
-
-		result.Should().BeTrue();
-		await using var db = await ApiFixture.WithDbContextAsync();
-		var account = await db.SocialAccount.SingleAsync(a => a.Id == accountId);
-		account.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
-		account.LastError.Should().NotBeNull();
-		account.LastError.Should().NotContain("hunter2-secret");
-		account.LastError.Should().Contain("[redacted]");
-	}
-
-	[Fact]
-	public async Task ItShouldReturnFalseWhenTheAccountIsNotFound() {
-		var (service, tenantId, _) = await BuildServiceAsync();
-		var fakeId = Guid.NewGuid();
-
-		var result = await service.SwitchToNeedsReconnectAsync(fakeId, tenantId, "cause");
-
-		result.Should().BeFalse();
-	}
-
-	[Fact]
-	public async Task ItShouldReturnFalseForAForeignTenant() {
-		var (service, _, accountId) = await BuildServiceAsync();
-		var foreignTenant = Guid.NewGuid();
-
-		var result = await service.SwitchToNeedsReconnectAsync(accountId, foreignTenant, "cause");
-
-		result.Should().BeFalse("foreign tenant isolation must hold");
-	}
-
-	[Fact]
-	public async Task ItShouldReturnFalseWhenAccountIsAlreadyNeedsReconnect() {
-		var (service, tenantId, accountId) = await BuildServiceAsync(
-			initialStatus: SocialAccountStatus.NeedsReconnect
-		);
-
-		var result = await service.SwitchToNeedsReconnectAsync(accountId, tenantId, "another cause");
-
-		result.Should().BeFalse();
-	}
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~SocialAccountStatusServiceSpec"`
-
-Expected: FAIL — `SocialAccountStatusService` does not exist.
-
-- [ ] **Step 3: Write minimal implementation**
-
-`apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.cs`:
+Real fixture idiom, copied from the repo's tenant CRUD specs: `IClassFixture<ApiFixture>`, `TestAuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword)`, staff login + `TenantTestHelper.GetTenantIdByNameAsync(http, staffToken, SeedConstants.Tenants.AcmeName)` for tenant ids, `.WithSessionToken(token).WithTenantId(tenantId)` request headers. No fabricated fixture helpers.
 
 ```csharp
-using Microsoft.EntityFrameworkCore;
+// apps/api/Modules/SocialAccounts/Handlers/Tenant/FindNeedsReconnectAccountsForTenant.Spec.cs
+using System.Net;
+using System.Net.Http.Json;
 
-using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Modules.SocialAccounts.Entities;
-using PublyApp.Api.Modules.SocialAccounts.Lib;
-
-namespace PublyApp.Api.Modules.SocialAccounts.Services;
-
-/// <summary>
-/// Owns social-account status transitions (Epic C §5). SwitchToNeedsReconnectAsync
-/// is the single entry point for credential-failure-driven status changes — called by
-/// the Bluesky publish provider on account errors. ResumeForReconnectAsync resumes
-/// paused publications (full logic in Task 5; stub returns false here so the
-/// architecture is in place before D1 lands).
-/// </summary>
-public sealed class SocialAccountStatusService {
-	private readonly AppDbContext _db;
-
-	public SocialAccountStatusService(AppDbContext db) {
-		_db = db;
-	}
-
-	/// <summary>
-	/// Sets the account to NeedsReconnect and records a sanitised failure cause.
-	/// Returns false if the account is not found, belongs to another tenant, or is
-	/// already NeedsReconnect.
-	/// </summary>
-	public async Task<bool> SwitchToNeedsReconnectAsync(
-		Guid socialAccountId,
-		Guid tenantId,
-		string cause,
-		CancellationToken cancellationToken = default
-	) {
-		var account = await _db.SocialAccount
-			.SingleOrDefaultAsync(
-				a => a.Id == socialAccountId
-					&& a.TenantId == tenantId
-					&& !a.IsDeleted,
-				cancellationToken
-			);
-
-		if (account is null) {
-			return false;
-		}
-
-		if (account.Status == SocialAccountStatus.NeedsReconnect) {
-			return false;
-		}
-
-		account.Status = SocialAccountStatus.NeedsReconnect;
-		account.LastError = LastErrorSanitiser.Sanitize(cause);
-		await _db.SaveChangesAsync(cancellationToken);
-		return true;
-	}
-
-	/// <summary>
-	/// Stub: full resume logic (checking ScheduledAtUtc vs now) lands in Task 5
-	/// once PublicationStatusTransitionService is available.
-	/// </summary>
-	public Task<bool> ResumeForReconnectAsync(
-		Guid socialAccountId,
-		Guid tenantId,
-		CancellationToken cancellationToken = default
-	) {
-		// TODO C4 Task 5: implement full pause/resume with PublicationStatusTransitionService
-		return Task.FromResult(false);
-	}
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~SocialAccountStatusServiceSpec"`
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.cs \
-  apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.Spec.cs
-git commit -m "feat(api): SocialAccountStatusService with SwitchToNeedsReconnectAsync (C4)"
-```
-
----
-
-## Task 2: GetNeedsReconnectAccounts endpoint (banner data source)
-
-**Files:**
-- Create: `apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.cs`
-- Create: `apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.Spec.cs`
-- Modify: `apps/api/Modules/SocialAccounts/Endpoints/SocialAccountEndpoints.cs` (or create endpoints file)
-- Modify: `apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs` — add `GetNeedsReconnectAccountsAsync`
-
-**Interfaces:**
-- Consumes: `SocialAccountService.GetNeedsReconnectAccountsAsync(Guid tenantId, CancellationToken)` → `IReadOnlyList<SocialAccountNeedsReconnectItem>` (Id, DisplayHandle, Provider, LastError).
-- Produces: `GET /needs-reconnect-accounts` returning a list of accounts in `NeedsReconnect` status (JSON array, camelCase fields).
-
-- [ ] **Step 1: Write the failing test**
-
-```csharp
-// apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.Spec.cs
 using FluentAssertions;
 
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 using Xunit;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 
-public sealed class GetNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiFixture> {
-	private readonly ApiFixture _fx;
+public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
+	private readonly HttpClient _http;
+	private readonly TestAuthClient _authClient;
 
-	public GetNeedsReconnectAccountsForTenantSpec(ApiFixture fx) {
-		_fx = fx;
+	public FindNeedsReconnectAccountsForTenantSpec(ApiFixture fixture) {
+		_fixture = fixture;
+		_http = fixture.HttpClient;
+		_authClient = new TestAuthClient(_http);
+	}
+
+	private async Task<(Guid TenantId, string Token)> LoginAsAcmeAdminAsync() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+		var token = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
+		return (tenantId, token);
+	}
+
+	private async Task<Guid> GetOtherTenantIdAsync() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		return await TenantTestHelper.GetTenantIdByNameAsync(
+			_http, staffToken, SeedConstants.Tenants.GlobalName
+		);
+	}
+
+	private static HttpRequestMessage GetRequest(string token, Guid tenantId) {
+		return new HttpRequestMessage(
+				HttpMethod.Get,
+				"/social-accounts/needs-reconnect-accounts"
+			)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+	}
+
+	private async Task SeedAccountAsync(
+		Guid tenantId,
+		string externalAccountId,
+		SocialAccountStatus status,
+		string? lastError = null
+	) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		db.SocialAccount.Add(new SocialAccount {
+			TenantId = tenantId,
+			ExternalAccountId = externalAccountId,
+			DisplayHandle = $"@{externalAccountId}.bsky.social",
+			ProtectedCredentials = "x",
+			Status = status,
+			LastError = lastError,
+		});
+		await db.SaveChangesAsync();
 	}
 
 	[Fact]
-	public async Task ItShouldReturnNeedsReconnectAccountsForTheTenant() {
-		var tenant = await _fx.WithTenant();
-		var account = new SocialAccount {
-			TenantId = tenant.Id,
-			ExternalAccountId = "did:plc:test",
-			DisplayHandle = "@test.bsky.social",
-			ProtectedCredentials = "x",
-			Status = SocialAccountStatus.NeedsReconnect,
-			LastError = "Bluesky refused",
-		};
-		await using var db = await _fx.WithDbContextAsync(tenant);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
-
-		var response = await _fx.Api.GETAsync(
-			$"/needs-reconnect-accounts",
-			tenant.SessionToken,
-			tenant.Id
+	public async Task ItShouldReturnOnlyNeedsReconnectAccountsOfTheCallingTenant() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		await SeedAccountAsync(
+			tenantId, "did:plc:test", SocialAccountStatus.NeedsReconnect, "Bluesky refused"
 		);
 
-		response.StatusCode.Should().Be(200);
-		var body = await response.JsonAsync<NeedsReconnectAccountsResponse>();
-		body.accounts.Should().HaveCount(1);
-		body.accounts[0].displayHandle.Should().Be("@test.bsky.social");
+		using var response = await _http.SendAsync(GetRequest(token, tenantId));
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();
+		payload.Should().NotBeNull();
+		Assert.NotNull(payload);
+		payload.Accounts.Should().ContainSingle();
+		payload.Accounts[0].DisplayHandle.Should().Be("@did:plc:test.bsky.social");
+		payload.Accounts[0].Provider.Should().Be("bluesky");
+		payload.Accounts[0].LastError.Should().Be("Bluesky refused");
 	}
 
 	[Fact]
-	public async Task ItShouldReturnEmptyForATenantWithNoNeedsReconnectAccounts() {
-		var tenant = await _fx.WithTenant();
-		var active = new SocialAccount {
-			TenantId = tenant.Id,
-			ExternalAccountId = "did:plc:active",
-			DisplayHandle = "@active.bsky.social",
-			ProtectedCredentials = "x",
-			Status = SocialAccountStatus.Active,
-		};
-		await using var db = await _fx.WithDbContextAsync(tenant);
-		db.SocialAccount.Add(active);
-		await db.SaveChangesAsync();
+	public async Task ItShouldReturnEmptyListWhenNoAccountNeedsReconnect() {
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 
-		var response = await _fx.Api.GETAsync(
-			$"/needs-reconnect-accounts",
-			tenant.SessionToken,
-			tenant.Id
-		);
+		using var response = await _http.SendAsync(GetRequest(token, tenantId));
 
-		response.StatusCode.Should().Be(200);
-		var body = await response.JsonAsync<NeedsReconnectAccountsResponse>();
-		body.accounts.Should().BeEmpty();
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();
+		payload!.Accounts.Should().BeEmpty();
 	}
 
 	[Fact]
-	public async Task ItShouldReturn404ForAForeignTenant() {
-		var tenant = await _fx.WithTenant();
-		var otherTenant = await _fx.WithTenant();
-		var account = new SocialAccount {
-			TenantId = otherTenant.Id,
-			ExternalAccountId = "did:plc:other",
-			DisplayHandle = "@other.bsky.social",
-			ProtectedCredentials = "x",
-			Status = SocialAccountStatus.NeedsReconnect,
-		};
-		await using var db = await _fx.WithDbContextAsync(otherTenant);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
-
-		var response = await _fx.Api.GETAsync(
-			$"/needs-reconnect-accounts",
-			tenant.SessionToken,
-			tenant.Id
+	public async Task ItShouldNotLeakAnotherTenantsAccounts() {
+		var (acmeId, acmeToken) = await LoginAsAcmeAdminAsync();
+		var globalId = await GetOtherTenantIdAsync();
+		await SeedAccountAsync(
+			globalId, "did:plc:other", SocialAccountStatus.NeedsReconnect, "Bluesky refused"
 		);
 
-		response.StatusCode.Should().Be(404, "foreign tenant's account must not be found");
+		using var response = await _http.SendAsync(GetRequest(acmeToken, acmeId));
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content.ReadFromJsonAsync<NeedsReconnectListPayload>();
+		payload!.Accounts.Should().BeEmpty(
+			"a foreign tenant's account is invisible, never leaked"
+		);
 	}
 
-	private sealed record NeedsReconnectAccountsResponse(
-		System.Collections.Generic.List<AccountItem>
+	private sealed record NeedsReconnectListPayload(AccountItem[] Accounts);
+	private sealed record AccountItem(
+		string Id,
+		string DisplayHandle,
+		string Provider,
+		string? LastError
 	);
-	private sealed record AccountItem(string displayHandle);
 }
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~GetNeedsReconnectAccountsForTenantSpec"`
+Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~FindNeedsReconnectAccountsForTenantSpec"`
 
-Expected: FAIL — endpoint, handler, and `GetNeedsReconnectAccountsAsync` do not exist.
+Expected: FAIL — 404 because the route does not exist yet.
 
-- [ ] **Step 3: Add service method + write handler + add endpoint**
+- [ ] **Step 3: Add the service method**
 
-First, add to `SocialAccountService.cs`:
+Add to `apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs` (same file/class as C2's methods; "Find" prefix per repo naming):
 
 ```csharp
-public async Task<IReadOnlyList<SocialAccountNeedsReconnectItem>> GetNeedsReconnectAccountsAsync(
-	Guid tenantId,
-	CancellationToken ct = default
-) {
-	var accounts = await _db.SocialAccount
-		.Where(a => a.TenantId == tenantId
-			&& a.Status == SocialAccountStatus.NeedsReconnect
-			&& !a.IsDeleted)
-		.Select(a => new SocialAccountNeedsReconnectItem(
-			a.Id,
-			a.DisplayHandle,
-			a.Provider,
-			a.LastError
-		))
-		.ToListAsync(ct);
-	return accounts;
-}
-
 public sealed record SocialAccountNeedsReconnectItem(
 	Guid Id,
 	string DisplayHandle,
 	SocialProvider Provider,
 	string? LastError
 );
+
+public async Task<IReadOnlyList<SocialAccountNeedsReconnectItem>>
+	FindNeedsReconnectAccountsAsync(Guid tenantId, CancellationToken cancellationToken) {
+	return await _db.SocialAccount
+		.AsNoTracking()
+		.Where(a => a.TenantId == tenantId
+			&& a.Status == SocialAccountStatus.NeedsReconnect)
+		.OrderBy(a => a.DisplayHandle)
+		.Select(a => new SocialAccountNeedsReconnectItem(
+			a.Id,
+			a.DisplayHandle,
+			a.Provider,
+			a.LastError
+		))
+		.ToListAsync(cancellationToken);
+}
 ```
 
-Then create the handler `apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.cs`:
+Soft-delete filtering: match however C2's own `FindForTenantAsync` treats `SocialAccount` rows — verify the predicate when implementing and add `!a.IsDeleted` only if the entity carries soft deletes (it inherits `BaseAttributes`, so it does; mirror C2's exact filter rather than inventing one).
+
+- [ ] **Step 4: Add route constant, handler, endpoint mapping**
+
+Route constant — in `apps/api/Modules/SocialAccounts/Routes.SocialAccounts.cs`, inside the existing `ForTenant` class (file already declares `public static partial class Routes` in namespace `PublyApp.Api.Lib.Routes` with `#pragma warning disable IDE0130`):
 
 ```csharp
+public const string FindNeedsReconnect = "/needs-reconnect-accounts";
+```
+
+Handler — `apps/api/Modules/SocialAccounts/Handlers/Tenant/FindNeedsReconnectAccountsForTenant.cs`. Shape mirrors `FindSocialAccountsForTenant` (top-level wire types without a `Dto` suffix, static `Handle`, `Guid.TryParse(authContext.TenantId, …)` with `InvalidOperationException` on failure, concrete `SocialAccountService` injection). No pagination needed (banner-sized list):
+
+```csharp
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+
+using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 
-public sealed class GetNeedsReconnectAccountsForTenant {
-	public record Query;
-
-	public record Response(IReadOnlyList<AccountItem> accounts);
-
-	public record AccountItem(
-		Guid id,
-		string displayHandle,
-		string provider,
-		string? lastError
-	);
-
-	private readonly SocialAccountService _service;
-
-	public GetNeedsReconnectAccountsForTenant(SocialAccountService service) {
-		_service = service;
-	}
-
-	public async Task<AppOkHttpResult> Handle(
-		Query query,
-		Guid tenantId,
-		CancellationToken cancellationToken
-	) {
-		var items = await _service.GetNeedsReconnectAccountsAsync(tenantId, cancellationToken);
-		var response = new Response(
-			items.Select(i => new AccountItem(
-				i.Id,
-				i.DisplayHandle,
-				ProviderWire.Format(i.Provider),
-				i.LastError
-			)).ToList()
-		);
-		return TypedResults.Ok(response);
-	}
+public sealed class FindNeedsReconnectAccountsForTenantResponse {
+	public required IReadOnlyList<AccountItem> Accounts { get; init; }
 }
 
-public static class ProviderWire {
-	public static string Format(SocialProvider provider) {
-		return provider switch {
-			SocialProvider.Bluesky => "bluesky",
-			_ => throw new ArgumentOutOfRangeException(nameof(provider)),
-		};
+public sealed record AccountItem(
+	Guid Id,
+	string DisplayHandle,
+	string Provider,
+	string? LastError
+);
+
+public sealed class FindNeedsReconnectAccountsForTenant {
+	public static async Task<Ok<FindNeedsReconnectAccountsForTenantResponse>> Handle(
+		[FromServices] IRequestAuthContext authContext,
+		[FromServices] SocialAccountService socialAccountService,
+		CancellationToken cancellationToken = default
+	) {
+		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
+			throw new InvalidOperationException(
+				$"{nameof(authContext.TenantId)} is not a GUID"
+			);
+		}
+
+		var accounts = await socialAccountService.FindNeedsReconnectAccountsAsync(
+			tenantId,
+			cancellationToken
+		);
+
+		return TypedResults.Ok(new FindNeedsReconnectAccountsForTenantResponse {
+			Accounts = accounts.Select(a => new AccountItem(
+				a.Id,
+				a.DisplayHandle,
+				// Single-provider reality today, identical to C2's own list mapping
+				// (SocialAccountService projects Provider = "bluesky"); generalize
+				// only when a second provider lands.
+				Provider: "bluesky",
+				a.LastError
+			)).ToList(),
+		});
 	}
 }
 ```
 
-Add to `SocialAccountEndpoints.cs` (or create the file):
+Endpoint mapping — inside C2's existing `SocialAccountEndpointsForTenant` group in `apps/api/Modules/SocialAccounts/Endpoints/SocialAccountEndpointsForTenant.cs` (do **not** create a new group or touch `Program.cs`; `tenantGroup.MapSocialAccountEndpointsForTenant();` is already registered there by C2):
 
 ```csharp
-// In the endpoint group that registers social-account routes:
 group.MapGet(
-	"/needs-reconnect-accounts",
-	async (
-		[AsParameters] GetNeedsReconnectAccountsForTenant.Query query,
-		Guid tenantId,
-		CancellationToken ct
-	) => {
-		var handler = sp.GetRequiredService<GetNeedsReconnectAccountsForTenant>();
-		return await handler.Handle(query, tenantId, ct);
-	}
+	Routes.SocialAccounts.ForTenant.FindNeedsReconnect,
+	FindNeedsReconnectAccountsForTenant.Handle
 )
-.WithPermission("tenant.socialaccounts.view")
-.WithTags("SocialAccounts");
+	.WithName("FindNeedsReconnectAccountsForTenant")
+	.WithSummary("Accounts of the current tenant that need reconnection")
+	.WithTenantPermission(
+		[AppPermissions.Tenant.SocialAccounts.VIEW]
+	);
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+(Rate limiting comes from the group's existing `AuthenticatedDefault` requirement.)
 
-Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~GetNeedsReconnectAccountsForTenantSpec"`
+- [ ] **Step 5: Run test to verify it passes**
 
-Expected: PASS.
+Same filter as Step 2. Expected: PASS, including the foreign-tenant invisibility case.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Regenerate the client**
 
 ```bash
-git add apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.cs \
-  apps/api/Modules/SocialAccounts/Handlers/Tenant/GetNeedsReconnectAccountsForTenant.Spec.cs \
-  apps/api/Modules/SocialAccounts/Services/SocialAccountService.cs \
-  apps/api/Modules/SocialAccounts/Endpoints/SocialAccountEndpoints.cs
-git commit -m "feat(api): GET /needs-reconnect-accounts endpoint for banner data (C4)"
+just build-api && just generate-client && pnpm --filter front typecheck
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add apps/api/Modules/SocialAccounts packages/client-ts
+git commit -m "feat(api): GET /social-accounts/needs-reconnect-accounts — banner data (C4)"
 ```
 
 ---
 
-## Task 3: Front reconnect banner component
+## Task 2: Reconnect banner (front)
 
 **Files:**
 - Create: `apps/front/src/components/social-accounts/reconnect-banner.tsx`
 - Create: `apps/front/src/components/social-accounts/reconnect-banner.test.tsx`
-- Modify: `apps/front/src/routes/authed/tenant/workspace/index.tsx` (add banner slot)
-- Create/Modify: `apps/front/src/lib/i18n/locales/en/social-accounts.json`
+- Create: `apps/front/src/i18n/locales/en/social-accounts.json`, `apps/front/src/i18n/locales/fr/social-accounts.json`
+- Modify: `apps/front/src/i18n/locales/en.ts`, `fr.ts` — register the resource bundle
+- Modify: `apps/front/src/lib/i18n.namespaces.ts` — add `'social-accounts'` to `FEATURE_I18N_NAMESPACES`
+- Modify: `apps/front/src/routes/authed/tenant/settings/integrations.tsx` (+ `.test.tsx`) — banner slot above the first Card
 
-**Interfaces:**
-- Consumes: TanStack Query fetching `GET /needs-reconnect-accounts` (camelCase response).
-- Produces: A `<ReconnectBanner>` component rendering a `<Alert>` (or `StateSurface` variant) with the first account's handle and either a reconnect button (manage holders) or an informational message. Calls `useMutation` on the reconnect action.
+Reality checks that shape this task (verified on develop):
+- There is **no** `components/ui/alert.tsx` and **no** `Button` `leftSection`/`rightSection` prop. Buttons take icons as ordinary children marked `data-icon="inline-start"` (styled by `button.variants.ts`'s `has-data-[icon=…]` padding rules).
+- Raw palette utilities (`bg-amber-500`…) fail the design-token guard (`check-design-system.mjs`, `no-raw-visual-color`). Warning styling comes from the theme's `--publy-alert-warning-bg/-border/-text` custom properties (defined for light and dark in `apps/front/src/styles/app.css`).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Add the i18n bundles**
+
+`apps/front/src/i18n/locales/en/social-accounts.json` (kebab-case flat keys, i18next `{{…}}` interpolation):
+
+```json
+{
+	"reconnect-banner-title": "{{handle}} needs reconnection",
+	"reconnect-banner-description": "{{handle}} stopped working and its scheduled posts were paused.",
+	"reconnect-banner-more": "+{{count}} more account(s)",
+	"reconnect-banner-button": "Reconnect",
+	"reconnect-banner-contact-admin": "Ask someone with manage access to reconnect this account."
+}
+```
+
+Mirror every key in `apps/front/src/i18n/locales/fr/social-accounts.json` (French copy reviewed at implementation time; never ship English-only). Register the bundle in `en.ts`/`fr.ts` and add the namespace to `FEATURE_I18N_NAMESPACES`.
+
+- [ ] **Step 2: Write the failing component test**
+
+Repo assertion idiom (matches `integrations.test.tsx`): `@vitest-environment jsdom`, `cleanup()` in `afterEach`, `toBeTruthy()`/`toBe()`/`toContain()` — **no jest-dom matchers, no vitest globals reliance**.
 
 ```tsx
 // apps/front/src/components/social-accounts/reconnect-banner.test.tsx
-import { render, screen } from '@testing-library/react';
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import React from 'react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { ReconnectBanner } from './reconnect-banner';
 
-// TODO: wire through the actual i18n keys once the locale file is created
-const mockT = (key: string) => key;
+const ACCOUNT = {
+	id: '11111111-1111-1111-1111-111111111111',
+	displayHandle: '@test.bsky.social',
+	lastError: 'Bluesky refused: invalid app password',
+};
+
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
 
 describe('ReconnectBanner', () => {
-	it('should render when accounts need reconnect', () => {
-		const accounts = [{
-			id: '11111111-1111-1111-1111-111111111111',
-			displayHandle: '@test.bsky.social',
-			provider: 'bluesky',
-			lastError: 'Bluesky refused',
-		}];
-
-		render(<ReconnectBanner accounts={accounts} hasManagePermission={true} onReconnect={() => {}} />);
-
-		expect(screen.getByTestId('reconnect-banner')).toBeInTheDocument();
-		expect(screen.getByText('@test.bsky.social')).toBeInTheDocument();
+	test('renders nothing when no account needs reconnect', () => {
+		const { container } = render(
+			<ReconnectBanner accounts={[]} hasManagePermission={true} onReconnect={() => {}} />
+		);
+		expect(container.querySelector('[data-testid="reconnect-banner"]')).toBeNull();
 	});
 
-	it('should show reconnect button for manage holders', () => {
-		const accounts = [{
-			id: '11111111-1111-1111-1111-111111111111',
-			displayHandle: '@test.bsky.social',
-			provider: 'bluesky',
-			lastError: null,
-		}];
-
-		render(<ReconnectBanner accounts={accounts} hasManagePermission={true} onReconnect={() => {}} />);
-
-		expect(screen.getByRole('button', { name: /reconnect/i })).toBeInTheDocument();
+	test('names the first account needing reconnect', () => {
+		render(
+			<ReconnectBanner accounts={[ACCOUNT]} hasManagePermission={true} onReconnect={() => {}} />
+		);
+		expect(screen.getByTestId('reconnect-banner').textContent).toContain('@test.bsky.social');
 	});
 
-	it('should hide reconnect button for non-manage holders', () => {
-		const accounts = [{
-			id: '11111111-1111-1111-1111-111111111111',
-			displayHandle: '@test.bsky.social',
-			provider: 'bluesky',
-			lastError: null,
-		}];
-
-		render(<ReconnectBanner accounts={accounts} hasManagePermission={false} onReconnect={() => {}} />);
-
-		expect(screen.queryByRole('button', { name: /reconnect/i })).not.toBeInTheDocument();
-		expect(screen.getByText(/contact.*admin/i)).toBeInTheDocument();
+	test('shows the reconnect button for manage holders', () => {
+		render(
+			<ReconnectBanner accounts={[ACCOUNT]} hasManagePermission={true} onReconnect={() => {}} />
+		);
+		expect(screen.getByRole('button', { name: 'Reconnect' })).toBeTruthy();
 	});
 
-	it('should not render when no accounts need reconnect', () => {
-		render(<ReconnectBanner accounts={[]} hasManagePermission={true} onReconnect={() => {}} />);
-		expect(screen.queryByTestId('reconnect-banner')).not.toBeInTheDocument();
+	test('hides the button and shows the contact-admin message otherwise', () => {
+		render(
+			<ReconnectBanner accounts={[ACCOUNT]} hasManagePermission={false} onReconnect={() => {}} />
+		);
+		expect(screen.queryByRole('button')).toBeNull();
+		expect(screen.getByTestId('reconnect-banner').textContent).toContain('manage');
 	});
 
-	it('should call onReconnect with account id when button clicked', async () => {
+	test('calls onReconnect with the account id on click', async () => {
 		const user = userEvent.setup();
 		const onReconnect = vi.fn();
-		const accounts = [{
-			id: '11111111-1111-1111-1111-111111111111',
-			displayHandle: '@test.bsky.social',
-			provider: 'bluesky',
-			lastError: null,
-		}];
-
-		render(<ReconnectBanner accounts={accounts} hasManagePermission={true} onReconnect={onReconnect} />);
-		await user.click(screen.getByRole('button', { name: /reconnect/i }));
-
-		expect(onReconnect).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111');
+		render(
+			<ReconnectBanner accounts={[ACCOUNT]} hasManagePermission={true} onReconnect={onReconnect} />
+		);
+		await user.click(screen.getByRole('button', { name: 'Reconnect' }));
+		expect(onReconnect).toHaveBeenCalledWith(ACCOUNT.id);
 	});
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 3: Run test to verify it fails**
 
 Run: `cd apps/front && pnpm exec vitest run src/components/social-accounts/reconnect-banner.test.tsx`
 
-Expected: FAIL — component does not exist.
+Expected: FAIL — module does not exist.
 
-- [ ] **Step 3: Write the component**
-
-`apps/front/src/components/social-accounts/reconnect-banner.tsx`:
+- [ ] **Step 4: Write the component**
 
 ```tsx
-import { IconAlertTriangle, IconPlugConnected } from '@tabler/icons-react';
+// apps/front/src/components/social-accounts/reconnect-banner.tsx
+import { IconAlertTriangle, IconPlugConnectedX } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
+
 import { Button } from '~/components/ui/button';
 
 export interface NeedsReconnectAccount {
 	id: string;
 	displayHandle: string;
-	provider: string;
 	lastError: string | null;
 }
 
@@ -623,12 +510,12 @@ interface ReconnectBannerProps {
 	onReconnect: (accountId: string) => void;
 }
 
-export const ReconnectBanner = ({
+export function ReconnectBanner({
 	accounts,
 	hasManagePermission,
 	onReconnect,
-}: ReconnectBannerProps) => {
-	const { t } = useTranslation(['social-accounts']);
+}: ReconnectBannerProps) {
+	const { t } = useTranslation('social-accounts');
 
 	if (accounts.length === 0) {
 		return null;
@@ -638,495 +525,472 @@ export const ReconnectBanner = ({
 	const more = accounts.length - 1;
 
 	return (
-		<div data-testid="reconnect-banner">
-			<Alert variant="warning" className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
-				<IconAlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
-				<AlertTitle className="text-amber-900 dark:text-amber-200">
-					{t('banner_title', { handle: primary.displayHandle })}
-				</AlertTitle>
-				<AlertDescription className="mt-2 flex items-center justify-between gap-3">
-					<span className="text-amber-800 dark:text-amber-300 text-sm">
-						{primary.lastError
-							? t('banner_description_with_error', {
-								handle: primary.displayHandle,
-								error: primary.lastError,
-							})
-							: t('banner_description', { handle: primary.displayHandle })}
-						{more > 0 && t('banner_more_accounts', { count: more })}
-					</span>
-					{hasManagePermission ? (
-						<Button
-							size="sm"
-							variant="outline"
-							className="shrink-0 gap-1.5 border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900"
-							onClick={() => onReconnect(primary.id)}
-							leftSection={<IconPlugConnected className="size-3.5" />}
-						>
-							{t('reconnect_button')}
-						</Button>
-					) : (
-						<span className="text-amber-700 dark:text-amber-400 text-xs italic">
-							{t('contact_admin_message')}
-						</span>
+		<div
+			data-testid="reconnect-banner"
+			className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--publy-radius-medium-control)] border p-4 text-sm"
+			style={{
+				backgroundColor: 'var(--publy-alert-warning-bg)',
+				borderColor: 'var(--publy-alert-warning-border)',
+				color: 'var(--publy-alert-warning-text)',
+			}}
+		>
+			<div className="flex min-w-0 items-start gap-2">
+				<IconAlertTriangle className="mt-0.5 size-4 shrink-0" />
+				<div className="min-w-0">
+					<p className="font-medium">
+						{t('reconnect-banner-title', { handle: primary.displayHandle })}
+					</p>
+					<p className="mt-1 opacity-90">
+						{primary.lastError ?? t('reconnect-banner-description', { handle: primary.displayHandle })}
+						{more > 0 ? ` ${t('reconnect-banner-more', { count: more })}` : ''}
+					</p>
+					{!hasManagePermission && (
+						<p className="mt-1 text-xs italic opacity-80">
+							{t('reconnect-banner-contact-admin')}
+						</p>
 					)}
-				</AlertDescription>
-			</Alert>
+				</div>
+			</div>
+			{hasManagePermission && (
+				<Button
+					variant="outline"
+					size="sm"
+					data-testid="reconnect-banner-action"
+					onClick={() => onReconnect(primary.id)}
+				>
+					<IconPlugConnectedX data-icon="inline-start" className="size-3.5" />
+					{t('reconnect-banner-button')}
+				</Button>
+			)}
 		</div>
 	);
-};
-```
-
-Create `apps/front/src/i18n/locales/en/social-accounts.json`:
-
-```json
-{
-  "banner_title": "Account {{handle}} needs reconnection",
-  "banner_description": "{{handle}} stopped working and scheduled posts are paused.",
-  "banner_description_with_error": "{{handle}} stopped working ({{error}}) and scheduled posts are paused.",
-  "banner_more_accounts": " +{{count}} more account{{count}}",
-  "reconnect_button": "Reconnect",
-  "contact_admin_message": "Contact an admin to reconnect."
 }
 ```
 
-Add to the integrations page (`apps/front/src/routes/authed/tenant/settings/integrations.tsx`):
+`lastError` renders verbatim: it was sanitised server-side by `LastErrorSanitiser` before storage (Epic C §4), and the transparent-failure-cause product rule wants the human-readable cause shown, never a generic message.
 
-```tsx
-import { ReconnectBanner } from '~/components/social-accounts/reconnect-banner';
+- [ ] **Step 5: Run test to verify it passes**
 
-// Before the first Card, inside the page component:
-const { data: needsReconnect } = useQuery({
-  queryKey: ['needs-reconnect-accounts'],
-  queryFn: () => api.socialAccounts.getNeedsReconnectAccounts({ headers: { 'X-Tenant-Id': tenantId } }),
-  enabled: !!tenantId,
-});
+Same command as Step 3. Expected: PASS.
 
-{needsReconnect && needsReconnect.accounts.length > 0 && (
-  <ReconnectBanner
-    accounts={needsReconnect.accounts}
-    hasManagePermission={hasPermission('tenant.socialaccounts.manage')}
-    onReconnect={(id) => { /* open reconnect drawer */ }}
-  />
-)}
+- [ ] **Step 6: Wire the slot into the integrations page**
+
+Modify `apps/front/src/routes/authed/tenant/settings/integrations.tsx`:
+- Fetch with TanStack Query through the generated Kiota client (regenerated in Task 1 Step 6), browser-side only — this page is CSR; never fetch authenticated domain data in a loader/server function.
+- Gate the manage affordance on the signed-in user's actual permissions exactly the way sibling tenant surfaces read them from the session/auth context (inspect the neighbouring pages when implementing; do not invent a `hasPermission()` helper if permissions arrive differently).
+- Render `<ReconnectBanner … />` above the first Card.
+- `onReconnect` opens the same reconnect drawer flow C2/C3 use (handle prefilled). Until that drawer ships on this branch, the callback may be a stub that logs intent; the banner itself must still render and gate correctly.
+- Extend `integrations.test.tsx` with a case asserting `data-testid="reconnect-banner"` appears once the query resolves with one account, mocking the generated client function the way the sibling test mocks its imports.
+
+- [ ] **Step 7: Run the gates**
+
+```bash
+cd apps/front && pnpm exec vitest run \
+  src/components/social-accounts/reconnect-banner.test.tsx \
+  src/routes/authed/tenant/settings/integrations.test.tsx
+pnpm --filter front typecheck
+pnpm --filter front exec oxlint src/components/social-accounts src/routes/authed/tenant/settings
+just react-doctor   # HARD gate: no findings in changed files
 ```
 
-Note: if the tenant workspace shell (`/authed/tenant/`) is created later, the banner moves there as the preferred location.
+- [ ] **Step 8: Commit**
 
-- [ ] **Step 4: Run test to verify it passes**
+```bash
+git add apps/front/src/components/social-accounts \
+  apps/front/src/i18n/locales/en/social-accounts.json \
+  apps/front/src/i18n/locales/fr/social-accounts.json \
+  apps/front/src/i18n/locales/en.ts apps/front/src/i18n/locales/fr.ts \
+  apps/front/src/lib/i18n.namespaces.ts \
+  apps/front/src/routes/authed/tenant/settings
+git commit -m "feat(front): needs-reconnect banner on integrations (C4)"
+---
 
-Run: `cd apps/front && pnpm exec vitest run src/components/social-accounts/reconnect-banner.test.tsx`
+## Task 3: Extend the D1 transition contract (map edit + instant-preserving resume)
 
-Expected: PASS.
+**Branch note:** these edits land on `origin/lane/wt-644` or its merge successor; if D1 has already merged to develop, edit develop instead. Gate: requires D1 (see Global Constraints).
+
+**Files:**
+- Modify: `apps/api/Modules/Publishing/Services/PublicationStatusTransitionService.cs` — one `AllowedSources` entry, one interface member, one Args record, one implementation
+- Modify (conditional): `apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs` — register the new Args record
+
+**Why:** `Paused → Scheduled` is already legal in the map but the only existing method that performs it (`RescheduleToNowAsync`) stamps `ScheduledAtUtc = DateTime.UtcNow` and wipes external fields — wrong for resume. And `Scheduled → Paused` (pausing a publication before its first run because its account broke) is not legal yet. This task makes both possible with the smallest contract change.
+
+- [ ] **Step 1 (RED): Add failing tests to `PublicationStatusTransitionService.Spec.cs`**
+
+Reuse that spec's seeding helper (fresh tenant/user/post/account/publication per test, `GetRequiredId()` everywhere):
+
+```csharp
+[Fact]
+public async Task ItShouldPauseAScheduledPublicationAndPreserveItsInstant() {
+	var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+
+	var ok = await service.MarkPausedAsync(
+		new MarkPublicationPausedArgs(
+			seeded.PublicationId,
+			seeded.TenantId,
+			"the social account needs reconnecting"
+		),
+		CancellationToken.None
+	);
+
+	ok.Should().BeTrue();
+	var reloaded = await db.Publication.AsNoTracking()
+		.SingleAsync(p => p.Id == seeded.PublicationId);
+	reloaded.Status.Should().Be(PublicationStatus.Paused);
+	reloaded.ScheduledAtUtc.Should().BeCloseTo(
+		seeded.ScheduledAtUtc, TimeSpan.FromSeconds(5)
+	); // instant preserved so a later resume can restore it
+	reloaded.LastError.Should().Contain("reconnecting");
+}
+
+[Fact]
+public async Task ItShouldResumeAPausedPublicationKeepingItsOriginalInstant() {
+	var seeded = await SeedAsync(db, PublicationStatus.Paused);
+
+	var ok = await service.MarkScheduledAsync(
+		new MarkPublicationScheduledArgs(seeded.PublicationId, seeded.TenantId),
+		CancellationToken.None
+	);
+
+	ok.Should().BeTrue();
+	var reloaded = await db.Publication.AsNoTracking()
+		.SingleAsync(p => p.Id == seeded.PublicationId);
+	reloaded.Status.Should().Be(PublicationStatus.Scheduled);
+	reloaded.ScheduledAtUtc.Should().BeCloseTo(
+		seeded.ScheduledAtUtc, TimeSpan.FromSeconds(5)
+	); // NOT DateTime.UtcNow — resume must never fire work late
+	reloaded.LastError.Should().BeNull();
+}
+
+[Fact]
+public async Task ItShouldThrowWhenMarkScheduledIsCalledOnAnAlreadyScheduledRow() {
+	var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+
+	var act = async () => await service.MarkScheduledAsync(
+		new MarkPublicationScheduledArgs(seeded.PublicationId, seeded.TenantId),
+		CancellationToken.None
+	);
+
+	await act.Should().ThrowAsync<InvalidOperationException>();
+}
+```
+
+Note the deliberate asymmetry this locks in: `[Scheduled] ← [Failed]` stays as D1 shipped it (manual reschedule-after-failure remains possible via `RescheduleToNowAsync`), while resume goes exclusively through the new instant-preserving method. Update any existing spec that pins the exact `AllowedSources` contents (check the wt-644 spec when implementing).
+
+- [ ] **Step 2: Verify RED**
+
+Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PublicationStatusTransitionServiceSpec"`
+
+Expected: FAIL — `MarkScheduledAsync` does not exist (compile error counts as RED) and/or `Scheduled → Paused` currently throws.
+
+- [ ] **Step 3: Make the edits**
+
+Edit 1 — exactly one map change (everything else byte-identical to wt-644):
+
+```csharp
+[PublicationStatus.Paused] = [
+	PublicationStatus.InProgress,
+	PublicationStatus.Scheduled,   // NEW (C4): pause-on-account-failure before first run
+],
+```
+
+Edit 2 — Args record next to the existing ones:
+
+```csharp
+public sealed record MarkPublicationScheduledArgs(Guid PublicationId, Guid TenantId);
+```
+
+Edit 3 — interface member:
+
+```csharp
+public Task<bool> MarkScheduledAsync(
+	MarkPublicationScheduledArgs args,
+	CancellationToken cancellationToken
+);
+```
+
+Edit 4 — implementation mirroring `RescheduleToNowAsync`, minus everything resume must NOT do (no instant stamp, no external-field wipe):
+
+```csharp
+public async Task<bool> MarkScheduledAsync(
+	MarkPublicationScheduledArgs args,
+	CancellationToken cancellationToken
+) {
+	var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+	if (publication is null) {
+		return false;
+	}
+
+	TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+	publication.Status = PublicationStatus.Scheduled;
+	publication.LastError = null;
+	await _db.SaveChangesAsync(cancellationToken);
+	return true;
+}
+```
+
+- [ ] **Step 4: Args-record convention**
+
+Open `apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs`. If it enumerates Args records explicitly, add `MarkPublicationScheduledArgs` following its pattern; if it discovers them by convention, confirm it passes unchanged. Do not hand-edit without checking which mode it uses.
+
+- [ ] **Step 5: Verify GREEN + guards**
+
+```bash
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test \
+	--filter "FullyQualifiedName~PublicationStatusTransitionServiceSpec|FullyQualifiedName~ServiceArgsRecordConvention"
+```
+
+The `PublicationArchitectureSpec` writer-scan stays green automatically: writes inside `PublicationStatusTransitionService.cs` are exempt by path.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/Modules/Publishing/Services/PublicationStatusTransitionService.cs \
+  apps/api/Lib/Architecture/ServiceArgsRecordConvention.Spec.cs
+git commit -m "feat(api): transition gains Scheduled-to-Paused and instant-preserving resume (C4)"
+```
+
+---
+
+## Task 4: Sibling-pause sweep in the job handler
+
+Gate: requires D1 + Task 3 (the sweep pauses `Scheduled` rows).
+
+**Files:**
+- Modify: `apps/api/Modules/Publishing/Jobs/PublishPublicationJobHandler.cs` — extend `PauseForAccountAsync`
+- Modify: `apps/api/Modules/Publishing/Jobs/PublishPublicationJobHandler.Spec.cs` — cover the sweep
+
+**Reality check (verified on wt-644):** the handler already classifies credential failures and calls its private `PauseForAccountAsync`, which (a) pauses the failing publication via `_transitions.MarkPausedAsync` and (b) flags the account via private `FlagAccountNeedsReconnectAsync` (a direct `account.Status = SocialAccountStatus.NeedsReconnect` write — safe under the architecture scan because the line mentions neither "publication" nor "pub."). What it does **not** do today: pause the account's **other** `Scheduled` publications. C4 adds exactly that, inside the same private method, so failure classification stays untouched. The handler orchestrating multiple transition calls is boundary-legal (it is a job handler, not a domain service).
+
+- [ ] **Step 1 (RED): Add sweep tests to `PublishPublicationJobHandler.Spec.cs`**
+
+Reuse the spec's existing `SeedAsync(AppDbContext, PublicationStatus)` helper. New cases:
+
+1. `ItShouldPauseAllOtherScheduledPublicationsOfTheSameAccountOnCredentialFailure` — seed account A with the failing run plus Scheduled siblings S1, S2 on A, and a Scheduled S3 on a *different* account of the same tenant. Drive the credential-failure path. Assert: failing row → Paused; S1/S2 → Paused with the same sanitised cause; S3 still Scheduled; account row `Status == NeedsReconnect`.
+2. `ItShouldKeepSweepCausesSanitised` — feed a raw cause containing `'app-password-hunter2'`; assert stored causes contain `[redacted]` and never the raw secret (Epic C §4 + repo transparent-failure rule).
+
+- [ ] **Step 2: Verify RED**
+
+Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PublishPublicationJobHandlerSpec"`
+
+Expected: FAIL — S1/S2 remain Scheduled today.
+
+- [ ] **Step 3: Implement inside `PauseForAccountAsync`**
+
+Start from the wt-644 file and append the marked block; the two existing calls stay byte-identical:
+
+```csharp
+private async Task PauseForAccountAsync(
+	Publication publication,
+	string rawCause,
+	CancellationToken cancellationToken
+) {
+	var cause =
+		$"the social account needs reconnecting: "
+			+ $"{LastErrorSanitiser.Sanitize(rawCause) ?? rawCause}";
+	await _transitions.MarkPausedAsync(
+		new MarkPublicationPausedArgs(
+			publication.GetRequiredId(),
+			publication.TenantId,
+			cause
+		),
+		cancellationToken
+	);
+	await FlagAccountNeedsReconnectAsync(publication.SocialAccountId, cause, cancellationToken);
+
+	// C4: sibling-pause sweep — the account's other scheduled rows must not sit
+	// queued behind broken credentials. Same sanitised cause everywhere. All moves
+	// go through the transition service, so the architecture writer-scan stays green.
+	var siblingIds = await _db.Publication
+		.Where(p => p.SocialAccountId == publication.SocialAccountId
+			&& p.TenantId == publication.TenantId
+			&& p.Status == PublicationStatus.Scheduled)
+		.Select(p => p.Id)
+		.ToListAsync(cancellationToken);
+	foreach (var siblingId in siblingIds) {
+		await _transitions.MarkPausedAsync(
+			new MarkPublicationPausedArgs(siblingId, publication.TenantId, cause),
+			cancellationToken
+		);
+	}
+}
+```
+
+Guard interaction: do not introduce any direct `.Status =` write here; the sweep deliberately loops through `_transitions`.
+
+- [ ] **Step 4: Verify GREEN including the ratchet**
+
+Run:
+```bash
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test \
+	--filter "FullyQualifiedName~PublishPublicationJobHandlerSpec|FullyQualifiedName~PublicationArchitectureSpec"
+```
+
+Expected: PASS, including `ItShouldLetOnlyTheTransitionServiceWritePublicationStatus`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/front/src/components/social-accounts/reconnect-banner.tsx \
-  apps/front/src/components/social-accounts/reconnect-banner.test.tsx \
-  apps/front/src/lib/i18n/locales/en/social-accounts.json \
-  apps/front/src/routes/authed/tenant/workspace/index.tsx
-git commit -m "feat(front): reconnect NeedsReconnect banner component (C4)"
+git add apps/api/Modules/Publishing/Jobs
+git commit -m "feat(api): pause all scheduled publications of a broken social account (C4)"
 ```
 
 ---
 
-## Task 4: SocialAccountPauseService — pause all scheduled + resume with date-passed logic (requires D1)
+## Task 5: Resume-on-reconnect & pause-on-disconnect (handler orchestration)
 
-**D1 gate:** This task requires `IPublicationStatusTransitionService` from D1 (origin/lane/wt-644). If D1 is not yet merged, skip to task 6 for the banner wiring, then return here once D1 lands.
+Gate: requires D1 + Task 3 (+ C2 merged, for the handlers being modified).
 
 **Files:**
-- Create: `apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.cs`
-- Create: `apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.Spec.cs`
+- Create: `apps/api/Modules/Publishing/Services/PublicationQueueService.cs` (+ `.Spec.cs`)
+- Modify: `apps/api/Modules/SocialAccounts/Handlers/Tenant/ReconnectSocialAccountForTenant.cs` — append resume step
+- Modify: `apps/api/Modules/SocialAccounts/Handlers/Tenant/DisconnectSocialAccountForTenant.cs` — append pause-all step
 
-**Interfaces:**
-- Consumes: `IPublicationStatusTransitionService`, `AppDbContext`.
-- Produces: `SocialAccountPauseService.PauseAllScheduledPublicationsAsync` + `ResumePausedPublicationsAsync`.
+**Design (boundary-compliant):**
 
-- [ ] **Step 1: Write the failing test**
-
-```csharp
-// apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.Spec.cs
-// (Integration spec — uses ApiFixture with seeded Publication rows from D1)
-// Note: this spec is WAVE-2. If D1 is not merged, mark this task pending and
-// skip to Task 5.
-```
-
-- [ ] **Step 2: Write the service**
+New read-only finder service, AppDbContext-only constructor (passes `ServiceDependencyBoundaryGuard.Spec.cs`; handlers orchestrate, services implement; handlers never touch `DbContext` directly):
 
 ```csharp
-// apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.cs
-using Microsoft.EntityFrameworkCore;
+namespace PublyApp.Api.Modules.Publishing.Services;
 
-using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Modules.Publishing.Entities;
-using PublyApp.Api.Modules.Publishing.Services;
+public sealed record FindPublicationsOfAccountArgs(Guid TenantId, Guid SocialAccountId);
 
-namespace PublyApp.Api.Modules.SocialAccounts.Services;
-
-/// <summary>
-/// Manages publication-level pause/resume for a social account (Epic C §5). All
-/// Publication.Status writes go through IPublicationStatusTransitionService.
-/// PauseAllScheduledPublicationsAsync: called by the publish provider on account
-/// failure — every Scheduled publication of this account gets MarkPausedAsync.
-/// ResumePausedPublicationsAsync: called on successful reconnect — future instants
-/// → MarkScheduledAsync; past instants stay Paused (nothing published late without
-/// explicit action).
-/// </summary>
-public sealed class SocialAccountPauseService {
-	private readonly AppDbContext _db;
-	private readonly IPublicationStatusTransitionService _transitionService;
-
-	public SocialAccountPauseService(
-		AppDbContext db,
-		IPublicationStatusTransitionService transitionService
-	) {
-		_db = db;
-		_transitionService = transitionService;
-	}
-
+public interface IPublicationQueueService {
 	/// <summary>
-	/// Pauses every Scheduled publication of the given account with the given cause.
-	/// Returns the count of paused publications.
+	/// Non-terminal rows (Scheduled + Paused) of one account, with their instants.
+	/// Tenant-scoped load: a foreign tenant's rows are invisible.
 	/// </summary>
-	public async Task<int> PauseAllScheduledPublicationsAsync(
-		Guid socialAccountId,
-		Guid tenantId,
-		string cause,
-		CancellationToken cancellationToken = default
-	) {
-		var scheduled = await _db.Publication
-			.Where(p => p.SocialAccountId == socialAccountId
-				&& p.TenantId == tenantId
-				&& p.Status == PublicationStatus.Scheduled
-				&& !p.IsDeleted)
-			.ToListAsync(cancellationToken);
-
-		var count = 0;
-		foreach (var pub in scheduled) {
-			var ok = await _transitionService.MarkPausedAsync(
-				pub.Id, tenantId, cause, cancellationToken
-			);
-			if (ok) { count++; }
-		}
-		return count;
-	}
-
-	/// <summary>
-	/// Resumes paused publications on successful reconnect. Future instants → Scheduled;
-	/// past instants stay Paused with a date-passed warning (nothing published late
-	/// without explicit action, Epic C §5).
-	/// </summary>
-	public async Task<ResumeResult> ResumePausedPublicationsAsync(
-		Guid socialAccountId,
-		Guid tenantId,
-		CancellationToken cancellationToken = default
-	) {
-		var paused = await _db.Publication
-			.Where(p => p.SocialAccountId == socialAccountId
-				&& p.TenantId == tenantId
-				&& p.Status == PublicationStatus.Paused
-				&& !p.IsDeleted)
-			.ToListAsync(cancellationToken);
-
-		var resumed = 0;
-		var stillPaused = 0;
-		var now = DateTime.UtcNow;
-
-		foreach (var pub in paused) {
-			if (pub.ScheduledAtUtc > now) {
-				// Future: resume
-				var ok = await _transitionService.RescheduleToNowAsync(
-					pub.Id, tenantId, cancellationToken
-				);
-				if (ok) { resumed++; }
-			} else {
-				// Past instant: stay paused, update cause to date-passed warning
-				var ok = await _transitionService.MarkPausedAsync(
-					pub.Id,
-					tenantId,
-					DatePassedWarning(pub.ScheduledAtUtc, pub.ScheduledTimeZone),
-					cancellationToken
-				);
-				if (ok) { stillPaused++; }
-			}
-		}
-
-		return new ResumeResult(resumed, stillPaused);
-	}
-
-	private static string DatePassedWarning(DateTime scheduledAt, string timeZone) {
-		return $"The scheduled time ({scheduledAt:u} {timeZone}) has passed. "
-			+ "Reschedule or publish now to avoid publishing late.";
-	}
-}
-
-public sealed record ResumeResult(int ResumedCount, int StillPausedCount);
-```
-
-- [ ] **Step 3: Run test to verify it passes** (if D1 is available)
-
-Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~SocialAccountPauseServiceSpec"`
-
-Expected: PASS (if D1 merged) or COMPILE ERROR (if D1 not merged — expected, mark task pending).
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.cs \
-  apps/api/Modules/SocialAccounts/Services/SocialAccountPauseService.Spec.cs
-git commit -m "feat(api): SocialAccountPauseService with pause-all + resume respecting date-passed (C4)"
-```
-
----
-
-## Task 5: Architecture guard extension — pause service may only call IPublicationStatusTransitionService
-
-**Files:**
-- Create: `apps/api/Modules/SocialAccounts/Lib/SocialAccountPauseServiceArchitecture.Spec.cs`
-
-**Interfaces:**
-- Consumes: `SocialAccountPauseService` source (file-based scan).
-- Produces: Guard that fails if `SocialAccountPauseService` writes `Publication.Status` directly (only via `IPublicationStatusTransitionService` allowed).
-
-- [ ] **Step 1: Write the failing test**
-
-```csharp
-// apps/api/Modules/SocialAccounts/Lib/SocialAccountPauseServiceArchitecture.Spec.cs
-using FluentAssertions;
-using Xunit;
-
-namespace PublyApp.Api.Modules.SocialAccounts.Lib;
-
-/// <summary>
-/// Ensures SocialAccountPauseService never writes Publication.Status directly.
-/// All status changes must go through IPublicationStatusTransitionService
-/// (the single legal writer enforced by PublicationArchitecture.Spec).
-/// </summary>
-public sealed class SocialAccountPauseServiceArchitectureSpec {
-	[Fact]
-	public void ItShouldOnlyCallIPublicationStatusTransitionServiceForStatusChanges() {
-		var sourcePath = FindSocialAccountPauseServicePath();
-		if (sourcePath is null) {
-			// D1 not yet merged; pause service not present yet
-			return;
-		}
-
-		var source = File.ReadAllText(sourcePath);
-
-		// Direct Status assignments are forbidden
-		source.Should().NotContain(".Status =",
-			"Publication.Status must only be written through IPublicationStatusTransitionService");
-
-		// Must call the transition service
-		source.Should().Contain("IPublicationStatusTransitionService",
-			"SocialAccountPauseService must use IPublicationStatusTransitionService for all status changes");
-	}
-
-	private static string? FindSocialAccountPauseServicePath() {
-		var dir = new DirectoryInfo(AppContext.BaseDirectory);
-		while (dir is not null) {
-			var target = Path.Combine(
-				dir.FullName,
-				"apps", "api", "Modules", "SocialAccounts", "Services",
-				"SocialAccountPauseService.cs"
-			);
-			if (File.Exists(target)) { return target; }
-			dir = dir.Parent;
-		}
-		return null;
-	}
-}
-```
-
-- [ ] **Step 2: Run test**
-
-Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~SocialAccountPauseServiceArchitectureSpec"`
-
-Expected: PASS (service uses transition service, no direct Status writes).
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add apps/api/Modules/SocialAccounts/Lib/SocialAccountPauseServiceArchitecture.Spec.cs
-git commit -m "test(api): architecture guard for SocialAccountPauseService status writes (C4)"
-```
-
----
-
-## Task 6: Full ResumeForReconnectAsync — integrate status switch + pause service
-
-**Files:**
-- Modify: `apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.cs`
-
-**Interfaces:**
-- Extends: `SocialAccountStatusService.ResumeForReconnectAsync` (stub in Task 1) with full logic: sets account to `Active`, clears `LastError`, calls `SocialAccountPauseService.ResumePausedPublicationsAsync`.
-
-- [ ] **Step 1: Write the failing test**
-
-```csharp
-// Add to SocialAccountStatusService.Spec.cs
-[Fact]
-public async Task ItShouldResumeAccountAndPublicationsOnReconnect() {
-	// Arrange: account is NeedsReconnect with a LastError
-	var (service, tenantId, accountId) = await BuildServiceAsync(
-		initialStatus: SocialAccountStatus.NeedsReconnect
-	);
-
-	// Act: call ResumeForReconnectAsync
-	var result = await service.ResumeForReconnectAsync(accountId, tenantId);
-
-	// Assert: account is Active, LastError cleared
-	await using var db = await ApiFixture.WithDbContextAsync();
-	var account = await db.SocialAccount.SingleAsync(a => a.Id == accountId);
-	account.Status.Should().Be(SocialAccountStatus.Active);
-	account.LastError.Should().BeNull();
-
-	// Resume result shows publications (0 in this test since none exist)
-	result.resumedCount.Should().BeGreaterOrEqualTo(0);
-}
-```
-
-- [ ] **Step 2: Write the full implementation**
-
-Update `SocialAccountStatusService.cs` to inject `SocialAccountPauseService`:
-
-```csharp
-public sealed class SocialAccountStatusService {
-	private readonly AppDbContext _db;
-	private readonly SocialAccountPauseService _pauseService;
-
-	public SocialAccountStatusService(AppDbContext db, SocialAccountPauseService pauseService) {
-		_db = db;
-		_pauseService = pauseService;
-	}
-
-	public async Task<ReconnectResult> ResumeForReconnectAsync(
-		Guid socialAccountId,
-		Guid tenantId,
-		CancellationToken cancellationToken = default
-	) {
-		var account = await _db.SocialAccount
-			.SingleOrDefaultAsync(
-				a => a.Id == socialAccountId
-					&& a.TenantId == tenantId
-					&& !a.IsDeleted,
-				cancellationToken
-			);
-
-		if (account is null) {
-			return ReconnectResult.NotFound;
-		}
-
-		if (account.Status == SocialAccountStatus.Active) {
-			return ReconnectResult.AlreadyActive;
-		}
-
-		// Set account active
-		account.Status = SocialAccountStatus.Active;
-		account.LastError = null;
-		await _db.SaveChangesAsync(cancellationToken);
-
-		// Resume publications (future → scheduled; past → still paused with warning)
-		var resumeResult = await _pauseService.ResumePausedPublicationsAsync(
-			socialAccountId, tenantId, cancellationToken
+	public Task<IReadOnlyList<(Guid Id, DateTime ScheduledAtUtc)>>
+		FindNonTerminalForAccountAsync(
+			FindPublicationsOfAccountArgs args,
+			CancellationToken cancellationToken
 		);
+}
+```
 
-		return new ReconnectResult(true, resumeResult.ResumedCount, resumeResult.StillPausedCount);
+Implementation: `[Service]`-attributed class over `AppDbContext`, `AsNoTracking`, filter `TenantId + SocialAccountId + Status in {Scheduled, Paused}`, project `(Id, ScheduledAtUtc)`.
+
+**Resume policy (Epic C §5):** on reconnect, rows with a **future** instant are resumed via `MarkScheduledAsync` (legal from both Paused and Scheduled). Rows whose instant has **passed** are re-paused via `MarkPausedAsync` with a cause telling the user to pick a new time (legal from both Paused and Scheduled after Task 3). Nothing late ever fires. The `wasPaused` distinction is unnecessary once both sources are legal — the instant alone decides.
+
+- [ ] **Step 1: PublicationQueueService TDD**
+
+Spec follows the `PublishPublicationJobHandler.Spec.cs` seeding idiom. Cases: returns only the calling tenant's rows; returns only Scheduled+Paused rows (Published/Failed excluded); empty result when none match; foreign-tenant invisibility.
+
+- [ ] **Step 2 (RED): Extend ReconnectSocialAccountForTenant.Spec.cs**
+
+C2's reconnect spec asserts `SocialAccountService.ReconnectAsync` flips the account back to `Active`. Add: after reconnect, a Paused future-instant publication of that account becomes `Scheduled` with its original instant preserved, and a past-due Paused row stays `Paused` with an updated cause mentioning choosing a new time. Seed publications using the D1 idiom.
+
+- [ ] **Step 3: Wire resume into the reconnect handler**
+
+After C2's success path in `ReconnectSocialAccountForTenant.Handle` (inject both services via `[FromServices]` alongside C2's existing parameters):
+
+```csharp
+var queueRows = await publicationQueueService.FindNonTerminalForAccountAsync(
+	new FindPublicationsOfAccountArgs(tenantId, socialAccountId),
+	cancellationToken
+);
+foreach (var (publicationId, scheduledAtUtc) in queueRows) {
+	if (scheduledAtUtc > DateTime.UtcNow) {
+		await transitions.MarkScheduledAsync(
+			new MarkPublicationScheduledArgs(publicationId, tenantId),
+			cancellationToken
+		);
+	} else {
+		await transitions.MarkPausedAsync(
+			new MarkPublicationPausedArgs(
+				publicationId,
+				tenantId,
+				"its scheduled time passed while the account needed reconnection"
+					+ "; choose a new time to publish it"
+			),
+			cancellationToken
+		);
 	}
 }
-
-public sealed record ReconnectResult(
-	bool Success,
-	int ResumedCount,
-	int StillPausedCount
-) {
-	public static ReconnectResult NotFound => new(false, 0, 0);
-	public static ReconnectResult AlreadyActive => new(false, 0, 0);
-}
 ```
 
-- [ ] **Step 3: Run tests**
+Loop-of-single-transactions is acceptable at banner scale (a tenant's queued publications for one account); note it in the handler comment.
 
-Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~SocialAccountStatusServiceSpec"`
+- [ ] **Step 4 (RED→GREEN): Wire pause-all into DisconnectSocialAccountForTenant**
 
-Expected: PASS.
+Add a spec case: after disconnect, all non-terminal publications of the account end up `Paused` with cause mentioning disconnection (both future and past instants — everything stops). Implementation mirrors Step 3 but calls `MarkPausedAsync` unconditionally with cause `"its social account was disconnected"`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Full gates + client regen**
 
 ```bash
-git add apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.cs \
-  apps/api/Modules/SocialAccounts/Services/SocialAccountStatusService.Spec.cs
-git commit -m "feat(api): full ResumeForReconnectAsync with publication resume logic (C4)"
+just build-api && just generate-client && pnpm --filter front typecheck
+cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test \
+	--filter "FullyQualifiedName~PublicationQueueServiceSpec|FullyQualifiedName~ReconnectSocialAccountForTenantSpec|FullyQualifiedName~DisconnectSocialAccountForTenantSpec|FullyQualifiedName~ServiceDependencyBoundaryGuard"
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/Modules/Publishing/Services/PublicationQueueService.cs \
+  apps/api/Modules/Publishing/Services/PublicationQueueService.Spec.cs \
+  apps/api/Modules/SocialAccounts/Handlers/Tenant packages/client-ts
+git commit -m "feat(api): resume on reconnect, pause on disconnect (C4)"
 ```
 
 ---
 
-## Task 7: Full gate — `just ci`
+## Task 6: E2E coverage decision + final gates
 
-- [ ] **Step 1: Run the full CI gate**
+**Files:** possibly one new e2e spec under the repo's e2e suite; otherwise documentation-only.
 
-Run: `just ci`
-
-Expected: green — builds, analyzers, full API suite, React Doctor.
-
-- [ ] **Step 2: Run all C4-related specs**
+- [ ] **Step 1: Apply the five-criteria test** from [`docs/guides/e2e-coverage.md`](../../guides/e2e-coverage.md) to each C4 behavior. Expected outcome: the pause/resume/sweep machinery is fully covered by API integration specs (real Postgres, real HTTP); the banner render + gating is covered by component tests. The one candidate that may meet all five criteria is "tenant admin sees the reconnect banner and can start reconnection" — seedable entirely server-side (set an account to `NeedsReconnect`), observable through real UI. If it qualifies, add it with the tag vocabulary from [`docs/guides/e2e-tags.md`](../../guides/e2e-tags.md); if not, record the reasoning in the PR description instead of forcing a low-value e2e.
+- [ ] **Step 2: Run the local CI gate**
 
 ```bash
-cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~SocialAccountStatusServiceSpec|SocalAccountPauseServiceSpec|GetNeedsReconnectAccountsForTenantSpec|SocialAccountPauseServiceArchitectureSpec"
+just ci
 ```
 
-Expected: all green.
+(CI itself never runs the API suite; `just ci` is the stronger backend signal and includes `ci-front`, design-token and z-index guards.)
 
-- [ ] **Step 3: Run front tests**
-
-```bash
-pnpm --filter front exec vitest run src/components/social-accounts/reconnect-banner.test.tsx
-```
-
-Expected: all green.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit any e2e addition**
 
 ```bash
-git add -A
-git commit -m "feat(c4): pause and resume — full implementation, tests, architecture guard"
+git add <e2e paths>
+git commit -m "test(e2e): reconnect banner visible to tenant admin (C4)"   # only if Step 1 added a test
 ```
 
 ---
 
-## Spec Proofs
+## Open Questions (flagged for the reviewer, none block implementation)
 
-Every task includes these:
+1. **Banner home:** develop has no `authed/tenant/workspace/index.tsx`; the integrations settings page is where accounts actually live today, so Wave 1 puts the banner there. When the workspace shell ships (Epic C §3 "Workspace banner"), moving the slot is a one-component relocation.
+2. **Past-due UX after resume-block:** a past-due paused row needs a "choose a new time" affordance. Epic D §3 item 6 owns rescheduling UX; until it lands, the banner + publication list show the stored cause (transparent-failure rule satisfied).
+3. **Due-scan vs NeedsReconnect accounts:** whether D3's due scan filters by account status. Either way C4 is correct — a claimed row on a broken account hits the credential-failure classifier and lands in `PauseForAccountAsync` — but confirming the predicate sharpens the reconnect-handler comment in Task 5 Step 3.
+4. **Multi-account banners:** the endpoint returns all needs-reconnect accounts; the banner shows the first + "+N more". If product wants per-account rows with individual buttons, that is a Task 2 prop-shape change only.
 
-| Proof | Location |
+---
+
+## Appendix A: Verification ledger (every load-bearing symbol)
+
+| Symbol / fact | Verified at |
 |---|---|
-| Secret never in responses | `GetNeedsReconnectAccountsForTenant.Spec.cs`: foreign tenant returns 404, not 403 |
-| `LastError` sanitised before storage | `SocialAccountStatusServiceSpec`: cause with `'hunter2-secret'` does not appear in `LastError` |
-| Tenant isolation | `SocialAccountStatusServiceSpec`: foreign tenant → false; `GetNeedsReconnectAccountsForTenantSpec`: foreign tenant → 404 |
-| Date-passed stays paused | `SocialAccountPauseServiceSpec`: past instant → still paused with date-passed warning |
-| Future instant resumes | `SocialAccountPauseServiceSpec`: future instant → MarkScheduledAsync called |
-| Architecture: only transition service writes status | `SocialAccountPauseServiceArchitectureSpec`: no `.Status =` in source |
-| Adversarial mutation | Remove the tenant filter in `SocialAccountStatusService.SwitchToNeedsReconnectAsync` → isolation spec goes red |
+| `IPublicationStatusTransitionService`: five `Task<bool>` members taking Args records | `git show origin/lane/wt-644:apps/api/Modules/Publishing/Services/PublicationStatusTransitionService.cs` |
+| `AllowedSources` map contents (incl. `Paused ← InProgress` only; `Scheduled ← [Scheduled, Paused, Failed]`) | same file |
+| `RescheduleToNowAsync` stamps `DateTime.UtcNow`, clears LastError/external fields | same file |
+| No `MarkScheduledAsync`, no `SwitchToNeedsReconnectAsync`, no `ResumeForReconnectAsync`, no `SocialAccountStatusService` anywhere | exhaustive grep across all remote refs (only hits were this plan's own drafts) |
+| `PublicationArchitectureSpec` = CK constraint/index assertions + line-scan for `.Status =` writes outside the transition service, offender lines must mention "publication"/"pub." | `origin/lane/wt-644:apps/api/Lib/Architecture/PublicationArchitecture.Spec.cs` |
+| `ServiceDependencyBoundaryGuard.Spec.cs` forbids domain-service→domain-service injection | develop, `apps/api/Lib/Architecture/` |
+| `PublishPublicationJobHandler.PauseForAccountAsync` / `FlagAccountNeedsReconnectAsync` exist; account flagged directly | `origin/lane/wt-644:apps/api/Modules/Publishing/Jobs/PublishPublicationJobHandler.cs` |
+| `Publication` entity fields incl. `required SocialAccountId`, `ScheduledTimeZone`, `IdempotencyKey` | `origin/lane/wt-644:apps/api/Modules/Publishing/Entities/Publication.cs` |
+| `SocialAccount` entity fields incl. `required ExternalAccountId/DisplayHandle/ProtectedCredentials`, `LastError` | `origin/lane/wt-641:apps/api/Modules/SocialAccounts/Entities/SocialAccount.cs` |
+| `Routes.SocialAccounts.ForTenant` partial + `MapSocialAccountEndpointsForTenant` group + Program registration | `origin/lane/wt-641:apps/api/Modules/SocialAccounts/Routes.SocialAccounts.cs`, `Endpoints/SocialAccountEndpointsForTenant.cs`, `Program.cs` L321 |
+| `FindSocialAccountsForTenant` handler shape (auth-context parse, concrete service injection, wire mapping `Provider = "bluesky"`) | `origin/lane/wt-641:.../FindSocialAccountsForTenant.cs` |
+| `LastErrorSanitiser.Sanitize(string?) : string?`, 2 KB cap, `[redacted]` placeholders | `origin/lane/wt-641:apps/api/Modules/SocialAccounts/Lib/LastErrorSanitiser.cs` |
+| Test infra: `ApiFixture.Factory/.HttpClient`, `TestAuthClient.LoginAsync/LoginAsStaffAdminAsync`, `WithSessionToken/.WithTenantId`, `TenantTestHelper.GetTenantIdByNameAsync`, `SeedConstants.Tenants.AcmeName/GlobalName`, `TestConstants.SeedPassword/AcmeAdminEmail`, `BaseAttributes.GetRequiredId()` | develop, `apps/api/Lib/Testing/**`, `apps/api/Data/BaseAttributes.cs` |
+| Front: no jest-dom; `statusPillTone` tones; `Button` wraps Base UI with `data-icon="inline-start"` icon convention; `--publy-alert-warning-*` tokens; kebab-case i18n JSON bundles registered in `locales/en.ts` + `FEATURE_I18N_NAMESPACES`; `routes/authed/tenant/settings/integrations.tsx` exists; no `components/ui/alert.tsx` | develop, `apps/front/src/**` |
 
----
+## Appendix B: Red-proof protocol (applies to Tasks 3–5)
 
-## Open Questions for the Owner
+Every behavioral change proves its test bites, mutation-style, before the fix is trusted:
 
-1. **D1 timeline**: when is lane/wt-644 (Publication entity + PublicationStatusTransitionService) expected to merge? C4 tasks 4–7 (pause/resume) are blocked on it.
-2. **Banner placement**: should the reconnect banner appear on every authenticated tenant page, or only on the workspace/home? The current plan places it in the workspace index route.
-3. **Multiple accounts**: the banner shows the first `NeedsReconnect` account. Should it collapse multiple accounts into "and N more" (current plan) or list them all inline?
-4. **Reconnect drawer**: does the reconnect action open the same drawer as C3 (Connect Bluesky account), prefilled with the handle? Or a separate lightweight reconnect UI?
-5. **e2e scope**: should the e2e test cover the full reconnect flow (banner → drawer → reconnect → banner gone) or only the banner render?
+1. Write the new spec; run it; confirm it fails.
+2. Temporarily revert only the production edit (remove the map entry / comment out the sweep loop / skip the resume branch).
+3. Confirm the spec fails for the *right reason* (the assertion that encodes the requirement, not setup noise).
+4. Restore the edit; confirm green; leave the tree clean — planted mutations are never committed.
 
----
-
-## Self-Review
-
-1. **Spec coverage** — every Epic C §5 and §3 item: status switch (`SwitchToNeedsReconnectAsync`), pause all (`PauseAllScheduledPublicationsAsync`), resume with date-passed logic (`ResumePausedPublicationsAsync`), banner component, banner tests, architecture guard, integration specs for every transition, adversarial mutation.
-2. **Placeholder scan** — no "TBD", no "similar to". Every code step shows the code. The D1-pending note is explicit, not a placeholder.
-3. **Type consistency** — `SocialAccountStatus.NeedsReconnect`, `PublicationStatus.Paused`/`Scheduled`, `IPublicationStatusTransitionService` all used as defined in Epic C §2/Epic D §2. `ResumeResult` record used consistently.
-4. **D1 dependency** — tasks 1–3 are D1-independent (status switch + endpoint + banner). Tasks 4–7 declare the dependency clearly and skip gracefully if D1 is not present.
-5. **Decisions taken where the spec left room**:
-   - Banner shows first account + "and N more" (extensible to full list if owner says otherwise)
-   - Reconnect button opens a drawer (C3 drawer reused) — if owner prefers inline, Task 3's `onReconnect` callback is the hook
-   - Architecture guard is file-scan (Roslyn-free, same technique as `PublicationArchitecture.Spec`)
+This satisfies the round-1 finding that demanded red-first evidence rather than asserted coverage.
