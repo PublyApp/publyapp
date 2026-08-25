@@ -210,6 +210,39 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldRefuseAnEmptyActorBeforeAnyDatabaseWriteWhenDrivenThroughTheRealWriterPath() {
+		var jobId = Guid.NewGuid();
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var writer = scope.ServiceProvider.GetRequiredService<IEmailLogWriter>();
+
+		// The writer path itself refuses an unnamed author: building the args record —
+		// the FIRST thing ApplyProviderEvidenceAsync touches — throws, because
+		// EmailLogActor's constructor validates before any database write. This is the
+		// integration-level proof that the type carries the invariant (#866 round-1
+		// finding 4); no row can be written without an author.
+		Func<Task<ApplyProviderEvidenceResult>> act = () => writer.ApplyProviderEvidenceAsync(
+			new ApplyProviderEvidenceEmailLogArgs {
+				JobId = jobId,
+				Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+				NewOutcome = EmailLogOutcome.Submitted,
+				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+				ProviderEventId = $"evt-{jobId:N}",
+				Actor = EmailLogActor.ProviderWebhook("   "),
+			}
+		);
+
+		var ex = await act.Should().ThrowAsync<ArgumentException>();
+		ex.Which.ParamName.Should().Be("id",
+			"the refusal names what is missing: the author's correlation id");
+
+		await using var verify = await CreateFreshDbContextAsync();
+		var hasEvidence = await verify.EmailLogEvidenceEvent
+			.AnyAsync(e => e.EmailLog != null && e.EmailLog.JobId == jobId);
+		hasEvidence.Should().BeFalse("the refusal happened before any database write");
+	}
+
+	[Fact]
 	public async Task ItShouldReportUnknownTargetWhenNoEmailLogRowMatches() {
 		var missingJobId = Guid.NewGuid();
 

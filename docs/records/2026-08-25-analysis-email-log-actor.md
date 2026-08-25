@@ -114,3 +114,13 @@ Applied during the fix round of PR #1389, before landing, so this record ships a
   (an earlier draft claimed this index existed without creating it — fixed).
 - This file moved from `docs/analysis/…-design.md` to `docs/records/` (docs pruning,
   #1357/#1395).
+
+### Scope honesty
+
+As of this round there is **no provider-webhook endpoint on develop**: nothing in
+production calls `IEmailLogWriter.ApplyProviderEvidenceAsync` yet. The method's only
+callers are its specs, which drive the writer through a real scoped DI container over
+Testcontainers Postgres — exactly how the future webhook packet will resolve it. The
+transition path, its allowlist, its replay index, and its loud refusals are production
+code exercised by integration tests; they become reachable in production when the
+webhook endpoint lands (design §4.4's Submitted → Delivered/Bounced/Complained edges).
