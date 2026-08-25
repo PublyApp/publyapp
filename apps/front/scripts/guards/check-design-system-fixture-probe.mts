@@ -6,7 +6,7 @@ import {
 	getFixtureParentPath,
 	makeFixture,
 	registerFixtureSignalHandlers,
-} from './check-design-system-fixtures.mjs';
+} from './check-design-system-fixtures.mts';
 
 const mode = process.env.FRONT2_DESIGN_GUARD_FIXTURE_PROBE;
 registerFixtureSignalHandlers();

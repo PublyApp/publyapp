@@ -20,8 +20,8 @@ const SEARCH_CANCEL_TOKEN = '::-webkit-search-cancel-button';
  * Paths are workspace-relative and use `/` on every platform.
  */
 export const SEARCH_CANCEL_MENTION_INVENTORY = [
-	'apps/front/scripts/search-cancel-css-policy.mjs',
-	'apps/front/scripts/search-cancel-css-policy.test.mjs',
+	'apps/front/scripts/guards/search-cancel-css-policy.mts',
+	'apps/front/scripts/guards/search-cancel-css-policy.test.mts',
 	'apps/front/src/components/ui/search-input.test.tsx',
 	'apps/front/src/styles/app.css',
 ];
@@ -435,7 +435,7 @@ export const collectShippedSourcePaths = (workspaceRoot) => {
 			throw new Error(
 				`Search cancel CSS policy cannot scan shipped source: ` +
 					`missing root "${root}". If it moved, update SHIPPED_SOURCE_ROOTS ` +
-					`in apps/front/scripts/search-cancel-css-policy.mjs.`,
+					`in apps/front/scripts/guards/search-cancel-css-policy.mts.`,
 			);
 		}
 
@@ -517,7 +517,7 @@ export const assertShippedSourceSearchCancelCss = (workspaceRoot) => {
 				SEARCH_CANCEL_MENTION_INVENTORY.map((entry) => `- ${entry}`).join('\n'),
 				'There is no in-file exemption marker. Adding a file to ' +
 					'SEARCH_CANCEL_MENTION_INVENTORY in ' +
-					'apps/front/scripts/search-cancel-css-policy.mjs is a reviewed diff ' +
+					'apps/front/scripts/guards/search-cancel-css-policy.mts is a reviewed diff ' +
 					'that must also update the pinning test — never split the token to ' +
 					'hide it from this scan.',
 				scannedRoots,

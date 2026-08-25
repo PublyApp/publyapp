@@ -15,7 +15,7 @@ try {
 }
 
 const pkg = JSON.parse(
-	readFileSync(new URL('../package.json', import.meta.url)),
+	readFileSync(new URL('../../package.json', import.meta.url)),
 );
 const bad = [];
 

@@ -33,7 +33,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 
 /**
  * The compiler emits its `react/compiler-runtime` shim as a dedicated chunk
@@ -57,7 +57,7 @@ export const MEMO_CACHE_COMPARE_PATTERN =
 	/===Symbol\.for\([`"']react\.memo_cache_sentinel[`"']\)/;
 
 /**
- * Measured with `node scripts/check-react-compiler.mjs --measure` on the
+ * Measured with `node scripts/guards/check-react-compiler.mts --measure` on the
  * #1234 lane's post-rewrite production build (2026-08-23): 90 modules across
  * dist/client/assets embed the memo-cache sentinel. Pinned as a literal so
  * the floor cannot silently drift with whatever the inspected build happens
@@ -154,7 +154,7 @@ const main = () => {
 				`  required floor: ${COMPILED_FLOOR} (80% of measured ${MEASURED_BASELINE})\n\n` +
 				`If this is a deliberate, reviewed change (compiler removed, a big ` +
 				`opt-out landed, or the codebase legitimately grew past a boundary), ` +
-				`re-measure with \`node scripts/check-react-compiler.mjs --measure\`, ` +
+				`re-measure with \`node scripts/guards/check-react-compiler.mts --measure\`, ` +
 				`update MEASURED_BASELINE in this script, and explain it in the PR. ` +
 				`Otherwise inspect apps/front/vite.config.ts and the ` +
 				`\`@vitejs/plugin-react\` version.`,

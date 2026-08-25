@@ -29,7 +29,7 @@ import {
 	runZIndexGuard,
 	scanZIndexFile,
 	stripComments,
-} from './check-zindex-guard.mjs';
+} from './check-zindex-guard.mts';
 
 // #987 — z-index scale guard. Every fixture below lives in `scripts/`, outside
 // the `src/**` tree the production scanner watches, so fixture literals can
@@ -185,11 +185,11 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 	//     handlers). A new consumer that calls the raw projection directly,
 	//     or a funnel call that omits a handler, fails here.
 	const script = await readFile(
-		path.join(scriptsDir, 'check-zindex-guard.mjs'),
+		path.join(scriptsDir, 'check-zindex-guard.mts'),
 		'utf8',
 	);
 	const sourceFile = ts.createSourceFile(
-		'check-zindex-guard.mjs',
+		'check-zindex-guard.mts',
 		script,
 		ts.ScriptTarget.Latest,
 		true,
@@ -2079,7 +2079,7 @@ test('round 6 M3: an interrupted guard run removes the private build directory',
 	)) {
 		await rm(path.join(tmpdir(), stale), { recursive: true, force: true });
 	}
-	const scriptPath = path.join(scriptsDir, 'check-zindex-guard.mjs');
+	const scriptPath = path.join(scriptsDir, 'check-zindex-guard.mts');
 	const child = spawn(process.execPath, [scriptPath], {
 		cwd: path.join(scriptsDir, '..'),
 		stdio: 'ignore',

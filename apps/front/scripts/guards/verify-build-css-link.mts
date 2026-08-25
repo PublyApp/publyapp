@@ -19,12 +19,12 @@ import {
 	assertCanonicalSearchCancelCss,
 	assertEmittedBundlesFreeOfSearchCancel,
 	assertShippedSourceSearchCancelCss,
-} from './search-cancel-css-policy.mjs';
+} from './search-cancel-css-policy.mts';
 
-const distDir = new URL('../dist/', import.meta.url);
+const distDir = new URL('../../dist/', import.meta.url);
 const clientDir = new URL('client/', distDir);
 const serverDir = new URL('server/', distDir);
-const workspaceRoot = new URL('../../../', import.meta.url);
+const workspaceRoot = new URL('../../../..', import.meta.url);
 
 const collectPaths = (rootDir, isMatch) => {
 	const stack = [rootDir];

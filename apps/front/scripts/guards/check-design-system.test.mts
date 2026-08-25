@@ -15,13 +15,13 @@ import {
 	makeOwnedTempDirectory,
 	makeFixture,
 	registerFixtureSignalHandlers,
-} from './check-design-system-fixtures.mjs';
+} from './check-design-system-fixtures.mts';
 import {
 	createHandoffLedgerProbe,
 	KNOWN_GUARD_DEBT,
 	scanFront2DesignSystem,
 	scanFront2DesignSystemInternals,
-} from './check-design-system.mjs';
+} from './check-design-system.mts';
 
 const testFilePath = fileURLToPath(import.meta.url);
 let fixtureParent;
@@ -358,7 +358,7 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 	const { result, root } = await runRunnerInterruptionProbe({
 		env: process.env,
 		runnerPath: fileURLToPath(
-			new URL('./check-design-system-runner-probe.mjs', import.meta.url),
+			new URL('./check-design-system-runner-probe.mts', import.meta.url),
 		),
 	});
 	assert.notEqual(result.code, 0);
@@ -877,7 +877,7 @@ const startFixtureProbe = async (mode) => {
 		process.execPath,
 		[
 			fileURLToPath(
-				new URL('./check-design-system-fixture-probe.mjs', import.meta.url),
+				new URL('./check-design-system-fixture-probe.mts', import.meta.url),
 			),
 		],
 		{

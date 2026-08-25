@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const testFile = fileURLToPath(
-	new URL('./check-design-system.test.mjs', import.meta.url),
+	new URL('./check-design-system.test.mts', import.meta.url),
 );
 const env = { ...process.env, FRONT2_DESIGN_GUARD_RUNNER_PROBE: '1' };
 delete env.NODE_TEST_CONTEXT;

@@ -7,7 +7,7 @@ object, and a provider in one chunk no longer matches a consumer in another.
 
 ## How it works
 
-- `apps/front/scripts/check-context-chunk-isolation.mjs` is a Vite plugin
+- `apps/front/tools/vite/check-context-chunk-isolation.mts` is a Vite plugin
   (`publy:context-chunk-isolation`) wired in `apps/front/vite.config.ts`. It runs for client
   builds only.
 - At `buildStart` it loads the real `apps/front/tsconfig.json` TypeScript program and finds every

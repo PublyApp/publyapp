@@ -16,7 +16,7 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const verifierPath = path.join(scriptsDirectory, 'verify-font-bundle.mjs');
+const verifierPath = path.join(scriptsDirectory, 'verify-font-bundle.mts');
 
 const createdDirectories = [];
 

@@ -13,7 +13,7 @@ import {
 	assertCanonicalSearchCancelCss,
 	assertEmittedBundlesFreeOfSearchCancel,
 	assertShippedSourceSearchCancelCss,
-} from './search-cancel-css-policy.mjs';
+} from './search-cancel-css-policy.mts';
 
 const canonicalSourceCss = `
 .publy-search-input[type='search']::-webkit-search-cancel-button {
@@ -44,7 +44,7 @@ const createWorkspace = (files) => {
 	write('apps/front/src/styles/app.css', canonicalSourceCss);
 	write('apps/front/server.mjs', 'export default {};\n');
 	write('apps/front/vite.config.ts', 'export default {};\n');
-	write('apps/front/scripts/placeholder.mjs', 'export const noop = 0;\n');
+	write('apps/front/scripts/guards/placeholder.mts', 'export const noop = 0;\n');
 	write(
 		'packages/shared-ts/src/lib/placeholder.ts',
 		'export const noop = 0;\n',
@@ -552,8 +552,8 @@ test('the shipped source roots stay pinned to what the build actually ships', ()
  */
 test('the mention inventory stays pinned to the four legitimate sites', () => {
 	assert.deepEqual(SEARCH_CANCEL_MENTION_INVENTORY, [
-		'apps/front/scripts/search-cancel-css-policy.mjs',
-		'apps/front/scripts/search-cancel-css-policy.test.mjs',
+		'apps/front/scripts/guards/search-cancel-css-policy.mts',
+		'apps/front/scripts/guards/search-cancel-css-policy.test.mts',
 		'apps/front/src/components/ui/search-input.test.tsx',
 		'apps/front/src/styles/app.css',
 	]);

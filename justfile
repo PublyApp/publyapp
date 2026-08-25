@@ -347,7 +347,7 @@ ci-project-closure-adapter:
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
-  node apps/front/scripts/assert-pinned.mjs
+  node apps/front/scripts/guards/assert-pinned.mts
   pnpm install --frozen-lockfile --ignore-scripts
   pnpm --filter @org/shared-ts run postinstall
 

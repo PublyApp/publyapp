@@ -12,7 +12,7 @@ import postcss from 'postcss';
 import { ts } from 'ts-morph';
 import { createBuilder, isCSSRequest } from 'vite';
 
-const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const appCssPath = path.join(rootDir, 'src/styles/app.css');
 
 const SCRIPT_EXTENSIONS = new Set([
@@ -3973,7 +3973,7 @@ export const checkCompiledCssZIndex = (
 				'resolve through var(--publy-z-…) — every z-index in the built ' +
 				'stylesheet must route through the scale. If a dependency owns ' +
 				'this declaration, extend KNOWN_RAW_Z_INDEX_DECLARATIONS in ' +
-				'apps/front/scripts/check-zindex-guard.mjs only after review.',
+				'apps/front/scripts/guards/check-zindex-guard.mts only after review.',
 			file: sourceName,
 			line: declaration.line,
 			source: shipped,

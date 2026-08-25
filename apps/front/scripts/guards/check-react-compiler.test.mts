@@ -14,7 +14,7 @@ import {
 	analyzeClientBundle,
 	assertCompiledArtifacts,
 	collectClientJsFiles,
-} from './check-react-compiler.mjs';
+} from './check-react-compiler.mts';
 
 const makeFixtureDir = () =>
 	mkdtempSync(path.join(tmpdir(), 'react-compiler-guard-'));

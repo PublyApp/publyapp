@@ -12,14 +12,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // ts-morph's vendored, version-pinned compiler provides that.
 import { ts } from 'ts-morph';
 
-import suppressionInventory from '../src/lib/suppression-inventory.json' with { type: 'json' };
+import suppressionInventory from '../../src/lib/suppression-inventory.json' with { type: 'json' };
 import {
 	diffSuppressionInventory,
 	findSuppressionSitesInSource,
 	isPreviousLineSuppressed,
-} from '../src/lib/suppression-reason.ts';
+} from '../../src/lib/suppression-reason.ts';
 
-const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const srcDir = path.join(rootDir, 'src');
 const e2eDir = path.join(rootDir, 'e2e');
 

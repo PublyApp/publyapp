@@ -4,10 +4,10 @@ import { fileURLToPath } from 'node:url';
 import {
 	SHIPPED_SOURCE_ROOTS,
 	assertShippedSourceSearchCancelCss,
-} from './search-cancel-css-policy.mjs';
+} from './search-cancel-css-policy.mts';
 
 const workspaceRoot = path.resolve(
-	fileURLToPath(new URL('../../..', import.meta.url)),
+	fileURLToPath(new URL('../../../..', import.meta.url)),
 );
 const { inventoriedMentionCount, inventorySize, sourceFileCount } =
 	assertShippedSourceSearchCancelCss(workspaceRoot);
