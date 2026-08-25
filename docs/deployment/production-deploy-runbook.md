@@ -152,6 +152,38 @@ For operators:
 - If you see the refusal in logs, remove the stray argument from that service's command;
   nothing else needs to change.
 
+### Duplicate canary rows: cause and one-off repair (#1416, incident 2026-08-25)
+
+On the 2026-08-25 deployment whose canary row did not exist yet, `publyapp-api` and
+`publyapp-worker` booted together against an empty canary: every process read null,
+every process inserted its own `social-accounts-master-key-canary` row into
+`data_protection_keys`, and every LATER boot then died in the canary read with
+`Sequence contains more than one element`, crash-looping both services.
+
+Since migration `AddCanaryFriendlyNameUniqueIndex` this cannot recur: the migration
+first deduplicates existing rows (it keeps the LOWEST `"Id"` — the row earlier boots
+verified under) and then enforces a unique partial index
+(`ux_data_protection_keys_canary_friendly_name`) filtered to the canary name only.
+Ordinary Data Protection key-ring rows are unaffected. If a database ever carries
+duplicates again anyway, the boot fails naming the duplicate count and the action
+below instead of the bare LINQ error.
+
+Manual repair (only when the migration cannot run): keep the lowest-id canary row,
+delete the rest —
+
+```sql
+DELETE FROM data_protection_keys
+WHERE "FriendlyName" = 'social-accounts-master-key-canary'
+  AND "Id" <> (
+      SELECT MIN("Id") FROM data_protection_keys
+      WHERE "FriendlyName" = 'social-accounts-master-key-canary'
+  );
+```
+
+Every duplicate row was minted under the SAME `SOCIAL_ACCOUNTS_MASTER_KEY`, so the
+lowest-id survivor verifies; after the delete, restart `api`/`worker` and confirm the
+single PASSED canary log line described above.
+
 ## Production-instance checks — RESOLVED (first deploy, 2026-07-20)
 
 These were open before the first real deployment. They are now answered on the live VPS. The
