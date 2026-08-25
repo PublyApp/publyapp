@@ -14,7 +14,8 @@ provider webhook (or a reconciliation import) has **no user**. Any `audit_logs` 
 specified for those transitions is unconstructible — exactly the defect R10-3 identified for
 the terminal classification path, and fixed there with the actor-less evidence table
 `job_dead_letter_events` (O30; landed by the sibling lane as `db86cd814`). §11 K-6 names the
-same defect for §4.4 and directs: "apply O30's pattern … under a `email_log_events` table."
+same defect for §4.4 and directs: "apply O30's pattern … under a
+`email_log_evidence_events` table."
 
 Like #863, the downstream machinery does not exist yet on develop: there is no
 `ApplyProviderEvidenceAsync`, no webhook outcomes (`Delivered/Bounced/Complained`),
@@ -70,6 +71,15 @@ loosening guards. O30's ruling stands: engine/provider-owned transitions get **t
 append-only, actor-less-but-actor-NAMING evidence table with an FK to the row they describe.
 `detected_by`/`actor_kind` is a controlled vocabulary string, not a user reference.
 
+Why TWO columns here where O30 used one (`detected_by`) — deliberate, not drift: §4.4's
+dashboard must distinguish WHO produced a transition (the kind: provider webhook vs
+reconciliation import) from the correlation text it carries (provider event id / import
+batch id) without parsing free text, and `actor_kind` alone backs the database CHECK
+constraint `ck_email_log_evidence_events_actor_kind`, which a merged single column cannot
+express cleanly. The split keeps both halves machine-checkable end to end
+(`EmailLogActor` factories → column CHECKs); this paragraph is the recorded reason the
+shape diverges from `job_dead_letter_events`.
+
 ## 4. Tests (TDD, paired proof)
 
 1. RED (structural): the architecture guard — fails while no evidence-transition contract
@@ -89,3 +99,18 @@ append-only, actor-less-but-actor-NAMING evidence table with an FK to the row th
 Under `~/ai-orchestration-playbook/tools/heavy.sh`: targeted API specs, then the full API
 suite once. `just check-write`, `just ci-drift`. No front files touched; no local e2e
 (captain policy 2026-08-23). Snapshot kept in sync via `just db-add`.
+
+## 6. Round-1 review amendments (same day, pre-merge)
+
+Applied during the fix round of PR #1389, before landing, so this record ships accurate:
+
+- The actor became a real VALUE type (`EmailLogActor`, vocabulary-restricted Kind,
+  non-empty bounded Id enforced in its constructor) carried by every
+  `IEmailLogTransition` implementor; empty-string authors throw before any DB write.
+- The same invariants were pushed into the schema as CHECK constraints
+  (`ck_email_log_evidence_events_actor_kind/_id`), so raw-SQL writers are bound too.
+- Replay rejection got its EXPLICIT artifact: `provider_event_id` on the evidence row
+  itself with the partial unique index `ux_email_log_evidence_events_provider_event_id`
+  (an earlier draft claimed this index existed without creating it — fixed).
+- This file moved from `docs/analysis/…-design.md` to `docs/records/` (docs pruning,
+  #1357/#1395).
