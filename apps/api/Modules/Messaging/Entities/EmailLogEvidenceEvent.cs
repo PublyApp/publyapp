@@ -64,4 +64,11 @@ public class EmailLogEvidenceEvent : INoTenantEntity {
 
 	// Read-side navigation for per-subject history queries; never written directly.
 	public EmailLog? EmailLog { get; set; }
+
+	// Correlation duplicated onto the EVIDENCE row itself (#866 round-1 finding 3):
+	// ux_email_log_evidence_events_provider_event_id rejects a replayed provider event
+	// even for a writer that never re-stamps the parent row. NULL for non-provider
+	// events (mirrors email_log.provider_event_id).
+	[Column("provider_event_id")]
+	public string? ProviderEventId { get; set; }
 }

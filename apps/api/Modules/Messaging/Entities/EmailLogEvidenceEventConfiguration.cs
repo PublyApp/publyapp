@@ -35,5 +35,16 @@ public sealed class EmailLogEvidenceEventConfiguration : IEntityTypeConfiguratio
 		builder
 			.HasIndex(entity => new { entity.EmailLogId, entity.OccurredAt })
 			.HasDatabaseName("ix_email_log_evidence_events_email_log_id");
+
+		// Replay guard ON the evidence table (#866 round-1 finding 3): the same provider
+		// event can justify at most ONE evidence row, so a replayed event is rejected by
+		// the database even for a raw-SQL writer that never re-stamps the parent. Partial:
+		// non-provider events carry no correlation id (same shape as
+		// ux_email_log_provider_event_id on email_log).
+		builder
+			.HasIndex(entity => entity.ProviderEventId)
+			.IsUnique()
+			.HasDatabaseName("ux_email_log_evidence_events_provider_event_id")
+			.HasFilter("provider_event_id IS NOT NULL");
 	}
 }

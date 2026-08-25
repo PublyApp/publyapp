@@ -155,6 +155,79 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	// --- #866 round-1 finding 3: the EXPLICIT replay index on the evidence table ----
+
+	[Fact]
+	public async Task ItShouldUniquelyIndexTheProviderEventIdOnTheEvidenceRows() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var indexDef = await dbContext.Database.SqlQuery<string>(
+			$"""
+			SELECT indexdef AS "Value"
+			FROM pg_indexes
+			WHERE schemaname = 'public'
+				AND indexname = 'ux_email_log_evidence_events_provider_event_id'
+			"""
+		).SingleAsync();
+
+		indexDef.Should().Contain("UNIQUE", "the replay guard is a UNIQUE index");
+		indexDef.Should().Contain("(provider_event_id)",
+			"the same provider event can justify at most ONE evidence row");
+		indexDef.Should().Contain("WHERE (provider_event_id IS NOT NULL)",
+			"partial: non-provider events carry no correlation id — same shape as "
+			+ "ux_email_log_provider_event_id on email_log (#866 round-1 finding 3)");
+	}
+
+	[Fact]
+	public async Task ItShouldRejectARawDuplicateProviderEventIdOnTheEvidenceTable() {
+		var jobId = await SeedEmailLogAsync();
+		try {
+			var emailLogId = await GetEmailLogIdAsync(jobId);
+
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var connection = dbContext.Database.GetDbConnection();
+			await connection.OpenAsync();
+
+			async Task InsertAsync(string evidenceEvent) {
+				await using var command = connection.CreateCommand();
+				command.CommandText = """
+					INSERT INTO email_log_evidence_events
+						(email_log_id, event, actor_kind, actor_id, prior_outcome,
+						 new_outcome, details, provider_event_id)
+					VALUES (@email_log_id, @event, 'provider_webhook', 'evt-dup', 0, 0, '{}',
+						'evt-replayed-id')
+					""";
+				var emailLogIdParam = command.CreateParameter();
+				emailLogIdParam.ParameterName = "email_log_id";
+				emailLogIdParam.Value = emailLogId;
+				command.Parameters.Add(emailLogIdParam);
+				var eventParam = command.CreateParameter();
+				eventParam.ParameterName = "event";
+				eventParam.Value = evidenceEvent;
+				command.Parameters.Add(eventParam);
+				await command.ExecuteNonQueryAsync();
+			}
+
+			await InsertAsync("first");
+
+			var duplicate = async () => await InsertAsync("second");
+
+			var violation = await duplicate.Should().ThrowAsync<System.Data.Common.DbException>(
+				"a second evidence row for the SAME provider event id is exactly the "
+				+ "replay ux_email_log_evidence_events_provider_event_id exists to "
+				+ "refuse — even for raw-SQL writers (#866 round-1 finding 3)"
+			);
+			violation.And.Message.Should().Contain(
+				"ux_email_log_evidence_events_provider_event_id",
+				"the failure names the index that refused the duplicate"
+			);
+		} finally {
+			await CleanupAsync(jobId);
+		}
+	}
+
 	// --- helpers -------------------------------------------------------------------
 
 	private async Task<Guid> SeedEmailLogAsync() {

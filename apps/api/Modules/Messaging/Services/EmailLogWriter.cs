@@ -66,12 +66,17 @@ public sealed record ApplyProviderEvidenceEmailLogArgs : IEmailLogTransition {
 /// <summary>
 /// Discriminated result of <see cref="IEmailLogWriter.ApplyProviderEvidenceAsync"/>
 /// (guard-clause friendly): Applied commits the update + evidence row; Rejected means
-/// the edge is outside §4.4's forward-only allowlist or lost a race (zero rows
-/// affected); UnknownTarget means no email_log row matches the given job id.
+/// the edge is outside §4.4's forward-only allowlist, lost a race (zero rows affected),
+/// or the provider event id is a replay caught by a unique index —
+/// <see cref="ApplyProviderEvidenceResult.Rejected.Reason"/>
+/// carries the human-readable cause; UnknownTarget means no email_log row matches the
+/// given job id.
 /// </summary>
 public abstract record ApplyProviderEvidenceResult {
 	public sealed record Applied : ApplyProviderEvidenceResult;
-	public sealed record Rejected : ApplyProviderEvidenceResult;
+
+	public sealed record Rejected(string Reason) : ApplyProviderEvidenceResult;
+
 	public sealed record UnknownTarget : ApplyProviderEvidenceResult;
 }
 
@@ -138,7 +143,48 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 
 		if (!IsAllowedEdge(priorOutcome.Value, args.NewOutcome)) {
 			await transaction.RollbackAsync(cancellationToken);
-			return new ApplyProviderEvidenceResult.Rejected();
+			return new ApplyProviderEvidenceResult.Rejected($"edge {priorOutcome.Value} "
+				+ $"→ {args.NewOutcome} is outside the forward-only allowlist for "
+				+ $"job {args.JobId} — terminal outcomes never reverse");
+		}
+
+		var emailLogId = await FindIdByJobAsync(args.JobId, cancellationToken);
+		if (emailLogId is null) {
+			// Unreachable while the read above succeeded inside this transaction; kept as
+			// an explicit guard because the FK below needs a real id.
+			await transaction.RollbackAsync(cancellationToken);
+			return new ApplyProviderEvidenceResult.UnknownTarget();
+		}
+
+		// The evidence row is inserted FIRST: a replayed provider event is then rejected
+		// by ux_email_log_evidence_events_provider_event_id on THIS table (#866 round-1
+		// finding 3 — the explicit index named in §4.4), not incidentally by the parent
+		// row's update. Everything commits or rolls back together below.
+		_dbContext.EmailLogEvidenceEvent.Add(new EmailLogEvidenceEvent {
+			EmailLogId = emailLogId.Value,
+			Event = args.Event,
+			ActorKind = args.Actor.Kind,
+			ActorId = args.Actor.Id,
+			PriorOutcome = (int)priorOutcome.Value,
+			NewOutcome = (int)args.NewOutcome,
+			Details = args.Details is not null
+				? System.Text.Json.JsonSerializer.Serialize(args.Details)
+				: "{}",
+			ProviderEventId = args.ProviderEventId,
+		});
+
+		try {
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		} catch (DbUpdateException ex)
+				when (ex.InnerException is Npgsql.PostgresException pgEx
+					&& pgEx.SqlState == "23505") {
+			await transaction.RollbackAsync(cancellationToken);
+			var constraint = string.IsNullOrEmpty(pgEx.ConstraintName)
+				? "a provider-event-id unique index"
+				: pgEx.ConstraintName;
+			return new ApplyProviderEvidenceResult.Rejected(
+				$"provider event '{args.ProviderEventId}' was already processed: "
+				+ $"{constraint} rejected a duplicate (replayed delivery?)");
 		}
 
 		// §4.4's conditioned update, stated in SQL: the predicate RE-CHECKS the current
@@ -159,33 +205,11 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 
 		if (updatedRows == 0) {
 			await transaction.RollbackAsync(cancellationToken);
-			return new ApplyProviderEvidenceResult.Rejected();
+			return new ApplyProviderEvidenceResult.Rejected($"job {args.JobId}: the "
+				+ $"conditioned update matched zero rows — a concurrent transition won "
+				+ "the race");
 		}
 
-		var emailLogId = await FindIdByJobAsync(args.JobId, cancellationToken);
-		if (emailLogId is null) {
-			// Unreachable while the read above succeeded inside this transaction; kept as
-			// an explicit guard because the FK below needs a real id.
-			await transaction.RollbackAsync(cancellationToken);
-			return new ApplyProviderEvidenceResult.UnknownTarget();
-		}
-
-		_dbContext.EmailLogEvidenceEvent.Add(new EmailLogEvidenceEvent {
-			EmailLogId = emailLogId.Value,
-			Event = args.Event,
-			ActorKind = args.Actor.Kind,
-			ActorId = args.Actor.Id,
-			PriorOutcome = (int)priorOutcome.Value,
-			NewOutcome = (int)args.NewOutcome,
-			Details = args.Details is not null
-				? System.Text.Json.JsonSerializer.Serialize(args.Details)
-				: "{}",
-		});
-
-		// Commits atomically with the update above (same transaction): the transition and
-		// its evidence row commit or roll back together. A provider-event-id replay
-		// surfaces here as the ux_email_log_provider_event_id violation.
-		await _dbContext.SaveChangesAsync(cancellationToken);
 		await transaction.CommitAsync(cancellationToken);
 
 		return new ApplyProviderEvidenceResult.Applied();

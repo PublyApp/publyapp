@@ -70,6 +70,9 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 			evidence[0].ActorId.Should().Be($"evt-{jobId:N}");
 			evidence[0].PriorOutcome.Should().Be((int)EmailLogOutcome.LegacySubmissionUnverified);
 			evidence[0].NewOutcome.Should().Be((int)EmailLogOutcome.Submitted);
+			evidence[0].ProviderEventId.Should().Be($"evt-{jobId:N}",
+				"the correlation id is carried ON the evidence row — the explicit "
+				+ "replay index keys on it (#866 round-1 finding 3)");
 
 			// …and NEVER in audit_logs, which cannot carry it (NOT NULL user_id FK; a
 			// webhook has no user). This assertion is the #866 defect stated as a test.
@@ -151,7 +154,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldRejectAReplayedProviderEventId() {
+	public async Task ItShouldRejectAReplayedProviderEventIdWithItsCauseInPlainWords() {
 		var firstJobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
 		var secondJobId = await SeedEmailLogAsync(EmailLogOutcome.LegacySubmissionUnverified);
 		try {
@@ -170,27 +173,36 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 			first.Should().BeOfType<ApplyProviderEvidenceResult.Applied>();
 
 			// A DIFFERENT email_log row presenting the SAME provider event id is a replay:
-			// ux_email_log_provider_event_id must reject the second application outright.
-			var replay = async () => await writer.ApplyProviderEvidenceAsync(
-				new ApplyProviderEvidenceEmailLogArgs {
-					JobId = secondJobId,
-					Event = EmailLogEvents.ProviderAcceptanceConfirmed,
-					NewOutcome = EmailLogOutcome.Submitted,
-					EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
-					ProviderEventId = sharedEventId,
-					Actor = EmailLogActor.ProviderWebhook(sharedEventId),
-				}
-			);
+			// the EXPLICIT evidence-table index ux_email_log_evidence_events_provider_event_id
+			// rejects it (#866 round-1 finding 3) — even though the second row itself sits
+			// on an allowed edge.
+			var replay = await writer.ApplyProviderEvidenceAsync(new ApplyProviderEvidenceEmailLogArgs {
+				JobId = secondJobId,
+				Event = EmailLogEvents.ProviderAcceptanceConfirmed,
+				NewOutcome = EmailLogOutcome.Submitted,
+				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
+				ProviderEventId = sharedEventId,
+				Actor = EmailLogActor.ProviderWebhook(sharedEventId),
+			});
 
-			// The violation fires inside the conditioned UPDATE, whose provider errors
-			// propagate unwrapped (ExecuteUpdate bypasses SaveChanges' DbUpdateException).
-			var replayException = await replay.Should().ThrowAsync<System.Data.Common.DbException>(
-				"ux_email_log_provider_event_id rejects a concurrent/replayed event"
+			var rejected = replay.Should().BeOfType<ApplyProviderEvidenceResult.Rejected>(
+				"a replayed provider event must not apply a second transition"
+			).Subject;
+			rejected.Reason.Should().Contain(
+				"ux_email_log_evidence_events_provider_event_id",
+				"the cause is shown in plain words: which index refused the event"
 			);
-			replayException.And.Message.Should().Contain(
-				"ux_email_log_provider_event_id",
-				"the rejection mechanism must be the shipped unique index"
-			);
+			rejected.Reason.Should().Contain(sharedEventId,
+				"the cause names the replayed correlation id");
+
+			await using var verify = await CreateFreshDbContextAsync();
+			var secondRow = await SingleLogAsync(verify, secondJobId);
+			secondRow.Outcome.Should().Be(EmailLogOutcome.LegacySubmissionUnverified,
+				"the replayed event must not transition its target");
+			var firstJobEvidence = await verify.EmailLogEvidenceEvent
+				.CountAsync(e => e.EmailLog != null && e.EmailLog.JobId == firstJobId);
+			firstJobEvidence.Should().Be(1,
+				"the replay inserted no duplicate evidence row");
 		} finally {
 			await CleanupAsync(firstJobId);
 			await CleanupAsync(secondJobId);
