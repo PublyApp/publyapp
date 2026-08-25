@@ -1,5 +1,3 @@
-import type { TestLocaleLabelMap, TestLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
@@ -12,6 +10,10 @@ import {
 } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type {
+	TestLocaleLabelMap,
+	TestLabelMap,
+} from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
@@ -869,7 +871,7 @@ describe('staff tenant invitations route', () => {
 			sort_id: 'email',
 			sort_order: 'asc',
 			cursor: 'invite-cursor',
-			size: '25',
+			size: 25,
 			invite: 1,
 		});
 
@@ -880,7 +882,7 @@ describe('staff tenant invitations route', () => {
 			sort_id: 'email',
 			sort_order: 'asc',
 			cursor: 'invite-cursor',
-			size: '25',
+			size: 25,
 			invite: 1,
 		});
 
@@ -976,7 +978,7 @@ describe('staff tenant invitations route', () => {
 			sort_id: 'email',
 			sort_order: 'asc',
 			cursor: 'invite-cursor',
-			size: '25',
+			size: 25,
 			invite: 1,
 		};
 		renderPage();
@@ -999,7 +1001,7 @@ describe('staff tenant invitations route', () => {
 			status: 'pending,accepted',
 			sort_id: 'email',
 			sort_order: 'asc',
-			size: '25',
+			size: 25,
 			invite: 1,
 		});
 		expect(resetNavigation.search.level).toBeUndefined();
@@ -1089,7 +1091,7 @@ describe('staff tenant invitations route', () => {
 				status: 'pending',
 				sort_id: 'email',
 				sort_order: 'asc',
-				size: '25',
+				size: 25,
 				invite: 1,
 			};
 			renderPage();
@@ -1111,7 +1113,7 @@ describe('staff tenant invitations route', () => {
 				status: 'pending',
 				sort_id: 'email',
 				sort_order: 'asc',
-				size: '25',
+				size: 25,
 				invite: 1,
 			});
 		} finally {
@@ -1127,7 +1129,7 @@ describe('staff tenant invitations route', () => {
 			sort_id: 'email',
 			sort_order: 'asc',
 			cursor: 'invite-cursor',
-			size: '25',
+			size: 25,
 			invite: 1,
 		};
 		renderPage();
@@ -1150,7 +1152,7 @@ describe('staff tenant invitations route', () => {
 			status: 'pending,accepted',
 			sort_id: 'email',
 			sort_order: 'asc',
-			size: '25',
+			size: 25,
 			invite: 1,
 		});
 		expect(statusNavigation.search.cursor).toBeUndefined();

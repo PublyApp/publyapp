@@ -11,7 +11,7 @@ const BASE = {
 	sort_id: 'created_at',
 	sort_order: 'desc',
 	cursor: 'c1',
-	size: '100',
+	size: 100,
 };
 
 describe('parseInvitationRouteSearchParams', () => {
@@ -74,7 +74,7 @@ describe('serializeInvitationRouteSearchParams', () => {
 			sort_id: 'created_at',
 			sort_order: 'desc',
 			cursor: 'c1',
-			size: '100',
+			size: 100,
 			level: 'admin',
 			invite: 1,
 		});
@@ -96,7 +96,7 @@ describe('serializeInvitationRouteSearchParams', () => {
 			sort_id: 'created_at',
 			sort_order: 'desc',
 			cursor: 'c1',
-			size: '100',
+			size: 100,
 			level: undefined,
 			invite: undefined,
 		});
