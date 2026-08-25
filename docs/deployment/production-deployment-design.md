@@ -65,7 +65,7 @@ declare the external network's driver.
 One immutable release tag per deploy → **migrate + gated api/worker + front** start concurrently.
 
 A release publishes **three** image artifacts, all tagged with the same commit SHA:
-`ghcr.io/radandevist/publyapp/api` (`apps/api/Dockerfile`, target `runtime`), `…/migrate` (same
+`ghcr.io/publyapp/publyapp/api` (`apps/api/Dockerfile`, target `runtime`), `…/migrate` (same
 Dockerfile, target `migrate`), and `…/front` (`apps/front/Dockerfile`). Four **services** are
 declared from them: API, worker, and front are long-running; the migrator is one-shot and
 remains exited after completion. The worker reuses the API image with a different `APP_ROLE`, so
