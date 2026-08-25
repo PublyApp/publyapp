@@ -46,18 +46,22 @@ export type StaffListExportSelectedActionProps<TRow extends { id: string }> = {
 };
 
 /**
- * Minimal bulk action for staff/profiles/invitations list pages whose
- * row-selection checkboxes had no consuming action (r3-F3): exports the
- * selected rows to CSV from data already loaded client-side — no backend
- * endpoint required. Renders nothing while no row is selected.
+ * Bar-agnostic Export action (#820): renders ONLY the export button so a page
+ * can place it inside its own selection bar next to other bulk actions.
+ * Exports the selected rows to CSV from data already loaded client-side — no
+ * backend endpoint required. Renders nothing while no row is selected.
  */
-export const StaffListExportSelectedAction = <TRow extends { id: string }>({
+export const StaffListExportSelectedButton = <TRow extends { id: string }>({
 	rows,
 	selection,
 	columns,
 	fileNamePrefix,
 }: StaffListExportSelectedActionProps<TRow>) => {
 	const { t } = useTranslation('common');
+
+	if (selection.selectedCount === 0) {
+		return null;
+	}
 
 	const handleExport = () => {
 		const selectedRows = rows.filter((row) => selection.rowSelection[row.id]);
@@ -78,6 +82,32 @@ export const StaffListExportSelectedAction = <TRow extends { id: string }>({
 	};
 
 	return (
+		<Button
+			type="button"
+			variant="ghost"
+			size="sm"
+			onClick={handleExport}
+			className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
+		>
+			<IconDownload aria-hidden="true" className="size-3.5" />
+			{t('export-selected')}
+		</Button>
+	);
+};
+
+/**
+ * Self-bar variant for surfaces that don't host any other selection action
+ * yet: owns its own `FloatingSelectionBar`. Pages that compose several bulk
+ * actions should render ONE bar and use {@link StaffListExportSelectedButton}
+ * instead — two bars would stack portalled fixed overlays on top of each
+ * other.
+ */
+export const StaffListExportSelectedAction = <TRow extends { id: string }>(
+	props: StaffListExportSelectedActionProps<TRow>,
+) => {
+	const { rows, selection } = props;
+
+	return (
 		<FloatingSelectionBar
 			selectedCount={selection.selectedCount}
 			visibleCount={rows.length}
@@ -89,16 +119,7 @@ export const StaffListExportSelectedAction = <TRow extends { id: string }>({
 				selection.onSelectionChange(new Set(rows.map((row) => row.id)))
 			}
 		>
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onClick={handleExport}
-				className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
-			>
-				<IconDownload aria-hidden="true" className="size-3.5" />
-				{t('export-selected')}
-			</Button>
+			<StaffListExportSelectedButton {...props} />
 		</FloatingSelectionBar>
 	);
 };
