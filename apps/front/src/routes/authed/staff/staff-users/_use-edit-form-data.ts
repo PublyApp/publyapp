@@ -1,6 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
+import {
+	useDeferredValue,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	type Dispatch,
+	type SetStateAction,
+} from 'react';
+import {
+	useForm,
+	useWatch,
+	type FieldErrors,
+	type FormState,
+	type UseFormReturn,
+} from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useCursorPagination } from '~/components/table/use-cursor-pagination';
 import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
@@ -25,7 +39,29 @@ import {
 	type StaffUserEditValues,
 } from './_edit-schema';
 
-export const useEditFormData = (userId: string) => {
+// Explicit return type: TS2883 under RHF 7.85 — the inferred type referenced a
+// non-exported `FormState` path that TypeScript cannot name portably. Built
+// only from exported names so the declaration emit stays resolvable.
+type UseEditFormDataReturn = {
+	detailsQuery: ReturnType<typeof useStaffUserDetailsQuery>;
+	assignedProfilesQuery: ReturnType<typeof useStaffUserProfilesQuery>;
+	profilesQuery: ReturnType<typeof useStaffProfilesQuery>;
+	profilePagination: ReturnType<typeof useCursorPagination>;
+	user: ReturnType<typeof toStaffUserDetails>;
+	methods: UseFormReturn<StaffUserEditValues>;
+	formState: FormState<StaffUserEditValues>;
+	errors: FieldErrors<StaffUserEditValues>;
+	isSubmitting: boolean;
+	profileOptions: ReturnType<typeof buildStaffProfileOptions>;
+	hasNoServerProfileRows: boolean;
+	isProfileSearchSettled: boolean;
+	deferredProfileSearch: string;
+	profileSearch: string;
+	setProfileSearch: Dispatch<SetStateAction<string>>;
+	hasLoadedProfiles: boolean;
+};
+
+export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 	const { t } = useTranslation(['staff-users', 'common']);
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
