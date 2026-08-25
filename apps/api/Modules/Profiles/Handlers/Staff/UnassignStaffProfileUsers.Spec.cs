@@ -198,6 +198,35 @@ public sealed class UnassignStaffProfileUsersSpec : IClassFixture<ApiFixture> {
 		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
 	}
 
+	// Round-2 hardening (PR #1413 review MEDIUM): one malformed element must
+	// yield a 422 naming the offending value in plain words — never a 500 —
+	// independently of the validator's rule ordering. The validator still owns
+	// empty/>max; the handler's non-throwing parse owns the per-element cause.
+	[Fact]
+	public async Task ItShouldReturnValidationProblemNamingTheOffendingElementWhenAUserIdIsMalformed() {
+		var token = await _authClient.LoginAsStaffAdminAsync();
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetUnassignUrl(Guid.NewGuid().ToString())
+		).WithSessionToken(token);
+		request.Content = JsonContent.Create(new {
+			userIds = new[] { Guid.NewGuid().ToString(), "not-a-guid" },
+		});
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		problem.Should().NotBeNull();
+		Assert.NotNull(problem);
+		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		problem.Errors.Values
+			.SelectMany(errors => errors)
+			.Should()
+			.Contain(error => error.Contains("'not-a-guid'", StringComparison.Ordinal));
+	}
+
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnknownProfile() {
 		var token = await _authClient.LoginAsStaffAdminAsync();

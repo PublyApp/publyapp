@@ -210,6 +210,19 @@ public sealed class JsonElementRulesSpec {
 		}
 	}
 
+	private class GuidArrayNamingInvalidItemsValidator
+		: AbstractValidator<GuidArrayModel> {
+		public GuidArrayNamingInvalidItemsValidator() {
+			RuleFor(x => x.RequiredGuidArray)
+				.MustBeRequiredGuidArray(
+					"userIds",
+					"userId",
+					100,
+					nameInvalidItems: true
+				);
+		}
+	}
+
 	// ==================== RequiredEmail ====================
 
 	[Fact]
@@ -782,6 +795,48 @@ public sealed class JsonElementRulesSpec {
 		var result = new GuidArrayValidator()
 			.Validate(model);
 		_ = result.IsValid.Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldFailRequiredGuidArrayWithBlanketMessageWhenDefaultMode() {
+		string[] invalidIds = [Guid.NewGuid().ToString(), "not-a-guid"];
+		var model = new GuidArrayModel {
+			RequiredGuidArray = JsonSerializer
+				.SerializeToElement(invalidIds),
+		};
+		var result = new GuidArrayValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+		_ = result.Errors.Should()
+			.Contain(e => e.ErrorMessage == "Every userId must be a valid GUID");
+	}
+
+	[Fact]
+	public void ItShouldPassRequiredGuidArrayWhenValidAndNamingMode() {
+		var ids = JsonSerializer.SerializeToElement(
+			new[] { Guid.NewGuid(), Guid.NewGuid() }
+		);
+		var model = new GuidArrayModel {
+			RequiredGuidArray = ids,
+		};
+		var result = new GuidArrayNamingInvalidItemsValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldNameEachOffendingItemWhenNamingMode() {
+		string[] mixedIds = [Guid.NewGuid().ToString(), "not-a-guid", "also-not"];
+		var model = new GuidArrayModel {
+			RequiredGuidArray = JsonSerializer
+				.SerializeToElement(mixedIds),
+		};
+		var result = new GuidArrayNamingInvalidItemsValidator()
+			.Validate(model);
+		_ = result.IsValid.Should().BeFalse();
+		_ = result.Errors.Should()
+			.Contain(e => e.ErrorMessage.Contains("'not-a-guid'", StringComparison.Ordinal))
+			.And.Contain(e => e.ErrorMessage.Contains("'also-not'", StringComparison.Ordinal));
 	}
 
 	// ============= RequiredGuidArrayAllowingEmpty =============

@@ -616,15 +616,23 @@ public static class JsonElementRules {
 	/// <summary>
 	/// Validates a required JsonElement GUID array field:
 	/// required → array → non-empty → bounded size → every item is a GUID string.
+	/// When <paramref name="nameInvalidItems"/> is true, malformed elements each get
+	/// their own failure naming the offending value (transparent failure cause)
+	/// instead of one blanket "every item" message.
 	/// </summary>
-	public static IRuleBuilderOptions<T, JsonElement>
+	// Returns IRuleBuilder because the two modes end in sibling FluentValidation
+	// interfaces (default → IRuleBuilderOptions, nameInvalidItems →
+	// IRuleBuilderOptionsConditions via .Custom). No caller chains further
+	// rules off the return value.
+	public static IRuleBuilder<T, JsonElement>
 		MustBeRequiredGuidArray<T>(
 			this IRuleBuilder<T, JsonElement> ruleBuilder,
 			string fieldName,
 			string itemName,
-			int maxCount
+			int maxCount,
+			bool nameInvalidItems = false
 	) {
-		return ruleBuilder
+		var options = ruleBuilder
 			.Must(element =>
 				element.ValueKind
 				is not JsonValueKind.Undefined
@@ -642,15 +650,44 @@ public static class JsonElementRules {
 				element.ValueKind == JsonValueKind.Array
 				&& element.EnumerateArray().Count() <= maxCount
 			)
-			.WithMessage($"Maximum {maxCount} {fieldName} allowed")
-			.Must(element =>
-				element.ValueKind == JsonValueKind.Array
-				&& element.EnumerateArray().All(item =>
-					item.ValueKind == JsonValueKind.String
-					&& item.TryGetGuid(out _)
+			.WithMessage($"Maximum {maxCount} {fieldName} allowed");
+
+		if (!nameInvalidItems) {
+			return options
+				.Must(element =>
+					element.ValueKind == JsonValueKind.Array
+					&& element.EnumerateArray().All(item =>
+						item.ValueKind == JsonValueKind.String
+						&& item.TryGetGuid(out _)
+					)
 				)
-			)
-			.WithMessage($"Every {itemName} must be a valid GUID");
+				.WithMessage($"Every {itemName} must be a valid GUID");
+		}
+
+		// Transparent-failure-cause mode (#1413): one failure per offending
+		// element, naming the raw value in plain words, so the 422 tells the
+		// caller WHICH item was malformed instead of a blanket "every item"
+		// message. Structural rules above stay unchanged.
+		return options.Custom((element, context) => {
+			if (element.ValueKind != JsonValueKind.Array) {
+				return;
+			}
+
+			foreach (var item in element.EnumerateArray()) {
+				var raw = item.ValueKind == JsonValueKind.String
+					? item.GetString()
+					: null;
+
+				if (raw is not null && Guid.TryParse(raw, out _)) {
+					continue;
+				}
+
+				context.AddFailure(
+					fieldName,
+					$"'{raw ?? item.GetRawText()}' is not a valid {itemName}"
+				);
+			}
+		});
 	}
 
 	/// <summary>

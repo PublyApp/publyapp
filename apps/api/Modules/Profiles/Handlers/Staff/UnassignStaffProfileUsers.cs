@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
@@ -21,14 +20,35 @@ public sealed class UnassignStaffProfileUsersBody {
 	[Required]
 	public JsonElement UserIds { get; init; }
 
-	public List<Guid> GetUserIds() {
-		var userIds = new List<Guid>();
+	// Non-throwing per-element parse (#1413 round-2 hardening): a malformed
+	// element must surface as a 422 that NAMES the offending value in plain
+	// words — never the 500 that GetValueAsGuid's InvalidOperationException
+	// would produce. The shared validator names invalid elements via its
+	// nameInvalidItems opt-in; empty/>max stay owned by MustBeRequiredGuidArray.
+	// This parse remains defense in depth for rule reordering.
+	public bool TryGetUserIds(out List<Guid> userIds, out List<string> invalidValues) {
+		userIds = [];
+		invalidValues = [];
 
-		foreach (var userIdElement in UserIds.EnumerateArray()) {
-			userIds.Add(userIdElement.GetValueAsGuid());
+		if (UserIds.ValueKind != JsonValueKind.Array) {
+			invalidValues.Add(UserIds.GetRawText());
+			return false;
 		}
 
-		return userIds;
+		foreach (var userIdElement in UserIds.EnumerateArray()) {
+			var raw = userIdElement.ValueKind == JsonValueKind.String
+				? userIdElement.GetString()
+				: null;
+
+			if (raw is not null && Guid.TryParse(raw, out var userId)) {
+				userIds.Add(userId);
+				continue;
+			}
+
+			invalidValues.Add(raw ?? userIdElement.GetRawText());
+		}
+
+		return invalidValues.Count == 0;
 	}
 }
 
@@ -41,7 +61,10 @@ public sealed class UnassignStaffProfileUsersBodyValidator
 				itemName: "userId",
 				// Must stay in sync with shared BULK_ACTION_MAX_COUNT
 				// (packages/shared-ts/src/lib/constants.ts) used by frontend selection UIs.
-				maxCount: 100
+				maxCount: 100,
+				// Name the offending value per malformed element (transparent
+				// failure cause) instead of one blanket "every userId" message.
+				nameInvalidItems: true
 			);
 	}
 }
@@ -75,9 +98,27 @@ public sealed class UnassignStaffProfileUsers {
 			);
 		}
 
-		// Collapse duplicates up front so bulk actions stay idempotent and the service
-		// does not waste work on repeated user IDs from the UI selection model.
-		var requestedUserIds = body.GetUserIds().Distinct().ToList();
+		// Collapse duplicates up front so bulk actions stay idempotent and the
+		// service does not waste work on repeated user IDs from the UI selection
+		// model.
+		if (!body.TryGetUserIds(out var parsedUserIds, out var invalidUserIds)) {
+			// Defense in depth: the shared validator 422s non-GUID elements while
+			// naming each offending value; if that rule is ever loosened or
+			// reordered, this branch keeps the contract honest — 422 naming each
+			// offending value, never an unhandled-parse 500.
+			var errors = invalidUserIds.ToDictionary(
+				value => "userIds",
+				value => new[] { $"userIds contains '{value}', which is not a valid user id" }
+			);
+
+			return TypedProblems.ValidationProblem(
+				"One or more userIds are malformed",
+				ResponseKeys.RequestBodyValidationFailed,
+				errors
+			);
+		}
+
+		var requestedUserIds = parsedUserIds.Distinct().ToList();
 
 		var result = await staffProfileUserAssignmentAsStaffService.UnassignStaffProfileUsersAsync(
 			new UnassignStaffProfileUsersArgs(ProfileId: profileIdGuid, UserIds: requestedUserIds),
