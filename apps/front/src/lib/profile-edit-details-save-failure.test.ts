@@ -7,6 +7,10 @@ import {
 
 import { resolveProfileSaveFailure } from './profile-edit-details-save-failure';
 
+// Type-guard-shaped stand-ins for the drawers' `isProfileEditDetailsField`
+// (`() => false` alone cannot satisfy a type-predicate signature).
+const nothingIsKnown = (_field: string): _field is never => false;
+
 // The drawers' `handleSaveFailure` contract, distilled to plain data so it can
 // be pinned without rendering React: which failures belong to the form, and
 // what the root banner shows when there is nothing to map.
@@ -41,7 +45,7 @@ describe('resolveProfileSaveFailure', () => {
 				title: 'Validation failed',
 				errors: { UnknownField: ['The profile payload is invalid.'] },
 			},
-			isKnownField: () => false,
+			isKnownField: nothingIsKnown,
 			fallbackMessage: 'Unable to save this profile.',
 		});
 
@@ -61,7 +65,7 @@ describe('resolveProfileSaveFailure', () => {
 				title: 'Validation failed',
 				errors: {},
 			},
-			isKnownField: () => false,
+			isKnownField: nothingIsKnown,
 			fallbackMessage: 'Unable to save this profile.',
 		});
 
@@ -78,7 +82,7 @@ describe('resolveProfileSaveFailure', () => {
 	test('falls back to the caller message for an empty bare 422 problem', () => {
 		const outcome = resolveProfileSaveFailure({
 			error: { status: 422, responseStatusCode: 422 },
-			isKnownField: () => false,
+			isKnownField: nothingIsKnown,
 			fallbackMessage: 'Unable to save this profile.',
 		});
 
@@ -97,7 +101,7 @@ describe('resolveProfileSaveFailure', () => {
 				detail: 'The profile name is reserved.',
 				errors: {},
 			},
-			isKnownField: () => false,
+			isKnownField: nothingIsKnown,
 			fallbackMessage: 'Unable to save this profile.',
 		});
 
@@ -114,7 +118,7 @@ describe('resolveProfileSaveFailure', () => {
 				responseStatusCode: 500,
 				title: 'Internal error',
 			},
-			isKnownField: () => false,
+			isKnownField: nothingIsKnown,
 			fallbackMessage: 'Unable to save this profile.',
 		});
 
@@ -124,7 +128,7 @@ describe('resolveProfileSaveFailure', () => {
 	test('does not treat a network failure as form-owned', () => {
 		const outcome = resolveProfileSaveFailure({
 			error: new TypeError('Failed to fetch'),
-			isKnownField: () => false,
+			isKnownField: nothingIsKnown,
 			fallbackMessage: 'Unable to save this profile.',
 		});
 
