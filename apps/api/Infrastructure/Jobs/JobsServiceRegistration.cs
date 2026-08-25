@@ -5,6 +5,7 @@ using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
+using PublyApp.Api.Modules.Publishing.Jobs;
 using PublyApp.Api.Modules.Uploads.Jobs;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
@@ -92,8 +93,18 @@ public static class JobsServiceRegistration {
 		// 2C-R1 retains it as-is; R2 deletes it.
 		builder.Services.AddHostedService<InvitationEmailOutboxDispatcher>();
 		AddEmailJobHandlers(builder);
+		AddPublishingJobHandlers(builder);
 
 		return builder;
+	}
+
+	// Publishing job handlers (Epic D §3/D1): the worker-side delivery of one
+	// publication. Same scoped-handler contract as the email handlers above; the
+	// provider seam and the transition service resolve from the same per-job scope.
+	private static void AddPublishingJobHandlers(IHostApplicationBuilder builder) {
+		builder.AddJobHandler<PublishPublicationJobHandler>(
+			PublishingJobs.PublishPublicationV1.JobType
+		);
 	}
 
 	// Email job handlers (design §5.4). Built to the finalized engine contract: SCOPED,
