@@ -39,15 +39,13 @@ public sealed record EmailLogActor {
 
 	private static string ValidateId(string id) {
 		if (string.IsNullOrWhiteSpace(id)) {
-			throw new ArgumentException(
-				"id is required: every email_log evidence row names its author (#866).",
-				nameof(id));
+			throw new EmailLogActorException(
+				"id is required: every email_log evidence row names its author (#866).");
 		}
 
 		if (id.Length > MaxIdLength) {
-			throw new ArgumentException(
-				$"id must be at most {MaxIdLength} characters (got {id.Length}).",
-				nameof(id));
+			throw new EmailLogActorException(
+				$"id must be at most {MaxIdLength} characters (got {id.Length}).");
 		}
 
 		return id;

@@ -232,8 +232,8 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 			}
 		);
 
-		var ex = await act.Should().ThrowAsync<ArgumentException>();
-		ex.Which.ParamName.Should().Be("id",
+		var ex = await act.Should().ThrowAsync<EmailLogActorException>();
+		ex.Which.Message.Should().Contain("id is required",
 			"the refusal names what is missing: the author's correlation id");
 
 		await using var verify = await CreateFreshDbContextAsync();

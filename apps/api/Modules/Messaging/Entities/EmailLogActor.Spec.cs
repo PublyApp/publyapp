@@ -28,25 +28,24 @@ public sealed class EmailLogActorSpec {
 	public void ItShouldThrowOnAnEmptyIdNamingTheField() {
 		var build = () => EmailLogActor.ProviderWebhook("");
 
-		build.Should().Throw<ArgumentException>()
-			.WithMessage("*id is required*")
-			.And.ParamName.Should().Be("id");
+		build.Should().ThrowExactly<EmailLogActorException>()
+			.WithMessage("*id is required: every email_log evidence row names its author (#866).*");
 	}
 
 	[Fact]
 	public void ItShouldThrowOnAWhitespaceIdNamingTheField() {
 		var build = () => EmailLogActor.ProviderReconciliation("   ");
 
-		build.Should().Throw<ArgumentException>().WithMessage("*id is required*");
+		build.Should().ThrowExactly<EmailLogActorException>()
+			.WithMessage("*id is required: every email_log evidence row names its author (#866).*");
 	}
 
 	[Fact]
 	public void ItShouldThrowOnAnIdOverTheBoundNamingTheField() {
 		var build = () => EmailLogActor.ProviderWebhook(new string('x', EmailLogActor.MaxIdLength + 1));
 
-		build.Should().Throw<ArgumentException>()
-			.WithMessage("*at most 512 characters*")
-			.And.ParamName.Should().Be("id");
+		build.Should().ThrowExactly<EmailLogActorException>()
+			.WithMessage("*at most 512 characters*");
 	}
 
 	[Fact]
