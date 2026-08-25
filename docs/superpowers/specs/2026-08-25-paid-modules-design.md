@@ -33,11 +33,7 @@ apps/api (public core)
 ├── Modules/Sample/                 ← open-source sample module exercising every registry (tests + docs)
 └── /api/modules/<id>/…             ← module endpoints, same auth/permission pipeline as the core
 
-publyapp-pro (private monorepo)
-├── modules/<id>/                   ← one project per paid module, implements IPublyModule
-├── tests/                          ← Testcontainers: public core image (pinned) + module DLL
-├── licensing/                      ← licence server + monitoring dashboard (§8)
-└── docker/Dockerfile.pro           ← FROM ghcr.io/…/publyapp-api:X.Y.Z + COPY modules/ /app/modules/
+(private side: module projects compiled against Abstractions, signed, shipped as a pro image — documented outside this repository)
 ```
 
 ## 5. Contracts package — `PublyApp.Modules.Abstractions`
