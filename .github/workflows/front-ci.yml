@@ -259,6 +259,15 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run CI gate guard tests (mirrors `just ci-drift`)
+        env:
+          # The actions-pins live scan (`node ./packages/scripts-ts/src/check-actions-pins.ts`
+          # below) resolves each pinned action tag through `gh api`. Without a
+          # token in this job, GitHub rejects those anonymous lookups and the
+          # guard fails loud ("cannot certify pins without tag data") — which
+          # is correct behaviour, wired wrong. The default token can read the
+          # public actions/* repos' tags; no elevated scope is needed, matching
+          # quality-gate.yml's own pins-guard step.
+          GH_TOKEN: ${{ github.token }}
         run: |
           pnpm --filter scripts-ts exec vitest run src/codeowners-contract.test.ts
           pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts
