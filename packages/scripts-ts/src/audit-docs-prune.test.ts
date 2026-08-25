@@ -25,6 +25,12 @@ import { afterAll, test } from 'vitest';
 // classifiable as a deletion just because the generator's decision table
 // shares the omission (the paid-modules defect). The rendered inventory is
 // cross-checked against `git diff -M`, an independent source of truth.
+//
+// They also pin the #1425 property: the audited revision is derived from
+// COMMITTED HISTORY alone, so the verdict is identical on a pull_request
+// event (base lagging behind develop) and on a push event (a single squash
+// prune commit already ON the default branch, remote-tracking ref at the
+// pushed tip, detached HEAD) — the exact shape that turned develop red.
 
 const scriptPath = path.join(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -42,8 +48,9 @@ const git = (root: string, ...args: string[]) =>
 // Builds a repo shaped like what the audit consumes: a develop-like base
 // carrying one docs candidate plus one survival surface, and a lane HEAD
 // reached by exactly the mutation each test describes.
-// `refs/remotes/origin/develop` pins the pre-prune tree so the merge-base
-// resolves against the base commit, mirroring the real repository.
+// `refs/remotes/origin/develop` pins the pre-prune tree, mirroring the real
+// repository's lagging PR base; #1425's fix no longer READS that ref, so the
+// fixtures stay green with or without it.
 const makeRepo = (mutate: (root: string) => void): string => {
 	const root = mkdtempSync(path.join(tmpdir(), 'audit-docs-prune-'));
 	roots.push(root);
@@ -80,6 +87,19 @@ const scriptWithTable = (entries: string): string => {
 		self,
 		'fixture relies on rewriting the MOVES table',
 	);
+	return rewritten;
+};
+
+// Replays the HISTORICAL revision resolution (#1425's defect, verbatim):
+// merge-base(origin/develop, HEAD). Planting this copy proves the new test
+// shapes genuinely fail on the old algorithm rather than exercising nothing.
+const scriptWithLegacyRev = (): string => {
+	const self = readFileSync(scriptPath, 'utf8');
+	const rewritten = self.replace(
+		/const resolveRev = \(\): string => \{[\s\S]*?\n\};/,
+		`const resolveRev = (): string => {\n\tif (explicitRev) {\n\t\treturn explicitRev;\n\t}\n\treturn runGit(['merge-base', 'origin/develop', 'HEAD']).trim();\n};`,
+	);
+	assert.notEqual(rewritten, self, 'fixture relies on rewriting resolveRev');
 	return rewritten;
 };
 
@@ -188,11 +208,10 @@ test('a real rename classified as delete fails --check naming the row (paid-modu
 	assert.match(result.stderr, /classifies it as "delete"/);
 });
 
-test('--check passes when the inventory matches both regeneration and git renames', () => {
+test('--check passes when a single squash prune commit lands on the default branch', () => {
 	const root = makeRepo((repo) => {
-		// Same git mutation recorded correctly AND mapped in the generator's
-		// decision table via the same explicit-topic override the real fix
-		// carries.
+		// The REAL #1395 shape: the whole lane squashes into ONE default-branch
+		// commit that carries the move AND the committed record together.
 		plantGenerator(repo, scriptWithTable(widgetMoveEntry('widget')));
 		mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
 		execFileSync(
@@ -204,11 +223,20 @@ test('--check passes when the inventory matches both regeneration and git rename
 			},
 		);
 	});
-	runAudit(root); // regenerate from the rewritten table
-	// --check reads the committed evidence from HEAD, so the fresh record
-	// must be committed first (mirroring the real workflow).
+	// Generate from committed history alone (the just-committed script anchors
+	// the pre-prune tree), then fold the record INTO the same squash commit.
+	runAudit(root);
 	git(root, 'add', '-A');
-	git(root, 'commit', '-qm', 'record');
+	git(root, 'commit', '-q', '--amend', '-m', 'docs: prune widget spec (#1357)');
+	assert.equal(
+		execFileSync('git', ['rev-list', '--count', 'develop..HEAD'], {
+			cwd: root,
+		})
+			.toString()
+			.trim(),
+		'1',
+		'fixture must stay a single squash commit on top of develop',
+	);
 	const checked = runAudit(root, '--check'); // must pass
 	assert.match(checked, /matches a fresh regeneration/);
 });
@@ -351,3 +379,69 @@ test('walking the rev back does not weaken freshness: a tampered record still fa
 	assert.equal(result.status, 1);
 	assert.match(result.stderr, /differs from a fresh regeneration/);
 });
+
+// #1425 RED replay: develop's PUSH event ran on a single squash prune commit
+// already sitting ON origin/develop, with HEAD detached at the pushed tip and
+// no extra refs. The historical merge-base(origin/develop, HEAD) resolution
+// collapsed onto the ALREADY-PRUNED tree there, so the decision-table sources
+// vanished from the candidate set and --check died on "non-candidate file" —
+// while every PR stayed green because its lagging base kept the pre-prune
+// tree. The fix derives the audited revision from COMMITTED HISTORY alone,
+// so this exact shape must pass WITHOUT any extra refs.
+test(
+	'push event: one squash prune commit on the default branch checks green with remote ref AT HEAD and detached HEAD',
+	{ timeout: 120_000 },
+	() => {
+		const plantSquashPruneCommit = (plant: (repo: string) => void): string => {
+			const root = makeRepo((repo) => {
+				mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
+				execFileSync(
+					'git',
+					['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'],
+					{ cwd: repo, stdio: ['ignore', 'ignore', 'pipe'] },
+				);
+				plant(repo);
+			});
+			// The push-event environment verbatim: the pushed tip IS origin/develop,
+			// the runner checked out a detached HEAD at that tip, and nothing else
+			// was fetched. The old algorithm needed a base BEHIND the tip; here
+			// every resolvable pair is the pruned tree itself.
+			git(root, 'update-ref', 'refs/remotes/origin/develop', 'HEAD');
+			git(root, 'checkout', '-q', '--detach', 'HEAD');
+			return root;
+		};
+
+		// OLD CODE leg: plant the verbatim legacy resolveRev and prove the exact
+		// #1425 failure fires in this shape (RED before the fix).
+		const red = plantSquashPruneCommit((repo) => {
+			plantGenerator(repo, scriptWithLegacyRev());
+		});
+		const failed = runAuditExpectingFailure(red, '--check');
+		assert.equal(failed.status, 1);
+		assert.match(failed.stderr, /Decision table names a non-candidate file/);
+		assert.match(
+			failed.stderr,
+			/docs\/archive\/2026\/designs\//,
+			'the legacy resolution must have collapsed onto the PRUNED tree, losing every decision-table source',
+		);
+
+		// FIXED code leg: identical repository shape, real generator — the record
+		// is generated from history alone, folded into the same squash commit, and
+		// --check goes GREEN on the push event with zero extra refs.
+		const green = plantSquashPruneCommit((repo) => {
+			plantGenerator(repo, scriptWithTable(widgetMoveEntry('widget')));
+		});
+		runAudit(green);
+		git(green, 'add', '-A');
+		git(
+			green,
+			'commit',
+			'-q',
+			'--amend',
+			'-m',
+			'docs: prune widget spec (#1357)',
+		);
+		const checked = runAudit(green, '--check');
+		assert.match(checked, /matches a fresh regeneration/);
+	},
+);

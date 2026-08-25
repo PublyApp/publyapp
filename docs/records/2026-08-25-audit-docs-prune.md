@@ -2,10 +2,9 @@
 
 Date: 2026-08-25. Generated evidence for the #1357 docs prune; regenerate with
 `node packages/scripts-ts/src/audit-docs-prune.ts` (`--check` enforces byte equality).
-The audit reads the youngest origin/develop first-parent tree that still carries every
-decision-table source (the pre-prune tree — normally the merge-base of origin/develop
-and HEAD; once the prune has landed, the walk steps back over pruned commits), so the
-evidence stays reproducible after the prune lands; `--rev <sha>` overrides. The decision
+The audit derives the pre-prune tree from committed history alone (the parent of the
+commit that introduces this record), so the evidence stays reproducible on every
+event and checkout (#1425); `--rev <sha>` overrides. The decision
 table lives in that script, so the prune is mechanical rather than hand-curated.
 
 Scope: every tracked file under `docs/` outside `guides/`, `deployment/`, `assets/`.
@@ -24,7 +23,8 @@ Counts: 94 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 8
 ## Notes
 
 - PR #1355 added `docs/superpowers/specs/2026-08-25-paid-modules-design.md` to develop
-  while this lane was in flight, so it appears above once the merge-base includes it.
+  while this lane was in flight, so it appears above once the audited pre-prune tree
+  includes it.
   No survival surface references it, but the lane deliberately preserves work develop
   already merged instead of deleting it in the prune: it lands at
   `docs/records/2026-08-25-spec-open-core-paid-modules.md` (explicit `topic`:
