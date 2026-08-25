@@ -41,6 +41,8 @@ internal sealed class ApiRateLimiterStore
 				CreateLimiter(settings.TenantExport),
 			[ApiRateLimitPolicies.Upload] =
 				CreateLimiter(settings.Upload),
+			[ApiRateLimitPolicies.SocialConnect] =
+				CreateLimiter(settings.SocialConnect),
 		};
 	}
 
@@ -249,6 +251,14 @@ internal sealed class ApiRateLimiterOptionsSetup
 		AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.Upload,
+			ApiRateLimitPartitionKeys
+				.GetSessionFingerprint
+		);
+		// Stricter-than-read window (spec §4): connect/reconnect call Bluesky with
+		// user-supplied credentials; partition per session like other authed policies.
+		AddSinglePolicy(
+			options,
+			ApiRateLimitPolicies.SocialConnect,
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);

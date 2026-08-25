@@ -540,6 +540,16 @@ export interface CheckResetPasswordTokenResult extends AdditionalDataHolder, Par
      */
     status?: string | null;
 }
+export interface ConnectSocialAccountBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The appPassword property
+     */
+    appPassword?: UntypedNode | null;
+    /**
+     * The identifier property
+     */
+    identifier?: UntypedNode | null;
+}
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
@@ -953,6 +963,15 @@ export function createCheckInvitationTokenResultFromDiscriminatorValue(parseNode
 // @ts-ignore
 export function createCheckResetPasswordTokenResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoCheckResetPasswordTokenResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ConnectSocialAccountBody}
+ */
+// @ts-ignore
+export function createConnectSocialAccountBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoConnectSocialAccountBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1380,6 +1399,15 @@ export function createFindProjectsForTenantResponseFromDiscriminatorValue(parseN
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindSocialAccountsForTenantResponse}
+ */
+// @ts-ignore
+export function createFindSocialAccountsForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindSocialAccountsForTenantResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindStaffInvitationsResult}
  */
 // @ts-ignore
@@ -1785,6 +1813,15 @@ export function createReactivateTenantUserResultFromDiscriminatorValue(parseNode
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ReconnectSocialAccountBody}
+ */
+// @ts-ignore
+export function createReconnectSocialAccountBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoReconnectSocialAccountBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {RequestPasswordResetBody}
  */
 // @ts-ignore
@@ -1898,6 +1935,33 @@ export function createResolveTenantProfileUserAssignmentsAsStaffItemFromDiscrimi
 // @ts-ignore
 export function createResolveTenantProfileUserAssignmentsAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoResolveTenantProfileUserAssignmentsAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SetSocialAccountProjectsBody}
+ */
+// @ts-ignore
+export function createSetSocialAccountProjectsBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSetSocialAccountProjectsBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SocialAccountCreated}
+ */
+// @ts-ignore
+export function createSocialAccountCreatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSocialAccountCreated;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SocialAccountListItem}
+ */
+// @ts-ignore
+export function createSocialAccountListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSocialAccountListItem;
 }
 export interface CreateStaffInvitationBody extends AdditionalDataHolder, Parsable {
     /**
@@ -3328,6 +3392,18 @@ export function deserializeIntoCheckResetPasswordTokenResult(checkResetPasswordT
 }
 /**
  * The deserialization information for the current model
+ * @param ConnectSocialAccountBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoConnectSocialAccountBody(connectSocialAccountBody: Partial<ConnectSocialAccountBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "appPassword": n => { connectSocialAccountBody.appPassword = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "identifier": n => { connectSocialAccountBody.identifier = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param CreateInvitationForTenantAsStaffBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3878,6 +3954,18 @@ export function deserializeIntoFindPostsForTenantResponse(findPostsForTenantResp
 export function deserializeIntoFindProjectsForTenantResponse(findProjectsForTenantResponse: Partial<FindProjectsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "items": n => { findProjectsForTenantResponse.items = n.getCollectionOfObjectValues<ProjectListItem>(createProjectListItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param FindSocialAccountsForTenantResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindSocialAccountsForTenantResponse(findSocialAccountsForTenantResponse: Partial<FindSocialAccountsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findSocialAccountsForTenantResponse.data = n.getCollectionOfObjectValues<SocialAccountListItem>(createSocialAccountListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findSocialAccountsForTenantResponse.nextCursor = n.getStringValue(); },
     }
 }
 /**
@@ -4462,6 +4550,17 @@ export function deserializeIntoReactivateTenantUserResult(reactivateTenantUserRe
 }
 /**
  * The deserialization information for the current model
+ * @param ReconnectSocialAccountBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoReconnectSocialAccountBody(reconnectSocialAccountBody: Partial<ReconnectSocialAccountBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "appPassword": n => { reconnectSocialAccountBody.appPassword = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param RequestPasswordResetBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4606,6 +4705,55 @@ export function deserializeIntoResolveTenantProfileUserAssignmentsAsStaffItem(re
 export function deserializeIntoResolveTenantProfileUserAssignmentsAsStaffResult(resolveTenantProfileUserAssignmentsAsStaffResult: Partial<ResolveTenantProfileUserAssignmentsAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "assignments": n => { resolveTenantProfileUserAssignmentsAsStaffResult.assignments = n.getCollectionOfObjectValues<ResolveTenantProfileUserAssignmentsAsStaffItem>(createResolveTenantProfileUserAssignmentsAsStaffItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SetSocialAccountProjectsBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSetSocialAccountProjectsBody(setSocialAccountProjectsBody: Partial<SetSocialAccountProjectsBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "projectIds": n => { setSocialAccountProjectsBody.projectIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SocialAccountCreated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSocialAccountCreated(socialAccountCreated: Partial<SocialAccountCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "credentialType": n => { socialAccountCreated.credentialType = n.getStringValue(); },
+        "displayHandle": n => { socialAccountCreated.displayHandle = n.getStringValue(); },
+        "externalAccountId": n => { socialAccountCreated.externalAccountId = n.getStringValue(); },
+        "id": n => { socialAccountCreated.id = n.getGuidValue(); },
+        "lastError": n => { socialAccountCreated.lastError = n.getStringValue(); },
+        "lastSuccessAt": n => { socialAccountCreated.lastSuccessAt = n.getDateValue(); },
+        "projectIds": n => { socialAccountCreated.projectIds = n.getCollectionOfPrimitiveValues<Guid>("string"); },
+        "provider": n => { socialAccountCreated.provider = n.getStringValue(); },
+        "status": n => { socialAccountCreated.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SocialAccountListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSocialAccountListItem(socialAccountListItem: Partial<SocialAccountListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "credentialType": n => { socialAccountListItem.credentialType = n.getStringValue(); },
+        "displayHandle": n => { socialAccountListItem.displayHandle = n.getStringValue(); },
+        "externalAccountId": n => { socialAccountListItem.externalAccountId = n.getStringValue(); },
+        "id": n => { socialAccountListItem.id = n.getGuidValue(); },
+        "lastError": n => { socialAccountListItem.lastError = n.getStringValue(); },
+        "lastSuccessAt": n => { socialAccountListItem.lastSuccessAt = n.getDateValue(); },
+        "projectIds": n => { socialAccountListItem.projectIds = n.getCollectionOfPrimitiveValues<Guid>("string"); },
+        "provider": n => { socialAccountListItem.provider = n.getStringValue(); },
+        "status": n => { socialAccountListItem.status = n.getStringValue(); },
     }
 }
 /**
@@ -5627,6 +5775,16 @@ export interface FindProjectsForTenantResponse extends AdditionalDataHolder, Par
      */
     items?: ProjectListItem[] | null;
 }
+export interface FindSocialAccountsForTenantResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: SocialAccountListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindStaffInvitationsResult extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -6354,6 +6512,12 @@ export interface ReactivateTenantUserResult extends AdditionalDataHolder, Parsab
      */
     tenantId?: Guid | null;
 }
+export interface ReconnectSocialAccountBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The appPassword property
+     */
+    appPassword?: UntypedNode | null;
+}
 export interface RequestPasswordResetBody extends AdditionalDataHolder, Parsable {
     /**
      * The email property
@@ -7061,6 +7225,19 @@ export function serializeCheckResetPasswordTokenResult(writer: SerializationWrit
 }
 /**
  * Serializes information the current object
+ * @param ConnectSocialAccountBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeConnectSocialAccountBody(writer: SerializationWriter, connectSocialAccountBody: Partial<ConnectSocialAccountBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!connectSocialAccountBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("appPassword", connectSocialAccountBody.appPassword);
+    writer.writeObjectValue("identifier", connectSocialAccountBody.identifier);
+    writer.writeAdditionalData(connectSocialAccountBody.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param CreateInvitationForTenantAsStaffBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -7625,6 +7802,19 @@ export function serializeFindProjectsForTenantResponse(writer: SerializationWrit
     if (!findProjectsForTenantResponse || isSerializingDerivedType) { return; }
     writer.writeCollectionOfObjectValues<ProjectListItem>("items", findProjectsForTenantResponse.items, serializeProjectListItem);
     writer.writeAdditionalData(findProjectsForTenantResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindSocialAccountsForTenantResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindSocialAccountsForTenantResponse(writer: SerializationWriter, findSocialAccountsForTenantResponse: Partial<FindSocialAccountsForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findSocialAccountsForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<SocialAccountListItem>("data", findSocialAccountsForTenantResponse.data, serializeSocialAccountListItem);
+    writer.writeStringValue("nextCursor", findSocialAccountsForTenantResponse.nextCursor);
+    writer.writeAdditionalData(findSocialAccountsForTenantResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -8251,6 +8441,18 @@ export function serializeReactivateTenantUserResult(writer: SerializationWriter,
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ReconnectSocialAccountBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeReconnectSocialAccountBody(writer: SerializationWriter, reconnectSocialAccountBody: Partial<ReconnectSocialAccountBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!reconnectSocialAccountBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("appPassword", reconnectSocialAccountBody.appPassword);
+    writer.writeAdditionalData(reconnectSocialAccountBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param RequestPasswordResetBody The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -8406,6 +8608,58 @@ export function serializeResolveTenantProfileUserAssignmentsAsStaffResult(writer
     if (!resolveTenantProfileUserAssignmentsAsStaffResult || isSerializingDerivedType) { return; }
     writer.writeCollectionOfObjectValues<ResolveTenantProfileUserAssignmentsAsStaffItem>("assignments", resolveTenantProfileUserAssignmentsAsStaffResult.assignments, serializeResolveTenantProfileUserAssignmentsAsStaffItem);
     writer.writeAdditionalData(resolveTenantProfileUserAssignmentsAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SetSocialAccountProjectsBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSetSocialAccountProjectsBody(writer: SerializationWriter, setSocialAccountProjectsBody: Partial<SetSocialAccountProjectsBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!setSocialAccountProjectsBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("projectIds", setSocialAccountProjectsBody.projectIds);
+    writer.writeAdditionalData(setSocialAccountProjectsBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SocialAccountCreated The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSocialAccountCreated(writer: SerializationWriter, socialAccountCreated: Partial<SocialAccountCreated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!socialAccountCreated || isSerializingDerivedType) { return; }
+    writer.writeStringValue("credentialType", socialAccountCreated.credentialType);
+    writer.writeStringValue("displayHandle", socialAccountCreated.displayHandle);
+    writer.writeStringValue("externalAccountId", socialAccountCreated.externalAccountId);
+    writer.writeGuidValue("id", socialAccountCreated.id);
+    writer.writeStringValue("lastError", socialAccountCreated.lastError);
+    writer.writeDateValue("lastSuccessAt", socialAccountCreated.lastSuccessAt);
+    writer.writeCollectionOfPrimitiveValues<Guid>("projectIds", socialAccountCreated.projectIds);
+    writer.writeStringValue("provider", socialAccountCreated.provider);
+    writer.writeStringValue("status", socialAccountCreated.status);
+    writer.writeAdditionalData(socialAccountCreated.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SocialAccountListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSocialAccountListItem(writer: SerializationWriter, socialAccountListItem: Partial<SocialAccountListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!socialAccountListItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("credentialType", socialAccountListItem.credentialType);
+    writer.writeStringValue("displayHandle", socialAccountListItem.displayHandle);
+    writer.writeStringValue("externalAccountId", socialAccountListItem.externalAccountId);
+    writer.writeGuidValue("id", socialAccountListItem.id);
+    writer.writeStringValue("lastError", socialAccountListItem.lastError);
+    writer.writeDateValue("lastSuccessAt", socialAccountListItem.lastSuccessAt);
+    writer.writeCollectionOfPrimitiveValues<Guid>("projectIds", socialAccountListItem.projectIds);
+    writer.writeStringValue("provider", socialAccountListItem.provider);
+    writer.writeStringValue("status", socialAccountListItem.status);
+    writer.writeAdditionalData(socialAccountListItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -9442,6 +9696,88 @@ export function serializeVerifyEmailRequestResult(writer: SerializationWriter, v
     if (!verifyEmailRequestResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", verifyEmailRequestResult.status);
     writer.writeAdditionalData(verifyEmailRequestResult.additionalData);
+}
+export interface SetSocialAccountProjectsBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The projectIds property
+     */
+    projectIds?: UntypedNode | null;
+}
+export interface SocialAccountCreated extends AdditionalDataHolder, Parsable {
+    /**
+     * The credentialType property
+     */
+    credentialType?: string | null;
+    /**
+     * The displayHandle property
+     */
+    displayHandle?: string | null;
+    /**
+     * The externalAccountId property
+     */
+    externalAccountId?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The lastSuccessAt property
+     */
+    lastSuccessAt?: Date | null;
+    /**
+     * The projectIds property
+     */
+    projectIds?: Guid[] | null;
+    /**
+     * The provider property
+     */
+    provider?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
+export interface SocialAccountListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The credentialType property
+     */
+    credentialType?: string | null;
+    /**
+     * The displayHandle property
+     */
+    displayHandle?: string | null;
+    /**
+     * The externalAccountId property
+     */
+    externalAccountId?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The lastSuccessAt property
+     */
+    lastSuccessAt?: Date | null;
+    /**
+     * The projectIds property
+     */
+    projectIds?: Guid[] | null;
+    /**
+     * The provider property
+     */
+    provider?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
 }
 export interface StaffInvitationDetails extends AdditionalDataHolder, Parsable {
     /**

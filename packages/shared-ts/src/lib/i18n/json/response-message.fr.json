@@ -105,5 +105,10 @@
 	"upload-budget-exhausted": "La capacité de stockage pour les téléversements est temporairement épuisée. Veuillez réessayer plus tard.",
 	"dead-letter-resolved-success": "Triage de la dead-letter résolu",
 	"dead-letter-not-found": "Entrée dead-letter introuvable",
-	"dead-letter-not-unclassified": "L'entrée dead-letter n'est pas en attente de triage non classé"
+	"dead-letter-not-unclassified": "L'entrée dead-letter n'est pas en attente de triage non classé",
+	"social-account-not-found": "Compte social introuvable",
+	"social-account-disconnected-success": "Compte social déconnecté et secret stocké effacé",
+	"credentials-refused": "Bluesky a refusé ces identifiants",
+	"provider-unreachable": "Le fournisseur est injoignable ; rien n'a été stocké",
+	"project-not-found": "Projet introuvable dans ce tenant"
 }

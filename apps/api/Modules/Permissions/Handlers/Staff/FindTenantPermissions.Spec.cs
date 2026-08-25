@@ -29,6 +29,7 @@ public sealed class FindTenantPermissionsSpec
 		"invitations",
 		"profiles",
 		"settings",
+		"socialaccounts",
 		"billing",
 		"audit_logs",
 		"modules"
@@ -72,6 +73,9 @@ public sealed class FindTenantPermissionsSpec
 		"tenant.profiles.manage_permissions",
 		"tenant.settings.view",
 		"tenant.settings.edit",
+		"tenant.socialaccounts.view",
+		"tenant.socialaccounts.manage",
+		"tenant.socialaccounts.publish",
 		"tenant.billing.view",
 		"tenant.billing.manage",
 		"tenant.audit_logs.view",
@@ -257,14 +261,14 @@ public sealed class FindTenantPermissionsSpec
 
 		foreach (var (language, catalog) in catalogsByLanguage) {
 			catalog.Keys.Should().BeEquivalentTo(ExpectedTenantPermissionGroups);
-			catalog.Should().HaveCount(14);
+			catalog.Should().HaveCount(15);
 
 			var permissions = catalog.Values
 				.SelectMany(group => group.Values)
 				.ToList();
 			var keys = permissions.Select(permission => permission.Key).ToList();
 
-			keys.Should().HaveCount(44);
+			keys.Should().HaveCount(47);
 			keys.Should().OnlyHaveUniqueItems();
 			keys.Should().BeEquivalentTo(ExpectedTenantPermissionKeys);
 			keys.Should().OnlyContain(key => key.StartsWith(

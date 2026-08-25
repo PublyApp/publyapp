@@ -136,4 +136,11 @@ public static class AuditActions {
 	public const string PostCreated = "post.created";
 	public const string PostUpdated = "post.updated";
 	public const string PostDeleted = "post.deleted";
+
+	// Social-account lifecycle (Epic C): connect/reconnect never log the app
+	// password — details carry handle/DID/project ids only.
+	public const string SocialAccountConnected = "socialaccount.connected";
+	public const string SocialAccountReconnected = "socialaccount.reconnected";
+	public const string SocialAccountDisconnected = "socialaccount.disconnected";
+	public const string SocialAccountProjectsSet = "socialaccount.projects.set";
 }
