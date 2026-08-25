@@ -102,9 +102,9 @@ import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guar
 import { buildSafeResetPasswordHref, Route } from './verify-email';
 
 const renderVerifyEmailRoute = () => {
-	const Component = (
-		Route as unknown as { component: () => ReturnType<typeof createElement> }
-	).component;
+	const Component = Route.options.component as () => ReturnType<
+		typeof createElement
+	>;
 	return render(createElement(Component));
 };
 
@@ -123,7 +123,7 @@ describe('verify-email route', () => {
 	});
 
 	test('attaches the authenticated-user redirect guard', () => {
-		expect((Route as unknown as { beforeLoad: unknown }).beforeLoad).toBe(
+		expect((Route.options as { beforeLoad: unknown }).beforeLoad).toBe(
 			redirectAuthenticatedUserAwayFromAuthPage,
 		);
 	});
@@ -182,9 +182,9 @@ describe('verify-email route', () => {
 		// and returns the request view — a fresh object, which is what the
 		// component keys its locally-submitted-email reset off of.
 		mocks.loaderData = { view: 'request' };
-		const Component = (
-			Route as unknown as { component: () => ReturnType<typeof createElement> }
-		).component;
+		const Component = Route.options.component as () => ReturnType<
+			typeof createElement
+		>;
 		rerender(createElement(Component));
 
 		await waitFor(() =>
@@ -209,9 +209,16 @@ describe('verify-email route', () => {
 });
 
 describe('verify-email loader', () => {
+	type VerifyEmailLoaderResult =
+		| { view: 'request' }
+		| { view: 'sent'; email: string }
+		| { view: 'invalid' };
+
 	const loader = (
-		Route as unknown as {
-			loader: (args: { location: { searchStr: string } }) => Promise<unknown>;
+		Route.options as {
+			loader: (args: {
+				location: { searchStr: string };
+			}) => Promise<VerifyEmailLoaderResult>;
 		}
 	).loader;
 

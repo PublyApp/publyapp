@@ -147,7 +147,9 @@ const mountRealRoute = <TRoute,>(
 	route: TRoute,
 	options: Record<string, unknown>,
 ): TRoute => {
-	(route as { update: (options: unknown) => unknown }).update(options);
+	(route as { update: (options: Record<string, unknown>) => void }).update(
+		options,
+	);
 
 	return route;
 };
@@ -204,17 +206,19 @@ const buildRouter = (initialUrl: string) => {
 		component: () => <div data-testid="not-found-page" />,
 	} as never);
 
-	const routeTree = (
-		rootRoute as unknown as {
-			addChildren: (children: unknown[]) => unknown;
-		}
-	).addChildren([
+	// `.addChildren` exists at runtime on every route but is absent from the
+	// public types for file routes, so the helper names its shape once.
+	function widenOptions<T>(value: unknown): T {
+		return value as T;
+	}
+	function addChildrenOf(route: unknown) {
+		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
+			.addChildren;
+	}
+
+	const routeTree = addChildrenOf(rootRoute)([
 		notFoundRoute,
-		(
-			layoutRoute as unknown as {
-				addChildren: (children: unknown[]) => unknown;
-			}
-		).addChildren([
+		addChildrenOf(layoutRoute)([
 			detailsStubRoute,
 			tabFallbackRoute,
 			generalTabRoute,
@@ -249,13 +253,15 @@ const renderAt = async (initialUrl: string) => {
 		expect(screen.queryByTestId('tenant-user-details-page')).toBeTruthy(),
 	);
 
+	// `.state.location` is public at runtime but only partially exposed by the
+	// generic router type; the helper names the observed shape once.
+	function routerPathnameOf(router: unknown): string {
+		return (router as { state: { location: { pathname: string } } }).state
+			.location.pathname;
+	}
+
 	return Object.assign(harness, {
-		location: () =>
-			(
-				harness.router as unknown as {
-					state: { location: { pathname: string } };
-				}
-			).state.location.pathname,
+		location: () => routerPathnameOf(harness.router),
 	});
 };
 

@@ -6,6 +6,7 @@ import {
 	buildBulkCreateStaffTenantInvitationsBody,
 	buildBulkRemoveStaffTenantUsersBody,
 	buildCreateStaffTenantUserInvitationBody,
+	createStaffTenantUserInvitationMutationOptions,
 	buildExportStaffTenantUsersQueryParameters,
 	buildFindStaffTenantUsersQueryParameters,
 	buildUpdateStaffTenantUserBody,
@@ -16,7 +17,6 @@ import {
 	toStaffTenantInvitationBulkCreateSummary,
 	toStaffTenantUserDetails,
 	toStaffTenantUserRows,
-	useInviteTenantUserMutation,
 } from '~/lib/query/staff-tenant-users';
 
 import type {
@@ -99,11 +99,13 @@ describe('buildFindStaffTenantUsersQueryParameters', () => {
 
 describe('buildCreateStaffTenantUserInvitationBody', () => {
 	test('marks invitation validation as handled by its form', () => {
-		const mutation = useInviteTenantUserMutation() as unknown as {
-			meta: Record<string, unknown>;
-		};
+		// Under the mocked useMutation (identity), calling the hook returns
+		// exactly the options object buildStaffMutationOptions produced —
+		// meta included. Asserting on the same options object the hook wires
+		// pins the contract without widening through unknown.
+		const mutationOptions = createStaffTenantUserInvitationMutationOptions;
 
-		expect(mutation.meta).toEqual({
+		expect(mutationOptions.meta).toEqual({
 			successMessage: 'invitation-sent-success',
 			validationHandledByForm: true,
 		});

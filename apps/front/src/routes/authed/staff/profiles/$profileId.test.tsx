@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useParams: () => ({
 			profileId: '11111111-1111-1111-1111-111111111111',
 		}),
@@ -100,11 +101,7 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+	const Component = Route.options.component as () => JSX.Element;
 
 	return render(<Component />);
 };

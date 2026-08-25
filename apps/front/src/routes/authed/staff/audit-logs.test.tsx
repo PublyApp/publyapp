@@ -3,7 +3,10 @@ import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	Link: (props: { children?: ReactNode }) => props.children ?? null,
 }));
 
@@ -55,7 +58,7 @@ describe('staff audit logs column grid', () => {
 		const translate = (key: string): string =>
 			key === 'action-kind-user' ? 'User category' : key;
 		const columns = makeAuditLogColumns(translate, 'en');
-		const eventCell = columns[0].cell as unknown as
+		const eventCell = columns[0].cell as
 			| ((context: { row: { original: Record<string, unknown> } }) => ReactNode)
 			| undefined;
 

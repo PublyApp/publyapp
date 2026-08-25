@@ -278,6 +278,22 @@ const globalTenantUserCompaniesQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
+/**
+ * Kiota's untyped request builders only accept `Untyped*` nodes, so the
+ * wire-shape call site names the target type once here instead of widening
+ * and re-asserting inline.
+ */
+function buildAssignCompaniesBody(
+	variables: GlobalTenantUserCompaniesLinkInput,
+): AssignTenantUserCompaniesForStaffBody {
+	return createUntypedObject({
+		level: createUntypedString(variables.level),
+		tenantIds: createUntypedArray(
+			variables.tenantIds.map((tenantId) => createUntypedString(tenantId)),
+		),
+	}) as AssignTenantUserCompaniesForStaffBody;
+}
+
 const linkGlobalTenantUserCompaniesMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	TenantUserCompanyBulkActionResult | undefined,
@@ -290,16 +306,9 @@ const linkGlobalTenantUserCompaniesMutationOptions = buildStaffMutationOptions<
 			'link',
 		],
 		mutationFn: async (client, variables) => {
-			return client.staff.tenantUsers.byUserId(variables.userId).companies.post(
-				createUntypedObject({
-					level: createUntypedString(variables.level),
-					tenantIds: createUntypedArray(
-						variables.tenantIds.map((tenantId) =>
-							createUntypedString(tenantId),
-						),
-					),
-				}) as unknown as AssignTenantUserCompaniesForStaffBody,
-			);
+			return client.staff.tenantUsers
+				.byUserId(variables.userId)
+				.companies.post(buildAssignCompaniesBody(variables));
 		},
 		meta: {
 			silentSuccess: true,

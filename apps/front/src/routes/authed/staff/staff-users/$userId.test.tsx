@@ -50,7 +50,7 @@ vi.mock('@tanstack/react-router', () => ({
 	useRouterState: ({
 		select,
 	}: {
-		select: (state: { location: { pathname: string } }) => unknown;
+		select: (state: { location: { pathname: string } }) => void;
 	}) => select({ location: { pathname: mocks.pathname } }),
 	// Stands in for the real body-level danger zone (owned by `$userId/index.tsx`)
 	// so this file can still exercise the mutation/dialog wiring that lives in
@@ -192,10 +192,10 @@ vi.mock('~/lib/query/staff-users', () => ({
 	STAFF_USERS_QUERY_KEY: ['staff-users'],
 	STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
 	invalidateStaffUsers: (queryClient: {
-		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<unknown>;
+		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<void>;
 	}) => queryClient.invalidateQueries({ queryKey: ['staff', 'staff-users'] }),
 	removeStaffUserDetails: (queryClient: {
-		removeQueries: (options: { queryKey: unknown[] }) => unknown;
+		removeQueries: (options: { queryKey: unknown[] }) => void;
 	}) =>
 		queryClient.removeQueries({
 			queryKey: ['staff', 'staff-users', 'detail'],
@@ -238,11 +238,7 @@ const buildMutationResult = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+	const Component = Route.options.component as () => JSX.Element;
 
 	return render(<Component />);
 };

@@ -1,15 +1,43 @@
 import { getShellScope } from '~/lib/navigation/route-metadata';
 import type { AppRoutePath } from '~/lib/navigation/route-metadata';
 
+import type {
+	AuditLogDetail,
+	GetStaffProfileByIdResult,
+	GetStaffUserByIdResult,
+	GetTenantAsStaffResult,
+	GetTenantProfileByIdResponse,
+	StaffInvitationDetails,
+	TenantUserDetailsResult,
+} from '@org/client-ts/models/index';
+
+/**
+ * The entity payloads the shell's entity crumbs can resolve. Each member is
+ * the DTO produced by one domain's `*CrumbQuery` fetcher (`staff-*.ts`);
+ * adding a new entity crumb means adding its DTO here, on purpose.
+ */
+export type EntityCrumbPayload =
+	| AuditLogDetail
+	| GetStaffProfileByIdResult
+	| GetStaffUserByIdResult
+	| GetTenantAsStaffResult
+	| GetTenantProfileByIdResponse
+	| StaffInvitationDetails
+	| TenantUserDetailsResult;
+
 /**
  * The minimal shape `useQuery` needs. Route crumb specs build this from the
  * SAME `xxxDetailsQueryOptions` factory the page itself queries, so the key
  * matches and TanStack Query dedupes the request — a page that already
  * cached the entity paints its crumb name instantly.
+ *
+ * `queryFn` resolves a named entity payload; the pairing `CrumbSpec.select`
+ * owns the `payload → name` narrowing (see `EntityCrumb` in
+ * `entity-crumb.tsx`).
  */
 export type EntityCrumbQuery = {
 	queryKey: readonly unknown[];
-	queryFn: () => Promise<unknown>;
+	queryFn: () => Promise<EntityCrumbPayload>;
 };
 
 /**

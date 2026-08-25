@@ -40,6 +40,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useParams: mocks.useParams,
 		useNavigate: () => mocks.navigate,
 	}),
@@ -173,8 +174,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first
 import { Route } from './edit';
 
-const TenantPostEditPage = (Route as unknown as { component: ComponentType })
-	.component;
+const TenantPostEditPage = Route.options.component as ComponentType;
 
 afterEach(() => {
 	cleanup();

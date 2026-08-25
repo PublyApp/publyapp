@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	redirect: mocks.redirect,
 }));
 
@@ -16,12 +19,12 @@ import { Route } from './profiles-new';
 
 describe('staff tenant profiles/new legacy route', () => {
 	test('redirects to the profiles tab with the create-drawer flag', () => {
-		const RouteConfig = Route as unknown as {
-			beforeLoad: (context: { params: { tenantId: string } }) => unknown;
-		};
+		const beforeLoad = Route.options.beforeLoad as (context: {
+			params: { tenantId: string };
+		}) => void;
 
 		expect(() =>
-			RouteConfig.beforeLoad({
+			beforeLoad({
 				params: { tenantId: '11111111-1111-1111-1111-111111111111' },
 			}),
 		).toThrow();

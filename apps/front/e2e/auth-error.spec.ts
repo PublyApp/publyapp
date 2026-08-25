@@ -522,7 +522,7 @@ test.describe(
 			await expect(page.getByTestId('view-404')).toBeVisible();
 
 			await page.evaluate(() => {
-				(window as unknown as { __spaAlive?: boolean }).__spaAlive = true;
+				(window as { __spaAlive?: boolean } & typeof window).__spaAlive = true;
 			});
 			await page
 				.getByTestId('view-404')
@@ -531,7 +531,8 @@ test.describe(
 
 			const alive = await page.evaluate(
 				() =>
-					(window as unknown as { __spaAlive?: boolean }).__spaAlive === true,
+					(window as { __spaAlive?: boolean } & typeof window).__spaAlive ===
+					true,
 			);
 			expect(alive).toBe(true);
 		});

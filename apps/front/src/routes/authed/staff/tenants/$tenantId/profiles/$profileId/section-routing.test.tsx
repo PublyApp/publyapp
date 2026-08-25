@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 /** @vitest-environment jsdom */
 /**
  * #977 Tier-2 guard: the tenant-profile detail sections as REAL path
@@ -32,7 +33,7 @@
  * would drag in session/auth bootstrapping that has nothing to do with the
  * thing being proved.
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { BlockerFn } from '@tanstack/react-router';
 import {
 	createBrowserHistory,
 	createMemoryHistory,
@@ -196,7 +197,9 @@ const mountRealRoute = <TRoute,>(
 	route: TRoute,
 	options: Record<string, unknown>,
 ): TRoute => {
-	(route as { update: (options: unknown) => unknown }).update(options);
+	(route as { update: (options: Record<string, unknown>) => void }).update(
+		options,
+	);
 
 	return route;
 };
@@ -211,14 +214,6 @@ const destroyOpenHistories = (): void => {
 	while (openHistories.length > 0) {
 		openHistories.pop()?.destroy();
 	}
-};
-
-type BlockerRegistration = {
-	blockerFn: (args: {
-		currentLocation: Record<string, unknown>;
-		nextLocation: Record<string, unknown>;
-		action: string;
-	}) => Promise<boolean>;
 };
 
 /**
@@ -297,21 +292,23 @@ const buildRouter = (
 		component: () => <div data-testid="profiles-list-page" />,
 	} as never);
 
-	const routeTree = (
-		rootRoute as unknown as {
-			addChildren: (children: unknown[]) => unknown;
-		}
-	).addChildren([
-		(
-			layoutRoute as unknown as {
-				addChildren: (children: unknown[]) => unknown;
-			}
-		).addChildren([
-			(
-				detailsRoute as unknown as {
-					addChildren: (children: unknown[]) => unknown;
-				}
-			).addChildren([overviewRoute, permissionsRoute, membersRoute]),
+	// `.addChildren` exists at runtime on every route but is absent from the
+	// exported `options` union; the helper is the one widening point and each
+	// call names its shape once.
+	function widenOptions<T>(value: unknown): T {
+		return value as T;
+	}
+	function addChildrenOf(route: unknown) {
+		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
+			.addChildren;
+	}
+	const routeTree = addChildrenOf(rootRoute)([
+		addChildrenOf(layoutRoute)([
+			addChildrenOf(detailsRoute)([
+				overviewRoute,
+				permissionsRoute,
+				membersRoute,
+			]),
 			profileUsersRoute,
 			profileEditShimRoute,
 			profilesListRoute,
@@ -322,14 +319,15 @@ const buildRouter = (
 	// The blockers array inside `createHistory` is closed over, so capture
 	// every registration as it happens. This is the SAME object the router
 	// hands to `useBlocker`; nothing about the production predicate is
-	// re-implemented here.
-	const blockers: BlockerRegistration[] = [];
+	// re-implemented here. Typed with the package's own BlockerFn so the
+	// shim stays assignable to the real history.block parameter.
+	const blockers: BlockerFn[] = [];
 	const originalBlock = history.block.bind(history);
-	history.block = ((registration: BlockerRegistration) => {
-		blockers.push(registration);
+	history.block = (registration) => {
+		blockers.push(registration.blockerFn);
 
-		return originalBlock(registration as never);
-	}) as unknown as typeof history.block;
+		return originalBlock(registration);
+	};
 
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
@@ -658,10 +656,12 @@ describe('#977 the dirty-matrix navigation guard (real router)', () => {
 			// which takes the raw search STRING off a history location.
 			search: '',
 			hash: '',
-			state: {},
+			// BlockerFnArgs.state is ParsedHistoryState; the production
+			// predicate never inspects it, so opt out of checking the literal.
+			state: {} as never,
 		});
-		const blocked = blockers.map((registration) =>
-			registration.blockerFn({
+		const blocked = blockers.map((blockerFn) =>
+			blockerFn({
 				currentLocation: asHistoryLocation(PERMISSIONS_PATH),
 				nextLocation: asHistoryLocation(OVERVIEW_PATH),
 				action: 'BACK',

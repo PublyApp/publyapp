@@ -2,7 +2,15 @@ export const SESSION_VALIDATION_TIMEOUT_MS = 20_000;
 
 type SessionValidation<T> = (signal: AbortSignal) => Promise<T>;
 
-const getAbortReason = (signal: AbortSignal): unknown =>
+/**
+ * `signal.reason` is `any` in the DOM lib; the rejection reason slot accepts
+ * `unknown`, so the honest type here is the non-any supertype. Callers only
+ * forward it to `controller.abort(reason)` / `reject(reason)`, both of which
+ * accept `unknown`.
+ */
+type AbortReason = string | Error;
+
+const getAbortReason = (signal: AbortSignal): AbortReason =>
 	signal.reason ??
 	new DOMException('Session validation cancelled', 'AbortError');
 

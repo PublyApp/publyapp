@@ -270,7 +270,7 @@ test.describe(
 			await expect(page.getByTestId('staff-tenant-details-page')).toBeVisible();
 
 			await page.evaluate(() => {
-				(window as unknown as { __spaAlive?: boolean }).__spaAlive = true;
+				(window as { __spaAlive?: boolean } & typeof window).__spaAlive = true;
 			});
 
 			await page.getByRole('link', { name: 'Users' }).click();
@@ -282,7 +282,8 @@ test.describe(
 
 			const alive = await page.evaluate(
 				() =>
-					(window as unknown as { __spaAlive?: boolean }).__spaAlive === true,
+					(window as { __spaAlive?: boolean } & typeof window).__spaAlive ===
+					true,
 			);
 			expect(alive).toBe(true);
 		});

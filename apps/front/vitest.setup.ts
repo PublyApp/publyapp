@@ -40,7 +40,10 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 
 	const registry = new Map<
 		string,
-		{ listeners: Set<() => void>; lastMatches: boolean }
+		{
+			listeners: Set<(event: Event) => void>;
+			lastMatches: boolean;
+		}
 	>();
 
 	window.addEventListener('resize', () => {
@@ -49,13 +52,13 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 			if (matches !== entry.lastMatches) {
 				entry.lastMatches = matches;
 				for (const listener of entry.listeners) {
-					listener();
+					listener(new Event('change'));
 				}
 			}
 		}
 	});
 
-	window.matchMedia = ((query: string): MediaQueryList => {
+	window.matchMedia = ((query: string) => {
 		if (!registry.has(query)) {
 			registry.set(query, {
 				listeners: new Set(),
@@ -69,16 +72,14 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 			get matches() {
 				return computeMatches(query);
 			},
-			onchange: null,
-			addEventListener: (_type: 'change', listener: () => void) => {
-				entry?.listeners.add(listener);
+			onchange: null as MediaQueryList['onchange'],
+			addEventListener: (type: string, listener: (event: Event) => void) => {
+				if (type === 'change') entry?.listeners.add(listener);
 			},
-			removeEventListener: (_type: 'change', listener: () => void) => {
-				entry?.listeners.delete(listener);
+			removeEventListener: (type: string, listener: (event: Event) => void) => {
+				if (type === 'change') entry?.listeners.delete(listener);
 			},
-			addListener: () => {},
-			removeListener: () => {},
-			dispatchEvent: () => false,
-		} as unknown as MediaQueryList;
+			dispatchEvent: (): boolean => false,
+		};
 	}) as typeof window.matchMedia;
 }

@@ -124,9 +124,11 @@ vi.mock('@tanstack/react-router', () => ({
 
 		const resolvedSearch =
 			typeof search === 'function'
-				? (search as (previous: Record<string, unknown>) => unknown)(
-						mocks.search,
-					)
+				? (
+						search as (
+							previous: Record<string, unknown>,
+						) => Record<string, unknown>
+					)(mocks.search)
 				: search;
 
 		return (
@@ -155,7 +157,7 @@ vi.mock('@tanstack/react-router', () => ({
 	useRouterState: ({
 		select,
 	}: {
-		select: (state: { location: { pathname: string } }) => unknown;
+		select: (state: { location: { pathname: string } }) => void;
 	}) => select({ location: { pathname: mocks.pathname } }),
 	Outlet: () =>
 		mocks.renderOutlet ? (
@@ -188,7 +190,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	invalidateAllStaffTenantScopes: (queryClient: {
-		invalidateQueries: (arg: unknown) => unknown;
+		invalidateQueries: (arg: unknown) => void;
 	}) =>
 		queryClient.invalidateQueries({
 			queryKey: ['staff', 'staff-tenants'],
@@ -531,11 +533,7 @@ const nonDefaultProfile = {
 };
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+	const Component = Route.options.component as () => JSX.Element;
 
 	return render(<Component />);
 };

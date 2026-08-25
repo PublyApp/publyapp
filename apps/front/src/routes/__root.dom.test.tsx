@@ -12,7 +12,7 @@ vi.mock('~/lib/store/ui-store', async () => {
 	);
 	return {
 		...actual,
-		useUiStore: (selector: (state: Record<string, unknown>) => unknown) =>
+		useUiStore: (selector: (state: Record<string, unknown>) => void) =>
 			selector({ hydrateFromStorage: mocks.hydrateFromStorage }),
 	};
 });

@@ -48,7 +48,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 			),
 		useLocation: () => mocks.location,
 		useNavigate: () => mocks.navigate,
-		useMatches: ({ select }: { select: (matches: unknown[]) => unknown }) => {
+		useMatches: ({ select }: { select: (matches: unknown[]) => void }) => {
 			// `staticData`/`params` are only consumed by the app-shell's
 			// breadcrumb trail derivation (`deriveBreadcrumbTrail`) — this
 			// suite is about shell/outlet continuity, not breadcrumb content,
@@ -107,7 +107,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 
 			return select(matches);
 		},
-		useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
+		useRouterState: ({ select }: { select: (state: unknown) => void }) =>
 			select({
 				location: mocks.location,
 				resolvedLocation: mocks.resolvedLocation,

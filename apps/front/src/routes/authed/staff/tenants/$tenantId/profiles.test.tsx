@@ -278,11 +278,7 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 	...overrides,
 });
 
-const RouteComponent = (
-	Route as unknown as {
-		component: () => JSX.Element;
-	}
-).component;
+const RouteComponent = Route.options.component as () => JSX.Element;
 
 const renderPage = () => render(<RouteComponent />);
 
@@ -679,7 +675,7 @@ describe('staff tenant profiles route', () => {
 
 	test('renders default filter controls when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
 		const validateSearch = (
-			Route as unknown as {
+			Route.options as {
 				validateSearch: (
 					search: Record<string, unknown>,
 				) => Record<string, unknown>;

@@ -30,7 +30,10 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -79,9 +82,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './workspaces';
 
-const TenantSettingsWorkspacesPage = (
-	Route as unknown as { component: ComponentType }
-).component;
+const TenantSettingsWorkspacesPage = Route.options.component as ComponentType;
 
 afterEach(() => {
 	cleanup();

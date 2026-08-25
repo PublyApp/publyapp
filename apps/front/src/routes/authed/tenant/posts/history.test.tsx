@@ -6,7 +6,10 @@ import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 }));
 
 const EN_LABELS: Record<string, string> = {
@@ -28,9 +31,7 @@ vi.mock('react-i18next', () => ({
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './history';
 
-const TenantPostsHistoryPage = (
-	Route as unknown as { component: ComponentType }
-).component;
+const TenantPostsHistoryPage = Route.options.component as ComponentType;
 
 afterEach(() => {
 	cleanup();

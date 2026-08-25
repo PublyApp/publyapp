@@ -62,6 +62,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useNavigate: () => mocks.navigate,
 		useParams: () => ({
 			tenantId: '11111111-1111-1111-1111-111111111111',
@@ -277,11 +278,7 @@ const buildQueryResult = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as {
-			component: () => JSX.Element;
-		}
-	).component;
+	const Component = Route.options.component as () => JSX.Element;
 
 	return render(<Component />);
 };
@@ -450,8 +447,7 @@ describe('staff tenant users route', () => {
 	});
 
 	test('a debounced search commit does not close a drawer opened within the debounce window (F1)', async () => {
-		const Component = (Route as unknown as { component: () => JSX.Element })
-			.component;
+		const Component = Route.options.component as () => JSX.Element;
 		const renderResult = render(<Component />);
 
 		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
@@ -474,8 +470,7 @@ describe('staff tenant users route', () => {
 
 	test('a debounced search commit does not reopen a drawer closed within the debounce window (r3-F1)', async () => {
 		mocks.search = { invite: 1 };
-		const Component = (Route as unknown as { component: () => JSX.Element })
-			.component;
+		const Component = Route.options.component as () => JSX.Element;
 		const renderResult = render(<Component />);
 
 		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
@@ -544,7 +539,7 @@ describe('staff tenant users route', () => {
 
 	test('renders default filter controls when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
 		const validateSearch = (
-			Route as unknown as {
+			Route.options as {
 				validateSearch: (
 					search: Record<string, unknown>,
 				) => Record<string, unknown>;

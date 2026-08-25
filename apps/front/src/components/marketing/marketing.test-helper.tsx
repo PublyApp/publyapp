@@ -82,5 +82,5 @@ export const renderMarketing = async (
 		}
 	});
 
-	return { ...result, router: router as unknown as AnyRouter };
+	return { ...result, router: router as AnyRouter };
 };

@@ -20,6 +20,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { compile } from 'tailwindcss';
 import {
+	Node,
 	Project,
 	ScriptKind,
 	SyntaxKind,
@@ -27,21 +28,26 @@ import {
 	ts as tsCompiler,
 } from 'ts-morph';
 import type {
+	ArrowFunction,
 	AsExpression,
 	ConditionalExpression,
+	ConstructorDeclaration,
 	Expression,
-	FunctionLikeDeclaration,
+	FunctionDeclaration,
+	FunctionExpression,
+	GetAccessorDeclaration,
 	JsxAttribute,
 	JsxExpression,
 	JsxOpeningElement,
 	JsxSelfClosingElement,
-	Node,
+	MethodDeclaration,
 	NoSubstitutionTemplateLiteral,
 	ObjectBindingPattern,
 	ObjectLiteralExpression,
 	ParenthesizedExpression,
 	PropertyAccessExpression,
 	PropertyAssignment,
+	SetAccessorDeclaration,
 	SourceFile,
 	StringLiteral,
 } from 'ts-morph';
@@ -518,12 +524,9 @@ const parseTsxSource = (source: string, file: string): SourceFile => {
 		overwrite: true,
 		scriptKind: ScriptKind.TSX,
 	});
-	const parseDiagnostics =
-		(
-			sourceFile.compilerNode as unknown as {
-				parseDiagnostics?: tsCompiler.Diagnostic[];
-			}
-		).parseDiagnostics ?? [];
+	const parseDiagnostics = tsxProject
+		.getLanguageService()
+		.compilerObject.getSyntacticDiagnostics(file);
 	if (parseDiagnostics.length > 0) {
 		throw new Error(
 			`Contrast guard cannot parse ${file}: ` +
@@ -1266,15 +1269,26 @@ const collectBindingNames = (nameNode: Node, names: Set<string>): void => {
 	}
 };
 
-const FUNCTION_LIKE_KINDS = new Set([
-	SyntaxKind.FunctionDeclaration,
-	SyntaxKind.FunctionExpression,
-	SyntaxKind.ArrowFunction,
-	SyntaxKind.MethodDeclaration,
-	SyntaxKind.Constructor,
-	SyntaxKind.GetAccessor,
-	SyntaxKind.SetAccessor,
-]);
+/** Whether a node is any function-like declaration usable for parameter
+ * binding checks. ts-morph's own narrowing guards keep the parameter walk
+ * below assertion-free. */
+type FunctionLikeNode =
+	| FunctionDeclaration
+	| FunctionExpression
+	| ArrowFunction
+	| MethodDeclaration
+	| ConstructorDeclaration
+	| GetAccessorDeclaration
+	| SetAccessorDeclaration;
+
+const isFunctionLikeNode = (node: Node): node is FunctionLikeNode =>
+	Node.isFunctionDeclaration(node) ||
+	Node.isFunctionExpression(node) ||
+	Node.isArrowFunction(node) ||
+	Node.isMethodDeclaration(node) ||
+	Node.isConstructorDeclaration(node) ||
+	Node.isGetAccessorDeclaration(node) ||
+	Node.isSetAccessorDeclaration(node);
 
 /** Whether a JSX tag identifier is bound to a parameter of any enclosing
  * function — the classic render-prop channel. Such a tag cannot be
@@ -1288,12 +1302,10 @@ const isBoundToFunctionParameter = (tagNode: Node): boolean => {
 		ancestor !== undefined;
 		ancestor = ancestor.getFirstAncestor()
 	) {
-		if (!FUNCTION_LIKE_KINDS.has(ancestor.getKind())) {
+		if (!isFunctionLikeNode(ancestor)) {
 			continue;
 		}
-		for (const parameter of (
-			ancestor as unknown as FunctionLikeDeclaration
-		).getParameters()) {
+		for (const parameter of ancestor.getParameters()) {
 			const names = new Set<string>();
 			collectBindingNames(parameter.getNameNode(), names);
 			if (names.has(name)) {

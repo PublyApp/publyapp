@@ -189,7 +189,7 @@ const StaffTenantProfileMembersPage = () => {
 				serializeProfileMembersSearchParams({
 					...previous,
 					assign: isOpen ? 1 : undefined,
-				}) as unknown as ProfileMembersSearchParams,
+				}) as ProfileMembersSearchParams,
 			replace: true,
 		});
 	};
@@ -199,7 +199,7 @@ const StaffTenantProfileMembersPage = () => {
 			search: serializeProfileMembersSearchParams({
 				...next,
 				assign: search.assign,
-			}) as unknown as ProfileMembersSearchParams,
+			}) as ProfileMembersSearchParams,
 			replace: true,
 		});
 	};

@@ -25,7 +25,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-	createFileRoute: () => (options: Record<string, unknown>) => options,
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
 	createRootRouteWithContext: () => () => ({}),
 	Link: ({
 		to,
@@ -41,7 +44,7 @@ vi.mock('@tanstack/react-router', () => ({
 		</a>
 	),
 	Outlet: () => <div data-testid="outlet-stub">outlet</div>,
-	useMatches: ({ select }: { select?: (matches: unknown[]) => unknown }) =>
+	useMatches: ({ select }: { select?: (matches: unknown[]) => void }) =>
 		select?.([
 			{
 				routeId: '/_authed-layout',
@@ -62,7 +65,7 @@ vi.mock('@tanstack/react-router', () => ({
 				staticData: { crumbs: 'shell' },
 			},
 		]),
-	useRouterState: ({ select }: { select?: (state: unknown) => unknown }) =>
+	useRouterState: ({ select }: { select?: (state: unknown) => void }) =>
 		select?.({ location: { pathname: mocks.pathname } }),
 	useNavigate: () => mocks.navigate,
 	// The portal's redirects are declarative `<Navigate>` elements now; the
@@ -187,8 +190,7 @@ import { RoutedShell } from '../__root';
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './tenant';
 
-const TenantPortalRoute = (Route as unknown as { component: ComponentType })
-	.component;
+const TenantPortalRoute = Route.options.component as ComponentType;
 
 const resolveSingleActiveTenant = () => {
 	setQuery({

@@ -40,6 +40,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
+		options,
 		useNavigate: () => mocks.navigate,
 	}),
 	Link: ({ children, to, ...props }: { children: ReactNode; to: string }) =>
@@ -209,7 +210,7 @@ vi.mock('~/components/field', () => ({
 
 vi.mock('~/lib/query/staff-profiles', () => ({
 	invalidateStaffProfiles: (queryClient: {
-		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<unknown>;
+		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<void>;
 	}) =>
 		queryClient.invalidateQueries({ queryKey: ['staff', 'staff-profiles'] }),
 	useCreateStaffProfileMutation: mocks.useCreateStaffProfileMutation,
@@ -245,9 +246,9 @@ const buildPermissionCatalogQuery = (
 });
 
 const renderPage = () => {
-	const Component = (
-		Route as unknown as { component: () => ReturnType<typeof createElement> }
-	).component;
+	const Component = Route.options.component as () => ReturnType<
+		typeof createElement
+	>;
 	return render(createElement(Component));
 };
 

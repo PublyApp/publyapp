@@ -12,8 +12,6 @@ export const delay = <T = unknown>(timeout: number, value?: T) => {
 	});
 };
 
-type AsyncFunction = (...args: never[]) => Promise<unknown>;
-
 export const isAsyncFunction = (
 	func: GenericFunction,
 ): func is AsyncFunction => {
@@ -31,7 +29,7 @@ export const isPromise = (input: unknown): input is Promise<unknown> => {
 	);
 };
 
-type DeepReadonly<T> = T extends (...args: never[]) => unknown
+type DeepReadonly<T> = T extends GenericFunction
 	? T
 	: { readonly [P in keyof T]: DeepReadonly<T[P]> };
 

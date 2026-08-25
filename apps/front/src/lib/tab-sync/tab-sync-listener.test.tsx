@@ -28,14 +28,14 @@ vi.mock('@tanstack/react-router', () => ({
 	useLocation: ({
 		select,
 	}: {
-		select: (location: { pathname: string }) => unknown;
+		select: (location: { pathname: string }) => void;
 	}) => select({ pathname: mocks.pathname }),
 	useNavigate: () => mocks.navigate,
 	useRouter: () => ({ invalidate: mocks.invalidate }),
 }));
 
 vi.mock('~/lib/store/ui-store', () => ({
-	useUiStore: (selector: (state: Record<string, unknown>) => unknown) =>
+	useUiStore: (selector: (state: Record<string, unknown>) => void) =>
 		selector({ applyRemoteColorScheme: mocks.applyRemoteColorScheme }),
 	withThemeTransitionSuppressed: (apply: () => void) => apply(),
 }));
