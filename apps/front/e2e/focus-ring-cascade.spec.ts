@@ -70,6 +70,12 @@ const PROBE_ATTR = 'data-e2e-focus-probe';
 const OUTLINE_TOKEN_ALLOWLIST: ReadonlySet<string> = new Set([
 	'button-default',
 	'button-outline',
+	// #1405: DESIGN.md ("Focus rings") lists input.tsx in the 3px
+	// box-shadow-ring family (`focus-visible:ring-3` + `border-ring` over an
+	// `outline-none` reset, input.tsx line-borne), so its contract at
+	// :focus-visible is NO outline — asserted in the negative below like the
+	// other allowlisted probes.
+	'input',
 	'select-trigger',
 	'switch',
 	'checkbox',
