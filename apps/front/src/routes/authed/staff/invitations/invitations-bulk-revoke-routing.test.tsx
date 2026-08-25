@@ -140,6 +140,9 @@ vi.mock('react-i18next', () => ({
 					'Successfully revoked {{count}} invitation(s).',
 				'invitation-bulk-revoke-partial-success':
 					'Revoked {{succeeded}} invitation(s), {{failed}} failed.',
+				'invitation-bulk-revoke-reason-not-found': '{{count}} not found',
+				'invitation-bulk-revoke-reason-already-accepted':
+					'{{count}} already accepted',
 				'invitation-bulk-revoke-failure':
 					'Failed to revoke selected invitations.',
 			};
@@ -474,9 +477,56 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 		).toBeTruthy();
 		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
 
+		// A response WITHOUT failedItems still shows the aggregate counts, with
+		// no reasons line.
 		await waitFor(() =>
 			expect(mocks.toastError).toHaveBeenCalledWith(
 				'Revoked 1 invitation(s), 2 failed.',
+			),
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('a partial-success revoke names the per-item failure reasons', async () => {
+		// r1 MINOR fix (transparent-failure principle): the 200 body carries
+		// failedItems[].reason — the toast must say WHY items failed, not just
+		// how many. Both rows are made pending so both ids are genuinely
+		// eligible AND sent, making the two-reason response realistic (one got
+		// accepted in-flight, one vanished).
+		const bothPending = invitationPayload();
+		bothPending.data[1]!.status = 'Pending';
+		mocks.useStaffInvitationsQuery.mockImplementation(() =>
+			settledQuery(bothPending),
+		);
+
+		mocks.bulkRevoke.mockResolvedValue({
+			succeededCount: 0,
+			failedCount: 2,
+			failedItems: [
+				{ invitationId: PENDING_A, reason: 'already_accepted' },
+				{ invitationId: ACCEPTED_B, reason: 'not_found' },
+			],
+		});
+
+		await renderAtList();
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+		);
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+		);
+
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
+		expect(
+			await screen.findByText(/revoke 2 selected invitation/),
+		).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Revoked 0 invitation(s), 2 failed.',
+				'1 already accepted; 1 not found',
 			),
 		);
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();

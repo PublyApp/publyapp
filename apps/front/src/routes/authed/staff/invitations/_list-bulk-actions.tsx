@@ -22,6 +22,7 @@ import {
 } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
+import type { BulkStaffInvitationActionFailedItem } from '@org/client-ts/models/index';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
 import { getBulkRevokeEligibleIds } from './bulk-revoke-eligibility';
@@ -41,6 +42,51 @@ const INVITATION_BULK_REVOKE_FAILURE_KEY = 'invitation-bulk-revoke-failure';
 const INVITATION_BULK_REVOKE_SUCCESS_KEY = 'invitation-bulk-revoke-success';
 const INVITATION_BULK_REVOKE_PARTIAL_SUCCESS_KEY =
 	'invitation-bulk-revoke-partial-success';
+
+// Wire reasons (apps/api … BulkStaffInvitationActionFailureReasons) → i18n
+// keys. Unknown future reasons fall back to a generic translated key — never
+// a hardcoded literal (transparent-failure principle, #1387 r1 MINOR).
+const INVITATION_BULK_REVOKE_REASON_I18N_KEYS: Record<string, string> = {
+	already_accepted: 'invitation-bulk-revoke-reason-already-accepted',
+	not_found: 'invitation-bulk-revoke-reason-not-found',
+};
+const INVITATION_BULK_REVOKE_REASON_OTHER_KEY =
+	'invitation-bulk-revoke-reason-other';
+
+type TFunctionLike = (key: string, options?: Record<string, unknown>) => string;
+
+/** Groups per-item revoke failures by reason with counts ("1 already accepted;
+ * 1 not found") for the partial-success toast description: the 200 body says
+ * WHY items failed, so the toast must say it too. Insertion order preserved,
+ * so the most relevant server ordering survives grouping. Returns undefined
+ * when the payload carries no per-item reasons (the toast then shows the
+ * aggregate counts only). */
+const describeBulkRevokeFailureReasons = (
+	failedItems:
+		| readonly BulkStaffInvitationActionFailedItem[]
+		| null
+		| undefined,
+	t: TFunctionLike,
+): string | undefined => {
+	if (!failedItems || failedItems.length === 0) {
+		return undefined;
+	}
+
+	const countsByReason = new Map<string, number>();
+	for (const item of failedItems) {
+		const reason = item.reason ?? '';
+		countsByReason.set(reason, (countsByReason.get(reason) ?? 0) + 1);
+	}
+
+	const parts: string[] = [];
+	for (const [reason, count] of countsByReason) {
+		const key =
+			INVITATION_BULK_REVOKE_REASON_I18N_KEYS[reason] ??
+			INVITATION_BULK_REVOKE_REASON_OTHER_KEY;
+		parts.push(t(key, { count }));
+	}
+	return parts.join('; ');
+};
 
 export const InvitationsListBulkActions = ({
 	rows,
@@ -109,12 +155,21 @@ export const InvitationsListBulkActions = ({
 		const failedCount = result?.failedCount ?? 0;
 
 		if (failedCount > 0) {
-			toastLocalMutationResult.error(
-				t(INVITATION_BULK_REVOKE_PARTIAL_SUCCESS_KEY, {
-					succeeded: succeededCount,
-					failed: failedCount,
-				}),
+			// Per-item reasons ride along as the toast description when the body
+			// carries them; the aggregate-counts-only shape stays a 1-arg call.
+			const message = t(INVITATION_BULK_REVOKE_PARTIAL_SUCCESS_KEY, {
+				succeeded: succeededCount,
+				failed: failedCount,
+			});
+			const reasonsLine = describeBulkRevokeFailureReasons(
+				result?.failedItems,
+				t,
 			);
+			if (reasonsLine === undefined) {
+				toastLocalMutationResult.error(message);
+			} else {
+				toastLocalMutationResult.error(message, reasonsLine);
+			}
 		} else {
 			toastLocalMutationResult.success(
 				t(INVITATION_BULK_REVOKE_SUCCESS_KEY, { count: succeededCount }),
