@@ -3163,9 +3163,3 @@ html[data-theme-changing] * {
 		scroll-margin-top: calc(var(--publy-header-height) + 16px);
 	}
 }
-
-/* #823 RED proof: deliberately broken, reverted in the next commit. */
-[data-e2e-focus-probe] {
-	box-shadow: none;
-	border: 2px solid rgba(228, 228, 231, 1) !important;
-}
