@@ -1,4 +1,4 @@
-import type { FormEventHandler } from 'react';
+import type { SubmitEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { Field, Form } from '~/components/field';
 import { Button } from '~/components/ui/button';
@@ -12,7 +12,7 @@ type SettingsGeneralIdentityCardProps = {
 	t: Translate;
 	serverError: string;
 	methods: UseFormReturn<SettingsGeneralValues>;
-	onSubmit: FormEventHandler<HTMLFormElement>;
+	onSubmit: SubmitEventHandler<HTMLFormElement>;
 	isSubmittingForm: boolean;
 };
 

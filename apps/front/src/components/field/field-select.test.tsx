@@ -41,7 +41,7 @@ describe('FieldSelect', () => {
 	// r4-shell-F6: FieldSelect wired onBlur but never forwarded field.ref/
 	// field.name to its focusable trigger, so RHF's setFocus() (used to move
 	// focus to the first invalid field on submit) had no DOM node to focus.
-	test('forwards field.ref so RHF setFocus() actually moves focus to the trigger', () => {
+	test('forwards field.ref so RHF setFocus() actually moves focus to the trigger', async () => {
 		render(<SelectHarness />);
 
 		const trigger = screen.getByRole('combobox');
@@ -49,6 +49,14 @@ describe('FieldSelect', () => {
 
 		act(() => {
 			screen.getByRole('button', { name: 'Focus choice' }).click();
+		});
+
+		// RHF 7.85's setFocus() defers the actual .focus() to a setTimeout(0)
+		// macrotask, so the focus lands after the act() above returns — flush
+		// one macrotask before asserting (behaviour change vs 7.54, which
+		// focused synchronously).
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
 
 		expect(document.activeElement).toBe(trigger);

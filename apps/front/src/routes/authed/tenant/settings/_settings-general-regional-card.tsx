@@ -1,4 +1,4 @@
-import type { FormEventHandler } from 'react';
+import type { SubmitEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { Field, Form, type FieldSelectOption } from '~/components/field';
 import { Button } from '~/components/ui/button';
@@ -11,7 +11,7 @@ type Translate = (key: string) => string;
 type SettingsGeneralRegionalCardProps = {
 	t: Translate;
 	methods: UseFormReturn<SettingsGeneralValues>;
-	onSubmit: FormEventHandler<HTMLFormElement>;
+	onSubmit: SubmitEventHandler<HTMLFormElement>;
 	isSubmittingForm: boolean;
 	localeOptions: FieldSelectOption[];
 	timezoneOptions: FieldSelectOption[];

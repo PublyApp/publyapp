@@ -126,7 +126,7 @@ const DrawerFooter = ({ className, ...props }: React.ComponentProps<'div'>) => {
 type DrawerFormProps<TFieldValues extends FieldValues = FieldValues> = {
 	children: React.ReactNode;
 	methods: UseFormReturn<TFieldValues>;
-	onSubmit?: React.FormEventHandler<HTMLFormElement>;
+	onSubmit?: React.SubmitEventHandler<HTMLFormElement>;
 	slotProps?: {
 		form?: React.HTMLAttributes<HTMLFormElement>;
 	};
