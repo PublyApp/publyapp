@@ -8,6 +8,8 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	attachMutateAsync: vi.fn(),
 	removeMutateAsync: vi.fn(),
+	altMutateAsync: vi.fn(),
+	invalidateFn: vi.fn(),
 }));
 
 vi.mock('~/lib/query/tenant-post-images', () => ({
@@ -19,6 +21,11 @@ vi.mock('~/lib/query/tenant-post-images', () => ({
 		mutateAsync: mocks.removeMutateAsync,
 		isPending: false,
 	}),
+	useUpdatePostImageAltMutation: () => ({
+		mutateAsync: mocks.altMutateAsync,
+		isPending: false,
+	}),
+	useInvalidatePostImageCaches: () => mocks.invalidateFn,
 }));
 
 const EN_LABELS: Record<string, string> = {
@@ -37,6 +44,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
+import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
 
 afterEach(() => {
@@ -49,15 +57,9 @@ const pngFile = () =>
 		type: 'image/png',
 	});
 
-describe('PostImagePicker', () => {
+describe('PostImagePicker (online mode)', () => {
 	test('renders input, alt field and help text', () => {
-		render(
-			<PostImagePicker
-				postId="post-1"
-				existingImage={null}
-				onRemoved={undefined}
-			/>,
-		);
+		render(<PostImagePicker postId="post-1" />);
 
 		expect(screen.getByTestId('tenant-posts-create-image-input')).toBeTruthy();
 		expect(screen.getByTestId('tenant-posts-create-image-alt')).toBeTruthy();
@@ -66,13 +68,7 @@ describe('PostImagePicker', () => {
 
 	test('attaches a picked file and shows a local preview', async () => {
 		const user = userEvent.setup();
-		render(
-			<PostImagePicker
-				postId="post-1"
-				existingImage={null}
-				onRemoved={undefined}
-			/>,
-		);
+		render(<PostImagePicker postId="post-1" />);
 
 		const input = screen.getByTestId(
 			'tenant-posts-create-image-input',
@@ -96,35 +92,7 @@ describe('PostImagePicker', () => {
 		).toBeTruthy();
 	});
 
-	test('forwards the alt text typed before attach', async () => {
-		const user = userEvent.setup();
-		render(
-			<PostImagePicker
-				postId="post-1"
-				existingImage={null}
-				onRemoved={undefined}
-			/>,
-		);
-
-		await user.type(
-			screen.getByTestId('tenant-posts-create-image-alt'),
-			'a tiny logo',
-		);
-		const input = screen.getByTestId(
-			'tenant-posts-create-image-input',
-		) as HTMLInputElement;
-		await user.upload(input, pngFile());
-
-		await waitFor(() => {
-			const call = mocks.attachMutateAsync.mock.calls[0]?.[0] as
-				| { altText?: string }
-				| undefined;
-			expect(call?.altText).toBe('a tiny logo');
-		});
-	});
-
-	test('remove button deletes the image and reports removal', async () => {
-		const onRemoved = vi.fn();
+	test('commits the alt text through the post PATCH on blur', async () => {
 		const user = userEvent.setup();
 		render(
 			<PostImagePicker
@@ -135,7 +103,34 @@ describe('PostImagePicker', () => {
 					heightPx: 32,
 					altText: null,
 				}}
-				onRemoved={onRemoved}
+			/>,
+		);
+
+		await user.type(
+			screen.getByTestId('tenant-posts-create-image-alt'),
+			'a tiny logo',
+		);
+		await user.tab();
+
+		await waitFor(() => {
+			expect(mocks.altMutateAsync).toHaveBeenCalledWith({
+				postId: 'post-1',
+				altText: 'a tiny logo',
+			});
+		});
+	});
+
+	test('remove button deletes the image and refreshes caches', async () => {
+		const user = userEvent.setup();
+		render(
+			<PostImagePicker
+				postId="post-1"
+				existingImage={{
+					url: 'https://api.example.test/files/x.png',
+					widthPx: 32,
+					heightPx: 32,
+					altText: null,
+				}}
 			/>,
 		);
 
@@ -148,7 +143,7 @@ describe('PostImagePicker', () => {
 			expect(mocks.removeMutateAsync).toHaveBeenCalledWith({
 				postId: 'post-1',
 			});
-			expect(onRemoved).toHaveBeenCalled();
+			expect(mocks.invalidateFn).toHaveBeenCalled();
 		});
 	});
 
@@ -164,13 +159,7 @@ describe('PostImagePicker', () => {
 			},
 		});
 
-		render(
-			<PostImagePicker
-				postId="post-1"
-				existingImage={null}
-				onRemoved={undefined}
-			/>,
-		);
+		render(<PostImagePicker postId="post-1" />);
 
 		const input = screen.getByTestId(
 			'tenant-posts-create-image-input',
@@ -181,5 +170,44 @@ describe('PostImagePicker', () => {
 			const alert = screen.getByRole('alert');
 			expect(alert.textContent).toContain('The image exceeds the 2 MB limit.');
 		});
+	});
+});
+
+describe('PostImagePicker (deferred create-drawer mode)', () => {
+	test('collects the selection locally and reports it to the parent', async () => {
+		const onSelect = vi.fn();
+		const user = userEvent.setup();
+		render(<PostImagePicker onSelect={onSelect} />);
+
+		const input = screen.getByTestId(
+			'tenant-posts-create-image-input',
+		) as HTMLInputElement;
+		await user.upload(input, pngFile());
+
+		await waitFor(() => {
+			const call = onSelect.mock.calls[0]?.[0] as
+				| DeferredImageSelection
+				| undefined;
+			expect(call?.file.name).toBe('logo.png');
+		});
+		expect(
+			screen.getByTestId('tenant-posts-create-image-preview'),
+		).toBeTruthy();
+
+		await user.type(screen.getByTestId('tenant-posts-create-image-alt'), 'x');
+		await waitFor(() => {
+			const latest = onSelect.mock.calls.at(-1)?.[0] as
+				| DeferredImageSelection
+				| undefined;
+			expect(latest?.altText).toBe('x');
+		});
+
+		await user.click(screen.getByTestId('tenant-posts-create-image-remove'));
+		await waitFor(() => {
+			expect(onSelect.mock.calls.at(-1)?.[0]).toBeNull();
+		});
+		expect(
+			screen.queryByTestId('tenant-posts-create-image-preview'),
+		).toBeNull();
 	});
 });

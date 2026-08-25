@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -14,6 +15,10 @@ import {
 	DrawerFooter,
 	DrawerForm,
 } from '~/components/ui/drawer';
+import {
+	useAttachPostImageMutation,
+	useInvalidatePostImageCaches,
+} from '~/lib/query/tenant-post-images';
 import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
 import {
 	useTenantProjectsQuery,
@@ -22,6 +27,9 @@ import {
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
+
+import type { DeferredImageSelection } from './_post-image-picker';
+import { PostImagePicker } from './_post-image-picker';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -57,13 +65,28 @@ export const CreatePostDrawer = ({
 	// incompatible library for this component and the compiler skips it.
 	const body = useWatch({ control: methods.control, name: 'body' }) ?? '';
 
+	const attachImage = useAttachPostImageMutation();
+	const invalidatePostImageCaches = useInvalidatePostImageCaches();
+
 	const onSubmit = methods.handleSubmit(async (values) => {
 		try {
-			await savePost({
+			const created = await savePost({
 				body: values.body,
 				projectId: values.projectId ?? null,
 				tenantId,
 			});
+
+			// The picker collects a deferred image selection while the post
+			// does not exist yet; it is attached right after creation.
+			if (deferredImage) {
+				await attachImage.mutateAsync({
+					postId: created.id,
+					file: deferredImage.file,
+				});
+				invalidatePostImageCaches();
+			}
+
+			setDeferredImage(null);
 			await invalidateTenantPosts(qc, tenantId);
 			methods.reset();
 			onOpenChange(false);
@@ -94,8 +117,24 @@ export const CreatePostDrawer = ({
 		}
 	});
 
+	const [deferredImage, setDeferredImage] =
+		useState<DeferredImageSelection | null>(null);
+
+	const handleSelect = (selection: DeferredImageSelection | null) => {
+		setDeferredImage(selection);
+	};
+
+	// Closing the drawer drops any unattached selection; the picker remounts
+	// fresh on the next open so its local preview cannot outlive the state.
+	const handleOpenChange = (o: boolean) => {
+		if (!o) {
+			setDeferredImage(null);
+		}
+		onOpenChange(o);
+	};
+
 	return (
-		<Drawer open={open} onOpenChange={onOpenChange}>
+		<Drawer open={open} onOpenChange={handleOpenChange}>
 			<DrawerContent width={736} data-testid="tenant-posts-create-drawer">
 				<DrawerHeader>
 					<DrawerTitle>{t('posts:new-post')}</DrawerTitle>
@@ -139,6 +178,10 @@ export const CreatePostDrawer = ({
 								{t('posts:no-projects-yet')}
 							</p>
 						) : null}
+						<PostImagePicker
+							key={open ? 'post-image-picker-open' : 'post-image-picker-closed'}
+							onSelect={handleSelect}
+						/>
 					</DrawerBody>
 					<DrawerFooter>
 						<Button

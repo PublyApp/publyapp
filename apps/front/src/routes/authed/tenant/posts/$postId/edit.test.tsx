@@ -35,6 +35,14 @@ vi.mock('@tanstack/react-query', () => ({
 	}),
 }));
 
+// The picker pulls its own mutation hooks; the page tests only assert that
+// its mount point exists, so a static stub keeps this suite focused.
+vi.mock('../_post-image-picker', () => ({
+	PostImagePicker: () => (
+		<div data-testid="tenant-post-edit-image-picker-stub" />
+	),
+}));
+
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,

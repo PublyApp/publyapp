@@ -86,34 +86,20 @@ describe('toTenantPostImage (list projection shape)', () => {
 });
 
 describe('buildAttachPostImageBody', () => {
-	test('carries the file bytes and the trimmed alt text when provided', async () => {
+	test('carries the file part with its filename and never an altText part', async () => {
 		const bytes = new Uint8Array([1, 2, 3]);
 		const body = await buildAttachPostImageBody({
 			postId: 'post-1',
 			file: new File([bytes], 'logo.png', { type: 'image/png' }),
-			altText: '  company logo  ',
 		});
 
 		const parts = body.listParts();
 		expect(parts.file).toBeDefined();
 		const fileEntry = parts.file as { fileName?: string } | undefined;
 		expect(fileEntry?.fileName).toBe('logo.png');
-		// kiota lowercases part keys internally (normalizePartName) but writes
-		// the original name on the wire via `originalName`.
-		const alt = parts.alttext as { content?: unknown } | undefined;
-		expect(alt).toBeDefined();
-		expect(String(alt?.content)).toBe('company logo');
-	});
-
-	test('omits altText entirely when absent', async () => {
-		const body = await buildAttachPostImageBody({
-			postId: 'post-1',
-			file: new File([new Uint8Array([9])], 'x.png', { type: 'image/png' }),
-		});
-
-		const parts = body.listParts();
-		expect(parts.file).toBeDefined();
-		expect(parts.altText).toBeUndefined();
+		// The API reads alt text only from the post PATCH, never from the
+		// attach multipart (kiota lowercases part keys internally).
+		expect(parts.alttext).toBeUndefined();
 	});
 });
 

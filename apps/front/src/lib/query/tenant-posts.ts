@@ -2,6 +2,8 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import { toTenantPostImage } from '~/lib/query/tenant-post-images';
+import type { TenantPostImage } from '~/lib/query/tenant-post-images';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -46,6 +48,7 @@ export type TenantPostDetails = {
 	createdByUserId: string | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
+	image: TenantPostImage | null;
 };
 
 export type SavePostInput = {
@@ -159,6 +162,7 @@ export const toTenantPostDetails = (
 		),
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
+		image: toTenantPostImage(result?.image),
 	};
 };
 
@@ -284,6 +288,7 @@ export const savePost = async (
 		projectId: normalizeNullableString(created.projectId?.toString()),
 		status: 'draft',
 		createdByUserId: null,
+		image: null,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	};

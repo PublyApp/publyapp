@@ -8,6 +8,8 @@ import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import {
 	useAttachPostImageMutation,
 	useRemovePostImageMutation,
+	useUpdatePostImageAltMutation,
+	useInvalidatePostImageCaches,
 } from '~/lib/query/tenant-post-images';
 
 import {
@@ -26,28 +28,46 @@ export type PostImagePickerExisting = {
 	altText: string | null;
 };
 
+export type DeferredImageSelection = {
+	file: File;
+	altText: string;
+};
+
 /**
- * Attach/remove flow for a post's single image. The alt text is typed before
- * picking the file and travels with the attach multipart body; on an already
- * attached image it is read-only here (the edit page owns alt editing via the
- * post PATCH).
+ * Single owner of a post's image concerns, with two modes:
+ *
+ * - Online (`postId` set): picks attach/remove against the API immediately
+ *   and commits alt-text edits on blur through the post PATCH.
+ * - Deferred (no `postId`, `onSelect` set — create drawer): collects the
+ *   file locally; the parent attaches it right after the post exists, so
+ *   the composer can offer an image before there is anything to attach to.
+ *
+ * Every server failure is surfaced inline through `getFailureMessage`
+ * (never hand-translated at the call site).
  */
 export const PostImagePicker = ({
 	postId,
-	existingImage,
-	onRemoved,
+	existingImage = null,
+	onSelect,
 	disabled,
 }: {
-	postId: string;
-	existingImage: PostImagePickerExisting | null;
-	onRemoved?: () => void;
+	postId?: string;
+	existingImage?: PostImagePickerExisting | null;
+	onSelect?: (selection: DeferredImageSelection | null) => void;
 	disabled?: boolean;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
+	const isOnline = Boolean(postId);
 	const attachImage = useAttachPostImageMutation();
 	const removeImage = useRemovePostImageMutation();
+	const updateAlt = useUpdatePostImageAltMutation();
+	const invalidateCaches = useInvalidatePostImageCaches();
+
 	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+	const [pendingSelection, setPendingSelection] =
+		useState<DeferredImageSelection | null>(null);
 	const [altDraft, setAltDraft] = useState('');
+	const [altOverride, setAltOverride] = useState<string | null>(null);
 	const [failureMessage, setFailureMessage] = useState('');
 	const previewRef = useRef<string | null>(null);
 
@@ -60,8 +80,19 @@ export const PostImagePicker = ({
 		};
 	}, []);
 
-	const isBusy = attachImage.isPending || removeImage.isPending;
-	const isDisabled = Boolean(disabled) || isBusy;
+	const setPreview = (blob: Blob | null) => {
+		if (previewRef.current) {
+			URL.revokeObjectURL(previewRef.current);
+			previewRef.current = null;
+		}
+		if (blob) {
+			const objectUrl = URL.createObjectURL(blob);
+			previewRef.current = objectUrl;
+			setLocalPreviewUrl(objectUrl);
+		} else {
+			setLocalPreviewUrl(null);
+		}
+	};
 
 	const showFailure = (error: unknown) => {
 		setFailureMessage(
@@ -71,19 +102,28 @@ export const PostImagePicker = ({
 		);
 	};
 
+	const isBusy =
+		attachImage.isPending || removeImage.isPending || updateAlt.isPending;
+	const isControlDisabled = Boolean(disabled) || isBusy;
+
 	const handleFile = async (file: File) => {
 		setFailureMessage('');
 
-		try {
-			await attachImage.mutateAsync({
-				postId,
+		if (!isOnline) {
+			const next: DeferredImageSelection = {
 				file,
-				...(altDraft.trim() ? { altText: altDraft.trim() } : {}),
-			});
-			const objectUrl = URL.createObjectURL(file);
-			previewRef.current = objectUrl;
-			setLocalPreviewUrl(objectUrl);
-			setAltDraft('');
+				altText: altDraft.trim(),
+			};
+			setPendingSelection(next);
+			setPreview(file);
+			onSelect?.(next);
+			return;
+		}
+
+		try {
+			await attachImage.mutateAsync({ postId: postId as string, file });
+			invalidateCaches();
+			setPreview(file);
 		} catch (error) {
 			showFailure(error);
 		}
@@ -92,22 +132,76 @@ export const PostImagePicker = ({
 	const handleRemove = async () => {
 		setFailureMessage('');
 
+		if (!isOnline) {
+			setPendingSelection(null);
+			setPreview(null);
+			onSelect?.(null);
+			return;
+		}
+
 		try {
-			await removeImage.mutateAsync({ postId });
-			if (previewRef.current) {
-				URL.revokeObjectURL(previewRef.current);
-				previewRef.current = null;
-			}
-			setLocalPreviewUrl(null);
-			onRemoved?.();
+			await removeImage.mutateAsync({ postId: postId as string });
+			invalidateCaches();
+			setPreview(null);
+			setAltOverride(null);
 		} catch (error) {
 			showFailure(error);
+		}
+	};
+
+	const commitAlt = async () => {
+		if (!isOnline) {
+			return;
+		}
+		// The API rejects alt-text edits without an attached image.
+		if (!existingImage && !localPreviewUrl) {
+			return;
+		}
+
+		const next = altOverride?.trim();
+		if (!next) {
+			return;
+		}
+		const previous = existingImage?.altText ?? '';
+		if (next === previous) {
+			return;
+		}
+
+		setFailureMessage('');
+		try {
+			await updateAlt.mutateAsync({
+				postId: postId as string,
+				altText: next,
+			});
+			invalidateCaches();
+		} catch (error) {
+			showFailure(error);
+		}
+	};
+
+	const handleAltChange = (value: string) => {
+		if (isOnline) {
+			setAltOverride(value);
+			return;
+		}
+
+		setAltDraft(value);
+		if (pendingSelection) {
+			const next = { ...pendingSelection, altText: value.trim() };
+			setPendingSelection(next);
+			onSelect?.(next);
 		}
 	};
 
 	const previewSrc =
 		localPreviewUrl ??
 		(existingImage ? resolveApiFileUrl(existingImage.url) : null);
+	const altValue = isOnline
+		? (altOverride ?? existingImage?.altText ?? '')
+		: altDraft;
+	// Server-side, alt text only exists on an attached image.
+	const canEditAlt =
+		!isOnline || Boolean(existingImage) || Boolean(localPreviewUrl);
 
 	return (
 		<div className="space-y-1.5">
@@ -126,18 +220,16 @@ export const PostImagePicker = ({
 					</span>
 				)}
 				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
-					<p className="text-[13px] text-foreground">
-						<label
-							htmlFor={`post-image-input-${postId}`}
-							className={
-								isDisabled
-									? 'cursor-default'
-									: 'cursor-pointer font-medium underline underline-offset-2'
-							}
-						>
-							{t('posts:image-help')}
-						</label>
-					</p>
+					<label
+						htmlFor={`post-image-input-${postId ?? 'new'}`}
+						className={
+							isControlDisabled
+								? 'cursor-default text-muted-foreground'
+								: 'cursor-pointer font-medium underline underline-offset-2'
+						}
+					>
+						{t('posts:image-help')}
+					</label>
 					{failureMessage ? (
 						<p
 							className="publy-type-helper text-[var(--publy-danger)]"
@@ -152,7 +244,7 @@ export const PostImagePicker = ({
 						type="button"
 						variant="ghost"
 						size="sm"
-						disabled={isDisabled}
+						disabled={isControlDisabled}
 						data-testid="tenant-posts-create-image-remove"
 						onClick={() => void handleRemove()}
 					>
@@ -161,33 +253,33 @@ export const PostImagePicker = ({
 					</Button>
 				) : null}
 				<input
-					id={`post-image-input-${postId}`}
+					id={`post-image-input-${postId ?? 'new'}`}
 					type="file"
 					accept={ACCEPT_ATTR}
-					disabled={isDisabled}
+					disabled={isControlDisabled}
 					className="sr-only"
 					data-testid="tenant-posts-create-image-input"
 					onChange={(event) => {
 						const file = event.target.files?.[0];
 						event.target.value = '';
-						if (file && !isDisabled) {
+						if (file && !isControlDisabled) {
 							void handleFile(file);
 						}
 					}}
 				/>
 			</div>
 			<div className="space-y-1">
-				<Label htmlFor={`post-image-alt-${postId}`}>
+				<Label htmlFor={`post-image-alt-${postId ?? 'new'}`}>
 					{t('posts:image-alt-label')}
 				</Label>
 				<Input
-					id={`post-image-alt-${postId}`}
-					value={existingImage?.altText ?? altDraft}
-					readOnly={existingImage !== null}
+					id={`post-image-alt-${postId ?? 'new'}`}
+					value={altValue}
 					placeholder={t('posts:image-alt-placeholder')}
-					disabled={isDisabled || existingImage !== null}
+					disabled={isControlDisabled || !canEditAlt}
 					data-testid="tenant-posts-create-image-alt"
-					onChange={(event) => setAltDraft(event.target.value)}
+					onChange={(event) => handleAltChange(event.target.value)}
+					onBlur={() => void commitAlt()}
 				/>
 			</div>
 		</div>

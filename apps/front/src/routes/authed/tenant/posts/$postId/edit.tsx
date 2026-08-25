@@ -32,6 +32,8 @@ import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { PostImagePicker } from '../_post-image-picker';
+
 const getSchema = (t: (k: string) => string) =>
 	z.object({
 		body: z
@@ -278,11 +280,14 @@ const TenantPostEditPage = () => {
 								</Card>
 							</div>
 							<div
-								className="hidden lg:col-span-4 lg:block"
-								aria-hidden
+								className="space-y-4 lg:col-span-4"
 								data-testid="tenant-post-edit-reserved-side-column"
 							>
-								{/* Account & schedule (Epics C/D) — reserved space */}
+								{/* Image since Lane 639; account & schedule follow in Epics C/D */}
+								<PostImagePicker
+									postId={postId}
+									existingImage={details.image ?? null}
+								/>
 							</div>
 						</div>
 						{blocker.status === 'blocked' ? (
