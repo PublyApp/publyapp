@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -80,21 +80,20 @@ export const ChangeStaffUserEmailDialog = ({
 	} = methods;
 	const isFormLocked = isPending || isSubmitting;
 
-	// Open-transition reseed only: state clears when the dialog opens, never
-	// while it is closed (guarded by isOpen). Flagged on origin/develop too;
-	// kept as deliberate, pre-existing behaviour.
-	// react-doctor-disable-next-line react-doctor/no-reset-all-state-on-prop-change
-	useEffect(() => {
+	// Open-session reseed, without an effect: the previous-open marker turns
+	// each closed -> opened transition into a render-phase state update that
+	// reseeds the form and clears the transient states exactly once. A
+	// background refetch that replaces `currentEmail` mid-session no longer
+	// wipes an in-progress draft (the effect this replaced keyed on it).
+	const [seededIsOpen, setSeededIsOpen] = useState(isOpen);
+	if (seededIsOpen !== isOpen) {
+		setSeededIsOpen(isOpen);
 		if (isOpen) {
-			// Clears the stale submit error on open. Pre-existing on develop.
-			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setRootValidationError('');
-			// Resets a stale discard prompt on open. Pre-existing on develop.
-			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setShowDiscardConfirm(false);
 			reset({ email: currentEmail });
 		}
-	}, [isOpen, currentEmail, reset]);
+	}
 
 	// Every close request (Cancel, Escape, backdrop click) must go through
 	// this — a dirty, unsaved email edit is discarded without warning

@@ -575,6 +575,43 @@ describe('ChangeStaffUserEmailDialog', () => {
 		);
 	});
 
+	// Round 2 (#1264): the form is keyed to the open session, so a
+	// background refetch that replaces the `currentEmail` prop no longer
+	// resets a draft the user is editing (the old effect keyed on
+	// `[isOpen, currentEmail, reset]` wiped it on every refetch).
+	test('keeps an in-progress draft when the currentEmail prop updates in place', () => {
+		const baseProps = {
+			userId: 'user-1',
+			onOpenChange: vi.fn(),
+			onUpdated: vi.fn(),
+			onSessionExpired: vi.fn(),
+		};
+		const { rerender } = render(
+			<ChangeStaffUserEmailDialog
+				{...baseProps}
+				currentEmail="rui@latticecloud.com"
+				isOpen
+			/>,
+		);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'draft@latticecloud.com' },
+		});
+
+		rerender(
+			<ChangeStaffUserEmailDialog
+				{...baseProps}
+				currentEmail="refetched@latticecloud.com"
+				isOpen
+			/>,
+		);
+
+		expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe(
+			'draft@latticecloud.com',
+		);
+		expect(screen.getByTestId('change-staff-user-email-dialog')).toBeTruthy();
+	});
+
 	test('Cancel on a pristine (unchanged) email closes immediately with no confirmation', () => {
 		const onOpenChange = vi.fn();
 
