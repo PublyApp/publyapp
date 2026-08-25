@@ -416,10 +416,7 @@ const ROUTE_COMPONENTS = {
 	'reset-password': routeComponentThunk(ResetPasswordRoute),
 	'accept-invitation': routeComponentThunk(AcceptInvitationRoute),
 	'verify-email': routeComponentThunk(VerifyEmailRoute),
-} satisfies Record<
-	CallSiteSpec['route'],
-	() => () => ReactElement
->;
+} satisfies Record<CallSiteSpec['route'], () => () => ReactElement>;
 
 const setRouteLoader = (
 	route: CallSiteSpec['route'],

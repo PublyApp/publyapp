@@ -18,9 +18,7 @@ const readStored = () => {
 };
 
 const storeDecision = (
-	consent: Partial<
-		Record<'functional' | 'analytics' | 'marketing', boolean>
-	>,
+	consent: Partial<Record<'functional' | 'analytics' | 'marketing', boolean>>,
 	version?: string,
 ) => {
 	window.localStorage.setItem(

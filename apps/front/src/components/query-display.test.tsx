@@ -1,11 +1,11 @@
 import { QueryObserver, QueryClient } from '@tanstack/react-query';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { useEffect, useState } from 'react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 /**
  * @vitest-environment jsdom
  */
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { useEffect, useState } from 'react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import QueryDisplay from './query-display';
 

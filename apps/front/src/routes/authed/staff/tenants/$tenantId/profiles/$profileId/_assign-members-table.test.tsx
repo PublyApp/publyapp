@@ -1,5 +1,4 @@
 import type { ColumnDef } from '@tanstack/react-table';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /**
  * @vitest-environment jsdom
  *
@@ -12,6 +11,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('~/components/table/data-table', () => ({
 	// Minimal stub: renders each row and invokes each column's `cell` so the

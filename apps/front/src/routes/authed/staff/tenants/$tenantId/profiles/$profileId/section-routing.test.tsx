@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /** @vitest-environment jsdom */
 /**
  * #977 Tier-2 guard: the tenant-profile detail sections as REAL path
@@ -53,6 +52,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const TENANT_ID = '11111111-1111-1111-1111-111111111111';
 const PROFILE_ID = '22222222-2222-2222-2222-222222222222';

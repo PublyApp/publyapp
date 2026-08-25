@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 /**
  * @vitest-environment jsdom
@@ -9,6 +8,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	onOpenSuspendDialog: vi.fn(),

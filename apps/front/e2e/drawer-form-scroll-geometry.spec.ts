@@ -680,10 +680,7 @@ const openDrawerByCallSiteId = {
 	'tenant-post-create': openTenantPostCreateDrawer,
 	'tenant-user-link-companies': openLinkCompaniesDrawer,
 	'staff-profile-edit': openStaffProfileEditDrawer,
-} satisfies Record<
-	DrawerFormCallSiteId,
-	(page: Page) => Promise<void>
->;
+} satisfies Record<DrawerFormCallSiteId, (page: Page) => Promise<void>>;
 
 test.describe(
 	'form-bearing drawer scroll geometry (#990 / PR #1054)',

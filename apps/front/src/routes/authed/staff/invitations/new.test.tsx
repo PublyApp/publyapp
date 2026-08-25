@@ -5,7 +5,6 @@ import {
 	screen,
 	waitFor,
 } from '@testing-library/react';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /**
  * @vitest-environment jsdom
  */
@@ -17,6 +16,7 @@ import {
 } from 'react';
 import { Controller, FormProvider, useFormContext } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -102,11 +102,11 @@ vi.mock('~/components/field', () => ({
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: SubmitEventHandler<HTMLFormElement>;
-	}) =>
-		createElement(FormProvider, {
-			...methods,
-			children: createElement('form', { onSubmit }, children),
-		}),
+	}) => (
+		<FormProvider {...methods}>
+			<form onSubmit={onSubmit}>{children}</form>
+		</FormProvider>
+	),
 	Field: {
 		Email: ({
 			name,

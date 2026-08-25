@@ -1,5 +1,3 @@
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
 /** @vitest-environment jsdom */
 /**
  * #1314-r1 MAJOR regression guard: the both-dirty save→redirect path driven
@@ -43,6 +41,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const USER_A = '11111111-1111-1111-1111-111111111111';
 // The route is mounted under its PARAMETERIZED path (as routeTree.gen wires

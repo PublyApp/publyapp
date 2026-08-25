@@ -89,7 +89,10 @@ export const determineSessionScope = (
 	return { scope: availability.staff ? 'staff' : 'tenant' };
 };
 
-type SessionTokenDecision = { token: string | undefined; redirectPath?: string };
+type SessionTokenDecision = {
+	token: string | undefined;
+	redirectPath?: string;
+};
 
 export const determineSessionToken = (
 	tokens: ParsedSessionTokens,

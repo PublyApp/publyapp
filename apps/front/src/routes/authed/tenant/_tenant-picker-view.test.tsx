@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 /**
  * @vitest-environment jsdom
@@ -18,6 +17,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('~/lib/hooks/use-logout', () => ({
 	useLogout: () => ({ logout: vi.fn(), isLoggingOut: false }),

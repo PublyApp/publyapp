@@ -1,11 +1,11 @@
 import { IconUsers } from '@tabler/icons-react';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
 /**
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 import { DataTable, SELECTION_LOCKED_TITLE_KEY } from './data-table';
 import { DataTableStates } from './data-table-states';

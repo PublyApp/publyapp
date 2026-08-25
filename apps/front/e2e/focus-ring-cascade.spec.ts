@@ -181,15 +181,7 @@ const parseComputedColor = (value: string): Rgba => {
 	return { r, g, b, a: legacyAlpha ?? alpha };
 };
 
-const gammaEncodeAll = ({
-	r,
-	g,
-	b,
-}: {
-	r: number;
-	g: number;
-	b: number;
-}) => ({
+const gammaEncodeAll = ({ r, g, b }: { r: number; g: number; b: number }) => ({
 	r: gammaEncodeSrgbChannel(r),
 	g: gammaEncodeSrgbChannel(g),
 	b: gammaEncodeSrgbChannel(b),

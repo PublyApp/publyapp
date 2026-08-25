@@ -1,5 +1,3 @@
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
@@ -10,6 +8,7 @@ import type {
 	StaffTenantProfileDetails,
 	StaffTenantProfileMemberRow,
 } from '~/lib/query/staff-tenant-profiles';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({

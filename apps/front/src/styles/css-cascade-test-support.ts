@@ -377,7 +377,8 @@ const splitTopLevel = (text: string, separator: RegExp): string[] => {
 	}
 	parts.push(text.slice(start));
 
-	return parts.map((part) => part.trim()).filter((part) => part.length > 0);
+	const trimmedParts = parts.map((part) => part.trim());
+	return trimmedParts.filter((part) => part.length > 0);
 };
 
 /** The final compound selector run of an individual (comma-free) selector —

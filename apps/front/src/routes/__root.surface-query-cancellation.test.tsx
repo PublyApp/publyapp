@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+
 import type { ParsedSessionTokens } from '@org/shared-ts/lib/session/parse';
 
 // PR #997 finding 2: flipping `enabled` from true to false does NOT cancel an
