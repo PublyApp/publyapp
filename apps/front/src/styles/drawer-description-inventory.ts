@@ -94,6 +94,10 @@ export const DRAWER_DESCRIPTION_CONSUMERS = [
 		testId: 'profile-edit-details-drawer',
 	},
 	{
+		file: 'src/routes/authed/staff/profiles/$profileId/_profile-edit-details-drawer.tsx',
+		testId: 'staff-profile-edit-details-drawer',
+	},
+	{
 		file: 'src/routes/authed/staff/audit-logs/_audit-log-export-drawer.tsx',
 		testId: 'audit-log-export-drawer',
 	},

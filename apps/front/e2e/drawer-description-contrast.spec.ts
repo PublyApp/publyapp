@@ -463,6 +463,80 @@ const openProfileEditDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
+// #819: the staff-scope profile edit drawer sits on its own detail route, so
+// this opener intercepts that page's four read endpoints instead of relying
+// on seeded rows. `mockDrawerDependencies` only covers `/staff/tenants/**`.
+const STAFF_PROFILE_ID = '0197b8f0-7777-7ccc-8ccc-cccccccccccc';
+
+const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await page.route('**/staff/profiles/**', async (route) => {
+		const request = route.request();
+		const url = new URL(request.url());
+
+		if (
+			request.method() !== 'GET' ||
+			url.origin !== API_BASE_URL ||
+			!url.pathname.startsWith('/staff/profiles/')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		const rest = url.pathname.slice('/staff/profiles/'.length);
+
+		if (rest === `${STAFF_PROFILE_ID}/users`) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					count: 0,
+					users: [],
+				}),
+			});
+			return;
+		}
+
+		if (rest === `${STAFF_PROFILE_ID}/permissions`) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					permissionKeys: ['staff.users.read'],
+				}),
+			});
+			return;
+		}
+
+		if (rest === STAFF_PROFILE_ID) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					profile: {
+						id: STAFF_PROFILE_ID,
+						name: 'Staff Admin',
+						description: 'Platform administrator with management access',
+						userAccountCount: 0,
+						icon: null,
+						tone: null,
+					},
+				}),
+			});
+			return;
+		}
+
+		await route.fallback();
+	});
+	// The permission catalog lives outside /staff/profiles/** and is only
+	// needed once keys are assigned; with none assigned the page never reads
+	// it, so no handler is registered here.
+	await page.goto(`/staff/profiles/${STAFF_PROFILE_ID}?edit=1`);
+	await expect(
+		page.getByTestId('staff-profile-edit-details-drawer'),
+	).toBeVisible({ timeout: 10_000 });
+};
+
 const openChangeEmailDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
@@ -827,6 +901,10 @@ const DRAWER_OPENERS: Record<
 	'profile-edit-details-drawer': {
 		name: 'edit profile',
 		open: openProfileEditDrawer,
+	},
+	'staff-profile-edit-details-drawer': {
+		name: 'edit staff profile',
+		open: openStaffProfileEditDrawer,
 	},
 	'audit-log-export-drawer': {
 		name: 'export audit logs',
