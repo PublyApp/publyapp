@@ -700,8 +700,9 @@ describe('staff tenants route', () => {
 
 		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
 
+		// #1400: the visible label is the accessible name even while capped.
 		const moreActionsButton = await screen.findByRole('button', {
-			name: 'More actions',
+			name: 'Bulk actions',
 		});
 		expect(moreActionsButton.hasAttribute('disabled')).toBe(true);
 		expect(moreActionsButton.getAttribute('title')).toBe(
@@ -973,21 +974,23 @@ describe('staff tenants route', () => {
 
 			expect(await screen.findByText('1 selected')).toBeTruthy();
 			expect(
-				await screen.findByRole('button', { name: 'More actions' }),
+				await screen.findByRole('button', { name: 'Bulk actions' }),
 			).toBeTruthy();
 			expect(screen.getByTestId('floating-selection-bar')).toBeTruthy();
 		});
 
 		// #1400 (WCAG 2.5.3 label-in-name): the bulk trigger's accessible name
 		// must EQUAL its visible "Bulk actions" label — both from one i18n key.
-		test('the bulk trigger accessible name equals its visible Bulk actions label', () => {
+		test('the bulk trigger accessible name equals its visible Bulk actions label', async () => {
 			renderPage();
 
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
 
-			const trigger = screen.getByRole('button', { name: 'Bulk actions' });
+			const trigger = await screen.findByRole('button', {
+				name: 'Bulk actions',
+			});
 			expect(trigger.getAttribute('aria-label')).toBe('Bulk actions');
 			expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
 		});
@@ -1034,7 +1037,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected', 'More actions');
+			await chooseBulkAction('Suspend selected', 'Bulk actions');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Select at least one active tenant to suspend.',
@@ -1069,7 +1072,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected', 'More actions');
+			await chooseBulkAction('Suspend selected', 'Bulk actions');
 
 			expect(
 				screen.getByRole('heading', { name: 'Suspend selected' }),
@@ -1113,7 +1116,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected', 'More actions');
+			await chooseBulkAction('Suspend selected', 'Bulk actions');
 			expect(
 				screen.getByRole('heading', { name: 'Suspend selected' }),
 			).toBeTruthy();
@@ -1145,7 +1148,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected', 'More actions');
+			await chooseBulkAction('Suspend selected', 'Bulk actions');
 			const dialog = screen.getByRole('alertdialog');
 			fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
 
@@ -1174,7 +1177,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected', 'More actions');
+			await chooseBulkAction('Suspend selected', 'Bulk actions');
 			expect(
 				screen.getByRole('heading', { name: 'Suspend selected' }),
 			).toBeTruthy();
@@ -1210,7 +1213,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			await chooseBulkAction('Delete selected', 'More actions');
+			await chooseBulkAction('Delete selected', 'Bulk actions');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
@@ -1242,7 +1245,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			await chooseBulkAction('Delete selected', 'More actions');
+			await chooseBulkAction('Delete selected', 'Bulk actions');
 
 			expect(
 				screen.getByRole('heading', { name: 'Delete selected' }),

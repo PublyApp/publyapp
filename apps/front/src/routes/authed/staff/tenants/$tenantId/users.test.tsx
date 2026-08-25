@@ -664,8 +664,9 @@ describe('staff tenant users route', () => {
 
 		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
 
+		// #1400: the visible label is the accessible name even while capped.
 		const moreActionsButton = await screen.findByRole('button', {
-			name: 'More actions',
+			name: 'Bulk actions',
 		});
 		expect(moreActionsButton.hasAttribute('disabled')).toBe(true);
 		expect(moreActionsButton.getAttribute('title')).toBe(
@@ -680,7 +681,9 @@ describe('staff tenant users route', () => {
 
 		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
 
-		const trigger = screen.getByRole('button', { name: 'Bulk actions' });
+		const trigger = await screen.findByRole('button', {
+			name: 'Bulk actions',
+		});
 		expect(trigger.getAttribute('aria-label')).toBe('Bulk actions');
 		expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
 	});
@@ -995,7 +998,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users', 'More actions');
+		await chooseBulkAction('Export selected users', 'Bulk actions');
 
 		await waitFor(() =>
 			expect(mocks.exportMutation).toHaveBeenCalledWith({
@@ -1024,7 +1027,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users', 'More actions');
+		await chooseBulkAction('Export selected users', 'Bulk actions');
 
 		await waitFor(() =>
 			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce(),
@@ -1043,7 +1046,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users', 'More actions');
+		await chooseBulkAction('Export selected users', 'Bulk actions');
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
@@ -1060,7 +1063,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users', 'More actions');
+		await chooseBulkAction('Export selected users', 'Bulk actions');
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
@@ -1078,7 +1081,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant', 'More actions');
+		await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
 
 		await waitFor(() =>
 			expect(
@@ -1113,7 +1116,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant', 'More actions');
+		await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
 
 		await waitFor(() =>
 			expect(
@@ -1139,7 +1142,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant', 'More actions');
+		await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
 
 		await waitFor(() =>
 			expect(
@@ -1161,7 +1164,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant', 'More actions');
+		await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
 		await screen.findByRole('heading', {
 			name: 'Remove selected from tenant',
 		});

@@ -26,7 +26,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { i18n as I18nInstance } from 'i18next';
-import { createElement, type ReactNode } from 'react';
+import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import resourceEN from '~/i18n/locales/en/common.json';

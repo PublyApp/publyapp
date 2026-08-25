@@ -740,7 +740,7 @@ test.describe(
 			).toBeVisible();
 
 			const bar = page.getByTestId('floating-selection-bar');
-			await bar.getByRole('button', { name: 'More actions' }).click();
+			await bar.getByRole('button', { name: 'Bulk actions' }).click();
 			await page
 				.getByRole('menuitem', { name: 'Remove selected from tenant' })
 				.click();
@@ -784,7 +784,7 @@ test.describe(
 			await expectFloatingSelectionBarAtViewportBottom(page);
 			await page
 				.getByTestId('floating-selection-bar')
-				.getByRole('button', { name: 'More actions' })
+				.getByRole('button', { name: 'Bulk actions' })
 				.click();
 
 			// The request must carry the selected user's id — otherwise the
