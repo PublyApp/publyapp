@@ -3,7 +3,6 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
-import { fileURLToPath } from 'node:url';
 
 import {
 	COMPILED_FLOOR,
@@ -19,11 +18,15 @@ import {
 const makeFixtureDir = () =>
 	mkdtempSync(path.join(tmpdir(), 'react-compiler-guard-'));
 
-const writeAsset = (dir, name, contents = '') => {
+const writeAsset = (dir: string, name: string, contents = ''): void => {
 	writeFileSync(path.join(dir, name), contents);
 };
 
-const writeCompiledAsset = (dir, name, importsRuntime = true) => {
+const writeCompiledAsset = (
+	dir: string,
+	name: string,
+	importsRuntime = true,
+): void => {
 	const runtimeImport = importsRuntime
 		? `import{c as useMemoCache}from"./compiler-runtime-ABC123.js";`
 		: '';
@@ -34,7 +37,7 @@ const writeCompiledAsset = (dir, name, importsRuntime = true) => {
 	);
 };
 
-const fixtureRoots = [];
+const fixtureRoots: string[] = [];
 
 after(() => {
 	for (const dir of fixtureRoots) {
@@ -75,7 +78,10 @@ test('a healthy build passes: runtime chunk plus enough compiled modules', () =>
 	const analysis = analyzeClientBundle(assets);
 	assert.equal(analysis.found, true);
 	assert.equal(analysis.runtimeChunk, 'compiler-runtime-ABC123.js');
-	assert.deepEqual(analysis.compiledFiles.sort(), [
+	// found === true always carries compiledFiles (see analyzeClientBundle);
+	// the fallback only satisfies the optional-field type.
+	const compiledFiles = analysis.compiledFiles ?? [];
+	assert.deepEqual(compiledFiles.sort(), [
 		'page-one.js',
 		'page-two.js',
 	]);

@@ -49,7 +49,7 @@ const INKLESS_CODEPOINTS = new Set([
 	0xfeff, // ZERO WIDTH NO-BREAK SPACE (BOM)
 ]);
 
-const KNOWN_TABLE_TAGS = {
+const KNOWN_TABLE_TAGS: Record<number, string> = {
 	0: 'cmap',
 	1: 'head',
 	2: 'hhea',
@@ -152,9 +152,9 @@ const assetDirs = [
 	resolve(distDir, 'server/assets'),
 ];
 
-const violations = [];
+const violations: string[] = [];
 
-const isAccessible = (path) => {
+const isAccessible = (path: string): boolean => {
 	try {
 		accessSync(path, constants.F_OK);
 		return true;
@@ -163,19 +163,18 @@ const isAccessible = (path) => {
 	}
 };
 
-const parseLocaleJson = (filePath) => {
+const parseLocaleJson = (filePath: string): unknown => {
 	const content = readFileSync(filePath, 'utf8');
 	try {
 		return JSON.parse(content);
 	} catch (error) {
-		throw new Error(
-			`Locale file ${filePath} is not valid JSON: ${error.message}.`,
-		);
+		const message = error instanceof Error ? error.message : String(error);
+		throw new Error(`Locale file ${filePath} is not valid JSON: ${message}.`);
 	}
 };
 
 const parseLocaleCodepoints = () => {
-	const walk = (dir, out) => {
+	const walk = (dir: string, out: Set<number>): void => {
 		for (const entry of readdirSync(dir, { withFileTypes: true })) {
 			const path = resolve(dir, entry.name);
 			if (entry.isDirectory()) {
@@ -190,7 +189,7 @@ const parseLocaleCodepoints = () => {
 		}
 	};
 
-	const collectFromValue = (value, out) => {
+	const collectFromValue = (value: unknown, out: Set<number>): void => {
 		if (typeof value === 'string') {
 			for (const rune of value) {
 				const cp = rune.codePointAt(0);
@@ -213,33 +212,46 @@ const parseLocaleCodepoints = () => {
 		}
 	};
 
-	const locales = new Set();
+	const locales = new Set<number>();
 	walk(localesDir, locales);
-	return [...locales].sort((a, b) => a - b);
+	return [...locales].sort((a: number, b: number): number => a - b);
 };
 
-const parseUnicodeRanges = (value) => {
-	const ranges = [];
+interface UnicodeRange {
+	start: number;
+	end: number;
+}
+
+const parseUnicodeRanges = (value: string): UnicodeRange[] => {
+	const ranges: UnicodeRange[] = [];
 	for (const token of value.split(',').map((entry) => entry.trim())) {
 		const match = /^U\+([0-9A-F]{2,6})(?:-([0-9A-F]{2,6}))?$/i.exec(token);
 		if (!match) continue;
 		const start = Number.parseInt(match[1], 16);
 		const end = match[2] ? Number.parseInt(match[2], 16) : start;
-		ranges.push([start, end]);
+		ranges.push({ start, end });
 	}
 	return ranges;
 };
 
-const formatUnicode = (cp) =>
+const formatUnicode = (cp: number): string =>
 	`U+${cp.toString(16).toUpperCase().padStart(4, '0')}`;
 
-const addRangeCodepoints = (start, end, callback) => {
+const addRangeCodepoints = (
+	start: number,
+	end: number,
+	callback: (cp: number) => void,
+): void => {
 	for (let cp = start; cp <= end; cp += 1) {
 		callback(cp);
 	}
 };
 
-const readUIntBase128 = (buffer, state, file) => {
+const readUIntBase128 = (
+	buffer: Buffer,
+	state: { offset: number },
+	file: string,
+): number => {
 	let value = 0;
 	for (let i = 0; i < 5; i += 1) {
 		if (state.offset >= buffer.length) {
@@ -262,8 +274,8 @@ const readUIntBase128 = (buffer, state, file) => {
 	throw new Error(`Font file ${file} WOFF2 base-128 length is too long.`);
 };
 
-const parseCmapSubtable = (subtable) => {
-	const codepoints = new Set();
+const parseCmapSubtable = (subtable: Buffer): Set<number> => {
+	const codepoints = new Set<number>();
 	if (subtable.length < 6) {
 		return codepoints;
 	}
@@ -366,8 +378,8 @@ const parseCmapSubtable = (subtable) => {
 	return codepoints;
 };
 
-const parseCmapTable = (tableData) => {
-	const codepoints = new Set();
+const parseCmapTable = (tableData: Buffer): Set<number> => {
+	const codepoints = new Set<number>();
 	if (tableData.length < 4) return codepoints;
 	if (tableData.readUInt16BE(0) > 1) return codepoints;
 	const count = tableData.readUInt16BE(2);
@@ -389,7 +401,15 @@ const parseCmapTable = (tableData) => {
 	return codepoints;
 };
 
-const parseWoff2CmapCodepoints = (file) => {
+interface Woff2TableEntry {
+	tag: string;
+	transform: number;
+	tagNeedsTransformLength: boolean;
+	origLength: number;
+	transformLength?: number;
+}
+
+const parseWoff2CmapCodepoints = (file: string): Set<number> => {
 	const buffer = readFileSync(file);
 	if (buffer.length < 48) {
 		throw new Error(`Font file ${file} is too small to be valid WOFF2.`);
@@ -414,7 +434,7 @@ const parseWoff2CmapCodepoints = (file) => {
 		violations.push(`WOFF2 reserved header field is not zero for ${file}.`);
 	}
 	let cursor = 48;
-	const entries = [];
+	const entries: Woff2TableEntry[] = [];
 	for (let i = 0; i < numTables; i += 1) {
 		const flags = buffer[cursor];
 		cursor += 1;
@@ -428,7 +448,7 @@ const parseWoff2CmapCodepoints = (file) => {
 			tag = buffer.subarray(cursor, cursor + 4).toString('ascii');
 			cursor += 4;
 		} else {
-			tag = KNOWN_TABLE_TAGS[tagIndex] ?? `tag-${tagIndex}`;
+			tag = KNOWN_TABLE_TAGS[tagIndex] ?? `tag-${String(tagIndex)}`;
 		}
 
 		const lengthState = { offset: cursor };
@@ -438,7 +458,7 @@ const parseWoff2CmapCodepoints = (file) => {
 		const tagNeedsTransformLength =
 			transform !== 0 ||
 			(transform === 0 && (tag === 'glyf' || tag === 'loca'));
-		let transformLength;
+		let transformLength: number | undefined;
 		if (tagNeedsTransformLength) {
 			const transformState = { offset: cursor };
 			transformLength = readUIntBase128(buffer, transformState, file);
@@ -467,9 +487,16 @@ const parseWoff2CmapCodepoints = (file) => {
 	const decompressed = brotliDecompressSync(compressedData);
 	let expectedLength = 0;
 	for (const entry of entries) {
-		expectedLength += entry.tagNeedsTransformLength
-			? entry.transformLength
-			: entry.origLength;
+		if (entry.tagNeedsTransformLength) {
+			if (entry.transformLength === undefined) {
+				throw new Error(
+					`Font file ${file} table ${entry.tag} declares a transformed layout but carries no transformLength.`,
+				);
+			}
+			expectedLength += entry.transformLength;
+		} else {
+			expectedLength += entry.origLength;
+		}
 	}
 	if (decompressed.length !== expectedLength) {
 		throw new Error(
@@ -479,8 +506,8 @@ const parseWoff2CmapCodepoints = (file) => {
 
 	let tableCursor = 0;
 	for (const entry of entries) {
-		const segmentLength = entry.tagNeedsTransformLength
-			? entry.transformLength
+		const segmentLength: number = entry.tagNeedsTransformLength
+			? (entry.transformLength as number)
 			: entry.origLength;
 		if (tableCursor + segmentLength > decompressed.length) {
 			throw new Error(`Font file ${file} truncates WOFF2 table payload.`);
@@ -505,8 +532,15 @@ const parseWoff2CmapCodepoints = (file) => {
 	return new Set();
 };
 
-const parseFontFaceDeclarations = (cssFile) => {
-	const declarations = [];
+interface FontFaceDeclaration {
+	file: string;
+	ranges: UnicodeRange[];
+}
+
+const parseFontFaceDeclarations = (
+	cssFile: string,
+): FontFaceDeclaration[] => {
+	const declarations: FontFaceDeclaration[] = [];
 	const cssText = readFileSync(cssFile, 'utf8');
 	const faceRegex = /@font-face\s*{([^}]*)}/gs;
 	let match;
@@ -528,8 +562,8 @@ const parseFontFaceDeclarations = (cssFile) => {
 	return declarations;
 };
 
-const gatherCssFiles = () => {
-	const files = [];
+const gatherCssFiles = (): string[] => {
+	const files: string[] = [];
 	for (const dir of assetDirs) {
 		if (!isAccessible(dir)) {
 			continue;
@@ -544,8 +578,7 @@ const gatherCssFiles = () => {
 	return files.sort();
 };
 
-const localeCodepoints = parseLocaleCodepoints();
-const localeSet = new Set(localeCodepoints);
+const localeCodepoints: number[] = parseLocaleCodepoints();
 
 if (!isAccessible(fontOutDir)) {
 	violations.push(`No built font directory found at ${fontOutDir}.`);
@@ -589,7 +622,10 @@ if (isAccessible(fontOutDir) && statSync(fontOutDir).isDirectory()) {
 	}
 }
 
-const declarationsByFile = new Map();
+const declarationsByFile = new Map<
+	string,
+	{ file: string; ranges: UnicodeRange[] }
+>();
 for (const declaration of declarations) {
 	const existing = declarationsByFile.get(declaration.file);
 	if (!existing) {
@@ -602,7 +638,7 @@ for (const declaration of declarations) {
 	existing.ranges.push(...declaration.ranges);
 }
 
-const fontCodepointsByFile = new Map();
+const fontCodepointsByFile = new Map<string, Set<number>>();
 for (const declaration of declarationsByFile.values()) {
 	const filePath = resolve(fontOutDir, declaration.file);
 	if (!isAccessible(filePath)) {
@@ -614,7 +650,8 @@ for (const declaration of declarationsByFile.values()) {
 			parseWoff2CmapCodepoints(filePath),
 		);
 	} catch (error) {
-		violations.push(error.message);
+		const message = error instanceof Error ? error.message : String(error);
+		violations.push(message);
 	}
 }
 
@@ -623,7 +660,7 @@ for (const declaration of declarationsByFile.values()) {
 	if (!coverage) {
 		continue;
 	}
-	const localeMissing = [];
+	const localeMissing: string[] = [];
 	for (const cp of localeCodepoints) {
 		if (!coverage.has(cp)) {
 			localeMissing.push(formatUnicode(cp));
@@ -635,9 +672,9 @@ for (const declaration of declarationsByFile.values()) {
 		);
 	}
 
-	const declaredMissing = [];
-	for (const [start, end] of declaration.ranges) {
-		addRangeCodepoints(start, end, (cp) => {
+	const declaredMissing: string[] = [];
+	for (const range of declaration.ranges) {
+		addRangeCodepoints(range.start, range.end, (cp) => {
 			if (!coverage.has(cp)) {
 				declaredMissing.push(formatUnicode(cp));
 			}

@@ -1,21 +1,41 @@
 import { readFileSync } from 'node:fs';
 
 // Local exact-version regex is the validator used here today.
-// `semver` is optional and used only when available as an installed dependency.
-/** @param {string} range */
-let isExact;
+// `semver` is optional and used only when available as an installed dependency
+// (it is not a declared dependency of this repo; the dynamic import simply
+// fails at runtime and the strict local SemVer 2.0.0 regex below takes over).
+interface MinimalSemver {
+	valid: (range: string) => string | null;
+}
+type MinimalSemverModule = MinimalSemver & { default?: MinimalSemver };
+let isExact: (range: string) => boolean;
 try {
-	const semver = (await import('semver')).default;
-	isExact = (range) => Boolean(semver.valid(range));
+	// semver is intentionally NOT a dependency; resolving it through a
+	// computed specifier keeps tsc from failing on the optional import while
+	// runtime behaviour stays exactly "use it only when installed".
+	const semverSpecifier = ['sem', 'ver'].join('');
+	const imported = (await import(semverSpecifier)) as MinimalSemverModule;
+	const semver: MinimalSemver =
+		typeof imported.default?.valid === 'function'
+			? imported.default
+			: (imported as unknown as MinimalSemver);
+	isExact = (range: string): boolean => Boolean(semver.valid(range));
 } catch {
 	// Strict SemVer 2.0.0 exact version: MAJOR.MINOR.PATCH(-prerelease)?(+build)?
 	const EXACT =
 		/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(?:\+[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*)?$/;
-	isExact = (range) => EXACT.test(range);
+	isExact = (range: string): boolean => EXACT.test(range);
 }
 
-const pkg = JSON.parse(
-	readFileSync(new URL('../../package.json', import.meta.url)),
+type DependencyGroup = Record<string, string>;
+const pkg: {
+	dependencies?: DependencyGroup;
+	devDependencies?: DependencyGroup;
+	optionalDependencies?: DependencyGroup;
+	peerDependencies?: DependencyGroup;
+	[name: string]: DependencyGroup | undefined;
+} = JSON.parse(
+	readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
 );
 const bad = [];
 

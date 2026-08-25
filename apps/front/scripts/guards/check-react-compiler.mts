@@ -68,21 +68,30 @@ export const MEASURED_BASELINE = 90;
 /** The pass floor: exactly 80 % of the measured baseline, per #1234. */
 export const COMPILED_FLOOR = Math.floor(MEASURED_BASELINE * 0.8);
 
-export const collectClientJsFiles = (assetsDir) => {
+export interface ClientBundleAnalysis {
+	found: boolean;
+	reason?: string;
+	totalJsFiles?: number;
+	runtimeChunk?: string | null;
+	compiledCount?: number;
+	compiledFiles?: string[];
+}
+
+export const collectClientJsFiles = (assetsDir: string): string[] | null => {
 	if (!existsSync(assetsDir)) {
 		return null;
 	}
 	return readdirSync(assetsDir).filter((name) => name.endsWith('.js'));
 };
 
-export const analyzeClientBundle = (assetsDir) => {
+export const analyzeClientBundle = (assetsDir: string): ClientBundleAnalysis => {
 	const jsFiles = collectClientJsFiles(assetsDir);
 	if (jsFiles === null) {
 		return { found: false, reason: 'dist/client/assets does not exist' };
 	}
 
-	let runtimeChunk = null;
-	const compiledFiles = [];
+	let runtimeChunk: string | null = null;
+	const compiledFiles: string[] = [];
 	for (const name of jsFiles) {
 		if (RUNTIME_CHUNK_PATTERN.test(name)) {
 			runtimeChunk = name;
@@ -108,17 +117,23 @@ export const analyzeClientBundle = (assetsDir) => {
  * compiler ran above the floor. Exported so the test suite can exercise each
  * branch without rebuilding the app.
  */
-export const assertCompiledArtifacts = (analysis, floor) => {
+export const assertCompiledArtifacts = (
+	analysis: ClientBundleAnalysis,
+	floor: number,
+): string | null => {
 	if (!analysis.found) {
 		return 'MISSING_DIST';
 	}
 	if (!analysis.runtimeChunk) {
 		return 'MISSING_RUNTIME';
 	}
-	if (analysis.compiledCount < 1) {
+	// found === true always carries a numeric compiledCount (see
+	// analyzeClientBundle); the fallback only satisfies the optional-field type.
+	const compiledCount = analysis.compiledCount ?? 0;
+	if (compiledCount < 1) {
 		return 'NO_COMPILED_MODULES';
 	}
-	if (analysis.compiledCount < floor) {
+	if (compiledCount < floor) {
 		return 'BELOW_FLOOR';
 	}
 	return null;

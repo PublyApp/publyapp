@@ -18,7 +18,7 @@ const execFileAsync = promisify(execFile);
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
 const verifierPath = path.join(scriptsDirectory, 'verify-font-bundle.mts');
 
-const createdDirectories = [];
+const createdDirectories: string[] = [];
 
 after(() => {
 	for (const directory of createdDirectories) {
@@ -31,7 +31,7 @@ after(() => {
  * the declared font file itself, and an empty locales directory. Returns the
  * `--dist` and `--locales-dir` values to hand to the verifier.
  */
-const createFixture = (fontBytes) => {
+const createFixture = (fontBytes: Uint8Array): { distDir: string; localesDir: string } => {
 	const root = mkdtempSync(path.join(tmpdir(), 'verify-font-bundle-'));
 	createdDirectories.push(root);
 
@@ -60,7 +60,18 @@ const createFixture = (fontBytes) => {
 	return { distDir, localesDir };
 };
 
-const runVerifier = async ({ distDir, localesDir }) => {
+interface VerifierFailure {
+	code?: number | string;
+	stderr?: string;
+}
+
+const runVerifier = async ({
+	distDir,
+	localesDir,
+}: {
+	distDir: string;
+	localesDir: string;
+}): Promise<{ status: number; stderr: string }> => {
 	try {
 		await execFileAsync(process.execPath, [
 			verifierPath,
@@ -71,7 +82,11 @@ const runVerifier = async ({ distDir, localesDir }) => {
 		]);
 		return { status: 0, stderr: '' };
 	} catch (error) {
-		return { status: error.code ?? 1, stderr: `${error.stderr ?? ''}` };
+		const failure = error as VerifierFailure;
+		return {
+			status: typeof failure.code === 'number' ? failure.code : 1,
+			stderr: `${failure.stderr ?? ''}`,
+		};
 	}
 };
 

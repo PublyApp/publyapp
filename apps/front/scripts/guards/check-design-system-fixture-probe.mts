@@ -16,7 +16,13 @@ test('fixture probe creates one owned parent', async () => {
 		'probe.ts': 'export const probe = true;',
 	});
 	const parent = await getFixtureParentPath();
-	await writeFile(process.env.FRONT2_DESIGN_GUARD_PARENT_REPORT, parent);
+	const parentReportPath = process.env.FRONT2_DESIGN_GUARD_PARENT_REPORT;
+	if (parentReportPath === undefined) {
+		throw new Error(
+			'FRONT2_DESIGN_GUARD_PARENT_REPORT must be set for the fixture probe',
+		);
+	}
+	await writeFile(parentReportPath, parent);
 	if (mode === 'error') {
 		throw new Error('fixture cleanup probe failure');
 	}

@@ -134,7 +134,7 @@ if (html === null) {
 	await fail(`front standalone server failed to return HTML from ${origin}`);
 }
 
-if (!stylesheetPattern.test(html)) {
+if (!stylesheetPattern.test(html ?? '')) {
 	await fail('front production HTML does not contain a stylesheet link');
 }
 
