@@ -24,7 +24,16 @@ public static class CanaryBootLogCli {
 		string[] assemblyArgs,
 		Dictionary<string, string> env
 	) {
-		var (exitCode, stdout, _) = RunBootProcess(assemblyArgs, env);
+		// #1319: emit mode IS the probe's acceptance path, so the call must present the
+		// test-only flag explicitly — the #1319 boot gate hard-rejects the probe arg
+		// without it (exit 78). RunBootProcess strips any ambient copy of the flag first;
+		// this entry deliberately re-adds it for emit calls only, leaving the refusal
+		// cases (which go through RunBootProcess directly) fully hermetic.
+		var childEnv = new Dictionary<string, string>(env) {
+			[CanaryBootLogProbe.TestOnlyFlagName] = "true",
+		};
+
+		var (exitCode, stdout, _) = RunBootProcess(assemblyArgs, childEnv);
 
 		if (exitCode != CanaryBootLogProbe.SuccessExitCode) {
 			throw new InvalidOperationException(
