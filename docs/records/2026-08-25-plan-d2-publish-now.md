@@ -204,9 +204,9 @@ public sealed record PublicationListItem {
 
 **Files:** `Lib/Architecture/PublicationArchitecture.Spec.cs` (extends the wt-644 file after rebase).
 
-- [ ] **Step 1 (GREEN first):** Add facts: (a) every `Map*` inside `PublishingEndpointsForTenant` carries both a rate-limit policy and `WithTenantPermission` metadata — Roslyn-free source scan asserting each `group.Map(Get|Post)` block contains `.RequireRateLimiting(` and `.WithTenantPermission(` (technique of the existing single-writer scan, `origin/lane/wt-644`); (b) no file under `Modules/Publishing/Handlers/**` mentions `AppDbContext` (handlers orchestrate; services own queries); (c) `PublishNowService` still depends only on `AppDbContext`+`IJobEnqueuer` (constructor-parameter scan).
-- [ ] **Step 2 (RED proof):** Plant `Modules/Publishing/Endpoints/_RogueUnpermissionedEndpoint.cs` (temp, uncommitted) mapping a route without permission metadata → guard fact (a) MUST fail naming the file. Transcript to `.dump/mutation-unpermissioned-endpoint.md`. Delete, rerun green.
-- [ ] **Step 3:** Commit `test(api): publishing architecture ratchet — permissioned, rate-limited, DbContext-free handlers`; push.
+- [x] Step 1 (GREEN first):** Add facts: (a) every `Map*` inside `PublishingEndpointsForTenant` carries both a rate-limit policy and `WithTenantPermission` metadata — Roslyn-free source scan asserting each `group.Map(Get|Post)` block contains `.RequireRateLimiting(` and `.WithTenantPermission(` (technique of the existing single-writer scan, `origin/lane/wt-644`); (b) no file under `Modules/Publishing/Handlers/**` mentions `AppDbContext` (handlers orchestrate; services own queries); (c) `PublishNowService` still depends only on `AppDbContext`+`IJobEnqueuer` (constructor-parameter scan).
+- [x] Step 2 (RED proof):** Plant `Modules/Publishing/Endpoints/_RogueUnpermissionedEndpoint.cs` (temp, uncommitted) mapping a route without permission metadata → guard fact (a) MUST fail naming the file. Transcript to `.dump/mutation-unpermissioned-endpoint.md`. Delete, rerun green.
+- [x] Step 3:** Commit `test(api): publishing architecture ratchet — permissioned, rate-limited, DbContext-free handlers`; push.
 
 ## Task 6: Tenant permission hook — `useTenantPermissions` over `/auth/scope-auth-data`
 
