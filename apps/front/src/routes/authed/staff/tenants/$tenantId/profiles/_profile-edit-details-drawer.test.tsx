@@ -414,6 +414,38 @@ describe('ProfileEditDetailsDrawer', () => {
 		);
 	});
 
+	// Round 2 (#1264): the dirty-flag uplink is event-driven (form watch),
+	// so the host learns each state change synchronously instead of one
+	// effect tick later.
+	test('reports dirtiness synchronously to the host', () => {
+		const onDirtyChange = vi.fn();
+		render(
+			<ProfileEditDetailsDrawer
+				tenantId="tenant-1"
+				isOpen
+				profile={{
+					id: 'profile-1',
+					name: 'Author',
+					description: 'Draft posts',
+					icon: null,
+					tone: null,
+				}}
+				onOpenChange={vi.fn()}
+				onSaved={vi.fn()}
+				onSessionExpired={vi.fn()}
+				onDirtyChange={onDirtyChange}
+			/>,
+		);
+
+		expect(onDirtyChange).toHaveBeenCalledWith(false);
+
+		fireEvent.change(screen.getByLabelText('Profile name'), {
+			target: { value: 'Editors' },
+		});
+
+		expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+	});
+
 	test('blocks submission when the profile name has only one character', async () => {
 		render(
 			<ProfileEditDetailsDrawer

@@ -12,9 +12,9 @@ type Translate = (key: string) => string;
  *
  * Zod validation messages come from `t()`, so a resolver built once would
  * keep speaking the language the page was first rendered in. Seven forms
- * used to rebuild `zodResolver(...)` under
- * `eslint-disable-next-line react-hooks/exhaustive-deps -- [i18n.language]`,
- * which is exactly what the React Compiler refuses to optimise ("React rule
+ * used to rebuild `zodResolver(...)` under an inline
+ * `react-hooks/exhaustive-deps` line suppression, which is exactly what the
+ * React Compiler refuses to optimise ("React rule
  * suppression prevents optimization": it skips any hook that disabled a
  * Rules-of-React check).
  *

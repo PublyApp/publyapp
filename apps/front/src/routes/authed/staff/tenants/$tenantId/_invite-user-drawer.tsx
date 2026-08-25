@@ -1,7 +1,8 @@
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { i18n as I18nInstance } from 'i18next';
-import { useEffect, useState } from 'react';
+import isEqual from 'lodash/isEqual';
+import { useEffect, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -337,30 +338,49 @@ export const InviteTenantUserDrawer = ({
 	});
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
-	// Open-transition reset only: state clears when the drawer opens, never
-	// while it is closed (guarded by isOpen). Flagged on origin/develop too;
-	// kept as deliberate, pre-existing behaviour.
-	// react-doctor-disable-next-line react-doctor/no-reset-all-state-on-prop-change
-	useEffect(() => {
+	// Open-session reseed, without an effect: the previous-open marker turns
+	// each closed -> opened transition into a render-phase state update that
+	// reseeds the form and clears the transient states exactly once.
+	const [seededIsOpen, setSeededIsOpen] = useState(isOpen);
+	if (seededIsOpen !== isOpen) {
+		setSeededIsOpen(isOpen);
 		if (isOpen) {
-			// Clears the stale submit error on open. Pre-existing on develop.
-			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setRootValidationError('');
-			// Resets the stale batch summary on open. Pre-existing on develop.
-			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setBatchSummary(null);
-			// Resets a stale discard prompt on open. Pre-existing on develop.
-			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setIsDiscardConfirmOpen(false);
 			reset(DEFAULT_VALUES);
 		}
-	}, [isOpen, reset]);
+	}
 
-	// Deliberate dirty-flag uplink to the drawer host. Pre-existing on develop.
+	// Dirty-flag uplink, event-driven: RHF's change stream fires synchronously
+	// on the form mutation that owns each change (user input, setValue,
+	// append/replace, reset) and always carries the full form snapshot, so
+	// dirtiness is derived here by comparing it against the pristine defaults
+	// — the same comparison RHF performs internally. Reading formState inside
+	// the stream would lag: React's snapshot only refreshes on render. Every
+	// open session also replays its current state once, so a stale host flag
+	// left by a previous session self-corrects.
+	const lastReportedDirtyRef = useRef<boolean | null>(null);
 	useEffect(() => {
-		// react-doctor-disable-next-line react-doctor/no-pass-data-to-parent
-		onDirtyChange?.(isDirty);
-	}, [isDirty, onDirtyChange]);
+		const report = (nextDirty: boolean) => {
+			if (lastReportedDirtyRef.current !== nextDirty) {
+				lastReportedDirtyRef.current = nextDirty;
+				onDirtyChange?.(nextDirty);
+			}
+		};
+		lastReportedDirtyRef.current = null;
+		if (isOpen) {
+			report(!isEqual(methods.getValues(), DEFAULT_VALUES));
+		}
+		const subscription = methods.watch((values) => {
+			if (isOpen) {
+				report(!isEqual(values, DEFAULT_VALUES));
+			}
+		});
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [isOpen, methods, onDirtyChange]);
 
 	const isFormLocked = bulkInvite.isPending || isSubmitting;
 

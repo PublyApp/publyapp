@@ -1,6 +1,7 @@
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import isEqual from 'lodash/isEqual';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -126,33 +127,57 @@ const ProfileEditDetailsDrawer = ({
 	);
 	const hasCustomStyle = icon !== null || tone !== null;
 
-	// Deliberate open-triggered re-seed: the drawer body stays mounted while
-	// closed, so `defaultValues` alone would go stale; seeding on open/changed
-	// id keeps an in-flight refetch from discarding an in-progress draft.
-	// Flagged on origin/develop too; kept as pre-existing behaviour.
-	// react-doctor-disable-next-line react-doctor/no-reset-all-state-on-prop-change -- deliberate open-triggered re-seed; see above
-	useEffect(() => {
-		if (!isOpen) {
-			return;
+	// Re-seed only for a newly opened session or a different profile; a
+	// refetch replacing the profile object (same id) must not discard an
+	// in-progress draft. Implemented as the React-documented previous-state
+	// tracking pattern: the marker turns the qualifying transition into a
+	// one-shot render-phase reseed, with no effect and no prop-change reset.
+	const [seededFor, setSeededFor] = useState({
+		isOpen,
+		profileId: profile.id,
+	});
+	if (
+		seededFor.isOpen !== isOpen ||
+		(isOpen && seededFor.profileId !== profile.id)
+	) {
+		setSeededFor({ isOpen, profileId: profile.id });
+		if (isOpen) {
+			setIsDiscardConfirmOpen(false);
+			reset(getProfileEditDetailsValues(profile));
 		}
+	}
 
-		// Resets a stale discard prompt on open. Pre-existing on develop.
-		// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change -- deliberate open-triggered re-seed; see above
-		setIsDiscardConfirmOpen(false);
-		reset(getProfileEditDetailsValues(profile));
-		// Re-seed only for a newly opened/changed profile. A refetch may replace
-		// the profile object and must not discard an in-progress draft.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isOpen, profile.id, reset]);
-
-	// Bridge RHF's dirty flag to the page's nav guard. This is an external-
-	// store subscription (react.dev/learn/you-might-not-need-an-effect), not
-	// derived state: reporting during render would call setState on the parent
-	// mid-render. Flagged on origin/develop too; kept as pre-existing behaviour.
+	// tenants-r6-F3 dirty-flag uplink, event-driven: RHF's change stream fires
+	// synchronously on the form mutation that owns each change (user input,
+	// setValue, reset) and always carries the full form snapshot, so dirtiness
+	// is derived here by comparing it against the seeded session values — the
+	// same comparison RHF performs internally. Reading formState inside the
+	// stream would lag: React's snapshot only refreshes on render. Every open
+	// session also replays its current state once, so a stale host flag left
+	// by a previous session self-corrects.
+	const lastReportedDirtyRef = useRef<boolean | null>(null);
 	useEffect(() => {
-		// react-doctor-disable-next-line react-doctor/no-pass-data-to-parent react-doctor/no-pass-live-state-to-parent react-doctor/no-prop-callback-in-effect -- external-store bridge; see above
-		onDirtyChange?.(isDirty);
-	}, [isDirty, onDirtyChange]);
+		const report = (nextDirty: boolean) => {
+			if (lastReportedDirtyRef.current !== nextDirty) {
+				lastReportedDirtyRef.current = nextDirty;
+				onDirtyChange?.(nextDirty);
+			}
+		};
+		lastReportedDirtyRef.current = null;
+		if (isOpen) {
+			report(
+				!isEqual(methods.getValues(), getProfileEditDetailsValues(profile)),
+			);
+		}
+		const subscription = methods.watch((values) => {
+			if (isOpen) {
+				report(!isEqual(values, getProfileEditDetailsValues(profile)));
+			}
+		});
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [isOpen, profile, methods, onDirtyChange]);
 
 	const isFormLocked = updateProfile.isPending || isSubmitting;
 	// #1342 — "no change → no request / disabled Save": a pristine form must
