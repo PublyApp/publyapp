@@ -499,26 +499,43 @@ jobs:
     steps:
       # #1018: a cleanup that cannot delete is a broken check, not a green one,
       # so there is NO continue-on-error here — any failure fails the job (and
-      # therefore the required gate). GitHub's package API has no tag-level
-      # delete (DELETE .../tags/{tag} is not a real endpoint — 404 — and the
-      # GHCR registry rejects manifest deletes by tag — 405), so the only
-      # supported primitive is VERSION deletion. A version is deleted only
-      # when it is exclusively tagged by this run: content-stable images
-      # (request-counter) push an identical digest every run, so GHCR adds
-      # this run's tag to a version other runs already share — deleting that
-      # version would break every run still referencing the digest, so
-      # shared versions are skipped. Exclusivity is re-checked by re-reading
-      # each version immediately before its delete. Deleting public package
-      # versions past the 5000-download threshold is refused with HTTP 400;
-      # that surfaces as ::error:: and fails the job. The public → private
-      # visibility flip that would make deletion possible is a separate
-      # owner decision, tracked in #1018.
-      # #1362: the repository moved from radandevist to the PublyApp
-      # organization, and GitHub's package API is owner-type-scoped: packages
-      # owned by a user live under /users/<owner>/..., packages owned by an
-      # organization live under /orgs/<owner>/.... This run's own GHCR pushes
-      # create the four scratch packages in the ORG namespace after the move,
-      # so every list/read/delete call below targets /orgs/.
+      # therefore the required gate). The decision logic lives in an injectable,
+      # unit-tested script rather than inline shell:
+      # packages/scripts-ts/src/ci-e2e-cleanup.ts, whose co-located suite
+      # (ci-e2e-cleanup.test.ts) is the executable spec for every branch:
+      #
+      # - A VERSION is deleted only when its re-read tag list (immediately
+      #   before the delete) is exactly [this run's tag]: content-stable
+      #   images (request-counter) push an identical digest every run, so GHCR
+      #   adds this run's tag to a version other runs already share — deleting
+      #   that version would break every run still referencing the digest, so
+      #   shared versions are skipped. A tag added concurrently between the
+      #   listing and the re-read is caught and the delete skipped.
+      # - When GitHub answers the version delete with the documented HTTP 400
+      #   "You cannot delete the last tagged version of a package", the
+      #   PACKAGE is deleted instead (#1362 round 1: this run's own GHCR push
+      #   created — or left behind — the package's ONLY tagged version, and
+      #   GitHub documents deleting the package for that case). The package
+      #   delete is race-guarded: it happens only when a safety re-list still
+      #   shows exactly {this run's version} carrying exactly [this run's
+      #   tag]; anything else falls back to the plain version delete.
+      # - The package-API owner scope is derived from GET /users/{owner} →
+      #   .type at runtime (/orgs/{owner}/... for an organization, /user/...
+      #   for a user) because the API is owner-type-scoped and #1362 moved
+      #   this repository from radandevist to the PublyApp organization;
+      #   nothing is hard-coded.
+      # - Every refusal fails loudly with GitHub's exact message. A 403 means
+      #   the GITHUB_TOKEN lacks package-admin access for the package; the
+      #   owner must grant it via the package's "Manage Actions access"
+      #   (repository publyapp, role Admin). Public packages past the
+      #   5000-download threshold refuse version deletion with HTTP 400; the
+      #   public → private visibility flip that would make deletion possible
+      #   remains a separate owner decision, tracked in #1018.
+      # #1021: a fork run pushed nothing to GHCR (its token is read-only), so
+      # the fast paths below — re-asserted inside the script itself, where they
+      # are unit-tested — short-circuit to success without touching the
+      # registry, and the aggregate gate keeps aggregating real results on
+      # fork PRs.
       - name: Delete run image versions
         env:
           GH_TOKEN: ${{ github.token }}
@@ -526,11 +543,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # #1021: a fork run pushed nothing to GHCR (its token is
-          # read-only; the images travelled as an artifact instead), so
-          # there is nothing of this run's to list or delete. The job still
-          # reports success so the aggregate gate keeps aggregating real
-          # results on fork PRs.
+          # Fast paths kept visible at the workflow layer; the script
+          # re-checks both (unit-tested) because it must also be safe when
+          # executed directly.
           if [ "$FORK_RUN" = "true" ]; then
             echo "::notice::Fork run: no images were pushed to GHCR, so there is nothing to clean up."
             exit 0
@@ -541,88 +556,7 @@ jobs:
             exit 0
           fi
 
-          packages=(
-            publyapp-e2e-migrate
-            publyapp-e2e-api
-            publyapp-e2e-request-counter
-            publyapp-e2e-front
-          )
-          cleanup_failed=false
-
-          for package in "${packages[@]}"; do
-            # Delete the VERSION only when it is exclusively tagged by THIS
-            # run. GitHub's documented package API has no tag-level delete:
-            # DELETE .../tags/{tag} is not a real endpoint (404) and the
-            # GHCR registry rejects manifest deletes by tag (405), so the
-            # only supported primitive is version deletion. Content-stable
-            # images (request-counter) push an identical digest every run,
-            # so GHCR adds this run's tag to a version other runs already
-            # share — deleting that version would break every run still
-            # referencing the digest, so shared versions are SKIPPED with a
-            # notice. Exclusivity is re-checked by re-reading each version
-            # immediately before its delete, so a tag added by a concurrent
-            # run after the listing is caught and the delete is skipped.
-            if ! versions="$(
-              gh api --paginate \
-                "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions?per_page=100" \
-                --jq "[.[] | select(.metadata.container.tags | index(\"${E2E_IMAGE_TAG}\")) | {id: .id, tags: .metadata.container.tags}]"
-            )"; then
-              echo "::warning::Could not list GHCR versions for ${package}."
-              cleanup_failed=true
-              continue
-            fi
-
-            # Materialize the candidate list BEFORE the loop so a jq failure
-            # here is caught by pipefail and fails the job, instead of
-            # silently skipping cleanup inside a process substitution.
-            if ! candidates="$(
-              printf '%s' "$versions" | jq -c '.[]'
-            )"; then
-              echo "::error::Could not parse GHCR version list for ${package}."
-              cleanup_failed=true
-              continue
-            fi
-
-            # Nothing carries this run's tag → nothing to delete; skip the
-            # loop entirely (a bare `<<< ""` would still run one iteration
-            # on an empty line and issue an invalid version GET).
-            if [ -z "$candidates" ]; then
-              continue
-            fi
-
-            while IFS= read -r version; do
-              version_id="$(printf '%s' "$version" | jq -r '.id')"
-
-              # Re-read the version right before deleting: exclusivity must
-              # hold on the CURRENT tag list, not the listing snapshot.
-              if ! fresh="$(
-                gh api \
-                  "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}" \
-                  --jq "{id: .id, tags: .metadata.container.tags}"
-              )"; then
-                echo "::error::Could not re-read GHCR version ${version_id} for ${package}; skipping delete to avoid deleting a version a concurrent run may now share."
-                cleanup_failed=true
-                continue
-              fi
-
-              other_tags="$(printf '%s' "$fresh" | jq -r --arg run_tag "$E2E_IMAGE_TAG" '[.tags[] | select(. != $run_tag)] | join(", ")')"
-
-              if [ -n "$other_tags" ]; then
-                echo "::notice::Skipping GHCR version ${version_id} for ${package}: tag ${E2E_IMAGE_TAG} was added to a version already shared with other run tags (${other_tags}) because this image's content is identical across runs. GitHub's package API cannot delete a single tag, and deleting the version would break every run still referencing that digest, so only versions exclusively tagged by this run are deleted."
-                continue
-              fi
-
-              if ! gh api --method DELETE \
-                "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}"; then
-                echo "::error::Could not delete GHCR version ${version_id} for ${package}. Public GHCR packages past 5000 downloads refuse version deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
-                cleanup_failed=true
-              fi
-            done <<< "$candidates"
-          done
-
-          if [ "$cleanup_failed" = true ]; then
-            exit 1
-          fi
+          node packages/scripts-ts/src/ci-e2e-cleanup.ts
 
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of a per-shard `front-e2e (N/4)` name. It

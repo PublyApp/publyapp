@@ -337,9 +337,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-e2e.yml::cleanup::Delete run image versions": {
-			"hash": "ff4c4ea0d68ca833",
-			"mirror": null,
-			"reason": "GitHub-only: deletes this run's exclusively-tagged ephemeral per-run GHCR image versions after every matrix outcome; local builds never publish them. #1018 reconciliation: no continue-on-error, so a failed cleanup fails the job. GitHub package API has no tag-level delete (404/405), so version deletion with an exclusivity re-check before each delete is the only supported primitive. Public >5000-download versions refuse deletion with HTTP 400 -> ::error::; visibility flip is a separate owner decision. #1021: a fork run short-circuits to success (nothing was pushed to GHCR), so the job still reports on fork PRs without touching the registry."
+			"hash": "c7847c94e8c50008",
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-e2e-cleanup.test.ts",
+			"reason": "#1362 round-1 reconciliation: the step's decision logic moved from inline shell into packages/scripts-ts/src/ci-e2e-cleanup.ts (injectable gh api runner), so the branch logic IS now locally executable and mirrored by its co-located suite — last-tagged-version 400 -> race-guarded package delete; shared/concurrent tags -> skip or version-delete fallback; 403 -> loud failure with the grant guidance; owner scope derived from GET /users/{owner} -> .type; fork/empty-tag fast paths. What remains GitHub-only: the real registry calls (this run's ephemeral GHCR images do not exist locally) and the workflow-layer fork/tag short-circuits, which the script re-asserts. Still no continue-on-error (#1018): any refusal fails the job."
 		},
 		"front-e2e.yml::gate::Check required jobs": {
 			"hash": "882f344edb8cc40a",
