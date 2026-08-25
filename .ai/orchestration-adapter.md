@@ -31,14 +31,14 @@ Fielded adapter for `/home/radan/ai-orchestration-playbook/PLAYBOOK.md`.
 | `closure_config` | `/home/radan/Projects/PublyApp/publyapp/.ai/project-closure-v1.json` |
 | `closure_gate` | `/home/radan/ai-orchestration-playbook/tools/pr-closure` (shared dependency; PublyApp does not reimplement the state machine) |
 | `review_schema` | `1`; schema file: `/home/radan/ai-orchestration-playbook/tools/schemas/review-record-v1.json` |
-| `ci_status_cmd` | `gh pr view <pr-number> --repo radandevist/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,state,isDraft,mergeable,mergeStateStatus,url` |
-| `ci_rerun_cmd` | `gh run rerun <run-id> --failed --repo radandevist/publyapp` (only for a proven infrastructure failure; bounded by `closure_config.infra_retry_budget`) |
+| `ci_status_cmd` | `gh pr view <pr-number> --repo PublyApp/publyapp --json headRefOid,statusCheckRollup,baseRefName,headRefName,state,isDraft,mergeable,mergeStateStatus,url` |
+| `ci_rerun_cmd` | `gh run rerun <run-id> --failed --repo PublyApp/publyapp` (only for a proven infrastructure failure; bounded by `closure_config.infra_retry_budget`) |
 | `local_review_ready_commands` | `closure_config.local_review_ready_commands` (all commands must pass at the exact pushed tip) |
 | `closure_acceptance_commands` | `closure_config.closure_acceptance_commands` (run one heavy command at a time) |
 | `closure_state_dir` | `closure_config.closure_state_dir` (`/home/radan/.hermes/orchestration/closure`, durable and outside temporary session paths) |
 | `ci_required_checks` | `closure_config.ci_required_checks` (the exact required contexts; unknown, missing, or red is not approval) |
-| `review_publication_cmd` | `gh pr comment <pr-number> --repo radandevist/publyapp --body-file <compact-review-summary.md>` |
-| `follow_up_issue_cmd` | `gh issue create --repo radandevist/publyapp --title <title> --body-file <body-containing-Follow-up-to-#pr-number.md>` then verify with `gh issue view <issue-number> --repo radandevist/publyapp --json number,state,url,body` |
+| `review_publication_cmd` | `gh pr comment <pr-number> --repo PublyApp/publyapp --body-file <compact-review-summary.md>` |
+| `follow_up_issue_cmd` | `gh issue create --repo PublyApp/publyapp --title <title> --body-file <body-containing-Follow-up-to-#pr-number.md>` then verify with `gh issue view <issue-number> --repo PublyApp/publyapp --json number,state,url,body` |
 | `tracking_projection` | `closure_config.tracking_projection` = `trello:publyapp` (the PublyApp board is selected by this explicit mapping, never by the active Trello board) |
 | `projection_adapter` | `/home/radan/Projects/PublyApp/publyapp/.ai/trello-publyapp-projection` (regular executable, never a symlink; accepts `PUBLYAPP_TRELLO_CARD_MAP` and environment-supplied `TRELLO_API_KEY`/`TRELLO_TOKEN`) |
 | `infra_retry_budget` | `closure_config.infra_retry_budget` = `1` |

@@ -7,6 +7,13 @@ Compose applies `deploy.restart_policy` when it is present and falls back to the
 `restart:` field only when it is absent. The migrator sets both controls to no restart, and an
 unhealthy container remains running rather than being rescheduled.
 
+> **ORG MOVE (2026-08-25, #1362):** GHCR packages did NOT move with the repository. Images already
+> deployed from `ghcr.io/radandevist/publyapp/*` keep working. After the first `deploy-images` run
+> under the `PublyApp` organization, repoint Dokploy to the four new image names
+> (`ghcr.io/publyapp/publyapp/{api,migrate,front}`, the worker reusing `api`) and give Dokploy's
+> GHCR credential a token with **org-level `read:packages`** scope — the org `api` and `migrate`
+> packages are private.
+
 ## Ratified approach A: one-shot migrate plus application gates
 
 Every release uses one immutable `RELEASE_TAG`. It tags **three** published images — `api`,
@@ -126,6 +133,24 @@ One deliberate exception: the build-time OpenAPI generation inside `dotnet build
 the canary is skipped there by design — only the key parse/size contract runs, and no PASSED
 line is logged. A green CI build therefore never exercises the canary; only a real api/worker
 boot does. Full guide: [`docs/guides/social-accounts.md`](../guides/social-accounts.md).
+
+### The boot-log probe argument is test-only (#1319)
+
+The shipped image also carries a hidden test hook, `--emit-canary-boot-log`, which makes the
+process dump the boot's captured log lines after the canary gate and exit **without starting
+any host** (no HTTP socket, no job engine). It is guarded: without the environment variable
+`PUBLYAPP_TEST_BOOT_PROBE` set to exactly `1` or `true`, the process refuses to start with
+exit code **78** and prints a plain-words cause naming the variable.
+
+For operators:
+
+- Never add `--emit-canary-boot-log` to a container `command:` (Dokploy, compose,
+  Dockerfile CMD). A misconfigured command now dies loudly with exit 78 and the message
+  above — it does not fail silently.
+- Never set `PUBLYAPP_TEST_BOOT_PROBE` in any deployed service's environment. It exists
+  only for the API integration suite, which spawns the image locally under Testcontainers.
+- If you see the refusal in logs, remove the stray argument from that service's command;
+  nothing else needs to change.
 
 ## Production-instance checks — RESOLVED (first deploy, 2026-07-20)
 

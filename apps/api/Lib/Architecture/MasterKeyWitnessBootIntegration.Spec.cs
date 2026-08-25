@@ -24,6 +24,7 @@ namespace PublyApp.Api.Lib.Architecture;
 /// child-process pattern as AppRoleComposition.Spec's production-process probe.
 /// </para>
 /// </summary>
+[Collection("WitnessBootChildProcess")]
 public sealed class MasterKeyWitnessBootIntegrationSpec {
 	[Fact]
 	public async Task ItShouldEmitTheCanaryPassLineWhenTheWorkerBootsAgainstARealDatabase() {
