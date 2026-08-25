@@ -101,27 +101,13 @@ public interface IFeatureGate
 
 The front consumes `/api/features` once per session (and on focus) and renders three states per feature: **active**, **available with a licence** (invitation screen, nothing deleted), **unknown** (nothing rendered). The server enforces the same gate on every module endpoint; the front flag is a convenience, never the guard. This closes #1051 (runtime evaluation, one source of truth, typed registry, per-tenant targeting, visibility, audit of flag changes).
 
-## 8. Licences, monitoring and subscription
+## 8. Licences and subscription (public summary)
 
-**Format (self-hosted)**: an Ed25519-signed token (compact JSON payload + signature). Fields: `licenseId`, `customer`, `plan` (`trial` | `standard` | …), `features[]`, `issuedAt`, `expiresAt`, `graceDays` (default **14**), `maxInstances` (default 1), optional `instanceFingerprint` (binding mode). The core refuses a licence whose signature, schema or clock (`issuedAt` in the future) is doubtful — never a permissive default.
+The core only needs to know: a self-hosted licence is an Ed25519-signed token verified offline against the public key embedded in the core (`licenseId`, `features[]`, `expiresAt`, `graceDays`, optional instance binding); an instance fingerprint (random id generated at first boot, stored in the database, shown on the staff Licence page) may be compared to the licence when binding is used; a non-blocking periodic refresh call reports `licenseId, fingerprint, coreVersion, loadedModules[]` to the owner's licence service when the network allows (no personal or business data). The SaaS path reads the tenant subscription instead (§7). Issuance, renewal, revocation, trial rules, monitoring and the delivery pipeline are the owner's private operations and are documented outside this repository.
 
-**Instance fingerprint**: a random identifier generated at first boot and stored in the database (stable across container restarts, not tied to hardware), shown on the Licence page. The signed licence file is immutable; the fingerprint is never written into it.
+## 9. Delivery (what the core must support)
 
-**Modes** — decided: *free + monitoring* by default for every licence; *bound* available per licence, activated by the owner only when needed.
-- Free + monitoring: on start and hourly (never blocking, offline instances simply do not report), the core posts `licenseId, fingerprint, coreVersion, loadedModules[], timestamp` to the licence server. The server keeps the instances seen per licence (`firstSeen`, `lastSeen`, version, modules). The **monitoring dashboard** flags a licence **red** when the number of instances seen in the last 7 days exceeds `maxInstances`. Nothing is cut automatically; the owner chooses: ignore (legitimate migration), issue a bound licence, or revoke.
-- Bound: the customer pastes their fingerprint in the owner's portal; the owner issues a licence containing `instanceFingerprint`; the core compares at runtime and deactivates features with a plain-words message on mismatch.
-- The refresh payload carries no personal or business data; this is stated in the customer-facing documentation.
-
-**Licence server (private)**: issue, renew, revoke, refresh (returns the current status — a revoked licence deactivates features at the next check), and mint the **per-licence pull token** for the pro image registry (§9). Refresh responses are themselves signed.
-
-**Trial**: a normal licence with `plan=trial`, `expiresAt = +14 days`, `graceDays = 0`. On expiry the features become "available with a licence"; data is kept.
-
-**SaaS**: no key, no licence server in the loop — features come from the tenant subscription. The two sources are never active at the same time (§7).
-
-## 9. Delivery — the pro image
-
-- CI in the private monorepo: `dotnet test` (Testcontainers, pinned public core image + module DLLs, fake network servers for channels) → `dotnet pack` without symbols/Source Link → sign each DLL (private key lives only in CI secrets) → build `publyapp-api-pro:X.Y.Z` = `FROM ghcr.io/…/publyapp-api:X.Y.Z` + `COPY modules/` → push to a **private registry**; licensed self-hosters pull with their per-licence token (revocable independently). The SaaS pulls with the owner's credentials.
-- The pro CI also generates each module's OpenAPI document from the pro image and the corresponding kiota client, and opens a **bot PR on the core** containing only generated, non-secret code (§9.1). No download logic in the app in v1.
+Paid modules reach an instance as signed assemblies under `PUBLY_MODULES_DIR` (in practice, a `publyapp-api-pro` image built privately on top of the public `publyapp-api` image of the same version). The core never downloads modules itself in v1. Each module's OpenAPI document and its kiota client are committed into the core by an automated PR containing only generated, non-secret code (§9.1).
 
 ### 9.1 `packages/client-ts` layout — one client per module, same package
 
@@ -158,8 +144,7 @@ core `X.Y.Z` tagged → `Abstractions` published → pro built on `X.Y.Z` → bo
 2. **Contracts + loader + Sample**: `PublyApp.Modules.Abstractions` (API-baseline guard, NuGet publish on tag), loader with signature verification and version range, `Modules/Sample` exercising every registry, integration + architecture specs (unsigned DLL refused, out-of-range refused, inactive module answers 402, migrations under advisory lock).
 3. **Channel contract public**: `IPublishProvider`, `ProviderFailure`, capabilities, `AddPublishProvider<T>()`; core-owned `SocialAccount`/`ITokenProtector` reused (epics C/D); the Sample gains a fake channel.
 4. **`SubscriptionFeatureSource`** + Billing webhooks (SaaS).
-5. **Private monorepo bootstrap**: contracts consumption, tests against the pinned public image, signing, pro Dockerfile, bot PR for module clients, licence server + monitoring dashboard, per-licence pull tokens.
-6. First paid module (C): a real channel.
+5. Private side (monorepo bootstrap, first paid channel module): tracked outside this repository.
 
 ## 11. Decisions recorded (owner, 2026-08-25)
 
@@ -168,8 +153,8 @@ core `X.Y.Z` tagged → `Abstractions` published → pro built on `X.Y.Z` → bo
 - "Loaded but inactive" rather than "absent" so the UI can invite to a licence.
 - #1051 becomes rung 1.
 - Tokens/accounts owned by the core; module schema per module + migrations at activation; module endpoints under `/api/modules/<id>/`.
-- Module kiota clients pushed into the core by a bot PR, under `packages/client-ts/src/modules/<id>`; contract breaks blocked by an API-baseline guard; private registry with a pull token per licence.
-- Grace 14 days; instance binding optional and off by default with a monitoring dashboard (red above `maxInstances` over 7 days, human decides); `PUBLY_FEATURE_SOURCE` explicit with refusal to start when missing or contradicted.
+- Module kiota clients pushed into the core by a bot PR, under `packages/client-ts/src/modules/<id>`; contract breaks blocked by an API-baseline guard.
+- Instance binding supported but optional; `PUBLY_FEATURE_SOURCE` explicit with refusal to start when missing or contradicted. Commercial parameters (grace, trial, monitoring thresholds) are private.
 
 ## 12. Success criteria
 
