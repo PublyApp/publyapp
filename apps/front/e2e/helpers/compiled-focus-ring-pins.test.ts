@@ -74,8 +74,8 @@ describe('assertFocusRingUtilitiesPinned', () => {
 	test('ignores resting chrome shadows without :focus-visible', () => {
 		const sheet = [
 			'@property --tw-ring-shadow{syntax:"*"}',
-			'.bg-card{box-shadow:var(--publy-shadow-card)}',
-			'[data-slot=input]{box-shadow:var(--publy-shadow-input)}',
+			'.bg-card{box-shadow:0 12px 12px -3px #0005}',
+			'[data-slot=input]{box-shadow:0 1px 2px #0008}',
 			RING_RULE_2PX,
 		].join('\n');
 		// The 2px rule alone satisfies the 2px family pin but the 3px family

@@ -486,11 +486,29 @@ const boxShadowLayerSpreadPx = (rawLayer: string): number => {
 	return Number.parseFloat(parts[parts.length - 1] ?? '');
 };
 
-/** Largest channel delta between the layer colour composited over the
- * surface and the surface itself, rounded down to whole 1/255 steps — the
- * paint-existence test for a candidate ring layer. A fully (or near-fully)
- * transparent ring colour composites to the surface unchanged and must not
- * count toward the ring-width pin below. */
+/**
+ * #1415 adversarial round — the paint-existence bar for a candidate ring
+ * layer, in whole 1/255 channel steps. A ring layer qualifies only if
+ * compositing it over the surface shifts some channel by at least this much.
+ *
+ * Why 8: calibrated against the shipped treatments — the weakest is the
+ * input/select/textarea halo (`ring-ring/30`), whose composited shift over
+ * its own translucent surface measures in the tens of steps, so everything
+ * the design system ships clears this bar with wide margin, while anything
+ * below ~3% channel shift is imperceptible glow rather than an indicator.
+ * This closes the fade hole found in the adversarial round: a ring faded to
+ * a 2%-alpha tint of the ring token
+ * (`red-m4-near-invisible-colour.txt`) kept its full 3px geometry yet
+ * composites to a ~2-step shift, which slid under the original >=1-step
+ * test — and a strict `alpha === 0` equality would have been an arbitrary
+ * cliff just above it.
+ */
+const RING_MEMBER_MIN_CHANNEL_DELTA = 8;
+
+/** Whether the layer colour composites to a visibly different surface —
+ * the paint-existence test for a candidate ring layer. A fully (or
+ * effectively) transparent or surface-matching ring colour must not count
+ * toward the ring-width pin below. */
 const layerPaintsOverSurface = (color: Rgba, surface: SurfaceRgb): boolean => {
 	const composited = compositeOver(color, surface);
 	const delta = Math.max(
@@ -498,7 +516,7 @@ const layerPaintsOverSurface = (color: Rgba, surface: SurfaceRgb): boolean => {
 		Math.abs(composited.g - surface.g),
 		Math.abs(composited.b - surface.b),
 	);
-	return Math.floor(delta) >= 1;
+	return Math.floor(delta) >= RING_MEMBER_MIN_CHANNEL_DELTA;
 };
 
 /**
@@ -785,6 +803,35 @@ test.describe(
 				 * content inside a spec fixture string — it reproduces the #1415
 				 * defect (invisible keyboard focus on input) to prove it caught. */
 				'[data-e2e-focus-probe="input"]{--tw-ring-shadow:0 0 #0000}',
+			].join('\n');
+
+			await expect(
+				assertRenderedFocusRingCompliant(page, mutatedCss),
+			).rejects.toThrow(/input.*missing focus ring|missing focus ring/i);
+		});
+
+		/**
+		 * #1415 adversarial-round pin (see
+		 * `.dump/red-m4-near-invisible-colour.txt`): the ring can survive
+		 * GEOMETRICALLY (full 3px spread, layered utilities intact) yet be
+		 * faded to imperceptibility — here recoloured to a 2%-alpha tint of
+		 * the ring token, which kept the full 3px spread while compositing to
+		 * a ~2-step channel shift, sliding under the guard's original >=1
+		 * paint-existence step. The ring member now requires a meaningful
+		 * composited shift (RING_MEMBER_MIN_CHANNEL_DELTA), so a fade like
+		 * this names the primitive and the missing ring instead of passing.
+		 */
+		test('is caught when the ring keeps its width but fades below perceptibility (colour-fade mutation proof)', async ({
+			page,
+		}) => {
+			const css = readCompiledAppCss();
+			const mutatedCss = [
+				css,
+				/* NOTE: the planted rule below is deliberate test-only mutation
+				 * content inside a spec fixture string — it reproduces the fade
+				 * hole found in the #1415 adversarial round to prove it closed. */
+				'[data-e2e-focus-probe="input"]{' +
+					'--tw-ring-color:color-mix(in oklab,var(--ring) 2%,transparent)}',
 			].join('\n');
 
 			await expect(
