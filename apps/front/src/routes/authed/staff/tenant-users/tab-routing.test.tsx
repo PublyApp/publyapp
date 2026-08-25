@@ -36,6 +36,7 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
@@ -172,7 +173,7 @@ const buildRouter = (initialUrl: string) => {
 		id: '/_authed-layout',
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
-	} as never);
+	});
 
 	const detailsStubRoute = mountRealRoute(DetailsStubRoute, {
 		id: '/staff/tenant-users/details/$userId',
@@ -199,12 +200,13 @@ const buildRouter = (initialUrl: string) => {
 		path: '/staff/tenant-users',
 		staticData: { crumbs: 'shell' },
 		component: () => <div data-testid="tenant-users-list-page" />,
-	} as never);
+	});
 	const notFoundRoute = createRoute({
 		getParentRoute: () => rootRoute,
 		id: '/not-found-catchall',
+		staticData: { crumbs: 'shell' },
 		component: () => <div data-testid="not-found-page" />,
-	} as never);
+	});
 
 	// `.addChildren` exists at runtime on every route but is absent from the
 	// public types for file routes, so the helper names its shape once.
@@ -231,11 +233,13 @@ const buildRouter = (initialUrl: string) => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = createRouter({
-		routeTree,
-		history,
-		context: { queryClient },
-	} as never);
+	const router: AnyRouter = createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({
+			routeTree,
+			history,
+			context: { queryClient },
+		}),
+	);
 
 	return { router, history, queryClient };
 };
@@ -246,7 +250,7 @@ const renderAt = async (initialUrl: string) => {
 
 	render(
 		<QueryClientProvider client={harness.queryClient}>
-			<RouterProvider router={harness.router as never} />
+			<RouterProvider router={harness.router} />
 		</QueryClientProvider>,
 	);
 	await waitFor(() =>

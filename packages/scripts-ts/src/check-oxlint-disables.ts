@@ -26,7 +26,6 @@ const ignoredSegments = new Set([
 const ignoredRelativeRoots = [
 	'apps/api/.artifacts',
 	'apps/api/Migrations',
-	'docs/superpowers/plans',
 	'packages/client-ts',
 ];
 

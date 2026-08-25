@@ -98,8 +98,9 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { buildSafeResetPasswordHref } from '~/lib/build-safe-reset-password-href';
 
-import { buildSafeResetPasswordHref, Route } from './verify-email';
+import { Route } from './verify-email';
 
 const renderVerifyEmailRoute = () => {
 	const Component = Route.options.component as () => ReturnType<

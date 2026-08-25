@@ -237,12 +237,21 @@ const ENTITY_QUERY_REGISTRY: readonly EntityRegistryEntry[] = [
 	},
 ];
 
+function widenOptions<T>(value: unknown): T {
+	return value as T;
+}
+
 // `fullPath` is populated by the router's own tree-processing pass
 // (`RouterCore.buildRouteTree`, run from `createRouter`), not eagerly by
 // `routeTree.gen`'s `_addFileChildren`/`_addFileTypes` calls alone — building
 // one throwaway real router (never rendered) forces that processing on the
 // SAME shared `routeTree` object every test in this file walks.
-createRouter({ routeTree, history: createMemoryHistory() } as never);
+createRouter(
+	widenOptions<Parameters<typeof createRouter>[0]>({
+		routeTree,
+		history: createMemoryHistory(),
+	}),
+);
 
 describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () => {
 	const allRoutes = walkRealRouteTree(routeTree as RouteLike);
@@ -650,11 +659,13 @@ const buildTestRouter = (initialUrl: string, queryClient: QueryClient) => {
 	const routeTreeForTest = rootRoute.addChildren([tenantRoute]);
 	const history = createMemoryHistory({ initialEntries: [initialUrl] });
 
-	return createRouter({
-		routeTree: routeTreeForTest,
-		history,
-		context: { queryClient },
-	} as never);
+	return createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({
+			routeTree: routeTreeForTest,
+			history,
+			context: { queryClient },
+		}),
+	);
 };
 
 describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () => {
@@ -933,11 +944,13 @@ describe('breadcrumb contract — rendered artifact (#973 Tier 2, guard B)', () 
 			layoutRoute.addChildren([overviewRoute, permissionsRoute, membersRoute]),
 		]);
 
-		return createRouter({
-			routeTree: routeTreeForTest,
-			history: createMemoryHistory({ initialEntries: [initialUrl] }),
-			context: { queryClient },
-		} as never);
+		return createRouter(
+			widenOptions<Parameters<typeof createRouter>[0]>({
+				routeTree: routeTreeForTest,
+				history: createMemoryHistory({ initialEntries: [initialUrl] }),
+				context: { queryClient },
+			}),
+		);
 	};
 
 	const renderProfileSectionCrumbs = async (initialUrl: string) => {

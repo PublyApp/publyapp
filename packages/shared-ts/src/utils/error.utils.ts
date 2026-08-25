@@ -41,7 +41,12 @@ export const getSerializedErrorMessage = (
 		const obj = error as Record<string, unknown>;
 		const translationKey = obj.translationKey || obj.key;
 		if (typeof translationKey === 'string' && translationKey.length > 0) {
-			return t(translationKey as never, { ns: 'response-message' });
+			// Missing keys render the key itself; naming it as defaultValue
+			// keeps that behavior under the strict dynamic-key overload.
+			return t(translationKey, {
+				ns: 'response-message',
+				defaultValue: translationKey,
+			});
 		}
 	}
 

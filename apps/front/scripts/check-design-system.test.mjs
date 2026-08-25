@@ -67,8 +67,266 @@ export const matchRunnerHandshake = (output, expectedNonce) => {
 	return rootMatch ? { pid: Number(pidMatch[1]), root: rootMatch[1] } : null;
 };
 
+// #1352: the runner-interruption probe chain is BOUNDED. Its normal runtime
+// is ~5 s warm (~14 s cold; measured 2026-08-25 on Node v24.19.0, three
+// full-file runs: 14342 ms / 5313 ms / 5319 ms), yet twice (2026-08-23 and
+// 2026-08-25) the same chain hung ~26 minutes on Node 24: after the
+// deliberate SIGINT the runner-interruption teardown sometimes never
+// completes, and nothing bounded the exit wait. This budget keeps ~8x
+// headroom over the slowest measured run while turning the observed
+// 26-minute hang into a loud failure within two minutes.
+// #1352 Node 24 hang — HYPOTHESIS, NOT a reproduced root cause (rewritten
+// 2026-08-25, r1 finding 3; full dated record with every measurement:
+// docs/issues/1352/2026-08-25-node24-probe-hang-hypothesis.md). MEASURED:
+// this exact probe flow held a lane ~26 minutes twice (2026-08-25,
+// captain-reported in issue #1352; 2026-08-23 per the lane brief — no raw
+// log survives for that earlier occurrence), while
+// local replays could NOT re-trigger it deterministically — a manual replay
+// of the whole chain exited 25 ms after SIGINT, a
+// full run under a pty completed in ~5 s, and three timed full-file runs
+// took 14342/5313/5319 ms (timings recorded in the dated record). HYPOTHESIS
+// (plausible, unproven): the chain is three levels deep — this test's
+// process → the spawned runner-probe wrapper
+// (`check-design-system-runner-probe.mjs`) → its own `node --test`
+// grand-child running the live probe test — and SIGINT makes the wrapper
+// run ASYNC fixture cleanup (see registerFixtureSignalHandlers) while the
+// grand-child runner performs its own interruption teardown; IF that
+// combined race never completes, the wrapper keeps waiting on its
+// grand-child and our old code kept waiting on the wrapper with NO ceiling
+// anywhere — matching the two observed ~26-minute holds. Related upstream
+// work (titles/states verified via the GitHub API on 2026-08-25; NONE is
+// confirmed to describe this exact hang): nodejs/node#62037 `test_runner:
+// use default signal exit codes when interrupted` (closed), #57394
+// `test_runner: ensure proper teardown when tests run without isolation`
+// (open), #62056 `test_runner: fix run() none-isolation teardown hang`
+// (closed). If the hypothesis is right, the hang lives inside node:test's
+// own teardown — not in code this repo controls — so no fix can be applied
+// AND proven without a deterministic reproduction, and none was attempted;
+// the budget below stays as the standing guard REGARDLESS of cause and
+// turns any recurrence into a loud failure within two minutes instead of a
+// silent 26-minute lock hold.
+export const RUNNER_PROBE_BUDGET_MS = 120_000;
+
+// #1352 r1 finding 2: the budget is overridable from the environment (CI vs
+// local). Parsing is STRICT: unset → the documented 120_000ms default;
+// present → a plain base-10 positive integer is required. Anything else —
+// whitespace, an explicit sign, a decimal or exponent form, garbage — fails
+// LOUD naming the variable and the exact bad value. A mistyped override must
+// never silently restore the default.
+export const resolveRunnerProbeBudgetMs = ({ env = process.env } = {}) => {
+	const raw = env.RUNNER_PROBE_BUDGET_MS;
+	if (raw === undefined) {
+		return RUNNER_PROBE_BUDGET_MS;
+	}
+	const fail = () => {
+		throw new TypeError(
+			`RUNNER_PROBE_BUDGET_MS must be a positive integer number of milliseconds, got RUNNER_PROBE_BUDGET_MS=${JSON.stringify(raw)}`,
+		);
+	};
+	if (!/^-?\d+$/.test(raw)) {
+		fail();
+	}
+	const parsed = Number(raw);
+	if (parsed <= 0) {
+		fail();
+	}
+	return parsed;
+};
+
+// #1352: strict-parse validation entry for the CHILD side of the live probe
+// flow (it must fail loud before creating anything). The PARENT side — the
+// bounded wait — acquires its value through resolveRunnerProbeBudgetMs
+// inside the one shared flow function below, where the #1352 r2 proof
+// exercises it with an injected environment.
+export const realProbeBudget = () => resolveRunnerProbeBudgetMs();
+
+// #1352 r2: the REAL probe's "spawn the runner-probe wrapper → wait for its
+// handshake → SIGINT it → wait bounded by the resolved budget → kill tree on
+// expiry" flow, extracted so there is exactly ONE implementation of that
+// wait: both the real test and the #1352 proofs traverse this very function,
+// so a mutant that disconnects the resolved budget from the wait (a literal
+// at the consumption site) turns the proofs RED. `env` is the environment
+// the budget is resolved from AND the child's base environment; `runnerPath`
+// is the wrapper script to spawn. Returns the exit result plus the probe's
+// owned root; throws if the handshake never resolves within 20 s.
+export const runRunnerInterruptionProbe = async ({ env, runnerPath }) => {
+	const handshakeNonce = randomBytes(24).toString('base64');
+	// The budget is resolved FIRST, through the shared seam, BEFORE any child
+	// is spawned — a bad RUNNER_PROBE_BUDGET_MS override must fail loud with
+	// nothing to leak and nothing left to clean up.
+	const budgetMs = resolveRunnerProbeBudgetMs({ env });
+	const child = spawn(process.execPath, [runnerPath], {
+		env: {
+			...env,
+			FRONT2_DESIGN_GUARD_RUNNER_PROBE: '1',
+			// Per-spawn secret: only a stdout line echoing THIS value can
+			// resolve the handshake (see matchRunnerHandshake).
+			FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE: handshakeNonce,
+		},
+		// #1352: detached makes the child its own process-group leader, so
+		// budget expiry can SIGKILL the WHOLE tree (this child and its
+		// grand-child node:test runner) via a negative-PID kill.
+		detached: true,
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+	let output = '';
+	let probe;
+	try {
+		probe = await new Promise((resolve, reject) => {
+			let timeout;
+			const onData = (chunk) => {
+				output += chunk.toString();
+				// The probe's own two handshake lines and the grand-child
+				// runner's TAP stream share one pipe, so under load (or a pty)
+				// TAP banners interleave between them.
+				// matchRunnerHandshake matches the two values independently
+				// instead of demanding adjacent undecorated lines — the values
+				// themselves are what matter.
+				try {
+					const handshake = matchRunnerHandshake(output, handshakeNonce);
+					if (handshake) {
+						clearTimeout(timeout);
+						resolve(handshake);
+					}
+				} catch {
+					// Unreachable: handshakeNonce is always a valid nonce.
+				}
+			};
+			timeout = setTimeout(() => {
+				// A start failure must not leak the child either — kill the whole
+				// tree before failing loud with the whole buffer.
+				killProcessTree(child.pid);
+				reject(new Error(`runner probe did not start:\n${output}`));
+			}, 20_000);
+			// An early death (e.g. a broken wrapper) must reject NOW, not leave
+			// this promise hanging on the 20 s timer. Once the handshake has
+			// resolved, this handler is inert: rejecting an already-settled
+			// promise is a no-op.
+			child.once('exit', () => {
+				clearTimeout(timeout);
+				reject(
+					new Error(`runner probe exited before its handshake:\n${output}`),
+				);
+			});
+			child.stdout.on('data', onData);
+			child.stderr.on('data', onData);
+			child.once('error', reject);
+		});
+	} catch (error) {
+		// A start failure already killed the tree; make sure no partial child
+		// survives an 'error'-path rejection either.
+		killProcessTree(child.pid);
+		throw error;
+	}
+	process.kill(probe.pid, 'SIGINT');
+	// #1352: the exit wait is BOUNDED — this is the exact wait that hung ~26
+	// minutes twice on Node 24 with no ceiling. On expiry the helper kills
+	// the whole tree and fails loud naming the probe, the budget and the
+	// last output line. There is deliberately NO second wait anywhere else in
+	// this flow: this call is the single consumption site of the resolved
+	// budget in the real path.
+	return {
+		result: await awaitExitWithinBudget({
+			child,
+			budgetMs,
+			probeName: 'check-design-system runner-interruption probe',
+			getLastOutput: () => output,
+		}),
+		root: probe.root,
+	};
+};
+
+// Best-effort kill of a fixture tree from the pid report the r2 fixture
+// writes at startup. Used by the proof's watchdog so a mutant whose wait
+// ignores the resolved budget can neither leak processes nor pin this
+// file's event loop with its runaway timer after the RED lands.
+export const killFixtureTreeFromReport = async (reportPath) => {
+	let pids;
+	try {
+		pids = (await readFile(reportPath, 'utf8'))
+			.split('\n')
+			.filter((line) => line.trim() !== '')
+			.map((line) => Number(line));
+	} catch {
+		// The fixture never got far enough to report — nothing to kill.
+		return;
+	}
+	for (const pid of pids) killProcessTree(pid);
+};
+
+// Kill the whole process group first — the probe child is spawned
+// `detached`, so it leads its own group and the negative-PID signal reaches
+// its own children (the grand-child node:test runner) too — then the pid
+// itself as the fallback for timings where the group is already gone.
+// Standard library only: no tree-kill dependency.
+export const killProcessTree = (pid) => {
+	try {
+		process.kill(-pid, 'SIGKILL');
+	} catch {
+		// Group already gone: fall through to the direct kill.
+	}
+	try {
+		process.kill(pid, 'SIGKILL');
+	} catch {
+		// Already dead — exactly what we want.
+	}
+};
+
+// The fail-loud contract: on expiry the tree is killed and the error NAMES
+// the probe, the budget and the last output line — never a silent pass,
+// never a skipped probe.
+export const formatProbeTimeoutMessage = ({ probeName, budgetMs, output }) => {
+	const lastLine =
+		output
+			.split('\n')
+			.filter((line) => line.trim() !== '')
+			.at(-1) ?? '(no output)';
+	return `the ${probeName} exceeded its ${Math.round(budgetMs)}ms budget: the interrupt was delivered but the child never exited, so its whole process tree was killed. Last output line: ${JSON.stringify(lastLine)}`;
+};
+
+// Await a child's exit within a hard budget. On expiry KILL the whole
+// process tree and REJECT with the named message. An exit racing the
+// post-expiry grace window still rejects: once expired, the outcome is
+// failure, whatever the exit code — a budget breach is never a pass.
+export const awaitExitWithinBudget = ({
+	child,
+	budgetMs,
+	probeName,
+	getLastOutput,
+}) =>
+	new Promise((resolve, reject) => {
+		let expired = false;
+		let graceTimer;
+		const timeoutMessage = () =>
+			formatProbeTimeoutMessage({
+				probeName,
+				budgetMs,
+				output: getLastOutput(),
+			});
+		const timer = setTimeout(() => {
+			expired = true;
+			killProcessTree(child.pid);
+			graceTimer = setTimeout(() => reject(new Error(timeoutMessage())), 1_000);
+		}, budgetMs);
+		child.once('exit', (code, signal) => {
+			clearTimeout(timer);
+			if (graceTimer !== undefined) clearTimeout(graceTimer);
+			if (expired) {
+				reject(new Error(timeoutMessage()));
+				return;
+			}
+			resolve({ code, signal });
+		});
+	});
+
 if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
 	test('runner interruption probe leaves an active owned fixture', async () => {
+		// Validate the budget FIRST, through the shared seam: a bad override
+		// must fail loud before any fixture exists — nothing to leak, nothing
+		// left to clean up. The resolved VALUE itself bounds the parent side
+		// of this flow (see 'the real node:test runner cleans...' below),
+		// so here only the strict parse matters.
+		realProbeBudget();
 		const root = await makeFixture({
 			'probe.ts': 'export const probe = true;',
 		});
@@ -94,59 +352,347 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 		t.skip('probe runs only in a child process');
 		return;
 	}
-	const handshakeNonce = randomBytes(24).toString('base64');
+	// #1352 r2: the whole flow — spawn, handshake, SIGINT, bounded wait,
+	// kill tree — is the ONE shared function below; this test drives it with
+	// the process environment exactly as the live guard does.
+	const { result, root } = await runRunnerInterruptionProbe({
+		env: process.env,
+		runnerPath: fileURLToPath(
+			new URL('./check-design-system-runner-probe.mjs', import.meta.url),
+		),
+	});
+	assert.notEqual(result.code, 0);
+	await assert.rejects(access(root), { code: 'ENOENT' });
+});
+
+// #1352: co-located proof of the bound itself, driven over the SAME
+// awaitExitWithinBudget wiring the real probe uses, with a tiny budget and
+// a never-ending parent->grand-child fixture chain. Against the
+// pre-#1352 code this test could not exist: there was no budget and no
+// kill-tree helper, and the plain exit wait hung forever on such a child
+// (RED: importing the then-missing exports fails the suite loudly against
+// the old code; the ~26-minute Node 24 hangs of 2026-08-23/25 are the
+// real-world equivalent). The timeout must FIRE, the WHOLE tree must die
+// (no orphan pid), and the rejection must name the probe, the budget and
+// the last output line.
+test('#1352: the probe budget fires on a never-ending child, kills the whole process tree, and fails loud naming the probe', async () => {
+	const root = await makeFixture({
+		'never-ending-child.mjs': [
+			'// #1352 fixture: a handle that never closes and never exits.',
+			'setInterval(() => {}, 1_000);',
+		].join('\n'),
+		'never-ending-parent.mjs': [
+			"import { spawn } from 'node:child_process';",
+			"import path from 'node:path';",
+			"import { fileURLToPath } from 'node:url';",
+			"const grandChildPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'never-ending-child.mjs');",
+			"const grandChild = spawn(process.execPath, [grandChildPath], { stdio: 'ignore' });",
+			'process.stdout.write(`PARENT_PID=${process.pid}\\nGRAND_PID=${grandChild.pid}\\n`);',
+			'setInterval(() => {}, 1_000);',
+		].join('\n'),
+	});
 	const child = spawn(
 		process.execPath,
-		[
-			fileURLToPath(
-				new URL('./check-design-system-runner-probe.mjs', import.meta.url),
-			),
-		],
-		{
-			env: {
-				...process.env,
-				FRONT2_DESIGN_GUARD_RUNNER_PROBE: '1',
-				// Per-spawn secret: only a stdout line echoing THIS value can
-				// resolve the handshake (see matchRunnerHandshake).
-				FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE: handshakeNonce,
-			},
-			stdio: ['ignore', 'pipe', 'pipe'],
-		},
+		[path.join(root, 'never-ending-parent.mjs')],
+		{ detached: true, stdio: ['ignore', 'pipe', 'pipe'] },
 	);
 	let output = '';
-	const probe = await new Promise((resolve, reject) => {
-		let timeout;
-		const onData = (chunk) => {
-			output += chunk.toString();
-			// The probe's own two handshake lines and the grand-child runner's
-			// TAP stream share one pipe, so under load (or a pty) TAP banners
-			// interleave between them. matchRunnerHandshake matches the two
-			// values independently instead of demanding adjacent undecorated
-			// lines — the values themselves are what matter.
-			try {
-				const handshake = matchRunnerHandshake(output, handshakeNonce);
-				if (handshake) {
-					clearTimeout(timeout);
-					resolve(handshake);
-				}
-			} catch {
-				// Unreachable: handshakeNonce is always a valid nonce.
-			}
-		};
-		timeout = setTimeout(
-			() => reject(new Error(`runner probe did not start:\n${output}`)),
-			20_000,
-		);
-		child.stdout.on('data', onData);
-		child.stderr.on('data', onData);
-		child.once('error', reject);
+	child.stdout.on('data', (chunk) => {
+		output += chunk.toString();
 	});
-	process.kill(probe.pid, 'SIGINT');
-	const result = await new Promise((resolve) =>
-		child.once('exit', (code, signal) => resolve({ code, signal })),
+	const startedAt = Date.now();
+	await assert.rejects(
+		() =>
+			awaitExitWithinBudget({
+				child,
+				budgetMs: resolveRunnerProbeBudgetMs({
+					env: { RUNNER_PROBE_BUDGET_MS: '300' },
+				}),
+				probeName: '#1352 never-ending fixture',
+				getLastOutput: () => output,
+			}),
+		(error) => {
+			assert.match(
+				error.message,
+				/#1352 never-ending fixture exceeded its 300ms budget/,
+			);
+			assert.match(error.message, /Last output line: /);
+			return true;
+		},
 	);
-	assert.notEqual(result.code, 0);
-	await assert.rejects(access(probe.root), { code: 'ENOENT' });
+	// The budget must actually elapse (not fire early) and must actually
+	// FIRE (the pre-#1352 unbounded wait would hang here until CI dies).
+	assert.ok(
+		Date.now() - startedAt >= 290,
+		'the budget must elapse before the timeout fires',
+	);
+	assert.ok(
+		Date.now() - startedAt < 10_000,
+		'the timeout must fire — an unbounded wait hangs forever on this fixture',
+	);
+	const pidMatch = output.match(/^PARENT_PID=(\d+)$/m);
+	const grandMatch = output.match(/^GRAND_PID=(\d+)$/m);
+	assert.ok(
+		pidMatch && grandMatch,
+		`fixture handshake expected, got: ${output}`,
+	);
+	// No orphan pids: the fixture child AND its own grand-child must be
+	// dead. A zombie can survive briefly between SIGKILL and reaping, so
+	// poll briefly before failing.
+	const deadline = Date.now() + 5_000;
+	for (const pid of [Number(pidMatch[1]), Number(grandMatch[1]), child.pid]) {
+		let gone = false;
+		while (Date.now() < deadline) {
+			try {
+				process.kill(pid, 0);
+			} catch {
+				gone = true;
+				break;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		assert.equal(
+			gone,
+			true,
+			`pid ${pid} must be dead — killing the tree must leave no orphan`,
+		);
+	}
+});
+
+// #1352 r2 finding (BLOCKS_PR): the round-1 proof pinned the SOURCE TEXT of
+// the budget assignment and runtime-called the resolver itself — but the
+// real probe's actual WAIT could be handed any literal without the proof
+// noticing (the reviewer's mutant: a `9_999_999` literal at the consumption
+// site stayed GREEN across all seven proofs). The real flow now lives in
+// ONE exported function, runRunnerInterruptionProbe, and THIS proof drives
+// that very function — not a copy of its call — with a small injected
+// RUNNER_PROBE_BUDGET_MS against a fixture child that answers the handshake
+// and then IGNORES SIGINT forever. Because the fixture reaches the shared
+// wait phase, the resolved budget must ACTUALLY bound it: the rejection
+// naming the injected 800ms budget must arrive (elapsed ≈ budget, capped
+// well above by the assertions and a 15s watchdog), and the expired wait's
+// kill-tree must leave every fixture pid dead. ANY disconnect between the
+// resolved budget and its consumption — a hardcoded literal, Infinity, a
+// bypassed seam — leaves the child running, the named rejection never
+// arrives, and the watchdog turns the suite RED. No text-pinning anywhere:
+// behaviour is the proof.
+test('#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_BUDGET_MS and kills its tree', async () => {
+	const root = await makeFixture({
+		'r2-ignored-sigint-grandchild.mjs': [
+			'// #1352 fixture: a handle that never closes and never exits.',
+			'setInterval(() => {}, 1_000);',
+		].join('\n'),
+		'r2-ignored-sigint-parent.mjs': [
+			"import { spawn } from 'node:child_process';",
+			"import { writeFileSync } from 'node:fs';",
+			"import path from 'node:path';",
+			"import { fileURLToPath } from 'node:url';",
+			"const grandChildPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'r2-ignored-sigint-grandchild.mjs');",
+			"const grandChild = spawn(process.execPath, [grandChildPath], { stdio: 'ignore' });",
+			'writeFileSync(process.env.R2_FIXTURE_REPORT, `${process.pid}\\n${grandChild.pid}\\n`);',
+			'process.stdout.write(`RUNNER_PID=${process.pid}\\nRUNNER_OWNED_ROOT=${process.env.FRONT2_DESIGN_GUARD_HANDSHAKE_NONCE}:${process.env.R2_FIXTURE_ROOT}\\n`);',
+			'// Ignore SIGINT: only the budget-expiry SIGKILL may end this tree.',
+			"process.on('SIGINT', () => {});",
+			'setInterval(() => {}, 1_000);',
+		].join('\n'),
+	});
+	const reportPath = path.join(root, 'pids.txt');
+	// Registered so the module-level test:fail cleanup below can reach this
+	// run's fixture tree even when an assertion throws mid-test.
+	globalThis.__r2FixtureReportPath = reportPath;
+	// Extra keys ride through the shared function's env spread into the
+	// fixture's environment; the budget override rides the same way.
+	const env = {
+		...process.env,
+		RUNNER_PROBE_BUDGET_MS: '800',
+		R2_FIXTURE_REPORT: reportPath,
+		R2_FIXTURE_ROOT: root,
+	};
+
+	const startedAt = Date.now();
+	// Watchdog: if a mutant disconnects the resolved budget from the shared
+	// wait, the named rejection never comes — fail loud instead of hanging.
+	let watchdogTimer;
+	try {
+		await assert.rejects(
+			() =>
+				Promise.race([
+					runRunnerInterruptionProbe({
+						env,
+						runnerPath: path.join(root, 'r2-ignored-sigint-parent.mjs'),
+					}),
+					new Promise((_, reject) => {
+						watchdogTimer = setTimeout(() => {
+							// Fire-and-forget on purpose: the rejection below is the
+							// outcome; the tree kill must happen either way.
+							void killFixtureTreeFromReport(reportPath).finally(() => {
+								reject(
+									new Error(
+										'#1352 r2 watchdog: the real flow did not fail within 15s — the resolved budget no longer bounds the real wait',
+									),
+								);
+							});
+						}, 15_000);
+					}),
+				]),
+			(error) => {
+				// ONLY the genuine budget-expiry message counts: the matcher
+				// demands the real probe name AND the injected 800ms number, so
+				// neither the watchdog error nor any other failure can satisfy it.
+				assert.match(
+					error.message,
+					/check-design-system runner-interruption probe exceeded its 800ms budget/,
+				);
+				assert.match(error.message, /Last output line: /);
+				return true;
+			},
+		);
+	} finally {
+		clearTimeout(watchdogTimer);
+	}
+
+	// The injected budget must actually elapse before the timeout fires, and
+	// the whole bounded flow must finish promptly — an unbounded wait would
+	// hang until the watchdog, far past this ceiling.
+	const elapsed = Date.now() - startedAt;
+	assert.ok(
+		elapsed >= 750,
+		`the injected budget must elapse before the timeout fires, took ${elapsed}ms`,
+	);
+	assert.ok(
+		elapsed < 5_000,
+		`the budget expiry must bound the flow tightly, took ${elapsed}ms`,
+	);
+
+	// The expiry's kill-tree must leave NO orphan: the fixture reported its
+	// own pid (= the shared function's direct child) and its grand-child's.
+	// A zombie can survive briefly between SIGKILL and reaping, so poll.
+	const pids = (await readFile(reportPath, 'utf8'))
+		.split('\n')
+		.filter((line) => line.trim() !== '')
+		.map((line) => Number(line));
+	assert.equal(pids.length, 2, `fixture pid report expected, got: ${pids}`);
+	const deadline = Date.now() + 5_000;
+	for (const pid of pids) {
+		let gone = false;
+		while (Date.now() < deadline) {
+			try {
+				process.kill(pid, 0);
+			} catch {
+				gone = true;
+				break;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		assert.equal(
+			gone,
+			true,
+			`pid ${pid} must be dead — the budget expiry must kill the whole tree`,
+		);
+	}
+});
+
+// Post-failure safety net for the r2 proof only: if any of its assertions
+// throws while a mutant keeps the fixture alive, kill its tree so neither
+// stray processes nor its runaway timers outlive this RED run.
+const r2ProofFailureCleanup = (event) => {
+	if (
+		event?.name !==
+		'#1352 r2: the REAL probe flow fires within an injected small RUNNER_PROBE_BUDGET_MS and kills its tree'
+	) {
+		return;
+	}
+	const { __r2FixtureReportPath: reportPath } = globalThis;
+	if (typeof reportPath === 'string') {
+		void killFixtureTreeFromReport(reportPath);
+	}
+};
+process.on('test:fail', r2ProofFailureCleanup);
+
+// Positive control: a child that exits on its own resolves normally with
+// its code — the budget helper must never turn a healthy exit into a
+// failure (or this bound would be a vacuous always-reject).
+test('#1352: the probe budget does not disturb a child that exits on its own (positive control)', async () => {
+	const child = spawn(process.execPath, ['-e', 'process.exit(7)'], {
+		stdio: 'ignore',
+	});
+	const result = await awaitExitWithinBudget({
+		child,
+		budgetMs: 5_000,
+		probeName: '#1352 positive control',
+		getLastOutput: () => '',
+	});
+	assert.deepEqual(result, { code: 7, signal: null });
+});
+
+// #1352 r1 finding 2: the budget must be overridable from the environment
+// (CI vs local) and parsed STRICTLY. Four cases pinned below: unset → the
+// documented default; valid positive integer → parsed; unparseable → LOUD
+// failure naming the bad value; ≤ 0 / non-positive → LOUD failure. Never a
+// silent default: a mistyped override must fail loud, not quietly restore
+// the default.
+test('#1352: resolveRunnerProbeBudgetMs falls back to the documented default when RUNNER_PROBE_BUDGET_MS is unset', () => {
+	assert.equal(resolveRunnerProbeBudgetMs({ env: {} }), 120_000);
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { UNRELATED: '1' } }),
+		120_000,
+	);
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { RUNNER_PROBE_BUDGET_MS: undefined } }),
+		120_000,
+	);
+	assert.equal(RUNNER_PROBE_BUDGET_MS, 120_000);
+});
+
+test('#1352: resolveRunnerProbeBudgetMs parses a valid RUNNER_PROBE_BUDGET_MS override', () => {
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { RUNNER_PROBE_BUDGET_MS: '5000' } }),
+		5_000,
+	);
+	assert.equal(
+		resolveRunnerProbeBudgetMs({ env: { RUNNER_PROBE_BUDGET_MS: '1' } }),
+		1,
+	);
+});
+
+test('#1352: resolveRunnerProbeBudgetMs fails loud naming the value on an unparseable RUNNER_PROBE_BUDGET_MS', () => {
+	for (const bad of ['abc', '', '12.5', '1e3', ' 3000', '3000 ', '+3000']) {
+		assert.throws(
+			() =>
+				resolveRunnerProbeBudgetMs({
+					env: { RUNNER_PROBE_BUDGET_MS: bad },
+				}),
+			(error) => {
+				assert.match(error.message, /RUNNER_PROBE_BUDGET_MS/);
+				assert.ok(
+					error.message.includes(JSON.stringify(bad)),
+					`the error must name the bad value, got: ${error.message}`,
+				);
+				return true;
+			},
+			`RUNNER_PROBE_BUDGET_MS=${JSON.stringify(bad)} must fail loud`,
+		);
+	}
+});
+
+test('#1352: resolveRunnerProbeBudgetMs fails loud on a non-positive RUNNER_PROBE_BUDGET_MS', () => {
+	for (const bad of ['0', '-1', '-120000']) {
+		assert.throws(
+			() =>
+				resolveRunnerProbeBudgetMs({
+					env: { RUNNER_PROBE_BUDGET_MS: bad },
+				}),
+			(error) => {
+				assert.match(error.message, /RUNNER_PROBE_BUDGET_MS/);
+				assert.ok(
+					error.message.includes(JSON.stringify(bad)),
+					`the error must name the bad value, got: ${error.message}`,
+				);
+				return true;
+			},
+			`RUNNER_PROBE_BUDGET_MS=${JSON.stringify(bad)} must fail loud`,
+		);
+	}
 });
 
 // #1272 packet item 2: the fail-loud artifact, driven through the REAL

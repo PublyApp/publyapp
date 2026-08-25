@@ -170,7 +170,9 @@ export const STAFF_TENANT_USER_DETAILS_QUERY_KEY = [
  * `STAFF_TENANT_USER_DETAILS_QUERY_KEY` nests under
  * `STAFF_TENANT_USERS_QUERY_KEY`, so a single prefix invalidation covers
  * both (see F19/F16). */
-export const invalidateStaffTenantUsers = (queryClient: QueryClient) =>
+export const invalidateStaffTenantUsers = (
+	queryClient: Pick<QueryClient, 'invalidateQueries'>,
+) =>
 	queryClient.invalidateQueries({
 		queryKey: scopedKey('staff', STAFF_TENANT_USERS_QUERY_KEY),
 	});

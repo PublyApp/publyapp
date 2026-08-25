@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"check:frontend-barrels": "node ./packages/scripts-ts/src/check-frontend-barrels.ts",
-		"check:docs-archive-records": "node ./packages/scripts-ts/src/check-archive-records.ts",
+		"check:doc-links": "node ./packages/scripts-ts/src/check-doc-links.ts",
 		"format": "oxfmt --check \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
 		"format:write": "oxfmt --write \".lintstagedrc.js\" \"knip.ts\" \"package.json\" \"turbo.json\" \".oxlintrc.json\" \".oxfmtrc.json\" \"packages/scripts-ts/**/*.{ts}\" \"apps/api/**/*.{js,mjs,cjs,json}\" \"apps/front/**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\" \"packages/_tsconfig/**/*.json\" \"packages/shared-ts/**/*.{js,jsx,ts,tsx,mjs,cjs,json}\" \"packages/lint-ts/**/*.{js,mjs,cjs,json}\"",
 		"lint": "oxlint --quiet . && pnpm lint:disables && pnpm check:frontend-barrels",

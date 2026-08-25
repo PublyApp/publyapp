@@ -1,11 +1,14 @@
 import { IconChevronDown, IconCircleDot, IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -16,10 +19,11 @@ import { PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
+import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 
 import type { InvitationListItem } from '@org/client-ts/models/index';
 
+import { InvitationsListBulkActions } from './_list-bulk-actions';
 import {
 	getInvitationStatusLabelKey,
 	type InvitationListSearchParamInput,
@@ -67,6 +71,9 @@ const StaffInvitationsPage = () => {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch() as InvitationListSearchParams;
 	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
+	// A bulk revoke hit an auth failure mid-session — log out through the same
+	// central path as every other surface (mirrors the staff-users page).
+	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 
@@ -109,6 +116,10 @@ const StaffInvitationsPage = () => {
 	// the DataTable carries the loading/error slots (exempt from QueryDisplay).
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
+		return <LogoutRedirect />;
+	}
+
+	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
@@ -223,27 +234,49 @@ const StaffInvitationsPage = () => {
 				onSizeChange={controller.onSizeChange}
 				selection={selection}
 			/>
-			<StaffListExportSelectedAction
-				rows={rows}
-				selection={selection}
-				fileNamePrefix="staff-invitations"
-				columns={[
-					{ header: t('common:invitee'), getValue: (row) => row.email },
-					{ header: t('common:profiles'), getValue: (row) => row.profileName },
-					{
-						header: t('common:invited-by'),
-						getValue: (row) => row.invitedByName,
-					},
-					{
-						header: t('common:status'),
-						getValue: (row) => t(getInvitationStatusLabelKey(row.status)),
-					},
-					{
-						header: t('common:expires'),
-						getValue: (row) => formatDateTime(row.expiresAt, i18n.language),
-					},
-				]}
-			/>
+			{/* ONE selection bar hosts every bulk action — a second stacked
+				portalled bar would overlap the first (#820 extraction note). */}
+			<FloatingSelectionBar
+				selectedCount={selection.selectedCount}
+				visibleCount={rows.length}
+				allVisibleSelected={
+					rows.length > 0 && rows.every((row) => selection.rowSelection[row.id])
+				}
+				onClear={selection.clearSelection}
+				onSelectAllVisible={() =>
+					selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+				}
+			>
+				<InvitationsListBulkActions
+					rows={rows}
+					selection={selection}
+					onSessionExpired={() => setShouldLogout(true)}
+				/>
+				<StaffListExportSelectedButton
+					rows={rows}
+					selection={selection}
+					fileNamePrefix="staff-invitations"
+					columns={[
+						{ header: t('common:invitee'), getValue: (row) => row.email },
+						{
+							header: t('common:profiles'),
+							getValue: (row) => row.profileName,
+						},
+						{
+							header: t('common:invited-by'),
+							getValue: (row) => row.invitedByName,
+						},
+						{
+							header: t('common:status'),
+							getValue: (row) => t(getInvitationStatusLabelKey(row.status)),
+						},
+						{
+							header: t('common:expires'),
+							getValue: (row) => formatDateTime(row.expiresAt, i18n.language),
+						},
+					]}
+				/>
+			</FloatingSelectionBar>
 		</div>
 	);
 };

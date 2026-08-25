@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import {
 	createBackendI18n,
+	i18nBackend,
 	loadI18nContext,
 	loadNamespacesStrict,
 	readNamespaceResource,
@@ -26,10 +27,18 @@ describe('i18n Vite backend', () => {
 		expect(value).toBe(expected);
 	});
 
+	// Exercised through i18nBackend.read, whose i18next signature takes raw
+	// strings: an out-of-contract loader key arrives here exactly like it
+	// would from the real backend pipeline, no type assertion needed.
 	test('rejects an unknown locale/namespace loader key', async () => {
-		await expect(
-			readNamespaceResource('en', 'missing' as never),
-		).rejects.toThrow('Unknown i18n resource: en/missing');
+		const failure = await new Promise<unknown>((resolve) => {
+			i18nBackend.read('en', 'missing', (error) => resolve(error));
+		});
+
+		if (!(failure instanceof Error)) {
+			throw new Error('expected the backend read to fail with an Error');
+		}
+		expect(failure.message).toBe('Unknown i18n resource: en/missing');
 	});
 
 	test('rejects when i18next reports a callback error', async () => {

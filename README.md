@@ -226,7 +226,7 @@ pnpm --filter front dev
 The copied template already targets the local Compose database. Keep its local development values
 unless you intentionally run a different local database.
 
-> Use `pnpm --filter front <script>` or `just ci-front` for the frontend. `apps/old-front` was retired on 2026-08-22 (archive `docs/archive/old-front`, tag `old-front-final`).
+> Use `pnpm --filter front <script>` or `just ci-front` for the frontend. `apps/old-front` was retired on 2026-08-22 (tag `old-front-final`).
 
 > After creating and editing `.env.development`, `just dev-setup` can run install + database in one
 > step. Its final prompt — and the final prompt from `just quick-start` — says to run
@@ -367,7 +367,7 @@ Quality gates also run automatically on commit via Husky. See
 - **Frontend (front)** — [front/index](docs/guides/front/index.md),
   [front/conventions](docs/guides/front/conventions.md),
   [frontend-error-handling](docs/guides/frontend-error-handling.md)
-  (its `ApiFailure` contract is normative; its code examples were MUI-era `apps/old-front`, now archived in `docs/archive/old-front`)
+  (its `ApiFailure` contract is normative; its code examples were MUI-era `apps/old-front`, retired with the app)
 - **Contracts & workflows** — [openapi-kiota-safeguards](docs/guides/openapi-kiota-safeguards.md),
   [common-workflows](docs/guides/common-workflows.md),
   [project-conventions](docs/guides/project-conventions.md)
@@ -376,7 +376,7 @@ A few non-negotiables worth surfacing here:
 
 - Frontend work means **`apps/front`**: `@base-ui/react` primitives behind a local
   `components/ui/*` layer, styled with **Tailwind v4**. No MUI, no `sx`.
-- **`apps/old-front` was retired on 2026-08-22.** Archive in `docs/archive/old-front` (tag `old-front-final`). It is not built, not deployed, and must not be edited or copied.
+- **`apps/old-front` was retired on 2026-08-22** (tag `old-front-final`). It is not built, not deployed, and must not be edited or copied.
 - Backend errors are **RFC 7807** (`application/problem+json`); `401` means "session invalid" only.
 - Add new backend code under domain modules in `apps/api/Modules/<Domain>/` — not the legacy folders.
 - Regenerate, never hand-edit, the API client (see [API Contract Workflow](#api-contract-workflow)).

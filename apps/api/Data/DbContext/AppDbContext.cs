@@ -101,6 +101,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	public DbSet<EmailPreparedSend> EmailPreparedSend {
 		get { return Set<EmailPreparedSend>(); }
 	}
+	// §4.4 provider-evidence transition history (#866/K-6): the actor-named evidence
+	// table for transitions audit_logs cannot carry (a webhook has no user).
+	public DbSet<EmailLogEvidenceEvent> EmailLogEvidenceEvent {
+		get { return Set<EmailLogEvidenceEvent>(); }
+	}
 
 	// Staff back-office entities
 	public DbSet<AuditLog> AuditLog {
@@ -262,6 +267,17 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.HasPostgresExtension("pg_trgm");
+
+		// #1416: exactly ONE master-key canary row may exist. Concurrent first boots
+		// used to mint duplicates (every boot read null, every boot inserted), which
+		// crash-looped every later boot on SingleOrDefault. The partial unique index
+		// constrains ONLY the canary row name (PostgresKeyRingCanaryStore.RowName);
+		// Data Protection key-ring rows keep their own names untouched.
+		modelBuilder.Entity<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>()
+			.HasIndex(key => key.FriendlyName)
+			.HasDatabaseName("ux_data_protection_keys_canary_friendly_name")
+			.IsUnique()
+			.HasFilter("\"FriendlyName\" = 'social-accounts-master-key-canary'");
 
 		// Apply matching query filters to ensure consistent filtering
 		if (TenantId is not null) {
