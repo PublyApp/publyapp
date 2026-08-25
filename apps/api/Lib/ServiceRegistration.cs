@@ -197,6 +197,7 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlEncryptor, MasterKeyXmlEncryptor>();
 		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlDecryptor, MasterKeyXmlDecryptor>();
 		builder.Services.AddSingleton<ICredentialProtector, CredentialProtector>();
+		builder.Services.AddScoped<SocialAccountService>();
 
 		return builder;
 	}
