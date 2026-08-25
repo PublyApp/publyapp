@@ -1009,7 +1009,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected');
+			await chooseBulkAction('Suspend selected', 'More actions');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Select at least one active tenant to suspend.',
@@ -1044,7 +1044,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected');
+			await chooseBulkAction('Suspend selected', 'More actions');
 
 			expect(
 				screen.getByRole('heading', { name: 'Suspend selected' }),
@@ -1088,7 +1088,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected');
+			await chooseBulkAction('Suspend selected', 'More actions');
 			expect(
 				screen.getByRole('heading', { name: 'Suspend selected' }),
 			).toBeTruthy();
@@ -1120,7 +1120,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected');
+			await chooseBulkAction('Suspend selected', 'More actions');
 			const dialog = screen.getByRole('alertdialog');
 			fireEvent.click(within(dialog).getByRole('button', { name: 'Suspend' }));
 
@@ -1149,7 +1149,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Acme Corporation' }),
 			);
-			await chooseBulkAction('Suspend selected');
+			await chooseBulkAction('Suspend selected', 'More actions');
 			expect(
 				screen.getByRole('heading', { name: 'Suspend selected' }),
 			).toBeTruthy();
@@ -1185,7 +1185,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			await chooseBulkAction('Delete selected');
+			await chooseBulkAction('Delete selected', 'More actions');
 
 			expect(mocks.toastWarning).toHaveBeenCalledWith(
 				'Only suspended tenants can be deleted. Clear active tenants from the selection first.',
@@ -1217,7 +1217,7 @@ describe('staff tenants route', () => {
 			fireEvent.click(
 				screen.getByRole('checkbox', { name: 'Select Globex Corporation' }),
 			);
-			await chooseBulkAction('Delete selected');
+			await chooseBulkAction('Delete selected', 'More actions');
 
 			expect(
 				screen.getByRole('heading', { name: 'Delete selected' }),

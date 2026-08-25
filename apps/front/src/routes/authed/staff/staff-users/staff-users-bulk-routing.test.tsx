@@ -355,7 +355,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 
 		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
 
-		await chooseBulkAction('Suspend selected');
+		await chooseBulkAction('Suspend selected', 'More actions');
 
 		// Destructive actions require confirmation before firing.
 		expect(

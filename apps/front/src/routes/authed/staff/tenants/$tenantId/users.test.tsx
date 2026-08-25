@@ -963,7 +963,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users');
+		await chooseBulkAction('Export selected users', 'More actions');
 
 		await waitFor(() =>
 			expect(mocks.exportMutation).toHaveBeenCalledWith({
@@ -992,7 +992,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users');
+		await chooseBulkAction('Export selected users', 'More actions');
 
 		await waitFor(() =>
 			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce(),
@@ -1011,7 +1011,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users');
+		await chooseBulkAction('Export selected users', 'More actions');
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
@@ -1028,7 +1028,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Export selected users');
+		await chooseBulkAction('Export selected users', 'More actions');
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastError).toHaveBeenCalledWith('Export failed');
@@ -1046,7 +1046,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant');
+		await chooseBulkAction('Remove selected from tenant', 'More actions');
 
 		await waitFor(() =>
 			expect(
@@ -1081,7 +1081,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant');
+		await chooseBulkAction('Remove selected from tenant', 'More actions');
 
 		await waitFor(() =>
 			expect(
@@ -1107,7 +1107,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant');
+		await chooseBulkAction('Remove selected from tenant', 'More actions');
 
 		await waitFor(() =>
 			expect(
@@ -1129,7 +1129,7 @@ describe('staff tenant users route', () => {
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
-		await chooseBulkAction('Remove selected from tenant');
+		await chooseBulkAction('Remove selected from tenant', 'More actions');
 		await screen.findByRole('heading', {
 			name: 'Remove selected from tenant',
 		});

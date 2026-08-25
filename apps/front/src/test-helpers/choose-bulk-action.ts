@@ -9,13 +9,13 @@ import { expect } from 'vitest';
  * dispatched into that window is swallowed. Gating on the settled closed state,
  * then on the open state after the click, closes the race.
  *
- * `triggerName` defaults to the #820 "More actions" label; surfaces that name
- * their trigger after its visible label instead (#1387, per the #1400 a11y
- * rule) pass their own — e.g. "Bulk actions".
+ * `triggerName` is the trigger's accessible name and must be passed by every
+ * caller: surfaces name their trigger after their own visible label (#820
+ * "More actions", #1387 "Bulk actions" per the #1400 name-equals-label rule).
  */
 export const chooseBulkAction = async (
 	actionName: string,
-	triggerName = 'More actions',
+	triggerName: string,
 ) => {
 	const trigger = await screen.findByRole('button', {
 		name: triggerName,
