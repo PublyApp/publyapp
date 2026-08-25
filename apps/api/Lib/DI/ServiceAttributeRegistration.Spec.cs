@@ -16,6 +16,7 @@ using PublyApp.Api.Modules.Messaging.Services;
 using PublyApp.Api.Modules.Permissions.Services;
 using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Profiles.Services;
+using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.Projects.Services;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.SystemNotices.Services;
@@ -63,6 +64,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ITenantProfileQueryAsStaffService), typeof(TenantProfileQueryAsStaffService)),
 		(typeof(IProjectService), typeof(ProjectService)),
 		(typeof(IPostService), typeof(PostService)),
+		(typeof(IPublicationStatusTransitionService), typeof(PublicationStatusTransitionService)),
 		(typeof(ISessionService), typeof(SessionService)),
 		(typeof(IStaffUserCoreService), typeof(StaffUserCoreService)),
 		(typeof(IStaffUserLifecycleService), typeof(StaffUserLifecycleService)),
