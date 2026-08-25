@@ -877,6 +877,16 @@ public sealed class JobQueueProcessor : BackgroundService {
 	// context is the SAME instance, so hook writes commit and roll back with the
 	// engine's terminal step. A hook throw rolls everything back and the still-leased
 	// row is retried whole after lease expiry.
+	//
+	// External-state classification (#1350): a settlement where NO handler was
+	// legitimately reached (unknown job_type, registration drift, unconstructable
+	// handler, never-parsing payload) has external side effects that cannot be mapped
+	// to any known external-state class. Those rows stamp 6 Unclassified at insert —
+	// retention-exempt (K-1) until an operator triages them through
+	// POST /staff/dead-letter/{id}/resolve-unclassified — plus one evidence event so
+	// the classification is auditable. Handler-reached terminal rows stay 0 None: the
+	// job's external effects are its own contract (its hook or a future sweep may
+	// classify them), and the engine never preempts that.
 	private async Task<JobExecutionResult> DeadLetterAsync(
 		AppDbContext dbContext,
 		JobDispatch dispatch,
@@ -887,6 +897,35 @@ public sealed class JobQueueProcessor : BackgroundService {
 	) {
 		var itemId = RequireId(item);
 		var deadLetter = JobDeadLetter.FromJob(item, attempts, lastError);
+
+		JobDeadLetterEvent? unclassifiedEvent = null;
+
+		if (dispatch.HookTarget is null) {
+			// No handler was ever reached: nothing can vouch for this job's external
+			// state. Stamp Unclassified with its recorded bounds window (the CHECK
+			// requires prepared_at/expires_at NOT NULL for status 6; expired_at stays
+			// NULL — it belongs to status 2 Expired only). The row id is minted HERE,
+			// not left to the column's database default, so the same transaction can
+			// reference it from the evidence event before SaveChanges runs.
+			deadLetter.Id = Guid.CreateVersion7();
+			deadLetter.ExternalStateStatus = (int)ExternalStateStatus.Unclassified;
+			deadLetter.ExternalStatePreparedAt = DateTime.UtcNow;
+			deadLetter.ExternalStateExpiresAt = DateTime.UtcNow.AddSeconds(_options.LeaseSeconds);
+
+			unclassifiedEvent = new JobDeadLetterEvent {
+				DeadLetterId = deadLetter.Id.Value,
+				Event = JobDeadLetterEvents.UnclassifiedFlagged,
+				DetectedBy = "engine",
+				PriorStatus = (int)ExternalStateStatus.None,
+				NewStatus = (int)ExternalStateStatus.Unclassified,
+				Details = JsonSerializer.Serialize(new {
+					reason = dispatch.Outcome is JobOutcome.PermanentFailure permanent
+						? permanent.Reason
+						: "attempts_exhausted"
+				}),
+				OccurredAt = DateTime.UtcNow
+			};
+		}
 
 		await using var transaction =
 			await dbContext.Database.BeginTransactionAsync(CancellationToken.None);
@@ -902,6 +941,11 @@ public sealed class JobQueueProcessor : BackgroundService {
 			}
 
 			await dbContext.JobDeadLetter.AddAsync(deadLetter, CancellationToken.None);
+
+			if (unclassifiedEvent is { } classifiedEvent) {
+				dbContext.JobDeadLetterEvent.Add(classifiedEvent);
+			}
+
 			await dbContext.SaveChangesAsync(CancellationToken.None);
 
 			var deleted = await TryCompleteAsync(

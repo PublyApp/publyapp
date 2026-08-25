@@ -432,5 +432,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 	private sealed record ResolvedResponse {
 		public Guid Id { get; set; }
 		public int ExternalStateStatus { get; set; }
+		public string Message { get; set; } = string.Empty;
+		public string Key { get; set; } = string.Empty;
 	}
 }
