@@ -1,0 +1,6 @@
+run1 STATUS=0 WALL=34.4s Tests  55 passed (55)
+run2 STATUS=0 WALL=27.8s Tests  55 passed (55)
+run3 STATUS=0 WALL=26.8s Tests  55 passed (55)
+run4 STATUS=0 WALL=26.0s Tests  55 passed (55)
+run5 STATUS=0 WALL=29.6s Tests  55 passed (55)
+SERIES_DONE
