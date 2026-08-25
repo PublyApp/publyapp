@@ -17,7 +17,7 @@ How we keep vulnerable dependencies from landing or staying on `develop`.
 
 Owner decision (2026-08-22, policy #1240):
 
-- **Bot bumps with green CI are merged on CI alone.** A `dependabot[bot]` PR that passes every required check needs no linked tracking issue and no human review. The `Require Linked Issue` gate waives `dependabot[bot]` by that exact login (the waiver is keyed on the PR *author* login, not the runner actor and not a label, and is enforced by `scripts/require-linked-issue.test.mjs` so it cannot be broadened to arbitrary bots). Merge a green minor/patch bump once CI is green.
+- **Bot bumps with green CI are merged on CI alone.** A `dependabot[bot]` PR that passes every required check needs no linked tracking issue and no human review. The `Require Linked Issue` gate waives `dependabot[bot]` by that exact login (the waiver is keyed on the PR _author_ login, not the runner actor and not a label, and is enforced by `scripts/require-linked-issue.test.mjs` so it cannot be broadened to arbitrary bots). Merge a green minor/patch bump once CI is green.
 - **Major bumps** open as a separate Dependabot PR (not grouped). These go through a normal human PR: review the changelog, run the affected suite (`just ci`), link the issue that tracks the major, and merge after review.
 - **Generated-code bumps** (anything that regenerates client/server code — e.g. an OpenAPI/Kiota toolchain bump) go through a human PR too. CI only re-checks what is checked in; a bump that silently changes generated output must be eyeballed, and the diff (including `packages/client-ts`) reviewed before merge.
 - **CI-touching bumps** — a Dependabot update to a `github-actions` ecosystem entry, or to any dependency referenced by a workflow (actions, container images, composite actions) — go through a human PR. The gate that validates CI is itself CI, so a self-approving bot change to the pipeline is not trusted to self-verify. Review the action diff, confirm the workflow still pins what the local gate reconciles, and merge after review.
@@ -41,6 +41,30 @@ after `pnpm install --frozen-lockfile --ignore-scripts` + trusted `@org/shared-t
 3. Only as a last resort, document an accepted risk (alert ID, impact, expiry) — never silence without a written justification.
 
 Same for NuGet: bump or override, never `ignore` without a note.
+
+## How the #880 moderate advisories closed
+
+Both moderate alerts tracked in #880 were already remediated on `develop` by the mechanisms
+above; #880's closure adds the proof, not a new pin.
+
+- **`@microsoft/kiota-http-fetchlibrary` (GHSA-396q-4vc8-28x9)** — closed by the direct exact
+  pins: `apps/front/package.json` and `packages/client-ts/package.json` carry the patched
+  `1.0.0-preview.103` (bump assessed in
+  [`docs/audits/2026-07-31-kiota-cross-origin-redirect-header-leak.md`](../audits/2026-07-31-kiota-cross-origin-redirect-header-leak.md),
+  landed with the Kiota 1.34.1 toolchain bump). A pre-release patch line is acceptable here
+  because the whole runtime chain is pinned preview-for-preview across both packages.
+  Guarded at runtime by
+  `apps/front/src/lib/api-client/client-manager.redirect-scrub.test.ts`, which drives the real
+  generated client through a cross-origin 302 and fails on any version in the vulnerable range.
+- **`nanoid` (GHSA-mwcw-c2x4-8c55)** — closed by the root `pnpm.overrides` caps:
+  `nanoid@<3.3.18 → ^3.3.18` rewrites the vulnerable 3.x consumer, and
+  `nanoid@>=4.0.0 <5.0.9 → ^5.1.16` lifts every 4.x/early-5.x resolution past the fixed
+  `5.0.9`; the only direct declaration, `packages/shared-ts` `^5.1.16`, already satisfies the
+  range. No workspace source imports `nanoid`. Remove both overrides once upstream consumers
+  resolve fixed versions without them.
+
+CI's audit step (`pnpm audit --prod --audit-level=high`) stays the standing tripwire; run the
+full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
 
 ## How to run locally
 
