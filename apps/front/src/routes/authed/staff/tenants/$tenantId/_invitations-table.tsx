@@ -40,10 +40,24 @@ export const InvitationsTable = ({
 		ariaLabel={t('tenant-invitations-table-aria-label')}
 		columns={columns}
 		rows={rows}
+		queryState={{
+			isPending: invitationsQuery.isPending,
+			isError: invitationsQuery.isError,
+			onRetry: () => void invitationsQuery.refetch(),
+			hasActiveSearch: hasActiveSearch,
+		}}
+		pagination={{
+			pageIndex: controller.cursor.pageIndex,
+			hasPreviousPage: controller.cursor.hasPreviousPage,
+			hasNextPage: invitationsQuery.data?.nextCursor != null,
+			isPaginationPending: invitationsQuery.isFetching,
+			onNextPage: () =>
+				controller.cursor.onNextPage(
+					invitationsQuery.data?.nextCursor ?? undefined,
+				),
+			onPreviousPage: controller.cursor.onPreviousPage,
+		}}
 		getRowLabel={(row) => row.email}
-		isPending={invitationsQuery.isPending}
-		isError={invitationsQuery.isError}
-		onRetry={() => void invitationsQuery.refetch()}
 		emptyIcon={IconMail}
 		emptyTitle={t('tenant-invitations-empty-title')}
 		emptyContent={t('tenant-invitations-empty-description')}
@@ -55,21 +69,10 @@ export const InvitationsTable = ({
 		}
 		noMatchTitle={t('tenant-invitations-no-match-title')}
 		noMatchContent={t('tenant-invitations-no-match-description')}
-		hasActiveSearch={hasActiveSearch}
 		sort={controller.sort}
 		onSortChange={controller.onSortChange}
 		size={controller.size}
 		onSizeChange={controller.onSizeChange}
-		pageIndex={controller.cursor.pageIndex}
-		hasPreviousPage={controller.cursor.hasPreviousPage}
-		hasNextPage={invitationsQuery.data?.nextCursor != null}
-		isPaginationPending={invitationsQuery.isFetching}
-		onNextPage={() =>
-			controller.cursor.onNextPage(
-				invitationsQuery.data?.nextCursor ?? undefined,
-			)
-		}
-		onPreviousPage={controller.cursor.onPreviousPage}
 		searchDraft={controller.search.draft}
 		onSearchDraftChange={controller.search.onDraftChange}
 		searchPlaceholder={t('search-invitations')}

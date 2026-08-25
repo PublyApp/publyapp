@@ -227,9 +227,14 @@ export type DataTableProps<TData extends { id: string }> = {
 	ariaLabel: string;
 	columns: ColumnDef<TData>[];
 	rows: TData[];
-	isPending: boolean;
-	isError: boolean;
-	onRetry: () => void;
+	/** Loading / error / active-search flags that select the table body
+	 * state (loading, error, empty, no-match, rows). Grouped as one object so
+	 * the component stays under the `no-many-boolean-props` cap without a
+	 * suppression (#1291 rung 1). */
+	queryState: DataTableQueryState;
+	/** Cursor-pager state and callbacks, rendered inside the table card.
+	 * Grouped for the same reason as `queryState`. */
+	pagination: DataTablePaginationState;
 	errorContent?: ReactNode;
 	emptyContent?: ReactNode;
 	noMatchContent?: ReactNode;
@@ -247,17 +252,10 @@ export type DataTableProps<TData extends { id: string }> = {
 	noMatchIcon?: TablerIcon;
 	/** Title overriding the default "no matches" copy for the no-match state. */
 	noMatchTitle?: string;
-	hasActiveSearch: boolean;
 	sort: SortState;
 	onSortChange: (nextSort: SortState | undefined) => void;
 	size: number;
 	onSizeChange: (nextSize: number) => void;
-	pageIndex: number;
-	hasPreviousPage: boolean;
-	hasNextPage: boolean;
-	isPaginationPending: boolean;
-	onNextPage: () => void;
-	onPreviousPage: () => void;
 	searchDraft?: string;
 	onSearchDraftChange?: (value: string) => void;
 	density?: TableDensity;
@@ -273,15 +271,45 @@ export type DataTableProps<TData extends { id: string }> = {
 	getRowLabel?: (row: TData) => string;
 };
 
-// react-doctor-disable-next-line react-doctor/no-many-boolean-props -- isPending/isError/hasActiveSearch/hasPreviousPage/hasNextPage/isPaginationPending are the ratified public list-table API every list screen already passes; collapsing them is an API-breaking redesign, out of scope for this split.
+export type DataTableQueryState = {
+	/** Query is loading its first page. */
+	isPending: boolean;
+	/** Query failed; renders the error body state. */
+	isError: boolean;
+	/** Retry callback surfaced by the error body state. */
+	onRetry: () => void;
+	/** A committed search filter is active; empty rows render "no matches"
+	 * instead of "nothing here". */
+	hasActiveSearch: boolean;
+};
+
+export type DataTablePaginationState = {
+	pageIndex: number;
+	hasPreviousPage: boolean;
+	hasNextPage: boolean;
+	/** A follow-up page is in flight; pager controls show busy state. */
+	isPaginationPending: boolean;
+	onNextPage: () => void;
+	onPreviousPage: () => void;
+};
+
+// Grouped state objects keep the public prop list clear of six scattered
+// booleans (`no-many-boolean-props`) — see `DataTableQueryState` and
+// `DataTablePaginationState` above (#1291 rung 1).
 export const DataTable = <TData extends { id: string }>({
 	testId,
 	ariaLabel,
 	columns,
 	rows,
-	isPending,
-	isError,
-	onRetry,
+	queryState: { isPending, isError, onRetry, hasActiveSearch },
+	pagination: {
+		pageIndex,
+		hasPreviousPage,
+		hasNextPage,
+		isPaginationPending,
+		onNextPage,
+		onPreviousPage,
+	},
 	errorContent,
 	emptyContent,
 	noMatchContent,
@@ -292,17 +320,10 @@ export const DataTable = <TData extends { id: string }>({
 	emptyActions,
 	noMatchIcon,
 	noMatchTitle,
-	hasActiveSearch,
 	sort,
 	onSortChange,
 	size,
 	onSizeChange,
-	pageIndex,
-	hasPreviousPage,
-	hasNextPage,
-	isPaginationPending,
-	onNextPage,
-	onPreviousPage,
 	searchDraft,
 	onSearchDraftChange,
 	selection,

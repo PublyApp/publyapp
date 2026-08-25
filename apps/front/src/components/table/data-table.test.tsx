@@ -113,20 +113,24 @@ const baseProps = {
 	ariaLabel: 'Test table',
 	columns,
 	rows: [],
-	isPending: false,
-	isError: true,
-	onRetry: noop,
-	hasActiveSearch: false,
+	queryState: {
+		isPending: false,
+		isError: true,
+		onRetry: noop,
+		hasActiveSearch: false,
+	},
 	sort: { id: 'name', order: 'asc' } as const,
 	onSortChange: noop,
 	size: 20,
 	onSizeChange: noop,
-	pageIndex: 0,
-	hasPreviousPage: false,
-	hasNextPage: false,
-	isPaginationPending: false,
-	onNextPage: noop,
-	onPreviousPage: noop,
+	pagination: {
+		pageIndex: 0,
+		hasPreviousPage: false,
+		hasNextPage: false,
+		isPaginationPending: false,
+		onNextPage: noop,
+		onPreviousPage: noop,
+	},
 	searchDraft: '',
 	onSearchDraftChange: noop,
 };
@@ -214,7 +218,15 @@ describe('DataTable errorContent', () => {
 describe('DataTable state rendering', () => {
 	test('renders loading placeholders in pending state', () => {
 		render(
-			<DataTable {...baseProps} rows={rows} isPending={true} isError={false} />,
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{
+					...baseProps.queryState,
+					isPending: true,
+					isError: false,
+				}}
+			/>,
 		);
 		expect(screen.getByTestId('test-table-loading')).toBeTruthy();
 		expect(screen.getByTestId('test-table-search').className).toContain(
@@ -227,10 +239,13 @@ describe('DataTable state rendering', () => {
 		const { unmount } = render(
 			<DataTable
 				{...baseProps}
-				isPending={false}
-				isError={false}
+				queryState={{
+					...baseProps.queryState,
+					isPending: false,
+					isError: false,
+					hasActiveSearch: false,
+				}}
 				rows={[]}
-				hasActiveSearch={false}
 			/>,
 		);
 		expect(screen.getByTestId('test-table-empty')).toBeTruthy();
@@ -239,10 +254,13 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				isPending={false}
-				isError={false}
+				queryState={{
+					...baseProps.queryState,
+					isPending: false,
+					isError: false,
+					hasActiveSearch: true,
+				}}
 				rows={[]}
-				hasActiveSearch={true}
 			/>,
 		);
 		expect(screen.getByTestId('test-table-no-match')).toBeTruthy();
@@ -252,10 +270,13 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				isPending={false}
-				isError={false}
+				queryState={{
+					...baseProps.queryState,
+					isPending: false,
+					isError: false,
+					hasActiveSearch: false,
+				}}
 				rows={[]}
-				hasActiveSearch={false}
 				emptyIcon={IconUsers}
 				emptyTitle="No members yet"
 				emptyContent="Invite people to give them access."
@@ -277,10 +298,13 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				isPending={false}
-				isError={false}
+				queryState={{
+					...baseProps.queryState,
+					isPending: false,
+					isError: false,
+					hasActiveSearch: true,
+				}}
 				rows={[]}
-				hasActiveSearch={true}
 				noMatchIcon={IconUsers}
 				noMatchTitle="No members match your search"
 				noMatchContent="Try a different filter."
@@ -298,7 +322,12 @@ describe('DataTable state rendering', () => {
 
 	test('supports explicit row height variants', () => {
 		render(
-			<DataTable {...baseProps} rows={rows} isError={false} rowHeight={56} />,
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{ ...baseProps.queryState, isError: false }}
+				rowHeight={56}
+			/>,
 		);
 		expect(
 			screen.getByTestId('test-table-rows').getAttribute('data-row-height'),
@@ -307,7 +336,12 @@ describe('DataTable state rendering', () => {
 
 	test('supports h52 row height variant', () => {
 		render(
-			<DataTable {...baseProps} rows={rows} isError={false} rowHeight={52} />,
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{ ...baseProps.queryState, isError: false }}
+				rowHeight={52}
+			/>,
 		);
 		expect(
 			screen.getByTestId('test-table-rows').getAttribute('data-row-height'),
@@ -318,8 +352,11 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				rows={rows}
-				isError={false}
 				density="compact"
 			/>,
 		);
@@ -332,9 +369,12 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				isError={false}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+					hasActiveSearch: false,
+				}}
 				rows={rows}
-				hasActiveSearch={false}
 			/>,
 		);
 
@@ -354,7 +394,10 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				isError={false}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				rows={rows}
 				onSortChange={onSortChange}
 				sort={{ id: 'name', order: 'asc' }}
@@ -388,9 +431,12 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				columns={widthColumns}
 				rows={rows}
-				isError={false}
 				selection={createSelection({})}
 			/>,
 		);
@@ -427,9 +473,12 @@ describe('DataTable state rendering', () => {
 		const { unmount } = render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				columns={widthlessColumns}
 				rows={rows}
-				isError={false}
 			/>,
 		);
 		expect(
@@ -440,9 +489,12 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				columns={widthColumns}
 				rows={rows}
-				isError={false}
 			/>,
 		);
 		expect(
@@ -487,9 +539,12 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
+					queryState={{
+						...baseProps.queryState,
+						isError: false,
+					}}
 					columns={responsiveColumns}
 					rows={rows}
-					isError={false}
 				/>,
 			);
 
@@ -541,9 +596,12 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
+					queryState={{
+						...baseProps.queryState,
+						isError: false,
+					}}
 					columns={countingColumns}
 					rows={rows}
-					isError={false}
 				/>,
 			);
 
@@ -600,9 +658,12 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
+					queryState={{
+						...baseProps.queryState,
+						isError: false,
+					}}
 					columns={pinnedColumns}
 					rows={rows}
-					isError={false}
 				/>,
 			);
 
@@ -692,9 +753,12 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
+					queryState={{
+						...baseProps.queryState,
+						isError: false,
+					}}
 					columns={p3GridColumns}
 					rows={rows}
-					isError={false}
 					selection={createSelection({})}
 				/>,
 			);
@@ -721,7 +785,10 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				isError={false}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				rows={rows}
 				onSortChange={vi.fn()}
 				selection={createSelection({ 'row-1': true })}
@@ -761,9 +828,12 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				columns={alignedColumns}
 				rows={rows}
-				isError={false}
 			/>,
 		);
 
@@ -787,7 +857,13 @@ describe('DataTable state rendering', () => {
 
 describe('DataTable i18n', () => {
 	test('routes the rows-per-page label and aria-label through t()', () => {
-		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{ ...baseProps.queryState, isError: false }}
+			/>,
+		);
 
 		expect(screen.getByText('rows-per-page')).toBeTruthy();
 		expect(
@@ -801,8 +877,11 @@ describe('DataTable i18n', () => {
 		render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				rows={rows}
-				isError={false}
 				selection={createSelection({ 'row-1': true })}
 			/>,
 		);
@@ -815,7 +894,13 @@ describe('DataTable i18n', () => {
 	// shell F4: the search input, page label, and pager buttons used to be
 	// hardcoded English — now routed through t() like the rest of the chrome.
 	test('routes the search aria-label, page label, and pager button labels through t()', () => {
-		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{ ...baseProps.queryState, isError: false }}
+			/>,
+		);
 
 		expect(
 			screen.getByTestId('test-table-search').getAttribute('aria-label'),
@@ -832,7 +917,13 @@ describe('DataTable i18n', () => {
 	});
 
 	test('falls back to the t()-driven placeholder when no explicit searchPlaceholder is passed', () => {
-		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{ ...baseProps.queryState, isError: false }}
+			/>,
+		);
 
 		expect(
 			(screen.getByTestId('test-table-search') as HTMLInputElement).placeholder,
@@ -845,8 +936,11 @@ describe('DataTable a11y', () => {
 		render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				rows={rows}
-				isError={false}
 				selection={createSelection({})}
 			/>,
 		);
@@ -862,8 +956,11 @@ describe('DataTable a11y', () => {
 		const { rerender } = render(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				rows={rows}
-				isError={false}
 				selection={createSelection({})}
 			/>,
 		);
@@ -877,8 +974,11 @@ describe('DataTable a11y', () => {
 		rerender(
 			<DataTable
 				{...baseProps}
+				queryState={{
+					...baseProps.queryState,
+					isError: false,
+				}}
 				rows={rows}
-				isError={false}
 				selection={createSelection({})}
 				getRowLabel={(row) => row.name}
 			/>,
@@ -889,7 +989,13 @@ describe('DataTable a11y', () => {
 	});
 
 	test('only one body cell is a tab stop at a time (roving tabindex), not every cell', () => {
-		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{ ...baseProps.queryState, isError: false }}
+			/>,
+		);
 
 		const cells = screen
 			.getByTestId('test-table-rows')
@@ -909,7 +1015,13 @@ describe('DataTable a11y', () => {
 	});
 
 	test('the roving tab stop follows focus onto whichever cell was focused', () => {
-		render(<DataTable {...baseProps} rows={rows} isError={false} />);
+		render(
+			<DataTable
+				{...baseProps}
+				rows={rows}
+				queryState={{ ...baseProps.queryState, isError: false }}
+			/>,
+		);
 
 		const cells = [
 			...screen
@@ -959,9 +1071,12 @@ describe('DataTable a11y', () => {
 			render(
 				<DataTable
 					{...baseProps}
+					queryState={{
+						...baseProps.queryState,
+						isError: false,
+					}}
 					columns={multiColumnColumns}
 					rows={rows}
-					isError={false}
 					selection={createSelection({})}
 				/>,
 			);

@@ -277,10 +277,12 @@ export const useStaffTenantProfilesList = ({
 	// an idempotent latest-value sync during render — the documented escape
 	// hatch for the “no ref writes in render” rule.
 	const openEditDrawerRef = useRef(openEditDrawer);
-	// eslint-disable-next-line react-hooks/exhaustive-deps -- latest-value sync, see comment above
+	// Latest-value sync: `openEditDrawer` closes over `search`, a fresh object
+	// every render, so the stable `onEditRequest` indirection below reads the
+	// newest closure through this ref. Runs intentionally after every render.
 	useEffect(() => {
 		openEditDrawerRef.current = openEditDrawer;
-	}); // react-doctor-disable-line react-doctor/exhaustive-deps, react-doctor/no-effect-with-fresh-deps
+	});
 	const onEditRequest = useCallback((profile: StaffTenantProfileRow) => {
 		openEditDrawerRef.current(profile);
 	}, []);

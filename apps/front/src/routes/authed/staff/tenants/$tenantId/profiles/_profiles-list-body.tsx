@@ -76,24 +76,29 @@ export const ProfilesListBody = ({
 				ariaLabel={t('tenant-profiles-table-aria-label')}
 				columns={columns}
 				rows={rows}
+				queryState={{
+					isPending: isPending,
+					isError: isError,
+					onRetry: onRetry,
+					hasActiveSearch: hasActiveSearch,
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: nextCursor != null,
+					isPaginationPending: isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(nextCursor ?? undefined),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				getRowLabel={(row) => row.name}
-				isPending={isPending}
-				isError={isError}
-				onRetry={onRetry}
 				emptyIcon={IconShield}
 				emptyContent={t('tenant-profiles-empty-description')}
 				noMatchContent={t('tenant-profiles-no-match-description')}
-				hasActiveSearch={hasActiveSearch}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={nextCursor != null}
-				isPaginationPending={isFetching}
-				onNextPage={() => controller.cursor.onNextPage(nextCursor ?? undefined)}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-profiles')}

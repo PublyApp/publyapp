@@ -124,10 +124,6 @@ export const ProfileDetailsView = ({
 				onOpenChange={onPendingDeleteChange}
 			/>
 
-			{/* react-doctor: see the detailsContextValue comment in the route file —
-			deliberate, bounded re-render scope; memoizing would break hook order
-			there. */}
-			{/* react-doctor-disable-next-line react-doctor/context-provider-value-from-unmemoized-local-literal */}
 			<StaffTenantProfileDetailsContext.Provider value={detailsContextValue}>
 				<Outlet />
 			</StaffTenantProfileDetailsContext.Provider>

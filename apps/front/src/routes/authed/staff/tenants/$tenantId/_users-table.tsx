@@ -44,10 +44,21 @@ export const TenantUsersTable = ({
 			ariaLabel={t('tenant-users-table-aria-label')}
 			columns={columns}
 			rows={rows}
+			queryState={{
+				isPending: queryState.isPending,
+				isError: queryState.isError,
+				onRetry: onRetry,
+				hasActiveSearch: hasActiveFilters,
+			}}
+			pagination={{
+				pageIndex: controller.cursor.pageIndex,
+				hasPreviousPage: controller.cursor.hasPreviousPage,
+				hasNextPage: queryState.hasNextPage,
+				isPaginationPending: queryState.isFetching,
+				onNextPage: () => controller.cursor.onNextPage(nextCursor),
+				onPreviousPage: controller.cursor.onPreviousPage,
+			}}
 			getRowLabel={(row) => row.displayName}
-			isPending={queryState.isPending}
-			isError={queryState.isError}
-			onRetry={onRetry}
 			emptyIcon={IconUsers}
 			emptyTitle={t('tenant-users-empty-title')}
 			emptyContent={t('tenant-users-empty-description')}
@@ -59,17 +70,10 @@ export const TenantUsersTable = ({
 			}
 			noMatchTitle={t('tenant-users-no-match-title')}
 			noMatchContent={t('tenant-users-no-match-description')}
-			hasActiveSearch={hasActiveFilters}
 			sort={controller.sort}
 			onSortChange={controller.onSortChange}
 			size={controller.size}
 			onSizeChange={controller.onSizeChange}
-			pageIndex={controller.cursor.pageIndex}
-			hasPreviousPage={controller.cursor.hasPreviousPage}
-			hasNextPage={queryState.hasNextPage}
-			isPaginationPending={queryState.isFetching}
-			onNextPage={() => controller.cursor.onNextPage(nextCursor)}
-			onPreviousPage={controller.cursor.onPreviousPage}
 			searchDraft={controller.search.draft}
 			onSearchDraftChange={controller.search.onDraftChange}
 			searchPlaceholder={t('search-tenant-members')}

@@ -154,27 +154,32 @@ export const AssignMembersTable = ({
 				ariaLabel={t('assign-members')}
 				columns={columns}
 				rows={rows}
+				queryState={{
+					isPending: usersQuery.isPending,
+					isError: usersQuery.isError,
+					onRetry: () => void usersQuery.refetch(),
+					hasActiveSearch: Boolean(controller.search.committed),
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: usersQuery.data?.nextCursor != null,
+					isPaginationPending: usersQuery.isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(
+							usersQuery.data?.nextCursor ?? undefined,
+						),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				getRowLabel={(row) => row.displayName}
-				isPending={usersQuery.isPending}
-				isError={usersQuery.isError}
-				onRetry={() => void usersQuery.refetch()}
 				emptyIcon={IconUsers}
 				emptyTitle={t('no-tenant-members-to-assign')}
 				noMatchTitle={t('tenant-users-no-match-title')}
 				noMatchContent={t('tenant-users-no-match-description')}
-				hasActiveSearch={Boolean(controller.search.committed)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={usersQuery.data?.nextCursor != null}
-				isPaginationPending={usersQuery.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(usersQuery.data?.nextCursor ?? undefined)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-tenant-members')}
