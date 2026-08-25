@@ -32,6 +32,13 @@ public sealed record ReschedulePublicationToNowArgs(Guid PublicationId, Guid Ten
 
 public sealed record MarkPublicationScheduledArgs(Guid PublicationId, Guid TenantId);
 
+/// <summary>D3 Task 2: replace the schedule pair on a Scheduled/Paused publication.</summary>
+public sealed record ReschedulePublicationToFutureArgs(
+	Guid PublicationId,
+	Guid TenantId,
+	PublicationSchedule Schedule
+);
+
 /// <summary>
 /// Contract of the single legal writer of <see cref="Publication.Status"/>.
 /// </summary>
@@ -63,6 +70,11 @@ public interface IPublicationStatusTransitionService {
 
 	public Task<bool> MarkScheduledAsync(
 		MarkPublicationScheduledArgs args,
+		CancellationToken cancellationToken
+	);
+
+	public Task<bool> RescheduleToFutureAsync(
+		ReschedulePublicationToFutureArgs args,
 		CancellationToken cancellationToken
 	);
 }
@@ -229,6 +241,29 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.LastError = null;
 		// #1446: legalise exactly this save's Status writes (one grant, one save).
 		PublicationStatusWriteGuard.StampForStatusWrite(_db);
+		await _db.SaveChangesAsync(cancellationToken);
+		return true;
+	}
+
+	/// <summary>D3 Task 2: replace the schedule pair on a Scheduled/Paused publication.</summary>
+	public async Task<bool> RescheduleToFutureAsync(
+		ReschedulePublicationToFutureArgs args,
+		CancellationToken cancellationToken
+	) {
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		if (publication is null) {
+			return false;
+		}
+
+		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+		publication.Status = PublicationStatus.Scheduled;
+		publication.ScheduledAtUtc = args.Schedule.ScheduledAtUtc;
+		publication.ScheduledTimeZone = args.Schedule.ScheduledTimeZone;
+		publication.LastError = null;
+		publication.ExternalRecordId = null;
+		publication.ExternalUrl = null;
+		// Same doctrine as RescheduleToNowAsync: IdempotencyKey is preserved so the
+		// remote dedup key survives the reschedule.
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}

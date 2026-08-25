@@ -48,6 +48,15 @@ public static class PublishingEndpointsForTenant {
 			.WithReqBodyValidation<SchedulePostBody>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
 
+		group.MapPatch(
+			Routes.Publishing.ForTenant.Schedule,
+			EditPostScheduleForTenant.Handle
+		)
+			.WithName("EditPostScheduleForTenant")
+			.WithSummary("Edit a scheduled post's text and/or schedule")
+			.WithReqBodyValidation<EditPostScheduleBody>()
+			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
+
 		return routes;
 	}
 }

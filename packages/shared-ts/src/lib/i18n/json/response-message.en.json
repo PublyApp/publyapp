@@ -124,6 +124,7 @@
 	"social-account-connected": "Bluesky account connected",
 	"social-account-reconnected": "Bluesky account reconnected",
 	"social-account-projects-updated": "Project attachments updated",
+	"publication-schedule-in-progress": "A publication for this post is being published right now",
 	"job-queue-item-not-found": "Job queue item not found",
 	"dead-letter-requeue-success": "Dead-letter job requeued",
 	"dead-letter-requeue-conflict": "Dead-letter job has already been requeued",
