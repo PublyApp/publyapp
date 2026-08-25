@@ -95,7 +95,7 @@ purely performance-driven memoisation.
   during render, throw inside try/catch, finally clauses, eslint-disable suppressions). These
   skip warnings appear in the build output — they are informational, not errors. The full
   inventory lives in [`docs/guides/front/react-compiler.md`](react-compiler.md).
-- React Doctor (issue [#1182](https://github.com/radandevist/publyapp/issues/1182)) checks
+- React Doctor (issue [#1182](https://github.com/PublyApp/publyapp/issues/1182)) checks
   Rules-of-React compliance. It does **not** run inside `pnpm --filter front test`: it is a
   separate oxlint-based analyzer enforced by its own required workflow
   ([`.github/workflows/react-doctor.yml`](../../../.github/workflows/react-doctor.yml),

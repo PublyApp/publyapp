@@ -373,7 +373,7 @@ Add to `dokploy.yml` alongside `publyapp-api`:
 
 ```yaml
   publyapp-worker:
-    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}   # same image as api, immutable tag
+    image: ghcr.io/publyapp/publyapp/api:${RELEASE_TAG}   # same image as api, immutable tag
     # NO container_name: fixed names prevent `--scale` beyond one replica (F19).
     restart: unless-stopped
     stop_grace_period: 45s        # > host ShutdownTimeout (30 s) so drain wins over SIGKILL (F19)

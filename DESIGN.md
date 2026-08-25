@@ -139,14 +139,20 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   - **3px** (`focus-visible:ring-3`): `button.tsx`, `badge.tsx` (`ring-[3px]`), `input.tsx`,
     `textarea.tsx`, `select.tsx`, `switch.tsx`.
   - **2px** (`focus-visible:ring-2`): `checkbox.tsx`.
-  The ring colour is contrast-guarded to ≥3:1 against its surface (the focus-indicator floor). — source: `apps/front/src/components/ui/button.tsx`, `badge.tsx`, `input.tsx`, `textarea.tsx`, `select.tsx`, `switch.tsx`, `checkbox.tsx`, `apps/front/src/styles/focus-ring-contrast.test.ts`
+  The ring colour is contrast-guarded to ≥3:1 against its surface (the focus-indicator floor):
+  token math lives in the vitest guard, and the RENDERED indicator is proven in a real browser
+  (real primitives, real compiled CSS, real cascade) by `focus-ring-cascade.spec.ts`. — source:
+  `apps/front/src/components/ui/button.tsx`, `badge.tsx`, `input.tsx`, `textarea.tsx`,
+  `select.tsx`, `switch.tsx`, `checkbox.tsx`, `apps/front/src/styles/focus-ring-contrast.test.ts`
+  (tokens), `apps/front/e2e/focus-ring-cascade.spec.ts` (rendered ring)
 - Destructive/validation states keep the compliant base ring (`aria-invalid` adds a low-opacity
-  destructive ring that must not replace the compliant one). — source: `apps/front/src/styles/focus-ring-contrast.test.ts`
+  destructive ring that must not replace the compliant one). — source:
+  `apps/front/src/styles/focus-ring-contrast.test.ts`
 
 ### Contrast floors
 - Body text: **4.5:1** against its surface (enforced for avatar fallback initials, drawer
   descriptions, and marketing text pairs). — source: `apps/front/src/styles/avatar-fallback-contrast.test.ts`, `drawer-description-contrast.test.ts`, `marketing-contrast.test.ts`
-- Large text / focus indicators / UI component graphics: **3:1**. — source: `focus-ring-contrast.test.ts`, `z-index-guard.md`
+- Large text / focus indicators / UI component graphics: **3:1**. — source: `focus-ring-contrast.test.ts`, `e2e/focus-ring-cascade.spec.ts`, `z-index-guard.md`
 - `--publy-foreground-subtle` (~2.5:1) is a **known intentional failure** and is legitimate only for
   non-text or de-emphasised roles (placeholders, eyebrows, helpers, inline metadata/separators). It
   must never be standalone body-size readable text. — source: `docs/guides/front/conventions.md` (Subtle text token), `app.css`

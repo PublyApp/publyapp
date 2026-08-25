@@ -3,13 +3,19 @@ import type { ESTree } from '@oxlint/plugins';
 
 /**
  * `publy/no-never-any-casts` — disallow single type assertions to `never`
- * or `any` (`x as never`, `x as any`, `<never>x`, `<any>x`).
+ * or `any` (`x as never`, `x as any`, `<never>x`, `<any>x`) and the same
+ * keyword annotations under the `satisfies` operator (`x satisfies never`,
+ * `x satisfies any`).
  *
  * Rationale (issue #1337, part of the #1160 anti-slop ladder): two single,
  * non-chained `as never` casts slipped past anti-slop rungs 4+5 because
  * those rungs cover only CHAINED assertions. A single assertion to `never`
  * or `any` discards all type evidence exactly like a chain does — the real
  * shape should be constructed or narrowed instead.
+ *
+ * Since #1346 the `satisfies` operator is covered too (`TSSatisfiesExpression`):
+ * used to satisfy a bare `never`/`any`, it discards type evidence exactly
+ * like an assertion and previously evaded the keyword ban entirely.
  *
  * Candidate rule status (#1337): shipped DORMANT (`"off"` in
  * `.oxlintrc.json`) — one rule per PR at error, so this PR fixes the two
@@ -18,17 +24,22 @@ import type { ESTree } from '@oxlint/plugins';
  * `docs/guides/lint-rules.md`.
  *
  * Scope notes:
- * - Only ASSERTION annotations are inspected (`TSAsExpression` /
- *   `TSTypeAssertion`, parenthesized type peeled). Type annotations,
- *   union members, and generic type arguments carrying `never`/`any` are
- *   out of scope — this rule targets evidence-discarding casts, not every
- *   mention of the keywords (`typescript/no-explicit-any` already governs
- *   explicit `any` annotations).
+ * - Only ASSERTION/SATISFIES annotations are inspected (`TSAsExpression` /
+ *   `TSTypeAssertion` / `TSSatisfiesExpression`, parenthesized type peeled).
+ *   Type annotations, union members, and generic type arguments carrying
+ *   `never`/`any` are out of scope — this rule targets evidence-discarding
+ *   casts, not every mention of the keywords (`typescript/no-explicit-any`
+ *   already governs explicit `any` annotations).
+ * - The ban is SYNTACTIC on the keyword nodes (`TSAnyKeyword` /
+ *   `TSNeverKeyword`): an alias whose definition mentions `never`
+ *   (`type N = never; x satisfies N`) is NOT resolved — that would need
+ *   type information this rule deliberately avoids.
  * - Assertion CHAINS (`x as any as never`) are already reported by
  *   `anti-slop/no-chained-type-assertions` (rung 5); each link in such a
  *   chain that lands on `never`/`any` is still reported here, so an enabled
  *   future overlaps with rung 5 on chains by design (the keyword ban is
- *   independent of chain depth).
+ *   independent of chain depth). Mixed chains mixing operators
+ *   (`x as any satisfies never`) report each keyword link once too.
  */
 
 /** Peels parenthesized type wrappers off an assertion annotation. */
@@ -70,8 +81,11 @@ export const noNeverAnyCasts = {
 		},
 	},
 	create(context: Context): Visitor {
-		const checkAssertion = (
-			node: ESTree.TSAsExpression | ESTree.TSTypeAssertion,
+		const checkAnnotation = (
+			node:
+				| ESTree.TSAsExpression
+				| ESTree.TSSatisfiesExpression
+				| ESTree.TSTypeAssertion,
 		) => {
 			const keyword = resolveForbiddenKeyword(node.typeAnnotation);
 			if (keyword === null) {
@@ -82,8 +96,9 @@ export const noNeverAnyCasts = {
 		};
 
 		return {
-			TSAsExpression: checkAssertion,
-			TSTypeAssertion: checkAssertion,
+			TSAsExpression: checkAnnotation,
+			TSSatisfiesExpression: checkAnnotation,
+			TSTypeAssertion: checkAnnotation,
 		};
 	},
 };
