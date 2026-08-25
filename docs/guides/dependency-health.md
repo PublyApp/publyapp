@@ -48,12 +48,15 @@ Both moderate alerts tracked in #880 were already remediated on `develop` by the
 above; #880's closure adds the proof, not a new pin.
 
 - **`@microsoft/kiota-http-fetchlibrary` (GHSA-396q-4vc8-28x9)** — closed by the direct exact
-  pins: `apps/front/package.json` and `packages/client-ts/package.json` carry the patched
+  pin: `apps/front/package.json` carries the patched
   `1.0.0-preview.103` (bump assessed in
   [`docs/audits/2026-07-31-kiota-cross-origin-redirect-header-leak.md`](../audits/2026-07-31-kiota-cross-origin-redirect-header-leak.md),
-  landed with the Kiota 1.34.1 toolchain bump). A pre-release patch line is acceptable here
+  landed with the Kiota 1.34.1 toolchain bump; `packages/client-ts/package.json` declares the rest of
+  the pinned preview chain but not this fetch library). A pre-release patch line is acceptable here
   because the whole runtime chain is pinned preview-for-preview across both packages.
-  Guarded at runtime by
+  This location claim is contract-checked by
+  `packages/scripts-ts/src/dependency-health-pin-location.test.ts`, which reads the real manifests and
+  fails when the doc names the wrong one. Guarded at runtime by
   `apps/front/src/lib/api-client/client-manager.redirect-scrub.test.ts`, which drives the real
   generated client through a cross-origin 302 and fails on any version in the vulnerable range.
 - **`nanoid` (GHSA-mwcw-c2x4-8c55)** — closed by the root `pnpm.overrides` caps:
