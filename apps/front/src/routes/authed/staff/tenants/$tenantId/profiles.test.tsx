@@ -467,73 +467,104 @@ describe('staff tenant profiles route', () => {
 		expect(screen.getByTestId('profile-create-drawer-open')).toBeTruthy();
 	});
 
-	test('a debounced search commit does not close a drawer opened within the debounce window (F1)', async () => {
-		const renderResult = renderPage();
+	test('a debounced search commit does not close a drawer opened within the debounce window (F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			const renderResult = renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-tenant-profiles-grid-search'), {
-			target: { value: 'an' },
-		});
+			fireEvent.change(
+				screen.getByTestId('staff-tenant-profiles-grid-search'),
+				{
+					target: { value: 'an' },
+				},
+			);
 
-		// Simulate opening the create drawer within the 300ms debounce window:
-		// the route re-renders with the new URL search state, same as a real
-		// navigation would, before the debounced commit fires.
-		mocks.search = { new: 1 };
-		renderResult.rerender(<RouteComponent />);
+			// Simulate opening the create drawer within the 300ms debounce
+			// window: the route re-renders with the new URL search state, same
+			// as a real navigation would, before the debounced commit fires.
+			mocks.search = { new: 1 };
+			renderResult.rerender(<RouteComponent />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): step PAST the debounce instead of
+			// a real-time sleep.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search?: Record<string, unknown>;
-		};
-		expect(lastCall?.search).toMatchObject({ new: 1, q: 'an' });
+			const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search?: Record<string, unknown>;
+			};
+			expect(lastCall?.search).toMatchObject({ new: 1, q: 'an' });
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
-	test('a debounced search commit does not revert the view toggled within the debounce window (r3-F1)', async () => {
-		mocks.search = { view: 'table' };
-		const renderResult = renderPage();
+	test('a debounced search commit does not revert the view toggled within the debounce window (r3-F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			mocks.search = { view: 'table' };
+			const renderResult = renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-tenant-profiles-grid-search'), {
-			target: { value: 'an' },
-		});
+			fireEvent.change(
+				screen.getByTestId('staff-tenant-profiles-grid-search'),
+				{
+					target: { value: 'an' },
+				},
+			);
 
-		// Simulate toggling the view back to "cards" within the 300ms debounce
-		// window: canonical parsing writes `view: undefined` so the route
-		// re-render preserves the canonical key shape.
-		mocks.search = {};
-		renderResult.rerender(<RouteComponent />);
+			// Simulate toggling the view back to "cards" within the 300ms
+			// debounce window: canonical parsing writes `view: undefined` so the
+			// route re-render preserves the canonical key shape.
+			mocks.search = {};
+			renderResult.rerender(<RouteComponent />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): see the F1 test above.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search?: Record<string, unknown>;
-		};
-		expect(Object.prototype.hasOwnProperty.call(lastCall?.search, 'view')).toBe(
-			true,
-		);
-		expect(lastCall?.search?.view).toBeUndefined();
-		expect(lastCall?.search).toMatchObject({ q: 'an' });
+			const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search?: Record<string, unknown>;
+			};
+			expect(
+				Object.prototype.hasOwnProperty.call(lastCall?.search, 'view'),
+			).toBe(true);
+			expect(lastCall?.search?.view).toBeUndefined();
+			expect(lastCall?.search).toMatchObject({ q: 'an' });
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	// tenants-r6-F2: entering selection mode must freeze the query that
 	// defines the destructive bulk-action target set — a still-pending
 	// search debounce or a still-clickable type filter can silently change
 	// which rows a bulk action would hit right after selection.
-	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2)', async () => {
-		mocks.search = { view: 'table' };
-		renderPage();
+	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			mocks.search = { view: 'table' };
+			renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-tenant-profiles-grid-search'), {
-			target: { value: 'an' },
-		});
-		fireEvent.click(screen.getByRole('checkbox', { name: 'Select all rows' }));
+			fireEvent.change(
+				screen.getByTestId('staff-tenant-profiles-grid-search'),
+				{
+					target: { value: 'an' },
+				},
+			);
+			fireEvent.click(
+				screen.getByRole('checkbox', { name: 'Select all rows' }),
+			);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): run out the debounce clock without
+			// a real-time wait.
+			await vi.advanceTimersByTimeAsync(301);
 
-		expect(mocks.navigate).not.toHaveBeenCalledWith(
-			expect.objectContaining({
-				search: expect.objectContaining({ q: 'an' }),
-			}),
-		);
+			expect(mocks.navigate).not.toHaveBeenCalledWith(
+				expect.objectContaining({
+					search: expect.objectContaining({ q: 'an' }),
+				}),
+			);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	test('disables the type filter trigger while a row is selected (tenants-r6-F2)', () => {
