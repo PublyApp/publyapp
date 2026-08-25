@@ -140,11 +140,11 @@ const renderBulkActions = ({
 	);
 
 const openMenu = async () => {
-	fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+	fireEvent.click(screen.getByRole('button', { name: 'Bulk actions' }));
 	await waitFor(() =>
 		expect(
 			screen
-				.getByRole('button', { name: 'More actions' })
+				.getByRole('button', { name: 'Bulk actions' })
 				.getAttribute('aria-expanded'),
 		).toBe('true'),
 	);
@@ -180,7 +180,7 @@ describe('#1386 ProfilesListBulkActions', () => {
 		});
 
 		const trigger = screen.getByRole('button', {
-			name: 'More actions',
+			name: 'Bulk actions',
 		}) as HTMLButtonElement;
 		expect(trigger.disabled).toBe(true);
 		expect(trigger.getAttribute('title')).toBe(

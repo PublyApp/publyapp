@@ -119,8 +119,6 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
-import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
-
 import { Route as StaffProfilesListRoute } from '../profiles';
 
 type QueryState = {
@@ -239,6 +237,29 @@ const renderAtList = async () => {
 	return harness;
 };
 
+/**
+ * Opens this page's bulk-action menu by its accessible name ("Bulk actions" —
+ * here `aria-label` equals the visible label) and clicks the delete item once
+ * settled. Deliberately NOT the shared `chooseBulkAction` helper: that helper
+ * hardcodes the users list's "More actions"-over-"Bulk actions" mismatch
+ * (#1400 owns fixing that file); this page must not replicate it.
+ */
+const openBulkActionsMenu = async () => {
+	const trigger = await screen.findByRole('button', {
+		name: 'Bulk actions',
+		expanded: false,
+	});
+
+	fireEvent.click(trigger);
+	await waitFor(() =>
+		expect(
+			trigger.getAttribute('aria-expanded'),
+			'bulk menu did not open',
+		).toBe('true'),
+	);
+	fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+};
+
 describe('#1386 staff profiles selection-mode bulk delete (real router)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -280,7 +301,7 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
 		);
 
-		await chooseBulkAction('Delete selected');
+		await openBulkActionsMenu();
 
 		// Reaching the confirm dialog proves the menu item rendered
 		// unconditionally and was clickable.
@@ -294,7 +315,7 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
 		);
 
-		await chooseBulkAction('Delete selected');
+		await openBulkActionsMenu();
 
 		// Destructive actions require confirmation before firing; the dialog
 		// names the count and the consequence.

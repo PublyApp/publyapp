@@ -138,9 +138,9 @@ export const ProfilesListBulkActions = ({
 											max: BULK_ACTION_MAX_COUNT,
 											count: selectedCount,
 										})
-									: t('more-actions')
+									: t('bulk-actions')
 							}
-							aria-label={t('more-actions')}
+							aria-label={t('bulk-actions')}
 							className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
 						/>
 					}
