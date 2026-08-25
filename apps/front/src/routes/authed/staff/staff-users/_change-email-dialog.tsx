@@ -38,27 +38,29 @@ const buildChangeEmailSchema = (t: (key: string) => string) =>
 
 type ChangeEmailFormValues = z.infer<ReturnType<typeof buildChangeEmailSchema>>;
 
-/**
- * users-auth-r6-F4: the update-email mutation (`useUpdateStaffUserEmailMutation`)
- * already existed with no consumer anywhere in front — the edit page's
- * email field is permanently disabled with no route to the endpoint behind
- * it. This dialog is that route.
- */
-export const ChangeStaffUserEmailDialog = ({
-	userId,
-	currentEmail,
-	isOpen,
-	onOpenChange,
-	onUpdated,
-	onSessionExpired,
-}: {
+type ChangeStaffUserEmailDialogProps = {
 	userId: string;
 	currentEmail: string;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 	onUpdated: (email: string) => void;
 	onSessionExpired: () => void;
-}) => {
+};
+
+/**
+ * users-auth-r6-F4: the update-email mutation (`useUpdateStaffUserEmailMutation`)
+ * already existed with no consumer anywhere in front — the edit page's
+ * email field is permanently disabled with no route to the endpoint behind
+ * it. This dialog is that route.
+ */
+const ChangeStaffUserEmailDialogInner = ({
+	userId,
+	currentEmail,
+	isOpen,
+	onOpenChange,
+	onUpdated,
+	onSessionExpired,
+}: ChangeStaffUserEmailDialogProps) => {
 	const { t } = useTranslation(['staff-users', 'common']);
 	const queryClient = useQueryClient();
 	const { mutateAsync, isPending } = useUpdateStaffUserEmailMutation();
@@ -75,25 +77,9 @@ export const ChangeStaffUserEmailDialog = ({
 		defaultValues: { email: currentEmail },
 	});
 	const {
-		reset,
 		formState: { isDirty, isSubmitting },
 	} = methods;
 	const isFormLocked = isPending || isSubmitting;
-
-	// Open-session reseed, without an effect: the previous-open marker turns
-	// each closed -> opened transition into a render-phase state update that
-	// reseeds the form and clears the transient states exactly once. A
-	// background refetch that replaces `currentEmail` mid-session no longer
-	// wipes an in-progress draft (the effect this replaced keyed on it).
-	const [seededIsOpen, setSeededIsOpen] = useState(isOpen);
-	if (seededIsOpen !== isOpen) {
-		setSeededIsOpen(isOpen);
-		if (isOpen) {
-			setRootValidationError('');
-			setShowDiscardConfirm(false);
-			reset({ email: currentEmail });
-		}
-	}
 
 	// Every close request (Cancel, Escape, backdrop click) must go through
 	// this — a dirty, unsaved email edit is discarded without warning
@@ -221,6 +207,29 @@ export const ChangeStaffUserEmailDialog = ({
 			/>
 		</>
 	);
+};
+
+/*
+ * Session-keyed mount: each closed -> opened transition bumps a key and
+ * remounts the dialog, which seeds itself from its defaultValues at mount.
+ * The reset effect this replaces ran on every currentEmail change (a
+ * background refetch) and wiped in-progress drafts; a fresh mount only
+ * happens for a genuinely new session. The 200ms drawer exit animation
+ * keeps the closed instance mounted under its old key.
+ */
+export const ChangeStaffUserEmailDialog = (
+	dialogProps: ChangeStaffUserEmailDialogProps,
+) => {
+	const [sessionKey, setSessionKey] = useState(0);
+	const [wasOpen, setWasOpen] = useState(dialogProps.isOpen);
+	if (wasOpen !== dialogProps.isOpen) {
+		setWasOpen(dialogProps.isOpen);
+		if (dialogProps.isOpen) {
+			setSessionKey((key) => key + 1);
+		}
+	}
+
+	return <ChangeStaffUserEmailDialogInner {...dialogProps} key={sessionKey} />;
 };
 
 export default ChangeStaffUserEmailDialog;

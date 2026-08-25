@@ -1,6 +1,5 @@
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import isEqual from 'lodash/isEqual';
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -81,15 +80,7 @@ const getProfileEditDetailsValues = (
 	tone: profile.tone ?? null,
 });
 
-const ProfileEditDetailsDrawer = ({
-	tenantId,
-	isOpen,
-	profile,
-	onOpenChange,
-	onSaved,
-	onSessionExpired,
-	onDirtyChange,
-}: {
+type ProfileEditDetailsDrawerProps = {
 	tenantId: string;
 	isOpen: boolean;
 	profile: ProfileEditDetailsDrawerProfile;
@@ -97,7 +88,17 @@ const ProfileEditDetailsDrawer = ({
 	onSaved: (profileId: string) => void;
 	onSessionExpired: () => void;
 	onDirtyChange?: (isDirty: boolean) => void;
-}) => {
+};
+
+const ProfileEditDetailsDrawerInner = ({
+	tenantId,
+	isOpen,
+	profile,
+	onOpenChange,
+	onSaved,
+	onSessionExpired,
+	onDirtyChange,
+}: ProfileEditDetailsDrawerProps) => {
 	const { t } = useTranslation('common');
 	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
@@ -113,7 +114,6 @@ const ProfileEditDetailsDrawer = ({
 		defaultValues: getProfileEditDetailsValues(profile),
 	});
 	const {
-		reset,
 		formState: { isDirty, isSubmitting },
 	} = methods;
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
@@ -127,34 +127,19 @@ const ProfileEditDetailsDrawer = ({
 	);
 	const hasCustomStyle = icon !== null || tone !== null;
 
-	// Re-seed only for a newly opened session or a different profile; a
-	// refetch replacing the profile object (same id) must not discard an
-	// in-progress draft. Implemented as the React-documented previous-state
-	// tracking pattern: the marker turns the qualifying transition into a
-	// one-shot render-phase reseed, with no effect and no prop-change reset.
-	const [seededFor, setSeededFor] = useState({
-		isOpen,
-		profileId: profile.id,
-	});
-	if (
-		seededFor.isOpen !== isOpen ||
-		(isOpen && seededFor.profileId !== profile.id)
-	) {
-		setSeededFor({ isOpen, profileId: profile.id });
-		if (isOpen) {
-			setIsDiscardConfirmOpen(false);
-			reset(getProfileEditDetailsValues(profile));
-		}
-	}
-
 	// tenants-r6-F3 dirty-flag uplink, event-driven: RHF's change stream fires
 	// synchronously on the form mutation that owns each change (user input,
-	// setValue, reset) and always carries the full form snapshot, so dirtiness
-	// is derived here by comparing it against the seeded session values — the
-	// same comparison RHF performs internally. Reading formState inside the
-	// stream would lag: React's snapshot only refreshes on render. Every open
-	// session also replays its current state once, so a stale host flag left
-	// by a previous session self-corrects.
+	// setValue, reset) and always carries the full form snapshot. Dirtiness
+	// derives from comparing that snapshot against the values captured once
+	// at mount — not from React's render-lagged formState snapshot, and not
+	// from the live profile prop, which would move the goalposts mid-draft
+	// when a background refetch replaces the profile object. Each session
+	// starts on a fresh mount seeded from the profile (see the keyed wrapper
+	// below), so no baseline needs to be captured from props. Dirtiness
+	// itself comes from react-hook-form's own synchronous dirty computation
+	// (control._getDirty compares the live values against the pristine
+	// defaultValues this session mounted with); the dedup ref keeps repeated
+	// same-value emissions from reaching the host.
 	const lastReportedDirtyRef = useRef<boolean | null>(null);
 	useEffect(() => {
 		const report = (nextDirty: boolean) => {
@@ -163,21 +148,16 @@ const ProfileEditDetailsDrawer = ({
 				onDirtyChange?.(nextDirty);
 			}
 		};
+		const computeNextDirty = () => methods.control._getDirty();
 		lastReportedDirtyRef.current = null;
-		if (isOpen) {
-			report(
-				!isEqual(methods.getValues(), getProfileEditDetailsValues(profile)),
-			);
-		}
-		const subscription = methods.watch((values) => {
-			if (isOpen) {
-				report(!isEqual(values, getProfileEditDetailsValues(profile)));
-			}
+		report(computeNextDirty());
+		const subscription = methods.watch(() => {
+			report(computeNextDirty());
 		});
 		return () => {
 			subscription.unsubscribe();
 		};
-	}, [isOpen, profile, methods, onDirtyChange]);
+	}, [methods, onDirtyChange]);
 
 	const isFormLocked = updateProfile.isPending || isSubmitting;
 	// #1342 — "no change → no request / disabled Save": a pristine form must
@@ -380,6 +360,36 @@ const ProfileEditDetailsDrawer = ({
 				}}
 			/>
 		</Drawer>
+	);
+};
+
+/*
+ * Session-keyed mount: each closed -> opened transition bumps a key and
+ * remounts the drawer, which seeds itself from the profile at mount. The
+ * reset effect this replaced ran per render on prop changes; a fresh mount
+ * happens exactly once per session and never discards an in-progress draft
+ * when a refetch replaces the profile object under the mounted instance
+ * (same id, new object identity). Switching to a different profile id
+ * remounts, matching the old per-profile reseed. The 200ms exit animation
+ * keeps the closing instance under its old key.
+ */
+const ProfileEditDetailsDrawer = (
+	drawerProps: ProfileEditDetailsDrawerProps,
+) => {
+	const [sessionKey, setSessionKey] = useState(0);
+	const [wasOpen, setWasOpen] = useState(drawerProps.isOpen);
+	if (wasOpen !== drawerProps.isOpen) {
+		setWasOpen(drawerProps.isOpen);
+		if (drawerProps.isOpen) {
+			setSessionKey((key) => key + 1);
+		}
+	}
+
+	return (
+		<ProfileEditDetailsDrawerInner
+			{...drawerProps}
+			key={`${sessionKey}:${drawerProps.profile.id}`}
+		/>
 	);
 };
 
