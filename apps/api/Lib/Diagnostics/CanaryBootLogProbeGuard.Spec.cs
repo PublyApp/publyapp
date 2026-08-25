@@ -21,6 +21,7 @@ namespace PublyApp.Api.Lib.Diagnostics;
 /// <item>unparseable flag value → loud refusal, never a silent fallback.</item>
 /// </list>
 /// </summary>
+[CollectionDefinition("WitnessBootChildProcess", DisableParallelization = true)]
 public sealed class CanaryBootLogProbeGuardSpec {
 	[Fact]
 	public void ItShouldRefuseToStartWithAPlainWordsCauseWhenTheProbeArgComesWithoutTheTestOnlyFlag() {
