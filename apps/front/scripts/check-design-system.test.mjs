@@ -236,6 +236,114 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 	await assert.rejects(access(probe.root), { code: 'ENOENT' });
 });
 
+// #1352: co-located proof of the bound itself, driven over the SAME
+// awaitExitWithinBudget wiring the real probe uses, with a tiny budget and
+// a never-ending parent->grand-child fixture chain. Against the
+// pre-#1352 code this test could not exist: there was no budget and no
+// kill-tree helper, and the plain exit wait hung forever on such a child
+// (RED: importing the then-missing exports fails the suite loudly against
+// the old code; the ~26-minute Node 24 hangs of 2026-08-23/25 are the
+// real-world equivalent). The timeout must FIRE, the WHOLE tree must die
+// (no orphan pid), and the rejection must name the probe, the budget and
+// the last output line.
+test('#1352: the probe budget fires on a never-ending child, kills the whole process tree, and fails loud naming the probe', async () => {
+	const root = await makeFixture({
+		'never-ending-child.mjs': [
+			'// #1352 fixture: a handle that never closes and never exits.',
+			'setInterval(() => {}, 1_000);',
+		].join('\n'),
+		'never-ending-parent.mjs': [
+			"import { spawn } from 'node:child_process';",
+			"import path from 'node:path';",
+			"import { fileURLToPath } from 'node:url';",
+			"const grandChildPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'never-ending-child.mjs');",
+			"const grandChild = spawn(process.execPath, [grandChildPath], { stdio: 'ignore' });",
+			'process.stdout.write(`PARENT_PID=${process.pid}\\nGRAND_PID=${grandChild.pid}\\n`);',
+			'setInterval(() => {}, 1_000);',
+		].join('\n'),
+	});
+	const child = spawn(
+		process.execPath,
+		[path.join(root, 'never-ending-parent.mjs')],
+		{ detached: true, stdio: ['ignore', 'pipe', 'pipe'] },
+	);
+	let output = '';
+	child.stdout.on('data', (chunk) => {
+		output += chunk.toString();
+	});
+	const startedAt = Date.now();
+	await assert.rejects(
+		() =>
+			awaitExitWithinBudget({
+				child,
+				budgetMs: 300,
+				probeName: '#1352 never-ending fixture',
+				getLastOutput: () => output,
+			}),
+		(error) => {
+			assert.match(
+				error.message,
+				/#1352 never-ending fixture exceeded its 300ms budget/,
+			);
+			assert.match(error.message, /Last output line: /);
+			return true;
+		},
+	);
+	// The budget must actually elapse (not fire early) and must actually
+	// FIRE (the pre-#1352 unbounded wait would hang here until CI dies).
+	assert.ok(
+		Date.now() - startedAt >= 290,
+		'the budget must elapse before the timeout fires',
+	);
+	assert.ok(
+		Date.now() - startedAt < 10_000,
+		'the timeout must fire — an unbounded wait hangs forever on this fixture',
+	);
+	const pidMatch = output.match(/^PARENT_PID=(\d+)$/m);
+	const grandMatch = output.match(/^GRAND_PID=(\d+)$/m);
+	assert.ok(
+		pidMatch && grandMatch,
+		`fixture handshake expected, got: ${output}`,
+	);
+	// No orphan pids: the fixture child AND its own grand-child must be
+	// dead. A zombie can survive briefly between SIGKILL and reaping, so
+	// poll briefly before failing.
+	const deadline = Date.now() + 5_000;
+	for (const pid of [Number(pidMatch[1]), Number(grandMatch[1]), child.pid]) {
+		let gone = false;
+		while (Date.now() < deadline) {
+			try {
+				process.kill(pid, 0);
+			} catch {
+				gone = true;
+				break;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+		assert.equal(
+			gone,
+			true,
+			`pid ${pid} must be dead — killing the tree must leave no orphan`,
+		);
+	}
+});
+
+// Positive control: a child that exits on its own resolves normally with
+// its code — the budget helper must never turn a healthy exit into a
+// failure (or this bound would be a vacuous always-reject).
+test('#1352: the probe budget does not disturb a child that exits on its own (positive control)', async () => {
+	const child = spawn(process.execPath, ['-e', 'process.exit(7)'], {
+		stdio: 'ignore',
+	});
+	const result = await awaitExitWithinBudget({
+		child,
+		budgetMs: 5_000,
+		probeName: '#1352 positive control',
+		getLastOutput: () => '',
+	});
+	assert.deepEqual(result, { code: 7, signal: null });
+});
+
 // #1272 packet item 2: the fail-loud artifact, driven through the REAL
 // handler wiring above (the same onData accumulation + matchRunnerHandshake +
 // 20s timeout), not a model of it. The helper below re-creates that wiring
