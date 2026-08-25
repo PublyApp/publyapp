@@ -12,6 +12,11 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { CopyButton } from './copy-button';
 
+type ClipboardExecutor = {
+	resolve: (value?: unknown) => void;
+	reject: (error: Error) => void;
+};
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -205,14 +210,14 @@ describe('CopyButton', () => {
 	test('the latest copy request is always the one reflected in feedback state', async () => {
 		vi.useFakeTimers();
 
-		const first = {
+		const first: ClipboardExecutor = {
 			resolve: () => {},
 			reject: (_error: Error) => {},
-		} as { resolve: (value?: unknown) => void; reject: (error: Error) => void };
-		const second = {
+		};
+		const second: ClipboardExecutor = {
 			resolve: () => {},
 			reject: (_error: Error) => {},
-		} as { resolve: (value?: unknown) => void; reject: (error: Error) => void };
+		};
 
 		const createWriteText = () => {
 			const writes = [first, second];

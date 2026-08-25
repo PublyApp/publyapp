@@ -92,13 +92,7 @@ const isPositiveSafeInteger = (value: number | undefined): boolean =>
 
 export const buildFindTenantPostsQueryParameters = (
 	variables: TenantPostsQueryVariables,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
@@ -263,9 +257,11 @@ export const savePost = async (
 		return details;
 	}
 
-	const createBody: Record<string, unknown> = {
-		body: createUntypedString(body),
-	};
+	// Accumulate like patchBody above: Kiota's UntypedString fields are added
+	// conditionally, so an open accumulator beats a literal frozen by `satisfies`.
+	const createBody: Record<string, unknown> = {};
+
+	createBody.body = createUntypedString(body);
 
 	if (input.projectId) {
 		createBody.projectId = createUntypedString(input.projectId);

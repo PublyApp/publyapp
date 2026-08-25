@@ -132,7 +132,11 @@ const ProfileSectionLink = ({
 	<Link
 		to={PROFILE_SECTION_ROUTES[section]}
 		params={{ tenantId, profileId }}
-		search={(previous: ProfileDetailsSearchParams) => previous}
+		search={(previous): ProfileDetailsSearchParams => ({
+			// Only the details layout owns `?edit=1`; anything else in the
+			// merged search belongs to sibling routes, not to a section URL.
+			edit: previous.edit === 1 ? 1 : undefined,
+		})}
 		className={className}
 	>
 		{children}

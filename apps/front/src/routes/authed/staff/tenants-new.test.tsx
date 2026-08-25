@@ -10,6 +10,7 @@ import {
 import { createElement, type ReactNode, type SubmitEventHandler } from 'react';
 import { FormProvider, useFormContext } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -29,7 +30,7 @@ const mocks = vi.hoisted(() => ({
 	capturedShouldBlockFn: undefined as (() => boolean) | undefined,
 }));
 
-const LABELS: Record<string, string> = {
+const LABELS: TestLabelMap = {
 	'back-to-staff-tenants': 'Back to staff tenants',
 	'create-tenant': 'Create tenant',
 	'create-tenant-description': 'Provision a new organization workspace.',
@@ -248,11 +249,11 @@ vi.mock('~/components/field', () => ({
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: SubmitEventHandler<HTMLFormElement>;
-	}) =>
-		createElement(FormProvider, {
-			...methods,
-			children: createElement('form', { onSubmit }, children),
-		}),
+	}) => (
+		<FormProvider {...methods}>
+			<form onSubmit={onSubmit}>{children}</form>
+		</FormProvider>
+	),
 	FormPageLayout: ({ children, ...props }: { children: ReactNode }) =>
 		createElement('div', props, children),
 	FormActionBar: ({

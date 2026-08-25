@@ -4,6 +4,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { JSX, ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -54,7 +55,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS: TestLabelMap = {
 	profile: 'Profile',
 	members: 'Members',
 	level: 'Level',
@@ -325,7 +326,7 @@ describe('serializeProfileMembersSearchParams', () => {
 			q: 'ada',
 			sort_id: 'email',
 			sort_order: 'asc',
-			size: '50',
+			size: 50,
 			assign: 1,
 		});
 	});

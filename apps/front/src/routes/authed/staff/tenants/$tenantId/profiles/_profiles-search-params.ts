@@ -3,6 +3,7 @@ import {
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
+	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 export type StaffTenantProfileTypeFilter = 'true' | 'false';
@@ -97,7 +98,7 @@ export const parseStaffTenantProfileEditId = (
 export const resolveStaffTenantProfileDrawerFlags = (
 	isCreateOpen: boolean,
 	editProfileId: string | undefined,
-): { new?: 1; edit?: string } => ({
+) => ({
 	new: isCreateOpen && editProfileId === undefined ? (1 as const) : undefined,
 	edit: editProfileId,
 });
@@ -130,9 +131,16 @@ export const parseStaffTenantProfilesSearchParams = (
 	};
 };
 
+export type StaffTenantProfilesWireParams = {
+	new?: 1;
+	edit?: string;
+	is_default?: boolean;
+	view?: 'table';
+} & TableSearchWireParams;
+
 export const serializeStaffTenantProfilesSearchParams = (
 	params: StaffTenantProfilesSearchParams,
-): Record<string, string | number | boolean | undefined> => {
+): StaffTenantProfilesWireParams => {
 	const next = serializeTableSearchParams(params);
 	const isDefault = parseStaffTenantProfileTypeFilter(params.is_default);
 	const view = parseStaffTenantProfilesViewMode(params.view);

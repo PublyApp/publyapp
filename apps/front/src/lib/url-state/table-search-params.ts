@@ -99,10 +99,20 @@ export const parseTableSearchParams = (
 	};
 };
 
+export type TableSearchWireParams = {
+	q?: string;
+	sort_id?: string;
+	sort_order?: SortOrder;
+	cursor?: string;
+	/** Kept as a NUMBER in the route's search state — TanStack serializes
+	 * numbers into clean query values, while strings get JSON-quoted. */
+	size?: number;
+};
+
 export const serializeTableSearchParams = (
 	params: TableSearchParams,
-): Record<string, string | undefined> => {
-	const next: Record<string, string> = {};
+): TableSearchWireParams => {
+	const next: TableSearchWireParams = {};
 
 	const q = trimIfString(params.q);
 	if (q) {
@@ -124,7 +134,7 @@ export const serializeTableSearchParams = (
 	}
 
 	if (isPositiveSafeInteger(params.size ?? -1)) {
-		next.size = String(params.size);
+		next.size = params.size;
 	}
 
 	return next;
@@ -137,7 +147,7 @@ export const serializeTableSearchParams = (
  */
 export const validateTableSearchParams = (
 	search: TableSearchParamInput,
-): Record<string, number | string | undefined> => {
+): TableSearchWireParams => {
 	const parsed = parseTableSearchParams(search);
 
 	return {

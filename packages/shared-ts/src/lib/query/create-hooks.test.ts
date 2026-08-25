@@ -84,7 +84,9 @@ test('tenant mutation resolves tenantId from handler fallback when variable is a
 		createScopeOptions(accessor),
 	);
 
-	const value = await options.mutationFn({ limit: 5 } as { limit: number });
+	const value = await options.mutationFn({ limit: 5 } satisfies {
+		limit: number;
+	});
 	expect(accessor.getOrCreateClient).toHaveBeenCalledWith('tenant-fallback');
 	expect(value).toBe('tenant-tenant-fallback-mutate');
 });
@@ -105,7 +107,7 @@ test('tenant query resolves blank tenantId via handler fallback', async () => {
 	const value = await options.fetcher({
 		tenantId: '   ',
 		limit: 12,
-	} as { tenantId?: string; limit: number });
+	} satisfies { tenantId?: string; limit: number });
 
 	expect(accessor.getOrCreateClient).toHaveBeenCalledWith('tenant-fallback');
 	expect(value).toBe('tenant-tenant-fallback-12');
@@ -144,7 +146,7 @@ test('tenant query key sorts query variable keys consistently', () => {
 			tenantId: 'tenant-1',
 			page: 2,
 			limit: 10,
-		} as { tenantId: string; page: number; limit: number }),
+		} satisfies { tenantId: string; page: number; limit: number }),
 	).toEqual(['tenant', 'tenant:tenant', 'tenant-1', { limit: 10, page: 2 }]);
 });
 
@@ -174,7 +176,7 @@ test('tenant query key throws when tenantId is not resolvable', () => {
 		createScopeOptions(accessor),
 	);
 
-	expect(() => options.queryKey({} as { tenantId?: string })).toThrow(
+	expect(() => options.queryKey({} satisfies { tenantId?: string })).toThrow(
 		'tenantId is required to create tenant-scoped client',
 	);
 });
@@ -220,7 +222,7 @@ test('staff query key does not include empty variables object', () => {
 		createScopeOptions(accessor),
 	);
 
-	expect(options.queryKey({} as { page?: number })).toEqual([
+	expect(options.queryKey({} satisfies { page?: number })).toEqual([
 		'staff',
 		'staff:staff',
 	]);

@@ -17,12 +17,13 @@ import { fileURLToPath } from 'node:url';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantsForPickerData } from '~/lib/query/tenants-for-picker';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('~/lib/hooks/use-logout', () => ({
 	useLogout: () => ({ logout: vi.fn(), isLoggingOut: false }),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'select-organization': 'Select Organization',
 	'select-organization-description':
 		'Choose which organization you want to access',

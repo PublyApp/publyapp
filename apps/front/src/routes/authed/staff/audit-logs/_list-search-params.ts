@@ -3,6 +3,7 @@ import {
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
+	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 export type AuditLogsListSearchParams = TableSearchParams & {
@@ -105,9 +106,15 @@ export const parseAuditLogsListSearchParams = (
 	};
 };
 
+export type AuditLogsListWireParams = {
+	actions?: string;
+	start_date?: string;
+	end_date?: string;
+} & TableSearchWireParams;
+
 export const serializeAuditLogsListSearchParams = (
 	params: AuditLogsListSearchParams,
-): Record<string, string | number | undefined> => {
+): AuditLogsListWireParams => {
 	const next = serializeTableSearchParams(params);
 	const actions = serializeAuditLogsActionsFilter(
 		parseAuditLogsActionsFilter(params.actions),

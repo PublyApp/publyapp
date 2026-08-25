@@ -9,14 +9,11 @@ type LoadingSpinnerProps = {
 	size?: 'sm' | 'md' | 'lg';
 	className?: string;
 };
-const LOADING_SPINNER_SIZE_CLASS: Record<
-	NonNullable<LoadingSpinnerProps['size']>,
-	string
-> = {
+const LOADING_SPINNER_SIZE_CLASS = {
 	sm: 'size-4',
 	md: 'size-6',
 	lg: 'size-8',
-};
+} satisfies Record<NonNullable<LoadingSpinnerProps['size']>, string>;
 
 type RenderSlot<TProps = object> =
 	| ReactNode

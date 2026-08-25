@@ -52,6 +52,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const TENANT_ID = '11111111-1111-1111-1111-111111111111';
 const PROFILE_ID = '22222222-2222-2222-2222-222222222222';
@@ -68,7 +69,7 @@ const mocks = vi.hoisted(() => ({
 		status: 'active',
 		usersCount: 12,
 		maxUsers: 50,
-	} as Record<string, unknown>,
+	},
 	profileDetails: {
 		profile: {
 			id: '22222222-2222-2222-2222-222222222222',
@@ -77,7 +78,7 @@ const mocks = vi.hoisted(() => ({
 			isDefault: false,
 			userAccountCount: 7,
 		},
-	} as Record<string, unknown>,
+	},
 	permissionKeys: ['tenant.users.read'],
 	permissionCatalog: {
 		tenant: {
@@ -92,7 +93,7 @@ const mocks = vi.hoisted(() => ({
 				description: null,
 			},
 		},
-	} as Record<string, unknown>,
+	},
 	deleteProfile: vi.fn().mockResolvedValue(undefined),
 	assignPermission: vi.fn().mockResolvedValue(undefined),
 	unassignPermission: vi.fn().mockResolvedValue(undefined),
@@ -160,7 +161,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const bare = key.includes(':') ? (key.split(':').at(-1) ?? key) : key;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				overview: 'Overview',
 				permissions: 'Permissions',
 				members: 'Members',

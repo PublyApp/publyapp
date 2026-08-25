@@ -3,6 +3,7 @@ import {
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
+	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 // Lifecycle order (mirrors the backend TenantStatus enum): a tenant is
@@ -58,9 +59,13 @@ export const parseTenantListSearchParams = (
 	status: parseTenantStatusFilter(search.status),
 });
 
+export type TenantListWireParams = {
+	status?: string;
+} & TableSearchWireParams;
+
 export const serializeTenantListSearchParams = (
 	params: TenantListSearchParams,
-): Record<string, string | undefined> => ({
+): TenantListWireParams => ({
 	...serializeTableSearchParams(params),
 	status: serializeTenantStatusFilter(params.status),
 });
@@ -75,5 +80,5 @@ export const serializeTenantListSearchParams = (
  */
 export const validateTenantListSearchParams = (
 	search: TenantListSearchParamInput,
-): Record<string, string | undefined> =>
+): TenantListWireParams =>
 	serializeTenantListSearchParams(parseTenantListSearchParams(search));

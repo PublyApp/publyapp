@@ -41,6 +41,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const PENDING_A = '11111111-1111-1111-1111-111111111111';
 const ACCEPTED_B = '22222222-2222-2222-2222-222222222222';
@@ -106,7 +107,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'staff-invitations': 'Staff invitations',
 				'invite-staff-users-to-the-platform':
 					'Invite staff users to the platform.',

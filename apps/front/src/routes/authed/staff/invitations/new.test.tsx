@@ -16,6 +16,7 @@ import {
 } from 'react';
 import { Controller, FormProvider, useFormContext } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -56,7 +57,7 @@ vi.mock('react-i18next', () => ({
 		t: (key: string, options?: { count?: number }) => {
 			const normalize = (value: string): string =>
 				value.startsWith('common:') ? value.replace(/^common:/, '') : value;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'staff-invitations': 'Staff invitations',
 				'invite-users': 'Invite users',
 				profiles: 'Profiles',
@@ -101,11 +102,11 @@ vi.mock('~/components/field', () => ({
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: SubmitEventHandler<HTMLFormElement>;
-	}) =>
-		createElement(FormProvider, {
-			...methods,
-			children: createElement('form', { onSubmit }, children),
-		}),
+	}) => (
+		<FormProvider {...methods}>
+			<form onSubmit={onSubmit}>{children}</form>
+		</FormProvider>
+	),
 	Field: {
 		Email: ({
 			name,

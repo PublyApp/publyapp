@@ -32,13 +32,17 @@ const getCounter = async (
 	path: string,
 	method?: 'GET' | 'OPTIONS',
 ): Promise<number> => {
-	const counterParams: Record<string, string> = { path };
-	if (method) {
-		counterParams.method = method;
-	}
-	const response = await page.request.get(`${COUNTER_BASE_URL}/__counter`, {
-		params: counterParams,
-	});
+	// Two concrete request shapes instead of an optional-property union:
+	// Playwright's `params` carries an index signature that rejects
+	// `method?: undefined` produced by a ternary over two literals.
+	const response =
+		method === undefined
+			? await page.request.get(`${COUNTER_BASE_URL}/__counter`, {
+					params: { path },
+				})
+			: await page.request.get(`${COUNTER_BASE_URL}/__counter`, {
+					params: { path, method },
+				});
 	expect(response.ok()).toBe(true);
 
 	const body = (await response.json()) as {

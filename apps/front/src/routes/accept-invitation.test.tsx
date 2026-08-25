@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 type InvitationLoaderData =
 	| { view: 'invalid' }
@@ -121,7 +122,7 @@ vi.mock('~/lib/hooks/use-logout', () => ({
 	}),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'invited-email': 'Invited email',
 	profile: 'Profile',
 	'common-loading': 'Loading...',

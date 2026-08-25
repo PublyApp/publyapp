@@ -3,6 +3,7 @@ import {
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
+	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 export const KNOWN_INVITATION_STATUSES = [
@@ -138,9 +139,13 @@ export const parseInvitationListSearchParams = (
 	return { ...base, status: status || undefined };
 };
 
+export type InvitationListWireParams = {
+	status?: string;
+} & TableSearchWireParams;
+
 export const serializeInvitationListSearchParams = (
 	params: InvitationListSearchParams,
-): Record<string, string | undefined> => {
+): InvitationListWireParams => {
 	const next = serializeTableSearchParams(params);
 	const status = serializeInvitationStatusFilter(
 		parseInvitationStatusFilter(params.status),
@@ -159,13 +164,13 @@ export const formatInvitationStatusLabel = (
 	return `${status.slice(0, 1).toUpperCase()}${status.slice(1)}`;
 };
 
-const INVITATION_STATUS_LABEL_KEYS: Record<InvitationDisplayStatus, string> = {
+const INVITATION_STATUS_LABEL_KEYS = {
 	pending: 'staff-invitations:invitation-status-pending',
 	accepted: 'staff-invitations:invitation-status-accepted',
 	expired: 'staff-invitations:invitation-status-expired',
 	revoked: 'staff-invitations:invitation-status-revoked',
 	unknown: 'unknown',
-};
+} satisfies Record<InvitationDisplayStatus, string>;
 
 /** Translation key for an invitation status, for callers that render through
  * `t()` instead of the untranslated `formatInvitationStatusLabel`. */

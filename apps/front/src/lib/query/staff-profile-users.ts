@@ -88,13 +88,7 @@ export const toStaffProfileUserRows = (
 
 export const buildStaffProfileUsersRequestQuery = (
 	variables: Omit<StaffProfileUsersQueryVariables, 'profileId'>,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	page: string;
-	limit?: string;
-} => {
+) => {
 	return {
 		q: normalizeString(variables.q),
 		sortId: normalizeString(variables.sortId),

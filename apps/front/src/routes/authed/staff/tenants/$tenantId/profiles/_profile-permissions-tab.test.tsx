@@ -12,6 +12,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	assignMutateAsync: vi.fn().mockResolvedValue(undefined),
@@ -42,7 +43,7 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
 			const resourceKey = key.includes(':') ? key.split(':')[1] : key;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				permissions: 'Permissions',
 				'profile-permissions-subtitle':
 					'Toggle what this profile can do. Changes save when you hit Save.',

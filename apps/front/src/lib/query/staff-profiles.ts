@@ -151,7 +151,7 @@ const toProfileCardStyle = (
 	name: string,
 	icon?: string | null,
 	tone?: string | null,
-): { icon: string; iconTone: string } => {
+) => {
 	const style = deriveProfileCardStyle(name, icon, tone);
 	return { icon: style.icon, iconTone: style.tone };
 };

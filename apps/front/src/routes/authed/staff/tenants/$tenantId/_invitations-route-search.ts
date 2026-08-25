@@ -1,6 +1,7 @@
 import {
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
+	type InvitationListWireParams,
 	parseInvitationAccountLevelFilter,
 	parseInvitationListSearchParams,
 	serializeInvitationAccountLevelFilter,
@@ -17,6 +18,10 @@ export type InvitationRouteSearchParams = InvitationListSearchParams &
 	InviteUserSearchState & {
 		level?: string;
 	};
+
+export type InvitationRouteWireParams = InvitationListWireParams & {
+	level?: string;
+} & InviteUserSearchState;
 
 export type InvitationRouteSearchParamInput = InvitationListSearchParamInput &
 	InviteUserSearchStateInput & {
@@ -43,7 +48,7 @@ export const parseInvitationRouteSearchParams = (
 
 export const serializeInvitationRouteSearchParams = (
 	search: InvitationRouteSearchParams,
-): Record<string, string | 1 | undefined> => {
+): InvitationRouteWireParams => {
 	const level = serializeInvitationAccountLevelFilter(
 		parseInvitationAccountLevelFilter(search.level),
 	);

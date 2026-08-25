@@ -83,7 +83,7 @@ const keyOf = (args: string[]): string => {
  * diverge. An unrouted call throws — a test must never pass because the fake
  * silently answered something the real flow never asks.
  */
-const makeGhApi = (routes: Route[]): { ghApi: GhApiRunner; calls: Call[] } => {
+const makeGhApi = (routes: Route[]) => {
 	const calls: Call[] = [];
 
 	const ghApi: GhApiRunner = (args) => {

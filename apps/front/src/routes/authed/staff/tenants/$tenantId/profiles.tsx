@@ -13,7 +13,6 @@ import {
 	toStaffTenantDetails,
 } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import {
 	TenantDetailsError,
@@ -77,9 +76,7 @@ const StaffTenantProfilesPage = () => {
 	const applySearch = useCallback(
 		(next: StaffTenantProfilesSearchParams): void => {
 			void navigate({
-				search: serializeStaffTenantProfilesSearchParams(
-					next,
-				) as TableSearchParams,
+				search: serializeStaffTenantProfilesSearchParams(next),
 				replace: true,
 			});
 		},
@@ -89,9 +86,7 @@ const StaffTenantProfilesPage = () => {
 	const pushSearch = useCallback(
 		(next: StaffTenantProfilesSearchParams): void => {
 			void navigate({
-				search: serializeStaffTenantProfilesSearchParams(
-					next,
-				) as TableSearchParams,
+				search: serializeStaffTenantProfilesSearchParams(next),
 			});
 		},
 		[navigate],
