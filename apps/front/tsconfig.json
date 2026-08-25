@@ -19,6 +19,7 @@
 	"include": [
 		"**/*.ts",
 		"**/*.tsx",
+		"**/*.mts",
 		"server.mjs",
 		"scripts/**/*.mjs",
 		"../../packages/shared-ts/src/@types/**/*.d.ts"

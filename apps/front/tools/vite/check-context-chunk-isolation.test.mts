@@ -20,10 +20,10 @@ import {
 	findContextChunkIsolationViolations,
 	findContextInventoryViolations,
 	findReactContextDeclarations,
-} from './check-context-chunk-isolation.mjs';
-import { findEmittedCallExtents } from './context-source-map.mjs';
+} from './check-context-chunk-isolation.mts';
+import { findEmittedCallExtents } from './context-source-map.mts';
 
-const frontDirectory = path.resolve(import.meta.dirname, '..');
+const frontDirectory = path.resolve(import.meta.dirname, '..', '..');
 const execFileAsync = promisify(execFile);
 
 // Hand-fed rendered fixtures express attribution through real source-map
@@ -241,12 +241,12 @@ const buildRouteFixture = async ({
 			import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 			import viteReact from '@vitejs/plugin-react';
 			import { contextChunkIsolationPlugin } from ${JSON.stringify(
-				path.join(frontDirectory, 'scripts/check-context-chunk-isolation.mjs'),
+				path.join(frontDirectory, 'tools/vite/check-context-chunk-isolation.mts'),
 			)};
 			${
 				forgeSplitMapInCall
 					? `import { findEmittedCallExtents } from ${JSON.stringify(
-							path.join(frontDirectory, 'scripts/context-source-map.mjs'),
+							path.join(frontDirectory, 'tools/vite/context-source-map.mts'),
 						)};`
 					: ''
 			}
@@ -3418,7 +3418,7 @@ void test('bounds the malformed VLQ decode in a child process instead of letting
 	// a suite-wide hang that only an external `timeout` wrapper can end.
 	const moduleFile = path.join(
 		frontDirectory,
-		'scripts/context-source-map.mjs',
+		'tools/vite/context-source-map.mts',
 	);
 	const probeScript = `
 			import(${JSON.stringify(pathToFileURL(moduleFile).href)}).then((mod) => {
@@ -4025,17 +4025,18 @@ void test('deletes only the forced map the guard owns, never an exact-name unrel
 	const unrelated = run('{"version":3,"sources":[],"mappings":"AAAA"}');
 });
 
-void test('type-checks the hand-written declaration file against the current runtime API', async () => {
-	// The .d.mts is hand-maintained and can drift from the runtime API; the
-	// probe below uses the current API (mintSpans, chunk maps, the output
-	// directory parameter) and pins the removed position-key mechanism's
-	// absence, then the real TypeScript compiler must accept it.
+void test('type-checks the guard\u2019s source-declared public API against a real consumer probe', async () => {
+	// Types live in the .mts sources themselves since the scripts/ -> tools/
+	// move retired the hand-written .d.mts files; the probe below uses the
+	// current API (mintSpans, chunk maps, the output directory parameter)
+	// and pins the removed position-key mechanism's absence, then the real
+	// TypeScript compiler must accept it.
 	const probeDirectory = await mkdtemp(
 		path.join(frontDirectory, '.r20-type-probe-'),
 	);
 	const scriptPath = path.join(
 		frontDirectory,
-		'scripts/check-context-chunk-isolation.mjs',
+		'tools/vite/check-context-chunk-isolation.mts',
 	);
 	try {
 		await writeFile(
@@ -4065,6 +4066,7 @@ void test('type-checks the hand-written declaration file against the current run
 			};
 
 			const chunk: ClientChunk = {
+				type: 'chunk',
 				fileName: 'assets/route.js',
 				modules: { 'src/probe.tsx': { code: 'x' } },
 				map: {
@@ -4078,6 +4080,7 @@ void test('type-checks the hand-written declaration file against the current run
 			// runtime treats a null map like an absent one (fail-closed past a
 			// single copy); the declaration must accept it too.
 			const nullMapChunk: ClientChunk = {
+				type: 'chunk',
 				fileName: 'assets/route-null-map.js',
 				modules: { 'src/other.tsx': { code: 'x' } },
 				map: null,
@@ -4135,6 +4138,9 @@ void test('type-checks the hand-written declaration file against the current run
 				'--ignoreConfig',
 				'--noEmit',
 				'--skipLibCheck',
+				'--allowImportingTsExtensions',
+				'--types',
+				'node',
 				'--target',
 				'ES2022',
 				'--module',

@@ -16,7 +16,7 @@
 		"test:request-counter": "node --test deploy/request-counter/control-routes.test.mjs",
 		"test:route-tree-guard": "node --test scripts/check-route-tree-freshness.test.mjs scripts/route-tree-generator.test.mjs && pnpm check:route-tree",
 		"test:search-cancel-css": "node --test scripts/search-cancel-css-policy.test.mjs && node scripts/check-search-cancel-css.mjs",
-		"test:context-chunk-isolation": "node --test scripts/check-context-chunk-isolation.test.mjs",
+		"test:context-chunk-isolation": "node --test tools/vite/check-context-chunk-isolation.test.mts",
 		"test:font-bundle": "node --test scripts/verify-font-bundle.test.mjs",
 		"check:design-system": "node scripts/check-design-system.mjs",
 		"check:zindex": "node scripts/check-zindex-guard.mjs",

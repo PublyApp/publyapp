@@ -1,6 +1,8 @@
 import path from 'node:path';
+import process from 'node:process';
 
 import { SyntaxKind } from 'typescript/unstable/ast';
+import type { Node, SourceFile } from 'typescript/unstable/ast';
 import {
 	isArrayLiteralExpression,
 	isAsExpression,
@@ -31,6 +33,7 @@ import {
 	isVariableDeclaration,
 } from 'typescript/unstable/ast/is';
 import { API, SymbolFlags } from 'typescript/unstable/sync';
+import type { Checker, Symbol as TsSymbol, Type } from 'typescript/unstable/sync';
 
 import {
 	classifyCopyAttribution,
@@ -38,7 +41,113 @@ import {
 	findEmittedCallExtents,
 	resolveRenderedMapSource,
 	spanKeyOf,
-} from './context-source-map.mjs';
+} from './context-source-map.mts';
+import type {
+	CopyAttribution,
+	SourceSpan,
+	RawSourceMapShape,
+} from './context-source-map.mts';
+
+// The retired hand-written .d.mts exported this shape; types now live in
+// source and are re-exported here so consumers keep a single import surface.
+export type { SourceSpan };
+
+/**
+ * One discovered React context creation site in the scanned program.
+ *
+ * `mintSpans` is present on every entry `findReactContextDeclarations`
+ * returns; it stays optional in the type because the violation checker and
+ * the inventory comparison accept hand-fed declarations whose spans were
+ * trimmed (the original JS read them through `?? []`).
+ */
+export interface ContextDeclaration {
+	name: string;
+	sourceFile: string;
+	mintSpans?: SourceSpan[] | undefined;
+}
+
+/** One entry of a hand-maintained context inventory the build must match. */
+export interface ContextInventoryEntry {
+	name: string;
+	sourceFile: string;
+}
+
+/** A chunk-shaped output entry the guard inspects in `generateBundle`. */
+export interface ClientChunk {
+	type: 'chunk';
+	fileName: string;
+	name?: string | undefined;
+	modules: Record<string, unknown>;
+	code?: string | undefined;
+	map?: RawSourceMapShape | null | undefined;
+}
+
+/** An asset-shaped output entry the guard may delete when it owns it. */
+export interface OutputAsset {
+	type: 'asset';
+	source: unknown;
+}
+
+export type BundleOutputEntry = ClientChunk | OutputAsset;
+
+interface ResolvedSegment {
+	genCol: number;
+	genLine: number;
+	origCol: number;
+	origLine: number;
+	source: string;
+}
+
+type ChunkAnalysis =
+	| { hasMap: false }
+	| {
+			hasMap: true;
+			segments: ResolvedSegment[];
+			emittedCallExtents: ReturnType<typeof findEmittedCallExtents> | undefined;
+	  };
+
+interface ModuleChunkLink {
+	chunk: ClientChunk;
+	chunkName: string;
+	moduleId: string;
+}
+
+interface ModuleCopyFacts {
+	chunkName: string;
+	hasMap: boolean;
+	precise: boolean;
+	tiedSpanKeys: Set<string>;
+}
+
+interface FamilyCopyVerdict {
+	attributable: boolean;
+	chunkName: string;
+	hasMap: boolean;
+	minted: boolean;
+}
+
+interface ViteBuildConfigShape {
+	sourcemap?: boolean | 'hidden' | 'inline' | undefined;
+	rolldownOptions?:
+		| {
+				output?:
+					| {
+							sourcemapFileNames?: string | ((chunk: unknown) => string) | undefined;
+					  }
+					| undefined;
+		  }
+		| undefined;
+}
+
+interface ViteConfigShape {
+	build?: ViteBuildConfigShape | undefined;
+	environments?:
+		| Record<
+				string,
+				{ build?: ViteBuildConfigShape | undefined } | undefined
+		  >
+		| undefined;
+}
 
 const REACT_TYPE_DECLARATION = /[/\\]@types[/\\]react[/\\]index\.d\.ts$/;
 // Curated from TanStack's source-derived sibling transforms. Add new families
@@ -47,20 +156,29 @@ const TANSTACK_SOURCE_SIBLING_VIRTUAL_MODULE =
 	/[?&](?:tsr-(?:shared|split)|tss-hydrate)=/;
 const SOURCE_MODULE_EXTENSION = /\.[cm]?[jt]sx?$/;
 
-const normalizeModuleId = (moduleId) =>
+const normalizeModuleId = (moduleId: string): string =>
 	path.normalize(moduleId).replaceAll('\\', '/');
 
-const sourceFileForModuleId = (moduleId) =>
-	normalizeModuleId(moduleId.split('?')[0]);
+const sourceFileForModuleId = (moduleId: string): string =>
+	normalizeModuleId(moduleId.split('?')[0] ?? '');
 
-const symbolForExpression = (checker, expression) =>
+const symbolForExpression = (
+	checker: Checker,
+	expression: Node,
+): TsSymbol | undefined =>
 	isElementAccessExpression(expression)
 		? checker.getSymbolAtLocation(expression.argumentExpression)
 		: checker.getSymbolAtLocation(expression);
 
-const symbolForBindingElement = (checker, bindingElement) => {
-	const bindingPattern = bindingElement.parent;
-	const declaration = bindingPattern?.parent;
+const symbolForBindingElement = (
+	checker: Checker,
+	bindingElement: Node,
+): TsSymbol | undefined => {
+	if (!isBindingElement(bindingElement)) {
+		return undefined;
+	}
+	const bindingPattern: Node = bindingElement.parent;
+	const declaration: Node = bindingPattern.parent;
 	if (
 		!isObjectBindingPattern(bindingPattern) ||
 		!isVariableDeclaration(declaration) ||
@@ -70,7 +188,9 @@ const symbolForBindingElement = (checker, bindingElement) => {
 		return undefined;
 	}
 
-	const type = checker.getTypeAtLocation(declaration.initializer);
+	const type: Type | undefined = checker.getTypeAtLocation(
+		declaration.initializer,
+	);
 	return type
 		? checker.getPropertyOfType(
 				type,
@@ -79,13 +199,17 @@ const symbolForBindingElement = (checker, bindingElement) => {
 		: undefined;
 };
 
-const isContextFactoryAdapterCall = (expression) =>
+const isContextFactoryAdapterCall = (expression: Node): boolean =>
 	isCallExpression(expression) &&
 	isPropertyAccessExpression(expression.expression) &&
 	['apply', 'bind', 'call'].includes(expression.expression.name.getText());
 
-const isReactNamespace = (checker, expression, reactCreateContext) => {
-	const type = checker.getTypeAtLocation(expression);
+const isReactNamespace = (
+	checker: Checker,
+	expression: Node,
+	reactCreateContext: TsSymbol,
+): boolean => {
+	const type: Type | undefined = checker.getTypeAtLocation(expression);
 	return type
 		? checker
 				.getPropertiesOfType(type)
@@ -94,11 +218,11 @@ const isReactNamespace = (checker, expression, reactCreateContext) => {
 };
 
 const assertStaticReactElementAccess = (
-	checker,
-	expression,
-	reactCreateContext,
-	sourceFileName,
-) => {
+	checker: Checker,
+	expression: Node,
+	reactCreateContext: TsSymbol,
+	sourceFileName: string,
+): void => {
 	if (
 		isElementAccessExpression(expression) &&
 		!isStringLiteral(expression.argumentExpression) &&
@@ -115,11 +239,18 @@ const assertStaticReactElementAccess = (
 	}
 };
 
-const findReactContextSymbols = (program, checker, tsconfigPath) => {
+const findReactContextSymbols = (
+	program: {
+		getSourceFileNames(): readonly string[];
+		getSourceFile(file: string): SourceFile | undefined;
+	},
+	checker: Checker,
+	tsconfigPath: string,
+): { contextType: TsSymbol; createContext: TsSymbol; reactModule: TsSymbol | undefined } => {
 	const reactDeclaration = program
 		.getSourceFileNames()
 		.map((fileName) => program.getSourceFile(fileName))
-		.find((sourceFile) => REACT_TYPE_DECLARATION.test(sourceFile.fileName));
+		.find((sourceFile) => REACT_TYPE_DECLARATION.test(sourceFile?.fileName ?? ''));
 
 	if (!reactDeclaration) {
 		throw new Error(
@@ -162,26 +293,24 @@ const findReactContextSymbols = (program, checker, tsconfigPath) => {
 // heritage chain reaches Context<T> — is a context regardless of how many
 // indirection hops separated it from createContext.
 const typeContainsReactContext = (
-	checker,
-	type,
-	reactContextType,
-	seenSymbolIds = new Set(),
-) => {
+	checker: Checker,
+	type: Type | undefined,
+	reactContextType: TsSymbol,
+	seenSymbolIds: Set<number> = new Set(),
+): boolean => {
 	if (!type) {
 		return false;
 	}
 
 	if (type.isUnionType() || type.isIntersectionType()) {
-		return type
-			.getTypes()
-			.some((member) =>
-				typeContainsReactContext(
-					checker,
-					member,
-					reactContextType,
-					seenSymbolIds,
-				),
-			);
+		return (type.getTypes() ?? []).some((member) =>
+			typeContainsReactContext(
+				checker,
+				member,
+				reactContextType,
+				seenSymbolIds,
+			),
+		);
 	}
 
 	return symbolContainsReactContext(
@@ -207,11 +336,11 @@ const typeContainsReactContext = (
 // could never have detected a real context anyway; the resolved heritage
 // walk below is the mechanism.
 const symbolContainsReactContext = (
-	checker,
-	symbol,
-	reactContextType,
-	seenSymbolIds,
-) => {
+	checker: Checker,
+	symbol: TsSymbol | undefined,
+	reactContextType: TsSymbol,
+	seenSymbolIds: Set<number>,
+): boolean => {
 	if (!symbol || seenSymbolIds.has(symbol.id)) {
 		return false;
 	}
@@ -279,11 +408,11 @@ const symbolContainsReactContext = (
 };
 
 const resolvesToReactCreateContext = (
-	checker,
-	symbol,
-	reactCreateContext,
-	seenSymbolIds = new Set(),
-) => {
+	checker: Checker,
+	symbol: TsSymbol | undefined,
+	reactCreateContext: TsSymbol,
+	seenSymbolIds: Set<number> = new Set(),
+): boolean => {
 	if (!symbol || seenSymbolIds.has(symbol.id)) {
 		return false;
 	}
@@ -300,7 +429,8 @@ const resolvesToReactCreateContext = (
 		}
 	}
 
-	const declaration = symbol.valueDeclaration?.resolve();
+	const declarationHandle = symbol.valueDeclaration;
+	const declaration = declarationHandle?.resolve();
 	if (!declaration) {
 		return false;
 	}
@@ -333,7 +463,6 @@ const resolvesToReactCreateContext = (
 	}
 
 	if (
-		!declaration ||
 		!isVariableDeclaration(declaration) ||
 		!declaration.initializer
 	) {
@@ -341,9 +470,12 @@ const resolvesToReactCreateContext = (
 	}
 
 	const initializer = declaration.initializer;
-	const factoryExpression = isContextFactoryAdapterCall(initializer)
-		? initializer.expression.expression
-		: initializer;
+	const factoryExpression: Node =
+		isCallExpression(initializer) &&
+		isContextFactoryAdapterCall(initializer) &&
+		isPropertyAccessExpression(initializer.expression)
+			? initializer.expression.expression
+			: initializer;
 
 	return resolvesToReactCreateContext(
 		checker,
@@ -354,11 +486,11 @@ const resolvesToReactCreateContext = (
 };
 
 const dynamicObjectMayContainReactContextFactory = (
-	checker,
-	expression,
-	reactCreateContext,
-	seenSymbolIds = new Set(),
-) => {
+	checker: Checker,
+	expression: Node,
+	reactCreateContext: TsSymbol,
+	seenSymbolIds: Set<number> = new Set(),
+): boolean => {
 	const symbol = checker.getSymbolAtLocation(expression);
 	if (!symbol || seenSymbolIds.has(symbol.id)) {
 		return false;
@@ -369,7 +501,8 @@ const dynamicObjectMayContainReactContextFactory = (
 		symbol.flags & SymbolFlags.Alias
 			? checker.getAliasedSymbol(symbol)
 			: symbol;
-	const declaration = resolvedSymbol.valueDeclaration?.resolve();
+	const declarationHandle = resolvedSymbol.valueDeclaration;
+	const declaration = declarationHandle?.resolve();
 	if (
 		!declaration ||
 		!isVariableDeclaration(declaration) ||
@@ -378,7 +511,7 @@ const dynamicObjectMayContainReactContextFactory = (
 		return false;
 	}
 
-	const initializer = declaration.initializer;
+	const initializer: Node = declaration.initializer;
 	if (!isObjectLiteralExpression(initializer)) {
 		return dynamicObjectMayContainReactContextFactory(
 			checker,
@@ -415,8 +548,8 @@ const dynamicObjectMayContainReactContextFactory = (
 	return false;
 };
 
-const contextNameForCall = (callExpression) => {
-	const declaration = callExpression.parent;
+const contextNameForCall = (callExpression: Node): string => {
+	const declaration: Node = callExpression.parent;
 	if (
 		isVariableDeclaration(declaration) &&
 		declaration.initializer === callExpression
@@ -436,7 +569,10 @@ const contextNameForCall = (callExpression) => {
 // entry, and a destructure whose initializer is itself an object or array
 // literal is the holder-position mint (`<anonymous context>`) discovered
 // separately, not a distinct binding.
-const declarationBinding = (checker, node) => {
+const declarationBinding = (
+	checker: Checker,
+	node: Node,
+): { symbol: TsSymbol; name: string; initializer: Node | undefined } | undefined => {
 	if (isVariableDeclaration(node) || isPropertyDeclaration(node)) {
 		if (!isIdentifier(node.name)) {
 			return undefined;
@@ -449,15 +585,15 @@ const declarationBinding = (checker, node) => {
 	}
 
 	if (isBindingElement(node)) {
-		let bindingPattern = node.parent;
-		let declaration = bindingPattern?.parent;
+		let bindingPattern: Node = node.parent;
+		let declaration: Node = bindingPattern.parent;
 		// Nested patterns: `const { inner: { Ctx: NestedCtx } } = make()`
 		// wraps the binding element in further patterns and binding elements
 		// before the variable declaration. Walk up so the mint is attributed
 		// to the declaration whose initializer calls the factory.
 		while (isBindingElement(declaration)) {
 			bindingPattern = declaration.parent;
-			declaration = bindingPattern?.parent;
+			declaration = bindingPattern.parent;
 		}
 
 		if (
@@ -493,10 +629,10 @@ const declarationBinding = (checker, node) => {
 // context and must not invent an `<anonymous context>` inventory entry. A
 // spread element is itself the holder of its argument's value
 // (`{ ...makeContexts(null) }` spreads a context record into the object).
-const holderPositionOfCall = (node) => {
-	let current = node;
+const holderPositionOfCall = (node: Node): Node => {
+	let current: Node = node;
 	for (;;) {
-		const parent = current.parent;
+		const parent: Node = current.parent;
 		if (
 			isParenthesizedExpression(parent) ||
 			isAsExpression(parent) ||
@@ -549,7 +685,7 @@ const holderPositionOfCall = (node) => {
 // the `makeContexts()` call because the minted value flows through the access.
 // Used to attribute a binding mint (`const Ctx = makeContexts().probe`) to
 // the exact call positions that execute it.
-const valueCallsOf = (expression) => {
+const valueCallsOf = (expression: Node): Node[] => {
 	if (isCallExpression(expression)) {
 		return [expression];
 	}
@@ -597,7 +733,12 @@ const valueCallsOf = (expression) => {
 	return [];
 };
 
-const isContextRecordType = (checker, type, reactContextType, seenTypeIds) => {
+const isContextRecordType = (
+	checker: Checker,
+	type: Type,
+	reactContextType: TsSymbol,
+	seenTypeIds: Set<number>,
+): boolean => {
 	if (
 		type.isErrorType() ||
 		type.isTypeParameter() ||
@@ -608,15 +749,13 @@ const isContextRecordType = (checker, type, reactContextType, seenTypeIds) => {
 
 	seenTypeIds.add(type.id);
 	if (type.isUnionType() || type.isIntersectionType()) {
-		return type
-			.getTypes()
-			.some((member) =>
-				isContextRecordType(checker, member, reactContextType, seenTypeIds),
-			);
+		return (type.getTypes() ?? []).some((member) =>
+			isContextRecordType(checker, member, reactContextType, seenTypeIds),
+		);
 	}
 
 	if (checker.isArrayType(type) || type.isTupleType()) {
-		const elementType = checker.getIndexInfosOfType(type)[0]?.type;
+		const elementType = checker.getIndexInfosOfType(type)[0]?.valueType;
 		return (
 			elementType !== undefined &&
 			isContextRecordType(checker, elementType, reactContextType, seenTypeIds)
@@ -631,7 +770,8 @@ const isContextRecordType = (checker, type, reactContextType, seenTypeIds) => {
 	// by the per-type id set; function-typed property values resolve through
 	// Function's own members, which never contain a context.
 	for (const property of checker.getPropertiesOfType(type)) {
-		const propertyDeclaration = property.valueDeclaration?.resolve();
+		const declarationHandle = property.valueDeclaration;
+		const propertyDeclaration = declarationHandle?.resolve();
 		if (!propertyDeclaration) {
 			continue;
 		}
@@ -657,18 +797,24 @@ const isContextRecordType = (checker, type, reactContextType, seenTypeIds) => {
 // or spread). Identity for the rendered analysis is the call's exact source
 // span — never a name.
 const callMintsContext = (
-	checker,
-	callExpression,
-	reactContextType,
-	reactCreateContext,
-) => {
+	checker: Checker,
+	callExpression: Node,
+	reactContextType: TsSymbol,
+	reactCreateContext: TsSymbol,
+): boolean => {
 	const callType = checker.getTypeAtLocation(callExpression);
 	return (
 		typeContainsReactContext(checker, callType, reactContextType) ||
-		isContextRecordType(checker, callType, reactContextType, new Set()) ||
+		(callType !== undefined &&
+			isContextRecordType(checker, callType, reactContextType, new Set())) ||
 		resolvesToReactCreateContext(
 			checker,
-			symbolForExpression(checker, callExpression.expression),
+			symbolForExpression(
+				checker,
+				isCallExpression(callExpression)
+					? callExpression.expression
+					: callExpression,
+			),
 			reactCreateContext,
 		)
 	);
@@ -678,7 +824,7 @@ const callMintsContext = (
 // 0-based line and UTF-16 column coordinates. The rendered copy of the call
 // is recognized when the bundler's own source map maps an emitted position
 // back inside this span.
-const spanOf = (sourceFile, node) => {
+const spanOf = (sourceFile: SourceFile, node: Node): SourceSpan => {
 	const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
 	const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
 	return {
@@ -698,10 +844,13 @@ const spanOf = (sourceFile, node) => {
 // `(0, factory)()` with an empty outer argument list) is descended into its
 // innermost minting call, whose argument list is where the bundler's map
 // places the mint's emitted tokens.
-const innermostMintCall = (node) => {
-	let mint = node;
+const innermostMintCall = (node: Node): Node => {
+	let mint: Node = node;
 	for (let guard = 0; guard < 20; guard++) {
-		let form = mint.expression;
+		if (!isCallExpression(mint)) {
+			break;
+		}
+		let form: Node = mint.expression;
 		while (
 			isParenthesizedExpression(form) ||
 			isAsExpression(form) ||
@@ -727,8 +876,11 @@ const innermostMintCall = (node) => {
 	return mint;
 };
 
-const mintCallSpan = (sourceFile, node) => {
+const mintCallSpan = (sourceFile: SourceFile, node: Node): SourceSpan => {
 	const mint = innermostMintCall(node);
+	if (!isCallExpression(mint)) {
+		return spanOf(sourceFile, node);
+	}
 	const openParen = sourceFile.text.indexOf('(', mint.expression.end);
 	const start = sourceFile.getLineAndCharacterOfPosition(openParen);
 	const end = sourceFile.getLineAndCharacterOfPosition(mint.getEnd());
@@ -740,11 +892,11 @@ const mintCallSpan = (sourceFile, node) => {
 	};
 };
 
-const spanKey = (span) =>
+const spanKey = (span: SourceSpan): string =>
 	`${span.startLine}:${span.startCol}:${span.endLine}:${span.endCol}`;
 
-const uniqueSpans = (spans) => {
-	const seen = new Set();
+const uniqueSpans = (spans: readonly SourceSpan[]): SourceSpan[] => {
+	const seen = new Set<string>();
 	return spans.filter((span) => {
 		const key = spanKey(span);
 		if (seen.has(key)) {
@@ -759,9 +911,9 @@ const uniqueSpans = (spans) => {
 // position whose initializer contains a call is a mint candidate; a binding
 // that merely aliases an existing context (const Ctx = RealContext, for-of,
 // destructure, static field alias) never mints and produces no entry.
-const expressionContainsCall = (expression) => {
+const expressionContainsCall = (expression: Node): boolean => {
 	let containsCall = false;
-	const visit = (node) => {
+	const visit = (node: Node): void => {
 		if (containsCall) {
 			return;
 		}
@@ -779,9 +931,9 @@ const expressionContainsCall = (expression) => {
 };
 
 export const findReactContextDeclarations = (
-	tsconfigPath,
-	onProgramSourceFiles = () => {},
-) => {
+	tsconfigPath: string,
+	onProgramSourceFiles: (sourceFiles: Set<string>) => void = () => {},
+): ContextDeclaration[] => {
 	const api = new API();
 
 	try {
@@ -802,14 +954,14 @@ export const findReactContextDeclarations = (
 					.map((sourceFileName) => normalizeModuleId(sourceFileName)),
 			),
 		);
-		const contexts = [];
+		const contexts: ContextDeclaration[] = [];
 		// Declarations whose binding already produced an inventory entry.
 		// A minting call inside such a declaration's initializer (a named
 		// conditional like `const Ctx = cond ? createContext(null) :
 		// createContext(null)`) is represented by the entry's recorded mint
 		// spans, so the direct-call fallback must not invent an anonymous
 		// entry per branch for it.
-		const trackedDeclarations = new Set();
+		const trackedDeclarations = new Set<Node>();
 
 		for (const sourceFileName of project.program.getSourceFileNames()) {
 			if (
@@ -820,7 +972,10 @@ export const findReactContextDeclarations = (
 			}
 
 			const sourceFile = project.program.getSourceFile(sourceFileName);
-			const visit = (node) => {
+			if (!sourceFile) {
+				continue;
+			}
+			const visit = (node: Node): void => {
 				assertStaticReactElementAccess(
 					project.checker,
 					node,
@@ -940,12 +1095,12 @@ export const findReactContextDeclarations = (
 };
 
 export const findContextChunkIsolationViolations = (
-	contexts,
-	chunks,
-	projectDirectory = process.cwd(),
-	outputDirectory = projectDirectory,
-) => {
-	const chunksForSource = new Map();
+	contexts: readonly ContextDeclaration[],
+	chunks: readonly ClientChunk[],
+	projectDirectory: string = process.cwd(),
+	outputDirectory: string = projectDirectory,
+): string[] => {
+	const chunksForSource = new Map<string, ModuleChunkLink[]>();
 
 	for (const chunk of chunks) {
 		for (const moduleId of Object.keys(chunk.modules)) {
@@ -967,7 +1122,7 @@ export const findContextChunkIsolationViolations = (
 	// not a structurally valid version-3 map (wrong version, malformed VLQ,
 	// out-of-range source ids) is input the guard cannot interpret, so it
 	// fails loud with a named diagnostic rather than guessing.
-	const chunkAnalyses = new Map();
+	const chunkAnalyses = new Map<ClientChunk, ChunkAnalysis>();
 	for (const chunk of chunks) {
 		const map = chunk.map;
 		if (map === undefined || map === null) {
@@ -989,7 +1144,7 @@ export const findContextChunkIsolationViolations = (
 			outputDirectory,
 			path.dirname(chunk.fileName),
 		);
-		const segments = [];
+		const segments: ResolvedSegment[] = [];
 		for (const segment of decodeSourceMapSegments(map, chunk.fileName)) {
 			// A one-field VLQ segment is generated-only: it has no original
 			// source and never contributes a position.
@@ -1037,23 +1192,23 @@ export const findContextChunkIsolationViolations = (
 	// non-minting for the context being checked, while a copy that ties to no
 	// span at all is unverifiable (fail closed) rather than silently
 	// non-minting.
-	const contextsByModule = new Map();
+	const contextsByModule = new Map<string, ContextDeclaration[]>();
 	for (const context of contexts) {
 		const moduleContexts = contextsByModule.get(context.sourceFile) ?? [];
 		moduleContexts.push(context);
 		contextsByModule.set(context.sourceFile, moduleContexts);
 	}
 
-	const violations = [];
+	const violations: string[] = [];
 	for (const [sourceFile, moduleContexts] of contextsByModule) {
 		const sourcePath = path.relative(projectDirectory, sourceFile);
-		const allMintSpans = moduleContexts.flatMap(
+		const allMintSpans: SourceSpan[] = moduleContexts.flatMap(
 			(context) => context.mintSpans ?? [],
 		);
 
 		// Per delivered module copy, the facts shared by every context of the
 		// module: the map's precision, and the mint spans the copy ties to.
-		const moduleCopies = [];
+		const moduleCopies: ModuleCopyFacts[] = [];
 		for (const [moduleId, moduleChunks] of chunksForSource) {
 			const isSourceModule = moduleId === sourceFile;
 			const isSourceQueryModule = moduleId.startsWith(`${sourceFile}?`);
@@ -1077,15 +1232,17 @@ export const findContextChunkIsolationViolations = (
 						`Context chunk isolation guard did not analyze a chunk delivering a context source module: ${moduleChunk.chunk.fileName}.`,
 					);
 				}
-				const copySegments = chunkAnalysis.hasMap
+				const copySegments: ResolvedSegment[] = chunkAnalysis.hasMap
 					? chunkAnalysis.segments.filter(
 							(segment) => segment.source === moduleChunk.moduleId,
 						)
 					: [];
-				const { precise, tiedSpanKeys } = classifyCopyAttribution(
+				const { precise, tiedSpanKeys }: CopyAttribution = classifyCopyAttribution(
 					copySegments,
 					allMintSpans,
-					chunkAnalysis.emittedCallExtents,
+					chunkAnalysis.hasMap
+						? chunkAnalysis.emittedCallExtents
+						: undefined,
 				);
 				moduleCopies.push({
 					chunkName: moduleChunk.chunkName,
@@ -1107,7 +1264,7 @@ export const findContextChunkIsolationViolations = (
 
 		for (const context of moduleContexts) {
 			const contextSpanKeys = new Set((context.mintSpans ?? []).map(spanKeyOf));
-			const familyCopies = moduleCopies.map((copy) => {
+			const familyCopies: FamilyCopyVerdict[] = moduleCopies.map((copy) => {
 				const minted =
 					copy.precise &&
 					[...copy.tiedSpanKeys].some((key) => contextSpanKeys.has(key));
@@ -1170,10 +1327,10 @@ export const findContextChunkIsolationViolations = (
 };
 
 export const findContextInventoryViolations = (
-	contexts,
-	contextInventory,
-	projectDirectory,
-) => {
+	contexts: readonly ContextDeclaration[],
+	contextInventory: readonly ContextInventoryEntry[],
+	projectDirectory: string,
+): string[] => {
 	// F824 (ui F6): the two sides are compared as MULTISETS, not sets. The
 	// previous `${name} in ${file}` Set comparison collapsed every distinct
 	// minting site a module hosts under one identity (two anonymous holder
@@ -1181,19 +1338,19 @@ export const findContextInventoryViolations = (
 	// a single entry: one inventory entry silently certified both sites, and
 	// kept certifying one after the other was deleted — per-file coverage
 	// despite this guard claiming per-`createContext` verdicts.
-	const discoveredCounts = new Map();
+	const discoveredCounts = new Map<string, number>();
 	for (const context of contexts) {
 		const key = `${context.name} in ${path.relative(projectDirectory, context.sourceFile)}`;
 		discoveredCounts.set(key, (discoveredCounts.get(key) ?? 0) + 1);
 	}
 
-	const expectedCounts = new Map();
+	const expectedCounts = new Map<string, number>();
 	for (const context of contextInventory) {
 		const key = `${context.name} in ${context.sourceFile}`;
 		expectedCounts.set(key, (expectedCounts.get(key) ?? 0) + 1);
 	}
 
-	const violations = [];
+	const violations: string[] = [];
 
 	for (const [expectedContext, expectedCount] of expectedCounts) {
 		if ((discoveredCounts.get(expectedContext) ?? 0) < expectedCount) {
@@ -1215,12 +1372,12 @@ export const findContextInventoryViolations = (
 };
 
 const findTypeScriptProgramCoverageViolations = (
-	programSourceFiles,
-	chunks,
-	workspaceDirectory,
-) => {
+	programSourceFiles: ReadonlySet<string>,
+	chunks: readonly ClientChunk[],
+	workspaceDirectory: string,
+): string[] => {
 	const workspaceDirectoryPrefix = `${normalizeModuleId(workspaceDirectory)}/`;
-	const missingSourceFiles = new Set();
+	const missingSourceFiles = new Set<string>();
 
 	for (const chunk of chunks) {
 		for (const moduleId of Object.keys(chunk.modules)) {
@@ -1244,19 +1401,29 @@ const findTypeScriptProgramCoverageViolations = (
 	);
 };
 
+/**
+ * Options accepted by {@link contextChunkIsolationPlugin}.
+ */
+export interface ContextChunkIsolationPluginOptions {
+	contextInventory: readonly ContextInventoryEntry[];
+	tsconfigPath: string;
+	workspaceDirectory?: string | undefined;
+}
+
 export const contextChunkIsolationPlugin = ({
 	contextInventory,
 	tsconfigPath,
 	workspaceDirectory = path.dirname(tsconfigPath),
-}) => {
-	let contexts = [];
-	let programSourceFiles = new Set();
+}: ContextChunkIsolationPluginOptions) => {
+	let contexts: ContextDeclaration[] = [];
+	let programSourceFiles: ReadonlySet<string> = new Set();
 	let forcedSourcemap = false;
 
 	return {
 		name: 'publy:context-chunk-isolation',
-		apply: 'build',
-		applyToEnvironment: (environment) => environment.name === 'client',
+		apply: 'build' as const,
+		applyToEnvironment: (environment: { name: string }): boolean =>
+			environment.name === 'client',
 		// Rendered attribution reads the bundler's own source map, so the
 		// client build must emit one. 'hidden' writes the map without the
 		// sourceMappingURL comment; when the user configured sourcemaps
@@ -1266,22 +1433,27 @@ export const contextChunkIsolationPlugin = ({
 		// map lands at — `chunk.name + '.map'` — and can later delete
 		// precisely the assets it caused, never an unrelated asset that
 		// merely shares a suffix or bytes.
-		config(config) {
+		config(config: ViteConfigShape): void {
 			const clientBuild = config.environments?.client?.build ?? config.build;
-			if (clientBuild?.sourcemap === undefined) {
-				clientBuild.sourcemap = 'hidden';
-				// Pin the map asset naming to `[name].map` (overriding any user
-				// pattern), so the guard knows the exact filename every forced
-				// map lands at — `chunk.name + '.map'` — and can delete
-				// precisely the assets it caused, never an unrelated asset
-				// that merely shares a suffix or bytes.
-				clientBuild.rolldownOptions ??= {};
-				clientBuild.rolldownOptions.output ??= {};
-				clientBuild.rolldownOptions.output.sourcemapFileNames = '[name].map';
-				forcedSourcemap = true;
+			if (clientBuild === undefined) {
+				throw new Error(
+					'Context chunk isolation guard requires a resolvable client build configuration to enforce the hidden source map.',
+				);
 			}
+			if (clientBuild.sourcemap === undefined) {
+				clientBuild.sourcemap = 'hidden';
+			}
+			// Pin the map asset naming to `[name].map` unconditionally, so the
+			// guard knows the exact filename every forced map lands at —
+			// `chunk.name + '.map'` — and can later delete precisely the
+			// assets it caused, never an unrelated asset that merely shares a
+			// suffix or bytes.
+			clientBuild.rolldownOptions ??= {};
+			clientBuild.rolldownOptions.output ??= {};
+			clientBuild.rolldownOptions.output.sourcemapFileNames = '[name].map';
+			forcedSourcemap = clientBuild.sourcemap === 'hidden';
 		},
-		buildStart() {
+		buildStart(): void {
 			contexts = findReactContextDeclarations(tsconfigPath, (sourceFiles) => {
 				programSourceFiles = sourceFiles;
 			});
@@ -1298,9 +1470,13 @@ export const contextChunkIsolationPlugin = ({
 				);
 			}
 		},
-		generateBundle(outputOptions, bundle) {
+		generateBundle(
+			this: { error(message: string): unknown },
+			outputOptions: { dir?: string | undefined },
+			bundle: Record<string, BundleOutputEntry>,
+		): void {
 			const chunks = Object.values(bundle).filter(
-				(output) => output.type === 'chunk',
+				(output): output is ClientChunk => output.type === 'chunk',
 			);
 			const projectDirectory = path.dirname(tsconfigPath);
 			const violations = [

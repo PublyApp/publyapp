@@ -12,15 +12,54 @@
 
 import path from 'node:path';
 
+/** A recorded minting-call extent in 0-based line / UTF-16 column coordinates. */
+export interface SourceSpan {
+	startCol: number;
+	startLine: number;
+	endCol: number;
+	endLine: number;
+}
+
+/** One decoded mapping segment of a chunk source map. */
+export type DecodedSegment =
+	| {
+			genCol: number;
+			genLine: number;
+			mapped: false;
+	  }
+	| {
+			genCol: number;
+			genLine: number;
+			mapped: true;
+			origCol: number;
+			origLine: number;
+			sourceIndex: number;
+	  };
+
+/** The subset of a chunk's source map the decoder relies on. */
+export interface RawSourceMapShape {
+	version: number;
+	mappings: string;
+	sources: string[];
+}
+
 const SOURCE_MAP_BASE64 =
 	'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+interface VlqDecodeState {
+	index: number;
+}
 
 // The decode is bounded: every character must be in the base64 alphabet, every
 // field must terminate (continuation bit cleared) before the input ends, and
 // no field may exceed the 31-bit value range of the standard encoding.
 // Malformed input throws a named guard error — it never hangs and never
 // silently mis-reads.
-export const readSourceMapVlq = (encoded, state, chunkFileName) => {
+export const readSourceMapVlq = (
+	encoded: string,
+	state: VlqDecodeState,
+	chunkFileName: string,
+): number => {
 	let value = 0;
 	let shift = 0;
 	for (;;) {
@@ -59,8 +98,11 @@ export const readSourceMapVlq = (encoded, state, chunkFileName) => {
 // never contributes an original position — the previous segment's origin is
 // not carried forward for it. Every mapped segment carries its generated line
 // and column as well, so consumers can tie it back to the emitted code.
-export const decodeSourceMapSegments = (map, chunkFileName) => {
-	const segments = [];
+export const decodeSourceMapSegments = (
+	map: RawSourceMapShape,
+	chunkFileName: string,
+): DecodedSegment[] => {
+	const segments: DecodedSegment[] = [];
 	let sourceIndex = 0;
 	let origLine = 0;
 	let origCol = 0;
@@ -72,8 +114,8 @@ export const decodeSourceMapSegments = (map, chunkFileName) => {
 				continue;
 			}
 
-			const fields = [];
-			const state = { index: 0 };
+			const fields: number[] = [];
+			const state: VlqDecodeState = { index: 0 };
 			while (state.index < rawSegment.length) {
 				fields.push(readSourceMapVlq(rawSegment, state, chunkFileName));
 			}
@@ -85,17 +127,17 @@ export const decodeSourceMapSegments = (map, chunkFileName) => {
 			}
 
 			if (fields.length === 1) {
-				genCol += fields[0];
+				genCol += fields[0] ?? 0;
 				segments.push({ genCol, genLine, mapped: false });
 				continue;
 			}
 
 			const [genColDelta, sourceIndexDelta, origLineDelta, origColDelta] =
 				fields;
-			genCol += genColDelta;
-			sourceIndex += sourceIndexDelta;
-			origLine += origLineDelta;
-			origCol += origColDelta;
+			genCol += genColDelta ?? 0;
+			sourceIndex += sourceIndexDelta ?? 0;
+			origLine += origLineDelta ?? 0;
+			origCol += origColDelta ?? 0;
 			if (sourceIndex < 0 || origLine < 0 || origCol < 0) {
 				throw new Error(
 					`Context chunk isolation guard could not decode the source map for chunk ${chunkFileName}: segment resolves to a negative original position.`,
@@ -119,7 +161,10 @@ export const decodeSourceMapSegments = (map, chunkFileName) => {
 // directory in the output tree) to the absolute module id used by
 // chunk.modules. Internal Rolldown virtual ids are prefixed with a NUL byte
 // and are not real modules; they yield no segment.
-export const resolveRenderedMapSource = (mapSource, chunkDirectory) => {
+export const resolveRenderedMapSource = (
+	mapSource: unknown,
+	chunkDirectory: string,
+): string | undefined => {
 	if (
 		typeof mapSource !== 'string' ||
 		mapSource === '' ||
@@ -144,7 +189,10 @@ export const resolveRenderedMapSource = (mapSource, chunkDirectory) => {
 // an emitted callee identifier (or a callee *reference* that maps into the
 // callee, for example a mere property access on the minted value) would
 // otherwise occupy an in-span position although no call was emitted.
-export const renderedSegmentMatchesCallEmission = (segment, span) => {
+export const renderedSegmentMatchesCallEmission = (
+	segment: { origCol: number; origLine: number },
+	span: SourceSpan,
+): boolean => {
 	if (segment.origLine < span.startLine || segment.origLine > span.endLine) {
 		return false;
 	}
@@ -156,6 +204,32 @@ export const renderedSegmentMatchesCallEmission = (segment, span) => {
 	}
 	return true;
 };
+
+/** One recognized emitted-call extent in generated-code coordinates. */
+export interface EmittedCallExtent {
+	startCol: number;
+	startLine: number;
+	endCol: number;
+	endLine: number;
+}
+
+interface TemplateState {
+	depth: number;
+}
+
+interface OpenParenState {
+	start: number;
+	isCall: boolean;
+}
+
+type PreviousToken = string | undefined;
+
+interface SourcePosition {
+	col: number;
+	line: number;
+}
+
+type CommentState = 'line' | 'block' | undefined;
 
 // The generated code of a client chunk is minified JavaScript, and the map's
 // generated positions refer to exactly that text. The chunks the guard
@@ -180,54 +254,59 @@ export const renderedSegmentMatchesCallEmission = (segment, span) => {
 // truncated construct (an unterminated string or template) simply terminates
 // the scan at that point, and a truncated extent list only ever makes a copy
 // *less* attributable — the fail-closed direction.
-export const findEmittedCallExtents = (code) => {
-	const lineStarts = [];
+export const findEmittedCallExtents = (
+	code: string,
+): EmittedCallExtent[] => {
+	const lineStarts: number[] = [];
 	lineStarts.push(0);
 	for (let index = 0; index < code.length; index++) {
 		if (code[index] === '\n') {
 			lineStarts.push(index + 1);
 		}
 	}
-	const positionOf = (pos) => {
+	const positionOf = (pos: number): SourcePosition => {
 		let low = 0;
 		let high = lineStarts.length - 1;
 		while (low < high) {
 			const mid = (low + high + 1) >> 1;
-			if (lineStarts[mid] <= pos) {
+			if ((lineStarts[mid] ?? 0) <= pos) {
 				low = mid;
 			} else {
 				high = mid - 1;
 			}
 		}
-		return { col: pos - lineStarts[low], line: low };
+		return {
+			col: pos - (lineStarts[low] ?? 0),
+			line: low,
+		};
 	};
 
-	const extents = [];
-	const parenStack = [];
+	const extents: EmittedCallExtent[] = [];
+	const parenStack: OpenParenState[] = [];
 	// Stack of open template literals; the top entry's `depth` is the nesting
 	// depth of the `${ … }` interpolations currently open in it. A depth of 0
 	// means the template's static text is being scanned (opaque); a depth
 	// above 0 means the code inside an interpolation is being scanned.
-	const templates = [];
+	const templates: TemplateState[] = [];
 	let regex = false;
-	let comment = undefined;
+	let comment: CommentState = undefined;
 	// The last significant token: a word (identifier or keyword) or a single
 	// symbol character. The scanner decides whether a `(` starts a call by
 	// this token, not by the final character — a `(` after a control-flow or
 	// grouping keyword (`if`, `for`, `function`, `return`, …) is a statement
 	// or grouped-expression paren, never a call, while a `(` after a value
 	// token (identifier, closing bracket, `?.`, …) is a call.
-	let previousToken = undefined;
+	let previousToken: PreviousToken = undefined;
 	// True while the scanner is between a `function` keyword and the `(` of its
 	// parameter list (across the function's name, if any); that `(` is a
 	// parameter list, never a call.
 	let functionNamePending = false;
 
-	const isIdentifierStart = (character) =>
+	const isIdentifierStart = (character: string | undefined): boolean =>
 		character !== undefined &&
 		(/[A-Za-z_$]/.test(character) || character.charCodeAt(0) > 127);
 
-	const isIdentifierPart = (character) =>
+	const isIdentifierPart = (character: string | undefined): boolean =>
 		character !== undefined &&
 		(/[A-Za-z0-9_$]/.test(character) || character.charCodeAt(0) > 127);
 
@@ -289,7 +368,7 @@ export const findEmittedCallExtents = (code) => {
 		'else',
 	]);
 
-	const isWordToken = (token) =>
+	const isWordToken = (token: PreviousToken): boolean =>
 		token !== undefined && /^[^\s()[\]{};:,.\-+*/%<>=!&|^~?]+$/.test(token);
 
 	const expressionEnds = new Set([
@@ -304,7 +383,7 @@ export const findEmittedCallExtents = (code) => {
 		'--',
 	]);
 
-	const endsExpression = (token) => {
+	const endsExpression = (token: PreviousToken): boolean => {
 		if (token === undefined) {
 			return false;
 		}
@@ -322,14 +401,14 @@ export const findEmittedCallExtents = (code) => {
 			return true;
 		}
 		// A number literal ends an expression.
-		return /[0-9]/.test(token[0]);
+		return /[0-9]/.test(token[0] ?? '');
 	};
 
-	const inTemplateText = () =>
-		templates.length > 0 && templates[templates.length - 1].depth === 0;
+	const inTemplateText = (): boolean =>
+		templates.length > 0 && (templates[templates.length - 1]?.depth ?? 1) === 0;
 
-	const inInterpolation = () =>
-		templates.length > 0 && templates[templates.length - 1].depth > 0;
+	const inInterpolation = (): boolean =>
+		templates.length > 0 && (templates[templates.length - 1]?.depth ?? 0) > 0;
 
 	for (let index = 0; index < code.length; index++) {
 		const character = code[index];
@@ -369,7 +448,10 @@ export const findEmittedCallExtents = (code) => {
 				templates.pop();
 				previousToken = '`';
 			} else if (character === '$' && next === '{') {
-				templates[templates.length - 1].depth = 1;
+				const openTemplate = templates[templates.length - 1];
+				if (openTemplate) {
+					openTemplate.depth = 1;
+				}
 				index++;
 			}
 			continue;
@@ -440,7 +522,7 @@ export const findEmittedCallExtents = (code) => {
 			let end = index + 1;
 			while (
 				end < code.length &&
-				/[0-9]/.test(code[end]) &&
+				/[0-9]/.test(code[end] ?? '') &&
 				code[end] !== '.'
 			) {
 				end++;
@@ -508,21 +590,23 @@ export const findEmittedCallExtents = (code) => {
 
 		if (inInterpolation()) {
 			const template = templates[templates.length - 1];
-			if (character === '{') {
-				template.depth++;
-				previousToken = '{';
-				continue;
-			}
-			if (character === '}') {
-				template.depth--;
-				if (template.depth === 0) {
-					previousToken = '}';
+			if (template) {
+				if (character === '{') {
+					template.depth++;
+					previousToken = '{';
+					continue;
 				}
-				continue;
+				if (character === '}') {
+					template.depth--;
+					if (template.depth === 0) {
+						previousToken = '}';
+					}
+					continue;
+				}
 			}
 		}
 
-		if (!/\s/.test(character)) {
+		if (!/\s/.test(character ?? '')) {
 			previousToken = character;
 			// A `function` keyword is only a parameter-list opener when the
 			// `(` follows directly (after the name); any other intermediate
@@ -539,7 +623,10 @@ export const findEmittedCallExtents = (code) => {
 // Whether a segment's generated position lies strictly inside the argument
 // list of an emitted call — the token range only a call's own execution
 // occupies.
-const segmentInsideEmittedCall = (segment, extents) => {
+const segmentInsideEmittedCall = (
+	segment: { genCol: number; genLine: number },
+	extents: readonly EmittedCallExtent[],
+): boolean => {
 	for (const extent of extents) {
 		if (
 			segment.genLine > extent.startLine ||
@@ -558,8 +645,14 @@ const segmentInsideEmittedCall = (segment, extents) => {
 
 // The span key identifies a mint span across the module's contexts, so the
 // guard can tell which context a copy's tied segment belongs to.
-export const spanKeyOf = (span) =>
+export const spanKeyOf = (span: SourceSpan): string =>
 	`${span.startLine}:${span.startCol}:${span.endLine}:${span.endCol}`;
+
+/** The facts the classifier returns about one delivered copy of a module. */
+export interface CopyAttribution {
+	precise: boolean;
+	tiedSpanKeys: Set<string>;
+}
 
 // Classifies one delivered copy of a context source module against the map
 // the chunk carries and the copy's own rendered code. `segments` are the
@@ -580,15 +673,20 @@ export const spanKeyOf = (span) =>
 // non-minting for the remaining ones, while a copy that ties to no span at all
 // is unverifiable (fail closed) rather than silently non-minting.
 export const classifyCopyAttribution = (
-	segments,
-	allMintSpans,
-	emittedCallExtents,
-) => {
+	segments: readonly {
+		origCol: number;
+		origLine: number;
+		genCol: number;
+		genLine: number;
+	}[],
+	allMintSpans: readonly SourceSpan[],
+	emittedCallExtents: readonly EmittedCallExtent[] | undefined,
+): CopyAttribution => {
 	const copyPositions = new Set(
 		segments.map((segment) => `${segment.origLine}:${segment.origCol}`),
 	);
 	const precise = copyPositions.size >= 2;
-	const tiedSpanKeys = new Set();
+	const tiedSpanKeys = new Set<string>();
 	for (const segment of segments) {
 		if (
 			emittedCallExtents !== undefined &&
