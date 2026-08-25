@@ -288,7 +288,7 @@ const collectPackageVerdict = (
 			advisories: pkg.vulnerabilities.map((v) => v.advisoryurl),
 		});
 	} else {
-		uninterpretable.push(`${pkg.id ?? '<unnamed package>'}`);
+		uninterpretable.push(pkg.id ?? '<unnamed package>');
 	}
 };
 
