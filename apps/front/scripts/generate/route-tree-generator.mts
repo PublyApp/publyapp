@@ -2,9 +2,9 @@
 // plugin does at dev/build time (virtualRouteConfig: ./src/routes.ts).
 //
 // CLI usage:
-//   node scripts/route-tree-generator.mjs            # regenerate routeTree.gen.ts
+//   node scripts/generate/route-tree-generator.mts   # regenerate routeTree.gen.ts
 //
-// Library usage (tests + the freshness guard in check-route-tree-freshness.mjs):
+// Library usage (tests + the freshness guard in check-route-tree-freshness.mts):
 //   generateRouteTree(root)                          # regenerate into any root
 //   resolveGeneratorEntryUrl()                       # the derived generator entry
 //
@@ -20,28 +20,39 @@
 // script to the matching start-plugin-core and its matching generator — no
 // hardcoded version left to drift or break.
 import { createRequire } from 'node:module';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-let cachedGeneratorUrl;
+type RouteTreeGeneratorInstance = {
+	run(): Promise<void>;
+};
+
+type RouteTreeGeneratorConstructor = new (options: {
+	config: unknown;
+	root: string;
+}) => RouteTreeGeneratorInstance;
+
+interface RouteTreeGeneratorModule {
+	Generator: RouteTreeGeneratorConstructor;
+	getConfig(overrides: Record<string, string>, root: string): Promise<unknown>;
+}
+
+let cachedGeneratorUrl: string | undefined;
 
 /**
  * Resolves @tanstack/router-generator through normal module resolution,
  * starting from the @tanstack/react-start package front already depends on.
  * Each hop uses a require scoped to the resolved package, so pnpm's isolated
  * node_modules are honoured exactly like at dev/build time.
- *
- * @returns {string} file:// URL of the installed generator's ESM entry.
  */
-export const resolveGeneratorEntryUrl = () => {
-	if (cachedGeneratorUrl) {
+export const resolveGeneratorEntryUrl = (): string => {
+	if (cachedGeneratorUrl !== undefined) {
 		return cachedGeneratorUrl;
 	}
 
 	const reactStartUrl = import.meta.resolve('@tanstack/react-start');
 	const requireFromReactStart = createRequire(reactStartUrl);
 
-	let startPluginCorePackageUrl;
+	let startPluginCorePackageUrl: string;
 	try {
 		startPluginCorePackageUrl = requireFromReactStart.resolve(
 			'@tanstack/start-plugin-core/package.json',
@@ -69,17 +80,18 @@ export const resolveGeneratorEntryUrl = () => {
 /**
  * Loads { Generator, getConfig } from the derived generator entry.
  */
-export const loadRouteTreeGenerator = async () =>
-	import(resolveGeneratorEntryUrl());
+export const loadRouteTreeGenerator =
+	async (): Promise<RouteTreeGeneratorModule> =>
+		import(resolveGeneratorEntryUrl()) as Promise<RouteTreeGeneratorModule>;
 
-const GENERATOR_CONFIG_OVERRIDES = {
+const GENERATOR_CONFIG_OVERRIDES: Record<string, string> = {
 	virtualRouteConfig: './src/routes.ts',
 	routeFileIgnorePrefix: '-',
 };
 
 const ROUTE_TREE_OUTPUT_PATH = 'src/routeTree.gen.ts';
 
-const isCli = () =>
+const isCli = (): boolean =>
 	Boolean(process.argv[1]) &&
 	pathToFileURL(process.argv[1]).href === import.meta.url;
 
@@ -87,13 +99,14 @@ const isCli = () =>
  * Regenerates src/routeTree.gen.ts for the given front root (defaults to the
  * real apps/front tree this script lives in).
  *
- * @param {string} [root] absolute path of the front root whose routes are generated.
- * @returns {Promise<string>} absolute path of the written routeTree.gen.ts.
+ * @param root absolute path of the front root whose routes are generated.
+ * @returns absolute path of the written routeTree.gen.ts.
  */
-export const generateRouteTree = async (root) => {
+export const generateRouteTree = async (root?: string): Promise<string> => {
 	const { Generator, getConfig } = await loadRouteTreeGenerator();
 
-	const effectiveRoot = root ?? new URL('..', import.meta.url).pathname;
+	const effectiveRoot =
+		root ?? fileURLToPath(new URL('../..', import.meta.url));
 
 	const config = await getConfig(
 		{ ...GENERATOR_CONFIG_OVERRIDES },

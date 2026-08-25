@@ -12,8 +12,8 @@ import { fileURLToPath } from 'node:url';
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 
-const { checkFreshness } = await import('./check-route-tree-freshness.mjs');
-const { generateRouteTree } = await import('./route-tree-generator.mjs');
+const { checkFreshness } = await import('./check-route-tree-freshness.mts');
+const { generateRouteTree } = await import('./route-tree-generator.mts');
 
 const GENERATED_RELATIVE_PATH = path.join('src', 'routeTree.gen.ts');
 
@@ -28,7 +28,7 @@ const buildFixtureRoot = async () => {
 
 	const routesDir = path.join(root, 'src', 'routes');
 	await cp(
-		path.join(scriptsDir, '..', 'src', 'routes', '__root.tsx'),
+		path.join(scriptsDir, '..', '..', 'src', 'routes', '__root.tsx'),
 		path.join(routesDir, '__root.tsx'),
 	);
 

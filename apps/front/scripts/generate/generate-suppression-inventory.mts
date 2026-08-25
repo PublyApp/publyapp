@@ -5,10 +5,10 @@
 // reason, no line numbers). Run this whenever you add, remove, or reword a
 // suppression comment:
 //
-//   node apps/front/scripts/generate-suppression-inventory.mjs
+//   node apps/front/scripts/generate/generate-suppression-inventory.mts
 //
 // The three guards (no-fabricated-placeholder.test.ts,
-// i18n-key-coverage.test.ts, check-design-system.mjs) all fail if reality
+// i18n-key-coverage.test.ts, check-design-system.mts) all fail if reality
 // and this file disagree — a suppression that isn't in the inventory, or an
 // inventory entry no longer found in code, both fail the build. This is
 // deliberate: a suppression must show up in a diff, with its reason, for a
@@ -18,9 +18,12 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { findSuppressionSitesInSource } from '../src/lib/suppression-reason.ts';
+import {
+	findSuppressionSitesInSource,
+	type SuppressionSite,
+} from '../../src/lib/suppression-reason.ts';
 
-const rootDir = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
+const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const scanDirs = ['src', 'e2e'];
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.css', '.mjs']);
 const inventoryPath = path.join(
@@ -30,7 +33,7 @@ const inventoryPath = path.join(
 	'suppression-inventory.json',
 );
 
-const collectFiles = async (dir) => {
+const collectFiles = async (dir: string): Promise<string[]> => {
 	const entries = await readdir(dir, { withFileTypes: true });
 	const files = [];
 
@@ -48,7 +51,7 @@ const collectFiles = async (dir) => {
 	return files;
 };
 
-const sites = [];
+const sites: SuppressionSite[] = [];
 
 for (const scanDir of scanDirs) {
 	const absoluteDir = path.join(rootDir, scanDir);

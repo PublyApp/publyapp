@@ -1,12 +1,12 @@
 // Freshness guard for the committed routeTree.gen.ts (#1300).
 //
 // Regenerates the route tree through the SAME derived generator the dev/build
-// plugin uses (see route-tree-generator.mjs) and reports whether the result
+// plugin uses (see route-tree-generator.mts) and reports whether the result
 // differs from what is on disk. The check runs against an explicit root, so
 // tests can exercise real generation in isolated fixture roots.
 //
 // CLI usage:
-//   node scripts/check-route-tree-freshness.mjs          # guard apps/front
+//   node scripts/generate/check-route-tree-freshness.mts    # guard apps/front
 //
 // Exit codes: 0 = fresh, 1 = stale or broken. On staleness the generated
 // file is restored to its pre-check content, so running the guard never
@@ -15,7 +15,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { generateRouteTree } from './route-tree-generator.mjs';
+import { generateRouteTree } from './route-tree-generator.mts';
 
 const GENERATED_RELATIVE_PATH = path.join('src', 'routeTree.gen.ts');
 
@@ -30,17 +30,21 @@ const GENERATED_RELATIVE_PATH = path.join('src', 'routeTree.gen.ts');
 const PLUGIN_FOOTER_PATTERN =
 	/\n*import type \{ getRouter \} from '[^'\r\n]*'\r?\nimport type \{ createStart \} from '@tanstack\/[a-z]+-start'\r?\ndeclare module '@tanstack\/[a-z]+-start' \{\r?\n {2}interface Register \{\r?\n {4}ssr: true\r?\n {4}router: Awaited<ReturnType<typeof getRouter>>\r?\n {2}\}\r?\n\}\s*$/;
 
-const stripPluginFooter = (content) =>
+const stripPluginFooter = (content: string): string =>
 	content.replace(PLUGIN_FOOTER_PATTERN, '');
 
-const frontRootFromHere = () =>
-	path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const frontRootFromHere = (): string =>
+	path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-/**
- * @param {{ frontRoot?: string }} [options]
- * @returns {Promise<{stale: boolean, outputPath: string, contentBefore: string}>}
- */
-export const checkFreshness = async ({ frontRoot } = {}) => {
+export const checkFreshness = async ({
+	frontRoot,
+}: {
+	frontRoot?: string;
+} = {}): Promise<{
+	stale: boolean;
+	outputPath: string;
+	contentBefore: string | null;
+}> => {
 	const root = frontRoot ?? frontRootFromHere();
 	const outputPath = path.join(root, GENERATED_RELATIVE_PATH);
 
@@ -67,7 +71,8 @@ export const checkFreshness = async ({ frontRoot } = {}) => {
 	// The pattern consumes the leading blank line(s) it anchors on, so strip
 	// then ignore trailing whitespace on BOTH sides: an end-of-file newline is
 	// formatting, not route drift.
-	const normalized = (content) => stripPluginFooter(content).trimEnd();
+	const normalized = (content: string): string =>
+		stripPluginFooter(content).trimEnd();
 	return {
 		stale: normalized(after) !== normalized(contentBefore),
 		outputPath,

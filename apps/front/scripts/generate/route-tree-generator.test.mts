@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 
 const { generateRouteTree, loadRouteTreeGenerator, resolveGeneratorEntryUrl } =
-	await import('./route-tree-generator.mjs');
+	await import('./route-tree-generator.mts');
 
 test('resolveGeneratorEntryUrl derives the generator from @tanstack/react-start via normal module resolution', () => {
 	const url = resolveGeneratorEntryUrl();
@@ -54,7 +54,7 @@ test('the resolved generator is the exact copy start-plugin-core declares', asyn
 
 test('the module source no longer hardcodes a store path or pinned generator version', async () => {
 	const source = await readFile(
-		path.join(scriptsDir, 'route-tree-generator.mjs'),
+		path.join(scriptsDir, 'route-tree-generator.mts'),
 		'utf8',
 	);
 
@@ -83,7 +83,6 @@ test('resolveGeneratorEntryUrl is stable across calls', () => {
 
 test('generateRouteTree writes a non-empty routeTree.gen.ts into an isolated fixture root', async () => {
 	const { cp, mkdtemp, rm } = await import('node:fs/promises');
-	const { tmpdir } = await import('node:os');
 
 	const scratch = await mkdtemp(
 		path.join(path.resolve(scriptsDir), 'route-tree-fixture-'),
@@ -96,7 +95,7 @@ test('generateRouteTree writes a non-empty routeTree.gen.ts into an isolated fix
 		// way the real tree does.
 		await mkdirp(path.join(scratch, 'src/routes'));
 		await cp(
-			path.join(scriptsDir, '..', 'src', 'routes', '__root.tsx'),
+			path.join(scriptsDir, '..', '..', 'src', 'routes', '__root.tsx'),
 			path.join(scratch, 'src/routes/__root.tsx'),
 		);
 		await writeFile(
@@ -143,12 +142,12 @@ test('generateRouteTree writes a non-empty routeTree.gen.ts into an isolated fix
 	}
 });
 
-async function mkdirp(dir) {
+async function mkdirp(dir: string): Promise<void> {
 	const { mkdir } = await import('node:fs/promises');
 	await mkdir(dir, { recursive: true });
 }
 
-async function writeFile(file, contents) {
+async function writeFile(file: string, contents: string): Promise<void> {
 	const fs = await import('node:fs/promises');
 	await fs.writeFile(file, contents);
 }

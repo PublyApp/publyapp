@@ -2401,7 +2401,7 @@ export const scanFront2DesignSystem = async ({
 				ruleId: 'suppression-inventory-drift',
 				message:
 					'design-system-ignore suppression is not in suppression-inventory.json — ' +
-					'run `node scripts/generate-suppression-inventory.mjs` and commit the result.',
+					'run `node scripts/generate/generate-suppression-inventory.mts` and commit the result.',
 				file: site.file,
 				line: 0,
 				source: site.reason,
@@ -2412,7 +2412,7 @@ export const scanFront2DesignSystem = async ({
 				ruleId: 'suppression-inventory-drift',
 				message:
 					'suppression-inventory.json lists a design-system-ignore site no longer found in ' +
-					'this scan — run `node scripts/generate-suppression-inventory.mjs` and commit the result.',
+					'this scan — run `node scripts/generate/generate-suppression-inventory.mts` and commit the result.',
 				file: site.file,
 				line: 0,
 				source: site.reason,
