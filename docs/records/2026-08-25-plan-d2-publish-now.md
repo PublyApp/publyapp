@@ -51,3 +51,173 @@
 - Testing: `apps/api/Lib/Testing/Fixtures/` `ApiFixture` (Testcontainers Postgres), co-located `*.Spec.cs` conventions, `docs/guides/api-integration-tests.md`; e2e harness + tag vocabulary per `docs/guides/e2e-tags.md` (#1168).
 
 ---
+## Reconciliation decisions (each restated in the PR body)
+
+1. **Stored `Post.Status` stays untouched in D2.** D1 shipped `PostStatusDerivation` (`origin/lane/wt-644`, `Lib/PostStatusDerivation.cs`) precisely so read paths could stop trusting the stored column; switching the B2 drafts/list queries over is a product-visible behavior change that belongs to D3 with the queue/calendar rework. D2 writes publications only; drafts pages keep working as today.
+2. **Route placement.** Publish-now hangs off the existing posts resource (`Routes.Posts.ForTenant`, `origin/develop`) as `POST /posts/{postId}/publish-now`; the two NEW read resources (history list, composer publish targets) live in the Publishing slice under a new `Routes.Publishing.ForTenant` group rooted at `/publishing`. Handlers orchestrate; ALL logic sits in Publishing services.
+3. **Republish to a live (post, account) pair** (previous `Scheduled`/`InProgress`/`Published` row still alive) is refused with `422` `TypedProblems.ValidationProblem` naming the offending account ids under the stable key `accountIds` — no new problem-type invented; the unique partial index `ux_publications_post_account` (`origin/lane/wt-644`) remains the backstop.
+4. **E2E Bluesky fake:** an env-gated `FakeBlueskyPublishProvider` (registered only when `PUBLISHING_FAKE_PROVIDER=1` on a non-Production host, checked via `apps/api/Lib/AppEnvironment.cs` patterns) answers every publish with success and a deterministic `https://bsky.app/profile/{handle}/post/{rkey}` URL. Flagged as an open question for the owner in the PR body.
+5. **Retry button** renders as a disabled D4 stub with an explanatory title (honest coming-later, B2 convention — see `ReadOnlyBadge` usage in `history.tsx`, `origin/develop`).
+
+## File structure
+
+**Create — API (`apps/api`)**
+- `Modules/Publishing/Routes.Publishing.cs` — `Routes.Publishing.ForTenant`: `Root = "/publishing"`, `FindPublications = "/publications"`, `GetPublishTargets = "/publish-targets"` (mirrors `Routes.Posts.cs` style, `origin/develop`).
+- `Modules/Publishing/Endpoints/PublishingEndpointsForTenant.cs` — maps the three routes with rate-limit policies + `.WithTenantPermission(...)`.
+- `Modules/Publishing/Services/PublishNowService.cs` (+ interface in-file, D1 style) — publications creation + `IJobEnqueuer` enqueue in one transaction.
+- `Modules/Publishing/Services/PublicationListService.cs` (+ interface in-file) — keyset newest-first history query.
+- `Modules/Publishing/Services/PublishTargetService.cs` (+ interface in-file) — visible-in-project Active accounts via `SocialAccounts.Lib.VisibleIn.Visible` (`origin/develop`).
+- `Modules/Publishing/Handlers/Tenant/PublishNowForTenant.cs`, `FindPublicationsForTenant.cs`, `GetPublishTargetsForTenant.cs`.
+- `Modules/Publishing/Providers/Fakes/FakeBlueskyPublishProvider.cs` — env-gated (reconciliation 4).
+- Specs co-located: `*.Spec.cs` beside each of the above (Testcontainers `ApiFixture` per `docs/guides/api-integration-tests.md`).
+
+**Modify — API**
+- Endpoint registration site: the production call site of `MapPostEndpointsForTenant(` (exactly one; locate with `grep -rn "MapPostEndpointsForTenant(" apps/api --include=*.cs | grep -v Endpoints/`) gains `MapPublishingEndpointsForTenant(routes);` on the adjacent line.
+- `Modules/AuditLogs/Entities/AuditActions` (wherever `PostCreated`/`PostDeleted` constants live — same file): add `PublishNowStarted`.
+- `packages/shared-ts/src/lib/i18n/json/response-message.en.json`: add `"publish-now-success"`; rebuild regenerates `ResponseKeys.g.cs` (header: "Generated from response-message.en.json").
+- `Lib/Architecture/PublicationArchitecture.Spec.cs` (`origin/lane/wt-644`): extend with endpoint-permission/rate-limit and no-DbContext-in-Publishing-handlers assertions.
+
+**Create — front (`apps/front`)**
+- `src/lib/query/tenant-publications.ts` + `.test.ts` — history query + `publishNow` mutation + `invalidateTenantPublications` (modeled on `src/lib/query/tenant-posts.ts`, `origin/develop`).
+- `src/routes/authed/tenant/posts/_publish-on-block.tsx` + `_publish-on-block.test.tsx` — the "Publish on" checkbox block.
+- Rewrite `src/routes/authed/tenant/posts/history.tsx` (placeholder today, `origin/develop`) + its `history.test.tsx`.
+- Edit `src/routes/authed/tenant/posts/_create-post-drawer.tsx` and `$postId/edit.tsx`: embed the block + **Publish now** button.
+- `apps/front/e2e/tenant-posts-publish-now.spec.ts`.
+
+---
+
+## Task 1: `PublishNowService` — create publications + enqueue through `IJobEnqueuer`
+
+**Files:** `Services/PublishNowService.cs` + `Services/PublishNowService.Spec.cs`.
+
+**Interfaces block (Task 2 depends on exactly these):**
+
+```csharp
+public interface IPublishNowService {
+	Task<PublishNowResult> PublishNowAsync(PublishNowArgs args, CancellationToken cancellationToken);
+}
+public sealed record PublishNowArgs(
+	Guid TenantId, Guid PostId, Guid ActorUserId,
+	IReadOnlyList<Guid> SocialAccountIds
+);
+public abstract record PublishNowResult {
+	public sealed record Created(IReadOnlyList<Guid> PublicationIds) : PublishNowResult;
+	// Accounts already holding a live publication for this post (422 upstream).
+	public sealed record LivePublicationsExist(IReadOnlyList<Guid> AccountIds) : PublishNowResult;
+	public sealed sealed record PostNotFound : PublishNowResult;
+	public sealed record AccountsNotFound(IReadOnlyList<Guid> AccountIds) : PublishNowResult;
+}
+```
+(Fix the obvious typo when typing it in: `public sealed record PostNotFound : PublishNowResult;`)
+
+- [ ] **Step 1 (RED):** `PublishNowService.Spec` (IClassFixture<ApiFixture>, direct DbContext seeding like D1's `PublicationStatusTransitionService.Spec`, `origin/lane/wt-644`). Cases: (a) two account ids → two `Publication` rows `Scheduled`, `ScheduledAtUtc` within 5 s of `DateTime.UtcNow`, zone = server IANA local zone string, `IdempotencyKey == PublicationIdempotencyKey.For(id)` per row (wt-644 helper); (b) exactly one `job_queue` row per publication, `job_type = PublishingJobs.PublishPublicationV1JobType`, payload key matches, `EnqueueOptions.IdempotencyKey` equals the derived key (query `job_queue` directly); (c) repeat call with one overlapping account → `LivePublicationsExist` carrying that account, the OTHER account still created; (d) foreign-tenant post id → `PostNotFound` and zero rows written anywhere; (e) mixed valid/foreign account ids → `AccountsNotFound` listing the foreign ones, zero rows written; (f) rolled-back transaction removes enqueued jobs (make the second `EnqueueAsync` throw via a duplicate-key payload trick or a failing fake — assert no `publications` row survives).
+- [ ] **Step 2 (GREEN):** Implementation: `[Service(ServiceLifetime.Scoped)]` (D1 pattern, `PublyApp.Api.Lib.DI`). Dependencies: `AppDbContext` + `IJobEnqueuer` ONLY (infrastructure, not another domain service). Flow: load post tenant-scoped (`TenantId == args.TenantId && !IsDeleted`); load candidate accounts tenant-scoped; filter through `VisibleIn.Visible(account, post.ProjectId ?? throw-free fallback)` — for a projectless post every Active tenant account qualifies (Epic C rule, `origin/develop` `Lib/VisibleIn.cs`); partition out ids with a live publication (`Status in {Scheduled,InProgress,Paused} || Status == Published` all count — the partial unique index filters only deleted) via a single `WHERE post_id && social_account_id ANY` EF query; if none remain → `LivePublicationsExist`; else per surviving account: `new Publication { TenantId, PostId, SocialAccountId, Status = Scheduled, ScheduledAtUtc = DateTime.UtcNow, ScheduledTimeZone = TimeZoneInfo.Local.Id, IdempotencyKey = PublicationIdempotencyKey.For(Guid.CreateVersion7()) }` — NOTE: the row id is generated BEFORE insert (`Guid.CreateVersion7()`, pattern proven in `apps/api/Infrastructure/Jobs/JobQueueProcessor.cs` line 910, `origin/develop`) so the key derives from the true id; assign it to `publication.Id` too. Enqueue INSIDE the save transaction: `_db.Add(...)` then per row `await _jobEnqueuer.EnqueueAsync(PublishingJobs.PublishPublicationV1, new PublishPublicationPayload { PublicationId = id, IdempotencyKey = key }, new EnqueueOptions { IdempotencyKey = key }, ct)` then one `SaveChangesAsync` — `IJobEnqueuer` joins the caller's transaction by contract (`Infrastructure/Jobs/IJobEnqueuer.cs` doc comment, `origin/develop`).
+- [ ] **Step 3:** Run `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PublishNowServiceSpec"` green. Commit `feat(publishing): PublishNowService — scheduled publications + trusted enqueue in one transaction`; push.
+
+## Task 2: `POST /posts/{postId}/publish-now` endpoint
+
+**Files:** `Handlers/Tenant/PublishNowForTenant.cs`; `Routes.Posts.cs` + `PostEndpointsForTenant.cs` (both exist, `origin/develop`); `AuditActions` member; `response-message.en.json` key.
+
+**Interfaces block (front Task 6 relies on the wire shape):**
+
+```
+201-less action contract: 200 Ok<ApiResponse>{ message, key: "publish-now-success" }
+Errors: 400 malformed postId (ResponseKeys.MalformedId) · 404 post not found
+(ResponseKeys.NotFound) · 422 ValidationProblem errors.accountIds[] for
+LivePublicationsExist / AccountsNotFound · 403 via PermissionFilter middleware.
+```
+
+- [ ] **Step 1 (RED):** `PublishNowForTenant.Spec` (ApiFixture + session-token HTTP calls per the integration-tests guide): happy path asserts 200 + `key=="publish-now-success"` + 2 rows + 2 job_queue rows (service already proven); wrong tenant's postId → 404 and NOTHING created (isolation); unknown account id → 422 with `errors["accountIds"]`; missing `tenant.posts.publish` → 403; missing `socialaccounts.publish` → 403; malformed guid → 400. Body DTO: `JsonElement AccountIds` validated `.MustBeRequiredGuidArray(fieldName: "accountIds", itemName: "accountId", maxCount: 20)` (`Lib/Validation/JsonElementRules.cs` line 621, `origin/develop`), read via the `BulkRevokeStaffInvitationsBody.GetInvitationIds()` enumeration pattern (`origin/develop`, Invitations handler).
+- [ ] **Step 2 (GREEN):** Handler clones `CreatePostForTenant.Handle` scaffolding (`origin/develop`): parse tenantId from `authContext.TenantId`, `Guid.TryParse(postId)` → 400, resolve `IPublishNowService`, map result kinds: `Created` → audit `AuditActions.PublishNowStarted` (Details: TenantId, PostId, accountIds, publicationIds) + `TypedResults.Ok(ApiResponse.Create("Publishing started", ResponseKeys.PublishNowSuccess))`; `PostNotFound` → `TypedProblems.NotFound("Post not found", ResponseKeys.NotFound)`; `LivePublicationsExist`/`AccountsNotFound` → `TypedProblems.ValidationProblem(...)` with stable `accountIds` key. Route: add `public const string PublishNow = "/{postId}/publish-now";` to `Routes.Posts.ForTenant`; map in `PostEndpointsForTenant` on the existing group (inherits `AuthenticatedDefault` rate limit, matching sibling mutations) with `.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH, AppPermissions.Tenant.SocialAccounts.PUBLISH])` — the SocialAccounts property arrives with the C2/D1 rebase (diff verified on `origin/lane/wt-641` commit fb4f03c7b); until rebased this line cannot compile, which Task 2 assumes (implementation starts post-rebase). Add `"publish-now-success": "Publishing started"` to `response-message.en.json`; build regenerates `ResponseKeys.g.cs`.
+- [ ] **Step 3:** Filter green; commit `feat(publishing): publish-now endpoint — immediate 202-equivalent through the job queue`; push.
+
+## Task 3: History read — `GET /publishing/publications` (keyset, newest first)
+
+**Files:** `Routes.Publishing.cs`, `Services/PublicationListService.cs` + spec, `Handlers/Tenant/FindPublicationsForTenant.cs` + spec, `Endpoints/PublishingEndpointsForTenant.cs`.
+
+**Interfaces block (front Task 6/8 rely on):**
+
+```csharp
+public sealed class FindPublicationsQuery : CursorPaginatedQuery {
+	[FromQuery(Name = "status")] public JsonElement? Status { get; init; }   // csv: published,failed
+	[FromQuery(Name = "size")]  public int? Size { get; init; }
+} // validator inherits CursorPaginatedQueryValidator<FindPublicationsQuery>
+public sealed record PublicationListItem {
+	public required Guid Id { get; init; }          // publication id
+	public required Guid PostId { get; init; }
+	public required string PostExcerpt { get; init; }   // first 280 chars of post body
+	public required string Status { get; init; }        // PublicationWire.FormatStatus
+	public required Guid SocialAccountId { get; init; }
+	public required string AccountLabel { get; init; }  // handle/display name
+	public string? ExternalUrl { get; init; }
+	public string? LastError { get; init; }
+	public required DateTime UpdatedAt { get; init; }   // terminal-state instant proxy
+	public required string NextCursor { get; init; }
+}
+```
+
+- [ ] **Step 1 (RED):** Spec: seeds published+failed+scheduled mix across two tenants; asserts newest-first `(UpdatedAt desc, Id desc)` keyset via `query.GetCursor()` (pattern: `FindPostsForTenant.Handle`, `origin/develop`); tenant isolation (foreign rows invisible); `status=published,failed` CSV filter parses via a static `TryParseStatusCsv` (case-insensitive ordinal, `StringComparer.OrdinalIgnoreCase` — PUBLY0003 forbids ToLower dispatch); `LastError` surfaced verbatim (already sanitised at write time); excerpt capped at 280 chars.
+- [ ] **Step 2 (GREEN):** Service: single EF query joining `Publication`→`Post`→`SocialAccount`, keyset predicate `(p.UpdatedAt < c) || (p.UpdatedAt == c && p.Id < cursorId)`, `Take(size + 1)`; handler maps to items, `NextCursor` from the last row. Endpoint on the `/publishing` group: `.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)` + `.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW])` (mirror of FindPosts, `origin/develop`). Register `MapPublishingEndpointsForTenant` at the discovered call site (File structure note).
+- [ ] **Step 3:** Green; commit `feat(publishing): keyset publications history endpoint`; push.
+
+## Task 4: Composer targets — `GET /publishing/publish-targets`
+
+**Files:** `Services/PublishTargetService.cs` + spec; `Handlers/Tenant/GetPublishTargetsForTenant.cs` + spec; endpoint mapping (same file as Task 3).
+
+**Interfaces block:** `GET /publishing/publish-targets?project_id={guid?}` → `{ items: [{ id, label, provider }] }` where `label` = account display name/handle and `provider = "bluesky"` (`SocialProvider` values, `origin/develop` entity).
+
+- [ ] **Step 1 (RED):** Spec: Active account linked to project A + Active account linked nowhere + NeedsReconnect account + Revoked account + foreign-tenant account; query with `project_id=A` → exactly the first two, in stable `created_at, id` order; without `project_id` → all Active tenant accounts; permission: caller WITHOUT `socialaccounts.publish` → 403 even WITH `posts.view` (block-gating verb per brief).
+- [ ] **Step 2 (GREEN):** Service loads tenant-scoped accounts `.Include(a => a.Projects)` and applies `VisibleIn.Visible(account, projectId)` per id (THE single-source rule — no re-implementation; `origin/develop` `Modules/SocialAccounts/Lib/VisibleIn.cs`). Query param `project_id` snake_case per repo rule; nullable-guid parse mirrors `CreatePostBody.GetProjectId()` (`GetValueAsGuidOrNull`, `origin/develop`). Endpoint: `AuthenticatedDefault` + `.WithTenantPermission([AppPermissions.Tenant.SocialAccounts.PUBLISH])`.
+- [ ] **Step 3:** Green; commit `feat(publishing): visible publish-targets endpoint for the composer block`; push.
+
+## Task 5: Architecture-guard extension + RED proof
+
+**Files:** `Lib/Architecture/PublicationArchitecture.Spec.cs` (extends the wt-644 file after rebase).
+
+- [ ] **Step 1 (GREEN first):** Add facts: (a) every `Map*` inside `PublishingEndpointsForTenant` carries both a rate-limit policy and `WithTenantPermission` metadata — Roslyn-free source scan asserting each `group.Map(Get|Post)` block contains `.RequireRateLimiting(` and `.WithTenantPermission(` (technique of the existing single-writer scan, `origin/lane/wt-644`); (b) no file under `Modules/Publishing/Handlers/**` mentions `AppDbContext` (handlers orchestrate; services own queries); (c) `PublishNowService` still depends only on `AppDbContext`+`IJobEnqueuer` (constructor-parameter scan).
+- [ ] **Step 2 (RED proof):** Plant `Modules/Publishing/Endpoints/_RogueUnpermissionedEndpoint.cs` (temp, uncommitted) mapping a route without permission metadata → guard fact (a) MUST fail naming the file. Transcript to `.dump/mutation-unpermissioned-endpoint.md`. Delete, rerun green.
+- [ ] **Step 3:** Commit `test(api): publishing architecture ratchet — permissioned, rate-limited, DbContext-free handlers`; push.
+
+## Task 6: Kiota regen + front data layer
+
+**Files:** generated `packages/client-ts/**`; new `apps/front/src/lib/query/tenant-publications.ts` + test.
+
+- [ ] **Step 1:** `just build-api && just generate-client && pnpm --filter front typecheck` (AGENTS mandate after contract change). Verify `packages/client-ts` gained `publishNow`, `findPublications`, `getPublishTargets` operations and `git diff --stat packages/client-ts` shows ONLY generated churn.
+- [ ] **Step 2 (RED):** `tenant-publications.test.ts` mirrors `tenant-posts.test.ts` (`origin/develop`): typed query variables `{ status?: 'published'|'failed'; cursor?: string; size?: number }`, key factories `TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications']`, `publishNowMutation` calling the Kiota op via the same client acquisition `tenant-posts.ts` uses (`getClientManager`, `origin/develop`), `invalidateTenantPublications(qc)`. Tests fail before implementation exists.
+- [ ] **Step 3 (GREEN):** Implement; tests green; commit `feat(front): tenant-publications query layer over regenerated client`; push.
+
+## Task 7: Composer "Publish on" block + Publish now action
+
+**Files:** `_publish-on-block.tsx` + `_publish-on-block.test.tsx`; edits to `_create-post-drawer.tsx`, `$postId/edit.tsx`; posts i18n resources (locate the file carrying `history-coming-later-title` with `grep -rl history-coming-later-title apps/front/src` — add keys beside those).
+
+- [ ] **Component contract (Tasks 8/e2e rely on these testids):** `tenant-posts-publish-on-block`, per-account checkbox `tenant-posts-publish-target-{id}`, `tenant-posts-publish-now` submit button, `tenant-posts-publish-in-progress` pill.
+- [ ] **Step 1 (RED):** Tests: renders nothing (returns null) when `useTenantAccountProfile`-shaped permission data lacks `socialaccounts.publish` (discover the exact permissions hook the tenant workspace already loads: `grep -n "permissions" apps/front/src/lib/query/auth.ts`, `origin/develop` — `GetScopeAuthDataTenant.Permissions: List<string>` is the wire source, `apps/api/Modules/Auth/Handlers/GetScopeAuthData.cs`); renders one checked box per visible target otherwise; unchecked-all disables Publish now; clicking Publish now fires `publishNow` mutation with checked ids then navigates to `/tenant/posts/history`; mutation failure surfaces through `getFailureMessage(toApiFailure(error))` (repo rule, no manual translation).
+- [ ] **Step 2 (GREEN):** Implement with `Field.Checkbox`-style Base UI wrappers + `Button` (`components/ui/*`, Tailwind via `cn()`); drawer/edit page embed `<PublishOnBlock projectId={form projectId} />` above the action bar; arrow-function components, no IIFE, no dayjs direct import.
+- [ ] **Step 3:** `pnpm --filter front exec vitest run src/routes/authed/tenant/posts/_publish-on-block.test.tsx` green; commit `feat(front): Publish on block + publish-now action in composer`; push.
+
+## Task 8: History page wired + "In progress…" polling
+
+**Files:** rewrite `history.tsx`; update `history.test.tsx`.
+
+- [ ] **Step 1 (RED):** Tests (pattern: C2's `integrations.test.tsx` mocking style, `origin/lane/wt-641`): published row shows link (`data-testid="tenant-posts-history-link"`, href = `ExternalUrl`) opening in new tab; failed row shows one-sentence cause `tenant-posts-history-cause` + disabled Retry stub (`title` explains D4); in-progress row shows `tenant-posts-publish-in-progress`; while any row is `in_progress`, query invalidates every 5 s (fake timers assert ≥2 refetches) and stops when none remain; fatal error → `LogoutRedirect` only on 401 (repo logout semantics).
+- [ ] **Step 2 (GREEN):** Implement with the existing shells (`WorkspacePageHeader`, `Card`, table primitives as drafts.tsx uses); drop `ReadOnlyBadge`; keep `tenant-posts-history-page` testid (e2e anchor from B2).
+- [ ] **Step 3:** Vitest green; `pnpm --filter front typecheck`; `just react-doctor`; commit `feat(front): history page wired to real publications with live refresh`; push.
+
+## Task 9: D2 adversarial mutation — remove the deterministic key
+
+- [ ] **Step 1:** `md5sum apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs` (pre-mutation, recorded in transcript). Mutate `For` to `Convert.ToHexString(Guid.NewGuid().ToByteArray()).ToLowerInvariant()[..16];` (randomness replaces derivation).
+- [ ] **Step 2:** Run `dotnet test ... --filter "FullyQualifiedName~PublishPublicationJobHandlerSpec.ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate"` (exact method verified on `origin/lane/wt-644` line 189) — MUST go red: the second attempt creates a duplicate instead of colliding. Full transcript → `.dump/mutation-deterministic-key-d2.md`.
+- [ ] **Step 3:** `git checkout -- apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs`; md5 matches; rerun green. Tree unchanged; no commit; transcript updated with restore proof.
+
+## Task 10: Gates + tagged e2e + PR
+
+- [ ] **E2E:** `apps/front/e2e/tenant-posts-publish-now.spec.ts`, `test.describe('tenant posts publish now', { tag: ['@tenant-workspace', '@645'] })` (@tenant-workspace exists in the vocabulary, `docs/guides/e2e-tags.md`; adding a narrower `@publishing` domain would require editing the tag-guard vocabulary — left as an owner question). Flow: login via `helpers/login.ts` → drafts page (`tenant-posts-drafts-page`) → open drawer (`tenant-posts-new-post`) → type into `tenant-posts-create-body` → check `tenant-posts-publish-target-*` → click `tenant-posts-publish-now` → expect redirect to history (`tenant-posts-history-page`) → poll until `tenant-posts-history-link` visible with an `https://bsky.app/profile/...` href (fake provider from reconciliation 4 makes the worker succeed deterministically). Assert ZERO duplicate links (idempotency visible end-to-end).
+- [ ] **Gates under `heavy.sh`:** full Publishing + Posts + Invitations(spec sanity) suites; `just build-api`; `just ci-front`; `just ci-migration-expand-contract`; `just knip`.
+- [ ] **PR body** from the checklist in `.dump/brief.md` (no `.dump/pr-body.md` exists in this worktree — reconstructed faithfully): coverage summary, proofs list (§6 D2: publish now → publication+job; worker → Published+link; content → Failed no retry; account → Paused+NeedsReconnect [D1-proven, cited]; transient → retried then Failed; mutation red→green inline), reconciliation decisions, open questions (fake-provider env switch; `@publishing` tag vocabulary; stored Post.Status retirement timing), `Part of #645`, `Closes #<plan-tracking-issue>`, `Model: Ox Alpha via Nous Portal (jcode), effort max`, `Unverified until CI:` list.
+- [ ] Final push; `.dump/DONE.md` with tip SHA, PR URL, evidence paths; print `DONE`.
+
+## Self-review
+
+1. **Spec coverage (§6 D2):** publish now creates publication+job (T1/T2 specs, job_queue assertions); worker→Published+link (D1 handler spec cited wt-644 line 154; e2e proves it live through the fake); content error→Failed no retry (D1 T6b cited; D2 T2 asserts plain cause reaches `last_error` through `MarkFailedAsync`); account→Paused+NeedsReconnect (D1-cited; D2 history shows Paused pill via `PublicationWire`); transient→retry×3→Failed (D1 line 355 cited); isolation (T2 d/e, T3, T4 specs); permissions each verb refused (T2/T4); architecture guards incl. endpoint permission/rate-limit + DbContext-free handlers (T5); adversarial mutation deterministic-key removal (T9, exact red spec named); one tagged e2e with REAL B2 testids (T10); "In progress…" invalidation loop (T8); Retry=D4 stub noted honestly (T8, reconciliation 5).
+2. **No placeholders:** every step names real files/signatures; the two deliberate discoveries (endpoint-registration call site; front permissions hook) ship with the exact grep that resolves them; the one typo in Task 1's snippet is called out inline.
+3. **Type consistency:** `PublishPublicationPayload`/`PublishingJobs`/transition-service signatures match `origin/lane/wt-644` byte-for-byte as read; wire status strings match `PublicationWire.FormatStatus`; query params stay snake_case; no `Dto` suffixes on wire types.
