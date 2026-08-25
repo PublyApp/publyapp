@@ -385,9 +385,28 @@ const StaffProfileUsersPage = () => {
 						ariaLabel={t('assigned-staff-profile-users')}
 						columns={columns}
 						rows={rows}
-						isPending={usersIsPending}
-						isError={usersIsError}
-						onRetry={() => void usersQuery.refetch()}
+						queryState={{
+							isPending: usersIsPending,
+							isError: usersIsError,
+							onRetry: () => void usersQuery.refetch(),
+							hasActiveSearch: Boolean(controller.search.committed),
+						}}
+						pagination={{
+							pageIndex: pageIndex,
+							hasPreviousPage: hasPreviousPage,
+							hasNextPage: hasNextPage,
+							isPaginationPending: usersQuery.isFetching && !usersIsPending,
+							onNextPage: () => {
+								if (hasNextPage) {
+									setPageIndex((current) => current + 1);
+								}
+							},
+							onPreviousPage: () => {
+								if (hasPreviousPage) {
+									setPageIndex((current) => Math.max(current - 1, 0));
+								}
+							},
+						}}
 						errorContent={
 							usersFailure?.kind === 'problem' &&
 							usersFailure.status === 403 ? (
@@ -398,25 +417,10 @@ const StaffProfileUsersPage = () => {
 						}
 						emptyContent={t('no-users-assigned-to-profile')}
 						noMatchContent={t('no-assigned-users-match-search')}
-						hasActiveSearch={Boolean(controller.search.committed)}
 						sort={controller.sort}
 						onSortChange={controller.onSortChange}
 						size={controller.size}
 						onSizeChange={controller.onSizeChange}
-						pageIndex={pageIndex}
-						hasPreviousPage={hasPreviousPage}
-						hasNextPage={hasNextPage}
-						isPaginationPending={usersQuery.isFetching && !usersIsPending}
-						onNextPage={() => {
-							if (hasNextPage) {
-								setPageIndex((current) => current + 1);
-							}
-						}}
-						onPreviousPage={() => {
-							if (hasPreviousPage) {
-								setPageIndex((current) => Math.max(current - 1, 0));
-							}
-						}}
 						searchDraft={controller.search.draft}
 						onSearchDraftChange={controller.search.onDraftChange}
 					/>

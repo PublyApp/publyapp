@@ -298,27 +298,30 @@ const StaffAuditLogsPage = () => {
 				ariaLabel={t('audit-logs-page-title')}
 				columns={columns}
 				rows={rows}
-				isPending={query.isPending}
-				isError={query.isError}
-				onRetry={() => void query.refetch()}
+				queryState={{
+					isPending: query.isPending,
+					isError: query.isError,
+					onRetry: () => void query.refetch(),
+					hasActiveSearch: hasActiveFilters,
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: query.data?.nextCursor != null,
+					isPaginationPending: query.isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				emptyIcon={IconActivity}
 				emptyTitle={t('common:no-audit-logs-yet')}
 				emptyContent={t('common:no-audit-logs-description')}
 				noMatchTitle={t('no-audit-logs-match-title')}
 				noMatchContent={t('no-audit-logs-match-description')}
-				hasActiveSearch={hasActiveFilters}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={query.data?.nextCursor != null}
-				isPaginationPending={query.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				toolbarEnd={
 					<div className="flex items-center gap-2">
 						<DropdownMenu>

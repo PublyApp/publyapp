@@ -1,18 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { IconAlertCircle, IconAlertTriangle } from '@tabler/icons-react';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Field, Form, type FieldSelectOption } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { Skeleton } from '~/components/ui/skeleton';
-import { ErrorStateSurface, StateSurface } from '~/components/ui/state-surface';
+import { ErrorStateSurface } from '~/components/ui/state-surface';
 import { LOCALE_LABELS } from '~/lib/i18n.shared';
 import {
 	displayLocalMutationFailure,
@@ -33,11 +31,36 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { WorkspacePageHeader } from '../_workspace-page-parts';
+import { SettingsGeneralDangerCard } from './_settings-general-danger-card';
+import { SettingsGeneralIdentityCard } from './_settings-general-identity-card';
+import { SettingsGeneralRegionalCard } from './_settings-general-regional-card';
 import {
-	isAbsoluteHttpUrl,
-	isValidEmailAddress,
-} from '../../staff/tenants/tenant-organization-profile-fields';
-import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
+	EDITABLE_FIELDS,
+	getSettingsGeneralSchema,
+	type SettingsGeneralValues,
+} from './_settings-general-schema';
+
+// Static skeletons — module-level so they are built once, not per render
+// (react-doctor/rendering-hoist-jsx).
+const IDENTITY_LOADING_SLOT = (
+	<div className="space-y-4" data-testid="tenant-settings-general-skeleton">
+		<Skeleton className="h-9 w-full" />
+		<Skeleton className="h-9 w-full" />
+		<Skeleton className="h-9 w-full" />
+		<Skeleton className="h-9 w-full" />
+		<Skeleton className="h-9 w-full" />
+	</div>
+);
+
+const REGIONAL_LOADING_SLOT = (
+	<div className="space-y-4">
+		<Skeleton className="h-9 w-full" />
+		<Skeleton className="h-9 w-full" />
+		<Skeleton className="h-9 w-full" />
+		<Skeleton className="h-9 w-full" />
+	</div>
+);
 
 /**
  * Workspace general settings, editable through the real tenant-scoped
@@ -50,13 +73,13 @@ const TenantSettingsGeneralPage = () => {
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
 	const query = useTenantSettingsGeneralQuery(tenantId);
-	const { refetch } = query;
-	const settings = toTenantSettingsGeneral(query.data);
+	const { data, isSuccess, refetch } = query;
+	const settings = toTenantSettingsGeneral(data);
 	const updateSettings = useUpdateTenantSettingsGeneralMutation();
 	const [serverError, setServerError] = useState('');
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const localeOptions: FieldSelectOption[] = useMemo(
+	const localeOptions = useMemo(
 		() => [
 			{ value: '', label: t('common:not-set') },
 			{ value: 'en', label: LOCALE_LABELS.en },
@@ -65,7 +88,7 @@ const TenantSettingsGeneralPage = () => {
 		[t],
 	);
 
-	const timezoneOptions: FieldSelectOption[] = useMemo(() => {
+	const timezoneOptions = useMemo(() => {
 		const zones =
 			typeof Intl.supportedValuesOf === 'function'
 				? Intl.supportedValuesOf('timeZone')
@@ -105,11 +128,7 @@ const TenantSettingsGeneralPage = () => {
 	const hydratedTenantIdRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (
-			!query.isSuccess ||
-			!settings ||
-			hydratedTenantIdRef.current === tenantId
-		) {
+		if (!isSuccess || !settings || hydratedTenantIdRef.current === tenantId) {
 			return;
 		}
 
@@ -125,7 +144,7 @@ const TenantSettingsGeneralPage = () => {
 			timezone: settings.timezone ?? '',
 		});
 		hydratedTenantIdRef.current = tenantId;
-	}, [query.isSuccess, settings, tenantId, reset]);
+	}, [isSuccess, settings, tenantId, reset]);
 
 	const isSubmittingForm = isSubmitting || updateSettings.isPending;
 
@@ -203,6 +222,38 @@ const TenantSettingsGeneralPage = () => {
 		return <LogoutRedirect />;
 	}
 
+	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
+	// QueryDisplay owns the loading/error/data rendering below.
+	const settingsError = query.error;
+	if (settingsError !== null && shouldLogoutForFailure(settingsError)) {
+		return <LogoutRedirect />;
+	}
+
+	const renderSettingsErrorSlot = (
+		<Card>
+			<CardHeader>
+				<CardTitle>{t('common:organization-details')}</CardTitle>
+			</CardHeader>
+			<CardContent>
+				<ErrorStateSurface
+					icon={IconAlertCircle}
+					title={t('failed-to-load-settings')}
+					description={t('failed-to-load-settings-description')}
+					testId="tenant-settings-general-error"
+					actions={
+						<Button
+							variant="default"
+							type="button"
+							onClick={() => void refetch()}
+						>
+							{t('common:retry')}
+						</Button>
+					}
+				/>
+			</CardContent>
+		</Card>
+	);
+
 	return (
 		<div className="space-y-5" data-testid="tenant-settings-general-page">
 			<WorkspacePageHeader titleKey="general" />
@@ -211,188 +262,30 @@ const TenantSettingsGeneralPage = () => {
 				query={query}
 				LoadingSlot={
 					<>
-						<Card>
-							<CardHeader>
-								<CardTitle>{t('common:organization-details')}</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div
-									className="space-y-4"
-									data-testid="tenant-settings-general-skeleton"
-								>
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-								</div>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader>
-								<CardTitle>{t('regional-and-contact-settings')}</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<div className="space-y-4">
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-									<Skeleton className="h-9 w-full" />
-								</div>
-							</CardContent>
-						</Card>
+						{IDENTITY_LOADING_SLOT}
+						{REGIONAL_LOADING_SLOT}
 					</>
 				}
-				ErrorSlot={
-					<Card>
-						<CardHeader>
-							<CardTitle>{t('common:organization-details')}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<ErrorStateSurface
-								icon={IconAlertCircle}
-								title={t('failed-to-load-settings')}
-								description={t('failed-to-load-settings-description')}
-								testId="tenant-settings-general-error"
-								actions={
-									<Button
-										variant="default"
-										type="button"
-										onClick={() => void refetch()}
-									>
-										{t('common:retry')}
-									</Button>
-								}
-							/>
-						</CardContent>
-					</Card>
-				}
+				ErrorSlot={renderSettingsErrorSlot}
 			>
 				{() => (
 					<>
-						<Card>
-							<CardHeader>
-								<CardTitle>{t('common:organization-details')}</CardTitle>
-							</CardHeader>
-							<CardContent>
-								{serverError !== '' ? (
-									<p
-										role="alert"
-										className="mb-4 rounded-[var(--publy-radius-input)] bg-destructive/10 px-3 py-2 text-sm text-destructive"
-									>
-										{serverError}
-									</p>
-								) : null}
-
-								<Form methods={methods} onSubmit={onSubmit}>
-									<div className="grid gap-4 md:grid-cols-2">
-										<Field.Text
-											name="name"
-											label={t('common:name')}
-											placeholder={t('common:name')}
-											isDisabled={isSubmittingForm}
-										/>
-										<Field.Text
-											name="logoUrl"
-											label={t('common:logo')}
-											helperText={t('common:logo-description')}
-											placeholder="https://example.com/logo.png"
-											isDisabled={isSubmittingForm}
-										/>
-										<Field.Text
-											name="legalName"
-											label={t('common:legal-name')}
-											placeholder={t('common:legal-name')}
-											isDisabled={isSubmittingForm}
-										/>
-										<Field.Text
-											name="websiteUrl"
-											label={t('common:website')}
-											placeholder="https://example.com"
-											isDisabled={isSubmittingForm}
-										/>
-									</div>
-									<Field.Textarea
-										name="description"
-										label={t('common:description')}
-										placeholder={t('common:description')}
-										isDisabled={isSubmittingForm}
-									/>
-
-									<div className="flex items-center gap-3 pt-2">
-										<Button
-											type="submit"
-											variant="default"
-											disabled={isSubmittingForm}
-										>
-											{t('common:save-changes')}
-										</Button>
-									</div>
-								</Form>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader>
-								<CardTitle>{t('regional-and-contact-settings')}</CardTitle>
-							</CardHeader>
-							<CardContent>
-								<Form methods={methods} onSubmit={onSubmit}>
-									<div className="grid gap-4 md:grid-cols-2">
-										<Field.Select
-											name="defaultLocale"
-											label={t('common:default-locale')}
-											options={localeOptions}
-											isDisabled={isSubmittingForm}
-										/>
-										<Field.Select
-											name="timezone"
-											label={t('common:timezone')}
-											options={timezoneOptions}
-											isDisabled={isSubmittingForm}
-										/>
-										<Field.Email
-											name="billingEmail"
-											label={t('common:billing-email')}
-											placeholder="billing@example.com"
-											isDisabled={isSubmittingForm}
-										/>
-										<Field.Email
-											name="supportEmail"
-											label={t('common:support-email')}
-											placeholder="support@example.com"
-											isDisabled={isSubmittingForm}
-										/>
-									</div>
-
-									<div className="flex items-center gap-3 pt-2">
-										<Button
-											type="submit"
-											variant="default"
-											disabled={isSubmittingForm}
-										>
-											{t('common:save-changes')}
-										</Button>
-									</div>
-								</Form>
-							</CardContent>
-						</Card>
-
-						<Card>
-							<CardHeader>
-								<CardTitle>{t('common:danger-zone')}</CardTitle>
-								<ReadOnlyBadge />
-							</CardHeader>
-							<CardContent>
-								<StateSurface
-									icon={IconAlertTriangle}
-									title={t('danger-zone-coming-later-title')}
-									description={t('danger-zone-coming-later-description')}
-									testId="tenant-settings-general-danger-empty"
-								/>
-							</CardContent>
-						</Card>
+						<SettingsGeneralIdentityCard
+							t={t}
+							serverError={serverError}
+							methods={methods}
+							onSubmit={onSubmit}
+							isSubmittingForm={isSubmittingForm}
+						/>
+						<SettingsGeneralRegionalCard
+							t={t}
+							methods={methods}
+							onSubmit={onSubmit}
+							isSubmittingForm={isSubmittingForm}
+							localeOptions={localeOptions}
+							timezoneOptions={timezoneOptions}
+						/>
+						<SettingsGeneralDangerCard t={t} />
 					</>
 				)}
 			</QueryDisplay>
@@ -410,86 +303,3 @@ export const Route = createFileRoute('/_authed-layout/tenant/settings/')({
 	},
 	component: TenantSettingsGeneralPage,
 });
-
-const ALLOWED_LOGO_URL_PROTOCOLS = ['http:', 'https:'] as const;
-const API_FILES_PREFIX = '/files/';
-
-const getSettingsGeneralSchema = (t: (key: string) => string) =>
-	z.object({
-		name: z
-			.string()
-			.trim()
-			.min(5, { message: t('name-min-length') })
-			.max(256, { message: t('name-max-length') }),
-		logoUrl: z
-			.string()
-			.trim()
-			.max(2048, { message: t('logo-url-max-length') })
-			.refine((value) => {
-				if (!value) {
-					return true;
-				}
-
-				try {
-					return ALLOWED_LOGO_URL_PROTOCOLS.includes(
-						new URL(value)
-							.protocol as (typeof ALLOWED_LOGO_URL_PROTOCOLS)[number],
-					);
-				} catch {
-					// Root-relative served-upload paths are valid logo values.
-					return value.startsWith(API_FILES_PREFIX);
-				}
-			}, t('invalid-logo-url')),
-		legalName: z
-			.string()
-			.trim()
-			.max(256, { message: t('legal-name-max-length') })
-			.optional(),
-		description: z
-			.string()
-			.trim()
-			.max(1024, { message: t('description-max-length') })
-			.optional(),
-		websiteUrl: z
-			.string()
-			.trim()
-			.max(2048, { message: t('website-max-length') })
-			.optional()
-			.refine((value) => !value || isAbsoluteHttpUrl(value), {
-				message: t('invalid-website-url'),
-			}),
-		billingEmail: z
-			.string()
-			.trim()
-			.max(320, { message: t('email-max-length') })
-			.optional()
-			.refine((value) => !value || isValidEmailAddress(value), {
-				message: t('invalid-email'),
-			}),
-		supportEmail: z
-			.string()
-			.trim()
-			.max(320, { message: t('email-max-length') })
-			.optional()
-			.refine((value) => !value || isValidEmailAddress(value), {
-				message: t('invalid-email'),
-			}),
-		defaultLocale: z.string().optional(),
-		timezone: z.string().optional(),
-	});
-
-type SettingsGeneralValues = z.infer<
-	ReturnType<typeof getSettingsGeneralSchema>
->;
-
-const EDITABLE_FIELDS = [
-	'name',
-	'logoUrl',
-	'legalName',
-	'description',
-	'websiteUrl',
-	'billingEmail',
-	'supportEmail',
-	'defaultLocale',
-	'timezone',
-] as const;

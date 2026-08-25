@@ -334,25 +334,28 @@ const StaffTenantsPage = () => {
 				ariaLabel={t('staff-tenants-table-aria-label')}
 				columns={columns}
 				rows={rows}
+				queryState={{
+					isPending: query.isPending,
+					isError: query.isError,
+					onRetry: () => void query.refetch(),
+					hasActiveSearch: Boolean(
+						controller.search.committed || search.status.length > 0,
+					),
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: query.data?.nextCursor != null,
+					isPaginationPending: query.isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				getRowLabel={(row) => row.name}
-				isPending={query.isPending}
-				isError={query.isError}
-				onRetry={() => void query.refetch()}
-				hasActiveSearch={Boolean(
-					controller.search.committed || search.status.length > 0,
-				)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={query.data?.nextCursor != null}
-				isPaginationPending={query.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				selection={selection}

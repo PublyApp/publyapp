@@ -184,22 +184,25 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 				ariaLabel={t('companies')}
 				columns={columns}
 				rows={rows}
-				isPending={companiesIsPending}
-				isError={companiesIsError}
-				onRetry={() => void query.refetch()}
-				hasActiveSearch={Boolean(controller.search.committed)}
+				queryState={{
+					isPending: companiesIsPending,
+					isError: companiesIsError,
+					onRetry: () => void query.refetch(),
+					hasActiveSearch: Boolean(controller.search.committed),
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: query.data?.nextCursor != null,
+					isPaginationPending: query.isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={query.data?.nextCursor != null}
-				isPaginationPending={query.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-companies')}

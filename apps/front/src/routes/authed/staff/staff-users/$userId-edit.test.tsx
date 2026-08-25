@@ -165,7 +165,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const resolvedKey = key.replace(/^common:/, '');
+			const resolvedKey = key.replace(/^(common|staff-users):/, '');
 			const labels: Record<string, string> = {
 				'back-to-user': 'Back to staff user',
 				'email-address': 'Email address',

@@ -355,6 +355,32 @@ export const TenantDetailsError = ({
 	);
 };
 
+/** 500-style view for a tenant query that succeeded but returned a payload
+ * `toStaffTenantDetails` cannot interpret (missing/incomplete response).
+ * Shared by the Basics/Profiles/Users/Invitations tab routes so each route
+ * file stays under its size budget; identical markup and i18n keys to the
+ * previous per-route copies. */
+export const TenantDetailsIncomplete = ({
+	onRetry,
+	testId = 'staff-tenant-details-error',
+}: {
+	onRetry: () => void;
+	testId?: string;
+}) => {
+	const { t } = useTranslation('common');
+
+	return (
+		<AppErrorView
+			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
+			code={t('error-500-code')}
+			title={t('tenant-details-error-title')}
+			description={t('tenant-response-incomplete')}
+			testId={testId}
+			actions={<TenantRetryActions onRetry={onRetry} />}
+		/>
+	);
+};
+
 export const TenantDetailsPageShell = ({
 	tenant,
 	activeSection,
