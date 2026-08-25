@@ -380,28 +380,20 @@ const CALL_SITES: CallSiteSpec[] = [
 	},
 ];
 
+// Same extraction idiom as the neighbouring route specs
+// (`Route.options.component as () => ReactElement`): the generated `Route`
+// export carries its options object, and this guard renders the component
+// directly.
 const ROUTE_COMPONENTS: Record<
 	CallSiteSpec['route'],
 	() => () => ReactElement
 > = {
 	'reset-password': () =>
-		(
-			ResetPasswordRoute as unknown as {
-				component: () => ReactElement;
-			}
-		).component,
+		ResetPasswordRoute.options.component as () => ReactElement,
 	'accept-invitation': () =>
-		(
-			AcceptInvitationRoute as unknown as {
-				component: () => ReactElement;
-			}
-		).component,
+		AcceptInvitationRoute.options.component as () => ReactElement,
 	'verify-email': () =>
-		(
-			VerifyEmailRoute as unknown as {
-				component: () => ReactElement;
-			}
-		).component,
+		VerifyEmailRoute.options.component as () => ReactElement,
 };
 
 const setRouteLoader = (
