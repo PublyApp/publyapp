@@ -16,6 +16,8 @@ import { ProjectsRequestBuilderRequestsMetadata, type ProjectsRequestBuilder } f
 // @ts-ignore
 import { SettingsRequestBuilderNavigationMetadata, type SettingsRequestBuilder } from './settings/index.js';
 // @ts-ignore
+import { SocialAccountsRequestBuilderNavigationMetadata, SocialAccountsRequestBuilderRequestsMetadata, type SocialAccountsRequestBuilder } from './socialAccounts/index.js';
+// @ts-ignore
 import { StaffRequestBuilderNavigationMetadata, type StaffRequestBuilder } from './staff/index.js';
 // @ts-ignore
 import { apiClientProxifier, ParseNodeFactoryRegistry, SerializationWriterFactoryRegistry, type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type RequestAdapter } from '@microsoft/kiota-abstractions';
@@ -60,6 +62,10 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      * The settings property
      */
     get settings(): SettingsRequestBuilder;
+    /**
+     * The socialAccounts property
+     */
+    get socialAccounts(): SocialAccountsRequestBuilder;
     /**
      * The staff property
      */
@@ -125,6 +131,10 @@ export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysTo
     },
     settings: {
         navigationMetadata: SettingsRequestBuilderNavigationMetadata,
+    },
+    socialAccounts: {
+        requestsMetadata: SocialAccountsRequestBuilderRequestsMetadata,
+        navigationMetadata: SocialAccountsRequestBuilderNavigationMetadata,
     },
     staff: {
         navigationMetadata: StaffRequestBuilderNavigationMetadata,
