@@ -320,13 +320,13 @@ export const useCanViewIntegrations = (): boolean =>
 	useHasTenantPermission(SOCIAL_VIEW_PERMISSION);
 ```
 
-plus `use-has-tenant-permission.test.ts` asserting false-before-load, false-without-key, true-with-key (Testing Library `renderHook`).
+plus `use-has-tenant-permission.test.ts` asserting false-before-load, false-without-key, true-with-key, and wildcard-sentinel-passes (Testing Library `renderHook`, which the repo already uses — see `src/lib/hooks/use-switch-locale.test.ts`; plain `*.test.ts` node environment, no jsdom docblock needed for a hook with no DOM).
 
 - [ ] **Step 5:** run `pnpm --filter front typecheck && pnpm --filter front exec vitest run src/lib/permissions`, then commit + push:
 `git commit -m "feat(auth): expose tenant permission keys to the front session (C3 gating)" && git push`
 
 **Spec proof:** §4 "routes carry their permission" becomes visible client-side; §3 "button only for holders of manage" gets its mechanism.
-**Adversarial mutation:** drop the `keys.Should().Contain(...)` lines and hard-code `["*"]` server-side → the spec still passes but the front shows buttons to everyone; the REAL guard is re-proven in Task 6's e2e (view-only user sees no Reconnect button). Mutation shown in PR body.
+**Adversarial mutation:** hard-code `["*"]` server-side for everyone → the non-admin holder fact (`ItShouldExposeProfileDerivedKeysWithoutWildcardForNonAdminHolder`) goes red, proving the payload really derives from profiles. The front-side guard is re-proven in Task 7's e2e (view-only user sees no Reconnect button). Mutation shown in PR body.
 
 ---
 
@@ -603,34 +603,86 @@ Expected: PASS both (typecheck passes only after Task 4's consumers exist OR wit
 
 ```tsx
 // apps/front/src/routes/authed/tenant/settings/integrations.test.tsx (replace body)
-import { renderWithProviders } from '~/lib/test/render-with-providers'; // same harness the file already imports
-import { screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
+vi.mock('@tanstack/react-router', () => ({
+	createFileRoute: () => (options: Record<string, unknown>) => ({
+		...options,
+		options,
+	}),
+}));
+
+let socialAccountsWire: Array<Record<string, unknown>> = [];
+let permissionKeys: string[] = ['*'];
+
+// Spread the REAL module and override only the network seam, so the page still
+// exercises the true row mapper.
+vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useSocialAccountsQuery: () => ({
+		data: { data: socialAccountsWire, nextCursor: null },
+		isPending: false,
+		isError: false,
+		refetch: () => Promise.resolve(),
+	}),
+}));
+
+vi.mock('~/lib/permissions/use-has-tenant-permission', () => ({
+	useHasTenantPermission: (key: string) => permissionKeys.includes(key) || permissionKeys.includes('*'),
+	useCanManageSocialAccounts: () => permissionKeys.includes('tenant.socialaccounts.manage'),
+	useCanViewIntegrations: () => permissionKeys.includes('*') || permissionKeys.includes('tenant.socialaccounts.view'),
+}));
+
+const EN_LABELS: Record<string, string> = {
+	integrations: 'Integrations',
+	'status-active': 'Active',
+	'status-needs-reconnect': 'Needs reconnect',
+	'provider-bluesky': 'Bluesky',
+	// …remaining keys consumed by the page…
+};
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		t: (key: string) => EN_LABELS[key] ?? key,
+		i18n: { resolvedLanguage: 'en', language: 'en' },
+	}),
+}));
+
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { TenantSettingsIntegrationsPage } from './integrations';
 
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
+
 describe('tenant settings integrations', () => {
-	it('ItShouldRenderConnectedAccountRowsWithStatusTonesWhenListHasAccounts', () => {
-		renderWithProviders(<TenantSettingsIntegrationsPage />, {
-			fixtures: { socialAccounts: [/* active + needs_reconnect rows */] },
-		});
+	test('ItShouldRenderConnectedAccountRowsWithStatusTonesWhenListHasAccounts', () => {
+		socialAccountsWire = [/* active + needs_reconnect items, full SocialAccountListItem shape */];
+		render(<TenantSettingsIntegrationsPage />);
 
 		const table = screen.getByTestId('tenant-settings-social-accounts-table');
-		expect(within(table).getByText('@team.bsky.social')).toBeInTheDocument();
-		expect(screen.getByTestId('status-pill-active')).toHaveAttribute('data-tone', 'success');
-		expect(screen.getByTestId('status-pill-needs-reconnect')).toHaveAttribute('data-tone', 'warning');
+		expect(within(table).getByText('@team.bsky.social')).toBeTruthy();
+		// StatusPill puts data-tone on .publy-status-pill; the testid span sits inside it.
+		const activeTone = screen.getByTestId('status-pill-active').closest<HTMLElement>('[data-tone]');
+		expect(activeTone?.getAttribute('data-tone')).toBe('success');
+		const warnTone = screen.getByTestId('status-pill-needs-reconnect').closest<HTMLElement>('[data-tone]');
+		expect(warnTone?.getAttribute('data-tone')).toBe('warning');
 	});
 
-	it('ItShouldShowTheEmptyStateWhenNoAccountsAreConnected', () => {
-		renderWithProviders(<TenantSettingsIntegrationsPage />, {
-			fixtures: { socialAccounts: [] },
-		});
-		expect(screen.getByTestId('tenant-settings-connected-integrations-empty')).toBeInTheDocument();
+	test('ItShouldShowTheEmptyStateWhenNoAccountsAreConnected', () => {
+		socialAccountsWire = [];
+		render(<TenantSettingsIntegrationsPage />);
+		expect(screen.getByTestId('tenant-settings-connected-integrations-empty')).toBeTruthy();
 	});
 });
 ```
 
-(The exact provider harness is whatever the current test file already uses — read it first and keep its conventions; the fixtures shape above is provided by a `QueryClient` default response stubbed per the file's existing patterns.)
+(This IS the repo's real harness — no `render-with-providers` module exists on develop. Follow the sibling `members.test.tsx`: jsdom docblock, `cleanup`/`render`/`screen` from @testing-library/react, `vi.mock` fakes for the router and i18n, module-spread mocks over the data layer with `importOriginal`, `afterEach(cleanup)`. There are NO jest-dom matchers — assert on `textContent`, `getAttribute`, and truthiness directly.)
 
 Run: `pnpm --filter front exec vitest run src/routes/authed/tenant/settings/integrations.test.tsx`
 Expected: FAIL — page still renders the placeholder cards.
@@ -708,42 +760,73 @@ The page itself keeps its route shell (`WorkspacePageHeader titleKey="integratio
 
 ```tsx
 // apps/front/src/routes/authed/tenant/settings/_bluesky-connect-drawer.test.tsx
-import { screen, waitFor } from '@testing-library/react';
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { renderWithProviders } from '~/lib/test/render-with-providers';
+let connectImpl: (input: { identifier: string }) => Promise<void> = async () => {};
+
+// Override ONLY the mutation hooks the drawer consumes; keep every other export real.
+vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useConnectSocialAccountMutation: () => ({ mutateAsync: connectImpl, isPending: false }),
+	useReconnectSocialAccountMutation: () => ({ mutateAsync: async () => {}, isPending: false }),
+}));
+
+vi.mock('~/lib/query/tenant-projects', () => ({
+	useTenantProjectsQuery: () => ({ data: [{ id: 'p1', label: 'Acme' }] }),
+	toTenantProjectItems: (data: unknown) => data as Array<{ id: string; label: string }>,
+}));
+
+const EN_LABELS: Record<string, string> = {
+	'drawer-connect-title': 'Connect Bluesky',
+	'drawer-identifier-label': 'Bluesky identifier',
+	'drawer-app-password-label': 'App password',
+	'drawer-submit-connect': 'Connect',
+	'error-credentials-refused': 'Bluesky refused these credentials. Check the identifier and app password, then retry.',
+};
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({ t: (key: string) => EN_LABELS[key] ?? key }),
+}));
+
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
 
-describe('bluesky connect drawer', () => {
-	it('ItShouldSubmitIdentifierAndPasswordAndCloseOnSuccess', async () => {
-		const onOpenChange = vi.fn();
-		const connect = vi.fn().mockResolvedValue(undefined);
-		renderWithProviders(
-			<BlueskyConnectDrawer mode="connect" open onOpenChange={onOpenChange} tenantId="t1" />,
-			{ fixtures: { connectSocialAccount: connect, projects: [{ id: 'p1', label: 'Acme' }] } },
-		);
+afterEach(() => {
+	cleanup();
+});
 
-		await userEvent.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
-		await userEvent.type(screen.getByLabelText(/app password/i), 'correct-horse-battery-staple');
-		await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+describe('bluesky connect drawer', () => {
+	test('ItShouldSubmitIdentifierAndPasswordAndCloseOnSuccess', async () => {
+		const user = userEvent.setup();
+		const onOpenChange = vi.fn();
+		connectImpl = vi.fn().mockResolvedValue(undefined);
+		render(<BlueskyConnectDrawer mode="connect" open onOpenChange={onOpenChange} tenantId="t1" />);
+
+		await user.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
+		await user.type(screen.getByLabelText(/app password/i), 'correct-horse-battery-staple');
+		await user.click(screen.getByRole('button', { name: /connect/i }));
 
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
-		expect(connect).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'team.bsky.social' }));
+		expect(connectImpl).toHaveBeenCalledWith(expect.objectContaining({ identifier: 'team.bsky.social' }));
 	});
 
-	it('ItShouldShowTheProviderRefusalAsIsWhenCredentialsAreRefused', async () => {
-		renderWithProviders(
-			<BlueskyConnectDrawer mode="connect" open onOpenChange={vi.fn()} tenantId="t1" />,
-			{ fixtures: { connectFailure: { status: 422, key: 'credentials_refused' } } },
-		);
+	test('ItShouldShowTheProviderRefusalAsIsWhenCredentialsAreRefused', async () => {
+		const user = userEvent.setup();
+		connectImpl = vi.fn().mockRejectedValue({ status: 422, responseMessageKey: 'credentials-refused' });
+		render(<BlueskyConnectDrawer mode="connect" open onOpenChange={vi.fn()} tenantId="t1" />);
 
-		await userEvent.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
-		await userEvent.type(screen.getByLabelText(/app password/i), 'wrong');
-		await userEvent.click(screen.getByRole('button', { name: /connect/i }));
+		await user.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
+		await user.type(screen.getByLabelText(/app password/i), 'wrong');
+		await user.click(screen.getByRole('button', { name: /connect/i }));
 
+		// No jest-dom on this repo: assert on textContent.
 		const alert = await screen.findByRole('alert');
-		expect(alert).toHaveTextContent(/Bluesky refused these credentials/i);
+		expect(alert.textContent).toMatch(/Bluesky refused these credentials/i);
 	});
 });
 ```
@@ -963,47 +1046,71 @@ export const AttachProjectsField = ({
 
 ```tsx
 // apps/front/src/routes/authed/tenant/settings/_disconnect-dialog.test.tsx
-import { screen } from '@testing-library/react';
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { renderWithProviders } from '~/lib/test/render-with-providers';
+let disconnectImpl: (input: { socialAccountId: string }) => Promise<void> = async () => {};
+
+vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useDisconnectSocialAccountMutation: () => ({ mutateAsync: disconnectImpl, isPending: false }),
+}));
+
+const EN_LABELS: Record<string, string> = {
+	'disconnect-title': 'Disconnect account',
+	'disconnect-consequences':
+		'Disconnecting pauses every scheduled post on @team.bsky.social, erases the stored credentials, and keeps your publication history. Reconnecting the same account resumes posts whose date is still ahead.',
+	disconnect: 'Disconnect',
+};
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({ t: (key: string) => EN_LABELS[key] ?? key }),
+}));
+
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { DisconnectDialog } from './_disconnect-dialog';
 
+afterEach(() => {
+	cleanup();
+});
+
 describe('disconnect dialog', () => {
-	it('ItShouldNameTheConsequencesBeforeConfirming', () => {
-		renderWithProviders(
+	test('ItShouldNameTheConsequencesBeforeConfirming', () => {
+		render(
 			<DisconnectDialog
 				account={{ id: 'a1', displayHandle: '@team.bsky.social' } as never}
 				isOpen
 				onOpenChange={vi.fn()}
 				tenantId="t1"
 			/>,
-			{ fixtures: {} },
 		);
 
-		const dialog = screen.getByRole('alertdialog');
-		expect(dialog).toHaveTextContent(/pauses every scheduled post/i);
-		expect(dialog).toHaveTextContent(/erases the stored credentials/i);
-		expect(dialog).toHaveTextContent(/keeps your publication history/i);
+		const dialog = screen.getByRole('dialog');
+		expect(dialog.textContent).toMatch(/pauses every scheduled post/i);
+		expect(dialog.textContent).toMatch(/erases the stored credentials/i);
+		expect(dialog.textContent).toMatch(/keeps your publication history/i);
 	});
 
-	it('ItShouldCallDisconnectOnlyAfterExplicitConfirmation', async () => {
+	test('ItShouldCallDisconnectOnlyAfterExplicitConfirmation', async () => {
+		const user = userEvent.setup();
 		const onOpenChange = vi.fn();
-		const disconnect = vi.fn().mockResolvedValue(undefined);
-		renderWithProviders(
+		disconnectImpl = vi.fn().mockResolvedValue(undefined);
+		render(
 			<DisconnectDialog
 				account={{ id: 'a1', displayHandle: '@team.bsky.social' } as never}
 				isOpen
 				onOpenChange={onOpenChange}
 				tenantId="t1"
 			/>,
-			{ fixtures: { disconnectSocialAccount: disconnect } },
 		);
 
-		await userEvent.click(screen.getByRole('button', { name: /disconnect/i }));
-		expect(disconnect).toHaveBeenCalledWith(expect.objectContaining({ socialAccountId: 'a1' }));
-		expect(onOpenChange).toHaveBeenCalledWith(false);
+		await user.click(screen.getByRole('button', { name: /disconnect/i }));
+		expect(disconnectImpl).toHaveBeenCalledWith(expect.objectContaining({ socialAccountId: 'a1' }));
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 	});
 });
 ```
@@ -1078,37 +1185,73 @@ export const DisconnectDialog = ({
 
 ```tsx
 // apps/front/src/components/app-shell/_needs-reconnect-banner.test.tsx
-import { screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+/**
+ * @vitest-environment jsdom
+ */
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { renderWithProviders } from '~/lib/test/render-with-providers';
+vi.mock('@tanstack/react-router', () => ({
+	Link: (props: { to: string; children?: React.ReactNode }) => <a href={props.to}>{props.children}</a>,
+}));
+
+let socialAccountsWire: Array<Record<string, unknown>> = [];
+let permissionKeys: string[] = ['*'];
+
+vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useSocialAccountsQuery: () => ({
+		data: { data: socialAccountsWire, nextCursor: null },
+		isPending: false,
+		isError: false,
+		refetch: () => Promise.resolve(),
+	}),
+}));
+
+vi.mock('~/lib/permissions/use-has-tenant-permission', () => ({
+	useCanManageSocialAccounts: () => permissionKeys.includes('*') || permissionKeys.includes('tenant.socialaccounts.manage'),
+}));
+
+const EN_LABELS: Record<string, string> = {
+	'banner-needs-reconnect-single': '{{handle}} needs reconnecting',
+	reconnect: 'Reconnect',
+	'integrations-list-title': 'Connected accounts',
+};
+
+vi.mock('react-i18next', () => ({
+	useTranslation: () => ({ t: (key: string, opts?: Record<string, unknown>) => EN_LABELS[key] ?? key }),
+}));
+
+// eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { NeedsReconnectBanner } from './_needs-reconnect-banner';
 
+afterEach(() => {
+	cleanup();
+});
+
 describe('needs-reconnect banner', () => {
-	it('ItShouldNameTheAccountAndLinkToIntegrationsWhenOneNeedsReconnect', () => {
-		renderWithProviders(<NeedsReconnectBanner tenantId="t1" />, {
-			fixtures: { socialAccounts: [{ id: 'a2', displayHandle: '@old.bsky.social', status: 'needs_reconnect' }] },
-		});
+	test('ItShouldNameTheAccountAndLinkToIntegrationsWhenOneNeedsReconnect', () => {
+		socialAccountsWire = [/* one needs_reconnect item, full SocialAccountListItem shape */];
+		render(<NeedsReconnectBanner tenantId="t1" />);
 
 		const banner = screen.getByTestId('needs-reconnect-banner');
-		expect(banner).toHaveTextContent('@old.bsky.social');
-		const link = screen.getByRole('link', { name: /reconnect|integrations/i });
-		expect(link).toHaveAttribute('href', expect.stringContaining('/tenant/settings/integrations'));
+		expect(banner.textContent).toContain('@old.bsky.social');
+		const link = screen.getByRole('link', { name: /reconnect|connected accounts/i });
+		expect(link.getAttribute('href')).toContain('/tenant/settings/integrations');
 	});
 
-	it('ItShouldRenderNullWhenEveryAccountIsActive', () => {
-		renderWithProviders(<NeedsReconnectBanner tenantId="t1" />, {
-			fixtures: { socialAccounts: [{ id: 'a1', displayHandle: '@team.bsky.social', status: 'active' }] },
-		});
-		expect(screen.queryByTestId('needs-reconnect-banner')).toBeNull();
+	test('ItShouldRenderNullWhenEveryAccountIsActive', () => {
+		socialAccountsWire = [/* one active item */];
+		const { container } = render(<NeedsReconnectBanner tenantId="t1" />);
+		expect(container.querySelector('[data-testid="needs-reconnect-banner"]')).toBeNull();
 	});
 
-	it('ItShouldHideTheReconnectButtonFromHoldersWithoutManage', () => {
-		renderWithProviders(<NeedsReconnectBanner tenantId="t1" />, {
-			fixtures: { socialAccounts: [{ id: 'a2', displayHandle: '@old.bsky.social', status: 'needs_reconnect' }], permissions: ['tenant.socialaccounts.view'] },
-		});
+	test('ItShouldHideTheReconnectButtonFromHoldersWithoutManage', () => {
+		socialAccountsWire = [/* one needs_reconnect item */];
+		permissionKeys = ['tenant.socialaccounts.view'];
+		render(<NeedsReconnectBanner tenantId="t1" />);
 
-		expect(screen.getByTestId('needs-reconnect-banner')).toBeInTheDocument();
+		expect(screen.getByTestId('needs-reconnect-banner')).toBeTruthy();
 		expect(screen.queryByRole('button', { name: /^reconnect$/i })).toBeNull();
 	});
 });
