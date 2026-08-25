@@ -788,6 +788,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		int bulkPermitLimit = 100,
 		int tenantBulkPermitLimit = 100,
 		int uploadPermitLimit = 100,
+		int socialConnectPermitLimit = 100,
 		ISessionService? sessionService = null
 	) {
 		var anonymousSettings =
@@ -849,6 +850,10 @@ public sealed class ComprehensiveRateLimitingSpec
 			),
 			Upload: new RateLimitWindowSettings(
 				uploadPermitLimit,
+				LongWindowSeconds
+			),
+			SocialConnect: new RateLimitWindowSettings(
+				socialConnectPermitLimit,
 				LongWindowSeconds
 			)
 		);

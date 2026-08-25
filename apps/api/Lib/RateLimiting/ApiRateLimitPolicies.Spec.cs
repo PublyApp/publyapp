@@ -351,7 +351,8 @@ public sealed class ApiRateLimitPoliciesSpec {
 			TenantEmail: generous,
 			Export: generous,
 			TenantExport: generous,
-			Upload: generous
+			Upload: generous,
+			SocialConnect: generous
 		);
 	}
 
