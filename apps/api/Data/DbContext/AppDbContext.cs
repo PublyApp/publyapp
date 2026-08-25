@@ -101,6 +101,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	public DbSet<EmailPreparedSend> EmailPreparedSend {
 		get { return Set<EmailPreparedSend>(); }
 	}
+	// §4.4 provider-evidence transition history (#866/K-6): the actor-named evidence
+	// table for transitions audit_logs cannot carry (a webhook has no user).
+	public DbSet<EmailLogEvidenceEvent> EmailLogEvidenceEvent {
+		get { return Set<EmailLogEvidenceEvent>(); }
+	}
 
 	// Staff back-office entities
 	public DbSet<AuditLog> AuditLog {

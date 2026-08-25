@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,9 +12,11 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260825030358_AddEmailLogEvidenceEvents")]
+    partial class AddEmailLogEvidenceEvents
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -400,24 +403,6 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("enqueued_at");
 
-                    b.Property<DateTime?>("ExternalStateExpiredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("external_state_expired_at");
-
-                    b.Property<DateTime?>("ExternalStateExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("external_state_expires_at");
-
-                    b.Property<DateTime?>("ExternalStatePreparedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("external_state_prepared_at");
-
-                    b.Property<int>("ExternalStateStatus")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("external_state_status");
-
                     b.Property<DateTime>("FailedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -474,28 +459,8 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("tenant_id");
 
-                    b.Property<string>("TriageNote")
-                        .HasColumnType("text")
-                        .HasColumnName("triage_note");
-
-                    b.Property<DateTime?>("TriagedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("triaged_at");
-
-                    b.Property<string>("TriagedBy")
-                        .HasColumnType("text")
-                        .HasColumnName("triaged_by");
-
                     b.HasKey("Id")
                         .HasName("pk_job_dead_letter");
-
-                    b.HasIndex("ExternalStateStatus")
-                        .HasDatabaseName("ix_job_dead_letter_external_state")
-                        .HasFilter("external_state_status <> 0");
-
-                    b.HasIndex("FailedAt")
-                        .HasDatabaseName("ix_job_dead_letter_untriaged_missing")
-                        .HasFilter("triaged_at IS NULL AND job_type LIKE 'jobs.missing.%'");
 
                     b.HasIndex("OriginalJobId")
                         .HasDatabaseName("ix_job_dead_letter_original_job_id");
@@ -510,64 +475,7 @@ namespace PublyApp.Api.Migrations
                     b.HasIndex("JobType", "FailedAt")
                         .HasDatabaseName("ix_job_dead_letter_job_type");
 
-                    b.ToTable("job_dead_letter", t =>
-                        {
-                            t.HasCheckConstraint("ck_job_dead_letter_external_state_bounds", "(external_state_status IN (0, 3) AND external_state_prepared_at IS NULL AND external_state_expires_at IS NULL AND external_state_expired_at IS NULL) OR (external_state_status IN (1, 2, 4, 5, 6) AND external_state_prepared_at IS NOT NULL AND external_state_expires_at IS NOT NULL)");
-
-                            t.HasCheckConstraint("ck_job_dead_letter_external_state_expired_at", "(external_state_status = 2 AND external_state_expired_at IS NOT NULL) OR (external_state_status <> 2 AND external_state_expired_at IS NULL)");
-
-                            t.HasCheckConstraint("ck_job_dead_letter_external_state_status", "external_state_status IN (0, 1, 2, 3, 4, 5, 6)");
-                        });
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Jobs.Entities.JobDeadLetterEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<Guid>("DeadLetterId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("dead_letter_id");
-
-                    b.Property<string>("Details")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("details");
-
-                    b.Property<string>("DetectedBy")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("detected_by");
-
-                    b.Property<string>("Event")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("event");
-
-                    b.Property<int>("NewStatus")
-                        .HasColumnType("integer")
-                        .HasColumnName("new_status");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int>("PriorStatus")
-                        .HasColumnType("integer")
-                        .HasColumnName("prior_status");
-
-                    b.HasKey("Id")
-                        .HasName("pk_job_dead_letter_events");
-
-                    b.HasIndex("DeadLetterId", "OccurredAt")
-                        .HasDatabaseName("ix_job_dead_letter_events_dead_letter_id");
-
-                    b.ToTable("job_dead_letter_events");
+                    b.ToTable("job_dead_letter");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Jobs.Entities.JobQueueItem", b =>
@@ -969,27 +877,13 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("prior_outcome");
 
-                    b.Property<string>("ProviderEventId")
-                        .HasColumnType("text")
-                        .HasColumnName("provider_event_id");
-
                     b.HasKey("Id")
                         .HasName("pk_email_log_evidence_events");
-
-                    b.HasIndex("ProviderEventId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_email_log_evidence_events_provider_event_id")
-                        .HasFilter("provider_event_id IS NOT NULL");
 
                     b.HasIndex("EmailLogId", "OccurredAt")
                         .HasDatabaseName("ix_email_log_evidence_events_email_log_id");
 
-                    b.ToTable("email_log_evidence_events", t =>
-                        {
-                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_id", "length(actor_id) > 0 AND length(actor_id) <= 512");
-
-                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_kind", "actor_kind IN ('provider_webhook', 'provider_reconciliation')");
-                        });
+                    b.ToTable("email_log_evidence_events");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailPreparedSend", b =>
@@ -1991,16 +1885,6 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("Invitation");
 
                     b.Navigation("Profile");
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Jobs.Entities.JobDeadLetterEvent", b =>
-                {
-                    b.HasOne("PublyApp.Api.Modules.Jobs.Entities.JobDeadLetter", null)
-                        .WithMany()
-                        .HasForeignKey("DeadLetterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_job_dead_letter_events_dead_letter_id");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailLogEvidenceEvent", b =>
