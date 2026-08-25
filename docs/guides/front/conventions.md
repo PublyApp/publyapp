@@ -116,6 +116,23 @@ specific components.
 
 Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-details-shell.tsx`, `$userId/_overview-context.tsx`) — this is a human convention only (routing here is driven by the virtual route config in `src/routes.ts`, not file-based discovery), so pick `_` consistently rather than mixing it with `-`.
 
+## Component Files Export Components Only (#1417)
+
+A component file must not export anything that is not a component: the react-doctor
+`only-export-components` rule (enabled in `apps/front/doctor.config.json`) fails on any such
+export because it breaks Fast Refresh state preservation. The pattern, decided in
+[#1417](https://github.com/PublyApp/publyapp/issues/1417) (part of #1291):
+
+- **Style variants and cva calls** live in a sibling `*.variants.ts` module (see
+  `components/ui/button.variants.ts`, `badge.variants.ts`, `tabs.variants.ts`); consumers
+  import variants from there and components from the `.tsx`.
+- **Column builders, label formatters, redirect helpers** are either moved to a sibling
+  route-private module (`_*.ts(x)` next to their only consumer) or into `src/lib/*` when they
+  are cross-surface; tests import them from the new location.
+- A helper with **no importer outside its own file is simply privatized** (drop `export`)
+  rather than moved.
+- Route files (`routes/**`) additionally keep only the `Route` export plus component(s).
+
 ## Breadcrumb & Route Contract (#973)
 
 Every route declares its own breadcrumb trail via `staticData.crumbs`
