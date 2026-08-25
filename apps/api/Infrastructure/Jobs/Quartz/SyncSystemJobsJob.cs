@@ -31,9 +31,26 @@ public sealed class SyncSystemJobsJob : IJob {
 	private readonly AppDbContext _dbContext;
 	private readonly ILogger<SyncSystemJobsJob> _logger;
 
-	public SyncSystemJobsJob(AppDbContext dbContext, ILogger<SyncSystemJobsJob> logger) {
+	// Desired-state source for the whole-definition restore (#1349). Defaults to the
+	// seeder's accessor (the single source of truth); the seam exists so specs can prove
+	// the guard paths — a corrupted code-defined default and a drifted protected row with
+	// no default — that are unreachable from production data because the protection list
+	// and the seeder derive from the same handler constants.
+	private readonly Func<IReadOnlyList<SystemJobDefinition>> _codeDefinedDefaults;
+
+	[ActivatorUtilitiesConstructor]
+	public SyncSystemJobsJob(AppDbContext dbContext, ILogger<SyncSystemJobsJob> logger)
+		: this(dbContext, logger, codeDefinedDefaults: null) {
+	}
+
+	public SyncSystemJobsJob(
+		AppDbContext dbContext,
+		ILogger<SyncSystemJobsJob> logger,
+		Func<IReadOnlyList<SystemJobDefinition>>? codeDefinedDefaults
+	) {
 		_dbContext = dbContext;
 		_logger = logger;
+		_codeDefinedDefaults = codeDefinedDefaults ?? SystemJobDefinitionSeeder.GetCodeDefinedDefaults;
 	}
 
 	public async Task Execute(IJobExecutionContext context) {
@@ -135,15 +152,51 @@ public sealed class SyncSystemJobsJob : IJob {
 					|| !CronExpression.IsValidExpression(candidate.CronExpression)))
 			.ToList();
 
+		var codeDefinedDefaults = _codeDefinedDefaults();
+		var unrepairedFaults = 0;
 		foreach (var drifted in driftedProtectedJobs) {
 			var jobKey = drifted.JobKey;
-			try {
-				var defaults = SystemJobDefinitionSeeder.GetCodeDefinedDefaults()
-					.FirstOrDefault(definition => definition.JobKey == jobKey);
-				if (defaults is null) {
-					continue;
-				}
 
+			// A protected row with NO code-defined default is a silent false negative
+			// waiting to happen: the protection list and the seeder's definitions have
+			// diverged, so there is nothing to restore the drift FROM. Never a bare
+			// continue — log the cause per row (owner product rule: every failure shows
+			// its cause) and let the sweep report the unrepaired count below.
+			var defaults = codeDefinedDefaults
+				.FirstOrDefault(definition => definition.JobKey == jobKey);
+			if (defaults is null) {
+				_logger.LogError(
+					"jobs.alert system_job_definition_unrepaired job_key={JobKey} — this "
+						+ "protected row is drifted (cron '{RejectedCron}', "
+						+ "enabled={DriftedEnabled}) but no code-defined default exists to "
+						+ "restore it from: the protection list and "
+						+ "SystemJobDefinitionSeeder.GetDefinitions() have diverged. The drift "
+						+ "is NOT repaired by this pass",
+						jobKey,
+						drifted.CronExpression,
+						drifted.IsEnabled
+					);
+				unrepairedFaults++;
+				continue;
+			}
+
+			// Programming-error gate, deliberately OUTSIDE the per-row fault isolation
+			// below: a code-defined cron Quartz cannot parse is a developer mistake
+			// shipped in the binary, not runtime data — writing it over the drifted row
+			// would corrupt the privacy-load-bearing schedule BY PROTECTION ITSELF (the
+			// cron-validity split would then delete its trigger). Refuse the whole pass
+			// loudly instead.
+			if (!CronExpression.IsValidExpression(defaults.CronExpression)) {
+				throw new InvalidOperationException(
+					$"SystemJobDefinitionSeeder.GetCodeDefinedDefaults() returns an invalid "
+						+ $"cron expression '{defaults.CronExpression}' for protected system "
+						+ $"job '{jobKey}' — refusing to persist corruption onto the "
+						+ $"privacy-load-bearing sweep. Fix the code-defined definition; this "
+						+ $"is a programming error, not operator-editable data"
+					);
+			}
+
+			try {
 				var restored = await _dbContext.SystemJobDefinition
 					.Where(definition => definition.JobKey == jobKey)
 					.ExecuteUpdateAsync(
@@ -179,7 +232,21 @@ public sealed class SyncSystemJobsJob : IJob {
 						+ "job {JobKey}; continuing with the rest of the sync",
 					jobKey
 				);
+				unrepairedFaults++;
 			}
+		}
+
+		// Sweep-level report: per-attempt transparency alone can scroll away — the sweep
+		// itself must carry the unrepaired count so an operator query never finds a
+		// silent false negative (every failure shows its cause).
+		if (unrepairedFaults > 0) {
+			_logger.LogError(
+				"jobs.sweep system_job_definition_restore finished with {FaultCount} "
+					+ "unrepaired drifted protected row(s) out of {DriftedCount}; the cause of "
+					+ "each is in its per-row jobs.alert above",
+				unrepairedFaults,
+				driftedProtectedJobs.Count
+			);
 		}
 	}
 
