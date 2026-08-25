@@ -52,7 +52,11 @@ C2 (`origin/lane/wt-641`, plan `docs/superpowers/plans/2026-08-25-c2-bluesky-con
 
 **[ASSUMPTION] A3 — Kiota client namespace:** after C2's Task 6 regeneration, `packages/client-ts` exposes the five operations above (names derived from the routes, e.g. `client.socialAccounts.list…`). Exact generated symbol names are confirmed right after regeneration; until then task code imports them through the single thin data-layer module (`src/lib/query/social-accounts.ts`, created in Task 3) so a rename touches one file.
 
-**[ASSUMPTION] A4 — front permission source (RESOLVED by Task 2):** verified on develop: `GetUserAuthDataResult` (`apps/api/Modules/Auth/Handlers/GetUserAuthData.cs`) carries only id/email/avatar/names, and `TenantPermissionFilter` resolves the holder's permission set per request via `permissionService.GetTenantPermissionsAsync(userId, tenantId)` (`apps/api/Lib/Filters/TenantPermissionFilter.cs`) — nothing client-side knows the permission set today. Task 2 therefore adds `tenantPermissionKeys` to the auth-data payload (same service the filter uses), regenerates the client, and the front gates off that.
+**[ASSUMPTION] A4 — front permission source (RESOLVED by Task 2):** verified on develop (`git show origin/develop`): `GetUserAuthDataResult` (`apps/api/Modules/Auth/Handlers/GetUserAuthData.cs`) carries only `Id`/`Email`/`AvatarUrl`/`FirstName`/`LastName` and resolves nothing tenant-scoped; `TenantPermissionFilter` (`apps/api/Lib/Filters/TenantPermissionFilter.cs`) resolves the holder's effective set per request via `permissionService.GetTenantPermissionsAsync(accountTenant.UserId, tenantId)` — **two parameters, no CancellationToken**, returning `Task<HashSet<string>>` (`apps/api/Modules/Permissions/Services/PermissionService.cs`, method at line ~97). Two facts shape Task 2:
+- the filter reads the account off `IRequestAuthContext.AccountTenant` (populated upstream by `TenantAuthFilter`); `/auth/user-auth-data` sits behind session auth only, so Task 2 must resolve that same account itself;
+- the service derives keys ONLY from `ProfilePermission` rows. Seeded tenant admins hold no profiles by default (the #861 scenario proven in `TenantPermissionFilter.Spec.cs`): their raw key set is EMPTY while the filter's `AccountLevel.Admin` short-circuit grants them everything. Dumping raw keys would hand admins a hidden Integrations surface whose every action 403s. Task 2 therefore materialises the EFFECTIVE set: `AccountLevel.Admin` → the `*` wildcard sentinel, otherwise the profile-derived keys.
+
+Nothing client-side knows any of this today: the derived `permissions` list on `/auth/scope-auth-data` (`GetScopeAuthData.cs`) has zero front consumers. Task 2 adds `tenantPermissionKeys` to the user-auth-data payload, regenerates the client, and the front gates off that.
 
 **[ASSUMPTION] A5 — e2e Bluesky fake:** the e2e drives the real front against a backend whose `IBlueskyClient` is the C2 fake (env-switched composition like `ApiFactory`). The precise switch (test-only env var on the e2e compose stack) is confirmed in Task 7 against C2's `ApiFactory` changes on the same branch.
 
@@ -70,8 +74,8 @@ C2 (`origin/lane/wt-641`, plan `docs/superpowers/plans/2026-08-25-c2-bluesky-con
 Paths relative to repo root. "exists" = verified present at develop `a9653b1b0`; "new" = created by an earlier task of THIS plan only.
 
 **Backend (Task 2 only)**
-- Modify `apps/api/Modules/Auth/Handlers/GetUserAuthData.cs` (exists): add `TenantPermissionKeys` to `GetUserAuthDataResult`, populated from `IPermissionService.GetTenantPermissionsAsync(userId, tenantId)` — the exact service `apps/api/Lib/Filters/TenantPermissionFilter.cs` already calls.
-- New `apps/api/Modules/Auth/Handlers/GetUserAuthData.Spec.cs`: integration spec proving seeded admin payloads carry `socialaccounts.*` keys once C2 lands.
+- Modify `apps/api/Modules/Auth/Handlers/GetUserAuthData.cs` (exists): add `TenantPermissionKeys` to `GetUserAuthDataResult`; resolve the holder's tenant account with `IAccountService.GetUserTenantAccountAsync(userId, tenantId)` and populate the EFFECTIVE set per A4 from `IPermissionService.GetTenantPermissionsAsync(userId, tenantId)` — the exact 2-arg service `apps/api/Lib/Filters/TenantPermissionFilter.cs` already calls.
+- New `apps/api/Modules/Auth/Handlers/GetUserAuthData.Spec.cs`: integration specs proving (a) a seeded tenant admin's payload carries the `"*"` wildcard sentinel and (b) a profile-derived non-admin holder's payload carries exactly their assigned keys (C2 `socialaccounts.*` keys join case (b) once C2 lands).
 
 **Generated**
 - Regenerated `packages/client-ts` (never hand-edited): auth-data model gains `tenantPermissionKeys`; after C2 merges, its five social-account operations live here.
@@ -161,64 +165,110 @@ Expected: PASS.
 
 **Interfaces:**
 - Produces: `GetUserAuthDataResult.TenantPermissionKeys : IReadOnlyList<string>` (C#, wire `tenantPermissionKeys`) — empty array, never null, for users with no tenant permissions.
-- Consumes: `IPermissionService.GetTenantPermissionsAsync(Guid userId, Guid tenantId)` returning `HashSet<string>` (exists — used by `TenantPermissionFilter.cs` line ~66 on develop).
-- Front: `useHasTenantPermission(key: string): boolean` — true iff the cached current user's `tenantPermissionKeys` contains `key`.
+- Consumes: `IPermissionService.GetTenantPermissionsAsync(Guid userId, Guid tenantId)` returning `Task<HashSet<string>>` (exists with TWO parameters — there is NO CancellationToken overload anywhere on develop; called by `TenantPermissionFilter.cs` line ~64), plus `IAccountService.GetUserTenantAccountAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default)` (`apps/api/Modules/Users/Services/AccountService.cs`).
+- Semantics: the payload carries the EFFECTIVE set per A4 — `["*"]` when the resolved `UserAccount.Level` is `AccountLevel.Admin`, otherwise the raw profile-derived key set. The front treats `"*"` as "holds every tenant permission".
+- Front: `useHasTenantPermission(key: string): boolean` — `false` while the session loads; true iff the cached current user's `tenantPermissionKeys` contains `key` OR contains `"*"`.
 
 - [ ] **Step 1 (RED):** failing integration spec:
 
 ```csharp
 // apps/api/Modules/Auth/Handlers/GetUserAuthData.Spec.cs
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 using FluentAssertions;
 
+using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Permissions.Entities;
 
 using Xunit;
 
 namespace PublyApp.Api.Modules.Auth.Handlers;
 
-public sealed class GetUserAuthDataSpec(ApiFixture fixture) : IClassFixture<ApiFixture> {
+public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
+	private const string UserAuthDataEndpoint = "/auth/user-auth-data";
+
+	private readonly ApiFixture _fixture;
+	private readonly HttpClient _http;
+	private readonly TestAuthClient _authClient;
+
+	public GetUserAuthDataSpec(ApiFixture fixture) {
+		_fixture = fixture;
+		_http = fixture.HttpClient;
+		_authClient = new TestAuthClient(_http);
+	}
+
 	[Fact]
-	public async Task ItShouldExposeSeededAdminTenantPermissionKeysIncludingSocialAccounts() {
-		// Real helpers on develop: TestAuthClient.LoginAsync(userId, password,
-		// tenantId) returns an authenticated HttpClient; TenantTestHelper seeds
-		// tenants/admins (both under apps/api/Lib/Testing/Helpers/).
-		var tenant = TenantTestHelper.CreateTenantWithAdminAsync(fixture);
-		var client = await fixture.AuthClient.LoginAsync(tenant.AdminUserId, SeedConstants.SeedPassword, tenant.TenantId);
+	public async Task ItShouldExposeWildcardSentinelForSeededTenantAdmin() {
+		// Seeded Acme admin holds no profiles by default (the #861 scenario proven
+		// in TenantPermissionFilter.Spec.cs): the effective set comes from the
+		// AccountLevel.Admin short-circuit, which this endpoint materialises as "*".
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
 
-		var payload = await client.GetFromJsonAsync<JsonElement>("/auth/me", fixture.JsonOptions);
+		var acmeAdminToken = await _authClient.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword
+		);
 
+		using var request = new HttpRequestMessage(HttpMethod.Get, UserAuthDataEndpoint)
+			.WithSessionToken(acmeAdminToken);
+		using var response = await _http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var payload = await response.Content.ReadFromJsonAsync<JsonElement>();
 		var keys = payload.GetProperty("tenantPermissionKeys")
 			.EnumerateArray()
 			.Select(k => k.GetString())
 			.ToList();
 
-		keys.Should().Contain("tenant.socialaccounts.view");
-		keys.Should().Contain("tenant.socialaccounts.manage");
-		keys.Should().Contain("tenant.socialaccounts.publish");
+		keys.Should().BeEquivalentTo(["*"]);
 	}
 }
 ```
 
-(The assertion set intentionally includes the C2 keys so the spec stays green after C2 merges; until then only the shape assertions hold — mark those three with a comment noting they activate with C2.)
+A second fact, `ItShouldExposeProfileDerivedKeysWithoutWildcardForNonAdminHolder`, repeats the profile recipe of `TenantPermissionFilter.Spec.cs.ItShouldReturn200ForNonAdminTenantUserWithRequiredPermission` (copy its `CreateTenantProfileWithPermissionsAsync` / `AssignProfileToTenantUserAsync` helpers): grant `TestConstants.AcmeUserEmail` exactly `AppPermissions.Tenant.Posts.VIEW.Key`, call the endpoint with that user's token, assert the payload equals `["tenant.posts.view"]` — NOT `["*"]`. Once C2 lands, a third fact assigns the C2 `socialaccounts.*` keys through the same recipe (until then those permissions do not exist to grant and the assertions above stay green). All helpers used here are the REAL develop ones: `TestAuthClient.LoginAsync(email, password)` returns the raw session token, `TenantTestHelper.GetTenantIdByNameAsync(http, staffToken, name)` resolves the seeded Acme id, and requests carry `.WithSessionToken(token)`.
 
 Run: `cd apps/api && dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~GetUserAuthDataSpec"`
 Expected: FAIL — no `tenantPermissionKeys` property in the payload.
 
-- [ ] **Step 2 (GREEN backend):** in `GetUserAuthData.cs`, inject `IPermissionService permissionService` and `ITenantContext`/account-tenant resolution exactly as `TenantPermissionFilter` does, then return:
+- [ ] **Step 2 (GREEN backend):** in `GetUserAuthData.cs`, add `IPermissionService permissionService` and `IAccountService accountService` as `[FromServices]` handler parameters (both are `[Service]`-registered on develop) plus an optional scope parameter bound snake_case per the API contract naming split — `[FromQuery(Name = "tenant_id")] string? tenantId` — and keep the result property:
 
 ```csharp
 public IReadOnlyList<string> TenantPermissionKeys { get; set; } =
 	(string[])[];
-// …in Handle, after the user load:
-var permissionKeys = await permissionService.GetTenantPermissionsAsync(userId, tenantId, cancellationToken);
-return TypedResults.Ok(new GetUserAuthDataResult {
-	// …existing fields…
-	TenantPermissionKeys = [.. permissionKeys]
-});
+```
+
+In `Handle`, after the existing user load (new usings: `PublyApp.Api.Modules.Permissions.Services`, `PublyApp.Api.Modules.Users.Entities`, `PublyApp.Api.Modules.Users.Services`). `/auth/user-auth-data` sits behind session auth only, so there is no `X-Tenant-Id` auth context here — the caller scopes the request with `?tenant_id=` (the front passes its active workspace id, the same value every authed call sends as `X-Tenant-Id`):
+
+```csharp
+if (!Guid.TryParse(tenantId, out var parsedTenantId)) {
+	// Unscoped or malformed scope: gate everything closed (empty array, never null).
+	result.TenantPermissionKeys = [];
+} else {
+	// Resolve the SAME tenant account TenantPermissionFilter reads off
+	// IRequestAuthContext.AccountTenant — that filter runs behind TenantAuthFilter,
+	// this endpoint does not, so the handler resolves the account itself.
+	var account = await accountService.GetUserTenantAccountAsync(userId, parsedTenantId, cancellationToken);
+	if (account is null || account.Status == AccountStatus.Suspended) {
+		result.TenantPermissionKeys = [];
+	} else if (account.Level == AccountLevel.Admin) {
+		// Effective set: mirror TenantPermissionFilter's #861 Admin short-circuit.
+		result.TenantPermissionKeys = ["*"];
+	} else {
+		// Two-parameter signature — GetTenantPermissionsAsync takes NO cancellation token.
+		var permissionKeys = await permissionService.GetTenantPermissionsAsync(userId, parsedTenantId);
+		result.TenantPermissionKeys = [.. permissionKeys];
+	}
+}
 ```
 
 - [ ] **Step 3:** regenerate the client: `just build-api && just generate-client`
@@ -256,7 +306,9 @@ export const useHasTenantPermission = (key: string): boolean => {
 			return false;
 		}
 
-		return data.tenantPermissionKeys.includes(key);
+		// "*" is the Admin sentinel materialised by Task 2's backend (A4):
+		// AccountLevel.Admin holders pass every tenant-permission gate.
+		return data.tenantPermissionKeys.includes(key) || data.tenantPermissionKeys.includes('*');
 	}, [data, key]);
 };
 
