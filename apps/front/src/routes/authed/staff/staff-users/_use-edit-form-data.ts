@@ -16,6 +16,7 @@ import {
 	collectSelectedProfileIds,
 	rememberStaffProfileNames,
 } from '../_staff-profile-options';
+import { rememberPristineStaffUserEditValues } from './_edit-nav-guard';
 import {
 	PROFILE_PAGE_SIZE,
 	getStaffUserEditSchema,
@@ -29,7 +30,6 @@ export const useEditFormData = (userId: string) => {
 	const [profileSearch, setProfileSearch] = useState('');
 	const deferredProfileSearch = useDeferredValue(profileSearch.trim());
 	const isProfileSearchSettled = profileSearch.trim() === deferredProfileSearch;
-	const hasLoadedProfilesRef = useRef(false);
 	const knownProfileNamesRef = useRef(new Map<string, string>());
 
 	const detailsQuery = useStaffUserDetailsQuery(
@@ -53,6 +53,16 @@ export const useEditFormData = (userId: string) => {
 		q: deferredProfileSearch || undefined,
 		cursor: profilePagination.cursor,
 	});
+	// Render-safe "catalogue has loaded" gate (#1314): plain state seeded from
+	// the query's initial status and adjusted during render when the query
+	// resolves — the sanctioned derived-state pattern, never a ref read
+	// during render (react/refs).
+	const [hasLoadedProfiles, setHasLoadedProfiles] = useState(
+		profilesQuery.isSuccess,
+	);
+	if (profilesQuery.isSuccess && !hasLoadedProfiles) {
+		setHasLoadedProfiles(true);
+	}
 	const hasNoServerProfileRows = profilesQuery.data?.data?.length === 0;
 	const user = useMemo(
 		() => toStaffUserDetails(detailsQuery.data),
@@ -94,15 +104,11 @@ export const useEditFormData = (userId: string) => {
 	const hydratedUserIdRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		if (profilesQuery.isSuccess) {
-			hasLoadedProfilesRef.current = true;
-		}
-
 		rememberStaffProfileNames(
 			knownProfileNamesRef.current,
 			profilesQuery.data?.data,
 		);
-	}, [profilesQuery.data, profilesQuery.isSuccess]);
+	}, [profilesQuery.data]);
 
 	useEffect(() => {
 		rememberStaffProfileNames(knownProfileNamesRef.current, assignedProfiles);
@@ -123,7 +129,7 @@ export const useEditFormData = (userId: string) => {
 			return;
 		}
 
-		reset({
+		const nextValues = {
 			firstName: user.firstName ?? '',
 			lastName: user.lastName ?? '',
 			avatarUrl: user.avatarUrl ?? '',
@@ -131,8 +137,14 @@ export const useEditFormData = (userId: string) => {
 			accountLevel: normalizeAccountLevel(user.accountLevel),
 			status: normalizeStatus(user.status),
 			profileIds: assignedProfiles.map((profile) => profile.id),
-		});
+		};
+		reset(nextValues);
 		hydratedUserIdRef.current = userId;
+		// Pristine-truth snapshot for the nav guard, kept in lockstep with the
+		// reset above. A fresh hydration also invalidates any saved snapshot
+		// left over from a previous visit: the server state it described may
+		// have diverged since (#1314-r1).
+		rememberPristineStaffUserEditValues(userId, nextValues);
 	}, [
 		assignedProfiles,
 		formState.isDirty,
@@ -160,6 +172,6 @@ export const useEditFormData = (userId: string) => {
 		deferredProfileSearch,
 		profileSearch,
 		setProfileSearch,
-		hasLoadedProfilesRef,
+		hasLoadedProfiles,
 	};
 };

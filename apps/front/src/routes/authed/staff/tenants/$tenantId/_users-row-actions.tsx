@@ -30,6 +30,39 @@ const getNormalizedTenantUserStatus = (
 	value: string | null | undefined,
 ): string => value?.trim().toLowerCase() ?? '';
 
+// Extracted from an IIFE for publy/no-iife (#1310): plain helper over the
+// pending action, called during render.
+type TenantUserActionDialogCopy = {
+	title: string;
+	description: string;
+	confirmLabel: string;
+};
+
+const getTenantUserActionDialogCopy = (
+	action: TenantUserPendingAction,
+	t: (key: string) => string,
+): TenantUserActionDialogCopy => {
+	if (action === 'suspend') {
+		return {
+			title: t('suspend'),
+			description: t('suspend-tenant-user-description'),
+			confirmLabel: t('suspend'),
+		};
+	}
+	if (action === 'reactivate') {
+		return {
+			title: t('reactivate'),
+			description: t('reactivate-tenant-user-description'),
+			confirmLabel: t('reactivate'),
+		};
+	}
+	return {
+		title: t('remove-user-from-tenant'),
+		description: t('confirm-remove-user-from-tenant-details'),
+		confirmLabel: t('remove-user-from-tenant'),
+	};
+};
+
 export const TenantUserRowActions = ({
 	tenantId,
 	user,
@@ -89,27 +122,7 @@ export const TenantUserRowActions = ({
 		await invalidateTenantUserQueries();
 	};
 
-	const dialogConfig = (() => {
-		if (pendingAction === 'suspend') {
-			return {
-				title: t('suspend'),
-				description: t('suspend-tenant-user-description'),
-				confirmLabel: t('suspend'),
-			};
-		}
-		if (pendingAction === 'reactivate') {
-			return {
-				title: t('reactivate'),
-				description: t('reactivate-tenant-user-description'),
-				confirmLabel: t('reactivate'),
-			};
-		}
-		return {
-			title: t('remove-user-from-tenant'),
-			description: t('confirm-remove-user-from-tenant-details'),
-			confirmLabel: t('remove-user-from-tenant'),
-		};
-	})();
+	const dialogConfig = getTenantUserActionDialogCopy(pendingAction, t);
 
 	return (
 		<div className="flex flex-col items-center gap-1">

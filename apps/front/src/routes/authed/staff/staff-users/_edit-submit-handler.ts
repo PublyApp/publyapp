@@ -12,6 +12,7 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { recordLastSavedStaffUserEditValues } from './_edit-nav-guard';
 import type { StaffUserEditValues } from './_edit-schema';
 
 type IdentityUpdateInput = {
@@ -78,7 +79,6 @@ export const submitStaffUserEdit = async ({
 	queryClient,
 	setShouldLogout,
 	setServerError,
-	hasSavedRef,
 	t,
 }: {
 	userId: string;
@@ -93,7 +93,6 @@ export const submitStaffUserEdit = async ({
 	queryClient: QueryClient;
 	setShouldLogout: (v: boolean) => void;
 	setServerError: (v: string) => void;
-	hasSavedRef: { current: boolean };
 	t: (key: string, opts?: Record<string, unknown>) => string;
 }): Promise<SubmitStaffUserEditOutcome> => {
 	const updateInput = buildIdentityUpdateInput(userId, values, dirtyFields);
@@ -154,7 +153,10 @@ export const submitStaffUserEdit = async ({
 		await invalidateStaffUsers(queryClient);
 	}
 
-	hasSavedRef.current = true;
+	// The save snapshot replaces the pristine baseline as the guard's truth:
+	// written outside render so every stacked blocker closure reads it live
+	// during the post-save redirect (#1314-r1 MAJOR).
+	recordLastSavedStaffUserEditValues(userId, values);
 	toastLocalMutationResult.success(t('staff-users:staff-user-updated-success'));
 
 	return 'navigate';
