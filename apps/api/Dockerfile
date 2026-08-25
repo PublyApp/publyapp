@@ -64,7 +64,7 @@ RUN APP_ROLE=api \
 	dotnet tool run dotnet-ef migrations bundle --configuration Release --verbose --output /publish/efbundle
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b660e404e87567cfbd46fd2809c21b02088 AS migrate
-LABEL org.opencontainers.image.source="https://github.com/radandevist/publyapp"
+LABEL org.opencontainers.image.source="https://github.com/PublyApp/publyapp"
 LABEL org.opencontainers.image.description="PublyApp API migrator"
 
 WORKDIR /app
@@ -88,7 +88,7 @@ COPY --from=migrations /publish/efbundle /app/efbundle
 ENTRYPOINT ["./efbundle"]
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:ddcf70ad1ab963a4fcd41fbd722a6b660e404e87567cfbd46fd2809c21b02088 AS runtime
-LABEL org.opencontainers.image.source="https://github.com/radandevist/publyapp"
+LABEL org.opencontainers.image.source="https://github.com/PublyApp/publyapp"
 LABEL org.opencontainers.image.description="PublyApp API runtime"
 
 WORKDIR /app

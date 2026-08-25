@@ -241,6 +241,19 @@ jobs:
       - name: Run dependency-health pin-location contract test
         run: pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts
 
+      # #1392 supply-chain binding: every 40-hex action SHA must be the commit
+      # its "# vX.Y.Z" comment claims. Resolves each tag through the GitHub API
+      # (annotated tags peeled to their commit) and compares; unparseable pins
+      # (no comment, non-version comment, short/mutable ref) fail loud. Mirrors
+      # `just ci-actions-pins`, whose ARGS="--offline" skip exists for local
+      # air-gapped runs only — CI always executes the live half below.
+      - name: Bind pinned action SHAs to their version comments (#1392)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
+          node ./packages/scripts-ts/src/check-actions-pins.ts
+
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers
 

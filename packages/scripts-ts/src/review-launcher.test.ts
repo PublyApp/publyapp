@@ -377,7 +377,7 @@ test('worktree discovery: finds the root clone and this worktree', () => {
 		'root clone missing from git worktree list',
 	);
 	assert.ok(
-		paths.some((entry) => entry.includes('.worktrees/wt-1020')),
+		paths.some((entry) => entry.includes(repoRoot)),
 		'this chantier worktree missing from git worktree list',
 	);
 });

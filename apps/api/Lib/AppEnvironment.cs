@@ -235,6 +235,48 @@ public class AppEnvironment {
 		}
 	}
 
+	// Round-1 fix (#1319): single source of truth for the hosting-environment policy of
+	// test-only machinery (currently the #1309/#1319 boot-log probe). Such machinery is
+	// honoured ONLY when the host environment resolves to Development or Testing;
+	// Production, Staging, or an UNSET host environment (what a bare container gets)
+	// refuses — fail closed.
+	public static bool IsProbeAllowedHostEnvironment() {
+		var name = GetHostEnvironmentName();
+		return string.Equals(
+				name,
+				EnvironmentNames.Development,
+				StringComparison.OrdinalIgnoreCase
+			)
+			|| string.Equals(
+				name,
+				EnvironmentNames.Testing,
+				StringComparison.OrdinalIgnoreCase
+			);
+	}
+
+	// Resolves the host environment name WITHOUT the Production fallback, so callers can
+	// distinguish "resolved to X" from "nothing is set" (bare container). Mirrors
+	// GetHostEnvironmentName()'s precedence: ASPNETCORE_ENVIRONMENT first, then
+	// DOTNET_ENVIRONMENT. Blank values count as unset — an empty variable must never be
+	// reported as a resolved environment name.
+	public static bool TryGetHostEnvironmentName(out string name) {
+		var aspNetCoreValue =
+			Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+		if (!string.IsNullOrWhiteSpace(aspNetCoreValue)) {
+			name = aspNetCoreValue;
+			return true;
+		}
+
+		var dotNetValue = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+		if (!string.IsNullOrWhiteSpace(dotNetValue)) {
+			name = dotNetValue;
+			return true;
+		}
+
+		name = "";
+		return false;
+	}
+
 	public static bool IsTestVerboseLoggingEnabled {
 		get {
 			var value = Environment.GetEnvironmentVariable(

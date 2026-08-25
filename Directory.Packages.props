@@ -16,13 +16,15 @@
     <PackageVersion Include="Bogus" Version="35.6.5" />
     <PackageVersion Include="DotNetEnv" Version="3.2.0" />
     <PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
     <!-- Transitive-pinned so every project resolves the same patch level:
-         Npgsql.EFCore.PostgreSQL otherwise drags Tests back to 10.0.4 (CS1705) -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.7" />
+         Npgsql.EFCore.PostgreSQL otherwise drags Tests back below 10.0.11 (CS1705).
+         Npgsql's latest 10.x is 10.0.3 (no 10.0.11 exists yet); keep this one entry
+         behind until Npgsql ships a matching patch. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
     <PackageVersion Include="Quartz" Version="3.18.2" />
     <PackageVersion Include="Resend" Version="0.1.6" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.6.9" />
@@ -56,8 +58,10 @@
   <!-- Transitive security pins (with CentralPackageTransitivePinningEnabled these
        override the resolved version of transitive dependencies):
        System.Security.Cryptography.Xml is pulled by DataProtection; advisories
-       GHSA-37gx-xxp4-5rgx / GHSA-cvvh-rhrc-wg4q et al. are patched at 10.0.10 -->
+       GHSA-37gx-xxp4-5rgx / GHSA-cvvh-rhrc-wg4q et al. are patched at 10.0.10.
+       Keep the pin at the latest 10.x patch (>= the version DataProtection requires)
+       so NU1109 never fires: bump in lockstep when DataProtection moves. -->
   <ItemGroup Label="TransitiveSecurityPins">
-    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.11" />
   </ItemGroup>
 </Project>

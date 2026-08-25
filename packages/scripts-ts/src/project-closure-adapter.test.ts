@@ -45,7 +45,7 @@ The adapter is being adopted.
 Configuration, projection, and tests.
 
 ## Links
-https://github.com/radandevist/publyapp/issues/1105
+https://github.com/PublyApp/publyapp/issues/1105
 
 ## How to test
 Run the focused adapter test and the shared closure CLI.`;
@@ -252,7 +252,7 @@ function assertLocalConfigContents(config) {
 	assert.equal(config.project, 'publyapp');
 	assert.equal(config.tracking_projection, 'trello:publyapp');
 	assert.equal(config.default_branch, 'develop');
-	assert.equal(config.repository, 'radandevist/publyapp');
+	assert.equal(config.repository, 'PublyApp/publyapp');
 	assert.deepEqual(Object.keys(config).sort(), expectedConfigKeys);
 	for (const pathKey of ['repo_path', 'closure_state_dir']) {
 		assert.equal(typeof config[pathKey], 'string');
@@ -445,7 +445,7 @@ test(
 				mergeStateStatus: 'CLEAN',
 				mergeable: 'MERGEABLE',
 				statusCheckRollup: [],
-				url: `https://github.com/radandevist/publyapp/pull/${PR_NUMBER}`,
+				url: `https://github.com/PublyApp/publyapp/pull/${PR_NUMBER}`,
 				baseRefName: config.default_branch,
 			});
 			await writeFile(fakeGh, `#!/bin/sh\nprintf '%s\\n' '${fixture}'\n`);
@@ -1009,7 +1009,7 @@ test(
 					mergeStateStatus: 'CLEAN',
 					mergeable: 'MERGEABLE',
 					statusCheckRollup: [],
-					url: `https://github.com/radandevist/publyapp/pull/${sharedPr}`,
+					url: `https://github.com/PublyApp/publyapp/pull/${sharedPr}`,
 					baseRefName: config.default_branch,
 				})}'\n`,
 			);

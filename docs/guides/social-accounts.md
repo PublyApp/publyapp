@@ -64,6 +64,26 @@ Do not assume a green CI build exercised the canary. It never has. Only a real b
 api or worker role (local `just dev-api-migrated`, docker compose smoke, or the deployed
 services) performs and logs the verification.
 
+## The test-only boot-log probe (#1309/#1319)
+
+`CanaryBootLogProbe` (`apps/api/Lib/Diagnostics/CanaryBootLogProbe.cs`) is how the API
+integration suite observes the canary pass line a REAL boot emits: the suite launches the
+shipped assembly as a child process with `--emit-canary-boot-log`, and Main — after the
+witness gate, before any host starts — dumps every captured log line and exits 0.
+
+Because that exit ramp skips the host entirely (worker: no job engine; web api: no
+socket), the argument is **hard-rejected unless it is explicitly opted into for tests**
+(#1319): without `PUBLYAPP_TEST_BOOT_PROBE=1` (or `true`) in the environment, the process
+exits with code **78** (EX_CONFIG) and a plain-words cause naming the flag, before any
+configuration or database access. Any other flag value fails loud the same way.
+
+- Deployment must never pass the argument and never set the variable.
+  `CanaryProbeContainmentSpec` keeps Dockerfile / dokploy.yml / docker-compose /
+  `.env.example` free of both, and keeps probe activation inside its single definition
+  file.
+- The refusal is intentionally independent of every other config value: a misconfigured
+  container dies loudly at once instead of producing a clean-looking no-host outage.
+
 ## Failure playbook
 
 | Log/symptom | Meaning | Action |
@@ -71,6 +91,7 @@ services) performs and logs the verification.
 | `SOCIAL_ACCOUNTS_MASTER_KEY is missing or empty ... will not start` | Var absent/unset | Set it (32-byte base64) on all three services |
 | `has the wrong size (...)` | Not exactly 32 bytes | Re-generate with `openssl rand -base64 32` |
 | `does not match the master-key canary stored beside the Data Protection key ring` | Key VALUE differs from the one credentials were protected under | Restore the original value on api+worker+migrate, or follow the deliberate rotation steps in the message (re-protect credentials, delete the stale canary row `social-accounts-master-key-canary`) |
+| `--emit-canary-boot-log was refused: ... PUBLYAPP_TEST_BOOT_PROBE is not set.` | The boot-log probe argument reached a normal/deployed boot; it is test-only (#1319) | Remove the argument from the container command. The flag itself must never be set in deployment |
 | No canary PASSED line in logs after deploy | Boot was refused earlier, OR you are looking at the doc-gen/build output (which never logs it) | Check the failing service's earlier log lines |
 
 Related code: `apps/api/Modules/SocialAccounts/Infrastructure/SocialAccountsMasterKeyWitness.cs`

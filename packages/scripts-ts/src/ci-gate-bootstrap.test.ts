@@ -350,7 +350,7 @@ for (const file of workflowFiles) {
 
 			const { status, stdout, output } = runInline(script, cwd, {
 				GITHUB_EVENT_NAME: 'pull_request',
-				GH_REPO: 'radandevist/publyapp',
+				GH_REPO: 'PublyApp/publyapp',
 				PR_NUMBER: '1',
 				GH_TOKEN: 'test-token',
 				PATH: `${fakeGhDir}:${process.env.PATH}`,
@@ -402,7 +402,7 @@ for (const file of workflowFiles) {
 
 			const { status, stdout, output } = runInline(script, cwd, {
 				GITHUB_EVENT_NAME: 'pull_request',
-				GH_REPO: 'radandevist/publyapp',
+				GH_REPO: 'PublyApp/publyapp',
 				PR_NUMBER: '1',
 				GH_TOKEN: 'test-token',
 				PATH: `${fakeGhDir}:${process.env.PATH}`,
