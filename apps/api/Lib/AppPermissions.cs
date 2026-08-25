@@ -13,6 +13,7 @@ using PublyApp.Api.Modules.Posts.Permissions;
 using PublyApp.Api.Modules.Profiles.Permissions;
 using PublyApp.Api.Modules.Projects.Permissions;
 using PublyApp.Api.Modules.Settings.Permissions;
+using PublyApp.Api.Modules.SocialAccounts.Permissions;
 using PublyApp.Api.Modules.SystemNotices.Permissions;
 using PublyApp.Api.Modules.Tenants.Permissions;
 using PublyApp.Api.Modules.Uploads.Permissions;
@@ -68,6 +69,8 @@ public class TenantScopePermissions : IScopePermissions {
 	public SettingsPermissionsForTenant Settings { get; } = new SettingsPermissionsForTenant();
 	public BillingPermissionsForTenant Billing { get; } = new BillingPermissionsForTenant();
 	public AuditLogPermissionsForTenant AuditLogs { get; } = new AuditLogPermissionsForTenant();
+	// C2 (#641): Bluesky-first social accounts. Three verbs per Epic C §1 decision 5.
+	public SocialAccountPermissionsForTenant SocialAccounts { get; } = new SocialAccountPermissionsForTenant();
 }
 
 public static class AppPermissions {
