@@ -3,10 +3,10 @@ import os from 'node:os';
 import path from 'node:path';
 
 const ownedRootPrefix = 'front2-design-guard-run-';
-let ownedRootPromise;
-let fixtureParentPromise;
-const ownedFixtureRoots = new Set();
-let cleanupPromise;
+let ownedRootPromise: Promise<string> | undefined;
+let fixtureParentPromise: Promise<string> | undefined;
+const ownedFixtureRoots = new Set<string>();
+let cleanupPromise: Promise<void> | undefined;
 let signalCleanupStarted = false;
 
 const getFixtureParent = () => {
@@ -27,14 +27,14 @@ const getOwnedRoot = () => {
 
 export const getOwnedRootPath = async () => getOwnedRoot();
 
-export const makeOwnedTempDirectory = async (prefix) => {
+export const makeOwnedTempDirectory = async (prefix: string) => {
 	const root = await getOwnedRoot();
 	return mkdtemp(path.join(root, `${prefix}-`));
 };
 
 export const getFixtureParentPath = async () => getFixtureParent();
 
-export const makeFixture = async (files) => {
+export const makeFixture = async (files: Record<string, string>) => {
 	const parent = await getFixtureParent();
 	const root = await mkdtemp(path.join(parent, 'fixture-'));
 	ownedFixtureRoots.add(root);
