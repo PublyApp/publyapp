@@ -106,7 +106,7 @@ Paths relative to repo root. "exists" = verified present at develop `a9653b1b0`;
 ## Task 1: i18n keys (both locales) + response-message entries
 
 **Files:** the four JSON files above.
-**Interfaces:** produces the `settings:` namespace keys consumed verbatim by Tasks 4–8: `integrations-list-title`, `integrations-empty-title`, `integrations-empty-description`, `integrations-load-failed`, `integrations-load-failed-description`, `connect-bluesky`, `reconnect`, `disconnect`, `provider-bluesky`, `status-active`, `status-needs-reconnect`, `status-revoked`, `last-success-never`, `visible-in-all-projects`, `visible-in-projects`, `drawer-connect-title`, `drawer-reconnect-title`, `drawer-identifier-label`, `drawer-identifier-help`, `drawer-app-password-label`, `drawer-app-password-help`, `drawer-app-password-help-link`, `drawer-submit-connect`, `drawer-submit-reconnect`, `error-credentials-refused`, `error-provider-unreachable`, `error-already-connected`, `error-account-not-found`, `attach-projects-title`, `attach-projects-none-hint`, `disconnect-title`, `disconnect-consequences`, `banner-needs-reconnect-single`, `banner-needs-reconnect-plural`. Plus response-message keys `social-account-connected|reconnected|disconnected|projects-updated`.
+**Interfaces:** produces the `settings:` namespace keys consumed verbatim by Tasks 4–8: `integrations-list-title`, `integrations-empty-title`, `integrations-empty-description`, `integrations-load-failed`, `integrations-load-failed-description`, `connect-bluesky`, `reconnect`, `disconnect`, `provider-bluesky`, `status-active`, `status-needs-reconnect`, `status-revoked`, `last-success-never`, `visible-in-all-projects`, `visible-in-projects`, `drawer-connect-title`, `drawer-reconnect-title`, `drawer-identifier-label`, `drawer-identifier-help`, `drawer-app-password-label`, `drawer-app-password-help`, `drawer-app-password-help-link`, `drawer-submit-connect`, `drawer-submit-reconnect`, `attach-projects-title`, `attach-projects-none-hint`, `disconnect-title`, `disconnect-consequences`, `banner-needs-reconnect-single`, `banner-needs-reconnect-plural`. Plus response-message keys `social-account-connected|reconnected|disconnected|projects-updated`.
 
 - [ ] **Step 1 (RED driver):** run the page spec first — it fails because the drawer module does not exist yet:
 
@@ -129,11 +129,11 @@ Expected: FAIL — cannot resolve `./_bluesky-connect-drawer` (the pull-through 
 	"visible-in-all-projects": "Visible in: all projects",
 	"visible-in-projects": "Visible in: {{names}}",
 	"drawer-app-password-help-link": "Create an app password on Bluesky",
-	"error-credentials-refused": "Bluesky refused these credentials. Check the identifier and app password, then retry.",
-	"error-provider-unreachable": "Bluesky is unreachable right now. Nothing was saved — retry in a moment.",
 	"disconnect-consequences": "Disconnecting pauses every scheduled post on {{handle}}, erases the stored credentials, and keeps your publication history. Reconnecting the same account resumes posts whose date is still ahead."
 }
 ```
+
+(No `error-*` settings keys here: provider failures are surfaced through the real ApiFailure seam — see [RESOLVED] A8 in Task 5 — so there are no client-side error keys to translate.)
 
 ```json
 // packages/shared-ts/src/lib/i18n/json/response-message.en.json (append)
@@ -755,6 +755,7 @@ The page itself keeps its route shell (`WorkspacePageHeader titleKey="integratio
 - Produces: `<BlueskyConnectDrawer mode="connect" | "reconnect" open onOpenChange tenantId account?: SocialAccountRow />`.
 - Consumes: `DrawerForm` (`~/components/ui/drawer`, exists — `methods: UseFormReturn`, `onSubmit`), `Field.Textarea`/`FieldText` (`~/components/field`, exists), Task 3's connect/reconnect mutations, `useTenantProjectsQuery` (exists), `FieldCheckboxGroup` (`~/components/field/field-checkbox-group.tsx`, exists) via the attach field.
 - The drawer is the ONLY place the app-password string exists; it lives in RHF state, never in a store, and the form resets on close.
+- **[RESOLVED] A8 — failure-class error mechanism (verified against wt-641):** the C2 connect handler NEVER answers 409 — `AppConflictHttpResult` is declared in its `Results<…>` signature but no branch produces one (`ConnectSocialAccountResult.Connected` carries `AlreadyConnected` only for the audit log; the real outcomes are 201 Created, 422 `credentials-refused` via `TypedProblems.ValidationProblem`, and `provider-unreachable` via `TypedProblems.ProviderUnavailable`). There is therefore NO `error-already-connected` settings key, NO `error-account-not-found`, and NO status→key dispatch table. The sanctioned mechanism is exactly what `$userId-general.tsx` / `posts/$postId/edit.tsx` do today: `const failure = toApiFailure(error)` (import from `@org/shared-ts/lib/api-failure/to-api-failure`) → `getFailureMessage(failure, { fallback: t('common:an-error-occurred') })`. `getFailureMessage` resolves server-provided detail/title/translationKey first (the transparent-cause rule), so a refused 422 shows Bluesky's sanitised cause verbatim; only unknown shapes fall back to the generic key. Mutations stay on the global `MutationCache` feedback path (no per-mutation `onError`, no direct sonner); the drawer additionally maps `failure.fieldErrors.appPassword` onto that field via RHF `setError` when present, and renders everything else as the form root error.
 - **[RESOLVED] A6 — drawer sizing mechanism (read from wt-641's `drawer.tsx`):** `DrawerContentProps` carries literally `width?: 736` — a single-value literal type, NOT a free number — and `DrawerContent` maps it to `data-width` on the popup (`data-width={width === undefined ? undefined : String(width)}`); the 736 styling is a `data-width="736"` variant in the component layer. There is no `width={560}`, no arbitrary pixel prop, and nothing to wire for this screen: omit the prop and take the default drawer surface (same as every existing consumer). Do not invent a second size; if the design review demands one, that is a separate change to `drawer.tsx`, not an ad-hoc value here.
 
 - [ ] **Step 1 (RED):**
@@ -787,7 +788,6 @@ const EN_LABELS: Record<string, string> = {
 	'drawer-identifier-label': 'Bluesky identifier',
 	'drawer-app-password-label': 'App password',
 	'drawer-submit-connect': 'Connect',
-	'error-credentials-refused': 'Bluesky refused these credentials. Check the identifier and app password, then retry.',
 };
 
 vi.mock('react-i18next', () => ({
@@ -808,8 +808,8 @@ describe('bluesky connect drawer', () => {
 		connectImpl = vi.fn().mockResolvedValue(undefined);
 		render(<BlueskyConnectDrawer mode="connect" open onOpenChange={onOpenChange} tenantId="t1" />);
 
-		await user.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
-		await user.type(screen.getByLabelText(/app password/i), 'correct-horse-battery-staple');
+		await user.type(screen.getByTestId('bluesky-identifier'), 'team.bsky.social');
+		await user.type(screen.getByTestId('bluesky-app-password'), 'correct-horse-battery-staple');
 		await user.click(screen.getByRole('button', { name: /connect/i }));
 
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
@@ -818,14 +818,24 @@ describe('bluesky connect drawer', () => {
 
 	test('ItShouldShowTheProviderRefusalAsIsWhenCredentialsAreRefused', async () => {
 		const user = userEvent.setup();
-		connectImpl = vi.fn().mockRejectedValue({ status: 422, responseMessageKey: 'credentials-refused' });
+		// Rejected value mirrors what the generated Kiota client throws: a
+		// record carrying the RFC 7807 body fields that `toApiFailure`
+		// parses (`translationKey` + per-field `errors`), NOT a fake
+		// `{ status, responseMessageKey }` shape.
+		connectImpl = vi.fn().mockRejectedValue({
+			status: 422,
+			translationKey: 'credentials-refused',
+			errors: { appPassword: ['Bluesky refused these credentials. Check the identifier and app password, then retry.'] },
+		});
 		render(<BlueskyConnectDrawer mode="connect" open onOpenChange={vi.fn()} tenantId="t1" />);
 
-		await user.type(screen.getByLabelText(/identifier/i), 'team.bsky.social');
-		await user.type(screen.getByLabelText(/app password/i), 'wrong');
+		await user.type(screen.getByTestId('bluesky-identifier'), 'team.bsky.social');
+		await user.type(screen.getByTestId('bluesky-app-password'), 'wrong');
 		await user.click(screen.getByRole('button', { name: /connect/i }));
 
-		// No jest-dom on this repo: assert on textContent.
+		// No jest-dom on this repo: assert on textContent. The surfaced copy
+		// is the SERVER's sanitised cause (fieldErrors.appPassword[0]), not a
+		// client-invented key.
 		const alert = await screen.findByRole('alert');
 		expect(alert.textContent).toMatch(/Bluesky refused these credentials/i);
 	});
@@ -926,11 +936,21 @@ export const BlueskyConnectDrawer = ({
 			onOpenChange(false);
 		} catch (error) {
 			const failure = toApiFailure(error);
+
+			// Field errors first: C2 keys the refused-credentials 422 on
+			// `appPassword` — map it onto the field so the message sits next to
+			// the input it invalidates.
+			const appPasswordError = failure.kind === 'validation' ? failure.fieldErrors['appPassword']?.[0] : undefined;
+			if (appPasswordError !== undefined) {
+				methods.setError('appPassword', { message: appPasswordError });
+				return;
+			}
+
+			// Everything else: root error resolved through getFailureMessage —
+			// the server's sanitised detail/title wins (transparent-cause rule);
+			// only unknown shapes get the generic fallback.
 			methods.setError('root', {
-				message:
-					getFailureMessage(failure, {
-						fallback: t('error-provider-unreachable'),
-					}) ?? undefined,
+				message: getFailureMessage(failure, { fallback: t('common:an-error-occurred') }),
 			});
 		}
 	});
@@ -961,6 +981,9 @@ export const BlueskyConnectDrawer = ({
 						<a href={APP_PASSWORD_HELP_URL} target="_blank" rel="noreferrer">
 							{t('drawer-app-password-help-link')}
 						</a>
+						{methods.formState.errors.root?.message ? (
+							<p role="alert" className="text-destructive text-sm">{methods.formState.errors.root.message}</p>
+						) : null}
 						{mode === 'connect' ? (
 							<AttachProjectsField name="projectIds" tenantId={tenantId} />
 						) : null}
@@ -1031,7 +1054,7 @@ export const AttachProjectsField = ({
 - [ ] **Step 4:** `git commit -m "front(social): bluesky connect/reconnect drawer with attach-to-projects checklist" && git push`
 
 **Spec proof:** §3 connect bullet complete (identifier + app password + help link + errors as-is); attach checklist with none-checked-means-all; reconnect reuses the same drawer with handle prefilled.
-**Adversarial mutation:** swallow the 422 into a generic toast instead of the root alert → the refusal test goes red (errors-shown-as-is guard).
+**Adversarial mutation:** replace the `getFailureMessage(failure, …)` resolution with a hard-coded generic "Something went wrong" (or swallow the failure into an untyped toast) → the refusal test goes red: the surfaced copy no longer matches the server's sanitised cause carried by the `ApiFailure` (errors-shown-as-is guard).
 
 ---
 
