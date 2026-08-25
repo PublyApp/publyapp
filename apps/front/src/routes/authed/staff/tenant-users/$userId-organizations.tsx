@@ -1,7 +1,6 @@
 import { IconChevronDown, IconLink, IconUserMinus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -10,7 +9,6 @@ import {
 	FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME,
 	FloatingSelectionBar,
 } from '~/components/table/floating-selection-bar';
-import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
@@ -21,8 +19,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { BrandTile } from '~/components/ui/initials-avatar';
-import { formatDateTime } from '~/lib/format-date-time';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
@@ -47,11 +43,10 @@ import type {
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
-import { formatAccountLevelLabel } from '../staff-users/status-labels';
-import { formatTenantStatusLabel } from '../tenants/$tenantId/_tenant-details-shell';
 import { LinkCompaniesDrawerHost } from './$userId-organizations-drawer';
 import { tenantUserDetailsCrumbs } from './_crumbs';
 import { TenantUserDetailsShell } from './_details-shell';
+import { buildOrganizationColumns } from './_organizations-columns';
 
 const TenantUserOrganizationsTabPage = () => {
 	const { userId } = Route.useParams();
@@ -225,127 +220,6 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 				/>
 			</FloatingSelectionBar>
 		</>
-	);
-};
-
-function buildOrganizationColumns(
-	t: (key: string, options?: Record<string, unknown>) => string,
-	locale: string,
-	userId: string,
-): ColumnDef<OrganizationRow>[] {
-	return [
-		{
-			id: 'name',
-			header: t('name'),
-			accessorKey: 'name',
-			meta: { width: '260px' },
-			cell: ({ row }) => (
-				<div className="flex min-w-0 items-center gap-2.5">
-					<BrandTile name={row.original.name} logoUrl={row.original.logoUrl} />
-					<span className="truncate font-medium">{row.original.name}</span>
-				</div>
-			),
-		},
-		{
-			id: 'level',
-			header: t('level'),
-			accessorKey: 'level',
-			meta: { width: '104px', hideBelow: 768 },
-			cell: ({ getValue }) => (
-				<span className="text-sm">
-					{formatAccountLevelLabel(getValue<string | null>(), t)}
-				</span>
-			),
-		},
-		{
-			id: 'status',
-			header: t('status'),
-			accessorKey: 'status',
-			meta: { width: '140px' },
-			cell: ({ getValue }) => (
-				<span className="text-sm">
-					{formatTenantStatusLabel(getValue<string | null>() ?? '', t)}
-				</span>
-			),
-		},
-		{
-			id: 'member-since',
-			header: t('member-since'),
-			accessorKey: 'createdAt',
-			meta: { width: '180px', hideBelow: 1024 },
-			cell: ({ getValue }) => (
-				<span className="text-sm text-muted-foreground">
-					{formatDateTime(getValue<Date | null>(), locale)}
-				</span>
-			),
-		},
-		{
-			id: 'actions',
-			header: () => <span className="sr-only">{t('actions')}</span>,
-			enableSorting: false,
-			meta: { width: '40px', align: 'center' },
-			cell: ({ row }) => (
-				<DataTableRowActions
-					ariaLabel={t('actions-for', { name: row.original.name })}
-					testId={`tenant-user-company-actions-${row.original.id}`}
-				>
-					<ConfirmRemoveSingleOrganization userId={userId} row={row.original} />
-				</DataTableRowActions>
-			),
-		},
-	];
-}
-
-/** Test seam: the columns builder with explicit translator/locale. */
-export const buildOrganizationColumnsForTests = buildOrganizationColumns;
-
-const ConfirmRemoveSingleOrganization = ({
-	userId,
-	row,
-}: {
-	userId: string;
-	row: OrganizationRow;
-}) => {
-	const { t } = useTranslation('common');
-	const queryClient = useQueryClient();
-	const [isOpen, setOpen] = useState(false);
-	const bulkUnlink = useBulkUnlinkGlobalTenantUserCompaniesMutation();
-	const [shouldLogout, setShouldLogout] = useState(false);
-
-	const confirmRemoveUserFromTenant = async () => {
-		try {
-			await bulkUnlink.mutateAsync({ userId, tenantIds: [row.id] });
-		} catch (error) {
-			setOpen(false);
-			if (shouldLogoutForFailure(error)) {
-				setShouldLogout(true);
-				return;
-			}
-			await displayLocalMutationFailure(error, t('an-error-occurred'));
-			return;
-		}
-		setOpen(false);
-		await invalidateGlobalTenantUsers(queryClient);
-		toastLocalMutationResult.success(t('user-removed-success'));
-	};
-
-	if (shouldLogout) {
-		return <LogoutRedirect />;
-	}
-
-	return (
-		<ConfirmDialog
-			isOpen={isOpen}
-			title={t('remove-user-from-tenant')}
-			description={t('confirm-remove-user-from-tenant-details')}
-			confirmLabel={t('remove')}
-			tone="danger"
-			isPending={bulkUnlink.isPending}
-			onConfirm={() => {
-				void confirmRemoveUserFromTenant();
-			}}
-			onOpenChange={setOpen}
-		/>
 	);
 };
 
