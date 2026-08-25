@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	rmSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,7 +75,11 @@ const scriptWithTable = (entries: string): string => {
 		/const MOVES: Record<string, Decision> = \{[\s\S]*?\n\};/,
 		`const MOVES: Record<string, Decision> = {\n${entries}};`,
 	);
-	assert.notEqual(rewritten, self, 'fixture relies on rewriting the MOVES table');
+	assert.notEqual(
+		rewritten,
+		self,
+		'fixture relies on rewriting the MOVES table',
+	);
 	return rewritten;
 };
 
@@ -112,10 +122,14 @@ const WIDGET_SOURCE = 'docs/superpowers/specs/2026-08-25-widget-design.md';
 // Runs the generator PLANTED inside the fixture repo (never the worktree's
 // own copy, whose decision table names real repository paths).
 const runAudit = (root: string, ...args: string[]) =>
-	execFileSync('node', ['packages/scripts-ts/src/audit-docs-prune.ts', ...args], {
-		cwd: root,
-		encoding: 'utf8',
-	});
+	execFileSync(
+		'node',
+		['packages/scripts-ts/src/audit-docs-prune.ts', ...args],
+		{
+			cwd: root,
+			encoding: 'utf8',
+		},
+	);
 
 const runAuditExpectingFailure = (root: string, ...args: string[]) => {
 	try {
@@ -144,10 +158,14 @@ test('a real rename classified as delete fails --check naming the row (paid-modu
 		// the real rename renders as a deletion and regenerates identically.
 		plantGenerator(repo, scriptWithTable(widgetMoveEntry(null)));
 		mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
-		execFileSync('git', ['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'], {
-			cwd: repo,
-			stdio: ['ignore', 'ignore', 'pipe'],
-		});
+		execFileSync(
+			'git',
+			['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'],
+			{
+				cwd: repo,
+				stdio: ['ignore', 'ignore', 'pipe'],
+			},
+		);
 		writeFileSync(
 			path.join(repo, 'docs/records/2026-08-25-audit-docs-prune.md'),
 			plantedRecord(
@@ -159,7 +177,10 @@ test('a real rename classified as delete fails --check naming the row (paid-modu
 	const result = runAuditExpectingFailure(root, '--check');
 	assert.equal(result.status, 1);
 	assert.match(result.stderr, /disagrees with git diff -M/);
-	assert.match(result.stderr, /docs\/superpowers\/specs\/2026-08-25-widget-design\.md/);
+	assert.match(
+		result.stderr,
+		/docs\/superpowers\/specs\/2026-08-25-widget-design\.md/,
+	);
 	assert.match(
 		result.stderr,
 		/git records a rename to docs\/records\/2026-08-25-spec-widget\.md/,
@@ -174,10 +195,14 @@ test('--check passes when the inventory matches both regeneration and git rename
 		// carries.
 		plantGenerator(repo, scriptWithTable(widgetMoveEntry('widget')));
 		mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
-		execFileSync('git', ['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'], {
-			cwd: repo,
-			stdio: ['ignore', 'ignore', 'pipe'],
-		});
+		execFileSync(
+			'git',
+			['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'],
+			{
+				cwd: repo,
+				stdio: ['ignore', 'ignore', 'pipe'],
+			},
+		);
 	});
 	runAudit(root); // regenerate from the rewritten table
 	// --check reads the committed evidence from HEAD, so the fresh record
