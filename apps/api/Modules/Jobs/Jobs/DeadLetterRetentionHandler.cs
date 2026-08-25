@@ -17,7 +17,7 @@ namespace PublyApp.Api.Modules.Jobs.Jobs;
 /// evaluated in SQL against database time (F11); a re-run deletes fewer rows and is
 /// harmless. A row exactly AT the horizon is kept (strict <c>&lt;</c>).
 ///
-/// Untriaged missing-anomaly rows are NEVER eligible (#864/K-2): a row whose
+/// Untriaged missing-anomaly rows are NEVER age-eligible (#864/K-2): a row whose
 /// <see cref="JobDeadLetter.JobType"/> carries the reserved
 /// <see cref="JobDeadLetter.MissingJobTypePrefix"/> records an integrity anomaly —
 /// prepared state that should exist does not. Deleting it at the age floor would
@@ -25,6 +25,12 @@ namespace PublyApp.Api.Modules.Jobs.Jobs;
 /// only once an operator acknowledgement is stamped on it (<c>triaged_at IS NOT NULL</c>,
 /// via the #636 staff surface); until then it stays alerting forever, and every pass
 /// reports how many rows it held back.
+///
+/// External-state exemptions (K-1, issue #863): rows classified 1 Present or
+/// 6 Unclassified are NOT age-deleted — their external effects may still exist, or
+/// they await operator triage through POST /staff/dead-letter/{id}/resolve-unclassified.
+/// The run reports how many exempt rows sit beyond the horizon, so an ever-growing
+/// exempt population can never silently starve the sweep unmanaged.
 ///
 /// Note: swept rows are not requeuable afterwards — retention past the window is the
 /// deliberate end of a dead job's life; a still-wanted job is requeued (§4.2) before it
@@ -71,8 +77,12 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 				WHERE id IN (
 					SELECT id FROM job_dead_letter
 					WHERE failed_at < now() - make_interval(days => {retentionDays})
-						AND (triaged_at IS NOT NULL
-							OR job_type NOT LIKE {JobDeadLetter.MissingJobTypeLikePattern})
+					AND (triaged_at IS NOT NULL
+						OR job_type NOT LIKE {JobDeadLetter.MissingJobTypeLikePattern})
+					AND external_state_status NOT IN (
+						{(int)ExternalStateStatus.Present},
+						{(int)ExternalStateStatus.Unclassified}
+					)
 					ORDER BY failed_at, id
 					LIMIT {BatchSize}
 					FOR UPDATE SKIP LOCKED
@@ -84,19 +94,34 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 			totalDeleted += deleted;
 		} while (deleted == BatchSize);
 
-		// Always report the held-back class (#864): how many missing-anomaly rows the sweep
-		// is deliberately keeping past the window because nobody has triaged them yet. This
-		// count is the durable answer to "retention skipped something" — the alerting side
-		// reads the same predicate every sample (jobs.dlq.untriaged_missing).
+		// Always report the held-back classes: how many untriaged missing-anomaly rows
+		// (#864) and how many external-state exempt rows (K-1/#863) the sweep is
+		// deliberately keeping past the window. These counts are the durable answer to
+		// "retention skipped something" — alerting reads the same predicates every sample.
 		var heldUntriagedMissing = await CountUntriagedMissingRowsAsync(cancellationToken);
+		var skippedExempt = await CountSkippedExemptAsync(retentionDays, cancellationToken);
+
 		if (_logger.IsEnabled(LogLevel.Information)) {
-			_logger.LogInformation(
-				"job-dead-letter-retention deleted {Deleted} row(s) older than {Days} day(s), "
-				+ "held back {Held} untriaged missing-anomaly row(s)",
-				totalDeleted,
-				retentionDays,
-				heldUntriagedMissing
-			);
+			if (skippedExempt > 0) {
+				_logger.LogInformation(
+					"job-dead-letter-retention deleted {Deleted} row(s) older than {Days} day(s), "
+					+ "held back {Held} untriaged missing-anomaly row(s); "
+					+ "skipped {SkippedCount} exempt row(s) "
+					+ "(external_state Present/Unclassified) beyond the horizon",
+					totalDeleted,
+					retentionDays,
+					heldUntriagedMissing,
+					skippedExempt
+				);
+			} else if (totalDeleted > 0 || heldUntriagedMissing > 0) {
+				_logger.LogInformation(
+					"job-dead-letter-retention deleted {Deleted} row(s) older than {Days} day(s), "
+					+ "held back {Held} untriaged missing-anomaly row(s)",
+					totalDeleted,
+					retentionDays,
+					heldUntriagedMissing
+				);
+			}
 		}
 
 		return JobOutcome.Succeeded;
@@ -112,5 +137,26 @@ public sealed class DeadLetterRetentionHandler : IJobHandler {
 			d => d.TriagedAt == null && d.JobType.StartsWith(JobDeadLetter.MissingJobTypePrefix),
 			cancellationToken
 		);
+	}
+
+	/// <summary>
+	/// Counts age-eligible rows the exemption predicate holds back — the starvation
+	/// gauge for K-1: these need triage/sweeps (#864/#865) to ever leave the DLQ.
+	/// </summary>
+	private async Task<int> CountSkippedExemptAsync(
+		int retentionDays,
+		CancellationToken cancellationToken
+	) {
+		return await _dbContext.Database.SqlQuery<int>(
+			$"""
+			SELECT COUNT(*)::int AS "Value"
+			FROM job_dead_letter
+			WHERE failed_at < now() - make_interval(days => {retentionDays})
+			  AND external_state_status IN (
+				  {(int)ExternalStateStatus.Present},
+				  {(int)ExternalStateStatus.Unclassified}
+			  )
+			"""
+		).SingleAsync(cancellationToken);
 	}
 }
