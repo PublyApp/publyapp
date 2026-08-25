@@ -102,14 +102,13 @@ public static class JobsServiceRegistration {
 		// LAST registration wins in Microsoft.Extensions.DependencyInjection, so once
 		// wt-641's AddAppServices registers BlueskySessionProvider AFTER this block,
 		// its real implementation silently replaces the placeholder — no code change
-		// needed at the convergence rebase. The placeholder throws on use so a
-		// mis-wired worker dies loudly instead of publishing with a fake session.
-		builder.Services.TryAddScoped<ISocialSessionProvider>(sp => {
-			throw new InvalidOperationException(
-				"ISocialSessionProvider has no implementation registered. "
-					+ "Epic C (lane wt-641) owns the Bluesky implementation; D1 only "
-					+ "consumes the seam."
-			);
+		// needed at the convergence rebase. The placeholder must stay RESOLVABLE:
+		// JobHandlerRegistry.ValidateRegistrationConsistency composes every handler
+		// once at startup, so throwing from resolution would brick the whole worker.
+		// Instead it throws on first USE — a publish job that actually runs without
+		// a real seam dies loudly instead of publishing with a fake session.
+		builder.Services.TryAddScoped<ISocialSessionProvider>(_ => {
+			return new UnimplementedSocialSessionProvider();
 		});
 
 		AddEmailJobHandlers(builder);
@@ -201,5 +200,25 @@ public static class JobsServiceRegistration {
 		);
 
 		return builder;
+	}
+}
+
+/// <summary>
+/// Transitional placeholder for <see cref="ISocialSessionProvider"/> while Epic C
+/// (lane wt-641) has not landed its real Bluesky implementation. RESOLVABLE but
+/// never usable: every call throws loudly, so a publish job can never run against
+/// a fake session. Deleted naturally at the convergence rebase, where wt-641's
+/// last-wins registration replaces this placeholder entirely.
+/// </summary>
+public sealed class UnimplementedSocialSessionProvider : ISocialSessionProvider {
+	public Task<SocialSessionResult> OpenSessionAsync(
+		Guid socialAccountId,
+		CancellationToken cancellationToken
+	) {
+		throw new InvalidOperationException(
+			"ISocialSessionProvider has no implementation registered. "
+				+ "Epic C (lane wt-641) owns the Bluesky implementation; D1 only "
+				+ "consumes the seam."
+		);
 	}
 }
