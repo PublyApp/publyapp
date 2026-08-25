@@ -11,6 +11,8 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	BulkDeleteStaffProfilesBody,
+	BulkProfileActionResult,
 	CreateStaffProfileBody,
 	FindStaffProfilePermissionsResult,
 	FindStaffProfilesResult,
@@ -602,3 +604,37 @@ export const useStaffPermissionCatalogQuery = (
 		queryKey: staffPermissionCatalogQueryOptions.queryKey(variables),
 		queryFn: () => staffPermissionCatalogQueryOptions.fetcher(variables),
 	});
+
+export type BulkStaffProfileActionInput = {
+	profileIds: string[];
+};
+
+// #1386 — the toolbar owns bulk feedback (mutation-feedback ownership): the
+// silent meta mirrors the #1385 staff-users bulk hooks so the global handler
+// stays out of the way and the selection bar toasts full/partial results.
+const buildBulkDeleteStaffProfilesBody = (
+	profileIds: string[],
+): BulkDeleteStaffProfilesBody => ({
+	profileIds: createUntypedArray(
+		profileIds.map((profileId) => createUntypedString(profileId)),
+	),
+});
+
+export const bulkDeleteStaffProfilesMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkProfileActionResult | undefined,
+	BulkStaffProfileActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_PROFILES_QUERY_KEY, 'bulk-delete'],
+		mutationFn: (client, variables) =>
+			client.staff.profiles.bulkDelete.post(
+				buildBulkDeleteStaffProfilesBody(variables.profileIds),
+			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useBulkDeleteStaffProfilesMutation = () =>
+	useMutation(bulkDeleteStaffProfilesMutationOptions);

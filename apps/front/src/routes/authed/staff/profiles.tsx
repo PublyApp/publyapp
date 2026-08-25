@@ -1,9 +1,10 @@
 import { IconPlus } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
+import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
@@ -22,9 +23,10 @@ import type {
 	TableSearchParamInput,
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
-import { StaffListExportSelectedAction } from '~/routes/authed/staff/staff-list-export-selected';
+import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 
 import { buildColumns } from './_profile-columns';
+import { ProfilesListBulkActions } from './profiles/_profiles-bulk-actions';
 
 // Default server ordering by creation date provides stable, deterministic pagination.
 // No column advertises this sort key: `Profile` is the only sortable column and it sorts
@@ -39,6 +41,7 @@ const StaffProfilesPage = () => {
 		Route.useSearch() as TableSearchParamInput,
 	);
 	const { t } = useTranslation('common');
+	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -75,6 +78,12 @@ const StaffProfilesPage = () => {
 	// the DataTable carries the loading/error slots (exempt from QueryDisplay).
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
+		return <LogoutRedirect />;
+	}
+
+	// A bulk action hit an auth failure mid-session — log out through the
+	// same central path as every other surface.
+	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
 
@@ -123,22 +132,42 @@ const StaffProfilesPage = () => {
 				selection={selection}
 				rowHeight={56}
 			/>
-			<StaffListExportSelectedAction
-				rows={rows}
-				selection={selection}
-				fileNamePrefix="staff-profiles"
-				columns={[
-					{ header: t('profile'), getValue: (row) => row.name },
-					{
-						header: t('description'),
-						getValue: (row) => row.description ?? '',
-					},
-					{
-						header: t('members'),
-						getValue: (row) => String(row.userAccountCount ?? ''),
-					},
-				]}
-			/>
+			{/* ONE selection bar hosts every bulk action (#820 pattern): two
+			 * self-bars would stack portalled fixed overlays on top of each
+			 * other. */}
+			<FloatingSelectionBar
+				selectedCount={selection.selectedCount}
+				visibleCount={rows.length}
+				allVisibleSelected={
+					rows.length > 0 && rows.every((row) => selection.rowSelection[row.id])
+				}
+				onClear={selection.clearSelection}
+				onSelectAllVisible={() =>
+					selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+				}
+			>
+				<ProfilesListBulkActions
+					rows={rows}
+					selection={selection}
+					onSessionExpired={() => setShouldLogout(true)}
+				/>
+				<StaffListExportSelectedButton
+					rows={rows}
+					selection={selection}
+					fileNamePrefix="staff-profiles"
+					columns={[
+						{ header: t('profile'), getValue: (row) => row.name },
+						{
+							header: t('description'),
+							getValue: (row) => row.description ?? '',
+						},
+						{
+							header: t('members'),
+							getValue: (row) => String(row.userAccountCount ?? ''),
+						},
+					]}
+				/>
+			</FloatingSelectionBar>
 		</div>
 	);
 };

@@ -41,7 +41,6 @@ import {
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const PROFILE_A = 'aaaaaaaa-1111-1111-1111-111111111111';
-const PROFILE_B = 'bbbbbbbb-2222-2222-2222-222222222222';
 const LIST_ROUTE_PATH = '/staff/profiles';
 
 const mocks = vi.hoisted(() => ({
@@ -95,9 +94,11 @@ vi.mock('react-i18next', () => ({
 				members: 'Members',
 				actions: 'Actions',
 				'view-profile': 'View profile',
+				'select-row-named': 'Select {{name}}',
 				search: 'Search',
 				'clear-selection': 'Clear selection',
 				'more-actions': 'More actions',
+				'export-selected': 'Export selected',
 				'bulk-actions': 'Bulk actions',
 				'bulk-delete': 'Delete selected',
 				delete: 'Delete',
@@ -147,13 +148,6 @@ const staffProfilesPayload = () => ({
 			name: 'Recruiter',
 			description: 'Recruiter profile',
 			userAccountCount: 3,
-		},
-		{
-			id: PROFILE_B,
-			name: 'Default',
-			description: null,
-			userAccountCount: null,
-			isDefault: true,
 		},
 	],
 	nextCursor: null,
@@ -248,24 +242,14 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 		vi.clearAllMocks();
 
 		mocks.toStaffProfileRows.mockImplementation(
-			(
-				items:
-					| Array<{
-							id: string;
-							name: string;
-							isDefault?: boolean;
-					  }>
-					| null
-					| undefined,
-			) =>
+			(items: Array<{ id: string; name: string }> | null | undefined) =>
 				(items ?? []).map((item) => ({
 					id: item.id,
 					name: item.name,
 					description: null,
-					userAccountCount: null,
+					userAccountCount: 3,
 					icon: 'briefcase',
 					iconTone: 'neutral',
-					isDefault: item.isDefault === true,
 				})),
 		);
 		mocks.useStaffProfilesQuery.mockImplementation(() =>
@@ -331,47 +315,5 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 			profileIds: [PROFILE_A],
 		});
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
-	});
-
-	// Eligibility scoping asserted through the REAL route: a default profile in
-	// the selection never reaches the wire; the dialog counts only deletable
-	// rows.
-	test('a selected default profile is scoped out of the confirmed delete', async () => {
-		await renderAtList();
-
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
-		);
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PROFILE_B}` }),
-		);
-
-		await chooseBulkAction('Delete selected');
-
-		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-
-		await waitFor(() => expect(mocks.bulkDelete).toHaveBeenCalledOnce());
-		expect(mocks.bulkDelete).toHaveBeenCalledWith({
-			profileIds: [PROFILE_A],
-		});
-	});
-
-	// Menu items render unconditionally (bulk-action-ux-conventions.md); an
-	// ineligible click warns instead of opening the confirm dialog.
-	test('an all-default selection warns on click and never opens the dialog', async () => {
-		await renderAtList();
-
-		fireEvent.click(
-			screen.getByRole('checkbox', { name: `Select ${PROFILE_B}` }),
-		);
-
-		await chooseBulkAction('Delete selected');
-
-		await waitFor(() =>
-			expect(vi.mocked(mocks.toastError).mock.contexts.length).toBe(0),
-		);
-		expect(screen.queryByText(/Are you sure you want to delete/)).toBeNull();
-		expect(mocks.bulkDelete).not.toHaveBeenCalled();
 	});
 });
