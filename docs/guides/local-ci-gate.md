@@ -38,6 +38,38 @@ other gates' `Determine changed paths` pattern and covers: the workflow itself,
 `Directory.Packages.props`, `global.json`, `PublyApp.slnx`, `apps/**`, `packages/**`,
 `packages/scripts-ts/**`.
 
+## Actions pin/comment binding (issue #1392)
+
+The sibling guards prove every `uses:` is pinned to a full 40-hex SHA. Neither
+proves the SHA **is the commit its `# vX.Y.Z` comment claims** — a wrong SHA
+under a right-looking comment passed every gate green (verified by hand during
+the #1381 review).
+
+`packages/scripts-ts/src/check-actions-pins.ts` closes that gap. It scans the
+same tree as the sibling guard (`.github/workflows/**`, `.github/actions/**`,
+plus every local action reachable through `uses: ./<path>`), resolves each
+comment's tag through `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` (peeling
+annotated tags to their commit — `pnpm/action-setup@v6.0.10` is annotated, so
+the peel is load-bearing), and compares against the pinned SHA.
+
+Fail-loud classes (no compliant default):
+
+- a `uses:` value that is not a 40-hex pin, has no `@ref`, or is otherwise unparseable;
+- a pin without a version comment, or whose comment does not parse as `v<major>[.minor[.patch]]`;
+- a referenced tag that does not exist upstream;
+- any resolver/API failure — the guard FAILS, never passes silently;
+- a scan that judged zero files or zero pins (anti-rot, mirrors the sibling guard).
+
+Local `./…` and `docker://` references are the only allowlisted non-pinned forms.
+
+Run it with `just ci-actions-pins` (unit suite + live scan). It is
+network-dependent, so the recipe accepts `ARGS="--offline"` to skip the live
+half for air-gapped local work; CI (`quality-gate.yml`) never passes it and
+authenticates with the workflow token. Per-run caching keeps a full scan at
+~16 distinct tag lookups. Paired proof convention: change one workflow SHA in a
+scratch commit → the guard fails naming file:line with expected vs actual;
+revert → green. Changing only the comment version must equally fail.
+
 ## The two targets
 
 |                                                                                                   | `just ci` | `just ci-full` |

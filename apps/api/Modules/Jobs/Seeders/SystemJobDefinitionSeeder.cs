@@ -99,6 +99,14 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 		}
 	}
 
+	// Code-defined desired state for a system job definition, exposed for the #1349
+	// whole-definition protection restore in SyncSystemJobsJob: when a protected
+	// definition drifts from this source of truth (an invalid or emptied cron), the
+	// reconcile reverts it to these values instead of honoring the corruption.
+	internal static IReadOnlyList<SystemJobDefinition> GetCodeDefinedDefaults() {
+		return GetDefinitions();
+	}
+
 	private static List<SystemJobDefinition> GetDefinitions() {
 		return [
 			new SystemJobDefinition {

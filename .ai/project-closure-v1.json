@@ -1,7 +1,7 @@
 {
 	"schema_version": 1,
 	"project": "publyapp",
-	"repository": "radandevist/publyapp",
+	"repository": "PublyApp/publyapp",
 	"repo_path": "/home/radan/Projects/PublyApp/publyapp",
 	"default_branch": "develop",
 	"closure_state_dir": "/home/radan/.hermes/orchestration/closure",
