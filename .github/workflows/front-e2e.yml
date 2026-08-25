@@ -155,10 +155,22 @@ jobs:
     outputs:
       tag: ${{ steps.image-tag.outputs.tag }}
       fork: ${{ steps.fork.outputs.fork }}
+      ns: ${{ steps.image-ns.outputs.root }}
     steps:
       - name: Set image tag
         id: image-tag
         run: echo "tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+      # #1362: owner-derived since the org move (radandevist -> PublyApp).
+      # GHCR rejects uppercase in image paths and github.repository_owner is
+      # "PublyApp", so lowercase it here. Nothing pre-existing under this
+      # namespace is required: the build job builds all four images before
+      # any push/pull, and the per-run scratch tags are created by this run.
+      - name: Resolve lowercase e2e image namespace
+        id: image-ns
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "root=ghcr.io/$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')/publyapp-e2e" >> "$GITHUB_OUTPUT"
 
       - name: Detect fork pull request
         id: fork
@@ -188,7 +200,7 @@ jobs:
       - name: Build stack images
         env:
           COMPOSE_BAKE: 'true'
-          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         # On a fork run the gha cache backend has neither a writable cache
         # destination nor the runtime credentials it authenticates with, so
@@ -210,7 +222,7 @@ jobs:
       - name: Push stack images to GHCR (same-repo runs only)
         if: steps.fork.outputs.fork != 'true'
         env:
-          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front
 
@@ -224,7 +236,7 @@ jobs:
       - name: Save stack images tarball (fork runs)
         if: steps.fork.outputs.fork == 'true'
         env:
-          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: |
           set -euo pipefail
@@ -260,7 +272,9 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     env:
-      E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+      # Handed over from the build job so this can never drift from the
+      # namespace the images were actually pushed under (#1362).
+      E2E_IMAGE_NS: ${{ needs.build.outputs.ns }}
       E2E_IMAGE_TAG: ${{ needs.build.outputs.tag }}
     steps:
       - name: Checkout
@@ -499,6 +513,12 @@ jobs:
       # that surfaces as ::error:: and fails the job. The public → private
       # visibility flip that would make deletion possible is a separate
       # owner decision, tracked in #1018.
+      # #1362: the repository moved from radandevist to the PublyApp
+      # organization, and GitHub's package API is owner-type-scoped: packages
+      # owned by a user live under /users/<owner>/..., packages owned by an
+      # organization live under /orgs/<owner>/.... This run's own GHCR pushes
+      # create the four scratch packages in the ORG namespace after the move,
+      # so every list/read/delete call below targets /orgs/.
       - name: Delete run image versions
         env:
           GH_TOKEN: ${{ github.token }}
@@ -544,7 +564,7 @@ jobs:
             # run after the listing is caught and the delete is skipped.
             if ! versions="$(
               gh api --paginate \
-                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions?per_page=100" \
+                "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions?per_page=100" \
                 --jq "[.[] | select(.metadata.container.tags | index(\"${E2E_IMAGE_TAG}\")) | {id: .id, tags: .metadata.container.tags}]"
             )"; then
               echo "::warning::Could not list GHCR versions for ${package}."
@@ -577,7 +597,7 @@ jobs:
               # hold on the CURRENT tag list, not the listing snapshot.
               if ! fresh="$(
                 gh api \
-                  "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}" \
+                  "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}" \
                   --jq "{id: .id, tags: .metadata.container.tags}"
               )"; then
                 echo "::error::Could not re-read GHCR version ${version_id} for ${package}; skipping delete to avoid deleting a version a concurrent run may now share."
@@ -593,7 +613,7 @@ jobs:
               fi
 
               if ! gh api --method DELETE \
-                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}"; then
+                "/orgs/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}"; then
                 echo "::error::Could not delete GHCR version ${version_id} for ${package}. Public GHCR packages past 5000 downloads refuse version deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
                 cleanup_failed=true
               fi

@@ -5,7 +5,7 @@ services:
   publyapp-api:
     # Immutable release tag, never :latest (design §3.4, F14): a mixed-version fleet must
     # be an explicit, inspectable state, not an accident of pull timing.
-    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}
+    image: ghcr.io/publyapp/publyapp/api:${RELEASE_TAG}
     restart: unless-stopped
     # > host ShutdownTimeout (30 s) so graceful drain wins over SIGKILL (design §3.6, F19).
     stop_grace_period: 45s
@@ -118,7 +118,7 @@ services:
   # background job engine (queue processor, scheduler leader + Quartz, outbox
   # dispatchers) and serves NO HTTP (design §3.2/§3.4/§3.5).
   publyapp-worker:
-    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG} # same image as api, immutable tag (F14)
+    image: ghcr.io/publyapp/publyapp/api:${RELEASE_TAG} # same image as api, immutable tag (F14)
     restart: unless-stopped
     # Above the ~30 s Quartz-drain / graceful-shutdown budget (HostOptions.ShutdownTimeout,
     # design §3.6); Compose's 10 s default would SIGKILL mid-drain (audit F19).
@@ -188,7 +188,7 @@ services:
   # file declares no `depends_on`, it starts concurrently with api and worker, which gate their
   # own readiness against it (see the worker startup gate and the API readiness probe).
   publyapp-migrate:
-    image: ghcr.io/radandevist/publyapp/migrate:${RELEASE_TAG}
+    image: ghcr.io/publyapp/publyapp/migrate:${RELEASE_TAG}
     # One-shot: run once per deploy, never restart. `restart: "no"` governs under plain
     # `docker compose` (the Compose mode recorded on this instance); `deploy.restart_policy`
     # below is the Compose deploy-spec equivalent, which Compose honors when present and falls
@@ -244,7 +244,7 @@ services:
       - dokploy-network
 
   publyapp-front:
-    image: ghcr.io/radandevist/publyapp/front:${RELEASE_TAG}
+    image: ghcr.io/publyapp/publyapp/front:${RELEASE_TAG}
     restart: unless-stopped
     environment:
       - NODE_ENV=production
