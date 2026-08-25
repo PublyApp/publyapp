@@ -48,6 +48,7 @@
 - `apps/api/Modules/SocialAccounts/Entities/*` on develop — `SocialAccount` (+`Projects` links), `SocialAccountProject`, `SocialAccountStatus`, plus `Lib/{LastErrorSanitiser,VisibleIn}.cs` and `Services/SocialAccountService.cs` (entities/service landed; the session SEAM and permission class arrive with C2's branch — named above).
 - Jobs infrastructure `apps/api/Infrastructure/Jobs/` (Epic A): `IJobEnqueuer`, `JobDefinition<T>`, `JobContext`, `JobOutcome`, `AddJobHandler` — as consumed verbatim by D1's `PublishingJobs.cs`/`PublishPublicationJobHandler.cs` above.
 - Front: `apps/front/src/routes/authed/tenant/posts/` — `drafts.tsx` (`data-testid="tenant-posts-drafts-page"`, new-post trigger `tenant-posts-new-post`), `_create-post-drawer.tsx` (`tenant-posts-create-drawer`, `tenant-posts-create-body`, `tenant-posts-create-save`), `$postId/edit.tsx` (`tenant-post-edit-page`, `tenant-post-edit-body`, `tenant-post-edit-save`, `tenant-post-edit-move-to-bin`), `history.tsx` (placeholder page `tenant-posts-history-page` / `tenant-posts-history-empty` with `ReadOnlyBadge` — D2 replaces its content), `queue.tsx` / `calendar.tsx` (placeholders, untouched by D2), `lib/query/tenant-posts.ts` (`savePost`, `invalidateTenantPosts`).
+- Auth wire for the composer gate — `GET /auth/scope-auth-data?scope={tenantGuid}` (`apps/api/Modules/Auth/Handlers/GetScopeAuthData.cs`, `origin/develop`) returns `GetScopeAuthDataTenant { Guid Id; string Name; string Code; List<ProfileItem> Profiles; string AccountLevel; bool IsAdmin; List<string> Permissions; }` — `Permissions` carries full keys like `socialaccounts.publish`. Do NOT ride `/auth/user-auth-data`: its result DTO is `GetUserAuthDataResult { Id, Email, AvatarUrl, FirstName, LastName }` (`GetUserAuthData.cs`, `origin/develop`) — ZERO permission fields, so the gate needs its own query. The Kiota op exists today (`packages/client-ts/src/auth/scopeAuthData/index.ts`: `client.auth.scopeAuthData.get({ queryParameters: { scope } })` → `GetScopeAuthDataTenant` with `permissions?: string[] | null`), but NO front wrapper consumes it anywhere on develop or wt-641 (`git grep -n scopeAuthData origin/develop -- apps/front/src` is empty; wt-641 touches no front files at all) — Task 6 creates that wrapper.
 - Testing: `apps/api/Lib/Testing/Fixtures/` `ApiFixture` (Testcontainers Postgres), co-located `*.Spec.cs` conventions, `docs/guides/api-integration-tests.md`; e2e harness + tag vocabulary per `docs/guides/e2e-tags.md` (#1168).
 
 ---
@@ -78,6 +79,7 @@
 - `Lib/Architecture/PublicationArchitecture.Spec.cs` (`origin/lane/wt-644`): extend with endpoint-permission/rate-limit and no-DbContext-in-Publishing-handlers assertions.
 
 **Create — front (`apps/front`)**
+- `src/lib/query/tenant-permissions.ts` + `.test.ts` — `useTenantPermissions(tenantId)` over `/auth/scope-auth-data` + `hasTenantPermission(permissions, key)` helper (Task 6; NO such hook exists on develop — this plan creates it).
 - `src/lib/query/tenant-publications.ts` + `.test.ts` — history query + `publishNow` mutation + `invalidateTenantPublications` (modeled on `src/lib/query/tenant-posts.ts`, `origin/develop`).
 - `src/routes/authed/tenant/posts/_publish-on-block.tsx` + `_publish-on-block.test.tsx` — the "Publish on" checkbox block.
 - Rewrite `src/routes/authed/tenant/posts/history.tsx` (placeholder today, `origin/develop`) + its `history.test.tsx`.
@@ -117,7 +119,7 @@ public abstract record PublishNowResult {
 
 **Files:** `Handlers/Tenant/PublishNowForTenant.cs`; `Routes.Posts.cs` + `Endpoints/PostEndpointsForTenant.cs` (both exist, `origin/develop`; the endpoints file lives under `Endpoints/` — `apps/api/Modules/Posts/Endpoints/PostEndpointsForTenant.cs`); `AuditActions` member; `response-message.en.json` key.
 
-**Interfaces block (front Task 6 relies on the wire shape):**
+**Interfaces block (front Task 7 relies on the wire shape):**
 
 ```
 201-less action contract: 200 Ok<ApiResponse>{ message, key: "publish-now-success" }
@@ -134,7 +136,7 @@ LivePublicationsExist / AccountsNotFound · 403 via PermissionFilter middleware.
 
 **Files:** `Routes.Publishing.cs`, `Services/PublicationListService.cs` + spec, `Handlers/Tenant/FindPublicationsForTenant.cs` + spec, `Endpoints/PublishingEndpointsForTenant.cs`.
 
-**Interfaces block (front Task 6/8 rely on):**
+**Interfaces block (front Tasks 7/9 rely on):**
 
 ```csharp
 // AGENTS.md OpenAPI-Kiota rule ([AsParameters] query DTOs): multi-value
@@ -186,7 +188,51 @@ public sealed record PublicationListItem {
 - [ ] **Step 2 (RED proof):** Plant `Modules/Publishing/Endpoints/_RogueUnpermissionedEndpoint.cs` (temp, uncommitted) mapping a route without permission metadata → guard fact (a) MUST fail naming the file. Transcript to `.dump/mutation-unpermissioned-endpoint.md`. Delete, rerun green.
 - [ ] **Step 3:** Commit `test(api): publishing architecture ratchet — permissioned, rate-limited, DbContext-free handlers`; push.
 
-## Task 6: Kiota regen + front data layer
+## Task 6: Tenant permission hook — `useTenantPermissions` over `/auth/scope-auth-data`
+
+**Files:** `src/lib/query/tenant-permissions.ts` + `src/lib/query/tenant-permissions.test.ts`.
+
+Round-1 review F1: NO tenant permission hook exists on `origin/develop` (`apps/front/src/lib/query/auth.ts` has zero permission tokens) and `origin/lane/wt-641` adds none. The REAL mechanism is served today: `GET /auth/scope-auth-data?scope={tenantGuid}` returns `GetScopeAuthDataTenant` whose `Permissions : List<string>` holds full keys like `socialaccounts.publish`. The generated client already types it:
+
+```ts
+// packages/client-ts/src/models/index.ts (generated, origin/develop)
+export interface GetScopeAuthDataTenant {
+	accountLevel?: string | null;
+	code?: string | null;
+	id?: Guid | null;
+	isAdmin?: boolean | null;
+	name?: string | null;
+	permissions?: string[] | null; // ← the gate reads THIS field
+	profiles?: ProfileItem[] | null;
+}
+// call shape (builder exists at packages/client-ts/src/auth/scopeAuthData/index.ts):
+// await getClientManager().getOrCreateSessionClient()
+//   .auth.scopeAuthData.get({ queryParameters: { scope: tenantId } });
+```
+
+**Interfaces block (Task 8 depends on exactly these):**
+
+```ts
+export const TENANT_PERMISSIONS_QUERY_KEY = ['tenant-permissions'] as const;
+/** Session-stable (staleTime Infinity, refetchOnWindowFocus false — same
+ * contract as `useCurrentUserQuery`, auth.ts, origin/develop): permissions
+ * change only via rare profile-admin actions outside the composer flow. */
+export const useTenantPermissions = (
+	tenantId: string | null,
+): { permissions: string[]; hasPermission: (key: string) => boolean } => {
+	/* … */
+};
+export const hasTenantPermission = (
+	permissions: string[] | null | undefined,
+	key: string,
+): boolean => permissions?.includes(key) ?? false; // fail-closed
+```
+
+- [ ] **Step 1 (RED):** `tenant-permissions.test.ts` clones the `auth.test.ts` mocking style (`vi.hoisted` captured `useQuery` options + mocked `getClientManager`, `origin/develop`): (a) the fetcher calls `client.auth.scopeAuthData.get({ queryParameters: { scope: '<tenant-guid>' } })` through `getOrCreateSessionClient()` (scope-neutral for the same reason auth.ts documents); (b) `hasPermission('socialaccounts.publish')` is true iff the normalized array contains that exact key; (c) `null`/missing `permissions` field → false for every key (fail-closed); (d) `tenantId: null` disables the query (`enabled: false`); (e) captured options carry `staleTime: Infinity` and `refetchOnWindowFocus: false`.
+- [ ] **Step 2 (GREEN):** Implement per the interfaces block: fetch via `getOrCreateSessionClient().auth.scopeAuthData.get({ queryParameters: { scope: tenantId } })`, normalize `result?.permissions ?? []` (trim, dedupe, drop empties — the `normalizeActions` pattern of `staff-audit-logs.ts`, `origin/develop`), expose `hasPermission` via `hasTenantPermission`. Query key `['tenant', ...TENANT_PERMISSIONS_QUERY_KEY, tenantId]` (scoped-key convention of `tenant-account-profile.ts`, `origin/develop`). Login/logout coherence needs no extra wiring: tab-sync already invalidates everything authed on login and clears the cache on logout (`tab-sync-listener.tsx`, `origin/develop`).
+- [ ] **Step 3:** `pnpm --filter front exec vitest run src/lib/query/tenant-permissions.test.ts` green; `pnpm --filter front typecheck`; commit `feat(front): useTenantPermissions hook over scope-auth-data`; push.
+
+## Task 7: Kiota regen + front data layer
 
 **Files:** generated `packages/client-ts/**`; new `apps/front/src/lib/query/tenant-publications.ts` + test.
 
@@ -194,16 +240,16 @@ public sealed record PublicationListItem {
 - [ ] **Step 2 (RED):** `tenant-publications.test.ts` mirrors `staff-audit-logs.ts`'s parameter builder pattern (`origin/develop`): typed query variables `{ statuses?: Array<'published'|'in_progress'|'paused'>; cursor?: string; size?: number }`, `buildFindTenantPublicationsQueryParameters` joining them into the ONE primitive CSV param the Kiota client types as `status?: string` (exactly how `buildFindStaffAuditLogsQueryParameters` joins `actions` — the generated builder carries a primitive because the DTO keeps it `string?`, see `packages/client-ts/src/staff/auditLogs/index.ts` `AuditLogsRequestBuilderGetQueryParameters.actions?: string`), key factories `TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications']`, `publishNowMutation` calling the Kiota op via the same client acquisition `tenant-posts.ts` uses (`getClientManager`, `origin/develop`), `invalidateTenantPublications(qc)`. Tests fail before implementation exists.
 - [ ] **Step 3 (GREEN):** Implement; tests green; commit `feat(front): tenant-publications query layer over regenerated client`; push.
 
-## Task 7: Composer "Publish on" block + Publish now action
+## Task 8: Composer "Publish on" block + Publish now action
 
 **Files:** `_publish-on-block.tsx` + `_publish-on-block.test.tsx`; edits to `_create-post-drawer.tsx`, `$postId/edit.tsx`; posts i18n resources (locate the file carrying `history-coming-later-title` with `grep -rl history-coming-later-title apps/front/src` — add keys beside those).
 
-- [ ] **Component contract (Tasks 8/e2e rely on these testids):** `tenant-posts-publish-on-block`, per-account checkbox `tenant-posts-publish-target-{id}`, `tenant-posts-publish-now` submit button, `tenant-posts-publish-in-progress` pill.
-- [ ] **Step 1 (RED):** Tests: renders nothing (returns null) when `useTenantAccountProfile`-shaped permission data lacks `socialaccounts.publish` (discover the exact permissions hook the tenant workspace already loads: `grep -n "permissions" apps/front/src/lib/query/auth.ts`, `origin/develop` — `GetScopeAuthDataTenant.Permissions: List<string>` is the wire source, `apps/api/Modules/Auth/Handlers/GetScopeAuthData.cs`); renders one checked box per visible target otherwise; unchecked-all disables Publish now; clicking Publish now fires `publishNow` mutation with checked ids then navigates to `/tenant/posts/history`; mutation failure surfaces through `getFailureMessage(toApiFailure(error))` (repo rule, no manual translation).
-- [ ] **Step 2 (GREEN):** Implement with `Field.Checkbox`-style Base UI wrappers + `Button` (`components/ui/*`, Tailwind via `cn()`); drawer/edit page embed `<PublishOnBlock projectId={form projectId} />` above the action bar; arrow-function components, no IIFE, no dayjs direct import.
+- [ ] **Component contract (Tasks 9/11 rely on these testids):** `tenant-posts-publish-on-block`, per-account checkbox `tenant-posts-publish-target-{id}`, `tenant-posts-publish-now` submit button, `tenant-posts-publish-in-progress` pill.
+- [ ] **Step 1 (RED):** Tests mock the hook created by Task 6 (`vi.mock('~/lib/query/tenant-permissions')`): renders nothing (returns null) when the tenant's permission list from `useTenantPermissions(tenantId)` lacks `socialaccounts.publish` — checked via `hasTenantPermission(permissions, 'socialaccounts.publish')` (the real gate; `/auth/user-auth-data` carries NO permission fields, see Prerequisites); renders one checked box per visible target otherwise; unchecked-all disables Publish now; clicking Publish now fires `publishNow` mutation with checked ids then navigates to `/tenant/posts/history`; mutation failure surfaces through `getFailureMessage(toApiFailure(error))` (repo rule, no manual translation).
+- [ ] **Step 2 (GREEN):** Implement with `Field.Checkbox`-style Base UI wrappers + `Button` (`components/ui/*`, Tailwind via `cn()`); resolve `tenantId` via `useResolvedWorkspaceTenantId()` (`tenants-for-picker.ts`, `origin/develop`) and gate on `useTenantPermissions(tenantId).hasPermission('socialaccounts.publish')` (Task 6 hook); drawer/edit page embed `<PublishOnBlock projectId={form projectId} />` above the action bar; arrow-function components, no IIFE, no dayjs direct import.
 - [ ] **Step 3:** `pnpm --filter front exec vitest run src/routes/authed/tenant/posts/_publish-on-block.test.tsx` green; commit `feat(front): Publish on block + publish-now action in composer`; push.
 
-## Task 8: History page wired + "In progress…" polling
+## Task 9: History page wired + "In progress…" polling
 
 **Files:** rewrite `history.tsx`; update `history.test.tsx`.
 
@@ -211,13 +257,13 @@ public sealed record PublicationListItem {
 - [ ] **Step 2 (GREEN):** Implement with the existing shells (`WorkspacePageHeader`, `Card`, table primitives as drafts.tsx uses); drop `ReadOnlyBadge`; keep `tenant-posts-history-page` testid (e2e anchor from B2).
 - [ ] **Step 3:** Vitest green; `pnpm --filter front typecheck`; `just react-doctor`; commit `feat(front): history page wired to real publications with live refresh`; push.
 
-## Task 9: D2 adversarial mutation — remove the deterministic key
+## Task 10: D2 adversarial mutation — remove the deterministic key
 
 - [ ] **Step 1:** `md5sum apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs` (pre-mutation, recorded in transcript). Mutate `For` to `Convert.ToHexString(Guid.NewGuid().ToByteArray()).ToLowerInvariant()[..16];` (randomness replaces derivation).
 - [ ] **Step 2:** Run `dotnet test ... --filter "FullyQualifiedName~PublishPublicationJobHandlerSpec.ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate"` (exact method verified on `origin/lane/wt-644` line 189) — MUST go red: the second attempt creates a duplicate instead of colliding. Full transcript → `.dump/mutation-deterministic-key-d2.md`.
 - [ ] **Step 3:** `git checkout -- apps/api/Modules/Publishing/Lib/PublicationIdempotencyKey.cs`; md5 matches; rerun green. Tree unchanged; no commit; transcript updated with restore proof.
 
-## Task 10: Gates + tagged e2e + PR
+## Task 11: Gates + tagged e2e + PR
 
 - [ ] **E2E:** `apps/front/e2e/tenant-posts-publish-now.spec.ts`, `test.describe('tenant posts publish now', { tag: ['@tenant-workspace', '@645'] })` (@tenant-workspace exists in the vocabulary, `docs/guides/e2e-tags.md`; adding a narrower `@publishing` domain would require editing the tag-guard vocabulary — left as an owner question). Flow: login via `helpers/login.ts` → drafts page (`tenant-posts-drafts-page`) → open drawer (`tenant-posts-new-post`) → type into `tenant-posts-create-body` → check `tenant-posts-publish-target-*` → click `tenant-posts-publish-now` → expect redirect to history (`tenant-posts-history-page`) → poll until `tenant-posts-history-link` visible with an `https://bsky.app/profile/...` href (fake provider from reconciliation 4 makes the worker succeed deterministically). Assert ZERO duplicate links (idempotency visible end-to-end).
 - [ ] **Gates under `heavy.sh`:** full Publishing + Posts + Invitations(spec sanity) suites; `just build-api`; `just ci-front`; `just ci-migration-expand-contract`; `just knip`.
@@ -226,6 +272,6 @@ public sealed record PublicationListItem {
 
 ## Self-review
 
-1. **Spec coverage (§6 D2):** publish now creates publication+job (T1/T2 specs, job_queue assertions); worker→Published+link (D1 handler spec cited wt-644 line 154; e2e proves it live through the fake); content error→Failed no retry (D1 T6b cited; D2 T2 asserts plain cause reaches `last_error` through `MarkFailedAsync`); account→Paused+NeedsReconnect (D1-cited; D2 history shows Paused pill via `PublicationWire`); transient→retry×3→Failed (D1 line 355 cited); isolation (T2 d/e, T3, T4 specs); permissions each verb refused (T2/T4); architecture guards incl. endpoint permission/rate-limit + DbContext-free handlers (T5); adversarial mutation deterministic-key removal (T9, exact red spec named); one tagged e2e with REAL B2 testids (T10); "In progress…" invalidation loop (T8); Retry=D4 stub noted honestly (T8, reconciliation 5).
-2. **No placeholders:** every step names real files/signatures; the two deliberate discoveries (endpoint-registration call site; front permissions hook) ship with the exact grep that resolves them.
+1. **Spec coverage (§6 D2):** publish now creates publication+job (T1/T2 specs, job_queue assertions); worker→Published+link (D1 handler spec cited wt-644 line 154; e2e proves it live through the fake); content error→Failed no retry (D1 T6b cited; D2 T2 asserts plain cause reaches `last_error` through `MarkFailedAsync`); account→Paused+NeedsReconnect (D1-cited; D2 history shows Paused pill via `PublicationWire`); transient→retry×3→Failed (D1 line 355 cited); isolation (T2 d/e, T3, T4 specs); permissions each verb refused (T2/T4); architecture guards incl. endpoint permission/rate-limit + DbContext-free handlers (T5); composer gate consumes the real `useTenantPermissions` hook CREATED by T6 over `/auth/scope-auth-data` (nothing invented); adversarial mutation deterministic-key removal (T10, exact red spec named); one tagged e2e with REAL B2 testids (T11); "In progress…" invalidation loop (T9); Retry=D4 stub noted honestly (T9, reconciliation 5).
+2. **No placeholders:** every step names real files/signatures. Round-1 F1 resolved at the source: the false "deliberate discovery" of a permissions hook is gone — Task 6 CREATES `useTenantPermissions` from the REAL `/auth/scope-auth-data` payload (`GetScopeAuthDataTenant`, DTO quoted verbatim in Prerequisites; `/auth/user-auth-data` proven to carry zero permission fields), and Task 8 consumes that exact interface. One deliberate discovery remains (the endpoint-registration call site) and ships with the exact grep that resolves it; Task 3's multi-value filter cites the real develop precedent (`FindAuditLogsQuery`) instead of an invented binding.
 3. **Type consistency:** `PublishPublicationPayload`/`PublishingJobs`/transition-service signatures match `origin/lane/wt-644` byte-for-byte as read; wire status strings match `PublicationWire.FormatStatus`; query params stay snake_case; no `Dto` suffixes on wire types.
