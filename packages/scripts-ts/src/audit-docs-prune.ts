@@ -8,12 +8,12 @@ import process from 'node:process';
 // WHAT THIS PROVES
 // ----------------
 // The prune's survival rule is mechanical: a record under docs/ (outside
-// guides/, deployment/, assets/) survives only if some file among AGENTS.md,
+// guides/, deployment/, assets/, records/) survives only if some file among AGENTS.md,
 // DESIGN.md, docs/guides, docs/deployment, apps/, packages/,
 // .github or the justfile references it (the root README.md deliberately
 // does not count). This script enumerates the
 // candidates, searches exactly those surfaces, applies the reviewed
-// move/delete decision table below, and renders
+// reviewed move/delete decision table below, and renders
 // docs/records/2026-08-25-audit-docs-prune.md as committed evidence.
 //
 // Reproducibility: the audit reads a git REVISION, not the working tree —
@@ -65,8 +65,8 @@ const EXCLUDED_SURFACES = new Set([
 
 // Decision table, reviewed against the sweep over every consumer
 // (AGENTS.md, DESIGN.md, guides, deployment, apps, packages, workflows,
-// justfile). Anything under docs/ outside guides/, deployment/, assets/ that
-// is neither listed as `move` nor `keep` is DELETED.
+// justfile). Anything under docs/ outside guides/, deployment/, assets/,
+// records/ that is neither listed as `move` nor `keep` is DELETED.
 //
 // Every `move` below is either a file the sweep found referenced by at least
 // one surface, or a documented exception (paid-modules and the #820
@@ -279,7 +279,12 @@ const listTrackedDocsCandidates = (rev: string): string[] =>
 			(entry) =>
 				entry.length > 0 &&
 				!entry.endsWith('/') &&
-				!/^docs\/(guides|deployment|assets)\//.test(entry),
+				// records/ is the prune's PROTECTED destination (per #1357): files
+				// merged there before the lane ran (e.g. #1389's
+				// 2026-08-25-analysis-email-log-actor.md) are never prune fuel, so
+				// they stay out of the candidate set instead of rendering as delete
+				// rows (#1425 rescope).
+				!/^docs\/(guides|deployment|assets|records)\//.test(entry),
 		);
 
 const listSurfaceFiles = (rev: string): string[] =>
@@ -548,7 +553,9 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'event and checkout (#1425); `--rev <sha>` overrides. The decision',
 		'table lives in that script, so the prune is mechanical rather than hand-curated.',
 		'',
-		'Scope: every tracked file under `docs/` outside `guides/`, `deployment/`, `assets/`.',
+		'Scope: every tracked file under `docs/` outside `guides/`, `deployment/`, `assets/`,',
+		'`records/` (the protected destination: records merged there after the sweep, e.g.',
+		'the #1389 email-log actor analysis, are never prune fuel and never inventory rows).',
 		'`docs/README.md` appears once below (kept; rewritten as the filing page in this change).',
 		'',
 		'Survival rule (mechanical, from #1357): a record survives only if referenced by',

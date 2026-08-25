@@ -47,17 +47,22 @@ const git = (root: string, ...args: string[]) =>
 
 // Builds a repo shaped like what the audit consumes: a develop-like base
 // carrying one docs candidate plus one survival surface, and a lane HEAD
-// reached by exactly the mutation each test describes.
+// reached by exactly the mutation each test describes. `plantBase` shapes
+// the BASE commit itself (the tree the audit reads its inputs from).
 // `refs/remotes/origin/develop` pins the pre-prune tree, mirroring the real
 // repository's lagging PR base; #1425's fix no longer READS that ref, so the
 // fixtures stay green with or without it.
-const makeRepo = (mutate: (root: string) => void): string => {
+const makeRepo = (
+	mutate: (root: string) => void,
+	plantBase?: (root: string) => void,
+): string => {
 	const root = mkdtempSync(path.join(tmpdir(), 'audit-docs-prune-'));
 	roots.push(root);
 	const candidate = 'docs/superpowers/specs/2026-08-25-widget-design.md';
 	mkdirSync(path.join(root, path.dirname(candidate)), { recursive: true });
 	writeFileSync(path.join(root, 'AGENTS.md'), 'points at nothing yet\n');
 	writeFileSync(path.join(root, candidate), '# Widget design\n');
+	plantBase?.(root);
 	git(root, 'init', '-q', '-b', 'develop');
 	git(root, 'config', 'user.email', 'guard@example.com');
 	git(root, 'config', 'user.name', 'guard');
@@ -445,3 +450,56 @@ test(
 		assert.match(checked, /matches a fresh regeneration/);
 	},
 );
+
+// #1389-shaped defect: a file MERGED into the protected docs/records/
+// destination by an earlier PR must never surface as a `delete` row in
+// regenerated evidence. While the candidate scope enumerated every tracked
+// docs/ path outside guides/, deployment/ and assets/, a record already
+// living under docs/records/ entered the candidate set and, unreferenced by
+// any survival surface, rendered as a deletion — exactly the misleading row
+// once carried for docs/records/2026-08-25-analysis-email-log-actor.md,
+// which #1389 had MOVED there (a protected destination, never prune fuel).
+test('a file moved into protected docs/records never renders as a delete row', () => {
+	const root = makeRepo(
+		(repo) => {
+			plantGenerator(repo, scriptWithTable(widgetMoveEntry('widget')));
+			execFileSync(
+				'git',
+				['mv', WIDGET_SOURCE, 'docs/records/2026-08-25-spec-widget.md'],
+				{ cwd: repo, stdio: ['ignore', 'ignore', 'pipe'] },
+			);
+		},
+		// A record that landed under docs/records/ BEFORE the prune lane ran
+		// (the #1389 shape): it belongs to the audited pre-prune tree.
+		(repo) => {
+			mkdirSync(path.join(repo, 'docs/records'), { recursive: true });
+			writeFileSync(
+				path.join(repo, 'docs/records/2026-08-25-analysis-email-log.md'),
+				'# Email log actor analysis\n',
+			);
+		},
+	);
+	runAudit(root);
+	const record = readFileSync(
+		path.join(root, 'docs/records/2026-08-25-audit-docs-prune.md'),
+		'utf8',
+	);
+	const rows = record.split('\n').filter((line) => line.startsWith('| `docs/'));
+	assert.ok(rows.length >= 1, 'fixture expects at least one inventory row');
+	for (const row of rows) {
+		assert.doesNotMatch(
+			row,
+			/\| delete \|/,
+			`a docs/records/ destination leaked into the candidate scope: ${row}`,
+		);
+	}
+	assert.doesNotMatch(
+		record,
+		/analysis-email-log/,
+		'the protected docs/records/ file must stay out of the inventory entirely',
+	);
+	git(root, 'add', '-A');
+	git(root, 'commit', '-qm', 'record');
+	const checked = runAudit(root, '--check');
+	assert.match(checked, /matches a fresh regeneration/);
+});
