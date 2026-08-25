@@ -29,8 +29,8 @@ import {
 	TenantDetailsPageShell,
 	TenantRetryActions,
 } from './_tenant-details-shell';
-import { makeTenantUserColumns } from './_user-columns';
 import { TenantUserBulkActions } from './_users-bulk-actions';
+import { makeTenantUserColumns } from './_users-columns';
 import { TenantUsersFilterMenus } from './_users-filter-menus';
 import { TenantUsersPageHeader } from './_users-page-header';
 import {

@@ -34,3 +34,34 @@ export const getSafeSearchRedirect = (search: string): string => {
 	const params = new URLSearchParams(search);
 	return resolveRouteRedirect(params.get(queryParamKey.login_page.redirect_to));
 };
+
+/**
+ * Auth-surface routes that a redirect_to may legitimately point back at even
+ * though they aren't under the resolved workspace surface — e.g. an
+ * invitation link's `/accept-invitation?id=…&token=…`, which the user must
+ * return to after signing in for the invitation to actually get accepted
+ * (see F4). Compared against the path only; the query string is stripped
+ * before matching.
+ */
+const RETURNABLE_AUTH_PATHS = ['/accept-invitation'];
+
+export const isAllowedRedirectPath = (
+	requested: string,
+	surfacePath: string,
+): boolean => {
+	if (!requested || !isSafeRelativePath(requested)) {
+		return false;
+	}
+
+	const requestedPath = requested.split('?')[0] ?? requested;
+	if (RETURNABLE_AUTH_PATHS.includes(requestedPath)) {
+		return true;
+	}
+
+	const normalizedSurface = surfacePath.replace(/\/$/, '');
+	if (requestedPath === normalizedSurface) {
+		return true;
+	}
+
+	return requestedPath.startsWith(`${normalizedSurface}/`);
+};

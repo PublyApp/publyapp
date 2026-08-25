@@ -17,20 +17,20 @@ import { MarketingContainer } from './marketing-container';
  * so a new announcement is never swallowed by an old dismissal.
  */
 
-export const ANNOUNCEMENT_DISMISSED_STORAGE_KEY_PREFIX =
+const ANNOUNCEMENT_DISMISSED_STORAGE_KEY_PREFIX =
 	'publyapp:announcement-dismissed:';
 
 /**
  * The announcement currently on air. Copy lives in the locale bundles; only
  * the identity and tone live here.
  */
-export const CURRENT_MARKETING_ANNOUNCEMENT = {
+const CURRENT_MARKETING_ANNOUNCEMENT = {
 	id: 'french-parity-2026-07',
 	messageKey: 'marketing-announcement-french-parity',
 	tone: 'muted',
 } as const;
 
-export type AnnouncementTone = 'muted' | 'promo';
+type AnnouncementTone = 'muted' | 'promo';
 
 const readDismissed = (id: string): boolean => {
 	if (typeof window === 'undefined') {

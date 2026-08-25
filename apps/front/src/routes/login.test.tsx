@@ -90,8 +90,9 @@ import {
 	getSafeSearchRedirect,
 	isAllowedRedirectPath,
 	resolveRouteRedirect,
-	Route,
-} from './login';
+} from '~/lib/safe-redirect-path';
+
+import { Route } from './login';
 
 const renderLoginRoute = () => {
 	const Component = Route.options.component as () => ReturnType<
