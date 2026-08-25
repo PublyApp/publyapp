@@ -1,14 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	BulkStaffProfileUserUnassignActionResult,
 	FindStaffProfileUsersResult,
 	StaffProfileUserItem,
 } from '@org/client-ts/models/index';
-import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
+import {
+	buildStaffMutationOptions,
+	buildStaffQueryOptions,
+} from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffProfileUsersQueryVariables = {
 	profileId: string;
@@ -127,3 +135,31 @@ export const useStaffProfileUsersQuery = (
 		queryFn: () => staffProfileUsersQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 	});
+
+export type BulkUnassignStaffProfileUsersInput = {
+	profileId: string;
+	userIds: string[];
+};
+
+const bulkUnassignStaffProfileUsersMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkStaffProfileUserUnassignActionResult | undefined,
+	BulkUnassignStaffProfileUsersInput
+>(
+	{
+		mutationKeyFn: () => ['staff-profiles', 'bulk-unassign-users'],
+		mutationFn: (client, variables) =>
+			client.staff.profiles
+				.byProfileId(variables.profileId)
+				.users.unassign.post({
+					userIds: createUntypedArray(
+						variables.userIds.map((id) => createUntypedString(id)),
+					),
+				}),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useBulkUnassignStaffProfileUsersMutation = () =>
+	useMutation(bulkUnassignStaffProfileUsersMutationOptions);
