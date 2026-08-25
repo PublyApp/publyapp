@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
@@ -22,28 +23,7 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-/** Formats the raw backend status (`"Active"`/`"Suspended"`/
- * `"GloballySuspended"`) for display. Normalizes snake_case, kebab-case and
- * PascalCase spellings so the pill never renders an unlocalized raw value. */
-export const formatGlobalTenantUserStatusLabel = (
-	status: string | null | undefined,
-	t: (key: string) => string,
-): string => {
-	const normalized = (status?.trim() ?? '')
-		.replace(/[_\s]+/g, '-')
-		.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-		.toLowerCase();
-	if (normalized === 'active') {
-		return t('status-active');
-	}
-	if (normalized === 'suspended') {
-		return t('status-suspended');
-	}
-	if (normalized === 'globally-suspended') {
-		return t('globally-suspended');
-	}
-	return t('status-unknown');
-};
+import { formatGlobalTenantUserStatusLabel } from './_tenant-user-status-label';
 
 /**
  * Shared chrome for the GLOBAL staff tenant-user detail tabs. The two tab
