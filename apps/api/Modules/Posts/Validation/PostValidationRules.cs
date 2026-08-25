@@ -10,4 +10,8 @@ public static class PostValidationRules {
 	// scale (Message 2000, Description 1024) but generous for article bodies.
 	public const int BodyMaxLength = 20_000;
 	public const int SearchMaxLength = 256;
+
+	// Alt text rides on the attached image row; bounded here like every other
+	// wire field so the DB column stays permissive while the contract is not.
+	public const int ImageAltTextMaxLength = 1_000;
 }

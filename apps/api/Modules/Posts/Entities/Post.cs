@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 using PublyApp.Api.Data;
+using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Posts.Entities;
@@ -59,6 +60,23 @@ public static class PostWire {
 			PostStatus.Scheduled => "scheduled",
 			PostStatus.Published => "published",
 			_ => throw new ArgumentOutOfRangeException(nameof(status), status, "Unhandled PostStatus"),
+		};
+	}
+
+	/// <summary>
+	/// Projects the live attached asset into the read-model image shape; null
+	/// when the post has no image. URL follows the anonymously-served
+	/// <c>/files</c> convention documented on CreateStaffUpload.
+	/// </summary>
+	public static PostImageReadModel? FormatImage(PostMediaAsset? asset) {
+		if (asset is null) {
+			return null;
+		}
+		return new PostImageReadModel {
+			Url = $"/files/{asset.RelativePath}",
+			AltText = asset.AltText,
+			WidthPx = asset.WidthPx,
+			HeightPx = asset.HeightPx,
 		};
 	}
 
