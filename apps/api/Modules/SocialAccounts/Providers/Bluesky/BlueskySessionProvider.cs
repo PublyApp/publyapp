@@ -88,6 +88,21 @@ public sealed class BlueskySessionProvider : ISocialSessionProvider {
 		}
 
 		if (result is BlueskySessionResult.AccountFailure refused) {
+			// Transparent failure causes (owner product rule): a refused session open
+			// is the account's own problem — flip it to needs-reconnect and persist a
+			// sanitised plain-words cause for the operator surface. Never a raw
+			// provider payload, never the app password. The tracked read entity above
+			// is AsNoTracking, so this targeted set-update cannot collide with it.
+			await (
+				from a in _db.SocialAccount
+				where a.Id == socialAccountId && !a.IsDeleted
+				select a
+			).ExecuteUpdateAsync(setters => setters
+				.SetProperty(a => a.Status, SocialAccountStatus.NeedsReconnect)
+				.SetProperty(a => a.LastError, refused.Reason)
+				.SetProperty(a => a.UpdatedAt, DateTime.UtcNow),
+				cancellationToken
+			);
 			return new SocialSessionResult.AccountFailure(refused.Reason);
 		}
 
