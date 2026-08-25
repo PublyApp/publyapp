@@ -522,9 +522,9 @@
 			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
 		},
 		"quality-gate.yml::changes::Check whether quality-gate paths changed": {
-			"hash": "7387c37e26ec6c69",
+			"hash": "176f4619091ee768",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts",
-			"reason": "The step inlines the fallback directly (same pattern as the other four gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all gate workflows. The classifier's own decision logic remains covered by ci-changed-paths.test.ts."
+			"reason": "The step inlines the fallback directly (same pattern as the other four gate workflows): if base-ref/packages/scripts-ts/src/ci-changed-paths.ts exists, run it and pass its output/exit code straight through; otherwise print a loud [MISSING BASE CLASSIFIER] warning and resolve relevant=true, on a code path that never invokes the classifier. packages/scripts-ts/src/ci-gate-bootstrap.test.ts parses this exact `run:` block from the real workflow file (not a restatement) and executes it directly against both cases for all gate workflows. The classifier's own decision logic remains covered by ci-changed-paths.test.ts (#1334 fix round 1: the inline regex gained a docs/guides/dependency-health.md alternative so doc-only PRs wake this gate for the pin-location contract; that behavior is pinned by two new #1334 cases in ci-changed-paths.test.ts)."
 		},
 		"quality-gate.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
 			"hash": "99333e5810d54009",
@@ -565,6 +565,11 @@
 			"hash": "2aa0c12768b54e3a",
 			"mirror": "pnpm --filter scripts-ts exec vitest run src/nuget-audit.test.ts",
 			"reason": "Identical invocation to the CI step itself: since the scripts-ts migration the test runs under vitest (node --test no longer works on the .ts file). Run locally so the fixture suite that validates the audit evaluator's own failure modes gates PRs, not just local runs, before the production audit executes."
+		},
+		"quality-gate.yml::quality::Run dependency-health pin-location contract test": {
+			"hash": "f010d27eca615ac0",
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts",
+			"reason": "Identical invocation to the CI step itself, which was added in #1334 fix round 1 so the contract actually executes in CI instead of being an orphaned local-only suite. Locally it runs inside `just nuget-audit` (and therefore `just ci`) right after the NuGet audit fixture tests it sits next to in CI."
 		},
 		"quality-gate.yml::quality::Check formatting (oxfmt --check)": {
 			"hash": "83841604495adffa",

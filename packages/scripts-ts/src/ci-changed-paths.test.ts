@@ -343,6 +343,52 @@ test('parseChangedFilesTotal: a large but plausible total parses', () => {
 });
 
 // ---------------------------------------------------------------------------
+// #1334 fix round 1: quality-gate.yml runs the dependency-health pin-location
+// contract test (packages/scripts-ts/src/dependency-health-pin-location.test.ts),
+// which guards docs/guides/dependency-health.md. That workflow gates its heavy
+// job on this classifier, whose pattern previously had no `docs/` group at all,
+// so a pull request touching ONLY the guarded doc skipped the gate entirely and
+// the contract never executed — exactly the drift #1334 exists to prevent. The
+// doc path is now pinned here against the REAL pattern extracted from the
+// workflow YAML, so deleting the `docs/guides/dependency-health\.md$`
+// alternative from the inline regex is caught by CI, not discovered by review.
+// Paired proof: the first case is RED when the alternative is removed from the
+// shipped pattern and GREEN against it.
+// ---------------------------------------------------------------------------
+
+test('#1334: quality-gate classifier selects docs/guides/dependency-health.md as relevant', () => {
+	assert.ok(
+		qualityGateClassifierPattern,
+		'classifier invocation found in quality-gate.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['docs/guides/dependency-health.md'],
+		changedFilesTotal: 1,
+		pattern: qualityGateClassifierPattern,
+	});
+
+	assert.equal(result.relevant, true);
+});
+
+test('#1334: an unrelated docs page stays outside quality-gate selection', () => {
+	assert.ok(
+		qualityGateClassifierPattern,
+		'classifier invocation found in quality-gate.yml',
+	);
+
+	const result = classifyRelevance({
+		eventName: 'pull_request',
+		files: ['docs/guides/local-ci-gate.md'],
+		changedFilesTotal: 1,
+		pattern: qualityGateClassifierPattern,
+	});
+
+	assert.equal(result.relevant, false);
+});
+
+// ---------------------------------------------------------------------------
 // CLI boundary: spawn the real scripts/ci-changed-paths.mjs entry point
 // against a stubbed `gh`, exactly as the round-2 review demanded. The unit
 // tests above prove classifyRelevance() and parseChangedFilesTotal() are
