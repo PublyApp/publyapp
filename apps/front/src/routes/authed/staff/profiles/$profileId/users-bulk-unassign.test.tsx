@@ -50,6 +50,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { scopedKey } from '@org/shared-ts/lib/query/create-hooks';
 
 const USER_A = '11111111-1111-1111-1111-111111111111';
+const USER_B = '22222222-2222-2222-2222-222222222222';
 const PAGE_ROUTE_PATH = '/staff/profiles/profile-1/users';
 
 const mocks = vi.hoisted(() => ({
@@ -150,6 +151,12 @@ vi.mock('react-i18next', () => ({
 				'back-to-staff-profiles': 'Back to staff profiles',
 				'bulk-unassign-staff-profile-users-confirm':
 					'Are you sure you want to unassign {{count}} user(s) from this profile?',
+				'staff-profile-user-bulk-unassign-partial-success':
+					'Unassigned {{succeeded}} user(s), {{failed}} failed.',
+				'bulk-unassign-failed-item-not-assigned':
+					'this user is not assigned to this profile.',
+				'bulk-unassign-failed-item-not-found':
+					'this user does not exist or is not a staff member.',
 			};
 
 			return (labels[bare] ?? bare).replace(
@@ -196,7 +203,7 @@ const usersPayload = () => ({
 			status: 'Active',
 		},
 		{
-			id: '22222222-2222-2222-2222-222222222222',
+			id: USER_B,
 			email: 'blake@example.com',
 			firstName: 'Blake',
 			lastName: 'Row',
@@ -206,6 +213,24 @@ const usersPayload = () => ({
 	],
 	count: 2,
 });
+
+/**
+ * Production users-list cache key for this page (scope prefix via the shared
+ * `scopedKey` helper; inner segments mirror staff-profile-users.ts's
+ * `queryKeyFn`). Seeding a real entry under this key makes a subsequent
+ * `getQueryState(key).isInvalidated` read meaningful instead of vacuous.
+ */
+const usersListCacheKey = () => [
+	...scopedKey('staff', ['staff-profiles', 'users']),
+	{
+		profileId: 'profile-1',
+		q: '',
+		sortId: 'created_at',
+		sortOrder: 'desc',
+		pageIndex: 0,
+		size: 100,
+	},
+];
 
 /**
  * `createFileRoute(...)(options)` does not attach id/path/parent — the
@@ -462,6 +487,91 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		);
 
 		// The profile users list went through the REAL invalidation helper.
+		await waitFor(() => {
+			expect(mocks.invalidateStaffProfiles).toHaveBeenCalledOnce();
+			expect(
+				harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+			).toBe(true);
+		});
+	});
+
+	// Round-2 pin (PR #1413 review MAJOR): PARTIAL success (succeeded ≥ 1 AND
+	// failed ≥ 1) must run the SAME post-success bookkeeping as full success —
+	// selection cleared AND the real cache entry invalidated — and must surface
+	// each skipped row's cause in plain words beside the counts. This kills the
+	// survivor mutant that moved `clearSelection` + `invalidateStaffProfiles`
+	// into the full-success-only `else` branch: that mutant leaves the checked
+	// boxes checked and the cache entry fresh on this path, so this test goes
+	// red on live DOM + cache state while the older `failedCount: 0` tests stay
+	// green.
+	test('a partial-success unassign clears the selection, invalidates the list, and names the failed users', async () => {
+		mocks.bulkUnassign.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 1,
+			failedItems: [{ userId: USER_B, reason: 'not_assigned' }],
+		});
+
+		const harness = await renderAtPage();
+
+		const usersListKey = usersListCacheKey();
+		harness.queryClient.setQueryData(usersListKey, { users: [], count: 0 });
+		expect(
+			harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
+		).toBe(false);
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_B}` }));
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('true'),
+		);
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_B}` })
+					.getAttribute('aria-checked'),
+			).toBe('true'),
+		);
+
+		await chooseBulkAction('Unassign selected');
+		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
+
+		// Partial success takes the error-toast path, never plain success, and
+		// carries the per-row cause in plain words in the toast description.
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			'Unassigned 1 user(s), 1 failed.',
+			'Blake Row: this user is not assigned to this profile.',
+		);
+
+		// (a) Selection cleared even though SOME rows succeeded: no row stays
+		// checked and the selection bar unmounts.
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_A}` })
+					.getAttribute('aria-checked'),
+			).toBe('false'),
+		);
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${USER_B}` })
+					.getAttribute('aria-checked'),
+			).toBe('false'),
+		);
+		await waitFor(() =>
+			expect(
+				screen.queryByRole('button', { name: 'Clear selection' }),
+			).toBeNull(),
+		);
+
+		// (b) ...and the profile users list went through the REAL invalidation
+		// helper over the harness's QueryClient.
 		await waitFor(() => {
 			expect(mocks.invalidateStaffProfiles).toHaveBeenCalledOnce();
 			expect(

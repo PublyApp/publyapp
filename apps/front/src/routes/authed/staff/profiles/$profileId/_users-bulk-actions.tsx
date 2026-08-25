@@ -92,17 +92,42 @@ export const ProfileUsersListBulkActions = ({
 		}
 
 		setPendingAction(null);
+		// Shared post-success bookkeeping (#1407-class contract): BOTH outcomes —
+		// full success AND partial success — must clear the selection and
+		// invalidate the profile query family. These calls deliberately sit
+		// outside the if/else below; moving them into the success-only branch is
+		// killed by users-bulk-unassign.test.tsx's partial-success test.
 		selection.clearSelection();
 
 		const succeededCount = result?.succeededCount ?? 0;
 		const failedCount = result?.failedCount ?? 0;
 
 		if (failedCount > 0) {
+			// Transparent failure causes (owner product rule): every skipped row
+			// gets its reason in plain words beside the counts, so "1 failed"
+			// never strands the user without the next action. Names resolve from
+			// the loaded rows; an unknown id falls back to its raw value.
+			const reasonLabels: Record<string, string> = {
+				not_assigned: t('bulk-unassign-failed-item-not-assigned'),
+				not_found: t('bulk-unassign-failed-item-not-found'),
+			};
+			const failureLines = (result?.failedItems ?? []).map((item) => {
+				const userId = String(item.userId ?? '');
+				const row = rows.find((candidate) => candidate.id === userId);
+				const name =
+					[row?.firstName, row?.lastName].filter(Boolean).join(' ') ||
+					row?.email ||
+					userId;
+				const reason = reasonLabels[item.reason ?? ''] ?? item.reason ?? '';
+				return [name, reason].filter(Boolean).join(': ');
+			});
+
 			toastLocalMutationResult.error(
 				t('staff-profile-user-bulk-unassign-partial-success', {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
+				failureLines.length > 0 ? failureLines.join('\n') : undefined,
 			);
 		} else {
 			toastLocalMutationResult.success(
