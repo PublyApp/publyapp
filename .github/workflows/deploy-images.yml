@@ -43,6 +43,16 @@ jobs:
         id: release
         run: echo "tag=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
+      # The repository moved from radandevist to the PublyApp organization
+      # (2026-08-25, #1362). Derive the GHCR root from the current owner
+      # instead of a hardcoded namespace, and force lowercase: GHCR/docker
+      # reject uppercase in image paths, and "PublyApp" is not all-lowercase.
+      - name: Resolve lowercase image namespace
+        id: ns
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "root=ghcr.io/$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')/publyapp" >> "$GITHUB_OUTPUT"
+
       - name: Build and push API runtime image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -51,7 +61,7 @@ jobs:
           target: runtime
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/radandevist/publyapp/api:${{ steps.release.outputs.tag }}
+          tags: ${{ steps.ns.outputs.root }}/api:${{ steps.release.outputs.tag }}
 
       - name: Build and push API migrate image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -61,7 +71,7 @@ jobs:
           target: migrate
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/radandevist/publyapp/migrate:${{ steps.release.outputs.tag }}
+          tags: ${{ steps.ns.outputs.root }}/migrate:${{ steps.release.outputs.tag }}
 
       - name: Build and push Front image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -70,4 +80,4 @@ jobs:
           file: apps/front/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/radandevist/publyapp/front:${{ steps.release.outputs.tag }}
+          tags: ${{ steps.ns.outputs.root }}/front:${{ steps.release.outputs.tag }}
