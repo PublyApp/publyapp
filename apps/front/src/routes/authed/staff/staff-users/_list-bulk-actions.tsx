@@ -1,0 +1,300 @@
+import {
+	IconChevronDown,
+	IconPlayerPause,
+	IconRefresh,
+	IconTrash,
+} from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME } from '~/components/table/floating-selection-bar';
+import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
+import { Button } from '~/components/ui/button';
+import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
+import {
+	displayLocalMutationFailure,
+	toastLocalMutationResult,
+} from '~/lib/mutation-toast';
+import {
+	invalidateStaffUsers,
+	type BulkStaffUserActionInput,
+	type StaffUserRow,
+	useBulkDeleteStaffUsersMutation,
+	useBulkReactivateStaffUsersMutation,
+	useBulkSuspendStaffUsersMutation,
+} from '~/lib/query/staff-users';
+import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+
+/** Route-local bulk management actions for the shared staff-users list
+ * (#820): the selection toolbar used to offer only Export even though the API
+ * already ships `POST /staff/users/bulk-suspend|bulk-reactivate|bulk-delete`.
+ * Mirrors `TenantBulkActions` (`staff/tenants.tsx`) and follows
+ * docs/guides/bulk-action-ux-conventions.md: menu items render unconditionally;
+ * the click handler enforces eligibility and surfaces the reason instead of
+ * hiding or disabling items. */
+
+type StaffUserPendingAction = 'suspend' | 'reactivate' | 'delete' | null;
+
+type StaffUserActionKey = Exclude<StaffUserPendingAction, null>;
+
+// Statuses arrive as raw backend strings ("Active"/"Suspended"); normalize
+// lowercase-trim exactly like status-labels.ts.
+const STAFF_USER_STATUS_ACTIVE = 'active';
+const STAFF_USER_STATUS_SUSPENDED = 'suspended';
+
+const STAFF_USER_BULK_FAILURE_KEYS: Record<StaffUserActionKey, string> = {
+	suspend: 'staff-user-bulk-suspend-failure',
+	reactivate: 'staff-user-bulk-reactivate-failure',
+	delete: 'staff-user-bulk-delete-failure',
+};
+
+const STAFF_USER_BULK_SUCCESS_KEYS: Record<StaffUserActionKey, string> = {
+	suspend: 'staff-user-bulk-suspend-success',
+	reactivate: 'staff-user-bulk-reactivate-success',
+	delete: 'staff-user-bulk-delete-success',
+};
+
+const STAFF_USER_BULK_PARTIAL_SUCCESS_KEYS: Record<StaffUserActionKey, string> =
+	{
+		suspend: 'staff-user-bulk-suspend-partial-success',
+		reactivate: 'staff-user-bulk-reactivate-partial-success',
+		delete: 'staff-user-bulk-delete-partial-success',
+	};
+
+const getConfirmDialogConfig = (
+	action: StaffUserPendingAction,
+	count: number,
+	t: (key: string, options?: Record<string, unknown>) => string,
+) => {
+	switch (action) {
+		case 'suspend':
+			return {
+				title: t('bulk-suspend'),
+				description: t('bulk-suspend-staff-users-confirm', { count }),
+				confirmLabel: t('suspend'),
+			};
+		case 'reactivate':
+			return {
+				title: t('bulk-reactivate'),
+				description: t('bulk-reactivate-staff-users-confirm', { count }),
+				confirmLabel: t('reactivate'),
+			};
+		case 'delete':
+			return {
+				title: t('bulk-delete'),
+				description: t('bulk-delete-staff-users-confirm', { count }),
+				confirmLabel: t('delete'),
+			};
+		default:
+			return { title: '', description: '', confirmLabel: '' };
+	}
+};
+
+export const StaffUsersListBulkActions = ({
+	rows,
+	selection,
+	onSessionExpired,
+}: {
+	rows: StaffUserRow[];
+	selection: UseRowSelectionResult;
+	onSessionExpired: () => void;
+}) => {
+	const { t } = useTranslation('common');
+	const queryClient = useQueryClient();
+	const [pendingAction, setPendingAction] =
+		useState<StaffUserPendingAction>(null);
+	const bulkSuspendMutation = useBulkSuspendStaffUsersMutation();
+	const bulkReactivateMutation = useBulkReactivateStaffUsersMutation();
+	const bulkDeleteMutation = useBulkDeleteStaffUsersMutation();
+
+	const selectedUsers = rows.filter((row) => selection.rowSelection[row.id]);
+	const selectedCount = selection.selectedCount;
+	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
+	const isActionPending =
+		bulkSuspendMutation.isPending ||
+		bulkReactivateMutation.isPending ||
+		bulkDeleteMutation.isPending;
+
+	const eligibleIdsFor = (action: StaffUserActionKey): string[] => {
+		if (action === 'suspend') {
+			return selectedUsers.flatMap((user) =>
+				user.status?.trim().toLowerCase() === STAFF_USER_STATUS_ACTIVE
+					? [user.id]
+					: [],
+			);
+		}
+		if (action === 'reactivate' || action === 'delete') {
+			const allSelectedAreSuspended =
+				selectedUsers.length > 0 &&
+				selectedUsers.every(
+					(user) =>
+						user.status?.trim().toLowerCase() === STAFF_USER_STATUS_SUSPENDED,
+				);
+			return allSelectedAreSuspended
+				? selectedUsers.map((user) => user.id)
+				: [];
+		}
+		return [];
+	};
+
+	const ineligibleMessageFor = (action: StaffUserActionKey): string => {
+		if (action === 'suspend') {
+			return t('bulk-suspend-disabled-no-active-users');
+		}
+		if (action === 'reactivate') {
+			return t('bulk-reactivate-disabled-no-suspended-users');
+		}
+		return t('bulk-delete-disabled-until-all-suspended');
+	};
+
+	// MenuItems render unconditionally (docs/guides/bulk-action-ux-conventions.md):
+	// the click handler enforces eligibility and surfaces the reason rather than
+	// disabling or hiding the item.
+	const handleMenuItemClick = (action: StaffUserActionKey): void => {
+		if (eligibleIdsFor(action).length === 0) {
+			toastLocalMutationResult.warning(ineligibleMessageFor(action));
+			return;
+		}
+		setPendingAction(action);
+	};
+
+	const performBulkAction = async (action: StaffUserActionKey) => {
+		const args: BulkStaffUserActionInput = {
+			userIds: eligibleIdsFor(action),
+		};
+
+		let result;
+		try {
+			// Only mutateAsync sits inside the try (mutation-feedback ownership:
+			// the split try/catch keeps post-success bookkeeping out of the error
+			// path).
+			if (action === 'suspend') {
+				result = await bulkSuspendMutation.mutateAsync(args);
+			} else if (action === 'reactivate') {
+				result = await bulkReactivateMutation.mutateAsync(args);
+			} else {
+				result = await bulkDeleteMutation.mutateAsync(args);
+			}
+		} catch (error) {
+			setPendingAction(null);
+			if (shouldLogoutForFailure(error)) {
+				onSessionExpired();
+				return;
+			}
+
+			await displayLocalMutationFailure(
+				error,
+				t(STAFF_USER_BULK_FAILURE_KEYS[action]),
+			);
+			return;
+		}
+
+		setPendingAction(null);
+		selection.clearSelection();
+
+		const succeededCount = result?.succeededCount ?? 0;
+		const failedCount = result?.failedCount ?? 0;
+
+		if (failedCount > 0) {
+			toastLocalMutationResult.error(
+				t(STAFF_USER_BULK_PARTIAL_SUCCESS_KEYS[action], {
+					succeeded: succeededCount,
+					failed: failedCount,
+				}),
+			);
+		} else {
+			toastLocalMutationResult.success(
+				t(STAFF_USER_BULK_SUCCESS_KEYS[action], { count: succeededCount }),
+			);
+		}
+
+		await invalidateStaffUsers(queryClient);
+	};
+
+	const dialogConfig = getConfirmDialogConfig(
+		pendingAction,
+		pendingAction ? eligibleIdsFor(pendingAction).length : 0,
+		t,
+	);
+
+	return (
+		<>
+			<DropdownMenu>
+				<DropdownMenuTrigger
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							disabled={isOverLimit}
+							title={
+								isOverLimit
+									? t('bulk-action-max-count-exceeded', {
+											max: BULK_ACTION_MAX_COUNT,
+											count: selectedCount,
+										})
+									: t('more-actions')
+							}
+							aria-label={t('more-actions')}
+							className={FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME}
+						/>
+					}
+				>
+					{t('bulk-actions')}
+					<IconChevronDown aria-hidden="true" className="size-3" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" side="top" sideOffset={6}>
+					<DropdownMenuItem
+						disabled={isActionPending}
+						onClick={() => handleMenuItemClick('reactivate')}
+					>
+						<IconRefresh />
+						{t('bulk-reactivate')}
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isActionPending}
+						onClick={() => handleMenuItemClick('suspend')}
+					>
+						<IconPlayerPause />
+						{t('bulk-suspend')}
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						variant="destructive"
+						disabled={isActionPending}
+						onClick={() => handleMenuItemClick('delete')}
+					>
+						<IconTrash />
+						{t('bulk-delete')}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+
+			<ConfirmDialog
+				isOpen={pendingAction !== null}
+				title={dialogConfig.title}
+				description={dialogConfig.description}
+				confirmLabel={dialogConfig.confirmLabel}
+				isPending={isActionPending}
+				onConfirm={() => {
+					if (pendingAction) {
+						void performBulkAction(pendingAction);
+					}
+				}}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setPendingAction(null);
+				}}
+			/>
+		</>
+	);
+};

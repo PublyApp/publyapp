@@ -8,15 +8,9 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	BackToTenantsLink,
+	MALFORMED_ID_TRANSLATION_KEY,
 	TenantRetryActions,
-} from '../_tenant-details-shell';
-
-/**
- * Error-view helpers and full-screen states for the staff tenant-user
- * details route (extracted from `$userId.tsx` to keep that route file lean —
- * see the `no-multi-component-file` React Doctor rule).
- */
-const MALFORMED_ID_TRANSLATION_KEY = 'malformed-id';
+} from '../../_tenant-details-shell';
 
 const isProblemStatus = (
 	error: unknown,
@@ -44,38 +38,54 @@ const getFailureDescription = (error: unknown, fallback: string): string => {
 	return fallback;
 };
 
-export const MissingTenantUserView = ({ error }: { error: unknown }) => {
-	const { t } = useTranslation('common');
+export const ProfileDetailsLoading = () => {
+	const { t } = useTranslation('staff-tenant-profiles');
+
+	return (
+		<div
+			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
+			data-testid="staff-tenant-profile-details-loading"
+		>
+			<div className="flex items-center gap-3 text-sm text-muted-foreground">
+				<LoadingSpinner />
+				<span>{t('common:loading-tenant-profile')}</span>
+			</div>
+		</div>
+	);
+};
+
+const MissingTenantProfileView = ({ error }: { error: unknown }) => {
+	const { t } = useTranslation('staff-tenant-profiles');
 
 	return (
 		<AppErrorView
 			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-			code={t('error-404-code')}
-			title={t('tenant-user-not-found-title')}
+			code={t('common:error-404-code')}
+			title={t('common:tenant-profile-not-found-title')}
 			description={getFailureDescription(
 				error,
-				t('tenant-user-not-found-description'),
+				t('common:tenant-profile-not-found-description'),
 			)}
-			testId="staff-tenant-user-details-not-found"
+			testId="staff-tenant-profile-details-not-found"
 			actions={<BackToTenantsLink />}
 		/>
 	);
 };
 
-export const StaffTenantUserDetailsError = ({
+export const TenantProfileDetailsError = ({
 	error,
 	onRetry,
 }: {
 	error: unknown;
 	onRetry: () => void;
 }) => {
-	const { t } = useTranslation('common');
+	const { t } = useTranslation('staff-tenant-profiles');
 
 	if (
 		isProblemStatus(error, 404) ||
 		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
 	) {
-		return <MissingTenantUserView error={error} />;
+		return <MissingTenantProfileView error={error} />;
 	}
 
 	if (isProblemStatus(error, 403)) {
@@ -85,27 +95,11 @@ export const StaffTenantUserDetailsError = ({
 	return (
 		<AppErrorView
 			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
-			title={t('unable-to-load-tenant-user')}
-			description={t('tenant-user-load-error-description')}
-			testId="staff-tenant-user-details-error"
+			code={t('common:error-500-code')}
+			title={t('common:unable-to-load-tenant-profile')}
+			description={t('common:tenant-profile-load-error-description')}
+			testId="staff-tenant-profile-details-error"
 			actions={<TenantRetryActions onRetry={onRetry} />}
 		/>
-	);
-};
-
-export const TenantUserDetailsLoading = () => {
-	const { t } = useTranslation('common');
-
-	return (
-		<div
-			className="mx-auto flex min-h-[50vh] w-full max-w-5xl items-center justify-center px-4 py-12"
-			data-testid="staff-tenant-user-details-loading"
-		>
-			<div className="flex items-center gap-3 text-sm text-muted-foreground">
-				<LoadingSpinner />
-				<span>{t('loading-tenant-user')}</span>
-			</div>
-		</div>
 	);
 };

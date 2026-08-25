@@ -10,6 +10,7 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Jobs.Entities;
+using PublyApp.Api.Modules.Jobs.Services;
 
 using Xunit;
 
@@ -245,6 +246,101 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 				.Should().Be(2, "two exempt rows sit beyond the horizon");
 		} finally {
 			await CleanupAsync(marker);
+		}
+	}
+
+	// --- #1350: the exemption proven against a REAL Unclassified row ----------------
+
+	// The K-1 specs above seed status 6 by hand; this one lets the ENGINE produce the
+	// Unclassified row (#1350's producer), then walks the whole story: held back from
+	// age retention while it awaits triage → resolved by the operator service →
+	// swept like any other row on the next pass.
+	[Fact]
+	public async Task ItShouldExemptAProducerClassifiedRowUntilResolutionThenSweepIt() {
+		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
+		var jobType = $"spec.dlq-producer.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			// Producer leg: engine dead-letters an unregistered-type job into status 6.
+			var row = new JobQueueItem { JobType = jobType };
+			await dbContext.JobQueue.AddAsync(row);
+			await dbContext.SaveChangesAsync();
+
+			var claimed = await JobQueueProcessor.ClaimBatchAsync(
+				dbContext, "spec-worker", 300, 100, CancellationToken.None
+			);
+			await dbContext.Entry(row).ReloadAsync();
+
+			var scopeFactory = _fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>();
+			await using (var scope = scopeFactory.CreateAsyncScope()) {
+				var processor = new JobQueueProcessor(
+					scopeFactory,
+					new JobHandlerRegistry([]),
+					new JobsMetrics(new JobWorkerInstance(), NullLogger<JobsMetrics>.Instance),
+					new JobWorkerInstance(),
+					NullLogger<JobQueueProcessor>.Instance
+				);
+
+				var processed = await processor.ProcessOneAsync(
+					row, claimed.Single(c => c.Id == row.Id).LockToken,
+					CancellationToken.None
+				);
+				processed.Should().Be(JobQueueProcessor.JobExecutionResult.Completed);
+			}
+
+			(await dbContext.JobDeadLetter.AnyAsync(
+					d => d.JobType == jobType
+						&& d.ExternalStateStatus == (int)ExternalStateStatus.Unclassified))
+				.Should().BeTrue("the producer handed retention a real status-6 row");
+
+			// Age the row beyond the horizon so only its status decides the sweep.
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				UPDATE job_dead_letter
+				SET failed_at = now() - make_interval(days => {retentionDays + 20})
+				WHERE job_type = {jobType}
+				"""
+			);
+
+			// Pass 1: the engine-produced Unclassified row is genuinely held back.
+			var first = await RunAsync(dbContext);
+			first.Should().BeOfType<JobOutcome.Success>();
+			(await dbContext.JobDeadLetter.AnyAsync(d => d.JobType == jobType))
+				.Should().BeTrue("a real (not hand-seeded) Unclassified row is retention-exempt");
+
+			// Resolution leg: the operator service moves it out of the exempt class.
+			var deadLetterId = await dbContext.JobDeadLetter
+				.Where(d => d.JobType == jobType)
+				.Select(d => d.Id.GetValueOrDefault())
+				.SingleAsync();
+			await using (var scope = _fixture.Factory.Services.CreateAsyncScope()) {
+				var service = scope.ServiceProvider.GetRequiredService<IJobDeadLetterService>();
+				var outcome = await service.ResolveUnclassifiedAsync(
+					new ResolveDeadLetterUnclassifiedArgs(
+						deadLetterId,
+						Guid.NewGuid(),
+						"producer-driven row confirmed absent"
+					)
+				);
+				outcome.Should().BeOfType<ResolveDeadLetterUnclassifiedResult.Resolved>(
+					"the shipped resolution path accepts what the producer created"
+				);
+			}
+
+			// Pass 2: resolved (4 Missing) rows sweep like any other row.
+			var second = await RunAsync(dbContext);
+			second.Should().BeOfType<JobOutcome.Success>();
+			(await dbContext.JobDeadLetter.AnyAsync(d => d.JobType == jobType))
+				.Should().BeFalse("resolution releases the row to ordinary age retention");
+		} finally {
+			await using var cleanup = await CreateDbContextAsync();
+			await cleanup.Database.ExecuteSqlAsync(
+				$"DELETE FROM job_queue WHERE job_type = {jobType}"
+			);
+			await cleanup.Database.ExecuteSqlAsync(
+				$"DELETE FROM job_dead_letter WHERE job_type = {jobType}"
+			);
 		}
 	}
 

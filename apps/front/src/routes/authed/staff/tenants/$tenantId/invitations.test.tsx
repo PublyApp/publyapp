@@ -632,55 +632,68 @@ describe('staff tenant invitations route', () => {
 		expect(mocks.displayMutationFeedback).not.toHaveBeenCalled();
 	});
 
-	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1)', async () => {
-		const Component = getRouteComponent();
-		const renderResult = render(<Component />);
+	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			const Component = getRouteComponent();
+			const renderResult = render(<Component />);
 
-		fireEvent.change(
-			screen.getByTestId('staff-tenant-invitations-table-search'),
-			{ target: { value: 'an' } },
-		);
+			fireEvent.change(
+				screen.getByTestId('staff-tenant-invitations-table-search'),
+				{ target: { value: 'an' } },
+			);
 
-		// Simulate choosing a status filter within the 300ms debounce window:
-		// the route re-renders with the new URL search state, same as a real
-		// navigation would, before the debounced commit fires.
-		mocks.search = { status: 'pending' };
-		renderResult.rerender(<Component />);
+			// Simulate choosing a status filter within the 300ms debounce
+			// window: the route re-renders with the new URL search state, same
+			// as a real navigation would, before the debounced commit fires.
+			mocks.search = { status: 'pending' };
+			renderResult.rerender(<Component />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): step PAST the debounce instead of
+			// a real-time sleep.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search?: Record<string, unknown>;
-		};
-		expect(lastCall?.search).toMatchObject({ status: 'pending', q: 'an' });
+			const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search?: Record<string, unknown>;
+			};
+			expect(lastCall?.search).toMatchObject({ status: 'pending', q: 'an' });
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
-	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1)', async () => {
-		mocks.search = { status: 'pending' };
-		const Component = getRouteComponent();
-		const renderResult = render(<Component />);
+	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			mocks.search = { status: 'pending' };
+			const Component = getRouteComponent();
+			const renderResult = render(<Component />);
 
-		fireEvent.change(
-			screen.getByTestId('staff-tenant-invitations-table-search'),
-			{ target: { value: 'an' } },
-		);
+			fireEvent.change(
+				screen.getByTestId('staff-tenant-invitations-table-search'),
+				{ target: { value: 'an' } },
+			);
 
-		// Simulate clearing the status filter within the 300ms debounce window.
-		// canonicalized parsing stores explicit `status: undefined` so the
-		// rerendered route search keeps the canonical key shape.
-		mocks.search = {};
-		renderResult.rerender(<Component />);
+			// Simulate clearing the status filter within the 300ms debounce
+			// window. canonicalized parsing stores explicit `status: undefined`
+			// so the rerendered route search keeps the canonical key shape.
+			mocks.search = {};
+			renderResult.rerender(<Component />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): see the F1 test above.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search?: Record<string, unknown>;
-		};
-		expect(
-			Object.prototype.hasOwnProperty.call(lastCall?.search, 'status'),
-		).toBe(true);
-		expect(lastCall?.search?.status).toBeUndefined();
-		expect(lastCall?.search).toMatchObject({ q: 'an' });
+			const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search?: Record<string, unknown>;
+			};
+			expect(
+				Object.prototype.hasOwnProperty.call(lastCall?.search, 'status'),
+			).toBe(true);
+			expect(lastCall?.search?.status).toBeUndefined();
+			expect(lastCall?.search).toMatchObject({ q: 'an' });
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	test('renders default status control when handed an already-canonicalized search (URL-level proof: deep-link-canonicalization.test.tsx)', () => {
@@ -1066,35 +1079,42 @@ describe('staff tenant invitations route', () => {
 		).toBe(true);
 	});
 
-	test('debounced search preserves account level, status, sorting, size, and drawer state', async () => {
-		mocks.search = {
-			level: 'admin,user',
-			status: 'pending',
-			sort_id: 'email',
-			sort_order: 'asc',
-			size: '25',
-			invite: 1,
-		};
-		renderPage();
+	test('debounced search preserves account level, status, sorting, size, and drawer state (deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			mocks.search = {
+				level: 'admin,user',
+				status: 'pending',
+				sort_id: 'email',
+				sort_order: 'asc',
+				size: '25',
+				invite: 1,
+			};
+			renderPage();
 
-		fireEvent.change(
-			screen.getByTestId('staff-tenant-invitations-table-search'),
-			{ target: { value: 'sam' } },
-		);
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			fireEvent.change(
+				screen.getByTestId('staff-tenant-invitations-table-search'),
+				{ target: { value: 'sam' } },
+			);
+			// Deterministic (W6-FLAKE #827): step PAST the debounce instead of
+			// a real-time sleep.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const searchNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search: Record<string, unknown>;
-		};
-		expect(searchNavigation.search).toMatchObject({
-			q: 'sam',
-			level: 'admin,user',
-			status: 'pending',
-			sort_id: 'email',
-			sort_order: 'asc',
-			size: '25',
-			invite: 1,
-		});
+			const searchNavigation = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search: Record<string, unknown>;
+			};
+			expect(searchNavigation.search).toMatchObject({
+				q: 'sam',
+				level: 'admin,user',
+				status: 'pending',
+				sort_id: 'email',
+				sort_order: 'asc',
+				size: '25',
+				invite: 1,
+			});
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	test('status changes preserve account level and other URL state while resetting cursor', async () => {

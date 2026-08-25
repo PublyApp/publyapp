@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
+import { Input } from '~/components/ui/input';
 import { Select, SelectTrigger, SelectValue } from '~/components/ui/select';
 import { Switch } from '~/components/ui/switch';
 import { Textarea } from '~/components/ui/textarea';
@@ -93,6 +94,10 @@ const probeNodes: { id: string; node: ReactElement }[] = [
 				</SelectTrigger>
 			</Select>
 		),
+	},
+	{
+		id: 'input',
+		node: <Input placeholder="Probe" {...{ [PROBE_ATTR]: 'input' }} />,
 	},
 	{ id: 'switch', node: <Switch {...{ [PROBE_ATTR]: 'switch' }} /> },
 	{ id: 'checkbox', node: <Checkbox {...{ [PROBE_ATTR]: 'checkbox' }} /> },

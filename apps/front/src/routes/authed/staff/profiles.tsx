@@ -98,22 +98,25 @@ const StaffProfilesPage = () => {
 				ariaLabel={t('profiles')}
 				columns={columns}
 				rows={rows}
-				isPending={query.isPending}
-				isError={query.isError}
-				onRetry={() => void query.refetch()}
-				hasActiveSearch={Boolean(controller.search.committed)}
+				queryState={{
+					isPending: query.isPending,
+					isError: query.isError,
+					onRetry: () => void query.refetch(),
+					hasActiveSearch: Boolean(controller.search.committed),
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: query.data?.nextCursor != null,
+					isPaginationPending: query.isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={query.data?.nextCursor != null}
-				isPaginationPending={query.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 				searchPlaceholder={t('search-profiles')}

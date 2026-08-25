@@ -120,10 +120,39 @@ const scriptKindForRelativePath = (relativePath: string): ts.ScriptKind =>
 //     and cannot, make an older parser understand syntax only a newer one
 //     accepts. The day production source uses such syntax, this guard must
 //     stop the build with a named file, not quietly report zero findings.
+//
+// W6-FLAKE (#827): the whole-tree walkers below (`findSonnerImports`,
+// `hasDirectUseMutationCall`, `hasQueryFactoryOnToast`,
+// `extractSuccessMessageKeys`) each parsed every production file from
+// scratch — up to 4x full-tree AST parse bursts per run in this worker,
+// wasted CPU that under external contention starved render workers past
+// testing-library's findBy* budget. The per-(source, path) memoization below
+// collapses those repeats to one parse per distinct input;
+// `parseCallCountForTestObservation` exists so the suite can pin that
+// behaviour.
+let parseCallCount = 0;
+
+const parseCallCountForTestObservation = (): number => parseCallCount;
+
+// W6-FLAKE (#827): the per-(source, path) tree cache. Keyed on `relativePath`
+// AND validated against the exact source text before reuse, so two fixture
+// calls that reuse a path with different inline sources always trigger a
+// fresh parse — a stale tree can never be served. Only successfully parsed
+// (zero diagnostics) trees are cached; a parse that threw is not remembered.
+const parsedSourceCache = new Map<
+	string,
+	{ source: string; sourceFile: ts.SourceFile }
+>();
+
 const parseSource = (
 	source: string,
 	relativePath = 'architecture-fixture.ts',
 ): ts.SourceFile => {
+	const cached = parsedSourceCache.get(relativePath);
+	if (cached && cached.source === source) {
+		return cached.sourceFile;
+	}
+
 	const sourceFile = ts.createSourceFile(
 		relativePath,
 		source,
@@ -131,6 +160,7 @@ const parseSource = (
 		true,
 		scriptKindForRelativePath(relativePath),
 	);
+	parseCallCount += 1;
 
 	const parseDiagnostics = getParseDiagnostics(sourceFile);
 	if (parseDiagnostics.length > 0) {
@@ -144,6 +174,8 @@ const parseSource = (
 				`refusing to scan a partial/recovered syntax tree: ${messages}`,
 		);
 	}
+
+	parsedSourceCache.set(relativePath, { source, sourceFile });
 
 	return sourceFile;
 };
@@ -502,6 +534,33 @@ describe('mutation feedback architecture classifiers', () => {
 
 		expect(hasQueryFactoryOnToast(allowed)).toBe(false);
 		expect(hasQueryFactoryOnToast(violating)).toBe(true);
+	});
+
+	// W6-FLAKE (#827) canary: the whole-tree classifiers above
+	// (`findSonnerImports`, `hasDirectUseMutationCall`, `findRouterFeedbackViolations`,
+	// `hasQueryFactoryOnToast`) must share one AST parse per distinct
+	// (source, path) input instead of each re-parsing the same production file.
+	// Re-parsing was pure wasted CPU that starved render workers under external
+	// load (see vitest.config.ts's W6-FLAKE notes). The memoized helper returns
+	// the SAME tree object for a repeated identical input, so this pins sharing
+	// without touching any detection logic.
+	test('the whole-tree classifiers share one AST parse per distinct input (W6-FLAKE parse-sharing canary)', () => {
+		const fixtureSource = "import { toast } from 'sonner';\nvoid toast;";
+		const relativePath = 'lib/canary-w6-flake.ts';
+
+		findSonnerImports(fixtureSource, relativePath);
+		hasDirectUseMutationCall(fixtureSource, relativePath);
+		findRouterFeedbackViolations(fixtureSource, relativePath);
+		hasQueryFactoryOnToast(fixtureSource, relativePath);
+
+		const parsesAfterFourWalkers = parseCallCountForTestObservation();
+
+		findSonnerImports(fixtureSource, relativePath);
+
+		expect(
+			parseCallCountForTestObservation() - parsesAfterFourWalkers,
+			'a fifth walk over an already-parsed (source, path) must reuse the memoized tree, not re-parse it',
+		).toBe(0);
 	});
 });
 

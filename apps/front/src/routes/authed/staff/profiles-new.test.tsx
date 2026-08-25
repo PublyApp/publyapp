@@ -11,7 +11,7 @@ import {
 import {
 	createElement,
 	type ChangeEvent,
-	type FormEventHandler,
+	type SubmitEventHandler,
 	type ReactNode,
 } from 'react';
 import { Controller, FormProvider, useFormContext } from 'react-hook-form';
@@ -118,7 +118,7 @@ vi.mock('~/components/field', () => ({
 	}: {
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
-		onSubmit?: FormEventHandler<HTMLFormElement>;
+		onSubmit?: SubmitEventHandler<HTMLFormElement>;
 	}) =>
 		createElement(
 			FormProvider as never,

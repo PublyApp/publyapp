@@ -535,6 +535,19 @@ describe('buildUpdateStaffTenantProfileBody', () => {
 		expect(body.description).toBeNull();
 	});
 
+	// #1406 — the edit drawer clears the textarea to the exact value `''`
+	// (Zod trims before the body builder sees it), so pin the zero-length
+	// string itself, not only its whitespace cousins.
+	test('clears description with null when the drawer submits an empty string', () => {
+		const body = buildUpdateStaffTenantProfileBody({
+			name: 'Approvers',
+			description: '',
+		});
+
+		expect(unwrapUntyped(body.name)).toBe('Approvers');
+		expect(body.description).toBeNull();
+	});
+
 	test('serializes null icon and tone to restore automatic styling', () => {
 		const body = buildUpdateStaffTenantProfileBody({
 			name: 'Approvers',

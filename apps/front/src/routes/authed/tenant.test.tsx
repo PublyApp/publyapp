@@ -22,6 +22,9 @@ const mocks = vi.hoisted(() => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 	navigate: vi.fn(),
 	pathname: '/tenant',
+	// Committed-location override for the mid-flight-navigation regression
+	// test; undefined falls back to `pathname` (no navigation pending).
+	resolvedPathname: undefined as string | undefined,
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -66,7 +69,12 @@ vi.mock('@tanstack/react-router', () => ({
 			},
 		]),
 	useRouterState: ({ select }: { select?: (state: unknown) => void }) =>
-		select?.({ location: { pathname: mocks.pathname } }),
+		select?.({
+			location: { pathname: mocks.pathname },
+			resolvedLocation: {
+				pathname: mocks.resolvedPathname ?? mocks.pathname,
+			},
+		}),
 	useNavigate: () => mocks.navigate,
 	// The portal's redirects are declarative `<Navigate>` elements now; the
 	// stub funnels them through the same `mocks.navigate` spy the assertions
@@ -222,6 +230,7 @@ afterEach(() => {
 	mocks.shouldLogoutForFailure.mockReturnValue(false);
 	window.localStorage.clear();
 	mocks.pathname = '/tenant';
+	mocks.resolvedPathname = undefined;
 });
 
 describe('TenantPortalRoute', () => {
@@ -485,5 +494,28 @@ describe('TenantPortalRoute', () => {
 		expect(screen.queryByTestId('tenant-portal-picker')).toBeNull();
 		expect(screen.queryByTestId('tenant-workspace-shell')).toBeNull();
 		expect(screen.queryByTestId('simple-layout-stub')).toBeNull();
+	});
+
+	test('regression: an in-flight navigation never re-branches the mounted portal (logout-to-login race from bot PR #1236\u2019s router bump)', () => {
+		// During logout the router exposes the TARGET path (`/login`) through
+		// `state.location` before the navigation commits, while this portal is
+		// still mounted. Branching on that in-flight path flipped the portal
+		// into the unresolved-child branch mid-flight and mounted a fresh
+		// `<Navigate to="/tenant">` that CANCELLED the in-flight login
+		// navigation (lazy auth chunk aborted, status -1): the navigate promise
+		// never settled, `queryClient.clear()` never ran, and the picker froze
+		// with a permanently disabled Log out button — exactly the
+		// front-e2e "logging out from the picker returns to login" failure.
+		// Branch decisions must read the COMMITTED location instead.
+		setTwoActiveTenants();
+		mocks.resolvedPathname = '/tenant';
+		mocks.pathname = '/login';
+
+		render(<TenantPortalRoute />);
+
+		// Still the bare picker root, and critically NO redirect element was
+		// mounted — nothing may compete with the in-flight navigation.
+		expect(screen.getByTestId('tenant-portal-picker')).toBeTruthy();
+		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 });

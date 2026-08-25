@@ -28,6 +28,12 @@ public record ResolveDeadLetterUnclassifiedForStaffBody {
 public record DeadLetterResolvedResponse {
 	public required Guid Id { get; init; }
 	public required int ExternalStateStatus { get; init; }
+
+	// Transparent-outcome rule (#1350 item 2): the caller reads the resolution
+	// result in plain words plus the stable translation key, instead of inferring
+	// it from the status code.
+	public string Message { get; init; } = string.Empty;
+	public string Key { get; init; } = string.Empty;
 }
 
 public class ResolveDeadLetterUnclassifiedForStaffBodyValidator
@@ -128,7 +134,9 @@ public sealed class ResolveDeadLetterUnclassifiedForStaff {
 		return TypedResults.Ok(new DeadLetterResolvedResponse {
 			Id = parsedId,
 			// Wire value mirrors the entity's stored int (4 Missing).
-			ExternalStateStatus = (int)ExternalStateStatus.Missing
+			ExternalStateStatus = (int)ExternalStateStatus.Missing,
+			Message = "Dead-letter triage resolved",
+			Key = ResponseKeys.DeadLetterResolvedSuccess
 		});
 	}
 }

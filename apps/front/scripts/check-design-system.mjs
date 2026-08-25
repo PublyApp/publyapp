@@ -224,7 +224,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes:
 			'<Skeleton className="size-[26px] shrink-0 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
@@ -234,7 +234,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="h-3 w-40 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -243,7 +243,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="h-3 w-56 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -252,7 +252,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="ml-auto h-5 w-16 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -261,7 +261,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/components/table/data-table.tsx',
+		file: 'src/components/table/data-table-states.tsx',
 		sourceIncludes: '<Skeleton className="h-5 w-16 rounded-full" />',
 		reason: 'Legacy table skeleton; Task 4 table pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -279,7 +279,7 @@ const KNOWN_HANDOFF_GUARD_DEBT = [
 	},
 	{
 		ruleId: ROUNDED_RULE_ID,
-		file: 'src/routes/authed/staff/staff-users/$userId.tsx',
+		file: 'src/routes/authed/staff/staff-users/$userId/_detail-views.tsx',
 		sourceIncludes: 'h-2 w-2 rounded-full bg-primary',
 		reason: 'Legacy status dot; Staff module pass owns this.',
 		// F824 ui F1/tests F2: hard budget = measured current standalone occurrences.
@@ -670,17 +670,59 @@ const getBlockLineRanges = (lines, selectorPattern) => {
 	return ranges;
 };
 
+// W6-FLAKE #827: `no-raw-visual-color` consults the app.css token layer for
+// EVERY candidate match it finds anywhere in the tree (its ignoreMatch runs
+// per matched line/statement). Deriving the block ranges brace-counts the
+// whole token layer, so recomputing per match made every raw-colour match in
+// any file pay a full app.css re-scan. The derived ranges are keyed by the
+// lines ARRAY's identity rather than copying or hashing it: each scan splits
+// app.css exactly once, so one derivation serves all matches of that scan,
+// and a WeakMap entry dies with its array — no cross-scan staleness, no
+// retention, safe for the fixture tests that pass fresh temp-dir content
+// through this path.
+let tokenLayerRangesByLines = new WeakMap();
+let tokenLayerRangeComputeCalls = 0;
+
+const getTokenLayerBlockRanges = (lines) => {
+	const cached = tokenLayerRangesByLines.get(lines);
+	if (cached !== undefined) {
+		return cached;
+	}
+
+	tokenLayerRangeComputeCalls += 1;
+	const ranges = [
+		...getBlockLineRanges(lines, /^:root\s*\{/),
+		...getBlockLineRanges(lines, /^html\.dark\s*\{/),
+	];
+	tokenLayerRangesByLines.set(lines, ranges);
+	return ranges;
+};
+
+// Test seam ONLY (W6-FLAKE #827 canary): production callers never reset the
+// cache; the spec uses these to prove one scan derives the ranges at most
+// once per distinct lines array.
+const resetTokenLayerRangeCacheForTestObservation = () => {
+	tokenLayerRangesByLines = new WeakMap();
+	tokenLayerRangeComputeCalls = 0;
+};
+
+const getTokenLayerComputeStatsForTestObservation = () => ({
+	computeCalls: tokenLayerRangeComputeCalls,
+});
+
+export const scanFront2DesignSystemInternals = {
+	resetTokenLayerRangeCacheForTestObservation,
+	getTokenLayerComputeStatsForTestObservation,
+};
+
 const isAppCssTokenLayerLine = (relativePath, lineIndex, lines) => {
 	if (relativePath !== APP_CSS_PATH) {
 		return false;
 	}
 
-	const ranges = [
-		...getBlockLineRanges(lines, /^:root\s*\{/),
-		...getBlockLineRanges(lines, /^html\.dark\s*\{/),
-	];
-
-	return ranges.some(([start, end]) => lineIndex >= start && lineIndex <= end);
+	return getTokenLayerBlockRanges(lines).some(
+		([start, end]) => lineIndex >= start && lineIndex <= end,
+	);
 };
 
 const isRoundedRadiusAllowed = (relativePath, line, lineIndex, lines) => {

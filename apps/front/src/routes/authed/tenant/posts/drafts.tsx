@@ -173,28 +173,31 @@ const TenantPostsDraftsPage = () => {
 				ariaLabel={t('posts:drafts')}
 				columns={columns}
 				rows={rows}
+				queryState={{
+					isPending: query.isPending,
+					isError: query.isError,
+					onRetry: () => void query.refetch(),
+					hasActiveSearch: Boolean(controller.search.committed),
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: Boolean(
+						(query.data as { nextCursor?: string | null })?.nextCursor,
+					),
+					isPaginationPending: query.isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(
+							(query.data as { nextCursor?: string | null })?.nextCursor ??
+								undefined,
+						),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				getRowLabel={(r) => r.excerpt.slice(0, 40)}
-				isPending={query.isPending}
-				isError={query.isError}
-				onRetry={() => void query.refetch()}
-				hasActiveSearch={Boolean(controller.search.committed)}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={Boolean(
-					(query.data as { nextCursor?: string | null })?.nextCursor,
-				)}
-				isPaginationPending={query.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(
-						(query.data as { nextCursor?: string | null })?.nextCursor ??
-							undefined,
-					)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
 			/>
