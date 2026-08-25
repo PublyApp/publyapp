@@ -10,7 +10,11 @@ import { compile } from '@tailwindcss/node';
 import { Scanner } from '@tailwindcss/oxide';
 import postcss from 'postcss';
 import { ts } from 'ts-morph';
-import { createBuilder, isCSSRequest, type Plugin } from 'vite';
+import {
+	createBuilder,
+	isCSSRequest,
+	type Plugin,
+} from 'vite';
 
 /**
  * Shared type aliases for the guard. The guard is a standalone `.mts` script
@@ -19,7 +23,6 @@ import { createBuilder, isCSSRequest, type Plugin } from 'vite';
  */
 type PostcssNode = postcss.Node;
 type PostcssRoot = postcss.Root;
-type TsSourceFile = ts.SourceFile;
 type TsNode = ts.Node;
 /** A diagnostic row every z-index guard check reports. */
 export type ZIndexViolation = {
@@ -107,6 +110,8 @@ type StaticStylePayload = {
 	childrenSuppressed: boolean;
 	overflow: boolean;
 };
+/** Every HTML `<style>`/`<link>` escape a static payload ships is a plain row. */
+type StaticHtmlStyleEscape = ZIndexViolation;
 type CssContainerDescription =
 	| { type: 'rule'; selector: string }
 	| { type: 'at-rule'; name: string; params: string };
@@ -160,9 +165,6 @@ export type ZIndexGuardRunResult = {
 	candidateCount: number;
 	fileCount: number;
 };
-type ScannerOptions = NonNullable<ConstructorParameters<typeof Scanner>[0]>;
-type ScannerSource = NonNullable<ScannerOptions['sources']>[number];
-
 const rootDir = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const appCssPath = path.join(rootDir, 'src/styles/app.css');
 
@@ -1137,7 +1139,7 @@ export const scanZIndexFile = ({
 			return null;
 		};
 		const hoistedVarBinding = (
-			scope: TsNode,
+			scope: ts.FunctionLikeDeclaration,
 			name: string,
 		): ts.VariableDeclaration | null => {
 			let binding: ts.VariableDeclaration | null = null;
@@ -1319,7 +1321,10 @@ export const scanZIndexFile = ({
 				// member cannot be ruled out — and stays loud; a provably
 				// runtime key resolves no member, exactly as #987's runtime
 				// bucket declares.
-				return staticString(
+				return staticString<{
+					node: TsNode | null;
+					overflow: boolean;
+				}>(
 					unwrapped.argumentExpression,
 					(value) => {
 						const ownerResult = resolveMemberChain(
@@ -1444,7 +1449,10 @@ export const scanZIndexFile = ({
 						(whenFalse?.partial ?? false),
 				};
 			}
-			if (isStringCoercion(expression)) {
+			if (
+				ts.isCallExpression(expression) &&
+				isStringCoercion(expression)
+			) {
 				return staticStringValues(expression.arguments[0], visitedConsts);
 			}
 			if (
@@ -1457,9 +1465,12 @@ export const scanZIndexFile = ({
 				);
 			}
 			if (ts.isTemplateExpression(expression)) {
-				let sets = [new Set([expression.head.text])];
+				const templateExpression: ts.TemplateExpression = expression;
+				let sets: Array<ReadonlySet<string>> = [
+					new Set([templateExpression.head.text]),
+				];
 				let partial = false;
-				for (const span of expression.templateSpans) {
+				for (const span of templateExpression.templateSpans) {
 					const substitution = staticStringValues(
 						span.expression,
 						visitedConsts,
@@ -1470,7 +1481,7 @@ export const scanZIndexFile = ({
 					if (substitution.overflow) {
 						return { values: null, partial: false, overflow: true };
 					}
-					sets.push(substitution.values);
+					sets.push(substitution.values ?? new Set<string>());
 					partial = partial || substitution.partial;
 					sets.push(new Set([span.literal.text]));
 				}
@@ -1493,9 +1504,10 @@ export const scanZIndexFile = ({
 				if (memberResult.overflow) {
 					return { values: null, partial: false, overflow: true };
 				}
-				return memberResult.node == null
-					? null
-					: staticStringValues(memberResult.node, visitedConsts);
+				if (memberResult.node != null) {
+					return staticStringValues(memberResult.node, visitedConsts);
+				}
+				return null;
 			}
 			if (
 				ts.isBinaryExpression(expression) &&
@@ -1509,7 +1521,10 @@ export const scanZIndexFile = ({
 					return { values: null, partial: false, overflow: true };
 				}
 				if (left != null && right != null) {
-					const joined = cartesianStringJoin([left.values, right.values]);
+					const joined = cartesianStringJoin([
+						left.values ?? new Set<string>(),
+						right.values ?? new Set<string>(),
+					]);
 					if (joined == null) {
 						return { values: null, partial: false, overflow: true };
 					}
@@ -1535,13 +1550,18 @@ export const scanZIndexFile = ({
 			return null;
 		};
 		const staticStringRawTemplateValues = (
-			template: TsNode,
+			template: ts.TemplateExpression | ts.NoSubstitutionTemplateLiteral,
 			visitedConsts: ReadonlySet<string> = new Set(),
-		): StaticStringValuesResult => {
+		): StaticStringValuesResult | null => {
 			if (ts.isNoSubstitutionTemplateLiteral(template)) {
-				return { values: new Set([template.rawText]), partial: false };
+				return {
+					values: new Set([template.rawText ?? '']),
+					partial: false,
+				};
 			}
-			let sets = [new Set([template.head.rawText])];
+			let sets: Array<ReadonlySet<string>> = [
+				new Set([template.head.rawText ?? '']),
+			];
 			let partial = false;
 			for (const span of template.templateSpans) {
 				const substitution = staticStringValues(span.expression, visitedConsts);
@@ -1551,9 +1571,9 @@ export const scanZIndexFile = ({
 				if (substitution.overflow) {
 					return { values: null, partial: false, overflow: true };
 				}
-				sets.push(substitution.values);
+				sets.push(substitution.values ?? new Set<string>());
 				partial = partial || substitution.partial;
-				sets.push(new Set([span.literal.rawText]));
+				sets.push(new Set([span.literal.rawText ?? '']));
 			}
 			const joined = cartesianStringJoin(sets);
 			if (joined == null) {
@@ -1588,7 +1608,11 @@ export const scanZIndexFile = ({
 			if (result.overflow) {
 				return { kind: 'overflow' };
 			}
-			if (result.partial || result.values.size !== 1) {
+			if (
+				result.values == null ||
+				result.partial ||
+				result.values.size !== 1
+			) {
 				return { kind: 'not-static' };
 			}
 			return { kind: 'value', value: [...result.values][0] };
@@ -1602,7 +1626,7 @@ export const scanZIndexFile = ({
 		// `null` by a `?? null` or a truthiness-guarded `.value` read at a
 		// future call site. The mechanical test verifies that every call site
 		// names all three outcomes.
-		const staticString = <R>(
+		const staticString = <R,>(
 			node: TsNode,
 			onValue: (value: string) => R,
 			onOverflow: () => R,
@@ -1836,8 +1860,10 @@ export const scanZIndexFile = ({
 					// string, so the value stays unprovable either way.
 					if (property.initializer == null) {
 						valueNode = null;
-					} else if (ts.isJsxExpression(property.initializer)) {
-						valueNode = property.initializer.expression;
+					} else if (
+						ts.isJsxExpression(property.initializer)
+					) {
+						valueNode = property.initializer.expression ?? null;
 					} else {
 						valueNode = property.initializer;
 					}
@@ -1972,7 +1998,7 @@ export const scanZIndexFile = ({
 				// as UNRESOLVED and fail loud instead of concluding the
 				// method is not the one under test. The funnel names all
 				// three outcomes (round-23 B1).
-				return staticString(
+				return staticString<StaticMemberInfo>(
 					member.argumentExpression,
 					(value) => ({
 						owner: member.expression,
@@ -1993,7 +2019,7 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const isDirectGlobalString = (candidate: TsNode): boolean => {
+		const isDirectGlobalString = (candidate: TsNode | null): boolean => {
 			const expression = unwrapTransparentExpression(candidate);
 			if (expression == null) {
 				return false;
@@ -2016,7 +2042,10 @@ export const scanZIndexFile = ({
 			}
 			return nearestBinding(owner, owner.text) == null;
 		};
-		const isStringRawTag = (candidate, visitedConsts = new Set()) => {
+		const isStringRawTag = (
+			candidate: TsNode,
+			visitedConsts: ReadonlySet<string> = new Set(),
+		): boolean => {
 			const member = staticMember(candidate);
 			if (member?.name === 'raw' && isDirectGlobalString(member.owner)) {
 				return true;
@@ -2036,7 +2065,7 @@ export const scanZIndexFile = ({
 				isStringRawTag(resolved, new Set([...visitedConsts, expression.text]))
 			);
 		};
-		const isDirectGlobalCss = (candidate) => {
+		const isDirectGlobalCss = (candidate: TsNode) => {
 			const expression = unwrapTransparentExpression(candidate);
 			if (expression == null) {
 				return false;
@@ -2059,7 +2088,9 @@ export const scanZIndexFile = ({
 			}
 			return nearestBinding(owner, owner.text) == null;
 		};
-		const staticStyleElementCss = (node) => {
+		const staticStyleElementCss = (
+			node: TsNode,
+		): StaticStylePayload | null => {
 			// Both JSX spellings carry the same payload: a `<style>` element
 			// and a self-closing `<style … />` are the same DOM node, so the
 			// `dangerouslySetInnerHTML` attribute lives in a different
@@ -2105,14 +2136,25 @@ export const scanZIndexFile = ({
 							member.unresolved || cssResult == null || cssResult.values == null
 								? null
 								: [...cssResult.values],
+						staticParts: null,
 						childrenSuppressed: true,
 						overflow: cssResult?.overflow ?? false,
 					};
 				}
-				return { css: null, childrenSuppressed: true, overflow: false };
+				return {
+					css: null,
+					staticParts: null,
+					childrenSuppressed: true,
+					overflow: false,
+				};
 			}
 			if (selfClosing) {
-				return { css: null, childrenSuppressed: false, overflow: false };
+				return {
+					css: null,
+					staticParts: null,
+					childrenSuppressed: false,
+					overflow: false,
+				};
 			}
 			// Children. A text node always ships. A static expression ships
 			// every string it can provably evaluate to; a non-static expression
@@ -2121,15 +2163,18 @@ export const scanZIndexFile = ({
 			// individually. When every child is static, the payload is the
 			// Cartesian join of the child candidate sets and is walked as one
 			// stylesheet (so a declaration spanning two children is caught).
-			const partSets = [];
+			const partSets: Array<ReadonlySet<string>> = [];
 			let fullyStatic = true;
 			let overflow = false;
 			for (const child of node.children) {
 				if (ts.isJsxText(child)) {
 					partSets.push(new Set([child.text]));
-				} else if (ts.isJsxExpression(child)) {
+				} else if (
+					ts.isJsxExpression(child) &&
+					child.expression != null
+				) {
 					const result = staticStringValues(child.expression);
-					const values = result == null ? null : result.values;
+					const values = result?.values ?? null;
 					// A child that also reaches a recorded raw binding is not
 					// fully static: `cond ? rawCss : ''` ships the raw bytes
 					// in one branch, and the raw walk must still run. The
@@ -2144,8 +2189,8 @@ export const scanZIndexFile = ({
 					// by name.
 					if (
 						values == null ||
-						result.overflow ||
-						result.partial ||
+						result?.overflow ||
+						result?.partial ||
 						expressionContainsRawBinding(child.expression)
 					) {
 						fullyStatic = false;
@@ -2190,7 +2235,7 @@ export const scanZIndexFile = ({
 				overflow,
 			};
 		};
-		const tagNameText = (node: TsNode): string => {
+		const tagNameText = (node: TsNode): string | null => {
 			if (
 				ts.isJsxElement(node) &&
 				ts.isIdentifier(node.openingElement.tagName)
@@ -2219,7 +2264,7 @@ export const scanZIndexFile = ({
 			let match;
 			while ((match = stylePattern.exec(html))) {
 				const css = match[1];
-				let escape;
+				let escape: ZIndexViolation;
 				try {
 					if (
 						checkCompiledCssZIndex(
@@ -2427,7 +2472,11 @@ export const scanZIndexFile = ({
 		// only reached with a provably complete key, so it is a genuine
 		// provable absence (`o.other`), never a key the guard failed to pin
 		// down (round-15 B1).
-		const rawSpecifiersForNamedMemberAccess = (owner, name, visitedConsts) => {
+		const rawSpecifiersForNamedMemberAccess = (
+			owner: TsNode,
+			name: string,
+			visitedConsts: ReadonlySet<string>,
+		) => {
 			const ownerEntry = rawImportEntryForExpression(owner, visitedConsts);
 			if (ownerEntry != null) {
 				return ownerEntry.kind === 'namespace' && name === 'default'
@@ -2512,7 +2561,10 @@ export const scanZIndexFile = ({
 					unresolved: whenTrue.unresolved || whenFalse.unresolved,
 				};
 			}
-			if (isStringCoercion(expression)) {
+			if (
+				ts.isCallExpression(expression) &&
+				isStringCoercion(expression)
+			) {
 				return rawBindingSpecifiersForExpression(
 					expression.arguments[0],
 					visitedConsts,
@@ -2597,7 +2649,7 @@ export const scanZIndexFile = ({
 		};
 		const reportRawImportSink = (
 			specifier: string,
-			kind: 'css' | 'html',
+			kind: 'css' | 'html' | 'style',
 			sinkNode: TsNode,
 		): void => {
 			// A `?raw` import whose binding reaches a style-capable sink is
@@ -2671,7 +2723,11 @@ export const scanZIndexFile = ({
 				});
 			}
 		};
-		const reportRawSinkExpression = (expression, kind, sinkNode) => {
+		const reportRawSinkExpression = (
+			expression: TsNode,
+			kind: 'css' | 'html' | 'style',
+			sinkNode: TsNode,
+		) => {
 			// Walks a style-sink expression over the raw resolver family:
 			// every specifier whose bytes provably reach the sink is walked as
 			// shipped CSS/HTML, and an expression the family cannot evaluate
@@ -2698,8 +2754,12 @@ export const scanZIndexFile = ({
 				});
 			}
 		};
-		const unresolvedSpreadViolation = (hostNode, opaqueSpreadNode, site) => {
-			const base = {
+		const unresolvedSpreadViolation = (
+			hostNode: TsNode,
+			opaqueSpreadNode: TsNode | null,
+			site: string,
+		) => {
+			const base: Pick<ZIndexViolation, 'file' | 'line' | 'source'> = {
 				file: relativePath,
 				line: lineForOffset(content, hostNode.getStart(sourceFile)),
 			};
@@ -2728,13 +2788,13 @@ export const scanZIndexFile = ({
 		// directly or through a module-scope const alias. A standalone object
 		// — a metadata factory, a dead `const` — is neither a violation nor
 		// declared a safe descriptor.
-		const isHeadPropertyAssignment = (node) =>
+		const isHeadPropertyAssignment = (node: TsNode | null | undefined) =>
 			node != null &&
 			ts.isPropertyAssignment(node) &&
 			propertyName(node.name) === 'head';
 		// Walks past parentheses that wrap a node (`({...})`), returning the
 		// node's effective parent.
-		const transparentWrapperParent = (node) => {
+		const transparentWrapperParent = (node: TsNode) => {
 			let current = node;
 			while (
 				current != null &&
@@ -2755,7 +2815,7 @@ export const scanZIndexFile = ({
 			'createRoute',
 			'createRouteWithContext',
 		]);
-		const isRouteCreatorCall = (node) => {
+		const isRouteCreatorCall = (node: TsNode): boolean => {
 			if (!ts.isCallExpression(node)) {
 				return false;
 			}
@@ -2842,7 +2902,7 @@ export const scanZIndexFile = ({
 			HeadFunction | null
 		>();
 		{
-			const visitForHeadSlots = (node) => {
+			const visitForHeadSlots = (node: TsNode) => {
 				if (ts.isPropertyAssignment(node) && isHeadPropertyAssignment(node)) {
 					const configObject = node.parent;
 					if (ts.isObjectLiteralExpression(configObject)) {
@@ -2888,7 +2948,10 @@ export const scanZIndexFile = ({
 			// `head:` slot directly.
 			const slotParent = transparentWrapperParent(headFunctionNode);
 			if (isHeadPropertyAssignment(slotParent)) {
-				return routeConfigObjectLiterals.has(slotParent.parent);
+				return (
+					ts.isObjectLiteralExpression(slotParent.parent) &&
+					routeConfigObjectLiterals.has(slotParent.parent)
+				);
 			}
 			// The identifier spelling: a `head:` slot elsewhere in the file
 			// whose value resolves to this head function.
@@ -2930,7 +2993,7 @@ export const scanZIndexFile = ({
 			if (values == null) {
 				return null;
 			}
-			const tokens = new Set();
+			const tokens = new Set<string>();
 			for (const value of values) {
 				for (const token of value.split(/[\t\n\f\r ]+/).filter(Boolean)) {
 					tokens.add(asciiLowerCase(token));
@@ -2979,7 +3042,7 @@ export const scanZIndexFile = ({
 					source: node.getText(sourceFile),
 				});
 			}
-			const scanStaticCss = (cssCandidate) => {
+			const scanStaticCss = (cssCandidate: string) => {
 				const base = {
 					file: relativePath,
 					line: lineForOffset(content, node.getStart(sourceFile)),
@@ -3435,7 +3498,10 @@ export const scanZIndexFile = ({
 		//     proof of absence, so the write fails loud by name at the sink.
 		// Resolving a static object to a plain object literal uses the same
 		// transparent wrapper + alias-chain model as the rest of the guard.
-		const resolvedStaticObject = (node, visited = new Set()) => {
+		const resolvedStaticObject = (
+			node: TsNode,
+			visited: ReadonlySet<string> = new Set(),
+		) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression != null && ts.isObjectLiteralExpression(expression)) {
 				return expression;
@@ -3460,16 +3526,24 @@ export const scanZIndexFile = ({
 		// The guard's `nearestBinding` resolves a destructure target to the whole
 		// `VariableDeclaration`, so the recognizer digs into the object pattern
 		// for the exact binding element that carries the identifier.
-		const findBindingElement = (pattern, name) => {
+		const findBindingElement = (
+			pattern: ts.ObjectBindingPattern | ts.ArrayBindingPattern,
+			name: string,
+		): ts.BindingElement | null => {
 			for (const element of pattern.elements) {
+				if (!ts.isBindingElement(element)) {
+					continue;
+				}
 				if (
-					ts.isBindingElement(element) &&
-					element.name.kind === ts.SyntaxKind.Identifier &&
+					ts.isIdentifier(element.name) &&
 					element.name.text === name
 				) {
 					return element;
 				}
-				if (element.name.kind !== ts.SyntaxKind.Identifier) {
+				if (
+					ts.isObjectBindingPattern(element.name) ||
+					ts.isArrayBindingPattern(element.name)
+				) {
 					const nested = findBindingElement(element.name, name);
 					if (nested != null) {
 						return nested;
@@ -3478,12 +3552,35 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
+		// The static text a destructure element keys on: an explicit string
+		// identifier wins, otherwise the bare target name; a computed key has
+		// no static text and resolves through the target name, matching the
+		// historical spelling.
+		const bindingPropertyNameText = (
+			element: ts.BindingElement,
+		): string | null => {
+			// Mirrors the historical read exactly: every literal key (identifier,
+			// string, numeric) carries its text; a computed key has none and
+			// falls through to the binding target's name.
+			const explicit = element.propertyName;
+			if (
+				explicit != null &&
+				(ts.isIdentifier(explicit) ||
+					ts.isStringLiteral(explicit) ||
+					ts.isNumericLiteral(explicit))
+			) {
+				return explicit.text;
+			}
+			return ts.isIdentifier(element.name) ? element.name.text : null;
+		};
 		// The named type references of a parameter/const annotation, unwrapped
 		// through nullable unions: `HTMLElement`, `HTMLElement | null`, and
 		// `CSSStyleDeclaration` are the identities this guard can prove. An
 		// empty list means the annotation (if any) names nothing the guard
 		// understands — the identity is unprovable.
-		const namedTypeCandidates = (type) => {
+		const namedTypeCandidates = (
+			type: TsNode | null | undefined,
+		): string[] => {
 			if (type == null) {
 				return [];
 			}
@@ -3501,7 +3598,9 @@ export const scanZIndexFile = ({
 		//   - a DOM-element-typed value carries the accessor under `.style`
 		//     and has no `setProperty` member of its own — a direct call on
 		//     it is provably not a write.
-		const receiverIdentityFromTypeNames = (names) => {
+		const receiverIdentityFromTypeNames = (
+			names: ReadonlyArray<string>,
+		) => {
 			if (
 				names.some(
 					(name) =>
@@ -3517,7 +3616,7 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const typeAnnotationNames = (node) => {
+		const typeAnnotationNames = (node: TsNode) => {
 			// The named types of the nearest annotated binding of a value
 			// expression (a parameter or a variable declaration).
 			if (!ts.isIdentifier(node)) {
@@ -3536,7 +3635,10 @@ export const scanZIndexFile = ({
 		// `new X()` through identifier/alias chains — returning the class
 		// declaration, or null when the owner is not provably a class
 		// instance (an import, a parameter, a function result).
-		const classInstanceOwner = (node, visited = new Set()) => {
+		const classInstanceOwner = (
+			node: TsNode,
+			visited: ReadonlySet<string> = new Set(),
+		) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
 				return null;
@@ -3568,7 +3670,7 @@ export const scanZIndexFile = ({
 			}
 			return null;
 		};
-		const classExtendsDomElement = (classDeclaration) => {
+		const classExtendsDomElement = (classDeclaration: ts.ClassDeclaration) => {
 			// A class extending a DOM element (`class Panel extends
 			// HTMLElement`) inherits the real CSSOM accessor, so its
 			// instances are not provable data carriers.
@@ -3596,7 +3698,7 @@ export const scanZIndexFile = ({
 		// object literal or an ordinary class instance is provably data; a
 		// DOM-element-typed value is provably the CSSOM accessor; everything
 		// else — a parameter, an import, a function result — is UNRESOLVED.
-		const styleMemberOwnerKind = (owner) => {
+		const styleMemberOwnerKind = (owner: TsNode) => {
 			const resolvedOwner = resolvedStaticObject(owner);
 			if (
 				resolvedOwner != null &&
@@ -3620,7 +3722,10 @@ export const scanZIndexFile = ({
 		// member read: a resolved member that is not `style` is provably not
 		// the CSSOM accessor; a `style` member's identity belongs to its
 		// owner.
-		const styleDeclarationReceiverKindForMember = (memberName, expression) => {
+		const styleDeclarationReceiverKindForMember = (
+			memberName: string | null,
+			expression: ts.PropertyAccessExpression | ts.ElementAccessExpression,
+		) => {
 			if (memberName !== 'style') {
 				return 'other';
 			}
@@ -3632,7 +3737,10 @@ export const scanZIndexFile = ({
 		// ordinary data), 'unresolved' (a computed member key the guard
 		// cannot enumerate may be `style`, or the receiver's identity cannot
 		// be proven either way — round-23 B1/I1), or 'other'.
-		const styleDeclarationReceiverKind = (node, visited = new Set()) => {
+		const styleDeclarationReceiverKind = (
+			node: TsNode,
+			visited: ReadonlySet<string> = new Set(),
+		): CssomReceiverKind => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
 				return 'other';
@@ -3676,11 +3784,7 @@ export const scanZIndexFile = ({
 						const element = findBindingElement(binding.name, expression.text);
 						// `const { style } = X;` — the receiver is `X.style`.
 						if (element != null) {
-							const memberName =
-								element.propertyName?.text ??
-								(element.name.kind === ts.SyntaxKind.Identifier
-									? element.name.text
-									: null);
+							const memberName = bindingPropertyNameText(element);
 							if (memberName !== 'style') {
 								return 'other';
 							}
@@ -3719,7 +3823,10 @@ export const scanZIndexFile = ({
 		// `setProperty`? Returns 'setter-method' (the member is provably
 		// `setProperty`), 'unresolved-method' (the member identity is
 		// unprovable — the bound call may be a write), or 'other-method'.
-		const cssSetterMethodKind = (node, visited = new Set()) => {
+		const cssSetterMethodKind = (
+			node: TsNode,
+			visited: ReadonlySet<string> = new Set(),
+		) => {
 			const expression = unwrapTransparentExpression(node);
 			if (expression == null) {
 				return 'other-method';
@@ -3748,10 +3855,7 @@ export const scanZIndexFile = ({
 					if (ts.isObjectBindingPattern(binding.name)) {
 						const element = findBindingElement(binding.name, expression.text);
 						const boundMember =
-							element?.propertyName?.text ??
-							(element != null && element.name.kind === ts.SyntaxKind.Identifier
-								? element.name.text
-								: null);
+							element == null ? null : bindingPropertyNameText(element);
 						return boundMember === 'setProperty'
 							? 'setter-method'
 							: 'other-method';
@@ -3771,7 +3875,10 @@ export const scanZIndexFile = ({
 		// identity cannot be proven either way — loud at the sink), 'overflow'
 		// (the method name is unresolvable — the receiver is a style
 		// declaration, so the write cannot be ruled out), or 'other'.
-		const cssStyleSetterCallKind = (node, visited = new Set()) => {
+		const cssStyleSetterCallKind = (
+			node: TsNode,
+			visited: ReadonlySet<string> = new Set(),
+		): CssSetterCallKind => {
 			const callee = unwrapTransparentExpression(node);
 			if (callee == null) {
 				return 'other';
@@ -3872,7 +3979,10 @@ export const scanZIndexFile = ({
 			}
 			return 'other';
 		};
-		const recordScaleTokenDefinition = (name, node) => {
+		const recordScaleTokenDefinition = (
+			name: string | null,
+			node: TsNode,
+		) => {
 			if (name == null || !name.startsWith('--publy-z-')) {
 				return;
 			}
@@ -3886,7 +3996,10 @@ export const scanZIndexFile = ({
 				source: name,
 			});
 		};
-		const recordScaleTokenDefinitionCandidates = (nameResult, node) => {
+		const recordScaleTokenDefinitionCandidates = (
+			nameResult: StaticStringValuesResult | null,
+			node: TsNode,
+		) => {
 			// Returns whether a violation was recorded, so a caller that must
 			// also be loud when nothing here fires (an UNRESOLVED receiver at
 			// a setProperty sink, round-23 B1) knows the key analysis found
@@ -3917,7 +4030,7 @@ export const scanZIndexFile = ({
 			}
 			return false;
 		};
-		const visitScaleTokenDefinitions = (node) => {
+		const visitScaleTokenDefinitions = (node: TsNode) => {
 			if (ts.isPropertyAssignment(node)) {
 				if (ts.isComputedPropertyName(node.name)) {
 					// A computed key is candidate-aware: `['--publy-z-' + x]`
@@ -4063,15 +4176,17 @@ const stripImportant = (value: string): string => {
 
 const describeCssContainer = (node: PostcssNode): CssContainerDescription => {
 	if (node.type === 'rule') {
+		const rule = node as postcss.Rule;
 		return {
 			type: 'rule',
-			selector: normalizeWhitespace(node.selector),
+			selector: normalizeWhitespace(rule.selector),
 		};
 	}
+	const atRule = node as postcss.AtRule;
 	return {
 		type: 'at-rule',
-		name: canonicaliseCssProperty(node.name),
-		params: normalizeWhitespace(node.params),
+		name: canonicaliseCssProperty(atRule.name),
+		params: normalizeWhitespace(atRule.params),
 	};
 };
 
@@ -4387,11 +4502,11 @@ const DEFAULT_CANONICAL_SCALE_TOKENS = findCanonicalScaleTokens(
 );
 
 const collectCssPaths = async (
-	directory,
-	excludedDirectoryNames = new Set(),
-) => {
-	const cssPaths = [];
-	const visit = async (currentDirectory) => {
+	directory: string,
+	excludedDirectoryNames: ReadonlySet<string> = new Set<string>(),
+): Promise<string[]> => {
+	const cssPaths: string[] = [];
+	const visit = async (currentDirectory: string): Promise<void> => {
 		const entries = await readdir(currentDirectory, { withFileTypes: true });
 		for (const entry of entries) {
 			const entryPath = path.join(currentDirectory, entry.name);
@@ -4411,7 +4526,12 @@ const collectCssPaths = async (
 	try {
 		await visit(directory);
 	} catch (error) {
-		if (error?.code === 'ENOENT') {
+		if (
+			typeof error === 'object' &&
+			error != null &&
+			'code' in error &&
+			error.code === 'ENOENT'
+		) {
 			return [];
 		}
 		throw error;
@@ -4489,7 +4609,7 @@ export const classifyModuleKind = (
 		// provides the latter, both as the raw-export shape — so the authored
 		// bytes are walked by the inline gate. The two spellings are
 		// deliberately one kind: their authored text is walked identically.
-		let kind = 'css';
+		let kind: ModuleClassification['kind'] = 'css';
 		if (meta?.['vite:asset'] === true) {
 			kind = 'css-url';
 		} else if (typeof code === 'string' && code.startsWith('export default ')) {
@@ -4519,7 +4639,11 @@ export const classifyModuleKind = (
 // Vite root-absolute specifiers (`/src/…`) resolve against the project root
 // (not the filesystem root), and everything else resolves relative to the
 // importing module.
-const resolveRawSpecifierPath = (withoutQuery, importerRelativePath, root) => {
+const resolveRawSpecifierPath = (
+	withoutQuery: string,
+	importerRelativePath: string,
+	root: string,
+) => {
 	let rawPath;
 	if (withoutQuery.startsWith('~/')) {
 		rawPath = path.resolve(root, 'src', withoutQuery.slice(2));
@@ -4543,7 +4667,11 @@ const resolveRawSpecifierPath = (withoutQuery, importerRelativePath, root) => {
 // `?url` import of a file that is also `?raw`-imported is provably not raw text
 // and stays quiet. The query is the part after the first `?` or `#`, the same
 // character the single classifier strips.
-const resolveRawSpecifierId = (specifier, importerRelativePath, root) => {
+const resolveRawSpecifierId = (
+	specifier: string,
+	importerRelativePath: string,
+	root: string,
+) => {
 	const classified = classifyModuleKind(specifier, {});
 	const resolvedPath = resolveRawSpecifierPath(
 		classified.filePath,
@@ -4577,10 +4705,22 @@ const resolveRawSpecifierId = (specifier, importerRelativePath, root) => {
 // record itself (round-16 I3 — "recorded by name" must be observable, not
 // claimed).
 export const collectRawImportBindings = (
-	sourceFile,
-	{ relativePath, baseDir, rawTextPaths, rawTextIds = null, queriedPaths },
-) => {
-	const bindings = new Map();
+	sourceFile: ts.SourceFile,
+	{
+		relativePath,
+		baseDir,
+		rawTextPaths,
+		rawTextIds = null,
+		queriedPaths,
+	}: {
+		relativePath: string;
+		baseDir: string | null;
+		rawTextPaths: ReadonlySet<string> | null;
+		rawTextIds?: ReadonlySet<string> | null;
+		queriedPaths?: ReadonlySet<string> | null;
+	},
+): Map<string, RawImportBindingEntry> => {
+	const bindings = new Map<string, RawImportBindingEntry>();
 	if (baseDir == null || rawTextPaths == null) {
 		return bindings;
 	}
@@ -4591,8 +4731,8 @@ export const collectRawImportBindings = (
 	// different module and provably not raw text. Unit fixtures that only
 	// carry path provenance fall back to the path, which is the historical
 	// collapse those fixtures do not exercise.
-	const recordIds = rawTextIds ?? new Set();
-	const isRecordedRawBy = (specifier) =>
+	const recordIds = rawTextIds ?? new Set<string>();
+	const isRecordedRawBy = (specifier: string) =>
 		rawTextIds == null
 			? rawTextPaths.has(
 					resolveRawSpecifierPath(
@@ -4606,7 +4746,13 @@ export const collectRawImportBindings = (
 		if (!ts.isImportDeclaration(statement)) {
 			continue;
 		}
-		const specifier = statement.moduleSpecifier?.text ?? '';
+		if (
+			statement.moduleSpecifier == null ||
+			!ts.isStringLiteral(statement.moduleSpecifier)
+		) {
+			continue;
+		}
+		const specifier = statement.moduleSpecifier.text;
 		const classified = classifyModuleKind(specifier, {});
 		const resolvedPath = resolveRawSpecifierPath(
 			classified.filePath,
@@ -4633,7 +4779,11 @@ export const collectRawImportBindings = (
 		if (!isRecordedRaw && !isUnresolvableQuery) {
 			continue;
 		}
-		const recordBinding = (name, kind, declaration) => {
+		const recordBinding = (
+			name: string,
+			kind: RawImportBindingKind,
+			declaration: ScriptBindingDeclaration,
+		) => {
 			bindings.set(name, { specifier, declaration, kind });
 		};
 		const importClause = statement.importClause;
@@ -4672,30 +4822,30 @@ export const buildProductionApp = async (
 		path.join(tmpdir(), 'publy-zindex-guard-'),
 	);
 	activeBuildDirectories.add(emittedCssRoot);
-	const authoredCssPaths = new Set();
-	const authoredScriptPaths = new Set();
-	const inlineCssPaths = new Set();
-	const rawTextPaths = new Set();
+	const authoredCssPaths = new Set<string>();
+	const authoredScriptPaths = new Set<string>();
+	const inlineCssPaths = new Set<string>();
+	const rawTextPaths = new Set<string>();
 	// Per-ID raw provenance (round-19 I1): the full module IDs (path + query)
 	// the build transformed as raw. Two distinct IDs for the same file (`?raw`
 	// and `?url`) are different modules and must not share a raw answer, so
 	// the script pass consults this set by full ID rather than the collapsed
 	// `rawTextPaths`. `rawTextPaths` is kept for byte reading (the same file
 	// bytes are read under any query).
-	const rawTextIds = new Set();
+	const rawTextIds = new Set<string>();
 	// Every module id the build transformed under a query, keyed by its file
 	// part. The script pass consults it to tell a queried specifier the guard
 	// cannot map to any record (an alias spelling — loud by name) from a
 	// queried module the build did record under a non-raw query (`?url`,
 	// `?v=1`, … — provably not raw text, quiet).
-	const queriedPaths = new Set();
+	const queriedPaths = new Set<string>();
 	// Ids this guard's post-order `load` hook observed: exactly the modules
 	// Vite's own `vite:asset` load hook did NOT claim (raw/url/asset modules
 	// are invisible to post-order load). The classifier reads this set to tell
 	// the raw-export transform shape produced by vite:asset's raw load from
 	// the same shape produced by an ordinary module (round-16 B1).
-	const assetPluginLoad = new Set();
-	const provenancePlugin = {
+	const assetPluginLoad = new Set<string>();
+	const provenancePlugin: Plugin = {
 		name: 'publy-zindex-css-provenance',
 		enforce: 'post',
 		transform(code, id) {
@@ -4782,7 +4932,7 @@ export const buildProductionApp = async (
 	};
 };
 
-const isPathInside = (directory, filePath) => {
+const isPathInside = (directory: string, filePath: string) => {
 	const relativePath = path.relative(directory, filePath);
 	return (
 		relativePath !== '' &&
@@ -4791,7 +4941,7 @@ const isPathInside = (directory, filePath) => {
 	);
 };
 
-const cssImportSpecifier = (params) => {
+const cssImportSpecifier = (params: string) => {
 	const trimmed = params.trim();
 	const quoted = trimmed.match(/^(?:"([^"]+)"|'([^']+)')/);
 	if (quoted != null) {
@@ -4807,7 +4957,7 @@ const collectReachableAuthoredCssPaths = async (
 ): Promise<string[]> => {
 	const queuedPaths: string[] = [];
 	const reachablePaths = new Set<string>();
-	const addPath = (filePath) => {
+	const addPath = (filePath: string) => {
 		const absolutePath = path.resolve(filePath);
 		if (
 			reachablePaths.has(absolutePath) ||
@@ -4858,7 +5008,11 @@ const collectReachableAuthoredCssPaths = async (
 	return [...reachablePaths].sort((left, right) => left.localeCompare(right));
 };
 
-const buildAssetDisplayPath = (baseDir, emittedCssRoot, cssPath) => {
+const buildAssetDisplayPath = (
+	baseDir: string,
+	emittedCssRoot: string,
+	cssPath: string,
+) => {
 	if (isPathInside(baseDir, cssPath)) {
 		return path.relative(baseDir, cssPath);
 	}
@@ -4900,7 +5054,7 @@ export const runZIndexGuard = async ({
 		);
 	}
 
-	const buildResult = await productionBuild();
+	const buildResult = await productionBuild(baseDir);
 	const cleanup = buildResult?.cleanup ?? (async () => {});
 	try {
 		if (
