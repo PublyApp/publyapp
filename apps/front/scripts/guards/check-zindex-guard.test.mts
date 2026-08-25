@@ -29,6 +29,7 @@ import {
 	runZIndexGuard,
 	scanZIndexFile,
 	stripComments,
+	type ProductionBuildResult,
 } from './check-zindex-guard.mts';
 
 // #987 — z-index scale guard. Every fixture below lives in `scripts/`, outside
@@ -68,16 +69,23 @@ const FIXTURE_APP_CSS = `@import 'tailwindcss' source('./src');
 // the shipped CLI runs, not a test-file copy of it. A regression in the real
 // plugin's extension test, query parsing, or path recording reds these tests
 // instead of sailing past a stand-in.
-const buildViteFixture = async (root) => buildProductionApp(root);
+const buildViteFixture = async (
+	root: string,
+): Promise<ProductionBuildResult> => buildProductionApp(root);
 
 const runFixtureGuard = async (
-	files,
+	files: Record<string, string>,
 	appCssExtra = '',
-	entryImports = [],
-	emittedCssOverride = null,
-	productionBuildOverride = null,
-	appCssOverride = null,
-	extraDirectories = [],
+	entryImports: ReadonlyArray<string> = [],
+	emittedCssOverride:
+		| string
+		| ReadonlyArray<{ file: string; content: string }>
+		| null = null,
+	productionBuildOverride:
+		| ((root: string) => Promise<ProductionBuildResult>)
+		| null = null,
+	appCssOverride: string | null = null,
+	extraDirectories: ReadonlyArray<string> = [],
 ) => {
 	// `emittedCssOverride` is a single `{ file, content }` entry or an array
 	// of them, so tests can pin gates that only fire across assets.
@@ -151,10 +159,10 @@ const runFixtureGuard = async (
 
 const scanner = new Scanner({ sources: [] });
 
-const violationsFor = (relativePath, content) =>
+const violationsFor = (relativePath: string, content: string) =>
 	scanZIndexFile({ scanner, relativePath, content });
 
-const assertRaw = (relativePath, content) => {
+const assertRaw = (relativePath: string, content: string) => {
 	const violations = violationsFor(relativePath, content);
 	assert.ok(
 		violations.length > 0,
@@ -163,7 +171,7 @@ const assertRaw = (relativePath, content) => {
 	return violations;
 };
 
-const assertClean = (relativePath, content) => {
+const assertClean = (relativePath: string, content: string) => {
 	const violations = violationsFor(relativePath, content);
 	assert.deepEqual(
 		violations.map((violation) => violation.source),
@@ -195,10 +203,10 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 		true,
 		ts.ScriptKind.JS,
 	);
-	const funnelCalls = [];
-	const rawCalls = [];
-	let funnelArrow = null;
-	const visit = (node) => {
+	const funnelCalls: ts.CallExpression[] = [];
+	const rawCalls: ts.CallExpression[] = [];
+	let funnelArrow: ts.ArrowFunction | null = null;
+	const visit = (node: ts.Node) => {
 		if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
 			if (node.expression.text === 'staticStringRaw') {
 				rawCalls.push(node);
@@ -220,13 +228,14 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 	};
 	visit(sourceFile);
 	assert.ok(funnelArrow != null, 'the staticString funnel must exist');
+	const funnel = funnelArrow;
 	// The funnel itself must dispatch on all three outcomes — a rewrite that
 	// folds overflow back into the benign branch is a B1 regression. The
 	// markers are anchored to the dispatch statements, not the outcome kind
 	// text: `false && kind.kind === 'overflow'` still contains the old marker
 	// string, and a disabled dispatch is exactly the round-21 conflation this
 	// check exists to catch (round-23 mutation evidence).
-	const funnelText = funnelArrow.getText(sourceFile);
+	const funnelText = funnel.getText(sourceFile);
 	assert.ok(
 		funnelText.includes("if (kind.kind === 'value') {"),
 		`the funnel must dispatch the resolved-value outcome: ${funnelText}`,
@@ -239,8 +248,10 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 	);
 	assert.ok(funnelCalls.length >= 7, 'every consumer must use the funnel');
 	// Every raw-projection call site must sit inside the funnel body.
-	const enclosingFunction = (call) => {
-		let cursor = call.parent;
+	const enclosingFunction = (
+		call: ts.CallExpression,
+	): ts.Node | null => {
+		let cursor: ts.Node | null = call.parent;
 		while (cursor != null) {
 			if (
 				ts.isArrowFunction(cursor) ||
@@ -254,7 +265,7 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 		}
 		return null;
 	};
-	const isFunnel = (fn) =>
+	const isFunnel = (fn: ts.Node | null): boolean =>
 		fn === funnelArrow ||
 		(fn != null &&
 			ts.isArrowFunction(fn) &&
@@ -286,10 +297,11 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 // Compiled-gate violations come from the emitted assets of the real build
 // (`emitted/<relative>` display paths, since the guard-owned output directory
 // lives in the OS temp root) or from an override fixture under `dist/`.
-const isCompiledCssFile = (file) =>
-	file === 'compiled stylesheet' ||
-	file.startsWith('dist/') ||
-	file.startsWith('emitted/');
+const isCompiledCssFile = (file: string | null | undefined) =>
+	file != null &&
+	(file === 'compiled stylesheet' ||
+		file.startsWith('dist/') ||
+		file.startsWith('emitted/'));
 
 // ---------------------------------------------------------------------------
 // Classifier
@@ -372,7 +384,12 @@ test('e2e: unknown scale utility is rejected while canonical utility stays green
 	});
 	assert.ok(
 		violations.some(
-			({ file, ruleId, source }) =>
+			({ file, ruleId, source }: {
+				file?: string;
+				ruleId: string;
+				source?: string;
+			}) =>
+				file != null &&
 				file.endsWith('probe.tsx') &&
 				ruleId === 'z-index-utility-not-on-scale' &&
 				source === 'z-(--publy-z-not-declared)',
@@ -381,8 +398,10 @@ test('e2e: unknown scale utility is rejected while canonical utility stays green
 	);
 	assert.ok(
 		!violations.some(
-			({ file, source }) =>
-				file.endsWith('probe.tsx') && source === 'z-(--publy-z-raised)',
+			({ file, source }: { file?: string; source?: string }) =>
+				file != null &&
+				file.endsWith('probe.tsx') &&
+				source === 'z-(--publy-z-raised)',
 		),
 		`expected the canonical source utility to stay green: ${JSON.stringify(violations)}`,
 	);
@@ -520,7 +539,7 @@ test('raw sinks (round 17 I1): JSX link attributes follow the source-ordered spr
 	// spread after the last static fact fails loud by name. Every guard
 	// verdict is paired with the artifact React actually renders.
 	const href = 'data:text/css,.x%7Bz-index%3A2147483573%7D';
-	const render = (rel, spread) =>
+	const render = (rel: string, spread: Record<string, string>) =>
 		renderToStaticMarkup(React.createElement('link', { rel, ...spread, href }));
 	// False negative direction: the shipped artifact is a stylesheet, the
 	// guard must red it — the spread is a later write.
@@ -1503,7 +1522,7 @@ const STICKY_EMITTED_SELECTOR =
 	'.publy-data-table thead [data-slot=table-column],' +
 	'.publy-data-table thead [data-slot=table-sortable-column-header],' +
 	'.publy-data-table thead [data-slot=table-selection-cell]';
-const inComponentsLayer = (css) => `@layer components { ${css} }`;
+const inComponentsLayer = (css: string) => `@layer components { ${css} }`;
 
 test('compiled-CSS gate: allowlist is bound to ancestry, selector, and occurrence count', () => {
 	// the one real rule is permitted
@@ -2057,11 +2076,12 @@ test('production-build contract failures still run supplied cleanup', async () =
 			'',
 			[],
 			null,
-			async () => ({
-				cleanup: async () => {
-					cleaned = true;
-				},
-			}),
+			async () =>
+				({
+					cleanup: async () => {
+						cleaned = true;
+					},
+				}) as unknown as ProductionBuildResult,
 		),
 		/productionBuild must return the exact emittedCssRoot/,
 	);
@@ -2084,7 +2104,7 @@ test('round 6 M3: an interrupted guard run removes the private build directory',
 		cwd: path.join(scriptsDir, '..'),
 		stdio: 'ignore',
 	});
-	let created = [];
+	let created: string[] = [];
 	const startedAt = Date.now();
 	while (Date.now() - startedAt < 20000) {
 		created = (await readdir(tmpdir())).filter((name) =>
@@ -2394,7 +2414,7 @@ test('e2e (issue #1120): shadowed String.raw spellings stay in the runtime bucke
 			`${name}: the shadowed tag must stay in the runtime bucket while the control reds: ${JSON.stringify(violations)}`,
 		);
 		assert.match(
-			violations[0].source,
+			violations[0]?.source ?? '',
 			/-control/,
 			`${name}: the single red must come from the control tag, not the shadowed one: ${JSON.stringify(violations)}`,
 		);
@@ -2696,7 +2716,7 @@ test('e2e (round 13 B2): the raw resolver evaluates the transparent expression f
 	// String(...), element-access spellings, and alias chains to a fixpoint
 	// — "one step further" is not a spelling anymore because there is no
 	// bound to step past.
-	const cases = [
+	const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
 		[
 			'object property',
 			[
@@ -3026,7 +3046,7 @@ test('raw sinks (round 17 I3): a non-default named element is recorded by name, 
 	// the walk stayed green, which it would also do if the binding were
 	// silently omitted, so the record itself is asserted directly.
 	const baseDir = '/tmp/zindex-r15-unit';
-	const record = (content) =>
+	const record = (content: string) =>
 		collectRawImportBindings(
 			ts.createSourceFile(
 				'probe.tsx',
@@ -3079,7 +3099,10 @@ test('raw sinks (round 17 I3): a non-default named element is recorded by name, 
 	// The walk resolves each binding exactly: the non-default element ships
 	// nothing (green), the `{ default as x }` spelling is the default
 	// binding and reds at the raw file.
-	const walk = (content, files) =>
+	const walk = (
+		content: string,
+		files: Record<string, string>,
+	) =>
 		scanZIndexFile({
 			scanner,
 			relativePath: 'probe.tsx',
@@ -3145,12 +3168,12 @@ test('structural (round 17 B1 → round 19 B2): the single classifier and per-ID
 	const rawModuleConfig = {
 		code: 'export default ".x"',
 		meta: {},
-		assetPluginLoad: new Set(),
+		assetPluginLoad: new Set<string>(),
 	};
 	const urlModuleConfig = {
 		code: 'export default "/assets/named.txt"',
 		meta: { 'vite:asset': true },
-		assetPluginLoad: new Set(),
+		assetPluginLoad: new Set<string>(),
 	};
 	assert.equal(
 		classifyModuleKind(`${txtPath}?raw`, rawModuleConfig).kind,
@@ -3390,7 +3413,7 @@ test('e2e (round 17 B1): emitted bytes and recorded provenance agree for multi-q
 		try {
 			const resolved = path.resolve(root, 'src/overlay.txt');
 			assert.ok(
-				buildResult.rawTextPaths.includes(resolved),
+				(buildResult.rawTextPaths ?? []).includes(resolved),
 				`the build record must contain the multi-query raw module: ` +
 					JSON.stringify(buildResult.rawTextPaths),
 			);
@@ -3409,7 +3432,7 @@ test('e2e (round 17 B1): emitted bytes and recorded provenance agree for multi-q
 				'the raw bytes must ship in an emitted asset',
 			);
 		} finally {
-			await buildResult.cleanup();
+			await buildResult.cleanup?.();
 		}
 	} finally {
 		await rm(root, { recursive: true, force: true });
@@ -3453,7 +3476,7 @@ test('e2e (round 13 B2): the static-string family resolves the same transparent 
 	// literal as when it is a ?raw import. Round 11 resolved only the raw
 	// spellings; the same shapes with static text shipped green. Depth does
 	// not matter — there is no bound left to step past.
-	const cases = [
+	const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
 		[
 			'object property',
 			[
@@ -3699,7 +3722,7 @@ test('e2e (round 17 I2): the Cartesian bound gates the work, not the legitimacy'
 	// a 16-choice (65536 candidates), a 17-choice (131072 candidates), and a
 	// 20-choice (2^20 = 1,048,576 candidates, ~42M characters — past the
 	// 20M work budget) payload, each with nothing but harmless CSS.
-	const build = (count, cssText) => {
+	const build = (count: number, cssText: string) => {
 		const flags = [];
 		for (let index = 0; index < count; index += 1) {
 			flags.push(`f${index}: boolean`);
@@ -3767,14 +3790,14 @@ test('e2e (round 17 B2): overflow is monotone through every expression-family co
 	// (`<style>` children and a dangerouslySetInnerHTML payload) surface the
 	// named diagnostic. Every case pairs the overflowing branch with a
 	// harmless compliant sibling — the exact shape that used to go quiet.
-	const buildFlags = (count, prefix) => {
+	const buildFlags = (count: number, prefix: string) => {
 		const flags = [];
 		for (let index = 0; index < count; index += 1) {
 			flags.push(`${prefix}${index}: boolean`);
 		}
 		return flags;
 	};
-	const buildSubstitutions = (count, prefix) => {
+	const buildSubstitutions = (count: number, prefix: string) => {
 		const substitutions = [];
 		for (let index = 0; index < count; index += 1) {
 			substitutions.push(`\${${prefix}${index} ? 'a' : 'b'}`);
@@ -3796,7 +3819,7 @@ test('e2e (round 17 B2): overflow is monotone through every expression-family co
 		moduleFlagDecls.push(`const g${index} = true;`);
 	}
 	const bigMemberPayload = `\`x${buildSubstitutions(substitutionCount, 'g').join('')}y\``;
-	const cases = [
+	const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
 		[
 			'nested conditional',
 			[
@@ -3938,7 +3961,10 @@ test("raw sinks: the import binding's sink, never the bytes, decides the walk", 
 	// binding is never mistaken for the raw import, and the namespace import
 	// spelling resolves through `.default`.
 	const baseDir = '/tmp/zindex-r9-unit';
-	const walk = (content, files) =>
+	const walk = (
+		content: string,
+		files: Record<string, string>,
+	) =>
 		scanZIndexFile({
 			scanner,
 			relativePath: 'probe.tsx',
@@ -4089,7 +4115,7 @@ test('e2e (round 11 I1/A3): a <style> raw sink with the binding after other chil
 	// element's raw-sink scan. A binding that is not the first child — the
 	// second or third — must still red, so a `children.slice(0, 1)`
 	// simplification cannot land green.
-	const cases = [
+	const cases: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
 		['second', ["'{ .safe { color: red; } }'", 'rawCss']],
 		[
 			'third',
@@ -4159,7 +4185,7 @@ test('raw sinks (round 17 audit): an unmappable queried specifier still fails lo
 	// build DID record under a non-raw query (`?url`, `?v=1`, …) is provably
 	// not raw text and stays quiet, and a plain specifier is never a binding.
 	const baseDir = '/tmp/zindex-r17-audit';
-	const walk = (content) =>
+	const walk = (content: string) =>
 		scanZIndexFile({
 			scanner,
 			relativePath: 'probe.tsx',
@@ -4717,7 +4743,11 @@ test('e2e (round 11 B1): an unresolvable spread shadowing static facts is a name
 	// green the round-9 clearing produced. Parameterized over all three sites
 	// the clearing reached: the `<style>` attribute list, the link
 	// descriptor, and the CSS.registerProperty() argument object.
-	const cases = [
+	const cases: ReadonlyArray<{
+		name: string;
+		files: Record<string, string>;
+		expected: ReadonlyArray<string>;
+	}> = [
 		{
 			name: 'style element',
 			files: {
@@ -5029,7 +5059,7 @@ test('e2e (round 13 I1/A1): nested transparent wrappers are unwrapped to a fixpo
 	// the dSIH payload object, a static style child, and a ?raw style child.
 	// "One step further" is not a spelling because there is no bound to step
 	// past.
-	const wrap = (payload, depth) => {
+	const wrap = (payload: string, depth: number) => {
 		let expression = payload;
 		for (let index = 0; index < depth; index += 1) {
 			expression = `(${expression})`;
@@ -5106,7 +5136,7 @@ test('e2e (round 13 I1/A3): a raw binding at the last child position reds for an
 	// generates the binding at the LAST position for child counts that
 	// extend beyond any fixed slice — 3, 4, 6, and 9 children. The last
 	// position moves with the count, so no slice bound of any size can pass.
-	const safeChildren = (count) =>
+	const safeChildren = (count: number) =>
 		Array.from(
 			{ length: count - 1 },
 			(_, index) => `'{ .safe-${index} { color: red; } }'`,
@@ -5291,7 +5321,7 @@ test('e2e (blocker 1): [z-index:5] arbitrary property is red at source and in th
 		'arbitrary.tsx': `export const view = <div className="[z-index:5]" />;`,
 	});
 	const sourceViolations = violations.filter((violation) =>
-		violation.file.includes('arbitrary.tsx'),
+		(violation.file ?? '').includes('arbitrary.tsx'),
 	);
 	const compiledViolations = violations.filter((violation) =>
 		isCompiledCssFile(violation.file),
@@ -5346,7 +5376,7 @@ test('e2e (blocker 3): both !important spellings of a scale utility stay green',
 	);
 });
 
-const assertAncestryMutationIsRed = async (mutation) => {
+const assertAncestryMutationIsRed = async (mutation: string) => {
 	const { violations } = await runFixtureGuard(
 		{ 'probe.tsx': 'export const probe = <div />;' },
 		`${mutation}\n`,
@@ -5600,10 +5630,14 @@ test('e2e (innocent #987 scoping): component 1 stays green on the innocent const
 	);
 	// the same tree minus the z-50 literals is fully green end to end — z-auto
 	// and the CSS-selector case genuinely pass through the production scanner.
-	const clean = { ...innocentFiles };
-	delete clean['type-literal.d.ts'];
-	delete clean['data-example.tsx'];
-	delete clean['comparand.tsx'];
+	const clean = Object.fromEntries(
+		Object.entries(innocentFiles).filter(
+			([relative]) =>
+				relative !== 'type-literal.d.ts' &&
+				relative !== 'data-example.tsx' &&
+				relative !== 'comparand.tsx',
+		),
+	) as Record<string, string>;
 	const { violations: cleanViolations } = await runFixtureGuard(clean);
 	assert.deepEqual(
 		cleanViolations,
@@ -5622,7 +5656,7 @@ test('unmodified repository passes with zero violations', async () => {
 	// SSR-only modules (src/server.ts) silently drop out of the script pass —
 	// reusing this build instead of paying for a second one.
 	const frontDir = path.resolve(scriptsDir, '..');
-	let capturedBuild = null;
+	let capturedBuild: ProductionBuildResult | null = null;
 	const { violations, candidateCount, fileCount } = await runZIndexGuard({
 		productionBuild: async () => {
 			capturedBuild = await buildProductionApp(frontDir);
@@ -5639,7 +5673,9 @@ test('unmodified repository passes with zero violations', async () => {
 		candidateCount > 10000,
 		`expected real candidates, got ${candidateCount}`,
 	);
-	const scripts = capturedBuild.authoredScriptPaths.map((filePath) =>
+	const recordedBuild: ProductionBuildResult | null = capturedBuild;
+	assert.ok(recordedBuild != null, 'the production build must be captured');
+	const scripts = recordedBuild.authoredScriptPaths.map((filePath: string) =>
 		path.resolve(filePath),
 	);
 	assert.ok(

@@ -152,11 +152,11 @@ export type ProductionBuildResult = {
 	emittedCssRoot: string;
 	authoredCssPaths: string[];
 	authoredScriptPaths: string[];
-	inlineCssPaths: string[];
-	rawTextPaths: string[];
-	rawTextIds: string[];
-	queriedPaths: string[];
-	cleanup: () => Promise<void>;
+	inlineCssPaths?: string[];
+	rawTextPaths?: string[];
+	rawTextIds?: string[];
+	queriedPaths?: string[];
+	cleanup?: () => Promise<void>;
 };
 export type ZIndexGuardRunResult = {
 	violations: ZIndexViolation[];
