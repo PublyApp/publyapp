@@ -755,6 +755,7 @@ The page itself keeps its route shell (`WorkspacePageHeader titleKey="integratio
 - Produces: `<BlueskyConnectDrawer mode="connect" | "reconnect" open onOpenChange tenantId account?: SocialAccountRow />`.
 - Consumes: `DrawerForm` (`~/components/ui/drawer`, exists — `methods: UseFormReturn`, `onSubmit`), `Field.Textarea`/`FieldText` (`~/components/field`, exists), Task 3's connect/reconnect mutations, `useTenantProjectsQuery` (exists), `FieldCheckboxGroup` (`~/components/field/field-checkbox-group.tsx`, exists) via the attach field.
 - The drawer is the ONLY place the app-password string exists; it lives in RHF state, never in a store, and the form resets on close.
+- **[RESOLVED] A6 — drawer sizing mechanism (read from wt-641's `drawer.tsx`):** `DrawerContentProps` carries literally `width?: 736` — a single-value literal type, NOT a free number — and `DrawerContent` maps it to `data-width` on the popup (`data-width={width === undefined ? undefined : String(width)}`); the 736 styling is a `data-width="736"` variant in the component layer. There is no `width={560}`, no arbitrary pixel prop, and nothing to wire for this screen: omit the prop and take the default drawer surface (same as every existing consumer). Do not invent a second size; if the design review demands one, that is a separate change to `drawer.tsx`, not an ad-hoc value here.
 
 - [ ] **Step 1 (RED):**
 
@@ -936,7 +937,7 @@ export const BlueskyConnectDrawer = ({
 
 	return (
 		<Drawer open={open} onOpenChange={(next) => { if (!next) methods.reset(); onOpenChange(next); }}>
-			<DrawerContent width={560} data-testid={`bluesky-${mode}-drawer`}>
+			<DrawerContent data-testid={`bluesky-${mode}-drawer`}>
 				<DrawerHeader>
 					<DrawerTitle>
 						{t(mode === 'connect' ? 'drawer-connect-title' : 'drawer-reconnect-title')}
