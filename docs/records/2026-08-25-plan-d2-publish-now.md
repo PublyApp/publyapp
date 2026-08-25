@@ -137,9 +137,18 @@ LivePublicationsExist / AccountsNotFound · 403 via PermissionFilter middleware.
 **Interfaces block (front Task 6/8 rely on):**
 
 ```csharp
+// AGENTS.md OpenAPI-Kiota rule ([AsParameters] query DTOs): multi-value
+// filters are a CSV `string?` + parser method — never JsonElement?, never
+// List<T>?. Precedent read verbatim from origin/develop:
+// Modules/AuditLogs/Handlers/Staff/FindAuditLogs.cs (string? Actions +
+// AuditLogActionsCsv.Parse/GetValidationError).
 public sealed class FindPublicationsQuery : CursorPaginatedQuery {
-	[FromQuery(Name = "status")] public JsonElement? Status { get; init; }   // csv: published,failed
-	[FromQuery(Name = "size")]  public int? Size { get; init; }
+	[FromQuery(Name = "status")] public string? Status { get; set; }   // csv: published,in_progress,paused
+	[FromQuery(Name = "size")]  public int? Size { get; set; }
+
+	public IReadOnlyList<PublicationStatus>? GetStatusList() {
+		return PublicationStatusCsv.Parse(Status);
+	}
 } // validator inherits CursorPaginatedQueryValidator<FindPublicationsQuery>
 public sealed record PublicationListItem {
 	public required Guid Id { get; init; }          // publication id
@@ -155,8 +164,8 @@ public sealed record PublicationListItem {
 }
 ```
 
-- [ ] **Step 1 (RED):** Spec: seeds published+failed+scheduled mix across two tenants; asserts newest-first `(UpdatedAt desc, Id desc)` keyset via `query.GetCursor()` (pattern: `FindPostsForTenant.Handle`, `origin/develop`); tenant isolation (foreign rows invisible); `status=published,failed` CSV filter parses via a static `TryParseStatusCsv` (case-insensitive ordinal, `StringComparer.OrdinalIgnoreCase` — PUBLY0003 forbids ToLower dispatch); `LastError` surfaced verbatim (already sanitised at write time); excerpt capped at 280 chars.
-- [ ] **Step 2 (GREEN):** Service: single EF query joining `Publication`→`Post`→`SocialAccount`, keyset predicate `(p.UpdatedAt < c) || (p.UpdatedAt == c && p.Id < cursorId)`, `Take(size + 1)`; handler maps to items, `NextCursor` from the last row. Endpoint on the `/publishing` group: `.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)` + `.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW])` (mirror of FindPosts, `origin/develop`). Register `MapPublishingEndpointsForTenant` at the discovered call site (File structure note).
+- [ ] **Step 1 (RED):** Spec: seeds published+failed+scheduled mix across two tenants; asserts newest-first `(UpdatedAt desc, Id desc)` keyset via `query.GetCursor()` (pattern: `FindPostsForTenant.Handle`, `origin/develop`); tenant isolation (foreign rows invisible); `status=published,failed` (ONE comma-separated value) parses through `PublicationStatusCsv.Parse` — tokens are the snake_case wire values of `PublicationWire.FormatStatus` (`origin/lane/wt-644`, `Publication.cs`), so parsing maps `"in_progress" → PublicationStatus.InProgress` via an explicit switch with `StringComparer.OrdinalIgnoreCase` (PUBLY0003 forbids ToLower dispatch); unknown token (`?status=bogus`) → 422 with stable `status` errors key; `LastError` surfaced verbatim (already sanitised at write time); excerpt capped at 280 chars.
+- [ ] **Step 2 (GREEN):** Service: single EF query joining `Publication`→`Post`→`SocialAccount`, keyset predicate `(p.UpdatedAt < c) || (p.UpdatedAt == c && p.Id < cursorId)`, `Take(size + 1)`; handler maps to items, `NextCursor` from the last row. Validator: inherit `CursorPaginatedQueryValidator<FindPublicationsQuery>` and add `RuleFor(x => x.Status).Custom(...)` reusing a `PublicationStatusCsv.GetValidationError(raw)` twin of `AuditLogActionsCsv.GetValidationError` (failure keyed under the wire name `status`) — byte-for-byte shape of `FindAuditLogsQueryValidator`, `origin/develop`. Endpoint on the `/publishing` group: `.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)` + `.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW])` (mirror of FindPosts, `origin/develop`). Register `MapPublishingEndpointsForTenant` at the discovered call site (File structure note).
 - [ ] **Step 3:** Green; commit `feat(publishing): keyset publications history endpoint`; push.
 
 ## Task 4: Composer targets — `GET /publishing/publish-targets`
@@ -182,7 +191,7 @@ public sealed record PublicationListItem {
 **Files:** generated `packages/client-ts/**`; new `apps/front/src/lib/query/tenant-publications.ts` + test.
 
 - [ ] **Step 1:** `just build-api && just generate-client && pnpm --filter front typecheck` (AGENTS mandate after contract change). Verify `packages/client-ts` gained `publishNow`, `findPublications`, `getPublishTargets` operations and `git diff --stat packages/client-ts` shows ONLY generated churn.
-- [ ] **Step 2 (RED):** `tenant-publications.test.ts` mirrors `tenant-posts.test.ts` (`origin/develop`): typed query variables `{ status?: 'published'|'failed'; cursor?: string; size?: number }`, key factories `TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications']`, `publishNowMutation` calling the Kiota op via the same client acquisition `tenant-posts.ts` uses (`getClientManager`, `origin/develop`), `invalidateTenantPublications(qc)`. Tests fail before implementation exists.
+- [ ] **Step 2 (RED):** `tenant-publications.test.ts` mirrors `staff-audit-logs.ts`'s parameter builder pattern (`origin/develop`): typed query variables `{ statuses?: Array<'published'|'in_progress'|'paused'>; cursor?: string; size?: number }`, `buildFindTenantPublicationsQueryParameters` joining them into the ONE primitive CSV param the Kiota client types as `status?: string` (exactly how `buildFindStaffAuditLogsQueryParameters` joins `actions` — the generated builder carries a primitive because the DTO keeps it `string?`, see `packages/client-ts/src/staff/auditLogs/index.ts` `AuditLogsRequestBuilderGetQueryParameters.actions?: string`), key factories `TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications']`, `publishNowMutation` calling the Kiota op via the same client acquisition `tenant-posts.ts` uses (`getClientManager`, `origin/develop`), `invalidateTenantPublications(qc)`. Tests fail before implementation exists.
 - [ ] **Step 3 (GREEN):** Implement; tests green; commit `feat(front): tenant-publications query layer over regenerated client`; push.
 
 ## Task 7: Composer "Publish on" block + Publish now action
