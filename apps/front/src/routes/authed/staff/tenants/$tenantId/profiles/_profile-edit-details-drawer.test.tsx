@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 	useUpdateStaffTenantProfileMutation: vi.fn(),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
+	displayLocalMutationFailure: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -44,6 +45,7 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'save-changes': 'Save changes',
 				'profile-updated-successfully': 'Profile updated successfully.',
+				'profile-save-failed': 'Unable to save this profile.',
 			};
 			let text = labels[key] ?? key;
 			for (const [optionKey, value] of Object.entries(options ?? {})) {
@@ -182,7 +184,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 }));
 
 vi.mock('~/lib/mutation-toast', () => ({
-	displayLocalMutationFailure: vi.fn(),
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));
 
@@ -191,6 +193,30 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 }));
 
 import { ProfileEditDetailsDrawer } from './_profile-edit-details-drawer';
+
+const renderDrawer = (
+	overrides: Partial<Parameters<typeof ProfileEditDetailsDrawer>[0]> = {},
+) => {
+	const props = {
+		tenantId: 'tenant-1',
+		isOpen: true,
+		profile: {
+			id: 'profile-1',
+			name: 'Author',
+			description: 'Draft posts',
+			icon: null,
+			tone: null,
+		},
+		onOpenChange: vi.fn(),
+		onSaved: vi.fn(),
+		onSessionExpired: vi.fn(),
+		...overrides,
+	};
+
+	render(<ProfileEditDetailsDrawer {...props} />);
+
+	return props;
+};
 
 describe('ProfileEditDetailsDrawer', () => {
 	beforeEach(() => {
@@ -443,5 +469,34 @@ describe('ProfileEditDetailsDrawer', () => {
 		expect(screen.getByRole('alert').textContent).toBe(
 			'Enter at least 2 characters.',
 		);
+	});
+
+	// #1393 — mirrors the staff drawer pin from #1342: a 422 whose `errors`
+	// map is empty classifies as a bare *problem* (`toValidationFailure`
+	// requires non-empty errors), so the pre-fix code fell through to the
+	// toast path and the form showed nothing. The drawer owns every 422 of a
+	// save it submitted: the root banner is required even when there is
+	// nothing to map, and it must speak the server's own words (detail first,
+	// then title).
+	test('shows the root banner for a 422 validation problem with empty errors', async () => {
+		mocks.updateProfileMutation.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			detail: 'Request body validation failed',
+			title: 'One or more validation errors occurred.',
+			errors: {},
+		});
+		const { onSaved } = renderDrawer();
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Dirty so the submit reaches the API' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		const banner = await screen.findByText('Request body validation failed');
+		expect(banner.getAttribute('role')).toBe('alert');
+		expect(onSaved).not.toHaveBeenCalled();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 });
