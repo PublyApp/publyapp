@@ -206,5 +206,5 @@ const body: CreateUserBody = {
 First fix the OpenAPI schema when the union is a generator artifact; the integer schema transformer
 above is the canonical example. `apps/front` has no shared `getUntypedNumber`,
 `getUntypedString`, `getUntypedArray`, or `getUntypedValue` utility. Do not copy the similarly named
-helper from `apps/old-front` (retired 2026-08-22, archived in `docs/archive/old-front`). If the corrected contract genuinely still needs an adapter,
+helper from `apps/old-front` (retired 2026-08-22). If the corrected contract genuinely still needs an adapter,
 add and test a front-local seam as a focused change.
