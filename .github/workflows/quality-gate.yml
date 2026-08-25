@@ -152,12 +152,12 @@ jobs:
           node-version: 24
 
       - name: Setup .NET (pinned for CI determinism)
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: "10.0.102"
 
       - name: Setup just
-        uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
 
       - name: Assert exact pins
         run: node apps/front/scripts/assert-pinned.mjs
@@ -240,6 +240,19 @@ jobs:
       # `just nuget-audit`.
       - name: Run dependency-health pin-location contract test
         run: pnpm --filter scripts-ts exec vitest run src/dependency-health-pin-location.test.ts
+
+      # #1392 supply-chain binding: every 40-hex action SHA must be the commit
+      # its "# vX.Y.Z" comment claims. Resolves each tag through the GitHub API
+      # (annotated tags peeled to their commit) and compares; unparseable pins
+      # (no comment, non-version comment, short/mutable ref) fail loud. Mirrors
+      # `just ci-actions-pins`, whose ARGS="--offline" skip exists for local
+      # air-gapped runs only — CI always executes the live half below.
+      - name: Bind pinned action SHAs to their version comments (#1392)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts
+          node ./packages/scripts-ts/src/check-actions-pins.ts
 
       - name: Run analyzer tests
         run: pnpm exec just test-analyzers

@@ -9,6 +9,7 @@
  * exercised for real through React Hook Form + Zod.
  */
 import {
+	act,
 	cleanup,
 	fireEvent,
 	render,
@@ -24,6 +25,7 @@ const mocks = vi.hoisted(() => ({
 	useUpdateStaffProfileMutation: vi.fn(),
 	invalidateStaffProfiles: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
+	displayLocalMutationFailure: vi.fn(),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -53,6 +55,7 @@ vi.mock('react-i18next', () => ({
 				cancel: 'Cancel',
 				'save-changes': 'Save changes',
 				'profile-updated-successfully': 'Profile updated successfully.',
+				'profile-save-failed': 'Unable to save this profile.',
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'unsaved-changes-dialog-description': 'You have unsaved changes.',
 				'leave-page': 'Leave page',
@@ -108,12 +111,12 @@ vi.mock('~/components/ui/drawer', () => ({
 	}: {
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
-		onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void;
+		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
 	}) =>
 		createElement(
 			FormProvider as never,
 			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
+			createElement('form', { onSubmit, role: 'form' }, children),
 		),
 }));
 
@@ -190,7 +193,7 @@ vi.mock('~/lib/query/staff-profiles', async (importOriginal) => {
 });
 
 vi.mock('~/lib/mutation-toast', () => ({
-	displayLocalMutationFailure: vi.fn(),
+	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: { success: mocks.toastSuccess },
 }));
 
@@ -236,6 +239,53 @@ describe('StaffProfileEditDetailsDrawer', () => {
 
 	afterEach(cleanup);
 
+	// #1342 — paired contract: pristine means zero requests, and the contract
+	// "no change → no request / disabled Save" is enforced at BOTH layers
+	// (disabled button + submit-handler guard). Submitting the form directly,
+	// bypassing the button, proves the handler layer.
+	test('pristine submit sends no PATCH and Save stays disabled', async () => {
+		const { onSaved } = renderDrawer();
+
+		expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty(
+			'disabled',
+			true,
+		);
+
+		act(() => {
+			fireEvent.submit(screen.getByRole('form'));
+		});
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).not.toHaveBeenCalled(),
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(onSaved).not.toHaveBeenCalled();
+	});
+
+	test('dirty submit sends exactly one PATCH and re-enables Save', async () => {
+		const { onSaved } = renderDrawer();
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Full access, updated' },
+		});
+		expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty(
+			'disabled',
+			false,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.updateProfileMutation).toHaveBeenCalledTimes(1),
+		);
+		await waitFor(() => expect(onSaved).toHaveBeenCalledWith('profile-1'));
+		expect(mocks.invalidateStaffProfiles).toHaveBeenCalledTimes(1);
+		expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty(
+			'disabled',
+			false,
+		);
+	});
+
 	test('submits name, description, concrete icon, and concrete tone with the profile id', async () => {
 		const { onSaved } = renderDrawer();
 
@@ -268,16 +318,21 @@ describe('StaffProfileEditDetailsDrawer', () => {
 		expect(onSaved).toHaveBeenCalledWith('profile-1');
 	});
 
-	test('preserves the derived automatic style when an unmodified null-style profile is saved', async () => {
+	test('first edit sends the derived automatic style for an unmodified null-style profile', async () => {
 		renderDrawer();
 
+		// #1342: a pristine form must never PATCH, so the automatic-style body
+		// is proven on the first real (dirty) save instead.
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Full access, updated' },
+		});
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		await waitFor(() =>
 			expect(mocks.updateProfileMutation).toHaveBeenCalledWith({
 				profileId: 'profile-1',
 				name: 'Platform admin',
-				description: 'Full access',
+				description: 'Full access, updated',
 				icon: null,
 				tone: null,
 			}),
@@ -386,12 +441,65 @@ describe('StaffProfileEditDetailsDrawer', () => {
 		});
 		renderDrawer();
 
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Dirty so the submit reaches the API' },
+		});
 		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
 		expect(
 			await screen.findByText('The profile payload is invalid.'),
 		).toBeTruthy();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	// #1342: a 422 whose `errors` map is empty classifies as a *problem*
+	// (`toValidationFailure` requires non-empty errors), so the pre-fix code
+	// fell through to the toast path and the form showed nothing. The drawer
+	// owns every 422 of a save it submitted: the root banner is required even
+	// when there is nothing to map.
+	test('shows the root banner for a 422 validation problem with empty errors', async () => {
+		mocks.updateProfileMutation.mockRejectedValue({
+			status: 422,
+			responseStatusCode: 422,
+			title: 'Validation failed',
+			errors: {},
+		});
+		renderDrawer();
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Dirty so the submit reaches the API' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		const banner = await screen.findByText('Validation failed');
+		expect(banner.getAttribute('role')).toBe('alert');
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+	});
+
+	// Pinning the other half of the routing: a non-validation problem (e.g. a
+	// 500) keeps going to the local failure toast and must NOT raise the form
+	// banner — otherwise the 422 branch above would silently swallow those.
+	test('routes non-validation failures to the local failure toast instead of the form banner', async () => {
+		mocks.updateProfileMutation.mockRejectedValue({
+			status: 500,
+			responseStatusCode: 500,
+			title: 'Internal error',
+		});
+		renderDrawer();
+
+		fireEvent.change(screen.getByLabelText('Description'), {
+			target: { value: 'Dirty so the submit reaches the API' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+				expect.objectContaining({ responseStatusCode: 500 }),
+				'Unable to save this profile.',
+			),
+		);
+		expect(screen.queryByRole('alert')).toBeNull();
 	});
 
 	test('reports dirty state changes so the page can arm its nav guard', async () => {

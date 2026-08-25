@@ -446,74 +446,94 @@ describe('staff tenant users route', () => {
 		);
 	});
 
-	test('a debounced search commit does not close a drawer opened within the debounce window (F1)', async () => {
-		const Component = Route.options.component as () => JSX.Element;
-		const renderResult = render(<Component />);
+	test('a debounced search commit does not close a drawer opened within the debounce window (F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			const Component = Route.options.component as () => JSX.Element;
+			const renderResult = render(<Component />);
 
-		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
-			target: { value: 'an' },
-		});
+			fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+				target: { value: 'an' },
+			});
 
-		// Simulate opening the invite drawer within the 300ms debounce window:
-		// the route re-renders with the new URL search state, same as a real
-		// navigation would, before the debounced commit fires.
-		mocks.search = { invite: 1 };
-		renderResult.rerender(<Component />);
+			// Simulate opening the invite drawer within the 300ms debounce
+			// window: the route re-renders with the new URL search state, same
+			// as a real navigation would, before the debounced commit fires.
+			mocks.search = { invite: 1 };
+			renderResult.rerender(<Component />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): step PAST the debounce instead of
+			// a real-time sleep.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search?: Record<string, unknown>;
-		};
-		expect(lastCall?.search).toMatchObject({ invite: 1, q: 'an' });
+			const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search?: Record<string, unknown>;
+			};
+			expect(lastCall?.search).toMatchObject({ invite: 1, q: 'an' });
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
-	test('a debounced search commit does not reopen a drawer closed within the debounce window (r3-F1)', async () => {
-		mocks.search = { invite: 1 };
-		const Component = Route.options.component as () => JSX.Element;
-		const renderResult = render(<Component />);
+	test('a debounced search commit does not reopen a drawer closed within the debounce window (r3-F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			mocks.search = { invite: 1 };
+			const Component = Route.options.component as () => JSX.Element;
+			const renderResult = render(<Component />);
 
-		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
-			target: { value: 'an' },
-		});
+			fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+				target: { value: 'an' },
+			});
 
-		// Simulate closing the invite drawer within the 300ms debounce window.
-		// canonicalized parsing stores explicit `invite: undefined` so the
-		// re-rendered route search keeps the canonical key shape.
-		mocks.search = {};
-		renderResult.rerender(<Component />);
+			// Simulate closing the invite drawer within the 300ms debounce
+			// window. canonicalized parsing stores explicit `invite: undefined`
+			// so the re-rendered route search keeps the canonical key shape.
+			mocks.search = {};
+			renderResult.rerender(<Component />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): see the F1 test above.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search?: Record<string, unknown>;
-		};
-		expect(
-			Object.prototype.hasOwnProperty.call(lastCall?.search, 'invite'),
-		).toBe(true);
-		expect(lastCall?.search?.invite).toBeUndefined();
-		expect(lastCall?.search).toMatchObject({ q: 'an' });
+			const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search?: Record<string, unknown>;
+			};
+			expect(
+				Object.prototype.hasOwnProperty.call(lastCall?.search, 'invite'),
+			).toBe(true);
+			expect(lastCall?.search?.invite).toBeUndefined();
+			expect(lastCall?.search).toMatchObject({ q: 'an' });
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	// tenants-r6-F2: entering selection mode must freeze the query that
 	// defines the destructive bulk-action target set — a still-pending
 	// search debounce or a still-clickable level/status filter can silently
 	// change which rows a bulk action would hit right after selection.
-	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2)', async () => {
-		renderPage();
+	test('selecting a row while a search commit is pending cancels the pending debounce (tenants-r6-F2, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
-			target: { value: 'an' },
-		});
-		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+			fireEvent.change(screen.getByTestId('staff-tenant-users-table-search'), {
+				target: { value: 'an' },
+			});
+			fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): run out the debounce clock without
+			// a real-time wait.
+			await vi.advanceTimersByTimeAsync(301);
 
-		expect(mocks.navigate).not.toHaveBeenCalledWith(
-			expect.objectContaining({
-				search: expect.objectContaining({ q: 'an' }),
-			}),
-		);
+			expect(mocks.navigate).not.toHaveBeenCalledWith(
+				expect.objectContaining({
+					search: expect.objectContaining({ q: 'an' }),
+				}),
+			);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	test('disables the level and status filter triggers while a row is selected (tenants-r6-F2)', () => {

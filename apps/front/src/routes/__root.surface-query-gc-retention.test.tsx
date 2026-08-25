@@ -19,7 +19,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 // proves the cached result survives past the default GC window.
 
 type MockMatch = {
-	globalNotFound?: boolean;
+	_notFound?: boolean;
 	pathname: string;
 	routeId: string;
 	search?: Record<string, unknown>;
@@ -36,7 +36,7 @@ const exactStaffMatches: MockMatch[] = [
 
 const unknownStaffMatches: MockMatch[] = [
 	{ routeId: '__root__', pathname: '/' },
-	{ globalNotFound: true, routeId: '/_authed-layout', pathname: '/' },
+	{ _notFound: true, routeId: '/_authed-layout', pathname: '/' },
 	{ pathname: '/staff/not-a-route', routeId: '/_authed-layout/staff' },
 ];
 

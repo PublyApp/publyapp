@@ -11,6 +11,21 @@ import { defineConfig } from 'vitest/config';
 // headroom instead of assuming this process owns the whole machine.
 const maxWorkers = Math.max(2, Math.floor(cpus().length / 2));
 
+// W6-FLAKE #827: the two tree-walking design-guard suites re-parse the whole
+// src tree on every assertion round. Running them CONCURRENTLY with the
+// render-heavy route fixtures starved render workers past testing-library's
+// findBy* budget under load (the profiles bulk-delete flake). They are
+// EXCLUDED here and run afterwards by vitest.design-guards.config.ts — see
+// the `test` script in package.json. A `projects` split with sequence
+// groupOrder was rejected because vite's config merge CONCATENATES per-
+// project include/exclude arrays with the inherited root arrays, so both
+// projects still collected the full suite; two sequential lanes give strict
+// after-renders ordering with no merge semantics involved.
+const DESIGN_GUARD_TEST_FILES = [
+	'src/lib/i18n-key-coverage.test.ts',
+	'src/lib/mutation-feedback-architecture.test.ts',
+];
+
 export default defineConfig({
 	resolve: {
 		alias: {
@@ -43,6 +58,7 @@ export default defineConfig({
 			'src/styles/drawer-description-contrast.test.ts',
 			// The e2e tag guard is pure static analysis (reads .spec.ts files);
 			// it runs in the vitest lane but belongs under e2e/ for proximity.
+			...DESIGN_GUARD_TEST_FILES,
 		],
 		setupFiles: ['./vitest.setup.ts'],
 		// The default 5000ms per-test budget, combined with testing-library's

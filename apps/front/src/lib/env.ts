@@ -79,7 +79,9 @@ type EnvOutput<Section extends Record<string, EnvEntry>> = {
 export type PublicEnv = EnvOutput<typeof envDefinition.public>;
 export type ServerEnv = EnvOutput<typeof envDefinition.server>;
 export type RuntimePublicEnv = Partial<{
-	[Name in PublicName as (typeof envDefinition.public)[Name]['wireKey']]: string;
+	[
+		Name in PublicName as (typeof envDefinition.public)[Name]['wireKey']
+	]: string;
 }>;
 
 const getGlobalLike = (): GlobalLike | undefined =>

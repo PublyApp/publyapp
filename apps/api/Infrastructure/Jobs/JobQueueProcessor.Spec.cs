@@ -1574,6 +1574,84 @@ public sealed class JobQueueProcessorSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	// --- external-state classification (#1350) ---------------------------------------
+
+	// #1350: the producer side of the Unclassified contract. A settlement where NO
+	// handler was legitimately reached (unknown job_type here; same shape as drift and
+	// malformed-payload) has an external state that cannot be mapped to any known
+	// class — the DLQ row must carry 6 Unclassified with recorded bounds, so it lands
+	// retention-exempt inside the operator-triage path that #863 shipped for exactly
+	// this class. Handler-reached terminal rows keep mapping to 0 None.
+	[Fact]
+	public async Task ItShouldClassifyAnUnknownTypeDeadLetterAsUnclassified() {
+		var jobType = UniqueType("unclassified-producer");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
+
+			// No handler registered at all → NoHandlerReached → unmappable external state.
+			var processor = CreateProcessor();
+
+			var result = await processor.ProcessOneAsync(
+				item, claimed.LockToken, CancellationToken.None
+			);
+
+			result.Should().Be(JobQueueProcessor.JobExecutionResult.Completed);
+
+			await using var verifyContext = await CreateDbContextAsync();
+			var deadLetter = await verifyContext.JobDeadLetter
+				.SingleAsync(d => d.OriginalJobId == claimed.Id);
+			deadLetter.ExternalStateStatus.Should().Be(
+				(int)ExternalStateStatus.Unclassified,
+				"a settlement no handler was reached for cannot be mapped to a known "
+				+ "external-state class and needs operator triage"
+			);
+			deadLetter.ExternalStatePreparedAt.Should().NotBeNull("status 6 carries its bounds");
+			deadLetter.ExternalStateExpiresAt.Should().NotBeNull("status 6 carries its bounds");
+			deadLetter.ExternalStateExpiredAt.Should().BeNull(
+				"expired_at belongs to status 2 Expired only"
+			);
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
+	// The other side of the classification rule: a HANDLER-REACHED terminal failure is
+	// the handler's own job, its external effects are its own contract (its hook may
+	// classify them) — the engine must NOT preempt that by stamping anything. Status
+	// stays 0 None, plain age-retention eligible as today.
+	[Fact]
+	public async Task ItShouldLeaveAHandlerReachedDeadLetterAtStatusNone() {
+		var jobType = UniqueType("handler-reached-none");
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			var claimed = await SeedAndClaimOneAsync(dbContext, jobType, "worker-a");
+			var item = await dbContext.JobQueue.SingleAsync(j => j.Id == claimed.Id);
+
+			var handler = new RecordingJobHandler(jobType) {
+				Outcome = new JobOutcome.PermanentFailure("payload references a deleted entity")
+			};
+			var processor = CreateProcessor(handler);
+
+			await processor.ProcessOneAsync(item, claimed.LockToken, CancellationToken.None);
+
+			await using var verifyContext = await CreateDbContextAsync();
+			var deadLetter = await verifyContext.JobDeadLetter
+				.SingleAsync(d => d.OriginalJobId == claimed.Id);
+			deadLetter.ExternalStateStatus.Should().Be(
+				(int)ExternalStateStatus.None,
+				"the engine never preempts a handler-reached row's own classification"
+			);
+			deadLetter.ExternalStatePreparedAt.Should().BeNull();
+			deadLetter.ExternalStateExpiresAt.Should().BeNull();
+		} finally {
+			await DeleteJobsByTypeAsync(jobType);
+		}
+	}
+
 	// --- helpers ------------------------------------------------------------------------
 
 	private sealed record RequiredIdPayload {

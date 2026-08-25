@@ -1,7 +1,6 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -19,18 +18,15 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import { IconColorPicker } from '~/components/ui/icon-color-picker';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
+import { resolveProfileSaveFailure } from '~/lib/profile-edit-details-save-failure';
 import { useUpdateStaffTenantProfileMutation } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { deriveTenantProfileCardStyle } from './_profile-card-style';
 
@@ -84,15 +80,7 @@ const getProfileEditDetailsValues = (
 	tone: profile.tone ?? null,
 });
 
-const ProfileEditDetailsDrawer = ({
-	tenantId,
-	isOpen,
-	profile,
-	onOpenChange,
-	onSaved,
-	onSessionExpired,
-	onDirtyChange,
-}: {
+type ProfileEditDetailsDrawerProps = {
 	tenantId: string;
 	isOpen: boolean;
 	profile: ProfileEditDetailsDrawerProfile;
@@ -100,22 +88,32 @@ const ProfileEditDetailsDrawer = ({
 	onSaved: (profileId: string) => void;
 	onSessionExpired: () => void;
 	onDirtyChange?: (isDirty: boolean) => void;
-}) => {
-	const { t, i18n } = useTranslation('common');
+};
+
+const ProfileEditDetailsDrawerInner = ({
+	tenantId,
+	isOpen,
+	profile,
+	onOpenChange,
+	onSaved,
+	onSessionExpired,
+	onDirtyChange,
+}: ProfileEditDetailsDrawerProps) => {
+	const { t } = useTranslation('common');
 	const { t: tProfiles } = useTranslation('staff-tenant-profiles');
 	const queryClient = useQueryClient();
 	const updateProfile = useUpdateStaffTenantProfileMutation();
-	const resolver = useMemo(
-		() => zodResolver(buildProfileEditDetailsSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+	// Language-keyed resolver: rebuilds when translations change so error
+	// messages stay localized; see use-language-keyed-zod-resolver.
+	const resolver = useLanguageKeyedZodResolver<ProfileEditDetailsValues>(
+		buildProfileEditDetailsSchema,
+		'common',
 	);
 	const methods = useForm<ProfileEditDetailsValues>({
 		resolver,
 		defaultValues: getProfileEditDetailsValues(profile),
 	});
 	const {
-		reset,
 		formState: { isDirty, isSubmitting },
 	} = methods;
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
@@ -129,23 +127,43 @@ const ProfileEditDetailsDrawer = ({
 	);
 	const hasCustomStyle = icon !== null || tone !== null;
 
+	// tenants-r6-F3 dirty-flag uplink, event-driven: RHF's change stream fires
+	// synchronously on the form mutation that owns each change (user input,
+	// setValue, reset) and always carries the full form snapshot. Dirtiness
+	// derives from comparing that snapshot against the values captured once
+	// at mount — not from React's render-lagged formState snapshot, and not
+	// from the live profile prop, which would move the goalposts mid-draft
+	// when a background refetch replaces the profile object. Each session
+	// starts on a fresh mount seeded from the profile (see the keyed wrapper
+	// below), so no baseline needs to be captured from props. Dirtiness
+	// itself comes from react-hook-form's own synchronous dirty computation
+	// (control._getDirty compares the live values against the pristine
+	// defaultValues this session mounted with); the dedup ref keeps repeated
+	// same-value emissions from reaching the host.
+	const lastReportedDirtyRef = useRef<boolean | null>(null);
 	useEffect(() => {
-		if (!isOpen) {
-			return;
-		}
-
-		setIsDiscardConfirmOpen(false);
-		reset(getProfileEditDetailsValues(profile));
-		// Re-seed only for a newly opened/changed profile. A refetch may replace
-		// the profile object and must not discard an in-progress draft.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isOpen, profile.id, reset]);
-
-	useEffect(() => {
-		onDirtyChange?.(isDirty);
-	}, [isDirty, onDirtyChange]);
+		const report = (nextDirty: boolean) => {
+			if (lastReportedDirtyRef.current !== nextDirty) {
+				lastReportedDirtyRef.current = nextDirty;
+				onDirtyChange?.(nextDirty);
+			}
+		};
+		const computeNextDirty = () => methods.control._getDirty();
+		lastReportedDirtyRef.current = null;
+		report(computeNextDirty());
+		const subscription = methods.watch(() => {
+			report(computeNextDirty());
+		});
+		return () => {
+			subscription.unsubscribe();
+		};
+	}, [methods, onDirtyChange]);
 
 	const isFormLocked = updateProfile.isPending || isSubmitting;
+	// #1342 — "no change → no request / disabled Save": a pristine form must
+	// not be savable, at either layer (disabled button AND submit-handler
+	// guard, so a programmatic submit cannot send a no-op PATCH either).
+	const canSave = !isFormLocked && isDirty;
 	const requestClose = (): void => {
 		if (isDirty) {
 			setIsDiscardConfirmOpen(true);
@@ -160,39 +178,43 @@ const ProfileEditDetailsDrawer = ({
 			return;
 		}
 
-		const failure = toApiFailure(error);
-		if (failure.kind === 'validation') {
-			const rootMessages: string[] = [];
-			for (const [field, messages] of Object.entries(failure.fieldErrors)) {
-				if (isProfileEditDetailsField(field)) {
-					methods.setError(field, {
-						type: 'server',
-						message: messages.join(' '),
-					});
-				} else {
-					rootMessages.push(...messages);
-				}
-			}
-
-			if (Object.keys(failure.fieldErrors).length === 0) {
-				rootMessages.push(
-					getFailureMessage(failure, {
-						fallback: t('profile-save-failed'),
-					}),
-				);
-			}
-			if (rootMessages.length > 0) {
-				methods.setError('root.server', {
+		// Shared with the staff drawer (see `resolveProfileSaveFailure`): a 422
+		// belongs to this form whether or not its `errors` map carried entries;
+		// everything else keeps going to the local failure toast.
+		const outcome = resolveProfileSaveFailure({
+			error,
+			isKnownField: isProfileEditDetailsField,
+			fallbackMessage: t('profile-save-failed'),
+		});
+		if (outcome.kind === 'field-errors') {
+			for (const [field, message] of outcome.fieldErrors) {
+				methods.setError(field, {
 					type: 'server',
-					message: Array.from(new Set(rootMessages)).join(' '),
+					message,
 				});
 			}
+			if (outcome.rootMessages.length > 0) {
+				methods.setError('root.server', {
+					type: 'server',
+					message: outcome.rootMessages.join(' '),
+				});
+			}
+			return;
+		}
+		if (outcome.kind === 'root-message') {
+			methods.setError('root.server', {
+				type: 'server',
+				message: outcome.message,
+			});
 			return;
 		}
 
 		await displayLocalMutationFailure(error, t('profile-save-failed'));
 	};
 	const onSubmit = methods.handleSubmit(async (values) => {
+		if (!canSave) {
+			return;
+		}
 		methods.clearErrors('root');
 		try {
 			await updateProfile.mutateAsync({
@@ -318,7 +340,7 @@ const ProfileEditDetailsDrawer = ({
 						>
 							{t('cancel')}
 						</Button>
-						<Button type="submit" disabled={isFormLocked}>
+						<Button type="submit" disabled={!canSave}>
 							{t('save-changes')}
 						</Button>
 					</DrawerFooter>
@@ -338,6 +360,36 @@ const ProfileEditDetailsDrawer = ({
 				}}
 			/>
 		</Drawer>
+	);
+};
+
+/*
+ * Session-keyed mount: each closed -> opened transition bumps a key and
+ * remounts the drawer, which seeds itself from the profile at mount. The
+ * reset effect this replaced ran per render on prop changes; a fresh mount
+ * happens exactly once per session and never discards an in-progress draft
+ * when a refetch replaces the profile object under the mounted instance
+ * (same id, new object identity). Switching to a different profile id
+ * remounts, matching the old per-profile reseed. The 200ms exit animation
+ * keeps the closing instance under its old key.
+ */
+const ProfileEditDetailsDrawer = (
+	drawerProps: ProfileEditDetailsDrawerProps,
+) => {
+	const [sessionKey, setSessionKey] = useState(0);
+	const [wasOpen, setWasOpen] = useState(drawerProps.isOpen);
+	if (wasOpen !== drawerProps.isOpen) {
+		setWasOpen(drawerProps.isOpen);
+		if (drawerProps.isOpen) {
+			setSessionKey((key) => key + 1);
+		}
+	}
+
+	return (
+		<ProfileEditDetailsDrawerInner
+			{...drawerProps}
+			key={`${sessionKey}:${drawerProps.profile.id}`}
+		/>
 	);
 };
 

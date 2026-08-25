@@ -112,6 +112,49 @@ let hasBuiltThisProcess = false;
  * a stale asset. Only the two specs in this project call this helper, so the
  * one-build-per-process cost stays exactly what it was before this fix.
  */
+/**
+ * #1405 — structural fail-loud gate run on EVERY read of the compiled
+ * asset, before a browser session is ever spent on it. The guard measures
+ * this stylesheet as ground truth; a half-delivered or wrong file must stop
+ * the run here with a plain-words cause instead of degrading into phantom
+ * green assertions downstream.
+ */
+export const assertUsableCompiledCss = (css: string): void => {
+	if (!css.trim()) {
+		throw new Error(
+			'Compiled app-*.css is empty — the build produced no usable ' +
+				'stylesheet, so there is nothing to measure the focus contract ' +
+				'against.',
+		);
+	}
+
+	const openBraces = (css.match(/\{/g) ?? []).length;
+	const closeBraces = (css.match(/\}/g) ?? []).length;
+	if (openBraces === 0 || openBraces !== closeBraces) {
+		throw new Error(
+			`Compiled app-*.css looks truncated or malformed (${openBraces} '{' vs ` +
+				`${closeBraces} '}') — refusing to measure against a partially ` +
+				'delivered stylesheet.',
+		);
+	}
+
+	// Balanced but foreign output (an asset from another pipeline, a
+	// mis-pointed path that happens to hold some other CSS) would parse fine
+	// in the browser and then fail far from the cause. Every marker below is
+	// emitted by THIS app's Tailwind v4 build.
+	const missingMarkers = ['--publy-focus-ring', ':focus-visible'].filter(
+		(marker) => !css.includes(marker),
+	);
+	if (missingMarkers.length > 0) {
+		throw new Error(
+			`Compiled app-*.css does not carry the production stylesheet markers ` +
+				`(missing: ${missingMarkers.join(', ')}) — the asset under ` +
+				'dist/client/assets is not the stylesheet this guard is written ' +
+				'against.',
+		);
+	}
+};
+
 export const readCompiledAppCss = (): string => {
 	if (!hasBuiltThisProcess) {
 		build();
@@ -133,5 +176,7 @@ export const readCompiledAppCss = (): string => {
 				'environment).',
 		);
 	}
-	return readFileSync(cssPath, 'utf8');
+	const css = readFileSync(cssPath, 'utf8');
+	assertUsableCompiledCss(css);
+	return css;
 };

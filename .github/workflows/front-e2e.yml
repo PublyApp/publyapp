@@ -155,10 +155,22 @@ jobs:
     outputs:
       tag: ${{ steps.image-tag.outputs.tag }}
       fork: ${{ steps.fork.outputs.fork }}
+      ns: ${{ steps.image-ns.outputs.root }}
     steps:
       - name: Set image tag
         id: image-tag
         run: echo "tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+
+      # #1362: owner-derived since the org move (radandevist -> PublyApp).
+      # GHCR rejects uppercase in image paths and github.repository_owner is
+      # "PublyApp", so lowercase it here. Nothing pre-existing under this
+      # namespace is required: the build job builds all four images before
+      # any push/pull, and the per-run scratch tags are created by this run.
+      - name: Resolve lowercase e2e image namespace
+        id: image-ns
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "root=ghcr.io/$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')/publyapp-e2e" >> "$GITHUB_OUTPUT"
 
       - name: Detect fork pull request
         id: fork
@@ -170,7 +182,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
         with:
           driver: docker-container
 
@@ -179,7 +191,7 @@ jobs:
 
       - name: Login to GHCR
         if: steps.fork.outputs.fork != 'true'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -188,7 +200,7 @@ jobs:
       - name: Build stack images
         env:
           COMPOSE_BAKE: 'true'
-          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         # On a fork run the gha cache backend has neither a writable cache
         # destination nor the runtime credentials it authenticates with, so
@@ -210,7 +222,7 @@ jobs:
       - name: Push stack images to GHCR (same-repo runs only)
         if: steps.fork.outputs.fork != 'true'
         env:
-          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: docker compose -f apps/front/docker-compose.test.yml push migrate api request-counter front
 
@@ -224,7 +236,7 @@ jobs:
       - name: Save stack images tarball (fork runs)
         if: steps.fork.outputs.fork == 'true'
         env:
-          E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+          E2E_IMAGE_NS: ${{ steps.image-ns.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: |
           set -euo pipefail
@@ -260,7 +272,9 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     env:
-      E2E_IMAGE_NS: ghcr.io/radandevist/publyapp-e2e
+      # Handed over from the build job so this can never drift from the
+      # namespace the images were actually pushed under (#1362).
+      E2E_IMAGE_NS: ${{ needs.build.outputs.ns }}
       E2E_IMAGE_TAG: ${{ needs.build.outputs.tag }}
     steps:
       - name: Checkout
@@ -284,7 +298,7 @@ jobs:
 
       - name: Login to GHCR
         if: needs.build.outputs.fork != 'true'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -483,22 +497,68 @@ jobs:
     env:
       E2E_IMAGE_TAG: ${{ needs.build.outputs.tag }}
     steps:
+      # Round-1 fix (PR #1396): the step below runs
+      # `node packages/scripts-ts/src/ci-e2e-cleanup.ts`, but this job shipped
+      # WITHOUT a checkout or any toolchain setup — an Actions runner starts
+      # empty, so `node` resolved nothing and the module path did not exist
+      # ("Cannot find module /home/runner/work/publyapp/publyapp/packages/
+      # scripts-ts/src/ci-e2e-cleanup.ts"), turning the cleanup — and with it
+      # front-e2e-gate — red on every run. Same pinned actions, in the same
+      # order, as every other job in this workflow that runs repository code.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
       # #1018: a cleanup that cannot delete is a broken check, not a green one,
       # so there is NO continue-on-error here — any failure fails the job (and
-      # therefore the required gate). GitHub's package API has no tag-level
-      # delete (DELETE .../tags/{tag} is not a real endpoint — 404 — and the
-      # GHCR registry rejects manifest deletes by tag — 405), so the only
-      # supported primitive is VERSION deletion. A version is deleted only
-      # when it is exclusively tagged by this run: content-stable images
-      # (request-counter) push an identical digest every run, so GHCR adds
-      # this run's tag to a version other runs already share — deleting that
-      # version would break every run still referencing the digest, so
-      # shared versions are skipped. Exclusivity is re-checked by re-reading
-      # each version immediately before its delete. Deleting public package
-      # versions past the 5000-download threshold is refused with HTTP 400;
-      # that surfaces as ::error:: and fails the job. The public → private
-      # visibility flip that would make deletion possible is a separate
-      # owner decision, tracked in #1018.
+      # therefore the required gate). The decision logic lives in an injectable,
+      # unit-tested script rather than inline shell:
+      # packages/scripts-ts/src/ci-e2e-cleanup.ts, whose co-located suite
+      # (ci-e2e-cleanup.test.ts) is the executable spec for every branch:
+      #
+      # - A VERSION is deleted only when its re-read tag list (immediately
+      #   before the delete) is exactly [this run's tag]: content-stable
+      #   images (request-counter) push an identical digest every run, so GHCR
+      #   adds this run's tag to a version other runs already share — deleting
+      #   that version would break every run still referencing the digest, so
+      #   shared versions are skipped. A tag added concurrently between the
+      #   listing and the re-read is caught and the delete skipped.
+      # - When GitHub answers the version delete with the documented HTTP 400
+      #   "You cannot delete the last tagged version of a package", the
+      #   PACKAGE is deleted instead (#1362 round 1: this run's own GHCR push
+      #   created — or left behind — the package's ONLY tagged version, and
+      #   GitHub documents deleting the package for that case). The package
+      #   delete is race-guarded: it happens only when a safety re-list still
+      #   shows exactly {this run's version} carrying exactly [this run's
+      #   tag]; anything else falls back to the plain version delete.
+      # - The package-API owner scope is derived from GET /users/{owner} →
+      #   .type at runtime (/orgs/{owner}/... for an organization, /user/...
+      #   for a user) because the API is owner-type-scoped and #1362 moved
+      #   this repository from radandevist to the PublyApp organization;
+      #   nothing is hard-coded.
+      # - Every refusal fails loudly with GitHub's exact message. A 403 means
+      #   the GITHUB_TOKEN lacks package-admin access for the package; the
+      #   owner must grant it via the package's "Manage Actions access"
+      #   (repository publyapp, role Admin). Public packages past the
+      #   5000-download threshold refuse version deletion with HTTP 400; the
+      #   public → private visibility flip that would make deletion possible
+      #   remains a separate owner decision, tracked in #1018.
+      # #1021: a fork run pushed nothing to GHCR (its token is read-only), so
+      # the fast paths below — re-asserted inside the script itself, where they
+      # are unit-tested — short-circuit to success without touching the
+      # registry, and the aggregate gate keeps aggregating real results on
+      # fork PRs.
       - name: Delete run image versions
         env:
           GH_TOKEN: ${{ github.token }}
@@ -506,11 +566,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # #1021: a fork run pushed nothing to GHCR (its token is
-          # read-only; the images travelled as an artifact instead), so
-          # there is nothing of this run's to list or delete. The job still
-          # reports success so the aggregate gate keeps aggregating real
-          # results on fork PRs.
+          # Fast paths kept visible at the workflow layer; the script
+          # re-checks both (unit-tested) because it must also be safe when
+          # executed directly.
           if [ "$FORK_RUN" = "true" ]; then
             echo "::notice::Fork run: no images were pushed to GHCR, so there is nothing to clean up."
             exit 0
@@ -521,88 +579,7 @@ jobs:
             exit 0
           fi
 
-          packages=(
-            publyapp-e2e-migrate
-            publyapp-e2e-api
-            publyapp-e2e-request-counter
-            publyapp-e2e-front
-          )
-          cleanup_failed=false
-
-          for package in "${packages[@]}"; do
-            # Delete the VERSION only when it is exclusively tagged by THIS
-            # run. GitHub's documented package API has no tag-level delete:
-            # DELETE .../tags/{tag} is not a real endpoint (404) and the
-            # GHCR registry rejects manifest deletes by tag (405), so the
-            # only supported primitive is version deletion. Content-stable
-            # images (request-counter) push an identical digest every run,
-            # so GHCR adds this run's tag to a version other runs already
-            # share — deleting that version would break every run still
-            # referencing the digest, so shared versions are SKIPPED with a
-            # notice. Exclusivity is re-checked by re-reading each version
-            # immediately before its delete, so a tag added by a concurrent
-            # run after the listing is caught and the delete is skipped.
-            if ! versions="$(
-              gh api --paginate \
-                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions?per_page=100" \
-                --jq "[.[] | select(.metadata.container.tags | index(\"${E2E_IMAGE_TAG}\")) | {id: .id, tags: .metadata.container.tags}]"
-            )"; then
-              echo "::warning::Could not list GHCR versions for ${package}."
-              cleanup_failed=true
-              continue
-            fi
-
-            # Materialize the candidate list BEFORE the loop so a jq failure
-            # here is caught by pipefail and fails the job, instead of
-            # silently skipping cleanup inside a process substitution.
-            if ! candidates="$(
-              printf '%s' "$versions" | jq -c '.[]'
-            )"; then
-              echo "::error::Could not parse GHCR version list for ${package}."
-              cleanup_failed=true
-              continue
-            fi
-
-            # Nothing carries this run's tag → nothing to delete; skip the
-            # loop entirely (a bare `<<< ""` would still run one iteration
-            # on an empty line and issue an invalid version GET).
-            if [ -z "$candidates" ]; then
-              continue
-            fi
-
-            while IFS= read -r version; do
-              version_id="$(printf '%s' "$version" | jq -r '.id')"
-
-              # Re-read the version right before deleting: exclusivity must
-              # hold on the CURRENT tag list, not the listing snapshot.
-              if ! fresh="$(
-                gh api \
-                  "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}" \
-                  --jq "{id: .id, tags: .metadata.container.tags}"
-              )"; then
-                echo "::error::Could not re-read GHCR version ${version_id} for ${package}; skipping delete to avoid deleting a version a concurrent run may now share."
-                cleanup_failed=true
-                continue
-              fi
-
-              other_tags="$(printf '%s' "$fresh" | jq -r --arg run_tag "$E2E_IMAGE_TAG" '[.tags[] | select(. != $run_tag)] | join(", ")')"
-
-              if [ -n "$other_tags" ]; then
-                echo "::notice::Skipping GHCR version ${version_id} for ${package}: tag ${E2E_IMAGE_TAG} was added to a version already shared with other run tags (${other_tags}) because this image's content is identical across runs. GitHub's package API cannot delete a single tag, and deleting the version would break every run still referencing that digest, so only versions exclusively tagged by this run are deleted."
-                continue
-              fi
-
-              if ! gh api --method DELETE \
-                "/users/${GITHUB_REPOSITORY_OWNER}/packages/container/${package}/versions/${version_id}"; then
-                echo "::error::Could not delete GHCR version ${version_id} for ${package}. Public GHCR packages past 5000 downloads refuse version deletion with HTTP 400; the package-visibility flip (public → private) is tracked as a separate owner decision (#1018), and this cleanup cannot delete such versions until it lands. If the cause is something else, inspect the gh api error above."
-                cleanup_failed=true
-              fi
-            done <<< "$candidates"
-          done
-
-          if [ "$cleanup_failed" = true ]; then
-            exit 1
-          fi
+          node packages/scripts-ts/src/ci-e2e-cleanup.ts
 
   # Required status check: this is the one context that should be required
   # on the branch ruleset instead of a per-shard `front-e2e (N/4)` name. It

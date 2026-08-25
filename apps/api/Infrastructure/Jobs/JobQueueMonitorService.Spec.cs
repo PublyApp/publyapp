@@ -800,7 +800,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 			);
 
 			var sample = await monitor.SampleAsync(dbContext, CancellationToken.None);
-			ReadOverdueGauge().Should().Be(
+			TryReadOverdueGauge().Should().Be(
 				sample.PreparedStateOverdueSeconds,
 				"the observable gauge observes the latest sample, exactly like jobs.dlq_size"
 			);
@@ -811,11 +811,28 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private static double ReadOverdueGauge() {
+	// #1349: the pre-first-sample UNKNOWN (-1) state emits NO measurement at all, mirroring
+	// scheduler.leader_present's null discipline. Without this pin, a gauge that emitted a
+	// fabricated -1 until the first real sample would pass every sampled-value assertion
+	// above while alerting backends read a fake negative age from the series.
+	[Fact]
+	public void ItShouldEmitNoPreparedStateOverdueMeasurementWhileTheSampleIsUnknown() {
+		using var monitor = CreateMonitor();
+
+		monitor.LastSample.PreparedStateOverdueSeconds.Should().Be(
+			-1, "an instance that never sampled carries the UNKNOWN sentinel"
+		);
+		TryReadOverdueGauge().Should().BeNull(
+			"UNKNOWN must emit NOTHING — no measurement may exist before a real sample"
+		);
+	}
+
+	// Null when the gauge emitted no measurement at all (the UNKNOWN path): seeded with
+	// null rather than any numeric sentinel, so a fabricated emission can never coincide
+	// with the seed and fake a pass before the instrument exists.
+	private static double? TryReadOverdueGauge() {
 		using var listener = new MeterListener();
-		// NaN, never -1: the unsampled sample member defaults to -1, so a -1 listener seed
-		// could coincide with it and fake a pass before the gauge exists.
-		var overdue = double.NaN;
+		double? overdue = null;
 
 		listener.InstrumentPublished = (instrument, activeListener) => {
 			if (instrument.Meter.Name == JobsMetrics.MeterName

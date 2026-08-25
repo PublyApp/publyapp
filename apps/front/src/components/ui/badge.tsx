@@ -3,8 +3,16 @@ import { useRender } from '@base-ui/react/use-render';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '~/lib/utils';
 
+// #1379 introduced these two outline utilities; #1405 re-scoped them. A plain
+// <span> badge is unfocusable — `:focus-visible` can never match it — so the
+// token outline lives behind the `[a]:` variant and only the badge-as-link
+// pattern (`render={<a href/>}`, the shape the focus-ring cascade guard
+// probes) paints it, replacing the UA's default link focus outline. Same
+// combination shape as tabs.tsx. The 3px box-shadow ring itself stays on the
+// base cva: DESIGN.md ("Focus rings") sets the ring width per component in
+// its cva.
 const badgeVariants = cva(
-	'group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-[var(--publy-radius-chip)] border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:focus-visible:border-ring aria-invalid:focus-visible:ring-ring dark:aria-invalid:focus-visible:border-ring dark:aria-invalid:focus-visible:ring-ring [&>svg]:pointer-events-none [&>svg]:size-3!',
+	'group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-[var(--publy-radius-chip)] border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:focus-visible:border-ring aria-invalid:focus-visible:ring-ring dark:aria-invalid:focus-visible:border-ring dark:aria-invalid:focus-visible:ring-ring [&>svg]:pointer-events-none [&>svg]:size-3! [a]:focus-visible:outline-2 [a]:focus-visible:outline-ring',
 	{
 		variants: {
 			variant: {

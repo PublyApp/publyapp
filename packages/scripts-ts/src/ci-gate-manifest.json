@@ -17,17 +17,17 @@
 	],
 	"steps": {
 		"deploy-images.yml::publish::Build and push API migrate image": {
-			"hash": "ee033b874c0523d8",
+			"hash": "92e036674badcdc4",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the migration bundle image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push API runtime image": {
-			"hash": "41406c68a70ddd2c",
+			"hash": "80cadc2b17689106",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the API runtime image and does not have a local equivalent in pre-push checks."
 		},
 		"deploy-images.yml::publish::Build and push Front image": {
-			"hash": "553e6ddbc8335b36",
+			"hash": "ab5c6ca1fb00d1fe",
 			"mirror": "just ci",
 			"reason": "This is a CI publish path for the front image and does not have a local equivalent in pre-push checks."
 		},
@@ -37,7 +37,7 @@
 			"reason": "GitHub-only: clones the repository onto the runner. Locally the working tree already is the code under test."
 		},
 		"deploy-images.yml::publish::Log in to GHCR": {
-			"hash": "9d52541481d1e372",
+			"hash": "49f3c47b7fbf6259",
 			"mirror": "just ci",
 			"reason": "GitHub-only registry authentication step required to push images; local gate does not publish images."
 		},
@@ -47,7 +47,7 @@
 			"reason": "The workflow computes RELEASE_TAG from GITHUB_SHA for immutable tagging; local checks do not perform registry publishing."
 		},
 		"deploy-images.yml::publish::Set up Docker Buildx": {
-			"hash": "73d098e126592972",
+			"hash": "05add9af020bea61",
 			"mirror": "just ci",
 			"reason": "Local pre-push checks do not run a GitHub container registry publish flow that requires runner buildx service setup."
 		},
@@ -82,7 +82,7 @@
 			"reason": "Identical install command to every other workflow job's frozen-lockfile install step; local development already runs pnpm install as part of setup, which the local fixture-test mirror below depends on."
 		},
 		"docs-archive.yml::docs-archive::Install pnpm": {
-			"hash": "e582485ed32ac12b",
+			"hash": "8985553731d304dc",
 			"mirror": null,
 			"reason": "GitHub-only pnpm provisioning added so this job can run its vitest fixture-test step; local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
@@ -137,9 +137,9 @@
 			"reason": "GitHub-only pnpm setup for CI. Local development already assumes pnpm is installed via corepack/the repo's pinned version."
 		},
 		"front-ci.yml::gate-selftest::Run CI gate guard tests (mirrors `just ci-drift`)": {
-			"hash": "7ed18fb67db11db4",
+			"hash": "74f1d6b11335c757",
 			"mirror": "just ci-drift",
-			"reason": "The CODEOWNERS contract and CI gate guard suites (including packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts since #1063), deterministic frontend-lint regression, check-ci-gate-structure.ts, the #1240 require-linked-issue guard test (packages/scripts-ts/src/require-linked-issue.test.ts), and the #1248 actions-pinning guard suite plus its real-tree scan (packages/scripts-ts/src/check-actions-pinned.{test,ts}, absorbed from #1248's .mjs into this lane's all-TypeScript package) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained one require-linked-issue line from develop and the two actions-pinned lines; `just ci-drift` runs those same three commands. Round-1 review of #1238 found a dangling justfile path invisible to every existing guard, so the step now also runs packages/scripts-ts/src/ci-referenced-paths.test.ts, which fails CI when a gate surface references a script path that does not exist; `just ci-drift` runs the same line."
+			"reason": "The CODEOWNERS contract and CI gate guard suites (including packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts since #1063), deterministic frontend-lint regression, check-ci-gate-structure.ts, the #1240 require-linked-issue guard test (packages/scripts-ts/src/require-linked-issue.test.ts), and the #1248 actions-pinning guard suite plus its real-tree scan (packages/scripts-ts/src/check-actions-pinned.{test,ts}, absorbed from #1248's .mjs into this lane's all-TypeScript package) run server-side as the mandatory mirror of `just ci-drift`, so these local protections cannot be silently unenforced in CI. The step gained one require-linked-issue line from develop and the two actions-pinned lines; `just ci-drift` runs those same three commands. Round-1 review of #1238 found a dangling justfile path invisible to every existing guard, so the step now also runs packages/scripts-ts/src/ci-referenced-paths.test.ts, which fails CI when a gate surface references a script path that does not exist; `just ci-drift` runs the same line. #1392 adds the actions pin/comment binding guard (check-actions-pins.test.ts + its live CLI run): the step gained those two lines and `just ci-drift` runs the same pair directly (the standalone `just ci-actions-pins` recipe wraps them for isolated runs); the guard's unit suite is network-free (injected resolver), while the live half authenticates with GH_TOKEN on both sides. Round-1 fix of this PR: the live half previously ran without a token in this job (every gh api tag lookup rejected anonymously), so the step now exports GH_TOKEN=${{ github.token }} in its env block — the default token reads the public actions/* tags, matching quality-gate.yml's own pins-guard step."
 		},
 		"front-ci.yml::gate-selftest::Run project closure adapter tests": {
 			"hash": "efdabfd7485185e8",
@@ -272,7 +272,7 @@
 			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls verify-font-bundle.mjs. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script's defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
 		},
 		"front-e2e.yml::build::Build stack images": {
-			"hash": "048da7056a8d72da",
+			"hash": "8a525f944e9edfab",
 			"mirror": "just ci-e2e-front",
 			"reason": "ci-e2e-front builds the same four Compose services locally via up --build. CI enables Compose Bake for the GHA cache while retaining Compose-file-relative build-context resolution and loading the four GHCR-tagged images. #1021: on fork runs the build adds apps/front/docker-compose.fork-overlay.yml (strips the gha cache_from/cache_to the read-only token cannot write) and loads the images into the local daemon for the artifact handoff — the same local-build property ci-e2e-front exercises."
 		},
@@ -287,17 +287,17 @@
 			"reason": "GitHub-only: resolves github.event.pull_request.head.repo.fork into the build job's `fork` output that switches every fork-conditional step below (#1021). There is no local pull_request event to detect."
 		},
 		"front-e2e.yml::build::Login to GHCR": {
-			"hash": "11729cb5c27ba3d1",
+			"hash": "256eb4b50d95e60a",
 			"mirror": null,
 			"reason": "GitHub-only: authenticates the workflow token to GHCR so the shared per-run images can be pushed. #1021: the step is now skipped on fork runs (read-only token), which take the artifact handoff path instead; the local gate has no GHCR authentication to mirror either way."
 		},
 		"front-e2e.yml::build::Push stack images to GHCR (same-repo runs only)": {
-			"hash": "c86f14326ef6fa58",
+			"hash": "dac4a4a83a85f1bd",
 			"mirror": null,
 			"reason": "GitHub-only: pushes the four loaded, immutable per-run application images to GHCR for the matrix runners; local e2e builds never publish them. #1021: renamed and now skipped on fork runs, which hand the images to the shards as a tarball artifact instead of a registry push."
 		},
 		"front-e2e.yml::build::Save stack images tarball (fork runs)": {
-			"hash": "7ab1327be12be42f",
+			"hash": "040f79da2daca14c",
 			"mirror": null,
 			"reason": "GitHub-only, fork runs only (#1021): docker saves the four built images into gzipped tarballs for the artifact handoff to the matrix runners. Local e2e runs keep the images in the local daemon and never package them."
 		},
@@ -312,7 +312,7 @@
 			"reason": "GitHub-only: derives an immutable image tag from the Actions run id and attempt; local e2e builds use the Compose default tag."
 		},
 		"front-e2e.yml::build::Setup Docker Buildx": {
-			"hash": "692844854fb0a9c5",
+			"hash": "58ccf2a1bc7d6ba2",
 			"mirror": null,
 			"reason": "GitHub-only: Buildx's container driver and gha cache export require the GitHub Actions runner; no local equivalent exists."
 		},
@@ -337,9 +337,9 @@
 			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
 		},
 		"front-e2e.yml::cleanup::Delete run image versions": {
-			"hash": "2e2c19f7844ac66d",
-			"mirror": null,
-			"reason": "GitHub-only: deletes this run's exclusively-tagged ephemeral per-run GHCR image versions after every matrix outcome; local builds never publish them. #1018 reconciliation: no continue-on-error, so a failed cleanup fails the job. GitHub package API has no tag-level delete (404/405), so version deletion with an exclusivity re-check before each delete is the only supported primitive. Public >5000-download versions refuse deletion with HTTP 400 -> ::error::; visibility flip is a separate owner decision. #1021: a fork run short-circuits to success (nothing was pushed to GHCR), so the job still reports on fork PRs without touching the registry."
+			"hash": "c7847c94e8c50008",
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-e2e-cleanup.test.ts",
+			"reason": "#1362 round-1 reconciliation: the step's decision logic moved from inline shell into packages/scripts-ts/src/ci-e2e-cleanup.ts (injectable gh api runner), so the branch logic IS now locally executable and mirrored by its co-located suite — last-tagged-version 400 -> race-guarded package delete; shared/concurrent tags -> skip or version-delete fallback; 403 -> loud failure with the grant guidance; owner scope derived from GET /users/{owner} -> .type; fork/empty-tag fast paths. What remains GitHub-only: the real registry calls (this run's ephemeral GHCR images do not exist locally) and the workflow-layer fork/tag short-circuits, which the script re-asserts. Still no continue-on-error (#1018): any refusal fails the job."
 		},
 		"front-e2e.yml::gate::Check required jobs": {
 			"hash": "882f344edb8cc40a",
@@ -382,7 +382,7 @@
 			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
 		},
 		"front-e2e.yml::test::Login to GHCR": {
-			"hash": "9d102080f184bc6b",
+			"hash": "96f0e616f73b552f",
 			"mirror": null,
 			"reason": "GitHub-only: authenticates each matrix runner to GHCR so it can read the build job's private package versions. #1021: now skipped on fork runs, whose images arrive via artifact instead of the registry; the local gate has no GHCR authentication to mirror either way."
 		},
@@ -497,7 +497,7 @@
 			"reason": "ci-spec-drift runs the identical filtered dotnet test for FullyQualifiedName~OpenApiContractSpec. Note that just ci also runs just test-api, the full suite of which this filter is a subset."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up .NET (pinned for CI determinism)": {
-			"hash": "bb639a72b78c8be4",
+			"hash": "5475ce7713504202",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
@@ -507,7 +507,7 @@
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"openapi-spec-drift.yml::spec-drift::Set up just": {
-			"hash": "978432f99c1ad1d5",
+			"hash": "17b73e0220816c76",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
@@ -632,7 +632,7 @@
 			"reason": "ci-install runs the identical pnpm --filter @org/shared-ts run postinstall."
 		},
 		"quality-gate.yml::quality::Setup .NET (pinned for CI determinism)": {
-			"hash": "bb639a72b78c8be4",
+			"hash": "5475ce7713504202",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
 		},
@@ -642,7 +642,7 @@
 			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
 		},
 		"quality-gate.yml::quality::Setup just": {
-			"hash": "978432f99c1ad1d5",
+			"hash": "17b73e0220816c76",
 			"mirror": null,
 			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
 		},
@@ -710,6 +710,36 @@
 			"hash": "6c699edc403fc068",
 			"mirror": null,
 			"reason": "GitHub-only Node setup. Locally the Node version is pinned by .node-version / .nvmrc."
+		},
+		"quality-gate.yml::quality::Bind pinned action SHAs to their version comments (#1392)": {
+			"hash": "a049d6a6ead6e452",
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/check-actions-pins.test.ts && node ./packages/scripts-ts/src/check-actions-pins.ts",
+			"reason": "#1392 supply-chain binding: binds every 40-hex action SHA to the commit its \"# vX.Y.Z\" comment claims via gh api tag resolution with annotated-tag peeling. Mirrored by just ci-actions-pins (same two commands; ARGS=\"--offline\" skips only the live network half locally — CI never passes it). The vitest half is network-free; the live half needs GH_TOKEN, which CI provides in this very step."
+		},
+		"deploy-images.yml::publish::Resolve lowercase image namespace": {
+			"hash": "0b974ca915df8a1a",
+			"mirror": null,
+			"reason": "#1362 reconciliation (2026-08-25 org move radandevist -> PublyApp): derives the lowercased ghcr.io owner namespace from github.repository_owner because GHCR rejects uppercase image paths. GitHub-only shell one-liner; the local deploy-images.ts wrapper keeps its own IMAGE_ROOT constant reconciled by its unit tests."
+		},
+		"front-e2e.yml::build::Resolve lowercase e2e image namespace": {
+			"hash": "caa551b1696e3a0e",
+			"mirror": null,
+			"reason": "#1362 reconciliation (2026-08-25 org move radandevist -> PublyApp): emits the build job ns output, the lowercased ghcr.io/<owner>/publyapp-e2e root consumed by every E2E_IMAGE_NS consumer in this workflow. GitHub-only derivation; ci-e2e-front resolves the same compose images via the compose-file default namespace instead."
+		},
+		"front-e2e.yml::cleanup::Checkout": {
+			"hash": "e9585c92762e9abe",
+			"mirror": null,
+			"reason": "#1362 round-1 fix (PR #1396): the cleanup job ran `node packages/scripts-ts/src/ci-e2e-cleanup.ts` with NO checkout, so the runner had no repository and every run failed ('Cannot find module .../ci-e2e-cleanup.ts'). Same pinned checkout as every other job in this workflow (fetch-depth: 1). GitHub-only: clones the repo onto the runner; locally the working tree already is the code under test, and the step's decision logic remains mirrored by ci-e2e-cleanup.test.ts."
+		},
+		"front-e2e.yml::cleanup::Install pnpm": {
+			"hash": "8985553731d304dc",
+			"mirror": null,
+			"reason": "#1362 round-1 fix (PR #1396): identical pinned pnpm/action-setup step as the test job's, added so the cleanup job carries the same complete toolchain setup as every other code-running job in this workflow. The cleanup itself executes through plain Node; no local mirror beyond the developer prerequisite."
+		},
+		"front-e2e.yml::cleanup::Setup Node": {
+			"hash": "6c699edc403fc068",
+			"mirror": null,
+			"reason": "#1362 round-1 fix (PR #1396): identical pinned setup-node step as every other job in this workflow. Required on the runner because ci-e2e-cleanup.ts is a dependency-free .ts file executed directly via Node 24's native TypeScript stripping; locally Node is pinned by .node-version / .nvmrc and the script's logic is mirrored by ci-e2e-cleanup.test.ts."
 		}
 	}
 }

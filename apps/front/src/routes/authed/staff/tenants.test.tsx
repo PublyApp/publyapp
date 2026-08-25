@@ -251,6 +251,7 @@ describe('staff tenants route', () => {
 
 	afterEach(() => {
 		cleanup();
+		vi.useRealTimers();
 	});
 
 	test('renders tenant rows and uses the default table query state', () => {
@@ -421,28 +422,36 @@ describe('staff tenants route', () => {
 		expect(mocks.navigate.mock.calls.at(-1)?.[0]?.replace).toBe(true);
 	});
 
-	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1)', async () => {
-		const renderResult = renderPage();
+	test('a debounced search commit does not revert a status filter chosen within the debounce window (F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
+		try {
+			const renderResult = renderPage();
 
-		fireEvent.change(screen.getByTestId('staff-tenants-table-search'), {
-			target: { value: 'an' },
-		});
+			fireEvent.change(screen.getByTestId('staff-tenants-table-search'), {
+				target: { value: 'an' },
+			});
 
-		// Simulate choosing "Active" within the 300ms debounce window: the
-		// route re-renders with the new URL search state, same as a real
-		// navigation would, before the debounced commit fires.
-		mocks.search = { status: 'active,suspended' };
-		renderResult.rerender(<RouteComponent />);
+			// Simulate choosing "Active" within the 300ms debounce window: the
+			// route re-renders with the new URL search state, same as a real
+			// navigation would, before the debounced commit fires.
+			mocks.search = { status: 'active,suspended' };
+			renderResult.rerender(<RouteComponent />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+			// Deterministic (W6-FLAKE #827): step PAST the debounce instead of a
+			// real-time sleep — a 350ms wall-clock wait is load-sensitive and was
+			// the suite's largest remaining fixed sleep.
+			await vi.advanceTimersByTimeAsync(301);
 
-		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
-			search?: Record<string, unknown>;
-		};
-		expect(lastCall?.search).toMatchObject({
-			status: 'active,suspended',
-			q: 'an',
-		});
+			const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
+				search?: Record<string, unknown>;
+			};
+			expect(lastCall?.search).toMatchObject({
+				status: 'active,suspended',
+				q: 'an',
+			});
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	// tenants-r6-F2: entering selection mode must freeze the query that
@@ -494,7 +503,8 @@ describe('staff tenants route', () => {
 		).toBe(true);
 	});
 
-	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1)', async () => {
+	test('a debounced search commit does not revert a status filter cleared within the debounce window (r3-F1, deterministic timers)', async () => {
+		vi.useFakeTimers();
 		mocks.search = { status: 'active,suspended' };
 		const renderResult = renderPage();
 
@@ -509,7 +519,8 @@ describe('staff tenants route', () => {
 		mocks.search = {};
 		renderResult.rerender(<RouteComponent />);
 
-		await new Promise((resolve) => setTimeout(resolve, 350));
+		// Deterministic (W6-FLAKE #827): see the F1 test above.
+		await vi.advanceTimersByTimeAsync(301);
 
 		const lastCall = mocks.navigate.mock.calls.at(-1)?.[0] as {
 			search?: Record<string, unknown>;

@@ -131,7 +131,7 @@ const runStep = (runBody, { author, body }) => {
 			PR_AUTHOR: author,
 			PR_BODY: body,
 			GH_TOKEN: 'x',
-			GH_REPO: 'radandevist/publyapp',
+			GH_REPO: 'PublyApp/publyapp',
 		},
 		encoding: 'utf8',
 	});

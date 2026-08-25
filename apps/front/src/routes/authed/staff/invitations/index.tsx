@@ -210,24 +210,27 @@ const StaffInvitationsPage = () => {
 				ariaLabel={t('common:staff-invitations')}
 				columns={columns}
 				rows={rows}
-				isPending={query.isPending}
-				isError={query.isError}
-				onRetry={() => void query.refetch()}
+				queryState={{
+					isPending: query.isPending,
+					isError: query.isError,
+					onRetry: () => void query.refetch(),
+					hasActiveSearch: selectedStatuses.length > 0,
+				}}
+				pagination={{
+					pageIndex: controller.cursor.pageIndex,
+					hasPreviousPage: controller.cursor.hasPreviousPage,
+					hasNextPage: query.data?.nextCursor != null,
+					isPaginationPending: query.isFetching,
+					onNextPage: () =>
+						controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
+					onPreviousPage: controller.cursor.onPreviousPage,
+				}}
 				emptyContent={t('no-invitations-found')}
 				noMatchContent={t('no-invitations-match-your-search')}
-				hasActiveSearch={selectedStatuses.length > 0}
 				sort={controller.sort}
 				onSortChange={controller.onSortChange}
 				size={controller.size}
 				onSizeChange={controller.onSizeChange}
-				pageIndex={controller.cursor.pageIndex}
-				hasPreviousPage={controller.cursor.hasPreviousPage}
-				hasNextPage={query.data?.nextCursor != null}
-				isPaginationPending={query.isFetching}
-				onNextPage={() =>
-					controller.cursor.onNextPage(query.data?.nextCursor ?? undefined)
-				}
-				onPreviousPage={controller.cursor.onPreviousPage}
 				selection={selection}
 			/>
 			{/* ONE selection bar hosts every bulk action — a second stacked

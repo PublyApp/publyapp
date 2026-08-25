@@ -270,6 +270,14 @@ const openProfileEditDrawer = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('profile-edit-details-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
+	// #1342 disables the footer submit while the form is pristine, so the
+	// geometry assertions' trial click would time out on an untouched form.
+	// Dirty the form with one deterministic edit (same reason link-companies
+	// checks a picker row first) without touching what the assertions measure.
+	await page
+		.getByTestId('profile-edit-details-drawer')
+		.getByRole('textbox', { name: 'Profile name' })
+		.fill('Publishing (edited for geometry)');
 };
 
 const openChangeEmailDrawer = async (page: Page): Promise<void> => {
@@ -323,6 +331,13 @@ const openStaffProfileEditDrawer = async (page: Page): Promise<void> => {
 	await expect(
 		page.getByTestId('staff-profile-edit-details-drawer'),
 	).toBeVisible({ timeout: 25_000 });
+	// #1342 disables the footer submit while the form is pristine; dirty the
+	// form so the geometry assertions can trial-click the action (see the
+	// tenant edit drawer above).
+	await page
+		.getByTestId('staff-profile-edit-details-drawer')
+		.getByRole('textbox', { name: 'Profile name' })
+		.fill('Scroll-geometry fixture profile (edited)');
 };
 
 const measureDrawer = async (

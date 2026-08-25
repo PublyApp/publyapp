@@ -1,5 +1,9 @@
 export type ShellRouteMatch = {
-	globalNotFound?: boolean;
+	/**
+	 * Flag @tanstack/router-core >= 1.171 sets on the match that owns the
+	 * global not-found render (replaces the pre-1.171 `globalNotFound`).
+	 */
+	_notFound?: boolean;
 	pathname?: string;
 	routeId?: string;
 };
@@ -16,7 +20,7 @@ export const hasExactAuthedRouteMatch = (
 	const deepestMatch = matches[matches.length - 1];
 
 	return (
-		!matches.some((match) => match.globalNotFound) &&
+		!matches.some((match) => match._notFound) &&
 		matches.some((match) => match.routeId === AUTHED_LAYOUT_ROUTE_ID) &&
 		normalizePathname(deepestMatch?.pathname ?? '/') ===
 			normalizePathname(pathname)

@@ -110,36 +110,39 @@ export const ProfileMembersTab = ({
 					ariaLabel={t('profile-members-table-aria-label')}
 					columns={columns}
 					rows={rows}
+					queryState={{
+						isPending: membersQuery.isPending,
+						isError: membersQuery.isError,
+						onRetry: () => void membersQuery.refetch(),
+						hasActiveSearch: Boolean(controller.search.committed),
+					}}
+					pagination={{
+						pageIndex: pageIndex,
+						hasPreviousPage: pageIndex > 0,
+						hasNextPage: hasNextPage,
+						isPaginationPending:
+							membersQuery.isFetching && !membersQuery.isPending,
+						onNextPage: () => {
+							if (hasNextPage) {
+								setPageIndex((current) => current + 1);
+							}
+						},
+						onPreviousPage: () => {
+							if (pageIndex > 0) {
+								setPageIndex((current) => Math.max(current - 1, 0));
+							}
+						},
+					}}
 					getRowLabel={(row) => row.displayName}
-					isPending={membersQuery.isPending}
-					isError={membersQuery.isError}
-					onRetry={() => void membersQuery.refetch()}
 					emptyIcon={IconUsers}
 					emptyTitle={t('profile-members-empty-title')}
 					emptyContent={t('profile-members-empty-description')}
 					noMatchTitle={t('tenant-users-no-match-title')}
 					noMatchContent={t('tenant-users-no-match-description')}
-					hasActiveSearch={Boolean(controller.search.committed)}
 					sort={controller.sort}
 					onSortChange={controller.onSortChange}
 					size={controller.size}
 					onSizeChange={controller.onSizeChange}
-					pageIndex={pageIndex}
-					hasPreviousPage={pageIndex > 0}
-					hasNextPage={hasNextPage}
-					isPaginationPending={
-						membersQuery.isFetching && !membersQuery.isPending
-					}
-					onNextPage={() => {
-						if (hasNextPage) {
-							setPageIndex((current) => current + 1);
-						}
-					}}
-					onPreviousPage={() => {
-						if (pageIndex > 0) {
-							setPageIndex((current) => Math.max(current - 1, 0));
-						}
-					}}
 					searchDraft={controller.search.draft}
 					onSearchDraftChange={controller.search.onDraftChange}
 					searchPlaceholder={t('search-tenant-members')}
