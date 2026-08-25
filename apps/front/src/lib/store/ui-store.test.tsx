@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { useShallow } from 'zustand/shallow';
 
 import {
 	resetCookieConsentStoreForTests,
@@ -32,9 +33,16 @@ describe('zustand selector stability', () => {
 
 		const SidebarProbe = () => {
 			renderCount += 1;
-			const { sidebarOpen } = useUiStore((state) => ({
-				sidebarOpen: state.sidebarOpen,
-			}));
+			// `useShallow` is REQUIRED here under v5: the selector builds a
+			// fresh object per call, and the default equality became
+			// `Object.is` (migration guide: "Requiring stable selector
+			// outputs" — without a stable reference this exact component
+			// hits "Maximum update depth exceeded").
+			const { sidebarOpen } = useUiStore(
+				useShallow((state) => ({
+					sidebarOpen: state.sidebarOpen,
+				})),
+			);
 			return <div data-testid="sidebar-probe">{String(sidebarOpen)}</div>;
 		};
 
