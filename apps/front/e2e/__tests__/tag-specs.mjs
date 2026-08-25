@@ -60,6 +60,11 @@ const TAG_MAP = {
 		ticket: ['@806'],
 		title: 'design handoff staff profiles',
 	},
+	'focus-ring-cascade.spec.ts': {
+		domain: ['@design'],
+		ticket: ['@823'],
+		title: 'focus ring cascade',
+	},
 	'drawer-description-contrast.spec.ts': {
 		domain: ['@design'],
 		ticket: ['@1043'],
