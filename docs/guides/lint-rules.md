@@ -123,13 +123,29 @@ chain shape only), so a small `publy` rule was sketched:
 [`packages/lint-ts/src/publy/no-never-any-casts.ts`](../../packages/lint-ts/src/publy/no-never-any-casts.ts).
 It flags single assertions to `never`/`any` (`x as never`, `x as any`,
 angle-bracket forms, parenthesized keyword annotations), one report per chain
-link landing on a banned keyword. It ships **dormant** (`"off"`); enabling it
-at `error` is a separate follow-up PR per the ladder policy above.
+link landing on a banned keyword. Since [#1346](https://github.com/radandevist/publyapp/issues/1346)
+it ALSO flags the keyword annotations under the `satisfies` operator
+(`x satisfies never`, `x satisfies any`, `TSSatisfiesExpression`) — paired
+RED/GREEN proof in its spec, including the adversarial case that defeats a
+matcher hunting the literal word `never` instead of the `TSNeverKeyword` node
+(`type NeverAlias = never; x satisfies NeverAlias` stays GREEN). It ships
+**dormant** (`"off"`); enabling it at `error` is a separate follow-up PR per
+the ladder policy above.
 
-**Measured baseline (2026-08-25, oxlint 1.79.0, at this branch's tip
-after rebasing onto #1335):** report-mode scan over the whole repo
-(config-copy of `.oxlintrc.json` with only this rule flipped to `warn`;
-JSON output aggregated per package).
+**Measured baseline (2026-08-25, oxlint 1.79.0, re-measured at the
+wt-1346 tip AFTER the #1346 `satisfies` extension):** report-mode scan over
+the whole repo (config-copy of `.oxlintrc.json` with only this rule flipped
+to `warn`; JSON output aggregated per package). Command + measured result:
+
+```sh
+python3 -c 'import json; c = json.load(open(".oxlintrc.json")); c["rules"]["publy/no-never-any-casts"] = "warn"; json.dump(c, open(".oxlintrc.tmp-1346.json", "w"), indent=1)'
+pnpm exec oxlint -c .oxlintrc.tmp-1346.json -f json . \
+  | python3 -c 'import sys, json, collections; n = [e for e in json.load(sys.stdin)["diagnostics"] if "no-never-any-casts" in e["code"]]; print(len(n)); print(collections.Counter("/".join(e["filename"].split("/")[:2]) for e in n))'
+rm .oxlintrc.tmp-1346.json
+```
+
+→ prints `177` and `Counter({'apps/front': 154, 'packages/shared-ts': 15,
+'packages/lint-ts': 8})` (scan data kept out of the tree).
 
 | Package               | Diagnostics |
 | --------------------- | ----------- |
@@ -144,9 +160,12 @@ All 177 hits are `as never`; **zero** `as any` casts exist in linted source
 (every word-boundary `as any` site lives in the generated
 `apps/front/src/routeTree.gen.ts`, excluded via `ignorePatterns`, and
 explicit `any` annotations are already governed by
-`typescript/no-explicit-any`). Counts reconcile exactly against literal
-`\bas never\b` greps: 222 matching lines repo-wide (`git grep -w`) = 177
-real casts + 75 comment/doc mention lines (largest: a superseded
+`typescript/no-explicit-any`). The #1346 `satisfies` extension adds ZERO new
+offenders: a regex scan for `satisfies\s+(never|any)` over linted source
+returns 10 matching lines, all inside the rule's own spec and implementation
+(fixture/comment text), none in shipped code. Counts reconcile against
+literal `\bas never\b` greps: 222 matching lines repo-wide (`git grep -w`)
+= 177 real casts + 45 comment/doc mention lines (largest: a superseded
 superpowers plan at 25, this rule's own spec and implementation at 10).
 The 177 casts sit in 49 files — 29 test/spec files and 20 source files;
 heaviest:
@@ -156,10 +175,27 @@ heaviest:
 genuine lib sites (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1,
 `no-package-src-import.ts` 1), not spec fixtures.
 
-Enforcement estimate: ~177 fixes across 49 files (29 test/spec files +
-20 sources), concentrated in tests that stub validators/parsers —
-the same fix shape as #1337's two-site repair (typed record plumbing or real
-construction instead of the cast).
+**Enable-at-error ladder plan (#1346):** fix in slices — one slice per PR,
+each keeping the rule `off` and shrinking the warn-scan total above; the
+final PR flips `.oxlintrc.json` to `"error"` once the scan reports 0 and
+proves the guard red on a reintroduced single `x satisfies never` cast
+(then removes it). Measured slice sizes at the same tip:
+
+| Slice | Scope | Sites | Owner |
+| ----- | ----- | ----- | ----- |
+| A | `apps/front/src/lib/query/**` (validator-stub tests: staff-tenant-profiles 26, staff-tenant-users 21, staff-tenant-invitations 14, …) | 70 | front lane |
+| B | `apps/front/src/**` remaining test/spec files | 64 | front lane |
+| C | `apps/front/src/**` non-test sources (heaviest: `drafts.tsx` 6) | 20 | front lane |
+| D | `packages/shared-ts/src/**` (heaviest: `InterZod.ts` 8) | 15 | shared lane |
+| E | `packages/lint-ts/src/**` (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1, `no-package-src-import.ts` 1) | 8 | lint-ts lane |
+| | **Total** | **177** | |
+
+Slice owners are the dispatching captain's lane assignments at execution
+time (see `~/ai-orchestration-playbook/PLAYBOOK.md`); a slice may be split
+further if one PR grows past review comfort, but the sizes above are the
+planned PR granularity. At the error rung BOTH assertion spellings are
+banned — `as never`/`as any` AND `satisfies never`/`satisfies any` — because
+of the #1346 coverage.
 
 ## Guard test suites (`apps/front/src`, not lint rules)
 
