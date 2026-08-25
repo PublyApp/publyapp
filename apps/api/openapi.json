@@ -11496,6 +11496,77 @@
         }
       }
     },
+    "/social-accounts/needs-reconnect-accounts": {
+      "get": {
+        "tags": [
+          "SocialAccounts"
+        ],
+        "summary": "Accounts of the current tenant that need reconnection",
+        "operationId": "FindNeedsReconnectAccountsForTenant",
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindNeedsReconnectAccountsForTenantResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/social-accounts/connect": {
       "post": {
         "tags": [
@@ -11953,6 +12024,33 @@
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
+            ]
+          }
+        }
+      },
+      "AccountItem": {
+        "required": [
+          "id",
+          "displayHandle",
+          "provider",
+          "lastError"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayHandle": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
@@ -13116,6 +13214,20 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "FindNeedsReconnectAccountsForTenantResponse": {
+        "required": [
+          "accounts"
+        ],
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountItem"
+            }
           }
         }
       },

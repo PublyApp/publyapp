@@ -8,6 +8,8 @@ import { ConnectRequestBuilderRequestsMetadata, type ConnectRequestBuilder } fro
 // @ts-ignore
 import { type WithSocialAccountItemRequestBuilder, WithSocialAccountItemRequestBuilderNavigationMetadata } from './item/index.js';
 // @ts-ignore
+import { NeedsReconnectAccountsRequestBuilderRequestsMetadata, type NeedsReconnectAccountsRequestBuilder } from './needsReconnectAccounts/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -18,6 +20,10 @@ export interface SocialAccountsRequestBuilder extends BaseRequestBuilder<SocialA
      * The connect property
      */
     get connect(): ConnectRequestBuilder;
+    /**
+     * The needsReconnectAccounts property
+     */
+    get needsReconnectAccounts(): NeedsReconnectAccountsRequestBuilder;
     /**
      * Gets an item from the PublyApp.Api.Client.socialAccounts.item collection
      * @param socialAccountId Unique identifier of the item
@@ -75,6 +81,9 @@ export const SocialAccountsRequestBuilderNavigationMetadata: Record<Exclude<keyo
     },
     connect: {
         requestsMetadata: ConnectRequestBuilderRequestsMetadata,
+    },
+    needsReconnectAccounts: {
+        requestsMetadata: NeedsReconnectAccountsRequestBuilderRequestsMetadata,
     },
 };
 /**

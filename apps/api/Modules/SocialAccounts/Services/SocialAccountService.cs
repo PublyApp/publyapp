@@ -80,6 +80,18 @@ public record SocialAccountListItem {
 }
 
 /// <summary>
+/// One row of the needs-reconnect banner payload: the account's identity, its
+/// typed provider, and the sanitised human-readable cause it broke (Epic C §5;
+/// transparent-failure product rule).
+/// </summary>
+public sealed record SocialAccountNeedsReconnectItem(
+	Guid Id,
+	string DisplayHandle,
+	SocialProvider Provider,
+	string? LastError
+);
+
+/// <summary>
 /// Wire formatters for the social-accounts slice: snake_case multi-word wire values
 /// per the API contract naming split (no collapsed lowercase).
 /// </summary>
@@ -98,6 +110,13 @@ public static class SocialAccountWire {
 			SocialCredentialType.AppPassword => "app_password",
 			SocialCredentialType.OAuth => "oauth",
 			_ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unhandled SocialCredentialType"),
+		};
+	}
+
+	public static string FormatProvider(SocialProvider provider) {
+		return provider switch {
+			SocialProvider.Bluesky => "bluesky",
+			_ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unhandled SocialProvider"),
 		};
 	}
 }
@@ -304,6 +323,29 @@ public sealed class SocialAccountService {
 			where a.Id == id && a.TenantId == tenantId && !a.IsDeleted
 			select a
 		).FirstOrDefaultAsync(cancellationToken);
+	}
+
+	// ── Needs-reconnect listing (C4 banner data path) ─────────────────────────
+
+	public async Task<IReadOnlyList<SocialAccountNeedsReconnectItem>>
+		FindNeedsReconnectAccountsAsync(Guid tenantId, CancellationToken cancellationToken) {
+		var accounts = await (
+			from a in _db.SocialAccount.AsNoTracking()
+			where a.TenantId == tenantId
+				&& !a.IsDeleted
+				&& a.Status == SocialAccountStatus.NeedsReconnect
+			orderby a.DisplayHandle
+			select a
+		).ToListAsync(cancellationToken);
+
+		return accounts
+			.Select(a => new SocialAccountNeedsReconnectItem(
+				a.GetRequiredId(),
+				a.DisplayHandle,
+				a.Provider,
+				a.LastError
+			))
+			.ToList();
 	}
 
 	// ── Connect / reconnect / disconnect ──────────────────────────────────────

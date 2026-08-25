@@ -30,6 +30,16 @@ public static class SocialAccountEndpointsForTenant {
 				[AppPermissions.Tenant.SocialAccounts.VIEW]
 			);
 
+		group.MapGet(
+			Routes.SocialAccounts.ForTenant.FindNeedsReconnect,
+			FindNeedsReconnectAccountsForTenant.Handle
+		)
+			.WithName("FindNeedsReconnectAccountsForTenant")
+			.WithSummary("Accounts of the current tenant that need reconnection")
+			.WithTenantPermission(
+				[AppPermissions.Tenant.SocialAccounts.VIEW]
+			);
+
 		group.MapPost(
 			Routes.SocialAccounts.ForTenant.Connect,
 			CreateSocialAccountForTenant.Handle

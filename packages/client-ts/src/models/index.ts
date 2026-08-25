@@ -25,6 +25,24 @@ export interface AcceptInvitationBody extends AdditionalDataHolder, Parsable {
 export type AcceptInvitationBody_useExistingAccount = AcceptInvitationBody_useExistingAccountMember1 | JsonElement;
 export interface AcceptInvitationBody_useExistingAccountMember1 extends AdditionalDataHolder, Parsable {
 }
+export interface AccountItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The displayHandle property
+     */
+    displayHandle?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The provider property
+     */
+    provider?: string | null;
+}
 export interface AccountProfileResult extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
@@ -576,6 +594,15 @@ export function createAcceptInvitationBody_useExistingAccountMember1FromDiscrimi
 // @ts-ignore
 export function createAcceptInvitationBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoAcceptInvitationBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AccountItem}
+ */
+// @ts-ignore
+export function createAccountItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAccountItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1377,6 +1404,15 @@ export function createFindAuditLogsResponseFromDiscriminatorValue(parseNode: Par
 // @ts-ignore
 export function createFindInvitationsForTenantAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoFindInvitationsForTenantAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindNeedsReconnectAccountsForTenantResponse}
+ */
+// @ts-ignore
+export function createFindNeedsReconnectAccountsForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindNeedsReconnectAccountsForTenantResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2854,6 +2890,20 @@ export function deserializeIntoAcceptInvitationBody_useExistingAccountMember1(ac
 }
 /**
  * The deserialization information for the current model
+ * @param AccountItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAccountItem(accountItem: Partial<AccountItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "displayHandle": n => { accountItem.displayHandle = n.getStringValue(); },
+        "id": n => { accountItem.id = n.getGuidValue(); },
+        "lastError": n => { accountItem.lastError = n.getStringValue(); },
+        "provider": n => { accountItem.provider = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param AccountProfileResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3931,6 +3981,17 @@ export function deserializeIntoFindInvitationsForTenantAsStaffResult(findInvitat
     return {
         "data": n => { findInvitationsForTenantAsStaffResult.data = n.getCollectionOfObjectValues<StaffTenantInvitationListItem>(createStaffTenantInvitationListItemFromDiscriminatorValue); },
         "nextCursor": n => { findInvitationsForTenantAsStaffResult.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param FindNeedsReconnectAccountsForTenantResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindNeedsReconnectAccountsForTenantResponse(findNeedsReconnectAccountsForTenantResponse: Partial<FindNeedsReconnectAccountsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accounts": n => { findNeedsReconnectAccountsForTenantResponse.accounts = n.getCollectionOfObjectValues<AccountItem>(createAccountItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -5759,6 +5820,12 @@ export interface FindInvitationsForTenantAsStaffResult extends AdditionalDataHol
      */
     nextCursor?: string | null;
 }
+export interface FindNeedsReconnectAccountsForTenantResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The accounts property
+     */
+    accounts?: AccountItem[] | null;
+}
 export interface FindPostsForTenantResponse extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -6643,6 +6710,21 @@ export function serializeAcceptInvitationBody_useExistingAccount(writer: Seriali
 export function serializeAcceptInvitationBody_useExistingAccountMember1(writer: SerializationWriter, acceptInvitationBody_useExistingAccountMember1: Partial<AcceptInvitationBody_useExistingAccountMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!acceptInvitationBody_useExistingAccountMember1 || isSerializingDerivedType) { return; }
     writer.writeAdditionalData(acceptInvitationBody_useExistingAccountMember1.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AccountItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAccountItem(writer: SerializationWriter, accountItem: Partial<AccountItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!accountItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("displayHandle", accountItem.displayHandle);
+    writer.writeGuidValue("id", accountItem.id);
+    writer.writeStringValue("lastError", accountItem.lastError);
+    writer.writeStringValue("provider", accountItem.provider);
+    writer.writeAdditionalData(accountItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7777,6 +7859,18 @@ export function serializeFindInvitationsForTenantAsStaffResult(writer: Serializa
     writer.writeCollectionOfObjectValues<StaffTenantInvitationListItem>("data", findInvitationsForTenantAsStaffResult.data, serializeStaffTenantInvitationListItem);
     writer.writeStringValue("nextCursor", findInvitationsForTenantAsStaffResult.nextCursor);
     writer.writeAdditionalData(findInvitationsForTenantAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindNeedsReconnectAccountsForTenantResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindNeedsReconnectAccountsForTenantResponse(writer: SerializationWriter, findNeedsReconnectAccountsForTenantResponse: Partial<FindNeedsReconnectAccountsForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findNeedsReconnectAccountsForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<AccountItem>("accounts", findNeedsReconnectAccountsForTenantResponse.accounts, serializeAccountItem);
+    writer.writeAdditionalData(findNeedsReconnectAccountsForTenantResponse.additionalData);
 }
 /**
  * Serializes information the current object
