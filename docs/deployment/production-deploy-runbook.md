@@ -128,6 +128,16 @@ PASSED (#1284); on mismatch it refuses to start and names the recovery options. 
 a deploy, treat that PASSED line as the positive proof the key works — its absence means the
 boot was refused earlier, not that everything is fine.
 
+If Postgres itself is unreachable when that check runs (`#1424`), the boot refuses with a
+plain-words cause instead of a raw driver stack trace:
+
+> database unreachable at `<host>:<port>`: *driver reason* — the master-key check could not
+> run; the API will not start. Verify the database container/service is running and reachable
+> from this service, then restart.
+
+The message names only the endpoint, never the credentials in the connection string. Fix the
+database reachability first; the key check reruns automatically on the next boot.
+
 One deliberate exception: the build-time OpenAPI generation inside `dotnet build`
 (`just build-api` / `just generate-client`) runs this app's `Main` **without a database**, so
 the canary is skipped there by design — only the key parse/size contract runs, and no PASSED
