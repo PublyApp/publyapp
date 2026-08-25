@@ -17,21 +17,29 @@ vi.mock('../api-client/client-manager', () => ({
 /**
  * Same server-fn stub as auth-actions.test.ts: `createServerFn`'s real
  * implementation needs a server-runtime AsyncLocalStorage context that does
- * not exist when invoked directly in a unit test.
+ * not exist when invoked directly in a unit test. Object payloads speak
+ * `Record<string, unknown>` end to end, so the validated shape flows into
+ * the handler context WITHOUT an escape-hatch cast (#1337).
  */
 vi.mock('@tanstack/react-start', () => ({
 	createServerFn: () => {
-		let validatorFn: ((data: never) => Record<string, unknown>) | undefined;
+		let validatorFn:
+			| ((data: Record<string, unknown>) => Record<string, unknown>)
+			| undefined;
 		const chain = {
-			validator: (fn: (data: never) => Record<string, unknown>) => {
+			validator: (
+				fn: (data: Record<string, unknown>) => Record<string, unknown>,
+			) => {
 				validatorFn = fn;
 				return chain;
 			},
 			handler:
-				<TResult>(handlerFn: (ctx: { data: unknown }) => TResult) =>
-				(input: { data: unknown }): TResult =>
+				<TResult>(
+					handlerFn: (ctx: { data: Record<string, unknown> }) => TResult,
+				) =>
+				(input: { data: Record<string, unknown> }): TResult =>
 					handlerFn({
-						data: validatorFn ? validatorFn(input.data as never) : input.data,
+						data: validatorFn ? validatorFn(input.data) : input.data,
 					}),
 		};
 		return chain;

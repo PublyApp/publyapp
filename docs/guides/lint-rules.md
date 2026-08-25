@@ -104,15 +104,62 @@ The 15 `anti-slop/*` rules are installed **neutral** (all `off`) and released as
 
 ### Enabled rules
 
-| `anti-slop/no-conditional-empty-object-spread` | `error`  | 30 (fixed)          | #1170 (rung 1) |
-| `anti-slop/no-object-parameters`               | `error`  | 0                   | rung 2         |
-| `anti-slop/no-reflect-apply`                   | `error`  | 0                   | rung 2         |
-| `anti-slop/no-reflect-get`                     | `error`  | 0                   | rung 2         |
-| `anti-slop/no-unknown-type-aliases`            | `error`  | 0                   | rung 2         |
-| `anti-slop/no-widen-then-assert`               | `error`  | 0                   | rung 2         |
-| `anti-slop/no-shape-in-symbol-names`           | `error`  | 69 (fixed)          | rung 3         |
-| `anti-slop/no-unknown-returns`                 | `error`  | 73 (fixed)          | rung 4         |
-| `anti-slop/no-chained-type-assertions`         | `error`  | 126 (fixed)         | rung 5         |
+| `anti-slop/no-conditional-empty-object-spread` | `error` | 30 (fixed) | #1170 (rung 1) |
+| `anti-slop/no-object-parameters` | `error` | 0 | rung 2 |
+| `anti-slop/no-reflect-apply` | `error` | 0 | rung 2 |
+| `anti-slop/no-reflect-get` | `error` | 0 | rung 2 |
+| `anti-slop/no-unknown-type-aliases` | `error` | 0 | rung 2 |
+| `anti-slop/no-widen-then-assert` | `error` | 0 | rung 2 |
+| `anti-slop/no-shape-in-symbol-names` | `error` | 69 (fixed) | rung 3 |
+| `anti-slop/no-unknown-returns` | `error` | 73 (fixed) | rung 4 |
+| `anti-slop/no-chained-type-assertions` | `error` | 126 (fixed) | rung 5 |
+
+### Candidate next rung: `publy/no-never-any-casts` (#1337)
+
+Rungs 4+5 cover only CHAINED assertions; #1337 showed single, non-chained
+casts to the evidence-discarding keywords slipping through. The vendored
+anti-slop set has no keyword-ban rule (`no-chained-type-assertions` owns the
+chain shape only), so a small `publy` rule was sketched:
+[`packages/lint-ts/src/publy/no-never-any-casts.ts`](../../packages/lint-ts/src/publy/no-never-any-casts.ts).
+It flags single assertions to `never`/`any` (`x as never`, `x as any`,
+angle-bracket forms, parenthesized keyword annotations), one report per chain
+link landing on a banned keyword. It ships **dormant** (`"off"`); enabling it
+at `error` is a separate follow-up PR per the ladder policy above.
+
+**Measured baseline (2026-08-25, oxlint 1.79.0, at this branch's tip
+after rebasing onto #1335):** report-mode scan over the whole repo
+(config-copy of `.oxlintrc.json` with only this rule flipped to `warn`;
+JSON output aggregated per package).
+
+| Package               | Diagnostics |
+| --------------------- | ----------- |
+| `apps/front`          | 154         |
+| `packages/shared-ts`  | 15          |
+| `packages/lint-ts`    | 8           |
+| `packages/scripts-ts` | 0           |
+| `apps/api`            | 0           |
+| **Total**             | **177**     |
+
+All 177 hits are `as never`; **zero** `as any` casts exist in linted source
+(every word-boundary `as any` site lives in the generated
+`apps/front/src/routeTree.gen.ts`, excluded via `ignorePatterns`, and
+explicit `any` annotations are already governed by
+`typescript/no-explicit-any`). Counts reconcile exactly against literal
+`\bas never\b` greps: 222 matching lines repo-wide (`git grep -w`) = 177
+real casts + 75 comment/doc mention lines (largest: a superseded
+superpowers plan at 25, this rule's own spec and implementation at 10).
+The 177 casts sit in 49 files — 29 test/spec files and 20 source files;
+heaviest:
+`staff-tenant-profiles.test.ts` 26, `staff-tenant-users.test.ts` 21,
+`staff-tenant-invitations.test.ts` 14, `InterZod.ts` 8,
+`query-display.test.tsx` 6, `drafts.tsx` 6. The `packages/lint-ts` 8 are
+genuine lib sites (`run-oxlint.test.ts` 6, `run-oxlint.ts` 1,
+`no-package-src-import.ts` 1), not spec fixtures.
+
+Enforcement estimate: ~177 fixes across 49 files (29 test/spec files +
+20 sources), concentrated in tests that stub validators/parsers —
+the same fix shape as #1337's two-site repair (typed record plumbing or real
+construction instead of the cast).
 
 ## Roslyn analyzers (`packages/lint-cs/`)
 
