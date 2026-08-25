@@ -4,15 +4,20 @@ namespace PublyApp.Api.Lib.Routes;
 
 public static partial class Routes {
 	/// <summary>
-	/// Publishing routes (tenant-scoped, root scope) — publications history and
-	/// composer targets (Epic D).
+	/// Publishing routes (tenant-scoped, root scope) — publications history,
+	/// composer targets (Epic D), and schedule lifecycle (D3).
 	/// </summary>
 	public static class Publishing {
 		/// <summary>Tenant-scoped publishing routes</summary>
 		public static class ForTenant {
-			public const string Root = "/publishing";
+			public const string Root = "/posts";
 			public const string FindPublications = "/publications";
 			public const string PublishTargets = "/publish-targets";
+			public const string Schedule = "/{postId}/schedule";
+
+			public static string ScheduleFn(string postId) {
+				return $"/{postId}/schedule";
+			}
 		}
 	}
 }

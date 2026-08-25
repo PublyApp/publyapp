@@ -1127,4 +1127,45 @@ public static class JsonElementRules {
 			.WithMessage($"{fieldName} must be a valid ISO 8601 date");
 	}
 
+	/// <summary>
+	/// Validates a REQUIRED JsonElement IANA time zone field: required → string →
+	/// non-blank → bounded to <paramref name="maxLength"/> characters → resolvable via
+	/// <see cref="TimeZoneInfo.TryFindSystemTimeZoneById(string?, out TimeZoneInfo?)"/>.
+	/// The required sibling of the patch-field validators in TenantValidationRules;
+	/// D3's schedule endpoint uses it with PublicationSchedule.MaxTimeZoneLength so the
+	/// wire validator and the stored column share one bound.
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeRequiredTimezone<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			int maxLength = 64
+	) {
+		return ruleBuilder
+			.NotEmpty()
+			.WithMessage($"{fieldName} is required")
+			.Must(e => e.ValueKind == JsonValueKind.String)
+			.WithMessage($"{fieldName} must be a string")
+			.Must(e => {
+				if (e.ValueKind != JsonValueKind.String) {
+					return false;
+				}
+				var raw = e.GetString();
+				return raw is not null
+					&& raw.Trim().Length > 0
+					&& raw.Trim().Length <= maxLength;
+			})
+			.WithMessage(
+				$"{fieldName} must be a non-empty IANA identifier of at most "
+					+ $"{maxLength} characters"
+			)
+			.Must(e => e.ValueKind == JsonValueKind.String
+				&& TimeZoneInfo.TryFindSystemTimeZoneById(
+					e.GetString() ?? string.Empty, out _
+				))
+			.WithMessage(
+				$"{fieldName} must be a valid IANA time zone identifier"
+			);
+	}
+
 }

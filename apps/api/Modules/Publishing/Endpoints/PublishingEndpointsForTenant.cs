@@ -39,6 +39,15 @@ public static class PublishingEndpointsForTenant {
 			.WithSummary("List visible social accounts as composer publish targets")
 			.WithTenantPermission([AppPermissions.Tenant.SocialAccounts.PUBLISH]);
 
+		group.MapPost(
+			Routes.Publishing.ForTenant.Schedule,
+			SchedulePostForTenant.Handle
+		)
+			.WithName("SchedulePostForTenant")
+			.WithSummary("Schedule a post for future publication")
+			.WithReqBodyValidation<SchedulePostBody>()
+			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
+
 		return routes;
 	}
 }
