@@ -65,10 +65,28 @@ public sealed record UnassignStaffProfileUsersArgs(
 );
 
 public abstract record UnassignStaffProfileUsersServiceResult {
-	public sealed record Success(int UnassignedCount)
+	// Partial-success payload returned to the caller: per-id skip reasons in
+	// requested order, counts computed from the deduplicated request.
+	public sealed record Success(BulkStaffProfileUserUnassignActionResult Result)
 		: UnassignStaffProfileUsersServiceResult;
 	public sealed record ProfileNotFound : UnassignStaffProfileUsersServiceResult;
 }
+
+public static class BulkStaffProfileUserUnassignActionFailureReasons {
+	public const string NotAssigned = "not_assigned";
+	public const string NotFound = "not_found";
+}
+
+public record BulkStaffProfileUserUnassignActionFailedItem(
+	Guid UserId,
+	string Reason
+);
+
+public record BulkStaffProfileUserUnassignActionResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkStaffProfileUserUnassignActionFailedItem> FailedItems
+);
 
 public interface IStaffProfileUserAssignmentAsStaffService {
 	Task<FindStaffProfileUsersServiceResult> FindStaffProfileUsersAsync(
@@ -296,41 +314,87 @@ public class StaffProfileUserAssignmentAsStaffService : IStaffProfileUserAssignm
 		}
 
 		if (args.UserIds.Count == 0) {
-			return new UnassignStaffProfileUsersServiceResult.Success(UnassignedCount: 0);
+			return new UnassignStaffProfileUsersServiceResult.Success(
+				new BulkStaffProfileUserUnassignActionResult(0, 0, [])
+			);
 		}
+
+		var requestedUserIds = args.UserIds.Distinct().ToList();
 
 		// Resolve staff UserAccount IDs for the given User IDs.
 		// We intentionally allow suspended users/accounts here: unassigning a profile is safe,
 		// and admin tooling often needs to clean up assignments on non-active users.
-		var userIdsNullable = args.UserIds.Select(id => (Guid?)id).ToList();
-		var staffAccountIds = await (
+		var userIdsNullable = requestedUserIds.Select(id => (Guid?)id).ToList();
+		var staffAccountUserIds = await (
 			from ua in _dbContext.UserAccount
 			where userIdsNullable.Contains(ua.UserId)
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
 				&& !ua.User.IsDeleted
-			select ua.Id
+			select ua.UserId
+		)
+			.Distinct()
+			.ToListAsync(cancellationToken);
+
+		var staffAccountUserIdSet = new HashSet<Guid>();
+		foreach (var staffAccountUserId in staffAccountUserIds) {
+			if (staffAccountUserId is Guid userId) {
+				staffAccountUserIdSet.Add(userId);
+			}
+		}
+
+		// Existing junction links for this profile over the resolved accounts.
+		var accountLinkRows = await (
+			from uap in _dbContext.UserAccountProfile
+			join ua in _dbContext.UserAccount on uap.UserAccountId equals ua.Id
+			where userIdsNullable.Contains(ua.UserId)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& uap.ProfileId == args.ProfileId
+			select new { Link = uap, LinkedUserId = ua.UserId }
 		).ToListAsync(cancellationToken);
 
-		if (staffAccountIds.Count == 0) {
-			return new UnassignStaffProfileUsersServiceResult.Success(UnassignedCount: 0);
+		var linkedUserIds = new HashSet<Guid>();
+		foreach (var row in accountLinkRows) {
+			if (row.LinkedUserId is Guid linkedUserId) {
+				linkedUserIds.Add(linkedUserId);
+			}
+		}
+
+		// Classify every requested id (requested order preserved): ids without a
+		// live staff account are "not_found", ids with an account but no junction
+		// link on this profile are "not_assigned", the rest succeed.
+		var failedItems = new List<BulkStaffProfileUserUnassignActionFailedItem>();
+		foreach (var userId in requestedUserIds) {
+			if (!staffAccountUserIdSet.Contains(userId)) {
+				failedItems.Add(new BulkStaffProfileUserUnassignActionFailedItem(
+					userId,
+					BulkStaffProfileUserUnassignActionFailureReasons.NotFound
+				));
+				continue;
+			}
+
+			if (!linkedUserIds.Contains(userId)) {
+				failedItems.Add(new BulkStaffProfileUserUnassignActionFailedItem(
+					userId,
+					BulkStaffProfileUserUnassignActionFailureReasons.NotAssigned
+				));
+			}
 		}
 
 		// Hard-delete junction links to avoid unique constraint conflicts when links are re-added later.
-		var linksToRemove = await (
-			from uap in _dbContext.UserAccountProfile
-			where uap.ProfileId == args.ProfileId
-				&& staffAccountIds.Contains(uap.UserAccountId)
-			select uap
-		).ToListAsync(cancellationToken);
-
+		var linksToRemove = accountLinkRows.Select(row => row.Link).ToList();
 		if (linksToRemove.Count > 0) {
 			_dbContext.ForceHardDeleteRange(linksToRemove);
 			await _dbContext.SaveChangesAsync(cancellationToken);
 		}
 
 		return new UnassignStaffProfileUsersServiceResult.Success(
-			UnassignedCount: linksToRemove.Count
+			new BulkStaffProfileUserUnassignActionResult(
+				SucceededCount: requestedUserIds.Count - failedItems.Count,
+				FailedCount: failedItems.Count,
+				FailedItems: failedItems
+			)
 		);
 	}
 }
