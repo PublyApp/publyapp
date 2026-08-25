@@ -3163,10 +3163,3 @@ html[data-theme-changing] * {
 		scroll-margin-top: calc(var(--publy-header-height) + 16px);
 	}
 }
-
-/* scratch(RED) #1379: temporary unlayered cascade override planted to prove
-   the focus-ring guard catches a contractual outline beaten by a later rule
-   (the #823 defect class). Reverted immediately after the RED capture. */
-[data-e2e-focus-probe='badge-link']:focus-visible {
-	outline: none !important;
-}
