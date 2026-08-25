@@ -316,4 +316,43 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 		});
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
 	});
+
+	test('typing a search draft outside selection mode behaves as before', async () => {
+		await renderAtList();
+
+		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		fireEvent.change(searchBox, { target: { value: 'rec' } });
+
+		expect((searchBox as HTMLInputElement).value).toBe('rec');
+	});
+
+	// Characterization guard (#820 review follow-up, mirrored here): entering
+	// selection mode has always discarded an uncommitted table-search draft
+	// (the search box is locked while rows are selected, so a live draft would
+	// sit hidden until exit). The reset lives in the selection-change handler
+	// rather than a render-side effect — these tests pin the observable
+	// behavior through the real route so the relocation cannot silently drop
+	// it.
+	test('entering selection mode discards an uncommitted table-search draft', async () => {
+		await renderAtList();
+
+		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		fireEvent.change(searchBox, { target: { value: 'recruiter' } });
+		expect((searchBox as HTMLInputElement).value).toBe('recruiter');
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
+		);
+
+		expect(
+			await screen.findByRole('button', { name: 'Clear selection' }),
+		).toBeTruthy();
+		expect(
+			(
+				screen.getByRole('searchbox', {
+					name: 'Search',
+				}) as HTMLInputElement
+			).value,
+		).toBe('');
+	});
 });
