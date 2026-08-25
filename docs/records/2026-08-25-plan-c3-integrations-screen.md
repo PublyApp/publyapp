@@ -1119,3 +1119,93 @@ Then in `app-shell.tsx`, immediately above `<main className="app-shell-main">{ch
 
 **Spec proof:** §3 banner bullet and §5 "shows the banner"; §1 decision 5 gating (button only for manage holders).
 **Adversarial mutation:** render the Reconnect button unconditionally → the view-only holder test goes red.
+
+---
+
+## Task 8: e2e — connect (faked Bluesky) → appears in the list
+
+**Files:** new `apps/front/e2e/social-accounts-integrations.spec.ts`.
+
+**Interfaces:** consumes the running compose stack (front + API), seeded tenant users via `loginAsTenantUser` (`e2e/helpers/login.ts`, exists), API route mocking against `API_BASE_URL` (`e2e/helpers/api.ts`, exists — the established pattern for faking backend responses at the browser boundary). The Bluesky fake is therefore FRONT-SIDE (route interception of `/social-accounts/connect` returning 201, list GET returning the connected row) — **[ASSUMPTION] A5** resolved as "mock at the network layer", which needs no API-image switch and keeps the real network out per spec §6.
+
+- [ ] **Step 1 (RED):**
+
+```ts
+// apps/front/e2e/social-accounts-integrations.spec.ts
+import { expect, test } from '@playwright/test';
+
+import { API_BASE_URL } from './helpers/api';
+import { loginAsTenantUser } from './helpers/login';
+
+const INTEGRATIONS_URL = '/tenant/settings/integrations';
+const CONNECT_PATH = '/social-accounts/connect';
+const LIST_PATH = '/social-accounts';
+
+test.describe('social accounts integrations', {
+	tag: ['@tenant-workspace', '@642'],
+}, () => {
+	test('connect (faked bluesky) then account appears in the list', async ({ page }) => {
+		await loginAsTenantUser(page);
+
+		let connectCalled = false;
+		const connected = {
+			id: '0197b8f0-3333-7ccc-8ccc-cccccccccccc',
+			displayHandle: '@e2e.bsky.social',
+			provider: 'bluesky',
+			status: 'active',
+			lastSuccessAt: new Date().toISOString(),
+			projectIds: [],
+		};
+
+		const isApiPath = (url: URL, path: string): boolean =>
+			url.origin === API_BASE_URL && url.pathname === path;
+
+		await page.route((url) => isApiPath(url, LIST_PATH), (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ value: connectCalled ? [connected] : [] }),
+			}),
+		);
+		await page.route(
+			(url) => isApiPath(url, CONNECT_PATH),
+			async (route) => {
+				connectCalled = true;
+				await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ item: connected }) });
+			},
+		);
+
+		await page.goto(INTEGRATIONS_URL);
+		await expect(page.getByTestId('tenant-settings-connected-integrations-empty')).toBeVisible();
+
+		await page.getByRole('button', { name: /connect bluesky/i }).click();
+		await page.getByTestId('bluesky-identifier').locator('input').fill('@e2e.bsky.social');
+		await page.getByTestId('bluesky-app-password').locator('input').fill('correct-horse-battery-staple');
+		await page.getByRole('button', { name: /^connect$/i }).click();
+
+		await expect(page.getByText('@e2e.bsky.social')).toBeVisible();
+		await expect(page.getByTestId('status-pill-active')).toBeVisible();
+	});
+});
+```
+
+Run: `pnpm --filter front exec playwright test social-accounts-integrations --project=chromium`
+Expected: FAIL before Tasks 4–5 exist; PASS after.
+
+- [ ] **Step 2:** run the full tag-filtered suite to prove no cross-tag leakage: `pnpm --filter front exec playwright test --grep '@642'`.
+- [ ] **Step 3:** `git commit -m "test(e2e): connect-faked-bluesky-appears-in-list tagged @tenant-workspace @642" && git push`
+
+**Spec proof:** §6 front bullet ("one e2e connect → appears in the list") with #1168 tags.
+**Adversarial mutation:** point the mock at a wrong status wire value (`needs_reconnect`) → the pill assertion fails, proving the test really reads rendered state, not mocks.
+
+---
+
+## Task 9: Self-review, gates, PR completion
+
+**Files:** this plan; PR body.
+
+- [ ] **Spec coverage sweep:** walk §3 screens/actions, §4 permissions/banner gating, §5 failures-with-cause copy, §6 proofs (component tests drawer+banner, one tagged e2e) and tick each against a task above. Any gap becomes a task BEFORE merge.
+- [ ] **Placeholder scan:** `grep -n "TODO\|TBD\|placeholder code\|\\.\\.\\.$" docs/records/2026-08-25-plan-c3-integrations-screen.md` — only intentional prose matches allowed.
+- [ ] **Type consistency pass:** every interface block's names match their task's code snippets exactly (`SocialAccountRow`, `useHasTenantPermission`, mutation input types, key names).
+- [ ] **Gates on the branch:** `just check-write && pnpm --filter front typecheck && pnpm --filter front exec vitest run src/lib/query/social-accounts.test.ts src/lib/i18n-key-coverage.test.ts && just knip`
+- [ ] **PR body finalisation:** adversarial-mutation table completed for Tasks 1–9; open questions kept explicit; keep draft until owner review.
