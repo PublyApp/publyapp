@@ -206,12 +206,11 @@ export const useAssignMembersState = ({
 		previousRowAccountIdsKeyRef.current = rowAccountIdsKey;
 		appliedResolveDataRef.current = undefined;
 
-		const currentIds = new Set(rowAccountIds);
+		const currentIds = new Set(rowAccountIdsKey.split(',').filter(Boolean));
 		const keep = (id: string): boolean =>
 			currentIds.has(id) || pendingIdsRef.current.has(id);
 		setAssignedIds((current) => new Set([...current].filter(keep)));
 		setResolvedIds((current) => new Set([...current].filter(keep)));
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- keyed off the stable joined-id string; rowAccountIds is read, not re-triggered on.
 	}, [rowAccountIdsKey]);
 
 	useEffect(() => {

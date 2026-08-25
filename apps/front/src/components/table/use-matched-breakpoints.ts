@@ -51,6 +51,10 @@ export const useMatchedBreakpoints = (
 		(callback: () => void) => {
 			// Each listener is paired with its own disposer as it is added, so the
 			// cleanup path is a single `unsubscribe` the store returns verbatim.
+			// Both callbacks re-derive the breakpoint values from `key` — the
+			// array's stable identity — so the dep arrays stay complete and no
+			// suppression is needed.
+			const breakpoints = key.split(',').map(Number);
 			const disposers = breakpoints.map((breakpoint) => {
 				const mediaQueryList = window.matchMedia(
 					`(min-width: ${breakpoint}px)`,
@@ -67,12 +71,10 @@ export const useMatchedBreakpoints = (
 			};
 			return unsubscribe;
 		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- `key` is `breakpoints`' stable identity; see comment above.
 		[key],
 	);
 	const getSnapshot = useCallback(
-		() => matchedBreakpointsKey(breakpoints),
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+		() => matchedBreakpointsKey(key.split(',').map(Number)),
 		[key],
 	);
 	// SSR/first-paint: every breakpoint matches, so every `hideBelow` column

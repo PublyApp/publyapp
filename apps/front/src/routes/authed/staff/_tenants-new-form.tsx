@@ -58,13 +58,15 @@ export const TenantCreateForm = ({
 	// latest CSV import count without rebuilding on every parse.
 	const parsedMembersCountRef = useRef(0);
 
+	// `buildCreateTenantSchema` closes over `t`, so the resolver must rebuild
+	// whenever the active language changes; listing both keeps the dep array
+	// complete without a suppression.
 	const resolver = useMemo(
 		() =>
 			zodResolver(
 				buildCreateTenantSchema(t, () => parsedMembersCountRef.current),
 			),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+		[t, i18n.language],
 	);
 
 	const methods = useForm<TenantCreateFormValues>({

@@ -137,12 +137,11 @@ export const useProfilePermissionsSave = ({
 			return;
 		}
 
-		const next = new Set(grantedKeys);
+		const next = new Set(grantedSignature.split(',').filter(Boolean));
 		setBaselineKeys(next);
 		setStagedKeys(next);
 		appliedGrantedRevisionRef.current = grantedRevision;
 		suppressedThroughGrantedRevisionRef.current = null;
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- grantedSignature is the stable key for the granted-keys array
 	}, [grantedRevision, grantedSignature, isDirty]);
 
 	// A tab switch / Back that the user confirms unmounts this hook; clear
