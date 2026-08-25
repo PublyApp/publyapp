@@ -64,8 +64,9 @@ const EXCLUDED_SURFACES = new Set([
 // is neither listed as `move` nor `keep` is DELETED.
 //
 // Every `move` below is either a file the sweep found referenced by at least
-// one surface, or a documented exception (paid-modules: merged into develop
-// mid-flight by #1355, deliberately preserved as a record instead of deleted);
+// one surface, or a documented exception (paid-modules and the #820
+// bulk-actions spec: both merged into develop mid-flight by #1355/#1385,
+// deliberately preserved as records instead of deleted);
 // every other unreferenced file is deliberately absent (delete). When the
 // sweep and this table disagree, the table is wrong — fix the table.
 // `--check` cross-validates every rendered row against git rename detection,
@@ -149,6 +150,14 @@ const MOVES: Record<string, Decision> = {
 		action: 'move',
 		type: 'spec',
 		topic: 'open-core-paid-modules',
+	},
+
+	// Added to develop by #1385 while this lane was in flight (same shape as
+	// paid-modules above): the branch preserves work develop already merged.
+	// No explicit topic needed — deriveTopic() names it `820-bulk-actions`.
+	'docs/superpowers/specs/2026-08-25-820-bulk-actions-design.md': {
+		action: 'move',
+		type: 'spec',
 	},
 };
 
@@ -478,6 +487,13 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'  deriveTopic() alone would name it `-paid-modules`, not what landed). `--check`',
 		'  cross-validates every row against git rename detection, so this mapping cannot',
 		'  drift from what actually moved.',
+		'- The same applies to `docs/superpowers/specs/2026-08-25-820-bulk-actions-design.md`,',
+		'  which #1385 merged into develop mid-flight: no surface references it, and it is',
+		'  preserved on the same precedent, landing at',
+		'  `docs/records/2026-08-25-spec-820-bulk-actions.md` (default topic derivation).',
+		'  Likewise `docs/analysis/2026-08-24-dlq-unclassified-triage-design.md`, modified',
+		'  on develop after this lane pruned it: it stays DELETED per the mechanical rule',
+		'  (unreferenced by any survival surface; its history remains in git).',
 		'- From this change on, the superpowers skills write specs/plans/reviews into `docs/records/`',
 		'  (`YYYY-MM-DD-<type>-<topic>.md`), not into `docs/superpowers/`.',
 		'- Guards that enumerated the pruned trees (`check-archive-records*`, the docs-archive',

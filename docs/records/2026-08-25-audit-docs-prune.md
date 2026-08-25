@@ -17,7 +17,7 @@ indexes, and the archive-records guard manifest (`ci-gate-manifest.json`) do NOT
 A reference is either the exact repo-relative path appearing verbatim in a surface file
 or a resolvable relative markdown link from one.
 
-Counts: 92 candidate file(s) — 10 moved to `docs/records/`, 1 kept in place, 81 deleted.
+Counts: 93 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 81 deleted.
 
 ## Notes
 
@@ -29,6 +29,13 @@ Counts: 92 candidate file(s) — 10 moved to `docs/records/`, 1 kept in place, 8
   deriveTopic() alone would name it `-paid-modules`, not what landed). `--check`
   cross-validates every row against git rename detection, so this mapping cannot
   drift from what actually moved.
+- The same applies to `docs/superpowers/specs/2026-08-25-820-bulk-actions-design.md`,
+  which #1385 merged into develop mid-flight: no surface references it, and it is
+  preserved on the same precedent, landing at
+  `docs/records/2026-08-25-spec-820-bulk-actions.md` (default topic derivation).
+  Likewise `docs/analysis/2026-08-24-dlq-unclassified-triage-design.md`, modified
+  on develop after this lane pruned it: it stays DELETED per the mechanical rule
+  (unreferenced by any survival surface; its history remains in git).
 - From this change on, the superpowers skills write specs/plans/reviews into `docs/records/`
   (`YYYY-MM-DD-<type>-<topic>.md`), not into `docs/superpowers/`.
 - Guards that enumerated the pruned trees (`check-archive-records*`, the docs-archive
@@ -132,6 +139,7 @@ Counts: 92 candidate file(s) — 10 moved to `docs/records/`, 1 kept in place, 8
 | `docs/superpowers/specs/2026-08-22-epic-c-social-accounts-design.md` | _(nothing)_ | delete |
 | `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` | AGENTS.md, DESIGN.md | move → `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` |
 | `docs/superpowers/specs/2026-08-22-scripts-ts-workspace-package-design.md` | _(nothing)_ | delete |
+| `docs/superpowers/specs/2026-08-25-820-bulk-actions-design.md` | _(nothing)_ | move → `docs/records/2026-08-25-spec-820-bulk-actions.md` |
 | `docs/superpowers/specs/2026-08-25-paid-modules-design.md` | _(nothing)_ | move → `docs/records/2026-08-25-spec-open-core-paid-modules.md` |
 
-(92 rows — end of inventory)
+(93 rows — end of inventory)
