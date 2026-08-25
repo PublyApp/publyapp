@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
@@ -669,6 +670,193 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 
 		return new SchedulerGaugeReadings(leaderPresent, lastSyncAt);
 	}
+
+	// --- #865: prepared-state sweep-lag observability ------------------------------------
+
+	// The eligible-vs-deleted gap, sampled from the durable table (R6-4's rule): the age of
+	// the OLDEST prepared-send row that is already deletable — a resolved-job orphan past
+	// the retention floor — yet still on disk. Healthy: oscillates between 0 and the
+	// seeded 10-minute cadence. A disabled or failing sweep drives it up forever; the
+	// EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES threshold turns that into an alert.
+	[Fact]
+	public async Task ItShouldSamplePreparedStateOverdueSecondsFromTheOldestDeletableOrphan() {
+		var marker = $"spec.monitor-prepared.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			var orphanJobId = Guid.NewGuid();
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				INSERT INTO email_prepared_sends
+					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
+				VALUES (
+					{orphanJobId}, {EmptyJson}::jsonb, 'sha', {marker},
+					now() - make_interval(days => {OverdueFloorDays}, mins => {OverdueMinutes})
+				)
+				"""
+			);
+
+			var after = await monitor.SampleAsync(dbContext, CancellationToken.None);
+
+			var floorSeconds = OverdueFloorDays * 24 * 60 * 60;
+			after.PreparedStateOverdueSeconds.Should().BeGreaterThanOrEqualTo(
+				floorSeconds + (OverdueMinutes * 60) - 30,
+				"the sampled gauge carries the age of the oldest deletable prepared row "
+				+ "(retention floor + the extra minutes it has been waiting)"
+			);
+			after.PreparedStateOverdueSeconds.Should().BeLessThanOrEqualTo(
+				floorSeconds + ((OverdueMinutes + 5) * 60),
+				"sampling must not fabricate overdue ages far above the oldest real row"
+			);
+		} finally {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"DELETE FROM email_prepared_sends WHERE provider_idempotency_key = {marker}"
+			);
+		}
+	}
+
+	// A young orphan (inside its retention floor) is NOT overdue: nothing is deletable, so
+	// the gap reads 0 — a lagging-but-healthy sweep must not page anyone.
+	[Fact]
+	public async Task ItShouldReadZeroPreparedStateOverdueWhenNothingIsEligibleForDeletion() {
+		var marker = $"spec.monitor-young.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				INSERT INTO email_prepared_sends
+					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
+				VALUES (
+					{Guid.NewGuid()}, {EmptyJson}::jsonb, 'sha', {marker}, now()
+				)
+				"""
+			);
+
+			(await monitor.SampleAsync(dbContext, CancellationToken.None))
+				.PreparedStateOverdueSeconds.Should().Be(
+					0, "a row inside its retention floor is not deletable, so nothing is overdue"
+				);
+		} finally {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"DELETE FROM email_prepared_sends WHERE provider_idempotency_key = {marker}"
+			);
+		}
+	}
+
+	// The alert boundary, pinned exactly at the configured lag threshold (strict exceedance):
+	// above it the sample breaches with the cause and next action named in the WARNING;
+	// at/below it stays silent.
+	[Fact]
+	public void ItShouldAlertOnPreparedStateSweepLagOnlyPastTheConfiguredThreshold() {
+		var logger = new CapturingLogger<JobQueueMonitorService>();
+		var thresholdSeconds =
+			AppEnvironment.Instance.EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES * 60;
+
+		var capturingMonitor = new JobQueueMonitorService(
+			_fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
+			logger,
+			new SchedulerSyncState()
+		);
+
+		capturingMonitor.EvaluateAndAlert(
+			JobQueueSample.Empty with { PreparedStateOverdueSeconds = thresholdSeconds + 1 }
+		).Should().Contain("prepared_state_sweep_overdue");
+		logger.Warnings.Should().ContainSingle(
+			entry => entry.Message.Contains("prepared", StringComparison.OrdinalIgnoreCase),
+			"the warning names the lagging prepared-state sweep"
+		);
+
+		logger.Clear();
+		capturingMonitor.EvaluateAndAlert(
+			JobQueueSample.Empty with { PreparedStateOverdueSeconds = thresholdSeconds }
+		).Should().NotContain(
+			"prepared_state_sweep_overdue",
+			"the threshold is a strict exceedance — at-threshold is not yet a breach"
+		);
+	}
+
+	// The overdue gauge emits the sampled value through the meter like every other §7.2
+	// signal — no series, no alerting backend can read what the sampler never emits.
+	[Fact]
+	public async Task ItShouldEmitThePreparedStateOverdueGaugeWithTheSampledValue() {
+		var marker = $"spec.monitor-gauge.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+		using var monitor = CreateMonitor();
+
+		try {
+			var orphanJobId = Guid.NewGuid();
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				INSERT INTO email_prepared_sends
+					(job_id, envelope, request_sha256, provider_idempotency_key, prepared_at)
+				VALUES (
+					{orphanJobId}, {EmptyJson}::jsonb, 'sha', {marker},
+					now() - make_interval(days => {OverdueFloorDays}, mins => {OverdueMinutes})
+				)
+				"""
+			);
+
+			var sample = await monitor.SampleAsync(dbContext, CancellationToken.None);
+			TryReadOverdueGauge().Should().Be(
+				sample.PreparedStateOverdueSeconds,
+				"the observable gauge observes the latest sample, exactly like jobs.dlq_size"
+			);
+		} finally {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"DELETE FROM email_prepared_sends WHERE provider_idempotency_key = {marker}"
+			);
+		}
+	}
+
+	// #1349: the pre-first-sample UNKNOWN (-1) state emits NO measurement at all, mirroring
+	// scheduler.leader_present's null discipline. Without this pin, a gauge that emitted a
+	// fabricated -1 until the first real sample would pass every sampled-value assertion
+	// above while alerting backends read a fake negative age from the series.
+	[Fact]
+	public void ItShouldEmitNoPreparedStateOverdueMeasurementWhileTheSampleIsUnknown() {
+		using var monitor = CreateMonitor();
+
+		monitor.LastSample.PreparedStateOverdueSeconds.Should().Be(
+			-1, "an instance that never sampled carries the UNKNOWN sentinel"
+		);
+		TryReadOverdueGauge().Should().BeNull(
+			"UNKNOWN must emit NOTHING — no measurement may exist before a real sample"
+		);
+	}
+
+	// Null when the gauge emitted no measurement at all (the UNKNOWN path): seeded with
+	// null rather than any numeric sentinel, so a fabricated emission can never coincide
+	// with the seed and fake a pass before the instrument exists.
+	private static double? TryReadOverdueGauge() {
+		using var listener = new MeterListener();
+		double? overdue = null;
+
+		listener.InstrumentPublished = (instrument, activeListener) => {
+			if (instrument.Meter.Name == JobsMetrics.MeterName
+				&& instrument.Name == "jobs.prepared_state_overdue_seconds") {
+				activeListener.EnableMeasurementEvents(instrument);
+			}
+		};
+		listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) => {
+			if (instrument.Name == "jobs.prepared_state_overdue_seconds") {
+				overdue = measurement;
+			}
+		});
+
+		listener.Start();
+		listener.RecordObservableInstruments();
+
+		return overdue;
+	}
+
+	private const int OverdueFloorDays = 7;
+
+	// Extra minutes past the floor the seeded orphan has been waiting, comfortably inside a
+	// healthy cadence gap so the assertion never straddles the alert threshold.
+	private const int OverdueMinutes = 5;
 
 	private JobQueueMonitorService CreateMonitor() {
 		return new JobQueueMonitorService(

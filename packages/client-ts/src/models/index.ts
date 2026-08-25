@@ -1293,6 +1293,15 @@ export function createCreateTenantProfileAsStaffBodyFromDiscriminatorValue(parse
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {DeadLetterResolvedResponse}
+ */
+// @ts-ignore
+export function createDeadLetterResolvedResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoDeadLetterResolvedResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindAuditLogsResponse}
  */
 // @ts-ignore
@@ -1766,6 +1775,33 @@ export function createResetPasswordBodyFromDiscriminatorValue(parseNode: ParseNo
 // @ts-ignore
 export function createResetPasswordResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoResetPasswordResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {JsonElement | ResolveDeadLetterUnclassifiedForStaffBody_noteMember1}
+ */
+// @ts-ignore
+export function createResolveDeadLetterUnclassifiedForStaffBody_noteFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveDeadLetterUnclassifiedForStaffBody_note;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveDeadLetterUnclassifiedForStaffBody_noteMember1}
+ */
+// @ts-ignore
+export function createResolveDeadLetterUnclassifiedForStaffBody_noteMember1FromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveDeadLetterUnclassifiedForStaffBody_noteMember1;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveDeadLetterUnclassifiedForStaffBody}
+ */
+// @ts-ignore
+export function createResolveDeadLetterUnclassifiedForStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveDeadLetterUnclassifiedForStaffBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2655,6 +2691,16 @@ export function createVerifyEmailRequestBodyFromDiscriminatorValue(parseNode: Pa
 // @ts-ignore
 export function createVerifyEmailRequestResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoVerifyEmailRequestResult;
+}
+export interface DeadLetterResolvedResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The externalStateStatus property
+     */
+    externalStateStatus?: number | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
 }
 /**
  * The deserialization information for the current model
@@ -3700,6 +3746,18 @@ export function deserializeIntoCreateTenantProfileAsStaffBody(createTenantProfil
 }
 /**
  * The deserialization information for the current model
+ * @param DeadLetterResolvedResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoDeadLetterResolvedResponse(deadLetterResolvedResponse: Partial<DeadLetterResolvedResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "externalStateStatus": n => { deadLetterResolvedResponse.externalStateStatus = n.getNumberValue(); },
+        "id": n => { deadLetterResolvedResponse.id = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindAuditLogsResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4370,6 +4428,39 @@ export function deserializeIntoResetPasswordBody(resetPasswordBody: Partial<Rese
 export function deserializeIntoResetPasswordResult(resetPasswordResult: Partial<ResetPasswordResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "status": n => { resetPasswordResult.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveDeadLetterUnclassifiedForStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveDeadLetterUnclassifiedForStaffBody(resolveDeadLetterUnclassifiedForStaffBody: Partial<ResolveDeadLetterUnclassifiedForStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "note": n => { resolveDeadLetterUnclassifiedForStaffBody.note = n.getObjectValue<JsonElement>(createJsonElementFromDiscriminatorValue) ?? n.getObjectValue<ResolveDeadLetterUnclassifiedForStaffBody_noteMember1>(createResolveDeadLetterUnclassifiedForStaffBody_noteMember1FromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveDeadLetterUnclassifiedForStaffBody_note The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveDeadLetterUnclassifiedForStaffBody_note(resolveDeadLetterUnclassifiedForStaffBody_note: Partial<JsonElement | ResolveDeadLetterUnclassifiedForStaffBody_noteMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoJsonElement(resolveDeadLetterUnclassifiedForStaffBody_note as JsonElement),
+        ...deserializeIntoResolveDeadLetterUnclassifiedForStaffBody_noteMember1(resolveDeadLetterUnclassifiedForStaffBody_note as ResolveDeadLetterUnclassifiedForStaffBody_noteMember1),
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveDeadLetterUnclassifiedForStaffBody_noteMember1 The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveDeadLetterUnclassifiedForStaffBody_noteMember1(resolveDeadLetterUnclassifiedForStaffBody_noteMember1: Partial<ResolveDeadLetterUnclassifiedForStaffBody_noteMember1> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
     }
 }
 /**
@@ -6222,6 +6313,15 @@ export interface ResetPasswordResult extends AdditionalDataHolder, Parsable {
      */
     status?: string | null;
 }
+export interface ResolveDeadLetterUnclassifiedForStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The note property
+     */
+    note?: JsonElement | ResolveDeadLetterUnclassifiedForStaffBody_noteMember1 | null;
+}
+export type ResolveDeadLetterUnclassifiedForStaffBody_note = JsonElement | ResolveDeadLetterUnclassifiedForStaffBody_noteMember1;
+export interface ResolveDeadLetterUnclassifiedForStaffBody_noteMember1 extends AdditionalDataHolder, Parsable {
+}
 export interface ResolveStaffProfileUserAssignmentsBody extends AdditionalDataHolder, Parsable {
     /**
      * The userIds property
@@ -7358,6 +7458,19 @@ export function serializeCreateTenantProfileAsStaffBody(writer: SerializationWri
 }
 /**
  * Serializes information the current object
+ * @param DeadLetterResolvedResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeDeadLetterResolvedResponse(writer: SerializationWriter, deadLetterResolvedResponse: Partial<DeadLetterResolvedResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!deadLetterResolvedResponse || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("externalStateStatus", deadLetterResolvedResponse.externalStateStatus);
+    writer.writeGuidValue("id", deadLetterResolvedResponse.id);
+    writer.writeAdditionalData(deadLetterResolvedResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindAuditLogsResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -8079,6 +8192,40 @@ export function serializeResetPasswordResult(writer: SerializationWriter, resetP
     if (!resetPasswordResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("status", resetPasswordResult.status);
     writer.writeAdditionalData(resetPasswordResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveDeadLetterUnclassifiedForStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveDeadLetterUnclassifiedForStaffBody(writer: SerializationWriter, resolveDeadLetterUnclassifiedForStaffBody: Partial<ResolveDeadLetterUnclassifiedForStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveDeadLetterUnclassifiedForStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<JsonElement | ResolveDeadLetterUnclassifiedForStaffBody_noteMember1>("note", resolveDeadLetterUnclassifiedForStaffBody.note, serializeResolveDeadLetterUnclassifiedForStaffBody_note);
+    writer.writeAdditionalData(resolveDeadLetterUnclassifiedForStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveDeadLetterUnclassifiedForStaffBody_note The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveDeadLetterUnclassifiedForStaffBody_note(writer: SerializationWriter, resolveDeadLetterUnclassifiedForStaffBody_note: Partial<JsonElement | ResolveDeadLetterUnclassifiedForStaffBody_noteMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    serializeJsonElement(writer, resolveDeadLetterUnclassifiedForStaffBody_note as JsonElement);
+    serializeResolveDeadLetterUnclassifiedForStaffBody_noteMember1(writer, resolveDeadLetterUnclassifiedForStaffBody_note as ResolveDeadLetterUnclassifiedForStaffBody_noteMember1);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveDeadLetterUnclassifiedForStaffBody_noteMember1 The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveDeadLetterUnclassifiedForStaffBody_noteMember1(writer: SerializationWriter, resolveDeadLetterUnclassifiedForStaffBody_noteMember1: Partial<ResolveDeadLetterUnclassifiedForStaffBody_noteMember1> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveDeadLetterUnclassifiedForStaffBody_noteMember1 || isSerializingDerivedType) { return; }
+    writer.writeAdditionalData(resolveDeadLetterUnclassifiedForStaffBody_noteMember1.additionalData);
 }
 /**
  * Serializes information the current object

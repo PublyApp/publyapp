@@ -23,11 +23,22 @@
  * red until a spec renders it through its real route component. Deliberately
  * excluded from the scan: `*.test.{ts,tsx}` / `*.spec.{ts,tsx}` (the suite
  * itself, including this file's own direct-mode `<Trans>` mounts), `*.d.ts`
- * (ambient declarations never render), and the e2e/__tests__ directories
- * (browser specs, not app source). A parse failure anywhere scanned throws
- * instead of walking a recovered partial tree. The remaining documented
- * residual is a spread-only `<Trans {...props} />`, which carries no static
- * `i18nKey` identity — that shape does not exist in src today.
+ * (ambient declarations never render), and the e2e/ directory (browser specs,
+ * not app source). A parse failure anywhere scanned throws instead of walking
+ * a recovered partial tree.
+ *
+ * The spread-only shape is NOT a blind spot (#1333): a `<Trans {...props} />`
+ * carries no static `i18nKey`/`ns` identity to pin, but discovery matches the
+ * TAG first and reads attributes second, so the site is still collected with
+ * `i18nKey: null` — it lands in the unpinned list and turns this guard red
+ * naming `file:line`, exactly like any other uncovered call site. Both halves
+ * are pinned by standing scratch-route tests below. The true residual blind
+ * spot is narrower (#1333): a `<Trans>` reached through a LOCAL re-export
+ * (`export { Trans } from 'react-i18next'` in a shared module) is not
+ * resolved — the importing file carries no literal `react-i18next` for the
+ * pre-filter and no react-i18next import declaration binds its local name.
+ * That shape does not exist in src today; the boundary test below pins it so
+ * any change here must update the disclosure deliberately.
  *
  * Aliased bindings ARE covered (#1312 round 2, closing the round-1 MEDIUM
  * follow-up): an aliased default/named import (`Trans as T`) is resolved to
@@ -475,6 +486,51 @@ const renderCallSite = async (
 const countOccurrences = (haystack: string, needle: string): number =>
 	haystack.split(needle).length - 1;
 
+/**
+ * The standing discovery assertion, shared verbatim by the guard test below
+ * and the scratch-route proof cases (#1312 rounds 1–2, #1333): groups the
+ * given sites by file, consumes the CALL_SITES matches, and returns the
+ * surviving `file:line` entries — the exact list that must stay empty in
+ * production and that a planted uncovered site must appear in.
+ */
+const standingUnpinnedEntries = (sites: DiscoveredTransSite[]): string[] => {
+	const discoveredByFile = new Map<string, DiscoveredTransSite[]>();
+	for (const discoveredSite of sites) {
+		discoveredByFile.set(discoveredSite.file, [
+			...(discoveredByFile.get(discoveredSite.file) ?? []),
+			discoveredSite,
+		]);
+	}
+
+	for (const spec of CALL_SITES) {
+		const sitesInFile = discoveredByFile.get(spec.file);
+		expect(sitesInFile, `no discovered site in ${spec.file}`).toBeDefined();
+		if (!sitesInFile) continue;
+
+		const remaining = [...sitesInFile];
+		// A single spec may cover several identical-key sites
+		// (accept-invitation's two mismatch views share one key), so each
+		// spec consumes at most one match from its file's list.
+		const matchedIndex = remaining.findIndex(
+			(discoveredSite) =>
+				discoveredSite.i18nKey === spec.key &&
+				discoveredSite.namespace === spec.ns,
+		);
+		expect(
+			matchedIndex,
+			`no discovered <Trans> with key ${spec.key} in ${spec.file}`,
+		).toBeGreaterThanOrEqual(0);
+		if (matchedIndex >= 0) remaining.splice(matchedIndex, 1);
+		discoveredByFile.set(spec.file, remaining);
+	}
+
+	return [...discoveredByFile.entries()]
+		.flatMap(([file, remainingSites]) =>
+			remainingSites.map((discoveredSite) => `${file}:${discoveredSite.line}`),
+		)
+		.sort();
+};
+
 // ---------------------------------------------------------------------------
 // AUTO-DISCOVERY of every JSX `<Trans>` call site under apps/front/src
 // (#1312 round 1). The CALL_SITES table below stays hand-maintained because
@@ -501,10 +557,20 @@ const countOccurrences = (haystack: string, needle: string): number =>
 // `i18nKey: null` and turns discovery red, same as a direct one. A file that
 // only aliases `Trans` without using it produces no sites and is ignored.
 //
-// Remaining documented residual rather than a silent blind spot: a
-// spread-only element (`<Trans {...props} />`) carries no static identity
-// this scan can pin. That shape does not exist in src today; if one lands,
-// discovery cannot see it and this comment is where the gap lives.
+// NOT a blind spot (#1333): a spread-only element (`<Trans {...props} />`)
+// carries no static i18nKey/ns identity, but tag matching happens BEFORE
+// attribute reading, so the site IS collected with `i18nKey: null` and flows
+// through the standing unpinned list — red naming file:line like any other
+// uncovered site (pinned by the scratch-route tests below).
+//
+// The true residual blind spot, deliberately narrow and pinned by test
+// (#1333): a `<Trans>` whose binding arrives through a LOCAL re-export
+// (`export { Trans } from 'react-i18next'` in some shared module) is not
+// resolved — the importing file lacks the literal `react-i18next` pre-filter
+// hit AND has no react-i18next import declaration to bind its local `Trans`
+// name. That shape does not exist in src today; if it lands, binding
+// resolution must grow before it ships (the boundary test below is the speed
+// bump that forces the disclosure to be updated deliberately).
 // ---------------------------------------------------------------------------
 
 // vitest's import.meta.url may be a plain path rather than a file:// URL,
@@ -851,84 +917,102 @@ afterEach(() => {
 describe('real-<Trans> render guard over the real route files (#1285)', () => {
 	test('every JSX <Trans> in src is discovered and pinned to a spec', () => {
 		expect(DISCOVERED_SITES.length).toBeGreaterThan(0);
-
-		const discoveredByFile = new Map<string, DiscoveredTransSite[]>();
-		for (const discoveredSite of DISCOVERED_SITES) {
-			discoveredByFile.set(discoveredSite.file, [
-				...(discoveredByFile.get(discoveredSite.file) ?? []),
-				discoveredSite,
-			]);
-		}
-
-		for (const spec of CALL_SITES) {
-			const sitesInFile = discoveredByFile.get(spec.file);
-			expect(sitesInFile, `no discovered site in ${spec.file}`).toBeDefined();
-			if (!sitesInFile) continue;
-
-			const remaining = [...sitesInFile];
-			// A single spec may cover several identical-key sites
-			// (accept-invitation's two mismatch views share one key), so each
-			// spec consumes at most one match from its file's list.
-			const matchedIndex = remaining.findIndex(
-				(discoveredSite) =>
-					discoveredSite.i18nKey === spec.key &&
-					discoveredSite.namespace === spec.ns,
-			);
-			expect(
-				matchedIndex,
-				`no discovered <Trans> with key ${spec.key} in ${spec.file}`,
-			).toBeGreaterThanOrEqual(0);
-			if (matchedIndex >= 0) remaining.splice(matchedIndex, 1);
-			discoveredByFile.set(spec.file, remaining);
-		}
-
-		const unpinned = [...discoveredByFile.entries()]
-			.flatMap(([file, remainingSites]) =>
-				remainingSites.map(
-					(discoveredSite) => `${file}:${discoveredSite.line}`,
-				),
-			)
-			.sort();
-
-		expect(unpinned).toEqual([]);
+		expect(standingUnpinnedEntries(DISCOVERED_SITES)).toEqual([]);
 	});
 
-	// #1312 round 2 (closing the round-1 MEDIUM follow-up): an aliased import
-	// (`Trans as T`) and a namespace import (`import * as i18n`) must land
-	// their `<Trans>` call sites INSIDE the guarded set, not outside it. The
-	// scanner walks real files under src at module-eval time, so each proof
-	// plants a scratch source file (the `_` prefix keeps it out of routing
-	// and the shape is excluded from barrels), asserts DISCOVERED_SITES now
-	// names it, and removes it in a finally so no other test sees it.
-	const aliasedProofBody = [
-		"import { Trans as Alias } from 'react-i18next';",
-		'',
-		'export function AliasedProof() {',
-		'	return <Alias i18nKey="auth.proof" ns="auth">x</Alias>;',
-		'}',
-	].join('\n');
-	const namespaceProofBody = [
-		"import * as ReactI18n from 'react-i18next';",
-		'',
-		'export function NamespaceProof() {',
-		'	return <ReactI18n.Trans i18nKey="auth.proof" ns="auth">x</ReactI18n.Trans>;',
-		'}',
-	].join('\n');
+	// Scratch-route proof cases (#1312 rounds 1–2; #1333): the scanner walks
+	// real files under src at module-eval time, so each proof plants a
+	// scratch source file (the `_` prefix keeps it out of routing and out of
+	// barrels), asserts what discovery must do with it, and removes it in a
+	// finally so no other test sees it.
+	type ProofCase = {
+		title: string;
+		fileName: string;
+		body: string;
+		/** False for precision shapes that are NOT Trans call sites at all. */
+		expectDiscovered: boolean;
+		/** False for sites whose attributes carry NO static i18nKey/ns (spread-only). */
+		expectStaticIdentity: boolean;
+	};
 
-	for (const { title, fileName, body } of [
+	const proofCases: ProofCase[] = [
 		{
 			title:
 				'an aliased `Trans as Alias` call site is DISCOVERED, not a blind spot (#1312 round 2)',
 			fileName: '_trans-alias-red-proof.tsx',
-			body: aliasedProofBody,
+			body: [
+				"import { Trans as Alias } from 'react-i18next';",
+				'',
+				'export function AliasedProof() {',
+				'	return <Alias i18nKey="auth.proof" ns="auth">x</Alias>;',
+				'}',
+			].join('\n'),
+			expectDiscovered: true,
+			expectStaticIdentity: true,
 		},
 		{
 			title:
 				'a namespace-import `i18n.Trans` call site is DISCOVERED, not a blind spot (#1312 round 2)',
 			fileName: '_trans-namespace-red-proof.tsx',
-			body: namespaceProofBody,
+			body: [
+				"import * as ReactI18n from 'react-i18next';",
+				'',
+				'export function NamespaceProof() {',
+				'	return <ReactI18n.Trans i18nKey="auth.proof" ns="auth">x</ReactI18n.Trans>;',
+				'}',
+			].join('\n'),
+			expectDiscovered: true,
+			expectStaticIdentity: true,
 		},
-	] as const) {
+		{
+			title:
+				'a spread-only <Trans {...props}/> call site is DISCOVERED and lands UNPINNED, not a blind spot (#1333)',
+			fileName: '_trans-spread-only-red-proof.tsx',
+			body: [
+				"import { Trans } from 'react-i18next';",
+				'',
+				'type SpreadOnlyProofProps = {',
+				'\ti18nKey?: string;',
+				'\tns?: string;',
+				'\tvalues?: Record<string, string>;',
+				'};',
+				'',
+				'export function SpreadOnlyProof(props: SpreadOnlyProofProps) {',
+				'	return <Trans {...props}>fallback text</Trans>;',
+				'}',
+			].join('\n'),
+			expectDiscovered: true,
+			expectStaticIdentity: false,
+		},
+		{
+			title:
+				'a spread on a NON-Trans element is NOT discovered as a call site (#1333 precision)',
+			fileName: '_non-trans-spread-proof.tsx',
+			body: [
+				"import type { ReactElement } from 'react';",
+				'',
+				'type NonTransProofProps = {',
+				'\tlabel: string;',
+				'};',
+				'',
+				'export function NonTransSpreadProof(',
+				'\tprops: NonTransProofProps & Record<string, unknown>,',
+				'): ReactElement {',
+				'	return <p className="prose" {...props}>{props.label}</p>;',
+				'}',
+			].join('\n'),
+			expectDiscovered: false,
+			expectStaticIdentity: false,
+		},
+	];
+
+	for (const {
+		title,
+		fileName,
+		body,
+		expectDiscovered,
+		expectStaticIdentity,
+	} of proofCases) {
 		test(title, () => {
 			const relative = `routes/${fileName}`;
 			writeFileSync(path.join(SRC_ROOT, relative), `${body}\n`);
@@ -937,31 +1021,108 @@ describe('real-<Trans> render guard over the real route files (#1285)', () => {
 				const sites = discoverTransCallSites();
 				const found = sites.filter((site) => site.file === relative);
 
-				expect(
-					found.length,
-					`${relative} must be discovered with its static key`,
-				).toBe(1);
-				expect(found[0]?.i18nKey).toBe('auth.proof');
-				expect(found[0]?.namespace).toBe('auth');
-
-				// And the standing discovery assertion treats it exactly like a
-				// direct <Trans>: unpinned until a spec covers it.
-				const discoveredByFile = new Map<string, DiscoveredTransSite[]>();
-				for (const discoveredSite of sites) {
-					discoveredByFile.set(discoveredSite.file, [
-						...(discoveredByFile.get(discoveredSite.file) ?? []),
-						discoveredSite,
-					]);
+				if (!expectDiscovered) {
+					// Precision case: a spread on a plain element must contribute
+					// zero call sites — discovery matches Trans tags only.
+					expect(found).toEqual([]);
+					return;
 				}
-				const remaining = discoveredByFile.get(relative) ?? [];
-				expect(remaining.map(({ line }) => `${relative}:${line}`)).toHaveLength(
-					1,
-				);
+
+				expect(found.length, `${relative} must be discovered`).toBe(1);
+
+				if (expectStaticIdentity) {
+					expect(found[0]?.i18nKey).toBe('auth.proof');
+					expect(found[0]?.namespace).toBe('auth');
+				} else {
+					// A spread-only element carries no static i18nKey/ns identity
+					// to pin (#1333): the site is still discovered, and below it
+					// still flows through the STANDING unpinned list — so the
+					// guard goes red naming `file:line`, exactly like any other
+					// uncovered call site, until a spec covers it.
+					expect(found[0]?.i18nKey).toBeNull();
+					expect(found[0]?.namespace).toBeNull();
+				}
+
+				const unpinned = standingUnpinnedEntries(sites);
+				expect(
+					unpinned,
+					`${relative} must land in the standing unpinned list (the guard goes red naming it)`,
+				).toHaveLength(1);
+				const [unpinnedFile, unpinnedLine] = (unpinned[0] ?? ':').split(':');
+				expect(unpinnedFile, 'red must name the planted file').toBe(relative);
+				expect(
+					Number(unpinnedLine),
+					'red must name a real line number',
+				).toBeGreaterThan(0);
 			} finally {
 				unlinkSync(path.join(SRC_ROOT, relative));
 			}
 		});
 	}
+
+	test('a *.test.tsx shape is EXCLUDED from discovery — the suite itself is not app source (#1333)', () => {
+		// Pins the load-bearing exclusion: this guard file's own direct-mode
+		// <Trans> mounts live in a *.test.tsx too, so losing the exclusion
+		// would turn every suite-side mount into an unpinned site and flip
+		// the standing discovery test permanently red.
+		const relative = 'routes/_trans-excluded-suite-shape.test.tsx';
+		writeFileSync(
+			path.join(SRC_ROOT, relative),
+			`${[
+				"import { render } from '@testing-library/react';",
+				"import { Trans } from 'react-i18next';",
+				'',
+				'test("suite-side shape", () => {',
+				'\trender(<Trans i18nKey="auth.proof" ns="auth">x</Trans>);',
+				'});',
+			].join('\n')}\n`,
+		);
+
+		try {
+			const sites = discoverTransCallSites();
+			expect(sites.filter((site) => site.file === relative)).toEqual([]);
+		} finally {
+			unlinkSync(path.join(SRC_ROOT, relative));
+		}
+	});
+
+	test('BOUNDARY: a Trans binding re-exported through a local module is NOT resolved (#1333 documents the true residual)', () => {
+		// Pinned CURRENT behaviour, deliberately labelled a boundary: the
+		// importing file never carries the literal `react-i18next`, so the
+		// cheap pre-filter skips it before any AST work — and even without
+		// that skip, no import declaration from `react-i18next` binds its
+		// local `Trans` name. An `<Trans>` reached through a local re-export
+		// (`export { Trans } from 'react-i18next'` in a shared module) is
+		// therefore the DOCUMENTED residual blind spot (see the header comment
+		// and docs/guides/front/conventions.md, "<Trans> render guard"). The
+		// shape does not exist in src today; if it ever lands, binding
+		// resolution must grow BEFORE the shape ships — this test failing on
+		// such a change is the deliberate speed bump, not an endorsement.
+		const reExportFile = 'lib/i18n/_trans-re-export-residual.ts';
+		const routeFile = 'routes/_trans-indirect-binding-residual.tsx';
+		writeFileSync(
+			path.join(SRC_ROOT, reExportFile),
+			`${["export { Trans } from 'react-i18next';"].join('\n')}\n`,
+		);
+		writeFileSync(
+			path.join(SRC_ROOT, routeFile),
+			`${[
+				"import { Trans } from '../lib/i18n/_trans-re-export-residual';",
+				'',
+				'export function IndirectBindingProof() {',
+				'\treturn <Trans i18nKey="auth.proof" ns="auth">x</Trans>;',
+				'}',
+			].join('\n')}\n`,
+		);
+
+		try {
+			const sites = discoverTransCallSites();
+			expect(sites.filter((site) => site.file === routeFile)).toEqual([]);
+		} finally {
+			unlinkSync(path.join(SRC_ROOT, reExportFile));
+			unlinkSync(path.join(SRC_ROOT, routeFile));
+		}
+	});
 
 	test('react-i18next is NOT mocked in this file', () => {
 		// #1269 exists because the rest of the suite fakes `<Trans>` with a

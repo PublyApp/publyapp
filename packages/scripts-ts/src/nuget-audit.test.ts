@@ -114,6 +114,36 @@ const vulnReportWithTransitiveVulnerability = () => ({
 	exitCode: 0,
 });
 
+const emptyVulnerabilitiesArrayReport = (
+	listKey: 'topLevelPackages' | 'transitivePackages',
+) =>
+	// #1348: dotnet never emits this today, but a listed package with an
+	// EMPTY vulnerabilities array is output the guard cannot interpret as
+	// clean — it must fail loud, not silently pass.
+	({
+		parsed: {
+			projects: [
+				{
+					path: '/some/path/App.csproj',
+					frameworks: [
+						{
+							topLevelPackages: [],
+							transitivePackages: [],
+							[listKey]: [
+								{
+									id: 'Newtonsoft.Json',
+									resolvedVersion: '13.0.3',
+									vulnerabilities: [],
+								},
+							],
+						},
+					],
+				},
+			],
+		},
+		exitCode: 0,
+	});
+
 const uninspectableNoFrameworksReport = () =>
 	// Real CLI: unrestored project returns problems at top level, no frameworks.
 	({
@@ -311,6 +341,49 @@ test('missing projects key in inspectability call = not ok', () => {
 	if (!r.ok) {
 		assert.match(r.error, /could not inspect Empty\.csproj/);
 	}
+});
+
+test('listed package with empty vulnerabilities array = not ok, names the package (#1348)', () => {
+	const r = evaluateProject(
+		inspectableReport(),
+		emptyVulnerabilitiesArrayReport('topLevelPackages'),
+		'src/App/App.csproj',
+	);
+	assert.equal(r.ok, false);
+	if (!r.ok) {
+		assert.match(r.error, /could not inspect App\.csproj/);
+		assert.match(r.error, /Newtonsoft\.Json/);
+	}
+});
+
+// Paired spec (#1348): same shape via transitivePackages must fail loud too.
+test('transitive package with empty vulnerabilities array = not ok, names the package (#1348)', () => {
+	const r = evaluateProject(
+		inspectableReport(),
+		emptyVulnerabilitiesArrayReport('transitivePackages'),
+		'src/App/App.csproj',
+	);
+	assert.equal(r.ok, false);
+	if (!r.ok) {
+		assert.match(r.error, /could not inspect App\.csproj/);
+		assert.match(r.error, /Newtonsoft\.Json/);
+	}
+});
+
+// Adversarial mutation guard: restoring the bug (treating vulnerabilities: []
+// as clean) must flip this whole-file suite red — including through
+// evaluateAudit, the path the direct-run branch actually takes.
+test('audit with an empty-vulnerabilities listed package exits 1 (#1348)', () => {
+	const reports = new Map();
+	reports.set('src/App/App.csproj', {
+		inspected: inspectableReport(),
+		vulnerable: emptyVulnerabilitiesArrayReport('topLevelPackages'),
+	});
+	const r = evaluateAudit(reports);
+	assert.equal(r.exitCode, 1);
+	assert.equal(r.vulnerabilities.length, 0);
+	assert.equal(r.errors.length, 1);
+	assert.match(String(r.errors[0]), /Newtonsoft\.Json/);
 });
 
 // ---------------------------------------------------------------------------

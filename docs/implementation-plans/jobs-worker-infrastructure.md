@@ -373,7 +373,7 @@ Add to `dokploy.yml` alongside `publyapp-api`:
 
 ```yaml
   publyapp-worker:
-    image: ghcr.io/radandevist/publyapp/api:${RELEASE_TAG}   # same image as api, immutable tag
+    image: ghcr.io/publyapp/publyapp/api:${RELEASE_TAG}   # same image as api, immutable tag
     # NO container_name: fixed names prevent `--scale` beyond one replica (F19).
     restart: unless-stopped
     stop_grace_period: 45s        # > host ShutdownTimeout (30 s) so drain wins over SIGKILL (F19)
@@ -5160,6 +5160,24 @@ and is **not** a gap.
 registrations), and the ⚠️ **suspected live defect** on
 `origin/feat/809-email-jobs-fold` (§10). **No code branch is edited by this
 document** — these are reconciliation work, not doc gaps.
+
+> **2026-08-25 — #865 closes K-3's bound half.** The prepared-state residency
+> window is now bounded by construction and observed end to end:
+> `SyncSystemJobsJob.ReconcileAsync` consults the explicit domain policy
+> (`Modules/Jobs/SystemJobDisableProtection`) and reverts — never honors — any
+> disable of `email-prepared-sends-retention`, the one privacy-load-bearing
+> sweep, logging a per-attempt WARNING that names the cause, the key, and the
+> next action; every other sweep stays freely operator-disableable.
+> `JobQueueMonitorService` now samples `jobs.prepared_state_overdue_seconds`
+> (the age of the OLDEST already-deletable orphan still on disk, anti-join +
+> retention floor read at execution, inside the same single-statement snapshot)
+> in every 60 s cycle, emits it as an observable gauge on the `PublyApp.Jobs`
+> meter, and raises `prepared_state_sweep_overdue` past
+> `EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES`. Residency is therefore bounded by
+> retention floor + cadence gap (the seeded 10-minute cron, already pinned by
+> spec), with the silent-disable path removed and any residual lag visible.
+> Stated residue: a hard-DELETE of the protected definition row is repaired at
+> the next boot by the idempotent seeder, not auto-repaired while running.
 
 ### Ratification record
 

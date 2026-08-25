@@ -522,7 +522,7 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 
 		maxOccurrences: 1,
 	},
-	// F824 (ui F5): these three contrast-suite fixtures deliberately compose
+	// F824 (ui F5): these two contrast-suite fixtures deliberately compose
 	// their fixture hexes (`'#' + 'ff0000'` etc.) precisely SO THAT the raw-
 	// colour guard cannot see them — they exist to prove the contrast
 	// resolvers still RESOLVE raw values correctly without tripping this very
@@ -530,16 +530,9 @@ const KNOWN_IMPORTANT_FOUNDATION_DEBT = [
 	// detectors, not silent exemptions: each carries a hard occurrence budget
 	// and the matched source text is pinned, so editing a fixture past its
 	// budget (or adding another composed colour anywhere) fails the guard.
-	{
-		ruleId: RAW_COLOR_RULE_ID,
-		file: 'src/styles/focus-ring-contrast.test.ts',
-		sourceIncludes: "'#' + 'ffffff'",
-		reason:
-			'Contrast-suite fixture input (ARBITRARY_HEX_FIXTURE) — deliberate ' +
-			'evasion spelling so this guard stays green while the fixture proves ' +
-			'raw arbitrary-value rings still resolve. Test DATA, not shipped styling.',
-		maxOccurrences: 1,
-	},
+	// (#823: the focus-ring suite's own `'#' + 'ffffff'` entry was DELETED,
+	// not relaxed — its token-math rewrite stopped carrying that fixture, so
+	// the debt entry went stale under the zero-slack policy.)
 	{
 		ruleId: RAW_COLOR_RULE_ID,
 		file: 'src/styles/drawer-description-contrast.test.ts',

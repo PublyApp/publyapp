@@ -2,6 +2,7 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
@@ -175,7 +176,110 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
+	// --- K-1 (#863): external-state exemptions ----------------------------------
+
+	[Fact]
+	public async Task ItShouldExemptPresentAndUnclassifiedRowsFromAgeRetention() {
+		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
+		var marker = $"spec.dlq-k1.{Guid.NewGuid():N}";
+		// All three are far beyond the horizon: only their external_state_status
+		// differs. 6 Unclassified MUST be kept (issue #863's core demand), 1 Present
+		// MUST be kept (effects may still exist), 0 None still sweeps.
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			await InsertDeadLetterAsync(dbContext, $"{marker}.none", days: retentionDays + 20);
+			await InsertDeadLetterAsync(
+				dbContext, $"{marker}.present", days: retentionDays + 20,
+				externalStateStatus: (int)ExternalStateStatus.Present
+			);
+			await InsertDeadLetterAsync(
+				dbContext, $"{marker}.unclassified", days: retentionDays + 20,
+				externalStateStatus: (int)ExternalStateStatus.Unclassified
+			);
+
+			var result = await RunAsync(dbContext);
+			result.Should().BeOfType<JobOutcome.Success>();
+
+			await using var verify = await CreateDbContextAsync();
+			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == $"{marker}.none"))
+				.Should().BeFalse("status 0 None stays plain age-retention eligible and is swept");
+			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == $"{marker}.present"))
+				.Should().BeTrue("status 1 Present is exempt from age retention");
+			(await verify.JobDeadLetter.AnyAsync(d => d.JobType == $"{marker}.unclassified"))
+				.Should().BeTrue("status 6 Unclassified has a resolution path and is exempt");
+		} finally {
+			await CleanupAsync(marker);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldReportSkippedExemptRowCountWhenSweepEncountersExemptRows() {
+		var retentionDays = AppEnvironment.Instance.JOB_DEAD_LETTER_RETENTION_DAYS;
+		var marker = $"spec.dlq-skip.{Guid.NewGuid():N}";
+		await using var dbContext = await CreateDbContextAsync();
+
+		try {
+			// Two exempt rows beyond the horizon + one non-exempt row beyond it.
+			await InsertDeadLetterAsync(
+				dbContext, $"{marker}.a", days: retentionDays + 20,
+				externalStateStatus: (int)ExternalStateStatus.Unclassified
+			);
+			await InsertDeadLetterAsync(
+				dbContext, $"{marker}.b", days: retentionDays + 20,
+				externalStateStatus: (int)ExternalStateStatus.Present
+			);
+			await InsertDeadLetterAsync(dbContext, $"{marker}.c", days: retentionDays + 20);
+
+			var logger = new CapturingLogger();
+			var handler = new DeadLetterRetentionHandler(dbContext, logger);
+			var result = await handler.HandleAsync(FakeContext(handler.JobType), CancellationToken.None);
+			result.Should().BeOfType<JobOutcome.Success>();
+
+			var skipRecord = logger.Records.FirstOrDefault(r =>
+				r.Structured.ContainsKey("SkippedCount"));
+			skipRecord.Should().NotBeNull(
+				"the sweep must report skipped exempt counts so starvation stays visible");
+			Assert.NotNull(skipRecord);
+			skipRecord.Structured["SkippedCount"]
+				.Should().Be(2, "two exempt rows sit beyond the horizon");
+		} finally {
+			await CleanupAsync(marker);
+		}
+	}
+
 	// --- helpers ------------------------------------------------------------------------
+
+	/// <summary>
+	/// Minimal capturing ILogger for structured-state assertions; keeps the test
+	/// project free of an extra logging-test package dependency.
+	/// </summary>
+	public sealed class CapturingLogger : ILogger<DeadLetterRetentionHandler> {
+		public sealed record LogRecord(LogLevel Level, string Formatted, Dictionary<string, object?> Structured);
+
+		public List<LogRecord> Records { get; } = new();
+
+		public IDisposable? BeginScope<TState>(TState state) where TState : notnull {
+			return null;
+		}
+
+		public bool IsEnabled(LogLevel logLevel) {
+			return true;
+		}
+
+		public void Log<TState>(
+			LogLevel logLevel,
+			EventId eventId,
+			TState state,
+			Exception? exception,
+			Func<TState, Exception?, string> formatter
+		) {
+			var structured = state is IEnumerable<KeyValuePair<string, object?>> pairs
+				? new Dictionary<string, object?>(pairs)
+				: new Dictionary<string, object?>();
+			Records.Add(new LogRecord(logLevel, formatter(state, exception), structured));
+		}
+	}
 
 	private static async Task<JobOutcome> RunAsync(AppDbContext dbContext) {
 		var handler = new DeadLetterRetentionHandler(
@@ -210,17 +314,26 @@ public sealed class DeadLetterRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		AppDbContext dbContext,
 		string jobType,
 		int days,
-		int secondsOffset = 0
+		int secondsOffset = 0,
+		int externalStateStatus = 0
 	) {
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO job_dead_letter
 				(original_job_id, job_type, payload, priority, max_attempts, attempts,
-				 enqueued_at, failed_at)
+				 enqueued_at, failed_at, external_state_status,
+				 external_state_prepared_at, external_state_expires_at)
 			VALUES (
 				uuidv7(), {jobType}, {EmptyJson}::jsonb, 0, 10, 10,
 				now() - make_interval(days => {days + 1}),
-				now() - make_interval(days => {days}, secs => {secondsOffset})
+				now() - make_interval(days => {days}, secs => {secondsOffset}),
+				{externalStateStatus},
+				CASE WHEN {externalStateStatus} IN (1, 2, 4, 5, 6)
+					THEN now() - make_interval(days => {days}, secs => {secondsOffset})
+					ELSE NULL END,
+				CASE WHEN {externalStateStatus} IN (1, 2, 4, 5, 6)
+					THEN now() - make_interval(days => {days - 1}, secs => {secondsOffset})
+					ELSE NULL END
 			)
 			"""
 		);
