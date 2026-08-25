@@ -106,7 +106,7 @@ Paths relative to repo root. "exists" = verified present at develop `a9653b1b0`;
 ## Task 1: i18n keys (both locales) + response-message entries
 
 **Files:** the four JSON files above.
-**Interfaces:** produces the `settings:` namespace keys consumed verbatim by Tasks 4–8: `integrations-list-title`, `integrations-empty-title`, `integrations-empty-description`, `integrations-load-failed`, `integrations-load-failed-description`, `connect-bluesky`, `reconnect`, `disconnect`, `provider-bluesky`, `status-active`, `status-needs-reconnect`, `status-revoked`, `last-success-never`, `visible-in-all-projects`, `visible-in-projects`, `drawer-connect-title`, `drawer-reconnect-title`, `drawer-identifier-label`, `drawer-identifier-help`, `drawer-app-password-label`, `drawer-app-password-help`, `drawer-app-password-help-link`, `drawer-submit-connect`, `drawer-submit-reconnect`, `attach-projects-title`, `attach-projects-none-hint`, `disconnect-title`, `disconnect-consequences`, `banner-needs-reconnect-single`, `banner-needs-reconnect-plural`. Plus response-message keys `social-account-connected|reconnected|disconnected|projects-updated`.
+**Interfaces:** produces the `settings:` namespace keys consumed verbatim by Tasks 4–8: `integrations-list-title`, `integrations-empty-title`, `integrations-empty-description`, `integrations-load-failed`, `integrations-load-failed-description`, `connect-bluesky`, `reconnect`, `disconnect`, `provider-bluesky`, `status-active`, `status-needs-reconnect`, `status-revoked`, `last-success-never`, `visible-in-all-projects`, `visible-in-projects`, `drawer-connect-title`, `drawer-reconnect-title`, `drawer-identifier-label`, `drawer-identifier-help`, `drawer-app-password-label`, `drawer-app-password-help`, `drawer-app-password-help-link`, `drawer-submit-connect`, `drawer-submit-reconnect`, `attach-projects-title`, `attach-projects-none-hint`, `disconnect-title`, `disconnect-consequences`, `banner-needs-reconnect-single`, `banner-needs-reconnect-plural`. Plus response-message keys `social-account-connected|reconnected|projects-updated` (all NEW); disconnect reuses C2's already-shipped `social-account-disconnected-success`.
 
 - [ ] **Step 1 (RED driver):** run the page spec first — it fails because the drawer module does not exist yet:
 
@@ -140,12 +140,13 @@ Expected: FAIL — cannot resolve `./_bluesky-connect-drawer` (the pull-through 
 {
 	"social-account-connected": "Bluesky account connected",
 	"social-account-reconnected": "Bluesky account reconnected",
-	"social-account-disconnected": "Account disconnected — scheduled posts on it are paused",
-	"social-account-projects-updated": "Project visibility updated"
+	"social-account-projects-updated": "Project attachments updated"
 }
 ```
 
-French counterparts go into `settings.fr.json` and `response-message.fr.json` (e.g. `"social-account-disconnected": "Compte déconnecté — les publications programmées sur ce compte sont suspendues"`).
+(Disconnect adds NOTHING here: C2 already ships `social-account-disconnected-success` in BOTH locale files — wt-641 `response-message.en.json:110` / `.fr.json:110` — and `meta.successMessage` WINS over any response-body `translationKey` in `resolveMutationSuccessIntent` (`packages/shared-ts/src/lib/mutation-feedback/policy.ts`: `if (feedback.successMessage !== undefined)` returns immediately), so the disconnect mutation references the shipped key verbatim.)
+
+French counterparts go into `settings.fr.json`; the three NEW response-message keys above need fr entries appended to the existing `response-message.fr.json`.
 
 - [ ] **Step 3:** prove parity:
 
@@ -558,7 +559,7 @@ export const useDisconnectSocialAccountMutation = () => {
 			await client.socialAccounts.bySocialAccountId(socialAccountId).disconnect.post(); // [A3]
 		},
 		onSuccess: (_data, variables) => invalidateSocialAccounts(queryClient, variables.tenantId),
-		meta: { successMessage: 'social-account-disconnected' },
+		meta: { successMessage: 'social-account-disconnected-success' }, // C2's SHIPPED key (ResponseKeys.SocialAccountDisconnectedSuccess)
 	});
 };
 
