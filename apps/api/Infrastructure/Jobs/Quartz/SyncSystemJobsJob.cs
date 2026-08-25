@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Modules.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
+using PublyApp.Api.Modules.Jobs.Seeders;
 
 using Quartz;
 using Quartz.Impl.Matchers;
@@ -15,7 +16,9 @@ namespace PublyApp.Api.Infrastructure.Jobs.Quartz;
 /// definitions, updates the cron for changed ones, and removes triggers whose definition
 /// was disabled, deleted, or has become INVALID — a definition whose cron no longer
 /// parses must lose its previously-scheduled trigger, not keep firing the old schedule
-/// forever. One bad row never stops the sync: invalid/failed definitions are logged and
+/// forever. Protected definitions (#865/K-3, #1349) are reverted to their whole
+/// code-defined state BEFORE this pass, so a protected sweep can never reach that
+/// removal. One bad row never stops the sync: invalid/failed definitions are logged and
 /// skipped while the rest reconcile. Each managed trigger fires
 /// <see cref="EnqueueSystemJobJob"/>; the leader only enqueues. Runs ONLY on the leader
 /// (scheduled by <see cref="SchedulerLeaderService"/>).
@@ -91,7 +94,7 @@ public sealed class SyncSystemJobsJob : IJob {
 		// check) is logged and skipped so it cannot starve the remaining definitions.
 		foreach (var definition in validDefinitions) {
 			try {
-					await SyncOneAsync(scheduler, definition, cancellationToken);
+				await SyncOneAsync(scheduler, definition, cancellationToken);
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
 				_logger.LogError(
 					ex,
@@ -102,49 +105,78 @@ public sealed class SyncSystemJobsJob : IJob {
 		}
 	}
 
-	// Re-enables any DISABLED, non-deleted definition whose job key the domain policy
-	// protects (#865/K-3) and persists each revert immediately. Per-attempt WARNING with
-	// the cause and next action — never a silent drop. One bad row never stops the sync:
-	// a fault is logged and skipped exactly like every other per-row fault below.
-	// Deliberately key-projection + ExecuteUpdate, never entity instances +
-	// SaveChanges: dashboard edits land through raw UPDATE statements that bypass the
-	// change tracker, so an already-tracked stale instance would make SaveChanges a
-	// silent no-op here — the exact silent-drop this guard exists to prevent.
+	// Reverts any non-deleted PROTECTED definition that drifted from its code-defined
+	// state — #865/K-3 refused the disable, #1349 extends the revert to the WHOLE
+	// definition: a disabled row is re-enabled AND an invalid or emptied cron is
+	// restored — persisting each revert immediately. Per-attempt WARNING naming the
+	// job, the rejected value, and the restored cadence — never a silent drop. One bad
+	// row never stops the sync: a fault is logged and skipped exactly like every other
+	// per-row fault below. Deliberately key-projection + ExecuteUpdate, never entity
+	// instances + SaveChanges: dashboard edits land through raw UPDATE statements that
+	// bypass the change tracker, so an already-tracked stale instance would make
+	// SaveChanges a silent no-op here — the exact silent-drop this guard exists to
+	// prevent.
 	private async Task RestoreProtectedDefinitionsAsync(CancellationToken cancellationToken) {
-		var disabledJobKeys = await (
+		// Candidate projection stays translatable SQL (no Quartz parse in the query);
+		// protection and cron-validity filtering happen in memory over the tiny table.
+		var candidates = await (
 			from definition in _dbContext.SystemJobDefinition
-			where !definition.IsEnabled && !definition.IsDeleted
-			select definition.JobKey
+			where !definition.IsDeleted
+			select new {
+				definition.JobKey,
+				definition.IsEnabled,
+				definition.CronExpression,
+			}
 		).ToListAsync(cancellationToken);
 
-		foreach (var jobKey in disabledJobKeys) {
-			if (!SystemJobDisableProtection.IsDisableProtected(jobKey)) {
-				continue;
-			}
+		var driftedProtectedJobs = candidates
+			.Where(candidate => SystemJobDisableProtection.IsDisableProtected(candidate.JobKey)
+				&& (!candidate.IsEnabled
+					|| !CronExpression.IsValidExpression(candidate.CronExpression)))
+			.ToList();
 
+		foreach (var drifted in driftedProtectedJobs) {
+			var jobKey = drifted.JobKey;
 			try {
+				var defaults = SystemJobDefinitionSeeder.GetCodeDefinedDefaults()
+					.FirstOrDefault(definition => definition.JobKey == jobKey);
+				if (defaults is null) {
+					continue;
+				}
+
 				var restored = await _dbContext.SystemJobDefinition
 					.Where(definition => definition.JobKey == jobKey)
 					.ExecuteUpdateAsync(
-						setters => setters.SetProperty(definition => definition.IsEnabled, true),
+						setters => setters
+							.SetProperty(definition => definition.IsEnabled, defaults.IsEnabled)
+							.SetProperty(
+								definition => definition.CronExpression,
+								defaults.CronExpression
+							),
 						cancellationToken
 					);
 
 				if (restored > 0) {
 					_logger.LogWarning(
-						"jobs.alert system_job_disable_refused job_key={JobKey} — this sweep's "
-							+ "cadence deletes token-bearing prepared bytes and IS the privacy "
-							+ "control (K-3); disabling it would leave sensitive bytes on disk "
-							+ "unbounded. The disable was reverted; if the sweep must be stopped, "
-							+ "treat it as a privacy incident instead",
-						jobKey
+						"jobs.alert system_job_definition_restored job_key={JobKey} — this "
+							+ "sweep deletes token-bearing prepared bytes and its cadence IS "
+							+ "the privacy control (K-3); the code-defined definition was "
+							+ "drifted (rejected cron '{RejectedCron}', enabled="
+							+ "{DriftedEnabled}) and has been reverted to cron "
+							+ "'{RestoredCron}', enabled=true. If the sweep must be stopped, "
+							+ "treat it as a privacy incident instead of editing the "
+							+ "definition",
+						jobKey,
+						drifted.CronExpression,
+						drifted.IsEnabled,
+						defaults.CronExpression
 					);
 				}
 			} catch (Exception ex) when (ex is not OperationCanceledException) {
 				_logger.LogError(
 					ex,
-					"Failed to re-enable protected system job {JobKey}; continuing with "
-						+ "the rest of the sync",
+					"Failed to restore the code-defined definition of protected system "
+						+ "job {JobKey}; continuing with the rest of the sync",
 					jobKey
 				);
 			}
