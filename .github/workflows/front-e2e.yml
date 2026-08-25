@@ -497,6 +497,29 @@ jobs:
     env:
       E2E_IMAGE_TAG: ${{ needs.build.outputs.tag }}
     steps:
+      # Round-1 fix (PR #1396): the step below runs
+      # `node packages/scripts-ts/src/ci-e2e-cleanup.ts`, but this job shipped
+      # WITHOUT a checkout or any toolchain setup — an Actions runner starts
+      # empty, so `node` resolved nothing and the module path did not exist
+      # ("Cannot find module /home/runner/work/publyapp/publyapp/packages/
+      # scripts-ts/src/ci-e2e-cleanup.ts"), turning the cleanup — and with it
+      # front-e2e-gate — red on every run. Same pinned actions, in the same
+      # order, as every other job in this workflow that runs repository code.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
       # #1018: a cleanup that cannot delete is a broken check, not a green one,
       # so there is NO continue-on-error here — any failure fails the job (and
       # therefore the required gate). The decision logic lives in an injectable,

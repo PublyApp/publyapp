@@ -725,6 +725,21 @@
 			"hash": "caa551b1696e3a0e",
 			"mirror": null,
 			"reason": "#1362 reconciliation (2026-08-25 org move radandevist -> PublyApp): emits the build job ns output, the lowercased ghcr.io/<owner>/publyapp-e2e root consumed by every E2E_IMAGE_NS consumer in this workflow. GitHub-only derivation; ci-e2e-front resolves the same compose images via the compose-file default namespace instead."
+		},
+		"front-e2e.yml::cleanup::Checkout": {
+			"hash": "e9585c92762e9abe",
+			"mirror": null,
+			"reason": "#1362 round-1 fix (PR #1396): the cleanup job ran `node packages/scripts-ts/src/ci-e2e-cleanup.ts` with NO checkout, so the runner had no repository and every run failed ('Cannot find module .../ci-e2e-cleanup.ts'). Same pinned checkout as every other job in this workflow (fetch-depth: 1). GitHub-only: clones the repo onto the runner; locally the working tree already is the code under test, and the step's decision logic remains mirrored by ci-e2e-cleanup.test.ts."
+		},
+		"front-e2e.yml::cleanup::Install pnpm": {
+			"hash": "8985553731d304dc",
+			"mirror": null,
+			"reason": "#1362 round-1 fix (PR #1396): identical pinned pnpm/action-setup step as the test job's, added so the cleanup job carries the same complete toolchain setup as every other code-running job in this workflow. The cleanup itself executes through plain Node; no local mirror beyond the developer prerequisite."
+		},
+		"front-e2e.yml::cleanup::Setup Node": {
+			"hash": "6c699edc403fc068",
+			"mirror": null,
+			"reason": "#1362 round-1 fix (PR #1396): identical pinned setup-node step as every other job in this workflow. Required on the runner because ci-e2e-cleanup.ts is a dependency-free .ts file executed directly via Node 24's native TypeScript stripping; locally Node is pinned by .node-version / .nvmrc and the script's logic is mirrored by ci-e2e-cleanup.test.ts."
 		}
 	}
 }
