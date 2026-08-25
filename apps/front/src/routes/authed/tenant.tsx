@@ -105,8 +105,27 @@ const TenantWorkspaceShell = ({ tenant }: { tenant: TenantForPickerRow }) => {
 
 const TenantPortalRoute = () => {
 	const query = useTenantsForPickerQuery();
+	// Branch decisions read the COMMITTED location (`resolvedLocation`), never
+	// the in-flight one: during a pending navigation the router already
+	// exposes the TARGET path through `state.location` while this route is
+	// still mounted (the location store updates before loaders resolve).
+	// Branching on that flipped path made a logging-out portal re-render into
+	// the unresolved-child branch mid-flight and mount a fresh
+	// `<Navigate to="/tenant">` that cancelled the in-flight `/login`
+	// navigation — the lazy auth chunk request aborted (status -1), the
+	// `navigate()` promise never settled, `queryClient.clear()` never ran, and
+	// the picker froze with a permanently disabled Log out button
+	// (front-e2e "logging out from the picker returns to login"; surfaced by
+	// bot PR #1236's @tanstack/react-router 1.170.16 → 1.170.31 /
+	// router-core 1.171.13 → 1.171.26 load-pipeline rewrite, whose mid-flight
+	// location exposure older cores did not deliver to still-mounted routes).
+	// `resolvedLocation` only advances when a navigation commits, so
+	// render-phase redirects can only ever be emitted by a surface that is
+	// actually live. The `??` fallback covers first render/SSR, where no
+	// navigation has committed yet.
 	const pathname = useRouterState({
-		select: (state) => state.location.pathname,
+		select: (state) =>
+			state.resolvedLocation?.pathname ?? state.location.pathname,
 	});
 	// Persisted UI preference read through `useSyncExternalStore`: server and
 	// hydration share the stable `null` snapshot, then the store value applies
