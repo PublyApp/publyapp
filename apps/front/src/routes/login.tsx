@@ -14,7 +14,7 @@ import {
 	createFileRoute,
 } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -28,6 +28,7 @@ import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { useHydrated } from '~/lib/hooks/use-hydrated';
 import {
 	getSafeSearchRedirect,
 	isAllowedRedirectPath,
@@ -99,11 +100,7 @@ const LoginRoute = () => {
 	const [errorMessage, setErrorMessage] = useState('');
 	const [invalidCredentialsMessage, setInvalidCredentialsMessage] =
 		useState('');
-	const [isMounted, setIsMounted] = useState(false);
-
-	useEffect(() => {
-		setIsMounted(true);
-	}, []);
+	const isMounted = useHydrated();
 
 	const loginAction = useServerFn(login);
 	const completeRedirect = useServerFn(completeLoginRedirect);
