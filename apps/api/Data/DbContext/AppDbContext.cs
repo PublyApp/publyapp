@@ -143,6 +143,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return Set<Modules.SocialAccounts.Entities.SocialAccountProject>(); }
 	}
 
+	// Publishing lifecycle (Epic D / D1)
+	public DbSet<Modules.Publishing.Entities.Publication> Publication {
+		get { return Set<Modules.Publishing.Entities.Publication>(); }
+	}
+
 	public Guid? TenantId { get; set; }
 
 	public AppDbContext(DbContextOptions options) : base(options) {

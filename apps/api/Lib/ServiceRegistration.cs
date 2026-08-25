@@ -14,10 +14,11 @@ using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.RateLimiting;
-using PublyApp.Api.Modules.Uploads;
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 using PublyApp.Api.Modules.SocialAccounts.Services;
+using PublyApp.Api.Modules.Uploads;
 
 using Resend;
 
@@ -226,6 +227,13 @@ public static class ServiceRegistration {
 
 		// Register RequestAuthContext (unified auth + tenant context)
 		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();
+
+		// Publishing (Epic D §3): the delivery seam is stateless and shares no
+		// per-request context, so it registers as a singleton; its named HttpClient
+		// carries the pooled handler. Registered here (every role) so the worker's
+		// PublishPublicationJobHandler resolves it without any API-surface coupling.
+		builder.Services.AddHttpClient(BlueskyPublishProvider.HttpClientName);
+		builder.Services.AddSingleton<IPublishProvider, BlueskyPublishProvider>();
 
 		// Register [Service] attributed classes after the explicit framework/app registrations above.
 		// Fail fast if any explicit registration overlaps with a discovered [Service] mapping.
