@@ -12,6 +12,10 @@ export type CurrentUser = {
 	lastName: string | null;
 	avatarUrl: string | null;
 	displayName: string | null;
+	/** The caller's EFFECTIVE tenant permission set (C3 A4): `["*"]` when the
+	 * resolved account is a tenant Admin, otherwise the profile-derived keys.
+	 * Empty array while unscoped or for users with no tenant permissions. */
+	tenantPermissionKeys: string[];
 };
 
 /** @internal Build an invalidation/removal key from this via `scopedKey()`
@@ -38,6 +42,14 @@ export const toCurrentUser = (
 	const firstName = normalizeString(result?.firstName);
 	const lastName = normalizeString(result?.lastName);
 
+	// The generated model types this list as (string | null)[]; keep only real
+	// key strings so the front never renders or compares a null permission.
+	const tenantPermissionKeys = Array.isArray(result?.tenantPermissionKeys)
+		? result.tenantPermissionKeys.filter(
+				(key): key is string => typeof key === 'string' && key.length > 0,
+			)
+		: [];
+
 	return {
 		id,
 		email: normalizeString(result?.email) ?? '',
@@ -45,6 +57,7 @@ export const toCurrentUser = (
 		lastName,
 		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
 		displayName: getUserFullName({ firstName, lastName }) || null,
+		tenantPermissionKeys,
 	};
 };
 

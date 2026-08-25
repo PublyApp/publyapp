@@ -295,6 +295,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
 
 	/// <summary>
+	/// Bluesky account connected
+	/// </summary>
+	public static readonly TranslationKey SocialAccountConnected = new("social-account-connected");
+
+	/// <summary>
 	/// Social account disconnected and stored secret erased
 	/// </summary>
 	public static readonly TranslationKey SocialAccountDisconnectedSuccess = new("social-account-disconnected-success");
@@ -303,6 +308,16 @@ public static partial class ResponseKeys {
 	/// Social account not found
 	/// </summary>
 	public static readonly TranslationKey SocialAccountNotFound = new("social-account-not-found");
+
+	/// <summary>
+	/// Project attachments updated
+	/// </summary>
+	public static readonly TranslationKey SocialAccountProjectsUpdated = new("social-account-projects-updated");
+
+	/// <summary>
+	/// Bluesky account reconnected
+	/// </summary>
+	public static readonly TranslationKey SocialAccountReconnected = new("social-account-reconnected");
 
 	/// <summary>
 	/// Staff profile created successfully

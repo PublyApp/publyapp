@@ -4259,6 +4259,7 @@ export function deserializeIntoGetUserAuthDataResult(getUserAuthDataResult: Part
         "firstName": n => { getUserAuthDataResult.firstName = n.getStringValue(); },
         "id": n => { getUserAuthDataResult.id = n.getGuidValue(); },
         "lastName": n => { getUserAuthDataResult.lastName = n.getStringValue(); },
+        "tenantPermissionKeys": n => { getUserAuthDataResult.tenantPermissionKeys = n.getCollectionOfPrimitiveValues<string>("string"); },
     }
 }
 /**
@@ -6120,6 +6121,10 @@ export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:["*"] when the resolved account is a tenant Admin (the #861AccountLevel.Admin short-circuit TenantPermissionFilter applies), otherwisethe profile-derived keys. Empty array — never null — whenever there isno usable scope (missing/malformed tenant_id, unknown or suspendedaccount), gating everything closed.
+     */
+    tenantPermissionKeys?: string[] | null;
 }
 export interface GetUserTenantsForPickerResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -8129,6 +8134,7 @@ export function serializeGetUserAuthDataResult(writer: SerializationWriter, getU
     writer.writeStringValue("firstName", getUserAuthDataResult.firstName);
     writer.writeGuidValue("id", getUserAuthDataResult.id);
     writer.writeStringValue("lastName", getUserAuthDataResult.lastName);
+    writer.writeCollectionOfPrimitiveValues<string>("tenantPermissionKeys", getUserAuthDataResult.tenantPermissionKeys);
     writer.writeAdditionalData(getUserAuthDataResult.additionalData);
 }
 /**
