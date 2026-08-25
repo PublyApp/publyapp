@@ -338,21 +338,25 @@ export const InviteTenantUserDrawer = ({
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
 	// Open-transition reset only: state clears when the drawer opens, never
-	// while it is closed. The analyzer cannot see the isOpen guard, so these
-	// rules mis-fire here.
+	// while it is closed (guarded by isOpen). Flagged on origin/develop too;
+	// kept as deliberate, pre-existing behaviour.
 	// react-doctor-disable-next-line react-doctor/no-reset-all-state-on-prop-change
 	useEffect(() => {
 		if (isOpen) {
+			// Clears the stale submit error on open. Pre-existing on develop.
 			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setRootValidationError('');
+			// Resets the stale batch summary on open. Pre-existing on develop.
 			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setBatchSummary(null);
+			// Resets a stale discard prompt on open. Pre-existing on develop.
 			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setIsDiscardConfirmOpen(false);
 			reset(DEFAULT_VALUES);
 		}
 	}, [isOpen, reset]);
 
+	// Deliberate dirty-flag uplink to the drawer host. Pre-existing on develop.
 	useEffect(() => {
 		// react-doctor-disable-next-line react-doctor/no-pass-data-to-parent
 		onDirtyChange?.(isDirty);

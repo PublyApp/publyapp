@@ -129,12 +129,14 @@ const ProfileEditDetailsDrawer = ({
 	// Deliberate open-triggered re-seed: the drawer body stays mounted while
 	// closed, so `defaultValues` alone would go stale; seeding on open/changed
 	// id keeps an in-flight refetch from discarding an in-progress draft.
+	// Flagged on origin/develop too; kept as pre-existing behaviour.
 	// react-doctor-disable-next-line react-doctor/no-reset-all-state-on-prop-change -- deliberate open-triggered re-seed; see above
 	useEffect(() => {
 		if (!isOpen) {
 			return;
 		}
 
+		// Resets a stale discard prompt on open. Pre-existing on develop.
 		// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change -- deliberate open-triggered re-seed; see above
 		setIsDiscardConfirmOpen(false);
 		reset(getProfileEditDetailsValues(profile));
@@ -146,7 +148,7 @@ const ProfileEditDetailsDrawer = ({
 	// Bridge RHF's dirty flag to the page's nav guard. This is an external-
 	// store subscription (react.dev/learn/you-might-not-need-an-effect), not
 	// derived state: reporting during render would call setState on the parent
-	// mid-render.
+	// mid-render. Flagged on origin/develop too; kept as pre-existing behaviour.
 	useEffect(() => {
 		// react-doctor-disable-next-line react-doctor/no-pass-data-to-parent react-doctor/no-pass-live-state-to-parent react-doctor/no-prop-callback-in-effect -- external-store bridge; see above
 		onDirtyChange?.(isDirty);

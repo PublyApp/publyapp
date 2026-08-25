@@ -81,13 +81,15 @@ export const ChangeStaffUserEmailDialog = ({
 	const isFormLocked = isPending || isSubmitting;
 
 	// Open-transition reseed only: state clears when the dialog opens, never
-	// while it is closed, so a prop cannot clobber an in-progress draft. The
-	// analyzer cannot see the isOpen guard, so these rules mis-fire here.
+	// while it is closed (guarded by isOpen). Flagged on origin/develop too;
+	// kept as deliberate, pre-existing behaviour.
 	// react-doctor-disable-next-line react-doctor/no-reset-all-state-on-prop-change
 	useEffect(() => {
 		if (isOpen) {
+			// Clears the stale submit error on open. Pre-existing on develop.
 			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setRootValidationError('');
+			// Resets a stale discard prompt on open. Pre-existing on develop.
 			// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change
 			setShowDiscardConfirm(false);
 			reset({ email: currentEmail });
