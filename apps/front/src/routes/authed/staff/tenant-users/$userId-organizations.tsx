@@ -71,7 +71,7 @@ export const Route = createFileRoute(
 });
 
 const DEFAULT_SORT = { id: 'tenant_name', order: 'asc' as const };
-// Locked parity default (docs/front-migration/parity-contract.md).
+// Locked parity default (docs/records/2026-07-29-spec-front-parity-contract.md).
 const DEFAULT_SIZE = 100;
 
 type OrganizationRow = ReturnType<typeof toGlobalTenantUserCompanyRows>[number];

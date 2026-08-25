@@ -8,7 +8,7 @@ applies database migrations. The decisions below are in force; where the origina
 something that turned out not to be true on the real instance, the assumption is marked
 **SUPERSEDED** in place rather than deleted, so the reasoning stays auditable.
 
-It supersedes `docs/archive/2026/guides/deployment-guide.md` (archived copy) and
+It supersedes `docs/records/2026-07-29-spec-deployment-guide.md` (archived copy) and
 `docs/misc/database-migration-deployment.md` (removed): the artifact-upload deployment flow, and a
 generic note that referenced SQL Server `sqlcmd` and a DbContext class that no longer exists.
 
@@ -49,7 +49,7 @@ declare the external network's driver.
 | 4 | Seeding | **Split by intent** — essentials idempotent everywhere, demo gated OFF in Production, owner via bootstrap |
 | 5 | Deploy model | **Expand/contract** (backward-compatible) migration discipline. *Zero-downtime via Swarm rolling: **SUPERSEDED** — the observed instance uses plain Compose, so a deploy has a short recreate gap. Expand/contract still holds and is the half that mattered.* |
 | 6 | DB credentials | **Single** app credential (migrator + runtime share one role) |
-| 7 | Frontend target | **`apps/front`** (SSR), deployed under the generic service name `publyapp-front`. `apps/old-front` was retired 2026-08-22 (archive `docs/archive/old-front`) and is not built for release. |
+| 7 | Frontend target | **`apps/front`** (SSR), deployed under the generic service name `publyapp-front`. `apps/old-front` was retired 2026-08-22 (tag `old-front-final`) and is not built for release. |
 
 ### Why these (rationale)
 - **Split (1):** builds the target topology from day one; `APP_ROLE=all` remains the Development/Testing default when the role is omitted. Split gives process/operational isolation. It is only worse than combined if the VPS OOMs/swaps or connection pools are uncapped — both mitigated below.
@@ -58,7 +58,7 @@ declare the external network's driver.
 - **Seeding split (4):** **SUPERSEDED:** the original design found that seeders ran unconditionally and would have included demo fixtures in Production. The shipped `CreateSeeders` filter excludes every `IsDemo` seeder in Production, while non-demo seeders — including permissions, system definitions, and the owner bootstrap — still run. A Production-process spec verifies both sides of the gate.
 - **Zero-downtime + expand/contract (5):** owner chose zero-downtime. It has two halves: **schema safety** (expand/contract — always ours to control) and **deploy mechanics** (Swarm rolling on Dokploy). Expand/contract is the real guarantee and it shipped. **SUPERSEDED — the deploy-mechanics half:** the live-server record identifies the selected mode as plain Compose, so the observed deployment has no rolling update and has a brief container-recreate gap. Getting true no-gap cutover later means selecting Dokploy "Stack" (Swarm) or fronting it with two health-gated replicas; neither was observed on the instance, and neither is needed at current traffic.
 - **Single credential (6):** least-privilege DDL/DML split remains deferred; its default-privileges management adds outage risk for limited current benefit. Revisit if the threat model changes.
-- **front (7):** front is the go-forward UI and deploys under the generic service name `publyapp-front`; `apps/old-front` (retired 2026-08-22) has no release image (archive `docs/archive/old-front`).
+- **front (7):** front is the go-forward UI and deploys under the generic service name `publyapp-front`; `apps/old-front` (retired 2026-08-22) has no release image.
 
 ## Architecture as deployed
 
@@ -111,7 +111,7 @@ These would have broken deploy #1. They are resolved in the committed `dokploy.y
 - Fixed `container_name` removed.
 - Ordering no longer relies on `depends_on` at all — there is none in the file. Each service carries its own healthcheck (API readiness, worker `--worker-health`, front `GET /health`) and Traefik withholds routing until it passes.
 - Immutable tags pinned (`${RELEASE_TAG}` per service, never `latest`).
-- The two stale `docs/misc/` deployment docs are marked superseded and link here.
+- The two stale `docs/misc/` deployment docs were removed by the #1357 docs prune.
 
 ## Sequencing & dependencies (historical — complete)
 - This design depended on 2B (`APP_ROLE` + the worker composition root); approving it unblocked merging 2B → 2C → P3, the work #876 was gating. All of that has landed.

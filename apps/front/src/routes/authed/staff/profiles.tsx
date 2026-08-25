@@ -85,7 +85,7 @@ const StaffProfilesPage = () => {
 				description={t('staff-profiles-page-description')}
 				actions={
 					<Link
-						to={'/staff/profiles/new' as never}
+						to="/staff/profiles/new"
 						className={buttonVariants({ variant: 'default' })}
 					>
 						<IconPlus aria-hidden="true" className="size-[15px]" />

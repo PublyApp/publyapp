@@ -30,10 +30,14 @@ describe('badgeVariants', () => {
 	// renders as an anchor via `render` — nothing pinned that they exist at
 	// all, or that a plain <span> badge doesn't carry them as dead classes.
 	test('every non-link, non-ghost variant carries an [a]:hover: fragment for anchor rendering', () => {
-		for (const variant of ['default', 'secondary', 'destructive', 'outline']) {
-			expect(badgeVariants({ variant: variant as never })).toMatch(
-				/\[a]:hover:/,
-			);
+		const anchorVariants = [
+			'default',
+			'secondary',
+			'destructive',
+			'outline',
+		] as const;
+		for (const variant of anchorVariants) {
+			expect(badgeVariants({ variant })).toMatch(/\[a]:hover:/);
 		}
 	});
 });

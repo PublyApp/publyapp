@@ -32,6 +32,7 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import {
 	cleanup,
 	fireEvent,
@@ -223,7 +224,7 @@ const buildHarness = () => {
 		id: '/_authed-layout',
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
-	} as never);
+	});
 	const listRoute = mountRealRoute(StaffUsersListRoute, {
 		id: LIST_ROUTE_PATH,
 		path: LIST_ROUTE_PATH,
@@ -244,11 +245,13 @@ const buildHarness = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = createRouter({
-		routeTree,
-		history,
-		context: { queryClient },
-	} as never);
+	const router: AnyRouter = createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({
+			routeTree,
+			history,
+			context: { queryClient },
+		}),
+	);
 
 	return { router, history, queryClient };
 };
@@ -259,7 +262,7 @@ const renderAtList = async () => {
 
 	render(
 		<QueryClientProvider client={harness.queryClient}>
-			<RouterProvider router={harness.router as never} />
+			<RouterProvider router={harness.router} />
 		</QueryClientProvider>,
 	);
 	await waitFor(() =>
@@ -355,7 +358,7 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 
 		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
 
-		await chooseBulkAction('Suspend selected');
+		await chooseBulkAction('Suspend selected', 'More actions');
 
 		// Destructive actions require confirmation before firing.
 		expect(

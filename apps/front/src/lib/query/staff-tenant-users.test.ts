@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	bulkCreateStaffTenantInvitationsMutationOptions,
@@ -285,8 +286,8 @@ describe('toStaffTenantUserRows', () => {
 	test('normalizes API items, builds display names, and skips rows without usable ids', () => {
 		const items: TenantUserItem[] = [
 			{
-				id: 'user-1' as never,
-				userAccountId: 'account-1' as never,
+				id: 'user-1',
+				userAccountId: 'account-1',
 				firstName: ' Alex ',
 				lastName: ' Johnson ',
 				email: ' alex@example.com ',
@@ -295,8 +296,8 @@ describe('toStaffTenantUserRows', () => {
 				avatarUrl: ' https://example.com/alex.png ',
 			},
 			{
-				id: '' as never,
-				userAccountId: 'account-skip' as never,
+				id: '',
+				userAccountId: 'account-skip',
 				firstName: 'Skip',
 				lastName: 'Me',
 				email: 'skip@example.com',
@@ -304,8 +305,8 @@ describe('toStaffTenantUserRows', () => {
 				status: 'Active',
 			},
 			{
-				id: 'user-2' as never,
-				userAccountId: 'account-2' as never,
+				id: 'user-2',
+				userAccountId: 'account-2',
 				firstName: ' ',
 				lastName: null,
 				email: ' second@example.com ',
@@ -347,8 +348,8 @@ describe('toStaffTenantUserRows', () => {
 	test('keeps id (global user id) and userAccountId (tenant membership id) as distinct fields', () => {
 		const [row] = toStaffTenantUserRows([
 			{
-				id: 'user-3' as never,
-				userAccountId: 'account-3' as never,
+				id: 'user-3',
+				userAccountId: 'account-3',
 				firstName: 'Rae',
 				lastName: 'Lee',
 				email: 'rae@example.com',
@@ -368,8 +369,8 @@ describe('toStaffTenantUserRows', () => {
 	test('drops a row with a blank/missing userAccountId', () => {
 		const items: TenantUserItem[] = [
 			{
-				id: 'user-6' as never,
-				userAccountId: '' as never,
+				id: 'user-6',
+				userAccountId: '',
 				firstName: 'No',
 				lastName: 'Account',
 				email: 'no-account@example.com',
@@ -377,8 +378,8 @@ describe('toStaffTenantUserRows', () => {
 				status: 'Active',
 			},
 			{
-				id: 'user-7' as never,
-				userAccountId: null as never,
+				id: 'user-7',
+				userAccountId: null,
 				firstName: 'Also',
 				lastName: 'Missing',
 				email: 'also-missing@example.com',
@@ -393,8 +394,8 @@ describe('toStaffTenantUserRows', () => {
 	test('resolves a root-relative /files/ avatarUrl against the API origin', () => {
 		const [row] = toStaffTenantUserRows([
 			{
-				id: 'user-3' as never,
-				userAccountId: 'account-3' as never,
+				id: 'user-3',
+				userAccountId: 'account-3',
 				firstName: 'Rae',
 				lastName: 'Lee',
 				email: 'rae@example.com',
@@ -416,8 +417,8 @@ describe('toStaffTenantUserRows', () => {
 	test('drops a row with a blank/missing email rather than fabricating a placeholder', () => {
 		const items: TenantUserItem[] = [
 			{
-				id: 'user-4' as never,
-				userAccountId: 'account-4' as never,
+				id: 'user-4',
+				userAccountId: 'account-4',
 				firstName: 'Nobody',
 				lastName: 'Home',
 				email: '   ',
@@ -425,9 +426,9 @@ describe('toStaffTenantUserRows', () => {
 				status: 'Active',
 			},
 			{
-				id: 'user-5' as never,
-				userAccountId: 'account-5' as never,
-				email: null as never,
+				id: 'user-5',
+				userAccountId: 'account-5',
+				email: null,
 			},
 		];
 
@@ -591,7 +592,7 @@ describe('toStaffTenantUserBulkActionSummary', () => {
 			failedCount: 1,
 			failedItems: [
 				{
-					userId: 'user-3' as never,
+					userId: 'user-3',
 					errorEscaped: 'Cannot remove the last admin from the tenant',
 				},
 			],
@@ -678,7 +679,10 @@ describe('invalidateStaffTenantUsers', () => {
 	test('invalidates the shared staff-tenant-users scope prefix', () => {
 		const invalidateQueries = vi.fn();
 
-		void invalidateStaffTenantUsers({ invalidateQueries } as never);
+		void invalidateStaffTenantUsers({ invalidateQueries } satisfies Pick<
+			QueryClient,
+			'invalidateQueries'
+		>);
 
 		expect(invalidateQueries).toHaveBeenCalledWith({
 			queryKey: ['staff', ...STAFF_TENANT_USERS_QUERY_KEY],

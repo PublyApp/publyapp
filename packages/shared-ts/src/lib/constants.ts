@@ -18,7 +18,7 @@ export const LOCALE_COOKIE_KEY = `${APP_ID}-locale`; // used to help remix detec
 // to TENANT_HINTS_MAX_ENTRIES to keep the cookie under 1 KB.
 //
 // Historical design record (shipped in #184, not a current spec):
-// docs/implementation-plans/identity-scoped-tenant-cookie.md
+// docs/records/2026-01-31-plan-identity-scoped-tenant-cookie.md
 // =============================================================================
 
 /** New cookie key for user→tenant mapping (v4 format) */

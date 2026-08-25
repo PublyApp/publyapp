@@ -150,8 +150,8 @@ There is **no `apps/jobs`**. Background jobs shipped inside the API project (`ap
 and run as a separate deployed process off the **same API image** with `APP_ROLE=worker` — see
 `dokploy.yml`.
 
-`apps/old-front` was retired on 2026-08-22. Archive in `docs/archive/old-front`, tag `old-front-final`.
-All frontend work happens in `apps/front`; `docs/archive/old-front` is the reference for the retired surfaces.
+`apps/old-front` was retired on 2026-08-22 (tag `old-front-final`).
+All frontend work happens in `apps/front`; the retired app's source lives only at tag `old-front-final`, not in this tree.
 
 ### Backend Architecture (Vertical Slice, Domain-First)
 
@@ -329,9 +329,9 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 - Loading/empty/error states use the front state components (`state-view.tsx`, `state-surface.tsx`, `skeleton.tsx`) — never ad-hoc conditional rendering per page.
 - **Entity images and avatars:** preserve the real image when one exists and keep the intended aspect ratio. When there is genuinely no image, an **entity identity** surface — a person or an organization — falls back to initials on a deterministic, name-hashed colour from the `--publy-avatar-1`…`--publy-avatar-8` palette with `--publy-avatar-foreground` text (`paletteIndex()` in [`apps/front/src/components/ui/avatar-initials.ts`](apps/front/src/components/ui/avatar-initials.ts), applied via [`apps/front/src/components/ui/person-avatar.tsx`](apps/front/src/components/ui/person-avatar.tsx)). That colour is **identity, not decoration**: it is what distinguishes two photoless people in the same list and makes one person recognizable across a table row, a drawer, and the account menu — a uniform grey column carries no information at all. The palette is WCAG-pinned against fixed white text and deliberately theme-invariant, so do **not** swap it for muted tokens, and do **not** give it an `html.dark` counterpart (see `THEME_INVARIANT_TOKENS` in [`apps/front/scripts/check-design-system.mjs`](apps/front/scripts/check-design-system.mjs) and the contrast guard in [`apps/front/src/styles/avatar-fallback-contrast.test.ts`](apps/front/src/styles/avatar-fallback-contrast.test.ts)). Neutral muted tokens remain correct for fallbacks that are **not** entity identity. Build on the stable `Avatar`/`AvatarImage`/`AvatarFallback` primitive layer in [`apps/front/src/components/ui/avatar.tsx`](apps/front/src/components/ui/avatar.tsx), whose image preserves a square cover crop and whose bare fallback stays neutral for those non-identity consumers. **front has no `<Image>` primitive** — do not import one, and do not invent one as a side effect of another task; if a non-avatar content-image need appears, raise it as its own change rather than sprawling raw `<img>` tags. Raw `<img>` is acceptable only for the brand wordmark/logo and inline SVGs, as it is used today in the layouts.
 - **React Doctor HARD gate:** a PR must not leave any React Doctor finding in a file it changes. Run `just react-doctor` before pushing. CI enforces this via `.github/workflows/react-doctor.yml` (`--scope files --blocking warning`). Full guide: [`docs/guides/react-doctor.md`](docs/guides/react-doctor.md).
-- Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its old MUI-era `apps/old-front` code snippets are archived in `docs/archive/old-front`).
+- Bulk-action items on list-page selection menus always render — never `disabled`, never conditionally hidden by per-row eligibility; ineligible clicks show an i18n toast. The trigger button gates on `BULK_ACTION_MAX_COUNT`. See [`docs/guides/bulk-action-ux-conventions.md`](docs/guides/bulk-action-ux-conventions.md) (its backend/UX policy is normative; its old MUI-era `apps/old-front` code snippets died with that retired app).
 
-`apps/old-front` was retired on 2026-08-22 (archive `docs/archive/old-front`, tag `old-front-final`). The MUI/`sx` standards that governed it are archived, not deleted as guidance — see the archive for the retired patterns.
+`apps/old-front` was retired on 2026-08-22 (tag `old-front-final`). The MUI/`sx` standards that governed it are archived, not deleted as guidance — see git history or that tag for the retired patterns.
 
 **Enabled `publy/*` lint-rule scopes** (the configuration sets each of these to `error`):
 
@@ -423,7 +423,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 
 - Backend routes use kebab-case; constants in `RoutePath.cs` (backend) and `constants.ts` (frontend)
 - Errors: `AppProblemDetails` (400/401/403/404/500) + `ValidationProblemDetails` (422) — both RFC 7807
-- **Transparent failure causes (owner product rule, 2026-08-22):** every failure the backend persists or returns carries a human-readable cause and, where one exists, the next action — a `Failed`/`Paused`/`NeedsReconnect` row stores a sanitised `LastError`/cause (never a secret, never a stack trace), a job failure records the provider's classified reason, and a problem response names what went wrong in plain words. Never `Failed` with an empty reason, never a generic "something went wrong". Spec: `docs/superpowers/specs/2026-08-22-epic-d-publishing-scheduling-design.md` §1.7; UI counterpart in `DESIGN.md` (error states).
+- **Transparent failure causes (owner product rule, 2026-08-22):** every failure the backend persists or returns carries a human-readable cause and, where one exists, the next action — a `Failed`/`Paused`/`NeedsReconnect` row stores a sanitised `LastError`/cause (never a secret, never a stack trace), a job failure records the provider's classified reason, and a problem response names what went wrong in plain words. Never `Failed` with an empty reason, never a generic "something went wrong". Spec: `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` §1.7; UI counterpart in `DESIGN.md` (error states).
 - Frontend/Node: use `logger` from `@org/shared-ts/lib/logger/iso-logger` (not `console.*`) (enforced by `publy/no-console-in-source`)
 - Frontend API errors: centralized via `ApiFailure` discriminated union — see [`docs/guides/frontend-error-handling.md`](docs/guides/frontend-error-handling.md)
 - Frontend local mutation handlers must derive user-facing error text through `getFailureMessage(toApiFailure(error), ...)`; never translate `response-message` keys manually at the call site (enforced by `publy/no-manual-response-message-translation`)
@@ -479,12 +479,15 @@ client regeneration workflow, and TypeScript patterns), see:
 
 ## Documentation Organization
 
-[`docs/README.md`](docs/README.md) is the filing index: it lists which documents are normative and
-gives one filing rule per directory. Read it before creating a document.
+`docs/` has exactly four directories: `guides/` (standing rules), `deployment/` (production
+operations), `records/` (dated, write-once records named `YYYY-MM-DD-<type>-<topic>.md`, type from
+spec/plan/review/audit/spike/analysis), and `assets/`. [`docs/README.md`](docs/README.md) is the
+filing index; read it before creating a document.
 
 - **Never** place a generated doc at the repo root, and never at the `docs/` root either — always in
-  a `docs/` subdirectory
-- Use an existing subdirectory; only create a new one (kebab-case) if nothing in `docs/README.md` fits
+  one of those four directories
+- A new record goes to `docs/records/` under a `YYYY-MM-DD-<type>-<topic>.md` name; never create a
+  new top-level `docs/` directory
 - This file links guides/deployment docs for standing policy and may also link repository
   config/source files to anchor a rule. A `docs/guides/` file this file does not link is a record,
   not a rule

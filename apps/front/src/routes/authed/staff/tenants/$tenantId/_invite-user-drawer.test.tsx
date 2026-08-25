@@ -125,11 +125,10 @@ vi.mock('~/components/ui/drawer', () => ({
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
 	}) =>
-		createElement(
-			FormProvider as never,
-			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
-		),
+		createElement(FormProvider, {
+			...methods,
+			children: createElement('form', { onSubmit }, children),
+		}),
 }));
 
 vi.mock('~/components/field', () => ({
@@ -142,11 +141,10 @@ vi.mock('~/components/field', () => ({
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
 	}) =>
-		createElement(
-			FormProvider as never,
-			{ ...methods } as never,
-			createElement('form', { onSubmit }, children),
-		),
+		createElement(FormProvider, {
+			...methods,
+			children: createElement('form', { onSubmit }, children),
+		}),
 	Field: {
 		Email: ({
 			name,

@@ -22,6 +22,7 @@ import {
 } from '~/lib/query/tenant-posts';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 import {
 	parseTenantPostListSearchParams,
 	serializeTenantPostListSearchParams,
@@ -38,7 +39,9 @@ const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
 const TenantPostsDraftsPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
-	const search = parseTenantPostListSearchParams(Route.useSearch() as never);
+	const search = parseTenantPostListSearchParams(
+		Route.useSearch() as TableSearchParamInput,
+	);
 	const onSearchChange = (next: {
 		q?: string;
 		sortId?: string;
@@ -47,21 +50,21 @@ const TenantPostsDraftsPage = () => {
 		size?: number;
 	}) => {
 		void navigate({
-			search: serializeTenantPostListSearchParams(next as never),
+			search: serializeTenantPostListSearchParams(next),
 			replace: true,
 		});
 	};
 	const controller = useTableController({
-		search: search as never,
-		onSearchChange: onSearchChange as never,
+		search,
+		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: 20,
 	});
 	const tenantId = useResolvedWorkspaceTenantId();
 	const query = useTenantPostsQuery({
-		...(controller.apiVariables as object),
+		...controller.apiVariables,
 		tenantId: tenantId ?? '',
-	} as never);
+	});
 	const rows = toTenantPostRows(query.data);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
 	const [pendingBinId, setPendingBinId] = useState<string | null>(null);
@@ -120,7 +123,7 @@ const TenantPostsDraftsPage = () => {
 					<DataTableRowActions
 						ariaLabel={t('common:actions-for', {
 							name: row.original.excerpt.slice(0, 40),
-						} as never)}
+						})}
 					>
 						<DropdownMenuItem
 							onClick={() =>
