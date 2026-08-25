@@ -205,10 +205,12 @@ export const awaitExitWithinBudget = ({
 
 if (process.env.FRONT2_DESIGN_GUARD_RUNNER_PROBE) {
 	test('runner interruption probe leaves an active owned fixture', async () => {
-		// Resolve the budget FIRST, through the shared seam: a bad override
-		// must fail loud before any child is spawned — nothing to leak,
-		// nothing left to clean up.
-		const budgetMs = realProbeBudget();
+		// Validate the budget FIRST, through the shared seam: a bad override
+		// must fail loud before any fixture exists — nothing to leak, nothing
+		// left to clean up. The resolved VALUE itself bounds the parent side
+		// of this flow (see 'the real node:test runner cleans...' below),
+		// so here only the strict parse matters.
+		realProbeBudget();
 		const root = await makeFixture({
 			'probe.ts': 'export const probe = true;',
 		});
@@ -410,15 +412,29 @@ test('#1352: the probe budget fires on a never-ending child, kills the whole pro
 // The source anchor below additionally pins the real probe call site to the
 // seam, so deleting the indirection cannot pass silently either.
 test('#1352 r1: the REAL probe budget wiring fires under an injected small RUNNER_PROBE_BUDGET_MS', async () => {
-	// Anchor: BOTH real-probe branches (the child-side live probe flow and
-	// the parent-side bounded exit wait) must acquire the budget through the
+	// Anchor: BOTH real-probe branches must acquire their budget through the
 	// shared seam — hardcoding or bypassing EITHER one must turn this RED.
+	// The child-side live probe flow validates the parse with a bare
+	// `realProbeBudget();` before creating anything; the parent-side bounded
+	// exit wait binds the resolved value with
+	// `const budgetMs = realProbeBudget();`.
 	const source = await readFile(testFilePath, 'utf8');
-	const seamCallSites = source.match(/const budgetMs = realProbeBudget\(\);/g);
-	assert.equal(
-		seamCallSites?.length,
-		2,
-		'both real-probe budget acquisitions must read the shared realProbeBudget seam',
+	// Full-line // comments are stripped first so this very block's quoted
+	// prose can never satisfy the anchors below.
+	const codeOnly = source.replace(/^[ \t]*\/\/.*$/gm, '');
+	// Child-side live probe flow: bare strict-parse validation before any
+	// fixture exists.
+	assert.match(
+		codeOnly,
+		/^\t\trealProbeBudget\(\);$/m,
+		'the live probe flow must validate the budget through the shared seam before creating anything',
+	);
+	// Parent-side bounded exit wait: the resolved VALUE must come from the
+	// seam.
+	assert.match(
+		codeOnly,
+		/^[ \t]*const budgetMs = realProbeBudget\(\);[ \t]*$/m,
+		'the bounded exit wait must bind the budget resolved through the seam',
 	);
 
 	const root = await makeFixture({
