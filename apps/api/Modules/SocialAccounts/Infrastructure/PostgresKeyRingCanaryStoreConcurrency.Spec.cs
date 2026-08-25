@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Npgsql;
+
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 
@@ -131,6 +133,66 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		rows.Should().ContainSingle("the loser must not insert a second row");
 		rows.Single().Xml.Should().Be(winnerBlob,
 			"the winner's blob must survive the loser's write untouched");
+	}
+
+	[Fact]
+	public async Task ItShouldNameTheResidualDuplicateCauseAndOperatorActionWhenReadFindsMoreThanOne() {
+		// Transparent-failure contract (Part 4 of #1416): the dedupe migration plus the
+		// unique partial index make residual duplicates unreachable through normal
+		// operation, so if a database EVER carries more than one canary row again, the
+		// boot must fail with a message naming the CAUSE (how many duplicate rows) and
+		// the operator ACTION (keep MIN("Id"), delete the rest) — never the bare LINQ
+		// "Sequence contains more than one element" that made the incident hard to read.
+		await using var db = await WitnessTestDatabase.CreateAsync();
+
+		var services = new ServiceCollection();
+		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(db.ConnectionString));
+		await using var provider = services.BuildServiceProvider();
+		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+
+		await using var scope = scopeFactory.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		// Construct the never-should-happen state honestly: the guard index from Part 1
+		// makes duplicates uninsertable through normal operation, so this state can only
+		// arise if that index was removed (restored backup, manual intervention). Drop
+		// it here, then seed two duplicate canary rows exactly as the old race left them.
+		await dbContext.Database.OpenConnectionAsync();
+		await using var dropIndex = new NpgsqlCommand(
+			"DROP INDEX IF EXISTS ux_data_protection_keys_canary_friendly_name;",
+			(NpgsqlConnection)dbContext.Database.GetDbConnection()
+		);
+		await dropIndex.ExecuteNonQueryAsync();
+
+		await using var insertFirst = new NpgsqlCommand(
+			"""
+
+			INSERT INTO data_protection_keys ("FriendlyName", "Xml")
+			VALUES (@canary, '<blob-a>')
+			""",
+			(NpgsqlConnection)dbContext.Database.GetDbConnection()
+		);
+		insertFirst.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+		await insertFirst.ExecuteNonQueryAsync();
+
+		await using var insertSecond = new NpgsqlCommand(
+			"""
+
+			INSERT INTO data_protection_keys ("FriendlyName", "Xml")
+			VALUES (@canary, '<blob-b>')
+			""",
+			(NpgsqlConnection)dbContext.Database.GetDbConnection()
+		);
+		insertSecond.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+		await insertSecond.ExecuteNonQueryAsync();
+
+		var store = new PostgresKeyRingCanaryStore(scopeFactory);
+		var act = () => store.Read();
+
+		act.Should().Throw<InvalidOperationException>()
+			.WithMessage(
+				"*duplicate*social-accounts-master-key-canary*data_protection_keys*MIN(\"Id\")*",
+				"the failure must carry the cause AND the next action, in plain words");
 	}
 
 	private static async Task<string?> CanaryBlobOf(IServiceScopeFactory scopeFactory) {

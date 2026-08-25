@@ -28,10 +28,33 @@ public sealed class PostgresKeyRingCanaryStore : IKeyRingCanaryStore {
 	public string? Read() {
 		using var scope = _scopeFactory.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var key = dbContext.DataProtectionKeys
+
+		// #1416: never let the bare LINQ "Sequence contains more than one element" reach
+		// an operator. Residual duplicates should be unreachable behind the unique partial
+		// index, so if they ever appear anyway the failure must carry the CAUSE (how many
+		// rows) and the ACTION (keep the lowest id, delete the rest).
+		var blobs = dbContext.DataProtectionKeys
 			.AsNoTracking()
-			.SingleOrDefault(k => k.FriendlyName == RowName);
-		return key?.Xml;
+			.Where(k => k.FriendlyName == RowName)
+			.Select(k => k.Xml)
+			.ToList();
+
+		if (blobs.Count > 1) {
+			throw new InvalidOperationException(
+				"The master-key canary is corrupted: found "
+					+ blobs.Count
+					+ " duplicate "
+					+ RowName
+					+ " rows in data_protection_keys, so the boot refuses to guess which blob "
+					+ "to trust. Repair by keeping only the lowest-id row and deleting the "
+					+ "others, for example: DELETE FROM data_protection_keys WHERE "
+					+ "\"FriendlyName\" = '" + RowName + "' AND \"Id\" <> (SELECT MIN(\"Id\") "
+					+ "FROM data_protection_keys WHERE \"FriendlyName\" = '" + RowName
+					+ "'); then restart this service."
+			);
+		}
+
+		return blobs.Count == 0 ? null : blobs[0];
 	}
 
 	public void Write(string blob) {
