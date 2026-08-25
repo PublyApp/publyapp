@@ -354,6 +354,51 @@ describe('InviteTenantUserDrawer', () => {
 		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});
 
+	// Round 2 (#1264): the dirty-flag uplink is event-driven (form watch),
+	// so the host learns the state synchronously — including the clean
+	// snapshot a freshly opened session replays over a stale parent flag.
+	test('reports dirtiness synchronously and re-syncs a clean state on reopen', () => {
+		const onDirtyChange = vi.fn();
+		const baseProps = {
+			tenantId: 'tenant-1',
+			onOpenChange: vi.fn(),
+			onInvited: vi.fn(),
+			onSessionExpired: vi.fn(),
+		};
+		const { rerender } = render(
+			<InviteTenantUserDrawer
+				{...baseProps}
+				isOpen
+				onDirtyChange={onDirtyChange}
+			/>,
+		);
+
+		expect(onDirtyChange).toHaveBeenCalledWith(false);
+
+		fireEvent.change(screen.getByLabelText('Email'), {
+			target: { value: 'someone@acme.com' },
+		});
+
+		expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+
+		rerender(
+			<InviteTenantUserDrawer
+				{...baseProps}
+				isOpen={false}
+				onDirtyChange={onDirtyChange}
+			/>,
+		);
+		rerender(
+			<InviteTenantUserDrawer
+				{...baseProps}
+				isOpen
+				onDirtyChange={onDirtyChange}
+			/>,
+		);
+
+		expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+	});
+
 	test('submits the invitation, invalidates queries, and calls onInvited', async () => {
 		mocks.inviteMutation.mockResolvedValue({
 			succeededCount: 1,

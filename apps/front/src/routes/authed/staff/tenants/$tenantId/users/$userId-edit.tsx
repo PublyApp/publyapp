@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,6 +7,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { FieldSelectOption } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	selectStaffTenantUserCrumbName,
 	staffTenantUserCrumbQuery,
@@ -54,7 +54,7 @@ import { applyTenantUserUpdateFailure } from './_edit-submit-handler';
 const StaffTenantUserEditPage = () => {
 	const { tenantId, userId } = Route.useParams();
 	const navigate = Route.useNavigate();
-	const { t, i18n } = useTranslation('common');
+	const { t } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const [rootValidationError, setRootValidationError] = useState('');
@@ -79,10 +79,9 @@ const StaffTenantUserEditPage = () => {
 	);
 	const updateTenantUser = useUpdateStaffTenantUserMutation();
 	const user = toStaffTenantUserDetails(detailsQuery.data);
-	const resolver = useMemo(
-		() => zodResolver(buildTenantUserEditSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+	const resolver = useLanguageKeyedZodResolver<TenantUserEditValues>(
+		buildTenantUserEditSchema,
+		'common',
 	);
 	const accountLevelOptions: FieldSelectOption[] = useMemo(
 		() =>

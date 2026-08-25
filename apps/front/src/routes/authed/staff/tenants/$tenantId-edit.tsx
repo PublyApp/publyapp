@@ -1,4 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
@@ -9,6 +8,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Form, FormPageLayout } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
+import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	invalidateStaffTenants,
 	selectStaffTenantCrumbName,
@@ -82,10 +82,11 @@ const StaffTenantEditRoute = () => {
 		[tenant],
 	);
 
-	const resolver = useMemo(
-		() => zodResolver(buildEditTenantSchema(t)),
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- rebuild on language change so messages stay localized
-		[i18n.language],
+	// Language-keyed resolver: rebuilds when translations change so error
+	// messages stay localized; see use-language-keyed-zod-resolver.
+	const resolver = useLanguageKeyedZodResolver<EditTenantFormValues>(
+		buildEditTenantSchema,
+		'common',
 	);
 
 	const methods = useForm<EditTenantFormValues>({
