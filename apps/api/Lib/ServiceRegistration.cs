@@ -154,6 +154,13 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IResend>((sp) => {
 			return ResendClient.Create(AppEnvironment.Instance.RESEND_API_KEY);
 		});
+		// C2 (#641): Bluesky session-open seam. Typed named HttpClient keeps the base
+		// address testable; the adapter itself classifies account-caused refusals vs
+		// transient failures so no exception crosses the seam. Integration specs replace
+		// IBlueskySessionProvider with FakeBlueskySessionProvider (ApiFactory) — the real
+		// network is never contacted in tests.
+		BlueskySessionProvider.RegisterHttpClient(builder.Services);
+		builder.Services.AddScoped<IBlueskySessionProvider, BlueskySessionProvider>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(
