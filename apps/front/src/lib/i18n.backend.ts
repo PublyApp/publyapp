@@ -22,7 +22,7 @@ const localLoaders = import.meta.glob<JsonModule>('../i18n/locales/*/*.json');
 // (`@org/shared-ts/lib/i18n/locales/{en,fr}`, which would pull shared `common` into every namespace
 // chunk). A relative dynamic `import()` of the exact file resolves correctly and code-splits each
 // namespace on its own — verified resolving + typechecking from `apps/front/src/lib/`.
-	const sharedLoaders: Record<string, ResourceLoader> = {
+const sharedLoaders = {
 	'en/zod': () =>
 		import('../../../../packages/shared-ts/src/lib/i18n/json/zod.en.json'),
 	'fr/zod': () =>
@@ -31,7 +31,7 @@ const localLoaders = import.meta.glob<JsonModule>('../i18n/locales/*/*.json');
 		import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.en.json'),
 	'fr/response-message': () =>
 		import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.fr.json'),
-};
+} satisfies Record<string, ResourceLoader>;
 
 const localLoaderByKey = new Map<string, ResourceLoader>();
 const globalNamespaceSet = new Set<SupportedNamespace>(GLOBAL_I18N_NAMESPACES);
