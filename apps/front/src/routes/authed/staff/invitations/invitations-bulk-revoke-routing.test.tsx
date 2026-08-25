@@ -44,12 +44,15 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const PENDING_A = '11111111-1111-1111-1111-111111111111';
 const ACCEPTED_B = '22222222-2222-2222-2222-222222222222';
 const LIST_ROUTE_PATH = '/staff/invitations';
+/** scopedKey('staff', STAFF_INVITATIONS_QUERY_KEY) — see create-hooks.ts. */
+const STAFF_INVITATIONS_SCOPED_KEY = ['staff', 'staff-invitations'];
 
 const mocks = vi.hoisted(() => ({
 	useStaffInvitationsQuery: vi.fn(),
 	toInvitationRows: vi.fn(),
 	useBulkRevokeMutation: vi.fn(),
 	bulkRevoke: vi.fn(),
+	invalidateStaffInvitations: vi.fn(),
 	toastSuccess: vi.fn(),
 	toastWarning: vi.fn(),
 	toastError: vi.fn(),
@@ -67,7 +70,9 @@ vi.mock('~/lib/mutation-toast', () => ({
 
 vi.mock('~/lib/query/staff-invitations', () => ({
 	STAFF_INVITATIONS_QUERY_KEY: ['staff-invitations'],
-	invalidateStaffInvitations: () => Promise.resolve(),
+	// Mocked per-test (not stubbed): the post-success invalidation contract is
+	// pinned through this spy AND through real QueryClient state below.
+	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
 	useStaffInvitationsQuery: mocks.useStaffInvitationsQuery,
 	useResendStaffInvitationMutation: () => ({
 		mutateAsync: vi.fn(),
@@ -120,6 +125,7 @@ vi.mock('react-i18next', () => ({
 				'no-invitations-found': 'No invitations found.',
 				'no-invitations-match-your-search': 'No invitations match your search.',
 				'select-row-named': 'Select {{name}}',
+				'selected-count': '{{count}} selected',
 				'clear-selection': 'Clear selection',
 				'more-actions': 'More actions',
 				'bulk-actions': 'Bulk actions',
@@ -286,6 +292,16 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 
+		// The mocked module-level invalidation delegates to whatever QueryClient
+		// the caller passes (the page passes the harness's real one), so the
+		// post-success test can observe GENUINE cache invalidation state.
+		mocks.invalidateStaffInvitations.mockImplementation(
+			(queryClient: QueryClient) =>
+				queryClient.invalidateQueries({
+					queryKey: STAFF_INVITATIONS_SCOPED_KEY,
+				}),
+		);
+
 		mocks.toInvitationRows.mockImplementation((rows: unknown) => rows);
 		mocks.useStaffInvitationsQuery.mockImplementation(() =>
 			settledQuery(invitationPayload()),
@@ -366,6 +382,63 @@ describe('#1387 invitations selection-mode bulk revoke (real router)', () => {
 			invitationIds: [PENDING_A],
 		});
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
+	});
+
+	test('a successful bulk revoke clears the selection and invalidates the list', async () => {
+		// Post-success contract (#1387 r1 MAJOR fix): the 200 response must clear
+		// the toolbar selection (every row checkbox unchecked, selection bar
+		// gone after its exit animation) AND invalidate the staff-invitations
+		// cache. Both halves are pinned: the invalidation spy receives THIS
+		// harness's queryClient, and the real QueryClient marks the scoped list
+		// key invalidated.
+		const { queryClient } = await renderAtList();
+		// Seed the scoped list entry so the REAL QueryClient can flip it to
+		// isInvalidated when the success path calls invalidateStaffInvitations.
+		queryClient.setQueryData(STAFF_INVITATIONS_SCOPED_KEY, { seeded: true });
+		expect(
+			queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
+		).toBe(false);
+
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${PENDING_A}` }),
+		);
+		fireEvent.click(
+			screen.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` }),
+		);
+		expect(await screen.findByText('2 selected')).toBeTruthy();
+
+		await chooseBulkAction('Revoke selected', 'Bulk actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
+
+		await waitFor(() => {
+			expect(mocks.toastSuccess).toHaveBeenCalledOnce();
+			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledTimes(1);
+			expect(mocks.invalidateStaffInvitations).toHaveBeenCalledWith(
+				queryClient,
+			);
+			expect(
+				queryClient.getQueryState(STAFF_INVITATIONS_SCOPED_KEY)?.isInvalidated,
+			).toBe(true);
+		});
+
+		// Selection cleared: the row checkboxes stay mounted (the column is
+		// permanent while a selection prop exists) but every box is unchecked...
+		await waitFor(() => {
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${PENDING_A}` })
+					.getAttribute('data-checked'),
+			).toBeNull();
+			expect(
+				screen
+					.getByRole('checkbox', { name: `Select ${ACCEPTED_B}` })
+					.getAttribute('data-checked'),
+			).toBeNull();
+		});
+		// ...and the selection bar leaves after its 220ms exit animation.
+		await waitFor(() =>
+			expect(screen.queryByTestId('floating-selection-bar')).toBeNull(),
+		);
 	});
 
 	test('an all-ineligible selection warns without ever opening the dialog or firing the mutation', async () => {
