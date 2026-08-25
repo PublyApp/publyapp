@@ -201,7 +201,10 @@ test('guard structure (round 23 B1): every staticString() consumption routes thr
 		script,
 		ts.ScriptTarget.Latest,
 		true,
-		ts.ScriptKind.JS,
+		// The guard script is TypeScript: parsed as JS, a generic funnel
+		// call (`staticString<T>(…)`, introduced by #1361's typing) is no
+		// longer an identifier callee and silently escapes this audit.
+		ts.ScriptKind.TS,
 	);
 	const funnelCalls: ts.CallExpression[] = [];
 	const rawCalls: ts.CallExpression[] = [];
@@ -2106,7 +2109,7 @@ test('round 6 M3: an interrupted guard run removes the private build directory',
 	}
 	const scriptPath = path.join(scriptsDir, 'check-zindex-guard.mts');
 	const child = spawn(process.execPath, [scriptPath], {
-		cwd: path.join(scriptsDir, '..'),
+		cwd: path.join(scriptsDir, '..', '..'),
 		stdio: 'ignore',
 	});
 	let created: string[] = [];
@@ -5660,7 +5663,7 @@ test('unmodified repository passes with zero violations', async () => {
 	// invariant — the build must record both the client and the SSR entry, or
 	// SSR-only modules (src/server.ts) silently drop out of the script pass —
 	// reusing this build instead of paying for a second one.
-	const frontDir = path.resolve(scriptsDir, '..');
+	const frontDir = path.resolve(scriptsDir, '..', '..');
 	let capturedBuild: ProductionBuildResult | null = null;
 	const { violations, candidateCount, fileCount } = await runZIndexGuard({
 		productionBuild: async () => {
