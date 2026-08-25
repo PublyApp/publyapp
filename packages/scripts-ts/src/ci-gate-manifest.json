@@ -239,7 +239,7 @@
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
 			"hash": "056e04ce212f4f40",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/smoke-start-server.mjs re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
+			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
 		},
 		"front-ci.yml::supply-chain::Test front": {
 			"hash": "b0ae64935f5d9419",

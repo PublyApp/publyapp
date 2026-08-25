@@ -7,7 +7,13 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
-const repositoryRoot = path.resolve(scriptsDirectory, '..', '..', '..');
+const repositoryRoot = path.resolve(
+	scriptsDirectory,
+	'..',
+	'..',
+	'..',
+	'..',
+);
 const composePath = path.join(
 	repositoryRoot,
 	'apps',
@@ -25,7 +31,31 @@ const expectedPostgresHealthcheck = {
 	retries: 20,
 };
 
-export const assertComposeStartupContract = (compose) => {
+/**
+ * The subset of apps/front/docker-compose.test.yml this contract pins.
+ */
+interface ComposeContract {
+	services: {
+		postgres: {
+			healthcheck: {
+				test: string[];
+				interval: string;
+				timeout: string;
+				retries: number;
+			};
+		};
+		migrate: { depends_on: { postgres: { condition: string } } };
+		api: { depends_on: { migrate: { condition: string } } };
+	};
+}
+
+/** Parses the compose file into the contract shape. */
+const loadCompose = (): ComposeContract =>
+	parse(readFileSync(composePath, 'utf8')) as ComposeContract;
+
+export const assertComposeStartupContract = (
+	compose: ComposeContract,
+): void => {
 	const services = compose.services;
 	assert.deepEqual(
 		services.postgres.healthcheck,
@@ -41,11 +71,11 @@ export const assertComposeStartupContract = (compose) => {
 };
 
 test('frontend E2E Compose gates startup on authenticated PostgreSQL SQL readiness', () => {
-	assertComposeStartupContract(parse(readFileSync(composePath, 'utf8')));
+	assertComposeStartupContract(loadCompose());
 });
 
 test('contract rejects a healthcheck mutation that can hide SQL failure', () => {
-	const compose = parse(readFileSync(composePath, 'utf8'));
+	const compose = loadCompose();
 	compose.services.postgres.healthcheck.test[1] =
 		'PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -tAc \'SELECT 1\' || true';
 
@@ -53,7 +83,7 @@ test('contract rejects a healthcheck mutation that can hide SQL failure', () => 
 });
 
 test('contract rejects a dependency-condition mutation that races migration', () => {
-	const compose = parse(readFileSync(composePath, 'utf8'));
+	const compose = loadCompose();
 	compose.services.migrate.depends_on.postgres.condition = 'service_started';
 
 	assert.throws(() => assertComposeStartupContract(compose), /service_healthy/);

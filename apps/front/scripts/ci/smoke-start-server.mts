@@ -9,8 +9,9 @@ import process from 'node:process';
 // The workflow does this with inline bash (background job + trap + curl + grep).
 // That cannot run from the repo justfile, which uses pwsh on Windows, so the
 // same assertions live here in cross-platform Node instead. Keep the two in
-// step: scripts/check-ci-drift.mjs pins the workflow step's hash and will fail
-// the gate if the CI side changes without this script being re-checked.
+// step: packages/scripts-ts/src/check-ci-drift.ts pins the workflow step's
+// hash and will fail the gate if the CI side changes without this script being
+// re-checked.
 //
 // What it proves: a production build, served by the real standalone server,
 // returns HTML that links a built CSS asset. That catches the class of bug
@@ -28,20 +29,25 @@ const shutdownGraceMs = 5000;
 
 const stylesheetPattern = /rel="stylesheet"[^>]*href="[^"]+\.css"/;
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = async (ms: number): Promise<void> =>
+	new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Asks the OS for a free port by binding to :0 and releasing it. There is a
  * small window before the server claims it; if something wins that race the
  * server fails to bind and the polling below reports it with the server log.
  */
-const getFreePort = async () => {
+const getFreePort = async (): Promise<number> => {
 	const probe = createServer();
 
 	probe.listen(0, host);
 	await once(probe, 'listening');
 
-	const { port } = probe.address();
+	const address = probe.address();
+	if (address === null || typeof address === 'string') {
+		throw new Error('free-port probe did not report an AddressInfo');
+	}
+	const { port } = address;
 
 	probe.close();
 	await once(probe, 'close');
@@ -53,7 +59,7 @@ const getFreePort = async () => {
  * Polls the server until it answers, mirroring the workflow's retry loop.
  * Returns the response body, or null when the server never came up.
  */
-const fetchHomeWithRetry = async (origin) => {
+const fetchHomeWithRetry = async (origin: string): Promise<string | null> => {
 	for (let attempt = 1; attempt <= attempts; attempt += 1) {
 		try {
 			const response = await fetch(origin, {
@@ -75,7 +81,7 @@ const fetchHomeWithRetry = async (origin) => {
 
 const port = await getFreePort();
 const origin = `http://${host}:${port}/`;
-const logs = [];
+const logs: string[] = [];
 
 const server = spawn('node', ['server.mjs'], {
 	env: {
@@ -95,7 +101,7 @@ server.stderr.on('data', (chunk) => logs.push(String(chunk)));
  * without awaiting would let this process exit first and orphan the server,
  * leaving the port held for every later run.
  */
-const stopServer = async () => {
+const stopServer = async (): Promise<void> => {
 	if (server.exitCode !== null || server.signalCode !== null) {
 		return;
 	}
@@ -113,7 +119,7 @@ const stopServer = async () => {
 	}
 };
 
-const fail = async (message) => {
+const fail = async (message: string): Promise<never> => {
 	await stopServer();
 
 	console.error(message);
