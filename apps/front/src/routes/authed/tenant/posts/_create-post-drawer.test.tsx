@@ -5,6 +5,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createElement, type ReactNode } from 'react';
 import { Controller, FormProvider, useFormContext } from 'react-hook-form';
+import type { UseFormReturn } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -114,22 +115,27 @@ vi.mock('~/components/ui/drawer', () => ({
 		onSubmit,
 	}: {
 		children: ReactNode;
-		methods: Record<string, unknown>;
-		onSubmit?: (event?: unknown) => void | Promise<void>;
+		methods: UseFormReturn;
+		onSubmit: (event?: unknown) => void | Promise<void>;
 	}) =>
-		createElement(FormProvider, {
-			...methods,
-			children: createElement(
-				'form',
-				{
-					onSubmit: (event: Event) => {
-						event.preventDefault();
-						void onSubmit(event);
+		createElement(
+			FormProvider,
+			// The real DrawerForm spreads every UseFormReturn member into
+			// FormProvider props; createElement keeps that spread out of JSX.
+			{
+				...methods,
+				children: createElement(
+					'form',
+					{
+						onSubmit: (event: Event) => {
+							event.preventDefault();
+							void onSubmit(event);
+						},
 					},
-				},
-				children,
-			),
-		}),
+					children,
+				),
+			},
+		),
 }));
 
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
