@@ -1,5 +1,3 @@
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
@@ -12,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 type VerifyEmailLoaderData =
 	| { view: 'invalid' }
@@ -100,8 +99,9 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
+import { buildSafeResetPasswordHref } from '~/lib/build-safe-reset-password-href';
 
-import { buildSafeResetPasswordHref, Route } from './verify-email';
+import { Route } from './verify-email';
 
 const renderVerifyEmailRoute = () => {
 	const Component = Route.options.component as () => ReturnType<

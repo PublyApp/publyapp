@@ -1,11 +1,10 @@
-import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	locale: 'en',
@@ -51,11 +50,11 @@ vi.mock('~/components/table/data-table', () => ({
 	DataTable: () => document.createElement('div'),
 }));
 
-vi.mock('../tenants/$tenantId/_tenant-details-shell', () => ({
+vi.mock('../tenants/$tenantId/_tenant-display', () => ({
 	formatTenantStatusLabel: mocks.formatTenantStatusLabel,
 }));
 
-import { buildOrganizationColumnsForTests } from './$userId-organizations';
+import { buildOrganizationColumns as buildOrganizationColumnsForTests } from './_organizations-columns';
 
 afterEach(() => {
 	cleanup();

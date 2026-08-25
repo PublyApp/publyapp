@@ -14,7 +14,8 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { View404 } from '~/components/error-views/View404';
-import { Button, buttonVariants } from '~/components/ui/button';
+import { Button } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
 import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import {

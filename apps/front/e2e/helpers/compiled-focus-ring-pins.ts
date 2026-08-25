@@ -65,6 +65,11 @@ export const OUTLINE_TOKEN_ALLOWLIST: ReadonlySet<string> = new Set([
 	// button.tsx variant="outline" — same 3px family as above; the variant
 	// changes the resting chrome, not the focus contract.
 	'button-outline',
+	// #1400: the selection-bar trigger renders the real `Button` (ghost sm),
+	// so its focus treatment is Button's documented 3px box-shadow-ring
+	// family over `outline-none` — same contract as button-default, asserted
+	// in the negative like every other allowlisted probe.
+	'bulk-actions-trigger',
 	// #1405/#1415: input.tsx — `focus-visible:ring-3 focus-visible:ring-ring/30`
 	// + `focus-visible:border-ring` over `outline-none` (DESIGN.md "Focus
 	// rings", 3px family, line-borne).

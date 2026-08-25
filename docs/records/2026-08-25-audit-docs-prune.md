@@ -2,13 +2,14 @@
 
 Date: 2026-08-25. Generated evidence for the #1357 docs prune; regenerate with
 `node packages/scripts-ts/src/audit-docs-prune.ts` (`--check` enforces byte equality).
-The audit reads the youngest origin/develop first-parent tree that still carries every
-decision-table source (the pre-prune tree — normally the merge-base of origin/develop
-and HEAD; once the prune has landed, the walk steps back over pruned commits), so the
-evidence stays reproducible after the prune lands; `--rev <sha>` overrides. The decision
+The audit derives the pre-prune tree from committed history alone (the parent of the
+commit that introduces this record), so the evidence stays reproducible on every
+event and checkout (#1425); `--rev <sha>` overrides. The decision
 table lives in that script, so the prune is mechanical rather than hand-curated.
 
-Scope: every tracked file under `docs/` outside `guides/`, `deployment/`, `assets/`.
+Scope: every tracked file under `docs/` outside `guides/`, `deployment/`, `assets/`,
+`records/` (the protected destination: records merged there after the sweep, e.g.
+the #1389 email-log actor analysis, are never prune fuel and never inventory rows).
 `docs/README.md` appears once below (kept; rewritten as the filing page in this change).
 
 Survival rule (mechanical, from #1357): a record survives only if referenced by
@@ -19,12 +20,13 @@ indexes, and the archive-records guard manifest (`ci-gate-manifest.json`) do NOT
 A reference is either the exact repo-relative path appearing verbatim in a surface file
 or a resolvable relative markdown link from one.
 
-Counts: 94 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 82 deleted.
+Counts: 93 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 81 deleted.
 
 ## Notes
 
 - PR #1355 added `docs/superpowers/specs/2026-08-25-paid-modules-design.md` to develop
-  while this lane was in flight, so it appears above once the merge-base includes it.
+  while this lane was in flight, so it appears above once the audited pre-prune tree
+  includes it.
   No survival surface references it, but the lane deliberately preserves work develop
   already merged instead of deleting it in the prune: it lands at
   `docs/records/2026-08-25-spec-open-core-paid-modules.md` (explicit `topic`:
@@ -118,7 +120,6 @@ Counts: 94 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 8
 | `docs/implementation-plans/identity-scoped-tenant-cookie.md` | packages/shared-ts/src/lib/constants.ts | move → `docs/records/2026-01-31-plan-identity-scoped-tenant-cookie.md` |
 | `docs/implementation-plans/jobs-worker-infrastructure.md` | _(nothing)_ | delete |
 | `docs/misc/bulk-seeding-utilities.md` | _(nothing)_ | delete |
-| `docs/records/2026-08-25-analysis-email-log-actor.md` | _(nothing)_ | delete |
 | `docs/reviews/jobs-infra-design-challenge/doc-challenge-r1-findings.md` | _(nothing)_ | delete |
 | `docs/reviews/jobs-infra-design-challenge/doc-challenge-r10-findings.md` | _(nothing)_ | delete |
 | `docs/reviews/jobs-infra-design-challenge/doc-challenge-r2-findings.md` | _(nothing)_ | delete |
@@ -145,4 +146,4 @@ Counts: 94 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 8
 | `docs/superpowers/specs/2026-08-25-820-bulk-actions-design.md` | _(nothing)_ | move → `docs/records/2026-08-25-spec-820-bulk-actions.md` |
 | `docs/superpowers/specs/2026-08-25-paid-modules-design.md` | _(nothing)_ | move → `docs/records/2026-08-25-spec-open-core-paid-modules.md` |
 
-(94 rows — end of inventory)
+(93 rows — end of inventory)

@@ -2,7 +2,7 @@ import { IconLinkOff } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { buttonVariants } from '~/components/ui/button';
+import { buttonVariants } from '~/components/ui/button.variants';
 import { StateView } from '~/components/ui/state-view';
 
 type InvalidLinkViewProps = {

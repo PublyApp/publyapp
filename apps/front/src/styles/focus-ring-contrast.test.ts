@@ -268,8 +268,17 @@ describe('focus-ring contrast (W4-GUARDS ui-F1; #823 scope: token math + fail-cl
 	const themeInlineBlock = extractBlock(appCssSource, /^@theme inline\s*\{/);
 	const themeColorDeclarations = extractDeclarations(themeInlineBlock);
 
-	const buttonSource = readFileSync(path.join(uiDir, 'button.tsx'), 'utf8');
-	const badgeSource = readFileSync(path.join(uiDir, 'badge.tsx'), 'utf8');
+	// The `cva` variant definitions live in the sibling `*.variants.ts`
+	// modules (react-doctor rung 2, #1417): a component file exports only
+	// components, so the variant blocks are parsed from their actual home.
+	const buttonSource = readFileSync(
+		path.join(uiDir, 'button.variants.ts'),
+		'utf8',
+	);
+	const badgeSource = readFileSync(
+		path.join(uiDir, 'badge.variants.ts'),
+		'utf8',
+	);
 	const buttonVariantKeys = extractStringKeys(
 		extractObjectBlock(buttonSource, 'variant'),
 	);

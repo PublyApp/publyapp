@@ -8,20 +8,22 @@ import process from 'node:process';
 // WHAT THIS PROVES
 // ----------------
 // The prune's survival rule is mechanical: a record under docs/ (outside
-// guides/, deployment/, assets/) survives only if some file among AGENTS.md,
+// guides/, deployment/, assets/, records/) survives only if some file among AGENTS.md,
 // DESIGN.md, docs/guides, docs/deployment, apps/, packages/,
 // .github or the justfile references it (the root README.md deliberately
 // does not count). This script enumerates the
 // candidates, searches exactly those surfaces, applies the reviewed
-// move/delete decision table below, and renders
+// reviewed move/delete decision table below, and renders
 // docs/records/2026-08-25-audit-docs-prune.md as committed evidence.
 //
 // Reproducibility: the audit reads a git REVISION, not the working tree —
-// by default the youngest tree on origin/develop's first-parent history
-// that still carries every decision-table source (normally the merge-base
-// of origin/develop and HEAD; once the prune has landed on develop, the
-// walk steps back over pruned commits to keep reading a pre-prune tree),
-// overridable with `--rev <sha>`. Re-run
+// by default derived purely from committed HISTORY (#1425): the parent of
+// the commit that introduced the committed inventory record (the prune
+// commit itself), overridable with `--rev <sha>`. Ambient refs are
+// deliberately NOT consulted: merge-base(origin/develop, HEAD) collapses
+// onto the already-pruned tree once the prune lands on develop (push event)
+// while a lagging PR base keeps the pre-prune tree — that event-dependent
+// verdict is the green-PR/red-push split of #1425. Re-run
 // `node packages/scripts-ts/src/audit-docs-prune.ts` any time and the file
 // regenerates byte-for-byte; `--check` fails if it would differ (so the
 // evidence cannot silently rot while the decision inputs change).
@@ -63,8 +65,8 @@ const EXCLUDED_SURFACES = new Set([
 
 // Decision table, reviewed against the sweep over every consumer
 // (AGENTS.md, DESIGN.md, guides, deployment, apps, packages, workflows,
-// justfile). Anything under docs/ outside guides/, deployment/, assets/ that
-// is neither listed as `move` nor `keep` is DELETED.
+// justfile). Anything under docs/ outside guides/, deployment/, assets/,
+// records/ that is neither listed as `move` nor `keep` is DELETED.
 //
 // Every `move` below is either a file the sweep found referenced by at least
 // one surface, or a documented exception (paid-modules and the #820
@@ -183,57 +185,90 @@ const argv = process.argv.slice(2);
 const revFlagIndex = argv.indexOf('--rev');
 const explicitRev = revFlagIndex >= 0 ? argv[revFlagIndex + 1] : undefined;
 
-// Default audit target: the pre-prune tree this inventory is evidence for.
-// True when `rev`'s tree carries every file the decision table moves. Those
-// keys exist only in the PRE-prune tree, so this is the test that separates
-// a usable audit base from an already-pruned one.
-const revCarriesAllDecisionSources = (rev: string): boolean => {
-	for (const source of Object.keys(MOVES)) {
-		try {
-			runGit(['cat-file', '-e', `${rev}:${source}`]);
-		} catch {
-			return false;
-		}
-	}
-	return true;
+// Oldest commit in HEAD's reachable history that ADDS `relative`. Rename
+// detection is irrelevant here: --diff-filter=A survives later renames of
+// the file.
+const firstIntroducingCommit = (relative: string): string | undefined => {
+	const lines = runGit([
+		'log',
+		'--format=%H',
+		'--reverse',
+		'--diff-filter=A',
+		'--',
+		relative,
+	])
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => /^[0-9a-f]{40}$/.test(line));
+	return lines[0];
 };
 
-// Youngest first-parent commit of origin/develop whose tree still contains
-// every decision-table source — i.e. the youngest pre-prune tree. Null when
-// even develop's tip still carries them (pre-prune world) or the bounded
-// walk found nothing (history rewritten beyond recognition).
-const youngestPrePruneCommit = (): string | null => {
-	for (const line of runGit([
-		'rev-list',
-		'--max-count=100',
-		'--first-parent',
-		'origin/develop',
-	]).split('\n')) {
-		const rev = line.trim();
-		if (rev.length === 0) {
-			continue;
-		}
-		if (revCarriesAllDecisionSources(rev)) {
-			return rev;
-		}
-	}
-	return null;
-};
-
+// Default audit target: the pre-prune tree this inventory is evidence for,
+// derived from COMMITTED HISTORY alone (#1425) — ambient refs such as
+// origin/develop are never consulted, so pull_request events (base lagging
+// behind develop), push events (a squash prune commit already ON develop)
+// and plain checkouts with no extra refs all resolve the same revision.
+//
+// Single mechanism, two steps:
+// 1. Anchor: the parent of the commit that introduced the committed record
+//    (the prune commit itself). Bootstrap: a lane authoring the record
+//    commits the script before the record exists, so the script's own
+//    introducing commit anchors until the record lands; past both anchors
+//    failing, the audit refuses to guess and demands an explicit `--rev`.
+// 2. Verify-and-step: the anchor is usable only if its tree carries every
+//    decision-table source (they exist only PRE-prune). A landing that
+//    split the file mutations from the inventory into consecutive commits
+//    makes the record introducer's parent PARTIALLY pruned; walking up
+//    first-parent ancestors from there finds the youngest fully pre-prune
+//    tree. The walk stays inside HEAD's own history and reads no ref.
 const resolveRev = (): string => {
 	if (explicitRev) {
 		return explicitRev;
 	}
-	const mergeBase = runGit(['merge-base', 'origin/develop', 'HEAD']).trim();
-	if (revCarriesAllDecisionSources(mergeBase)) {
-		return mergeBase;
+	const introducer =
+		firstIntroducingCommit(outputPath) ?? firstIntroducingCommit(selfPath);
+	if (!introducer) {
+		throw new Error(
+			[
+				`Cannot derive the pre-prune revision: reachable history adds neither`,
+				`${outputPath} nor ${selfPath}. Refusing to guess`,
+				`(a guessed revision is event-dependent — #1425); pass --rev <sha>.`,
+			].join(' '),
+		);
 	}
-	// Post-#1395 world: the prune landed on develop, so any lane cut from
-	// the pruned tip has a merge-base whose docs/ no longer holds the
-	// audited candidates. Step back to the youngest pre-prune tree so the
-	// audit keeps reading the inputs its evidence was defined over; the
-	// freshness comparison below is unchanged and still guards HEAD's copy.
-	return youngestPrePruneCommit() ?? mergeBase;
+	for (const rev of runGit(['rev-list', '--max-count=100', introducer])
+		.split('\n')
+		.map((line) => line.trim())) {
+		if (rev.length === 0) {
+			continue;
+		}
+		const lineage = runGit(['rev-list', '--parents', '-n', '1', rev])
+			.trim()
+			.split(/\s+/);
+		const parent = lineage[1];
+		if (!parent) {
+			break; // root commit: no earlier tree exists to audit.
+		}
+		let carriesAllSources = true;
+		for (const source of Object.keys(MOVES)) {
+			try {
+				runGit(['cat-file', '-e', `${parent}:${source}`]);
+			} catch {
+				carriesAllSources = false;
+				break;
+			}
+		}
+		if (carriesAllSources) {
+			return parent;
+		}
+	}
+	throw new Error(
+		[
+			`No ancestor tree of ${introducer} still carries every decision-table source.`,
+			'The pruned files are unreachable from HEAD; pass --rev <sha> naming a',
+			'pre-prune revision explicitly.',
+		].join(' '),
+	);
 };
 
 const listTrackedDocsCandidates = (rev: string): string[] =>
@@ -244,7 +279,12 @@ const listTrackedDocsCandidates = (rev: string): string[] =>
 			(entry) =>
 				entry.length > 0 &&
 				!entry.endsWith('/') &&
-				!/^docs\/(guides|deployment|assets)\//.test(entry),
+				// records/ is the prune's PROTECTED destination (per #1357): files
+				// merged there before the lane ran (e.g. #1389's
+				// 2026-08-25-analysis-email-log-actor.md) are never prune fuel, so
+				// they stay out of the candidate set instead of rendering as delete
+				// rows (#1425 rescope).
+				!/^docs\/(guides|deployment|assets|records)\//.test(entry),
 		);
 
 const listSurfaceFiles = (rev: string): string[] =>
@@ -508,13 +548,14 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'',
 		'Date: 2026-08-25. Generated evidence for the #1357 docs prune; regenerate with',
 		'`node packages/scripts-ts/src/audit-docs-prune.ts` (`--check` enforces byte equality).',
-		'The audit reads the youngest origin/develop first-parent tree that still carries every',
-		'decision-table source (the pre-prune tree — normally the merge-base of origin/develop',
-		'and HEAD; once the prune has landed, the walk steps back over pruned commits), so the',
-		'evidence stays reproducible after the prune lands; `--rev <sha>` overrides. The decision',
+		'The audit derives the pre-prune tree from committed history alone (the parent of the',
+		'commit that introduces this record), so the evidence stays reproducible on every',
+		'event and checkout (#1425); `--rev <sha>` overrides. The decision',
 		'table lives in that script, so the prune is mechanical rather than hand-curated.',
 		'',
-		'Scope: every tracked file under `docs/` outside `guides/`, `deployment/`, `assets/`.',
+		'Scope: every tracked file under `docs/` outside `guides/`, `deployment/`, `assets/`,',
+		'`records/` (the protected destination: records merged there after the sweep, e.g.',
+		'the #1389 email-log actor analysis, are never prune fuel and never inventory rows).',
 		'`docs/README.md` appears once below (kept; rewritten as the filing page in this change).',
 		'',
 		'Survival rule (mechanical, from #1357): a record survives only if referenced by',
@@ -530,7 +571,8 @@ const render = (rows: ReturnType<typeof buildRows>): string => {
 		'## Notes',
 		'',
 		'- PR #1355 added `docs/superpowers/specs/2026-08-25-paid-modules-design.md` to develop',
-		'  while this lane was in flight, so it appears above once the merge-base includes it.',
+		'  while this lane was in flight, so it appears above once the audited pre-prune tree',
+		'  includes it.',
 		'  No survival surface references it, but the lane deliberately preserves work develop',
 		'  already merged instead of deleting it in the prune: it lands at',
 		'  `docs/records/2026-08-25-spec-open-core-paid-modules.md` (explicit `topic`:',

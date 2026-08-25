@@ -1,5 +1,3 @@
-import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
@@ -7,6 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	locale: 'en',
@@ -136,10 +135,8 @@ vi.mock('~/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
-import {
-	formatGlobalTenantUserStatusLabel,
-	TenantUserDetailsShell,
-} from './_details-shell';
+import { TenantUserDetailsShell } from './_details-shell';
+import { formatGlobalTenantUserStatusLabel } from './_tenant-user-status-label';
 
 const baseUser = {
 	id: 'user-1',

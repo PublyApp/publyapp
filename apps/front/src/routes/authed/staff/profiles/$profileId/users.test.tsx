@@ -1,5 +1,3 @@
-import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
@@ -7,6 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { createElement, type JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	locale: 'en',
@@ -141,7 +140,8 @@ vi.mock('~/components/table/data-table', () => ({
 		createElement('div', { 'data-testid': testId ?? 'data-table' }),
 }));
 
-import { buildColumns, Route } from './users';
+import { buildColumns } from './_users-columns';
+import { Route } from './users';
 
 const Component = Route.options.component as () => JSX.Element;
 

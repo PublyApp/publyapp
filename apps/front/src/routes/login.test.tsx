@@ -1,5 +1,3 @@
-import type { TestLabelMap } from '~/lib/testing/test-label-map';
-
 /**
  * @vitest-environment jsdom
  */
@@ -12,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
@@ -92,8 +91,9 @@ import {
 	getSafeSearchRedirect,
 	isAllowedRedirectPath,
 	resolveRouteRedirect,
-	Route,
-} from './login';
+} from '~/lib/safe-redirect-path';
+
+import { Route } from './login';
 
 const renderLoginRoute = () => {
 	const Component = Route.options.component as () => ReturnType<
