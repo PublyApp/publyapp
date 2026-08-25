@@ -16,6 +16,7 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Modules.Uploads;
 using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
+using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 using Resend;
@@ -154,13 +155,15 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IResend>((sp) => {
 			return ResendClient.Create(AppEnvironment.Instance.RESEND_API_KEY);
 		});
-		// C2 (#641): Bluesky session-open seam. Typed named HttpClient keeps the base
-		// address testable; the adapter itself classifies account-caused refusals vs
-		// transient failures so no exception crosses the seam. Integration specs replace
-		// IBlueskySessionProvider with FakeBlueskySessionProvider (ApiFactory) — the real
-		// network is never contacted in tests.
-		BlueskySessionProvider.RegisterHttpClient(builder.Services);
-		builder.Services.AddScoped<IBlueskySessionProvider, BlueskySessionProvider>();
+		// C2 (#641): Bluesky HTTP adapter. Named typed-client factory keeps the base
+		// address testable; the adapter classifies account-caused refusals vs transient
+		// failures so no exception crosses the seam. Integration specs replace IBlueskyClient
+		// with FakeBlueskyClient (ApiFactory) — the real network is never contacted in
+		// tests. The Epic-D session seam (BlueskySessionProvider → ISocialSessionProvider)
+		// is registered right after it.
+		BlueskyClient.RegisterHttpClient(builder.Services);
+		builder.Services.AddScoped<IBlueskyClient, BlueskyClient>();
+		builder.Services.AddScoped<ISocialSessionProvider, BlueskySessionProvider>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(

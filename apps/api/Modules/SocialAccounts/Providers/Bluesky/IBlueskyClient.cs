@@ -19,8 +19,16 @@ public sealed record BlueskyIdentity(string Did, string Handle);
 /// credentials.
 /// </summary>
 public abstract record BlueskySessionResult {
-	/// <summary>Session opened; <see cref="BlueskyIdentity"/> carries DID + handle.</summary>
-	public sealed record Success(BlueskyIdentity Identity) : BlueskySessionResult;
+	/// <summary>
+	/// Session opened; <see cref="Identity"/> carries DID + handle, and the
+	/// short-lived access token plus PDS host travel only inside this result —
+	/// they are consumed by the session provider and never stored or returned.
+	/// </summary>
+	public sealed record Success(
+		BlueskyIdentity Identity,
+		string AccessJwt,
+		string PdsHost
+	) : BlueskySessionResult;
 
 	/// <summary>Bluesky refused these credentials/identifier (401/400-class). Nothing
 	/// about the account changed server-side; the caller must not persist anything.</summary>

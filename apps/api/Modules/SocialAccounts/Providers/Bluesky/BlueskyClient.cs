@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
@@ -116,7 +115,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 			: payload.Handle.Trim();
 
 		return new BlueskySessionResult.Success(
-			new BlueskyIdentity(Did: payload.Did, Handle: handle),
+			new BlueskyIdentity(payload.Did, handle),
 			AccessJwt: payload.AccessJwt,
 			PdsHost: DefaultPdsBaseAddress.TrimEnd('/')
 		);
