@@ -15,12 +15,15 @@
  *    `.update()` the way `routeTree.gen` wires it), its real `component`;
  *  - a real `createRouter` + `createMemoryHistory`, so the route resolves and
  *    renders exactly as in production;
- *  - real user interactions driving the bulk delete through the real route
- *    component into the confirm dialog.
+ *  - the real `useRowSelection` hook driving the page's selection state.
  *
  * What is faked: only the network-facing surface — the `~/lib/query/staff-profiles`
- * hooks, mutation toasts, and i18n strings. Nothing about the toolbar or the
- * bulk-action flow is re-implemented here.
+ * hooks, mutation toasts, and i18n strings. The row-selection hook stays REAL
+ * and unmocked (#1408 r1 mutations A/H — a selection id absent from `rows`
+ * reaching the wire — are pinned in `_profiles-bulk-actions.test.tsx`, the
+ * exact seam where such an id arrives; faking one here would only exercise a
+ * module-mock, since `pruneSelection` is called lexically inside the hook).
+ * Nothing about the toolbar or the bulk-action flow is re-implemented.
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -58,7 +61,6 @@ vi.mock('~/lib/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,
-		warning: vi.fn(),
 		error: mocks.toastError,
 	},
 }));
@@ -105,7 +107,7 @@ vi.mock('react-i18next', () => ({
 				confirm: 'Confirm',
 				cancel: 'Cancel',
 				'bulk-delete-profiles-confirm':
-					'Are you sure you want to delete {{count}} selected profile(s)? Assigned members lose this profile. Default profiles in the selection are skipped.',
+					'Are you sure you want to delete {{count}} selected profile(s)? Assigned members lose this profile.',
 			};
 
 			return (labels[bare] ?? bare).replace(
@@ -278,18 +280,11 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 			screen.getByRole('checkbox', { name: `Select ${PROFILE_A}` }),
 		);
 
-		const trigger = await screen.findByRole('button', {
-			name: 'More actions',
-			expanded: false,
-		});
-		fireEvent.click(trigger);
-		await waitFor(() =>
-			expect(trigger.getAttribute('aria-expanded')).toBe('true'),
-		);
+		await chooseBulkAction('Delete selected');
 
-		expect(
-			screen.getByRole('menuitem', { name: 'Delete selected' }),
-		).toBeTruthy();
+		// Reaching the confirm dialog proves the menu item rendered
+		// unconditionally and was clickable.
+		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
 	});
 
 	test('a confirmed delete drives the real route component into the bulk mutation', async () => {
@@ -305,7 +300,7 @@ describe('#1386 staff profiles selection-mode bulk delete (real router)', () => 
 		// names the count and the consequence.
 		expect(
 			await screen.findByText(
-				'Are you sure you want to delete 1 selected profile(s)? Assigned members lose this profile. Default profiles in the selection are skipped.',
+				'Are you sure you want to delete 1 selected profile(s)? Assigned members lose this profile.',
 			),
 		).toBeTruthy();
 		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));

@@ -10,8 +10,10 @@
  *  - over-cap trigger is disabled with the max-count i18n title;
  *  - confirmed happy path: ids scoped to selected rows, invalidate + clear +
  *    success toast with the count;
- *  - partial-success toast when the API reports per-item failures (e.g.
- *    default profiles skipped server-side);
+ *  - a selected id ABSENT from `rows` never reaches `bulkDelete` and the
+ *    dialog counts only what will be sent (#1408 r1: mutations A and H);
+ *  - partial-success toast carries each server reason VERBATIM in its
+ *    description, deduplicated and order-preserved (#1408 r1 item 3);
  *  - failure toast fallback via displayLocalMutationFailure;
  *  - 401-shaped failure routes to onSessionExpired.
  */
@@ -28,12 +30,14 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const PROFILE_A = 'aaaaaaaa-1111-1111-1111-111111111111';
 const PROFILE_B = 'bbbbbbbb-2222-2222-2222-222222222222';
+// An id that exists nowhere in `rows`: the stale-selection shape the prune
+// effect has not absorbed yet (see #1408 r1 mutation A).
+const STALE_ID = 'cccccccc-3333-3333-3333-333333333333';
 
 const mocks = vi.hoisted(() => ({
 	bulkDelete: vi.fn(),
 	invalidateStaffProfiles: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
-	toastWarning: vi.fn(),
 	toastError: vi.fn(),
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	shouldLogoutForFailure: vi.fn().mockReturnValue(false),
@@ -52,7 +56,6 @@ vi.mock('~/lib/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: {
 		success: mocks.toastSuccess,
-		warning: mocks.toastWarning,
 		error: mocks.toastError,
 	},
 }));
@@ -70,15 +73,13 @@ vi.mock('react-i18next', () => ({
 				'bulk-delete': 'Delete selected',
 				delete: 'Delete',
 				'bulk-delete-profiles-confirm':
-					'Are you sure you want to delete {{count}} selected profile(s)? Assigned members lose this profile. Default profiles in the selection are skipped.',
+					'Are you sure you want to delete {{count}} selected profile(s)? Assigned members lose this profile.',
 				'staff-profile-bulk-delete-success':
 					'Successfully deleted {{count}} profile(s).',
 				'staff-profile-bulk-delete-partial-success':
 					'Deleted {{succeeded}} profile(s), {{failed}} failed.',
 				'staff-profile-bulk-delete-failure':
 					'Failed to delete selected profiles.',
-				'bulk-delete-disabled-default-profiles-selected':
-					"Default profiles can't be deleted. Clear them from the selection first.",
 				'bulk-action-max-count-exceeded':
 					'Reduce your selection to at most {{max}} items ({{count}} selected).',
 			};
@@ -139,9 +140,7 @@ const renderBulkActions = ({
 	);
 
 const openMenu = async () => {
-	fireEvent.click(
-		screen.getByRole('button', { name: 'More actions', expanded: false }),
-	);
+	fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
 	await waitFor(() =>
 		expect(
 			screen
@@ -168,7 +167,7 @@ describe('#1386 ProfilesListBulkActions', () => {
 		await openMenu();
 
 		expect(screen.getByRole('menuitem', { name: 'Delete selected' }));
-		expect(mocks.toastWarning).not.toHaveBeenCalled();
+		expect(mocks.bulkDelete).not.toHaveBeenCalled();
 	});
 
 	test('over-cap selection disables the trigger with the max-count title', () => {
@@ -180,8 +179,6 @@ describe('#1386 ProfilesListBulkActions', () => {
 			selectedIds: manyRows.map((profile) => profile.id),
 		});
 
-		// The trigger carries aria-label "More actions" for its accessible name;
-		// the max-count reason rides on the title attribute.
 		const trigger = screen.getByRole('button', {
 			name: 'More actions',
 		}) as HTMLButtonElement;
@@ -213,10 +210,10 @@ describe('#1386 ProfilesListBulkActions', () => {
 		await openMenu();
 		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
 
-		// The dialog names the count and the consequence before firing.
+		// The dialog names exactly the number of ids that will be sent.
 		expect(
 			await screen.findByText(
-				'Are you sure you want to delete 2 selected profile(s)? Assigned members lose this profile. Default profiles in the selection are skipped.',
+				'Are you sure you want to delete 2 selected profile(s)? Assigned members lose this profile.',
 			),
 		).toBeTruthy();
 		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
@@ -237,25 +234,79 @@ describe('#1386 ProfilesListBulkActions', () => {
 		);
 	});
 
-	test('partial failure raises the partial-success toast instead of plain success', async () => {
-		mocks.bulkDelete.mockResolvedValue({ succeededCount: 1, failedCount: 2 });
-
+	// #1408 r1 mutation A: sending every key of rowSelection (including ids
+	// absent from rows) must turn RED here — only loaded-row ids reach the wire.
+	test('a selected id absent from rows is not sent to bulk delete', async () => {
 		renderBulkActions({
-			rows: [row(PROFILE_A), row(PROFILE_B)],
-			selectedIds: [PROFILE_A, PROFILE_B],
+			rows: [row(PROFILE_A)],
+			selectedIds: [PROFILE_A, STALE_ID],
 		});
 
 		await openMenu();
 		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
-		expect(await screen.findByText(/delete 2 selected profile/)).toBeTruthy();
+
+		// The dialog counts only what will be sent (#1408 r1 mutation H).
+		expect(await screen.findByText(/delete 1 selected profile/)).toBeTruthy();
 		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
 		await waitFor(() =>
-			expect(mocks.toastError).toHaveBeenCalledWith(
-				'Deleted 1 profile(s), 2 failed.',
-			),
+			expect(mocks.bulkDelete).toHaveBeenCalledWith({
+				profileIds: [PROFILE_A],
+			}),
 		);
-		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.bulkDelete).not.toHaveBeenCalledWith({
+			profileIds: expect.arrayContaining([STALE_ID]),
+		});
+	});
+
+	// #1408 r1 item 3: the partial-success toast surfaces each per-item server
+	// reason verbatim (deduplicated, order-preserved) as its description.
+	test('partial failure toast carries each server reason verbatim', async () => {
+		mocks.bulkDelete.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 3,
+			failedItems: [
+				{
+					profileId: PROFILE_B,
+					errorEscaped: 'Default profiles cannot be deleted',
+				},
+				{
+					profileId: STALE_ID,
+					errorEscaped: 'Profile not found',
+				},
+				{
+					profileId: 'dddddddd-4444-4444-4444-444444444444',
+					errorEscaped: 'Default profiles cannot be deleted',
+				},
+			],
+		});
+
+		renderBulkActions({
+			rows: [row(PROFILE_A), row(PROFILE_B), row(STALE_ID)],
+			selectedIds: [PROFILE_A, PROFILE_B, STALE_ID],
+		});
+
+		await openMenu();
+		fireEvent.click(screen.getByRole('menuitem', { name: 'Delete selected' }));
+		expect(await screen.findByText(/delete 3 selected profile/)).toBeTruthy();
+		fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1));
+		const [message, description] = mocks.toastError.mock.calls[0] as [
+			string,
+			string | undefined,
+		];
+		expect(message).toBe('Deleted 1 profile(s), 3 failed.');
+		expect(description).toContain('Default profiles cannot be deleted');
+		expect(description).toContain('Profile not found');
+		// Order preserved on first appearance; duplicate reasons collapse.
+		expect(
+			description?.indexOf('Default profiles cannot be deleted'),
+		).toBeLessThan(description?.indexOf('Profile not found') ?? Number.NaN);
+		expect(description?.split('\n')).toEqual([
+			'Default profiles cannot be deleted',
+			'Profile not found',
+		]);
 	});
 
 	test('mutation rejection surfaces a transparent local failure message', async () => {

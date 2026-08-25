@@ -26,15 +26,13 @@ import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
 
-import { getDeletableProfileIds } from './_profiles-bulk-helpers';
-
 /** Route-local bulk action for the staff profiles list (#1386): the selection
  * toolbar offered only Export even though the API already ships
  * `POST /staff/profiles/bulk-delete`. Mirrors `StaffUsersListBulkActions`
  * (#1385) and follows docs/guides/bulk-action-ux-conventions.md: the menu item
- * renders unconditionally; the click handler enforces eligibility (default
- * profiles are skipped server-side, so they never reach the wire) and surfaces
- * the reason instead of hiding or disabling the item. */
+ * renders unconditionally, and the API accounts for every requested id — one
+ * it refuses comes back in `failedItems` with a plain-language reason, which
+ * the partial-success toast surfaces verbatim (#1408 r1). */
 
 export const ProfilesListBulkActions = ({
 	rows,
@@ -53,30 +51,21 @@ export const ProfilesListBulkActions = ({
 	const selectedCount = selection.selectedCount;
 	const isOverLimit = selectedCount > BULK_ACTION_MAX_COUNT;
 
-	// Eligibility mirrors the backend service (`BulkDeleteStaffProfilesAsync`):
-	// default profiles would come back as per-item failures, so they are scoped
-	// out before the confirm dialog is ever opened.
-	const deletableProfileIds = getDeletableProfileIds(
-		rows,
-		selection.rowSelection,
+	// Only ids present among the loaded rows are sent: a selection entry
+	// without a row (possible in the render window before `useRowSelection`
+	// prunes a data change) must not reach the wire — the server would report
+	// it "Profile not found" for an id the user cannot see (#1408 r1).
+	const selectedIds = rows.flatMap((row) =>
+		selection.rowSelection[row.id] ? [row.id] : [],
 	);
 
-	// The MenuItem renders unconditionally (docs/guides/bulk-action-ux-conventions.md):
-	// the click handler enforces eligibility and surfaces the reason rather than
-	// disabling or hiding the item.
 	const handleMenuItemClick = (): void => {
-		if (deletableProfileIds.length === 0) {
-			toastLocalMutationResult.warning(
-				t('bulk-delete-disabled-default-profiles-selected'),
-			);
-			return;
-		}
 		setIsDialogOpen(true);
 	};
 
 	const performBulkDelete = async () => {
 		const args: BulkStaffProfileActionInput = {
-			profileIds: deletableProfileIds,
+			profileIds: selectedIds,
 		};
 
 		let result;
@@ -104,13 +93,25 @@ export const ProfilesListBulkActions = ({
 
 		const succeededCount = result?.succeededCount ?? 0;
 		const failedCount = result?.failedCount ?? 0;
+		const failedItems = result?.failedItems ?? [];
 
 		if (failedCount > 0) {
+			// Transparent failure causes: surface each per-item reason verbatim
+			// (deduplicated, order-preserved), never a bare "some items failed".
+			const reasons = [
+				...new Set(
+					failedItems.flatMap((item) => {
+						const reason = item.errorEscaped?.trim();
+						return reason ? [reason] : [];
+					}),
+				),
+			];
 			toastLocalMutationResult.error(
 				t('staff-profile-bulk-delete-partial-success', {
 					succeeded: succeededCount,
 					failed: failedCount,
 				}),
+				reasons.length > 0 ? reasons.join('\n') : undefined,
 			);
 		} else {
 			toastLocalMutationResult.success(
@@ -149,6 +150,7 @@ export const ProfilesListBulkActions = ({
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" side="top" sideOffset={6}>
 					<DropdownMenuItem
+						variant="destructive"
 						disabled={bulkDeleteMutation.isPending}
 						onClick={handleMenuItemClick}
 					>
@@ -162,7 +164,7 @@ export const ProfilesListBulkActions = ({
 				isOpen={isDialogOpen}
 				title={t('bulk-delete')}
 				description={t('bulk-delete-profiles-confirm', {
-					count: deletableProfileIds.length,
+					count: selectedIds.length,
 				})}
 				confirmLabel={t('delete')}
 				isPending={bulkDeleteMutation.isPending}
