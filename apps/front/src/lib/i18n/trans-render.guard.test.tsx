@@ -380,28 +380,34 @@ const CALL_SITES: CallSiteSpec[] = [
 	},
 ];
 
+/**
+ * `RouteOptions.component` is typed `unknown` upstream, so each real route
+ * object is narrowed once at this boundary instead of being asserted
+ * through: the components this guard mounts are plain function components.
+ */
+type RouteComponent = () => ReactElement;
+
+const isRouteComponent = (value: unknown): value is RouteComponent =>
+	typeof value === 'function';
+
+const routeComponentThunk = (route: {
+	options: { component?: unknown };
+}): (() => RouteComponent) => {
+	const { component } = route.options;
+	if (!isRouteComponent(component)) {
+		throw new Error('guarded route carries no function component');
+	}
+
+	return (): RouteComponent => component;
+};
+
 const ROUTE_COMPONENTS: Record<
 	CallSiteSpec['route'],
 	() => () => ReactElement
 > = {
-	'reset-password': () =>
-		(
-			ResetPasswordRoute as unknown as {
-				component: () => ReactElement;
-			}
-		).component,
-	'accept-invitation': () =>
-		(
-			AcceptInvitationRoute as unknown as {
-				component: () => ReactElement;
-			}
-		).component,
-	'verify-email': () =>
-		(
-			VerifyEmailRoute as unknown as {
-				component: () => ReactElement;
-			}
-		).component,
+	'reset-password': routeComponentThunk(ResetPasswordRoute),
+	'accept-invitation': routeComponentThunk(AcceptInvitationRoute),
+	'verify-email': routeComponentThunk(VerifyEmailRoute),
 };
 
 const setRouteLoader = (

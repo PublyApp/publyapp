@@ -128,7 +128,11 @@ const mountRealRoute = <TRoute,>(
 	route: TRoute,
 	options: Record<string, unknown>,
 ): TRoute => {
-	(route as { update: (options: unknown) => unknown }).update(options);
+	// The real `update` returns the route for chaining; this harness discards
+	// the result, so the narrowed call signature honestly returns void.
+	(route as { update: (options: Record<string, unknown>) => void }).update(
+		options,
+	);
 
 	return route;
 };
