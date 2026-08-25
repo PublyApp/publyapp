@@ -37,7 +37,9 @@ export const useLanguageKeyedZodResolver = <TFieldValues extends FieldValues>(
 	const { t } = useTranslation(namespace);
 
 	return useMemo(
-		() => zodResolver(buildSchema(t)) as unknown as Resolver<TFieldValues>,
+		// zodResolver's declared return type overstates its variance for RHF's
+		// generic Resolver; one explicit cast at this single seam.
+		() => zodResolver(buildSchema(t)) as Resolver<TFieldValues>,
 		[buildSchema, t],
 	);
 };
