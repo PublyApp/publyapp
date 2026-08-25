@@ -228,6 +228,10 @@ test('the real node:test runner cleans its owned root when interrupted', async (
 		return;
 	}
 	const handshakeNonce = randomBytes(24).toString('base64');
+	// #1352: resolve the budget FIRST, through the shared seam, BEFORE any
+	// child is spawned — a bad RUNNER_PROBE_BUDGET_MS override must fail loud
+	// with nothing to leak and nothing left to clean up.
+	const budgetMs = realProbeBudget();
 	const child = spawn(
 		process.execPath,
 		[
