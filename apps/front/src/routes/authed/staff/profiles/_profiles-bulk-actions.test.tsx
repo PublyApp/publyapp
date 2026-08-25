@@ -84,8 +84,14 @@ vi.mock('react-i18next', () => ({
 					'Reduce your selection to at most {{max}} items ({{count}} selected).',
 			};
 
-			return (labels[key] ?? key).replace(/\{\{(\w+)\}\}/g, (_, name: string) =>
-				String(options?.[name] ?? ''),
+			return (labels[key] ?? key).replace(
+				/\{\{(\w+)\}\}/g,
+				(_, name: string) => {
+					const value = options?.[name];
+					return typeof value === 'string' || typeof value === 'number'
+						? String(value)
+						: '';
+				},
 			);
 		},
 		i18n: { language: 'en' },

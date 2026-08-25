@@ -112,7 +112,12 @@ vi.mock('react-i18next', () => ({
 
 			return (labels[bare] ?? bare).replace(
 				/\{\{(\w+)\}\}/g,
-				(_, name: string) => String(options?.[name] ?? ''),
+				(_, name: string) => {
+					const value = options?.[name];
+					return typeof value === 'string' || typeof value === 'number'
+						? String(value)
+						: '';
+				},
 			);
 		},
 		i18n: { language: 'en' },
