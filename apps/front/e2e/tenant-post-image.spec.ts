@@ -74,4 +74,53 @@ test.describe('@uploads @639 tenant post image', () => {
 			'A tiny red square',
 		);
 	});
+
+	test('a rejected attach keeps the saved draft visible and names the cause in the drawer', async ({
+		page,
+	}) => {
+		await loginAsTenantUser(page, SINGLE_TENANT_ADMIN_CREDENTIALS);
+
+		await page.goto('/tenant/posts/drafts');
+		await expect(page.getByTestId('tenant-posts-drafts-page')).toBeVisible();
+
+		await page.getByTestId('tenant-posts-new-post').click();
+		const drawer = page.getByTestId('tenant-posts-create-drawer');
+		await expect(drawer).toBeVisible();
+
+		const uniqueBody = `${POST_BODY}rejected attach ${Date.now()}`;
+		await page.getByTestId('tenant-posts-create-body').fill(uniqueBody);
+
+		// Valid extension, invalid content: transport validation passes, then
+		// the API's magic-byte sniffing rejects the payload with 422.
+		await page
+			.getByTestId('tenant-posts-create-image-input')
+			.setInputFiles(
+				new URL('./fixtures/not-an-image.png', import.meta.url).pathname,
+			);
+		await page
+			.getByTestId('tenant-posts-create-image-alt')
+			.fill('A tiny red square');
+
+		await page.getByTestId('tenant-posts-create-save').click();
+
+		// The post WAS created; the drawer must not close over the stranded
+		// image. The handoff surface names the cause in plain words.
+		const handoff = page.getByTestId('tenant-posts-create-image-handoff');
+		await expect(handoff).toBeVisible();
+		await expect(drawer).toBeVisible();
+		await expect(handoff).toContainText(
+			/Your post was saved|not a supported image|PNG, JPEG/i,
+		);
+
+		// "Keep without the image" closes cleanly over the consistent,
+		// image-less draft, which is immediately visible in the list.
+		await page.getByTestId('tenant-posts-create-image-discard').click();
+		await expect(drawer).not.toBeVisible();
+
+		const rowLink = page
+			.getByTestId('tenant-posts-drafts-table')
+			.getByRole('link')
+			.filter({ hasText: uniqueBody });
+		await expect(rowLink).toBeVisible();
+	});
 });
