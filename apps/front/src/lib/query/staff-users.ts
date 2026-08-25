@@ -15,6 +15,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	ApiResponse,
+	BulkStaffUserActionResult,
 	FindStaffUsersResponse,
 	GetStaffUserByIdResult,
 	GetStaffUserProfilesResult,
@@ -564,3 +565,69 @@ export const useReactivateStaffUserMutation = () =>
 
 export const useDeleteStaffUserMutation = () =>
 	useMutation(deleteStaffUserMutationOptions);
+
+export type BulkStaffUserActionInput = {
+	userIds: string[];
+};
+
+const buildBulkStaffUserIdsBody = (userIds: string[]) => ({
+	userIds: createUntypedArray(userIds.map((id) => createUntypedString(id))),
+});
+
+export const bulkSuspendStaffUsersMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkStaffUserActionResult | undefined,
+	BulkStaffUserActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_USERS_QUERY_KEY, 'bulk-suspend'],
+		mutationFn: (client, variables) =>
+			client.staff.users.bulkSuspend.post(
+				buildBulkStaffUserIdsBody(variables.userIds),
+			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const bulkReactivateStaffUsersMutationOptions =
+	buildStaffMutationOptions<
+		ApiClient,
+		BulkStaffUserActionResult | undefined,
+		BulkStaffUserActionInput
+	>(
+		{
+			mutationKeyFn: () => [...STAFF_USERS_QUERY_KEY, 'bulk-reactivate'],
+			mutationFn: (client, variables) =>
+				client.staff.users.bulkReactivate.post(
+					buildBulkStaffUserIdsBody(variables.userIds),
+				),
+			meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+		},
+		{ clientAccessor: getClientManager() },
+	);
+
+export const bulkDeleteStaffUsersMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkStaffUserActionResult | undefined,
+	BulkStaffUserActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_USERS_QUERY_KEY, 'bulk-delete'],
+		mutationFn: (client, variables) =>
+			client.staff.users.bulkDelete.post(
+				buildBulkStaffUserIdsBody(variables.userIds),
+			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useBulkSuspendStaffUsersMutation = () =>
+	useMutation(bulkSuspendStaffUsersMutationOptions);
+
+export const useBulkReactivateStaffUsersMutation = () =>
+	useMutation(bulkReactivateStaffUsersMutationOptions);
+
+export const useBulkDeleteStaffUsersMutation = () =>
+	useMutation(bulkDeleteStaffUsersMutationOptions);
