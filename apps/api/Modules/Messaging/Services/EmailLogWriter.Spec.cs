@@ -43,8 +43,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 					NewOutcome = EmailLogOutcome.Submitted,
 					EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
 					ProviderEventId = $"evt-{jobId:N}",
-					ActorKind = EmailLogActorKinds.ProviderWebhook,
-					ActorId = $"evt-{jobId:N}",
+					Actor = EmailLogActor.ProviderWebhook($"evt-{jobId:N}"),
 					Details = new { Reason = "reconciliation: provider logs show acceptance" },
 				}
 			);
@@ -103,8 +102,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 				NewOutcome = EmailLogOutcome.Submitted,
 				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
 				ProviderEventId = $"evt-{jobId:N}",
-				ActorKind = EmailLogActorKinds.ProviderWebhook,
-				ActorId = $"evt-{jobId:N}",
+				Actor = EmailLogActor.ProviderWebhook($"evt-{jobId:N}"),
 			});
 
 			await using var verifyScope = _fixture.Factory.Services.CreateAsyncScope();
@@ -133,8 +131,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 				NewOutcome = EmailLogOutcome.Submitted,
 				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
 				ProviderEventId = $"evt-{jobId:N}",
-				ActorKind = EmailLogActorKinds.ProviderWebhook,
-				ActorId = $"evt-{jobId:N}",
+				Actor = EmailLogActor.ProviderWebhook($"evt-{jobId:N}"),
 			});
 
 			result.Should().BeOfType<ApplyProviderEvidenceResult.Rejected>(
@@ -168,8 +165,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 				NewOutcome = EmailLogOutcome.Submitted,
 				EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
 				ProviderEventId = sharedEventId,
-				ActorKind = EmailLogActorKinds.ProviderWebhook,
-				ActorId = sharedEventId,
+				Actor = EmailLogActor.ProviderWebhook(sharedEventId),
 			});
 			first.Should().BeOfType<ApplyProviderEvidenceResult.Applied>();
 
@@ -182,8 +178,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 					NewOutcome = EmailLogOutcome.Submitted,
 					EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
 					ProviderEventId = sharedEventId,
-					ActorKind = EmailLogActorKinds.ProviderWebhook,
-					ActorId = sharedEventId,
+					Actor = EmailLogActor.ProviderWebhook(sharedEventId),
 				}
 			);
 
@@ -215,8 +210,7 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 			NewOutcome = EmailLogOutcome.Submitted,
 			EvidenceSource = EmailEvidenceSource.ProviderReconciliation,
 			ProviderEventId = $"evt-{missingJobId:N}",
-			ActorKind = EmailLogActorKinds.ProviderWebhook,
-			ActorId = $"evt-{missingJobId:N}",
+			Actor = EmailLogActor.ProviderWebhook($"evt-{missingJobId:N}"),
 		});
 
 		result.Should().BeOfType<ApplyProviderEvidenceResult.UnknownTarget>();

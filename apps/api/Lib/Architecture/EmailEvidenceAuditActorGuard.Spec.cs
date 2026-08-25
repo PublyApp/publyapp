@@ -7,25 +7,25 @@ using Xunit;
 namespace PublyApp.Api.Lib.Architecture;
 
 /// <summary>
-/// Architecture guard for issue #866 (jobs design §11 K-6; R10-3/O30 precedent): the
-/// <c>email_log</c> §4.4 provider-evidence transitions are actor-less — a provider webhook
-/// or reconciliation import has no user — and the shipped <c>audit_logs</c> table requires a
-/// NOT NULL <c>user_id</c> FK to <c>users</c>. Any audit write specified for those
-/// transitions is unconstructible. The sanctioned shape (the same one O30 chose for
-/// <c>job_dead_letter_events</c>) is an append-only evidence row that NAMES its author with
-/// a required actor identity (<c>actor_kind</c> + <c>actor_id</c>) instead of attributing a
-/// user. This guard pins, structurally:
+/// Architecture guard for issue #866 round 1 (jobs design §4.4/K-6): every
+/// <c>email_log</c> evidence-transition contract NAMES its author as an
+/// <see cref="Modules.Messaging.Entities.EmailLogActor"/> value — never two free
+/// strings, never null, never "", never a fabricated users.id.
 ///
-/// 1. the evidence-transition contract exists on <c>IEmailLogWriter</c>
-///    (<see cref="Modules.Messaging.Services.IEmailLogWriter.ApplyProviderEvidenceAsync"/>) —
-///    vacuity guard so the checks below cannot pass for the wrong reason;
-/// 2. every evidence-transition argument carries a REQUIRED, non-nullable, init-only
-///    <c>ActorKind</c>/<c>ActorId</c> string — an author must be named by the compiler,
-///    never defaulted to null and never smuggled in as a users.id;
-/// 3. no member of the evidence entity is user-attributed and the entity stays
-///    tenant-free (<c>INoTenantEntity</c>).
-/// Types are resolved via <see cref="ArchitectureDiscovery"/> so this spec compiles before
-/// the contract exists and fails with a named assertion instead of a build break.
+/// The convention this guard enforces (made explicit by the marker itself):
+/// <see cref="Modules.Messaging.Services.IEmailLogTransition"/> marks every type that
+/// carries the identity + evidence of one email-log transition. The guard enumerates
+/// EVERY implementor in the API assembly and requires a required, init-only,
+/// non-nullable <c>Actor</c> member of the value type — so a transition added later
+/// without a named author goes red in CI naming the type, not just at review
+/// (paired RED proof recorded in the lane log: a scratch implementor without an
+/// actor failed <see cref="ItShouldRequireAnEmailLogActorOnEveryTransitionContract"/>
+/// naming it, and passed again once reverted).
+///
+/// Also pinned: the evidence entity stays tenant-free and user-attribution-free, and
+/// the value type's invariants hold (vocabulary kind via its factories, bounded id).
+/// Types are resolved via <see cref="ArchitectureDiscovery"/> so this spec compiles
+/// before the contracts exist and fails with named assertions instead of build breaks.
 /// </summary>
 public sealed class EmailEvidenceAuditActorGuardSpec {
 	static EmailEvidenceAuditActorGuardSpec() {
@@ -49,64 +49,89 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 	}
 
 	[Fact]
-	public void ItShouldRequireAnActorIdentityOnEveryEvidenceTransition() {
-		var argsType = Resolve(
-			"PublyApp.Api.Modules.Messaging.Services.ApplyProviderEvidenceEmailLogArgs"
+	public void ItShouldHaveAtLeastOneTransitionMarkerImplementor() {
+		Transitions.Should().NotBeEmpty(
+			"IEmailLogTransition is the explicit convention marking every email-log "
+			+ "transition contract; with zero implementors the enumeration below "
+			+ "would pass vacuously. If the marker was renamed or repurposed, update "
+			+ "this guard deliberately (#866)"
 		);
+	}
 
-		foreach (var propertyName in new[] { "ActorKind", "ActorId" }) {
-			var property = argsType.GetProperty(propertyName);
+	// Finding-2 core property: EVERY implementor of the IEmailLogTransition marker —
+	// today's ApplyProviderEvidenceEmailLogArgs and any transition contract added
+	// later — must carry a required, init-only, non-nullable EmailLogActor `Actor`.
+	// A new transition without an author fails HERE, naming the type.
+	[Fact]
+	public void ItShouldRequireAnEmailLogActorOnEveryTransitionContract() {
+		var failures = new List<string>();
 
-			property.Should().NotBeNull(
-				"{0} must exist: an evidence transition without a named author is "
-				+ "exactly the #866 defect",
-				propertyName
-			);
+		foreach (var transition in Transitions) {
+			var property = transition.GetProperty("Actor");
+			if (property is null) {
+				failures.Add(
+					$"{transition.FullName}: no Actor member — every email-log "
+					+ "transition contract must name its author with an "
+					+ "EmailLogActor (#866)"
+				);
+				continue;
+			}
 
-			property!.PropertyType.Should().Be(
-				typeof(string),
-				"{0} names its author with the controlled vocabulary / provider "
-				+ "correlation text, never a users.id",
-				propertyName
-			);
+			if (property.PropertyType != ActorType) {
+				failures.Add(
+					$"{transition.FullName}: Actor must be the EmailLogActor value "
+					+ $"type, not {property.PropertyType} — free-string authors are "
+					+ "the #866 defect (empty or out-of-vocabulary kinds compile)"
+				);
+			}
 
 			var setMethod = property.SetMethod;
-			setMethod.Should().NotBeNull(
-				"{0} is object-initializer-set; a settable author identity keeps the "
-				+ "args record construction honest",
-				propertyName
-			);
-			// init-only is a metadata modreq on the setter's return, not an attribute.
-			setMethod!.ReturnParameter!
-				.GetRequiredCustomModifiers()
-				.Any(modifier => modifier.Name == "IsExternalInit")
-				.Should()
-				.BeTrue(
-					"{0} must be init-only — the author is fixed at construction and "
-					+ "cannot be rewritten afterwards",
-					propertyName
+			if (setMethod is null) {
+				failures.Add(
+					$"{transition.FullName}: Actor must be object-initializer-settable"
 				);
-
-			// The C# compiler emits [RequiredMember] once on the DECLARING type for any
-			// type carrying `required` members (members themselves carry
-			// [CompilerFeatureRequired]); pinning the type-level attribute still forces
-			// every caller through the required-members constructor path (#866).
-			argsType
-				.GetCustomAttributes()
-				.Any(a => a.GetType().Name == "RequiredMemberAttribute")
-				.Should()
-				.BeTrue(
-					"ApplyProviderEvidenceEmailLogArgs must carry `required` members so "
-					+ "the compiler forces every caller of the evidence transition to "
-					+ "name its author (#866)"
+			} else if (!setMethod.ReturnParameter!
+					.GetRequiredCustomModifiers()
+					.Any(modifier => modifier.Name == "IsExternalInit")) {
+				// init-only is a metadata modreq on the setter's return, not an attribute.
+				failures.Add(
+					$"{transition.FullName}: Actor must be init-only — the author is "
+					+ "fixed at construction and cannot be rewritten afterwards"
 				);
+			}
 
 			var nullabilityContext = new NullabilityInfoContext();
-			nullabilityContext.Create(property).WriteState.Should().Be(
-				NullabilityState.NotNull,
-				"{0} must be non-nullable — never a null author",
-				propertyName
-			);
+			if (nullabilityContext.Create(property).WriteState
+				!= NullabilityState.NotNull) {
+				failures.Add(
+					$"{transition.FullName}: Actor must be non-nullable — never a "
+					+ "null author (#866)"
+				);
+			}
+		}
+
+		_ = failures.Should().BeEmpty(
+			"every IEmailLogTransition implementor must carry a required, init-only, "
+			+ "non-nullable EmailLogActor Actor; violations:\n" + string.Join("\n", failures)
+		);
+	}
+
+	// The compiler emits [RequiredMember] once on the DECLARING type for any type
+	// carrying `required` members. Requiring it on every transition forces every
+	// caller through the required-members constructor path — omission is a compile
+	// error, not a silent default (#866).
+	[Fact]
+	public void ItShouldMakeTheAuthorUnomittableOnEveryTransitionContract() {
+		foreach (var transition in Transitions) {
+			transition
+				.GetCustomAttributes()
+				.Any(attribute => attribute.GetType().Name == "RequiredMemberAttribute")
+				.Should()
+				.BeTrue(
+					"{0} must carry `required` members so the compiler forces every "
+					+ "caller to name the transition's author (#866)",
+					transition.FullName
+				);
 		}
 	}
 
@@ -133,6 +158,54 @@ public sealed class EmailEvidenceAuditActorGuardSpec {
 		eventType.GetProperty("ActorKind").Should().NotBeNull();
 		eventType.GetProperty("ActorId").Should().NotBeNull();
 	}
+
+	[Fact]
+	public void ItShouldKeepTheActorValueTypeInvariantEnforcing() {
+		var actorType = Resolve(
+			"PublyApp.Api.Modules.Messaging.Entities.EmailLogActor"
+		);
+
+		// The static factories are the ONLY public constructors: a caller cannot build
+		// an out-of-vocabulary Kind because the constructor is private.
+		actorType.GetConstructors(BindingFlags.Public | BindingFlags.Instance)
+			.Should()
+			.BeEmpty(
+				"EmailLogActor's vocabulary Kind can only be built through its "
+				+ "factories — no public constructor may bypass them (#866)"
+			);
+
+		actorType.GetMethods(BindingFlags.Public | BindingFlags.Static)
+			.Where(m => m.ReturnType == ActorType)
+			.Select(m => m.Name)
+			.Should()
+			.Contain(VocabularyFactoryNames,
+				"each vocabulary kind has exactly one factory");
+	}
+
+	private static readonly string[] VocabularyFactoryNames =
+		["ProviderWebhook", "ProviderReconciliation"];
+
+	private static Type? ActorType {
+		get {
+			return ArchitectureDiscovery.EnumerateApiTypes()
+				.FirstOrDefault(t => t.FullName == ActorTypeFullName);
+		}
+	}
+
+	private const string ActorTypeFullName =
+		"PublyApp.Api.Modules.Messaging.Entities.EmailLogActor";
+
+	private static List<Type> Transitions {
+		get {
+			return ArchitectureDiscovery.EnumerateApiTypes()
+				.Where(t => t.GetInterfaces()
+					.Any(i => i.FullName == TransitionMarkerFullName))
+				.ToList();
+		}
+	}
+
+	private const string TransitionMarkerFullName =
+		"PublyApp.Api.Modules.Messaging.Services.IEmailLogTransition";
 
 	private static Type Resolve(string fullName) {
 		var type = ArchitectureDiscovery.EnumerateApiTypes()

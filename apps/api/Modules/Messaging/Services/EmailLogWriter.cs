@@ -26,8 +26,8 @@ public interface IEmailLogWriter {
 	/// entry, which is unbuildable for a webhook (user_id NOT NULL FK; a provider has no
 	/// user). Owns its transaction: the conditioned update and the evidence row commit
 	/// or roll back together. The caller names the author via
-	/// <see cref="ApplyProviderEvidenceEmailLogArgs.ActorKind"/>/
-	/// <see cref="ApplyProviderEvidenceEmailLogArgs.ActorId"/> — required, non-nullable.
+	/// <see cref="ApplyProviderEvidenceEmailLogArgs.Actor"/> — a required,
+	/// non-nullable <see cref="Entities.EmailLogActor"/> value.
 	/// </summary>
 	Task<ApplyProviderEvidenceResult> ApplyProviderEvidenceAsync(
 		ApplyProviderEvidenceEmailLogArgs args,
@@ -36,12 +36,14 @@ public interface IEmailLogWriter {
 }
 
 /// <summary>
-/// Identity + evidence of one §4.4 provider-evidence transition (#866/K-6).
-/// <see cref="ActorKind"/>/<see cref="ActorId"/> are REQUIRED: a transition without a
-/// human actor still names its author (a controlled-vocabulary kind plus the provider
-/// correlation id), never null and never a fabricated users.id.
+/// Identity + evidence of one §4.4 provider-evidence transition (#866/K-6). Implements
+/// <see cref="IEmailLogTransition"/> — the architecture guard enumerates every marker
+/// implementor and requires the <see cref="Actor"/> value. A transition without a human
+/// actor still names its author: the kind is a controlled-vocabulary value and the
+/// correlation id is non-empty and bounded — never null, never "", never a fabricated
+/// users.id (#866 round-1: enforced by the type, not by convention).
 /// </summary>
-public sealed record ApplyProviderEvidenceEmailLogArgs {
+public sealed record ApplyProviderEvidenceEmailLogArgs : IEmailLogTransition {
 	public required Guid JobId { get; init; }
 
 	// Vocabulary value from EmailLogEvents.
@@ -52,9 +54,10 @@ public sealed record ApplyProviderEvidenceEmailLogArgs {
 	public required string EvidenceSource { get; init; }
 	public required string ProviderEventId { get; init; }
 
-	// The named author (EmailLogActorKinds value + correlation text) — #866.
-	public required string ActorKind { get; init; }
-	public required string ActorId { get; init; }
+	// The named author (#866 round-1): a value object whose Kind is restricted to the
+	// EmailLogActorKinds vocabulary and whose Id is non-empty and bounded — an empty or
+	// out-of-vocabulary author throws in the constructor, before any database write.
+	public required EmailLogActor Actor { get; init; }
 
 	// Bounded, sanitized context (F20); serialized into the evidence row's details.
 	public object? Details { get; init; }
@@ -170,8 +173,8 @@ public sealed class EmailLogWriter : IEmailLogWriter {
 		_dbContext.EmailLogEvidenceEvent.Add(new EmailLogEvidenceEvent {
 			EmailLogId = emailLogId.Value,
 			Event = args.Event,
-			ActorKind = args.ActorKind,
-			ActorId = args.ActorId,
+			ActorKind = args.Actor.Kind,
+			ActorId = args.Actor.Id,
 			PriorOutcome = (int)priorOutcome.Value,
 			NewOutcome = (int)args.NewOutcome,
 			Details = args.Details is not null
