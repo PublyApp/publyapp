@@ -32,6 +32,7 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
+import type { AnyRouter } from '@tanstack/react-router';
 import {
 	cleanup,
 	fireEvent,
@@ -240,7 +241,7 @@ const buildHarness = () => {
 		id: '/_authed-layout',
 		staticData: { crumbs: 'shell' },
 		component: () => <Outlet />,
-	} as never);
+	});
 	const editRoute = mountRealRoute(StaffUserEditRoute, {
 		id: EDIT_ROUTE_PATH,
 		path: EDIT_ROUTE_PATH,
@@ -252,10 +253,11 @@ const buildHarness = () => {
 	const detailStubRoute = createRoute({
 		getParentRoute: () => layoutRoute,
 		path: DETAIL_ROUTE_PATH,
+		staticData: { crumbs: 'shell' },
 		component: () => (
 			<div data-testid="staff-user-detail-stub">user detail</div>
 		),
-	} as never);
+	});
 
 	function addChildrenOf(route: unknown) {
 		return widenOptions<{ addChildren: (children: unknown[]) => void }>(route)
@@ -280,11 +282,13 @@ const buildHarness = () => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = createRouter({
-		routeTree,
-		history,
-		context: { queryClient },
-	} as never);
+	const router: AnyRouter = createRouter(
+		widenOptions<Parameters<typeof createRouter>[0]>({
+			routeTree,
+			history,
+			context: { queryClient },
+		}),
+	);
 
 	return { router, history, queryClient, blockers };
 };
@@ -295,7 +299,7 @@ const renderAtEdit = async () => {
 
 	render(
 		<QueryClientProvider client={harness.queryClient}>
-			<RouterProvider router={harness.router as never} />
+			<RouterProvider router={harness.router} />
 		</QueryClientProvider>,
 	);
 	await waitFor(() =>
