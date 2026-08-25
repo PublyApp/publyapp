@@ -2,7 +2,9 @@
 
 Date: 2026-08-25. Generated evidence for the #1357 docs prune; regenerate with
 `node packages/scripts-ts/src/audit-docs-prune.ts` (`--check` enforces byte equality).
-The audit reads the merge-base of origin/develop and HEAD (the pre-prune tree), so the
+The audit reads the youngest origin/develop first-parent tree that still carries every
+decision-table source (the pre-prune tree — normally the merge-base of origin/develop
+and HEAD; once the prune has landed, the walk steps back over pruned commits), so the
 evidence stays reproducible after the prune lands; `--rev <sha>` overrides. The decision
 table lives in that script, so the prune is mechanical rather than hand-curated.
 
@@ -17,7 +19,7 @@ indexes, and the archive-records guard manifest (`ci-gate-manifest.json`) do NOT
 A reference is either the exact repo-relative path appearing verbatim in a surface file
 or a resolvable relative markdown link from one.
 
-Counts: 93 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 81 deleted.
+Counts: 94 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 82 deleted.
 
 ## Notes
 
@@ -116,6 +118,7 @@ Counts: 93 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 8
 | `docs/implementation-plans/identity-scoped-tenant-cookie.md` | packages/shared-ts/src/lib/constants.ts | move → `docs/records/2026-01-31-plan-identity-scoped-tenant-cookie.md` |
 | `docs/implementation-plans/jobs-worker-infrastructure.md` | _(nothing)_ | delete |
 | `docs/misc/bulk-seeding-utilities.md` | _(nothing)_ | delete |
+| `docs/records/2026-08-25-analysis-email-log-actor.md` | _(nothing)_ | delete |
 | `docs/reviews/jobs-infra-design-challenge/doc-challenge-r1-findings.md` | _(nothing)_ | delete |
 | `docs/reviews/jobs-infra-design-challenge/doc-challenge-r10-findings.md` | _(nothing)_ | delete |
 | `docs/reviews/jobs-infra-design-challenge/doc-challenge-r2-findings.md` | _(nothing)_ | delete |
@@ -142,4 +145,4 @@ Counts: 93 candidate file(s) — 11 moved to `docs/records/`, 1 kept in place, 8
 | `docs/superpowers/specs/2026-08-25-820-bulk-actions-design.md` | _(nothing)_ | move → `docs/records/2026-08-25-spec-820-bulk-actions.md` |
 | `docs/superpowers/specs/2026-08-25-paid-modules-design.md` | _(nothing)_ | move → `docs/records/2026-08-25-spec-open-core-paid-modules.md` |
 
-(93 rows — end of inventory)
+(94 rows — end of inventory)
