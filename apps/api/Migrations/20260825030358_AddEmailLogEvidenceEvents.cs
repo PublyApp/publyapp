@@ -40,6 +40,17 @@ namespace PublyApp.Api.Migrations
                 name: "ix_email_log_evidence_events_email_log_id",
                 table: "email_log_evidence_events",
                 columns: new[] { "email_log_id", "occurred_at" });
+
+            // Actor invariants at the database level (#866 round-1): even a raw-SQL writer
+            // cannot persist an unnamed or out-of-vocabulary author. Mirrors the
+            // EmailLogActor constructor invariants.
+            migrationBuilder.Sql("""
+                ALTER TABLE email_log_evidence_events
+                    ADD CONSTRAINT ck_email_log_evidence_events_actor_kind
+                    CHECK (actor_kind IN ('provider_webhook', 'provider_reconciliation')),
+                    ADD CONSTRAINT ck_email_log_evidence_events_actor_id
+                    CHECK (length(actor_id) > 0 AND length(actor_id) <= 512);
+                """);
         }
 
         /// <inheritdoc />

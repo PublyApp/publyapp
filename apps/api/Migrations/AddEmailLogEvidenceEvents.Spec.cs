@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Messaging.Entities;
 
 using Xunit;
 
@@ -90,5 +91,106 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 		indexDef.Should().Contain("(email_log_id, occurred_at)",
 			"the covering index serves the per-subject history reconstruction "
 			+ "(dashboard rebuilds the timeline from evidence)");
+	}
+
+	// --- #866 round-1: the actor invariants hold even against raw-SQL writers ------
+
+	[Fact]
+	public async Task ItShouldEnforceTheActorInvariantsWithDatabaseCheckConstraints() {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var checkConstraints = await dbContext.Database.SqlQuery<string>(
+			$"""
+			SELECT string_agg(conname, ', ' ORDER BY conname) AS "Value"
+			FROM pg_constraint
+			WHERE contype = 'c'
+				AND conrelid = 'email_log_evidence_events'::regclass
+				AND conname LIKE 'ck_email_log_evidence_events_%'
+			"""
+		).SingleAsync();
+
+		checkConstraints.Should().Be(
+			"ck_email_log_evidence_events_actor_id, ck_email_log_evidence_events_actor_kind",
+			"the author columns are bounded at the DATABASE level: actor_kind is the "
+			+ "EmailLogActorKinds vocabulary and actor_id is non-empty and <= 512 — "
+			+ "mirroring the EmailLogActor constructor invariants (#866 round-1)"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectARawInsertWithAnEmptyActorIdNamingTheCheckConstraint() {
+		var jobId = await SeedEmailLogAsync();
+		try {
+			var emailLogId = await GetEmailLogIdAsync(jobId);
+
+			await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			var connection = dbContext.Database.GetDbConnection();
+			await connection.OpenAsync();
+
+			await using var command = connection.CreateCommand();
+			command.CommandText = """
+				INSERT INTO email_log_evidence_events
+					(email_log_id, event, actor_kind, actor_id, prior_outcome, new_outcome, details)
+				VALUES (@email_log_id, 'provider_acceptance_confirmed', 'provider_webhook', '', 0, 0, '{}')
+				""";
+			var emailLogIdParam = command.CreateParameter();
+			emailLogIdParam.ParameterName = "email_log_id";
+			emailLogIdParam.Value = emailLogId;
+			command.Parameters.Add(emailLogIdParam);
+
+			var insert = async () => await command.ExecuteNonQueryAsync();
+
+			var violation = await insert.Should().ThrowAsync<System.Data.Common.DbException>(
+				"even a raw-SQL writer must not persist an unnamed author — the empty "
+				+ "actor_id violates ck_email_log_evidence_events_actor_id (#866 round-1)"
+			);
+			violation.And.Message.Should().Contain(
+				"ck_email_log_evidence_events_actor_id",
+				"the failure shows its cause in plain words: which invariant refused the row"
+			);
+		} finally {
+			await CleanupAsync(jobId);
+		}
+	}
+
+	// --- helpers -------------------------------------------------------------------
+
+	private async Task<Guid> SeedEmailLogAsync() {
+		var jobId = Guid.NewGuid();
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		dbContext.EmailLog.Add(new EmailLog {
+			JobId = jobId,
+			Kind = EmailKind.TenantInvitation,
+			Recipient = $"evidence-check-{jobId:N}@example.com",
+			Outcome = EmailLogOutcome.LegacySubmissionUnverified,
+			Attempts = 1,
+		});
+		await dbContext.SaveChangesAsync();
+
+		return jobId;
+	}
+
+	private async Task<Guid> GetEmailLogIdAsync(Guid jobId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var id = await dbContext.EmailLog
+			.Where(entry => entry.JobId == jobId)
+			.Select(entry => entry.Id)
+			.SingleAsync();
+		return id.Value;
+	}
+
+	private async Task CleanupAsync(Guid jobId) {
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		await dbContext.EmailLog
+			.Where(entry => entry.JobId == jobId)
+			.ExecuteDeleteAsync();
 	}
 }

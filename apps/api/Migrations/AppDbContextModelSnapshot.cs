@@ -975,7 +975,11 @@ namespace PublyApp.Api.Migrations
                     b.HasIndex("EmailLogId", "OccurredAt")
                         .HasDatabaseName("ix_email_log_evidence_events_email_log_id");
 
-                    b.ToTable("email_log_evidence_events");
+                    b.ToTable("email_log_evidence_events", t =>
+                        {
+                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_kind", "actor_kind IN ('provider_webhook', 'provider_reconciliation')");
+                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_id", "length(actor_id) > 0 AND length(actor_id) <= 512");
+                        });
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailPreparedSend", b =>
