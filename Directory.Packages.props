@@ -17,10 +17,12 @@
     <PackageVersion Include="DotNetEnv" Version="3.2.0" />
     <PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11" />
     <!-- Transitive-pinned so every project resolves the same patch level:
-         Npgsql.EFCore.PostgreSQL otherwise drags Tests back to 10.0.4 (CS1705) -->
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.7" />
+         Npgsql.EFCore.PostgreSQL otherwise drags Tests back below 10.0.11 (CS1705).
+         Npgsql's latest 10.x is 10.0.3 (no 10.0.11 exists yet); keep this one entry
+         behind until Npgsql ships a matching patch. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.11" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
     <PackageVersion Include="Quartz" Version="3.18.2" />
