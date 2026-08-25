@@ -1180,7 +1180,7 @@ export const DisconnectDialog = ({
 **Interfaces:**
 - Produces: `<NeedsReconnectBanner tenantId={string} />` rendering `null` when no account is `needs_reconnect`.
 - Consumes: Task 3's `useSocialAccountsQuery`; Task 2's `useCanManageSocialAccounts`.
-- Mount point: inside `AppShell`, between `<header>` and `<main className="app-shell-main">` (verified structure at develop), rendered only on the tenant surface.
+- Mount point: inside `AuthedWorkspaceShell` in `apps/front/src/components/app-shell/app-shell.tsx`, immediately above `<main className="app-shell-main">{children}</main>` (verified on wt-641), rendered only when `getShellScope(pathname) === 'tenant'`. `getShellScope(pathname): ShellScope | undefined` lives in `apps/front/src/lib/navigation/route-metadata.tsx` (**.tsx**, not .ts) and is ALREADY imported by `app-shell.tsx`; `pathname` is a plain prop of `AuthedWorkspaceShell`. The tenant id comes from the existing hook `useResolvedWorkspaceTenantId()` (`apps/front/src/lib/query/tenants-for-picker.ts:69`, returns `string | null`).
 
 - [ ] **Step 1 (RED):**
 
@@ -1318,13 +1318,22 @@ export const NeedsReconnectBanner = ({ tenantId }: { tenantId: string }) => {
 
 (If `bg-warning`/`text-warning-foreground` are not token classes in this repo, substitute the banner tokens DESIGN.md prescribes — resolve against `check-design-system` before committing; never raw hex.)
 
-Then in `app-shell.tsx`, immediately above `<main className="app-shell-main">{children}</main>`:
+Then in `app-shell.tsx` (`AuthedWorkspaceShell` — it already imports `getShellScope` from `../../lib/navigation/route-metadata`):
 
 ```tsx
-{surface === 'tenant' ? <NeedsReconnectBanner tenantId={activeTenantId} /> : null}
+import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+
+// inside the component body, above the returned JSX:
+const workspaceTenantId = useResolvedWorkspaceTenantId();
+const isTenantSurface = getShellScope(pathname) === 'tenant';
+
+// JSX, immediately above <main className="app-shell-main">{children}</main>:
+{isTenantSurface && workspaceTenantId !== null ? (
+	<NeedsReconnectBanner tenantId={workspaceTenantId} />
+) : null}
 ```
 
-(wire `surface`/`activeTenantId` from the props/context the shell already has — read the component first; if the shell holds no tenant id, lift the banner into `_authed-layout`'s tenant branch instead so it still spans every tenant page).
+(`getShellScope` returns `'staff' | 'tenant' | undefined` from the URL prefix — `/tenant/**` only; `useResolvedWorkspaceTenantId()` resolves the picked workspace tenant and may be `null` before selection, so gate on both rather than inventing a `surface` variable or reading a context the shell does not have.)
 
 - [ ] **Step 3:** run suite green + typecheck + design-system guard (`pnpm --filter front test:design-guards`) + `just react-doctor`.
 - [ ] **Step 4:** `git commit -m "front(social): persistent needs-reconnect workspace banner with manage-gated action" && git push`
