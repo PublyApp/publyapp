@@ -1,6 +1,6 @@
 import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
@@ -71,36 +71,41 @@ const StaffTenantProfilesPage = () => {
 	);
 	const { t } = useTranslation('common');
 
-	// react-doctor: the three navigate wrappers below are handed to
-	// `useStaffTenantProfilesList`, which only ever calls them from event
-	// callbacks — never during render. The rule cannot follow them across the
-	// module boundary, so the hydration concern does not apply here.
-	const applySearch = (next: StaffTenantProfilesSearchParams): void => {
-		// eslint-disable-next-line react-doctor/tanstack-start-no-navigate-in-render
-		void navigate({
-			search: serializeStaffTenantProfilesSearchParams(
-				next,
-			) as TableSearchParams,
-			replace: true,
-		});
-	};
+	// Both URL writers wrap `Route.useNavigate()` in `useCallback` and are
+	// invoked exclusively from event handlers downstream — never during
+	// render (`react-doctor/navigate-in-render`).
+	const applySearch = useCallback(
+		(next: StaffTenantProfilesSearchParams): void => {
+			void navigate({
+				search: serializeStaffTenantProfilesSearchParams(
+					next,
+				) as TableSearchParams,
+				replace: true,
+			});
+		},
+		[navigate],
+	);
 
-	const pushSearch = (next: StaffTenantProfilesSearchParams): void => {
-		// eslint-disable-next-line react-doctor/tanstack-start-no-navigate-in-render
-		void navigate({
-			search: serializeStaffTenantProfilesSearchParams(
-				next,
-			) as TableSearchParams,
-		});
-	};
+	const pushSearch = useCallback(
+		(next: StaffTenantProfilesSearchParams): void => {
+			void navigate({
+				search: serializeStaffTenantProfilesSearchParams(
+					next,
+				) as TableSearchParams,
+			});
+		},
+		[navigate],
+	);
 
-	const navigateToProfile = (profileId: string): void => {
-		// eslint-disable-next-line react-doctor/tanstack-start-no-navigate-in-render
-		void navigate({
-			to: '/staff/tenants/$tenantId/profiles/$profileId',
-			params: { tenantId, profileId },
-		});
-	};
+	const navigateToProfile = useCallback(
+		(profileId: string): void => {
+			void navigate({
+				to: '/staff/tenants/$tenantId/profiles/$profileId',
+				params: { tenantId, profileId },
+			});
+		},
+		[navigate, tenantId],
+	);
 
 	// The create form lives here, not inside ProfileFormDrawer: the nav guard
 	// below reads `createMethods.formState.isDirty` during THIS component's

@@ -1,5 +1,6 @@
 import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -35,32 +36,32 @@ const StaffTenantProfileDetailsPage = () => {
 	const search = Route.useSearch();
 	const { t, i18n } = useTranslation('staff-tenant-profiles');
 
-	// react-doctor: both navigate wrappers are handed to
-	// `useStaffTenantProfileDetails`, which only ever calls them from event
-	// callbacks — never during render. The rule cannot follow them across the
-	// module boundary, so the hydration concern does not apply here.
-	const applyEditFlag = (section: ProfileSection, isOpen: boolean): void => {
-		// eslint-disable-next-line react-doctor/tanstack-start-no-navigate-in-render
-		void navigate({
-			to: PROFILE_SECTION_ROUTES[section],
-			params: { tenantId, profileId },
-			search: (
-				previous: ProfileDetailsSearchParams,
-			): ProfileDetailsSearchParams => ({
-				...previous,
-				edit: isOpen ? 1 : undefined,
-			}),
-			replace: true,
-		});
-	};
+	// Both URL writers wrap `Route.useNavigate()` in `useCallback` and are
+	// invoked exclusively from event handlers downstream — never during
+	// render (`react-doctor/navigate-in-render`).
+	const applyEditFlag = useCallback(
+		(section: ProfileSection, isOpen: boolean): void => {
+			void navigate({
+				to: PROFILE_SECTION_ROUTES[section],
+				params: { tenantId, profileId },
+				search: (
+					previous: ProfileDetailsSearchParams,
+				): ProfileDetailsSearchParams => ({
+					...previous,
+					edit: isOpen ? 1 : undefined,
+				}),
+				replace: true,
+			});
+		},
+		[navigate, tenantId, profileId],
+	);
 
-	const navigateToProfilesList = (): void => {
-		// eslint-disable-next-line react-doctor/tanstack-start-no-navigate-in-render
+	const navigateToProfilesList = useCallback((): void => {
 		void navigate({
 			to: '/staff/tenants/$tenantId/profiles',
 			params: { tenantId },
 		});
-	};
+	}, [navigate, tenantId]);
 
 	const details = useStaffTenantProfileDetails({
 		tenantId,
