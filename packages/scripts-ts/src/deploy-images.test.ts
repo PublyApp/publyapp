@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,7 +19,7 @@ const deployImagesWorkflowPath = path.join(
 	'deploy-images.yml',
 );
 
-// Matches a first-party ghcr.io/radandevist/publyapp/<root> reference, tagged, digested, or
+// Matches a first-party ghcr.io/publyapp/publyapp/<root> reference, tagged, digested, or
 // bare. Docker resolves a bare reference (no `:tag`) to `:latest` — that is still a real,
 // published/pulled image, so it must be collected, not skipped for lack of a colon. The tag
 // itself is deliberately NOT part of the contract (only the root is), so `:<tag>` and/or
@@ -31,17 +32,17 @@ const deployImagesWorkflowPath = path.join(
 //     is not consumable by the optional tag/digest groups, so the `$` anchor fails the whole
 //     match. `extractImageRoot` then asserts loudly instead of mis-categorizing it as `api`.
 //   - A registry/namespace that merely starts with the same characters (e.g.
-//     `ghcr.io/radandevist/publyapp-other/...`) never matches at all: the pattern requires the
+//     `ghcr.io/publyapp/publyapp-other/...`) never matches at all: the pattern requires the
 //     literal `publyapp/` (with the slash), not just the substring `publyapp`.
 const IMAGE_ROOT_PATTERN =
-	/^ghcr\.io\/radandevist\/publyapp\/([^/:@]+)(?::[^@]+)?(?:@sha256:[0-9a-f]{64})?$/;
+	/^ghcr\.io\/publyapp\/publyapp\/([^/:@]+)(?::[^@]+)?(?:@sha256:[0-9a-f]{64})?$/;
 
 // Broader net used only to decide whether a Dokploy service's image is "first-party enough"
 // to require exact IMAGE_ROOT_PATTERN compliance. Anything with this literal prefix must fully
 // match IMAGE_ROOT_PATTERN or extractImageRoot fails the test loudly — it is never silently
 // treated as an unrelated third-party image and skipped, the way a genuinely unrelated image
 // (e.g. a database) legitimately is.
-const FIRST_PARTY_IMAGE_PREFIX = 'ghcr.io/radandevist/publyapp/';
+const FIRST_PARTY_IMAGE_PREFIX = 'ghcr.io/publyapp/publyapp/';
 
 // The exact set the release chain must agree on. Anything more or less is a
 // silent deploy hazard: an extra/renamed publish that nothing pulls, or a
@@ -64,7 +65,7 @@ const extractImageRoot = (image, context) => {
 	const match = IMAGE_ROOT_PATTERN.exec(image);
 	assert.ok(
 		match,
-		`${context} image "${image}" does not match ghcr.io/radandevist/publyapp/<root>:<tag>`,
+		`${context} image "${image}" does not match ghcr.io/publyapp/publyapp/<root>:<tag>`,
 	);
 	return match[1];
 };
@@ -83,6 +84,59 @@ const splitTags = (tags) =>
 const readWorkflowPublishedImageRoots = () => {
 	const workflow = parse(readFileSync(deployImagesWorkflowPath, 'utf8'));
 	const steps = workflow.jobs?.publish?.steps ?? [];
+	// #1362: the workflow derives its GHCR root from github.repository_owner
+	// (lowercased) in the "Resolve lowercase image namespace" step instead of a
+	// hardcoded namespace. At rest the workflow's `${{ ... }}` expressions are
+	// unevaluated text (`env.OWNER` reads back as the literal placeholder), so
+	// the harness evaluates the step the way GitHub would: it injects the
+	// origin remote's owner as OWNER and runs the step's own shell against a
+	// scratch GITHUB_OUTPUT file. Running the real script (not a re-derivation)
+	// means a broken namespace expression fails this guard instead of CI.
+	const nsStep = steps.find(
+		// @ts-expect-error rung-0: add proper type in later rung
+		(step) => step.id === 'ns',
+	);
+	assert.ok(
+		nsStep,
+		`found no "Resolve lowercase image namespace" (id: ns) step in ${deployImagesWorkflowPath}`,
+	);
+	const ownerProbe = spawnSync(
+		'git',
+		['config', '--get', 'remote.origin.url'],
+		{ cwd: repositoryRoot, encoding: 'utf8' },
+	);
+	assert.ok(
+		ownerProbe.status === 0 && ownerProbe.stdout.trim().length > 0,
+		`could not read remote.origin.url from ${repositoryRoot}: ${ownerProbe.stderr}`,
+	);
+	const owner =
+		/github\.com[/:]([^/]+)\//i.exec(ownerProbe.stdout)?.[1] ?? undefined;
+	assert.ok(
+		owner !== undefined,
+		`no GitHub owner found in remote.origin.url: ${ownerProbe.stdout}`,
+	);
+	const githubOutputPath = path.join(
+		mkdtempSync(path.join(tmpdir(), 'ns-')),
+		'output',
+	);
+	const nsRun = spawnSync('bash', ['-c', String(nsStep.run)], {
+		cwd: repositoryRoot,
+		encoding: 'utf8',
+		env: { ...process.env, OWNER: owner, GITHUB_OUTPUT: githubOutputPath },
+	});
+	assert.ok(
+		nsRun.status === 0,
+		`namespace resolution step failed: ${nsRun.stderr}`,
+	);
+	const rootLine = readFileSync(githubOutputPath, 'utf8')
+		.split(/\r?\n/)
+		.find((line) => line.startsWith('root='));
+	assert.ok(
+		rootLine !== undefined,
+		`namespace step wrote no root= line to $GITHUB_OUTPUT (${String(nsStep.run)})`,
+	);
+	const resolvedRoot = rootLine.slice('root='.length);
+	// @ts-expect-error rung-0: add proper type in later rung
 	const buildSteps = steps.filter(
 		// @ts-expect-error rung-0: add proper type in later rung
 		(step) =>
@@ -96,14 +150,19 @@ const readWorkflowPublishedImageRoots = () => {
 
 	// @ts-expect-error rung-0: add proper type in later rung
 	return buildSteps.flatMap((step) =>
-		splitTags(step.with.tags).map((tag) =>
-			extractImageRoot(tag, `workflow step "${step.name}"`),
-		),
+		splitTags(step.with.tags).map((tag) => {
+			// @ts-expect-error rung-0: add proper type in later rung
+			const resolved = tag.replaceAll(
+				'${{ steps.ns.outputs.root }}',
+				resolvedRoot,
+			);
+			return extractImageRoot(resolved, `workflow step "${step.name}"`);
+		}),
 	);
 };
 
 // Enumerates EVERY Dokploy service whose image is a first-party
-// ghcr.io/radandevist/publyapp/* reference — it does not look up a fixed list of expected
+// ghcr.io/publyapp/publyapp/* reference — it does not look up a fixed list of expected
 // service keys, so an added, renamed, or repurposed service shows up in the actual mapping
 // and fails the deepEqual comparison against EXPECTED_SERVICE_IMAGE_ROOTS below, instead of
 // silently passing because nothing ever asked about it.
@@ -214,7 +273,7 @@ test('dry run prints the resolved SHA and exact worktree, build, and push comman
 				'--target',
 				'runtime',
 				'-t',
-				`ghcr.io/radandevist/publyapp/api:${sha}`,
+				`ghcr.io/publyapp/publyapp/api:${sha}`,
 				context,
 			),
 		),
@@ -233,7 +292,7 @@ test('dry run prints the resolved SHA and exact worktree, build, and push comman
 				'--target',
 				'migrate',
 				'-t',
-				`ghcr.io/radandevist/publyapp/migrate:${sha}`,
+				`ghcr.io/publyapp/publyapp/migrate:${sha}`,
 				context,
 			),
 		),
@@ -250,32 +309,24 @@ test('dry run prints the resolved SHA and exact worktree, build, and push comman
 				'-f',
 				path.join(context, 'apps/front/Dockerfile'),
 				'-t',
-				`ghcr.io/radandevist/publyapp/front:${sha}`,
+				`ghcr.io/publyapp/publyapp/front:${sha}`,
 				context,
 			),
 		),
 	);
 	assert.ok(
 		lines.includes(
-			commandLine('docker', 'push', `ghcr.io/radandevist/publyapp/api:${sha}`),
+			commandLine('docker', 'push', `ghcr.io/publyapp/publyapp/api:${sha}`),
 		),
 	);
 	assert.ok(
 		lines.includes(
-			commandLine(
-				'docker',
-				'push',
-				`ghcr.io/radandevist/publyapp/migrate:${sha}`,
-			),
+			commandLine('docker', 'push', `ghcr.io/publyapp/publyapp/migrate:${sha}`),
 		),
 	);
 	assert.ok(
 		lines.includes(
-			commandLine(
-				'docker',
-				'push',
-				`ghcr.io/radandevist/publyapp/front:${sha}`,
-			),
+			commandLine('docker', 'push', `ghcr.io/publyapp/publyapp/front:${sha}`),
 		),
 	);
 	assert.ok(
