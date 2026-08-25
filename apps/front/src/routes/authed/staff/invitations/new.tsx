@@ -69,7 +69,7 @@ const getInterZodForI18n = (instance: I18nInstance) => {
 		: FALLBACK_LANGUAGE;
 	const i18nLike: InterZodI18nLike = {
 		getFixedT: instance.getFixedT.bind(instance),
-		t: instance.t.bind(instance) as never,
+		t: instance.t.bind(instance),
 	};
 
 	return new InterZod({

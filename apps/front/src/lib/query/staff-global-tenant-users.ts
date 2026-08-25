@@ -339,7 +339,7 @@ const bulkUnlinkGlobalTenantUserCompaniesMutationOptions =
 								createUntypedString(tenantId),
 							),
 						),
-					} as never),
+					}),
 			meta: {
 				silentSuccess: true,
 				skipGlobalErrorHandler: true,
