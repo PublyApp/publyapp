@@ -8,13 +8,14 @@ import {
 } from '@tabler/icons-react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { DataTable } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
+import type { TableSelection } from '~/components/table/use-row-selection';
 import { useTableController } from '~/components/table/use-table-controller';
 import { buttonVariants } from '~/components/ui/button';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
@@ -158,12 +159,25 @@ const StaffUsersPage = () => {
 	const selection = useRowSelection(rows.map((row) => row.id));
 	const columns = useMemo(() => buildColumns(t), [t]);
 
+	// Entering selection mode discards an uncommitted table-search draft (the
+	// search box is locked while rows are selected, so a live draft would sit
+	// hidden until exit). Handled inside the selection-change path below rather
+	// than a render-side effect — see the no-event-handler React Doctor rule.
 	const { resetDraftToCommitted } = controller.search;
-	useEffect(() => {
-		if (selection.isSelectionMode) {
-			resetDraftToCommitted();
-		}
-	}, [selection.isSelectionMode, resetDraftToCommitted]);
+	const baseOnSelectionChange = selection.onSelectionChange;
+	const onSelectionChange = useCallback(
+		(next: TableSelection) => {
+			if (!selection.isSelectionMode) {
+				resetDraftToCommitted();
+			}
+			baseOnSelectionChange(next);
+		},
+		[selection.isSelectionMode, baseOnSelectionChange, resetDraftToCommitted],
+	);
+	const wrappedSelection = useMemo(
+		() => ({ ...selection, onSelectionChange }),
+		[selection, onSelectionChange],
+	);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
 	// the DataTable carries the loading/error slots (exempt from QueryDisplay).
@@ -218,7 +232,7 @@ const StaffUsersPage = () => {
 				onPreviousPage={controller.cursor.onPreviousPage}
 				searchDraft={controller.search.draft}
 				onSearchDraftChange={controller.search.onDraftChange}
-				selection={selection}
+				selection={wrappedSelection}
 				searchPlaceholder={t('search-staff-users')}
 			/>
 			<FloatingSelectionBar
@@ -229,7 +243,7 @@ const StaffUsersPage = () => {
 				}
 				onClear={selection.clearSelection}
 				onSelectAllVisible={() =>
-					selection.onSelectionChange(new Set(rows.map((row) => row.id)))
+					wrappedSelection.onSelectionChange(new Set(rows.map((row) => row.id)))
 				}
 			>
 				<StaffUsersListBulkActions

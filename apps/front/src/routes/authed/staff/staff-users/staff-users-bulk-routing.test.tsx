@@ -113,6 +113,8 @@ vi.mock('react-i18next', () => ({
 				'view-profile': 'View profile',
 				'no-email-address': 'No email address',
 				'select-row-named': 'Select {{name}}',
+				search: 'Search',
+				'clear-selection': 'Clear selection',
 				'more-actions': 'More actions',
 				'bulk-actions': 'Bulk actions',
 				'bulk-reactivate': 'Reactivate selected',
@@ -368,5 +370,63 @@ describe('#820 staff-users selection-mode bulk actions (real router)', () => {
 			userIds: [USER_A],
 		});
 		await waitFor(() => expect(mocks.toastSuccess).toHaveBeenCalledOnce());
+	});
+
+	test('typing a search draft outside selection mode behaves as before', async () => {
+		await renderAtList();
+
+		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		fireEvent.change(searchBox, { target: { value: 'ale' } });
+
+		expect((searchBox as HTMLInputElement).value).toBe('ale');
+	});
+
+	// Characterization guard (#820 review follow-up): entering selection mode
+	// has always discarded an uncommitted table-search draft (the search box is
+	// locked while rows are selected, so a live draft would sit hidden until
+	// exit). The reset moved from a render-side effect into the selection
+	// change handler itself — these tests pin the observable behavior through
+	// the real route so the relocation cannot silently drop it.
+	test('entering selection mode discards an uncommitted table-search draft', async () => {
+		await renderAtList();
+
+		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		fireEvent.change(searchBox, { target: { value: 'alex' } });
+		expect((searchBox as HTMLInputElement).value).toBe('alex');
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+
+		expect(
+			await screen.findByRole('button', { name: 'Clear selection' }),
+		).toBeTruthy();
+		expect(
+			(
+				screen.getByRole('searchbox', {
+					name: 'Search',
+				}) as HTMLInputElement
+			).value,
+		).toBe('');
+	});
+
+	test('after leaving selection mode the search draft starts empty again', async () => {
+		await renderAtList();
+
+		fireEvent.change(screen.getByRole('searchbox', { name: 'Search' }), {
+			target: { value: 'alex' },
+		});
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Clear selection' }),
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.queryByRole('button', { name: 'Clear selection' }),
+			).toBeNull(),
+		);
+
+		const searchBox = screen.getByRole('searchbox', { name: 'Search' });
+		fireEvent.change(searchBox, { target: { value: 'blake' } });
+		expect((searchBox as HTMLInputElement).value).toBe('blake');
 	});
 });
