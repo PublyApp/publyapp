@@ -166,6 +166,17 @@ public interface IPublicationService {
 		FindScheduledPublicationsArgs args,
 		CancellationToken cancellationToken = default
 	);
+
+	/// <summary>
+	/// Validates and stages a post's text/schedule edit, returning the result
+	/// union for the calling handler to apply. Lives on the interface (not just the
+	/// concrete service) so handlers depend on <see cref="IPublicationService"/>
+	/// and resolve through the [Service] registration.
+	/// </summary>
+	Task<EditPostScheduleResult> EditPostCoreAsync(
+		EditPostScheduleArgs args,
+		CancellationToken cancellationToken = default
+	);
 }
 
 [PublyApp.Api.Lib.DI.Service(Microsoft.Extensions.DependencyInjection.ServiceLifetime.Scoped)]

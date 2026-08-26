@@ -105,7 +105,7 @@ public sealed class EditPostScheduleForTenant {
 		[FromRoute] string postId,
 		[FromBody] EditPostScheduleBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] PublicationService publicationService,
+		[FromServices] IPublicationService publicationService,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IPublicationStatusTransitionService transitions,
 		CancellationToken cancellationToken = default
