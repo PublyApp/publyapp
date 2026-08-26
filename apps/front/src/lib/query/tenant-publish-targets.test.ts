@@ -41,9 +41,10 @@ describe('toTenantPublishTargets', () => {
 
 	/** The wire can carry shapes the generated types promise never to send;
 	 * the mapper must survive them. structuredClone strips type narrowing so
-	 * the noise enters exactly as it would off the network. */
+	 * the noise enters exactly as it would off the network; the assertion is
+	 * the deliberate lie under test. */
 	const asItems = (items: unknown): GetPublishTargetsForTenantResponse =>
-		structuredClone({ items });
+		structuredClone({ items }) as GetPublishTargetsForTenantResponse;
 
 	test('maps items keeping id, label and provider verbatim', () => {
 		const rows = toTenantPublishTargets(
