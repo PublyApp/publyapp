@@ -30,12 +30,12 @@ import {
 	useBulkInviteTenantUsersMutation,
 } from '~/lib/query/staff-tenant-users';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { InviteProfileSelect } from './_invite-profile-select';
 import { parseInviteeEmails } from './_invite-user-form-state';

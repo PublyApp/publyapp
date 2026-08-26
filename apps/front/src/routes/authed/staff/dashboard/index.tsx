@@ -19,7 +19,8 @@ import {
 	useStaffUsersQuery,
 	type StaffUserRow,
 } from '~/lib/query/staff-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 /** How many rows each summary card shows. The cards link to the full lists;
  * they are a glance, not a replacement. */

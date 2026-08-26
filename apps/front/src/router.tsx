@@ -3,7 +3,6 @@ import { createRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
 import { displayMutationFeedback } from '~/lib/mutation-toast';
 import { triggerSessionInvalidated } from '~/lib/session-invalidation-channel';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
@@ -15,6 +14,7 @@ import type {
 	MutationFailureFeedback,
 	MutationSuccessFeedback,
 } from '@org/shared-ts/lib/mutation-feedback/types';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { routeTree } from './routeTree.gen';
 

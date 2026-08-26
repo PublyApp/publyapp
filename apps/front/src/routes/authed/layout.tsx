@@ -22,11 +22,11 @@ import {
 } from '~/lib/route-shell';
 import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
 import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-context';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
 import { selectToken } from '@org/shared-ts/lib/session/parse';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { getFailureStatus } from './_api-problem-status';
 import { AuthedLayoutErrorBoundary } from './_layout-error-boundary';

@@ -1,10 +1,9 @@
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
-
 import type {
 	ApiResponse,
 	ReactivateTenantUserResult,
 	SuspendTenantUserResult,
 } from '@org/client-ts/models/index';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 /**
  * Domain payloads the membership/remove mutations resolve to. The actions
