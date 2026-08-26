@@ -10,6 +10,7 @@ import settings from './en/settings.json';
 import socialAccounts from './en/social-accounts.json';
 import staffAuditLogs from './en/staff-audit-logs.json';
 import staffInvitations from './en/staff-invitations.json';
+import staffTenantActivity from './en/staff-tenant-activity.json';
 import staffTenantProfiles from './en/staff-tenant-profiles.json';
 import staffUsers from './en/staff-users.json';
 
@@ -27,6 +28,7 @@ const resourceEN = {
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,
 	'staff-audit-logs': staffAuditLogs,
+	'staff-tenant-activity': staffTenantActivity,
 	landing,
 } as const;
 

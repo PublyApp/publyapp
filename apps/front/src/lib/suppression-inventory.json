@@ -26,6 +26,31 @@
 	},
 	{
 		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "a tenant activity row's missing action key renders as a no-value dash, not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "target id is a documented OPTIONAL field — an event without a target has none, not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-activity-columns.tsx",
+		"reason": "ip address is a documented OPTIONAL field — a server-side event has none, not fabricated identity data"
+	},
+	{
+		"convention": "data-honesty-ignore",
 		"file": "src/routes/authed/staff/audit-logs/_audit-log-detail-parts.tsx",
 		"reason": "a legacy audit row's missing action key renders as a no-value dash, not fabricated identity data"
 	},

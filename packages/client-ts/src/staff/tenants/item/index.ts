@@ -4,6 +4,8 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, createGetTenantAsStaffResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeGetTenantAsStaffResult, serializeUpdateTenantAsStaffBody, type ApiResponse, type AppProblemDetails, type GetTenantAsStaffResult, type UpdateTenantAsStaffBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
+import { ActivityRequestBuilderRequestsMetadata, type ActivityRequestBuilder } from './activity/index.js';
+// @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, InvitationsRequestBuilderRequestsMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
 // @ts-ignore
 import { ProfilesRequestBuilderNavigationMetadata, ProfilesRequestBuilderRequestsMetadata, type ProfilesRequestBuilder } from './profiles/index.js';
@@ -22,6 +24,10 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/tenants/{tenantId}
  */
 export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTenantItemRequestBuilder> {
+    /**
+     * The activity property
+     */
+    get activity(): ActivityRequestBuilder;
     /**
      * The invitations property
      */
@@ -112,6 +118,9 @@ export const WithTenantItemRequestBuilderUriTemplate = "{+baseurl}/staff/tenants
  * Metadata for all the navigation properties in the request builder.
  */
 export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithTenantItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    activity: {
+        requestsMetadata: ActivityRequestBuilderRequestsMetadata,
+    },
     invitations: {
         requestsMetadata: InvitationsRequestBuilderRequestsMetadata,
         navigationMetadata: InvitationsRequestBuilderNavigationMetadata,

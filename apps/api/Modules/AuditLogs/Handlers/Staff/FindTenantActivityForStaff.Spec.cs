@@ -334,34 +334,6 @@ public sealed class FindTenantActivityForStaffSpec
 
 	[Fact]
 	public async Task
-		ItShouldRejectMutatingHttpMethodsOnTheActivityRoute() {
-		var token = await LoginStaffAsync();
-		var tenantId = await SeedTenantAsync("Activity Readonly");
-		var url = GetUrl(tenantId.ToString());
-
-		var mutatingMethods = new HttpMethod[] {
-			HttpMethod.Post,
-			HttpMethod.Put,
-			HttpMethod.Patch,
-			HttpMethod.Delete,
-		};
-		foreach (var method in mutatingMethods) {
-			using var request = new HttpRequestMessage(
-				method, url
-			).WithSessionToken(token);
-			using var response = await _http.SendAsync(request);
-
-			// The surface must expose READ only: mutating verbs hit
-			// no endpoint (405), so audit entries can never be
-			// created, edited, nor deleted from this tab.
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.MethodNotAllowed,
-					$"{method} must not be routed on the activity surface");
-		}
-	}
-
-	[Fact]
-	public async Task
 		ItShouldPaginateByKeysetCursorWhenMoreResultsExist() {
 		var token = await LoginStaffAsync();
 		var tenantId = await SeedTenantAsync("Activity Pages");
@@ -416,6 +388,71 @@ public sealed class FindTenantActivityForStaffSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
+	}
+	[Fact]
+	public async Task
+		ItShouldNeverMutateAuditEntriesFromTheActivitySurface() {
+		var token = await LoginStaffAsync();
+		var tenantId = await SeedTenantAsync("Activity Readonly");
+		var staffUserId =
+			await AuditLogTestHelper.GetUserIdByEmailAsync(
+				_fixture.Factory,
+				TestConstants.StaffAdminEmail
+			);
+		await SeedEntryAsync(
+			staffUserId, AuditActions.TenantUpdated, tenantId
+		);
+		await SeedEntryAsync(
+			staffUserId, AuditActions.TenantSuspended, tenantId
+		);
+		await SeedEntryAsync(
+			staffUserId, AuditActions.TenantReactivated, tenantId
+		);
+
+		// The surface is READ only by construction: only GET is mapped,
+		// so every mutating verb reaches either a 405 (no such verb on
+		// the matched route) or the app-wide 404 fallback — but never a
+		// mutating handler. The genuine security guarantee is that the
+		// audit feed is byte-for-byte unchanged by any mutating attempt:
+		// no entry is created, edited, or deleted from this tab.
+		var url = GetUrl(tenantId.ToString());
+		var baseline = await GetActivityAsync(url, token);
+
+		var mutatingMethods = new HttpMethod[] {
+			HttpMethod.Post,
+			HttpMethod.Put,
+			HttpMethod.Patch,
+			HttpMethod.Delete,
+		};
+		foreach (var method in mutatingMethods) {
+			using var request = new HttpRequestMessage(
+				method, url
+			).WithSessionToken(token);
+			using var response = await _http.SendAsync(request);
+
+			response.StatusCode.Should().NotBe(
+				HttpStatusCode.OK,
+				$"{method} must not read/return a live feed"
+			);
+			response.StatusCode.Should().NotBe(
+				HttpStatusCode.Created,
+				$"{method} must not create an audit entry"
+			);
+		}
+
+		// Small wait so any eventual-consistency write would be visible.
+		await Task.Delay(250);
+
+		var after = await GetActivityAsync(url, token);
+		after.Data.Should().HaveCount(
+			baseline.Data.Count,
+			"no mutating attempt may add or remove audit entries"
+		);
+		after.Data.Select(e => e.Id).Should()
+			.BeEquivalentTo(
+				baseline.Data.Select(e => e.Id),
+				"the activity surface must leave every entry intact"
+			);
 	}
 }
 

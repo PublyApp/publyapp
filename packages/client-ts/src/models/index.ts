@@ -1151,6 +1151,15 @@ export function createFindSystemNoticesResponseFromDiscriminatorValue(parseNode:
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindTenantActivityForStaffResponse}
+ */
+// @ts-ignore
+export function createFindTenantActivityForStaffResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindTenantActivityForStaffResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindTenantProfilePermissionsAsStaffResult}
  */
 // @ts-ignore
@@ -3142,6 +3151,18 @@ export function deserializeIntoFindSystemNoticesResponse(findSystemNoticesRespon
 }
 /**
  * The deserialization information for the current model
+ * @param FindTenantActivityForStaffResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindTenantActivityForStaffResponse(findTenantActivityForStaffResponse: Partial<FindTenantActivityForStaffResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findTenantActivityForStaffResponse.data = n.getCollectionOfObjectValues<AuditLogListItem>(createAuditLogListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findTenantActivityForStaffResponse.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindTenantProfilePermissionsAsStaffResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4788,6 +4809,16 @@ export interface FindSystemNoticesResponse extends AdditionalDataHolder, Parsabl
      * The data property
      */
     data?: SystemNoticeListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
+export interface FindTenantActivityForStaffResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: AuditLogListItem[] | null;
     /**
      * The nextCursor property
      */
@@ -6546,6 +6577,19 @@ export function serializeFindSystemNoticesResponse(writer: SerializationWriter, 
     writer.writeCollectionOfObjectValues<SystemNoticeListItem>("data", findSystemNoticesResponse.data, serializeSystemNoticeListItem);
     writer.writeStringValue("nextCursor", findSystemNoticesResponse.nextCursor);
     writer.writeAdditionalData(findSystemNoticesResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindTenantActivityForStaffResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindTenantActivityForStaffResponse(writer: SerializationWriter, findTenantActivityForStaffResponse: Partial<FindTenantActivityForStaffResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findTenantActivityForStaffResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<AuditLogListItem>("data", findTenantActivityForStaffResponse.data, serializeAuditLogListItem);
+    writer.writeStringValue("nextCursor", findTenantActivityForStaffResponse.nextCursor);
+    writer.writeAdditionalData(findTenantActivityForStaffResponse.additionalData);
 }
 /**
  * Serializes information the current object
