@@ -163,8 +163,9 @@ const StaffJobsSystemJobsPage = () => {
 				canUpdateSystemJob: permissions.canUpdateSystemJob,
 				canTriggerSystemJob: permissions.canTriggerSystemJob,
 				permissionsPending: permissions.isPending,
-				permissionsDenied:
-					permissions.loadError || !permissions.canUpdateSystemJob,
+				updateDenied: permissions.loadError || !permissions.canUpdateSystemJob,
+				triggerDenied:
+					permissions.loadError || !permissions.canTriggerSystemJob,
 				isTogglePending: enabledMutation.isPending,
 				onToggleEnabled,
 				onTriggerNow: (row) => void onTriggerNow(row),

@@ -30,7 +30,8 @@ const row: StaffSystemJobDefinitionRow = {
 
 const renderActions = (permissions: {
 	permissionsPending?: boolean;
-	permissionsDenied?: boolean;
+	updateDenied?: boolean;
+	triggerDenied?: boolean;
 }) => {
 	const onToggleEnabled = vi.fn();
 	const onTriggerNow = vi.fn();
@@ -39,7 +40,8 @@ const renderActions = (permissions: {
 		canUpdateSystemJob: true,
 		canTriggerSystemJob: true,
 		permissionsPending: permissions.permissionsPending ?? false,
-		permissionsDenied: permissions.permissionsDenied ?? false,
+		updateDenied: permissions.updateDenied ?? false,
+		triggerDenied: permissions.triggerDenied ?? false,
 		isTogglePending: false,
 		onToggleEnabled,
 		onTriggerNow,
@@ -113,18 +115,21 @@ describe('system-job actions gating (brief #1626)', () => {
 		expect(onTriggerNow).not.toHaveBeenCalled();
 	});
 
-	test('once the grant resolves denied, all actions are disabled-with-explanation', () => {
+	test('once the grant resolves denied for update, edit-cron and toggle are disabled-with-explanation', () => {
 		const { toggle, editCron, trigger } = renderActions({
-			permissionsDenied: true,
+			updateDenied: true,
 		});
 
-		for (const control of [toggle, editCron, trigger]) {
+		for (const control of [toggle, editCron]) {
 			expect(control.getAttribute('data-disabled')).not.toBeNull();
 			expect(control.getAttribute('title')).toBe('action-permission-denied');
 		}
+		// trigger is a separate grant and must stay enabled for this user.
+		expect(trigger.getAttribute('data-disabled')).toBeNull();
+		expect(trigger.getAttribute('title')).toBeNull();
 	});
 
-	test('clicks after a denied grant are swallowed (no handler fires)', () => {
+	test('clicks after an update-denied grant are swallowed only for the denied actions', () => {
 		const {
 			onToggleEnabled,
 			onTriggerNow,
@@ -132,7 +137,7 @@ describe('system-job actions gating (brief #1626)', () => {
 			toggle,
 			editCron,
 			trigger,
-		} = renderActions({ permissionsDenied: true });
+		} = renderActions({ updateDenied: true });
 
 		fireEvent.click(toggle);
 		fireEvent.click(editCron);
@@ -140,7 +145,18 @@ describe('system-job actions gating (brief #1626)', () => {
 
 		expect(onToggleEnabled).not.toHaveBeenCalled();
 		expect(onEditCron).not.toHaveBeenCalled();
-		expect(onTriggerNow).not.toHaveBeenCalled();
+		expect(onTriggerNow).toHaveBeenCalledTimes(1);
+	});
+
+	test('once the grant resolves denied for trigger only, trigger is disabled-with-explanation but edit-cron stays enabled', () => {
+		const { editCron, trigger } = renderActions({
+			triggerDenied: true,
+		});
+
+		expect(trigger.getAttribute('data-disabled')).not.toBeNull();
+		expect(trigger.getAttribute('title')).toBe('action-permission-denied');
+		expect(editCron.getAttribute('data-disabled')).toBeNull();
+		expect(editCron.getAttribute('title')).toBeNull();
 	});
 
 	test('once the permission request resolves granted, all actions are enabled and clickable', () => {

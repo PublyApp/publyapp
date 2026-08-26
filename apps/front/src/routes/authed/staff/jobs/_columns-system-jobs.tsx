@@ -19,9 +19,13 @@ export type SystemJobColumnActions = {
 	 * denied user must see *why* the action is blocked, not just a dead button.
 	 */
 	permissionsPending: boolean;
-	/** True once the request resolved and the action is denied (load error or a
-	 * grant that does not include the required key). Drives the explanation. */
-	permissionsDenied: boolean;
+	/** True once the request resolved and an action is denied (load error, or a
+	 * grant that does not include the required key for that specific action).
+	 * These are scoped per action so a user who can trigger but not edit-cron
+	 * is not wrongly blocked on the trigger control — only the action they
+	 * actually lack is disabled-with-explanation (brief #1626). */
+	updateDenied: boolean;
+	triggerDenied: boolean;
 	isTogglePending: boolean;
 	onToggleEnabled: (row: StaffSystemJobDefinitionRow, next: boolean) => void;
 	onTriggerNow: (row: StaffSystemJobDefinitionRow) => void;
@@ -38,20 +42,19 @@ export const makeSystemJobColumns = (
 	actions: SystemJobColumnActions,
 ): ColumnDef<StaffSystemJobDefinitionRow>[] => {
 	// While the permissions request is unresolved, or once it resolved and
-	// denied this action, the actions are unavailable — but they must stay
+	// denied this action, the action is unavailable — but the control must stay
 	// visible and explained, never a clickable dead control (brief #1626).
-	// The bulk-action UX convention still holds for the *enabled* case; here we
-	// additionally stop the control from looking ready (or swallowing a click)
-	// while the grant is unknown or denied.
-	const actionDisabled =
-		actions.permissionsPending || actions.permissionsDenied;
-	let actionTitle: string | undefined;
+	// Denial is scoped per action so a user lacking one grant is not blocked on
+	// the action they can still do.
+	const updateDisabled = actions.permissionsPending || actions.updateDenied;
+	const triggerDisabled = actions.permissionsPending || actions.triggerDenied;
+	let explanation: string | undefined;
 	if (actions.permissionsPending) {
-		actionTitle = t('action-permission-checking');
-	} else if (actions.permissionsDenied) {
-		actionTitle = t('action-permission-denied');
+		explanation = t('action-permission-checking');
+	} else if (actions.updateDenied || actions.triggerDenied) {
+		explanation = t('action-permission-denied');
 	} else {
-		actionTitle = undefined;
+		explanation = undefined;
 	}
 
 	return [
@@ -88,8 +91,8 @@ export const makeSystemJobColumns = (
 					aria-label={`${t('common:action-toggle-enabled')} ${row.original.jobKey ?? ''}`}
 					data-testid={`system-job-toggle-${row.original.id}`}
 					checked={row.original.isEnabled === true}
-					disabled={actions.isTogglePending || actionDisabled}
-					title={actionDisabled ? actionTitle : undefined}
+					disabled={actions.isTogglePending || updateDisabled}
+					title={updateDisabled ? explanation : undefined}
 					onCheckedChange={(checked) =>
 						actions.onToggleEnabled(row.original, checked === true)
 					}
@@ -130,8 +133,8 @@ export const makeSystemJobColumns = (
 						variant="outline"
 						size="sm"
 						data-testid={`system-job-edit-cron-${row.original.id}`}
-						disabled={actionDisabled}
-						title={actionTitle}
+						disabled={updateDisabled}
+						title={updateDisabled ? explanation : undefined}
 						onClick={() => actions.onEditCron(row.original)}
 					>
 						{t('action-edit-cron')}
@@ -141,8 +144,8 @@ export const makeSystemJobColumns = (
 						variant="outline"
 						size="sm"
 						data-testid={`system-job-trigger-${row.original.id}`}
-						disabled={actionDisabled}
-						title={actionTitle}
+						disabled={triggerDisabled}
+						title={triggerDisabled ? explanation : undefined}
 						onClick={() => actions.onTriggerNow(row.original)}
 					>
 						<IconPlayerPlay aria-hidden="true" className="size-3.5" />
