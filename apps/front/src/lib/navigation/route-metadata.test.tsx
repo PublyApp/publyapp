@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+	filterRailItemsByPermissions,
 	getActiveRailItem,
 	getRailItems,
 	getRailItemsForPath,
@@ -324,5 +325,96 @@ describe('front route metadata', () => {
 				}),
 			).toBe(false);
 		}
+	});
+
+	// Lane #142 — permission-based navigation filtering. The rail items
+	// declare the permission key(s) they require; an item without a key
+	// (e.g. the tenant "Account" rail) is always visible. The shape is
+	// a pure function of the items and a permission set, so it must be
+	// exhaustively testable without rendering or mocking the network.
+	describe('rail items are filtered by the user permission set (#142)', () => {
+		test('every tenant rail item declares the permission keys it requires', () => {
+			const items = getRailItems('tenant');
+			const requiredKeys = items.map((item) => item.requiredPermissions);
+			// Each key mirrors the gate the API enforces on the underlying
+			// surface, so a hidden rail entry and a direct URL hit fail on the
+			// SAME key: settings maps to the canonical tenant-module key
+			// (TenantModulePermissionsForTenant), posts to the very key
+			// `.WithTenantPermission([Posts.VIEW])` checks on GET /posts.
+			// "Account" is the personal settings rail and stays
+			// unconditionally visible (empty array = no filter).
+			expect(requiredKeys).toEqual([
+				[],
+				['tenant.modules.access_settings'],
+				['tenant.posts.view'],
+			]);
+		});
+
+		test('every staff rail item declares the permission key it requires', () => {
+			const items = getRailItems('staff');
+			const requiredKeys = items.map((item) => item.requiredPermissions);
+			// Staff has no module-level gate yet — the staff rail is always
+			// visible. The empty array encodes that contract: NO filter.
+			expect(requiredKeys).toEqual([[], [], []]);
+		});
+
+		test('filterRailItemsByPermissions keeps items whose required key is granted', () => {
+			const items = getRailItems('tenant');
+			const allowed = new Set<string>(['tenant.posts.view']);
+			const filtered = filterRailItemsByPermissions(items, allowed);
+			// `account` has no required key → always visible; `posts` survives
+			// because its key is granted; `settings` drops (key missing).
+			expect(filtered.map((item) => item.id)).toEqual(['account', 'posts']);
+		});
+
+		test('filterRailItemsByPermissions keeps only unconditioned items when the set is empty', () => {
+			const items = getRailItems('tenant');
+			const filtered = filterRailItemsByPermissions(items, new Set());
+			// Only `account` survives (it requires no permission); `settings`
+			// and `posts` need keys the empty set doesn't grant.
+			expect(filtered.map((item) => item.id)).toEqual(['account']);
+		});
+
+		test('filterRailItemsByPermissions keeps everything when every key is allowed', () => {
+			const items = getRailItems('tenant');
+			const allowed = new Set<string>([
+				'tenant.modules.access_dashboard',
+				'tenant.modules.access_settings',
+				'tenant.posts.view',
+				'tenant.modules.access_users',
+			]);
+			const filtered = filterRailItemsByPermissions(items, allowed);
+			expect(filtered).toEqual(items);
+		});
+
+		test('the "*" admin sentinel keeps the whole rail visible without listing keys', () => {
+			// Tenant admins pass every TenantPermissionFilter gate via the
+			// backend's "*" sentinel (user-auth-data materialises it for
+			// AccountLevel.Admin); scope-auth-data carries IsAdmin alongside
+			// profile keys, so the filter honours the same sentinel instead
+			// of hiding modules from an admin whose profile lists no keys.
+			const items = getRailItems('tenant');
+			const filtered = filterRailItemsByPermissions(items, new Set(['*']));
+			expect(filtered).toEqual(items);
+		});
+
+		test('getRailItemsForPath with no permission set returns the full rail (back-compat)', () => {
+			// Pre-permission-filtering callers (unit tests, marketing shell,
+			// the neutral authed shell) MUST keep seeing the full rail.
+			expect(getRailItemsForPath('/tenant/posts').map((i) => i.id)).toEqual([
+				'account',
+				'settings',
+				'posts',
+			]);
+		});
+
+		test('getRailItemsForPath with a permission set narrows the rail to allowed items', () => {
+			const allowed = new Set<string>(['tenant.modules.access_settings']);
+			expect(
+				getRailItemsForPath('/tenant/posts', {
+					allowedPermissions: allowed,
+				}).map((i) => i.id),
+			).toEqual(['account', 'settings']);
+		});
 	});
 });
