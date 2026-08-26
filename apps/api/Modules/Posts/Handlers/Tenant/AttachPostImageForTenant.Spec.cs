@@ -351,6 +351,90 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task
+	ItShouldNotOrphanBlobReferencesUnderConcurrentAttachToSamePost() {
+		// Race proof for the #807 F5 reference discipline on
+		// AttachPostImageForTenant. N image attaches fire at the SAME post truly
+		// in parallel. The replaced image's blob reference must be released inside
+		// the SAME unit of work as the asset-row purge, so exactly one live asset
+		// row survives (pointing at a real uploaded blob) and every OTHER blob's
+		// reference count returns to zero. If the replaced path is captured in the
+		// handler BEFORE the service commits (the shape introduced by #1461), a
+		// racing attach can hard-delete a row whose path the first handler never
+		// captured — that blob's reference is then acquired but never released, a
+		// silent cumulative leak. This test exists to catch exactly that window.
+		var (tenantId, token) = await LoginAsAcmeAdminAsync();
+		var postId = await CreatePostAsync(tenantId, token);
+		var attachUrl = AttachImageUrl(postId);
+
+		const int Attempts = 12;
+		var attachTasks = Enumerable.Range(0, Attempts)
+			.Select(_ => Task.Run(async () => {
+				using var request = new HttpRequestMessage(
+					HttpMethod.Post, attachUrl
+				)
+					.WithSessionToken(token)
+					.WithTenantId(tenantId);
+				request.Content =
+					BuildFileContent(PngBytes(width: 32, height: 32));
+				using var response = await _http.SendAsync(request);
+				if (!response.IsSuccessStatusCode) {
+					return (Succeeded: false, Path: (string?)null);
+				}
+				var payload = await response.Content
+					.ReadFromJsonAsync<PostImageAttached>();
+				return (Succeeded: true, Path: payload?.Path);
+			}))
+			.ToArray();
+
+		var results = await Task.WhenAll(attachTasks);
+		var succeededPaths = results
+			.Where(static r => r.Succeeded && r.Path is not null)
+			.Select(static r => r.Path!)
+			.ToList();
+
+		var postIdGuid = Guid.Parse(postId);
+		await using (var scope =
+			_fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+
+			var liveAssets = await (
+				from a in db.PostMediaAsset.AsNoTracking()
+				where a.PostId == postIdGuid && !a.IsDeleted
+				select a
+			).ToListAsync();
+			liveAssets.Should().HaveCount(
+				1,
+				"a post owns at most one live image even under a parallel "
+				+ "attach storm"
+			);
+
+			var survivorPath = liveAssets[0].RelativePath;
+			succeededPaths.Should().Contain(
+				survivorPath,
+				"the surviving live asset must be one of the successfully "
+				+ "attached blobs"
+			);
+
+			// Every blob that lost the race must have its reference released back
+			// to zero — a non-zero count is the upload reference leaked by the
+			// replace race.
+			var leaked = await (
+				from u in db.UploadAsset.AsNoTracking()
+				where u.RelativePath != survivorPath
+					&& !u.IsDeleted
+					&& u.ReferenceCount > 0
+				select u.RelativePath
+			).ToListAsync();
+			leaked.Should().BeEmpty(
+				"every replaced blob must release its reference — a non-zero "
+				+ "count here is the upload reference leaked by the replace race"
+			);
+		}
+	}
+
+	[Fact]
 	public async Task ItShouldPurgeAssetWhenPostDeleted() {
 		var (tenantId, token) = await LoginAsAcmeAdminAsync();
 		var postId = await CreatePostAsync(tenantId, token);
