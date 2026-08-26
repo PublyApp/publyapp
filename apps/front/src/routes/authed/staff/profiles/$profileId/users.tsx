@@ -263,6 +263,9 @@ const StaffProfileUsersPage = () => {
 							pageIndex: pageIndex,
 							hasPreviousPage: hasPreviousPage,
 							hasNextPage: hasNextPage,
+							// Offset surface: the count is known once the query lands;
+							// while it is in flight the label shows the bare range (#282).
+							totalCount: usersQuery.data?.count,
 							isPaginationPending: usersQuery.isFetching && !usersIsPending,
 							onNextPage: () => {
 								if (hasNextPage) {
