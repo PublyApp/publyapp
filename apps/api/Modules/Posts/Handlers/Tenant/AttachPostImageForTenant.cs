@@ -9,16 +9,19 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Uploads.Entities;
+using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
 /// <summary>
 /// Attaches ONE image to a post (multipart <c>file</c> field). Type and
 /// dimensions come from server-side header parsing (never client claims);
-/// bytes pass the durable upload-admission pipeline (#807 F1); the blob
-/// reference is acquired before the asset row commits (#807 F5). Replacing an
-/// existing image releases the old reference in the same unit of work — no
-/// orphans. A post owns at most one live image (partial unique index).
+/// bytes pass the durable upload-admission pipeline (#807 F1). The blob
+/// reference is acquired HERE before the post-owned asset row commits, and a
+/// replaced image's reference is released HERE after that commit (#807 F5) —
+/// the handler owns the coordination, the service only persists rows.
+/// Replacing an existing image releases the old reference in the same unit of
+/// work — no orphans. A post owns at most one live image (partial unique index).
 /// </summary>
 public sealed class AttachPostImageForTenant {
 	public static async Task<Results<
@@ -33,6 +36,7 @@ public sealed class AttachPostImageForTenant {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
 		[FromServices] IUploadAdmissionService uploadAdmissionService,
+		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IFileStorage fileStorage,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<AttachPostImageForTenant> logger,
@@ -202,9 +206,23 @@ public sealed class AttachPostImageForTenant {
 		// Reserved → Stored: flips the asset state and commits the budget move.
 		await admissionScope.CommitAsync(cancellationToken);
 
-		// Persist the post-owned asset row; the service acquires the blob
-		// reference BEFORE its write and releases any replaced image AFTER
-		// SaveChanges (#807 F5 discipline, one unit of work).
+		// #807 F5 discipline, owned by this handler: capture the REPLACED
+		// image's path before the attach purges its row, acquire the new blob's
+		// reference BEFORE the entity write so the URL can never commit while
+		// its asset still reads zero references, then release the old reference
+		// AFTER the service's commit below. Physical deletion stays exclusively
+		// sweeper's.
+		var replacedAsset = await assetService.FindByPostAsync(
+			tenantId, postIdGuid, cancellationToken
+		);
+		var replacedPath = replacedAsset?.RelativePath;
+		await uploadReferences.TryAddReferenceAsync(
+			relativePath,
+			cancellationToken
+		);
+
+		// Persist the post-owned asset row; the service commits the insert and
+		// any replacement purge in one unit of work.
 		await assetService.AttachAsync(
 			new AttachPostMediaArgs(
 				TenantId: tenantId,
@@ -218,6 +236,13 @@ public sealed class AttachPostImageForTenant {
 			),
 			cancellationToken
 		);
+
+		if (replacedPath is not null) {
+			await uploadReferences.TryReleaseReferenceAsync(
+				replacedPath,
+				cancellationToken
+			);
+		}
 
 		return TypedResults.Created(
 			(string?)null,
