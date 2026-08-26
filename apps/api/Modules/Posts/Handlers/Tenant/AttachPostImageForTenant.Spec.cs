@@ -379,7 +379,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 					BuildFileContent(PngBytes(width: 32, height: 32));
 				using var response = await _http.SendAsync(request);
 				if (!response.IsSuccessStatusCode) {
-					return (Succeeded: false, Path: (string?)null);
+					return (Succeeded: false, Path: null);
 				}
 				var payload = await response.Content
 					.ReadFromJsonAsync<PostImageAttached>();
