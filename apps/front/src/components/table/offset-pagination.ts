@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useState } from 'react';
 
 /**
  * A missing item count means "unknown", not "zero" (#999). A page query's
@@ -27,19 +27,29 @@ export const clampOffsetPageIndex = (
 	return Math.min(pageIndex, lastPageIndex);
 };
 
-const areResetKeysEqual = (
-	previous: readonly unknown[],
-	next: readonly unknown[],
-): boolean =>
-	previous.length === next.length &&
-	previous.every((value, index) => Object.is(value, next[index]));
-
 type UseOffsetPageClampOptions = {
 	pageIndex: number;
 	size: number;
 	count: number | null | undefined;
 	resetKeys: readonly unknown[];
 };
+
+// Stable identity for "the resetKeys the derivation last ran against". The
+// signature is a STRING (not the array reference) compared DURING the render,
+// so a reset is detected by VALUE on the same render the keys change — there
+// is no ref/effect lag where one render reads the pre-change keys. #691 R3:
+// deferring the comparison into a `useEffect` (or reading a ref the effect
+// updates) lets the change render run with `changed=false`, so the hook
+// clamps from the stale `pageIndex` and the caller commits the wrong page
+// one paint later. Comparing against state held from the prior render — and
+// committing the new signature on the SAME render — makes "reset wins" true
+// on every render, including the one where the warm count finally lands. This
+// is the same during-render derivation `useCursorPagination` uses for
+// generation changes.
+const resetKeysSignature = (resetKeys: readonly unknown[]): string =>
+	`${resetKeys.length}:${resetKeys
+		.map((value) => (typeof value === 'string' ? value : String(value)))
+		.join('|')}`;
 
 /**
  * Pure derivation of the pageIndex that should actually be used, given the
@@ -63,17 +73,19 @@ type UseOffsetPageClampOptions = {
  * construction: a resetKeys change always clamps from page 0, never from
  * the stale pageIndex.
  *
- * #691: the previous shape of this hook called `setPageIndex(clamped)` from
- * a `useEffect` to push the clamped value back up to the parent's state.
- * That violated `no-pass-live-state-to-parent` / `no-pass-data-to-parent`:
- * a child hook cannot mutate a parent's state, and the parent would
- * re-render with the clamped value one frame later than the children that
- * read `pageIndex` directly, producing a stale-paint flicker after the
- * count landed. The hook is now a pure derivation: the caller calls
+ * #691: the previous shape called `setPageIndex(clamped)` from a `useEffect`
+ * to push the clamped value back up to the parent's state. That violated
+ * `no-pass-live-state-to-parent` / `no-pass-data-to-parent`, and the parent
+ * re-rendered with the clamped value one frame late, flashing the stale
+ * pageIndex after paint. The hook is now a pure derivation: the caller calls
  * `setPageIndex(clamped)` from inside its own render, in the
  * adjust-state-while-rendering pattern, so the new pageIndex is committed
- * before the same render's paint — no post-paint effect, no
- * parent-state mutation from a child.
+ * before the same render's paint — no post-paint effect, no parent-state
+ * mutation from a child. The resetKeys comparison is likewise performed
+ * DURING the render (against a signature held in state), so no render can
+ * ever observe the reset on a later paint than the clamp (see the
+ * `useOffsetPageClamp` tests, which assert the FIRST render after a
+ * `resetKeys` change returns 0).
  */
 export const useOffsetPageClamp = ({
 	pageIndex,
@@ -81,19 +93,21 @@ export const useOffsetPageClamp = ({
 	count,
 	resetKeys,
 }: UseOffsetPageClampOptions): number => {
-	const previousResetKeysRef = useRef(resetKeys);
-
-	const resetKeysChanged = !areResetKeysEqual(
-		previousResetKeysRef.current,
-		resetKeys,
+	// Hold the last-seen resetKeys signature in state so the comparison is a
+	// DURING-RENDER derivation, never a value read from a ref that an effect
+	// updates after commit. The signature is updated on the SAME render we
+	// observe a change (React's adjust-state-while-rendering pattern:
+	// setPreviousSignature re-renders before paint with the synced value), so
+	// there is no render where the previous keys stand in for the current
+	// ones.
+	const [previousSignature, setPreviousSignature] = useState(() =>
+		resetKeysSignature(resetKeys),
 	);
-	// Commit the latest resetKeys to the ref AFTER the render commits -
-	// writing during render triggers `no-ref-current-in-render`. The
-	// in-render derivation above only READS the ref, so the next render
-	// sees the most recent value.
-	useEffect(() => {
-		previousResetKeysRef.current = resetKeys;
-	}, [resetKeys]);
+	const currentSignature = resetKeysSignature(resetKeys);
+	const resetKeysChanged = currentSignature !== previousSignature;
+	if (resetKeysChanged) {
+		setPreviousSignature(currentSignature);
+	}
 
 	const basePageIndex = resetKeysChanged ? 0 : pageIndex;
 	return clampOffsetPageIndex(basePageIndex, size, count);
