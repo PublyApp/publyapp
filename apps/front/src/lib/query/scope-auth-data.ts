@@ -11,8 +11,11 @@ import type { GetScopeAuthDataTenant } from '@org/client-ts/models/index';
  * contained here gets hidden. Hiding is UI-convenience ONLY — every gate
  * behind these keys is independently enforced server-side by
  * `TenantPermissionFilter`.
+ *
+ * Module-private: consumers go through `useTenantSurfacePermissions` below,
+ * which narrows to just the key list and encodes the loading contract.
  */
-export type ScopeAuthData = {
+type ScopeAuthData = {
 	isAdmin: boolean;
 	permissions: string[];
 };
@@ -26,9 +29,8 @@ const normalizeScopeAuthData = (
 	),
 });
 
-/** @internal Build an invalidation/removal key from this via `scopedKey()`
- * rather than hand-assembling a prefixed array at a call site. */
-export const SCOPE_AUTH_DATA_QUERY_KEY = ['scope-auth-data'] as const;
+/** Module-private invalidation/removal key base. */
+const SCOPE_AUTH_DATA_QUERY_KEY = ['scope-auth-data'] as const;
 
 /**
  * Session-stable per tenant: profile assignments change through admin
@@ -37,8 +39,10 @@ export const SCOPE_AUTH_DATA_QUERY_KEY = ['scope-auth-data'] as const;
  *
  * Disabled until the caller has a resolved workspace tenant id; the shell
  * passes `null` while the picker query settles and the entry stays idle.
+ * Module-private: callers must use `useTenantSurfacePermissions` so the
+ * enabled/loading contract lives in exactly one place.
  */
-export const useScopeAuthDataQuery = (tenantId: string | null) =>
+const useScopeAuthDataQuery = (tenantId: string | null) =>
 	useQuery({
 		queryKey: [...SCOPE_AUTH_DATA_QUERY_KEY, tenantId],
 		queryFn: async () => {
