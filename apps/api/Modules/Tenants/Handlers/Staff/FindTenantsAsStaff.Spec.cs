@@ -753,6 +753,88 @@ public sealed class FindTenantsAsStaffSpec
 			.Be(HttpStatusCode.OK);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		// 3 tenants with distinct CreatedAt; the walk must visit each once in
+		// ascending CreatedAt order, with no gap or duplicate.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var seededIds = new List<Guid>();
+		for (var i = 0; i < 3; i++) {
+			seededIds.Add(await SeedTenantAtAsync(
+				baseDate.AddDays(i)
+			));
+		}
+
+		var visitedIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+				cursor: cursor,
+				limit: 1,
+				sortId: "created_at",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(t => t.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once, in order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(seededIds);
+	}
+
+	private async Task<Guid> SeedTenantAtAsync(
+		DateTime createdAt
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var tenant = new Tenant {
+			Name = $"Tenant Walk {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		tenant.CreatedAt = createdAt;
+		await dbContext.Tenant.AddAsync(tenant);
+		await dbContext.SaveChangesAsync();
+
+		return tenant.GetRequiredId();
+	}
+
 	private record StaffProfileCreatedResponse {
 		public Guid ProfileId { get; init; }
 	}
