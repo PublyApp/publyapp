@@ -100,6 +100,6 @@
 		"cookie": "^1.0.2",
 		"isbot": "^5.2.1",
 		"nprogress": "^0.2.0",
-		"serialize-error": "^12.0.0"
+		"serialize-error": "^13.0.1"
 	}
 }
