@@ -90,3 +90,16 @@ with TanStack prefix matching that the module's own list query family is
 covered. No source-text scanning; no conforming default when a module cannot be
 analyzed. The adversarial rediscovery (drop the helper -> red, restore -> green)
 is captured in `.dump/proof-r2-*.txt`.
+
+## Proof artifacts (adversarial rediscovery)
+
+The guard's sensitivity is proven by reverting the BLOQUANT-2 fix and watching
+the guard turn RED, then restoring it to GREEN — captured verbatim:
+
+- `.dump/proof-r2-red.txt` — guard run with `invalidateStaffProfileUsers` removed
+  (the real fix diff is at the head of the file). The guard reddens naming
+  `staff-profile-users.ts`.
+- `.dump/proof-r2-green.txt` — guard run with the fix restored. 18/18 pass.
+
+These are local scratch evidence (under `.dump/`, git-ignored); the in-repo
+guard test plus this record are the durable deliverables.
