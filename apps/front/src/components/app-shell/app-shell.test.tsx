@@ -99,10 +99,7 @@ vi.mock('~/components/ui/drawer', () => ({
 	}) => createElement('div', props, children),
 }));
 
-import {
-	SIDEBAR_OPEN_STORAGE_KEY,
-	useUiStore,
-} from '~/lib/store/ui-store';
+import { SIDEBAR_OPEN_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
 
 import { AppShell } from './app-shell';
 
