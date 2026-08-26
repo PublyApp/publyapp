@@ -100,6 +100,7 @@ const TRANSLATIONS: TestLabelMap = {
 	name: 'Name',
 	status: 'Status',
 	users: 'Users',
+	projects: 'Projects',
 	'max-users-column': 'Max users',
 	'staff-tenants-table-aria-label': 'Staff tenants',
 	'actions-for': 'Actions for {{name}}',
@@ -205,6 +206,7 @@ describe('staff tenants route', () => {
 				name: 'Acme Corporation',
 				status: 'Active',
 				usersCount: 12,
+				projectsCount: 4,
 				maxUsers: 50,
 			},
 		]);
@@ -217,6 +219,7 @@ describe('staff tenants route', () => {
 							name: 'Acme Corporation',
 							status: 'Active',
 							usersCount: 12,
+							projectsCount: 4,
 							maxUsers: 50,
 						},
 					],
@@ -263,6 +266,8 @@ describe('staff tenants route', () => {
 		expect(screen.getByText('Acme Corporation')).toBeTruthy();
 		expect(screen.getByText('Active')).toBeTruthy();
 		expect(screen.getByText('12')).toBeTruthy();
+		expect(screen.getByText('Projects')).toBeTruthy();
+		expect(screen.getByText('4')).toBeTruthy();
 		expect(screen.getAllByText('50').length).toBeGreaterThan(0);
 		expect(screen.getByTestId('staff-tenants-table-page-size')).toBeTruthy();
 		expect(mocks.useStaffTenantsQuery).toHaveBeenCalledWith({

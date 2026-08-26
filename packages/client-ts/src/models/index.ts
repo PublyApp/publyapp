@@ -1286,6 +1286,15 @@ export function createGetTenantProfileByIdResponseFromDiscriminatorValue(parseNo
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetTenantUsageAsStaffResult}
+ */
+// @ts-ignore
+export function createGetTenantUsageAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetTenantUsageAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetUserAuthDataResult}
  */
 // @ts-ignore
@@ -3340,6 +3349,23 @@ export function deserializeIntoGetTenantProfileByIdResponse(getTenantProfileById
 }
 /**
  * The deserialization information for the current model
+ * @param GetTenantUsageAsStaffResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetTenantUsageAsStaffResult(getTenantUsageAsStaffResult: Partial<GetTenantUsageAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "computedAt": n => { getTenantUsageAsStaffResult.computedAt = n.getDateValue(); },
+        "lastActivityAt": n => { getTenantUsageAsStaffResult.lastActivityAt = n.getDateValue(); },
+        "projectsCount": n => { getTenantUsageAsStaffResult.projectsCount = n.getNumberValue(); },
+        "scheduledPublicationsCount": n => { getTenantUsageAsStaffResult.scheduledPublicationsCount = n.getNumberValue(); },
+        "tenantId": n => { getTenantUsageAsStaffResult.tenantId = n.getGuidValue(); },
+        "usersActive": n => { getTenantUsageAsStaffResult.usersActive = n.getNumberValue(); },
+        "usersTotal": n => { getTenantUsageAsStaffResult.usersTotal = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetUserAuthDataResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4162,6 +4188,7 @@ export function deserializeIntoTenantAsStaffListItem(tenantAsStaffListItem: Part
         "logoUrl": n => { tenantAsStaffListItem.logoUrl = n.getStringValue(); },
         "maxUsers": n => { tenantAsStaffListItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffListItem.name = n.getStringValue(); },
+        "projectsCount": n => { tenantAsStaffListItem.projectsCount = n.getNumberValue(); },
         "status": n => { tenantAsStaffListItem.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
         "usersCount": n => { tenantAsStaffListItem.usersCount = n.getNumberValue(); },
     }
@@ -5022,6 +5049,36 @@ export interface GetTenantProfileByIdResponse extends AdditionalDataHolder, Pars
      * The profile property
      */
     profile?: TenantProfileItem | null;
+}
+export interface GetTenantUsageAsStaffResult extends AdditionalDataHolder, Parsable {
+    /**
+     * Freshness contract: the UTC instant this snapshot was computed at. TheUI renders it next to the numbers so a stale payload never poses asfresh data (transparent-failure/honesty product rule).
+     */
+    computedAt?: Date | null;
+    /**
+     * Throttled tenant last-activity timestamp (lags real activity by design).
+     */
+    lastActivityAt?: Date | null;
+    /**
+     * The projectsCount property
+     */
+    projectsCount?: number | null;
+    /**
+     * The scheduledPublicationsCount property
+     */
+    scheduledPublicationsCount?: number | null;
+    /**
+     * The tenantId property
+     */
+    tenantId?: Guid | null;
+    /**
+     * The usersActive property
+     */
+    usersActive?: number | null;
+    /**
+     * The usersTotal property
+     */
+    usersTotal?: number | null;
 }
 export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
     /**
@@ -6709,6 +6766,24 @@ export function serializeGetTenantProfileByIdResponse(writer: SerializationWrite
 }
 /**
  * Serializes information the current object
+ * @param GetTenantUsageAsStaffResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetTenantUsageAsStaffResult(writer: SerializationWriter, getTenantUsageAsStaffResult: Partial<GetTenantUsageAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getTenantUsageAsStaffResult || isSerializingDerivedType) { return; }
+    writer.writeDateValue("computedAt", getTenantUsageAsStaffResult.computedAt);
+    writer.writeDateValue("lastActivityAt", getTenantUsageAsStaffResult.lastActivityAt);
+    writer.writeNumberValue("projectsCount", getTenantUsageAsStaffResult.projectsCount);
+    writer.writeNumberValue("scheduledPublicationsCount", getTenantUsageAsStaffResult.scheduledPublicationsCount);
+    writer.writeGuidValue("tenantId", getTenantUsageAsStaffResult.tenantId);
+    writer.writeNumberValue("usersActive", getTenantUsageAsStaffResult.usersActive);
+    writer.writeNumberValue("usersTotal", getTenantUsageAsStaffResult.usersTotal);
+    writer.writeAdditionalData(getTenantUsageAsStaffResult.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param GetUserAuthDataResult The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -7587,6 +7662,7 @@ export function serializeTenantAsStaffListItem(writer: SerializationWriter, tena
     writer.writeStringValue("logoUrl", tenantAsStaffListItem.logoUrl);
     writer.writeNumberValue("maxUsers", tenantAsStaffListItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffListItem.name);
+    writer.writeNumberValue("projectsCount", tenantAsStaffListItem.projectsCount);
     writer.writeEnumValue<TenantStatus>("status", tenantAsStaffListItem.status);
     writer.writeNumberValue("usersCount", tenantAsStaffListItem.usersCount);
     writer.writeAdditionalData(tenantAsStaffListItem.additionalData);
@@ -8650,6 +8726,10 @@ export interface TenantAsStaffListItem extends AdditionalDataHolder, Parsable {
      * The name property
      */
     name?: string | null;
+    /**
+     * The projectsCount property
+     */
+    projectsCount?: number | null;
     /**
      * The status property
      */

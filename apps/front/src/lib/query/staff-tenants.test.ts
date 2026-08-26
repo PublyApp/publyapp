@@ -627,6 +627,7 @@ describe('toStaffTenantRows', () => {
 				logoUrl: '/files/uploads/acme.png',
 				status: TenantStatusObject.Active,
 				usersCount: 12,
+				projectsCount: 4,
 				maxUsers: 50,
 			},
 			{
@@ -634,6 +635,7 @@ describe('toStaffTenantRows', () => {
 				name: 'Skip me',
 				status: 'Pending',
 				usersCount: 1,
+				projectsCount: 0,
 				maxUsers: 10,
 			},
 		];
@@ -645,6 +647,7 @@ describe('toStaffTenantRows', () => {
 				logoUrl: 'https://api.example.test/files/uploads/acme.png',
 				status: 'Active',
 				usersCount: 12,
+				projectsCount: 4,
 				maxUsers: 50,
 			},
 		]);
