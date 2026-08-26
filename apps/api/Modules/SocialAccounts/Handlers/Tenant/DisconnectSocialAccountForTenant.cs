@@ -6,6 +6,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -20,6 +21,8 @@ public sealed class DisconnectSocialAccountForTenant {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] SocialAccountService socialAccountService,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IPublicationQueueService publicationQueueService,
+		[FromServices] IPublicationStatusTransitionService transitions,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -56,6 +59,24 @@ public sealed class DisconnectSocialAccountForTenant {
 		}
 
 		if (serviceResult is DisconnectSocialAccountResult.Disconnected disconnected) {
+			// C4 pause-on-disconnect: every non-terminal row of the account stops —
+			// future and past instants alike — with a plain-word stored cause.
+			// Loop of single transactions is acceptable at banner scale.
+			var queueRows = await publicationQueueService.FindNonTerminalForAccountAsync(
+				new FindPublicationsOfAccountArgs(tenantId, accountId),
+				cancellationToken
+			);
+			foreach (var (publicationId, _, _) in queueRows) {
+				await transitions.MarkPausedAsync(
+					new MarkPublicationPausedArgs(
+						publicationId,
+						tenantId,
+						"its social account was disconnected"
+					),
+					cancellationToken
+				);
+			}
+
 			await auditLogService.LogAsync(
 				new CreateAuditLogArgs(
 					UserId: account.UserId,

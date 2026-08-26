@@ -87,6 +87,7 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 			[PublicationStatus.Paused] = [
 				PublicationStatus.InProgress,
 				PublicationStatus.Scheduled, // C4: pause-on-account-failure before first run
+				PublicationStatus.Paused, // C4: cause refresh (mirrors the Scheduled/Scheduled precedent)
 			],
 			[PublicationStatus.Scheduled] = [
 				PublicationStatus.Scheduled,
