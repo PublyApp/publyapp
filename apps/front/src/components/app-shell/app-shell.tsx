@@ -25,7 +25,6 @@ import type {
 } from '../../lib/navigation/breadcrumbs';
 import { deriveBreadcrumbTrail } from '../../lib/navigation/breadcrumbs';
 import { EntityCrumb } from '../../lib/navigation/entity-crumb';
-import { getShellScope } from '../../lib/navigation/route-metadata';
 import {
 	getActiveRailItem,
 	getRailItemsForPath,
@@ -38,8 +37,7 @@ import type {
 	AppRouteMetadata,
 	SecondaryPanelItem,
 } from '../../lib/navigation/route-metadata';
-import { useScopeAuthDataQuery } from '../../lib/query/scope-auth-data';
-import { useResolvedWorkspaceTenantId } from '../../lib/query/tenants-for-picker';
+import { useTenantSurfacePermissions } from '../../lib/query/scope-auth-data';
 import { useUiStore } from '../../lib/store/ui-store';
 import { NeedsReconnectBanner } from './_needs-reconnect-banner';
 import { ThemeToggle } from './theme/theme-toggle';
@@ -184,20 +182,16 @@ const AuthedWorkspaceShell = ({
 	});
 	const activeRoute = getActiveRailItem(pathname);
 	// #142 — the tenant rail narrows to what the signed-in member may use.
-	// The scope-auth-data payload is fetched per resolved workspace tenant;
-	// while it is in flight (or when no workspace is resolvable) the FULL
-	// rail renders — hiding an entry must never be a lie of a loading state,
-	// and every gate stays independently enforced server-side anyway.
+	// Permissions come from /auth/scope-auth-data per resolved workspace
+	// tenant; while that payload is in flight (or no workspace resolves) it
+	// is absent and the FULL rail renders — hiding an entry must never be a
+	// lie of a loading state, and every gate stays independently enforced
+	// server-side anyway.
 	const isTenantSurface = getShellScope(pathname) === 'tenant';
-	const workspaceTenantId = useResolvedWorkspaceTenantId();
-	const scopeAuthData = useScopeAuthDataQuery(
-		isTenantSurface ? workspaceTenantId : null,
-	);
+	const tenantPermissions = useTenantSurfacePermissions(isTenantSurface);
 	const railItems = getRailItemsForPath(pathname, {
 		allowedPermissions:
-			isTenantSurface && scopeAuthData.isSuccess
-				? new Set(scopeAuthData.data.permissions)
-				: undefined,
+			tenantPermissions !== undefined ? new Set(tenantPermissions) : undefined,
 	});
 	const secondaryItems = getSecondaryPanelItems(pathname);
 	// The logo is the scope home: a tenant user must never land on a staff

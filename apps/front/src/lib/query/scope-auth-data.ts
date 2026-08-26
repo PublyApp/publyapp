@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
+import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import type { GetScopeAuthDataTenant } from '@org/client-ts/models/index';
 
@@ -41,6 +42,9 @@ export const useScopeAuthDataQuery = (tenantId: string | null) =>
 	useQuery({
 		queryKey: [...SCOPE_AUTH_DATA_QUERY_KEY, tenantId],
 		queryFn: async () => {
+			if (tenantId === null) {
+				throw new Error('scope auth data queried without a resolved tenant id');
+			}
 			const client = getClientManager().getOrCreateTenantScopeClient();
 			const result = await client.auth.scopeAuthData.get({
 				queryParameters: { scope: tenantId },
@@ -52,3 +56,19 @@ export const useScopeAuthDataQuery = (tenantId: string | null) =>
 		refetchOnWindowFocus: false,
 		gcTime: Infinity,
 	});
+
+/**
+ * The effective permission keys for the CURRENT tenant surface, ready for
+ * the rail filter (#142): `undefined` whenever the caller is not a tenant
+ * surface, the workspace tenant is unresolved, or the payload is still in
+ * flight — callers treat `undefined` as "no filtering" so the full rail
+ * renders rather than a lie of a loading state.
+ */
+export const useTenantSurfacePermissions = (
+	enabled: boolean,
+): string[] | undefined => {
+	const workspaceTenantId = useResolvedWorkspaceTenantId();
+	const query = useScopeAuthDataQuery(enabled ? workspaceTenantId : null);
+
+	return query.data?.permissions;
+};
