@@ -33,4 +33,16 @@ public sealed class AuditActionsRegistrySpec {
 		// values; case variants are intentionally rejected.
 		AuditActionsRegistry.IsKnown(action).Should().BeFalse();
 	}
+
+	// A5 (#636): DLQ requeue + system_job_definitions dashboard mutations land as
+	// five new audit-action constants; this is the single failing-test file for
+	// Task 1 step 1 of the A5 plan.
+	[Fact]
+	public void ItShouldExposeTheJobsA5AuditActions() {
+		AuditActionsRegistry.All.Should().Contain(AuditActions.JobDeadLetterRequeued);
+		AuditActionsRegistry.All.Should().Contain(AuditActions.JobSystemJobEnabled);
+		AuditActionsRegistry.All.Should().Contain(AuditActions.JobSystemJobDisabled);
+		AuditActionsRegistry.All.Should().Contain(AuditActions.JobSystemJobCronUpdated);
+		AuditActionsRegistry.All.Should().Contain(AuditActions.JobSystemJobTriggered);
+	}
 }
