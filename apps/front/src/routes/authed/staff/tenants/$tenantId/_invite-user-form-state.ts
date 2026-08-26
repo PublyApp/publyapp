@@ -150,13 +150,19 @@ export const parseInviteCsv = (text: string): ParsedInviteRow[] => {
 	const indexOfLevel = headers.indexOf('level');
 	const indexOfProfiles = headers.indexOf('profiles');
 
-	return dataRows
-		.filter((row) => row.some((cell) => cell.trim().length > 0))
-		.map((row) => ({
+	const parsed: ParsedInviteRow[] = [];
+	for (const row of dataRows) {
+		const hasContent = row.some((cell) => cell.trim().length > 0);
+		if (!hasContent) {
+			continue;
+		}
+		parsed.push({
 			email: (row[indexOfEmail] ?? '').trim(),
 			accountLevel: mapInviteLevel(row[indexOfLevel]),
 			profileNames: splitProfileNames(row[indexOfProfiles] ?? ''),
-		}));
+		});
+	}
+	return parsed;
 };
 
 /** Column letter(s) (`A`, `B`, … `AA`) → zero-based index. */
@@ -169,17 +175,18 @@ const columnIndexFromRef = (letters: string): number => {
 	return index - 1;
 };
 
-const XML_ENTITY_MAP: Record<string, string> = {
+const XML_ENTITY_MAP = {
 	'&lt;': '<',
 	'&gt;': '>',
 	'&amp;': '&',
-};
+} as const;
 
 const decodeXmlEntities = (value: string): string =>
-	value.replace(
-		/&(?:lt|gt|amp);/g,
-		(entity) => XML_ENTITY_MAP[entity] ?? entity,
-	);
+	value.replace(/&(?:lt|gt|amp);/g, (entity) => {
+		// The regex above only yields keys of XML_ENTITY_MAP.
+		const decoded = XML_ENTITY_MAP[entity as keyof typeof XML_ENTITY_MAP];
+		return decoded ?? entity;
+	});
 
 const textContents = (xml: string, tag: string): string[] => {
 	const results: string[] = [];
@@ -321,17 +328,22 @@ export const makeManualRow = (email = ''): InviteRow => {
 /** Parsed rows → InviteRows carrying provenance; dedupes case-insensitively
  * within the batch and against every email already on the form. Invalid
  * emails are dropped silently (the submit gate re-checks validity). */
-export const buildImportedInvites = ({
-	parsedRows,
-	existingEmails,
-	source,
-}: {
-	parsedRows: ParsedInviteRow[];
-	existingEmails: string[];
-	source: 'file' | 'manual';
-}): { rows: InviteRow[]; detectedCount: number; duplicateCount: number } => {
+export const buildImportedInvites = (
+	{
+		parsedRows,
+		existingEmails,
+		source,
+	}: {
+		parsedRows: ParsedInviteRow[];
+		existingEmails: string[];
+		source: 'file' | 'manual';
+	} /* return shape intentionally inferred (anti-slop no-known-value-widening) */,
+) => {
 	const seen = new Set(
-		existingEmails.map((email) => email.trim().toLowerCase()).filter(Boolean),
+		existingEmails.flatMap((email) => {
+			const normalized = email.trim().toLowerCase();
+			return normalized === '' ? [] : [normalized];
+		}),
 	);
 
 	let duplicateCount = 0;
