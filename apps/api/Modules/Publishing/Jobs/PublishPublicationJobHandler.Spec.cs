@@ -150,6 +150,66 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		);
 	}
 
+	// Extra publication on an existing account/tenant, mirroring SeedAsync's shape.
+	private static async Task<Guid> SeedSiblingAsync(
+		AppDbContext db,
+		Guid tenantId,
+		Guid socialAccountId,
+		PublicationStatus status
+	) {
+		var createdByUserId = await db.Post
+			.Where(p => p.TenantId == tenantId)
+			.Select(p => p.CreatedByUserId)
+			.FirstAsync();
+		var post = new Post {
+			TenantId = tenantId,
+			Body = "sibling body from the publish job spec",
+			CreatedByUserId = createdByUserId,
+		};
+		db.Post.Add(post);
+		await db.SaveChangesAsync();
+
+		var publication = new Publication {
+			TenantId = tenantId,
+			PostId = post.GetRequiredId(),
+			SocialAccountId = socialAccountId,
+			Status = status,
+			ScheduledAtUtc = DateTime.UtcNow.AddHours(2),
+			ScheduledTimeZone = "Etc/UTC",
+			IdempotencyKey = "placeholder",
+		};
+		db.Publication.Add(publication);
+		await db.SaveChangesAsync();
+		publication.IdempotencyKey =
+			PublicationIdempotencyKey.For(publication.GetRequiredId());
+		await db.SaveChangesAsync();
+		return publication.GetRequiredId();
+	}
+
+	private static async Task<Guid> SeedSecondAccountAsync(
+		AppDbContext db,
+		Guid tenantId
+	) {
+		var account = new SocialAccount {
+			TenantId = tenantId,
+			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
+			DisplayHandle = "@jobspec-second.bsky.social",
+			ProtectedCredentials = "enc-spec-blob",
+		};
+		db.SocialAccount.Add(account);
+		await db.SaveChangesAsync();
+		return account.GetRequiredId();
+	}
+
+	private static async Task<Publication> FreshPublicationAsync(
+		AppDbContext db,
+		Guid publicationId
+	) {
+		var entity = await db.Publication.SingleAsync(p => p.Id == publicationId);
+		await db.Entry(entity).ReloadAsync();
+		return entity;
+	}
+
 	[Fact]
 	public async Task ItShouldPublishStampTheAccountLastSuccessAtAndStoreTheRecordLink() {
 		using var db = await NewDbAsync();
@@ -493,6 +553,92 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	// --- fakes -----------------------------------------------------------------------
+
+	[Fact]
+	public async Task ItShouldPauseAllOtherScheduledPublicationsOfTheSameAccountOnCredentialFailure() {
+		using var db = await NewDbAsync();
+		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		var s1 = await SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
+		var s2 = await SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
+		var otherAccount = await SeedSecondAccountAsync(db, seeded.TenantId);
+		var s3 = await SeedSiblingAsync(db, seeded.TenantId, otherAccount, PublicationStatus.Scheduled);
+
+		var sessionProvider = FakeSessions.AccountFailure(
+			"the app password 'correct-horse-battery' was revoked"
+		);
+		var handler = NewHandler(db, new FakePublishProvider(null), sessionProvider);
+
+		var outcome = await handler.HandleAsync(
+			NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		var failing = await FreshPublicationAsync(db, seeded.PublicationId);
+		failing.Status.Should().Be(PublicationStatus.Paused);
+
+		foreach (var siblingId in new[] { s1, s2 }) {
+			var sibling = await FreshPublicationAsync(db, siblingId);
+			sibling.Status.Should().Be(
+				PublicationStatus.Paused,
+				"scheduled siblings of a broken account must not stay queued behind dead credentials"
+			);
+			sibling.LastError.Should().Contain("needs reconnecting");
+		}
+
+		// A different account's publication is nobody else's failure.
+		var untouched = await FreshPublicationAsync(db, s3);
+		untouched.Status.Should().Be(PublicationStatus.Scheduled);
+		untouched.LastError.Should().BeNull();
+
+		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);
+		account.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
+	}
+
+	[Fact]
+	public async Task ItShouldKeepSweepCausesSanitised() {
+		using var db = await NewDbAsync();
+		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		await SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
+
+		var handler = NewHandler(
+			db,
+			new FakePublishProvider(null),
+			FakeSessions.AccountFailure(
+				"InvalidToken: the app password 'app-password-hunter2' was rejected by the PDS"
+			)
+		);
+
+		var outcome = await handler.HandleAsync(
+			NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		var paused = await db.Publication
+			.Where(p => p.SocialAccountId == seeded.SocialAccountId
+				&& p.Status == PublicationStatus.Paused)
+			.ToListAsync();
+		paused.Should().HaveCount(2, "the failing run plus its scheduled sibling");
+		foreach (var publication in paused) {
+			publication.LastError.Should().NotBeNull();
+			publication.LastError!.Should().Contain("[redacted]");
+			publication.LastError!.Should().NotContain("app-password-hunter2");
+		}
+
+		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);
+		account.LastError.Should().NotContain("app-password-hunter2");
+	}
 
 	private static class FakeSessions {
 		public static FakeSocialSessionProvider Opened() {
