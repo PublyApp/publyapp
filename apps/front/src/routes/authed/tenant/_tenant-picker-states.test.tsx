@@ -8,9 +8,19 @@
  * proof lives in `.dump/proof-red-r2.md`: on the pre-fix component both
  * arms rendered "No organizations found", so the second test failed.
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+const mocks = vi.hoisted(() => ({
+	logout: vi.fn(),
+}));
+
+// The deleted arm offers the portal's real exit action (log out), so the
+// hook must resolve without a router here.
+vi.mock('~/lib/hooks/use-logout', () => ({
+	useLogout: () => ({ logout: mocks.logout, isLoggingOut: false }),
+}));
 
 const EN_LABELS: TestLabelMap = {
 	'no-organizations-found': 'No organizations found',
@@ -18,6 +28,7 @@ const EN_LABELS: TestLabelMap = {
 		'Your organizations are no longer available',
 	'all-organizations-deleted-description':
 		'All of your organizations have been removed by their administrators. If you believe this is a mistake, contact support.',
+	'log-out': 'Log out',
 };
 
 vi.mock('react-i18next', () => ({
@@ -33,6 +44,7 @@ import { TenantPortalEmptyState } from './_tenant-picker-states';
 describe('TenantPortalEmptyState (#258)', () => {
 	afterEach(() => {
 		cleanup();
+		mocks.logout.mockClear();
 	});
 
 	test('a user who was never invited anywhere sees the generic empty message', () => {
@@ -43,6 +55,7 @@ describe('TenantPortalEmptyState (#258)', () => {
 		expect(
 			screen.queryByText('Your organizations are no longer available'),
 		).toBeNull();
+		expect(screen.queryByTestId('tenant-portal-logout-button')).toBeNull();
 	});
 
 	test('a user whose every tenant was soft-deleted sees the deletion message instead', () => {
@@ -60,5 +73,9 @@ describe('TenantPortalEmptyState (#258)', () => {
 			),
 		).toBeTruthy();
 		expect(screen.queryByText('No organizations found')).toBeNull();
+
+		// The actionable next step is the portal's real exit affordance.
+		fireEvent.click(screen.getByTestId('tenant-portal-logout-button'));
+		expect(mocks.logout).toHaveBeenCalledTimes(1);
 	});
 });

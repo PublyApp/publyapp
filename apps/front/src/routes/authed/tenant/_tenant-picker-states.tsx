@@ -6,7 +6,6 @@ import {
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
-import { buttonVariants } from '~/components/ui/button.variants';
 import { StateView } from '~/components/ui/state-view';
 import { useLogout } from '~/lib/hooks/use-logout';
 
@@ -74,8 +73,10 @@ export const TenantPortalErrorState = ({
  * #258: two different situations land on this surface and must not read the
  * same. A user who was never invited anywhere gets the neutral "no
  * organizations found" message; a user whose every organization was deleted
- * by staff gets an explicit deletion notice with a support action — a
- * blocking situation shows its cause in plain words (owner product rule).
+ * by staff gets an explicit deletion notice plus the portal's real exit
+ * action — a blocking situation shows its cause in plain words (owner
+ * product rule). There is no platform support address to link to, so the
+ * actionable next step is signing out (same affordance as the picker view).
  * The branch signal is `hasDeletedTenants` from the picker response.
  */
 export const TenantPortalEmptyState = ({
@@ -84,6 +85,7 @@ export const TenantPortalEmptyState = ({
 	hasDeletedTenants?: boolean;
 }) => {
 	const { t } = useTranslation('common');
+	const { logout, isLoggingOut } = useLogout();
 
 	if (hasDeletedTenants) {
 		return (
@@ -94,13 +96,17 @@ export const TenantPortalEmptyState = ({
 				title={t('all-organizations-deleted-title')}
 				description={t('all-organizations-deleted-description')}
 				actions={
-					<a
-						href="mailto:support@publyapp.com?subject=All%20of%20my%20organizations%20were%20deleted"
-						className={buttonVariants({ variant: 'outline' })}
-						data-testid="tenant-portal-empty-support-link"
+					<Button
+						variant="outline"
+						disabled={isLoggingOut}
+						onClick={() => logout()}
+						data-testid="tenant-portal-logout-button"
 					>
-						{t('contact-support')}
-					</a>
+						{isLoggingOut ? (
+							<IconLoader2 aria-hidden="true" className="size-4 animate-spin" />
+						) : null}
+						{t('log-out')}
+					</Button>
 				}
 				testId="tenant-portal-empty"
 			/>
