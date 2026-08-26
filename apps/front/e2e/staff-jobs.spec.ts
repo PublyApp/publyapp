@@ -218,9 +218,7 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		await page.getByRole('tab', { name: 'System jobs' }).click();
 		await expect(page.getByTestId(SYSTEM_TABLE)).toBeVisible();
 		await page.getByTestId(`system-job-trigger-${systemJobId}`).click();
-		await expect(
-			page.locator('[data-sonner-toast][data-type="success"]'),
-		).toBeVisible();
+		await expect(page.getByText('System job enqueued')).toBeVisible();
 	});
 
 	test('triggering the protected definition surfaces the localized 409 toast and keeps it enabled', async ({
