@@ -62,11 +62,48 @@ const mockQueueList = async (page: Page, rows: QueueItem[]): Promise<void> => {
 	});
 };
 
+// The dead-letter/system-job action gates (canRequeue, canTriggerSystemJob, …)
+// derive from a LIVE `GET /auth/scope-auth-data?scope=staff` query
+// (routes/authed/staff/jobs/_permissions.ts:28). Under a cold or saturated
+// backend that query can lag behind the click, leaving the Requeue/Trigger
+// button inert and the mutation (and its success toast) never firing — a flake
+// that no toast-timeout widening fixed. Mocking the gate to an admin payload
+// makes the gating deterministic, isolating the test from backend auth-scope
+// latency exactly the way peers mock their own data endpoints.
+const mockStaffAuthScope = async (page: Page): Promise<void> => {
+	await page.route('**/auth/scope-auth-data**', async (route) => {
+		if (
+			route.request().method() !== 'GET' ||
+			!route.request().url().startsWith(`${API_BASE_URL}/auth/scope-auth-data`)
+		) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				code: 'staff',
+				isAdmin: true,
+				permissions: [
+					'staff.jobs.view',
+					'staff.jobs.requeue',
+					'staff.jobs.system_job_update',
+					'staff.jobs.system_job_trigger',
+				],
+			}),
+		});
+	});
+};
+
 test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 	test('admin walks queue → dead-letter requeue → system jobs trigger', async ({
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
+		// Deterministic action-gating: see mockStaffAuthScope above.
+		await mockStaffAuthScope(page);
 
 		// --- Queue tab renders rows from the mocked list endpoint.
 		await mockQueueList(page, [queueRow]);
@@ -243,6 +280,10 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
+		// Deterministic action-gating for the protected-definition toggle (see
+		// mockStaffAuthScope above) — the real backend still serves the list and
+		// the PATCH→409 round-trip; only the gate query is isolated.
+		await mockStaffAuthScope(page);
 		await page.goto('/staff/jobs/system-jobs');
 
 		// A cold deep-link load of this route (lazy route chunk plus the REAL
