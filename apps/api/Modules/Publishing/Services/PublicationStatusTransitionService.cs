@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
@@ -114,6 +115,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		TransitionOrThrow(publication.Status, PublicationStatus.InProgress);
 		publication.Attempts += 1;
 		publication.Status = PublicationStatus.InProgress;
+		// #1446: legalise exactly this save's Status writes (one grant, one save).
+		PublicationStatusWriteGuard.StampForStatusWrite(_db);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
@@ -132,6 +135,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.ExternalRecordId = args.ExternalRecordId;
 		publication.ExternalUrl = args.ExternalUrl;
 		publication.LastError = null;
+		// #1446: legalise exactly this save's Status writes (one grant, one save).
+		PublicationStatusWriteGuard.StampForStatusWrite(_db);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
@@ -148,6 +153,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		TransitionOrThrow(publication.Status, PublicationStatus.Failed);
 		publication.Status = PublicationStatus.Failed;
 		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
+		// #1446: legalise exactly this save's Status writes (one grant, one save).
+		PublicationStatusWriteGuard.StampForStatusWrite(_db);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
@@ -164,6 +171,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		TransitionOrThrow(publication.Status, PublicationStatus.Paused);
 		publication.Status = PublicationStatus.Paused;
 		publication.LastError = LastErrorSanitiser.Sanitize(args.Cause);
+		// #1446: legalise exactly this save's Status writes (one grant, one save).
+		PublicationStatusWriteGuard.StampForStatusWrite(_db);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
@@ -185,6 +194,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.ExternalUrl = null;
 		// IdempotencyKey is deliberately NOT regenerated: the same publication keeps
 		// its key across retries so Bluesky dedup survives a reschedule.
+		// #1446: legalise exactly this save's Status writes (one grant, one save).
+		PublicationStatusWriteGuard.StampForStatusWrite(_db);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}
@@ -216,6 +227,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
 		publication.Status = PublicationStatus.Scheduled;
 		publication.LastError = null;
+		// #1446: legalise exactly this save's Status writes (one grant, one save).
+		PublicationStatusWriteGuard.StampForStatusWrite(_db);
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}

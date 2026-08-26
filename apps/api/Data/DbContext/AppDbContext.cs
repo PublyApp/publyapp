@@ -14,6 +14,7 @@ using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.RateLimiting.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
@@ -171,6 +172,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
 		base.OnConfiguring(optionsBuilder);
+
+		// #1446 runtime containment: the Publication.Status single-writer guard
+		// rides every context because OnConfiguring always runs — DI hosts, the
+		// migrator, tests, and a bare `new AppDbContext(...)` alike. There is no
+		// opt-out by design; see Modules/Publishing/Lib/PublicationStatusWriteGuard.
+		optionsBuilder.AddInterceptors(new PublicationStatusWriteGuard());
 
 		// EF Core 9: Define seeding logic here using reflection to discover all seeders
 		optionsBuilder.UseSeeding((context, _) => {
