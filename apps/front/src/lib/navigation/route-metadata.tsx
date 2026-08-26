@@ -58,6 +58,14 @@ export type AppRouteMetadata = {
 	Icon: TablerIcon;
 	matchPrefixes: string[];
 	secondaryItems: SecondaryPanelItem[];
+	/**
+	 * Permission keys (from the scope-auth-data `permissions` list) the signed-in
+	 * user must hold for this entry to render. An EMPTY array means the entry is
+	 * unconditioned — always visible. Every non-empty list MUST mirror a gate the
+	 * API enforces server-side on the underlying surface (#142): hiding a menu
+	 * entry is convenience, NOT authorization.
+	 */
+	requiredPermissions: string[];
 };
 
 // -- Secondary panel rows
@@ -159,6 +167,9 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 			...itemPathnames(DASHBOARD_MODULE_ITEMS),
 		],
 		secondaryItems: DASHBOARD_MODULE_ITEMS,
+		// Staff surfaces carry no module-level gate today; the staff rail stays
+		// unconditioned until a staff permission taxonomy exists (#142).
+		requiredPermissions: [],
 	},
 	{
 		id: 'tenants',
@@ -168,6 +179,7 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		Icon: IconBuilding,
 		matchPrefixes: ['/staff/tenants'],
 		secondaryItems: TENANTS_MODULE_ITEMS,
+		requiredPermissions: [],
 	},
 	{
 		id: 'staff',
@@ -182,6 +194,7 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 			'/staff/audit-logs',
 		],
 		secondaryItems: STAFF_MODULE_ITEMS,
+		requiredPermissions: [],
 	},
 ];
 
@@ -220,6 +233,9 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		Icon: IconUserCircle,
 		matchPrefixes: ['/tenant/account'],
 		secondaryItems: ACCOUNT_MODULE_ITEMS,
+		// The personal settings rail — every signed-in tenant member owns their
+		// own profile, so no permission key applies.
+		requiredPermissions: [],
 	},
 	{
 		id: 'settings',
@@ -229,6 +245,10 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		Icon: IconSettings,
 		matchPrefixes: ['/tenant/settings'],
 		secondaryItems: [],
+		// Mirrors the canonical tenant-module gate (TenantModulePermissionsForTenant
+		// → `modules.access_settings`), the same key the settings surface is
+		// governed by server-side.
+		requiredPermissions: ['tenant.modules.access_settings'],
 	},
 	{
 		id: 'posts',
@@ -238,6 +258,11 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		Icon: IconCalendarEvent,
 		matchPrefixes: ['/tenant/posts'],
 		secondaryItems: [],
+		// Deliberately NOT a `modules.access_*` key: this is the exact key
+		// `.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW])` enforces on
+		// GET /posts, so a hidden rail entry and a direct URL hit fail on the
+		// same missing grant (the #142 invariant the API spec pins).
+		requiredPermissions: ['tenant.posts.view'],
 	},
 	{
 		id: 'organizations',
@@ -247,6 +272,9 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		Icon: IconBuilding,
 		matchPrefixes: ['/tenant/organizations'],
 		secondaryItems: [],
+		// Static placeholder surface (“coming later”) with no server resource
+		// behind it yet — nothing to mirror, so it stays unconditioned.
+		requiredPermissions: [],
 	},
 ];
 
@@ -272,9 +300,50 @@ export function getRailItems(scope: ShellScope): AppRouteMetadata[] {
 	return scope === 'staff' ? STAFF_ROUTES : TENANT_ROUTES;
 }
 
-export function getRailItemsForPath(pathname: string): AppRouteMetadata[] {
+export type RailPermissionOptions = {
+	/**
+	 * The signed-in user's effective permission keys for the current scope
+	 * (the `permissions` list of `/auth/scope-auth-data`). When omitted, NO
+	 * filtering happens — pre-permission callers (unit tests, shells that
+	 * render before auth data lands) keep seeing the full rail.
+	 */
+	allowedPermissions?: Set<string>;
+};
+
+/**
+ * Keeps only the entries whose required permission keys are ALL granted. An
+ * entry with an empty `requiredPermissions` list is unconditioned and always
+ * survives — this is a UI-convenience filter ONLY; the server independently
+ * enforces every gate behind these keys (#142: hiding a menu entry is not
+ * authorization).
+ */
+export function filterRailItemsByPermissions(
+	items: AppRouteMetadata[],
+	allowedPermissions: Set<string>,
+): AppRouteMetadata[] {
+	return items.filter(
+		(item) =>
+			item.requiredPermissions.length === 0 ||
+			item.requiredPermissions.every((key) => allowedPermissions.has(key)),
+	);
+}
+
+export function getRailItemsForPath(
+	pathname: string,
+	options?: RailPermissionOptions,
+): AppRouteMetadata[] {
 	const scope = getShellScope(pathname);
-	return scope ? getRailItems(scope) : [];
+	if (!scope) {
+		return [];
+	}
+
+	const items = getRailItems(scope);
+	const allowed = options?.allowedPermissions;
+	if (!allowed) {
+		return items;
+	}
+
+	return filterRailItemsByPermissions(items, allowed);
 }
 
 export function getActiveAppRoute(
