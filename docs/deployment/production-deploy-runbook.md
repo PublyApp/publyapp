@@ -78,6 +78,11 @@ Before triggering the stack deployment:
 - Confirm the upload budget variables (`UPLOAD_GLOBAL_MAX_BYTES`, `UPLOAD_PER_STAFF_MAX_BYTES`,
   `UPLOAD_ORPHAN_GRACE_DAYS`) are set for `api` and `worker` (safe defaults apply when omitted;
   semantics: [`guides/uploads.md`](../guides/uploads.md)).
+- Confirm `RATE_LIMIT_COUNTER_STORE` is left at its `postgres` default for every replica of
+  `api`/`worker` (#953): all replicas must share one fleet-wide rate-limit budget per partition.
+  `memory` is a single-replica incident lever only — running it while more than one replica
+  serves traffic multiplies every limit by the replica count silently. Semantics:
+  [`guides/api-rate-limiting.md`](../guides/api-rate-limiting.md) §Counter storage.
 - Confirm the persistent API storage volume is mounted and writable by the runtime UID.
 
 During deployment:

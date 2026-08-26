@@ -9,40 +9,31 @@ internal sealed class ApiRateLimiterStore
 	: IAsyncDisposable {
 	private readonly IReadOnlyDictionary<
 		string,
-		StoredLimiter
-	> _limiters;
+		RateLimitWindowSettings
+	> _windows;
+	private readonly IRateLimitCounterStore _counterStore;
 
 	public ApiRateLimiterStore(
-		ApiRateLimitSettings settings
+		ApiRateLimitSettings settings,
+		IRateLimitCounterStore counterStore
 	) {
-		_limiters = new Dictionary<
+		_counterStore = counterStore;
+		_windows = new Dictionary<
 			string,
-			StoredLimiter
+			RateLimitWindowSettings
 		>(StringComparer.Ordinal) {
-			[ApiRateLimitPolicies.GlobalSafetyNet] =
-				CreateLimiter(settings.Global),
-			[ApiRateLimitPolicies.AnonymousOther] =
-				CreateLimiter(settings.AnonymousOther),
-			[ApiRateLimitPolicies.AuthenticatedDefault] =
-				CreateLimiter(settings.Authenticated),
-			[ApiRateLimitPolicies.HeavySearchList] =
-				CreateLimiter(settings.HeavySearch),
-			[ApiRateLimitPolicies.BulkOperation] =
-				CreateLimiter(settings.Bulk),
-			[ApiRateLimitPolicies.TenantBulkOperation] =
-				CreateLimiter(settings.TenantBulk),
-			[ApiRateLimitPolicies.EmailOperation] =
-				CreateLimiter(settings.Email),
-			[ApiRateLimitPolicies.TenantEmailOperation] =
-				CreateLimiter(settings.TenantEmail),
-			[ApiRateLimitPolicies.Export] =
-				CreateLimiter(settings.Export),
-			[ApiRateLimitPolicies.TenantExport] =
-				CreateLimiter(settings.TenantExport),
-			[ApiRateLimitPolicies.Upload] =
-				CreateLimiter(settings.Upload),
-			[ApiRateLimitPolicies.SocialConnect] =
-				CreateLimiter(settings.SocialConnect),
+			[ApiRateLimitPolicies.GlobalSafetyNet] = settings.Global,
+			[ApiRateLimitPolicies.AnonymousOther] = settings.AnonymousOther,
+			[ApiRateLimitPolicies.AuthenticatedDefault] = settings.Authenticated,
+			[ApiRateLimitPolicies.HeavySearchList] = settings.HeavySearch,
+			[ApiRateLimitPolicies.BulkOperation] = settings.Bulk,
+			[ApiRateLimitPolicies.TenantBulkOperation] = settings.TenantBulk,
+			[ApiRateLimitPolicies.EmailOperation] = settings.Email,
+			[ApiRateLimitPolicies.TenantEmailOperation] = settings.TenantEmail,
+			[ApiRateLimitPolicies.Export] = settings.Export,
+			[ApiRateLimitPolicies.TenantExport] = settings.TenantExport,
+			[ApiRateLimitPolicies.Upload] = settings.Upload,
+			[ApiRateLimitPolicies.SocialConnect] = settings.SocialConnect,
 		};
 	}
 
@@ -50,11 +41,13 @@ internal sealed class ApiRateLimiterStore
 		string policyName,
 		string partitionKey
 	) {
-		var storedLimiter = GetLimiter(policyName);
-		return new PartitionedResourceRateLimiter(
-			storedLimiter.Limiter,
+		var window = GetWindow(policyName);
+		return new CounterBackedFixedWindowRateLimiter(
+			_counterStore,
+			policyName,
 			partitionKey,
-			storedLimiter.Window
+			window.PermitLimit,
+			TimeSpan.FromSeconds(window.WindowSeconds)
 		);
 	}
 
@@ -137,54 +130,20 @@ internal sealed class ApiRateLimiterStore
 	}
 
 	public async ValueTask DisposeAsync() {
-		foreach (var storedLimiter in _limiters.Values) {
-			await storedLimiter.Limiter.DisposeAsync();
-		}
+		await _counterStore.DisposeAsync();
 	}
 
-	private StoredLimiter GetLimiter(
+	private RateLimitWindowSettings GetWindow(
 		string policyName
 	) {
-		if (_limiters.TryGetValue(policyName, out var limiter)) {
-			return limiter;
+		if (_windows.TryGetValue(policyName, out var window)) {
+			return window;
 		}
 
 		throw new InvalidOperationException(
 			$"Unknown API rate-limit policy '{policyName}'"
 		);
 	}
-
-	private static StoredLimiter
-		CreateLimiter(RateLimitWindowSettings settings) {
-		var window = TimeSpan.FromSeconds(
-			settings.WindowSeconds
-		);
-		var limiter = PartitionedRateLimiter.Create<
-				string,
-				string
-			>(partitionKey => {
-				return RateLimitPartition
-					.GetFixedWindowLimiter(
-						partitionKey,
-						_ => new FixedWindowRateLimiterOptions {
-							PermitLimit =
-								settings.PermitLimit,
-							Window = window,
-							QueueLimit = 0,
-							QueueProcessingOrder =
-								QueueProcessingOrder
-									.OldestFirst,
-							AutoReplenishment = false,
-						}
-					);
-			});
-		return new StoredLimiter(limiter, window);
-	}
-
-	private sealed record StoredLimiter(
-		PartitionedRateLimiter<string> Limiter,
-		TimeSpan Window
-	);
 }
 
 internal sealed class ApiRateLimiterOptionsSetup

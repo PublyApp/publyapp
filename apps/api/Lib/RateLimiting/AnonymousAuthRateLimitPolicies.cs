@@ -10,41 +10,26 @@ namespace PublyApp.Api.Lib.RateLimiting;
 
 internal sealed class AnonymousAuthRateLimiterStore
 	: IAsyncDisposable {
-	private readonly PartitionedRateLimiter<string>
-		_perIp;
-	private readonly PartitionedRateLimiter<string>
-		_perEmail;
-	private readonly PartitionedRateLimiter<string>
-		_passwordResetPerEmail;
-	private readonly TimeSpan _perIpWindow;
-	private readonly TimeSpan _perEmailWindow;
-	private readonly TimeSpan _passwordResetPerEmailWindow;
+	private readonly AnonymousAuthRateLimitSettings _settings;
+	private readonly IRateLimitCounterStore _counterStore;
 
 	public AnonymousAuthRateLimiterStore(
-		AnonymousAuthRateLimitSettings settings
+		AnonymousAuthRateLimitSettings settings,
+		IRateLimitCounterStore counterStore
 	) {
-		_perIp = CreateLimiter(settings.PerIp);
-		_perEmail = CreateLimiter(settings.PerEmail);
-		_passwordResetPerEmail =
-			CreateLimiter(settings.PasswordResetPerEmail);
-		_perIpWindow = TimeSpan.FromSeconds(
-			settings.PerIp.WindowSeconds
-		);
-		_perEmailWindow = TimeSpan.FromSeconds(
-			settings.PerEmail.WindowSeconds
-		);
-		_passwordResetPerEmailWindow =
-			TimeSpan.FromSeconds(
-				settings.PasswordResetPerEmail
-					.WindowSeconds
-			);
+		_settings = settings;
+		_counterStore = counterStore;
 	}
 
 	public RateLimiter CreatePerIp(string clientIp) {
-		return new PartitionedResourceRateLimiter(
-			_perIp,
+		return new CounterBackedFixedWindowRateLimiter(
+			_counterStore,
+			AnonymousAuthRateLimitPolicies.PerIp,
 			clientIp,
-			_perIpWindow
+			_settings.PerIp.PermitLimit,
+			TimeSpan.FromSeconds(
+				_settings.PerIp.WindowSeconds
+			)
 		);
 	}
 
@@ -53,56 +38,29 @@ internal sealed class AnonymousAuthRateLimiterStore
 		string email,
 		bool isPasswordReset
 	) {
-		var emailLimiter = isPasswordReset
-			? _passwordResetPerEmail
-			: _perEmail;
+		var emailPolicyName = isPasswordReset
+			? AnonymousAuthRateLimitPolicies.PasswordResetPerEmail
+			: AnonymousAuthRateLimitPolicies.PerEmail;
 		var emailWindow = isPasswordReset
-			? _passwordResetPerEmailWindow
-			: _perEmailWindow;
+			? _settings.PasswordResetPerEmail
+			: _settings.PerEmail;
 
 		return RateLimiter.CreateChained(
-			new PartitionedResourceRateLimiter(
-				_perIp,
-				clientIp,
-				_perIpWindow
-			),
-			new PartitionedResourceRateLimiter(
-				emailLimiter,
+			CreatePerIp(clientIp),
+			new CounterBackedFixedWindowRateLimiter(
+				_counterStore,
+				emailPolicyName,
 				email,
-				emailWindow
+				emailWindow.PermitLimit,
+				TimeSpan.FromSeconds(
+					emailWindow.WindowSeconds
+				)
 			)
 		);
 	}
 
 	public async ValueTask DisposeAsync() {
-		await _perIp.DisposeAsync();
-		await _perEmail.DisposeAsync();
-		await _passwordResetPerEmail.DisposeAsync();
-	}
-
-	private static PartitionedRateLimiter<string>
-		CreateLimiter(RateLimitWindowSettings settings) {
-		return PartitionedRateLimiter.Create<
-			string,
-			string
-		>(partitionKey => {
-			return RateLimitPartition
-				.GetFixedWindowLimiter(
-					partitionKey,
-					_ => new FixedWindowRateLimiterOptions {
-						PermitLimit =
-							settings.PermitLimit,
-						Window = TimeSpan.FromSeconds(
-							settings.WindowSeconds
-						),
-						QueueLimit = 0,
-						QueueProcessingOrder =
-							QueueProcessingOrder
-								.OldestFirst,
-						AutoReplenishment = false,
-					}
-				);
-		});
+		await _counterStore.DisposeAsync();
 	}
 }
 
@@ -324,6 +282,11 @@ public static class AnonymousAuthRateLimitExtensions {
 				.FromEnvironment(
 					AppEnvironment.Instance
 				)
+		);
+		services.AddRateLimitCounterStore(
+			RateLimitCounterStoreSelection.FromEnvironment(
+				AppEnvironment.Instance
+			)
 		);
 		services.AddSingleton<
 			AnonymousAuthRateLimiterStore>();
