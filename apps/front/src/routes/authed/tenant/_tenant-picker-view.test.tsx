@@ -108,6 +108,7 @@ const PICKER_DATA: TenantsForPickerData = {
 	],
 	activeCount: 1,
 	totalCount: 1,
+	hasDeletedTenants: false,
 	hasSuspendedTenants: false,
 };
 
