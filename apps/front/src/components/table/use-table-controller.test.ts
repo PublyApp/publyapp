@@ -234,4 +234,105 @@ describe('useTableController (hook, regression)', () => {
 		expect(hook.result().cursor.pageIndex).toBe(0);
 		expect(hook.result().cursor.hasPreviousPage).toBe(false);
 	});
+
+	// Replaces the previous useEffect(setDraft(committedQ)) repair effect
+	// (react-doctor no-derived-state). The draft is now DERIVED from
+	// `committedQ`: with no edit open, `draft` mirrors `committedQ` directly;
+	// an open edit is stored as {seed, value}. When the seed drifts from
+	// `committedQ` (browser back/forward, a cleared or externally rewritten
+	// URL), the edit is dropped DURING RENDER — React's documented
+	// adjust-state-while-rendering reset, the same pattern useCursorPagination
+	// uses for generation changes. This test pins the user-visible behavior
+	// (no stale draft after a back/forward) and the implementation's
+	// convergence on the next render — without the fix, the draft would
+	// still echo the stale user input for one frame after the URL changes.
+	test('the open search-draft edit is dropped the same render the committed URL changes under it (browser back/forward, external URL writes)', () => {
+		const onSearchChange = vi.fn();
+		const baseOptions: UseTableControllerOptions = {
+			search: { sortId: 'created_at', sortOrder: 'desc', size: 25 },
+			onSearchChange,
+			defaultSort: DEFAULT_SORT,
+			defaultSize: DEFAULT_SIZE,
+		};
+
+		const hook = renderTableController(baseOptions);
+		expect(hook.result().search.draft).toBe('');
+
+		// User types into the search box — opens an edit, seeded from the
+		// current empty committed value.
+		act(() => {
+			hook.result().search.onDraftChange('abc');
+		});
+		expect(hook.result().search.draft).toBe('abc');
+
+		// The URL underneath changes to a different committed value (e.g.
+		// the user hit browser back, or some other surface rewrote the URL).
+		// The seed of the open edit no longer matches, so the edit must be
+		// dropped during the next render — NOT carried into the new render
+		// and certainly not synced via a post-paint effect.
+		hook.rerender({
+			...baseOptions,
+			search: { sortId: 'created_at', sortOrder: 'desc', size: 25, q: 'old' },
+		});
+		expect(hook.result().search.draft).toBe('old');
+	});
+
+	test('a draft edit that is still in sync with the committed value is preserved across a no-op re-render', () => {
+		const onSearchChange = vi.fn();
+		const baseOptions: UseTableControllerOptions = {
+			search: { sortId: 'created_at', sortOrder: 'desc', size: 25, q: 'abc' },
+			onSearchChange,
+			defaultSort: DEFAULT_SORT,
+			defaultSize: DEFAULT_SIZE,
+		};
+
+		const hook = renderTableController(baseOptions);
+		expect(hook.result().search.draft).toBe('abc');
+
+		act(() => {
+			hook.result().search.onDraftChange('abcdef');
+		});
+		expect(hook.result().search.draft).toBe('abcdef');
+
+		// A re-render that does not change the committed value must NOT
+		// drop the in-progress edit.
+		hook.rerender(baseOptions);
+		expect(hook.result().search.draft).toBe('abcdef');
+	});
+
+	test('resetDraftToCommitted cancels the debounce and snaps the draft back to the committed value', () => {
+		vi.useFakeTimers();
+		try {
+			const onSearchChange = vi.fn();
+			const baseOptions: UseTableControllerOptions = {
+				search: { sortId: 'created_at', sortOrder: 'desc', size: 25, q: 'old' },
+				onSearchChange,
+				defaultSort: DEFAULT_SORT,
+				defaultSize: DEFAULT_SIZE,
+				searchDebounceMs: 300,
+			};
+
+			const hook = renderTableController(baseOptions);
+			expect(hook.result().search.draft).toBe('old');
+
+			act(() => {
+				hook.result().search.onDraftChange('typed-and-not-yet-committed');
+			});
+			expect(hook.result().search.draft).toBe('typed-and-not-yet-committed');
+
+			act(() => {
+				hook.result().search.resetDraftToCommitted();
+			});
+			expect(hook.result().search.draft).toBe('old');
+
+			// The pending debounce must be cancelled too — advancing the
+			// timers must NOT emit a stale onSearchChange.
+			act(() => {
+				vi.advanceTimersByTime(1000);
+			});
+			expect(onSearchChange).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });
