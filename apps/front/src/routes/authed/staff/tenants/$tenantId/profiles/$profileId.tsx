@@ -299,25 +299,31 @@ export const Route = createFileRoute(
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
 	loader: async ({ context, params }) => {
 		await Promise.all([
-			context.queryClient.ensureQueryData({
-				queryKey: staffTenantDetailsQueryOptions.queryKey({
-					tenantId: params.tenantId,
-				}),
-				queryFn: () =>
-					staffTenantDetailsQueryOptions.fetcher({
+			context.queryClient.query({
+				...{
+					queryKey: staffTenantDetailsQueryOptions.queryKey({
 						tenantId: params.tenantId,
 					}),
+					queryFn: () =>
+						staffTenantDetailsQueryOptions.fetcher({
+							tenantId: params.tenantId,
+						}),
+				},
+				staleTime: 'static',
 			}),
-			context.queryClient.ensureQueryData({
-				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
-					tenantId: params.tenantId,
-					profileId: params.profileId,
-				}),
-				queryFn: () =>
-					staffTenantProfileDetailsQueryOptions.fetcher({
+			context.queryClient.query({
+				...{
+					queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
 						tenantId: params.tenantId,
 						profileId: params.profileId,
 					}),
+					queryFn: () =>
+						staffTenantProfileDetailsQueryOptions.fetcher({
+							tenantId: params.tenantId,
+							profileId: params.profileId,
+						}),
+				},
+				staleTime: 'static',
 			}),
 		]);
 	},
