@@ -11,6 +11,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -64,7 +65,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			ReactivateTenantUserResult? result = await response.Content.ReadFromJsonAsync<ReactivateTenantUserResult>();
 			_ = result.Should().NotBeNull();
 			Assert.NotNull(result);
-			_ = result.Status.Should().Be("Active");
+			_ = result.Status.Should().Be(TenantUserStatus.Active);
 		}
 
 		[Fact]

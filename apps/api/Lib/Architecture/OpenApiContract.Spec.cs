@@ -481,8 +481,10 @@ public sealed class OpenApiContractSpec {
 
 		var node = resolved.Value;
 
-		// A folded nullable enum can carry type:["string","null"]; accept any
-		// shape but require "string" to be present and never integer-only.
+		// A folded nullable enum can carry type:["string","null"]; .NET 10's
+		// generator also publishes bare { enum: [...] } schemas without a type
+		// keyword. Accept any shape as long as "string" is present explicitly or
+		// every enum member is a JSON string - never an integer-only enum.
 		var typeIsString = false;
 		if (node.TryGetProperty("type", out var typeNode)) {
 			typeIsString = typeNode.ValueKind == JsonValueKind.String
@@ -499,7 +501,11 @@ public sealed class OpenApiContractSpec {
 		}
 
 		if (!typeIsString) {
-			return $"{schemaName}.{propertyName}: enum schema must be string-typed";
+			var allEnumMembersAreStrings = enumNode.EnumerateArray()
+				.All(v => v.ValueKind == JsonValueKind.String);
+			if (!allEnumMembersAreStrings) {
+				return $"{schemaName}.{propertyName}: enum schema must be string-typed";
+			}
 		}
 
 		var actualValues = enumNode.EnumerateArray()

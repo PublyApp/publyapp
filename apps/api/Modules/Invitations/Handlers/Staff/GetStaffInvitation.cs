@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
@@ -15,7 +16,7 @@ public record StaffInvitationProfile {
 public record StaffInvitationDetails {
 	public required Guid Id { get; init; }
 	public required string Email { get; init; }
-	public required string Status { get; init; }
+	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
 	public DateTime? RevokedAt { get; init; }

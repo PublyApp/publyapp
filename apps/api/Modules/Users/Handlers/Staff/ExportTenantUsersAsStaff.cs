@@ -225,8 +225,8 @@ public sealed class ExportTenantUsersAsStaff {
 					EscapeCsv(item.Email),
 					EscapeCsv(item.FirstName ?? ""),
 					EscapeCsv(item.LastName ?? ""),
-					EscapeCsv(item.Level),
-					EscapeCsv(item.Status),
+					EscapeCsv(item.Level.ToString()),
+					EscapeCsv(item.Status.ToString()),
 					EscapeCsv(item.CreatedAt.ToString("o"))
 				);
 				await writer.WriteLineAsync(line);

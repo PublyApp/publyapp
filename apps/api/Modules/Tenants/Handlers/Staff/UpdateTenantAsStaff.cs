@@ -12,7 +12,6 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
-using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 
@@ -344,9 +343,7 @@ public sealed class UpdateTenantAsStaff {
 			Code = tenant.Code,
 			LogoUrl = tenant.LogoUrl,
 			MaxUsers = tenant.MaxUsers,
-			Status = Tenant.GetStatusDescription(
-				tenant.Status
-			),
+			Status = tenant.Status,
 			UsersCount = usersCount,
 			LegalName = tenant.LegalName,
 			Description = tenant.Description,

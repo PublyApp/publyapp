@@ -88,7 +88,7 @@ public sealed class UpdateTenantAsStaffSpec
 			result.TenantId.Should().Be(tenantId);
 			result.Name.Should().Be(newName);
 			result.Code.Should().NotBeNullOrEmpty();
-			result.Status.Should().NotBeNullOrEmpty();
+			result.Status.Should().BeDefined();
 		} finally {
 			// Restore original name
 			try {

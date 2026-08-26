@@ -12,7 +12,6 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
-using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Users.Handlers.Staff;
@@ -119,8 +118,8 @@ public sealed class UpdateStaffUserEmail {
 			LastName = userData.User.LastName,
 			FirstName = userData.User.FirstName,
 			AvatarUrl = userData.User.AvatarUrl,
-			AccountLevel = UserAccount.GetLevelDescription(userData.AccountLevel),
-			Status = User.GetStatusDescription(userData.User.Status),
+			AccountLevel = userData.AccountLevel,
+			Status = userData.User.Status,
 			CreatedAt = userData.User.CreatedAt,
 			UpdatedAt = userData.User.UpdatedAt,
 		});

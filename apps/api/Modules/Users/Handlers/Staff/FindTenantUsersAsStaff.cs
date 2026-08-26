@@ -22,8 +22,8 @@ public class TenantUserItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public string Status { get; set; } = string.Empty;
-	public string Level { get; set; } = string.Empty;
+	public TenantUserStatus Status { get; set; }
+	public AccountLevel Level { get; set; }
 }
 
 public class FindTenantUsersAsStaffResult
@@ -202,16 +202,11 @@ public sealed class FindTenantUsersAsStaff {
 									tu.User.FirstName,
 								AvatarUrl =
 									tu.User.AvatarUrl,
-								Status = UserAccount.GetStatusDescription(
-									UserAccount.GetTenantStatus(
-										tu.User.Status,
-										tu.Account.Status
-									)
+								Status = UserAccount.GetTenantStatus(
+									tu.User.Status,
+									tu.Account.Status
 								),
-								Level = UserAccount
-									.GetLevelDescription(
-										tu.AccountLevel
-									),
+								Level = tu.AccountLevel,
 							}
 						)
 						.ToList(),
