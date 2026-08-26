@@ -186,6 +186,9 @@ public static class JobsServiceRegistration {
 		this IHostApplicationBuilder builder
 	) {
 		builder.Services.AddScoped<IJobEnqueuer, JobEnqueuer>();
+		// Staff system-job trigger-now (#636): joins the caller's scoped
+		// AppDbContext and resolves the transient engine job from the same scope.
+		builder.Services.AddScoped<IEnqueueSystemJobBoundary, EnqueueSystemJobBoundary>();
 
 		return builder;
 	}
