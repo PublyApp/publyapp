@@ -109,6 +109,10 @@ public class AppEnvironment {
 	public int UPLOAD_RATE_LIMIT_WINDOW_SECONDS { get; }
 	public int SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT { get; }
 	public int SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS { get; }
+	// A5 (#636): trigger-now is a real job_queue enqueue, so it gets its own
+	// per-minute bucket instead of sharing the general authenticated one.
+	public int SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS { get; }
 
 	// Distributed rate limiting (#953): which store backs the shared fixed-window
 	// counters. 'postgres' (default) makes N replicas share one budget per
@@ -375,7 +379,8 @@ public class AppEnvironment {
 		int uploadRateLimitWindowSeconds,
 		int socialConnectRateLimitPermitLimit,
 		int socialConnectRateLimitWindowSeconds,
-		// Optional app setting (defaults to "postgres") — see RATE_LIMIT_COUNTER_STORE.
+		int systemJobTriggerRateLimitPermitLimit,
+		int systemJobTriggerRateLimitWindowSeconds,
 		string rateLimitCounterStore,
 		AppRole role,
 		int jobQueueBatchSize,
@@ -467,6 +472,10 @@ public class AppEnvironment {
 			socialConnectRateLimitPermitLimit;
 		SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS =
 			socialConnectRateLimitWindowSeconds;
+		SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT =
+			systemJobTriggerRateLimitPermitLimit;
+		SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS =
+			systemJobTriggerRateLimitWindowSeconds;
 		RATE_LIMIT_COUNTER_STORE = rateLimitCounterStore;
 		Role = role;
 		JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
@@ -678,6 +687,16 @@ public class AppEnvironment {
 				socialConnectRateLimitWindowSeconds: GetOptionalInt(
 					nameof(SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS),
 					3600
+				),
+				// A real enqueue into job_queue per accepted request (#636): per-minute,
+				// not per-hour. 30 triggers / 60 s by default, env-overridable.
+				systemJobTriggerRateLimitPermitLimit: GetOptionalInt(
+					nameof(SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT),
+					30
+				),
+				systemJobTriggerRateLimitWindowSeconds: GetOptionalInt(
+					nameof(SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS),
+					60
 				),
 				// Optional (#953): defaults to postgres so scaling to a second replica
 				// still yields one fleet-wide budget per partition; 'memory' is the
@@ -1317,6 +1336,16 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 1000)
+			.WithMessage(
+				"SYSTEM_JOB_TRIGGER_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 1000");
+
+		RuleFor(x => x.SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 3600)
+			.WithMessage(
+				"SYSTEM_JOB_TRIGGER_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 3600");
 
 		// APP_ROLE is already parsed to a defined enum by GetOptionalAppRole (which
 		// fails fast on any other string); this rule is defense-in-depth against an

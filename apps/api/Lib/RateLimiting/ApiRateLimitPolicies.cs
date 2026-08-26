@@ -34,6 +34,7 @@ internal sealed class ApiRateLimiterStore
 			[ApiRateLimitPolicies.TenantExport] = settings.TenantExport,
 			[ApiRateLimitPolicies.Upload] = settings.Upload,
 			[ApiRateLimitPolicies.SocialConnect] = settings.SocialConnect,
+			[ApiRateLimitPolicies.SystemJobTrigger] = settings.SystemJobTrigger,
 		};
 	}
 
@@ -218,6 +219,14 @@ internal sealed class ApiRateLimiterOptionsSetup
 		AddSinglePolicy(
 			options,
 			ApiRateLimitPolicies.SocialConnect,
+			ApiRateLimitPartitionKeys
+				.GetSessionFingerprint
+		);
+		// A5 (#636): trigger-now is a real enqueue; partition per validated session
+		// fingerprint so two staff sessions have independent trigger budgets.
+		AddSinglePolicy(
+			options,
+			ApiRateLimitPolicies.SystemJobTrigger,
 			ApiRateLimitPartitionKeys
 				.GetSessionFingerprint
 		);
