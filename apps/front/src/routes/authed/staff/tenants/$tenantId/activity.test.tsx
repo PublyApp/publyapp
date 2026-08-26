@@ -7,6 +7,7 @@ import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TenantActivityRow } from '~/lib/query/staff-tenant-activity';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+import type { TableSearchWireParams } from '~/lib/url-state/table-search-params';
 
 const mocks = vi.hoisted(() => ({
 	activityQuery: {
@@ -44,7 +45,7 @@ const mocks = vi.hoisted(() => ({
 		  }
 		| undefined,
 	navigate: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {} as TableSearchWireParams,
 }));
 
 vi.mock('~/lib/query/staff-tenant-activity', async (importOriginal) => {
