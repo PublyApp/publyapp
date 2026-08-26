@@ -13,8 +13,9 @@ import {
 	type StaffTenantUserRow,
 } from '~/lib/query/staff-tenant-users';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 20;

@@ -100,7 +100,7 @@ vi.mock('~/lib/api-client/client-manager', async () => {
 	};
 });
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 

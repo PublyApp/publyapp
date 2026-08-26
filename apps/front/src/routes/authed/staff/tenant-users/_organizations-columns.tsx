@@ -16,7 +16,8 @@ import {
 	toGlobalTenantUserCompanyRows,
 	useBulkUnlinkGlobalTenantUserCompaniesMutation,
 } from '~/lib/query/staff-global-tenant-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { formatAccountLevelLabel } from '../staff-users/status-labels';
 import { formatTenantStatusLabel } from '../tenants/$tenantId/_tenant-display';

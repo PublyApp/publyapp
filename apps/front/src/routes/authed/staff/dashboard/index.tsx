@@ -12,7 +12,8 @@ import {
 	useStaffUsersQuery,
 	type StaffUserRow,
 } from '~/lib/query/staff-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { OverviewListCard, StatusLabel } from './_overview-list-card';
 

@@ -21,12 +21,13 @@ import {
 	type TenantPostRow,
 } from '~/lib/query/tenant-posts';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
 import {
 	parseTenantPostListSearchParams,
 	serializeTenantPostListSearchParams,
 } from '~/lib/url-state/tenant-post-list-helpers';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { CreatePostDrawer } from './_create-post-drawer';
 

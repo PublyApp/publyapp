@@ -20,10 +20,10 @@ import {
 	invalidateStaffInvitations,
 	useBulkRevokeStaffInvitationsMutation,
 } from '~/lib/query/staff-invitations';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { BulkStaffInvitationActionFailedItem } from '@org/client-ts/models/index';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { getBulkRevokeEligibleIds } from './bulk-revoke-eligibility';
 import type { InvitationRow } from './table-columns';

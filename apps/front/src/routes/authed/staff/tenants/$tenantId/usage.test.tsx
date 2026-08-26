@@ -105,7 +105,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantUsageQuery: mocks.useStaffTenantUsageQuery,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: vi.fn(() => false),
 }));
 

@@ -26,7 +26,6 @@ import {
 	useBulkUnlinkGlobalTenantUserCompaniesMutation,
 	useGlobalTenantUserCompaniesQuery,
 } from '~/lib/query/staff-global-tenant-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -38,6 +37,7 @@ import type {
 } from '~/lib/url-state/table-search-params';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { LinkCompaniesDrawerHost } from './$userId-organizations-drawer';
 import { tenantUserDetailsCrumbs } from './_crumbs';

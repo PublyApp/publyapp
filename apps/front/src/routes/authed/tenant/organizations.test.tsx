@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
 		],
 		activeCount: 1,
 		totalCount: 1,
+		hasDeletedTenants: false,
 		hasSuspendedTenants: false,
 	};
 
@@ -45,7 +46,7 @@ vi.mock('~/lib/selected-tenant-storage', () => ({
 	readSelectedTenantId: () => 'tenant-1',
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 

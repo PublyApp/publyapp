@@ -2,8 +2,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { useCallback, useState } from 'react';
-import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
-import { resolveRouteRedirect } from '~/lib/safe-redirect-path';
 import { clearSelectedTenantId } from '~/lib/selected-tenant-storage';
 import { clearSession } from '~/lib/server/session-actions';
 import {
@@ -12,6 +10,8 @@ import {
 } from '~/lib/tab-sync/broadcast-sync';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
+import { resolveRouteRedirect } from '@org/shared-ts/lib/safe-redirect-path';
 
 type LogoutOptions = {
 	/**

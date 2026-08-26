@@ -6,7 +6,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import type { EntityCrumbQuery } from '~/lib/navigation/breadcrumbs';
-import { deriveProfileCardStyle } from '~/lib/profile-card-style';
+import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';

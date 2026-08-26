@@ -14117,6 +14117,9 @@
             "type": "integer",
             "format": "int32"
           },
+          "hasDeletedTenants": {
+            "type": "boolean"
+          },
           "hasSuspendedTenants": {
             "type": "boolean"
           }

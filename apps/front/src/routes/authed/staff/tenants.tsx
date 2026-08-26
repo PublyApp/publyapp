@@ -59,10 +59,10 @@ import {
 	useStaffTenantsQuery,
 	useSuspendStaffTenantMutation,
 } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	parseTenantListSearchParams,

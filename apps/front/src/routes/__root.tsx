@@ -43,23 +43,21 @@ import {
 	isSupportedLanguage,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
-import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
-} from '~/lib/route-shell';
+} from '~/lib/navigation/route-shell';
 import { ServerFailure } from '~/lib/server/server-failure';
 import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
+import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
 import {
 	determineSessionToken,
 	getSessionSurface,
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
-} from '~/lib/session-scope';
-import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
-import { withSessionValidationTimeout } from '~/lib/session-validation';
+} from '~/lib/session/session-scope';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
@@ -70,6 +68,8 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { LOCALE_COOKIE_KEY, REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
+import { withSessionValidationTimeout } from '@org/shared-ts/lib/session-validation';
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';
