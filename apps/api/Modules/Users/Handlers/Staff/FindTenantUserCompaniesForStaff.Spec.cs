@@ -4,6 +4,10 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -11,6 +15,8 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Tenants.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -18,12 +24,76 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public sealed class FindTenantUserCompaniesForStaffSpec
 	: IClassFixture<ApiFixture> {
+	private readonly ApiFixture _fixture;
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
 	public FindTenantUserCompaniesForStaffSpec(ApiFixture fixture) {
+		_fixture = fixture;
 		_http = fixture.HttpClient;
 		_authClient = new TestAuthClient(_http);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var acmeTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			_http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName
+		);
+
+		// A user with three tenant memberships of distinct account CreatedAt;
+		// the walk must visit each once in ascending CreatedAt order.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var (userId, seededTenantIds) = await SeedUserWithCompaniesAsync(
+			acmeTenantId,
+			baseDate
+		);
+
+		var visitedTenantIds = new List<Guid>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "created_at",
+					sortOrder: "asc"
+				)
+			).WithSessionToken(staffToken);
+
+			using var response = await _http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var page = await response.Content
+				.ReadFromJsonAsync<FindCompaniesResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedTenantIds.AddRange(
+				page.Data.Select(c => c.TenantId)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our memberships, each once, in order.
+		visitedTenantIds.Should().OnlyHaveUniqueItems();
+		visitedTenantIds.Should().Contain(seededTenantIds);
+
+		var visitedOrder = visitedTenantIds
+			.Where(seededTenantIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(seededTenantIds);
 	}
 
 	[Fact]
@@ -521,6 +591,57 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	private sealed record FindCompaniesResponse {
 		public List<TenantUserCompanyResponse> Data { get; init; } = [];
 		public string? NextCursor { get; init; }
+	}
+
+	private async Task<(string UserId, List<Guid> TenantIds)>
+	SeedUserWithCompaniesAsync(
+		Guid acmeTenantId,
+		DateTime baseDate
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = $"company-walk-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			FirstName = "Company",
+			LastName = "Walk",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+		var userId = user.GetRequiredId();
+
+		// Attach to Acme plus two freshly created tenants so the CreatedAt
+		// values are fully under our control (seed data may not be ordered).
+		var tenantIds = new List<Guid> { acmeTenantId };
+		for (var i = 0; i < 2; i++) {
+			var tenant = new Tenant {
+				Name = $"Company Walk {i} {Guid.NewGuid():N}",
+				Code = Guid.NewGuid().ToString("N")[..10],
+				Status = TenantStatus.Active,
+				MaxUsers = 10,
+			};
+			await dbContext.Tenant.AddAsync(tenant);
+			await dbContext.SaveChangesAsync();
+			tenantIds.Add(tenant.GetRequiredId());
+		}
+
+		// Distinct CreatedAt per membership, in the order we expect the walk.
+		for (var i = 0; i < tenantIds.Count; i++) {
+			var account = UserAccount.CreateTenantAccount(
+				userId,
+				tenantIds[i]
+			);
+			account.CreatedAt = baseDate.AddDays(i);
+			await dbContext.UserAccount.AddAsync(account);
+			await dbContext.SaveChangesAsync();
+		}
+
+		return (userId.ToString(), tenantIds);
 	}
 
 	private sealed record TenantUserCompanyResponse {
