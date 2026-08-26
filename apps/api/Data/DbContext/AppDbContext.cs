@@ -14,6 +14,7 @@ using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.RateLimiting.Entities;
 using PublyApp.Api.Modules.SystemNotices.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Uploads.Entities;
@@ -122,6 +123,13 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	}
 	public DbSet<UploadBudget> UploadBudget {
 		get { return Set<UploadBudget>(); }
+	}
+
+	// Distributed rate-limit counters (#953): one fixed-window budget row per
+	// (policy, hashed partition key, window). Tenant-free by design — anonymous
+	// and per-IP partitions carry no tenant id.
+	public DbSet<RateLimitCounter> RateLimitCounter {
+		get { return Set<RateLimitCounter>(); }
 	}
 
 	// Tenant content entities
