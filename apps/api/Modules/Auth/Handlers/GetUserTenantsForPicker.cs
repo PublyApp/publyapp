@@ -24,6 +24,12 @@ public class GetUserTenantsForPickerResponse {
 	public bool HasSuspendedTenants { get; set; }
 }
 
+/// <summary>
+/// Returns the calling user's tenant picker payload. A user whose every
+/// tenant was soft-deleted by staff receives an empty list with
+/// <see cref="GetUserTenantsForPickerResponse.HasDeletedTenants"/> set so the
+/// front can distinguish "all deleted" from "never invited anywhere" (#258).
+/// </summary>
 public sealed class GetUserTenantsForPicker {
 	private const int MaxTenantsInList = 50;
 
