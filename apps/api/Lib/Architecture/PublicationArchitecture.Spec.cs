@@ -55,9 +55,11 @@ public sealed partial class PublicationArchitectureSpec {
 	private static readonly HashSet<string> BaselineTestSeedFiles = new(
 		StringComparer.Ordinal
 	) {
+		"Modules/Publishing/Services/PublicationQueueService.Spec.cs",
 		"Modules/Publishing/Services/PublicationStatusTransitionService.Spec.cs",
 		"Modules/Publishing/Jobs/PublishPublicationJobHandler.Spec.cs",
 		"Modules/Publishing/Lib/PostStatusDerivation.Spec.cs",
+		"Modules/SocialAccounts/Handlers/Tenant/SocialAccountPublicationLifecycle.Spec.cs",
 	};
 
 	private const string PublicationFullNamespace =
