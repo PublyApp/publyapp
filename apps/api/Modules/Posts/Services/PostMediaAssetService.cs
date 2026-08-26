@@ -36,10 +36,10 @@ public interface IPostMediaAssetService {
 		CancellationToken cancellationToken = default
 	);
 
-	/// <summary>
-	/// Persists the new asset row in ONE unit of work: hard-deletes the stale
-	/// live row(s) a replacement purges, inserts the new row, and saves. The
-	/// CALLING HANDLER owns the #807 F5 reference discipline around this call:
+	/// Persists the new asset row, replacing any previous one in the SAME unit
+	/// of work: hard-deletes the stale live row(s) a replacement purges, inserts
+	/// the new row, and saves. The CALLING HANDLER owns the #807 F5 reference
+	/// discipline around this call (#1461 moved it into the calling handlers):
 	/// acquire the new blob's reference BEFORE calling (so the URL can never
 	/// commit at zero references), then release the replaced image's reference
 	/// AFTER this method returns (its SaveChanges has committed). Physical
@@ -50,12 +50,12 @@ public interface IPostMediaAssetService {
 		CancellationToken cancellationToken = default
 	);
 
-	/// <summary>
-	/// Removes a post's image: hard-deletes the asset row and saves (one unit
-	/// of work). Returns null when no live asset exists for the post; otherwise
-	/// returns the removed blob's relative path so the CALLING HANDLER can
-	/// release its asset reference AFTER the commit (#807 F5). Physical
-	/// deletion stays exclusively the sweeper's.
+	/// Removes a post's image: hard-deletes the asset row in its own unit of
+	/// work (one unit of work). Returns null when no live asset exists for the
+	/// post; otherwise returns the removed blob's relative path so the CALLING
+	/// HANDLER can release its asset reference AFTER the commit (#807 F5;
+	/// #1461 moved the release out of the service). Physical deletion stays
+	/// exclusively the sweeper's.
 	/// </summary>
 	Task<string?> RemoveAsync(
 		Guid tenantId,
@@ -64,8 +64,6 @@ public interface IPostMediaAssetService {
 	);
 
 	/// <summary>
-	/// Post-deletion cascade, phase 1: stages a hard delete of every live asset
-	/// row for the post in the caller's unit of work WITHOUT saving, and returns
 	/// the blob paths whose references must be released after the commit. Called
 	/// by DeletePostForTenant BEFORE deleting the post so the purge commits
 	/// atomically with the post deletion; the handler releases those references
@@ -144,7 +142,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		// One commit: the insert and the replacement's purge land atomically
 		// (EF Core issues same-table deletes before inserts in the batch).
 		await dbContext.SaveChangesAsync(cancellationToken);
-
 		// The CALLING HANDLER acquired the new blob's reference before this
 		// call and releases any replaced image's reference after this commit
 		// (#807 F5); physical deletion stays exclusively sweeper's.
@@ -166,13 +163,11 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			return null;
 		}
 
-		var releasedPath = asset.RelativePath;
 		dbContext.ForceHardDelete(asset);
 		await dbContext.SaveChangesAsync(cancellationToken);
-
-		// The CALLING HANDLER releases releasedPath's asset reference after
-		// this commit (#807 F5); physical deletion stays exclusively sweeper's.
-		return releasedPath;
+		// The CALLING handler releases this reference after the commit above
+		// (#807 F5 / #1461).
+		return asset.RelativePath;
 	}
 
 	public async Task<IReadOnlyList<string>> StagePurgeOnPostDeleteAsync(
