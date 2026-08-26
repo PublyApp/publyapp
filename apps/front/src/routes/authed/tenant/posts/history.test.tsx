@@ -7,9 +7,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
-	rows: [] as Array<Record<string, unknown>>,
+	rows: [] as Array<Record<string, string>>,
 	nextCursor: null as string | null,
-	queryError: null as unknown,
+	queryError: null as Error | null,
 	shouldLogout: false,
 	invalidateTenantPublications: vi.fn(),
 }));

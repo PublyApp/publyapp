@@ -32,11 +32,11 @@ const DEFAULT_SORT = { id: 'updated_at', order: 'desc' as const } as const;
 const IN_PROGRESS_POLL_MS = 5_000;
 
 /** Terminal statuses with a dedicated label — anything else renders raw. */
-const STATUS_LABEL_KEYS: Record<string, string> = {
+const STATUS_LABEL_KEYS = {
 	published: 'posts:publish-status-published',
 	scheduled: 'posts:publish-status-scheduled',
 	paused: 'posts:publish-status-paused',
-};
+} as const;
 
 const PublicationStatusCell = ({
 	publication,

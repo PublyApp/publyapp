@@ -36,6 +36,8 @@
 	"post-saved-success": "Publication enregistrée avec succès",
 	"project-label": "Projet",
 	"project-placeholder": "Aucun projet — brouillon personnel",
+	"publish-on-heading": "Publier sur",
+	"publish-on-empty": "Aucun profil connecté à publier pour l'instant.",
 	"publish-retry": "Réessayer",
 	"publish-retry-stub-title": "Le réessai d'une publication échouée arrivera avec la planification (D4).",
 	"publish-status-in-progress": "En cours…",

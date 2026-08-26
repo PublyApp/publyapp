@@ -121,11 +121,7 @@ const isPositiveSafeInteger = (value: number | undefined): value is number =>
 
 export const buildFindTenantPublicationsQueryParameters = (
 	variables: TenantPublicationsQueryVariables,
-): {
-	status?: string;
-	cursor?: string;
-	limit?: string;
-} => {
+) => {
 	const statuses = normalizeStatuses(variables.statuses);
 
 	return {

@@ -34,6 +34,7 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { PostImagePicker } from '../_post-image-picker';
+import { PublishOnBlock } from '../_publish-on-block';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -290,6 +291,7 @@ const TenantPostEditPage = () => {
 									tenantId={tenantId ?? ''}
 									existingImage={details.image ?? null}
 								/>
+								<PublishOnBlock projectId={details.projectId} postId={postId} />
 							</div>
 						</div>
 						{blocker.status === 'blocked' ? (

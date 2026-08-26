@@ -1,6 +1,8 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+import type { GetPublishTargetsForTenantResponse } from '@org/client-ts/models/index';
+
 const mocks = vi.hoisted(() => ({
 	getOrCreateClient: vi.fn(),
 }));
@@ -34,16 +36,25 @@ describe('TENANT_PUBLISH_TARGETS_QUERY_KEY', () => {
 });
 
 describe('toTenantPublishTargets', () => {
+	const guid = (seed: number) =>
+		`01890a5d-ac96-774b-bcce-${seed.toString().padStart(12, '0')}`;
+
+	/** The wire can carry shapes the generated types promise never to send;
+	 * the mapper must survive them. Round-trip through JSON so the noise
+	 * enters exactly as it would off the network. */
+	const asItems = (items: unknown): GetPublishTargetsForTenantResponse =>
+		JSON.parse(JSON.stringify({ items }));
+
 	test('maps items keeping id, label and provider verbatim', () => {
-		const rows = toTenantPublishTargets({
-			items: [
+		const rows = toTenantPublishTargets(
+			asItems([
 				{
-					id: '01890a5d-ac96-774b-bcce-b302099a8057' as never,
+					id: '01890a5d-ac96-774b-bcce-b302099a8057',
 					label: 'Acme main',
 					provider: 'bluesky',
 				},
-			],
-		});
+			]),
+		);
 
 		expect(rows).toEqual([
 			{
@@ -55,17 +66,17 @@ describe('toTenantPublishTargets', () => {
 	});
 
 	test('fails closed: drops rows without an id or with an unknown provider', () => {
-		const rows = toTenantPublishTargets({
-			items: [
+		const rows = toTenantPublishTargets(
+			asItems([
 				{ id: undefined, label: 'no id', provider: 'bluesky' },
 				{
-					id: '01890a5d-ac96-774b-bcce-b302099a8058' as never,
+					id: guid(2),
 					label: 'unknown provider',
 					provider: 'twitter',
 				},
 				null,
-			] as never,
-		});
+			]),
+		);
 
 		expect(rows).toEqual([]);
 	});
@@ -112,11 +123,14 @@ describe('tenantPublishTargetsQueryOptions', () => {
 });
 
 describe('invalidateTenantPublishTargets', () => {
-	test('invalidates through the tenant-scoped key', () => {
+	test('invalidates through the tenant-scoped key', async () => {
 		const qc = new QueryClient();
 		const spy = vi.spyOn(qc, 'invalidateQueries');
 
-		invalidateTenantPublishTargets(qc, '11111111-1111-1111-1111-111111111111');
+		await invalidateTenantPublishTargets(
+			qc,
+			'11111111-1111-1111-1111-111111111111',
+		);
 
 		expect(spy).toHaveBeenCalledWith({
 			queryKey: [

@@ -55,7 +55,7 @@ export const hasTenantPermission = (
 /** Pure mapper: scope-auth-data payload → { isAdmin, normalized permissions }. */
 export const toTenantPermissions = (
 	payload: ScopeAuthDataPayload | null | undefined,
-): { isAdmin: boolean; permissions: string[] } => ({
+) => ({
 	isAdmin: payload?.isAdmin === true,
 	permissions: normalizePermissions(payload?.permissions),
 });

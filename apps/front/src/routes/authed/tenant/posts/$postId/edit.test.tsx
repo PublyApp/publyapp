@@ -155,6 +155,10 @@ vi.mock('~/lib/query/tenants-for-picker', () => ({
 	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
 }));
 
+vi.mock('../_publish-on-block', () => ({
+	PublishOnBlock: () => <div data-testid="publish-on-block-stub" />,
+}));
+
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
@@ -283,7 +287,7 @@ describe('TenantPostEditPage', () => {
 		expect(screen.getByTestId('tenant-post-edit-move-to-bin')).toBeTruthy();
 	});
 
-	test('reserved side column placeholder exists', () => {
+	test('publish-on block occupies the reserved side column', () => {
 		mocks.useTenantPostDetailsQuery.mockReturnValue({
 			data: {
 				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
@@ -300,8 +304,6 @@ describe('TenantPostEditPage', () => {
 
 		render(<TenantPostEditPage />);
 
-		expect(
-			screen.getByTestId('tenant-post-edit-reserved-side-column'),
-		).toBeTruthy();
+		expect(screen.getByTestId('publish-on-block-stub')).toBeTruthy();
 	});
 });

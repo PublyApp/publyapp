@@ -36,6 +36,8 @@
 	"post-saved-success": "Post saved successfully",
 	"project-label": "Project",
 	"project-placeholder": "No project — personal draft",
+	"publish-on-heading": "Publish on",
+	"publish-on-empty": "No connected profile to publish to yet.",
 	"publish-retry": "Retry",
 	"publish-retry-stub-title": "Retrying a failed publication arrives with scheduling (D4).",
 	"publish-status-in-progress": "In progress…",

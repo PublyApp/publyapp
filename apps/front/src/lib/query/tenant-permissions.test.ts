@@ -69,9 +69,7 @@ const hookForPayload = (
 	);
 };
 
-const gateFor = (
-	payload: ScopeAuthDataPayload | null | undefined,
-): { hasPermission: (key: string) => boolean } => {
+const gateFor = (payload: ScopeAuthDataPayload | null | undefined) => {
 	const fetcherResult = toTenantPermissions(payload);
 	return {
 		hasPermission: (key: string) =>
