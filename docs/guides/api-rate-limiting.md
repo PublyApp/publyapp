@@ -157,6 +157,34 @@ The current email-fan-out judgments are:
 - cross-company membership bulk operations do not produce email and remain
   session-scoped `bulk-operation`.
 
+## Counter storage (distributed budget, #953)
+
+Fixed-window counters live in Postgres by default: table `rate_limit_counters`, one row per
+(named policy, truncated SHA-256 partition hash, window start). Every acquisition is one atomic
+conditional UPSERT (`INSERT ... ON CONFLICT DO UPDATE ... WHERE permit_count + n <= limit
+RETURNING`), so N replicas share exactly one fleet-wide budget per partition and cannot
+over-admit; the row lock on the conflicting tuple serialises concurrent writers. Connections are
+borrowed from the scoped `AppDbContext` (never from `POSTGRES_CONNECTION_STRING` directly), so
+test hosts automatically see their own database. Partition keys (IPs, emails, session
+fingerprints, tenant IDs) are never persisted raw — only the 32-hex-char SHA-256 truncation,
+same no-PII stance as throttle logs. Housekeeping deletes each touched key's superseded window
+rows inline and sweeps rows older than the largest configured window at most once a minute.
+
+Outage behaviour: five consecutive store failures open a circuit breaker for 30 s — while open,
+acquisitions do not dial Postgres at all — then one half-open probe decides between recovery and
+re-open. While the store is unreachable, policies apply their fail mode: anonymous-auth per-IP,
+per-email and password-reset-per-email plus the email-producing `email-operation` /
+`tenant-email-operation` fail **CLOSED** (a rejection during an incident is safer than handing
+unlimited login-guess or email-bomb budgets to whoever arrives); every other policy fails open,
+because domain work already requires Postgres and rejecting more traffic converts degradation
+into outage without buying protection. Failed acquisitions surface as failed leases carrying
+`Retry-After` = remaining window, keeping the 429 contract unchanged.
+
+`RATE_LIMIT_COUNTER_STORE` selects the implementation: `postgres` (default — scaling to a second
+replica without reading docs still yields one shared budget) or `memory` (pre-#953 per-process
+counters; the documented incident lever for single-replica triage when the database is the
+incident).
+
 ## Enforcement and observability
 
 Trusted forwarded headers are resolved before rate limiting. IP policies therefore key

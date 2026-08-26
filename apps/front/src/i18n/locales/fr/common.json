@@ -595,6 +595,12 @@
 	"payment-method": "Moyen de paiement",
 	"billing-history": "Historique de facturation",
 	"usage": "Utilisation",
+	"usage-as-of": "Calculé le {{datetime}}",
+	"usage-last-activity": "Dernière activité",
+	"usage-users-active-of-total": "{{active}} membres actifs sur {{total}}",
+	"usage-no-activity-yet": "Aucune activité enregistrée",
+	"projects": "Projets",
+	"scheduled-publications": "Publications programmées",
 	"session-settings": "Paramètres de session",
 	"ip-restrictions": "Restrictions IP",
 	"available-integrations": "Intégrations disponibles",
@@ -1011,6 +1017,12 @@
 	"page-n": "Page {{page}}",
 	"previous-page": "Page précédente",
 	"next-page": "Page suivante",
+	"range-of-total_one": "{{start}}–{{end}} sur {{count}} élément",
+	"range-of-total_other": "{{start}}–{{end}} sur {{count}} éléments",
+	"range-of-counted_one": "{{start}}–{{end}}",
+	"range-of-counted_other": "{{start}}–{{end}}",
+	"range-no-total_one": "Aucun élément",
+	"range-no-total_other": "Aucun élément",
 	"row-selection-column": "Sélection de ligne",
 	"select-all-rows": "Tout sélectionner",
 	"select-row-named": "Sélectionner {{name}}",
@@ -1287,5 +1299,6 @@
 	"error-loading-data": "Erreur lors du chargement des données",
 	"not-found": "Introuvable",
 	"leave": "Quitter",
-	"stay": "Rester"
+	"stay": "Rester",
+	"scroll-area-label": "Contenu déroulant"
 }

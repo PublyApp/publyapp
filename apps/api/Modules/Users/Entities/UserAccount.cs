@@ -283,6 +283,7 @@ public enum AccountScope {
 	Project = 2
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<AccountLevel>))]
 public enum AccountLevel {
 	// maybe owner too?
 	Admin = 50,
@@ -294,6 +295,7 @@ public enum AccountStatus {
 	Suspended = 1,
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<TenantUserStatus>))]
 public enum TenantUserStatus {
 	Active = 0,
 	Suspended = 1,

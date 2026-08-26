@@ -85,9 +85,11 @@ Some findings are false positives or a poor fit for this codebase. Suppression i
 
 - **One occurrence is a genuine FP** -> inline-disable on that line, with a comment saying *why*, and call
   it out in the PR description.
-- **A rule consistently mis-fires here** -> turn it off in `doctor.config.json`
-  (`npx react-doctor@0.9.12 rules disable <rule>`) in a dedicated, justified PR -- not bundled into a
-  feature change.
+- **A rule consistently mis-fires here** -> recreate `apps/front/doctor.config.json`
+  with that one rule disabled (`npx react-doctor@0.9.12 rules disable <rule>`) in a
+  dedicated, justified PR -- not bundled into a feature change. The file was deleted
+  in #1291 rung 3 when its last global override (`no-multi-component-file`) came
+  back on; there is no config file on the default path today.
 
 Never disable a rule, raise `--blocking`, or pin a different version solely to make your own PR pass.
 

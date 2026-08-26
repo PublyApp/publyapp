@@ -9,7 +9,7 @@ import {
 } from '~/components/ui/select';
 import { cn } from '~/lib/utils';
 
-import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
+import { AccountLevelObject } from '@org/client-ts/models/index';
 
 import { getUserLevel } from './_tenants-new-schema';
 import {
@@ -52,19 +52,19 @@ export const MemberLevelSelect = ({
 			size="sm"
 			className={cn(
 				'w-full justify-center gap-1 border px-2 text-[11px] font-medium shadow-none',
-				value === ACCOUNT_LEVEL_ENUM.ADMIN
+				value === AccountLevelObject.Admin
 					? 'border-(--publy-chip-pending-border) bg-(--publy-chip-pending-bg) text-(--publy-chip-pending-text)'
 					: 'border-border bg-background text-foreground',
 			)}
 		>
 			<span data-slot="select-value">
-				{value === ACCOUNT_LEVEL_ENUM.ADMIN ? t('admin') : t('user')}
+				{value === AccountLevelObject.Admin ? t('admin') : t('user')}
 			</span>
 		</SelectTrigger>
 		<SelectContent>
 			{USER_ROLE_OPTIONS.map((option) => (
 				<SelectItem key={option} value={option}>
-					{option === ACCOUNT_LEVEL_ENUM.ADMIN ? t('admin') : t('user')}
+					{option === AccountLevelObject.Admin ? t('admin') : t('user')}
 				</SelectItem>
 			))}
 		</SelectContent>

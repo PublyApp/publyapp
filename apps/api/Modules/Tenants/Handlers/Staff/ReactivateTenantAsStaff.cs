@@ -14,7 +14,7 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 public record TenantReactivatedResult {
 	public required Guid TenantId { get; init; }
 	public required string Name { get; init; }
-	public required string Status { get; init; }
+	public required TenantStatus Status { get; init; }
 }
 
 public sealed class ReactivateTenantAsStaff {
@@ -97,7 +97,7 @@ public sealed class ReactivateTenantAsStaff {
 		return TypedResults.Ok(new TenantReactivatedResult {
 			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
-			Status = Tenant.GetStatusDescription(tenant.Status)
+			Status = tenant.Status
 		});
 	}
 }

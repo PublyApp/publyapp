@@ -84,7 +84,7 @@ public sealed class UpdateTenantUserAsStaffSpec
 			.ReadFromJsonAsync<TenantUserDetailsResult>();
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
-		result.Level.Should().Be("Admin");
+		result.Level.Should().Be(AccountLevel.Admin);
 
 		var persistedLevel = await GetUserLevelByEmailAsync(
 			_http,

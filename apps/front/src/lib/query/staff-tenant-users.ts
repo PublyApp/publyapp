@@ -15,6 +15,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	AccountLevel,
 	CreateInvitationForTenantAsStaffBody,
 	ApiResponse,
 	BulkCreateTenantInvitationsForTenantAsStaffBody,
@@ -27,6 +28,7 @@ import type {
 	SuspendTenantUserResult,
 	TenantUserDetailsResult,
 	TenantUserItem,
+	TenantUserStatus,
 	UpdateTenantUserAsStaffBody,
 } from '@org/client-ts/models/index';
 import {
@@ -95,8 +97,8 @@ export type StaffTenantUserRow = {
 	firstName: string | null;
 	lastName: string | null;
 	email: string;
-	level: string | null;
-	status: string | null;
+	level: AccountLevel | null;
+	status: TenantUserStatus | null;
 	avatarUrl: string | null;
 	displayName: string;
 };
@@ -395,8 +397,8 @@ export const toStaffTenantUserRows = (
 			firstName,
 			lastName,
 			email,
-			level: normalizeNullableString(item.level),
-			status: normalizeNullableString(item.status),
+			level: item.level ?? null,
+			status: item.status ?? null,
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
 			displayName: getDisplayName({ firstName, lastName, email }),
 		});

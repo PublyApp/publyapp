@@ -119,7 +119,8 @@ Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-d
 ## Component Files Export Components Only (#1417)
 
 A component file must not export anything that is not a component: the react-doctor
-`only-export-components` rule (enabled in `apps/front/doctor.config.json`) fails on any such
+`only-export-components` rule (enforced tree-wide since #1423 removed the last
+`doctor.config.json` override) fails on any such
 export because it breaks Fast Refresh state preservation. The pattern, decided in
 [#1417](https://github.com/PublyApp/publyapp/issues/1417) (part of #1291):
 
@@ -281,6 +282,18 @@ Marketing and auth surfaces are SSR.
 Authenticated application surfaces are CSR with `ssr: false`. They fetch application data in
 the browser with TanStack Query and the Kiota client. Do not fetch authenticated domain data in
 server loaders or server functions.
+
+### Client route loaders (#851)
+
+Client `loader`s (never server loaders) are permitted on authenticated routes for exactly one
+sanctioned purpose: **awaiting the same TanStack Query options the page body queries**, so data
+the breadcrumb shell needs (entity names) is in the query cache before the first frame. A cold
+deep link then paints its full named trail immediately, instead of flashing entity skeletons.
+Pair such a loader with a `pendingComponent` for the pending window. Do not use a loader as a
+second fetch path with different keys — reuse the page's own query-options factories so the
+cache dedupes. The one shipped example is
+`src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx` (#846's skeleton-flash fix,
+implemented in #851); integration coverage lives in `src/lib/navigation/breadcrumb-loader.test.tsx`.
 
 ## Server-Function Boundary
 

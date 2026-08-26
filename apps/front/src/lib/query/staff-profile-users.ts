@@ -11,6 +11,7 @@ import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	BulkStaffProfileUserUnassignActionResult,
 	FindStaffProfileUsersResult,
+	UserStatus,
 	StaffProfileUserItem,
 } from '@org/client-ts/models/index';
 import {
@@ -33,7 +34,7 @@ export type StaffProfileUserRow = {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	status: string | null;
+	status: UserStatus | null;
 };
 
 const normalizeString = (
@@ -79,7 +80,7 @@ export const toStaffProfileUserRows = (
 			firstName: normalizeNullableString(item.firstName),
 			lastName: normalizeNullableString(item.lastName),
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
-			status: normalizeNullableString(item.status),
+			status: item.status ?? null,
 		});
 	}
 

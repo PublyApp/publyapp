@@ -120,6 +120,9 @@ export const ProfileMembersTab = ({
 						pageIndex: pageIndex,
 						hasPreviousPage: pageIndex > 0,
 						hasNextPage: hasNextPage,
+						// Offset surface: the count is known once the query lands;
+						// while it is in flight the label shows the bare range (#282).
+						totalCount: membersQuery.data?.count,
 						isPaginationPending:
 							membersQuery.isFetching && !membersQuery.isPending,
 						onNextPage: () => {

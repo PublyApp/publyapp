@@ -5,6 +5,9 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/apps/" />
+  <Folder Name="/apps/apphost/">
+    <Project Path="apps/apphost/PublyApp.AppHost.csproj" />
+  </Folder>
   <Folder Name="/apps/api/">
     <Project Path="apps/api/PublyApp.Api.csproj" />
     <Project Path="apps/api/Tests/PublyApp.Api.Tests.csproj" />

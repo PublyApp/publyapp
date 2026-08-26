@@ -8839,6 +8839,97 @@
         }
       }
     },
+    "/staff/tenants/{tenantId}/usage": {
+      "get": {
+        "tags": [
+          "Tenants"
+        ],
+        "summary": "Get aggregated usage metrics for a tenant",
+        "operationId": "GetTenantUsage",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTenantUsageAsStaffResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/tenants/{tenantId}/suspend": {
       "post": {
         "tags": [
@@ -12276,6 +12367,12 @@
           }
         }
       },
+      "AccountLevel": {
+        "enum": [
+          "User",
+          "Admin"
+        ]
+      },
       "AccountProfileResult": {
         "type": "object",
         "properties": {
@@ -13695,7 +13792,7 @@
             }
           },
           "accountLevel": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "isAdmin": {
             "type": "boolean"
@@ -13759,10 +13856,10 @@
             ]
           },
           "accountLevel": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           },
           "createdAt": {
             "type": "string",
@@ -13819,7 +13916,7 @@
             "format": "int32"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           },
           "usersCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -13919,6 +14016,48 @@
         "properties": {
           "profile": {
             "$ref": "#/components/schemas/TenantProfileItem"
+          }
+        }
+      },
+      "GetTenantUsageAsStaffResult": {
+        "type": "object",
+        "properties": {
+          "tenantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "usersActive": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "usersTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "projectsCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "scheduledPublicationsCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "lastActivityAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Throttled tenant last-activity timestamp (lags real activity by design).",
+            "format": "date-time"
+          },
+          "computedAt": {
+            "type": "string",
+            "description": "Freshness contract: the UTC instant this snapshot was computed at. The\nUI renders it next to the numbers so a stale payload never poses as\nfresh data (transparent-failure/honesty product rule).",
+            "format": "date-time"
           }
         }
       },
@@ -14105,6 +14244,14 @@
           }
         }
       },
+      "InvitationEffectiveStatus": {
+        "enum": [
+          "Pending",
+          "Accepted",
+          "Expired",
+          "Revoked"
+        ]
+      },
       "InvitationListItem": {
         "required": [
           "id",
@@ -14131,7 +14278,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/InvitationEffectiveStatus"
           },
           "expiresAt": {
             "type": "string",
@@ -14584,10 +14731,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "tenantId": {
             "type": [
@@ -14890,7 +15037,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/InvitationEffectiveStatus"
           },
           "expiresAt": {
             "type": "string",
@@ -15066,7 +15213,7 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -15106,7 +15253,7 @@
             }
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/InvitationEffectiveStatus"
           },
           "expiresAt": {
             "type": "string",
@@ -15130,7 +15277,7 @@
             ]
           },
           "accountLevel": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
       },
@@ -15188,10 +15335,10 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
       },
@@ -15229,7 +15376,7 @@
             "format": "uuid"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -15245,7 +15392,7 @@
             "format": "uuid"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -15290,10 +15437,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "tenantId": {
             "type": [
@@ -15475,6 +15622,7 @@
           "id",
           "name",
           "usersCount",
+          "projectsCount",
           "maxUsers",
           "status"
         ],
@@ -15498,13 +15646,18 @@
             "type": "integer",
             "format": "int32"
           },
+          "projectsCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
           "maxUsers": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           },
           "lastActivityAt": {
             "type": [
@@ -15529,7 +15682,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           }
         }
       },
@@ -15641,10 +15794,10 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "otherProfiles": {
             "type": "array",
@@ -15689,7 +15842,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           }
         }
       },
@@ -15756,6 +15909,13 @@
           }
         }
       },
+      "TenantStatus": {
+        "enum": [
+          "Pending",
+          "Active",
+          "Suspended"
+        ]
+      },
       "TenantSuspendedResult": {
         "required": [
           "tenantId",
@@ -15772,7 +15932,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           }
         }
       },
@@ -15835,10 +15995,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "createdAt": {
             "type": "string",
@@ -15890,7 +16050,7 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           },
           "createdAt": {
             "type": "string",
@@ -15936,10 +16096,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "tenantId": {
             "type": [
@@ -15992,12 +16152,19 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
+      },
+      "TenantUserStatus": {
+        "enum": [
+          "Active",
+          "Suspended",
+          "GloballySuspended"
+        ]
       },
       "UnassignStaffProfileUsersBody": {
         "required": [
@@ -16280,6 +16447,12 @@
             "$ref": "#/components/schemas/JsonElement"
           }
         }
+      },
+      "UserStatus": {
+        "enum": [
+          "Suspended",
+          "Active"
+        ]
       },
       "ValidationProblemDetails": {
         "type": "object",

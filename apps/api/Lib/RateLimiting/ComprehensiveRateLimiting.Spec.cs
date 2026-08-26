@@ -864,8 +864,15 @@ public sealed class ComprehensiveRateLimitingSpec
 					services.RemoveAll<
 						AnonymousAuthRateLimitSettings>();
 					services.RemoveAll<ApiRateLimitSettings>();
+					services.RemoveAll<IRateLimitCounterStore>();
 					services.AddSingleton(anonymousSettings);
 					services.AddSingleton(apiSettings);
+					// Fresh per-process counters so the long-window budgets in
+					// these tests are never shared with other hosts
+					// (pre-#953 semantics).
+					services.AddSingleton<IRateLimitCounterStore>(
+						new MemoryRateLimitCounterStore()
+					);
 					if (sessionService is not null) {
 						services.RemoveAll<ISessionService>();
 						services.AddSingleton(sessionService);

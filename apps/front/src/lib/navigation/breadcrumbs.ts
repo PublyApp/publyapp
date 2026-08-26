@@ -96,18 +96,6 @@ const rootCrumbForScope = (pathname: string): BreadcrumbRootItem => {
 		: { labelKey: 'nav-root-staff', path: '/staff' };
 };
 
-export type BreadcrumbTrail = {
-	root: BreadcrumbRootItem;
-	tail: readonly CrumbSpec[];
-	/**
-	 * The params of the match whose `crumbs` function produced `tail` — an
-	 * `entity` spec's own `query` needs the same params again at render time
-	 * (it resolves lazily, once per crumb, so the query only fires for the
-	 * crumb actually on screen).
-	 */
-	params: Record<string, string>;
-};
-
 /**
  * Walks from the deepest match upward for the first route that declares a
  * real tail (skipping `'shell'` escapes — pathless layouts, redirect-only
@@ -116,7 +104,7 @@ export type BreadcrumbTrail = {
  */
 export const deriveBreadcrumbTrail = (
 	matches: readonly MatchForBreadcrumbs[],
-): BreadcrumbTrail => {
+) => {
 	const deepestPathname = matches[matches.length - 1]?.pathname ?? '/';
 	const root = rootCrumbForScope(deepestPathname);
 

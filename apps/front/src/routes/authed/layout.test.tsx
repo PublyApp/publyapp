@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => ({
 	tokens: {} as ParsedSessionTokens,
 	location: {
 		pathname: '/staff/tenants',
-		search: {} as Record<string, unknown>,
+		search: {},
 	},
 }));
 

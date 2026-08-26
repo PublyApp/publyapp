@@ -127,7 +127,7 @@ public sealed class GetRedirectCode {
 		// Exactly 1 ACTIVE tenant - redirect directly
 		if (tenantsResult.ActiveCount == 1) {
 			var activeTenant = tenantsResult.Tenants.First(t =>
-				t.Status == Tenant.GetStatusDescription(TenantStatus.Active)
+				t.Status == TenantStatus.Active
 			);
 			if (logger.IsEnabled(LogLevel.Information)) {
 				logger.LogInformation(

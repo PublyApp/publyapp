@@ -13,7 +13,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public record StaffUserSuspendedResult {
 	public required Guid UserId { get; init; }
-	public required string Status { get; init; }
+	public required UserStatus Status { get; init; }
 }
 
 public sealed class SuspendStaffUser {
@@ -83,7 +83,7 @@ public sealed class SuspendStaffUser {
 
 		return TypedResults.Ok(new StaffUserSuspendedResult {
 			UserId = success.UserData.User.GetRequiredId(),
-			Status = User.GetStatusDescription(success.UserData.User.Status),
+			Status = success.UserData.User.Status,
 		});
 	}
 }

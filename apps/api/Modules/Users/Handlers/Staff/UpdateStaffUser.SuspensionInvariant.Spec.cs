@@ -71,7 +71,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 			.ReadFromJsonAsync<StaffUserSuspendedResult>();
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
-		result.Status.Should().Be("Suspended");
+		result.Status.Should().Be(UserStatus.Suspended);
 
 		await using (
 			var scope =
@@ -150,7 +150,7 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 			.ReadFromJsonAsync<StaffUserReactivatedResult>();
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
-		result.Status.Should().Be("Active");
+		result.Status.Should().Be(UserStatus.Active);
 
 		await using (
 			var scope =

@@ -7,6 +7,7 @@ import {
 	getIconColorPickerOption,
 	ICON_COLOR_PICKER_OPTIONS,
 } from '~/components/ui/icon-color-picker-options';
+import { ScrollArea } from '~/components/ui/scroll-area';
 import { SearchInput } from '~/components/ui/search-input';
 import { cn } from '~/lib/utils';
 
@@ -136,31 +137,36 @@ const IconColorPicker = ({
 								size="compact"
 								className="mt-2"
 							/>
-							<div className="mt-3 grid max-h-48 grid-cols-4 gap-2 overflow-y-auto p-0.5">
-								{filteredIconOptions.map((option) => {
-									const label = t(option.labelKey);
+							<ScrollArea
+								scrollAreaLabel={t('common:scroll-area-label')}
+								className="mt-3 max-h-48"
+							>
+								<div className="grid grid-cols-4 gap-2 p-0.5">
+									{filteredIconOptions.map((option) => {
+										const label = t(option.labelKey);
 
-									return (
-										<button
-											key={option.name}
-											type="button"
-											aria-label={label}
-											aria-pressed={activeIconOption.name === option.name}
-											title={label}
-											className={cn(
-												'flex h-10 items-center justify-center rounded-[var(--publy-radius-input)] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
-												activeIconOption.name === option.name &&
-													'bg-muted text-foreground',
-											)}
-											onClick={() =>
-												onChange({ icon: option.name, tone: activeTone })
-											}
-										>
-											<option.Icon aria-hidden="true" className="size-5" />
-										</button>
-									);
-								})}
-							</div>
+										return (
+											<button
+												key={option.name}
+												type="button"
+												aria-label={label}
+												aria-pressed={activeIconOption.name === option.name}
+												title={label}
+												className={cn(
+													'flex h-10 items-center justify-center rounded-[var(--publy-radius-input)] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring',
+													activeIconOption.name === option.name &&
+														'bg-muted text-foreground',
+												)}
+												onClick={() =>
+													onChange({ icon: option.name, tone: activeTone })
+												}
+											>
+												<option.Icon aria-hidden="true" className="size-5" />
+											</button>
+										);
+									})}
+								</div>
+							</ScrollArea>
 						</section>
 					</Popover.Popup>
 				</Popover.Positioner>

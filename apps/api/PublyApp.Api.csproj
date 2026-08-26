@@ -40,6 +40,12 @@
 		<PackageReference Include="Serilog.Sinks.Async" />
 		<PackageReference Include="Serilog.Sinks.Console" />
 		<PackageReference Include="Serilog.Sinks.File" />
+		<!-- Issue #255: traces + metrics only. No logging exporter by design (see OpenTelemetryConfigExtensions.cs). -->
+		<PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+		<PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+		<PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
 		<PackageReference Include="NetEscapades.AspNetCore.SecurityHeaders" />
 		<PackageReference Include="Polly" />
 		<!-- for exporting openapi documents to json file at build time -->

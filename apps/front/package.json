@@ -51,6 +51,7 @@
 		"react-dom": "19.2.8",
 		"react-hook-form": "7.85.0",
 		"react-i18next": "17.0.12",
+		"simplebar-core": "1.3.2",
 		"sonner": "2.0.8",
 		"srvx": "0.11.16",
 		"tailwind-merge": "3.6.0",

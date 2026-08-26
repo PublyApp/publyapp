@@ -595,6 +595,12 @@
 	"payment-method": "Payment method",
 	"billing-history": "Billing history",
 	"usage": "Usage",
+	"usage-as-of": "Computed {{datetime}}",
+	"usage-last-activity": "Last activity",
+	"usage-users-active-of-total": "{{active}} of {{total}} members",
+	"usage-no-activity-yet": "No activity recorded yet",
+	"projects": "Projects",
+	"scheduled-publications": "Scheduled publications",
 	"session-settings": "Session settings",
 	"ip-restrictions": "IP restrictions",
 	"available-integrations": "Available integrations",
@@ -1011,6 +1017,12 @@
 	"page-n": "Page {{page}}",
 	"previous-page": "Previous page",
 	"next-page": "Next page",
+	"range-of-total_one": "{{start}}–{{end}} of {{count}} item",
+	"range-of-total_other": "{{start}}–{{end}} of {{count}} items",
+	"range-of-counted_one": "{{start}}–{{end}}",
+	"range-of-counted_other": "{{start}}–{{end}}",
+	"range-no-total_one": "No items",
+	"range-no-total_other": "No items",
 	"row-selection-column": "Row selection",
 	"select-all-rows": "Select all rows",
 	"select-row-named": "Select {{name}}",
@@ -1287,5 +1299,6 @@
 	"error-loading-data": "Error loading data",
 	"not-found": "Not found",
 	"leave": "Leave",
-	"stay": "Stay"
+	"stay": "Stay",
+	"scroll-area-label": "Scrollable content"
 }

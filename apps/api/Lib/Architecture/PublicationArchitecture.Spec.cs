@@ -60,6 +60,7 @@ public sealed partial class PublicationArchitectureSpec {
 		"Modules/Publishing/Jobs/PublishPublicationJobHandler.Spec.cs",
 		"Modules/Publishing/Lib/PostStatusDerivation.Spec.cs",
 		"Modules/SocialAccounts/Handlers/Tenant/SocialAccountPublicationLifecycle.Spec.cs",
+		"Modules/Tenants/Services/TenantUsageService.Spec.cs",
 	};
 
 	private const string PublicationFullNamespace =

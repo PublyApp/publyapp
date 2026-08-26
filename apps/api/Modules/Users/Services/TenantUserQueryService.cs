@@ -59,8 +59,8 @@ public record TenantUserExportItem {
 	public required string Email { get; init; }
 	public string? FirstName { get; init; }
 	public string? LastName { get; init; }
-	public required string Level { get; init; }
-	public required string Status { get; init; }
+	public required AccountLevel Level { get; init; }
+	public required TenantUserStatus Status { get; init; }
 	public required DateTime CreatedAt { get; init; }
 }
 
@@ -536,10 +536,8 @@ public class TenantUserQueryService : ITenantUserQueryService {
 				Email = ua.User.Email,
 				FirstName = ua.User.FirstName,
 				LastName = ua.User.LastName,
-				Level = UserAccount.GetLevelDescription(ua.Level),
-				Status = UserAccount.GetStatusDescription(
-					UserAccount.GetTenantStatus(ua.User.Status, ua.Status)
-				),
+				Level = ua.Level,
+				Status = UserAccount.GetTenantStatus(ua.User.Status, ua.Status),
 				CreatedAt = ua.User.CreatedAt,
 			}
 		).Take(args.Limit).ToListAsync(cancellationToken);

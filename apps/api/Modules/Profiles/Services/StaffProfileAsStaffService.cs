@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
@@ -8,6 +9,7 @@ using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Profiles.Jobs;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Profiles.Services;
@@ -71,8 +73,7 @@ public abstract record CreateStaffProfileResult {
 		int PermissionsAssigned,
 		int UsersAssigned,
 		int InvitationsSent,
-		List<(string Email, string Token)> InvitationTokens,
-		List<string> EmailsToNotify
+		List<(string Email, string Token)> InvitationTokens
 	) : CreateStaffProfileResult;
 
 	/// <summary>
@@ -134,14 +135,17 @@ public interface IStaffProfileAsStaffService {
 public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 	private readonly AppDbContext _dbContext;
 	private readonly ILogger<StaffProfileAsStaffService> _logger;
+	private readonly IJobEnqueuer _jobEnqueuer;
 	private readonly IInvitationEmailOutboxSignal _outboxSignal;
 	public StaffProfileAsStaffService(
 		AppDbContext dbContext,
 		ILogger<StaffProfileAsStaffService> logger,
+		IJobEnqueuer jobEnqueuer,
 		IInvitationEmailOutboxSignal outboxSignal
 	) {
 		_dbContext = dbContext;
 		_logger = logger;
+		_jobEnqueuer = jobEnqueuer;
 		_outboxSignal = outboxSignal;
 	}
 
@@ -488,7 +492,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 			var newUserAccountProfiles = new List<UserAccountProfile>();
 			var newLinksCreated = 0;
 			var existingLinksSkipped = 0;
-			var emailsToNotify = new List<string>();
+			var userIdsToNotify = new List<Guid>();
 
 			foreach (var user in existingUsers) {
 				var userId = user.GetRequiredId();
@@ -499,7 +503,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 					// User just got a new staff account - get it from our map
 					var newAccount = newUserAccountsMap[userId];
 					accountId = newAccount.GetRequiredId();
-					emailsToNotify.Add(user.Email);
+					userIdsToNotify.Add(userId);
 				} else {
 					// User has existing staff account
 					var existingAccount = existingStaffAccounts
@@ -512,7 +516,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 						continue;
 					}
 
-					emailsToNotify.Add(user.Email);
+					userIdsToNotify.Add(userId);
 				}
 
 				// Create UserAccountProfile link
@@ -588,6 +592,19 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 					.AddRangeAsync(newInvitations, cancellationToken);
 			}
 
+			// #291: one durable joined-staff notification job per EXISTING-user
+			// recipient, enqueued INSIDE the domain transaction: a rolled-back profile
+			// creation takes its notifications with it, and a committed one always
+			// carries durable delivery rows — properties the request-scoped Task.Run
+			// this replaced never had.
+			foreach (var notifyUserId in userIdsToNotify) {
+				await _jobEnqueuer.EnqueueAsync(
+					StaffProfileEmailJobs.StaffJoinedNotificationV1,
+					new StaffJoinedNotificationEmailPayload { UserId = notifyUserId },
+					cancellationToken: cancellationToken
+				);
+			}
+
 			// Save all changes
 			await _dbContext.SaveChangesAsync(cancellationToken);
 			await transaction.CommitAsync(cancellationToken);
@@ -611,8 +628,7 @@ public sealed class StaffProfileAsStaffService : IStaffProfileAsStaffService {
 				permissions.Count,
 				newLinksCreated,
 				invitationTokens.Count,
-				invitationTokens,
-				emailsToNotify
+				invitationTokens
 			);
 		} catch (Exception ex) {
 			await transaction.RollbackAsync(cancellationToken);

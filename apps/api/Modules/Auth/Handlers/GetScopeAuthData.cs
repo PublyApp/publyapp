@@ -46,7 +46,7 @@ public class GetScopeAuthDataTenant {
 	public string Name { get; set; } = string.Empty;
 	public string Code { get; set; } = string.Empty;
 	public List<ProfileItem> Profiles { get; set; } = [];
-	public string AccountLevel { get; set; } = string.Empty;
+	public AccountLevel AccountLevel { get; set; }
 	public bool IsAdmin { get; set; } = false;
 	public List<string> Permissions { get; set; } = [];
 }
@@ -54,7 +54,7 @@ public class GetScopeAuthDataTenant {
 public class GetScopeAuthDataStaff {
 	public string Code { get; set; } = "staff";
 	public List<ProfileItem> Profiles { get; set; } = [];
-	public string AccountLevel { get; set; } = string.Empty;
+	public AccountLevel AccountLevel { get; set; }
 	public bool IsAdmin { get; set; } = false;
 	public List<string> Permissions { get; set; } = [];
 }
@@ -126,7 +126,7 @@ public sealed class GetScopeAuthData {
 				new GetScopeAuthDataStaff {
 					Code = "staff",
 					Profiles = staffProfileItems,
-					AccountLevel = UserAccount.GetLevelDescription(staffAccount?.Level ?? AccountLevel.User),
+					AccountLevel = staffAccount?.Level ?? AccountLevel.User,
 					IsAdmin = staffAccount?.Level == AccountLevel.Admin,
 					Permissions = staffPermissions
 				}
@@ -219,7 +219,7 @@ public sealed class GetScopeAuthData {
 				Name = tenant.Name,
 				Code = tenant.Code,
 				Profiles = tenantProfileItems,
-				AccountLevel = UserAccount.GetLevelDescription(tenantAccount?.Level ?? AccountLevel.User),
+				AccountLevel = tenantAccount?.Level ?? AccountLevel.User,
 				IsAdmin = tenantAccount?.Level == AccountLevel.Admin,
 				Permissions = tenantPermissions
 			}

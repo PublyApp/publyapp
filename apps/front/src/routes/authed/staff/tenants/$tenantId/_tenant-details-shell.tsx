@@ -84,7 +84,8 @@ type TenantSectionTo =
 	| '/staff/tenants/$tenantId'
 	| '/staff/tenants/$tenantId/users'
 	| '/staff/tenants/$tenantId/profiles'
-	| '/staff/tenants/$tenantId/invitations';
+	| '/staff/tenants/$tenantId/invitations'
+	| '/staff/tenants/$tenantId/usage';
 
 const SectionNavLink = ({
 	label,
@@ -259,7 +260,7 @@ export const TenantDetailsPageShell = ({
 	bodyScroll = 'page',
 }: {
 	tenant: StaffTenantDetails;
-	activeSection: 'basics' | 'profiles' | 'users' | 'invitations';
+	activeSection: 'basics' | 'profiles' | 'users' | 'invitations' | 'usage';
 	testId: string;
 	children: ReactNode;
 	/**
@@ -379,6 +380,12 @@ export const TenantDetailsPageShell = ({
 					to="/staff/tenants/$tenantId/users"
 					tenantId={tenant.id}
 					isActive={activeSection === 'users'}
+				/>
+				<SectionNavLink
+					label={t('usage')}
+					to="/staff/tenants/$tenantId/usage"
+					tenantId={tenant.id}
+					isActive={activeSection === 'usage'}
 				/>
 			</nav>
 

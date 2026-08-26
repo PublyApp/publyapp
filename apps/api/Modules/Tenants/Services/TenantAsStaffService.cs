@@ -21,8 +21,9 @@ public class TenantAsStaffListItem {
 	public required string Name { get; init; }
 	public string? LogoUrl { get; init; }
 	public required int UsersCount { get; init; }
+	public required int ProjectsCount { get; init; }
 	public required int MaxUsers { get; init; }
-	public required string Status { get; init; }
+	public required TenantStatus Status { get; init; }
 	public DateTime? LastActivityAt { get; init; }
 }
 
@@ -462,6 +463,21 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			usersCountDict[row.TenantId.Value] = row.Count;
 		}
 
+		// Same page-bounded grouping as users counts: one grouped query over
+		// only this page's tenant ids — never a whole-table scan (#168).
+		var projectsCounts = await (
+			from project in _dbContext.Project.AsNoTracking()
+			where !project.IsDeleted
+				&& tenantIds.Contains(project.TenantId)
+			group project by project.TenantId into g
+			select new { TenantId = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+
+		var projectsCountDict = new Dictionary<Guid, int>();
+		foreach (var row in projectsCounts) {
+			projectsCountDict[row.TenantId] = row.Count;
+		}
+
 		// Map to flattened API DTO
 		var items = tenants.Select(t => {
 			var tenantId = t.GetRequiredId();
@@ -470,8 +486,9 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				Name = t.Name,
 				LogoUrl = t.LogoUrl,
 				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
+				ProjectsCount = projectsCountDict.GetValueOrDefault(tenantId, 0),
 				MaxUsers = t.MaxUsers,
-				Status = Tenant.GetStatusDescription(t.Status),
+				Status = t.Status,
 				LastActivityAt = t.LastActivityAt,
 			};
 		}).ToList();

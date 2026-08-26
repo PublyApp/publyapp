@@ -1,10 +1,8 @@
-import {
-	ACCOUNT_LEVEL_ENUM,
-	DEFAULT_MAX_USER_PER_TENANT,
-} from '@org/shared-ts/lib/constants';
+import type { AccountLevel } from '@org/client-ts/models/index';
+import { AccountLevelObject } from '@org/client-ts/models/index';
+import { DEFAULT_MAX_USER_PER_TENANT } from '@org/shared-ts/lib/constants';
 
-export type NewTenantAccountLevel =
-	(typeof ACCOUNT_LEVEL_ENUM)[keyof typeof ACCOUNT_LEVEL_ENUM];
+export type NewTenantAccountLevel = AccountLevel;
 
 export type OwnerSlotValues = {
 	email: string;
@@ -73,6 +71,6 @@ export const isCreateTenantFormField = (
 	CREATE_TENANT_API_FORM_FIELDS.has(field as keyof TenantCreateFormValues);
 
 export const USER_ROLE_OPTIONS = [
-	ACCOUNT_LEVEL_ENUM.ADMIN,
-	ACCOUNT_LEVEL_ENUM.USER,
+	AccountLevelObject.Admin,
+	AccountLevelObject.User,
 ] as const;

@@ -417,28 +417,6 @@ export type LanguageDetectionMethod = ValueOf<
 export const LANGUAGE_DETECTION_METHOD: LanguageDetectionMethod =
 	LANGUAGE_DETECTION_METHOD_ENUM.COOKIE;
 
-export const ACCOUNT_LEVEL_ENUM = {
-	ADMIN: 'Admin',
-	USER: 'User',
-} as const;
-
-export type AccountLevel = ValueOf<typeof ACCOUNT_LEVEL_ENUM>;
-
-export const USER_STATUS_ENUM = {
-	SUSPENDED: 'Suspended',
-	ACTIVE: 'Active',
-} as const;
-
-export type UserStatus = ValueOf<typeof USER_STATUS_ENUM>;
-
-export const TENANT_STATUS_ENUM = {
-	PENDING: 'Pending',
-	ACTIVE: 'Active',
-	SUSPENDED: 'Suspended',
-} as const;
-
-export type TenantStatus = ValueOf<typeof TENANT_STATUS_ENUM>;
-
 export const voidFunction = () => {};
 
 export const I18N_NAMESPACES = {

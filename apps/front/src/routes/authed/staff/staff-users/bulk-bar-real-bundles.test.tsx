@@ -1,3 +1,17 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { i18n as I18nInstance } from 'i18next';
+import { createElement } from 'react';
+import { I18nextProvider } from 'react-i18next';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import resourceEN from '~/i18n/locales/en/common.json';
+import resourceFR from '~/i18n/locales/fr/common.json';
+import {
+	createI18nFromResources,
+	type I18nResources,
+	type SupportedLanguage,
+} from '~/lib/i18n.shared';
+
 /**
  * #1400 — the bulk-actions trigger must speak the app's REAL locale bundles.
  *
@@ -23,19 +37,10 @@
 /**
  * @vitest-environment jsdom
  */
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { i18n as I18nInstance } from 'i18next';
-import { createElement } from 'react';
-import { I18nextProvider } from 'react-i18next';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import resourceEN from '~/i18n/locales/en/common.json';
-import resourceFR from '~/i18n/locales/fr/common.json';
 import {
-	createI18nFromResources,
-	type I18nResources,
-	type SupportedLanguage,
-} from '~/lib/i18n.shared';
+	AccountLevelObject,
+	UserStatusObject,
+} from '@org/client-ts/models/index';
 
 import { StaffUsersListBulkActions } from './_list-bulk-actions';
 
@@ -96,8 +101,8 @@ const staffUserRow = {
 	firstName: 'Alex',
 	lastName: 'User',
 	avatarUrl: null,
-	level: 'Admin',
-	status: 'Active',
+	level: AccountLevelObject.Admin,
+	status: UserStatusObject.Active,
 	displayName: 'Alex User',
 };
 

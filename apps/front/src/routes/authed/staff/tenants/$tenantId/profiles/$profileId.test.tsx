@@ -1,3 +1,4 @@
+import { QueryClient } from '@tanstack/react-query';
 /**
  * @vitest-environment jsdom
  */
@@ -13,9 +14,11 @@ import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
+// `edit` is the only search param this suite's blocker args ever carry;
+// keeping it named preserves known-value evidence under no-known-value-widening.
 type BlockerLocationSnapshot = {
 	pathname: string;
-	search: Record<string, unknown>;
+	search: { edit?: number };
 };
 type BlockerArgs = {
 	current: BlockerLocationSnapshot;
@@ -58,7 +61,7 @@ const sectionSwitchBlockerArgs: BlockerArgs = {
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	pathname: '',
 	/** Rendered in place of the router's `<Outlet />`; the suite swaps in a
 	 * probe that consumes the REAL details context the layout publishes. */
@@ -79,7 +82,12 @@ const mocks = vi.hoisted(() => ({
 	useDeleteStaffTenantProfileMutation: vi.fn(),
 	useAssignStaffTenantProfilePermissionMutation: vi.fn(),
 	useUnassignStaffTenantProfilePermissionMutation: vi.fn(),
-	shouldLogoutForFailure: vi.fn((_: unknown) => false),
+	// #851: the awaited route loader resolves entities through these two
+	// fetchers (the real query-options exports, re-implemented by the mock
+	// factory below as thin wrappers around these spies).
+	staffTenantDetailsFetcher: vi.fn(),
+	staffTenantProfileDetailsFetcher: vi.fn(),
+	shouldLogoutForFailure: vi.fn(() => false),
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,
@@ -201,6 +209,18 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 		queryFn: async () => undefined,
 	}),
 	selectStaffTenantCrumbName: () => undefined,
+	// #851: the awaited route loader resolves the tenant through these
+	// factory methods (same call contract as the real module).
+	staffTenantDetailsQueryOptions: {
+		queryKey: (variables: { tenantId: string }) => [
+			'staff',
+			'staff-tenants',
+			'details',
+			variables.tenantId,
+		],
+		fetcher: (variables: { tenantId: string }) =>
+			mocks.staffTenantDetailsFetcher(variables),
+	},
 }));
 
 vi.mock('~/lib/query/staff-tenant-profiles', () => ({
@@ -284,6 +304,20 @@ vi.mock('~/lib/query/staff-tenant-profiles', () => ({
 	},
 	useStaffTenantProfileDetailsQuery: mocks.useStaffTenantProfileDetailsQuery,
 	toStaffTenantProfileDetails: mocks.toStaffTenantProfileDetails,
+	// #851: loader-side ensureQueryData resolves through this option
+	// factory (same call contract as the real module).
+	staffTenantProfileDetailsQueryOptions: {
+		queryKey: (variables: { tenantId: string; profileId: string }) => [
+			'staff',
+			'staff-tenants',
+			'profiles',
+			'detail',
+			variables.tenantId,
+			variables.profileId,
+		],
+		fetcher: (variables: { tenantId: string; profileId: string }) =>
+			mocks.staffTenantProfileDetailsFetcher(variables),
+	},
 	useStaffTenantProfilePermissionKeysQuery:
 		mocks.useStaffTenantProfilePermissionKeysQuery,
 	getStaffTenantProfilePermissionKeysCacheSnapshot: () => ({
@@ -607,6 +641,16 @@ describe('staff tenant profile details route', () => {
 				},
 			}),
 		);
+		// #851: loader-side fetchers resolve to raw wire payloads; the page
+		// body still maps them through the mocked toStaffTenant* functions.
+		mocks.staffTenantDetailsFetcher.mockResolvedValue({
+			id: '11111111-1111-1111-1111-111111111111',
+		});
+		mocks.staffTenantProfileDetailsFetcher.mockResolvedValue({
+			profile: {
+				id: '22222222-2222-2222-2222-222222222222',
+			},
+		});
 		mocks.toStaffTenantProfileDetails.mockReturnValue({
 			id: '22222222-2222-2222-2222-222222222222',
 			name: 'Approvers',
@@ -1193,9 +1237,7 @@ describe('staff tenant profile details route', () => {
 		mocks.useStaffTenantProfileMembersQuery.mockReturnValue(
 			buildQueryResult({ error: membersError, isError: true }),
 		);
-		mocks.shouldLogoutForFailure.mockImplementation(
-			(error: unknown) => error === membersError,
-		);
+		mocks.shouldLogoutForFailure.mockImplementation(() => true);
 
 		renderPage();
 
@@ -1378,5 +1420,53 @@ describe('staff tenant profile details route', () => {
 				action: 'PUSH',
 			}),
 		).toBe(false);
+	});
+
+	// #851: the route loader awaits both entity queries through
+	// context.queryClient.ensureQueryData so the first paint already has the
+	// tenant and profile names for a full breadcrumb trail. These specs pin
+	// the loader wiring on Route.options directly (this suite mounts the
+	// component without a router, so the loader itself stays inert here).
+	describe('#851 awaited route loader', () => {
+		const loaderArgs = {
+			params: {
+				tenantId: '11111111-1111-1111-1111-111111111111',
+				profileId: '22222222-2222-2222-2222-222222222222',
+			},
+			context: { queryClient: new QueryClient() },
+		};
+
+		test('awaits tenant and profile queries through ensureQueryData', async () => {
+			const loader = Route.options.loader as
+				| ((args: {
+						params: { tenantId: string; profileId: string };
+						context: { queryClient: QueryClient };
+				  }) => Promise<void>)
+				| undefined;
+			if (!loader) {
+				throw new Error('expected the #851 awaited route loader');
+			}
+
+			await loader(loaderArgs);
+
+			expect(
+				mocks.staffTenantProfileDetailsFetcher.mock.calls.length,
+			).toBeGreaterThan(0);
+			expect(mocks.staffTenantDetailsFetcher).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tenantId: '11111111-1111-1111-1111-111111111111',
+				}),
+			);
+			expect(mocks.staffTenantProfileDetailsFetcher).toHaveBeenCalledWith(
+				expect.objectContaining({
+					tenantId: '11111111-1111-1111-1111-111111111111',
+					profileId: '22222222-2222-2222-2222-222222222222',
+				}),
+			);
+		});
+
+		test('declares the pending skeleton as its pendingComponent', () => {
+			expect(Route.options.pendingComponent).toBeDefined();
+		});
 	});
 });

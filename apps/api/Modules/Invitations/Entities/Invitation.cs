@@ -316,6 +316,7 @@ public enum InvitationStatus {
 	Revoked
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<InvitationEffectiveStatus>))]
 public enum InvitationEffectiveStatus {
 	Pending,
 	Accepted,

@@ -130,11 +130,14 @@ vi.mock('react-i18next', () => ({
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 
+import type { UserStatus } from '@org/client-ts/models/index';
+import { AccountLevelObject } from '@org/client-ts/models/index';
+
 import { StaffUsersListBulkActions } from './_list-bulk-actions';
 
 const row = (
 	id: string,
-	status: string | null,
+	status: UserStatus | null,
 	displayName = `User ${id.slice(0, 4)}`,
 ): StaffUserRow => ({
 	id,
@@ -142,7 +145,7 @@ const row = (
 	firstName: displayName.split(' ')[0] ?? null,
 	lastName: displayName.split(' ')[1] ?? null,
 	avatarUrl: null,
-	level: 'User',
+	level: AccountLevelObject.User,
 	status,
 	displayName,
 });

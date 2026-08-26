@@ -222,6 +222,14 @@ const buildTenantColumns = (
 		cell: ({ getValue }) => String(getValue<number>()),
 	},
 	{
+		id: 'projects_count',
+		header: t('projects'),
+		accessorKey: 'projectsCount',
+		enableSorting: false,
+		meta: { width: '92px', hideBelow: 1024 },
+		cell: ({ getValue }) => String(getValue<number>()),
+	},
+	{
 		id: 'max_users',
 		header: t('max-users-column'),
 		accessorKey: 'maxUsers',
