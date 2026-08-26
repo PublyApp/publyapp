@@ -40,13 +40,19 @@ The 33 production `lib/query` sites, one per module:
 | `staff-tenant-profiles.ts` | create/update/delete/bulk-delete/assign+unassign perm/user | `invalidateStaffTenantProfiles` = `scopedKey('staff', ['staff-tenants','profiles'])` | Y |
 | `social-accounts.ts` | connect/reconnect/disconnect/save-projects | Each `onSuccess` -> `invalidateSocialAccounts`, which reuses `socialAccountsQueryOptions.queryKey({ tenantId })` | Y |
 | `tenant-posts.ts` | save/delete | **Fixed in round 1.** `invalidateTenantPosts(qc, tenantId)` awaits BOTH the list family and the details family `[...,'detail',tenantId,{postId}]`; pre-fix only covered the list family, leaving the post detail stale (the "line" half of the rule). | Y (after fix) |
-| `tenant-post-images.ts` | attach/remove/alt | `useInvalidatePostImageCaches` -> `scopedKey('tenant', ['tenant-posts'])` (deliberately wide prefix, documented) | Y |
+| `tenant-post-images.ts` | attach/remove/alt | **No `onSuccess` on any of the three mutations** (`silentSuccess: true`); the picker call sites (`_post-image-picker.tsx`, `_create-post-drawer.tsx`) call the exported `useInvalidatePostImageCaches` -> `scopedKey('tenant', ['tenant-posts'])` (deliberately wide prefix). The helper is NOT invoked by the mutations themselves. | Y* |
 | `tenant-account-profile.ts` | update | `onSuccess` + helper -> `['tenant','account-profile',tenantId]` (self-bearing detail; no derived list) | Y* |
 | `tenant-settings-general.ts` | update | `onSuccess` + helper -> `['tenant','tenant-settings-general',tenantId]` | Y* |
 
-\* These two modules mutate a detail entity with no derived list/counter
-projection, so the rule requires no list invalidation. The guard treats them as
-"no-list mutation module" (documented in the guard registry).
+\* These modules mutate a detail entity with no derived list/counter
+projection, so the rule requires no list invalidation (`tenant-account-profile`,
+`tenant-settings-general`). `tenant-post-images` is also marked Y\*: its three
+mutations carry `silentSuccess: true` and NO `onSuccess`, so the post-image
+cache invalidation is wired at the picker **call site** (the exported
+`useInvalidatePostImageCaches` helper), not inside the mutation — the "Y" means
+the rule's target is still reached, not that the mutation self-invalidates. The
+guard treats `tenant-post-images` as a `no-list` mutation module (documented in
+its REGISTRY entry).
 
 ## Production sites without an associated mutation (out of rule scope)
 
