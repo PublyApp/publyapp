@@ -332,7 +332,8 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 		expect(railItemIds).toEqual(['dashboard', 'tenants', 'staff']);
 	});
 
-	test('the tenant scope rail renders the four workspace modules', () => {
+	test('the tenant scope rail renders the shipped workspace modules', () => {
+		// #818 F8: Organizations is hidden from the rail until its API exists.
 		const { container } = render(
 			<AppShell mode="authed" pathname="/tenant/account">
 				content
@@ -343,12 +344,7 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 			container.querySelectorAll('[data-rail-item]'),
 		).map((el) => el.getAttribute('data-rail-item'));
 
-		expect(railItemIds).toEqual([
-			'account',
-			'settings',
-			'posts',
-			'organizations',
-		]);
+		expect(railItemIds).toEqual(['account', 'settings', 'posts']);
 	});
 
 	test('no secondary-nav item ever renders a count badge', () => {
