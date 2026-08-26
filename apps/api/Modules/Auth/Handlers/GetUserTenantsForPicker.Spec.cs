@@ -523,6 +523,70 @@ public sealed class GetUserTenantsForPickerSpec
 		return email;
 	}
 
+	// #258 round 2, the mixed arm: a live membership AND a deleted-tenant
+	// membership at once. The picker must still list the live tenant AND flag
+	// HasDeletedTenants — pins that the flag counts ONLY deleted-tenant
+	// memberships, not all memberships (a count-all implementation would pass
+	// the two empty arms above while hiding a deleted organization here).
+	[Fact]
+	public async Task ItShouldFlagDeletedTenantsWhileStillListingLiveTenantsWhenOnlySomeWereDeleted() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var (email, tenantIds) =
+			await SeedUserWithSuspendedTenantsAsync(staffToken, 1);
+
+		try {
+			// Second, LIVE membership on a seeded shared tenant.
+			await using var scope =
+				_fixture.Factory.Services.CreateAsyncScope();
+			var dbContext = scope.ServiceProvider
+				.GetRequiredService<AppDbContext>();
+			var acme = await dbContext.Tenant.FirstAsync(t =>
+				t.Name == SeedConstants.Tenants.AcmeName);
+			var user = await dbContext.User.FirstAsync(u => u.Email == email);
+			await dbContext.UserAccount.AddAsync(
+				UserAccount.CreateTenantAccount(
+					user.GetRequiredId(),
+					acme.GetRequiredId(),
+					AccountLevel.User
+				)
+			);
+			await dbContext.SaveChangesAsync();
+
+			var token = await _authClient.LoginAsync(
+				email,
+				TestConstants.SeedPassword
+			);
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				Routes.Auth.GetUserTenantsForPicker
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<PickerResponse>();
+			result.Should().NotBeNull();
+			Assert.NotNull(result);
+			// The live tenant is listed and counted…
+			result.TotalCount.Should().Be(1);
+			result.ActiveCount.Should().Be(1);
+			result.Tenants.Should().ContainSingle();
+			// …while the deleted-tenant membership is flagged separately.
+			result.HasDeletedTenants.Should().BeTrue();
+
+			// Sanity: the deleted tenant itself never leaks into the list.
+			result.Tenants.Should().NotContain(t =>
+				t.Id == tenantIds[0]);
+		} finally {
+			await DeleteSeededPickerUserAsync(email);
+		}
+	}
+
 	private async Task DeleteSeededPickerUserAsync(string email) {
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
