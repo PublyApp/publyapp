@@ -119,7 +119,8 @@ Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-d
 ## Component Files Export Components Only (#1417)
 
 A component file must not export anything that is not a component: the react-doctor
-`only-export-components` rule (enabled in `apps/front/doctor.config.json`) fails on any such
+`only-export-components` rule (enforced tree-wide since #1423 removed the last
+`doctor.config.json` override) fails on any such
 export because it breaks Fast Refresh state preservation. The pattern, decided in
 [#1417](https://github.com/PublyApp/publyapp/issues/1417) (part of #1291):
 

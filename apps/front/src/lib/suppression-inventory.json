@@ -56,17 +56,17 @@
 	},
 	{
 		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId.tsx",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-org-card.tsx",
 		"reason": "legal name is a documented OPTIONAL field — a tenant without a registered legal name has none, this is not fabricated identity data"
 	},
 	{
 		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId.tsx",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-org-card.tsx",
 		"reason": "relative-time \"never active\" fallback, not a fabricated identity"
 	},
 	{
 		"convention": "data-honesty-ignore",
-		"file": "src/routes/authed/staff/tenants/$tenantId.tsx",
+		"file": "src/routes/authed/staff/tenants/$tenantId/_tenant-org-card.tsx",
 		"reason": "tenant code is a documented OPTIONAL field — a tenant without an assigned workspace slug has none, this is not fabricated identity data"
 	},
 	{
