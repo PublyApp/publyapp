@@ -106,7 +106,8 @@ export const createCSPDirectives = ({
 	// Convert to Helmet-compatible format: kebab-case directive names rebuilt
 	// mutation-free via fromEntries, so no open accumulator discards the base
 	// literal's type evidence (no-known-value-widening).
-	return Object.fromEntries(
+	// Explicit Helmet contract annotation restored after the round-1 review.
+	const result: HelmetCSPDirectives = Object.fromEntries(
 		entries(baseDirectives).flatMap(([key, value]): [string, string[]][] => {
 			if (value === undefined) return [];
 
@@ -121,6 +122,8 @@ export const createCSPDirectives = ({
 			return [];
 		}),
 	);
+
+	return result;
 };
 
 export const directivesToString = (directives: CSPDirectives): string => {
