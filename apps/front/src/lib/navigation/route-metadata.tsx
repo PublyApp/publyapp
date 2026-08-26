@@ -22,7 +22,7 @@ export type ShellScope = 'staff' | 'tenant';
 /** Every literal here must be a real, registered route — no dead links. */
 export type AppRoutePath = FileRouteTypes['to'];
 
-export type SecondaryPanelItemSearch = {
+type SecondaryPanelItemSearch = {
 	status?: 'pending' | 'active' | 'suspended';
 };
 
@@ -40,7 +40,7 @@ export type SecondaryPanelItem = {
 	matchExact?: boolean;
 };
 
-export type RouteId =
+type RouteId =
 	| 'dashboard'
 	| 'tenants'
 	| 'staff'
@@ -334,9 +334,7 @@ export function getRailItemsForPath(
 	return filterRailItemsByPermissions(items, allowed);
 }
 
-export function getActiveAppRoute(
-	pathname: string,
-): AppRouteMetadata | undefined {
+function getActiveAppRoute(pathname: string): AppRouteMetadata | undefined {
 	const scope = getShellScope(pathname);
 	if (!scope) {
 		return undefined;

@@ -17,5 +17,3 @@ export const AuthedLayout = ({
 		</AppShell>
 	);
 };
-
-export default AuthedLayout;

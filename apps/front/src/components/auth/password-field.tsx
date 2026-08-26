@@ -65,5 +65,3 @@ export const PasswordField = ({
 		</div>
 	);
 };
-
-export default PasswordField;

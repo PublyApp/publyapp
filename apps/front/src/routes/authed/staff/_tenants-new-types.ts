@@ -49,9 +49,7 @@ export const DEFAULT_VALUES: TenantCreateFormValues = {
 	notes: '',
 };
 
-export const CREATE_TENANT_API_FORM_FIELDS = new Set<
-	keyof TenantCreateFormValues
->([
+const CREATE_TENANT_API_FORM_FIELDS = new Set<keyof TenantCreateFormValues>([
 	'name',
 	'code',
 	'maxUsers',

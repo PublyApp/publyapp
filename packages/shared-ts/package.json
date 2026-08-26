@@ -17,11 +17,9 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"dayjs": "^1.11.23",
 		"i18next": "^26.3.6",
 		"lodash": "^4.17.21",
 		"ms": "^2.1.3",
-		"nanoid": "^5.1.16",
 		"posthog-js": "1.418.5",
 		"posthog-node": "5.49.1",
 		"winston": "^3.19.0",
@@ -32,7 +30,6 @@
 	"devDependencies": {
 		"@types/lodash": "^4.17.25",
 		"@types/ms": "^0.7.34",
-		"tsconfig": "workspace:*",
 		"vitest": "4.1.11"
 	}
 }

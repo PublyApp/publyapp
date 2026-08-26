@@ -37,7 +37,7 @@ import type { ESTree } from '@oxlint/plugins';
  *   yields the peeled `left` AND `right`. A callee is an immediate
  *   invocation when ANY candidate is a function literal.
  */
-export const unwrapCallee = (node: ESTree.Expression): ESTree.Expression[] => {
+const unwrapCallee = (node: ESTree.Expression): ESTree.Expression[] => {
 	let current: ESTree.Expression = node;
 	for (;;) {
 		switch (current.type) {
@@ -94,7 +94,7 @@ const isFunctionLiteral = (node: ESTree.Expression): boolean =>
  * conditional/logical branches) an inline function literal being invoked
  * immediately.
  */
-export const isIifeCallee = (callee: ESTree.Expression): boolean =>
+const isIifeCallee = (callee: ESTree.Expression): boolean =>
 	unwrapCallee(callee).some(isFunctionLiteral);
 export const noIife = {
 	meta: {

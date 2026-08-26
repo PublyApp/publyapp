@@ -96,7 +96,7 @@ export const buildFindStaffInvitationsQueryParameters = (
 	};
 };
 
-export const buildBulkCreateStaffInvitationsBody = (
+const buildBulkCreateStaffInvitationsBody = (
 	input: BulkCreateStaffInvitationsInput,
 ): BulkCreateStaffInvitationsBody => ({
 	invitations: createUntypedArray(
@@ -187,7 +187,7 @@ const staffInvitationsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const staffInvitationDetailsQueryOptions = buildStaffQueryOptions<
+const staffInvitationDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	StaffInvitationDetails,
 	StaffInvitationDetailsVariables

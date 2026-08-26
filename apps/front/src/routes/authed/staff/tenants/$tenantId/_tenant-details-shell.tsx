@@ -32,7 +32,6 @@ export {
 	formatMonthYear,
 	getRelativeTimeParts,
 } from './_tenant-display';
-export type { RelativeTimeParts } from './_tenant-display';
 
 import {
 	MALFORMED_ID_TRANSLATION_KEY,

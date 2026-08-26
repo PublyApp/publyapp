@@ -13,7 +13,7 @@ const sizeClassNames = {
 	lg: 'size-14 text-lg',
 } satisfies Record<PersonAvatarSize | 'default', string>;
 
-export const EntityAvatar = ({
+export const PersonAvatar = ({
 	name,
 	avatarUrl,
 	size,
@@ -54,5 +54,3 @@ export const EntityAvatar = ({
 		</AvatarFallback>
 	</Avatar>
 );
-
-export const PersonAvatar = EntityAvatar;

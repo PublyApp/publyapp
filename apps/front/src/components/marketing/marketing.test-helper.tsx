@@ -30,7 +30,7 @@ import { createI18nFromResources } from '~/lib/i18n.shared';
  *    `t: (key) => key`. A passthrough `t` makes a missing key indistinguishable
  *    from a present one, which is exactly how untranslated copy ships.
  */
-export const buildMarketingI18n = (locale: 'en' | 'fr') =>
+const buildMarketingI18n = (locale: 'en' | 'fr') =>
 	createI18nFromResources(locale, ['common'], {
 		en: { common: enResource.common },
 		fr: { common: frResource.common },

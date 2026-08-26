@@ -43,7 +43,6 @@ export {
 	parseProfileMembersSearchParams,
 	serializeProfileMembersSearchParams,
 	type ProfileMembersSearchParamInput,
-	type ProfileMembersSearchParams,
 } from './_profile-members-search';
 
 const StaffTenantProfileMembersPage = () => {

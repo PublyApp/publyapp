@@ -17,7 +17,7 @@ type IdentifierNode =
 	| ESTree.BindingIdentifier;
 
 /** Narrow to any Identifier variant (name-bearing node with `type === "Identifier"`). */
-export const isIdentifier = (
+const isIdentifier = (
 	node: ESTree.Node | null | undefined,
 ): node is IdentifierNode =>
 	node !== null && node !== undefined && node.type === 'Identifier';
@@ -27,14 +27,12 @@ export const isIdentifier = (
 // ---------------------------------------------------------------------------
 
 /** Narrow to a Literal whose `value` is a string. */
-export const isStringLiteral = (
-	node: ESTree.Node,
-): node is ESTree.StringLiteral =>
+const isStringLiteral = (node: ESTree.Node): node is ESTree.StringLiteral =>
 	node.type === 'Literal' &&
 	typeof (node as ESTree.StringLiteral).value === 'string';
 
 /** Narrow to a Literal whose `value` is `null`. */
-export const isNullLiteral = (node: ESTree.Node): node is ESTree.NullLiteral =>
+const isNullLiteral = (node: ESTree.Node): node is ESTree.NullLiteral =>
 	node.type === 'Literal' && (node as ESTree.NullLiteral).value === null;
 
 // ---------------------------------------------------------------------------
@@ -42,12 +40,12 @@ export const isNullLiteral = (node: ESTree.Node): node is ESTree.NullLiteral =>
 // ---------------------------------------------------------------------------
 
 /** True when `node` is a `MemberExpression` (any variant). */
-export const isMemberExpression = (
+const isMemberExpression = (
 	node: ESTree.Expression,
 ): node is ESTree.MemberExpression => node.type === 'MemberExpression';
 
 /** True when `node` is a `CallExpression`. */
-export const isCallExpression = (
+const isCallExpression = (
 	node: ESTree.Expression,
 ): node is ESTree.CallExpression => node.type === 'CallExpression';
 
@@ -59,7 +57,7 @@ export const isCallExpression = (
  * After a `callee.type === 'MemberExpression'` guard, narrow to the
  * `StaticMemberExpression` variant (non-computed, property is IdentifierName).
  */
-export const isStaticMemberExpression = (
+const isStaticMemberExpression = (
 	node: ESTree.MemberExpression,
 ): node is ESTree.StaticMemberExpression =>
 	!node.computed && node.type === 'MemberExpression';
@@ -74,7 +72,7 @@ export const isImportDeclaration = (
 ): node is ESTree.ImportDeclaration => node.type === 'ImportDeclaration';
 
 /** True when `node` is any of the function-like declaration types. */
-export const isFunctionNode = (node: ESTree.Node): node is ESTree.Function =>
+const isFunctionNode = (node: ESTree.Node): node is ESTree.Function =>
 	node.type === 'FunctionDeclaration' ||
 	node.type === 'FunctionExpression' ||
 	node.type === 'ArrowFunctionExpression' ||
@@ -91,4 +89,4 @@ export const isFunctionNode = (node: ESTree.Node): node is ESTree.Function =>
  * `Span`, but the Fixer signature expects a loose structural match. This helper
  * extracts the range from any Span-extended node for use with fixer methods.
  */
-export const nodeRange = (node: ESTree.Node): [number, number] => node.range;
+const nodeRange = (node: ESTree.Node): [number, number] => node.range;

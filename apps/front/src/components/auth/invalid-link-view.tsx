@@ -67,5 +67,3 @@ export const InvalidLinkView = ({
 		</div>
 	);
 };
-
-export default InvalidLinkView;

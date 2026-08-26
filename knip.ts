@@ -7,11 +7,131 @@ const config: KnipConfig = {
 	ignore: ['packages/lint-ts/src/anti-slop/**'],
 	workspaces: {
 		'.': {
-			entry: 'packages/scripts-ts/src/*.ts',
-			project: 'packages/scripts-ts/src/**/*.ts',
+			// `just` is a system binary (extractions/setup-just in CI, brew/pkg
+			// locally), not an npm package: quality-gate.yml's
+			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
+			ignoreBinaries: ['just'],
+			// The root manifest's pnpm.packageExtensions patch declares a zod
+			// peer for @hookform/resolvers; knip reads that block and reports
+			// zod as an unlisted dependency of the ROOT workspace. No repo
+			// source imports zod outside apps/front and packages/shared-ts,
+			// which both declare it themselves.
+			//
+			// `winston-transport-browserconsole` is declared in
+			// packages/shared-ts/package.json but never imported directly:
+			// winston resolves it at runtime as an optional browser transport,
+			// so knip cannot trace the import. It matches develop's declared
+			// dependency set (kept deliberately), so it is ignored here rather
+			// than removed from the manifest.
+			//
+			// `isbot`, `nprogress`, and `serialize-error` are ROOT workspace
+			// dependencies declared in the repo-root package.json. They are not
+			// imported by any root-source entry (the root workspace only scans
+			// packages/scripts-ts/src), but develop carries them as top-level
+			// deps for tooling/CLI use — develop's own knip config never flagged
+			// them because it did not scan apps/front or packages/shared-ts.
+			// This lane's broader knip coverage (the point of #1472) surfaces
+			// them; they mirror develop's declared dependency set, so they are
+			// ignored here rather than removed from the manifest.
+			ignoreDependencies: [
+				'zod',
+				'winston-transport-browserconsole',
+				'isbot',
+				'nprogress',
+				'serialize-error',
+			],
 		},
 		'apps/api': {
 			entry: 'run-dev.mjs',
+		},
+		'apps/front': {
+			entry: [
+				// Runtime-discovered files knip cannot trace. One line per file,
+				// never a blanket ignore of a whole app.
+				'deploy/request-counter/server.mjs', // e2e sidecar service built from deploy/request-counter by docker-compose.test.yml
+				'e2e/helpers/entity-crumb-render-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-entity-crumb.ts, never imported
+				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported
+				'scripts/generate/generate-route-tree.mts', // documented shim kept after #1300 moved the implementation to route-tree-generator.mts
+				'scripts/generate/generate-suppression-inventory.mts', // manual generator; check-design-system.mts tells humans to run it when the inventory drifts
+				'tools/ci/node-24-type-stripping.mts', // manual proof runner; its sibling node-24-type-stripping.test.mts pins it
+				// Public-API type probe target. The co-located .test.mts compiles
+				// a real consumer against this module's surface (mintSpans,
+				// SourceSpan, CopyAttribution) and pins the removed
+				// position-key mechanism's absence — without this entry, knip
+				// reports those re-exports as unused even though the test
+				// imports them type-only. The hand-written .d.mts was retired
+				// in #1449 (scripts/ -> tools/ move); the public type surface
+				// now flows through the source.
+				'tools/vite/check-context-chunk-isolation.mts',
+				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
+			],
+			// System binary invoked via execFileSync by the request-counter sidecar
+			// to mint its throwaway TLS cert; not an npm package.
+			ignoreBinaries: ['openssl'],
+			// Scoped knip gaps carried by upstream develop (verified: `pnpm exec
+			// knip` against origin/develop reports the same two symbols). Each is a
+			// single, pre-existing develop export knip flags as unused — surfaced on
+			// this lane only because #1554 (mutation-invalidation coherence) merged
+			// develop's knip gate onto the tree. Scoped to the exact file + the
+			// specific issue type so any newly-added gap in those files still fails
+			// knip loudly. No blanket file/directory ignore.
+			ignoreIssues: {
+				// tenant-posts.ts — post-create/edit drawer mocks `savePost`
+				// directly (apps/front/src/routes/authed/tenant/posts/_create-post-drawer.tsx,
+				// .../$postId/edit.tsx); the `useSavePostMutation` wrapper is exported
+				// but never wired by a component. Reported identically on develop.
+				'src/lib/query/tenant-posts.ts': ['exports'],
+				// staff-profile-users.ts — `BulkUnassignStaffProfileUsersInput` is
+				// only ever fed as a generic argument to
+				// `bulkUnassignStaffProfileUsersMutationOptions`; knip cannot trace
+				// the type through the build*() generic, so it reports the export
+				// unused. Reported identically on develop.
+				'src/lib/query/staff-profile-users.ts': ['types'],
+				// Pre-existing develop export knip gaps surfaced by the #1554 merge
+				// only because it mechanically updated these route files' imports
+				// (EntityAvatar→PersonAvatar, @org/shared-ts→~/lib
+				// should-logout-for-failure). Each scoped to the exact file + issue
+				// type; any newly-added gap in these files still fails knip loudly.
+				// Reported identically on origin/develop.
+				'src/routes/authed/staff/tenants.tsx': ['exports'],
+				'src/routes/authed/staff/audit-logs/$logId.tsx': ['exports'],
+				'src/routes/authed/staff/tenant-users/$userId-organizations.tsx': [
+					'exports',
+				],
+				// staff-tenant-activity.ts — #1570 (tenant activity tab) introduced
+				// this file with exports (STAFF_TENANT_ACTIVITY_QUERY_KEY,
+				// buildTenantActivityQueryParameters, tenantActivityQueryOptions)
+				// that are currently unreferenced anywhere in the tree. Surfaced on
+				// this lane because #1570 landed on develop after this PR was cut and
+				// the merged-tree knip now evaluates them. Scoped to the exact file +
+				// the exports issue type so any newly-added export gap in this file
+				// still fails knip loudly. Reported identically on origin/develop.
+				'src/lib/query/staff-tenant-activity.ts': ['exports'],
+			},
+		},
+		// Kiota-generated client: this directory IS the public API boundary —
+		// the package exports map publishes every src/*.ts as
+		// `@org/client-ts/<path>`, and consumers import models/endpoints
+		// directly. Making all of src an entry set keeps its exports out of the
+		// unused report while still tracking its runtime dependencies
+		// (@microsoft/kiota-abstractions + the serialization packages imported
+		// by the generated apiClient.ts serializer registration).
+		'packages/client-ts': {
+			entry: ['src/**/*.ts'],
+		},
+		'packages/scripts-ts': {
+			entry: [
+				// Every script here is a CLI run as
+				// `node packages/scripts-ts/src/<name>.ts` (justfile recipes,
+				// workflow steps, runbooks) — no manifest bin field exists for
+				// knip to discover them from.
+				'src/*.ts',
+			],
+			project: ['src/**/*.ts'],
+			// review-front.ts launches the dev server through
+			// `pnpm exec vite` in apps/front (vite is front's own dependency);
+			// this package intentionally does not re-declare it.
+			ignoreBinaries: ['vite'],
 		},
 	},
 };

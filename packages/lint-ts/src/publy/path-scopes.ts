@@ -4,7 +4,7 @@
 
 export const FRONT_SOURCE_PREFIXES: readonly string[] = ['apps/front/src/'];
 
-export const FRONT_SOURCE_EXTENSIONS: readonly string[] = [
+const FRONT_SOURCE_EXTENSIONS: readonly string[] = [
 	'.ts',
 	'.tsx',
 	'.js',

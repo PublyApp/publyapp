@@ -180,7 +180,7 @@ export type AcceptPayload =
 	  }
 	| { mode: 'existing-account' };
 
-export type AcceptInvitationActionResult = {
+type AcceptInvitationActionResult = {
 	sessionExpiresAt?: string;
 	tenantId?: string;
 	userId?: string;

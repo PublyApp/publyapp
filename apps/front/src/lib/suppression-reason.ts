@@ -21,7 +21,7 @@
  * `<!-- -->`) off the tail of a suppression comment's reason text, so a bare
  * `{/* data-honesty-ignore: *\/}` — whose only "reason" text is the comment's
  * own closing delimiters — can never read as a reasoned suppression. */
-export const extractSuppressionReason = (rawReason: string): string =>
+const extractSuppressionReason = (rawReason: string): string =>
 	rawReason.replace(/(\*\/\}|\*\/|\}|-->)\s*$/, '').trim();
 
 // design-system-ignore's marker already consumes the rule id
@@ -52,7 +52,7 @@ const MIN_REASON_ALNUM_CHARS = 12;
  * reason that clears this heuristic still has to be checked into the
  * committed inventory, in the diff, for a human to actually read.
  */
-export const isSubstantiveSuppressionReason = (rawReason: string): boolean => {
+const isSubstantiveSuppressionReason = (rawReason: string): boolean => {
 	const reason = extractSuppressionReason(rawReason);
 	const words = (reason.match(/[\p{L}\p{N}_-]+/gu) ?? []).filter((word) =>
 		/\p{L}/u.test(word),
@@ -79,7 +79,7 @@ export const isSubstantiveSuppressionReason = (rawReason: string): boolean => {
 	return true;
 };
 
-export const SUPPRESSION_CONVENTIONS = [
+const SUPPRESSION_CONVENTIONS = [
 	'data-honesty-ignore',
 	'i18n-guard-ignore',
 	'design-system-ignore',

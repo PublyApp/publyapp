@@ -231,5 +231,3 @@ export const ChangeStaffUserEmailDialog = (
 
 	return <ChangeStaffUserEmailDialogInner {...dialogProps} key={sessionKey} />;
 };
-
-export default ChangeStaffUserEmailDialog;

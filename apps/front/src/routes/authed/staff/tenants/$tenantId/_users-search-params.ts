@@ -14,7 +14,7 @@ import {
 
 type TableSearchParamInput = Parameters<typeof parseTableSearchParams>[0];
 
-export const KNOWN_TENANT_USER_STATUSES = [
+const KNOWN_TENANT_USER_STATUSES = [
 	'active',
 	'suspended',
 	'globally_suspended',
@@ -26,7 +26,7 @@ const KNOWN_TENANT_USER_STATUS_SET = new Set<string>(
 	KNOWN_TENANT_USER_STATUSES,
 );
 
-export const KNOWN_TENANT_USER_LEVELS = ['admin', 'user'] as const;
+const KNOWN_TENANT_USER_LEVELS = ['admin', 'user'] as const;
 
 export type KnownTenantUserLevel = (typeof KNOWN_TENANT_USER_LEVELS)[number];
 

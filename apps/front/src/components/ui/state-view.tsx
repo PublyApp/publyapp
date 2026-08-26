@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { cn } from '~/lib/utils';
 
-export type StateViewTone = 'neutral' | 'danger' | 'primary';
-export type StateViewScale = 'page' | 'inline';
+type StateViewTone = 'neutral' | 'danger' | 'primary';
+type StateViewScale = 'page' | 'inline';
 
 type StateViewProps = {
 	icon: ReactNode;

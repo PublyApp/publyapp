@@ -473,7 +473,7 @@ const collectFilesUnder = (directory: string, collected: string[]): void => {
 	}
 };
 
-export const collectShippedSourcePaths = (workspaceRoot: string): string[] => {
+const collectShippedSourcePaths = (workspaceRoot: string): string[] => {
 	const sourcePaths = [];
 
 	for (const root of SHIPPED_SOURCE_ROOTS) {

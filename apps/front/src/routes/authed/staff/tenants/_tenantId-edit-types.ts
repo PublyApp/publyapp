@@ -84,7 +84,7 @@ export const EMPTY_FORM_VALUES: EditTenantFormValues = {
 	notes: '',
 };
 
-export const TENANT_EDIT_FORM_FIELDS = new Set<keyof EditTenantFormValues>([
+const TENANT_EDIT_FORM_FIELDS = new Set<keyof EditTenantFormValues>([
 	'name',
 	'maxUsers',
 	'logoUrl',
