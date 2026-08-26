@@ -61,8 +61,9 @@ champ au moment du preload d'intention. Deux candidats ont été tranchés :
   globaux du shell). Il s'abonne au routeur via `router.subscribe('onBeforeLoad', …)` et appelle
   `queryClient.ensureQueryData(...)` pour chaque entrée `staticData.preload` des matchs de la
   destination (`event.toLocation` → `router.matchRoute` / arbre des matches résolus). Fondement
-  vérifié dans le paquet installé (`@tanstack/router-core@1.171.13/dist/esm/router.d.ts:428-454`) :
-  `RouterEvents` expose `onBeforeLoad` et `SubscribeFn` retourne une fonction de désabonnement.
+  vérifié dans les paquets résolus par le lockfile (`@tanstack/router-core@1.171.26/dist/esm/router.d.ts` :
+  `RouterEvents` expose `onBeforeLoad` (l.430) et `SubscribeFn` retourne une fonction de
+  désabonnement (l.454)).
   Pourquoi ici et pas ailleurs : c'est le seul point où l'on capte TOUT preload d'intention
   (survol ET viewport ET navigation) sans modifier chaque route ni dépendre d'une option
   inexistante dans cette version du routeur.
