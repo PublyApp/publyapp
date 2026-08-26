@@ -18,12 +18,14 @@ import {
 import { staffTenantProfileCrumbsBase } from './$profileId/_crumbs';
 import type { StaffTenantProfileDetailsContextValue } from './$profileId/_details-context';
 import {
-	classifyProfileDetailsFailure,
 	MissingTenantProfileView,
 	ProfileDetailsLoading,
-	type ProfileDetailsErrorSurface,
 	TenantProfileDetailsError,
 } from './$profileId/_details-error-views';
+import {
+	classifyProfileDetailsFailure,
+	type ProfileDetailsErrorSurface,
+} from './$profileId/_profile-details-error-classifier';
 import { ProfileDetailsView } from './$profileId/_profile-details-view';
 import {
 	PROFILE_SECTION_ROUTES,
