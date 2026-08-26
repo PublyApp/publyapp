@@ -1,7 +1,7 @@
 # Plan d'implémentation — #487 : préchargement des requêtes de route (`staticData.preload`)
 
 **Type** : record `plan` (écrit une fois, périmé plutôt que rétroédité). **Issue** : #487.
-**Précédent technique** : PR ouverte #1527 (loader client du détail profil) — sa règle
+**Précédent technique** : issue ouverte #1527 (loader client du détail profil) — sa règle
 « aucun second chemin de fetch par construction » est la contrainte n°3 de ce plan. L'arbitrage
 du propriétaire du 2026-08-26 (commentaire d'issue) fait autorité et est appliqué tel quel :
 `staticData.preload` par route, échec de préchargement silencieux, garde obligatoire sur le vrai
@@ -15,7 +15,7 @@ Chaque affirmation est prouvée dans `.dump/citations-r1.md` (PASS/FAIL par lign
    le **composant** de route au survol d'un `<Link>` ; ses données partent au montage. Le gain
    JS est consommé, le gain réseau ne l'est pas.
 2. Zéro `ensureQueryData` / `prefetchQuery` / `clientLoader` dans `apps/front/src/`
-   (comptages `git grep` = 0). La PR #1527 est **ouverte, non fusionnée** : son loader client
+   (comptages `git grep` = 0). L'issue #1527 est **ouverte, non fusionnée** : son loader client
    n'est pas dans cet arbre. Ce plan s'articule avec elle (§5), il ne la suppose pas fusionnée.
 3. Les 3 fichiers de route qui déclarent un `loader:` (`verify-email.tsx`, `accept-invitation.tsx`,
    `reset-password.tsx`) sont des surfaces SSR dont les loaders appellent des `createServerFn`
@@ -183,7 +183,7 @@ confronte aux clés consommées par la page.
 ## 3. Articulation tranchée avec les loaders client (§Rendering Strategy)
 
 État : les conventions (`docs/guides/front/conventions.md`, §Rendering Strategy, ligne 277)
-n'autorisent pas encore de loader client ; la PR #1527 propose la première exception (détail
+n'autorisent pas encore de loader client ; l'issue #1527 propose la première exception (détail
 profil, `await ensureQueryData` AVANT premier rendu, pairée à un `pendingComponent`).
 
 Tranché dans ce plan, les deux mécanismes sont complémentaires et leur frontière est :
@@ -349,15 +349,15 @@ ses portes nommées avant la suivante.
 * Ordre : T1 → T2 → T3 → T4 → T5 → T6. T3 peut être écrite dès T1 mais doit être verte sur les
   pilotes T2/T4 avant tout commit final.
 * Conflit assumé : T5 touche `docs/guides/front/conventions.md` aussi modifié par #1527 (sa
-  sous-section « Client route loaders (#851) » dans §Rendering Strategy). Résolution additive : les
-  deux sections coexistent, renvois croisés. **Ancrage et ordre concrets** : T5 insère la nouvelle
-  sous-section « Route query preloading (#487) » dans §Rendering Strategy **immédiatement après**
-  la sous-section « Client route loaders (#851) » de #1527 (et non avant), car le préchargement
-  spéculatif (#487) est la contrepartie non bloquante du loader bloquant (#851) ; le texte de #487
-  doit contenir un renvoi explicite « voir Client route loaders (#851) » et inversement la section
-  #851 un renvoi « voir Route query preloading (#487) ». Si #1527 n'est pas encore fusionnée à
+  sous-section « Route query preloading (#487) » immédiatement après la section « Rendering Strategy »
+  de `conventions.md` (§277), en parallèle de la sémantique du loader client portée par l'issue #1527
+  qui Closes #851 — car le préchargement spéculatif (#487) est la contrepartie non bloquante du
+  loader bloquant (#1527/#851) ; le texte de #487 doit contenir un renvoi explicite « voir le loader
+  client (#1527, qui Closes #851) » et inversement la description de #1527/#851 un renvoi « voir Route
+  query preloading (#487) ». Note : `conventions.md` ne contient pas encore de sous-section dédiée au
+  loader client (#851) ; #1527 la crée à sa fusion. Si #1527 n'est pas encore fusionnée à
   l'exécution de T5, la sous-section #487 est insérée à la fin de §Rendering Strategy avec une note
-  « à replacer après Client route loaders (#851) à la fusion de #1527 ». Fichier dans la liste
+  « à replacer après la section du loader client (#1527, qui Closes #851) à la fusion de #1527 ». Fichier dans la liste
   additive du repo.
 * STOP-and-report si : `onBeforeLoad` ne se déclenche pas lors d'un preload d'intention dans
   l'environnement de test réel (l'hypothèse §1.1 serait fausse, basculer sur l'événement suivant
