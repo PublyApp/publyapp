@@ -6,9 +6,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using Polly;
-
-using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
@@ -176,9 +173,7 @@ public sealed class CreateStaffProfile {
 		[FromBody] CreateStaffProfileBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IStaffProfileAsStaffService profileAsStaffService,
-		[FromServices] IEmailService emailService,
 		[FromServices] IAuditLogService auditLogService,
-		[FromServices] ILogger<CreateStaffProfile> logger,
 		CancellationToken cancellationToken = default
 	) {
 		// Extract values after validation
@@ -251,9 +246,7 @@ public sealed class CreateStaffProfile {
 		if (result is CreateStaffProfileResult.Success success) {
 			return await HandleSuccessAsync(
 				success,
-				emailService,
 				auditLogService,
-				logger,
 				currentUserId,
 				cancellationToken
 			);
@@ -267,31 +260,20 @@ public sealed class CreateStaffProfile {
 
 	private static async Task<Created<StaffProfileCreated>> HandleSuccessAsync(
 		CreateStaffProfileResult.Success success,
-		IEmailService emailService,
 		IAuditLogService auditLogService,
-		ILogger logger,
 		Guid currentUserId,
 		CancellationToken cancellationToken
 	) {
 		var profileId = success.Profile.GetRequiredId();
 
-		// Invitation emails for NEW users are no longer sent here: the service
-		// layer now writes a durable InvitationEmailOutbox row in the same
-		// transaction as the invitation, and InvitationEmailOutboxDispatcher
-		// delivers it out-of-band — a request-scoped Task.Run had no durable
-		// record, so an aborted request or process restart could silently lose
-		// the invitation while this response still claimed it was sent
-		// (round-6 API F4).
-
-		// Send notification emails to EXISTING users (fire and forget)
-		_ = Task.Run(async () => {
-			await SendNotificationEmailsAsync(
-				emailService,
-				logger,
-				success.EmailsToNotify,
-				CancellationToken.None
-			);
-		}, CancellationToken.None);
+		// No email work happens here at all (#291): the NEW-user invitations ride the
+		// durable InvitationEmailOutbox written by the service in its transaction
+		// (round-6 API F4), and the EXISTING-user "you have been added as a staff
+		// member" notifications ride durable email.staff-joined-notification.v1 jobs
+		// the service enqueues in that SAME transaction. This handler previously
+		// fire-and-forget the latter via a request-scoped Task.Run with no durable
+		// record — an aborted request or process restart silently lost them while the
+		// 201 response still claimed the assignment succeeded.
 
 		// Audit log - profile created
 		await auditLogService.LogAsync(
@@ -324,115 +306,5 @@ public sealed class CreateStaffProfile {
 					.InvitationsSent
 			}
 		);
-	}
-
-	/// <summary>
-	/// Sends notification emails with controlled concurrency and retry logic.
-	/// </summary>
-	private static async Task SendNotificationEmailsAsync(
-		IEmailService emailService,
-		ILogger logger,
-		List<string> emails,
-		CancellationToken cancellationToken
-	) {
-		if (emails.Count == 0) {
-			return;
-		}
-
-		const int maxConcurrency = 5;
-		using var semaphore = new SemaphoreSlim(maxConcurrency);
-
-		var tasks = emails.Select(async (email) => {
-			await semaphore.WaitAsync(cancellationToken);
-			try {
-				await SendEmailWithRetryAsync(
-					async () => {
-						await emailService.SendJoinedStaffNotificationEmailAsync(email);
-					},
-					logger,
-					email,
-					"notification",
-					cancellationToken
-				);
-			} finally {
-				semaphore.Release();
-			}
-		});
-
-		await Task.WhenAll(tasks);
-	}
-
-	/// <summary>
-	/// Sends an email with exponential backoff retry logic using Polly.
-	/// Creates a retry policy per call with Context for per-call logging.
-	/// Policy creation is lightweight, so this approach is acceptable for this use case.
-	/// </summary>
-	private static async Task SendEmailWithRetryAsync(
-		Func<Task> sendEmailAction,
-		ILogger logger,
-		string email,
-		string emailType,
-		CancellationToken cancellationToken
-	) {
-		// Create context to pass logger/email info for retry logging
-		var context = new Context {
-			["logger"] = logger,
-			["email"] = email,
-			["emailType"] = emailType
-		};
-
-		// Create policy with onRetry that uses context (policy creation is lightweight)
-		var retryPolicy = Policy
-			.Handle<Exception>()
-			.WaitAndRetryAsync(
-				retryCount: 3,
-				sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt - 1)),
-				onRetry: (exception, timeSpan, retryCount, ctx) => {
-					var log = (ILogger)ctx["logger"];
-					var emailAddr = (string)ctx["email"];
-					var type = (string)ctx["emailType"];
-
-					if (log.IsEnabled(LogLevel.Warning)) {
-						log.LogWarning(
-							exception,
-							"Failed to send {EmailType} email to {Email} (attempt {Attempt}/3), " +
-							"retrying in {Delay}ms",
-							type,
-							emailAddr,
-							retryCount,
-							timeSpan.TotalMilliseconds
-						);
-					}
-				}
-			);
-
-		try {
-			await retryPolicy.ExecuteAsync(
-				async (ctx, ct) => {
-					await sendEmailAction();
-				},
-				context,
-				cancellationToken
-			);
-
-			// Log success only after policy completes successfully
-			if (logger.IsEnabled(LogLevel.Information)) {
-				logger.LogInformation(
-					"Successfully sent {EmailType} email to {Email}",
-					emailType,
-					email
-				);
-			}
-		} catch (Exception ex) {
-			if (logger.IsEnabled(LogLevel.Error)) {
-				logger.LogError(
-					ex,
-					"Failed to send {EmailType} email to {Email} after 3 attempts",
-					emailType,
-					email
-				);
-			}
-			// Don't rethrow - email failures shouldn't break the main operation
-		}
 	}
 }
