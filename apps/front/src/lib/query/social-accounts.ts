@@ -1,7 +1,4 @@
-import {
-	createUntypedArray,
-	createUntypedString,
-} from '@microsoft/kiota-abstractions';
+import { createUntypedString } from '@microsoft/kiota-abstractions';
 import {
 	type QueryClient,
 	useMutation,
@@ -19,7 +16,7 @@ import { buildTenantQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
  * `statusPillTone()` from components/ui/status-tone.ts: it maps `revoked` →
  * danger(red), which the spec overrides for this screen (revocation is a
  * state, not an error). */
-export type SocialAccountStatusWire = 'active' | 'needs_reconnect' | 'revoked';
+type SocialAccountStatusWire = 'active' | 'needs_reconnect' | 'revoked';
 
 const TONES = {
 	active: 'success',
@@ -57,7 +54,7 @@ export type SocialAccountRow = {
  * hand raw query results OR test fixtures here without casts; every field is
  * normalised defensively below.
  */
-export type SocialAccountWireItem = {
+type SocialAccountWireItem = {
 	id?: string | null;
 	provider?: string | null;
 	externalAccountId?: string | null;
@@ -91,7 +88,7 @@ const toDate = (value: string | Date | null | undefined): Date | null => {
 const toNonEmptyString = (value: string | null | undefined): string =>
 	typeof value === 'string' && value.length > 0 ? value : '';
 
-export const SOCIAL_ACCOUNTS_QUERY_KEY = ['tenant-social-accounts'] as const;
+const SOCIAL_ACCOUNTS_QUERY_KEY = ['tenant-social-accounts'] as const;
 
 export const toSocialAccountRows = (
 	response: SocialAccountsWireResponse | null | undefined,
@@ -125,7 +122,7 @@ export const toSocialAccountRows = (
 	return rows;
 };
 
-export const socialAccountsQueryOptions = buildTenantQueryOptions<
+const socialAccountsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	SocialAccountsWireResponse,
 	Record<string, unknown>
@@ -150,7 +147,7 @@ export const useSocialAccountsQuery = (variables: { tenantId: string }) =>
 		queryFn: () => socialAccountsQueryOptions.fetcher(variables),
 	});
 
-export const invalidateSocialAccounts = (
+const invalidateSocialAccounts = (
 	queryClient: QueryClient,
 	tenantId: string,
 ): void => {
@@ -251,35 +248,5 @@ export const useDisconnectSocialAccountMutation = () => {
 			invalidateSocialAccounts(queryClient, variables.tenantId),
 		// C2's SHIPPED key — disconnect adds NO new i18n entry (plan Task 1).
 		meta: { successMessage: 'social-account-disconnected-success' },
-	});
-};
-
-export const useSaveSocialAccountProjectsMutation = () => {
-	const queryClient = useQueryClient();
-
-	return useMutation({
-		mutationKey: [...SOCIAL_ACCOUNTS_QUERY_KEY, 'save-projects'],
-		mutationFn: async ({
-			tenantId,
-			socialAccountId,
-			projectIds,
-		}: {
-			tenantId: string;
-			socialAccountId: string;
-			projectIds: string[];
-		}) => {
-			const client = getClientManager().getOrCreateClient(tenantId);
-			// PUT replace-all: the checked set IS the attachment set.
-			await client.socialAccounts
-				.bySocialAccountId(socialAccountId)
-				.projects.put({
-					projectIds: createUntypedArray(
-						projectIds.map((id) => createUntypedString(id)),
-					),
-				});
-		},
-		onSuccess: (_data, variables) =>
-			invalidateSocialAccounts(queryClient, variables.tenantId),
-		meta: { successMessage: 'social-account-projects-updated' },
 	});
 };
