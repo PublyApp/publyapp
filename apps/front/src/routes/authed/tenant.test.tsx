@@ -291,6 +291,10 @@ describe('TenantPortalRoute', () => {
 	});
 
 	test('#258: renders the deletion notice when every tenant was soft-deleted', () => {
+		// Different angle from `_tenant-picker-states.test.tsx`: that file
+		// drives the presentational component directly, this one drives the
+		// full route and pins that the `hasDeletedTenants` query field is what
+		// the wire payload carries through to the empty state.
 		setQuery({
 			data: {
 				tenants: [],
