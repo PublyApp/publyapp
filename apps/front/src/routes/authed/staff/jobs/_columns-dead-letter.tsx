@@ -98,14 +98,14 @@ export const makeDeadLetterColumns = (
 		meta: { width: '60px' },
 		cell: ({ row }) => (
 			<DataTableRowActions ariaLabel={row.original.jobType ?? ''}>
-				<DropdownMenuItem onSelect={() => onInspect(row.original)}>
+				<DropdownMenuItem onClick={() => onInspect(row.original)}>
 					<IconActivity aria-hidden="true" className="size-4" />
 					{t('common:action-inspect')}
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					data-testid={`dead-letter-requeue-${row.original.id}`}
 					disabled={Boolean(row.original.requeuedAt)}
-					onSelect={() => onRequeue(row.original)}
+					onClick={() => onRequeue(row.original)}
 				>
 					<IconRotateClockwise aria-hidden="true" className="size-4" />
 					{t('common:action-requeue')}
