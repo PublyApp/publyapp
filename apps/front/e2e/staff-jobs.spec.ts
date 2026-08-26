@@ -4,8 +4,12 @@ import { expect, test, type Page } from '@playwright/test';
 // Chromium launch + lazy route-chunk load across two tab navigations, which
 // can exceed the 30s default whole-test timeout under rapid local re-runs.
 // Matches the repo convention for cold-start-sensitive specs
-// (auth-error.spec.ts, ssr-auth-shell.spec.ts, toast-contrast.spec.ts).
-test.setTimeout(60_000);
+// (auth-error.spec.ts, ssr-auth-shell.spec.ts, toast-contrast.spec.ts). The
+// protected-definition test below additionally deep-links cold into a route
+// that waits on a REAL backend list fetch AND a real PATCH→409 round-trip, so
+// a 90s ceiling leaves headroom for that double-wait without risking the
+// default 30s cap.
+test.setTimeout(90_000);
 
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
@@ -173,7 +177,7 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		// which flake under cold mounts.
 		await expect(
 			page.getByText('Dead-letter job requeued', { exact: true }),
-		).toBeVisible();
+		).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId(DLQ_TABLE)).toBeVisible();
 
 		// --- System jobs: trigger an enabled definition and see the toast.
@@ -230,7 +234,9 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		await page.getByRole('tab', { name: 'System jobs' }).click();
 		await expect(page.getByTestId(SYSTEM_TABLE)).toBeVisible();
 		await page.getByTestId(`system-job-trigger-${systemJobId}`).click();
-		await expect(page.getByText('System job enqueued')).toBeVisible();
+		await expect(page.getByText('System job enqueued')).toBeVisible({
+			timeout: 15_000,
+		});
 	});
 
 	test('triggering the protected definition surfaces the localized 409 toast and keeps it enabled', async ({
@@ -239,16 +245,21 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		await loginAsStaffAdmin(page);
 		await page.goto('/staff/jobs/system-jobs');
 
-		// Wait on the real, seeder-backed protected row rather than the bare
-		// table container: a cold deep-link load of this route (lazy route chunk
-		// plus the real system-jobs list fetch) can exceed the default 5s expect
-		// window and flake. The row text only renders once the page mounted AND
-		// the list loaded, so this is a durable readiness signal.
+		// A cold deep-link load of this route (lazy route chunk plus the REAL
+		// system-jobs list fetch, which hits the seeder-backed backend rather
+		// than a mocked endpoint) can exceed the default 5s expect window and
+		// flake. Split the readiness budget into two phases so the row wait only
+		// starts once the page has mounted — the table container is a cheap mount
+		// signal, the protected row text only renders after the list loaded, so
+		// the second wait is a pure data-readiness signal with its own headroom.
+		await expect(page.getByTestId(SYSTEM_TABLE)).toBeVisible({
+			timeout: 20000,
+		});
 		const row = page
 			.getByTestId(SYSTEM_TABLE)
 			.getByText(PROTECTED_JOB_KEY)
 			.first();
-		await expect(row).toBeVisible({ timeout: 20000 });
+		await expect(row).toBeVisible({ timeout: 35000 });
 
 		// Toggling the K-3 protected definition off is rejected server-side
 		// with the localized `system-job-disable-protected` problem key; the
@@ -275,7 +286,7 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 			page.getByText(
 				'This system job cannot be disabled because its retention cadence is a privacy control',
 			),
-		).toBeVisible();
+		).toBeVisible({ timeout: 30_000 });
 		await expect(toggle).toBeChecked();
 	});
 });
