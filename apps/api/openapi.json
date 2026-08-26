@@ -16499,10 +16499,7 @@
         "type": "object",
         "properties": {
           "note": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -18202,10 +18199,7 @@
         "type": "object",
         "properties": {
           "isEnabled": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
