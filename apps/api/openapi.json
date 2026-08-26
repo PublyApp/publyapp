@@ -11609,10 +11609,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "useExistingAccount": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12343,10 +12340,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "reason": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12443,10 +12437,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "projectId": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12473,40 +12464,28 @@
         "type": "object",
         "properties": {
           "name": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "description": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "permissions": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "emails": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12542,10 +12521,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "expiresAt": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12566,110 +12542,77 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "code": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "seedDefaultProfile": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "logoUrl": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "legalName": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "description": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "websiteUrl": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "billingEmail": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "supportEmail": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "defaultLocale": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "timezone": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "notes": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -13681,10 +13624,11 @@
             "format": "date-time"
           },
           "image": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "type": [
+              "null",
+              "object"
+            ],
+            "allOf": [
               {
                 "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
                 "$ref": "#/components/schemas/PostImageReadModel"
@@ -13804,10 +13748,11 @@
             "format": "date-time"
           },
           "image": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "type": [
+              "null",
+              "object"
+            ],
+            "allOf": [
               {
                 "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
                 "$ref": "#/components/schemas/PostImageReadModel"
@@ -13996,10 +13941,7 @@
         "type": "object",
         "properties": {
           "note": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -14467,10 +14409,7 @@
         "type": "object",
         "properties": {
           "reason": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15245,10 +15184,7 @@
         "type": "object",
         "properties": {
           "body": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15292,10 +15228,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "accountLevel": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15337,40 +15270,28 @@
         "type": "object",
         "properties": {
           "severity": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "title": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "message": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "startsAt": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15391,10 +15312,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "maxUsers": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15488,10 +15406,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "level": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }

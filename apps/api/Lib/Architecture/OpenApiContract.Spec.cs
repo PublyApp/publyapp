@@ -164,6 +164,65 @@ public sealed class OpenApiContractSpec {
 			.Should().BeTrue();
 	}
 
+	[Fact]
+	public async Task ItShouldNotPublishNullableOneOfReferenceUnionProperties() {
+		// Kiota materializes oneOf [{type: null}, {$ref: T}] as T | an EMPTY
+		// marker interface whose deserializer always wins, swallowing the real
+		// payload into additionalData — the generated fallback branch is dead
+		// code (#639 e2e finding). The document normalizer folds these unions
+		// uniformly into type:[T,"null"] + allOf; request builders consume the
+		// folded shape through untyped factories, so nothing regresses.
+		using var openApiDocument =
+			await ReadOpenApiDocumentAsync();
+		var offenders = new List<string>();
+		var schemas = openApiDocument.RootElement
+			.GetProperty("components")
+			.GetProperty("schemas");
+
+		foreach (var schema in schemas.EnumerateObject()) {
+			if (!schema.Value.TryGetProperty(
+				"properties",
+				out var properties
+			)) {
+				continue;
+			}
+
+			foreach (var property in properties.EnumerateObject()) {
+				if (!property.Value.TryGetProperty(
+					"oneOf",
+					out var oneOf
+				)) {
+					continue;
+				}
+
+				var members = oneOf.EnumerateArray().ToList();
+				if (members.Count != 2) {
+					continue;
+				}
+
+				var hasNullMember = members.Any(member =>
+					member.ValueKind == JsonValueKind.Object
+					&& member.TryGetProperty("type", out var type)
+					&& type.GetString() == "null"
+				);
+				var hasRefMember = members.Any(member =>
+					member.ValueKind == JsonValueKind.Object
+					&& member.TryGetProperty("$ref", out var reference)
+					&& reference.GetString() is { }
+				);
+
+				if (hasNullMember && hasRefMember) {
+					offenders.Add($"{schema.Name}.{property.Name}");
+				}
+			}
+		}
+
+		offenders.Should().BeEmpty(
+			"nullable reference unions must be folded to type:[T,\"null\"] "
+			+ "+ allOf, or Kiota clients silently lose the payload"
+		);
+	}
+
 	private static async Task<JsonDocument> ReadOpenApiDocumentAsync() {
 		return await OpenApiDocumentHelper.ReadAsync();
 	}
