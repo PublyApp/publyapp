@@ -283,6 +283,18 @@ Authenticated application surfaces are CSR with `ssr: false`. They fetch applica
 the browser with TanStack Query and the Kiota client. Do not fetch authenticated domain data in
 server loaders or server functions.
 
+### Client route loaders (#851)
+
+Client `loader`s (never server loaders) are permitted on authenticated routes for exactly one
+sanctioned purpose: **awaiting the same TanStack Query options the page body queries**, so data
+the breadcrumb shell needs (entity names) is in the query cache before the first frame. A cold
+deep link then paints its full named trail immediately, instead of flashing entity skeletons.
+Pair such a loader with a `pendingComponent` for the pending window. Do not use a loader as a
+second fetch path with different keys — reuse the page's own query-options factories so the
+cache dedupes. The one shipped example is
+`src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx` (#846's skeleton-flash fix,
+implemented in #851); integration coverage lives in `src/lib/navigation/breadcrumb-loader.test.tsx`.
+
 ## Server-Function Boundary
 
 `createServerFn` is for frontend-server concerns only:
