@@ -104,6 +104,10 @@ const StaffJobsDeadLetterPage = () => {
 	};
 
 	const confirmRequeue = async (): Promise<void> => {
+		// An in-flight permission request (or a failed one) leaves the real
+		// grant unknown: a click must not silently vanish. Gate on the same
+		// flag the column uses so the button is never clickable while the
+		// grant is unresolved.
 		if (!requeueTarget || !permissions.canRequeue) {
 			closeRequeueDialog();
 			return;
@@ -138,8 +142,21 @@ const StaffJobsDeadLetterPage = () => {
 				locale,
 				(row) => setInspected(row),
 				(row) => setRequeueTarget(row),
+				{
+					permissionsPending: permissions.isPending,
+					permissionsDenied: permissions.loadError || !permissions.canRequeue,
+					title: permissions.isPending
+						? t('action-permission-checking')
+						: t('action-permission-denied'),
+				},
 			),
-		[t, locale],
+		[
+			t,
+			locale,
+			permissions.isPending,
+			permissions.loadError,
+			permissions.canRequeue,
+		],
 	);
 	const renderPayloadSection = (): ReactNode => {
 		if (!detail?.payload) {

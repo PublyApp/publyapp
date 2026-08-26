@@ -7,6 +7,7 @@ import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffJobPermissions = {
 	isPending: boolean;
+	loadError: boolean;
 	canView: boolean;
 	canRequeue: boolean;
 	canUpdateSystemJob: boolean;
@@ -63,6 +64,7 @@ export const useStaffJobPermissions = (): StaffJobPermissions => {
 
 	return {
 		isPending: query.isPending,
+		loadError: query.isError,
 		canView: isAdmin || permissions.includes('staff.jobs.view'),
 		canRequeue: isAdmin || permissions.includes('staff.jobs.requeue'),
 		canUpdateSystemJob:

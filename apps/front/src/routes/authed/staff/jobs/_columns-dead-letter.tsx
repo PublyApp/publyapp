@@ -21,6 +21,21 @@ export const makeDeadLetterColumns = (
 	locale: string,
 	onInspect: (row: StaffDeadLetterRow) => void,
 	onRequeue: (row: StaffDeadLetterRow) => void,
+	options?: {
+		/** True while the live staff auth-scope request is still in flight.
+		 * The Requeue item stays visible but renders disabled-with-explanation
+		 * so a click can't be silently swallowed (brief #1626). The click is
+		 * also gated at the handler (render, gate the click).
+		 *
+		 * Prefer this over `canRequeue` for the disabled state: a denied user
+		 * (grant resolved, key absent) must see *why* the action is blocked,
+		 * not just a dead item. */
+		permissionsPending?: boolean;
+		/** True once the request resolved and Requeue is denied. Drives the
+		 * explanation. */
+		permissionsDenied?: boolean;
+		title?: string;
+	},
 ): ColumnDef<StaffDeadLetterRow>[] => [
 	{
 		id: 'job_type',
@@ -104,7 +119,16 @@ export const makeDeadLetterColumns = (
 				</DropdownMenuItem>
 				<DropdownMenuItem
 					data-testid={`dead-letter-requeue-${row.original.id}`}
-					disabled={Boolean(row.original.requeuedAt)}
+					disabled={
+						Boolean(row.original.requeuedAt) ||
+						Boolean(options?.permissionsPending) ||
+						Boolean(options?.permissionsDenied)
+					}
+					title={
+						options?.permissionsPending || options?.permissionsDenied
+							? options.title
+							: undefined
+					}
 					onClick={() => onRequeue(row.original)}
 				>
 					<IconRotateClockwise aria-hidden="true" className="size-4" />

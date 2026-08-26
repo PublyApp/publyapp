@@ -162,6 +162,9 @@ const StaffJobsSystemJobsPage = () => {
 			makeSystemJobColumns(t, locale, {
 				canUpdateSystemJob: permissions.canUpdateSystemJob,
 				canTriggerSystemJob: permissions.canTriggerSystemJob,
+				permissionsPending: permissions.isPending,
+				permissionsDenied:
+					permissions.loadError || !permissions.canUpdateSystemJob,
 				isTogglePending: enabledMutation.isPending,
 				onToggleEnabled,
 				onTriggerNow: (row) => void onTriggerNow(row),

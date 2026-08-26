@@ -32,6 +32,8 @@
 	"cron-dialog-description": "Expression cron pour « {{jobKey}} ».",
 	"cron-expression-label": "Expression cron",
 	"system-job-definition-update-success": "Planification mise à jour.",
+	"action-permission-checking": "Vérification de vos droits…",
+	"action-permission-denied": "Vous n’avez pas le droit d’effectuer cette action.",
 	"no-rows-match-title": "Aucune tâche correspondante",
 	"no-rows-match-description": "Essayez d'ajuster ou d'effacer les filtres."
 }
