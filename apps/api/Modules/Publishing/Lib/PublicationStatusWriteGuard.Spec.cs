@@ -87,7 +87,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 			Status = PublicationStatus.Scheduled,
 			ScheduledAtUtc = DateTime.UtcNow.AddHours(1),
 			ScheduledTimeZone = "Etc/UTC",
-			IdempotencyKey = "status-guard-seed-0001",
+			IdempotencyKey = $"status-guard-{Guid.NewGuid():N}",
 		};
 		db.Publication.Add(publication);
 		await db.SaveChangesAsync();
@@ -101,9 +101,12 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 
 		// The evasion shape the Roslyn scan can never see: the property is
 		// reached by name at runtime, so no symbolic scan attributes this write.
-		typeof(Publication)
-			.GetProperty(nameof(Publication.Status))!
-			.SetValue(seeded, PublicationStatus.Published);
+		var statusProperty = typeof(Publication).GetProperty(nameof(Publication.Status));
+		if (statusProperty is null) {
+			throw new InvalidOperationException("Publication.Status property not found.");
+		}
+
+		statusProperty.SetValue(seeded, PublicationStatus.Published);
 		db.Entry(seeded).State = EntityState.Modified;
 
 		var act = async () => await db.SaveChangesAsync();
