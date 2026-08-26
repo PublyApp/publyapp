@@ -69,8 +69,49 @@ export const TenantPortalErrorState = ({
 	);
 };
 
-export const TenantPortalEmptyState = () => {
+/**
+ * #258: two different situations land on this surface and must not read the
+ * same. A user who was never invited anywhere gets the neutral "no
+ * organizations found" message; a user whose every organization was deleted
+ * by staff gets an explicit deletion notice plus the portal's real exit
+ * action — a blocking situation shows its cause in plain words (owner
+ * product rule). There is no platform support address to link to, so the
+ * actionable next step is signing out (same affordance as the picker view).
+ * The branch signal is `hasDeletedTenants` from the picker response.
+ */
+export const TenantPortalEmptyState = ({
+	hasDeletedTenants = false,
+}: {
+	hasDeletedTenants?: boolean;
+}) => {
 	const { t } = useTranslation('common');
+	const { logout, isLoggingOut } = useLogout();
+
+	if (hasDeletedTenants) {
+		return (
+			<StateView
+				scale="inline"
+				tone="danger"
+				icon={<IconBuildingOff aria-hidden="true" />}
+				title={t('all-organizations-deleted-title')}
+				description={t('all-organizations-deleted-description')}
+				actions={
+					<Button
+						variant="outline"
+						disabled={isLoggingOut}
+						onClick={() => logout()}
+						data-testid="tenant-portal-logout-button"
+					>
+						{isLoggingOut ? (
+							<IconLoader2 aria-hidden="true" className="size-4 animate-spin" />
+						) : null}
+						{t('log-out')}
+					</Button>
+				}
+				testId="tenant-portal-empty"
+			/>
+		);
+	}
 
 	return (
 		<StateView

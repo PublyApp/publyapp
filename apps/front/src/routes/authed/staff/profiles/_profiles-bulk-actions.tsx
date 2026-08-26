@@ -22,9 +22,9 @@ import {
 	type StaffProfileRow,
 	useBulkDeleteStaffProfilesMutation,
 } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 /** Route-local bulk action for the staff profiles list (#1386): the selection
  * toolbar offered only Export even though the API already ships

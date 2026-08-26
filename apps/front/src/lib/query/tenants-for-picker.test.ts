@@ -16,6 +16,7 @@ const activeData: TenantsForPickerData = {
 	],
 	activeCount: 2,
 	totalCount: 3,
+	hasDeletedTenants: false,
 	hasSuspendedTenants: true,
 };
 
@@ -25,6 +26,7 @@ describe('toTenantsForPickerData', () => {
 			toTenantsForPickerData({
 				activeCount: 2,
 				totalCount: 3,
+				hasDeletedTenants: true,
 				hasSuspendedTenants: true,
 				tenants: [
 					{
@@ -40,6 +42,7 @@ describe('toTenantsForPickerData', () => {
 		).toEqual({
 			activeCount: 2,
 			totalCount: 3,
+			hasDeletedTenants: true,
 			hasSuspendedTenants: true,
 			tenants: [
 				{ id: 't-1', name: 'Acme Corp', code: 'acme-corp', status: 'Active' },
@@ -65,8 +68,23 @@ describe('toTenantsForPickerData', () => {
 			tenants: [],
 			activeCount: 0,
 			totalCount: 0,
+			hasDeletedTenants: false,
 			hasSuspendedTenants: false,
 		});
+	});
+
+	// #258: the flag must survive normalization — it is what lets the empty
+	// state tell "all your organizations were deleted" from "none found".
+	test('maps hasDeletedTenants through for an otherwise-empty picker', () => {
+		expect(
+			toTenantsForPickerData({
+				activeCount: 0,
+				totalCount: 0,
+				hasDeletedTenants: true,
+				hasSuspendedTenants: false,
+				tenants: [],
+			}),
+		).toMatchObject({ hasDeletedTenants: true });
 	});
 });
 
@@ -98,6 +116,7 @@ describe('resolveWorkspaceTenant', () => {
 			],
 			activeCount: 1,
 			totalCount: 2,
+			hasDeletedTenants: false,
 			hasSuspendedTenants: true,
 		};
 		expect(resolveWorkspaceTenant(data, null)?.id).toBe('t-1');

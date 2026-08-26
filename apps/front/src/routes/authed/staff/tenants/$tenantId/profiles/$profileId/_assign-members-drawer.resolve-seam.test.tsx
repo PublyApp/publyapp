@@ -133,7 +133,7 @@ vi.mock('~/lib/query/staff-tenant-users', () => ({
 		})),
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

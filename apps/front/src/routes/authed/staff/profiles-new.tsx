@@ -20,12 +20,12 @@ import {
 	useCreateStaffProfileMutation,
 	useStaffPermissionCatalogQuery,
 } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getNewStaffProfileSchema } from '@org/shared-ts/validations/staff-profile.validations';
 

@@ -29,11 +29,6 @@ import { buttonVariants } from '~/components/ui/button.variants';
 import { Input } from '~/components/ui/input';
 import { redirectAuthenticatedUserAwayFromAuthPage } from '~/lib/auth-route-guard';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
-import {
-	getSafeSearchRedirect,
-	isAllowedRedirectPath,
-	resolveRouteRedirect,
-} from '~/lib/safe-redirect-path';
 import { completeLoginRedirect, login } from '~/lib/server/session-actions';
 import {
 	AUTH_SYNC_CHANNEL,
@@ -45,6 +40,11 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { queryParamKey, queryParamValue } from '@org/shared-ts/lib/constants';
+import {
+	getSafeSearchRedirect,
+	isAllowedRedirectPath,
+	resolveRouteRedirect,
+} from '@org/shared-ts/lib/safe-redirect-path';
 
 type LoginFormValues = {
 	email: string;

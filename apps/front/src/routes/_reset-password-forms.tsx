@@ -15,7 +15,6 @@ import { EmailSentConfirmation } from '~/components/auth/email-sent-confirmation
 import { PasswordField } from '~/components/auth/password-field';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
-import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { requestPasswordReset, resetPassword } from '~/lib/server/auth-actions';
 
@@ -23,6 +22,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 
 import {
 	getRequestFormSchema,

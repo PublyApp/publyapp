@@ -17,9 +17,19 @@ public class GetUserTenantsForPickerResponse {
 	public List<TenantForPickerItem> Tenants { get; set; } = [];
 	public int TotalCount { get; set; }
 	public int ActiveCount { get; set; }
+	// #258: true when the user's memberships were all removed by staff
+	// deleting their tenants. Drives the dedicated "organizations were
+	// deleted" empty state, distinct from "no organizations found".
+	public bool HasDeletedTenants { get; set; }
 	public bool HasSuspendedTenants { get; set; }
 }
 
+/// <summary>
+/// Returns the calling user's tenant picker payload. A user whose every
+/// tenant was soft-deleted by staff receives an empty list with
+/// <see cref="GetUserTenantsForPickerResponse.HasDeletedTenants"/> set so the
+/// front can distinguish "all deleted" from "never invited anywhere" (#258).
+/// </summary>
 public sealed class GetUserTenantsForPicker {
 	private const int MaxTenantsInList = 50;
 
@@ -58,6 +68,7 @@ public sealed class GetUserTenantsForPicker {
 			}).ToList(),
 			TotalCount = result.TotalCount,
 			ActiveCount = result.ActiveCount,
+			HasDeletedTenants = result.HasDeletedTenants,
 			HasSuspendedTenants = result.HasSuspendedTenants
 		});
 	}

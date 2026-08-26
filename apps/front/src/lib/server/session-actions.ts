@@ -12,7 +12,7 @@ import {
 } from '@org/shared-ts/lib/session/parse';
 
 import { createClient } from '../api-client/client-manager';
-import { determineServerSessionAction } from '../session-scope';
+import { determineServerSessionAction } from '../session/session-scope';
 import { ServerFailure, throwServerFailure } from './server-failure';
 import {
 	buildTenantSessionCookie,

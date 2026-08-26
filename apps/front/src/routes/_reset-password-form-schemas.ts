@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
+
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 
 export type Translate = (
 	key: string,

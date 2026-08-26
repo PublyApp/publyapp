@@ -2,13 +2,13 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 import InterZod, {
 	type InterZodTranslator,
 } from '@org/shared-ts/lib/zod/InterZod';
 import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
 
 import { createClient } from '../api-client/client-manager';
-import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
 import { classifyPrecheckFailure } from './precheck-outcome';
 import { throwServerFailure } from './server-failure';
 
@@ -44,7 +44,7 @@ const structuralZod = new InterZod({
  * `password` deliberately does NOT reuse `getRegisterSchema`'s rule (min 8 +
  * special-char) — front enforces a longer, simpler `PASSWORD_MIN_LENGTH`
  * (12 chars, no special-char requirement) as its own product policy; see
- * `../auth-password-policy.ts`.
+ * `@org/shared-ts/lib/auth-password-policy`.
  */
 export const RegisterInputSchema = getRegisterSchema(structuralZod)
 	.omit({ password: true })
