@@ -16,6 +16,7 @@
 	"history": "History",
 	"history-account-label": "Account",
 	"history-description": "Publications across your connected accounts.",
+	"history-empty-title": "No publications yet",
 	"history-post-label": "Post",
 	"history-status-label": "Status",
 	"image-alt-label": "Alt text",

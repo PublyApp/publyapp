@@ -16,6 +16,7 @@
 	"history": "Historique",
 	"history-account-label": "Compte",
 	"history-description": "Les publications de vos comptes connectés.",
+	"history-empty-title": "Aucune publication pour l'instant",
 	"history-post-label": "Publication",
 	"history-status-label": "Statut",
 	"image-alt-label": "Texte alternatif",
