@@ -5168,13 +5168,42 @@ const refreshChangedSourceFiles = (
 ): void => {
 	let refreshedAny = false;
 	for (const filePath of desiredFilePaths) {
-		const stat = statSync(filePath, { bigint: true });
-		const stamp = `${stat.size}:${stat.mtimeNs}`;
+		// Other tree-walking guards plant transient fixtures under src/ and
+		// unlink them in their own `finally` blocks; when suites run
+		// concurrently a discovered path can vanish between discovery and
+		// this refresh. A vanished file contributes no drawer surface — skip
+		// it instead of failing the whole guard on someone else's cleanup.
+		let stamp: string;
+		try {
+			const fresh = statSync(filePath, { bigint: true });
+			stamp = `${fresh.size}:${fresh.mtimeNs}`;
+		} catch (error) {
+			if (
+				error instanceof Error &&
+				'code' in error &&
+				(error as NodeJS.ErrnoException).code === 'ENOENT'
+			) {
+				continue;
+			}
+			throw error;
+		}
 		const loaded = sourceFileFreshness.get(filePath);
 		if (loaded && loaded.stamp === stamp) {
 			continue;
 		}
-		const diskText = readFileSync(filePath, 'utf8');
+		let diskText: string;
+		try {
+			diskText = readFileSync(filePath, 'utf8');
+		} catch (error) {
+			if (
+				error instanceof Error &&
+				'code' in error &&
+				(error as NodeJS.ErrnoException).code === 'ENOENT'
+			) {
+				continue;
+			}
+			throw error;
+		}
 		const existing = project.getSourceFile(filePath);
 		if (existing && existing.getFullText() === diskText) {
 			sourceFileFreshness.set(filePath, { stamp, text: diskText });
