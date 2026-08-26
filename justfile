@@ -370,6 +370,15 @@ ci-lint:
   pnpm check:frontend-barrels
   pnpm --filter @org/lint-ts test
 
+# Knip (issue #455): unused files/deps/devDeps/binary invocations, unlisted
+# deps, unused exports/types, and duplicate exports. Mirrors the
+# quality-gate.yml::quality::Knip step (same `pnpm exec knip`, same root
+# knip.ts). Exit 0 is the contract; every exception must be a scoped entry
+# with a reason in knip.ts, never a blanket ignore.
+ci-knip:
+  @echo "=== [gate] knip (unused exports & dependencies) ==="
+  pnpm exec knip
+
 # @org/shared-ts: typecheck + vitest (issue #1270). The package ships the
 # repo-wide logger, i18n, query-factory and ApiFailure contracts consumed by
 # every front surface, but nothing standing verified it after its i18next
@@ -447,7 +456,7 @@ ci-e2e-front:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-project-closure-adapter ci-install ci-format ci-lint ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
+ci: ci-drift ci-migration-expand-contract ci-review-worktree-resolution ci-doc-links ci-project-closure-adapter ci-install ci-format ci-lint ci-knip ci-shared-ts ci-quality ci-front ci-spec-drift nuget-audit test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."
