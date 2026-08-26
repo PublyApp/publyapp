@@ -106,8 +106,11 @@ above; #880's closure adds the proof, not a new pin.
   `packages/shared-ts` `^5.1.16`, was also removed — no workspace source ever
   imported `nanoid`. The sole remaining consumer is transitive: `postcss@8.5.25`
   depends on `nanoid@3.3.18`, which is already the patched version, so neither
-  cap had anything left to lift. The documented removal condition ("Remove both
-  overrides once upstream consumers resolve fixed versions without them") is met.
+  cap had anything left to lift. (`postcss` is a devDependency, so `nanoid` is
+  not in the production graph at all — `pnpm audit --prod` is clean because the
+  package is absent there, and the full `--audit-level=moderate` graph is clean
+  too.) The documented removal condition ("Remove both overrides once upstream
+  consumers resolve fixed versions without them") is met.
 
 CI's audit step (`pnpm audit --prod --audit-level=high`) stays the standing tripwire; run the
 full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.

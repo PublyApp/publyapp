@@ -122,6 +122,14 @@ Le paquet `nanoid` est donc toujours present dans le graphe, mais
 uniquement comme consommateur transitif (`postcss`) deja sur une version
 saine — pas orphelin, pas vulnerable.
 
+Precision de portee : `postcss` est une **devDependency** (declaree dans
+`apps/front/package.json`), donc `nanoid` ne figure pas dans le graphe de
+production. C'est pourquoi `pnpm audit --prod --audit-level=high` est
+propre (nanoid absent du graphe prod) ; l'audit complet
+`--audit-level=moderate` est lui aussi propre, le `nanoid@3.3.18` dev
+restant non signale. Les plafonds de securite visant le graphe prod
+n'avaient donc plus rien a proteger.
+
 ### Conclusion
 - La declaration directe dans `packages/shared-ts/package.json` a ete
   retiree (commit `ec7089c99`).
