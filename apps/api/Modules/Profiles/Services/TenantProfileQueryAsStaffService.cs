@@ -193,108 +193,37 @@ public sealed class TenantProfileQueryAsStaffService : ITenantProfileQueryAsStaf
 		var sortFieldHandlers = new Dictionary<string, CursorSortFieldHandler<Profile>>(
 			StringComparer.OrdinalIgnoreCase
 		) {
-			// Keep cursor semantics explicit per sort field so each branch stays consistent with
-			// the repo's keyset pagination rules and matching composite indexes.
-			["id"] = new CursorSortFieldHandler<Profile>(
-				getCursorValue: async (guid) => {
-					var profileId = await _dbContext.Profile
-						.AsNoTracking()
-						.Where(p =>
-							p.Id == guid
-							&& p.Scope == ProfileScope.Tenant
-							&& p.TenantId == args.TenantId
-							&& !p.IsDeleted
-						)
-						.Select(p => p.Id)
-						.FirstOrDefaultAsync(cancellationToken);
-					return profileId;
-				},
-				applyFilter: (q, cursorValue, isAscLocal) => {
-					var cursorGuid = (Guid?)cursorValue;
-					if (cursorGuid is null) {
-						return q;
-					}
-
-					return isAscLocal
-						? q.Where(p => p.Id > cursorGuid)
-						: q.Where(p => p.Id < cursorGuid);
-				},
-				applyOrdering: (q, isAscLocal) => isAscLocal
-					? q.OrderBy(p => p.Id)
-					: q.OrderByDescending(p => p.Id)
+			["id"] = CursorSortFieldHandlerFactory.Create<Profile, Guid, Guid?>(
+				cursorLookupQuery: () => _dbContext.Profile
+					.AsNoTracking()
+					.Where(p => p.Scope == ProfileScope.Tenant
+						&& p.TenantId == args.TenantId
+						&& !p.IsDeleted),
+				keySelector: p => p.Id ?? Guid.Empty,
+				idSelector: p => p.Id,
+				cancellationToken
 			),
-			["name"] = new CursorSortFieldHandler<Profile>(
-				getCursorValue: async (guid) => {
-					var profile = await _dbContext.Profile
-						.AsNoTracking()
-						.Where(p =>
-							p.Id == guid
-							&& p.Scope == ProfileScope.Tenant
-							&& p.TenantId == args.TenantId
-							&& !p.IsDeleted
-						)
-						.Select(p => new { p.Name, p.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return profile is not null ? (profile.Name, profile.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAscLocal) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorName, cursorId) = ((string, Guid?))cursorValue;
-
-					return isAscLocal
-						? q.Where(
-							p =>
-								p.Name.CompareTo(cursorName) > 0
-								|| (p.Name == cursorName && p.Id > cursorId)
-						)
-						: q.Where(
-							p =>
-								p.Name.CompareTo(cursorName) < 0
-								|| (p.Name == cursorName && p.Id < cursorId)
-						);
-				},
-				applyOrdering: (q, isAscLocal) => isAscLocal
-					? q.OrderBy(p => p.Name).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.Name).ThenByDescending(p => p.Id)
+			["name"] = CursorSortFieldHandlerFactory.Create<Profile, string, Guid?>(
+				cursorLookupQuery: () => _dbContext.Profile
+					.AsNoTracking()
+					.Where(p => p.Id != null
+						&& p.Scope == ProfileScope.Tenant
+						&& p.TenantId == args.TenantId
+						&& !p.IsDeleted),
+				keySelector: p => p.Name,
+				idSelector: p => p.Id,
+				cancellationToken
 			),
-			["created_at"] = new CursorSortFieldHandler<Profile>(
-				getCursorValue: async (guid) => {
-					var profile = await _dbContext.Profile
-						.AsNoTracking()
-						.Where(p =>
-							p.Id == guid
-							&& p.Scope == ProfileScope.Tenant
-							&& p.TenantId == args.TenantId
-							&& !p.IsDeleted
-						)
-						.Select(p => new { p.CreatedAt, p.Id })
-						.FirstOrDefaultAsync(cancellationToken);
-					return profile is not null ? (profile.CreatedAt, profile.Id) : null;
-				},
-				applyFilter: (q, cursorValue, isAscLocal) => {
-					if (cursorValue is null) {
-						return q;
-					}
-
-					var (cursorCreatedAt, cursorId) = ((DateTime, Guid?))cursorValue;
-					return isAscLocal
-						? q.Where(
-							p =>
-								p.CreatedAt > cursorCreatedAt
-								|| (p.CreatedAt == cursorCreatedAt && p.Id > cursorId)
-						)
-						: q.Where(
-							p =>
-								p.CreatedAt < cursorCreatedAt
-								|| (p.CreatedAt == cursorCreatedAt && p.Id < cursorId)
-						);
-				},
-				applyOrdering: (q, isAscLocal) => isAscLocal
-					? q.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id)
-					: q.OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id)
+			["created_at"] = CursorSortFieldHandlerFactory.Create<Profile, DateTime, Guid?>(
+				cursorLookupQuery: () => _dbContext.Profile
+					.AsNoTracking()
+					.Where(p => p.Id != null
+						&& p.Scope == ProfileScope.Tenant
+						&& p.TenantId == args.TenantId
+						&& !p.IsDeleted),
+				keySelector: p => p.CreatedAt,
+				idSelector: p => p.Id,
+				cancellationToken
 			),
 		};
 
