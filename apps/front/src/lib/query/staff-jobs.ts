@@ -408,8 +408,7 @@ export const requeueDeadLetterMutationOptions = buildStaffMutationOptions<
 				.requeue.post(body);
 		},
 		meta: {
-			silentSuccess: true,
-			skipGlobalErrorHandler: true,
+			successMessage: 'dead-letter-requeue-success',
 		},
 	},
 	{ clientAccessor: getClientManager() },
@@ -434,7 +433,6 @@ export const updateSystemJobEnabledMutationOptions = buildStaffMutationOptions<
 		},
 		meta: {
 			silentSuccess: true,
-			skipGlobalErrorHandler: true,
 		},
 	},
 	{ clientAccessor: getClientManager() },
@@ -463,7 +461,7 @@ export const updateSystemJobCronMutationOptions = buildStaffMutationOptions<
 				.cron.patch(body);
 		},
 		meta: {
-			successMessage: 'system-job-definition-update-success',
+			silentSuccess: true,
 			validationHandledByForm: true,
 		},
 	},
@@ -483,7 +481,6 @@ export const triggerSystemJobMutationOptions = buildStaffMutationOptions<
 				.trigger.post(),
 		meta: {
 			successMessage: 'system-job-trigger-success',
-			skipGlobalErrorHandler: false,
 		},
 	},
 	{ clientAccessor: getClientManager() },

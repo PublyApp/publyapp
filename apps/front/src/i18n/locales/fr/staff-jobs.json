@@ -1,0 +1,71 @@
+{
+	"nav-staff-jobs": "Tâches",
+	"jobs-page-title": "Tâches",
+	"jobs-page-description": "Activité des tâches en arrière-plan sur la plateforme.",
+	"tab-queue": "File",
+	"tab-dead-letter": "Lettres mortes",
+	"tab-system-jobs": "Tâches système",
+
+	"queue-page-title": "File d'attente",
+	"queue-page-description": "Tâches en attente et en cours de traitement.",
+	"dl-page-title": "Tâches en échec",
+	"dl-page-description": "Tâches ayant épuisé leurs tentatives et nécessitant une vérification.",
+	"system-page-title": "Définitions des tâches système",
+	"system-page-description": "Tâches récurrentes de la plateforme et leurs planifications.",
+
+	"column-job-type": "Type de tâche",
+	"column-status": "Statut",
+	"column-state": "État",
+	"column-attempts": "Tentatives",
+	"column-tenant": "Tenant",
+	"column-next-attempt": "Prochaine tentative",
+	"column-failed-at": "Échec le",
+	"column-requeued-at": "Remise en file le",
+	"column-job-key": "Définition",
+	"column-enabled": "Activée",
+	"column-last-enqueued": "Dernière mise en file",
+	"column-updated-at": "Mise à jour le",
+
+	"action-inspect": "Inspecter",
+	"action-requeue": "Remettre en file",
+	"action-edit-cron": "Planifier",
+	"action-trigger-now": "Déclencher",
+	"action-save-cron": "Enregistrer la planification",
+
+	"queue-drawer-title": "Tâche en file",
+	"dl-drawer-title": "Tâche en échec",
+	"detail-last-error": "Dernière erreur",
+	"detail-created-at": "Créée le",
+	"redaction-banner": "Ces données contiennent des valeurs sensibles et ont été masquées avant stockage.",
+
+	"requeue-confirm-title": "Remettre cette tâche en file ?",
+	"requeue-confirm-description": "L'exécution échouée de « {{jobType}} » sera remise en file avec ses données d'origine.",
+	"requeue-confirm-description-generic": "L'exécution échouée sera remise en file avec ses données d'origine.",
+	"requeue-note-label": "Note (facultatif)",
+
+	"cron-dialog-title": "Modifier la planification",
+	"cron-dialog-description": "Expression cron pour « {{jobKey}} ».",
+	"cron-expression-label": "Expression cron",
+
+	"dead-letter-requeue-success": "Tâche remise en file.",
+	"system-job-definition-update-success": "Planification mise à jour.",
+	"system-job-trigger-success": "Tâche déclenchée.",
+	"system-job-trigger-noop": "La tâche est déjà en file ou en cours d'exécution.",
+
+	"no-rows-match-title": "Aucune tâche correspondante",
+	"no-rows-match-description": "Essayez d'ajuster ou d'effacer les filtres.",
+
+	"queue-status-pending": "En attente",
+	"queue-status-processing": "En traitement",
+	"queue-status-completed": "Terminée",
+	"queue-status-failed": "Échouée",
+
+	"dl-state-none": "Aucun état externe",
+	"dl-state-present": "État externe présent",
+	"dl-state-expired": "État externe expiré",
+	"dl-state-never-prepared": "Jamais préparée",
+	"dl-state-missing": "État externe manquant",
+	"dl-state-transferred": "Transférée",
+	"dl-state-unclassified": "Échec non classé",
+	"dl-state-unknown": "État inconnu"
+}
