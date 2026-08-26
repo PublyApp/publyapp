@@ -568,6 +568,7 @@ public class AccountService : IAccountService {
 				&& ua.TenantId != null
 				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended  // Account must be active
 				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
+				&& !t.IsDeleted                       // Tenant must not be deleted
 			select new { ua, t };
 
 		var totalCount = await baseQuery.CountAsync(cancellationToken);
@@ -578,15 +579,19 @@ public class AccountService : IAccountService {
 		// #258: memberships whose tenant was soft-deleted are invisible to the
 		// base query above (it excludes deleted tenants). Count them separately
 		// so the front can tell "all my organizations were deleted" from "I was
-		// never invited anywhere".
-		var deletedCount = await _dbContext.UserAccount
-			.Where(ua => ua.UserId == userId
+		// never invited anywhere". Explicit join: the UserAccount.Tenant
+		// navigation is nullable, so it cannot be dereferenced here (CS8602).
+		var deletedCount = await (
+			from ua in _dbContext.UserAccount
+			join t in _dbContext.Tenant on ua.TenantId equals t.Id
+			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Tenant
 				&& ua.TenantId != null
 				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
 				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
-				&& ua.Tenant.IsDeleted)
-			.CountAsync(cancellationToken);
+				&& t.IsDeleted
+			select ua
+		).CountAsync(cancellationToken);
 
 		var tenants = await baseQuery
 			.OrderBy(q => q.t.Name)
