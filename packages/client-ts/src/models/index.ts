@@ -1088,6 +1088,15 @@ export function createFindProjectsForTenantResponseFromDiscriminatorValue(parseN
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindPublicationsForTenantResponse}
+ */
+// @ts-ignore
+export function createFindPublicationsForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindPublicationsForTenantResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindSocialAccountsForTenantResponse}
  */
 // @ts-ignore
@@ -1219,6 +1228,15 @@ export function createFindTenantUsersAsStaffResultFromDiscriminatorValue(parseNo
 // @ts-ignore
 export function createGetAuditLogActionsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoGetAuditLogActionsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetPublishTargetsForTenantResponse}
+ */
+// @ts-ignore
+export function createGetPublishTargetsForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetPublishTargetsForTenantResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -1531,6 +1549,33 @@ export function createProfileItemFromDiscriminatorValue(parseNode: ParseNode | u
 // @ts-ignore
 export function createProjectListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProjectListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PublicationListItem}
+ */
+// @ts-ignore
+export function createPublicationListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPublicationListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PublishNowBody}
+ */
+// @ts-ignore
+export function createPublishNowBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPublishNowBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {PublishTargetItem}
+ */
+// @ts-ignore
+export function createPublishTargetItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoPublishTargetItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3068,6 +3113,18 @@ export function deserializeIntoFindProjectsForTenantResponse(findProjectsForTena
 }
 /**
  * The deserialization information for the current model
+ * @param FindPublicationsForTenantResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindPublicationsForTenantResponse(findPublicationsForTenantResponse: Partial<FindPublicationsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findPublicationsForTenantResponse.data = n.getCollectionOfObjectValues<PublicationListItem>(createPublicationListItemFromDiscriminatorValue); },
+        "nextCursor": n => { findPublicationsForTenantResponse.nextCursor = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindSocialAccountsForTenantResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3241,6 +3298,17 @@ export function deserializeIntoFindTenantUsersAsStaffResult(findTenantUsersAsSta
 export function deserializeIntoGetAuditLogActionsResponse(getAuditLogActionsResponse: Partial<GetAuditLogActionsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "actions": n => { getAuditLogActionsResponse.actions = n.getCollectionOfPrimitiveValues<string>("string"); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param GetPublishTargetsForTenantResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetPublishTargetsForTenantResponse(getPublishTargetsForTenantResponse: Partial<GetPublishTargetsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "items": n => { getPublishTargetsForTenantResponse.items = n.getCollectionOfObjectValues<PublishTargetItem>(createPublishTargetItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -3713,6 +3781,49 @@ export function deserializeIntoProjectListItem(projectListItem: Partial<ProjectL
     return {
         "id": n => { projectListItem.id = n.getGuidValue(); },
         "name": n => { projectListItem.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PublicationListItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPublicationListItem(publicationListItem: Partial<PublicationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accountLabel": n => { publicationListItem.accountLabel = n.getStringValue(); },
+        "externalUrl": n => { publicationListItem.externalUrl = n.getStringValue(); },
+        "id": n => { publicationListItem.id = n.getGuidValue(); },
+        "lastError": n => { publicationListItem.lastError = n.getStringValue(); },
+        "postExcerpt": n => { publicationListItem.postExcerpt = n.getStringValue(); },
+        "postId": n => { publicationListItem.postId = n.getGuidValue(); },
+        "socialAccountId": n => { publicationListItem.socialAccountId = n.getGuidValue(); },
+        "status": n => { publicationListItem.status = n.getStringValue(); },
+        "updatedAt": n => { publicationListItem.updatedAt = n.getDateValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PublishNowBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPublishNowBody(publishNowBody: Partial<PublishNowBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "accountIds": n => { publishNowBody.accountIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param PublishTargetItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoPublishTargetItem(publishTargetItem: Partial<PublishTargetItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "id": n => { publishTargetItem.id = n.getGuidValue(); },
+        "label": n => { publishTargetItem.label = n.getStringValue(); },
+        "provider": n => { publishTargetItem.provider = n.getStringValue(); },
     }
 }
 /**
@@ -4748,6 +4859,16 @@ export interface FindProjectsForTenantResponse extends AdditionalDataHolder, Par
      */
     items?: ProjectListItem[] | null;
 }
+export interface FindPublicationsForTenantResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: PublicationListItem[] | null;
+    /**
+     * The nextCursor property
+     */
+    nextCursor?: string | null;
+}
 export interface FindSocialAccountsForTenantResponse extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -4885,6 +5006,12 @@ export interface GetAuditLogActionsResponse extends AdditionalDataHolder, Parsab
      * The actions property
      */
     actions?: string[] | null;
+}
+export interface GetPublishTargetsForTenantResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The items property
+     */
+    items?: PublishTargetItem[] | null;
 }
 export interface GetRedirectCodeResult extends AdditionalDataHolder, Parsable {
     /**
@@ -5553,6 +5680,70 @@ export interface ProjectListItem extends AdditionalDataHolder, Parsable {
      * The name property
      */
     name?: string | null;
+}
+/**
+ * History row: one publication with the context History renders.
+ */
+export interface PublicationListItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The accountLabel property
+     */
+    accountLabel?: string | null;
+    /**
+     * The externalUrl property
+     */
+    externalUrl?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The postExcerpt property
+     */
+    postExcerpt?: string | null;
+    /**
+     * The postId property
+     */
+    postId?: Guid | null;
+    /**
+     * The socialAccountId property
+     */
+    socialAccountId?: Guid | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+    /**
+     * The updatedAt property
+     */
+    updatedAt?: Date | null;
+}
+export interface PublishNowBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The accountIds property
+     */
+    accountIds?: UntypedNode | null;
+}
+/**
+ * One row of the composer "Publish on" block: the target account identity plusthe wire values the block renders (plan D2 Task 4 interfaces block).
+ */
+export interface PublishTargetItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The id property
+     */
+    id?: Guid | null;
+    /**
+     * The label property
+     */
+    label?: string | null;
+    /**
+     * The provider property
+     */
+    provider?: string | null;
 }
 /**
  * HTTP wire result for the reactivate tenant-user operation; top-level sibling per thehandler file contract, with no Dto suffix on wire types.
@@ -6490,6 +6681,19 @@ export function serializeFindProjectsForTenantResponse(writer: SerializationWrit
 }
 /**
  * Serializes information the current object
+ * @param FindPublicationsForTenantResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindPublicationsForTenantResponse(writer: SerializationWriter, findPublicationsForTenantResponse: Partial<FindPublicationsForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findPublicationsForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<PublicationListItem>("data", findPublicationsForTenantResponse.data, serializePublicationListItem);
+    writer.writeStringValue("nextCursor", findPublicationsForTenantResponse.nextCursor);
+    writer.writeAdditionalData(findPublicationsForTenantResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindSocialAccountsForTenantResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -6679,6 +6883,18 @@ export function serializeGetAuditLogActionsResponse(writer: SerializationWriter,
     if (!getAuditLogActionsResponse || isSerializingDerivedType) { return; }
     writer.writeCollectionOfPrimitiveValues<string>("actions", getAuditLogActionsResponse.actions);
     writer.writeAdditionalData(getAuditLogActionsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param GetPublishTargetsForTenantResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetPublishTargetsForTenantResponse(writer: SerializationWriter, getPublishTargetsForTenantResponse: Partial<GetPublishTargetsForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getPublishTargetsForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<PublishTargetItem>("items", getPublishTargetsForTenantResponse.items, serializePublishTargetItem);
+    writer.writeAdditionalData(getPublishTargetsForTenantResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -7181,6 +7397,52 @@ export function serializeProjectListItem(writer: SerializationWriter, projectLis
     writer.writeGuidValue("id", projectListItem.id);
     writer.writeStringValue("name", projectListItem.name);
     writer.writeAdditionalData(projectListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PublicationListItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePublicationListItem(writer: SerializationWriter, publicationListItem: Partial<PublicationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!publicationListItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("accountLabel", publicationListItem.accountLabel);
+    writer.writeStringValue("externalUrl", publicationListItem.externalUrl);
+    writer.writeGuidValue("id", publicationListItem.id);
+    writer.writeStringValue("lastError", publicationListItem.lastError);
+    writer.writeStringValue("postExcerpt", publicationListItem.postExcerpt);
+    writer.writeGuidValue("postId", publicationListItem.postId);
+    writer.writeGuidValue("socialAccountId", publicationListItem.socialAccountId);
+    writer.writeStringValue("status", publicationListItem.status);
+    writer.writeDateValue("updatedAt", publicationListItem.updatedAt);
+    writer.writeAdditionalData(publicationListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PublishNowBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePublishNowBody(writer: SerializationWriter, publishNowBody: Partial<PublishNowBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!publishNowBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("accountIds", publishNowBody.accountIds);
+    writer.writeAdditionalData(publishNowBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param PublishTargetItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializePublishTargetItem(writer: SerializationWriter, publishTargetItem: Partial<PublishTargetItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!publishTargetItem || isSerializingDerivedType) { return; }
+    writer.writeGuidValue("id", publishTargetItem.id);
+    writer.writeStringValue("label", publishTargetItem.label);
+    writer.writeStringValue("provider", publishTargetItem.provider);
+    writer.writeAdditionalData(publishTargetItem.additionalData);
 }
 /**
  * Serializes information the current object

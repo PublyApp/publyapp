@@ -11247,6 +11247,117 @@
         }
       }
     },
+    "/posts/{postId}/publish-now": {
+      "post": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Publish a post now through the chosen connected accounts",
+        "operationId": "PublishNowForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishNowBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/posts/{postId}": {
       "get": {
         "tags": [
@@ -12448,6 +12559,204 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishing/publications": {
+      "get": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Find publications for the current tenant",
+        "operationId": "FindPublicationsForTenant",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindPublicationsForTenantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/publishing/publish-targets": {
+      "get": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "List visible social accounts as composer publish targets",
+        "operationId": "GetPublishTargetsForTenant",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetPublishTargetsForTenantResponse"
                 }
               }
             }
@@ -13665,6 +13974,24 @@
           }
         }
       },
+      "FindPublicationsForTenantResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "description": "History row: one publication with the context History renders.",
+              "$ref": "#/components/schemas/PublicationListItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "FindSocialAccountsForTenantResponse": {
         "type": "object",
         "properties": {
@@ -13913,6 +14240,21 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        }
+      },
+      "GetPublishTargetsForTenantResponse": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "description": "One row of the composer \"Publish on\" block: the target account identity plus\nthe wire values the block renders (plan D2 Task 4 interfaces block).",
+              "$ref": "#/components/schemas/PublishTargetItem"
             }
           }
         }
@@ -14860,6 +15202,90 @@
             "type": "string"
           }
         }
+      },
+      "PublicationListItem": {
+        "required": [
+          "id",
+          "postId",
+          "postExcerpt",
+          "status",
+          "socialAccountId",
+          "accountLabel",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "postExcerpt": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "socialAccountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountLabel": {
+            "type": "string"
+          },
+          "externalUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "History row: one publication with the context History renders."
+      },
+      "PublishNowBody": {
+        "required": [
+          "accountIds"
+        ],
+        "type": "object",
+        "properties": {
+          "accountIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
+      "PublishTargetItem": {
+        "required": [
+          "id",
+          "label",
+          "provider"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "description": "One row of the composer \"Publish on\" block: the target account identity plus\nthe wire values the block renders (plan D2 Task 4 interfaces block)."
       },
       "ReactivateTenantUserResult": {
         "type": "object",
@@ -16746,6 +17172,9 @@
     },
     {
       "name": "SocialAccounts"
+    },
+    {
+      "name": "Publishing"
     }
   ]
 }
