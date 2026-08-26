@@ -13,6 +13,12 @@ const config: KnipConfig = {
 			// locally), not an npm package: quality-gate.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
 			ignoreBinaries: ['just'],
+			// The root manifest's pnpm.packageExtensions patch declares a zod
+			// peer for @hookform/resolvers; knip reads that block and reports
+			// zod as an unlisted dependency of the ROOT workspace. No repo
+			// source imports zod outside apps/front and packages/shared-ts,
+			// which both declare it themselves.
+			ignoreDependencies: ['zod'],
 		},
 		'apps/api': {
 			entry: 'run-dev.mjs',
