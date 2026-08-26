@@ -12,6 +12,8 @@ import { ReactivateRequestBuilderRequestsMetadata, type ReactivateRequestBuilder
 // @ts-ignore
 import { SuspendRequestBuilderRequestsMetadata, type SuspendRequestBuilder } from './suspend/index.js';
 // @ts-ignore
+import { type UsageRequestBuilder, UsageRequestBuilderRequestsMetadata } from './usage/index.js';
+// @ts-ignore
 import { type UsersRequestBuilder, UsersRequestBuilderNavigationMetadata, UsersRequestBuilderRequestsMetadata } from './users/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
@@ -36,6 +38,10 @@ export interface WithTenantItemRequestBuilder extends BaseRequestBuilder<WithTen
      * The suspend property
      */
     get suspend(): SuspendRequestBuilder;
+    /**
+     * The usage property
+     */
+    get usage(): UsageRequestBuilder;
     /**
      * The users property
      */
@@ -119,6 +125,9 @@ export const WithTenantItemRequestBuilderNavigationMetadata: Record<Exclude<keyo
     },
     suspend: {
         requestsMetadata: SuspendRequestBuilderRequestsMetadata,
+    },
+    usage: {
+        requestsMetadata: UsageRequestBuilderRequestsMetadata,
     },
     users: {
         requestsMetadata: UsersRequestBuilderRequestsMetadata,

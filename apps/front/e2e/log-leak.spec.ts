@@ -188,13 +188,13 @@ const assertSecretAbsentFromSink = (
 };
 
 const assertSecretAbsentFromSinks = (sinks: SinkCapture[], token: string) => {
-	const map = {} as Record<LogSinkName, TokenCounts>;
+	const countsByName = new Map<LogSinkName, TokenCounts>();
 
 	for (const sink of sinks) {
-		map[sink.name] = assertSecretAbsentFromSink(sink, token);
+		countsByName.set(sink.name, assertSecretAbsentFromSink(sink, token));
 	}
 
-	return map;
+	return Object.fromEntries(countsByName);
 };
 
 const buildSentinelToken = (suffix: string, testInfo: TestInfo): string => {

@@ -22,24 +22,32 @@ const localLoaders = import.meta.glob<JsonModule>('../i18n/locales/*/*.json');
 // (`@org/shared-ts/lib/i18n/locales/{en,fr}`, which would pull shared `common` into every namespace
 // chunk). A relative dynamic `import()` of the exact file resolves correctly and code-splits each
 // namespace on its own — verified resolving + typechecking from `apps/front/src/lib/`.
-/** Named owner contract for the shared i18n loaders. The keys are read
- * dynamically (`${language}/${namespace}`), so the shape must stay open —
- * an interface with an index signature keeps the lookup type-safe while
- * letting inference pin each literal entry (no-known-value-widening). */
-interface SharedI18nLoaderMap {
-	[key: string]: ResourceLoader;
-}
-
-const sharedLoaders: SharedI18nLoaderMap = {
-	'en/zod': () =>
-		import('../../../../packages/shared-ts/src/lib/i18n/json/zod.en.json'),
-	'fr/zod': () =>
-		import('../../../../packages/shared-ts/src/lib/i18n/json/zod.fr.json'),
-	'en/response-message': () =>
-		import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.en.json'),
-	'fr/response-message': () =>
-		import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.fr.json'),
-};
+/** Known shared loaders, keyed by `${language}/${namespace}`. A Map keeps the
+ * dynamic lookup (`${language}/${namespace}`) explicit about unknown keys —
+ * `.get()` returns `undefined` for a missing namespace instead of widening the
+ * literal to an open dictionary (no-known-value-widening). */
+const sharedLoaders = new Map<string, ResourceLoader>([
+	[
+		'en/zod',
+		() =>
+			import('../../../../packages/shared-ts/src/lib/i18n/json/zod.en.json'),
+	],
+	[
+		'fr/zod',
+		() =>
+			import('../../../../packages/shared-ts/src/lib/i18n/json/zod.fr.json'),
+	],
+	[
+		'en/response-message',
+		() =>
+			import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.en.json'),
+	],
+	[
+		'fr/response-message',
+		() =>
+			import('../../../../packages/shared-ts/src/lib/i18n/json/response-message.fr.json'),
+	],
+] as const satisfies readonly (readonly [string, ResourceLoader])[]);
 
 const localLoaderByKey = new Map<string, ResourceLoader>();
 const globalNamespaceSet = new Set<SupportedNamespace>(GLOBAL_I18N_NAMESPACES);
@@ -55,7 +63,7 @@ export const readNamespaceResource = async (
 	namespace: SupportedNamespace,
 ): Promise<NamespaceResource> => {
 	const key = `${language}/${namespace}`;
-	const loader = localLoaderByKey.get(key) ?? sharedLoaders[key];
+	const loader = localLoaderByKey.get(key) ?? sharedLoaders.get(key);
 	if (!loader) {
 		throw new Error(`Unknown i18n resource: ${key}`);
 	}

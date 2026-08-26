@@ -167,7 +167,21 @@ export const noKnownValueWideningRule = defineRule({
 		},
 	},
 	createOnce(context) {
+		// createOnce visitors stream DURING traversal (not after) and the
+		// shared visitor survives across files, so per-file state is rebuilt in
+		// the Program handler and reporting that depends on the whole file is
+		// deferred to the `after` hook — the native createOnce pattern.
 		let environment: TypeEnvironment | null = null;
+
+		// #1448 item 2: an empty literal annotated with an open-dictionary or
+		// generic-container type is a legitimate open-container seed only while
+		// nothing is ever written into it. Post-hoc property writes turn the
+		// binding into an accumulator that launders known values through the
+		// declared widened type, so the declaration site must report once the
+		// whole file proves the accumulator use.
+		const pendingAccumulatorChecks: Array<() => void> = [];
+		let accumulatorWriteCounts: Map<Variable, number> = new Map();
+		let emptyAccumulatorDeclarations: Set<Variable> = new Set();
 
 		const reportFlow = (
 			expression: ESTree.Expression,
@@ -175,12 +189,6 @@ export const noKnownValueWideningRule = defineRule({
 			subject: string,
 		) => {
 			if (destination === null) return;
-			if (
-				isDictionaryAccumulatorTarget(destination) &&
-				isEmptyObjectExpression(expression)
-			) {
-				return;
-			}
 			if (!hasKnownEvidence(context.sourceCode, expression)) return;
 			context.report({
 				node: expression,
@@ -197,14 +205,44 @@ export const noKnownValueWideningRule = defineRule({
 		return {
 			Program(node) {
 				environment = createTypeEnvironment(node);
+				pendingAccumulatorChecks.length = 0;
+				accumulatorWriteCounts = new Map();
+				emptyAccumulatorDeclarations = new Set();
 			},
 			VariableDeclarator(node) {
 				if (node.init === null || node.id.type !== 'Identifier') return;
-				reportFlow(
-					node.init,
-					targetFromAnnotation(node.id.typeAnnotation),
-					`binding \`${node.id.name}\``,
+				const destination = targetFromAnnotation(node.id.typeAnnotation);
+				const subject = `binding \`${node.id.name}\``;
+				if (destination === null) return;
+				if (
+					!isDictionaryAccumulatorTarget(destination) ||
+					!isEmptyObjectExpression(node.init)
+				) {
+					reportFlow(node.init, destination, subject);
+					return;
+				}
+				// Empty literal into an open container: a legitimate seed unless
+				// the binding receives property writes later in the file
+				// (#1448 item 2). The verdict is deferred to `after`.
+				// `BindingIdentifier` and `IdentifierReference` share the
+				// Identifier shape; scope lookup only reads `name`, and the ESTree
+				// variance lives solely in the optional `typeAnnotation`.
+				const variable = resolveVariable(
+					context.sourceCode,
+					node.id as ESTree.IdentifierReference,
 				);
+				if (variable === null) return;
+				emptyAccumulatorDeclarations.add(variable);
+				pendingAccumulatorChecks.push(() => {
+					if (accumulatorWriteCounts.get(variable) === undefined) return;
+					context.report({
+						// Closure capture: the early `node.init === null` return is
+						// invisible to the checker inside the closure.
+						node: node.init ?? node.id,
+						messageId: 'widening',
+						data: { subject, target: destination.kind },
+					});
+				});
 			},
 			PropertyDefinition(node) {
 				if (node.value === null) return;
@@ -223,15 +261,34 @@ export const noKnownValueWideningRule = defineRule({
 				);
 			},
 			AssignmentExpression(node) {
-				if (node.operator !== '=' || node.left.type !== 'Identifier') return;
-				const variable = resolveVariable(context.sourceCode, node.left);
-				if (variable === null) return;
-				const declarator = variableDeclarator(variable);
-				if (declarator === null || declarator.id.type !== 'Identifier') return;
-				reportFlow(
-					node.right,
-					targetFromAnnotation(declarator.id.typeAnnotation),
-					`binding \`${declarator.id.name}\``,
+				if (node.operator !== '=') return;
+				if (node.left.type === 'Identifier') {
+					const variable = resolveVariable(context.sourceCode, node.left);
+					if (variable === null) return;
+					const declarator = variableDeclarator(variable);
+					if (declarator === null || declarator.id.type !== 'Identifier')
+						return;
+					reportFlow(
+						node.right,
+						targetFromAnnotation(declarator.id.typeAnnotation),
+						`binding \`${declarator.id.name}\``,
+					);
+					return;
+				}
+				// Accumulator writes `acc.prop = …` / `acc[expr] = …` on a declared
+				// empty-object open container (#1448 item 2). Only writes carrying
+				// known evidence launder anything through the widened container;
+				// storing already-opaque values discards nothing.
+				if (node.left.type !== 'MemberExpression') return;
+				const object = node.left.object;
+				if (object.type !== 'Identifier') return;
+				const variable = resolveVariable(context.sourceCode, object);
+				if (variable === null || !emptyAccumulatorDeclarations.has(variable))
+					return;
+				if (!hasKnownEvidence(context.sourceCode, node.right)) return;
+				accumulatorWriteCounts.set(
+					variable,
+					(accumulatorWriteCounts.get(variable) ?? 0) + 1,
 				);
 			},
 			ReturnStatement(node) {
@@ -266,6 +323,9 @@ export const noKnownValueWideningRule = defineRule({
 					classifyWideningTarget(node.typeAnnotation, environment),
 					'assertion',
 				);
+			},
+			after() {
+				for (const check of pendingAccumulatorChecks) check();
 			},
 		};
 	},

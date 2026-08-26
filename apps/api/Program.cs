@@ -170,6 +170,7 @@ public class Program {
 		var builder = Host.CreateApplicationBuilder(args);
 
 		builder.ConfigureLogger();
+		builder.ConfigureOpenTelemetry();
 		builder.AddInfraServices();
 		builder.AddAppServices();
 		// Producers run in EVERY role (design §3.2 matrix, last row) — worker jobs may
@@ -190,6 +191,7 @@ public class Program {
 		var builder = WebApplication.CreateBuilder(args);
 
 		builder.ConfigureLogger();
+		builder.ConfigureOpenTelemetry();
 		builder.AddWebServices();
 		builder.AddInfraServices();
 		builder.AddAppServices();

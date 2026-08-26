@@ -1,6 +1,6 @@
 {
-  "descriptionHash": "A01756922801F3F244DF2BC0161D114AB3958874075BC7A4187A995305F926994B97331BF02AB1964BB434A8BDF7FC33A1C8AAB33DB701CC0FD9D647355975DE",
-  "descriptionLocation": "../../../apps/api/openapi.json",
+  "descriptionHash": "FED92F04920315AD6B58E42B32F2C237476FA0BCDFDCBD48D303D86600607ECC40DC31A698CD58B2791687097B4906D5B2847DB959CF9B39AA5187E434B46049",
+  "descriptionLocation": "../../home/radan/Projects/PublyApp/publyapp/.worktrees/wt-258/apps/api/openapi.json",
   "lockFileVersion": "1.0.0",
   "kiotaVersion": "1.34.1",
   "clientClassName": "ApiClient",
