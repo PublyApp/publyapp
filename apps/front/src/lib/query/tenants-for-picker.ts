@@ -67,8 +67,22 @@ export const resolveWorkspaceTenant = (
  * resolved it before navigating here, so this re-derives the same tenant from
  * the (cached) picker query + the persisted selection.
  */
-export const useResolvedWorkspaceTenantId = (): string | null => {
-	const query = useTenantsForPickerQuery();
+export type UseResolvedWorkspaceTenantIdOptions = {
+	/**
+	 * The underlying picker request authenticates with the TENANT session
+	 * token only. Callers rendered outside the tenant scope (e.g. the shared
+	 * authed shell, which spans staff surfaces too) MUST pass
+	 * `enabled: false` there: an always-on fetch from a staff surface goes
+	 * out without any usable token and its 401 trips the central
+	 * logged-out-on-401 backstop (`handleAuthedQueryError`).
+	 */
+	enabled?: boolean;
+};
+
+export const useResolvedWorkspaceTenantId = (
+	options: UseResolvedWorkspaceTenantIdOptions = {},
+): string | null => {
+	const query = useTenantsForPickerQuery(options);
 	const [selectedTenantId] = useState<string | null>(() =>
 		readSelectedTenantId(),
 	);
@@ -116,7 +130,7 @@ export const toTenantsForPickerData = (
 	};
 };
 
-export const useTenantsForPickerQuery = () =>
+export const useTenantsForPickerQuery = (options: { enabled?: boolean } = {}) =>
 	useQuery({
 		queryKey: [...TENANTS_FOR_PICKER_QUERY_KEY],
 		queryFn: async () => {
@@ -124,4 +138,5 @@ export const useTenantsForPickerQuery = () =>
 			const result = await client.auth.tenantsForPicker.get();
 			return toTenantsForPickerData(result);
 		},
+		enabled: options.enabled,
 	});

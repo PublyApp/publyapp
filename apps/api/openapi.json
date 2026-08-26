@@ -154,6 +154,15 @@
         ],
         "summary": "Get User Auth Data",
         "operationId": "GetUserAuthData",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "429": {
             "description": "Too Many Requests",
@@ -13946,6 +13955,13 @@
               "null",
               "string"
             ]
+          },
+          "tenantPermissionKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:\n[\"*\"] when the resolved account is a tenant Admin (the #861\nAccountLevel.Admin short-circuit TenantPermissionFilter applies), otherwise\nthe profile-derived keys. Empty array — never null — whenever there is\nno usable scope (missing/malformed tenant_id, unknown or suspended\naccount), gating everything closed."
           }
         }
       },

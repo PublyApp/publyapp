@@ -1,10 +1,12 @@
 /** @vitest-environment jsdom */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
 	act,
 	cleanup,
 	fireEvent,
 	render,
 	screen,
+	waitFor,
 	within,
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
@@ -13,6 +15,17 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	isDesktop: true,
 	linkPrevSearch: {} as Record<string, unknown>,
+	workspaceTenantId: null as string | null,
+	// Captures the `enabled` flag the shell passes to the picker hook — the
+	// staff-surface regression guard below asserts it stays false there.
+	workspacePickerEnabled: null as boolean | null,
+	// When true, the picker-hook mock delegates to the REAL
+	// `useResolvedWorkspaceTenantId` so the request-counting proof suite can
+	// exercise the genuine hook -> query -> client chain. Default false keeps
+	// every other describe on the cheap capture stub.
+	useRealWorkspaceHook: false,
+	// Number of times the faked tenant-scope client served a picker GET.
+	pickerGetCallCount: 0,
 	// Not exercising breadcrumb behavior in this file (this app-shell unit
 	// suite mocks the router wholesale — the AUTHORITATIVE breadcrumb tests
 	// use a real router + real routeTree, see breadcrumb-contract.test.tsx).
@@ -74,6 +87,60 @@ vi.mock('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
 }));
 
+// Task 7 (C3): the shell mounts the needs-reconnect banner on tenant
+// surfaces. These seams are mocked wholesale here because this suite has no
+// QueryClient; the banner's own behaviour lives in its dedicated suite.
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => {
+	const original =
+		await importOriginal<typeof import('~/lib/query/tenants-for-picker')>();
+	return {
+		...original,
+		useResolvedWorkspaceTenantId: (options?: { enabled?: boolean }) => {
+			if (mocks.useRealWorkspaceHook) {
+				return original.useResolvedWorkspaceTenantId(options);
+			}
+			mocks.workspacePickerEnabled = options?.enabled ?? null;
+			return mocks.workspaceTenantId;
+		},
+	};
+});
+// Counted stand-in for the tenant-scope API client: the proof suite asserts
+// on how often the picker endpoint is actually asked for, per surface.
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateTenantScopeClient: () => ({
+			auth: {
+				tenantsForPicker: {
+					get: async () => {
+						mocks.pickerGetCallCount += 1;
+						return {
+							tenants: [
+								{
+									id: { toString: () => 't-1' },
+									name: 'Tenant One',
+									code: 'T1',
+									status: 'ACTIVE',
+								},
+							],
+							activeCount: 1,
+							totalCount: 1,
+							hasSuspendedTenants: false,
+						};
+					},
+				},
+			},
+		}),
+	}),
+}));
+vi.mock('./_needs-reconnect-banner', () => ({
+	NeedsReconnectBanner: () =>
+		createElement(
+			'div',
+			{ 'data-testid': 'needs-reconnect-banner-stub' },
+			'stub',
+		),
+}));
+
 vi.mock('~/components/ui/drawer', () => ({
 	Drawer: ({ open, children }: { open: boolean; children: ReactNode }) =>
 		open
@@ -99,7 +166,7 @@ vi.mock('~/components/ui/drawer', () => ({
 	}) => createElement('div', props, children),
 }));
 
-import { useUiStore } from '~/lib/store/ui-store';
+import { SIDEBAR_OPEN_STORAGE_KEY, useUiStore } from '~/lib/store/ui-store';
 
 import { AppShell } from './app-shell';
 
@@ -276,6 +343,22 @@ describe('AppShell secondary-panel toggle', () => {
 		expect(panel.getAttribute('aria-hidden')).toBe('true');
 	});
 
+	test('a persisted closed preference holds on the FIRST render, before any hydration effect (#936)', async () => {
+		// The regression this pins: the store used to initialize to the open
+		// default and only read localStorage inside ThemeHydrationListener's
+		// post-commit effect, so the real shell rendered OPEN for one window
+		// and then flipped — the rotating shell.spec.ts e2e flake class. The
+		// store must instead seed itself from localStorage at module load, so
+		// re-importing the module with the preference present must produce a
+		// store whose INITIAL state is already collapsed.
+		window.localStorage.setItem(SIDEBAR_OPEN_STORAGE_KEY, 'false');
+
+		vi.resetModules();
+		const { useUiStore: freshStore } = await import('~/lib/store/ui-store');
+
+		expect(freshStore.getState().sidebarOpen).toBe(false);
+	});
+
 	test('below desktop width: toggle is hidden on both list and rail-only routes', () => {
 		mocks.isDesktop = false;
 
@@ -433,5 +516,140 @@ describe('AppShell secondary-panel status links preserve the toolbar search stat
 		const allSearch = JSON.parse(allLink.getAttribute('data-search') ?? '{}');
 		expect(allSearch).toMatchObject({ q: 'ac', sortId: 'name', size: 50 });
 		expect(allSearch.status).toBeUndefined();
+	});
+});
+
+describe('AppShell needs-reconnect banner mount point', () => {
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		resetUiStore();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('mounts above main on tenant surfaces when a workspace is resolved', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname="/tenant/settings/integrations">
+				content
+			</AppShell>,
+		);
+
+		const banner = screen.getByTestId('needs-reconnect-banner-stub');
+		expect(
+			banner.nextElementSibling?.classList.contains('app-shell-main'),
+		).toBe(true);
+	});
+
+	test('renders no banner before a workspace tenant is resolved', () => {
+		mocks.workspaceTenantId = null;
+
+		render(
+			<AppShell mode="authed" pathname="/tenant/settings/integrations">
+				content
+			</AppShell>,
+		);
+
+		expect(screen.queryByTestId('needs-reconnect-banner-stub')).toBeNull();
+	});
+
+	test('renders no banner on staff surfaces', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		expect(screen.queryByTestId('needs-reconnect-banner-stub')).toBeNull();
+	});
+
+	test('disables the tenant-scope picker fetch on staff surfaces', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		// The picker request carries only the tenant session token; letting it
+		// run on a staff surface sends an unauthenticated 401 that the central
+		// backstop answers with a full logout.
+		expect(mocks.workspacePickerEnabled).toBe(false);
+	});
+
+	test('enables the tenant-scope picker fetch on tenant surfaces', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname="/tenant/settings/integrations">
+				content
+			</AppShell>,
+		);
+
+		expect(mocks.workspacePickerEnabled).toBe(true);
+	});
+});
+
+// PROOF (C3 root cause): the mass front-e2e failure was the shared authed
+// shell firing the tenant-scoped `tenants-for-picker` request on STAFF
+// surfaces, where no tenant session token exists — the resulting 401 tripped
+// the central logged-out-on-401 backstop. Unlike the capture-stub tests
+// above (which assert the `enabled` ARGUMENT the shell passes), this suite
+// swaps the hook mock for the REAL `useResolvedWorkspaceTenantId` and counts
+// calls on a faked client, so it fails if the request goes out by ANY path.
+describe('AppShell issues no tenants-for-picker request on staff surfaces', () => {
+	let queryClient: QueryClient;
+
+	const renderShellUnderQueryClient = (pathname: string) =>
+		render(
+			<AppShell mode="authed" pathname={pathname}>
+				content
+			</AppShell>,
+			{
+				wrapper: ({ children }: { children: ReactNode }) => (
+					<QueryClientProvider client={queryClient}>
+						{children}
+					</QueryClientProvider>
+				),
+			},
+		);
+
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		mocks.useRealWorkspaceHook = true;
+		window.localStorage.clear();
+		resetUiStore();
+		mocks.pickerGetCallCount = 0;
+		queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		});
+	});
+
+	afterEach(() => {
+		cleanup();
+		mocks.useRealWorkspaceHook = false;
+		queryClient.clear();
+	});
+
+	test('staff surface: the picker endpoint is never fetched', async () => {
+		renderShellUnderQueryClient(LIST_ROUTE);
+
+		// Flush scheduling so a regressed fetch would be counted by now:
+		// with `enabled: false` TanStack Query never even starts one.
+		await act(async () => {});
+
+		expect(mocks.pickerGetCallCount).toBe(0);
+	});
+
+	test('tenant surface: the picker endpoint is fetched exactly once', async () => {
+		renderShellUnderQueryClient('/tenant/settings/integrations');
+
+		await waitFor(() => expect(mocks.pickerGetCallCount).toBe(1));
 	});
 });

@@ -118,5 +118,8 @@
 	"social-account-disconnected-success": "Compte social déconnecté et secret stocké effacé",
 	"credentials-refused": "Bluesky a refusé ces identifiants",
 	"provider-unreachable": "Le fournisseur est injoignable ; rien n'a été stocké",
-	"project-not-found": "Projet introuvable dans ce tenant"
+	"project-not-found": "Projet introuvable dans ce tenant",
+	"social-account-connected": "Compte Bluesky connecté",
+	"social-account-reconnected": "Compte Bluesky reconnecté",
+	"social-account-projects-updated": "Attachements de projets mis à jour"
 }

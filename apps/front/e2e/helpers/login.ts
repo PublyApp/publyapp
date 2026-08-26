@@ -29,6 +29,16 @@ export const MULTI_TENANT_USER_CREDENTIALS = {
 	password: SEED_PASSWORD,
 };
 
+/**
+ * Seeded tenant Admin (AccountLevel.Admin → effective set ["*"]). The
+ * manage-gated tenant surfaces (Integrations C3) are only reachable with
+ * this account; user-acme is a plain Member.
+ */
+export const TENANT_ADMIN_CREDENTIALS = {
+	email: 'admin-acme@example.com',
+	password: SEED_PASSWORD,
+};
+
 export const loginAsTenantUser = async (
 	page: Page,
 	credentials: { email: string; password: string },

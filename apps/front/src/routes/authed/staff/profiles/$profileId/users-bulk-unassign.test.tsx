@@ -20,8 +20,14 @@
  *    route component into the confirm dialog.
  *
  * What is faked: only the network-facing surface — the `~/lib/query/*`
- * data hooks, mutation toasts, and i18n strings. Nothing about the toolbar, the
+ * data hooks and i18n strings. Nothing about the toolbar, the
  * selection model, or the bulk-action flow is re-implemented here.
+ *
+ * #1442: `shouldLogoutForFailure` is NO LONGER hard-mocked here — the real
+ * failure helper classifies every rejection these tests drive. Only the
+ * toast surface (sonner) and the server-action-bearing logout redirect stay
+ * mocked at the seam, so the 401/logout path below runs through production
+ * classification code end to end.
  *
  * Post-success bookkeeping (#1407-class contract): the success path's
  * `clearSelection` + `invalidateStaffProfiles` are asserted against LIVE
@@ -63,17 +69,19 @@ const mocks = vi.hoisted(() => ({
 	toastSuccess: vi.fn(),
 	toastWarning: vi.fn(),
 	toastError: vi.fn(),
-	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	invalidateStaffProfiles: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('~/lib/mutation-toast', () => ({
-	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
-	toastLocalMutationResult: {
+// #1442: the toast surface is mocked at the seam (sonner), so the REAL
+// `~/lib/mutation-toast` adapter (and its real `displayLocalMutationFailure`
+// classification) runs underneath and the assertions below observe exactly
+// what production would raise.
+vi.mock('sonner', () => ({
+	toast: Object.assign(vi.fn(), {
 		success: mocks.toastSuccess,
 		warning: mocks.toastWarning,
 		error: mocks.toastError,
-	},
+	}),
 }));
 
 vi.mock('~/lib/query/staff-profile-users', () => ({
@@ -108,8 +116,12 @@ vi.mock('~/lib/query/staff-profiles', async (importOriginal) => {
 	};
 });
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
-	shouldLogoutForFailure: () => false,
+// #1442: LogoutRedirect fires the session-clearing SERVER ACTION plus a
+// cross-history navigation — start-server seams outside this suite's scope.
+// Mocking it keeps the pin on the ROUTE's decision (a 401-class rejection
+// must swap the page for the central logout redirect).
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -158,6 +170,8 @@ vi.mock('react-i18next', () => ({
 					'this user is not assigned to this profile.',
 				'bulk-unassign-failed-item-not-found':
 					'this user does not exist or is not a staff member.',
+				'bulk-unassign-no-eligible-users':
+					'Select at least one user to unassign.',
 			};
 
 			return (labels[bare] ?? bare).replace(
@@ -460,9 +474,13 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		await waitFor(() => expect(mocks.bulkUnassign).toHaveBeenCalledOnce());
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalledOnce());
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
-		expect(mocks.toastError).toHaveBeenCalledWith(
-			'Unassigned 0 user(s), 1 failed.',
-			'Alex User: this user is not assigned to this profile.',
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'Unassigned 0 user(s), 1 failed.',
+				{
+					description: 'Alex User: this user is not assigned to this profile.',
+				},
+			),
 		);
 
 		// (a) Bookkeeping is UNCONDITIONAL even when NOTHING succeeded: the row
@@ -607,7 +625,7 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 		expect(mocks.toastError).toHaveBeenCalledWith(
 			'Unassigned 1 user(s), 1 failed.',
-			'Blake Row: this user is not assigned to this profile.',
+			{ description: 'Blake Row: this user is not assigned to this profile.' },
 		);
 
 		// (a) Selection cleared even though SOME rows succeeded: no row stays
@@ -640,5 +658,130 @@ describe('#1388 profile users selection-mode bulk unassign (real router)', () =>
 				harness.queryClient.getQueryState(usersListKey)?.isInvalidated ?? false,
 			).toBe(true);
 		});
+	});
+
+	// ── #1442: the 401/logout path and the plain-words rejection path ────
+
+	/**
+	 * The exact failure shape a REAL Kiota client call rejects with when the
+	 * API answers 401 (verified against
+	 * `@microsoft/kiota-abstractions` 1.0.0-preview.103 `DefaultApiError`:
+	 * `message`, `responseStatusCode`, `responseHeaders`). Driven through the
+	 * REAL `shouldLogoutForFailure` → `toApiFailure` chain, which reads
+	 * `responseStatusCode` off exactly this shape.
+	 */
+	const realClientUnauthorizedError = (): Error =>
+		Object.assign(new Error('Unauthorized'), {
+			responseStatusCode: 401,
+			responseHeaders: {},
+		});
+
+	// THE issue complaint (#1442): `shouldLogoutForFailure` was hard-mocked to
+	// false, so nobody proved that an expired-session 401 surfacing through
+	// this component's bulk mutation actually reaches the central logout
+	// redirect. The helper is now the REAL one; only LogoutRedirect itself is
+	// mocked at the seam. A 403 must NOT log out — only 401 does.
+	test('a 401 bulk-unassign rejection drives the REAL failure helper into the logout redirect with no success toast', async () => {
+		mocks.bulkUnassign.mockRejectedValue(realClientUnauthorizedError());
+
+		await renderAtPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		await chooseBulkAction('Unassign selected', 'More actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
+
+		await waitFor(() =>
+			expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).not.toHaveBeenCalled();
+
+		// A 403 on the same surface keeps the page up — logout is 401-only.
+		mocks.bulkUnassign.mockRejectedValue(
+			Object.assign(new Error('Forbidden'), {
+				responseStatusCode: 403,
+				responseHeaders: {},
+			}),
+		);
+		cleanup();
+		await renderAtPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		await chooseBulkAction('Unassign selected', 'More actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
+
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'staff-profile-user-bulk-unassign-failure',
+			),
+		);
+		// Single-arg error toast: the message IS the component's i18n key
+		// 'staff-profile-user-bulk-unassign-failure', carried through the REAL
+		// mutation-toast adapter against the mocked t().
+		await waitFor(() =>
+			expect(screen.queryByTestId('logout-redirect')).toBeNull(),
+		);
+	});
+
+	// Transparent-failure causes (owner product rule): a NON-401 rejection
+	// shows the cause in plain words, not a bare fallback line. The component
+	// renders the toast through `displayLocalMutationFailure`, whose fallback
+	// comes from the 'staff-profile-user-bulk-unassign-failure' i18n key; the
+	// REAL adapter prefers the problem payload's own title/detail over that
+	// fallback, so the raised cause is the API's plain-words sentence.
+	test('a non-401 rejection surfaces the problem title in plain words via the failure i18n key', async () => {
+		mocks.bulkUnassign.mockRejectedValue(
+			Object.assign(new Error('Internal Server Error'), {
+				responseStatusCode: 500,
+				responseHeaders: {},
+				body: {
+					title: 'The storage service is temporarily unavailable',
+					status: 500,
+				},
+			}),
+		);
+
+		await renderAtPage();
+
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		await chooseBulkAction('Unassign selected', 'More actions');
+		fireEvent.click(await screen.findByRole('button', { name: 'Unassign' }));
+
+		// The REAL mutation-toast adapter resolves the toast message: the
+		// problem's own title (plain words) wins over the i18n fallback.
+		await waitFor(() =>
+			expect(mocks.toastError).toHaveBeenCalledWith(
+				'The storage service is temporarily unavailable',
+			),
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastWarning).not.toHaveBeenCalled();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	// Empty-warning case: choosing Unassign with nothing selected warns the
+	// user in plain words instead of opening the confirm dialog.
+	test('choosing the unassign action with an empty selection warns instead of confirming', async () => {
+		const harness = await renderAtPage();
+
+		// The selection bar (and its bulk menu) only mounts once a row is
+		// selected; select then clear to reach the bar with an EMPTY selection.
+		fireEvent.click(screen.getByRole('checkbox', { name: `Select ${USER_A}` }));
+		fireEvent.click(
+			await screen.findByRole('button', { name: 'Clear selection' }),
+		);
+		await waitFor(() =>
+			expect(harness.history.location.pathname).toBe(PAGE_ROUTE_PATH),
+		);
+
+		await chooseBulkAction('Unassign selected', 'More actions');
+
+		await waitFor(() =>
+			expect(mocks.toastWarning).toHaveBeenCalledWith(
+				'Select at least one user to unassign.',
+			),
+		);
+		expect(screen.queryByRole('button', { name: 'Unassign' })).toBeNull();
+		expect(mocks.bulkUnassign).not.toHaveBeenCalled();
 	});
 });
