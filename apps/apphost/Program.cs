@@ -1,0 +1,43 @@
+// Issue #255 spike: LOCAL DEV ORCHESTRATION ONLY. `dotnet run --project apps/apphost`
+// starts a disposable Postgres, the API (APP_ROLE=api), the worker (APP_ROLE=worker)
+// and the front dev server, plus the Aspire dashboard (traces/metrics via OTel).
+// Production (dokploy.yml) and e2e (docker-compose.test.yml) are deliberately untouched.
+var builder = DistributedApplication.CreateBuilder(args);
+
+// Disposable local Postgres. Deliberately NEVER the shared host-wide instance on :5454:
+// Aspire binds the container to a free ephemeral port and tears it down with the AppHost.
+var postgres = builder.AddPostgres("postgres");
+var publyDb = postgres.AddDatabase("publyapp-db", "publyapp_db");
+
+// The app reads its DSN from POSTGRES_CONNECTION_STRING (AppEnvironment), not the
+// Aspire-standard ConnectionStrings__ section, so mirror the database resource's
+// runtime-resolved connection string under the variable the app already consumes.
+// One callback per role keeps the two resources independently recomposable.
+var api = builder.AddProject<Projects.PublyApp_Api>("api")
+	.WithEnvironment("APP_ROLE", "api")
+	.WithEnvironment(context => {
+		context.EnvironmentVariables["POSTGRES_CONNECTION_STRING"] =
+			publyDb.Resource.ConnectionStringExpression;
+	})
+	.WaitFor(publyDb);
+
+// Same binary, APP_ROLE=worker: job engine only, no HTTP server (design §3.2).
+// No WaitFor(api): the worker's WorkerMigrationStartupGate already retries until
+// pending migrations clear, which absorbs the boot-order race by design.
+builder.AddProject<Projects.PublyApp_Api>("worker")
+	.WithEnvironment("APP_ROLE", "worker")
+	.WithEnvironment(context => {
+		context.EnvironmentVariables["POSTGRES_CONNECTION_STRING"] =
+			publyDb.Resource.ConnectionStringExpression;
+	})
+	.WaitFor(publyDb);
+
+// The shipped frontend in dev mode. TanStack Start dev server is Vite under the hood,
+// so AddViteApp runs `pnpm dev` from apps/front. Injecting both base URLs means a fresh
+// clone without .env.development still points at the orchestrated API (vite.config.ts
+// uses ??= so explicit env wins over repo-root files either way).
+builder.AddViteApp("front", "../front", "dev")
+	.WithEnvironment("PUBLIC_API_BASE_URL", api.GetEndpoint("http"))
+	.WithEnvironment("SERVER_API_BASE_URL", api.GetEndpoint("http"));
+
+builder.Build().Run();
