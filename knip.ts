@@ -75,6 +75,15 @@ const config: KnipConfig = {
 				'src/routes/authed/staff/tenant-users/$userId-organizations.tsx': [
 					'exports',
 				],
+				// staff-tenant-activity.ts — #1570 (tenant activity tab) introduced
+				// this file with exports (STAFF_TENANT_ACTIVITY_QUERY_KEY,
+				// buildTenantActivityQueryParameters, tenantActivityQueryOptions)
+				// that are currently unreferenced anywhere in the tree. Surfaced on
+				// this lane because #1570 landed on develop after this PR was cut and
+				// the merged-tree knip now evaluates them. Scoped to the exact file +
+				// the exports issue type so any newly-added export gap in this file
+				// still fails knip loudly. Reported identically on origin/develop.
+				'src/lib/query/staff-tenant-activity.ts': ['exports'],
 			},
 		},
 		// Kiota-generated client: this directory IS the public API boundary —
