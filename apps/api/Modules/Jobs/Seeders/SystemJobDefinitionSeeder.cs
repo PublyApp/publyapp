@@ -111,12 +111,14 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 		return [
 			new SystemJobDefinition {
 				JobKey = CleanupExpiredSessionsHandler.JobKey,
+				IsEnabled = true,
 				// Daily at 03:00 (sec min hour day month dow).
 				CronExpression = "0 0 3 * * ?",
 				Description = "Hard-delete expired sessions in bounded batches (#389).",
 			},
 			new SystemJobDefinition {
 				JobKey = EmailLogRetentionHandler.JobKey,
+				IsEnabled = true,
 				// Daily at 03:30.
 				CronExpression = "0 30 3 * * ?",
 				Description =
@@ -124,6 +126,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			},
 			new SystemJobDefinition {
 				JobKey = DeadLetterRetentionHandler.JobKey,
+				IsEnabled = true,
 				// Daily at 04:00.
 				CronExpression = "0 0 4 * * ?",
 				Description =
@@ -131,6 +134,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			},
 			new SystemJobDefinition {
 				JobKey = SystemJobOccurrenceRetentionHandler.JobKey,
+				IsEnabled = true,
 				// Daily at 04:15, staggered after the dead-letter sweep.
 				CronExpression = "0 15 4 * * ?",
 				Description =
@@ -139,6 +143,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			},
 			new SystemJobDefinition {
 				JobKey = EmailPreparedSendsRetentionHandler.JobKey,
+				IsEnabled = true,
 				// Every 10 minutes — NOT daily like the sweeps above, and the difference is
 				// load-bearing (design §7.3/K-3). This sweep is the only privacy-load-bearing
 				// one: it deletes token-bearing bytes, and §7.3 requires a cadence "materially
@@ -154,6 +159,7 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 			},
 			new SystemJobDefinition {
 				JobKey = UploadOrphanReclaimerHandler.JobKey,
+				IsEnabled = true,
 				// Hourly at :20, staggered off the other sweeps' daily slots. The
 				// reclaimer is capacity-recovery, not just housekeeping: committed
 				// bytes stay blocked until it runs, so a daily cadence would let a
