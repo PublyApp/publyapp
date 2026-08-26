@@ -258,18 +258,6 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		// same missing grant (the #142 invariant the API spec pins).
 		requiredPermissions: ['tenant.posts.view'],
 	},
-	{
-		id: 'organizations',
-		labelKey: 'organizations',
-		scope: 'tenant',
-		path: '/tenant/organizations',
-		Icon: IconBuilding,
-		matchPrefixes: ['/tenant/organizations'],
-		secondaryItems: [],
-		// Static placeholder surface (“coming later”) with no server resource
-		// behind it yet — nothing to mirror, so it stays unconditioned.
-		requiredPermissions: [],
-	},
 ];
 
 const isPathPrefix = (pathname: string, prefix: string): boolean =>

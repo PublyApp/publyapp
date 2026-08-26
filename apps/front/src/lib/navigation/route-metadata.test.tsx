@@ -341,14 +341,12 @@ describe('front route metadata', () => {
 			// SAME key: settings maps to the canonical tenant-module key
 			// (TenantModulePermissionsForTenant), posts to the very key
 			// `.WithTenantPermission([Posts.VIEW])` checks on GET /posts.
-			// "Account" is the personal settings rail and "Organizations" is
-			// still a static placeholder with no server resource behind it —
-			// both stay unconditionally visible (empty array = no filter).
+			// "Account" is the personal settings rail and stays
+			// unconditionally visible (empty array = no filter).
 			expect(requiredKeys).toEqual([
 				[],
 				['tenant.modules.access_settings'],
 				['tenant.posts.view'],
-				[],
 			]);
 		});
 
@@ -364,25 +362,17 @@ describe('front route metadata', () => {
 			const items = getRailItems('tenant');
 			const allowed = new Set<string>(['tenant.posts.view']);
 			const filtered = filterRailItemsByPermissions(items, allowed);
-			// `account` and `organizations` have no required key → always
-			// visible; `posts` survives because its key is granted; `settings`
-			// drops (key missing).
-			expect(filtered.map((item) => item.id)).toEqual([
-				'account',
-				'posts',
-				'organizations',
-			]);
+			// `account` has no required key → always visible; `posts` survives
+			// because its key is granted; `settings` drops (key missing).
+			expect(filtered.map((item) => item.id)).toEqual(['account', 'posts']);
 		});
 
 		test('filterRailItemsByPermissions keeps only unconditioned items when the set is empty', () => {
 			const items = getRailItems('tenant');
 			const filtered = filterRailItemsByPermissions(items, new Set());
-			// Only `account` and the placeholder `organizations` survive (both
-			// require no permission).
-			expect(filtered.map((item) => item.id)).toEqual([
-				'account',
-				'organizations',
-			]);
+			// Only `account` survives (it requires no permission); `settings`
+			// and `posts` need keys the empty set doesn't grant.
+			expect(filtered.map((item) => item.id)).toEqual(['account']);
 		});
 
 		test('filterRailItemsByPermissions keeps everything when every key is allowed', () => {
@@ -415,7 +405,6 @@ describe('front route metadata', () => {
 				'account',
 				'settings',
 				'posts',
-				'organizations',
 			]);
 		});
 
@@ -425,7 +414,7 @@ describe('front route metadata', () => {
 				getRailItemsForPath('/tenant/posts', {
 					allowedPermissions: allowed,
 				}).map((i) => i.id),
-			).toEqual(['account', 'settings', 'organizations']);
+			).toEqual(['account', 'settings']);
 		});
 	});
 });
