@@ -5,8 +5,8 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import viteReact from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
 
-import { contextChunkIsolationPlugin } from './scripts/check-context-chunk-isolation.mjs';
-import { contextChunkIsolationInventory } from './scripts/context-chunk-isolation.inventory.mjs';
+import { contextChunkIsolationPlugin } from './tools/vite/check-context-chunk-isolation.mts';
+import { contextChunkIsolationInventory } from './tools/vite/context-chunk-isolation.inventory.mts';
 
 const workspaceRootDir = fileURLToPath(new URL('../..', import.meta.url));
 

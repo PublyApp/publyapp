@@ -1,11 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-import { API_BASE_URL } from './helpers/api';
 import { loginAsTenantUser, TENANT_ADMIN_CREDENTIALS } from './helpers/login';
 
 const INTEGRATIONS_URL = '/tenant/settings/integrations';
-const CONNECT_PATH = '/social-accounts/connect';
-const LIST_PATH = '/social-accounts';
+
+// Route globs follow the repo-wide e2e idiom (`**/…**`): a trailing `**`
+// spans query strings and sub-paths, which a single trailing `*` cannot
+// (design-system guard `no-single-star-route-glob`). The CONNECT handler
+// registers AFTER the LIST one, so Playwright's last-registered-wins
+// precedence keeps `/social-accounts/connect` requests out of the list
+// handler despite the shared prefix.
 
 // Plan defect (documented in PR): user-acme is a plain Member and NEVER
 // receives the manage-gated Connect trigger — the shared seeded tenant
@@ -40,34 +44,26 @@ test.describe(
 				projectIds: [],
 			};
 
-			const isApiPath = (url: URL, path: string): boolean =>
-				url.origin === API_BASE_URL && url.pathname === path;
-
-			await page.route(
-				(url) => isApiPath(url, LIST_PATH),
-				(route) =>
-					route.fulfill({
-						status: 200,
-						contentType: 'application/json',
-						// Real C2 list wrapper: CursorPaginatedResult → { data, nextCursor }.
-						body: JSON.stringify({
-							data: connectCalled ? [connected] : [],
-							nextCursor: null,
-						}),
+			await page.route('**/social-accounts**', (route) =>
+				route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					// Real C2 list wrapper: CursorPaginatedResult → { data, nextCursor }.
+					body: JSON.stringify({
+						data: connectCalled ? [connected] : [],
+						nextCursor: null,
 					}),
+				}),
 			);
-			await page.route(
-				(url) => isApiPath(url, CONNECT_PATH),
-				async (route) => {
-					connectCalled = true;
-					// C2 returns the created item FLAT as the 201 body.
-					await route.fulfill({
-						status: 201,
-						contentType: 'application/json',
-						body: JSON.stringify(connected),
-					});
-				},
-			);
+			await page.route('**/social-accounts/connect**', async (route) => {
+				connectCalled = true;
+				// C2 returns the created item FLAT as the 201 body.
+				await route.fulfill({
+					status: 201,
+					contentType: 'application/json',
+					body: JSON.stringify(connected),
+				});
+			});
 
 			await page.goto(INTEGRATIONS_URL);
 			await expect(

@@ -4,12 +4,18 @@
 // @ts-ignore
 import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, createPostDetailFromDiscriminatorValue, createPostUpdatedFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializePostUpdated, serializeUpdatePostBody, type ApiResponse, type AppProblemDetails, type PostDetail, type PostUpdated, type UpdatePostBody, type ValidationProblemDetails } from '../../models/index.js';
 // @ts-ignore
-import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
+import { ImageRequestBuilderRequestsMetadata, type ImageRequestBuilder } from './image/index.js';
+// @ts-ignore
+import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
  * Builds and executes requests for operations under /posts/{postId}
  */
 export interface WithPostItemRequestBuilder extends BaseRequestBuilder<WithPostItemRequestBuilder> {
+    /**
+     * The image property
+     */
+    get image(): ImageRequestBuilder;
     /**
      * Delete a post for the current tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -72,6 +78,14 @@ export interface WithPostItemRequestBuilder extends BaseRequestBuilder<WithPostI
  * Uri template for the request builder.
  */
 export const WithPostItemRequestBuilderUriTemplate = "{+baseurl}/posts/{postId}";
+/**
+ * Metadata for all the navigation properties in the request builder.
+ */
+export const WithPostItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithPostItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    image: {
+        requestsMetadata: ImageRequestBuilderRequestsMetadata,
+    },
+};
 /**
  * Metadata for all the requests in the request builder.
  */

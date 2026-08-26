@@ -7,6 +7,7 @@ import landing from './en/landing.json';
 import organizations from './en/organizations.json';
 import posts from './en/posts.json';
 import settings from './en/settings.json';
+import socialAccounts from './en/social-accounts.json';
 import staffAuditLogs from './en/staff-audit-logs.json';
 import staffInvitations from './en/staff-invitations.json';
 import staffTenantProfiles from './en/staff-tenant-profiles.json';
@@ -21,6 +22,7 @@ const resourceEN = {
 	settings,
 	organizations,
 	posts,
+	'social-accounts': socialAccounts,
 	'staff-tenant-profiles': staffTenantProfiles,
 	'staff-users': staffUsers,
 	'staff-invitations': staffInvitations,

@@ -12,6 +12,7 @@ public static partial class Routes {
 			public const string Root = "/social-accounts";
 			public const string Find = "/";
 			public const string Connect = "/connect";
+			public const string FindNeedsReconnect = "/needs-reconnect-accounts";
 
 			public const string Reconnect = "/{socialAccountId}/reconnect";
 			public const string Disconnect = "/{socialAccountId}/disconnect";

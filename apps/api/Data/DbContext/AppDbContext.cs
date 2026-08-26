@@ -129,6 +129,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return Set<Post>(); }
 	}
 
+	// One image per post (lane 639 / #629 wave B3). The blob stays owned by the
+	// uploads pipeline; this row is the tenant-scoped attachment record.
+	public DbSet<PostMediaAsset> PostMediaAsset {
+		get { return Set<PostMediaAsset>(); }
+	}
+
 	// Data Protection key ring (C1-bis): keys persisted in Postgres, encrypted at rest
 	// with SOCIAL_ACCOUNTS_MASTER_KEY.
 	public DbSet<DataProtectionKey> DataProtectionKeys {

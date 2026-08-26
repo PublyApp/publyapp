@@ -14,6 +14,15 @@ import { createElement, type ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
+const mocks = vi.hoisted(() => ({
+	needsReconnectAccounts: [] as Array<{
+		id: string;
+		displayHandle: string;
+		provider: string;
+		lastError: string | null;
+	}>,
+}));
+
 vi.mock('@tanstack/react-router', () => ({
 	createFileRoute: () => (options: Record<string, unknown>) => ({
 		...options,
@@ -42,9 +51,31 @@ vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
 	}),
 }));
 
+// The page reads the needs-reconnect list through
+// `useNeedsReconnectAccountsQuery`; the mock pins the resolved payload the
+// same way the sibling settings tests pin their query hooks.
 vi.mock('~/lib/query/tenants-for-picker', () => ({
 	useResolvedWorkspaceTenantId: () => 't1',
 }));
+
+vi.mock('~/lib/query/needs-reconnect-accounts', async () => {
+	const { toNeedsReconnectAccounts } = await vi.importActual<
+		typeof import('~/lib/query/needs-reconnect-accounts')
+	>('~/lib/query/needs-reconnect-accounts');
+
+	return {
+		toNeedsReconnectAccounts,
+		useNeedsReconnectAccountsQuery: () => ({
+			data: {
+				accounts: mocks.needsReconnectAccounts.map((account) => ({
+					...account,
+				})),
+			},
+			isSuccess: true,
+			refetch: vi.fn(),
+		}),
+	};
+});
 
 vi.mock('~/lib/query/tenant-projects', () => ({
 	useTenantProjectsQuery: () => ({ data: undefined }),
@@ -111,6 +142,26 @@ const EN_LABELS: TestLabelMap = {
 	'col-last-success': 'Last success',
 	'col-visible-in': 'Visible in',
 	retry: 'Retry',
+	// Placeholder cards kept from the pre-C3 screen (develop side).
+	'common:connected': 'Connected',
+	'common:available-integrations': 'Available integrations',
+	'common:api-access': 'API access',
+	'available-integrations-coming-later-title':
+		'Available integrations are coming later',
+	'available-integrations-coming-later-description':
+		'The integrations catalog will appear here once the integrations API ships.',
+	'api-access-coming-later-title': 'API keys and webhooks are coming later',
+	'api-access-coming-later-description':
+		'API keys and webhook configuration will appear here once the integrations API ships.',
+	'read-only': 'Read only',
+	// social-accounts namespace (rendered by the embedded reconnect banner)
+	'reconnect-banner-title': '{{handle}} needs reconnection',
+	'reconnect-banner-description':
+		'{{handle}} stopped working and its scheduled posts were paused.',
+	'reconnect-banner-more': '+{{count}} more account(s)',
+	'reconnect-banner-button': 'Reconnect',
+	'reconnect-banner-contact-admin':
+		'Ask someone with manage access to reconnect this account.',
 };
 
 const translate = (key: string, options?: Record<string, unknown>): string => {
@@ -167,6 +218,7 @@ afterEach(() => {
 	socialAccountsPending = false;
 	socialAccountsError = false;
 	permissionKeys = ['*'];
+	mocks.needsReconnectAccounts = [];
 });
 
 describe('TenantSettingsIntegrationsPage', () => {
@@ -275,5 +327,62 @@ describe('TenantSettingsIntegrationsPage', () => {
 
 		const dialog = screen.getByRole('alertdialog');
 		expect(dialog.textContent).toContain('@old.bsky.social');
+	});
+
+	test('renders the section headers of the integrations screen', () => {
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.getByRole('heading', { name: 'Integrations' })).toBeTruthy();
+		expect(screen.getByText('Connected')).toBeTruthy();
+		expect(screen.getByText('Available integrations')).toBeTruthy();
+		expect(screen.getByText('API access')).toBeTruthy();
+	});
+
+	// The connected card is the real C3 surface now: its empty testid renders
+	// through the C3 empty state; the other two cards keep their honest
+	// coming-later states from the placeholder screen.
+	test('shows an honest coming-later empty state per remaining card', () => {
+		socialAccountsWire = [];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(
+			screen.getByTestId('tenant-settings-connected-integrations-empty'),
+		).toBeTruthy();
+		expect(
+			screen.getByTestId('tenant-settings-available-integrations-empty'),
+		).toBeTruthy();
+		expect(screen.getByTestId('tenant-settings-api-access-empty')).toBeTruthy();
+		expect(
+			screen.getByText('Available integrations are coming later'),
+		).toBeTruthy();
+		expect(
+			screen.getByText('API keys and webhooks are coming later'),
+		).toBeTruthy();
+	});
+
+	test('renders no fake catalog entries or pretend-to-work connect controls', () => {
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.queryByText(/Slack|Zapier|Notion/i)).toBeNull();
+	});
+
+	test('shows the reconnect banner once the query resolves with one account', async () => {
+		mocks.needsReconnectAccounts = [
+			{
+				id: '11111111-1111-1111-1111-111111111111',
+				displayHandle: '@broken.bsky.social',
+				provider: 'bluesky',
+				lastError: 'Bluesky refused: invalid app password',
+			},
+		];
+
+		render(<TenantSettingsIntegrationsPage />);
+
+		await waitFor(() => {
+			const banners = screen.getAllByTestId('reconnect-banner');
+			expect(banners.length).toBe(1);
+			expect(banners[0].textContent).toContain('@broken.bsky.social');
+			expect(banners[0].textContent).toContain('Bluesky refused');
+		});
 	});
 });

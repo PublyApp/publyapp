@@ -1,4 +1,6 @@
 import {
+	IconApi,
+	IconGridDots,
 	IconPlugConnected,
 	IconPlugOff,
 	IconRefresh,
@@ -7,13 +9,19 @@ import { createFileRoute } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ReconnectBanner } from '~/components/social-accounts/reconnect-banner';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
 import { formatDateTime } from '~/lib/format-date-time';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
+import {
+	toNeedsReconnectAccounts,
+	useNeedsReconnectAccountsQuery,
+} from '~/lib/query/needs-reconnect-accounts';
 import {
 	toSocialAccountRows,
 	useSocialAccountsQuery,
@@ -25,7 +33,7 @@ import {
 } from '~/lib/query/tenant-projects';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
-import { WorkspacePageHeader } from '../_workspace-page-parts';
+import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
 import { DisconnectDialog } from './_disconnect-dialog';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
@@ -169,6 +177,14 @@ const PLACEHOLDER_ACCOUNT: SocialAccountRow = {
 	projectIds: [],
 };
 
+/**
+ * Org integrations: the C3 connected-accounts surface (list, connect/
+ * reconnect/disconnect actions gated by `tenant.socialaccounts.manage`)
+ * carrying the C4 needs-reconnect banner above the connected card, plus the
+ * remaining read-only placeholder cards. The C4 banner's Reconnect action
+ * opens the real reconnect drawer here; the manage gate is the same real
+ * permission check C4's handover note reserved for this lane.
+ */
 const TenantSettingsIntegrationsPage = () => {
 	const { t, i18n } = useTranslation(['settings', 'common']);
 	const canManage = useCanManageSocialAccounts();
@@ -177,6 +193,10 @@ const TenantSettingsIntegrationsPage = () => {
 		tenantId: tenantId ?? '',
 	});
 	const projectsQuery = useTenantProjectsQuery({ tenantId: tenantId ?? '' });
+	const needsReconnectQuery = useNeedsReconnectAccountsQuery(tenantId);
+	const needsReconnectAccounts = toNeedsReconnectAccounts(
+		needsReconnectQuery.data,
+	);
 
 	const rows = toSocialAccountRows(socialAccountsQuery.data);
 	const projects = toTenantProjectItems(projectsQuery.data).map((project) => ({
@@ -235,39 +255,92 @@ const TenantSettingsIntegrationsPage = () => {
 				</div>
 			) : null}
 
-			{isListLoadedAndEmpty ? (
-				<StateSurface
-					title={t('integrations-empty-title')}
-					description={t('integrations-empty-description')}
-					testId="tenant-settings-connected-integrations-empty"
-				/>
-			) : (
-				<DataTable
-					testId="tenant-settings-social-accounts-table"
-					ariaLabel={t('integrations-list-title')}
-					columns={columns}
-					rows={rows}
-					queryState={{
-						isPending: tenantId === null || socialAccountsQuery.isPending,
-						isError: socialAccountsQuery.isError,
-						onRetry: () => void socialAccountsQuery.refetch(),
-						hasActiveSearch: false,
-					}}
-					pagination={{
-						pageIndex: 0,
-						hasPreviousPage: false,
-						hasNextPage: false,
-						isPaginationPending: false,
-						onNextPage: () => {},
-						onPreviousPage: () => {},
-					}}
-					sort={DEFAULT_SORT}
-					onSortChange={() => {}}
-					size={DEFAULT_SIZE}
-					onSizeChange={() => {}}
-					errorTitle={t('integrations-load-failed')}
-				/>
-			)}
+			<ReconnectBanner
+				accounts={needsReconnectAccounts}
+				hasManagePermission={canManage}
+				onReconnect={(accountId) => {
+					const account = rows.find((row) => row.id === accountId);
+					if (account) {
+						setDrawerUi({
+							connectOpen: false,
+							reconnectAccount: account,
+							disconnectAccount: null,
+						});
+					}
+				}}
+			/>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>{t('common:connected')}</CardTitle>
+					<ReadOnlyBadge />
+				</CardHeader>
+				<CardContent>
+					{isListLoadedAndEmpty ? (
+						<StateSurface
+							title={t('integrations-empty-title')}
+							description={t('integrations-empty-description')}
+							testId="tenant-settings-connected-integrations-empty"
+						/>
+					) : (
+						<DataTable
+							testId="tenant-settings-social-accounts-table"
+							ariaLabel={t('integrations-list-title')}
+							columns={columns}
+							rows={rows}
+							queryState={{
+								isPending: tenantId === null || socialAccountsQuery.isPending,
+								isError: socialAccountsQuery.isError,
+								onRetry: () => void socialAccountsQuery.refetch(),
+								hasActiveSearch: false,
+							}}
+							pagination={{
+								pageIndex: 0,
+								hasPreviousPage: false,
+								hasNextPage: false,
+								isPaginationPending: false,
+								onNextPage: () => {},
+								onPreviousPage: () => {},
+							}}
+							sort={DEFAULT_SORT}
+							onSortChange={() => {}}
+							size={DEFAULT_SIZE}
+							onSizeChange={() => {}}
+							errorTitle={t('integrations-load-failed')}
+						/>
+					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>{t('common:available-integrations')}</CardTitle>
+					<ReadOnlyBadge />
+				</CardHeader>
+				<CardContent>
+					<StateSurface
+						icon={IconGridDots}
+						title={t('available-integrations-coming-later-title')}
+						description={t('available-integrations-coming-later-description')}
+						testId="tenant-settings-available-integrations-empty"
+					/>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>{t('common:api-access')}</CardTitle>
+					<ReadOnlyBadge />
+				</CardHeader>
+				<CardContent>
+					<StateSurface
+						icon={IconApi}
+						title={t('api-access-coming-later-title')}
+						description={t('api-access-coming-later-description')}
+						testId="tenant-settings-api-access-empty"
+					/>
+				</CardContent>
+			</Card>
 
 			{tenantId === null ? null : (
 				<>
@@ -306,7 +379,7 @@ export const Route = createFileRoute(
 			{ kind: 'label', labelKey: 'settings', to: '/tenant/settings' },
 			{ kind: 'label', labelKey: 'integrations' },
 		],
-		i18nNamespaces: ['settings'],
+		i18nNamespaces: ['settings', 'social-accounts'],
 	},
 	component: TenantSettingsIntegrationsPage,
 });

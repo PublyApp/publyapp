@@ -1,0 +1,7 @@
+{
+	"reconnect-banner-title": "{{handle}} needs reconnection",
+	"reconnect-banner-description": "{{handle}} stopped working and its scheduled posts were paused.",
+	"reconnect-banner-more": "+{{count}} more account(s)",
+	"reconnect-banner-button": "Reconnect",
+	"reconnect-banner-contact-admin": "Ask someone with manage access to reconnect this account."
+}

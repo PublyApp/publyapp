@@ -18,6 +18,7 @@ public sealed class GetPostForTenant {
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostService postService,
+		[FromServices] IPostMediaAssetService assetService,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -53,6 +54,10 @@ public sealed class GetPostForTenant {
 			);
 		}
 
+		var asset = await assetService.FindByPostAsync(
+			tenantId, postIdGuid, cancellationToken
+		);
+
 		return TypedResults.Ok(new PostDetail {
 			Id = post.GetRequiredId(),
 			TenantId = post.TenantId,
@@ -62,6 +67,7 @@ public sealed class GetPostForTenant {
 			CreatedByUserId = post.CreatedByUserId,
 			CreatedAt = post.CreatedAt,
 			UpdatedAt = post.UpdatedAt,
+			Image = PostWire.FormatImage(asset),
 		});
 	}
 }
@@ -75,4 +81,5 @@ public record PostDetail {
 	public required Guid CreatedByUserId { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public required DateTime UpdatedAt { get; init; }
+	public required PostImageReadModel? Image { get; init; }
 }

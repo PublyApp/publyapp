@@ -1138,6 +1138,81 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Posts.Entities.PostMediaAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<string>("AltText")
+                        .HasColumnType("text")
+                        .HasColumnName("alt_text");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("content_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<int>("HeightPx")
+                        .HasColumnType("integer")
+                        .HasColumnName("height_px");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("post_id");
+
+                    b.Property<string>("RelativePath")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("relative_path");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("uploaded_by_user_id");
+
+                    b.Property<int>("WidthPx")
+                        .HasColumnType("integer")
+                        .HasColumnName("width_px");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PostId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_post_media_assets_live_post_id")
+                        .HasFilter("is_deleted = false");
+
+                    b.HasIndex("TenantId", "PostId")
+                        .HasDatabaseName("ix_post_media_assets_tenant_post");
+
+                    b.ToTable("post_media_assets");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.Profiles.Entities.Profile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2134,6 +2209,25 @@ namespace PublyApp.Api.Migrations
                     b.Navigation("CreatedByUser");
 
                     b.Navigation("Project");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Posts.Entities.PostMediaAsset", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Posts.Entities.Post", "Post")
+                        .WithMany()
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Post");
 
                     b.Navigation("Tenant");
                 });

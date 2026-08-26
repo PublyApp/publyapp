@@ -46,7 +46,7 @@
  *    as `.foo`, not one rank higher) — a real but narrower and much less
  *    likely attack shape than a plain compound append. The search-cancel
  *    invariant does not rely on this model; its source-wide and compiled-CSS
- *    policy lives in scripts/search-cancel-css-policy.mjs.
+ *    policy lives in scripts/guards/search-cancel-css-policy.mts.
  *  - `!important`: parsed per declaration; if ANY `!important` declaration
  *    exists for a property, only `!important` declarations compete for it
  *    (by specificity, then source order); otherwise only plain declarations

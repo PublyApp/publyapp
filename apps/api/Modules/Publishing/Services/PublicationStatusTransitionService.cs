@@ -29,6 +29,8 @@ public sealed record MarkPublicationPausedArgs(Guid PublicationId, Guid TenantId
 
 public sealed record ReschedulePublicationToNowArgs(Guid PublicationId, Guid TenantId);
 
+public sealed record MarkPublicationScheduledArgs(Guid PublicationId, Guid TenantId);
+
 /// <summary>
 /// Contract of the single legal writer of <see cref="Publication.Status"/>.
 /// </summary>
@@ -57,6 +59,11 @@ public interface IPublicationStatusTransitionService {
 		ReschedulePublicationToNowArgs args,
 		CancellationToken cancellationToken
 	);
+
+	public Task<bool> MarkScheduledAsync(
+		MarkPublicationScheduledArgs args,
+		CancellationToken cancellationToken
+	);
 }
 
 /// <summary>
@@ -77,7 +84,11 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 			],
 			[PublicationStatus.Published] = [PublicationStatus.InProgress],
 			[PublicationStatus.Failed] = [PublicationStatus.InProgress],
-			[PublicationStatus.Paused] = [PublicationStatus.InProgress],
+			[PublicationStatus.Paused] = [
+				PublicationStatus.InProgress,
+				PublicationStatus.Scheduled, // C4: pause-on-account-failure before first run
+				PublicationStatus.Paused, // C4: cause refresh (mirrors the Scheduled/Scheduled precedent)
+			],
 			[PublicationStatus.Scheduled] = [
 				PublicationStatus.Scheduled,
 				PublicationStatus.Paused,
@@ -174,6 +185,37 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		publication.ExternalUrl = null;
 		// IdempotencyKey is deliberately NOT regenerated: the same publication keeps
 		// its key across retries so Bluesky dedup survives a reschedule.
+		await _db.SaveChangesAsync(cancellationToken);
+		return true;
+	}
+
+	/// <summary>
+	/// Resume a paused publication back to <see cref="PublicationStatus.Scheduled"/>
+	/// keeping its original instant — unlike <see cref="RescheduleToNowAsync"/>, no
+	/// stamp and no external-field wipe, so resumed work never fires late (Epic C4).
+	/// </summary>
+	public async Task<bool> MarkScheduledAsync(
+		MarkPublicationScheduledArgs args,
+		CancellationToken cancellationToken
+	) {
+		var publication = await LoadAsync(args.PublicationId, args.TenantId, cancellationToken);
+		if (publication is null) {
+			return false;
+		}
+
+		// Resume is exclusively the paused → scheduled move (C4): the map keeps
+		// Scheduled → Scheduled legal for RescheduleToNowAsync, so an
+		// already-scheduled row handed here is a caller bug and must be loud.
+		if (publication.Status is PublicationStatus.Scheduled) {
+			throw new InvalidOperationException(
+				"MarkScheduledAsync resumes a paused publication; an already scheduled "
+					+ "publication must go through RescheduleToNowAsync instead."
+			);
+		}
+
+		TransitionOrThrow(publication.Status, PublicationStatus.Scheduled);
+		publication.Status = PublicationStatus.Scheduled;
+		publication.LastError = null;
 		await _db.SaveChangesAsync(cancellationToken);
 		return true;
 	}

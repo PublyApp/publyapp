@@ -21,6 +21,7 @@ namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 public record UpdatePostBody {
 	public JsonElement? Body { get; init; }
 	public JsonElement ProjectId { get; init; }
+	public JsonElement ImageAltText { get; init; }
 
 	public string? GetBody() {
 		return Body.GetValueAsStringOrNull();
@@ -53,6 +54,29 @@ public record UpdatePostBody {
 			),
 		};
 	}
+
+	public PatchField<string?> GetImageAltText() {
+		return ImageAltText.ValueKind switch {
+			JsonValueKind.Undefined => PatchField<string?>.Absent(),
+			// Explicit null clears the stored alt text.
+			JsonValueKind.Null => PatchField<string?>.Set(null),
+			JsonValueKind.String => PatchField<string?>.Set(
+				ImageAltText.GetValueAsString()
+			),
+			JsonValueKind.Object
+				or JsonValueKind.Array
+				or JsonValueKind.Number
+				or JsonValueKind.True
+				or JsonValueKind.False => throw new InvalidOperationException(
+					"ImageAltText must be a string, null, or omitted"
+				),
+			_ => throw new ArgumentOutOfRangeException(
+				nameof(ImageAltText),
+				ImageAltText.ValueKind,
+				$"Unhandled JsonValueKind: {ImageAltText.ValueKind}"
+			),
+		};
+	}
 }
 
 public class UpdatePostBodyValidator
@@ -65,6 +89,12 @@ public class UpdatePostBodyValidator
 
 		RuleFor(x => x.ProjectId)
 			.MustBePatchFieldNonEmptyGuid("ProjectId");
+
+		RuleFor(x => x.ImageAltText)
+			.MustBePatchFieldString(
+				"ImageAltText",
+				PostValidationRules.ImageAltTextMaxLength
+			);
 	}
 }
 
@@ -117,8 +147,9 @@ public sealed class UpdatePostForTenant {
 
 		var postBody = body.GetBody();
 		var projectId = body.GetProjectId();
+		var imageAltText = body.GetImageAltText();
 
-		if (postBody is null && !projectId.IsPresent) {
+		if (postBody is null && !projectId.IsPresent && !imageAltText.IsPresent) {
 			return TypedProblems.BadRequest(
 				"No fields to update",
 				ResponseKeys.BadRequest
@@ -153,7 +184,8 @@ public sealed class UpdatePostForTenant {
 			TenantId: tenantId,
 			PostId: postIdGuid,
 			ProjectId: projectId,
-			Body: postBody
+			Body: postBody,
+			ImageAltText: imageAltText
 		);
 
 		var result = await postService.UpdateForTenantAsync(
@@ -179,6 +211,18 @@ public sealed class UpdatePostForTenant {
 			);
 		}
 
+		if (result is UpdatePostResult.ImageMissing) {
+			return TypedProblems.ValidationProblem(
+				"No image is attached to this post",
+				ResponseKeys.PostImageMissing,
+				new Dictionary<string, string[]> {
+					["imageAltText"] = [
+						"Alt text can only be set on an attached image."
+					],
+				}
+			);
+		}
+
 		if (result is not UpdatePostResult.Success success) {
 			throw new InvalidOperationException(
 				"Unhandled result type"
@@ -186,7 +230,6 @@ public sealed class UpdatePostForTenant {
 		}
 
 		var updatedPost = success.Post;
-
 		await auditLogService.LogAsync(
 			new CreateAuditLogArgs(
 				UserId: account.UserId,

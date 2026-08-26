@@ -11316,6 +11316,221 @@
         }
       }
     },
+    "/posts/{postId}/image": {
+      "post": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Attach one image to a post (multipart 'file' field)",
+        "operationId": "AttachPostImageForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "$ref": "#/components/schemas/IFormFile"
+                  }
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostImageAttached"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Posts"
+        ],
+        "summary": "Remove a post's attached image",
+        "operationId": "RemovePostImageForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/projects": {
       "get": {
         "tags": [
@@ -11498,6 +11713,77 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social-accounts/needs-reconnect-accounts": {
+      "get": {
+        "tags": [
+          "SocialAccounts"
+        ],
+        "summary": "Accounts of the current tenant that need reconnection",
+        "operationId": "FindNeedsReconnectAccountsForTenant",
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindNeedsReconnectAccountsForTenantResponse"
                 }
               }
             }
@@ -11955,13 +12241,37 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "useExistingAccount": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
+            ]
+          }
+        }
+      },
+      "AccountItem": {
+        "required": [
+          "id",
+          "displayHandle",
+          "provider",
+          "lastError"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayHandle": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
@@ -12689,10 +12999,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "reason": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12804,10 +13111,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "projectId": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12834,40 +13138,28 @@
         "type": "object",
         "properties": {
           "name": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "description": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "permissions": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "emails": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12903,10 +13195,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "expiresAt": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -12927,110 +13216,77 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "code": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "seedDefaultProfile": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "logoUrl": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "legalName": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "description": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "websiteUrl": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "billingEmail": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "supportEmail": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "defaultLocale": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "timezone": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "notes": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -13125,6 +13381,20 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "FindNeedsReconnectAccountsForTenantResponse": {
+        "required": [
+          "accounts"
+        ],
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccountItem"
+            }
           }
         }
       },
@@ -14027,7 +14297,8 @@
           "body",
           "createdByUserId",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "image"
         ],
         "type": "object",
         "properties": {
@@ -14063,8 +14334,88 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "image": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "allOf": [
+              {
+                "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
+                "$ref": "#/components/schemas/PostImageReadModel"
+              }
+            ]
           }
         }
+      },
+      "PostImageAttached": {
+        "required": [
+          "url",
+          "path",
+          "contentType",
+          "widthPx",
+          "heightPx"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "widthPx": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "heightPx": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "altText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PostImageReadModel": {
+        "required": [
+          "url",
+          "altText",
+          "widthPx",
+          "heightPx"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "altText": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "widthPx": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "heightPx": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry."
       },
       "PostListItem": {
         "required": [
@@ -14074,7 +14425,8 @@
           "bodyPreview",
           "createdByUserId",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "image"
         ],
         "type": "object",
         "properties": {
@@ -14106,6 +14458,18 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "image": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "allOf": [
+              {
+                "description": "The attached post image projection served by detail and list read models.\nURL follows the anonymously-served `/files` convention documented on\nCreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.",
+                "$ref": "#/components/schemas/PostImageReadModel"
+              }
+            ]
           }
         }
       },
@@ -14300,10 +14664,7 @@
         "type": "object",
         "properties": {
           "note": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -14892,10 +15253,7 @@
         "type": "object",
         "properties": {
           "reason": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15670,16 +16028,16 @@
         "type": "object",
         "properties": {
           "body": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "projectId": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "imageAltText": {
             "$ref": "#/components/schemas/JsonElement"
           }
         }
@@ -15714,10 +16072,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "accountLevel": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15759,40 +16114,28 @@
         "type": "object",
         "properties": {
           "severity": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "title": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "message": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]
           },
           "startsAt": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15813,10 +16156,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "maxUsers": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }
@@ -15910,10 +16250,7 @@
             "$ref": "#/components/schemas/JsonElement"
           },
           "level": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
+            "allOf": [
               {
                 "$ref": "#/components/schemas/JsonElement"
               }

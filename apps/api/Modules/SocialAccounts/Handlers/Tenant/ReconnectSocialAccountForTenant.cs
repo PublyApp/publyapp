@@ -12,6 +12,8 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -49,6 +51,8 @@ public sealed class ReconnectSocialAccountForTenant {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] SocialAccountService socialAccountService,
 		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IPublicationQueueService publicationQueueService,
+		[FromServices] IPublicationStatusTransitionService transitions,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -108,6 +112,38 @@ public sealed class ReconnectSocialAccountForTenant {
 
 		if (serviceResult is ReconnectSocialAccountResult.Reconnected reconnected) {
 			var item = SocialAccountService.ToListItem(reconnected.Account);
+
+			// C4 resume-on-reconnect: future-instant PAUSED rows return to Scheduled
+			// keeping their original instant; past-due rows stay Paused with a cause
+			// telling the user to pick a new time. Nothing late ever fires. Loop of
+			// single transactions is acceptable at banner scale. Already-Scheduled
+			// rows are left untouched — MarkScheduledAsync is exclusively the resume
+			// move (see PublicationStatusTransitionService).
+			var queueRows = await publicationQueueService.FindNonTerminalForAccountAsync(
+				new FindPublicationsOfAccountArgs(tenantId, accountId),
+				cancellationToken
+			);
+			foreach (var (publicationId, scheduledAtUtc, status) in queueRows) {
+				if (status == PublicationStatus.Paused && scheduledAtUtc > DateTime.UtcNow) {
+					await transitions.MarkScheduledAsync(
+						new MarkPublicationScheduledArgs(publicationId, tenantId),
+						cancellationToken
+					);
+				} else if (scheduledAtUtc <= DateTime.UtcNow) {
+					// Past due (paused or scheduled): keep it stopped, refresh the
+					// cause so the user knows to pick a new time. Never fires late.
+					await transitions.MarkPausedAsync(
+						new MarkPublicationPausedArgs(
+							publicationId,
+							tenantId,
+							"its scheduled time passed while the account needed reconnection"
+								+ "; choose a new time to publish it"
+						),
+						cancellationToken
+					);
+				}
+				// Future scheduled rows are already correct — untouched.
+			}
 
 			await auditLogService.LogAsync(
 				new CreateAuditLogArgs(

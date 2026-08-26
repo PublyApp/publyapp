@@ -11,6 +11,8 @@ export const FEATURE_I18N_NAMESPACES = [
 	'settings',
 	'organizations',
 	'posts',
+	// Connected social accounts (Epic C): reconnect banner + account surfaces.
+	'social-accounts',
 	'staff-tenant-profiles',
 	'staff-users',
 	'staff-invitations',

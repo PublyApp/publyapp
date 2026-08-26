@@ -15,6 +15,14 @@ export const SINGLE_TENANT_USER_CREDENTIALS = {
 	password: SEED_PASSWORD,
 };
 
+/** Single-tenant ADMIN user: Acme AccountLevel.Admin, holds the tenant-admin
+ * permission set (posts.create/posts.edit among them) needed to create a
+ * draft and attach its image. */
+export const SINGLE_TENANT_ADMIN_CREDENTIALS = {
+	email: 'admin-acme@example.com',
+	password: SEED_PASSWORD,
+};
+
 /** Cross-tenant user: member of both Acme and TechStart (both Active). */
 export const MULTI_TENANT_USER_CREDENTIALS = {
 	email: 'alice@example.com',

@@ -19,7 +19,8 @@ public record UpdatePostArgs(
 	Guid TenantId,
 	Guid PostId,
 	PatchField<Guid?> ProjectId,
-	string? Body
+	string? Body,
+	PatchField<string?> ImageAltText
 );
 
 public record FindPostsArgs(
@@ -82,6 +83,8 @@ public abstract record UpdatePostResult {
 	public sealed record NotFound : UpdatePostResult;
 
 	public sealed record ProjectNotFound(Guid ProjectId) : UpdatePostResult;
+
+	public sealed record ImageMissing : UpdatePostResult;
 }
 
 public record PostListItem {
@@ -92,6 +95,19 @@ public record PostListItem {
 	public required Guid CreatedByUserId { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public required DateTime UpdatedAt { get; init; }
+	public required PostImageReadModel? Image { get; init; }
+}
+
+/// <summary>
+/// The attached post image projection served by detail and list read models.
+/// URL follows the anonymously-served <c>/files</c> convention documented on
+/// CreateStaffUpload: world-readable by URL, no tenant scoping, no expiry.
+/// </summary>
+public record PostImageReadModel {
+	public required string Url { get; init; }
+	public required string? AltText { get; init; }
+	public required int WidthPx { get; init; }
+	public required int HeightPx { get; init; }
 }
 
 [Service(ServiceLifetime.Scoped)]
@@ -276,7 +292,25 @@ public class PostService : IPostService {
 			nextCursor = results.Last().GetRequiredId().ToString();
 		}
 
-		var items = results.Select(p => ToListItem(p)).ToList();
+		// One batched lookup for the page's live image assets; the partial
+		// unique index guarantees at most one live row per post.
+		var pagePostIds = results
+			.Select(p => p.GetRequiredId())
+			.ToList();
+		var assetsByPost = await (
+			from a in _dbContext.PostMediaAsset.AsNoTracking()
+			where a.TenantId == tenantId
+				&& pagePostIds.Contains(a.PostId)
+				&& !a.IsDeleted
+			select a
+		).ToDictionaryAsync(a => a.PostId, cancellationToken);
+
+		var items = results.Select(p => ToListItem(
+			p,
+			assetsByPost.TryGetValue(p.GetRequiredId(), out var asset)
+				? asset
+				: null
+		)).ToList();
 
 		return new FindPostsResult.Success(
 			new CursorPaginatedResult<PostListItem> {
@@ -317,6 +351,23 @@ public class PostService : IPostService {
 
 		if (args.Body is not null) {
 			post.Body = args.Body;
+		}
+
+		if (args.ImageAltText.IsPresent) {
+			// Alt text belongs to the attached asset row; a patch without an
+			// image is a named validation refusal, not a silent no-op.
+			var asset = await (
+				from a in _dbContext.PostMediaAsset
+				where a.TenantId == tenantId
+					&& a.PostId == id
+					&& !a.IsDeleted
+				select a
+			).FirstOrDefaultAsync(cancellationToken);
+			if (asset is null) {
+				return new UpdatePostResult.ImageMissing();
+			}
+			asset.AltText = args.ImageAltText.Value;
+			asset.UpdatedAt = DateTime.UtcNow;
 		}
 
 		if (args.ProjectId.IsPresent) {
@@ -385,16 +436,16 @@ public class PostService : IPostService {
 		Guid projectId,
 		CancellationToken cancellationToken = default
 	) {
-			return await (
-				from project in _dbContext.Project.AsNoTracking()
-				where project.Id == projectId
-					&& project.TenantId == tenantId
-					&& !project.IsDeleted
-				select project.Id
-			).AnyAsync(cancellationToken);
+		return await (
+			from project in _dbContext.Project.AsNoTracking()
+			where project.Id == projectId
+				&& project.TenantId == tenantId
+				&& !project.IsDeleted
+			select project.Id
+		).AnyAsync(cancellationToken);
 	}
 
-	internal static PostListItem ToListItem(Post post) {
+	internal static PostListItem ToListItem(Post post, PostMediaAsset? asset) {
 		return new PostListItem {
 			Id = post.GetRequiredId(),
 			ProjectId = post.ProjectId,
@@ -405,6 +456,7 @@ public class PostService : IPostService {
 			CreatedByUserId = post.CreatedByUserId,
 			CreatedAt = post.CreatedAt,
 			UpdatedAt = post.UpdatedAt,
+			Image = PostWire.FormatImage(asset),
 		};
 	}
 }

@@ -153,7 +153,7 @@ export const findSuppressionSitesInSource = (
 // which honours a marker embedded anywhere on the line — including after real
 // executable code (`const x = true; // design-system-ignore: rule — reason`).
 // Inventory discovery (`findSuppressionSitesInSource` above, used by both
-// generate-suppression-inventory.mjs and the `*-inventory-drift`/committed-
+// generate-suppression-inventory.mts and the `*-inventory-drift`/committed-
 // inventory checks below) only recognises a marker that is the first thing
 // after a real comment opener on an otherwise-empty (trimmed) line. That
 // disagreement meant a suppression could be honoured live while being
