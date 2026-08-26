@@ -51,11 +51,10 @@ import { Route } from './account';
 
 const TenantAccountLayout = Route.options.component as ComponentType;
 
-const TAB_DESTINATIONS = [
-	['/tenant/account', 'Profile'],
-	['/tenant/account/security', 'Security'],
-	['/tenant/account/notifications', 'Notifications'],
-] as const;
+// #818 F8: Security and Notifications are hidden from navigation until
+// their APIs exist. Only the built Profile tab renders; the hidden
+// sections' routes stay registered, so deep links keep working.
+const TAB_DESTINATIONS = [['/tenant/account', 'Profile']] as const;
 
 afterEach(() => {
 	cleanup();
@@ -79,12 +78,28 @@ describe('TenantAccountLayout', () => {
 	});
 
 	test('derives the active tab from the current pathname', () => {
-		mocks.pathname = '/tenant/account/security';
+		mocks.pathname = '/tenant/account';
 		render(<TenantAccountLayout />);
 
 		const activeTab = screen
 			.getAllByRole('tab')
 			.find((tab) => tab.getAttribute('aria-selected') === 'true');
-		expect(activeTab?.textContent).toBe('Security');
+		expect(activeTab?.textContent).toBe('Profile');
+	});
+
+	test('deep links into hidden sections render without a selected tab', () => {
+		mocks.pathname = '/tenant/account/security';
+		render(<TenantAccountLayout />);
+
+		// #818 F8: Security keeps its route registered but ships no trigger.
+		// A deep link still renders its child through the outlet; nothing is
+		// presented as the current tab because Profile is not the section.
+		expect(screen.getAllByRole('tab').length).toBe(1);
+		expect(
+			screen
+				.getAllByRole('tab')
+				.some((tab) => tab.getAttribute('aria-selected') === 'true'),
+		).toBe(false);
+		expect(screen.getByTestId('outlet-stub')).toBeTruthy();
 	});
 });

@@ -18,12 +18,13 @@ describe('front route metadata', () => {
 		]);
 	});
 
-	test('tenant rail entries are the four workspace sections', () => {
+	test('tenant rail entries are the three shipped workspace sections', () => {
+		// #818 F8: Organizations is hidden from the rail until an organizations
+		// API exists; the page itself stays reachable by deep link.
 		expect(getRailItems('tenant').map((route) => route.labelKey)).toEqual([
 			'account',
 			'settings',
 			'posts',
-			'organizations',
 		]);
 	});
 
@@ -35,11 +36,10 @@ describe('front route metadata', () => {
 			'account',
 			'settings',
 			'posts',
-			'organizations',
 		]);
 		expect(
 			getRailItemsForPath('/tenant/account').map((route) => route.id),
-		).toEqual(['account', 'settings', 'posts', 'organizations']);
+		).toEqual(['account', 'settings', 'posts']);
 	});
 
 	test('staff dashboard panel items are exact', () => {
@@ -87,52 +87,38 @@ describe('front route metadata', () => {
 		);
 		expect(getActiveRailItem('/tenant/settings')?.id).toBe('settings');
 		expect(getActiveRailItem('/tenant/posts')?.id).toBe('posts');
-		expect(getActiveRailItem('/tenant/organizations')?.id).toBe(
-			'organizations',
-		);
+		// Organizations is hidden from the rail (#818): the route still renders,
+		// but no rail item owns it while the API gap stands.
+		expect(getActiveRailItem('/tenant/organizations')).toBeUndefined();
 	});
 
 	test('tenant account panel items are exact', () => {
+		// #818 F8: Security and Notifications are hidden until their APIs
+		// exist; only Profile ships today.
 		expect(
 			getSecondaryPanelItems('/tenant/account').map((item) => item.labelKey),
-		).toEqual(['profile', 'security', 'notifications']);
+		).toEqual(['profile']);
 	});
 
 	test('tenant account panel: only the deepest matching row is active', () => {
-		const [profile, security, notifications] =
-			getSecondaryPanelItems('/tenant/account');
-		if (!profile || !security || !notifications) {
-			throw new Error('expected all three account panel items to exist');
+		const [profile] = getSecondaryPanelItems('/tenant/account');
+		if (!profile) {
+			throw new Error('expected the profile account panel item to exist');
 		}
 
 		expect(isSecondaryPanelItemActive(profile, '/tenant/account', {})).toBe(
 			true,
 		);
-		expect(isSecondaryPanelItemActive(security, '/tenant/account', {})).toBe(
-			false,
-		);
-		expect(
-			isSecondaryPanelItemActive(notifications, '/tenant/account', {}),
-		).toBe(false);
 
 		// The Profile row matches `/tenant/account` by prefix — `matchExact`
-		// must keep it off its children's routes.
+		// must keep it off children's routes, including deep-linked hidden
+		// sections whose routes stay registered.
 		expect(
 			isSecondaryPanelItemActive(profile, '/tenant/account/security', {}),
 		).toBe(false);
 		expect(
-			isSecondaryPanelItemActive(security, '/tenant/account/security', {}),
-		).toBe(true);
-		expect(
-			isSecondaryPanelItemActive(security, '/tenant/account/notifications', {}),
+			isSecondaryPanelItemActive(profile, '/tenant/account/notifications', {}),
 		).toBe(false);
-		expect(
-			isSecondaryPanelItemActive(
-				notifications,
-				'/tenant/account/notifications',
-				{},
-			),
-		).toBe(true);
 	});
 
 	test('secondary panel is shown on the staff dashboard (three destinations)', () => {
@@ -144,13 +130,15 @@ describe('front route metadata', () => {
 		).toBe(true);
 	});
 
-	test('secondary panel is shown on the tenant account module but not on single-page sections', () => {
+	test('secondary panel auto-drops on the tenant account module once below two destinations', () => {
+		// #818 F8: with Security and Notifications hidden, account ships a
+		// single panel row — below the >=2 threshold the panel requires.
 		expect(
 			shouldShowSecondaryPanel('/tenant/account', {
 				sidebarOpen: true,
 				viewportWidth: 1280,
 			}),
-		).toBe(true);
+		).toBe(false);
 		expect(
 			shouldShowSecondaryPanel('/tenant/settings', {
 				sidebarOpen: true,
