@@ -11,12 +11,6 @@ const config: KnipConfig = {
 			// locally), not an npm package: quality-gate.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
 			ignoreBinaries: ['just'],
-			// The root manifest's pnpm.packageExtensions patch declares a zod
-			// peer for @hookform/resolvers; knip reads that block and reports
-			// zod as an unlisted dependency of the ROOT workspace. No repo
-			// source imports zod outside apps/front and packages/shared-ts,
-			// which both declare it themselves.
-			//
 			// `winston-transport-browserconsole` is declared in
 			// packages/shared-ts/package.json but never imported directly:
 			// winston resolves it at runtime as an optional browser transport,
@@ -34,7 +28,6 @@ const config: KnipConfig = {
 			// them; they mirror develop's declared dependency set, so they are
 			// ignored here rather than removed from the manifest.
 			ignoreDependencies: [
-				'zod',
 				'winston-transport-browserconsole',
 				'isbot',
 				'nprogress',
