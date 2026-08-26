@@ -1,6 +1,10 @@
 using FluentAssertions;
 
+using System.Data.Common;
+
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
@@ -355,6 +359,45 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 	}
 
 	[Fact]
+	public async Task ItShouldRejectAnUnstampedStatusUpdateOnTheSynchronousCommandCreatedPath() {
+		// Round-4 coverage for the SYNC CommandCreated callback. The async raw
+		// cases already exercise NonQueryExecutingAsync; this drives the sync
+		// ExecuteSqlRaw so CommandCreated+NonQueryExecuting (sync) are hit, not
+		// the async path. A sync raw status flip must be refused identically.
+		using var db = await NewDbAsync();
+		var seeded = await SeedScheduledPublicationAsync(db);
+		var id = seeded.GetRequiredId();
+
+		var act = (Action)(() => db.Database.ExecuteSqlRaw(
+			"UPDATE publications SET status = 20 WHERE id = {0}", id));
+
+		act.Should().Throw<PublicationStatusGuardException>()
+			.Which.Message.Should()
+			.Contain("not written through the transition service");
+
+		await db.Entry(seeded).ReloadAsync();
+		seeded.Status.Should().Be(PublicationStatus.Scheduled);
+	}
+
+	[Fact]
+	public async Task ItShouldLetTheTransitionServiceStampedStatusUpdateSurviveTheSyncPath() {
+		// Paired happy path for the sync CommandCreated/NonQueryExecuting route:
+		// the SAME raw UPDATE that the unstamped test above rejects must pass
+		// when the transition service stamps the context. Without this the guard
+		// could be shown to refuse, but never to discriminate.
+		using var db = await NewDbAsync();
+		var seeded = await SeedScheduledPublicationAsync(db);
+
+		PublicationStatusWriteGuard.StampForStatusWrite(db);
+		db.Database.ExecuteSqlRaw(
+			"UPDATE publications SET status = 20 WHERE id = {0}",
+			seeded.GetRequiredId());
+
+		await db.Entry(seeded).ReloadAsync();
+		seeded.Status.Should().Be(PublicationStatus.InProgress);
+	}
+
+	[Fact]
 	public async Task ItShouldLetABenignSelectSurviveEvenWhenACommentQuotesAStatusUpdate() {
 		// False-positive control demanded by the r1 review: a comment QUOTING
 		// an update is not an update. The unanchored matcher alone trips on
@@ -367,5 +410,142 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 		);
 
 		await act.Should().NotThrowAsync();
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAnUnstampedStatusUpdateRoutedThroughTheReaderPipeline() {
+		// Round-4 coverage for ReaderExecuting/ReaderExecutingAsync. A DML
+		// statement that returns a result set (UPDATE ... RETURNING) is executed
+		// by EF through the READER pipeline, not NonQuery — so a status flip
+		// hidden behind RETURNING would slip past a guard that only checked
+		// NonQuery. FromSqlRaw + ToList exercises that reader path end-to-end on
+		// live Npgsql and the guard refuses the write before it executes.
+		using var db = await NewDbAsync();
+		var seeded = await SeedScheduledPublicationAsync(db);
+		var id = seeded.GetRequiredId();
+
+		var act = async () => await db.Publication
+			.FromSqlRaw(
+				"UPDATE publications SET status = 20 WHERE id = {0} RETURNING id",
+				id)
+			.ToListAsync();
+
+		(await act.Should().ThrowAsync<PublicationStatusGuardException>())
+			.Which.Message.Should()
+			.Contain("not written through the transition service");
+
+		await db.Entry(seeded).ReloadAsync();
+		seeded.Status.Should().Be(PublicationStatus.Scheduled);
+	}
+
+	[Fact]
+	public async Task ItShouldLetAReaderPipelinedQuerySurviveOnAnUnstampedContext() {
+		// Paired happy path for the reader callbacks: a benign FromSql SELECT must
+		// pass on an unstamped context (the guard pins status writes, not reads).
+		using var db = await NewDbAsync();
+		var seeded = await SeedScheduledPublicationAsync(db);
+		var id = seeded.GetRequiredId();
+
+		var rows = await db.Publication
+			.FromSqlRaw("SELECT * FROM publications WHERE id = {0}", id)
+			.ToListAsync();
+
+		rows.Should().ContainSingle(p => p.Id == id);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAnUnstampedStatusUpdateOnTheScalarExecutingCallbacks() {
+		// Round-4 coverage for ScalarExecuting/ScalarExecutingAsync. EF never
+		// reaches these callbacks through AppDbContext execution (every scalar
+		// query is run as a reader — confirmed by the synced round-3 probe and
+		// the round-4 tagged probe: the sync/async UPDATE and the reader DML all
+		// report NonQuery*/ReaderExecutingAsync, never Scalar*), so they are
+		// exercised by DIRECT invocation of the guard with a real CommandEventData
+		// — the only way to prove the scalar branch refuses. Defence-in-depth for
+		// a callback EF may one day route (and the only branch not yet hit by a
+		// live command). See .dump/proof-r4-scalar.md.
+		using var db = NewDetachedContext();
+		var cmd = db.Database.GetDbConnection().CreateCommand();
+		cmd.CommandText = "UPDATE publications SET status = 20 "
+			+ "WHERE id = '00000000-0000-0000-0000-000000000000'";
+
+		var evt = MakeEventData(db, cmd, DbCommandMethod.ExecuteScalar, false);
+		var guard = new PublicationStatusWriteGuard();
+
+		// Synchronous scalar callback refuses an unstamped status write.
+		var syncAct = () => guard.ScalarExecuting(cmd, evt, new InterceptionResult<object>());
+		syncAct.Should().Throw<PublicationStatusGuardException>()
+			.WithMessage("*not written through the transition service*");
+
+		// Asynchronous scalar callback also refuses.
+		var asyncAct = async () => await guard.ScalarExecutingAsync(
+			cmd, evt, new InterceptionResult<object>(), default);
+		(await asyncAct.Should().ThrowAsync<PublicationStatusGuardException>())
+			.Which.Message.Should()
+			.Contain("not written through the transition service");
+	}
+
+	[Fact]
+	public async Task ItShouldLetAStampedCommandThroughTheScalarExecutingCallbacks() {
+		// Paired happy path for the scalar branch: with the transition service's
+		// stamp present, the SAME scalar command is not refused. Proves the
+		// branch discriminates on the stamp, not on the callback name.
+		using var db = NewDetachedContext();
+		var cmd = db.Database.GetDbConnection().CreateCommand();
+		cmd.CommandText = "UPDATE publications SET status = 20 "
+			+ "WHERE id = '00000000-0000-0000-0000-000000000000'";
+
+		PublicationStatusWriteGuard.StampForStatusWrite(db);
+		var evt = MakeEventData(db, cmd, DbCommandMethod.ExecuteScalar, false);
+		var guard = new PublicationStatusWriteGuard();
+
+		var syncAct = () => guard.ScalarExecuting(cmd, evt, new InterceptionResult<object>());
+		syncAct.Should().NotThrow();
+
+		var asyncAct = async () => await guard.ScalarExecutingAsync(
+			cmd, evt, new InterceptionResult<object>(), default);
+		await asyncAct.Should().NotThrowAsync();
+	}
+
+	/// <summary>
+	/// Builds a real <see cref="CommandEventData"/> for direct invocation of the
+	/// guard's executing callbacks. EF Core's <see cref="EventDefinition{T}"/>
+	/// constructor dereferences an <see cref="ILoggingOptions"/>, so we grab a
+	/// live one off the context's command diagnostics logger via reflection (the
+	/// concrete logger type is EF-internal and cannot be named in source).
+	/// </summary>
+	private static CommandEventData MakeEventData(
+		AppDbContext db,
+		DbCommand cmd,
+		DbCommandMethod method,
+		bool async
+	) {
+		var logger = db.GetInfrastructure().GetService(
+			typeof(IDiagnosticsLogger<DbLoggerCategory.Database.Command>));
+		var options = (ILoggingOptions)
+			logger!.GetType().GetProperty("Options")!.GetValue(logger)!;
+		var def = new EventDefinition<string>(
+			options,
+			new Microsoft.Extensions.Logging.EventId(1, "x"),
+			Microsoft.Extensions.Logging.LogLevel.Information,
+			"x",
+			(_) => (_, _, _) => { });
+		Func<EventDefinitionBase, EventData, string> generate = (_, _) => "x";
+		return new CommandEventData(
+			def, generate, cmd.Connection!, cmd, cmd.CommandText, db, method,
+			Guid.NewGuid(), Guid.NewGuid(), async, false,
+			DateTimeOffset.UtcNow, CommandSource.Unknown);
+	}
+
+	/// <summary>
+	/// A context that is constructed but never used to open a connection (so it
+	/// needs no live database). Used by the direct-invocation scalar tests, which
+	/// drive the guard with synthetic command/event data rather than real SQL.
+	/// </summary>
+	private static AppDbContext NewDetachedContext() {
+		return new AppDbContext(
+			new DbContextOptionsBuilder<AppDbContext>()
+				.UseNpgsql("Host=127.0.0.1;Port=1;Database=x;Username=u;Password=p")
+				.Options);
 	}
 }
