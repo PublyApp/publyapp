@@ -125,6 +125,8 @@
 	"social-account-reconnected": "Compte Bluesky reconnecté",
 	"social-account-projects-updated": "Attachements de projets mis à jour",
 	"publication-schedule-in-progress": "Une publication pour ce billet est en cours de publication",
+	"post-schedule-cancelled-success": "Planification annulée — le billet est de retour dans les brouillons",
+	"post-schedule-cancel-noop": "Aucune planification à annuler",
 	"job-queue-item-not-found": "Élément de la file de jobs introuvable",
 	"dead-letter-requeue-success": "Job dead-letter remis en file",
 	"dead-letter-requeue-conflict": "Le job dead-letter a déjà été remis en file",

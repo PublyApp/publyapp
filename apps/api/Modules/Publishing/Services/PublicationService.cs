@@ -44,6 +44,9 @@ public abstract record ScheduleResult {
 		: ScheduleResult;
 }
 
+/// <summary>Outcome of cancelling a post's schedule (D3 Task 3).</summary>
+public record CancelScheduleResult(int DeletedCount, int KeptCount);
+
 /// <summary>
 /// Arguments for editing a post's text and/or replacing its schedule pair (D3
 /// Task 2). Instant and zone travel together or not at all.
@@ -85,6 +88,17 @@ public interface IPublicationService {
 
 	Task<EditPostScheduleResult> EditScheduleAsync(
 		EditPostScheduleArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	/// <summary>
+	/// Hard-deletes every Scheduled publication of the post and returns the
+	/// deleted/kept counts, or null when the post does not exist in the tenant.
+	/// </summary>
+	Task<CancelScheduleResult?> CancelScheduleAsync(
+		Guid tenantId,
+		Guid postId,
+		Guid actorUserId,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -430,6 +444,60 @@ public sealed class PublicationService : IPublicationService {
 	/// service-to-service dependency, and its own SaveChanges would make the audit
 	/// a second commit that a cancellation could skip.
 	/// </summary>
+	public async Task<CancelScheduleResult?> CancelScheduleAsync(
+		Guid tenantId,
+		Guid postId,
+		Guid actorUserId,
+		CancellationToken cancellationToken = default
+	) {
+		var postExists = await (
+			from p in _dbContext.Post.AsNoTracking()
+			where p.Id == postId
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+		if (!postExists) {
+			return null;
+		}
+
+		// SQL DELETE, not a status transition: cancelled publications leave no
+		// history row (the audit entry below carries the durable record).
+		var deletedCount = await (
+			from p in _dbContext.Publication
+			where p.PostId == postId
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+				&& p.Status == PublicationStatus.Scheduled
+			select p
+		).ExecuteDeleteAsync(cancellationToken);
+
+		var keptCount = await (
+			from p in _dbContext.Publication.AsNoTracking()
+			where p.PostId == postId
+				&& p.TenantId == tenantId
+				&& !p.IsDeleted
+			select p.Id
+		).CountAsync(cancellationToken);
+
+		if (deletedCount > 0) {
+			AddAuditEntry(
+				actorUserId,
+				AuditActions.PublicationScheduleCancelled,
+				postId,
+				new {
+					TenantId = tenantId,
+					PostId = postId,
+					DeletedCount = deletedCount,
+					KeptCount = keptCount,
+				}
+			);
+			await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		return new CancelScheduleResult(deletedCount, keptCount);
+	}
+
 	private void AddAuditEntry(
 		Guid userId,
 		string action,

@@ -57,6 +57,14 @@ public static class PublishingEndpointsForTenant {
 			.WithReqBodyValidation<EditPostScheduleBody>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
 
+		group.MapDelete(
+			Routes.Publishing.ForTenant.Schedule,
+			CancelPostScheduleForTenant.Handle
+		)
+			.WithName("CancelPostScheduleForTenant")
+			.WithSummary("Cancel a post's schedule (delete Scheduled publications)")
+			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
+
 		return routes;
 	}
 }

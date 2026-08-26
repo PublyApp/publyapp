@@ -144,6 +144,8 @@ public static class AuditActions {
 	// D3 scheduling lifecycle (Epic D §2).
 	public const string PublicationScheduled = "publication.scheduled";
 	public const string PublicationRescheduled = "publication.rescheduled";
+	public const string PublicationScheduleCancelled =
+		"publication.schedule.cancelled";
 	public const string PostDeleted = "post.deleted";
 
 	// Epic D (publish-now): the actor asked for immediate publishing through the

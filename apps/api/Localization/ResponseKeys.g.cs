@@ -300,6 +300,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostNotFound = new("post-not-found");
 
 	/// <summary>
+	/// Nothing scheduled to cancel
+	/// </summary>
+	public static readonly TranslationKey PostScheduleCancelNoop = new("post-schedule-cancel-noop");
+
+	/// <summary>
+	/// Schedule cancelled — the post is back in drafts
+	/// </summary>
+	public static readonly TranslationKey PostScheduleCancelledSuccess = new("post-schedule-cancelled-success");
+
+	/// <summary>
 	/// profile
 	/// </summary>
 	public static readonly TranslationKey Profile = new("profile");
