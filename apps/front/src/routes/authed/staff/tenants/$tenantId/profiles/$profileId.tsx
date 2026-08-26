@@ -1,9 +1,10 @@
 import { IconAlertCircle, IconSearchOff } from '@tabler/icons-react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useRouter } from '@tanstack/react-router';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { View403 } from '~/components/error-views/View403';
 import { staffTenantProfileDetailsQueryOptions } from '~/lib/query/staff-tenant-profiles';
 import { staffTenantDetailsQueryOptions } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
@@ -17,7 +18,10 @@ import {
 import { staffTenantProfileCrumbsBase } from './$profileId/_crumbs';
 import type { StaffTenantProfileDetailsContextValue } from './$profileId/_details-context';
 import {
+	classifyProfileDetailsFailure,
+	MissingTenantProfileView,
 	ProfileDetailsLoading,
+	type ProfileDetailsErrorSurface,
 	TenantProfileDetailsError,
 } from './$profileId/_details-error-views';
 import { ProfileDetailsView } from './$profileId/_profile-details-view';
@@ -215,6 +219,68 @@ const StaffTenantProfileDetailsPage = () => {
 	);
 };
 
+/**
+ * #851 round 2 — the route's own loader-error surface. The awaited loader
+ * rejects on 404/403/500 (`ensureQueryData` surfaces the Kiota problem
+ * pipeline), and without this boundary a loader throw short-circuits the
+ * route render and the parent `_authed-layout` boundary takes over — moving
+ * 404/500 UX off the route's own designed views onto generic ones.
+ *
+ * It resolves the failure through the SAME classifier the page body's error
+ * path uses (`classifyProfileDetailsFailure`) and reuses the route's existing
+ * error views verbatim:
+ *
+ * - 404 (or malformed-id 400) → `MissingTenantProfileView`
+ * - 403 → `View403`
+ * - any other recognizable API failure (500, network) →
+ *   `TenantProfileDetailsError` + `TenantRetryActions`, whose retry
+ *   invalidates the router so the loader (and the query cache it warmed)
+ *   re-runs
+ * - 401 → `LogoutRedirect`, matching the page body's own 401 handling and
+ *   the repo-wide "only 401 logs out" invariant
+ * - anything UNCLASSIFIABLE (no API-failure shape at all — a programming
+ *   error, not a server answer) is RETHROWN so the parent layout boundary
+ *   owns it loudly instead of being masked behind a "not found" view.
+ */
+const ProfileRouteErrorBoundary = ({
+	error,
+	reset,
+}: {
+	error: unknown;
+	reset: () => void;
+}) => {
+	const router = useRouter();
+
+	if (shouldLogoutForFailure(error)) {
+		return <LogoutRedirect />;
+	}
+
+	const surface: ProfileDetailsErrorSurface =
+		classifyProfileDetailsFailure(error);
+
+	if (surface === 'unclassified') {
+		throw error;
+	}
+
+	if (surface === 'not-found') {
+		return <MissingTenantProfileView error={error} />;
+	}
+
+	if (surface === 'forbidden') {
+		return <View403 />;
+	}
+
+	return (
+		<TenantProfileDetailsError
+			error={error}
+			onRetry={() => {
+				reset();
+				void router.invalidate();
+			}}
+		/>
+	);
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/staff/tenants/$tenantId/profiles/$profileId',
 )({
@@ -228,14 +294,6 @@ export const Route = createFileRoute(
 	},
 	validateSearch: (search) =>
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
-	/**
-	 * #851 — the one sanctioned client `loader` (see conventions.md §Rendering
-	 * Strategy). It awaits the SAME query options the page body queries, so
-	 * both entity names are in TanStack Query's cache before the first frame:
-	 * the shell's entity crumbs paint their real names immediately, with no
-	 * skeleton phase on a cold deep link. The component-side `useQuery` hooks
-	 * below are untouched — they dedupe against this warmed cache.
-	 */
 	loader: async ({ context, params }) => {
 		await Promise.all([
 			context.queryClient.ensureQueryData({
@@ -261,5 +319,6 @@ export const Route = createFileRoute(
 		]);
 	},
 	pendingComponent: ProfileDetailsLoading,
+	errorComponent: ProfileRouteErrorBoundary,
 	component: StaffTenantProfileDetailsPage,
 });

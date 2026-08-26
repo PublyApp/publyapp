@@ -54,7 +54,53 @@ export const ProfileDetailsLoading = () => {
 	);
 };
 
-const MissingTenantProfileView = ({ error }: { error: unknown }) => {
+/**
+ * The failure surfaces this route can own, classified from an error by
+ * `classifyProfileDetailsFailure`.
+ */
+export type ProfileDetailsErrorSurface =
+	| 'not-found'
+	| 'forbidden'
+	| 'load-failed'
+	| 'unclassified';
+
+/**
+ * The ONE status classifier for this route's failures — shared verbatim by
+ * the page body's error path (`TenantProfileDetailsError`) and the route's
+ * `errorComponent` (#851 round 2), so a loader rejection resolves to the
+ * same surface the equivalent in-page failure would. `unclassified` marks a
+ * failure with no recognizable API-failure shape (a programming error, not
+ * a server answer); the route boundary rethrows those to the parent layout
+ * boundary instead of guessing a view for them.
+ */
+export const classifyProfileDetailsFailure = (
+	error: unknown,
+): ProfileDetailsErrorSurface => {
+	if (
+		isProblemStatus(error, 404) ||
+		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
+	) {
+		return 'not-found';
+	}
+
+	if (isProblemStatus(error, 403)) {
+		return 'forbidden';
+	}
+
+	const failure = toApiFailure(error);
+
+	if (
+		failure.kind === 'problem' ||
+		failure.kind === 'network' ||
+		failure.kind === 'validation'
+	) {
+		return 'load-failed';
+	}
+
+	return 'unclassified';
+};
+
+export const MissingTenantProfileView = ({ error }: { error: unknown }) => {
 	const { t } = useTranslation('staff-tenant-profiles');
 
 	return (
@@ -81,14 +127,16 @@ export const TenantProfileDetailsError = ({
 }) => {
 	const { t } = useTranslation('staff-tenant-profiles');
 
-	if (
-		isProblemStatus(error, 404) ||
-		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
-	) {
+	// Same classifier the route-level `errorComponent` uses (#851 round 2).
+	// Unlike the route boundary, the page keeps its catch-all: even an
+	// `unclassified` failure renders the generic retry view here.
+	const surface = classifyProfileDetailsFailure(error);
+
+	if (surface === 'not-found') {
 		return <MissingTenantProfileView error={error} />;
 	}
 
-	if (isProblemStatus(error, 403)) {
+	if (surface === 'forbidden') {
 		return <View403 />;
 	}
 
