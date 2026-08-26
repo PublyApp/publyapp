@@ -5158,10 +5158,10 @@ const refreshChangedSourceFiles = (
 		// concurrently a discovered path can vanish between discovery and
 		// this refresh. A vanished file contributes no drawer surface — skip
 		// it instead of failing the whole guard on someone else's cleanup.
-		let stat: { size: number | bigint; mtimeNs: number | bigint };
+		let stamp: string;
 		try {
-			const big = statSync(filePath, { bigint: true });
-			stat = { size: big.size, mtimeNs: big.mtimeNs };
+			const fresh = statSync(filePath, { bigint: true });
+			stamp = `${fresh.size}:${fresh.mtimeNs}`;
 		} catch (error) {
 			if (
 				error instanceof Error &&
@@ -5172,7 +5172,6 @@ const refreshChangedSourceFiles = (
 			}
 			throw error;
 		}
-		const stamp = `${stat.size}:${stat.mtimeNs}`;
 		const loaded = sourceFileFreshness.get(filePath);
 		if (loaded && loaded.stamp === stamp) {
 			continue;
