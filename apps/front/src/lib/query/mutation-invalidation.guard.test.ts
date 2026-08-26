@@ -157,7 +157,7 @@ type ListFamilyEntry = {
 type NoListEntry = {
 	kind: 'no-list';
 	reason: string;
-	load: () => Promise<unknown>;
+	load: () => Promise<Record<string, unknown>>;
 };
 
 type RegistryEntry = ListFamilyEntry | NoListEntry;
@@ -165,7 +165,7 @@ type RegistryEntry = ListFamilyEntry | NoListEntry;
 const loadScopedKey = async () =>
 	await import('@org/shared-ts/lib/query/create-hooks');
 
-const REGISTRY: Record<string, RegistryEntry> = {
+const REGISTRY = {
 	'staff-users.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateStaffUsers',
@@ -461,7 +461,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
 			'updates the tenant settings-general detail entity; there is no derived list/counter projection of it, so the rule requires no list invalidation.',
 		load: () => import('./tenant-settings-general'),
 	},
-};
+} satisfies Record<string, RegistryEntry>;
 
 // ── Drift detector: RED the moment the real module set diverges ─────
 
@@ -496,9 +496,8 @@ describe('mutation-module discovery integrity (#359)', () => {
 // ── Per-module audits ──────────────────────────────────────────────
 
 describe('mutation modules invalidate their list query family (#359)', () => {
-	for (const file of discoveredMutationModules) {
-		const entry = REGISTRY[file];
-		if (!entry) {
+	for (const [file, entry] of Object.entries(REGISTRY)) {
+		if (!discoveredMutationModules.includes(file)) {
 			// The drift detector above already reddens; skip so we don't double-count.
 			continue;
 		}
