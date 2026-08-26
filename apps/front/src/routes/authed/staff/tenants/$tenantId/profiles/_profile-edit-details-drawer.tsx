@@ -23,10 +23,11 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
-import { resolveProfileSaveFailure } from '~/lib/profile-edit-details-save-failure';
+import { resolveProfileSaveFailure } from '~/lib/profiles/profile-edit-details-save-failure';
 import { useUpdateStaffTenantProfileMutation } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { deriveTenantProfileCardStyle } from './_profile-card-style';
 

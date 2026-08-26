@@ -138,7 +138,7 @@ type CookieConsentStore = CookieConsentState & {
 	savePreferences: (consent: CookieConsent) => void;
 };
 
-const DEFAULT_STATE: CookieConsentState = {
+const DEFAULT_STATE = {
 	isHydrated: false,
 	hasDecision: false,
 	consent: REJECT_ALL_CONSENT,

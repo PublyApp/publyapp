@@ -7,6 +7,7 @@ using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
+using PublyApp.Api.Modules.Profiles.Jobs;
 using PublyApp.Api.Modules.Publishing.Jobs;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.Uploads.Jobs;
@@ -143,6 +144,13 @@ public static class JobsServiceRegistration {
 
 		builder.AddJobHandler<StaffInvitationEmailJobHandler>(
 			InvitationEmailJobs.StaffInvitationV1.JobType
+		);
+
+		// #291: the existing-user "you have been added as a staff member"
+		// notification, enqueued by StaffProfileAsStaffService.CreateStaffProfileAsync
+		// inside its domain transaction.
+		builder.AddJobHandler<StaffJoinedNotificationEmailJobHandler>(
+			StaffProfileEmailJobs.StaffJoinedNotificationV1.JobType
 		);
 
 		// System job handlers (design §5.3/§7.3): system jobs are seeded into system_job_definitions

@@ -12,6 +12,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	AccountLevel,
 	ApiResponse,
 	BulkDeleteTenantProfilesBody,
 	BulkProfileActionResult,
@@ -24,6 +25,7 @@ import type {
 	ResolveTenantProfileUserAssignmentsAsStaffResult,
 	TenantProfileItem,
 	TenantProfileUserItem,
+	TenantUserStatus,
 	UpdateTenantProfileAsStaffBody,
 } from '@org/client-ts/models/index';
 import type { TenantGetResponse } from '@org/client-ts/staff/permissions/scopes/tenant/index';
@@ -155,8 +157,8 @@ export type StaffTenantProfileMemberRow = {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	status: string | null;
-	level: string | null;
+	status: TenantUserStatus | null;
+	level: AccountLevel | null;
 	otherProfiles: StaffTenantProfileMemberProfile[];
 	joinedAt: Date | null;
 	displayName: string;
@@ -378,40 +380,39 @@ export const buildStaffTenantPermissionGroupColumns = (
 	return [leftGroups, rightGroups];
 };
 
-/** Named owner contract: `moduleKey` arrives as a plain string from the API
- * permission key, so the order map must stay open to unknown future modules.
- */
-interface TenantPermissionActionOrderMap {
-	[module: string]: readonly string[];
-}
-
-const TENANT_PERMISSION_ACTION_ORDER: TenantPermissionActionOrderMap = {
-	posts: ['view', 'create', 'edit', 'publish', 'schedule', 'delete'],
-	media: ['view', 'upload', 'edit', 'delete'],
-	calendar: ['view', 'manage'],
-	channels: ['view', 'connect', 'manage', 'disconnect'],
-	approvals: ['request', 'review'],
-	analytics: ['view', 'export'],
-	members: ['view', 'manage', 'suspend', 'remove'],
-	invitations: ['view', 'create', 'resend', 'revoke'],
-	profiles: [
-		'view',
-		'create',
-		'edit',
-		'assign_members',
-		'manage_permissions',
-		'delete',
+/** Known permission modules and their canonical action order. `moduleKey`
+ * arrives as a plain string from the API permission key, so lookup goes
+ * through Map.get and an unknown future module falls back to name comparison
+ * instead of widening the literal to an open dictionary
+ * (no-known-value-widening). */
+const TENANT_PERMISSION_ACTION_ORDER = new Map<string, readonly string[]>([
+	['posts', ['view', 'create', 'edit', 'publish', 'schedule', 'delete']],
+	['media', ['view', 'upload', 'edit', 'delete']],
+	['calendar', ['view', 'manage']],
+	['channels', ['view', 'connect', 'manage', 'disconnect']],
+	['approvals', ['request', 'review']],
+	['analytics', ['view', 'export']],
+	['members', ['view', 'manage', 'suspend', 'remove']],
+	['invitations', ['view', 'create', 'resend', 'revoke']],
+	[
+		'profiles',
+		[
+			'view',
+			'create',
+			'edit',
+			'assign_members',
+			'manage_permissions',
+			'delete',
+		],
 	],
-	settings: ['view', 'edit'],
-	billing: ['view', 'manage'],
-	audit_logs: ['view'],
-	modules: [
-		'access_dashboard',
-		'access_billing',
-		'access_settings',
-		'access_users',
+	['settings', ['view', 'edit']],
+	['billing', ['view', 'manage']],
+	['audit_logs', ['view']],
+	[
+		'modules',
+		['access_dashboard', 'access_billing', 'access_settings', 'access_users'],
 	],
-};
+]);
 
 const getPermissionAction = (permissionKey: string): string =>
 	permissionKey.slice(permissionKey.lastIndexOf('.') + 1);
@@ -421,7 +422,7 @@ const comparePermissionOptions = (
 	left: StaffTenantPermissionOption,
 	right: StaffTenantPermissionOption,
 ): number => {
-	const actionOrder = TENANT_PERMISSION_ACTION_ORDER[moduleKey] ?? [];
+	const actionOrder = TENANT_PERMISSION_ACTION_ORDER.get(moduleKey) ?? [];
 	const leftAction = getPermissionAction(left.key);
 	const rightAction = getPermissionAction(right.key);
 	const leftIndex = actionOrder.indexOf(leftAction);
@@ -799,8 +800,8 @@ export const toStaffTenantProfileMemberRows = (
 			firstName,
 			lastName,
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
-			status: normalizeNullableString(item.status),
-			level: normalizeNullableString(item.level),
+			status: item.status ?? null,
+			level: item.level ?? null,
 			otherProfiles,
 			joinedAt: normalizeDate(item.joinedAt),
 			displayName: getUserFullName({ firstName, lastName }) || email,

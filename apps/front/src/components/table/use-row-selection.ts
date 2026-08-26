@@ -22,10 +22,13 @@ export const countSelected = (selection: RowSelectionMap): number =>
 export const toTableSelection = (
 	selection: RowSelectionMap,
 ): TableSelection => {
-	const selected = Object.entries(selection)
-		.filter(([, checked]) => checked)
-		.map(([id]) => id);
-	return new Set(selected);
+	const selected = new Set<string>();
+	for (const [id, checked] of Object.entries(selection)) {
+		if (checked) {
+			selected.add(id);
+		}
+	}
+	return selected;
 };
 
 /** Local `TableSelection` from table event payload → stored row map. */
@@ -62,9 +65,7 @@ export type UseRowSelectionResult = {
  * visible on every data change, so it never accumulates across cursor pages.
  * Bulk mutations are out of scope here (M2.3).
  */
-export const useRowSelection = (
-	visibleRowIds: readonly string[],
-): UseRowSelectionResult => {
+export const useRowSelection = (visibleRowIds: readonly string[]) => {
 	const [selection, setSelection] = useState<RowSelectionMap>({});
 	const visibleKey = visibleRowIds.join(' ');
 

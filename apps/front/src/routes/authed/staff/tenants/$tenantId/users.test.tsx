@@ -15,7 +15,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 const mocks = vi.hoisted(() => ({
-	search: {} as Record<string, unknown>,
+	search: {},
 	navigate: vi.fn(),
 	invalidateQueries: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
@@ -229,7 +229,7 @@ vi.mock('~/lib/download-file', () => ({
 	formatExportDateStamp: () => '2026-07-12',
 }));
 
-// #1442: `~/lib/should-logout-for-failure` is deliberately NOT mocked in this
+// #1442: `@org/shared-ts/lib/should-logout-for-failure` is deliberately NOT mocked in this
 // suite — every rejection below runs through the REAL failure helper (and its
 // real `toApiFailure` classification), so the 401/logout path is exercised
 // against production code instead of a stubbed predicate.

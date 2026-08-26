@@ -9,7 +9,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
-import { Skeleton } from '~/components/ui/skeleton';
+import { FieldRowsSkeleton } from '~/components/ui/detail-skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
 import { LOCALE_LABELS } from '~/lib/i18n.shared';
 import {
@@ -24,12 +24,12 @@ import {
 	type TenantSettingsGeneralUpdateInput,
 } from '~/lib/query/tenant-settings-general';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { WorkspacePageHeader } from '../_workspace-page-parts';
 import { SettingsGeneralDangerCard } from './_settings-general-danger-card';
@@ -44,23 +44,12 @@ import {
 // Static skeletons — module-level so they are built once, not per render
 // (react-doctor/rendering-hoist-jsx).
 const IDENTITY_LOADING_SLOT = (
-	<div className="space-y-4" data-testid="tenant-settings-general-skeleton">
-		<Skeleton className="h-9 w-full" />
-		<Skeleton className="h-9 w-full" />
-		<Skeleton className="h-9 w-full" />
-		<Skeleton className="h-9 w-full" />
-		<Skeleton className="h-9 w-full" />
+	<div data-testid="tenant-settings-general-skeleton">
+		<FieldRowsSkeleton count={5} />
 	</div>
 );
 
-const REGIONAL_LOADING_SLOT = (
-	<div className="space-y-4">
-		<Skeleton className="h-9 w-full" />
-		<Skeleton className="h-9 w-full" />
-		<Skeleton className="h-9 w-full" />
-		<Skeleton className="h-9 w-full" />
-	</div>
-);
+const REGIONAL_LOADING_SLOT = <FieldRowsSkeleton count={4} />;
 
 /**
  * Workspace general settings, editable through the real tenant-scoped

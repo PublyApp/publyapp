@@ -484,6 +484,16 @@ const NEVER_COPY_ATTRIBUTE_NAMES = new Set([
 	'data-slot',
 ]);
 
+// #330 detail-skeleton: component-specific styling props ending in
+// `ClassName` (`tileClassName`, `rowClassName`, `headingClassName`) are
+// structurally never user-visible copy — same family as `className`
+// itself (r5-tests-F2), just names the exact-name set above has never
+// heard of. Their Tailwind values are multi-word ("size-14 rounded-[10px]"),
+// so isProseLikeLiteral's internal-whitespace requirement does not save
+// them: they must be exempted by name, before value inspection. A
+// user-visible-copy prop would never be named `*ClassName`.
+const NEVER_COPY_ATTRIBUTE_NAME_PATTERN = /ClassName$/;
+
 // W5-PROOF: attribute/prop names that are BY DEFINITION user-visible copy
 // wherever they appear — a single word here ("Delete", "Cancel") is exactly
 // as much a fabricated-English-copy problem as a full sentence, so these are
@@ -953,7 +963,10 @@ const findHardcodedUiLiterals = (
 			}
 		} else if (ts.isJsxAttribute(node)) {
 			const attrName = node.name.getText(sourceFile);
-			if (!NEVER_COPY_ATTRIBUTE_NAMES.has(attrName)) {
+			if (
+				!NEVER_COPY_ATTRIBUTE_NAMES.has(attrName) &&
+				!NEVER_COPY_ATTRIBUTE_NAME_PATTERN.test(attrName)
+			) {
 				const isCopy = isDefiniteCopyPositionName(attrName)
 					? isCopyLikeLiteral
 					: isProseLikeLiteral;
@@ -1245,6 +1258,11 @@ describe('i18n key coverage', () => {
 				'<Button variant="Outline" type="Submit" className="MyClass">{t(\'submit\')}</Button>;',
 				"<span aria-label={t('submit')}>{t('submit')}</span>;",
 				"const label = locale === 'fr' ? 'Français' : 'English';",
+				// #330: component-specific styling props (`tileClassName`,
+				// `rowClassName`) carry Tailwind values whose multi-word shape is
+				// prose-like to the heuristic but are never user-visible copy.
+				'<Skeleton rowClassName="h-9 w-full" />;',
+				'<EntityHeader tileClassName="size-14 rounded-[10px]" />;',
 			].join('\n'),
 			'canary.tsx',
 		);

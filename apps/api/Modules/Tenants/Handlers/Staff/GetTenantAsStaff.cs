@@ -16,7 +16,7 @@ public class GetTenantAsStaffResult {
 	public string Code { get; set; } = string.Empty;
 	public string? LogoUrl { get; set; }
 	public int MaxUsers { get; set; }
-	public string Status { get; set; } = string.Empty;
+	public TenantStatus Status { get; set; }
 	public int UsersCount { get; set; }
 	public int OwnersCount { get; set; }
 	public int PendingInvitationsCount { get; set; }
@@ -93,9 +93,7 @@ public sealed class GetTenantAsStaff {
 			Code = tenant.Code,
 			LogoUrl = tenant.LogoUrl,
 			MaxUsers = tenant.MaxUsers,
-			Status = Tenant.GetStatusDescription(
-				tenant.Status
-			),
+			Status = tenant.Status,
 			UsersCount = usersCount,
 			OwnersCount = ownersCount,
 			PendingInvitationsCount = invitationCounts.Pending,

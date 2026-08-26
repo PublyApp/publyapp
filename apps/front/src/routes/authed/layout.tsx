@@ -6,7 +6,6 @@ import {
 	redirect,
 	useLocation,
 	useNavigate,
-	useRouter,
 } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -17,104 +16,28 @@ import { View404 } from '~/components/error-views/View404';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
-import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
-} from '~/lib/route-shell';
-import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
+} from '~/lib/navigation/route-shell';
 import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-context';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+import {
+	determineSessionToken,
+	getSessionSurface,
+} from '~/lib/session/session-scope';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
 import { selectToken } from '@org/shared-ts/lib/session/parse';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { getFailureStatus } from './_api-problem-status';
+import { AuthedLayoutErrorBoundary } from './_layout-error-boundary';
 import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
+import { AuthedRoutePendingSkeleton } from './_route-pending-skeleton';
 
 const STAFF_PATH = '/staff';
 const TENANT_PATH = '/tenant';
-
-const getFailureStatus = (error: unknown): number | undefined => {
-	const failure = toApiFailure(error);
-	return failure.kind === 'problem' ? failure.status : undefined;
-};
-
-// TanStack Start renders this as the route's SSR fallback and its
-// pre-hydration ClientOnly fallback for this `ssr: false` route. Shell
-// ownership deliberately stays above the route match in RoutedShell: an
-// internal redirect such as `/staff` -> `/staff/staff-users` replaces this
-// content fallback, but it cannot replace the real AppShell or create a
-// second Zustand-backed shell mount. Keeping the pending component
-// store-free preserves the persisted secondary-panel geometry contract.
-const AuthedRoutePendingSkeleton = () => {
-	const location = useLocation();
-	const pathname = location.pathname ?? '';
-
-	// Only the exact `/tenant` portal root renders bare (RoutedShell bypasses
-	// the AppShell for it — see `isTenantPortalPath`), so its pending surface
-	// is a full-viewport centered loader. Tenant CHILD paths mount inside the
-	// AppShell and get the normal AppShell-shaped content skeleton.
-	if (isTenantPortalPath(pathname)) {
-		return (
-			<div className="flex min-h-svh items-center justify-center">
-				<IconLoader2
-					aria-hidden="true"
-					className="size-8 animate-spin text-muted-foreground"
-				/>
-			</div>
-		);
-	}
-
-	return <AuthedRouteContentSkeleton />;
-};
-
-const AuthedLayoutErrorBoundary = ({
-	error,
-	reset,
-}: {
-	error: unknown;
-	reset: () => void;
-}) => {
-	const router = useRouter();
-	const { t } = useTranslation('common');
-	const routeStatus = getFailureStatus(error);
-	if (routeStatus === 401) {
-		return <LogoutRedirect />;
-	}
-
-	if (routeStatus === 403) {
-		return <View403 />;
-	}
-
-	if (routeStatus === 404) {
-		return <View404 />;
-	}
-
-	const retry = () => {
-		reset();
-		void router.invalidate();
-	};
-
-	return (
-		<AppErrorView
-			icon={<IconAlertCircle aria-hidden="true" className="size-7" />}
-			code={t('error-500-code')}
-			title={t('something-went-wrong')}
-			description={t('problem-loading-page')}
-			actions={
-				<>
-					<Button variant="default" onClick={() => retry()} type="button">
-						{t('retry')}
-					</Button>
-					<Link to="/" className={buttonVariants({ variant: 'outline' })}>
-						{t('go-to-home')}
-					</Link>
-				</>
-			}
-		/>
-	);
-};
 
 const AuthedRouteLayout = () => {
 	const location = useLocation();

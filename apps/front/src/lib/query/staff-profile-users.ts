@@ -2,7 +2,8 @@ import {
 	createUntypedArray,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import type { QueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
@@ -11,11 +12,13 @@ import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	BulkStaffProfileUserUnassignActionResult,
 	FindStaffProfileUsersResult,
+	UserStatus,
 	StaffProfileUserItem,
 } from '@org/client-ts/models/index';
 import {
 	buildStaffMutationOptions,
 	buildStaffQueryOptions,
+	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
 export type StaffProfileUsersQueryVariables = {
@@ -33,7 +36,7 @@ export type StaffProfileUserRow = {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	status: string | null;
+	status: UserStatus | null;
 };
 
 const normalizeString = (
@@ -79,7 +82,7 @@ export const toStaffProfileUserRows = (
 			firstName: normalizeNullableString(item.firstName),
 			lastName: normalizeNullableString(item.lastName),
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
-			status: normalizeNullableString(item.status),
+			status: item.status ?? null,
 		});
 	}
 
@@ -136,6 +139,16 @@ export const useStaffProfileUsersQuery = (
 		enabled: options?.enabled ?? true,
 	});
 
+// Invalidates the nested profile-users list family (['staff', 'staff-profiles',
+// 'users', …]) — the unassign mutation changes which rows appear in this list,
+// so it MUST cover the list family (and, through the same prefix, the nested
+// row's line). This is the "Mutation Invalidation Coherence" (#359) requirement
+// for a list-membership mutation; see the guard test for the coverage proof.
+export const invalidateStaffProfileUsers = (queryClient: QueryClient) =>
+	queryClient.invalidateQueries({
+		queryKey: scopedKey('staff', ['staff-profiles', 'users']),
+	});
+
 export type BulkUnassignStaffProfileUsersInput = {
 	profileId: string;
 	userIds: string[];
@@ -161,5 +174,13 @@ const bulkUnassignStaffProfileUsersMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const useBulkUnassignStaffProfileUsersMutation = () =>
-	useMutation(bulkUnassignStaffProfileUsersMutationOptions);
+export const useBulkUnassignStaffProfileUsersMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		...bulkUnassignStaffProfileUsersMutationOptions,
+		onSuccess: () => {
+			void invalidateStaffProfileUsers(queryClient);
+		},
+	});
+};

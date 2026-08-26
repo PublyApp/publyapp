@@ -1,7 +1,9 @@
 import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import { IconChevronRight, IconCheck } from '@tabler/icons-react';
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Checkbox } from '~/components/ui/checkbox';
+import { ScrollArea } from '~/components/ui/scroll-area';
 import { cn } from '~/lib/utils';
 
 const DropdownMenu = ({ ...props }: MenuPrimitive.Root.Props) => {
@@ -21,6 +23,7 @@ const DropdownMenuContent = ({
 	alignOffset = 0,
 	side = 'bottom',
 	sideOffset = 4,
+	children,
 	className,
 	...props
 }: MenuPrimitive.Popup.Props &
@@ -28,6 +31,8 @@ const DropdownMenuContent = ({
 		MenuPrimitive.Positioner.Props,
 		'align' | 'alignOffset' | 'side' | 'sideOffset'
 	>) => {
+	const { t } = useTranslation(['common']);
+
 	return (
 		<MenuPrimitive.Portal>
 			<MenuPrimitive.Positioner
@@ -40,11 +45,18 @@ const DropdownMenuContent = ({
 				<MenuPrimitive.Popup
 					data-slot="dropdown-menu-content"
 					className={cn(
-						'z-(--publy-z-menu) max-h-(--available-height) min-w-[196px] origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-[var(--publy-radius-control)] border border-border/90 bg-popover/97 p-[5px] text-popover-foreground shadow-[var(--publy-shadow-menu)] backdrop-blur-sm duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95',
+						'z-(--publy-z-menu) max-h-(--available-height) min-w-[196px] origin-(--transform-origin) rounded-[var(--publy-radius-control)] border border-border/90 bg-popover/97 text-popover-foreground shadow-[var(--publy-shadow-menu)] backdrop-blur-sm duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95',
 						className,
 					)}
 					{...props}
-				/>
+				>
+					<ScrollArea
+						scrollAreaLabel={t('scroll-area-label')}
+						className="max-h-(--available-height)"
+					>
+						<div className="p-[5px]">{children}</div>
+					</ScrollArea>
+				</MenuPrimitive.Popup>
 			</MenuPrimitive.Positioner>
 		</MenuPrimitive.Portal>
 	);

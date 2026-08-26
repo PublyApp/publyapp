@@ -441,7 +441,13 @@ public sealed class AnonymousAuthRateLimitingSpec
 		return _fixture.Factory.WithWebHostBuilder(builder => {
 			builder.ConfigureServices(services => {
 				services.RemoveAll<AnonymousAuthRateLimitSettings>();
+				services.RemoveAll<IRateLimitCounterStore>();
 				services.AddSingleton(settings);
+				// Fresh per-process counters so the long-window budgets in these
+				// tests are never shared with other hosts (pre-#953 semantics).
+				services.AddSingleton<IRateLimitCounterStore>(
+					new MemoryRateLimitCounterStore()
+				);
 			});
 		});
 	}

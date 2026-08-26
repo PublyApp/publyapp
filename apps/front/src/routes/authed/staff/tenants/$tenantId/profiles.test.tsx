@@ -26,14 +26,14 @@ const LIST_PATHNAME =
 
 /** A transition that leaves this list route (a browser Back, a sibling
  * route) — what the unsaved-draft guard exists to intercept. */
-const leavingListTransition = (): BlockerTransition => ({
+const leavingListTransition = () => ({
 	current: { pathname: LIST_PATHNAME },
 	next: { pathname: '/staff/tenants', search: {} },
 });
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	navigate: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),
@@ -225,7 +225,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

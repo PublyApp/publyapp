@@ -18,7 +18,7 @@ public class TenantAsStaffItem {
 	public string? LogoUrl { get; set; }
 	public int UsersCount { get; set; }
 	public int MaxUsers { get; set; }
-	public string Status { get; set; } = string.Empty;
+	public TenantStatus Status { get; set; }
 }
 
 public class TenantAsStaffResult {

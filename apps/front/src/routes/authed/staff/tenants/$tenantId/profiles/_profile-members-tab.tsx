@@ -31,8 +31,8 @@ export const ProfileMembersTab = ({
 }) => {
 	const { t, i18n } = useTranslation(['common', 'staff-tenant-profiles']);
 	const [search, setSearch] = useState<TableSearchParams>(EMPTY_SEARCH);
-	const [pageIndex, setPageIndex] = useState(0);
 	const [isAssignDrawerOpen, setIsAssignDrawerOpen] = useState(false);
+	const [pageIndex, setPageIndex] = useState(0);
 	const controller = useTableController({
 		search,
 		onSearchChange: setSearch,
@@ -51,23 +51,21 @@ export const ProfileMembersTab = ({
 		},
 		{ enabled: tenantId.length > 0 && profileId.length > 0 },
 	);
-	const rows = useMemo(
-		() => toStaffTenantProfileMemberRows(membersQuery.data?.users),
-		[membersQuery.data?.users],
-	);
-	const columns = useMemo(
-		() => makeProfileMemberColumns(tenantId, t, i18n.language),
-		[i18n.language, tenantId, t],
-	);
-
 	// A deliberate reset (tenant/profile identity, search, sort, or size
 	// change) must always win over a clamp derived from the destination
-	// query's count — including an already-warm cached count, not just a
-	// missing one (#999 review follow-up). Folded into one effect via
-	// resetKeys so it cannot race a separate "reset to 0" effect.
-	useOffsetPageClamp({
+	// query's count - including an already-warm cached count, not just a
+	// missing one (#999 review follow-up). `useOffsetPageClamp` is now a
+	// pure derivation: it returns the value the pageIndex should hold, and
+	// the caller commits it during render via React's documented
+	// adjust-state-while-rendering pattern. That replaces the previous
+	// `useEffect(setPageIndex(clamped))` pattern, which violated
+	// no-pass-data-to-parent / no-pass-live-state-to-parent and
+	// re-rendered the parent one frame late (#691). On the first render
+	// the count is `undefined`, so no clamp fires; once the count lands
+	// on a subsequent render, the in-render commit picks it up before the
+	// next paint.
+	const clampedPageIndex = useOffsetPageClamp({
 		pageIndex,
-		setPageIndex,
 		size: controller.size,
 		count: membersQuery.data?.count,
 		resetKeys: [
@@ -79,6 +77,17 @@ export const ProfileMembersTab = ({
 			controller.size,
 		],
 	});
+	if (clampedPageIndex !== pageIndex) {
+		setPageIndex(clampedPageIndex);
+	}
+	const rows = useMemo(
+		() => toStaffTenantProfileMemberRows(membersQuery.data?.users),
+		[membersQuery.data?.users],
+	);
+	const columns = useMemo(
+		() => makeProfileMemberColumns(tenantId, t, i18n.language),
+		[i18n.language, tenantId, t],
+	);
 
 	const totalCount = membersQuery.data?.count ?? 0;
 	const hasNextPage = (pageIndex + 1) * controller.size < totalCount;
@@ -120,6 +129,9 @@ export const ProfileMembersTab = ({
 						pageIndex: pageIndex,
 						hasPreviousPage: pageIndex > 0,
 						hasNextPage: hasNextPage,
+						// Offset surface: the count is known once the query lands;
+						// while it is in flight the label shows the bare range (#282).
+						totalCount: membersQuery.data?.count,
 						isPaginationPending:
 							membersQuery.isFetching && !membersQuery.isPending,
 						onNextPage: () => {

@@ -4,6 +4,7 @@ import { Card } from '~/components/ui/card';
 import { CopyButton } from '~/components/ui/copy-button';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
+import { ScrollArea } from '~/components/ui/scroll-area';
 import { formatDateTime } from '~/lib/format-date-time';
 import { cn } from '~/lib/utils';
 
@@ -177,17 +178,17 @@ export const AuditLogPayload = ({ details }: { details?: string | null }) => {
 	return (
 		<div>
 			<p className="publy-type-metadata-label">{t('common:details')}</p>
-			{/* Payloads can overflow both axes; make the region focusable so
-			 * keyboard users can scroll it (old-front behavior). */}
-			<pre
-				role="region"
-				tabIndex={0}
-				aria-label={t('payload-region-label')}
+			{/* Payloads can overflow both axes; the region stays keyboard-
+			 * reachable: tabIndex 0 lands on the REAL scroller exposed by
+			 * ScrollArea, and focus-within keeps its thumb visible. */}
+			<ScrollArea
+				scrollAreaLabel={t('payload-region-label')}
+				scrollerTabIndex={0}
 				data-testid="audit-log-payload"
-				className="mt-1.5 max-h-90 overflow-auto rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 font-mono text-xs whitespace-pre text-muted-foreground shadow-[var(--publy-shadow-ring)] outline-none focus-visible:ring-3 focus-visible:ring-ring"
+				className="mt-1.5 max-h-90 rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] font-mono text-xs whitespace-pre text-muted-foreground shadow-[var(--publy-shadow-ring)] focus-within:ring-3 focus-within:ring-ring"
 			>
-				{formatAuditLogPayload(details)}
-			</pre>
+				<div className="p-4">{formatAuditLogPayload(details)}</div>
+			</ScrollArea>
 		</div>
 	);
 };

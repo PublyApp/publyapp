@@ -14,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	isDesktop: true,
-	linkPrevSearch: {} as Record<string, unknown>,
 	workspaceTenantId: null as string | null,
 	// Captures the `enabled` flag the shell passes to the picker hook — the
 	// staff-surface regression guard below asserts it stays false there.
@@ -26,9 +25,10 @@ const mocks = vi.hoisted(() => ({
 	useRealWorkspaceHook: false,
 	// Number of times the faked tenant-scope client served a picker GET.
 	pickerGetCallCount: 0,
-	// #142 facade hook return value; `undefined` = loading/unresolved → the
+<	// #142 facade hook return value; `undefined` = loading/unresolved → the
 	// full rail renders (the shell must not filter on an absent payload).
 	tenantPermissions: undefined as string[] | undefined,
+	linkPrevSearch: {},
 	// Not exercising breadcrumb behavior in this file (this app-shell unit
 	// suite mocks the router wholesale — the AUTHORITATIVE breadcrumb tests
 	// use a real router + real routeTree, see breadcrumb-contract.test.tsx).
@@ -37,7 +37,7 @@ const mocks = vi.hoisted(() => ({
 	matches: [
 		{
 			pathname: '/staff/staff-users',
-			params: {} as Record<string, string>,
+			params: {},
 			staticData: { crumbs: 'shell' as const },
 		},
 	],
@@ -426,7 +426,8 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 		expect(railItemIds).toEqual(['dashboard', 'tenants', 'staff']);
 	});
 
-	test('the tenant scope rail renders the four workspace modules', () => {
+	test('the tenant scope rail renders the shipped workspace modules', () => {
+		// #818 F8: Organizations is hidden from the rail until its API exists.
 		const { container } = render(
 			<AppShell mode="authed" pathname="/tenant/account">
 				content
@@ -437,12 +438,7 @@ describe('AppShell navigation reality (no dead links, no fabricated data)', () =
 			container.querySelectorAll('[data-rail-item]'),
 		).map((el) => el.getAttribute('data-rail-item'));
 
-		expect(railItemIds).toEqual([
-			'account',
-			'settings',
-			'posts',
-			'organizations',
-		]);
+		expect(railItemIds).toEqual(['account', 'settings', 'posts']);
 	});
 
 	test('no secondary-nav item ever renders a count badge', () => {

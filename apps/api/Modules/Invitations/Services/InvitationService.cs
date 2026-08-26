@@ -140,7 +140,7 @@ public record InvitationListItem {
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
 	public required string ProfileName { get; init; }
-	public required string Status { get; init; }
+	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
 	public required DateTime CreatedAt { get; init; }
@@ -153,12 +153,12 @@ public record StaffTenantInvitationListItem {
 	public required string Scope { get; init; }
 	public string? ProfileName { get; init; }
 	public required List<StaffInvitationProfileInfo> Profiles { get; init; }
-	public required string Status { get; init; }
+	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public string? InvitedByName { get; init; }
-	public required string AccountLevel { get; init; }
+	public required AccountLevel AccountLevel { get; init; }
 }
 
 public abstract record FindStaffInvitationsResult {
@@ -197,7 +197,7 @@ public record StaffInvitationDetailsResult {
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
 	public DateTime? RevokedAt { get; init; }
-	public required string Status { get; init; }
+	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime CreatedAt { get; init; }
 	public required string InvitedByName { get; init; }
 	public required Guid InvitedByUserId { get; init; }

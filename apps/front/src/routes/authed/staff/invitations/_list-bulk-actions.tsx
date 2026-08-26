@@ -20,10 +20,10 @@ import {
 	invalidateStaffInvitations,
 	useBulkRevokeStaffInvitationsMutation,
 } from '~/lib/query/staff-invitations';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { BulkStaffInvitationActionFailedItem } from '@org/client-ts/models/index';
 import { BULK_ACTION_MAX_COUNT } from '@org/shared-ts/lib/constants';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { getBulkRevokeEligibleIds } from './bulk-revoke-eligibility';
 import type { InvitationRow } from './table-columns';
@@ -47,15 +47,12 @@ const INVITATION_BULK_REVOKE_PARTIAL_SUCCESS_KEY =
 // keys. Unknown future reasons fall back to a generic translated key — never
 // a hardcoded literal (transparent-failure principle, #1387 r1 MINOR).
 // Wire reasons arrive from the API as plain strings and unknown future reasons
-// fall back to a generic key, so this map stays an open dictionary by contract.
-interface InvitationBulkRevokeReasonKeyMap {
-	[reason: string]: string;
-}
-const INVITATION_BULK_REVOKE_REASON_I18N_KEYS: InvitationBulkRevokeReasonKeyMap =
-	{
-		already_accepted: 'invitation-bulk-revoke-reason-already-accepted',
-		not_found: 'invitation-bulk-revoke-reason-not-found',
-	};
+// fall back to a generic key, so lookup goes through Map.get instead of
+// widening the literal to an open dictionary (no-known-value-widening).
+const INVITATION_BULK_REVOKE_REASON_I18N_KEYS = new Map<string, string>([
+	['already_accepted', 'invitation-bulk-revoke-reason-already-accepted'],
+	['not_found', 'invitation-bulk-revoke-reason-not-found'],
+]);
 const INVITATION_BULK_REVOKE_REASON_OTHER_KEY =
 	'invitation-bulk-revoke-reason-other';
 
@@ -87,7 +84,7 @@ const describeBulkRevokeFailureReasons = (
 	const parts: string[] = [];
 	for (const [reason, count] of countsByReason) {
 		const key =
-			INVITATION_BULK_REVOKE_REASON_I18N_KEYS[reason] ??
+			INVITATION_BULK_REVOKE_REASON_I18N_KEYS.get(reason) ??
 			INVITATION_BULK_REVOKE_REASON_OTHER_KEY;
 		parts.push(t(key, { count }));
 	}

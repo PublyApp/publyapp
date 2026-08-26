@@ -119,7 +119,8 @@ Prefix a route-local file that must not become a route with `_` (e.g. `_tenant-d
 ## Component Files Export Components Only (#1417)
 
 A component file must not export anything that is not a component: the react-doctor
-`only-export-components` rule (enabled in `apps/front/doctor.config.json`) fails on any such
+`only-export-components` rule (enforced tree-wide since #1423 removed the last
+`doctor.config.json` override) fails on any such
 export because it breaks Fast Refresh state preservation. The pattern, decided in
 [#1417](https://github.com/PublyApp/publyapp/issues/1417) (part of #1291):
 
@@ -282,6 +283,18 @@ Authenticated application surfaces are CSR with `ssr: false`. They fetch applica
 the browser with TanStack Query and the Kiota client. Do not fetch authenticated domain data in
 server loaders or server functions.
 
+### Client route loaders (#851)
+
+Client `loader`s (never server loaders) are permitted on authenticated routes for exactly one
+sanctioned purpose: **awaiting the same TanStack Query options the page body queries**, so data
+the breadcrumb shell needs (entity names) is in the query cache before the first frame. A cold
+deep link then paints its full named trail immediately, instead of flashing entity skeletons.
+Pair such a loader with a `pendingComponent` for the pending window. Do not use a loader as a
+second fetch path with different keys — reuse the page's own query-options factories so the
+cache dedupes. The one shipped example is
+`src/routes/authed/staff/tenants/$tenantId/profiles/$profileId.tsx` (#846's skeleton-flash fix,
+implemented in #851); integration coverage lives in `src/lib/navigation/breadcrumb-loader.test.tsx`.
+
 ## Server-Function Boundary
 
 `createServerFn` is for frontend-server concerns only:
@@ -379,6 +392,57 @@ query state into shell-level error boundaries. `DataTable` screens own their own
 mechanism (`components/table/table-body-state.ts` + the `no-match` state `QueryDisplay` lacks), so
 they are intentionally excluded — PR 3 of #1250 folds that mechanism into `QueryDisplay` and lets
 `DataTable` delegate.
+
+## Mutation Invalidation Coherence (#359)
+
+Normative. A mutation that changes an entity's **status**, changes something a
+list is **filtered or sorted on**, or changes **membership in a list**
+(create/delete/revoke/assign/unassign) must invalidate, on its success path:
+
+1. **The line** — the mutated entity's detail query.
+2. **The list containing it** — the canonical list query key for that
+   resource, whatever filter/sort/cursor variables it carries.
+3. **That list's counters** — any parent/aggregate query displaying a count
+   derived from the list (e.g. a tenant detail's `usersCount`,
+   `pendingInvitationsCount`).
+4. **Filtered sibling lists** — other active views of the same resource under
+   a different filter (e.g. the pending-invitations table after a revoke).
+
+Rows that no longer match the active filter may disappear after refetch; that
+is correct behavior, not a bug to paper over. Never keep a stale row visible
+by locally patching it.
+
+This is the front-specific mechanical detail of the canonical rule. Its normative home is
+[`docs/guides/list-pages-search-filter-cursor-pagination.md` §7.0](../list-pages-search-filter-cursor-pagination.md#70-table-query-consistency-after-mutation-canonical-rule),
+which `AGENTS.md` treats as the standing rule for every list page (selection reconciliation,
+`selectedRows`-derived bulk targets, bulk toast copy, and the invalidation requirement above).
+When the two drift, the list-pages guide is authoritative for behavior; this section is
+authoritative for the `lib/query/*.ts` key-family mechanics.
+
+This is not left to memory at each call site — it is structural:
+
+- Each `lib/query/*.ts` module owns a hierarchical key family: a list root
+  (`STAFF_USERS_QUERY_KEY`) with details/children nested underneath it. One
+  prefix invalidation therefore covers the line, the list, and nested
+  resources at once — that is how requirements 1–2–4 are met cheaply.
+- Each module exports an invalidation helper
+  (`invalidateStaffUsers`, `invalidateStaffTenants`, …) built with
+  `scopedKey(scope, KEY)`. Call sites use the helper; they never
+  hand-assemble a prefixed array, which can silently desync into a no-op.
+- When a counter lives across scopes (a tenant detail's counts after a
+  child-user/profile/invitation mutation), invalidate the parent scope too —
+  `invalidateAllStaffTenantScopes` exists for exactly this pairing.
+- Every success path invalidates, including bulk partial success, and does so
+  before or alongside user feedback bookkeeping. Selection is cleared after
+  bulk actions so pruned rows cannot linger as stale targets.
+- Tenant-scoped modules whose mutations are self-contained may invalidate
+  inside `onSuccess`, reusing the factory's own `queryKey(...)` builder
+  (`invalidateSocialAccounts`) rather than re-deriving key shapes.
+
+The failure mode this prevents is silent: a table showing yesterday's status.
+Nobody catches it in review, which is why the standing test
+`apps/front/src/lib/query/mutation-invalidation.guard.test.ts` fails when a
+mutation module invalidates no list key at all.
 
 ## Product UI Design Preferences (owner-ratified)
 

@@ -210,7 +210,7 @@ vi.mock('~/lib/query/staff-users', () => ({
 	useSuspendStaffUserMutation: mocks.useSuspendStaffUserMutation,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

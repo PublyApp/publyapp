@@ -20,6 +20,10 @@ import {
 	toStaffTenantUserRows,
 } from '~/lib/query/staff-tenant-users';
 
+import {
+	AccountLevelObject,
+	TenantUserStatusObject,
+} from '@org/client-ts/models/index';
 import type {
 	BulkCreateTenantInvitationsForTenantAsStaffCreated,
 	BulkRemoveTenantUsersResult,
@@ -291,8 +295,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: ' Alex ',
 				lastName: ' Johnson ',
 				email: ' alex@example.com ',
-				level: ' Admin ',
-				status: ' Active ',
+				level: AccountLevelObject.Admin,
+				status: TenantUserStatusObject.Active,
 				avatarUrl: ' https://example.com/alex.png ',
 			},
 			{
@@ -301,8 +305,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Skip',
 				lastName: 'Me',
 				email: 'skip@example.com',
-				level: 'Member',
-				status: 'Active',
+				level: AccountLevelObject.User,
+				status: TenantUserStatusObject.Active,
 			},
 			{
 				id: 'user-2',
@@ -311,7 +315,7 @@ describe('toStaffTenantUserRows', () => {
 				lastName: null,
 				email: ' second@example.com ',
 				level: null,
-				status: ' ',
+				status: null,
 				avatarUrl: null,
 			},
 		];
@@ -323,8 +327,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Alex',
 				lastName: 'Johnson',
 				email: 'alex@example.com',
-				level: 'Admin',
-				status: 'Active',
+				level: AccountLevelObject.Admin,
+				status: TenantUserStatusObject.Active,
 				avatarUrl: 'https://example.com/alex.png',
 				displayName: 'Alex Johnson',
 			},
@@ -353,8 +357,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Rae',
 				lastName: 'Lee',
 				email: 'rae@example.com',
-				level: 'User',
-				status: 'Active',
+				level: AccountLevelObject.User,
+				status: TenantUserStatusObject.Active,
 			},
 		]);
 
@@ -399,8 +403,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Rae',
 				lastName: 'Lee',
 				email: 'rae@example.com',
-				level: 'User',
-				status: 'Active',
+				level: AccountLevelObject.User,
+				status: TenantUserStatusObject.Active,
 				avatarUrl: '/files/uploads/2026/07/alex.png',
 			},
 		]);
@@ -422,8 +426,8 @@ describe('toStaffTenantUserRows', () => {
 				firstName: 'Nobody',
 				lastName: 'Home',
 				email: '   ',
-				level: 'Member',
-				status: 'Active',
+				level: AccountLevelObject.User,
+				status: TenantUserStatusObject.Active,
 			},
 			{
 				id: 'user-5',
@@ -444,8 +448,8 @@ describe('toStaffTenantUserDetails', () => {
 			firstName: ' Owner ',
 			lastName: ' User ',
 			avatarUrl: ' https://example.com/avatar.png ',
-			level: 'Admin',
-			status: ' Active ',
+			level: AccountLevelObject.Admin,
+			status: TenantUserStatusObject.Active,
 			tenantId: ' 11111111-1111-1111-1111-111111111111 ',
 			createdAt: new Date('invalid'),
 		} as TenantUserDetailsResult);
@@ -469,8 +473,8 @@ describe('toStaffTenantUserDetails', () => {
 		const result = toStaffTenantUserDetails({
 			id: ' user-9 ',
 			email: ' owner@publyapp.local ',
-			level: 'Admin',
-			status: ' Suspended ',
+			level: AccountLevelObject.Admin,
+			status: TenantUserStatusObject.Suspended,
 			createdAt: new Date('2026-07-01T09:00:00Z'),
 		} as TenantUserDetailsResult);
 

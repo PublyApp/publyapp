@@ -48,13 +48,19 @@ public record UserTenantsForPickerResult {
 			return TotalCount > ActiveCount;
 		}
 	}
+
+	// #258: distinguishes "every membership was removed because its tenant
+	// was soft-deleted" from "never had any". The picker base query excludes
+	// deleted tenants, so that count is invisible to TotalCount — without
+	// this flag the front cannot tell an orphaned user from a fresh one.
+	public required bool HasDeletedTenants { get; init; }
 }
 
 public record TenantForPicker {
 	public required Guid Id { get; init; }
 	public required string Name { get; init; }
 	public required string Code { get; init; }
-	public required string Status { get; init; }
+	public required TenantStatus Status { get; init; }
 }
 
 public interface IAccountService {
@@ -570,6 +576,23 @@ public class AccountService : IAccountService {
 			.Where(q => q.t.Status == TenantStatus.Active && q.t.Status != TenantStatus.Suspended)
 			.CountAsync(cancellationToken);
 
+		// #258: memberships whose tenant was soft-deleted are invisible to the
+		// base query above (it excludes deleted tenants). Count them separately
+		// so the front can tell "all my organizations were deleted" from "I was
+		// never invited anywhere". Explicit join: the UserAccount.Tenant
+		// navigation is nullable, so it cannot be dereferenced here (CS8602).
+		var deletedCount = await (
+			from ua in _dbContext.UserAccount
+			join t in _dbContext.Tenant on ua.TenantId equals t.Id
+			where ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.TenantId != null
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
+				&& t.IsDeleted
+			select ua
+		).CountAsync(cancellationToken);
+
 		var tenants = await baseQuery
 			.OrderBy(q => q.t.Name)
 			.Take(limit)
@@ -577,14 +600,15 @@ public class AccountService : IAccountService {
 				Id = q.t.Id ?? Guid.Empty,
 				Name = q.t.Name,
 				Code = q.t.Code,
-				Status = Tenant.GetStatusDescription(q.t.Status),
+				Status = q.t.Status,
 			})
 			.ToListAsync(cancellationToken);
 
 		return new UserTenantsForPickerResult {
 			Tenants = tenants,
 			TotalCount = totalCount,
-			ActiveCount = activeCount
+			ActiveCount = activeCount,
+			HasDeletedTenants = deletedCount > 0
 		};
 	}
 

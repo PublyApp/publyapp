@@ -4,19 +4,24 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 import { readSelectedTenantId } from '~/lib/selected-tenant-storage';
 
 import type { GetUserTenantsForPickerResponse } from '@org/client-ts/models/index';
-import { TENANT_STATUS_ENUM } from '@org/shared-ts/lib/constants';
+import { TenantStatusObject } from '@org/client-ts/models/index';
+import type { TenantStatus } from '@org/client-ts/models/index';
 
 export type TenantForPickerRow = {
 	id: string;
 	name: string | null;
 	code: string | null;
-	status: string | null;
+	status: TenantStatus | null;
 };
 
 export type TenantsForPickerData = {
 	tenants: TenantForPickerRow[];
 	activeCount: number;
 	totalCount: number;
+	/** #258: every membership was removed because its tenant was soft-deleted
+	 * — distinct situation from "never invited anywhere", surfaced verbatim in
+	 * the portal empty state. */
+	hasDeletedTenants: boolean;
 	hasSuspendedTenants: boolean;
 };
 
@@ -27,11 +32,11 @@ export const TENANTS_FOR_PICKER_QUERY_KEY = ['tenants-for-picker'] as const;
 
 export const isActiveTenantForPicker = (
 	tenant: Pick<TenantForPickerRow, 'status'>,
-): boolean => tenant.status === TENANT_STATUS_ENUM.ACTIVE;
+): boolean => tenant.status === TenantStatusObject.Active;
 
 export const isSuspendedTenantForPicker = (
 	tenant: Pick<TenantForPickerRow, 'status'>,
-): boolean => tenant.status === TENANT_STATUS_ENUM.SUSPENDED;
+): boolean => tenant.status === TenantStatusObject.Suspended;
 
 /**
  * Resolves the workspace tenant, mirroring the tenant portal shell
@@ -117,7 +122,7 @@ export const toTenantsForPickerData = (
 			id,
 			name: normalizeString(item.name),
 			code: normalizeString(item.code),
-			status: normalizeString(item.status),
+			status: item.status ?? null,
 		});
 	}
 
@@ -125,6 +130,7 @@ export const toTenantsForPickerData = (
 		tenants: rows,
 		activeCount: result?.activeCount ?? 0,
 		totalCount: result?.totalCount ?? 0,
+		hasDeletedTenants: result?.hasDeletedTenants ?? false,
 		hasSuspendedTenants: result?.hasSuspendedTenants ?? false,
 	};
 };

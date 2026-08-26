@@ -16,6 +16,7 @@ using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 using PublyApp.Api.Modules.Messaging.Services;
+using PublyApp.Api.Modules.Profiles.Jobs;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -523,10 +524,61 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		sender.Sends.Should().BeEmpty();
 	}
 
+	[Fact]
+	public async Task ItShouldSubmitAndLogWhenAJoinedStaffUserIsEligible() {
+		// #291: the joined-staff notification handler shares the base flow; an existing,
+		// non-suspended user yields one submitted send keyed to the user id.
+		var userId = await SeedExistingUserAsync(UserStatus.Active);
+		var jobId = Guid.CreateVersion7();
+		var sender = new ControllableSender();
+
+		await using var db = CreateDbContext();
+		var outcome = await JoinedStaffHandler(db, sender)
+			.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		sender.Sends.Should().HaveCount(1);
+		sender.Sends[0].IdempotencyKey.Should().Be(jobId.ToString("N"));
+
+		await using var assertDb = CreateDbContext();
+		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
+		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
+		log.Kind.Should().Be(EmailKind.StaffJoinedNotification);
+		log.UserId.Should().Be(userId);
+	}
+
+	[Fact]
+	public async Task ItShouldCancelJoinedStaffNotificationWhenTheUserIsSuspendedAtLockedRead() {
+		// #291: a user suspended between enqueue and the locked read is ineligible —
+		// no send, CancelledIneligible terminal row (same contract as the password-reset
+		// token gate above).
+		var userId = await SeedExistingUserAsync(UserStatus.Suspended);
+		var jobId = Guid.CreateVersion7();
+		var sender = new ControllableSender();
+
+		await using var db = CreateDbContext();
+		var outcome = await JoinedStaffHandler(db, sender)
+			.HandleAsync(JoinedStaffContext(jobId, userId), CancellationToken.None);
+
+		outcome.Should().BeOfType<JobOutcome.Cancelled>();
+		sender.Sends.Should().BeEmpty();
+
+		await using var assertDb = CreateDbContext();
+		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
+		log.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
+	}
+
 	// --- construction helpers -----------------------------------------------------
 
 	private static StaffInvitationEmailJobHandler StaffHandler(AppDbContext db, IEmailSender sender) {
 		return new StaffInvitationEmailJobHandler(db, sender, new EmailLogWriter(db), Metrics());
+	}
+
+	private static StaffJoinedNotificationEmailJobHandler JoinedStaffHandler(
+		AppDbContext db,
+		IEmailSender sender
+	) {
+		return new StaffJoinedNotificationEmailJobHandler(db, sender, new EmailLogWriter(db), Metrics());
 	}
 
 	private static JobsMetrics Metrics() {
@@ -549,7 +601,30 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		};
 	}
 
+	private static JobContext JoinedStaffContext(Guid jobId, Guid userId) {
+		return new JobContext {
+			JobId = jobId,
+			JobType = StaffProfileEmailJobs.StaffJoinedNotificationV1.JobType,
+			Payload = $"{{\"userId\":\"{userId}\"}}",
+			Attempts = 0,
+			MaxAttempts = 10
+		};
+	}
+
 	// --- seeding ------------------------------------------------------------------
+
+	private async Task<Guid> SeedExistingUserAsync(UserStatus status) {
+		await using var db = CreateDbContext();
+		var user = new User {
+			Email = $"joined-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			IsVerified = true,
+			Status = status
+		};
+		db.User.Add(user);
+		await db.SaveChangesAsync();
+		return user.GetRequiredId();
+	}
 
 	private async Task<(Guid InvitationId, string Token)> SeedStaffInvitationAsync() {
 		var token = $"tok-{Guid.NewGuid():N}";

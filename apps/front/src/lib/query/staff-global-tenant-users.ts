@@ -15,11 +15,13 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	AccountLevel,
 	AssignTenantUserCompaniesForStaffBody,
 	FindTenantUserCompaniesForStaffResult,
 	FindTenantsAsStaffResponse,
 	TenantUserCompanyBulkActionResult,
 	TenantUserDetailsForStaffResult,
+	TenantUserStatus,
 	UpdateTenantUserIdentityForStaffBody,
 } from '@org/client-ts/models/index';
 import {
@@ -91,8 +93,8 @@ export type GlobalTenantUserCompanyRow = {
 	id: string;
 	name: string;
 	logoUrl: string | null;
-	level: string | null;
-	status: string | null;
+	level: AccountLevel | null;
+	status: TenantUserStatus | null;
 	createdAt: Date | null;
 	updatedAt: Date | null;
 };
@@ -425,8 +427,8 @@ export const toGlobalTenantUserCompanyRows = (
 			id,
 			name,
 			logoUrl: normalizeNullableFileUrl(item.tenantLogoUrl),
-			level: normalizeNullableString(item.level),
-			status: normalizeNullableString(item.status),
+			level: item.level ?? null,
+			status: item.status ?? null,
 			createdAt: normalizeDate(item.createdAt),
 			updatedAt: normalizeDate(item.updatedAt),
 		});

@@ -10,7 +10,6 @@ using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 using PublyApp.Api.Modules.Users.Validation;
 
@@ -238,14 +237,8 @@ public sealed class UpdateStaffUser {
 				LastName = userData.User.LastName,
 				FirstName = userData.User.FirstName,
 				AvatarUrl = userData.User.AvatarUrl,
-				AccountLevel =
-					UserAccount
-						.GetLevelDescription(
-							userData.AccountLevel
-						),
-				Status = User.GetStatusDescription(
-					userData.User.Status
-				),
+				AccountLevel = userData.AccountLevel,
+				Status = userData.User.Status,
 			}
 		);
 	}

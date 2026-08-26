@@ -91,7 +91,7 @@ import {
 	getSafeSearchRedirect,
 	isAllowedRedirectPath,
 	resolveRouteRedirect,
-} from '~/lib/safe-redirect-path';
+} from '@org/shared-ts/lib/safe-redirect-path';
 
 import { Route } from './login';
 

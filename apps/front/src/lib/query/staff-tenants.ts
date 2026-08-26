@@ -25,10 +25,12 @@ import type {
 	BulkSuspendTenantsResult,
 	FindTenantsAsStaffResponse,
 	GetTenantAsStaffResult,
+	GetTenantUsageAsStaffResult,
 	TenantReactivatedResult,
 	TenantSuspendedResult,
 	UpdateTenantAsStaffBody,
 	TenantAsStaffListItem,
+	TenantStatus,
 } from '@org/client-ts/models/index';
 import {
 	buildStaffMutationOptions,
@@ -49,13 +51,25 @@ export type StaffTenantRow = {
 	id: string;
 	name: string;
 	logoUrl: string | null;
-	status: string | null;
+	status: TenantStatus | null;
 	usersCount: number;
+	projectsCount: number;
 	maxUsers: number;
 };
 
 export type StaffTenantDetailsQueryVariables = {
 	tenantId: string;
+};
+
+/** Flattened read model of GET /staff/tenants/{id}/usage (#168). */
+export type StaffTenantUsage = {
+	tenantId: string;
+	usersActive: number;
+	usersTotal: number;
+	projectsCount: number;
+	scheduledPublicationsCount: number;
+	lastActivityAt: Date | null;
+	computedAt: Date | null;
 };
 
 export type StaffTenantUpdateInput = {
@@ -228,8 +242,9 @@ export const toStaffTenantRows = (
 			id,
 			name,
 			logoUrl: normalizeNullableFileUrl(item.logoUrl),
-			status: normalizeNullableString(item.status),
+			status: item.status ?? null,
 			usersCount: item.usersCount ?? 0,
+			projectsCount: item.projectsCount ?? 0,
 			maxUsers: item.maxUsers ?? 0,
 		});
 	}
@@ -567,6 +582,61 @@ export const useStaffTenantDetailsQuery = (
 		queryFn: () => staffTenantDetailsQueryOptions.fetcher(variables),
 		enabled: options?.enabled ?? true,
 		staleTime: 30_000,
+	});
+
+export const toStaffTenantUsage = (
+	result: GetTenantUsageAsStaffResult | null | undefined,
+): StaffTenantUsage | null => {
+	const tenantId = normalizeString(result?.tenantId?.toString() ?? undefined);
+	// A malformed payload without identity is treated like "not found" so the
+	// UI never renders fabricated zeroes as real metrics (shell-r5-F3 rule).
+	if (!tenantId) {
+		return null;
+	}
+
+	return {
+		tenantId,
+		usersActive: result?.usersActive ?? 0,
+		usersTotal: result?.usersTotal ?? 0,
+		projectsCount: result?.projectsCount ?? 0,
+		scheduledPublicationsCount: result?.scheduledPublicationsCount ?? 0,
+		lastActivityAt: normalizeDate(result?.lastActivityAt),
+		computedAt: normalizeDate(result?.computedAt),
+	};
+};
+
+export const staffTenantUsageQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	GetTenantUsageAsStaffResult,
+	StaffTenantDetailsQueryVariables
+>(
+	{
+		queryKeyFn: () => [...STAFF_TENANT_DETAILS_QUERY_KEY, 'usage'],
+		fetcher: async (client, variables) => {
+			const result = await client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.usage.get();
+
+			if (!result) {
+				throw new Error('staff tenant usage result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useStaffTenantUsageQuery = (
+	variables: StaffTenantDetailsQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
+) =>
+	useQuery({
+		queryKey: staffTenantUsageQueryOptions.queryKey(variables),
+		queryFn: () => staffTenantUsageQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
 	});
 
 /**

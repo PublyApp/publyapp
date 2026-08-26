@@ -17,7 +17,7 @@ import type {
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	navigate: vi.fn(),
 	downloadFile: vi.fn(),
 	tenantId: '11111111-1111-1111-1111-111111111111',
@@ -198,7 +198,7 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 

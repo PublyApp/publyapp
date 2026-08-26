@@ -1,6 +1,5 @@
 import {
 	IconActivity,
-	IconBell,
 	IconBuilding,
 	IconCalendarEvent,
 	IconClipboardList,
@@ -206,24 +205,19 @@ const ACCOUNT_MODULE_ITEMS: SecondaryPanelItem[] = [
 		Icon: IconUserCircle,
 		matchExact: true,
 	},
-	{
-		id: 'account-security',
-		labelKey: 'security',
-		path: '/tenant/account/security',
-		Icon: IconShieldLock,
-	},
-	{
-		id: 'account-notifications',
-		labelKey: 'notifications',
-		path: '/tenant/account/notifications',
-		Icon: IconBell,
-	},
+	// #818 F8: Security and Notifications are hidden from the account panel
+	// until their APIs exist (no password-change / 2FA / session endpoints,
+	// no preferences endpoint). The routes stay registered — deep links keep
+	// working; each hidden destination tracks its build work in its own issue.
 ];
 
 // The tenant workspace sections — the rail's primary entries for tenant
 // users. Their child routes (e.g. the account sections) are covered by the
 // module's matchPrefixes; the account module also carries its children as
 // secondary panel rows, mirroring the staff modules.
+// #818 F8: Organizations is hidden from the rail until an organizations API
+// exists (the page itself is an honest read-only surface and stays reachable
+// by deep link). It tracks its build work in its own issue.
 const TENANT_ROUTES: AppRouteMetadata[] = [
 	{
 		id: 'account',

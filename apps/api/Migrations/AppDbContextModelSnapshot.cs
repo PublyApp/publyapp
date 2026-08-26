@@ -1475,6 +1475,35 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.RateLimiting.Entities.RateLimitCounter", b =>
+                {
+                    b.Property<string>("PolicyName")
+                        .HasColumnType("text")
+                        .HasColumnName("policy_name");
+
+                    b.Property<string>("PartitionKeyHash")
+                        .HasColumnType("text")
+                        .HasColumnName("partition_key_hash");
+
+                    b.Property<DateTime>("WindowStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("window_started_at");
+
+                    b.Property<long>("PermitCount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("permit_count");
+
+                    b.HasKey("PolicyName", "PartitionKeyHash", "WindowStartedAt");
+
+                    b.HasIndex("WindowStartedAt")
+                        .HasDatabaseName("ix_rate_limit_counters_window_started_at");
+
+                    b.ToTable("rate_limit_counters", t =>
+                        {
+                            t.HasCheckConstraint("CK_RateLimitCounters_PermitCount", "permit_count >= 0");
+                        });
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount", b =>
                 {
                     b.Property<Guid>("Id")

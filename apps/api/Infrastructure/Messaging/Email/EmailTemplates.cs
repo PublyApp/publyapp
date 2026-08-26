@@ -1,7 +1,6 @@
 using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
-
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 /// <summary>
@@ -114,6 +113,27 @@ public static class EmailTemplates {
 				Please verify your email by clicking the link below:
 				<br />
 				{CreateHtmlLink(verificationUrl, "Verify your email")}
+				"""
+		};
+	}
+
+	// #291: rendered for `email.staff-joined-notification.v1`. Byte-identical to the
+	// shipped `EmailService.SendJoinedStaffNotificationEmailAsync` body so the legacy
+	// in-process send and the job-queue send produce the same on-the-wire message —
+	// no drift between the two paths while both were live, and no drift between the
+	// historical send and the durable job it replaces.
+	public static EmailRequest StaffJoinedNotification(string email) {
+		var env = AppEnvironment.Instance;
+		var loginLink = CreateHtmlLink(AuthUtils.GetFrontendLoginPageUrl(), "logging in");
+
+		return new EmailRequest {
+			To = email,
+			From = SenderFrom(env),
+			Subject = $"You have been added as a staff member",
+			HtmlBody = $"""
+				You have been added as a staff member to {env.APP_NAME}.
+				<br />
+				You can continue to use {env.APP_NAME} by {loginLink}
 				"""
 		};
 	}

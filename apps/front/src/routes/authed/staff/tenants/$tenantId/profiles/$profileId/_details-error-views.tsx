@@ -8,25 +8,9 @@ import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	BackToTenantsLink,
-	MALFORMED_ID_TRANSLATION_KEY,
 	TenantRetryActions,
 } from '../../_tenant-details-shell';
-
-const isProblemStatus = (
-	error: unknown,
-	status: number,
-	translationKey?: string,
-): boolean => {
-	const failure = toApiFailure(error);
-
-	if (failure.kind !== 'problem' || failure.status !== status) {
-		return false;
-	}
-
-	return (
-		translationKey === undefined || failure.translationKey === translationKey
-	);
-};
+import { classifyProfileDetailsFailure } from './_profile-details-error-classifier';
 
 const getFailureDescription = (error: unknown, fallback: string): string => {
 	const failure = toApiFailure(error);
@@ -54,7 +38,7 @@ export const ProfileDetailsLoading = () => {
 	);
 };
 
-const MissingTenantProfileView = ({ error }: { error: unknown }) => {
+export const MissingTenantProfileView = ({ error }: { error: unknown }) => {
 	const { t } = useTranslation('staff-tenant-profiles');
 
 	return (
@@ -81,14 +65,16 @@ export const TenantProfileDetailsError = ({
 }) => {
 	const { t } = useTranslation('staff-tenant-profiles');
 
-	if (
-		isProblemStatus(error, 404) ||
-		isProblemStatus(error, 400, MALFORMED_ID_TRANSLATION_KEY)
-	) {
+	// Same classifier the route-level `errorComponent` uses (#851 round 2).
+	// Unlike the route boundary, the page keeps its catch-all: even an
+	// `unclassified` failure renders the generic retry view here.
+	const surface = classifyProfileDetailsFailure(error);
+
+	if (surface === 'not-found') {
 		return <MissingTenantProfileView error={error} />;
 	}
 
-	if (isProblemStatus(error, 403)) {
+	if (surface === 'forbidden') {
 		return <View403 />;
 	}
 

@@ -24,6 +24,7 @@ import { PAGE_SIZE_OPTIONS } from '~/lib/url-state/table-search-params';
 import { columnDisplayMeta } from './column-display-meta';
 import { DataTableGrid } from './data-table-grid';
 import { DataTableStates } from './data-table-states';
+import { derivePaginationRange } from './pagination-range';
 import { toSortingState } from './sort-descriptor';
 import type { SortState } from './sort-descriptor';
 import { resolveTableBodyState } from './table-body-state';
@@ -104,6 +105,13 @@ export type DataTableCursorFooterProps = {
 	pageIndex: number;
 	size: number;
 	onSizeChange: (nextSize: number) => void;
+	/** Rows rendered on the current page — the range counter's end bound.
+	 * Distinct from `size`: the last page is usually partial (#282). */
+	pageRowCount?: number;
+	/** Total item count for the current query, when the backend exposes one.
+	 * A missing value means UNKNOWN (cursor surfaces, count still in flight)
+	 * and renders the bare range — never zero (#999's distinction). */
+	totalCount?: number | null;
 	hasPreviousPage: boolean;
 	hasNextPage: boolean;
 	isPaginationPending: boolean;
@@ -123,6 +131,8 @@ export const DataTableCursorFooter = ({
 	pageIndex,
 	size,
 	onSizeChange,
+	pageRowCount,
+	totalCount,
 	hasPreviousPage,
 	hasNextPage,
 	isPaginationPending,
@@ -134,6 +144,34 @@ export const DataTableCursorFooter = ({
 }: DataTableCursorFooterProps) => {
 	const { t } = useTranslation('common');
 	const paginationDisabled = disabled || isPaginationPending;
+
+	// #999's rule propagated to the label: a total of zero is only ever shown
+	// when zero is REAL; an absent total means unknown and shows the bare
+	// range. Falls back to the page size when a caller omits `pageRowCount`.
+	const range = derivePaginationRange({
+		pageIndex,
+		size,
+		pageRowCount: pageRowCount ?? size,
+		totalCount,
+	});
+	let rangeLabelNode: string;
+	if (range.kind === 'zero') {
+		rangeLabelNode = t('range-no-total', { count: 0 });
+	} else if (range.kind === 'known-total') {
+		rangeLabelNode = t('range-of-total', {
+			count: range.total,
+			start: range.start,
+			end: range.end,
+		});
+	} else {
+		// Total unknown (cursor surface or count in flight): the counted
+		// range alone. Never a fabricated "of 0".
+		rangeLabelNode = t('range-of-counted', {
+			count: range.end - range.start + 1,
+			start: range.start,
+			end: range.end,
+		});
+	}
 
 	return (
 		<div
@@ -154,6 +192,9 @@ export const DataTableCursorFooter = ({
 						className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground"
 					/>
 				) : null}
+				<span data-slot="range-label" data-testid={`${testId}-range-label`}>
+					{rangeLabelNode}
+				</span>
 			</div>
 
 			<div className="flex items-center gap-4">
@@ -291,6 +332,12 @@ export type DataTablePaginationState = {
 	isPaginationPending: boolean;
 	onNextPage: () => void;
 	onPreviousPage: () => void;
+	/** Rows rendered on the current page — the range counter's end bound
+	 * (#282). Defaults to `size` when omitted; the last page is partial. */
+	pageRowCount?: number;
+	/** Total item count when the backend exposes one; a missing value means
+	 * UNKNOWN and renders the bare range — never zero (#282, #999). */
+	totalCount?: number | null;
 };
 
 // Grouped state objects keep the public prop list clear of six scattered
@@ -309,6 +356,7 @@ export const DataTable = <TData extends { id: string }>({
 		isPaginationPending,
 		onNextPage,
 		onPreviousPage,
+		totalCount,
 	},
 	errorContent,
 	emptyContent,
@@ -446,6 +494,8 @@ export const DataTable = <TData extends { id: string }>({
 						pageIndex={pageIndex}
 						size={size}
 						onSizeChange={onSizeChange}
+						pageRowCount={rows.length}
+						totalCount={totalCount}
 						hasPreviousPage={hasPreviousPage}
 						hasNextPage={hasNextPage}
 						isPaginationPending={isPaginationPending}

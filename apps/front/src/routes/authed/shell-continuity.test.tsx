@@ -8,12 +8,12 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	location: {
 		pathname: '/staff',
-		search: {} as Record<string, unknown>,
+		search: {},
 		searchStr: '',
 	},
 	resolvedLocation: {
 		pathname: '/staff',
-		search: {} as Record<string, unknown>,
+		search: {},
 		searchStr: '',
 	},
 	matchedPathname: '/staff',

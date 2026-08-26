@@ -193,12 +193,10 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 		return new StaffInvitationDetailsResult {
 			Id = invitation.GetRequiredId(),
 			Email = invitation.Email,
-			Status = Invitation.GetEffectiveStatusDescription(
-				Invitation.GetEffectiveStatus(
-					invitation.Status,
-					invitation.ExpiresAt,
-					DateTime.UtcNow
-				)
+			Status = Invitation.GetEffectiveStatus(
+				invitation.Status,
+				invitation.ExpiresAt,
+				DateTime.UtcNow
 			),
 			ExpiresAt = invitation.ExpiresAt,
 			AcceptedAt = invitation.AcceptedAt,
@@ -419,12 +417,10 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				Email = r.Invitation.Email,
 				Scope = "Staff",
 				ProfileName = profileName,
-				Status = Invitation.GetEffectiveStatusDescription(
-					Invitation.GetEffectiveStatus(
-						r.Invitation.Status,
-						r.Invitation.ExpiresAt,
-						DateTime.UtcNow
-					)
+				Status = Invitation.GetEffectiveStatus(
+					r.Invitation.Status,
+					r.Invitation.ExpiresAt,
+					DateTime.UtcNow
 				),
 				ExpiresAt = r.Invitation.ExpiresAt,
 				AcceptedAt = r.Invitation.AcceptedAt,
@@ -664,14 +660,12 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				Scope = "Tenant",
 				ProfileName = profileName,
 				Profiles = profiles,
-				Status = Invitation.GetEffectiveStatusDescription(
-					Invitation.GetEffectiveStatus(
-						r.Invitation.Status,
-						r.Invitation.ExpiresAt,
-						DateTime.UtcNow
-					)
+				Status = Invitation.GetEffectiveStatus(
+					r.Invitation.Status,
+					r.Invitation.ExpiresAt,
+					DateTime.UtcNow
 				),
-				AccountLevel = accountLevel.ToString(),
+				AccountLevel = accountLevel,
 				ExpiresAt = r.Invitation.ExpiresAt,
 				AcceptedAt = r.Invitation.AcceptedAt,
 				CreatedAt = r.Invitation.CreatedAt,

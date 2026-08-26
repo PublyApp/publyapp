@@ -173,6 +173,50 @@ function isEffectivelyEmptyInterface(
 	);
 }
 
+/**
+ * #1448 item 1: whether resolving the named reference lands on an
+ * index-signature-only interface opening. A declaration is an opening when
+ * every one of its members is an index signature (at least one); real named
+ * members are contract evidence and close the question, matching the
+ * byte-equivalent type-alias forms the base rule already accepts. A
+ * memberless declaration stays open only through an `extends` chain over
+ * such openings.
+ */
+export function resolvesToIndexSignatureOnlyInterface(
+	name: string,
+	environment: TypeEnvironment,
+	resolving: ReadonlySet<string>,
+): boolean {
+	if (resolving.has(name)) return false;
+	const interfaceDeclarations = environment.interfaces.get(name);
+	if (interfaceDeclarations === undefined) return false;
+	let anyIndexed = false;
+	for (const declaration of interfaceDeclarations) {
+		const members = declaration.body.body;
+		if (members.length === 0) continue;
+		// Declaration merging: one named member anywhere closes the question.
+		if (!members.every((member) => member.type === 'TSIndexSignature'))
+			return false;
+		anyIndexed = true;
+	}
+	// Index-signature-only declaration(s): an immediate opening.
+	if (anyIndexed) return true;
+	const nextResolving = new Set(resolving).add(name);
+	return interfaceDeclarations.some((declaration) =>
+		declaration.extends.some((heritage) => {
+			// Heritage entries are runtime `Expression` nodes; only a bare
+			// identifier names a resolvable interface declaration.
+			const expression = heritage.expression;
+			if (expression.type !== 'Identifier') return false;
+			return resolvesToIndexSignatureOnlyInterface(
+				expression.name,
+				environment,
+				nextResolving,
+			);
+		}),
+	);
+}
+
 function resolvedSubstitutionArgument(
 	type: ESTree.TSType,
 	base: TypeAliasEnvironment,
@@ -445,29 +489,48 @@ export function classifyWideningTarget(
 	}
 	if (name === 'Record' && isBuiltIn(name, environment))
 		return { kind: 'open dictionary' };
+	// #1448 item 1: an index-signature-only interface widens exactly like the
+	// byte-equivalent `type … = { [k: string]: T }` literal, so it must
+	// classify as the same open-dictionary target. Interfaces with real named
+	// members stay contracts and are not resolved here.
+	if (
+		environment.interfaces.has(name) &&
+		resolvesToIndexSignatureOnlyInterface(name, environment, new Set())
+	)
+		return { kind: 'open dictionary' };
 	const alias = environment.aliases.get(name);
 	if (alias === undefined) return null;
 	if ((alias.typeParameters?.params.length ?? 0) > 0) {
 		const substitutions = aliasSubstitution(alias, unwrapped, new Map());
-		return substitutions !== null &&
+		if (substitutions === null) return null;
+		if (
 			resolvesToDictionary(
 				alias.typeAnnotation,
 				environment,
 				substitutions,
 				new Set([name]),
 			)
-			? { kind: 'generic container' }
-			: null;
+		)
+			return { kind: 'generic container' };
+		// #1448 round 2: a generic wrapper whose own body carries no index
+		// signature can still forward an opening through a property slot
+		// (`type Wrap<T> = { value: T }` fed an index-signature-only
+		// interface); classify the substituted members before giving up.
+		return resolveAliasMemberTargets(
+			alias.typeAnnotation,
+			environment,
+			substitutions,
+			new Set([name]),
+		);
 	}
 	const substitutions = aliasSubstitution(alias, unwrapped, new Map());
 	if (substitutions === null) return null;
-	const resolved = classifyAliasBroadTarget(
+	return classifyAliasBroadTarget(
 		alias.typeAnnotation,
 		environment,
 		substitutions,
 		new Set([name]),
 	);
-	return resolved;
 }
 
 function isBroadMappedKey(
@@ -511,11 +574,24 @@ function classifyAliasBroadTarget(
 	if (unwrapped.type === 'TSUnknownKeyword') return { kind: 'unknown' };
 	if (unwrapped.type === 'TSObjectKeyword') return { kind: 'object' };
 	if (unwrapped.type === 'TSTypeLiteral') {
-		return unwrapped.members.some(
-			(member) => member.type === 'TSIndexSignature',
-		)
-			? { kind: 'open dictionary' }
-			: null;
+		if (unwrapped.members.some((member) => member.type === 'TSIndexSignature'))
+			return { kind: 'open dictionary' };
+		// #1448 round 2: no index signature here, but a property slot may
+		// still carry an opening through its annotated type
+		// (`{ wrapper: IndexSigOnlyInterface }`).
+		for (const member of unwrapped.members) {
+			if (member.type !== 'TSPropertySignature') continue;
+			const annotation = member.typeAnnotation;
+			if (annotation === null || annotation === undefined) continue;
+			const target = classifyAliasBroadTarget(
+				annotation.typeAnnotation,
+				environment,
+				substitutions,
+				resolvingAliases,
+			);
+			if (target !== null) return target;
+		}
+		return null;
 	}
 	if (unwrapped.type === 'TSMappedType') {
 		return isBroadMappedKey(unwrapped.constraint, environment, substitutions)
@@ -550,6 +626,16 @@ function classifyAliasBroadTarget(
 	if (name === 'Record' && isBuiltIn(name, environment)) {
 		return { kind: 'open dictionary' };
 	}
+	// #1448 round 2: aliases are transparent for classification, so an alias
+	// body that resolves to an index-signature-only interface must classify as
+	// the open-dictionary target exactly as the direct reference would.
+	// Without this check `type X = M` silences what `const v: M` reports,
+	// reopening item 1 through a single alias hop.
+	if (
+		environment.interfaces.has(name) &&
+		resolvesToIndexSignatureOnlyInterface(name, environment, new Set())
+	)
+		return { kind: 'open dictionary' };
 	const alias = environment.aliases.get(name);
 	if (alias === undefined || resolvingAliases.has(name)) return null;
 	const nextSubstitutions = aliasSubstitution(alias, unwrapped, substitutions);
@@ -562,6 +648,37 @@ function classifyAliasBroadTarget(
 		nextSubstitutions,
 		nextResolving,
 	);
+}
+
+/**
+ * #1448 round 2: classify the member slots of a substituted alias body so an
+ * opening cannot hide behind a property or index position of a wrapper
+ * (`type Wrap<T> = { value: T }` fed an index-signature-only interface).
+ */
+function resolveAliasMemberTargets(
+	type: ESTree.TSType,
+	environment: TypeEnvironment,
+	substitutions: TypeAliasEnvironment,
+	resolvingAliases: ReadonlySet<string>,
+): WideningTarget | null {
+	const unwrapped = unwrapTransparentType(type);
+	if (unwrapped.type !== 'TSTypeLiteral') return null;
+	for (const member of unwrapped.members) {
+		const annotation =
+			member.type === 'TSPropertySignature' ||
+			member.type === 'TSIndexSignature'
+				? member.typeAnnotation
+				: null;
+		if (annotation === null || annotation === undefined) continue;
+		const target = classifyAliasBroadTarget(
+			annotation.typeAnnotation,
+			environment,
+			substitutions,
+			resolvingAliases,
+		);
+		if (target !== null) return target;
+	}
+	return null;
 }
 
 export function isPopulatedObjectExpression(

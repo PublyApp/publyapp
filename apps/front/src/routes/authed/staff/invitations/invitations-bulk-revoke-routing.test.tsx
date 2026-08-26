@@ -90,7 +90,7 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 // The table-columns module owns the per-row actions (resend/revoke single);
 // its machinery is irrelevant to the selection-toolbar flow under test, but
 // the real page still imports it through createInvitationColumns.
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 
@@ -162,17 +162,7 @@ vi.mock('react-i18next', () => ({
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 import { Route as InvitationsListRoute } from './index';
-type QueryState = {
-	data?: unknown;
-	error?: unknown;
-	isPending: boolean;
-	isError: boolean;
-	isFetching: boolean;
-	isSuccess: boolean;
-	refetch: () => Promise<void>;
-};
-
-const settledQuery = (data: unknown): QueryState => ({
+const settledQuery = (data: unknown) => ({
 	data,
 	error: null,
 	isPending: false,

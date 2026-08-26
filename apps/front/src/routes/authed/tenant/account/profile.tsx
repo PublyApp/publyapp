@@ -11,8 +11,11 @@ import { Field, Form } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
+import {
+	EntityHeaderSkeleton,
+	FieldRowsSkeleton,
+} from '~/components/ui/detail-skeleton';
 import { PersonAvatar } from '~/components/ui/person-avatar';
-import { Skeleton } from '~/components/ui/skeleton';
 import { ErrorStateSurface } from '~/components/ui/state-surface';
 import { LOCALE_LABELS, isSupportedLanguage } from '~/lib/i18n.shared';
 import {
@@ -27,12 +30,12 @@ import {
 	type AccountProfileUpdateInput,
 } from '~/lib/query/tenant-account-profile';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	WorkspacePageHeader,
@@ -177,16 +180,11 @@ const AccountProfilePage = () => {
 						</CardHeader>
 						<CardContent>
 							<div className="space-y-4">
-								<div className="flex items-center gap-4">
-									<Skeleton className="size-14 rounded-[10px]" />
-									<div className="space-y-1.5">
-										<Skeleton className="h-4 w-40" />
-										<Skeleton className="h-3 w-56" />
-									</div>
-								</div>
-								<Skeleton className="h-9 w-full" />
-								<Skeleton className="h-9 w-full" />
-								<Skeleton className="h-9 w-full" />
+								<EntityHeaderSkeleton
+									tileClassName="size-14 rounded-[10px]"
+									lines={['h-4 w-40', 'h-3 w-56']}
+								/>
+								<FieldRowsSkeleton count={3} />
 							</div>
 						</CardContent>
 					</Card>

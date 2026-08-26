@@ -17,7 +17,6 @@ import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { Card, CardContent } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
-import { PASSWORD_MIN_LENGTH } from '~/lib/auth-password-policy';
 import { useHydrated } from '~/lib/hooks/use-hydrated';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { cn } from '~/lib/utils';
@@ -26,6 +25,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 
 import { ACCEPT_INVITATION_MISMATCH_I18N_KEYS } from './_accept-invitation-i18n-keys';
 // View-layer contracts shared with the route module (which owns the submit

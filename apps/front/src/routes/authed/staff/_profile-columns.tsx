@@ -8,7 +8,7 @@ import { Link } from '@tanstack/react-router';
 import type { ColumnDef } from '@tanstack/react-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { deriveProfileCardStyle } from '~/lib/profile-card-style';
+import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
 import type { StaffProfileRow } from '~/lib/query/staff-profiles';
 
 // Extracted from the list route so the route file stays component-only for

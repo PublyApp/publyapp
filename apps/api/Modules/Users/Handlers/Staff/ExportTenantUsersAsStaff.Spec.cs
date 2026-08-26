@@ -478,8 +478,8 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	private static IEnumerable<TenantUserExportItem> ThrowingExportItems() {
 		yield return new TenantUserExportItem {
 			Email = "first-row@example.com",
-			Level = "User",
-			Status = "Active",
+			Level = AccountLevel.User,
+			Status = TenantUserStatus.Active,
 			CreatedAt = DateTime.UtcNow,
 		};
 		throw new InvalidOperationException("Simulated mid-stream enumeration failure");

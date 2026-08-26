@@ -60,12 +60,10 @@ public sealed class GetTenantUserAsStaff {
 			FirstName = userData.User.FirstName,
 			LastName = userData.User.LastName,
 			AvatarUrl = userData.User.AvatarUrl,
-			Level = UserAccount.GetLevelDescription(userData.AccountLevel),
-			Status = UserAccount.GetStatusDescription(
-				UserAccount.GetTenantStatus(
-					userData.User.Status,
-					userData.Account.Status
-				)
+			Level = userData.AccountLevel,
+			Status = UserAccount.GetTenantStatus(
+				userData.User.Status,
+				userData.Account.Status
 			),
 			TenantId = userData.Account.TenantId,
 			CreatedAt = userData.User.CreatedAt,

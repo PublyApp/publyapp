@@ -8,7 +8,7 @@ import { Form, FormPageLayout } from '~/components/field';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useCreateStaffTenantMutation } from '~/lib/query/staff-tenants';
 
-import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
+import { AccountLevelObject } from '@org/client-ts/models/index';
 
 import {
 	useTenantLocaleOptions,
@@ -213,7 +213,7 @@ export const TenantCreateForm = ({
 							onAddManualMember={() => {
 								appendManualMember({
 									email: '',
-									accountLevel: ACCOUNT_LEVEL_ENUM.USER,
+									accountLevel: AccountLevelObject.User,
 								});
 							}}
 							onRemoveManualMember={removeManualMember}

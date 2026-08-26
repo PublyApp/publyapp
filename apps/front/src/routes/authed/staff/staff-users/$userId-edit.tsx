@@ -13,7 +13,8 @@ import {
 	useUpdateStaffUserMutation,
 	useUpdateStaffUserProfilesMutation,
 } from '~/lib/query/staff-users';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { staffUserCrumbsBase } from './$userId/_crumbs';
 import { ChangeStaffUserEmailDialog } from './_change-email-dialog';

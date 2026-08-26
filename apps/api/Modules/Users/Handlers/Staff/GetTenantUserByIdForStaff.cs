@@ -14,7 +14,7 @@ public class TenantUserDetailsForStaffResult {
 	public string? FirstName { get; set; }
 	public string? LastName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public string Status { get; set; } = string.Empty;
+	public UserStatus Status { get; set; }
 	public DateTime CreatedAt { get; set; }
 	public DateTime UpdatedAt { get; set; }
 	public int CompanyCount { get; set; }
@@ -32,7 +32,7 @@ public static class TenantUserDetailsForStaffMapper {
 			FirstName = userData.User.FirstName,
 			LastName = userData.User.LastName,
 			AvatarUrl = userData.User.AvatarUrl,
-			Status = User.GetStatusDescription(userData.User.Status),
+			Status = userData.User.Status,
 			CreatedAt = userData.User.CreatedAt,
 			UpdatedAt = userData.User.UpdatedAt,
 			CompanyCount = userData.CompanyCount,

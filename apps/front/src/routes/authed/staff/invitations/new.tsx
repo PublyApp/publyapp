@@ -27,12 +27,12 @@ import {
 	type StaffInvitationInput,
 } from '~/lib/query/staff-invitations';
 import { useStaffProfilesQuery } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 import InterZod from '@org/shared-ts/lib/zod/InterZod';
 import { getBulkCreateInvitationsSchema } from '@org/shared-ts/validations/invitation.validations';
 

@@ -8,8 +8,10 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	CreatePostBody,
 	FindPostsForTenantResponse,
 	PostDetail,
+	UpdatePostBody,
 } from '@org/client-ts/models/index';
 import {
 	buildTenantQueryOptions,
@@ -236,7 +238,7 @@ export const savePost = async (
 	}
 
 	if (input.postId) {
-		const patchBody: Record<string, unknown> = {};
+		const patchBody: UpdatePostBody = {};
 
 		patchBody.body = createUntypedString(body);
 
@@ -261,9 +263,9 @@ export const savePost = async (
 		return details;
 	}
 
-	// Accumulate like patchBody above: Kiota's UntypedString fields are added
-	// conditionally, so an open accumulator beats a literal frozen by `satisfies`.
-	const createBody: Record<string, unknown> = {};
+	// Kiota's UntypedString fields are added conditionally, so the generated
+	// optional-field DTO beats a literal frozen by `satisfies`.
+	const createBody: CreatePostBody = {};
 
 	createBody.body = createUntypedString(body);
 
@@ -292,6 +294,29 @@ export const savePost = async (
 	return details;
 };
 
+// ── Invalidation ───────────────────────────────────────────────────
+
+/**
+ * Post-mutation cache refresh for BOTH post surfaces (#359 rule: line +
+ * list). The flat key families place the details branch (`'detail'`) BEFORE
+ * the tenant id, so a tenant-suffixed list prefix covers the filtered/cursored
+ * list pages but NOT the saved/deleted post's own detail entry — the exact
+ * silent staleness "Mutation Invalidation Coherence" (conventions.md) exists
+ * to prevent. Invalidate the list page family and the details family of this
+ * tenant explicitly.
+ */
+export const invalidateTenantPosts = async (
+	qc: QueryClient,
+	tenantId: string,
+): Promise<void> => {
+	await qc.invalidateQueries({
+		queryKey: [...scopedKey('tenant', TENANT_POSTS_QUERY_KEY), tenantId],
+	});
+	await qc.invalidateQueries({
+		queryKey: [...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY), tenantId],
+	});
+};
+
 // ── Mutations ──────────────────────────────────────────────────────
 
 export const useSavePostMutation = () => {
@@ -301,12 +326,7 @@ export const useSavePostMutation = () => {
 		mutationKey: [...TENANT_POSTS_QUERY_KEY, 'save'],
 		mutationFn: savePost,
 		onSuccess: (_data, variables) => {
-			void queryClient.invalidateQueries({
-				queryKey: [
-					...scopedKey('tenant', TENANT_POSTS_QUERY_KEY),
-					variables.tenantId,
-				],
-			});
+			void invalidateTenantPosts(queryClient, variables.tenantId);
 		},
 		meta: {
 			successMessage: 'post-saved-success',
@@ -331,23 +351,14 @@ export const useDeleteTenantPostMutation = () => {
 			await client.posts.byPostId(postId).delete();
 		},
 		onSuccess: (_data, variables) => {
-			void queryClient.invalidateQueries({
-				queryKey: [
-					...scopedKey('tenant', TENANT_POSTS_QUERY_KEY),
-					variables.tenantId,
-				],
-			});
+			void invalidateTenantPosts(queryClient, variables.tenantId);
 		},
 		meta: { successMessage: 'post-deleted-success' },
 	});
 };
 
 // ── Invalidation ───────────────────────────────────────────────────
-
-export const invalidateTenantPosts = (qc: QueryClient, tenantId: string) =>
-	qc.invalidateQueries({
-		queryKey: [...scopedKey('tenant', TENANT_POSTS_QUERY_KEY), tenantId],
-	});
+// (invalidateTenantPosts lives above, before the mutations that call it.)
 
 // ── Breadcrumb helpers ─────────────────────────────────────────────
 
