@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => ({
 	useStaffProfileUsersQuery: vi.fn(),
 	shouldLogoutForFailure: vi.fn((..._args: unknown[]) => false),
 	navigate: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	blockerResolver: {
 		status: 'idle' as 'idle' | 'blocked',
 		proceed: undefined as (() => void) | undefined,

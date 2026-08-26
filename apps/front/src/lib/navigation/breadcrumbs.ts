@@ -116,7 +116,7 @@ export type BreadcrumbTrail = {
  */
 export const deriveBreadcrumbTrail = (
 	matches: readonly MatchForBreadcrumbs[],
-): BreadcrumbTrail => {
+) => {
 	const deepestPathname = matches[matches.length - 1]?.pathname ?? '/';
 	const root = rootCrumbForScope(deepestPathname);
 

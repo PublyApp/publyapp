@@ -88,7 +88,7 @@ type QueryState = {
 	refetch: ReturnType<typeof vi.fn>;
 };
 
-const buildQueryResult = (overrides: Partial<QueryState> = {}): QueryState => ({
+const buildQueryResult = (overrides: Partial<QueryState> = {}) => ({
 	data: undefined,
 	error: null,
 	isPending: false,

@@ -17,7 +17,7 @@ import type {
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	navigate: vi.fn(),
 	downloadFile: vi.fn(),
 	tenantId: '11111111-1111-1111-1111-111111111111',

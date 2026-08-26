@@ -103,24 +103,27 @@ export const createCSPDirectives = ({
 		];
 	}
 
-	// Convert to Helmet-compatible format
-	const helmetDirectives: HelmetCSPDirectives = {};
+	// Convert to Helmet-compatible format: kebab-case directive names rebuilt
+	// mutation-free via fromEntries, so no open accumulator discards the base
+	// literal's type evidence (no-known-value-widening).
+	// Explicit Helmet contract annotation restored after the round-1 review.
+	const result: HelmetCSPDirectives = Object.fromEntries(
+		entries(baseDirectives).flatMap(([key, value]): [string, string[]][] => {
+			if (value === undefined) return [];
 
-	entries(baseDirectives).forEach(([key, value]) => {
-		if (value === undefined) return;
+			const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
 
-		const directiveName = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-
-		if (typeof value === 'boolean') {
-			if (value) {
-				helmetDirectives[directiveName] = [];
+			if (typeof value === 'boolean') {
+				return value ? [[directiveName, []]] : [];
 			}
-		} else if (Array.isArray(value)) {
-			helmetDirectives[directiveName] = value;
-		}
-	});
+			if (Array.isArray(value)) {
+				return [[directiveName, value]];
+			}
+			return [];
+		}),
+	);
 
-	return helmetDirectives;
+	return result;
 };
 
 export const directivesToString = (directives: CSPDirectives): string => {

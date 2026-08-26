@@ -12,7 +12,7 @@ export type ServerFailurePayload = {
 export const toServerFailurePayload = (
 	error: unknown,
 	fallbackMessage: string,
-): ServerFailurePayload => {
+) => {
 	const failure = toApiFailure(error);
 
 	if (failure.kind === 'validation') {
