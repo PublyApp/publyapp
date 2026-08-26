@@ -52,6 +52,17 @@ import type {
 	RawSourceMap,
 } from './context-source-map.mts';
 
+// Re-exported so the public-API type probe in
+// check-context-chunk-isolation.test.mts (which compiles a real consumer
+// against this module's surface, not a hand-written .d.mts) can name
+// `SourceSpan` from this module. The hand-written .d.mts was retired in
+// #1449 (scripts/ -> tools/ move); the public type surface now flows
+// through the source. Without `export type`, the probe's
+// `type SourceSpan` import fails with TS2459 ("declares 'SourceSpan'
+// locally, but it is not exported"), which is what surfaced on the
+// front test lane at 02d2db493.
+export type { CopyAttribution, SourceSpan };
+
 // The retired hand-written .d.mts exported this shape; types now live in
 // source and are re-exported here so consumers keep a single import surface.
 

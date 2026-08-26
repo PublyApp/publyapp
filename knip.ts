@@ -31,6 +31,15 @@ const config: KnipConfig = {
 				'scripts/generate/generate-route-tree.mts', // documented shim kept after #1300 moved the implementation to route-tree-generator.mts
 				'scripts/generate/generate-suppression-inventory.mts', // manual generator; check-design-system.mts tells humans to run it when the inventory drifts
 				'tools/ci/node-24-type-stripping.mts', // manual proof runner; its sibling node-24-type-stripping.test.mts pins it
+				// Public-API type probe target. The co-located .test.mts compiles
+				// a real consumer against this module's surface (mintSpans,
+				// SourceSpan, CopyAttribution) and pins the removed
+				// position-key mechanism's absence — without this entry, knip
+				// reports those re-exports as unused even though the test
+				// imports them type-only. The hand-written .d.mts was retired
+				// in #1449 (scripts/ -> tools/ move); the public type surface
+				// now flows through the source.
+				'tools/vite/check-context-chunk-isolation.mts',
 				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
 			],
 			// System binary invoked via execFileSync by the request-counter sidecar

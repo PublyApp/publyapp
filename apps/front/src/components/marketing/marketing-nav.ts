@@ -94,7 +94,7 @@ export type MarketingFooterColumn = {
 };
 
 /** The same entry once it is known to point at a route that exists. */
-export type Routed<T extends MarketingDestination> = T & {
+type Routed<T extends MarketingDestination> = T & {
 	to: MarketingRoutePath;
 };
 
@@ -120,20 +120,29 @@ const routedItems = (
 
 export const routedColumns = (
 	columns: readonly MarketingNavColumn[],
-): RoutedMarketingNavColumn[] =>
-	columns
-		.map((column) => ({ ...column, items: routedItems(column.items) }))
-		.filter((column) => column.items.length > 0);
+): RoutedMarketingNavColumn[] => {
+	const result: RoutedMarketingNavColumn[] = [];
+	for (const column of columns) {
+		const items = routedItems(column.items);
+		if (items.length > 0) {
+			result.push({ ...column, items });
+		}
+	}
+	return result;
+};
 
 export const routedFooterColumns = (
 	columns: readonly MarketingFooterColumn[],
-): RoutedMarketingFooterColumn[] =>
-	columns
-		.map((column) => ({
-			...column,
-			links: column.links.filter(isRoutedDestination),
-		}))
-		.filter((column) => column.links.length > 0);
+): RoutedMarketingFooterColumn[] => {
+	const result: RoutedMarketingFooterColumn[] = [];
+	for (const column of columns) {
+		const links = column.links.filter(isRoutedDestination);
+		if (links.length > 0) {
+			result.push({ ...column, links });
+		}
+	}
+	return result;
+};
 
 const PLATFORM_COLUMN: MarketingNavColumn = {
 	id: 'platform',

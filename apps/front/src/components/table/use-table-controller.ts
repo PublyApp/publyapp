@@ -122,7 +122,23 @@ export const useTableController = (
 		scopeKey: cursorResetKey,
 	});
 
+	// `draft` is the local, in-flight search input. The committed value lives
+	// in `search.q` (the URL). When the URL changes from outside this hook
+	// (browser back/forward, a cleared URL, a sibling commit while the
+	// debounce is still pending), the draft must follow — otherwise the
+	// input shows a stale value that the URL has already replaced. The
+	// canonical React fix for "adjust state when a prop changes" is to
+	// compare the previous committed value during render and queue the
+	// update there: this avoids the extra render pass (and the
+	// "guaranteed to fall out of sync" risk) of mirroring the prop inside a
+	// `useEffect`. See
+	// https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
 	const [draft, setDraft] = useState(committedQ);
+	const [prevCommittedQ, setPrevCommittedQ] = useState(committedQ);
+	if (committedQ !== prevCommittedQ) {
+		setPrevCommittedQ(committedQ);
+		setDraft(committedQ);
+	}
 	const debouncerRef = useRef<Debouncer | null>(null);
 	if (debouncerRef.current === null) {
 		debouncerRef.current = createDebouncer(searchDebounceMs);
@@ -137,12 +153,6 @@ export const useTableController = (
 	useEffect(() => {
 		searchRef.current = search;
 	}, [search]);
-
-	// Keeps the draft aligned when the committed value changes from outside
-	// this hook's own commits (browser back/forward, a cleared URL, etc).
-	useEffect(() => {
-		setDraft(committedQ);
-	}, [committedQ]);
 
 	useEffect(() => {
 		const debouncer = debouncerRef.current;
