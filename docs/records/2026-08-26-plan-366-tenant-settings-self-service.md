@@ -93,7 +93,7 @@ public async Task ItShouldListOnlyItsOwnTenantMembersWithCursorPagination() {
 	var (acmeId, acmeAdminToken, original) =
 		await PrepareAcmeAdminAsync();
 	try {
-		var (memberUserAccountId, _) = await SeedMemberAsync(
+		var (_, memberUserAccountId) = await SeedMemberAsync(
 			acmeId,
 			AccountLevel.User
 		);
@@ -220,12 +220,18 @@ Expected: FAIL — the routes do not exist (404 ≠ OK). RED.
 // PublyApp.Api.Modules.Invitations.Entities.
 private async Task SeedTenantInvitationAsync(
 	Guid tenantId,
-	Guid invitedByUserId,
+	string invitedByUserEmail,
 	string email,
 	InvitationStatus status
 ) {
 	await using var scope = _fixture.Factory.Services.CreateAsyncScope();
 	var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+	// Resolve the inviter row in the SAME DbContext scope as the insert,
+	// exactly like FindInvitationsForTenantAsStaff.Spec.cs:1878-1895 does
+	// for the staff user. No extra helper is needed for the inviter id.
+	var inviter = await dbContext.User.FirstAsync(
+		u => u.Email == invitedByUserEmail
+	);
 	_ = await dbContext.Invitation.AddAsync(new Invitation {
 		Email = email,
 		Scope = InvitationScope.Tenant,
@@ -233,7 +239,7 @@ private async Task SeedTenantInvitationAsync(
 		Token = Guid.NewGuid().ToString("N")[..32],
 		AccountLevel = AccountLevel.User,
 		ExpiresAt = DateTime.UtcNow.AddDays(7),
-		InvitedByUserId = invitedByUserId,
+		InvitedByUserId = inviter.GetRequiredId(),
 		Status = status,
 	});
 	_ = await dbContext.SaveChangesAsync();
@@ -244,25 +250,24 @@ public async Task ItShouldDefaultToPendingInvitationsWhenStatusIsOmitted() {
 	var (acmeId, acmeAdminToken, original) =
 		await PrepareAcmeAdminAsync();
 	try {
-		// InvitedByUserId: resolve any seeded Acme user id via AppDbContext
-		// before seeding; the filter under test is Status, not the inviter.
-		var invitedByUserId = await GetAnyAcmeUserIdAsync();
 		await SeedTenantInvitationAsync(
 			acmeId,
-			invitedByUserId,
+			TestConstants.AcmeAdminEmail,
 			"pending@acme.example.com",
 			InvitationStatus.Pending
 		);
 		await SeedTenantInvitationAsync(
 			acmeId,
-			invitedByUserId,
+			TestConstants.AcmeAdminEmail,
 			"accepted@acme.example.com",
 			InvitationStatus.Accepted
 		);
 
+		// Same spec-local GetUrl() shape as UpdateTenantSettingsForTenant.Spec.cs:44-50,
+		// over Routes.Tenant.Root + Routes.Invitations.ForTenant.Root (GET /invitations).
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			GetInvitationsUrl()
+			GetUrl()
 		)
 			.WithSessionToken(acmeAdminToken)
 			.WithTenantId(acmeId); // no status param
@@ -417,3 +422,38 @@ Under `heavy.sh`: targeted files first, then once at the end the full `just test
 - Danger-zone product decision (workspace delete/transfer semantics) — its own record before any code.
 - Bulk member actions on the tenant side (waits for the read surfaces to exist).
 - Per-member profile assignment from the tenant side (needs `profiles.assign_members` UX decisions).
+
+## Appendix — symbol audit of every spec body (round 3, verified against HEAD `23a5b86b0`)
+
+Rule: every symbol a spec body calls either exists in the tree at a cited path with a cited real signature, or is defined in this plan (full body, target file named). Evidence commands and outputs: `.dump/citations-r3.md`.
+
+**Existing helpers / symbols reused by spec bodies (verified, copy as-is):**
+
+| Symbol | Real location + signature | Used by |
+|---|---|---|
+| `PrepareAcmeAdminAsync()` | `apps/api/Modules/Settings/Handlers/Tenant/UpdateTenantSettingsForTenant.Spec.cs:471-483` — `private async Task<(Guid TenantId, string Token, TenantRow Original)> PrepareAcmeAdminAsync()` | Task 1 Steps 1 & 2 |
+| `RestoreTenantAsync(Guid tenantId, TenantRow original)` | same file, `:517-536` — `private async Task RestoreTenantAsync(...)` | Task 1 Steps 1 & 2 (`finally`) |
+| spec-local `GetUrl()` pattern | same file, `:44-50` — `private static string GetUrl()` over `PathUtils.Join(Routes.Tenant.Root, ...)`; `PathUtils.Join(params string[] paths)` is public at `apps/api/Lib/Utils/PathUtils.cs:10` | Task 1 Steps 1, 1b & 2 (both specs define their own `GetUrl()`) |
+| `SeedMemberAsync(Guid tenantId, AccountLevel level, bool isDeleted = false)` | `apps/api/Modules/Users/Services/TenantMembershipLockOrder.Spec.cs:1186-1225` — returns `Task<(Guid UserId, Guid UserAccountId)>`; **destructure order matters**: `(userId, userAccountId)` | Task 1 Step 1 |
+| `CreateTenantAsync()` | same file, `:1168-1184` — returns `Task<Guid>` (fresh isolated tenant) | Task 5 Step 1 service specs |
+| `_authClient.LoginAsync(string email, string password, CancellationToken ct = default)` → `Task<string>` | `apps/api/Lib/Testing/Helpers/TestAuthClient.cs:43-47` | all API specs |
+| `_authClient.LoginAsStaffAdminAsync(CancellationToken ct = default)` → `Task<string>` | `apps/api/Lib/Testing/Helpers/TestAuthClient.cs:25-28` | Tasks 1 & 1b |
+| `HttpRequestMessage.WithSessionToken(this HttpRequestMessage, string sessionToken)` / `.WithTenantId(this HttpRequestMessage, Guid tenantId)` | `apps/api/Lib/Testing/Helpers/HttpRequestMessageExtensions.cs:12` / `:26` | all API specs |
+| `TenantTestHelper.GetTenantIdByNameAsync(HttpClient http, string staffToken, string tenantName, CancellationToken ct = default)` → `Task<Guid>` | `apps/api/Lib/Testing/Helpers/TenantTestHelper.cs:66-71` | Tasks 1, 1b, 2 |
+| Seed constants | `apps/api/Data/Seeding/SeedConstants.cs`: `Tenants.AcmeName = "Acme Corporation"` (:26), `TechStartName = "TechStart Inc"` (:34), `GlobalName = "Global Solutions"` (:42); `TestConstants.AcmeAdminEmail/AcmeUserEmail/TechStartAdminEmail/StaffAdminEmail/SeedPassword` alias them at `apps/api/Lib/Testing/Fixtures/TestConstants.cs:17-32` | all API specs |
+| `AppProblemDetails` with `TranslationKey` | `apps/api/Lib/ProblemResults/AppProblemDetails.cs:7,13,19` — namespace `PublyApp.Api.Lib.ProblemResults`, serialized as `translationKey` | 403/401 assertions |
+| `ApiFixture.Factory` (→ `ApiFactory`) / `ApiFixture.HttpClient` | `apps/api/Lib/Testing/Fixtures/ApiFixture.cs:31,:48` — scope resolution via `_fixture.Factory.Services.CreateAsyncScope()` | DbContext-scoped seeding |
+
+**Types referenced by spec bodies (verified to exist):** `CursorPaginatedResult<T>` with `List<T> Data` + `string? NextCursor` (`apps/api/Lib/CursorPaginatedResult.cs:7`); `TenantUserItem` wire shape `Id/UserAccountId/Email/LastName/FirstName/AvatarUrl/Status(string)/Level(string)` (`apps/api/Modules/Users/Handlers/Staff/FindTenantUsersAsStaff.cs:15`); `Invitation` entity fields used by the seeder — `Email`, `Scope`, nullable `Guid? TenantId`, unique `Token`, `ExpiresAt`, `Status` (default `Pending`), `InvitedByUserId`, nullable `AccountLevel` (`apps/api/Modules/Invitations/Entities/Invitation.cs:21-65`); `enum InvitationStatus { Pending, Accepted, Revoked }` + `InvitationEffectiveStatus { Pending, Accepted, Expired, Revoked }` (same file `:313,:319`); permission catalog properties `AppPermissions.Tenant.Members.{VIEW,MANAGE,SUSPEND,REMOVE}` (`MemberPermissionsForTenant.cs:9-12`), `.Invitations.*` / `.Profiles.VIEW` (`apps/api/Lib/AppPermissions.cs:67-68`), called as `.WithTenantPermission([AppPermissions.Tenant.<Slice>.<KEY>])` exactly like `PostEndpointsForTenant.cs:29-58`.
+
+**Defined in this plan (implementing lane adds these; not yet in the tree):**
+
+| Symbol | Defined where in this plan | File the lane must add it to |
+|---|---|---|
+| `SeedTenantInvitationAsync(Guid tenantId, string invitedByUserEmail, string email, InvitationStatus status)` | Task 1 Step 2, full body inline (resolves the inviter row in the same DbContext scope, mirroring `FindInvitationsForTenantAsStaff.Spec.cs:1878-1895`) | the new `FindTenantInvitationsForTenant.Spec.cs` |
+| `GetUrl()` (invitations variant) | Task 1 Step 2 comment anchors it on the cited `GetUrl()` shape | the new `FindTenantInvitationsForTenant.Spec.cs` |
+| `FindTenantUsersForTenantResult : CursorPaginatedResult<TenantUserItem>`, `FindTenantInvitationsForTenantResult` | Task 1 file structure + prose | the new handler files |
+| `ITenantMemberLifecycleService`, `RemoveTenantMemberArgs`, `TenantMemberOperationResult.SelfRemovalForbidden` | Task 5 Step 1 declares this explicitly ("the NEW symbols this RED step defines") | `TenantMemberLifecycleService.cs` (+ `.Spec.cs`) |
+| front hooks `useTenantMembersQuery` / `useTenantPendingInvitationsQuery` | Task 2 file structure | `apps/front/src/lib/query/tenant-members.ts` |
+
+Front-side harness symbols in the Task 2 body are verified existing: `useResolvedWorkspaceTenantId` (`apps/front/src/lib/query/tenants-for-picker.ts:69`), and the `vi.hoisted` + `importActual` + `import/first` + `Route.options.component as ComponentType` harness lines in `general.test.tsx` (`:16,:45,:120,:123`).
