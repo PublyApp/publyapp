@@ -171,11 +171,6 @@ const AuthedWorkspaceShell = ({
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
-	// The picker query is tenant-scope-only: it authenticates with the
-	// tenant session token, so letting it run on staff surfaces would fire an
-	// unauthenticated 401 whose central backstop logs the user out (the
-	// mass e2e failure this lane shipped with). Staff shells must not even
-	// fetch it — hence `enabled`, not a render-time guard.
 	const isTenantSurface = getShellScope(pathname) === 'tenant';
 	const workspaceTenantId = useResolvedWorkspaceTenantId({
 		enabled: isTenantSurface,
@@ -186,8 +181,8 @@ const AuthedWorkspaceShell = ({
 	// tenant; while that payload is in flight (or no workspace resolves) it
 	// is absent and the FULL rail renders — hiding an entry must never be a
 	// lie of a loading state, and every gate stays independently enforced
-	// server-side anyway.
-	const isTenantSurface = getShellScope(pathname) === 'tenant';
+	// server-side anyway. The facade re-reads the same picker resolver under
+	// the identical `enabled` contract (shared query cache).
 	const tenantPermissions = useTenantSurfacePermissions(isTenantSurface);
 	const railItems = getRailItemsForPath(pathname, {
 		allowedPermissions:

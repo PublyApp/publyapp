@@ -321,6 +321,12 @@ export function filterRailItemsByPermissions(
 	items: AppRouteMetadata[],
 	allowedPermissions: Set<string>,
 ): AppRouteMetadata[] {
+	// "*" is the backend's Admin sentinel (materialised by user-auth-data for
+	// AccountLevel.Admin and honoured by TenantPermissionFilter): an admin
+	// passes every gate, so every rail entry stays visible.
+	if (allowedPermissions.has('*')) {
+		return items;
+	}
 	return items.filter(
 		(item) =>
 			item.requiredPermissions.length === 0 ||

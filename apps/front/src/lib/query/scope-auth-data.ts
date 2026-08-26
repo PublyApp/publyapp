@@ -67,7 +67,11 @@ export const useScopeAuthDataQuery = (tenantId: string | null) =>
 export const useTenantSurfacePermissions = (
 	enabled: boolean,
 ): string[] | undefined => {
-	const workspaceTenantId = useResolvedWorkspaceTenantId();
+	// `enabled` must follow the caller's surface: the underlying picker request
+	// authenticates with the tenant session token only, so an always-on call
+	// from a staff surface fires an unauthenticated 401 whose central backstop
+	// logs the user out (same contract as the C3 gates on user-auth-data).
+	const workspaceTenantId = useResolvedWorkspaceTenantId({ enabled });
 	const query = useScopeAuthDataQuery(enabled ? workspaceTenantId : null);
 
 	return query.data?.permissions;

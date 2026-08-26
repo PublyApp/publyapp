@@ -409,6 +409,17 @@ describe('front route metadata', () => {
 			expect(filtered).toEqual(items);
 		});
 
+		test('the "*" admin sentinel keeps the whole rail visible without listing keys', () => {
+			// Tenant admins pass every TenantPermissionFilter gate via the
+			// backend's "*" sentinel (user-auth-data materialises it for
+			// AccountLevel.Admin); scope-auth-data carries IsAdmin alongside
+			// profile keys, so the filter honours the same sentinel instead
+			// of hiding modules from an admin whose profile lists no keys.
+			const items = getRailItems('tenant');
+			const filtered = filterRailItemsByPermissions(items, new Set(['*']));
+			expect(filtered).toEqual(items);
+		});
+
 		test('getRailItemsForPath with no permission set returns the full rail (back-compat)', () => {
 			// Pre-permission-filtering callers (unit tests, marketing shell,
 			// the neutral authed shell) MUST keep seeing the full rail.
