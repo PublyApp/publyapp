@@ -49,6 +49,22 @@ export type RouteId =
 	| 'posts'
 	| 'organizations';
 
+/**
+ * Who may see this rail entry. Declaring it is MANDATORY: an entry cannot
+ * omit it, so "visible to everyone" must be written as `public` rather than
+ * implied by an absent field. This closes the #1629 default — a forgotten
+ * declaration now fails compilation (or the visibility contract test) instead
+ * of silently producing an always-visible entry.
+ *
+ * - `'public'` — the entry is legitimately open to every signed-in member of
+ *   the scope (e.g. the personal `Account` rail, which every member owns).
+ *   No permission key applies. This is the ONLY way to express "no gate".
+ * - `'permission-gated'` — the entry requires every key in
+ *   `requiredPermissions`. Hiding is UI-convenience ONLY; the server
+ *   independently enforces each gate behind those keys (#142).
+ */
+export type RailVisibility = 'public' | 'permission-gated';
+
 export type AppRouteMetadata = {
 	id: RouteId;
 	labelKey: string;
@@ -57,12 +73,14 @@ export type AppRouteMetadata = {
 	Icon: TablerIcon;
 	matchPrefixes: string[];
 	secondaryItems: SecondaryPanelItem[];
+	/** Who may see this rail entry. Declaring it is mandatory (see RailVisibility). */
+	visibility: RailVisibility;
 	/**
 	 * Permission keys (from the scope-auth-data `permissions` list) the signed-in
-	 * user must hold for this entry to render. An EMPTY array means the entry is
-	 * unconditioned — always visible. Every non-empty list MUST mirror a gate the
-	 * API enforces server-side on the underlying surface (#142): hiding a menu
-	 * entry is convenience, NOT authorization.
+	 * user must hold for this entry to render. Only consulted when `visibility`
+	 * is `'permission-gated'`; MUST mirror a gate the API enforces server-side on
+	 * the underlying surface (#142). Hiding a menu entry is convenience, NOT
+	 * authorization.
 	 */
 	requiredPermissions: string[];
 };
@@ -167,7 +185,9 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		],
 		secondaryItems: DASHBOARD_MODULE_ITEMS,
 		// Staff surfaces carry no module-level gate today; the staff rail stays
-		// unconditioned until a staff permission taxonomy exists (#142).
+		// unconditioned until a staff permission taxonomy exists (#142). Every
+		// signed-in member of the staff scope may see it, so it is 'public'.
+		visibility: 'public',
 		requiredPermissions: [],
 	},
 	{
@@ -178,6 +198,7 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 		Icon: IconBuilding,
 		matchPrefixes: ['/staff/tenants'],
 		secondaryItems: TENANTS_MODULE_ITEMS,
+		visibility: 'public',
 		requiredPermissions: [],
 	},
 	{
@@ -193,6 +214,7 @@ const STAFF_ROUTES: AppRouteMetadata[] = [
 			'/staff/audit-logs',
 		],
 		secondaryItems: STAFF_MODULE_ITEMS,
+		visibility: 'public',
 		requiredPermissions: [],
 	},
 ];
@@ -228,7 +250,10 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		matchPrefixes: ['/tenant/account'],
 		secondaryItems: ACCOUNT_MODULE_ITEMS,
 		// The personal settings rail — every signed-in tenant member owns their
-		// own profile, so no permission key applies.
+		// own profile, so no permission key applies. 'public' is the ONLY way to
+		// express "no gate" (#1629): a forgotten declaration must not fall back
+		// to visible-by-default.
+		visibility: 'public',
 		requiredPermissions: [],
 	},
 	{
@@ -242,6 +267,7 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		// Mirrors the canonical tenant-module gate (TenantModulePermissionsForTenant
 		// → `modules.access_settings`), the same key the settings surface is
 		// governed by server-side.
+		visibility: 'permission-gated',
 		requiredPermissions: ['tenant.modules.access_settings'],
 	},
 	{
@@ -256,6 +282,7 @@ const TENANT_ROUTES: AppRouteMetadata[] = [
 		// `.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW])` enforces on
 		// GET /posts, so a hidden rail entry and a direct URL hit fail on the
 		// same missing grant (the #142 invariant the API spec pins).
+		visibility: 'permission-gated',
 		requiredPermissions: ['tenant.posts.view'],
 	},
 ];
@@ -293,11 +320,13 @@ export type RailPermissionOptions = {
 };
 
 /**
- * Keeps only the entries whose required permission keys are ALL granted. An
- * entry with an empty `requiredPermissions` list is unconditioned and always
- * survives — this is a UI-convenience filter ONLY; the server independently
- * enforces every gate behind these keys (#142: hiding a menu entry is not
- * authorization).
+ * Keeps only the entries visible to the signed-in user. An entry is visible
+ * when its `visibility` is `'public'` (legitimately open to every member of
+ * the scope) or when `visibility` is `'permission-gated'` AND every key in
+ * `requiredPermissions` is granted. An entry with no declared visibility can
+ * never reach here (#1629: omission is a compile/contract error, never
+ * "visible by default"). This is a UI-convenience filter ONLY; the server
+ * independently enforces every gate behind these keys (#142).
  */
 export function filterRailItemsByPermissions(
 	items: AppRouteMetadata[],
@@ -311,8 +340,9 @@ export function filterRailItemsByPermissions(
 	}
 	return items.filter(
 		(item) =>
-			item.requiredPermissions.length === 0 ||
-			item.requiredPermissions.every((key) => allowedPermissions.has(key)),
+			item.visibility === 'public' ||
+			(item.visibility === 'permission-gated' &&
+				item.requiredPermissions.every((key) => allowedPermissions.has(key))),
 	);
 }
 

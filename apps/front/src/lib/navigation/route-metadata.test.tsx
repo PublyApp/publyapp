@@ -417,4 +417,54 @@ describe('front route metadata', () => {
 			).toEqual(['account', 'settings']);
 		});
 	});
+
+	// Lane #1629 — the silent "visible by default" default is CLOSED.
+	// Every rail entry MUST declare its `visibility` (`'public'` or
+	// `'permission-gated'`) explicitly. Omission must fail here (or at
+	// compile time), never silently produce a visible entry.
+	describe('every rail entry declares its visibility explicitly (#1629)', () => {
+		test('every staff rail entry declares a visibility and keeps its permission keys', () => {
+			const items = getRailItems('staff');
+			for (const item of items) {
+				expect(item.visibility, `staff entry "${item.id}" visibility`).toBe(
+					'public',
+				);
+			}
+			expect(items.map((item) => item.requiredPermissions)).toEqual([
+				[],
+				[],
+				[],
+			]);
+		});
+
+		test('every tenant rail entry declares a visibility matching its gate', () => {
+			const items = getRailItems('tenant');
+			const specs = items.map((item) => ({
+				id: item.id,
+				visibility: item.visibility,
+				keys: item.requiredPermissions,
+			}));
+			expect(specs).toEqual([
+				{ id: 'account', visibility: 'public', keys: [] },
+				{
+					id: 'settings',
+					visibility: 'permission-gated',
+					keys: ['tenant.modules.access_settings'],
+				},
+				{
+					id: 'posts',
+					visibility: 'permission-gated',
+					keys: ['tenant.posts.view'],
+				},
+			]);
+		});
+
+		test("'public' entries require no permission key and survive an empty set", () => {
+			const items = getRailItems('tenant');
+			const filtered = filterRailItemsByPermissions(items, new Set());
+			// account is 'public' → stays; the gated entries drop. The point
+			// of #1629: openness is declared, not implied by an absent gate.
+			expect(filtered.map((item) => item.id)).toEqual(['account']);
+		});
+	});
 });
