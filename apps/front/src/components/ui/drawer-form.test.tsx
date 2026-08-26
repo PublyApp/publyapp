@@ -243,6 +243,20 @@ vi.mock('~/lib/query/tenant-projects', () => ({
 	toTenantProjectItems: () => [],
 }));
 
+// The Bluesky drawer reads its mutations through the social slice; the guard
+// only measures drawer geometry, so the hooks resolve as inert stubs.
+vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useConnectSocialAccountMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+	useReconnectSocialAccountMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+}));
+
 vi.mock('~/lib/query/tenant-posts', () => ({
 	savePost: vi.fn(),
 	invalidateTenantPosts: vi.fn(),
@@ -384,6 +398,7 @@ import {
 	type ProfileFormValues,
 } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-schema';
 import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-drawer';
+import { BlueskyConnectDrawer } from '../../routes/authed/tenant/settings/_bluesky-connect-drawer';
 
 const noop = () => undefined;
 
@@ -9412,6 +9427,16 @@ const renderDrawerByCallSiteId = {
 				onOpenChange={noop}
 				onSaved={noop}
 				onSessionExpired={noop}
+			/>,
+		);
+	},
+	'bluesky-connect': () => {
+		render(
+			<BlueskyConnectDrawer
+				mode="connect"
+				open
+				tenantId="tenant-1"
+				onOpenChange={noop}
 			/>,
 		);
 	},
