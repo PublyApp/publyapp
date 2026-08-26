@@ -17,6 +17,7 @@ import {
 	buildFindTenantPublicationsQueryParameters,
 	invalidateTenantPublications,
 	isTenantPublicationStatus,
+	publishNowMutation,
 	tenantPublicationsQueryOptions,
 	TENANT_PUBLICATIONS_QUERY_KEY,
 	toTenantPublicationRows,
@@ -24,6 +25,57 @@ import {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+});
+
+describe('publishNowMutation', () => {
+	const tenantId = '11111111-1111-1111-1111-111111111111';
+	const postId = 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+
+	const stubPost = () => vi.fn().mockResolvedValue({});
+
+	const stubClient = (post: ReturnType<typeof stubPost>) =>
+		mocks.getOrCreateClient.mockReturnValue({
+			posts: {
+				byPostId: (id: string) => ({
+					publishNow: { post },
+					postId: id,
+				}),
+			},
+		});
+
+	test('fires publish-now carrying the selected account ids as untyped array', async () => {
+		const post = stubPost();
+		stubClient(post);
+
+		await publishNowMutation.mutationFn({
+			postId,
+			accountIds: ['01890a5d-ac96-774b-bcce-b302099a8057'],
+			tenantId,
+		});
+
+		expect(mocks.getOrCreateClient).toHaveBeenCalledWith(tenantId);
+		expect(post).toHaveBeenCalledTimes(1);
+		const body = post.mock.calls[0]?.[0] as {
+			accountIds?: unknown;
+		};
+		expect(body.accountIds).toBeDefined();
+	});
+
+	test('omits accountIds when no target is checked', async () => {
+		const post = stubPost();
+		stubClient(post);
+
+		await publishNowMutation.mutationFn({
+			postId,
+			accountIds: [],
+			tenantId,
+		});
+
+		const body = post.mock.calls[0]?.[0] as {
+			accountIds?: unknown;
+		};
+		expect(body.accountIds ?? null).toBeNull();
+	});
 });
 
 describe('buildFindTenantPublicationsQueryParameters', () => {

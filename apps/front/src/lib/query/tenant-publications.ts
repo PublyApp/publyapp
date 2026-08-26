@@ -1,3 +1,7 @@
+import {
+	createUntypedArray,
+	createUntypedString,
+} from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
@@ -6,8 +10,10 @@ import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
 	FindPublicationsForTenantResponse,
 	PublicationListItem,
+	PublishNowBody,
 } from '@org/client-ts/models/index';
 import {
+	buildTenantMutationOptions,
 	buildTenantQueryOptions,
 	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
@@ -207,6 +213,40 @@ export const useTenantPublicationsQuery = (
 		queryKey: tenantPublicationsQueryOptions.queryKey(variables),
 		queryFn: () => tenantPublicationsQueryOptions.fetcher(variables),
 	});
+
+// ── Publish-now mutation (Task 8) ──────────────────────────────────
+
+/** Wire body for `POST /posts/{postId}/publish-now`. The Kiota builder types
+ * `accountIds` as an open `UntypedNode | null`, so the selected ids ride in a
+ * Kiota untyped array; omitting the field entirely means "nothing checked". */
+export const buildPublishNowBody = (accountIds: string[]): PublishNowBody => {
+	if (accountIds.length === 0) {
+		return {};
+	}
+
+	return {
+		accountIds: createUntypedArray(
+			accountIds.map((id) => createUntypedString(id)),
+		),
+	};
+};
+
+export const publishNowMutation = buildTenantMutationOptions<
+	ApiClient,
+	unknown,
+	{ postId: string; accountIds: string[] }
+>(
+	{
+		mutationKeyFn: () => [...TENANT_PUBLICATIONS_QUERY_KEY, 'publish-now'],
+		mutationFn: async (client, variables) => {
+			await client.posts
+				.byPostId(variables.postId)
+				.publishNow.post(buildPublishNowBody(variables.accountIds));
+		},
+		meta: { successMessage: 'publish-now-success' },
+	},
+	{ clientAccessor: getClientManager() },
+);
 
 // ── Invalidation ───────────────────────────────────────────────────
 
