@@ -33,7 +33,7 @@ export const makeDeadLetterColumns = (
 					className="block truncate font-mono text-[13px] font-medium"
 					title={row.original.jobType ?? undefined}
 				>
-					{row.original.jobType || '-'}
+					{row.original.jobType || t('no-value')}
 				</span>
 				<span
 					className="block truncate font-mono text-xs text-muted-foreground"

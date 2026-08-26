@@ -137,7 +137,7 @@ const StaffJobsQueuePage = () => {
 							<>
 								<DetailRow
 									label={t('column-status')}
-									value={inspected.status ?? '-'}
+									value={inspected.status ?? t('no-value')}
 								/>
 								<DetailRow
 									label={t('column-attempts')}
@@ -145,7 +145,7 @@ const StaffJobsQueuePage = () => {
 								/>
 								<DetailRow
 									label={t('detail-last-error')}
-									value={inspected.lastError ?? '-'}
+									value={inspected.lastError ?? t('no-value')}
 								/>
 								<DetailRow
 									label={t('column-next-attempt')}

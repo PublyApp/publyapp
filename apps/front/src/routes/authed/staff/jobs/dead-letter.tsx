@@ -268,7 +268,9 @@ const StaffJobsDeadLetterPage = () => {
 								/>
 								<DetailRow
 									label={t('detail-last-error')}
-									value={detail?.lastError ?? inspected.lastError ?? '-'}
+									value={
+										detail?.lastError ?? inspected.lastError ?? t('no-value')
+									}
 								/>
 								<DetailRow
 									label={t('column-failed-at')}

@@ -36,13 +36,13 @@ export const makeSystemJobColumns = (
 					className="block truncate font-mono text-[13px] font-medium"
 					title={row.original.jobKey ?? undefined}
 				>
-					{row.original.jobKey || '-'}
+					{row.original.jobKey || t('no-value')}
 				</span>
 				<span
 					className="block truncate font-mono text-xs text-muted-foreground"
 					title={row.original.cronExpression ?? undefined}
 				>
-					{row.original.cronExpression || '-'}
+					{row.original.cronExpression || t('no-value')}
 				</span>
 			</div>
 		),

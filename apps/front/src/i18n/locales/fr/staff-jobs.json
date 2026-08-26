@@ -31,6 +31,7 @@
 	"action-edit-cron": "Planifier",
 	"action-trigger-now": "Déclencher",
 	"action-save-cron": "Enregistrer la planification",
+	"no-value": "—",
 
 	"queue-drawer-title": "Tâche en file",
 	"dl-drawer-title": "Tâche en échec",
