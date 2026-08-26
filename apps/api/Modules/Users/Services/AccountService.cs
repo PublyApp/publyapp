@@ -48,6 +48,12 @@ public record UserTenantsForPickerResult {
 			return TotalCount > ActiveCount;
 		}
 	}
+
+	// #258: distinguishes "every membership was removed because its tenant
+	// was soft-deleted" from "never had any". The picker base query excludes
+	// deleted tenants, so that count is invisible to TotalCount — without
+	// this flag the front cannot tell an orphaned user from a fresh one.
+	public required bool HasDeletedTenants { get; init; }
 }
 
 public record TenantForPicker {
@@ -562,12 +568,24 @@ public class AccountService : IAccountService {
 				&& ua.TenantId != null
 				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended  // Account must be active
 				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
-				&& !t.IsDeleted                       // Tenant must not be deleted
 			select new { ua, t };
 
 		var totalCount = await baseQuery.CountAsync(cancellationToken);
 		var activeCount = await baseQuery
 			.Where(q => q.t.Status == TenantStatus.Active && q.t.Status != TenantStatus.Suspended)
+			.CountAsync(cancellationToken);
+
+		// #258: memberships whose tenant was soft-deleted are invisible to the
+		// base query above (it excludes deleted tenants). Count them separately
+		// so the front can tell "all my organizations were deleted" from "I was
+		// never invited anywhere".
+		var deletedCount = await _dbContext.UserAccount
+			.Where(ua => ua.UserId == userId
+				&& ua.Scope == AccountScope.Tenant
+				&& ua.TenantId != null
+				&& !ua.IsDeleted && ua.Status != AccountStatus.Suspended
+				&& !ua.User.IsDeleted && ua.User.Status != UserStatus.Suspended
+				&& ua.Tenant.IsDeleted)
 			.CountAsync(cancellationToken);
 
 		var tenants = await baseQuery
@@ -584,7 +602,8 @@ public class AccountService : IAccountService {
 		return new UserTenantsForPickerResult {
 			Tenants = tenants,
 			TotalCount = totalCount,
-			ActiveCount = activeCount
+			ActiveCount = activeCount,
+			HasDeletedTenants = deletedCount > 0
 		};
 	}
 

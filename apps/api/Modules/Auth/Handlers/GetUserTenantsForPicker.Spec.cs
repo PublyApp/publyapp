@@ -390,6 +390,10 @@ public sealed class GetUserTenantsForPickerSpec
 			Assert.NotNull(result);
 			result.TotalCount.Should().Be(0);
 			result.ActiveCount.Should().Be(0);
+			// #258 round 2: the picker must expose WHY the list is empty. A user
+			// whose every tenant was soft-deleted is a different situation from
+			// a user who was never invited anywhere, and the front needs to say so.
+			result.HasDeletedTenants.Should().BeTrue();
 			result.HasSuspendedTenants.Should().BeFalse();
 			result.Tenants.Should().BeEmpty();
 		} finally {
@@ -457,6 +461,68 @@ public sealed class GetUserTenantsForPickerSpec
 		return (email, tenantIds);
 	}
 
+	// #258 round 2, the contrast arm: a user with NO memberships at all
+	// (never invited anywhere) is a different situation from the
+	// all-tenants-deleted one. Both get an empty picker, but only the
+	// deleted case must carry HasDeletedTenants — this is exactly the
+	// signal the front empty state branches on.
+	[Fact]
+	public async Task ItShouldNotFlagDeletedTenantsForUserWithNoMemberships() {
+		var email = await SeedUserWithoutMembershipsAsync();
+
+		try {
+			var token = await _authClient.LoginAsync(
+				email,
+				TestConstants.SeedPassword
+			);
+
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				Routes.Auth.GetUserTenantsForPicker
+			).WithSessionToken(token);
+
+			using var response =
+				await _http.SendAsync(request);
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<PickerResponse>();
+			result.Should().NotBeNull();
+			Assert.NotNull(result);
+			result.TotalCount.Should().Be(0);
+			result.ActiveCount.Should().Be(0);
+			result.HasDeletedTenants.Should().BeFalse();
+			result.HasSuspendedTenants.Should().BeFalse();
+			result.Tenants.Should().BeEmpty();
+		} finally {
+			await DeleteSeededPickerUserAsync(email);
+		}
+	}
+
+	private async Task<string> SeedUserWithoutMembershipsAsync() {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var email = $"never-invited-{Guid.NewGuid():N}@example.com";
+		var user = new User {
+			Email = email,
+			Password = PasswordUtils.HashPassword(
+				TestConstants.SeedPassword
+			),
+			FirstName = "NeverInvited",
+			LastName = "Picker",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+
+		return email;
+	}
+
 	private async Task DeleteSeededPickerUserAsync(string email) {
 		await using var scope =
 			_fixture.Factory.Services.CreateAsyncScope();
@@ -476,10 +542,12 @@ public sealed class GetUserTenantsForPickerSpec
 		await dbContext.Session
 			.Where(s => s.UserId == seededUser.Id)
 			.ExecuteDeleteAsync();
-		var removedAccounts = await dbContext.UserAccount
+		// No count assertion on accounts: the shared cleanup also serves the
+		// never-invited arm (#258 round 2), which legitimately has zero
+		// memberships. Tenants stay asserted — both arms create them or none.
+		await dbContext.UserAccount
 			.Where(ua => ua.UserId == seededUser.Id)
 			.ExecuteDeleteAsync();
-		removedAccounts.Should().BeGreaterThan(0);
 		var removedTenants = await dbContext.Tenant
 			.Where(t => t.Name.StartsWith("All Deleted Picker "))
 			.ExecuteDeleteAsync();
@@ -500,6 +568,7 @@ public sealed class GetUserTenantsForPickerSpec
 			= [];
 		public int TotalCount { get; init; }
 		public int ActiveCount { get; init; }
+		public bool HasDeletedTenants { get; init; }
 		public bool HasSuspendedTenants { get; init; }
 	}
 }

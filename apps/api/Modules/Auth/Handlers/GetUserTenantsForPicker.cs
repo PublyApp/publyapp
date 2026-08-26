@@ -17,6 +17,10 @@ public class GetUserTenantsForPickerResponse {
 	public List<TenantForPickerItem> Tenants { get; set; } = [];
 	public int TotalCount { get; set; }
 	public int ActiveCount { get; set; }
+	// #258: true when the user's memberships were all removed by staff
+	// deleting their tenants. Drives the dedicated "organizations were
+	// deleted" empty state, distinct from "no organizations found".
+	public bool HasDeletedTenants { get; set; }
 	public bool HasSuspendedTenants { get; set; }
 }
 
@@ -58,6 +62,7 @@ public sealed class GetUserTenantsForPicker {
 			}).ToList(),
 			TotalCount = result.TotalCount,
 			ActiveCount = result.ActiveCount,
+			HasDeletedTenants = result.HasDeletedTenants,
 			HasSuspendedTenants = result.HasSuspendedTenants
 		});
 	}
