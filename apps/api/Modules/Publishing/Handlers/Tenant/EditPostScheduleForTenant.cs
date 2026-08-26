@@ -10,6 +10,8 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Validation;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Services;
@@ -103,7 +105,9 @@ public sealed class EditPostScheduleForTenant {
 		[FromRoute] string postId,
 		[FromBody] EditPostScheduleBody body,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IPublicationService publicationService,
+		[FromServices] PublicationService publicationService,
+		[FromServices] IAuditLogService auditLogService,
+		[FromServices] IPublicationStatusTransitionService transitions,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -154,7 +158,10 @@ public sealed class EditPostScheduleForTenant {
 			);
 		}
 
-		var result = await publicationService.EditScheduleAsync(
+		// Validates the whole edit (404/409/422 paths unchanged) and stages every
+		// change except publication status; the handler below applies each staged
+		// reschedule through the single legal status writer.
+		var result = await publicationService.EditPostCoreAsync(
 			new EditPostScheduleArgs(
 				TenantId: tenantId,
 				PostId: postIdGuid,
@@ -186,26 +193,86 @@ public sealed class EditPostScheduleForTenant {
 						[invalidSchedule.ErrorKey] = [invalidSchedule.Cause],
 					}
 				),
-			EditPostScheduleResult.Success success =>
-				TypedResults.Ok(
-					new EditPostScheduleResponse {
-						PostId = postIdGuid,
-						Publications = success.Rescheduled
-							.Select(publication =>
-								new SchedulePostCreatedItem {
-									Id = publication.GetRequiredId(),
-									SocialAccountId = publication.SocialAccountId,
-									Status = PublicationWire.FormatStatus(
-										publication.Status
-									),
-								}
-							)
-							.ToList(),
-					}
-				),
+			EditPostScheduleResult.Success success => await ApplyReschedulesAsync(
+				success.Reschedules,
+				postIdGuid,
+				tenantId,
+				account.UserId,
+				transitions,
+				auditLogService,
+				cancellationToken
+			),
 			_ => throw new InvalidOperationException(
 				"Unhandled edit-schedule result kind"
 			),
 		};
+	}
+
+	/// <summary>
+	/// C4-style handler orchestration (precedent:
+	/// ReconnectSocialAccountForTenant): applies each staged reschedule through
+	/// <see cref="IPublicationStatusTransitionService"/>, the single legal writer
+	/// of Publication.Status. A row that lost its Scheduled/Paused status in
+	/// between is skipped (the transition returns false); an illegal move throws
+	/// and must be loud. Then writes the post-level publication.rescheduled audit
+	/// summary keyed on the POST (same observable surface as before), now
+	/// counting APPLIED moves instead of planned ones.
+	/// </summary>
+	private static async Task<Ok<EditPostScheduleResponse>> ApplyReschedulesAsync(
+		IReadOnlyList<PendingReschedule> reschedules,
+		Guid postId,
+		Guid tenantId,
+		Guid actorUserId,
+		IPublicationStatusTransitionService transitions,
+		IAuditLogService auditLogService,
+		CancellationToken cancellationToken
+	) {
+		var applied = new List<SchedulePostCreatedItem>(reschedules.Count);
+		foreach (var pending in reschedules) {
+			var moved = await transitions.RescheduleToFutureAsync(
+				new ReschedulePublicationToFutureArgs(
+					pending.PublicationId,
+					tenantId,
+					pending.Schedule
+				),
+				cancellationToken
+			);
+			if (!moved) {
+				continue;
+			}
+
+			applied.Add(new SchedulePostCreatedItem {
+				Id = pending.PublicationId,
+				SocialAccountId = pending.SocialAccountId,
+				Status = PublicationWire.FormatStatus(PublicationStatus.Scheduled),
+			});
+		}
+
+		if (reschedules.Count > 0) {
+			// Every staged row shares the validated schedule pair.
+			var schedule = reschedules[0].Schedule;
+			await auditLogService.LogAsync(
+				new CreateAuditLogArgs(
+					UserId: actorUserId,
+					Action: AuditActions.PublicationRescheduled,
+					TargetId: postId,
+					Details: new {
+						TenantId = tenantId,
+						PostId = postId,
+						Count = applied.Count,
+						ScheduledAtUtc = schedule.ScheduledAtUtc.ToString("o"),
+						ScheduledTimeZone = schedule.ScheduledTimeZone,
+					}
+				),
+				cancellationToken
+			);
+		}
+
+		return TypedResults.Ok(
+			new EditPostScheduleResponse {
+				PostId = postId,
+				Publications = applied,
+			}
+		);
 	}
 }

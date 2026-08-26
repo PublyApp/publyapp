@@ -106,13 +106,35 @@ public record EditPostScheduleArgs(
 );
 
 /// <summary>
+/// Arguments for cancelling every scheduled publication of one post (D3 Task 4).
+/// Tenant-scoped load; actor recorded for audit parity with the other writers.
+/// </summary>
+public record CancelPostScheduleArgs(
+	Guid TenantId,
+	Guid PostId,
+	Guid ActorUserId
+);
+
+/// <summary>
+/// One reschedule the CALLING HANDLER still owes a publication: apply it through
+/// <see cref="IPublicationStatusTransitionService"/>, the single legal writer of
+/// <see cref="PublicationStatus"/>. Carries the validated schedule pair so the
+/// handler never re-parses or re-validates the wire values.
+/// </summary>
+public sealed record PendingReschedule(
+	Guid PublicationId,
+	Guid SocialAccountId,
+	PublicationSchedule Schedule
+);
+
+/// <summary>
 /// Result union for the edit endpoint. <see cref="EditPostScheduleResult.InProgressConflict"/>
 /// refuses the WHOLE edit while any publication is being published right now.
 /// </summary>
 public abstract record EditPostScheduleResult {
 	public sealed record Success(
 		Post Post,
-		IReadOnlyList<Publication> Rescheduled
+		IReadOnlyList<PendingReschedule> Reschedules
 	) : EditPostScheduleResult;
 
 	public sealed record NotFound() : EditPostScheduleResult;
@@ -128,11 +150,6 @@ public abstract record EditPostScheduleResult {
 public interface IPublicationService {
 	Task<ScheduleResult> ScheduleAsync(
 		SchedulePublicationArgs args,
-		CancellationToken cancellationToken = default
-	);
-
-	Task<EditPostScheduleResult> EditScheduleAsync(
-		EditPostScheduleArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -161,18 +178,13 @@ public sealed class PublicationService : IPublicationService {
 
 	private readonly AppDbContext _dbContext;
 	private readonly IHttpContextAccessor _httpContextAccessor;
-	// Infrastructure seam owning every Publication.Status write (architecture
-	// guard) — an infrastructure dependency, NOT a service-to-service one.
-	private readonly IPublicationStatusTransitionService _transitions;
 
 	public PublicationService(
 		AppDbContext dbContext,
-		IHttpContextAccessor httpContextAccessor,
-		IPublicationStatusTransitionService transitionService
+		IHttpContextAccessor httpContextAccessor
 	) {
 		_dbContext = dbContext;
 		_httpContextAccessor = httpContextAccessor;
-		_transitions = transitionService;
 	}
 
 	public async Task<ScheduleResult> ScheduleAsync(
@@ -258,7 +270,16 @@ public sealed class PublicationService : IPublicationService {
 		return new ScheduleResult.Scheduled(publications);
 	}
 
-	public async Task<EditPostScheduleResult> EditScheduleAsync(
+	/// <summary>
+	/// Validates the whole edit and stages every change EXCEPT publication status:
+	/// the post text is set on the tracked post, and each Scheduled/Paused target
+	/// becomes a <see cref="PendingReschedule"/> for the calling handler to apply
+	/// through <see cref="IPublicationStatusTransitionService"/> (handlers
+	/// orchestrate; domain services never inject domain services). Deliberately not
+	/// on <see cref="IPublicationService"/>: the use case spans this preparation
+	/// plus handler-driven transitions.
+	/// </summary>
+	public async Task<EditPostScheduleResult> EditPostCoreAsync(
 		EditPostScheduleArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -267,7 +288,7 @@ public sealed class PublicationService : IPublicationService {
 			where p.Id == args.PostId
 				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted
-				select p
+			select p
 		).FirstOrDefaultAsync(cancellationToken);
 		if (post is null) {
 			return new EditPostScheduleResult.NotFound();
@@ -281,7 +302,7 @@ public sealed class PublicationService : IPublicationService {
 				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted
 				&& p.Status == PublicationStatus.InProgress
-				select p.Id
+			select p.Id
 		).AnyAsync(cancellationToken);
 		if (hasInProgress) {
 			return new EditPostScheduleResult.InProgressConflict();
@@ -345,7 +366,10 @@ public sealed class PublicationService : IPublicationService {
 			post.Body = args.Body.Value;
 		}
 
-		var rescheduled = new List<Publication>();
+		// Rows are NOT written here. Each Scheduled/Paused target becomes a plan the
+		// calling handler applies through IPublicationStatusTransitionService; id
+		// order keeps the handler's application deterministic.
+		var reschedules = new List<PendingReschedule>();
 		if (schedule is not null) {
 			var targets = await (
 				from p in _dbContext.Publication
@@ -358,19 +382,13 @@ public sealed class PublicationService : IPublicationService {
 				select p
 			).ToListAsync(cancellationToken);
 
-			foreach (var publication in targets) {
-				var moved = await _transitions.RescheduleToFutureAsync(
-					new ReschedulePublicationToFutureArgs(
-						publication.GetRequiredId(),
-						args.TenantId,
-						schedule
-					),
-					cancellationToken
-				);
-				if (moved) {
-					rescheduled.Add(publication);
-				}
-			}
+			reschedules.AddRange(targets.Select(publication =>
+				new PendingReschedule(
+					publication.GetRequiredId(),
+					publication.SocialAccountId,
+					schedule
+				)
+			));
 		}
 
 		AddAuditEntry(
@@ -380,26 +398,15 @@ public sealed class PublicationService : IPublicationService {
 			new {
 				args.TenantId,
 				PostId = postId,
-				RescheduledCount = rescheduled.Count,
+				RescheduledCount = reschedules.Count,
 			}
 		);
-		if (schedule is not null) {
-			AddAuditEntry(
-				args.ActorUserId,
-				AuditActions.PublicationRescheduled,
-				postId,
-				new {
-					args.TenantId,
-					PostId = postId,
-					Count = rescheduled.Count,
-					ScheduledAtUtc = schedule.ScheduledAtUtc.ToString("o"),
-					ScheduledTimeZone = schedule.ScheduledTimeZone,
-				}
-			);
-		}
+		// Same-SaveChanges as the body write, so the text change and its audit
+		// commit atomically. The publication.rescheduled summary is written by the
+		// calling handler AFTER the transitions, so it counts APPLIED moves.
 		await _dbContext.SaveChangesAsync(cancellationToken);
 
-		return new EditPostScheduleResult.Success(post, rescheduled);
+		return new EditPostScheduleResult.Success(post, reschedules);
 	}
 
 	/// <summary>
