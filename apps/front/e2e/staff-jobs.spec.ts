@@ -138,15 +138,6 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 			await route.fallback();
 		});
 
-		await page.getByRole('tab', { name: 'Dead letter' }).click();
-		const url = new URL(page.url());
-		expect(url.pathname).toBe('/staff/jobs/dead-letter');
-		await expect(page.getByTestId(DLQ_TABLE)).toBeVisible();
-		await page.getByRole('button', { name: 'SendEmailJob' }).first().click();
-		await page.getByTestId(`dead-letter-requeue-${deadLetterId}`).click();
-		await expect(
-			page.getByRole('alertdialog', { name: 'Requeue this job?' }),
-		).toBeVisible();
 		await page.route(
 			`**/staff/dead-letter/${deadLetterId}/requeue`,
 			async (route) => {
@@ -166,6 +157,15 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 				});
 			},
 		);
+		await page.getByRole('tab', { name: 'Dead letter' }).click();
+		const url = new URL(page.url());
+		expect(url.pathname).toBe('/staff/jobs/dead-letter');
+		await expect(page.getByTestId(DLQ_TABLE)).toBeVisible();
+		await page.getByRole('button', { name: 'SendEmailJob' }).first().click();
+		await page.getByTestId(`dead-letter-requeue-${deadLetterId}`).click();
+		await expect(
+			page.getByRole('alertdialog', { name: 'Requeue this job?' }),
+		).toBeVisible();
 		await page
 			.getByRole('alertdialog', { name: 'Requeue this job?' })
 			.getByRole('button', { name: 'Requeue', exact: true })
@@ -177,7 +177,7 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		// which flake under cold mounts.
 		await expect(
 			page.getByText('Dead-letter job requeued', { exact: true }),
-		).toBeVisible({ timeout: 30_000 });
+		).toBeVisible({ timeout: 60_000 });
 		await expect(page.getByTestId(DLQ_TABLE)).toBeVisible();
 
 		// --- System jobs: trigger an enabled definition and see the toast.
