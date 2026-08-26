@@ -7,6 +7,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
+using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
@@ -20,6 +21,7 @@ public sealed class DeletePostForTenant {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostService postService,
 		[FromServices] IPostMediaAssetService postMediaAssets,
+		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -63,9 +65,15 @@ public sealed class DeletePostForTenant {
 			);
 		}
 
-		// Cascade phase 2 (#807 F5): release blob references only AFTER the
-		// deletion is durable; physical deletion stays exclusively sweeper's.
-		await postMediaAssets.ReleaseReferencesAsync(stagedPaths, cancellationToken);
+		// Cascade phase 2 (#807 F5, handler-owned per #1461): release blob
+		// references only AFTER the deletion is durable; physical deletion
+		// stays exclusively sweeper's.
+		foreach (var stagedPath in stagedPaths) {
+			await uploadReferences.TryReleaseReferenceAsync(
+				stagedPath,
+				cancellationToken
+			);
+		}
 
 		await auditLogService.LogAsync(
 			new CreateAuditLogArgs(

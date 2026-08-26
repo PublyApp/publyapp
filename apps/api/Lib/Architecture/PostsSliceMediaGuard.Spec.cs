@@ -16,7 +16,6 @@ using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Posts.Services;
-using PublyApp.Api.Modules.Uploads.Services;
 
 using Xunit;
 
@@ -151,9 +150,10 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 		);
 		Assert.NotNull(service);
 
+		// #1461: the uploads reference coordination moved to the calling
+		// handlers, so the service now depends on its DbContext ONLY.
 		var allowedDependencies = new HashSet<Type> {
 			typeof(AppDbContext),
-			typeof(IUploadAssetReferenceService),
 		};
 
 		var offenders = service

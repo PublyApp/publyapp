@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Posts.Entities;
-using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Services;
 
@@ -38,22 +37,25 @@ public interface IPostMediaAssetService {
 	);
 
 	/// <summary>
-	/// Persists the new asset row with #807 F5 reference discipline: acquire the
-	/// blob's reference BEFORE the entity write, then release the replaced
-	/// image's reference in the SAME unit of work, after SaveChanges. Physical
-	/// deletion stays exclusively the sweeper's.
+	/// Persists the new asset row, hard-deleting any replaced live rows in the
+	/// SAME unit of work. Reference coordination (#807 F5) belongs to the
+	/// CALLING handler: acquire the incoming blob's reference BEFORE calling
+	/// this method, and release the returned replaced path AFTER it commits.
+	/// Returns the replaced image's relative path (null when the post had no
+	/// live image). Physical deletion stays exclusively the sweeper's.
 	/// </summary>
-	Task AttachAsync(
+	Task<string?> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	);
 
 	/// <summary>
-	/// Removes a post's image: hard-deletes the asset row and releases the
-	/// blob's reference after SaveChanges (same unit of work). Returns false
-	/// when no live asset exists for the post.
+	/// Removes a post's image: hard-deletes the asset row and commits. Returns
+	/// the removed asset's relative path for the CALLING handler to release the
+	/// blob reference after this commit (#807 F5), or null when no live asset
+	/// exists for the post.
 	/// </summary>
-	Task<bool> RemoveAsync(
+	Task<string?> RemoveAsync(
 		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
@@ -71,22 +73,11 @@ public interface IPostMediaAssetService {
 		Guid postId,
 		CancellationToken cancellationToken = default
 	);
-
-	/// <summary>
-	/// Post-deletion cascade, phase 2: releases the blob references collected by
-	/// <see cref="StagePurgeOnPostDeleteAsync"/> AFTER the caller committed the
-	/// deletion (#807 F5: never release before the owning write is durable).
-	/// </summary>
-	Task ReleaseReferencesAsync(
-		IReadOnlyList<string> relativePaths,
-		CancellationToken cancellationToken = default
-	);
 }
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class PostMediaAssetService(
-	AppDbContext dbContext,
-	IUploadAssetReferenceService uploadReferences
+	AppDbContext dbContext
 ) : IPostMediaAssetService {
 	public async Task<Post?> FindOwnedPostAsync(
 		Guid tenantId,
@@ -116,7 +107,7 @@ public sealed class PostMediaAssetService(
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task AttachAsync(
+	public async Task<string?> AttachAsync(
 		AttachPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -134,12 +125,9 @@ public sealed class PostMediaAssetService(
 			? replacedAssets[0].RelativePath
 			: null;
 
-		// Acquire the new blob's reference BEFORE the entity write so the URL
-		// can never commit while its asset still reads zero references (#807 F5).
-		await uploadReferences.TryAddReferenceAsync(
-			args.RelativePath,
-			cancellationToken
-		);
+		// NOTE (#807 F5, #1461): the CALLING handler acquires the new blob's
+		// reference BEFORE calling this method, so the URL can never commit
+		// while its asset still reads zero references.
 
 		var asset = new PostMediaAsset {
 			TenantId = args.TenantId,
@@ -162,17 +150,13 @@ public sealed class PostMediaAssetService(
 		// (EF Core issues same-table deletes before inserts in the batch).
 		await dbContext.SaveChangesAsync(cancellationToken);
 
-		// Release the replaced image's reference AFTER the commit (#807 F5);
-		// physical deletion stays exclusively sweeper's.
-		if (replacedPath is not null) {
-			await uploadReferences.TryReleaseReferenceAsync(
-				replacedPath,
-				cancellationToken
-			);
-		}
+		// Release of the replaced image's reference AFTER this commit (#807 F5)
+		// belongs to the calling handler via the returned path; physical
+		// deletion stays exclusively sweeper's.
+		return replacedPath;
 	}
 
-	public async Task<bool> RemoveAsync(
+	public async Task<string?> RemoveAsync(
 		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
@@ -185,18 +169,16 @@ public sealed class PostMediaAssetService(
 			select a
 		).FirstOrDefaultAsync(cancellationToken);
 		if (asset is null) {
-			return false;
+			return null;
 		}
 
 		var releasedPath = asset.RelativePath;
 		dbContext.ForceHardDelete(asset);
 		await dbContext.SaveChangesAsync(cancellationToken);
 
-		await uploadReferences.TryReleaseReferenceAsync(
-			releasedPath,
-			cancellationToken
-		);
-		return true;
+		// Reference release AFTER this commit (#807 F5) belongs to the calling
+		// handler via the returned path.
+		return releasedPath;
 	}
 
 	public async Task<IReadOnlyList<string>> StagePurgeOnPostDeleteAsync(
@@ -221,14 +203,5 @@ public sealed class PostMediaAssetService(
 		// No SaveChanges here on purpose: the caller (DeletePostForTenant)
 		// commits this together with the post deletion in one transaction.
 		return assets.Select(a => a.RelativePath).ToList();
-	}
-
-	public async Task ReleaseReferencesAsync(
-		IReadOnlyList<string> relativePaths,
-		CancellationToken cancellationToken = default
-	) {
-		foreach (var path in relativePaths) {
-			await uploadReferences.TryReleaseReferenceAsync(path, cancellationToken);
-		}
 	}
 }

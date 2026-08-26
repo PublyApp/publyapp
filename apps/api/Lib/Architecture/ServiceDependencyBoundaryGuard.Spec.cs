@@ -54,13 +54,10 @@ public sealed class ServiceDependencyBoundaryGuardSpec {
 		"TenantAsStaffService → IUploadAssetReferenceService",
 		"TenantUserIdentityService → IUploadAssetReferenceService",
 		"TenantUserMembershipService → IUploadAssetReferenceService",
-		// Same #807 F5 shape as above (ratchet target): PostMediaAssetService
-		// (B3 post images, #1444) acquires the incoming blob's reference BEFORE
-		// the asset write and releases the replaced/purged image's reference
-		// AFTER its own commit or the calling handler's commit — one conditional
-		// UPDATE each, no business branching; if it grows business logic, move
-		// the coordination to the calling handlers and remove this entry.
-		"PostMediaAssetService → IUploadAssetReferenceService",
+		// #1461: the former "PostMediaAssetService → IUploadAssetReferenceService"
+		// entry was removed when the posts media slice's blob-reference
+		// coordination (#807 F5 acquire/release) moved out of the service into
+		// its calling handlers (Attach/Remove image, Delete post).
 	};
 
 	[Fact]

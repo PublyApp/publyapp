@@ -9,6 +9,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Uploads.Entities;
+using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
@@ -33,6 +34,7 @@ public sealed class AttachPostImageForTenant {
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
 		[FromServices] IUploadAdmissionService uploadAdmissionService,
+		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IFileStorage fileStorage,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] ILogger<AttachPostImageForTenant> logger,
@@ -202,10 +204,17 @@ public sealed class AttachPostImageForTenant {
 		// Reserved → Stored: flips the asset state and commits the budget move.
 		await admissionScope.CommitAsync(cancellationToken);
 
-		// Persist the post-owned asset row; the service acquires the blob
-		// reference BEFORE its write and releases any replaced image AFTER
-		// SaveChanges (#807 F5 discipline, one unit of work).
-		await assetService.AttachAsync(
+		// Acquire the incoming blob's reference BEFORE the post-asset write so
+		// the URL can never commit while its asset still reads zero references
+		// (#807 F5 discipline, owned here at the handler boundary per #1461).
+		await uploadReferences.TryAddReferenceAsync(
+			relativePath,
+			cancellationToken
+		);
+
+		// Persist the post-owned asset row; any replaced image's path comes back
+		// for a release AFTER this commit (#807 F5).
+		var replacedPath = await assetService.AttachAsync(
 			new AttachPostMediaArgs(
 				TenantId: tenantId,
 				PostId: postIdGuid,
@@ -218,6 +227,15 @@ public sealed class AttachPostImageForTenant {
 			),
 			cancellationToken
 		);
+
+		// Release the replaced image's reference only AFTER the attach commit is
+		// durable (#807 F5); physical deletion stays exclusively sweeper's.
+		if (replacedPath is not null) {
+			await uploadReferences.TryReleaseReferenceAsync(
+				replacedPath,
+				cancellationToken
+			);
+		}
 
 		return TypedResults.Created(
 			(string?)null,
