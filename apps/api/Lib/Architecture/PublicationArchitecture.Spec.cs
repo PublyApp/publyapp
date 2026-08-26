@@ -61,6 +61,15 @@ namespace PublyApp.Api.Lib.Architecture;
 /// What remains genuinely out of reach, named rather than denied: commands
 /// this DbContext never creates — a psql session, another process, another
 /// context type.
+/// D3 extension: the four scheduling specs (cancel/edit/find/dispatch) join the
+/// test-seed baseline, and the ONE legitimate production birth site —
+/// PublicationService.ScheduleAsync constructing brand-new rows with their
+/// initial Scheduled value at INSERT time — is sanctioned as an exact-path,
+/// object-initialiser-only exemption (stale entries fail, so it ratchets down;
+/// any other production constructor writing Status stays rogue).
+/// Documented residual gap: a reflection writer
+/// (<c>GetProperty("Status").SetValue</c>) or SQL assembled dynamically from pieces
+/// evades any lexical/symbolic scan — same stance as CanaryProbeContainmentSpec.
 /// </summary>
 public sealed partial class PublicationArchitectureSpec {
 	// The single legal writer, relative to apps/api/ with forward slashes.
@@ -89,6 +98,26 @@ public sealed partial class PublicationArchitectureSpec {
 		// reflection write and a direct write) to prove the runtime containment
 		// fires; its writes are arrange-time seeds and guarded-refusal setups.
 		"Modules/Publishing/Lib/PublicationStatusWriteGuard.Spec.cs",
+
+		// D3 scheduling specs seeding publication fixtures:
+		"Modules/Publishing/Handlers/Tenant/CancelPostScheduleForTenant.Spec.cs",
+		"Modules/Publishing/Handlers/Tenant/EditPostScheduleForTenant.Spec.cs",
+		"Modules/Publishing/Handlers/Tenant/FindScheduledPublicationsForTenant.Spec.cs",
+		"Modules/Publishing/Jobs/DispatchDuePosts.Spec.cs",
+		"Modules/Publishing/Jobs/DispatchDuePostsConcurrency.Spec.cs",
+	};
+
+	// The ONE legitimate production BIRTH site: PublicationService creates
+	// brand-new publication rows whose initial Scheduled value is written in the
+	// same object initialiser as the INSERT itself — seeding a birth, not
+	// mutating a lifecycle (every later change MUST go through the transition
+	// service). Exact paths, never a glob; a file here that stops birth-seeding
+	// fails the relevance assertion below so the exemption ratchets down.
+	private static readonly HashSet<string> SanctionedBirthSeedFiles = new(
+		StringComparer.Ordinal
+	) {
+		"Modules/Publishing/Services/PublicationService.cs",
+	};
 	};
 
 	private const string PublicationFullNamespace =
@@ -394,6 +423,17 @@ public sealed partial class PublicationArchitectureSpec {
 			string.Join("\n", staleBaselines)
 		);
 
+		var staleBirthSeeds = SanctionedBirthSeedFiles
+			.Where(path => scan.BirthSeedsByFile.GetValueOrDefault(path) < 1)
+			.OrderBy(path => path, StringComparer.Ordinal)
+			.ToList();
+		_ = staleBirthSeeds.Should().BeEmpty(
+			"every sanctioned birth-seed file must still construct publications "
+				+ "with an initialiser Status; a file that stopped must LEAVE "
+				+ "SanctionedBirthSeedFiles (ratchet down). Stale:\n{0}",
+			string.Join("\n", staleBirthSeeds)
+		);
+
 		scan.RogueWriters.Should().BeEmpty(
 			"only PublicationStatusTransitionService may write Publication.Status; "
 				+ "found {0} rogue writer(s):\n{1}",
@@ -490,7 +530,8 @@ public sealed partial class PublicationArchitectureSpec {
 	private sealed record StatusWriterScan(
 		int SanctionedWrites,
 		IReadOnlyDictionary<string, int> WritesByFile,
-		IReadOnlyList<string> RogueWriters
+		IReadOnlyList<string> RogueWriters,
+		IReadOnlyDictionary<string, int> BirthSeedsByFile
 	);
 
 	private static StatusWriterScan ScanForPublicationStatusWriters(
@@ -499,6 +540,7 @@ public sealed partial class PublicationArchitectureSpec {
 		var compilation = BuildScanCompilation(sources);
 		var rogue = new List<string>();
 		var writesByFile = new Dictionary<string, int>(StringComparer.Ordinal);
+		var birthSeedsByFile = new Dictionary<string, int>(StringComparer.Ordinal);
 
 		foreach (var (relativePath, _) in sources) {
 			var tree = compilation.SyntaxTrees.Single(candidate =>
@@ -513,7 +555,14 @@ public sealed partial class PublicationArchitectureSpec {
 			// how the source is formatted across lines.
 			foreach (var assignment in root.DescendantNodes()
 						.OfType<AssignmentExpressionSyntax>()) {
-				ClassifyAssignment(assignment, model, relativePath, writesByFile, rogue);
+				ClassifyAssignment(
+					assignment,
+					model,
+					relativePath,
+					writesByFile,
+					birthSeedsByFile,
+					rogue
+				);
 			}
 
 			foreach (var invocation in root.DescendantNodes()
@@ -523,6 +572,7 @@ public sealed partial class PublicationArchitectureSpec {
 					model,
 					relativePath,
 					writesByFile,
+					birthSeedsByFile,
 					rogue
 				);
 			}
@@ -565,7 +615,12 @@ public sealed partial class PublicationArchitectureSpec {
 		)
 			? count
 			: 0;
-		return new StatusWriterScan(sanctioned, writesByFile, rogue);
+		return new StatusWriterScan(
+			sanctioned,
+			writesByFile,
+			rogue,
+			birthSeedsByFile
+		);
 	}
 
 	private static Compilation BuildScanCompilation(
@@ -599,6 +654,7 @@ public sealed partial class PublicationArchitectureSpec {
 		SemanticModel model,
 		string relativePath,
 		Dictionary<string, int> writesByFile,
+		Dictionary<string, int> birthSeedsByFile,
 		List<string> rogue
 	) {
 		var info = model.GetSymbolInfo(assignment.Left);
@@ -607,8 +663,10 @@ public sealed partial class PublicationArchitectureSpec {
 			ClassifyResolvedTarget(
 				direct,
 				assignment,
+				model,
 				relativePath,
 				writesByFile,
+				birthSeedsByFile,
 				rogue
 			);
 			return;
@@ -619,8 +677,10 @@ public sealed partial class PublicationArchitectureSpec {
 				ClassifyResolvedTarget(
 					property,
 					assignment,
+					model,
 					relativePath,
 					writesByFile,
+					birthSeedsByFile,
 					rogue
 				);
 				return;
@@ -650,8 +710,10 @@ public sealed partial class PublicationArchitectureSpec {
 	private static void ClassifyResolvedTarget(
 		IPropertySymbol property,
 		SyntaxNode writeSite,
+		SemanticModel model,
 		string relativePath,
 		Dictionary<string, int> writesByFile,
+		Dictionary<string, int> birthSeedsByFile,
 		List<string> rogue,
 		string suffixNote = ""
 	) {
@@ -660,10 +722,13 @@ public sealed partial class PublicationArchitectureSpec {
 		}
 
 		RecordWrite(
+			writeSite,
+			model,
 			relativePath,
 			LineOf(writeSite),
 			SnippetOf(writeSite) + suffixNote,
 			writesByFile,
+			birthSeedsByFile,
 			rogue
 		);
 	}
@@ -673,6 +738,7 @@ public sealed partial class PublicationArchitectureSpec {
 		SemanticModel model,
 		string relativePath,
 		Dictionary<string, int> writesByFile,
+		Dictionary<string, int> birthSeedsByFile,
 		List<string> rogue
 	) {
 		var invokedName = invocation.Expression switch {
@@ -708,8 +774,10 @@ public sealed partial class PublicationArchitectureSpec {
 				ClassifyResolvedTarget(
 					seamTarget,
 					invocation,
+					model,
 					relativePath,
 					writesByFile,
+					birthSeedsByFile,
 					rogue,
 					" [EF ExecuteUpdate SetProperty seam]"
 				);
@@ -725,12 +793,28 @@ public sealed partial class PublicationArchitectureSpec {
 	}
 
 	private static void RecordWrite(
+		SyntaxNode writeSite,
+		SemanticModel model,
 		string relativePath,
 		int line,
 		string snippet,
 		Dictionary<string, int> writesByFile,
+		Dictionary<string, int> birthSeedsByFile,
 		List<string> rogue
 	) {
+		// A write INSIDE a `new Publication { … }` initialiser in a sanctioned
+		// birth file is the row's initial INSERT value, not a lifecycle mutation.
+		// The semantic check binds the created type to the real Publication entity,
+		// so a lookalike class cannot borrow the exemption.
+		if (SanctionedBirthSeedFiles.Contains(relativePath)
+			&& writeSite.Ancestors()
+				.OfType<ObjectCreationExpressionSyntax>()
+				.Any(creation => IsPublicationCreation(creation, model))) {
+			birthSeedsByFile[relativePath] =
+				birthSeedsByFile.GetValueOrDefault(relativePath) + 1;
+			return;
+		}
+
 		writesByFile[relativePath] = writesByFile.GetValueOrDefault(relativePath) + 1;
 
 		if (string.Equals(
@@ -746,6 +830,17 @@ public sealed partial class PublicationArchitectureSpec {
 		}
 
 		rogue.Add($"{relativePath}:{line}: {snippet}");
+	}
+
+	private static bool IsPublicationCreation(
+		ObjectCreationExpressionSyntax creation,
+		SemanticModel model
+	) {
+		var info = model.GetTypeInfo(creation);
+		return info.Type is INamedTypeSymbol created
+			&& created.Name == "Publication"
+			&& created.OriginalDefinition.ContainingNamespace.ToDisplayString()
+				== PublicationFullNamespace;
 	}
 
 	private static bool IsPublicationStatusProperty(IPropertySymbol property) {
