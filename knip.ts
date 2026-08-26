@@ -9,9 +9,54 @@ const config: KnipConfig = {
 		'.': {
 			entry: 'packages/scripts-ts/src/*.ts',
 			project: 'packages/scripts-ts/src/**/*.ts',
+			// `just` is a system binary (extractions/setup-just in CI, brew/pkg
+			// locally), not an npm package: quality-gate.yml's
+			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
+			ignoreBinaries: ['just'],
 		},
 		'apps/api': {
 			entry: 'run-dev.mjs',
+		},
+		'apps/front': {
+			entry: [
+				// Runtime-discovered files knip cannot trace. One line per file,
+				// never a blanket ignore of a whole app.
+				'server.mjs', // prod server: started by the front Docker image CMD (`pnpm start`)
+				'deploy/request-counter/server.mjs', // e2e sidecar service built from deploy/request-counter by docker-compose.test.yml
+				'e2e/helpers/entity-crumb-render-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-entity-crumb.ts, never imported
+				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported
+				'scripts/generate/generate-route-tree.mts', // documented shim kept after #1300 moved the implementation to route-tree-generator.mts
+				'scripts/generate/generate-suppression-inventory.mts', // manual generator; check-design-system.mts tells humans to run it when the inventory drifts
+				'tools/ci/node-24-type-stripping.mts', // manual proof runner; its sibling node-24-type-stripping.test.mts pins it
+				'src/components/ui/drawer-guard-tmp-dir.cjs', // string-keyed require() from drawer-form.test.tsx / the drawer guard, invisible to import analysis
+			],
+			// System binary invoked via execFileSync by the request-counter sidecar
+			// to mint its throwaway TLS cert; not an npm package.
+			ignoreBinaries: ['openssl'],
+		},
+		// Kiota-generated client: this directory IS the public API boundary —
+		// the package exports map publishes every src/*.ts as
+		// `@org/client-ts/<path>`, and consumers import models/endpoints
+		// directly. Making all of src an entry set keeps its exports out of the
+		// unused report while still tracking its runtime dependencies
+		// (@microsoft/kiota-abstractions + the serialization packages imported
+		// by the generated apiClient.ts serializer registration).
+		'packages/client-ts': {
+			entry: ['src/**/*.ts'],
+		},
+		'packages/scripts-ts': {
+			entry: [
+				// Every script here is a CLI run as
+				// `node packages/scripts-ts/src/<name>.ts` (justfile recipes,
+				// workflow steps, runbooks) — no manifest bin field exists for
+				// knip to discover them from.
+				'src/*.ts',
+			],
+			project: ['src/**/*.ts'],
+			// review-front.ts launches the dev server through
+			// `pnpm exec vite` in apps/front (vite is front's own dependency);
+			// this package intentionally does not re-declare it.
+			ignoreBinaries: ['vite'],
 		},
 	},
 };
