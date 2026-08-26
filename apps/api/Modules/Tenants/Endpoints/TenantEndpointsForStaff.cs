@@ -43,6 +43,14 @@ public static class TenantEndpointsForStaff {
 			.WithPermission([AppPermissions.Staff.Tenants.GET]);
 
 		group.MapGet(
+			Routes.Tenants.ForStaff.Usage,
+			GetTenantUsageAsStaff.Handle
+		)
+			.WithName("GetTenantUsage")
+			.WithSummary("Get aggregated usage metrics for a tenant")
+			.WithPermission([AppPermissions.Staff.Tenants.GET]);
+
+		group.MapGet(
 			Routes.Tenants.ForStaff.Find,
 			FindTenantsAsStaff.Handle
 		)

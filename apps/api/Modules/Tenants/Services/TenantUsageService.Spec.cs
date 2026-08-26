@@ -8,14 +8,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
-using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -47,6 +45,12 @@ public sealed class TenantUsageServiceSpec
 		var tenantId = await SeedRichTenantAsync();
 
 		var result = await NewService().GetTenantUsageAsync(tenantId);
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Tenant usage snapshot was empty."
+			);
+		}
 
 		result.UsersTotal.Should().Be(3);
 		result.UsersActive.Should().Be(2);
@@ -56,9 +60,15 @@ public sealed class TenantUsageServiceSpec
 
 	[Fact]
 	public async Task ItShouldExcludeSoftDeletedAndForeignTenantRowsFromCounts() {
-		var (tenantId, otherTenantId) = await SeedTwoTenantsWithNoiseAsync();
+		var (tenantId, _) = await SeedTwoTenantsWithNoiseAsync();
 
 		var result = await NewService().GetTenantUsageAsync(tenantId);
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Tenant usage snapshot was empty."
+			);
+		}
 
 		// Only this tenant's live rows count; soft-deleted rows and another
 		// tenant's rows must never leak into the aggregate.
@@ -74,6 +84,12 @@ public sealed class TenantUsageServiceSpec
 		var tenantId = await SeedTenantWithLastActivityAsync(lastActivity);
 
 		var result = await NewService().GetTenantUsageAsync(tenantId);
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Tenant usage snapshot was empty."
+			);
+		}
 
 		result.LastActivityAt.Should().Be(lastActivity);
 	}
@@ -83,6 +99,12 @@ public sealed class TenantUsageServiceSpec
 		var tenantId = await SeedBareTenantAsync("usage empty");
 
 		var result = await NewService().GetTenantUsageAsync(tenantId);
+		result.Should().NotBeNull();
+		if (result is null) {
+			throw new InvalidOperationException(
+				"Tenant usage snapshot was empty."
+			);
+		}
 
 		result.UsersTotal.Should().Be(0);
 		result.UsersActive.Should().Be(0);
@@ -255,26 +277,39 @@ public sealed class TenantUsageServiceSpec
 		dbContext.Project.AddRange(activeProject, inactiveProject);
 		await dbContext.SaveChangesAsync();
 
-		var post = new Post {
+		var postA = new Post {
 			TenantId = tenantId,
-			Body = "usage spec post",
+			Body = "usage spec post A",
 			CreatedByUserId = owner.GetRequiredId(),
 		};
-		var account = new SocialAccount {
+		var postB = new Post {
+			TenantId = tenantId,
+			Body = "usage spec post B",
+			CreatedByUserId = owner.GetRequiredId(),
+		};
+		var accountOne = new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
-			DisplayHandle = "@usage.bsky.social",
+			DisplayHandle = "@usage-one.bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		dbContext.Post.Add(post);
-		dbContext.SocialAccount.Add(account);
+		var accountTwo = new SocialAccount {
+			TenantId = tenantId,
+			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
+			DisplayHandle = "@usage-two.bsky.social",
+			ProtectedCredentials = "enc-spec-blob",
+		};
+		dbContext.Post.AddRange(postA, postB);
+		dbContext.SocialAccount.AddRange(accountOne, accountTwo);
 		await dbContext.SaveChangesAsync();
 
+		// ux_publications_post_account allows one publication per (post,
+		// account) pair, so spread the rows over distinct pairs.
 		dbContext.Publication.AddRange(
 			new Publication {
 				TenantId = tenantId,
-				PostId = post.GetRequiredId(),
-				SocialAccountId = account.GetRequiredId(),
+				PostId = postA.GetRequiredId(),
+				SocialAccountId = accountOne.GetRequiredId(),
 				Status = PublicationStatus.Scheduled,
 				ScheduledAtUtc = DateTime.UtcNow.AddHours(2),
 				ScheduledTimeZone = "Etc/UTC",
@@ -282,8 +317,17 @@ public sealed class TenantUsageServiceSpec
 			},
 			new Publication {
 				TenantId = tenantId,
-				PostId = post.GetRequiredId(),
-				SocialAccountId = account.GetRequiredId(),
+				PostId = postA.GetRequiredId(),
+				SocialAccountId = accountTwo.GetRequiredId(),
+				Status = PublicationStatus.Scheduled,
+				ScheduledAtUtc = DateTime.UtcNow.AddHours(3),
+				ScheduledTimeZone = "Etc/UTC",
+				IdempotencyKey = $"usage-sched-2-{Guid.NewGuid():N}",
+			},
+			new Publication {
+				TenantId = tenantId,
+				PostId = postB.GetRequiredId(),
+				SocialAccountId = accountOne.GetRequiredId(),
 				Status = PublicationStatus.Published,
 				ScheduledAtUtc = DateTime.UtcNow.AddDays(-1),
 				ScheduledTimeZone = "Etc/UTC",
@@ -353,7 +397,11 @@ public sealed class TenantUsageServiceSpec
 		deletedUser.IsDeleted = true;
 		await dbContext.SaveChangesAsync();
 
-		var project = new Project {
+		var keptProject = new Project {
+			TenantId = tenantId,
+			Name = $"usage-live-project-{Guid.NewGuid():N}",
+		};
+		var doomedProject = new Project {
 			TenantId = tenantId,
 			Name = $"usage-noise-project-{Guid.NewGuid():N}",
 		};
@@ -361,10 +409,10 @@ public sealed class TenantUsageServiceSpec
 			TenantId = otherTenantId,
 			Name = $"usage-other-project-{Guid.NewGuid():N}",
 		};
-		dbContext.Project.AddRange(project, otherProject);
+		dbContext.Project.AddRange(keptProject, doomedProject, otherProject);
 		await dbContext.SaveChangesAsync();
 
-		project.IsDeleted = true;
+		doomedProject.IsDeleted = true;
 		await dbContext.SaveChangesAsync();
 
 		var user = new User {
