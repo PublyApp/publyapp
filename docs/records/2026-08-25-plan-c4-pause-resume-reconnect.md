@@ -4,6 +4,10 @@
 
 **Round 2 revision note:** the round-1 adversarial review found this plan cited a pruned directory, fabricated APIs, non-existent front components/routes/locales, and spec sections that do not exist. Every symbol below was re-verified against `origin/develop`, `origin/lane/wt-641` (C2), and `origin/lane/wt-644` (D1) immediately before writing; Appendix A is the verification ledger. The two dependency branches are named wherever this plan consumes their code.
 
+**Round 3 follow-up (#1443):** Task 1's handler must map the typed `SocialProvider`
+end-to-end — the wire value comes from `SocialAccountWire.FormatProvider(a.Provider)`
+(added in Task 1 Step 3), never a hardcoded `"bluesky"` literal.
+
 **Goal:** Implement Epic C §5 "Failures, reconnection, pause" + §3 "Workspace banner" for C4: switch `SocialAccount.Status` to `NeedsReconnect` on credential failure (completed by D1's job handler; this plan completes the sibling-pause sweep), workspace reconnect banner, pause/resume of scheduled publications, and the past-due pause policy.
 
 **Specs cited (real paths, verified):**
@@ -286,6 +290,20 @@ public async Task<IReadOnlyList<SocialAccountNeedsReconnectItem>>
 }
 ```
 
+Also add to the existing `SocialAccountWire` formatter class in the same file
+(#1443 — the typed provider flows end-to-end; generalize when a second
+provider lands):
+
+```csharp
+public static string FormatProvider(SocialProvider provider) {
+	return provider switch {
+		SocialProvider.Bluesky => "bluesky",
+		_ => throw new ArgumentOutOfRangeException(
+			nameof(provider), provider, "Unhandled SocialProvider"),
+	};
+}
+```
+
 Soft-delete filtering: match however C2's own `FindForTenantAsync` treats `SocialAccount` rows — verify the predicate when implementing and add `!a.IsDeleted` only if the entity carries soft deletes (it inherits `BaseAttributes`, so it does; mirror C2's exact filter rather than inventing one).
 
 - [ ] **Step 4: Add route constant, handler, endpoint mapping**
@@ -339,10 +357,8 @@ public sealed class FindNeedsReconnectAccountsForTenant {
 			Accounts = accounts.Select(a => new AccountItem(
 				a.Id,
 				a.DisplayHandle,
-				// Single-provider reality today, identical to C2's own list mapping
-				// (SocialAccountService projects Provider = "bluesky"); generalize
-				// only when a second provider lands.
-				Provider: "bluesky",
+				// Typed SocialProvider mapped to its snake_case wire value (#1443);
+				SocialAccountWire.FormatProvider(a.Provider),
 				a.LastError
 			)).ToList(),
 		});

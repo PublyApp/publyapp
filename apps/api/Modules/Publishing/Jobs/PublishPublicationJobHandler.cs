@@ -204,6 +204,25 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			cancellationToken
 		);
 		await FlagAccountNeedsReconnectAsync(publication.SocialAccountId, cause, cancellationToken);
+
+		// C4: sibling-pause sweep — the account's other scheduled rows must not sit
+		// queued behind broken credentials. Same sanitised cause everywhere. All moves
+		// go through the transition service, so the architecture writer-scan stays green.
+		var siblings = await _db.Publication
+			.Where(p => p.SocialAccountId == publication.SocialAccountId
+				&& p.TenantId == publication.TenantId
+				&& p.Status == PublicationStatus.Scheduled)
+			.ToListAsync(cancellationToken);
+		foreach (var sibling in siblings) {
+			await _transitions.MarkPausedAsync(
+				new MarkPublicationPausedArgs(
+					sibling.GetRequiredId(),
+					publication.TenantId,
+					cause
+				),
+				cancellationToken
+			);
+		}
 	}
 
 	private async Task<JobOutcome> FailTransientAsync(
