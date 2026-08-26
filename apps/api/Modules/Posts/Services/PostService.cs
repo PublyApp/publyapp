@@ -168,75 +168,21 @@ public class PostService : IPostService {
 			new Dictionary<string, CursorSortFieldHandler<Post>>(
 				StringComparer.OrdinalIgnoreCase
 			) {
-				["created_at"] = new CursorSortFieldHandler<Post>(
-					getCursorValue: async (guid) => {
-						var post = await (
-							from p in _dbContext.Post.AsNoTracking()
-							where p.Id == guid
-								&& p.TenantId == tenantId
-								&& !p.IsDeleted
-							select new { p.CreatedAt, p.Id }
-						).FirstOrDefaultAsync(cancellationToken);
-						return post is not null
-							? (post.CreatedAt, post.Id)
-							: null;
-					},
-					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) {
-							return q;
-						}
-						var (cursorCreatedAt, cursorId) =
-							((DateTime, Guid?))cursorValue;
-						return isAsc
-							? q.Where(p =>
-								p.CreatedAt > cursorCreatedAt
-								|| (p.CreatedAt == cursorCreatedAt
-									&& p.Id > cursorId))
-							: q.Where(p =>
-								p.CreatedAt < cursorCreatedAt
-								|| (p.CreatedAt == cursorCreatedAt
-									&& p.Id < cursorId));
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(p => p.CreatedAt)
-							.ThenBy(p => p.Id)
-						: q.OrderByDescending(p => p.CreatedAt)
-							.ThenByDescending(p => p.Id)
+				["created_at"] = CursorSortFieldHandlerFactory.Create<Post, DateTime, Guid?>(
+					cursorLookupQuery: () => _dbContext.Post
+						.AsNoTracking()
+						.Where(p => p.TenantId == tenantId && !p.IsDeleted),
+					keySelector: p => p.CreatedAt,
+					idSelector: p => p.Id,
+					cancellationToken
 				),
-				["updated_at"] = new CursorSortFieldHandler<Post>(
-					getCursorValue: async (guid) => {
-						var post = await (
-							from p in _dbContext.Post.AsNoTracking()
-							where p.Id == guid
-								&& p.TenantId == tenantId
-								&& !p.IsDeleted
-							select new { p.UpdatedAt, p.Id }
-						).FirstOrDefaultAsync(cancellationToken);
-						return post is not null
-							? (post.UpdatedAt, post.Id)
-							: null;
-					},
-					applyFilter: (q, cursorValue, isAsc) => {
-						if (cursorValue is null) {
-							return q;
-						}
-						var (cursorUpdatedAt, cursorId) =
-							((DateTime, Guid?))cursorValue;
-						return isAsc
-							? q.Where(p =>
-								p.UpdatedAt > cursorUpdatedAt
-								|| (p.UpdatedAt == cursorUpdatedAt
-									&& p.Id > cursorId))
-							: q.Where(p =>
-								p.UpdatedAt < cursorUpdatedAt
-								|| (p.UpdatedAt == cursorUpdatedAt
-									&& p.Id < cursorId));
-					},
-					applyOrdering: (q, isAsc) => isAsc
-						? q.OrderBy(p => p.UpdatedAt)
-							.ThenBy(p => p.Id)
-						: q.OrderByDescending(p => p.UpdatedAt)
-							.ThenByDescending(p => p.Id)
+				["updated_at"] = CursorSortFieldHandlerFactory.Create<Post, DateTime, Guid?>(
+					cursorLookupQuery: () => _dbContext.Post
+						.AsNoTracking()
+						.Where(p => p.TenantId == tenantId && !p.IsDeleted),
+					keySelector: p => p.UpdatedAt,
+					idSelector: p => p.Id,
+					cancellationToken
 				),
 			};
 
