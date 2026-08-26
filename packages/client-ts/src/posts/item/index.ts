@@ -6,6 +6,8 @@ import { createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDis
 // @ts-ignore
 import { ImageRequestBuilderRequestsMetadata, type ImageRequestBuilder } from './image/index.js';
 // @ts-ignore
+import { PublishNowRequestBuilderRequestsMetadata, type PublishNowRequestBuilder } from './publishNow/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -16,6 +18,10 @@ export interface WithPostItemRequestBuilder extends BaseRequestBuilder<WithPostI
      * The image property
      */
     get image(): ImageRequestBuilder;
+    /**
+     * The publishNow property
+     */
+    get publishNow(): PublishNowRequestBuilder;
     /**
      * Delete a post for the current tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -84,6 +90,9 @@ export const WithPostItemRequestBuilderUriTemplate = "{+baseurl}/posts/{postId}"
 export const WithPostItemRequestBuilderNavigationMetadata: Record<Exclude<keyof WithPostItemRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     image: {
         requestsMetadata: ImageRequestBuilderRequestsMetadata,
+    },
+    publishNow: {
+        requestsMetadata: PublishNowRequestBuilderRequestsMetadata,
     },
 };
 /**
