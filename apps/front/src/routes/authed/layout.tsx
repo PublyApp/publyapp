@@ -19,9 +19,12 @@ import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
-} from '~/lib/route-shell';
-import { determineSessionToken, getSessionSurface } from '~/lib/session-scope';
+} from '~/lib/navigation/route-shell';
 import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-context';
+import {
+	determineSessionToken,
+	getSessionSurface,
+} from '~/lib/session/session-scope';
 
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
 import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';

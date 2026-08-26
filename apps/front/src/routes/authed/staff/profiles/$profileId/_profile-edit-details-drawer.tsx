@@ -23,8 +23,8 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
-import { deriveProfileCardStyle } from '~/lib/profile-card-style';
-import { resolveProfileSaveFailure } from '~/lib/profile-edit-details-save-failure';
+import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
+import { resolveProfileSaveFailure } from '~/lib/profiles/profile-edit-details-save-failure';
 import {
 	invalidateStaffProfiles,
 	useUpdateStaffProfileMutation,

@@ -23,7 +23,7 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
-import { resolveProfileSaveFailure } from '~/lib/profile-edit-details-save-failure';
+import { resolveProfileSaveFailure } from '~/lib/profiles/profile-edit-details-save-failure';
 import { useUpdateStaffTenantProfileMutation } from '~/lib/query/staff-tenant-profiles';
 import { invalidateAllStaffTenantScopes } from '~/lib/query/staff-tenants';
 

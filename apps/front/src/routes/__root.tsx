@@ -47,17 +47,17 @@ import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
-} from '~/lib/route-shell';
+} from '~/lib/navigation/route-shell';
 import { ServerFailure } from '~/lib/server/server-failure';
 import { getServerSessionAction } from '~/lib/server/session-actions';
 import { subscribeToSessionInvalidated } from '~/lib/session-invalidation-channel';
+import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
 import {
 	determineSessionToken,
 	getSessionSurface,
 	getSurfaceRedirectCodeQueryKey,
 	shouldRenderAuthenticatedChrome,
-} from '~/lib/session-scope';
-import { SessionSurfaceValidationProvider } from '~/lib/session-surface-recovery-context';
+} from '~/lib/session/session-scope';
 import {
 	COLOR_SCHEME_STORAGE_KEY,
 	SIDEBAR_OPEN_STORAGE_KEY,
