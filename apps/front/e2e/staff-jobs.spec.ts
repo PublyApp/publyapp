@@ -1,5 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
 
+// Cold-mount headroom: the first browser process in a fresh run pays for
+// Chromium launch + lazy route-chunk load across two tab navigations, which
+// can exceed the 30s default whole-test timeout under rapid local re-runs.
+// Matches the repo convention for cold-start-sensitive specs
+// (auth-error.spec.ts, ssr-auth-shell.spec.ts, toast-contrast.spec.ts).
+test.setTimeout(60_000);
+
 import { API_BASE_URL } from './helpers/api';
 import { loginAsStaffAdmin } from './helpers/login';
 
@@ -159,8 +166,13 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 			.getByRole('alertdialog', { name: 'Requeue this job?' })
 			.getByRole('button', { name: 'Requeue', exact: true })
 			.click();
+		// Same sanctioned pattern as the trigger step (and the rest of the e2e
+		// suite: staff-tenant-details.spec.ts / staff-invitations.spec.ts): assert
+		// the specific success toast by its exact text rather than a generic
+		// [data-sonner-toast] locator or a refetch-dependent row count, both of
+		// which flake under cold mounts.
 		await expect(
-			page.locator('[data-sonner-toast][data-type="success"]'),
+			page.getByText('Dead-letter job requeued', { exact: true }),
 		).toBeVisible();
 		await expect(page.getByTestId(DLQ_TABLE)).toBeVisible();
 
@@ -226,14 +238,17 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 	}) => {
 		await loginAsStaffAdmin(page);
 		await page.goto('/staff/jobs/system-jobs');
-		await expect(page.getByTestId(SYSTEM_TABLE)).toBeVisible();
 
-		// The seeder-backed protected row is present on the real stack.
+		// Wait on the real, seeder-backed protected row rather than the bare
+		// table container: a cold deep-link load of this route (lazy route chunk
+		// plus the real system-jobs list fetch) can exceed the default 5s expect
+		// window and flake. The row text only renders once the page mounted AND
+		// the list loaded, so this is a durable readiness signal.
 		const row = page
 			.getByTestId(SYSTEM_TABLE)
 			.getByText(PROTECTED_JOB_KEY)
 			.first();
-		await expect(row).toBeVisible();
+		await expect(row).toBeVisible({ timeout: 20000 });
 
 		// Toggling the K-3 protected definition off is rejected server-side
 		// with the localized `system-job-disable-protected` problem key; the
