@@ -223,7 +223,7 @@ ses portes nommées avant la suivante.
   `staticData.preload` retournant l'entrée unique `{ options: staffTenantDetailsQueryOptions,
   variables: { tenantId } }` (la factory déjà utilisée par la page via
   `useStaffTenantDetailsQuery` ET par son crumb entité).
-* Tests : extension de `apps/front/src/routes/authed/staff/tenants/tenants.test.tsx` — la clé
+* Tests : extension de `apps/front/src/routes/authed/staff/tenants/$tenantId.test.tsx` — la clé
   préchargée égale la clé consommée par la page (extraction des deux depuis les modules réels) ;
   e2e non requis (critère 2 absent : une régression du warming resterait visible au montage via
   QueryDisplay, cf. §9 mesure).
