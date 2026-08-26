@@ -1,5 +1,6 @@
 /**
- * Fixtures for `anti-slop/no-known-value-widening` — the two #1448 escapes.
+ * Fixtures for `anti-slop/no-known-value-widening` — the two #1448 escapes,
+ * plus the round-2 alias-transparency escapes (PR #1501 review).
  *
  * These snippets are intentionally NOT run through `RuleTester.run` in a
  * shared suite with the other rules: each block below is executed against the
@@ -18,6 +19,12 @@
  * the declaration. The literal `{}` carries no evidence of its final shape,
  * so the carve-out for empty literals handed to genuinely-open containers
  * does not apply when post-hoc writes prove the accumulator use.
+ *
+ * Round 2 — alias transparency: classification must follow type aliases to
+ * the real shape. `type X = IndexSigOnlyInterface`, alias chains, instantiated
+ * generic aliases carrying such an interface, `export type` re-exports, and
+ * assertions through the alias must all classify exactly like the direct
+ * reference; aliases over REAL contracts stay clean.
  */
 
 import { RuleTester } from 'oxlint/plugins-dev';
@@ -104,6 +111,56 @@ describe(`anti-slop/${RULE_NAME} (#1448 interface + accumulator fixtures)`, () =
 			),
 			// Generic container flavour of the same bypass.
 			i('const bag: Partial<Record<string, unknown>> = {};\nbag.field = 1;'),
+		],
+	});
+});
+
+describe(`anti-slop/${RULE_NAME} (#1448 r2 alias-transparency fixtures)`, () => {
+	ruleTester.run(RULE_NAME, noKnownValueWideningRule, {
+		valid: [
+			// An alias over a REAL contract is transparent and stays clean.
+			v(
+				'interface Concrete { name: string }\ntype W = Concrete;\nconst value: W = { name: "x" };',
+			),
+			// Same through an instantiated generic alias over a real contract.
+			v(
+				'interface Concrete { name: string }\ntype Box<T> = { value: T };\nconst value: Box<Concrete> = { value: { name: "x" } };',
+			),
+			// A MIXED interface (named member + fallback index signature)
+			// reached THROUGH an alias keeps accepting literal evidence: one
+			// named member closes the opening, alias hops cannot reopen it.
+			v(
+				'interface Registry { version: string; [k: string]: unknown }\ntype RegistryRef = Registry;\nconst registry: RegistryRef = { version: "1" };',
+			),
+		],
+		invalid: [
+			// Single alias hop over an index-signature-only interface: the exact
+			// escape reproduced by the round-1 adversarial review.
+			i(
+				'interface M { [k: string]: string }\ntype X = M;\nconst value: X = { key: "known" };',
+			),
+			// Alias-of-alias chains must stay transparent for classification.
+			i(
+				'interface M { [k: string]: number }\ntype A = M;\ntype B = A;\nconst value: B = { key: 1 };',
+			),
+			// Instantiated generic alias carrying the opening in a property slot.
+			i(
+				'interface M { [k: string]: string }\ntype Wrap<T> = { value: T };\nconst value: Wrap<M> = { value: { key: "known" } };',
+			),
+			// Exported declarations resolve through the same environment map, so
+			// an `export type` re-export must not silence the opening either.
+			i(
+				'export interface M { [k: string]: boolean }\nexport type X = M;\nconst value: X = { key: true };',
+			),
+			// Opening wrapped in a transparent wrapper THROUGH the alias
+			// (`Readonly<M>`): wrapper unwrapping must survive alias hops.
+			i(
+				'interface M { [k: string]: string }\ntype X = Readonly<M>;\nconst value: X = { key: "known" };',
+			),
+			// Assertion position through the alias must report like `as M`.
+			i(
+				'interface M { [k: string]: string }\ntype X = M;\nconst value = { key: "known" } as X;',
+			),
 		],
 	});
 });

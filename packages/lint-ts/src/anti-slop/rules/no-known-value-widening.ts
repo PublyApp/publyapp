@@ -5,7 +5,6 @@ import {
 	classifyWideningTarget,
 	createTypeEnvironment,
 	isKnownEvidenceExpression,
-	resolvesToIndexSignatureOnlyInterface,
 	type TypeEnvironment,
 	type WideningTarget,
 } from '../shared/dictionary-types.ts';
@@ -225,13 +224,21 @@ export const noKnownValueWideningRule = defineRule({
 				// Empty literal into an open container: a legitimate seed unless
 				// the binding receives property writes later in the file
 				// (#1448 item 2). The verdict is deferred to `after`.
-				const variable = resolveVariable(context.sourceCode, node.id);
+				// `BindingIdentifier` and `IdentifierReference` share the
+				// Identifier shape; scope lookup only reads `name`, and the ESTree
+				// variance lives solely in the optional `typeAnnotation`.
+				const variable = resolveVariable(
+					context.sourceCode,
+					node.id as ESTree.IdentifierReference,
+				);
 				if (variable === null) return;
 				emptyAccumulatorDeclarations.add(variable);
 				pendingAccumulatorChecks.push(() => {
 					if (accumulatorWriteCounts.get(variable) === undefined) return;
 					context.report({
-						node: node.init,
+						// Closure capture: the early `node.init === null` return is
+						// invisible to the checker inside the closure.
+						node: node.init ?? node.id,
 						messageId: 'widening',
 						data: { subject, target: destination.kind },
 					});
