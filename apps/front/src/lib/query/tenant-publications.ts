@@ -17,8 +17,9 @@ import {
 export const TENANT_PUBLICATIONS_QUERY_KEY = ['tenant-publications'] as const;
 
 /** The exact wire vocabulary `PublicationWire.FormatStatus` emits — the CSV
- * `status` filter accepts nothing else (backend answers 422 on drift). */
-export const TENANT_PUBLICATION_STATUSES = [
+ * `status` filter accepts nothing else (backend answers 422 on drift).
+ * Module-private: consumers go through `isTenantPublicationStatus`. */
+const TENANT_PUBLICATION_STATUSES = [
 	'scheduled',
 	'in_progress',
 	'published',
