@@ -2,11 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver the missing backend half of #160 (staff impersonation of tenant users) as a complete vertical API slice: an "end impersonation" service method that emits the never-yet-emitted `impersonation.ended` audit action, two staff endpoints (`POST /staff/impersonations` to start, `POST /staff/impersonations/{id}/end` to end), a dedicated `ImpersonationsPermissionsForStaff` slice with `START`/`END` verbs, response-message i18n keys EN+FR, and the regenerated Kiota client. Round 2 adds four blocker-level pieces to the same slice: the downstream **identity-attribution seam** (`IRequestAuthContext.IsImpersonation` + `ImpersonatingStaffUserId`, populated by `SessionAuthFilter`, consumed by every audit write), the **adversarial start guards** (non-staff callers, staff-scope targets, nested impersonations), the **security core** (deny-list, hard applied time limit, explicit exit), and the **tenant-scope banner signal** on `GetScopeAuthData`. The front-end UI half of #160 (start button in the staff user list, end banner in the tenant UI) is deliberately out of scope here and is tracked by the phase 2 issue.
+**Goal:** Deliver the missing backend half of #160 (staff impersonation of tenant users) as a complete vertical API slice: an "end impersonation" service method that emits the never-yet-emitted `impersonation.ended` audit action, two staff endpoints (`POST /staff/impersonations` to start, `POST /staff/impersonations/{id}/end` to end), a dedicated `ImpersonationsPermissionsForStaff` slice with `START`/`END` verbs, response-message i18n keys EN+FR, and the regenerated Kiota client. Round 2 adds four blocker-level pieces to the same slice: the downstream **identity-attribution seam** (`IRequestAuthContext.IsImpersonation` + `ImpersonatingStaffUserId`, populated by `SessionAuthFilter`, consumed by every audit write), the **adversarial start guards** (non-staff callers, staff-scope targets, nested impersonations), the **security core** (deny-list, hard applied time limit, explicit exit), and the **tenant-scope banner signal** on `GetScopeAuthData`. Round 3 makes every guarantee MACHINE-CHECKED instead of asserted: an inventoried + analyzer-enforced + CI-gated attribution rule (Steps 0b–0d), presentation-time enforcement of the time limit inside `SessionAuthFilter.InvokeAsync`, service-path-exercising adversarial specs with named kill mutations (M1–M6), and a fully specified partial unique index with its 409 contract. The front-end UI half of #160 (start button in the staff user list, end banner in the tenant UI) is deliberately out of scope here and is tracked by the phase 2 issue.
 
 **Adversarial core (round-2 review, all blocker-level — addressed in-plan):**
 
-1. **Downstream identity attribution.** An impersonated request MUST be attributable to the REAL staff actor everywhere downstream (authorization filters, handlers, audit writes). Today `SessionAuthFilter` resolves identity solely from `sessionData.User.Id` into `IRequestAuthContext.UserId`, and the context carries no impersonation signal — so every downstream check acts as the victim. Task 5 specifies the context fields, the exact population point, the audit actor rule, and the named RED spec proving an impersonated request records the real staff actor, never the victim.
+1. **Downstream identity attribution (round 3: enforced by machine, not prose).** An impersonated request MUST be attributable to the REAL staff actor everywhere downstream (authorization filters, handlers, audit writes). Today `SessionAuthFilter` resolves identity solely from `sessionData.User.Id` into `IRequestAuthContext.UserId`, and the context carries no impersonation signal — so every downstream check acts as the victim. Task 5 specifies the context fields, the exact population point, the audit actor rule, and the named RED spec proving an impersonated request records the real staff actor, never the victim.
+   **Round 3 honesty requirement:** there is NO single audit seam in this repo today. At the develop tip this plan was reviewed against (`26dcc27698`), `git grep -c "new CreateAuditLogArgs" apps/api` finds **58 construction sites with an explicit `UserId:`**, of which **54** pass `UserId: account.UserId` where `account` comes from `authContext.AccountTenant` / `authContext.AccountStaff` — populated by `TenantAuthFilter.cs:162` / `StaffAuthFilter.cs:55` from the VICTIM's id under impersonation. Four more pass a local variable (`CreateStaffProfile` via `currentUserId = authContext.AccountStaff.UserId`; `AcceptInvitation` twice; the `UploadOrphanReclaimerHandler` job), and the four `*TenantUserCompaniesForStaff` handlers write through `TenantUserCompanyShared.LogBulkActionAsync`, which takes `IRequestAuthContext` but reads `AccountStaff.UserId` directly. A lane implementing "route every audit through `GetAuditActorUserId()`" in good faith would leave **50+ audit rows attributed to the victim**. The plan therefore mandates an INVENTORY (Task 5 Step 0b), a MACHINE-CHECKED GUARD (Task 5 Step 0c: analyzer + reflection test, both fail-closed), and a NAMED CI GATE that runs it (Task 5 Step 0d). Without all three, attribution is advisory prose.
 2. **Adversarial start guards.** A non-staff account cannot start an impersonation; impersonation cannot be nested onto a user who is already being impersonated; a staff-scope account can never be a TARGET. The current `CreateImpersonationSessionAsync` only filters `AccountScope.Tenant && Status != AccountStatus.Suspended`; Task 3 adds the service-boundary guards plus an active-impersonation uniqueness backstop, each proven by a named spec.
 3. **Security core.** What the impersonated session cannot do, a hard enforced time limit with an explicit exit mechanism, and the backend banner contract for #1497 are specified under "Security core guarantees" below and implemented in Tasks 3–5.
 
@@ -15,7 +16,7 @@
 - `IImpersonationService.EndImpersonationSessionForStaffAsync(EndImpersonationSessionArgs, CancellationToken)` — revokes the impersonation session row (hard delete; `sessions` rows are hard-deleted by the existing `CleanupExpiredSessionsHandler` sweep, so hard delete on revoke matches house behavior for session lifecycle) inside one save, emitting the `AuditActions.ImpersonationEnded` audit entry in the same transaction.
 - **Identity attribution (new):** `IRequestAuthContext` gains `bool IsImpersonation { get; set; }` and `Guid? ImpersonatingStaffUserId { get; set; }`; `SessionAuthFilter` populates both from `sessionData.Session.IsImpersonation` / `.ImpersonatingStaffUserId` immediately after resolving `sessionData.User.Id`. Every downstream audit row written during an impersonated request therefore records the REAL staff actor as `UserId` (with the victim preserved as `Details.ActingAsUserId`). Spec: `ItShouldAttributeImpersonatedRequestToRealActorInAudit` (Task 5).
 - **Start guards (new):** the explicit-target creation path rejects staff-scope targets (`403 impersonation-staff-user-required`), rejects targets with an active impersonation session (`409 impersonation-already-impersonated`, backed by a partial unique index), and sits behind `WithStaffAuthorization` so non-staff callers never reach the service.
-- **Security core (new):** deny-list of operations for any impersonated principal (no credential change, no tenant delete, no re-impersonation start/end), a HARD time limit enforced by `Session.IsImpersonationValid()` + the sweep + `ValidateImpersonationSessionAsync`, and an explicit exit surface (`POST /staff/impersonations/{id}/end`). See "Security core guarantees" below.
+- **Security core (new):** deny-list of operations for any impersonated principal (no credential change, no tenant delete, no re-impersonation start/end), a HARD time limit ENFORCED AT PRESENTATION TIME in `SessionAuthFilter.InvokeAsync` — expired, suspended-mid-window, or grant-revoked impersonation sessions are rejected there with 401 and their row deleted (see "Security core guarantees" §3) — and an explicit exit surface (`POST /staff/impersonations/{id}/end`).
 - **Banner signal contract (new):** `GetScopeAuthData` (tenant scope) exposes `is_impersonated` + `impersonation_expires_at` so the phase 2 front (#1497) can render a visible banner for the whole session without any further backend change.
 - Two handlers under `apps/api/Modules/Impersonations/Handlers/Staff/`: `StartImpersonationForStaff.cs` and `EndImpersonationForStaff.cs`.
 - An endpoint group `apps/api/Modules/Impersonations/Endpoints/ImpersonationEndpointsForStaff.cs` mounted at `/staff/impersonations`.
@@ -28,7 +29,12 @@ The start endpoint returns the created impersonation session's token and id so t
 
 ## Global Constraints
 
-1. **No schema changes to existing columns.** Every column the feature needs exists on `sessions` (`Session.cs`). Exactly one additive schema artifact is allowed: a partial unique index backing the no-parallel-impersonation invariant (`CREATE UNIQUE INDEX ux_sessions_one_active_impersonation_per_user ON sessions (user_id) WHERE is_impersonation AND impersonation_expires_at > now()`, added via `just db-add ImpersonationOneActiveImpersonationPerUser`, mapped with `HasFilter`); it must stay expand-only and clean under `just ci-migration-expand-contract`. If anything else proves necessary, stop and re-plan — inventing a table would fork the auth model.
+1. **No schema changes to existing columns.** Every column the feature needs exists on `sessions` (`Session.cs`). Exactly one additive schema artifact is allowed: a partial unique index backing the no-parallel-impersonation invariant, fully specified (round 3):
+   - **Index name:** `ux_sessions_one_active_impersonation_per_user`, on `sessions(user_id)`.
+   - **Predicate (`WHERE`, mapped with `HasFilter`):** `is_impersonation AND impersonation_expires_at > now()` — written in the migration as `"is_impersonation = true AND impersonation_expires_at > now()"`. The temporal clause is NOT optional: a bare `WHERE is_impersonation` lets one expired-but-not-yet-swept row poison the constraint and block every legitimate future impersonation of the same victim until the sweep passes.
+   - **Migration:** added via `just db-add ImpersonationOneActiveImpersonationPerUser`; expand-only, reversible, must stay clean under `just ci-migration-expand-contract`. Verified in-repo pattern to copy: migration `20260822190902_SocialAccountPartialUniqueIndex` (`CreateIndex` with `unique: true, filter:`).
+   - **API response when the index fires:** the creation path catches the `DbUpdateException` raised by this index specifically (constraint-name check) and maps it to the SAME typed result as the pre-check — `ImpersonationCreateResult.AlreadyImpersonated` → handler returns **409** `TypedProblems.Conflict(..., ResponseKeys.ImpersonationAlreadyImpersonated)` with plain-words cause text ("This user already has an active impersonation session"). Never a raw 500 (transparent-failure product rule, 2026-08-22).
+   If anything else proves necessary, stop and re-plan — inventing a table would fork the auth model.
 2. **Hard delete on revoke, matching session-lifecycle house style.** `CleanupExpiredSessionsHandler` hard-deletes expired `sessions` rows; there is no `IsDeleted` soft-delete flag on `Session : INoTenantEntity`. Revoking an impersonation session therefore means removing its row.
 3. **Audit atomicity.** The `impersonation.ended` audit row and the session deletion commit together or not at all — same contract the existing green spec `ItShouldRollbackSessionAndAuditWhenAuditInsertFails` already proves for creation. The end path must be held to the identical standard: if the audit insert fails, the session row survives.
 4. **Transparent failure causes** (owner product rule): every failure this surface returns names what went wrong in plain words with a stable translation key — `impersonation-not-found`, `impersonation-already-ended`, `impersonation-staff-user-required`, `impersonation-user-not-in-tenant`, `impersonation-already-impersonated`. Never a bare 404 without cause text, never a generic 500.
@@ -48,7 +54,23 @@ The start endpoint returns the created impersonation session's token and id so t
    - **Change credentials** — password mutation flows (`ResetPassword`, `RequestPasswordReset`) require out-of-band email control of the victim's inbox; this plan adds no authenticated credential-mutation endpoint, and if one ever exists it MUST be denied to impersonated principals (guard note recorded in the phase-2 issue #1497).
    - **Delete (or mutate tenancy state of) the tenant** — `DeleteTenantAsStaff` and bulk variants are `/staff/*` routes behind permission filters; an impersonated session resolves NO staff `UserAccount` (`StaffAuthFilter` looks up accounts by `authContext.UserId`, which is the VICTIM's id, a tenant-scope user), so every `/staff/*` route returns 403 for it. Proven by `ItShouldReturnForbiddenForImpersonatedSessionOnStaffRoutes` (Task 5).
    - **Re-impersonate** — starting or ending an impersonation requires `staff_impersonations.*` grants resolved from a staff account; an impersonated principal has none. Additionally the service-level nesting guard rejects ANY second active impersonation for the same victim regardless of caller (spec `ItShouldRejectNestedImpersonationAtServiceBoundary`).
-3. **Hard time limit, applied:** `DurationMinutes` is capped by `StartImpersonationForStaffBodyValidator` (max 480); `CreateImpersonationSessionAsync` clamps to that ceiling server-side; enforcement is three-layered — (a) `Session.IsImpersonationValid()` gates every validation, (b) `CleanupExpiredSessionsHandler` hard-deletes the row once `expires_at` passes, (c) `ValidateImpersonationSessionAsync` re-checks on every presentation. Expiry is thus enforced, not a column default.
+3. **Hard time limit, applied at presentation time (round-3 rewrite of a false round-2 claim):** `DurationMinutes` is capped by `StartImpersonationForStaffBodyValidator` (max 480); `CreateImpersonationSessionAsync` clamps to that ceiling server-side. Round 2 claimed "three-layer enforcement"; verified against the develop tip this plan is reviewed under (`26dcc27698`), that claim was half-fiction: `ValidateImpersonationSessionAsync` (`apps/api/Modules/Impersonations/Services/ImpersonationService.cs:118`) has **zero callers** today (`git grep -n ValidateImpersonationSessionAsync apps/api` matches only its interface declaration at line 23 and its implementation at line 118), and `Session.IsImpersonationValid()` (`apps/api/Modules/Auth/Entities/Session.cs:59`) is read only inside that dead method. The only live layer was the `CleanupExpiredSessionsHandler` sweep — a cadence job that by construction cannot reject an expired token PRESENTED before its next pass, so an expired-but-not-yet-swept impersonation session kept authenticating as the victim. The enforced contract is:
+   - **(a) Presentation time — `SessionAuthFilter.InvokeAsync` is the named enforcement point.** After `sessionData` resolves non-null and BEFORE populating any context (`authContext.SessionToken = sessionToken; authContext.UserId = sessionData.User.Id;`), the filter rejects a dead impersonation session:
+
+```csharp
+if (sessionData.Session.IsImpersonation && !sessionData.Session.IsImpersonationValid()) {
+	// Expired impersonation presented before the sweep reached it. Hard-delete
+	// the dead row now (same ExecuteDeleteAsync motif SessionService
+	// .GetSessionByToken already applies to expired ORDINARY sessions) and reject.
+	return TypedProblems.Unauthorized("Session token is invalid or expired", ResponseKeys.Unauthorized);
+}
+```
+
+     Response: **401 with the same generic body and key as every other invalid session** (`ResponseKeys.Unauthorized`) — never a message that discloses impersonation state to whoever holds the cookie. This call site is also what makes `ValidateImpersonationSessionAsync` stop being dead code: the filter invokes it (or the equivalent `IsImpersonationValid()` predicate) here, per presentation. The accompanying row deletion goes through the injected `ISessionService`/scoped DbContext the filter already resolves from `httpContext.RequestServices`, mirroring `GetSessionByToken`'s own expiry handling so the sweep never processes the row twice.
+   - **(b) Mid-window staff suspension or grant loss — enforced at the same choke point.** Today the only "is this staff still staff" control lives in `StaffAuthFilter`, which tenant routes bypass, so a suspended staff member's combined cookie kept acting as the victim for up to 480 minutes. Therefore, whenever the presenting session is an impersonation session, `SessionAuthFilter.InvokeAsync` additionally checks that the STAFF user behind `sessionData.Session.ImpersonatingStaffUserId` is not deleted / suspended / unverified — the same predicate `GetSessionByToken` already applies to the victim, one extra indexed `users` lookup per impersonated request — and that `staff_impersonations.start` still resolves for that staff id through `IPermissionService.GetPermissionsAsync` (the same per-request resolution `PermissionFilter` performs; cost accepted deliberately: impersonation is a high-privilege mode and its validity is checked as often as it is used). Failure of either check deletes the impersonation row and returns the same 401. Contract: suspension or grant revocation takes effect at the NEXT request, never later; no zombie window.
+   - **(c) Sweep — demoted to janitor.** `CleanupExpiredSessionsHandler` keeps cleaning up rows nobody presents again. It is a hygiene layer, NEVER relied on for enforcement.
+
+   Expiry is thus enforced where tokens are accepted, not by a column default and not by a cadence job.
 4. **Explicit exit mechanism:** `POST /staff/impersonations/{id}/end` revokes the row transactionally with the ended-audit (Task 4). Exit does not depend on expiry.
 5. **Visible-banner backend contract:** `GetScopeAuthData` (tenant scope) gains `IsImpersonated` + `ImpersonationExpiresAt` on `GetScopeAuthDataTenant`, serialized camelCase (`is_impersonated`, `impersonation_expires_at`) and regenerated into the Kiota client. The banner UI itself is #1497's job; the backend signal ships here and is proven by `ItShouldExposeIsImpersonatedToTenantScopeClients` (Task 5).
 6. **Audit trail:** `impersonation.started` AND `impersonation.ended` rows record actor + target + reason (+ duration at start); downstream audits during an impersonated request record the real staff actor per the identity-attribution rule.
@@ -59,7 +81,7 @@ The start endpoint returns the created impersonation session's token and id so t
 
 - `apps/api/Modules/Impersonations/Services/ImpersonationService.cs` — add `EndImpersonationSessionForStaffAsync(EndImpersonationSessionArgs, CancellationToken)` returning a discriminated result (`Ended` | `NotFound` | `AlreadyEnded`); add `EndImpersonationSessionArgs(Guid SessionId, Guid EndedByStaffUserId)` record. Extend the creation path with the explicit-target overload carrying the staff-target and nesting guards (Task 3). Keep `CreateImpersonationSessionAsync`'s existing throw-based contract for `TargetUserId == null`.
 - `apps/api/Lib/RequestAuthContext.cs` — add `bool IsImpersonation { get; set; }` and `Guid? ImpersonatingStaffUserId { get; set; }` to `IRequestAuthContext` + `RequestAuthContext` (identity-attribution seam).
-- `apps/api/Lib/Filters/SessionAuthFilter.cs` — populate the two new context fields from `sessionData.Session` immediately after `authContext.UserId = sessionData.User.Id;`.
+- `apps/api/Lib/Filters/SessionAuthFilter.cs` — populate the two new context fields from `sessionData.Session` immediately after `authContext.UserId = sessionData.User.Id;`; AND reject at presentation time any impersonation session that is expired, or whose staff actor is suspended/deleted/unverified, or whose staff lost `staff_impersonations.start` (401 + row deletion — Security core guarantees §3a/§3b).
 - `apps/api/Modules/Auth/Handlers/GetScopeAuthData.cs` — add `IsImpersonated` / `ImpersonationExpiresAt` to `GetScopeAuthDataTenant` (banner signal contract).
 - `apps/api/Lib/AppPermissions.cs` — add `public ImpersonationsPermissionsForStaff Impersonations { get; } = new();` to `StaffScopePermissions`.
 - `packages/shared-ts/src/lib/i18n/json/response-message.en.json` + `.fr.json` — add the seven failure/success keys listed in Task 4.
@@ -76,6 +98,8 @@ The start endpoint returns the created impersonation session's token and id so t
 - `apps/api/Modules/Impersonations/Handlers/Staff/EndImpersonation.Spec.cs`
 - one EF migration adding the partial unique index of Global Constraint 1 (`just db-add ImpersonationOneActiveImpersonationPerUser`)
 - `apps/api/Lib/Filters/SessionAuthFilter.Spec.cs` (attribution population unit specs)
+- `packages/lint-cs/ImpersonationVictimAsAuditActorAnalyzer.cs` (+ `.Spec.cs`) — the machine-checked attribution guard, Task 5 Step 0c
+- `apps/api/Lib/Architecture/AuditAttributionGuard.Spec.cs` — reflection guard over all `CreateAuditLogArgs` constructors in auth-aware types, Task 5 Step 0c
 
 ---
 
@@ -254,7 +278,7 @@ git commit -m "feat(impersonations): /staff/impersonations endpoint group (#160)
 Design decisions (with alternatives):
 
 - **Who gets impersonated?** The request names the target user explicitly (`targetUserId`), not just the tenant. Alternative rejected: deriving the target from the tenant's highest-level account like `CreateImpersonationSessionAsync` does today — that silently impersonates whichever account sorts first, which is wrong for support flows aimed at a specific user and makes audits ambiguous about who was actually impersonated. The service gains an explicit-target overload; the legacy highest-level default remains for compatibility but the endpoint always passes an explicit target. The endpoint validates the target belongs to the named tenant and is an active tenant-scope account (service-level guard, mirrors the suspended-account exclusion already in the service).
-- **Who can never be a target (service-boundary guards):** the explicit-target path resolves the target's `UserAccount` and rejects any `AccountScope.Staff` match with `ImpersonationResult.StaffUserRequired` (mapped by the handler to 403 `impersonation-staff-user-required`); combined with the tenant-scope predicate this makes a staff-scope target unstartable even for admins. Nesting is impossible: if the target user already holds an active impersonation session (`IsImpersonation && ImpersonationExpiresAt > UtcNow` on any row for that `UserId`), the service returns `ImpersonationResult.AlreadyImpersonated` → 409 `impersonation-already-impersonated`, backed by the partial unique index of Global Constraint 1 as a race backstop. Both guards are proven by named specs in Step 1.
+- **Who can never be a target (service-boundary guards):** the explicit-target path resolves the target's `UserAccount` and rejects any `AccountScope.Staff` match with `ImpersonationResult.StaffUserRequired` (mapped by the handler to 403 `impersonation-staff-user-required`); combined with the tenant-scope predicate this makes a staff-scope target unstartable even for admins. Nesting is impossible: if the target user already holds an active impersonation session (`IsImpersonation && ImpersonationExpiresAt > UtcNow` on any row for that `UserId`), the service returns `ImpersonationCreateResult.AlreadyImpersonated` → handler maps to **409** `TypedProblems.Conflict(..., ResponseKeys.ImpersonationAlreadyImpersonated)`; if the pre-check misses a race, the partial unique index fires (Global Constraint 1) and the SAME typed result and 409 come back out of the caught `DbUpdateException` — the race loser gets the identical plain-words cause, never a 500. Both guards are proven by named specs in Step 1 that exercise the SERVICE path directly (see the rewritten spec bodies: they construct callers/targets that reach the guards, not callers that die in upstream filters).
 - **Why 201 Created:** house rule — create success → 201 `Created<T>` with entity DTO (AGENTS.md response-format rule), matching `CreateSystemNotice`.
 - **Token exposure:** the response carries the raw impersonation token once, over the authenticated staff channel — the same trust level as `auth/login`'s response. It is needed once to compose the combined cookie; there is no other read path for it.
 
@@ -293,11 +317,48 @@ public async Task ItShouldAllowStaffWithExplicitStartGrant() {
 }
 
 [Fact]
-public async Task ItShouldReturnForbiddenWhenCallerIsNotAStaffAccount() {
+public async Task ItShouldPinStaffAuthFilterBoundaryForNonStaffCallers() {
+	// Scope note (round 3): this spec pins the FILTER boundary, not the service guard.
 	// Seed an active TENANT-scope user (no UserAccount row with Scope == Staff);
-	// login; POST /staff/impersonations → 403 ResponseKeys.NotAStaffUser.
-	// This pins the StaffAuthFilter boundary INDEPENDENTLY of permission grants:
-	// a non-staff account can never start an impersonation, grant or no grant.
+	// login; POST /staff/impersonations → 403 ResponseKeys.NotAStaffUser,
+	// independent of permission grants. Its paired kill is mutation M5
+	// (remove WithPermission from the route), NOT a service-guard deletion:
+	// deleting the service guards leaves this spec green BY DESIGN, because
+	// StaffAuthFilter answers first. The service-path guards have their own
+	// direct-service specs below.
+}
+
+[Fact]
+public async Task ItShouldRejectNestedImpersonationAtServiceBoundary() {
+	// ROUND-3 REWRITE — must reach the service guard, not die upstream.
+	// DIRECT-SERVICE leg (primary evidence): build the service from the fixture
+	// scope (pattern of ImpersonationService.Spec.ItShouldRollbackSessionAnd-
+	// AuditWhenAuditInsertFails) and call CreateImpersonationSessionAsync twice
+	// with explicit TargetUserId = V while S1 is active → second call returns
+	// ImpersonationCreateResult.AlreadyImpersonated; assert NO second row
+	// (exactly ONE active impersonation row for V) and no second started-audit.
+	// No HTTP, no login, no permission filters involved: the assertion fails if
+	// the nesting pre-check OR the unique-index backstop is removed (either one
+	// lets the second row exist).
+	// HTTP twin (secondary): caller holding staff_impersonations.start POSTs
+	// again → 409 TranslationKey == "impersonation-already-impersonated"
+	// (proves the handler mapping, not the guard).
+}
+
+[Fact]
+public async Task ItShouldReturnForbiddenWhenTargetUserIsStaffScope() {
+	// ROUND-3 REWRITE — the round-2 wording was wrong: "independent of grants"
+	// is false, because without staff_impersonations.start the request dies at
+	// the permission filter long before the service guard. Construct a caller
+	// that DOES hold the grant: SeedStaffUserAsync(email, AccountLevel.User)
+	// plus a staff profile carrying exactly ["staff_impersonations.start"]
+	// (pattern: FindTenantsAsStaff.Spec.cs helpers), then POST {
+	// tenantId: <target's staff tenant>, targetUserId: <staff-scope user> }
+	// → 403 TranslationKey == "impersonation-staff-user-required"; no sessions
+	// row, no audit row. Kill test: remove ONLY the
+	// `if (accountStaff.Scope == AccountScope.Staff) return StaffUserRequired;`
+	// guard from the explicit-target service path → THIS spec goes RED while
+	// every other spec stays green (that asymmetry is the point).
 }
 
 [Fact]
@@ -309,11 +370,24 @@ public async Task ItShouldRejectNestedImpersonationAtServiceBoundary() {
 	// TranslationKey == "impersonation-already-impersonated".
 }
 
+// (renamed/relocated: see ItShouldRejectNestedImpersonationAtServiceBoundary above —
+// the HTTP twin lives in StartImpersonation.Spec.cs; the primary nested-call
+// evidence is the direct-service leg.)
+
 [Fact]
-public async Task ItShouldReturnForbiddenWhenTargetUserIsStaffScope() {
-	// Seed a STAFF-scope user; POST { tenantId: <their staff tenant header value>,
-	// targetUserId: <staff user> } → 403 TranslationKey == "impersonation-staff-user-required";
-	// no sessions row, no audit row.
+public async Task ItShouldReturnForbiddenWhenTargetUserIsStaffScopeOverHttp() {
+	// HTTP twin of the direct-service staff-target spec: same granted caller
+	// shape (["staff_impersonations.start"] profile, AccountLevel.User),
+	// staff-scope target → 403 "impersonation-staff-user-required" over the wire.
+}
+
+[Fact]
+public async Task ItShouldRecordTargetUserIdInStartAuditDetails() {
+	// Closes the round-2 F2 hole (a mutation dropping TargetUserId from the
+	// start-audit details was caught by NOTHING): create an impersonation via
+	// the explicit-target path, open audit_logs, assert the started row carries
+	// Details.TargetUserId == <seeded victim user id> AND UserId == <acting
+	// staff id> AND TargetId == tenantId. Paired kill: Mutation M6.
 }
 ```
 
@@ -500,7 +574,7 @@ public async Task<ImpersonationEndResult> EndImpersonationSessionForStaffAsync(
 
 `AddEndAuditEntry` mirrors `AddAuditEntry` but uses `AuditActions.ImpersonationEnded` with `details: { EndedByStaffUserId, StartedByStaffUserId = session.ImpersonatingStaffUserId, Reason = session.ImpersonationReason }` and `ipAddress`/`userAgent` from the accessor like the start path.
 
-**Start-audit fix (follow-up F2, fixed here):** `AddAuditEntry` currently records only `targetId: tenantId`, dropping the exact impersonated user. With the explicit-target path the service KNOWS the victim (`resolved.UserId`), so the new explicit-target creation writes `details: { Reason, Duration, TargetUserId = resolved.UserId }` (and `targetId` stays the tenant for tenant-level queries). The legacy highest-level path keeps its current shape. Spec additions in Step 1 assert `Details.TargetUserId == <seeded victim user id>` on the started row.
+**Start-audit fix (follow-up F2, fixed here):** `AddAuditEntry` currently records only `targetId: tenantId`, dropping the exact impersonated user. With the explicit-target path the service KNOWS the victim (`resolved.UserId`), so the new explicit-target creation writes `details: { Reason, Duration, TargetUserId = resolved.UserId }` (and `targetId` stays the tenant for tenant-level queries). The legacy highest-level path keeps its current shape. The dedicated assertion is Task 3 Step 1's `ItShouldRecordTargetUserIdInStartAuditDetails`, and its paired kill is Mutation M6 — without that pairing a lane dropping `TargetUserId` ships green (the round-2 review's exact finding).
 
 - [ ] **Step 3: GREEN — handler.** `EndImpersonationForStaff` maps: `Ended` → 200 `Ok<ApiResponse>` message "Impersonation ended successfully" + key; `AlreadyEnded` → 200 `Ok<ApiResponse>` with key `impersonation-already-ended` (plain words: the session had already expired); `NotFound` → 404 `TypedProblems.NotFound("No active impersonation session for this id", ResponseKeys.ImpersonationNotFound)` (plain words cover the swept-row case: the session is not active, whether revoked, expired-and-swept, or never real); malformed `{sessionId}` → 400 `ResponseKeys.MalformedId`.
 
@@ -530,7 +604,7 @@ git commit -m "feat(impersonations): end impersonation endpoint + ended-audit (#
 
 **Files:** extend the two handler spec files from Tasks 3–4; create `apps/api/Lib/Filters/SessionAuthFilter.Spec.cs`; extend `apps/api/Modules/Auth/Handlers/GetScopeAuthData.Spec.cs`.
 
-- [ ] **Step 0 (BLOCKER 1): identity-attribution seam.** This is the mechanism that makes an impersonated request attributable to the REAL staff actor everywhere downstream.
+- [ ] **Step 0a (BLOCKER, round 2): identity-attribution seam.** This is the mechanism that makes an impersonated request attributable to the REAL staff actor everywhere downstream. Steps 0b–0d below make the seam ENFORCEABLE — the round-3 review established that "every audit write routes through this extension" is currently FALSE in this repo, so the seam ships together with an inventory, a machine-checked guard, and a CI gate.
 
   **Context fields.** Add to `IRequestAuthContext` / `RequestAuthContext`:
 
@@ -587,6 +661,31 @@ public async Task ItShouldLeaveContextUnmarkedForOrdinarySessions() {
 	// IsImpersonation == false, ImpersonatingStaffUserId == null.
 }
 ```
+
+- [ ] **Step 0b (BLOCKER, round 3): INVENTORY of every audit-write site that can attribute an action to the victim.** The plan does not get to say "all audits flow through the seam" — it must prove it. Command that produces the list (run at implementation time, tip recorded in the PR):
+
+```bash
+# All construction sites (expect ~58 at tip 26dcc27698; re-count at your tip):
+git grep -n -A1 "new CreateAuditLogArgs" -- apps/api | grep "UserId:"
+# Sites passing account.UserId (victimized under impersonation — expect ~54):
+git grep -n -A1 "new CreateAuditLogArgs" -- apps/api | grep -c "UserId: account.UserId,"
+# Local-variable / other sources (expect 4: AcceptInvitation x2, CreateStaffProfile,
+# UploadOrphanReclaimerHandler):
+git grep -n -A1 "new CreateAuditLogArgs" -- apps/api | grep "UserId:" | grep -v "UserId: account.UserId,"
+# Indirect IRequestAuthContext-aware writers reading AccountStaff.UserId directly:
+git grep -n "AccountStaff.UserId\|AccountTenant.UserId" -- apps/api | grep -v Spec
+```
+
+  Deliverable: `.dump/audit-inventory.md` (untracked, referenced from the PR body) listing every site with file:line, its current `UserId:` source expression, and its disposition — migrated to `authContext.GetAuditActorUserId()`, replaced by an explicit actor parameter, or EXEMPT with a reason (anonymous surfaces like `AcceptInvitation` run without an impersonatable session; background jobs like `UploadOrphanReclaimerHandler` carry no `IRequestAuthContext` and keep their explicit ids). Known shape at the reviewed tip: 58 sites total, 54 via `account.UserId` (`AccountTenant`/`AccountStaff`, populated by `TenantAuthFilter.cs:162` / `StaffAuthFilter.cs:55` with the VICTIM's id under impersonation), 4 local-variable sites, plus the four `*TenantUserCompaniesForStaff` handlers writing through `TenantUserCompanyShared.LogBulkActionAsync` which reads `AccountStaff.UserId` behind an `IRequestAuthContext` parameter.
+
+- [ ] **Step 0c (BLOCKER, round 3): MACHINE-CHECKED GUARD, fail-closed, two layers.** Neither layer is optional; they catch different populations:
+
+  1. **Roslyn analyzer in `packages/lint-cs`** (new diagnostic, e.g. `PUBLY0010 ImpersonationVictimAsAuditActorAnalyzer`): flags a handler/service type that resolves `IRequestAuthContext` (constructor param, `@using`-reachable property, or `httpContext.RequestServices.GetRequiredService<IRequestAuthContext>()`) when inside that type a `CreateAuditLogArgs` receives `UserId:` from `.AccountTenant.UserId`, `.AccountStaff.UserId`, or a local variable initialized from either — UNLESS the argument is wrapped in `authContext.GetAuditActorUserId()` or the type carries `[SuppressImpersonationActorRule]` (attribute shipped WITH the analyzer; suppression allowed ONLY for the exempt classes enumerated in Step 0b, each carrying a justification comment). Style follows the existing analyzers in that project (`NullForgivingOperatorAnalyzer`, `SessionTokenLoggingAnalyzer`); `TreatWarningsAsErrors` in `Directory.Build.props` turns the diagnostic into a build failure, and `apps/api/PublyApp.Api.csproj` already references `PublyApp.Analyzers.csproj`, so EVERY `dotnet build` enforces it.
+  2. **Reflection guard test co-located with the analyzers' consumers** (`apps/api/Lib/Architecture/AuditAttributionGuard.Spec.cs`, house style of `EndpointPermissionMetadataGuard.Spec.cs`): loads the API assembly, finds every type that (transitively, one level) references `IRequestAuthContext` AND constructs `CreateAuditLogArgs`, and asserts none builds `UserId:` from `AccountTenant.UserId` / `AccountStaff.UserId` / a local sourced from them while leaving `IRequestAuthContext.IsImpersonation` unread. Catches what syntax-based analysis misses (helper indirection like `TenantUserCompanyShared.LogBulkActionAsync` — which must migrate to accept the resolved actor id explicitly).
+
+  RED proof for the guard itself: temporarily revert ONE migrated site (e.g. `DeletePostForTenant` back to `UserId: account.UserId`) → analyzer diagnostic fires and `dotnet build` fails; reflection spec fails naming file:type; restore → green. Record both outputs in `.dump/proof-red.md`.
+
+- [ ] **Step 0d (BLOCKER, round 3): NAMED CI GATE carrying the guard.** A gate CI does not run protects nothing. The analyzer rides every compilation: CI workflow `api-tests.yml` builds the API before running tests, so a violating diff fails there. The reflection spec rides the API suite: locally mirrored by `just test-api` / `just ci` (which runs the full API suite — CI itself never does), and reconciled in `packages/scripts-ts/src/ci-gate-manifest.json` under the `api-tests.yml::suite::Run full API test suite` mirror entry. The PR body lists BOTH gates verbatim (analyzer → api-tests.yml build; AuditAttributionGuard.Spec → just ci / just test-api) so review can check the wiring instead of trusting prose.
 
 - [ ] **Step 1: End-to-end HTTP cases for the END route** (in `EndImpersonation.Spec.cs`):
 
@@ -646,10 +745,25 @@ public async Task ItShouldReturnForbiddenForImpersonatedSessionOnStaffRoutes() {
 
 - [ ] **Step 2: Paired RED proof for `.dump/proof-red.md`.** For each new spec family, capture md5 of the mechanism file before mutation, apply the named adversarial mutation, run the new tests → RED, restore, verify md5 unchanged, run again → GREEN:
 
-  1. **Mutation M1 (end path):** in `EndImpersonationSessionForStaffAsync`, delete the `AddEndAuditEntry(args, session);` line (audit skipped). Expected RED: `ItShouldEndSessionEmittingImpersonationEndedAudit` fails (no audit row); `ItShouldRollBackEndWhenAuditInsertFails` still passes (nothing to roll back is vacuously true — noted in the proof doc).
-  2. **Mutation M2 (start path):** in `CreateImpersonationSessionAsync`, remove `AddAuditEntry(...)` similarly → `ItShouldCreateSessionAndAuditOnSuccess` goes RED.
-  3. **Mutation M3 (attribution seam):** in `SessionAuthFilter`, revert the population lines so `IsImpersonation` stays `false` (delete the two assignment lines) → `ItShouldPopulateImpersonationContextFromSessionData` goes RED, and the service-level attribution assertion in `ItShouldAttributeImpersonatedRequestToRealActorInAudit` goes RED (actor resolves back to the victim).
-  4. **Mutation M4 (nesting guard):** in the explicit-target creation path, delete the active-impersonation pre-check (steps resolving `AlreadyImpersonated`) → `ItShouldRejectNestedImpersonationAtServiceBoundary` goes RED unless the partial unique index catches the insert; the spec therefore asserts BOTH the typed result AND that the second call left exactly ONE impersonation row for the victim.
+  1. **Mutation M1 (end path)** — pairs: `ItShouldEndSessionEmittingImpersonationEndedAudit`, `ItShouldRollBackEndWhenAuditInsertFails`. In `EndImpersonationSessionForStaffAsync`, delete the `AddEndAuditEntry(args, session);` line (audit skipped). Expected RED: `ItShouldEndSessionEmittingImpersonationEndedAudit` fails (no audit row); `ItShouldRollBackEndWhenAuditInsertFails` still passes (nothing to roll back is vacuously true — noted in the proof doc).
+  2. **Mutation M2 (start path)** — pairs: `ItShouldCreateSessionAndAuditOnSuccess`. In `CreateImpersonationSessionAsync`, remove `AddAuditEntry(...)` similarly → RED.
+  3. **Mutation M3 (attribution seam)** — pairs: `ItShouldPopulateImpersonationContextFromSessionData`, `ItShouldAttributeImpersonatedRequestToRealActorInAudit`. In `SessionAuthFilter`, revert the population lines so `IsImpersonation` stays `false` (delete the two assignment lines) → both go RED.
+  4. **Mutation M4 (nesting guard)** — pairs: `ItShouldRejectNestedImpersonationAtServiceBoundary` (direct-service leg). Delete the active-impersonation pre-check AND drop the unique index (or the spec asserts BOTH the typed result AND exactly ONE remaining impersonation row for the victim, so either removal alone turns it RED).
+  5. **Mutation M5 (route authorization, NEW — closes the "no named mutation" gap on the non-staff-caller family):** remove `.WithPermission([AppPermissions.Staff.Impersonations.START])` from the start route → `ItShouldReturnForbiddenForNonAdminWithoutStartGrant` goes RED (the empty-grant caller gets through to the handler instead of 403). Conversely, `ItShouldPinStaffAuthFilterBoundaryForNonStaffCallers` survives M5 BY DESIGN — it pins `StaffAuthFilter`, whose kill is removing `.WithStaffAuthorization()` from the `/staff/*` group; the plan documents this division so no one mistakes the filter-pin for service-guard coverage.
+  6. **Mutation M6 (start-audit victim detail, NEW — closes the round-2 F2 hole):** in the explicit-target creation's `AddAuditEntry(...)`, delete `TargetUserId = resolved.UserId` from `details` → `ItShouldRecordTargetUserIdInStartAuditDetails` goes RED; nothing else in the suite changes. Without M6 + that spec, "the start audit keeps the exact victim" (F2) is proven by nothing.
+
+  Pairing table (every new spec family names its kill):
+
+| Spec family | Paired mutation |
+|---|---|
+| `ItShouldEndSessionEmittingImpersonationEndedAudit` / rollback-on-failure | M1 |
+| `ItShouldCreateSessionAndAuditOnSuccess` | M2 |
+| `ItShouldPopulateImpersonationContextFromSessionData` / `…AttributeImpersonatedRequestToRealActorInAudit` | M3 |
+| `ItShouldRejectNestedImpersonationAtServiceBoundary` | M4 (+ unique index as second tripwire) |
+| `ItShouldReturnForbiddenForNonAdminWithoutStartGrant` / `…WithoutEndGrant` | M5 |
+| `ItShouldPinStaffAuthFilterBoundaryForNonStaffCallers` | remove `.WithStaffAuthorization()` on the group (named here, not numbered) |
+| `ItShouldReturnForbiddenWhenTargetUserIsStaffScope` (+ HTTP twin) | remove the `StaffUserRequired` guard from the explicit-target service path (the round-2 reviewer's exact trap) |
+| `ItShouldRecordTargetUserIdInStartAuditDetails` | M6 |
 
 - [ ] **Step 3: Full-suite verification under heavy.sh** (verification policy: unit/spec suites only, focused invocations):
 
@@ -671,7 +785,7 @@ git commit -m "test(impersonations): endpoint integration specs + red-proof muta
 ## Follow-ups from the round-1 review (disposition: fixed-in-plan vs filed)
 
 - **F1 — parallel impersonation of one victim / no uniqueness on (UserId, active):** FIXED IN PLAN. Service-boundary nesting guard (Task 3 Step 2, item 3) + partial unique index `ux_sessions_one_active_impersonation_per_user` (Global Constraint 1) as race backstop + specs `ItShouldRejectNestedImpersonationAtServiceBoundary` and mutation M4.
-- **F2 — start audit loses the exact impersonated user:** FIXED IN PLAN. The explicit-target start audit now writes `details.TargetUserId = resolved.UserId` alongside `targetId = tenantId` (Task 4, "Start-audit fix"); spec asserts `Details.TargetUserId` on the started row.
+- **F2 — start audit loses the exact impersonated user:** FIXED IN PLAN. The explicit-target start audit now writes `details.TargetUserId = resolved.UserId` alongside `targetId = tenantId` (Task 4, "Start-audit fix"); spec `ItShouldRecordTargetUserIdInStartAuditDetails` asserts it and is paired with Mutation M6, closing the round-2 finding that no spec caught dropping the field.
 - **F3 — `AlreadyEnded` collapses into `NotFound` after the sweep:** CONTRACT CLARIFIED IN PLAN (Task 4 design decision): durable plain-words causes, not a durable status distinction; the 404 copy states the session is not active and may have been revoked or expired. A tombstone/soft-state upgrade, if ever wanted, must not reintroduce soft-delete lifecycle on `sessions` — filed as follow-up lv1 #1519.
 - **F4 — end-to-end attribution spec against a real tenant mutation:** the pinned specs prove the seam and its population end-to-end at the HTTP boundary, but NO tenant-surface endpoint persists an audit row today, so a literal "mutate as the victim, read the audit row" spec has no subject until the first audited tenant mutation exists. Filed as follow-up lv1 #1516 (land the e2e attribution spec with that endpoint).
 
