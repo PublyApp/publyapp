@@ -1,9 +1,16 @@
 using System.Net;
+using System.Net.Http.Json;
+
+using FluentAssertions;
 
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
+using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
+
+using Xunit;
 
 namespace PublyApp.Api.Modules.Auth.Handlers;
 
@@ -19,12 +26,12 @@ namespace PublyApp.Api.Modules.Auth.Handlers;
 // when they hit the `/posts` endpoint directly. The endpoint is gated by
 // `TenantPermissionFilter` (`apps/api/Lib/Filters/TenantPermissionFilter.cs`)
 // independently of any UI; the two defenses do not share state.
-public sealed class PermissionBasedNavFilterServerProofSpec
+public sealed class PermissionBasedNavFilterServerProof
 	: IClassFixture<ApiFixture> {
 	private readonly HttpClient _http;
 	private readonly TestAuthClient _authClient;
 
-	public PermissionBasedNavFilterServerProofSpec(
+	public PermissionBasedNavFilterServerProof(
 		ApiFixture fixture
 	) {
 		_http = fixture.HttpClient;
