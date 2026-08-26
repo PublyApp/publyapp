@@ -7,8 +7,6 @@ const config: KnipConfig = {
 	ignore: ['packages/lint-ts/src/anti-slop/**'],
 	workspaces: {
 		'.': {
-			entry: 'packages/scripts-ts/src/*.ts',
-			project: 'packages/scripts-ts/src/**/*.ts',
 			// `just` is a system binary (extractions/setup-just in CI, brew/pkg
 			// locally), not an npm package: quality-gate.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
@@ -27,7 +25,6 @@ const config: KnipConfig = {
 			entry: [
 				// Runtime-discovered files knip cannot trace. One line per file,
 				// never a blanket ignore of a whole app.
-				'server.mjs', // prod server: started by the front Docker image CMD (`pnpm start`)
 				'deploy/request-counter/server.mjs', // e2e sidecar service built from deploy/request-counter by docker-compose.test.yml
 				'e2e/helpers/entity-crumb-render-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-entity-crumb.ts, never imported
 				'e2e/helpers/render-focus-ring-target.tsx', // loaded via vite.ssrLoadModule() by URL from e2e/helpers/render-focus-ring.ts, never imported

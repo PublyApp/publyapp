@@ -3,7 +3,7 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 
 import type { FindNeedsReconnectAccountsForTenantResponse } from '@org/client-ts/models/index';
 
-export type NeedsReconnectAccount = {
+type NeedsReconnectAccount = {
 	id: string;
 	displayHandle: string;
 	provider: string;
@@ -13,7 +13,7 @@ export type NeedsReconnectAccount = {
 export type NeedsReconnectAccounts = NeedsReconnectAccount[];
 
 /** @internal Unscoped — the tenant id rides the client's tenant header. */
-export const NEEDS_RECONNECT_ACCOUNTS_QUERY_KEY = [
+const NEEDS_RECONNECT_ACCOUNTS_QUERY_KEY = [
 	'needs-reconnect-accounts',
 ] as const;
 

@@ -99,7 +99,7 @@ export type StaffProfilePermissionKeysQueryVariables = {
 	profileId: string;
 };
 
-export type StaffAssignedPermission = {
+type StaffAssignedPermission = {
 	key: string;
 	label: string;
 	description: string | null;
@@ -116,7 +116,7 @@ export type StaffAssignedPermissionGroup = {
  * invalidation/removal key from this. Don't hand-assemble a prefixed key at
  * a call site (review-r3-users-auth.md F11); use `invalidateStaffProfiles`.
  */
-export const STAFF_PROFILES_QUERY_KEY = ['staff-profiles'] as const;
+const STAFF_PROFILES_QUERY_KEY = ['staff-profiles'] as const;
 
 /** Invalidates the staff-profiles list and every profile's details +
  * permission-keys entries — all nest under `STAFF_PROFILES_QUERY_KEY` (see
@@ -454,7 +454,7 @@ const createStaffProfileMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
+const staffProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffProfileByIdResult,
 	StaffProfileDetailsQueryVariables
@@ -620,7 +620,7 @@ const buildBulkDeleteStaffProfilesBody = (
 	),
 });
 
-export const bulkDeleteStaffProfilesMutationOptions = buildStaffMutationOptions<
+const bulkDeleteStaffProfilesMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	BulkProfileActionResult | undefined,
 	BulkStaffProfileActionInput

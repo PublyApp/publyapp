@@ -12,10 +12,6 @@
  * `useTranslation()` default of its own, so the i18n-key coverage guard
  * cannot infer a namespace here, and every consumer renders these
  * through `useTranslation(['auth', 'common'])`. */
-export type AcceptInvitationBrandKeyMap = {
-	headline: string;
-	subtitle: string;
-};
 
 export const ACCEPT_INVITATION_BRAND_I18N_KEYS = {
 	'new-user': {

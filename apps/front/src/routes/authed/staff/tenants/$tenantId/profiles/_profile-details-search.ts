@@ -36,7 +36,7 @@ export const parseProfileDetailsSearchParams = (
  * `overview` is deliberately absent: it was already the "no param" default,
  * so it needs no redirect — dropping the param leaves the index route, which
  * IS overview. */
-export type LegacyProfileDetailsTab = 'members' | 'permissions';
+type LegacyProfileDetailsTab = 'members' | 'permissions';
 
 export type ProfileOverviewSearchParams = {
 	tab?: LegacyProfileDetailsTab;

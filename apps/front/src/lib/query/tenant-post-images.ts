@@ -12,10 +12,7 @@ import {
 	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
-export const TENANT_POST_IMAGE_MUTATION_KEY = [
-	'tenant-posts',
-	'image',
-] as const;
+const TENANT_POST_IMAGE_MUTATION_KEY = ['tenant-posts', 'image'] as const;
 
 /** Normalized image projection shared by the post detail and list read
  * models. `url` is resolved against the API origin so `<img src>` never falls
@@ -87,7 +84,7 @@ export const buildAttachPostImageBody = async (
 	input: AttachPostImageInput,
 ): Promise<MultipartBody> => buildMultipart({ file: input.file });
 
-export const attachPostImageMutationOptions = buildTenantMutationOptions<
+const attachPostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
 	{ postId: string; tenantId: string; file: File }
@@ -111,7 +108,7 @@ export const useAttachPostImageMutation = () =>
 
 // ── Remove (DELETE) ────────────────────────────────────────────────
 
-export const removePostImageMutationOptions = buildTenantMutationOptions<
+const removePostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
 	{ postId: string; tenantId: string }
@@ -144,7 +141,7 @@ export const buildImageAltTextPatch = (
 	imageAltText: value === null ? null : createUntypedString(value),
 });
 
-export const updatePostImageAltMutationOptions = buildTenantMutationOptions<
+const updatePostImageAltMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
 	{ postId: string; tenantId: string; altText: string }

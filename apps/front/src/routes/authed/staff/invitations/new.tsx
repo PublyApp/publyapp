@@ -58,7 +58,7 @@ const DEFAULT_VALUES: InvitationFormValues = {
 	],
 };
 
-export const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
+const STAFF_INVITATIONS_INDEX_PATH = '/staff/invitations';
 
 // Success-toast dwell time before redirecting to the invitations index.
 const REDIRECT_DELAY_MS = 600;

@@ -9,8 +9,6 @@ import type { SortState } from './sort-descriptor';
 import type { TableRowHeight } from './table-row-height';
 import type { UseRowSelectionResult } from './use-row-selection';
 
-export type { FocusedCell };
-
 export type DataTableGridProps<TData extends { id: string }> = {
 	testId: string;
 	ariaLabel: string;

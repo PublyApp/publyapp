@@ -67,9 +67,9 @@ export const AuditLogActor = ({ auditLog }: { auditLog: AuditLogDetail }) => {
 	);
 };
 
-export type AuditLogContextField = 'ip' | 'userAgent' | 'targetId' | 'eventId';
+type AuditLogContextField = 'ip' | 'userAgent' | 'targetId' | 'eventId';
 
-export const AuditLogContextCell = ({
+const AuditLogContextCell = ({
 	label,
 	value,
 	mono,
@@ -159,7 +159,7 @@ export const AuditLogContextGrid = ({
 };
 
 // react-doctor-disable-next-line only-export-components -- tightly-coupled utility; sole consumer is AuditLogPayload in this same file
-export const formatAuditLogPayload = (raw: string): string => {
+const formatAuditLogPayload = (raw: string): string => {
 	try {
 		return JSON.stringify(JSON.parse(raw), null, 2);
 	} catch {

@@ -27,9 +27,6 @@ export const TENANT_HINTS_COOKIE_KEY = `${APP_ID}-last_tenants`;
 /** Legacy cookie key (v1-v3, for migration) */
 export const TENANT_HINTS_COOKIE_KEY_LEGACY = `${APP_ID}-last_used_tenant`;
 
-/** @deprecated Use TENANT_HINTS_COOKIE_KEY_LEGACY for new code */
-export const LAST_USED_TENANT_ID_COOKIE_KEY = TENANT_HINTS_COOKIE_KEY_LEGACY;
-
 /** Max users to store in mapping (keeps cookie under 1KB) */
 export const TENANT_HINTS_MAX_ENTRIES = 10;
 

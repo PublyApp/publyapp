@@ -54,7 +54,6 @@ import type {
 
 // The retired hand-written .d.mts exported this shape; types now live in
 // source and are re-exported here so consumers keep a single import surface.
-export type { SourceSpan };
 
 /**
  * One discovered React context creation site in the scanned program.
@@ -92,7 +91,7 @@ export interface ClientChunk {
  * forced-map cleanup keys its delete on `chunk.name + '.map'`, never on
  * these fields, so they stay informational.
  */
-export interface OutputAsset {
+interface OutputAsset {
 	type: 'asset';
 	fileName?: string | undefined;
 	name?: string | undefined;

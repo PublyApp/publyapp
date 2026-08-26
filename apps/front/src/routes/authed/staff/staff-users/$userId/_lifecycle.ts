@@ -1,8 +1,4 @@
-export const TAB_ROUTE_SUFFIXES = [
-	'permissions',
-	'activity',
-	'settings',
-] as const;
+const TAB_ROUTE_SUFFIXES = ['permissions', 'activity', 'settings'] as const;
 export type TabSection = 'overview' | (typeof TAB_ROUTE_SUFFIXES)[number];
 
 export const STAFF_STATUS_ACTIVE = 'active';

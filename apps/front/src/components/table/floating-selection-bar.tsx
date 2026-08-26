@@ -9,8 +9,7 @@ const EXIT_ANIMATION_MS = 220;
 
 export const FLOATING_SELECTION_BAR_ACTION_BUTTON_CLASS_NAME =
 	'h-8 rounded-[10px] px-2.5 text-[13px]';
-export const FLOATING_SELECTION_BAR_ICON_BUTTON_CLASS_NAME =
-	'size-8 rounded-[10px]';
+const FLOATING_SELECTION_BAR_ICON_BUTTON_CLASS_NAME = 'size-8 rounded-[10px]';
 
 export type FloatingSelectionBarProps = {
 	selectedCount: number;

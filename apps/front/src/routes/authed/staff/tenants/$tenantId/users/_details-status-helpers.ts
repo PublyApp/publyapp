@@ -1,6 +1,6 @@
-export const TENANT_USER_STATUS_ACTIVE = 'active';
-export const TENANT_USER_STATUS_GLOBALLY_SUSPENDED = 'globally_suspended';
-export const TENANT_USER_STATUS_SUSPENDED = 'suspended';
+const TENANT_USER_STATUS_ACTIVE = 'active';
+const TENANT_USER_STATUS_GLOBALLY_SUSPENDED = 'globally_suspended';
+const TENANT_USER_STATUS_SUSPENDED = 'suspended';
 
 // The API surface is currently explicit for ACTIVE/SUSPENDED transitions on
 // tenant memberships. Any other status value is treated as ambiguous to avoid

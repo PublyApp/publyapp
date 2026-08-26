@@ -55,7 +55,7 @@ interface VlqDecodeState {
 // no field may exceed the 31-bit value range of the standard encoding.
 // Malformed input throws a named guard error — it never hangs and never
 // silently mis-reads.
-export const readSourceMapVlq = (
+const readSourceMapVlq = (
 	encoded: string,
 	state: VlqDecodeState,
 	chunkFileName: string,
@@ -189,7 +189,7 @@ export const resolveRenderedMapSource = (
 // an emitted callee identifier (or a callee *reference* that maps into the
 // callee, for example a mere property access on the minted value) would
 // otherwise occupy an in-span position although no call was emitted.
-export const renderedSegmentMatchesCallEmission = (
+const renderedSegmentMatchesCallEmission = (
 	segment: { origCol: number; origLine: number },
 	span: SourceSpan,
 ): boolean => {

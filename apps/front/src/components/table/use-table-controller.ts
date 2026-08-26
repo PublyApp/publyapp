@@ -49,7 +49,7 @@ export const buildSearchCommitSearch = (
 	};
 };
 
-export type ApiVariables = {
+type ApiVariables = {
 	q?: string;
 	sortId: string;
 	sortOrder: SortState['order'];

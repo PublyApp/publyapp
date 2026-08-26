@@ -105,5 +105,3 @@ export const SimpleLayout = ({ children }: SimpleLayoutProps) => {
 		</div>
 	);
 };
-
-export default SimpleLayout;

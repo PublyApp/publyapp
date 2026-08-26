@@ -6,9 +6,9 @@
  * of its child routes. Overview is the index child, so it has no segment of
  * its own.
  */
-export const PROFILE_SECTION_SEGMENTS = ['permissions', 'members'] as const;
+const PROFILE_SECTION_SEGMENTS = ['permissions', 'members'] as const;
 
-export type ProfileSectionSegment = (typeof PROFILE_SECTION_SEGMENTS)[number];
+type ProfileSectionSegment = (typeof PROFILE_SECTION_SEGMENTS)[number];
 
 export type ProfileSection = 'overview' | ProfileSectionSegment;
 
@@ -23,7 +23,7 @@ export const PROFILE_SECTION_ROUTES = {
 const withoutTrailingSlash = (pathname: string): string =>
 	pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
 
-export const profileDetailsBasePathname = (
+const profileDetailsBasePathname = (
 	tenantId: string,
 	profileId: string,
 ): string => `/staff/tenants/${tenantId}/profiles/${profileId}`;

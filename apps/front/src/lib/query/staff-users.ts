@@ -100,11 +100,11 @@ export type StaffUserProfilesUpdateInput = {
  * `invalidateStaffUsers` / `removeStaffUserDetails`, never hand-assemble a
  * prefixed key at a call site. */
 export const STAFF_USERS_QUERY_KEY = ['staff-users'] as const;
-export const STAFF_USER_DETAILS_QUERY_KEY = [
+const STAFF_USER_DETAILS_QUERY_KEY = [
 	...STAFF_USERS_QUERY_KEY,
 	'detail',
 ] as const;
-export const STAFF_USER_PROFILES_QUERY_KEY = [
+const STAFF_USER_PROFILES_QUERY_KEY = [
 	...STAFF_USER_DETAILS_QUERY_KEY,
 	'profiles',
 ] as const;
@@ -358,7 +358,7 @@ const staffUsersQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const staffUserDetailsQueryOptions = buildStaffQueryOptions<
+const staffUserDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetStaffUserByIdResult,
 	StaffUserDetailsQueryVariables
@@ -570,7 +570,7 @@ const buildBulkStaffUserIdsBody = (userIds: string[]) => ({
 	userIds: createUntypedArray(userIds.map((id) => createUntypedString(id))),
 });
 
-export const bulkSuspendStaffUsersMutationOptions = buildStaffMutationOptions<
+const bulkSuspendStaffUsersMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	BulkStaffUserActionResult | undefined,
 	BulkStaffUserActionInput
@@ -586,24 +586,23 @@ export const bulkSuspendStaffUsersMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const bulkReactivateStaffUsersMutationOptions =
-	buildStaffMutationOptions<
-		ApiClient,
-		BulkStaffUserActionResult | undefined,
-		BulkStaffUserActionInput
-	>(
-		{
-			mutationKeyFn: () => [...STAFF_USERS_QUERY_KEY, 'bulk-reactivate'],
-			mutationFn: (client, variables) =>
-				client.staff.users.bulkReactivate.post(
-					buildBulkStaffUserIdsBody(variables.userIds),
-				),
-			meta: { silentSuccess: true, skipGlobalErrorHandler: true },
-		},
-		{ clientAccessor: getClientManager() },
-	);
+const bulkReactivateStaffUsersMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkStaffUserActionResult | undefined,
+	BulkStaffUserActionInput
+>(
+	{
+		mutationKeyFn: () => [...STAFF_USERS_QUERY_KEY, 'bulk-reactivate'],
+		mutationFn: (client, variables) =>
+			client.staff.users.bulkReactivate.post(
+				buildBulkStaffUserIdsBody(variables.userIds),
+			),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
 
-export const bulkDeleteStaffUsersMutationOptions = buildStaffMutationOptions<
+const bulkDeleteStaffUsersMutationOptions = buildStaffMutationOptions<
 	ApiClient,
 	BulkStaffUserActionResult | undefined,
 	BulkStaffUserActionInput

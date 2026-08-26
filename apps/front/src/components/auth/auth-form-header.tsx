@@ -18,5 +18,3 @@ export const AuthFormHeader = ({ title, secondary }: AuthFormHeaderProps) => {
 		</div>
 	);
 };
-
-export default AuthFormHeader;

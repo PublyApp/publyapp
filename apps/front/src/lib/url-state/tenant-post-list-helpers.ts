@@ -17,12 +17,3 @@ export const parseTenantPostListSearchParams = (
 export const serializeTenantPostListSearchParams = (
 	params: TenantPostListSearchParams,
 ): TableSearchWireParams => serializeTableSearchParams(params);
-
-/**
- * Round-trip through parse+serialize so the router's search state stays on
- * the wire contract (snake_case keys only).
- */
-export const validateTenantPostListSearchParams = (
-	search: TenantPostListSearchParamInput,
-): TableSearchWireParams =>
-	serializeTenantPostListSearchParams(parseTenantPostListSearchParams(search));

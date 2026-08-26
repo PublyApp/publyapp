@@ -31,13 +31,6 @@ let activeClientI18n: I18nInstance | undefined;
 let activeLocale: SupportedLanguage = FALLBACK_LANGUAGE;
 let interZodClient: InterZod | undefined;
 
-export const getInterZodClient = (): InterZod => {
-	if (!interZodClient) {
-		throw new Error('Client i18n has not been initialized');
-	}
-	return interZodClient;
-};
-
 const resolveLocale = (value: string | undefined): SupportedLanguage =>
 	isSupportedLanguage(value) ? value : FALLBACK_LANGUAGE;
 

@@ -40,7 +40,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
-import { EntityAvatar } from '~/components/ui/person-avatar';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { PageHeader, StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import {
@@ -182,7 +182,7 @@ const buildTenantColumns = (
 				params={{ tenantId: row.original.id }}
 				className="flex min-w-0 items-center gap-2.5 no-underline"
 			>
-				<EntityAvatar
+				<PersonAvatar
 					name={row.original.name}
 					avatarUrl={row.original.logoUrl}
 				/>
@@ -484,7 +484,7 @@ const TENANT_BULK_PARTIAL_SUCCESS_KEYS = {
 	delete: 'tenant-bulk-delete-partial-success',
 } satisfies Record<TenantBulkActionKey, string>;
 
-export const TenantBulkActions = ({
+const TenantBulkActions = ({
 	rows,
 	selection,
 	onSessionExpired,

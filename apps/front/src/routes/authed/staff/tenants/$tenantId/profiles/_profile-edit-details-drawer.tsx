@@ -394,4 +394,3 @@ const ProfileEditDetailsDrawer = (
 };
 
 export { ProfileEditDetailsDrawer };
-export type { ProfileEditDetailsDrawerProfile };

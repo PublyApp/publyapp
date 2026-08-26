@@ -315,7 +315,7 @@ export const RootErrorBoundary = ({
 	reset: () => void;
 }) => <RootErrorBoundaryContent error={error} reset={reset} />;
 
-export const RootNotFound = () => <View404 embedded={false} />;
+const RootNotFound = () => <View404 embedded={false} />;
 
 const initI18nOnClient = createClientOnlyFn(async (instance: I18nInstance) => {
 	const mod = await import('~/lib/i18n.client');
@@ -340,8 +340,7 @@ export const isAuthedSurface = (pathname: string): boolean => {
  *
  * An exact match, not a prefix: `/` as a prefix matches every path there is.
  */
-export const isSelfShelledPath = (pathname: string): boolean =>
-	pathname === '/';
+const isSelfShelledPath = (pathname: string): boolean => pathname === '/';
 
 export const resolveRouteSurface = (pathname: string): RouteSurface => {
 	if (isAuthPath(pathname)) {

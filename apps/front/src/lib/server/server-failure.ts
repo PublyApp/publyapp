@@ -9,7 +9,7 @@ export type ServerFailurePayload = {
 	translationKey?: string;
 };
 
-export const toServerFailurePayload = (
+const toServerFailurePayload = (
 	error: unknown,
 	fallbackMessage: string,
 ): ServerFailurePayload => {

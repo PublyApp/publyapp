@@ -73,7 +73,7 @@ export type BulkDeleteStaffTenantProfilesInput = {
 	profileIds: string[];
 };
 
-export type StaffTenantProfileBulkActionFailedItem = {
+type StaffTenantProfileBulkActionFailedItem = {
 	profileId: string | null;
 	error: string | null;
 };
@@ -121,13 +121,13 @@ export type StaffTenantPermissionCatalogQueryVariables = {
 	language?: string;
 };
 
-export type StaffTenantProfilePermissionMutationVariables = {
+type StaffTenantProfilePermissionMutationVariables = {
 	tenantId: string;
 	profileId: string;
 	permissionKey: string;
 };
 
-export type StaffTenantProfileMemberMutationVariables = {
+type StaffTenantProfileMemberMutationVariables = {
 	tenantId: string;
 	profileId: string;
 	userAccountId: string;
@@ -162,7 +162,7 @@ export type StaffTenantProfileMemberRow = {
 	displayName: string;
 };
 
-export type StaffTenantProfileMemberProfile = {
+type StaffTenantProfileMemberProfile = {
 	id: string;
 	name: string;
 };
@@ -187,18 +187,7 @@ export type StaffTenantProfileUserAssignmentResolutionQueryVariables = {
 
 /** `user_account_id` -> whether that tenant member is assigned to the
  * profile, per `ResolveTenantProfileUserAssignmentsAsStaff` (#875). */
-export type StaffTenantProfileUserAssignmentMap = Record<string, boolean>;
-
-export type TenantPermissionCatalogItem = {
-	key?: string | null;
-	name?: string | null;
-	description?: string | null;
-};
-
-export type TenantPermissionCatalog = Record<
-	string,
-	Record<string, TenantPermissionCatalogItem>
->;
+type StaffTenantProfileUserAssignmentMap = Record<string, boolean>;
 
 export type StaffTenantPermissionOption = {
 	key: string;
@@ -225,24 +214,24 @@ export const STAFF_TENANT_PROFILES_QUERY_KEY = [
 	'staff-tenants',
 	'profiles',
 ] as const;
-export const STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY = [
+const STAFF_TENANT_PROFILE_DETAILS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'detail',
 ] as const;
-export const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
+const STAFF_TENANT_PROFILE_PERMISSION_KEYS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'permission-keys',
 ] as const;
-export const STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY = [
+const STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY = [
 	...STAFF_TENANT_PROFILES_QUERY_KEY,
 	'users',
 ] as const;
-export const STAFF_TENANT_PROFILE_MEMBER_ASSIGNMENT_RESOLUTION_QUERY_KEY = [
+const STAFF_TENANT_PROFILE_MEMBER_ASSIGNMENT_RESOLUTION_QUERY_KEY = [
 	...STAFF_TENANT_PROFILE_MEMBERS_QUERY_KEY,
 	'assignment-resolution',
 ] as const;
 /** @internal Unscoped — see `STAFF_TENANT_PROFILES_QUERY_KEY` above. */
-export const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
+const STAFF_TENANT_PERMISSION_CATALOG_QUERY_KEY = [
 	'tenant-permissions',
 	'catalog',
 ] as const;
@@ -319,7 +308,7 @@ const TENANT_PERMISSION_MODULE_ORDER: readonly string[] = [
 // Canonical two-column flow from design 02-standalone-permissions. The three
 // content groups lead the left column, while Channels/Approvals/Analytics lead
 // the right. Administrative groups then trail the column shown in the design.
-export const TENANT_PERMISSION_LEFT_COLUMN_FLOW: readonly string[] = [
+const TENANT_PERMISSION_LEFT_COLUMN_FLOW: readonly string[] = [
 	'posts',
 	'media',
 	'calendar',
@@ -328,7 +317,7 @@ export const TENANT_PERMISSION_LEFT_COLUMN_FLOW: readonly string[] = [
 	'modules',
 ];
 
-export const TENANT_PERMISSION_RIGHT_COLUMN_FLOW: readonly string[] = [
+const TENANT_PERMISSION_RIGHT_COLUMN_FLOW: readonly string[] = [
 	'channels',
 	'approvals',
 	'analytics',
@@ -585,7 +574,7 @@ export const buildFindStaffTenantProfilesQueryParameters = (
 	isDefault: variables.isDefault,
 });
 
-export const buildBulkDeleteStaffTenantProfilesBody = (
+const buildBulkDeleteStaffTenantProfilesBody = (
 	profileIds: string[],
 ): BulkDeleteTenantProfilesBody => ({
 	profileIds: createUntypedArray(
@@ -919,26 +908,25 @@ export const deleteStaffTenantProfileMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
-export const bulkDeleteStaffTenantProfilesMutationOptions =
-	buildStaffMutationOptions<
-		ApiClient,
-		BulkProfileActionResult | undefined,
-		BulkDeleteStaffTenantProfilesInput
-	>(
-		{
-			mutationKeyFn: () => ['staff-tenants', 'profiles', 'bulk-delete'],
-			mutationFn: (client, variables) =>
-				client.staff.tenants
-					.byTenantId(variables.tenantId)
-					.profiles.bulkDelete.post(
-						buildBulkDeleteStaffTenantProfilesBody(variables.profileIds),
-					),
-			meta: { silentSuccess: true, skipGlobalErrorHandler: true },
-		},
-		{ clientAccessor: getClientManager() },
-	);
+const bulkDeleteStaffTenantProfilesMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkProfileActionResult | undefined,
+	BulkDeleteStaffTenantProfilesInput
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'profiles', 'bulk-delete'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.profiles.bulkDelete.post(
+					buildBulkDeleteStaffTenantProfilesBody(variables.profileIds),
+				),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
 
-export const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
+const staffTenantProfileDetailsQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantProfileByIdResponse,
 	StaffTenantProfileDetailsQueryVariables

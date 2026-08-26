@@ -72,7 +72,7 @@ const DEFAULT_SIZE = 100;
 
 type OrganizationRow = ReturnType<typeof toGlobalTenantUserCompanyRows>[number];
 
-export const OrganizationsTabContent = ({ userId }: { userId: string }) => {
+const OrganizationsTabContent = ({ userId }: { userId: string }) => {
 	const { t } = useTranslation('common');
 	const [isLinkDrawerOpen, setLinkDrawerOpen] = useState(false);
 

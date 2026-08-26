@@ -29,7 +29,7 @@ const renderSortIcon = (
 
 /** Select-all checkbox state for the header's leading selection cell. Omitted
  * entirely when the table has no selection. */
-export type SelectionHeaderState = {
+type SelectionHeaderState = {
 	allRowsSelected: boolean;
 	hasPartialSelection: boolean;
 	onToggleSelectAll: () => void;

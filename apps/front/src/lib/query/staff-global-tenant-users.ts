@@ -168,9 +168,7 @@ const getDisplayName = ({
 
 /** @internal Unscoped — `scopedKey('staff', …)` is the only way to build an
  * invalidation key from this; use `invalidateGlobalTenantUsers`. */
-export const GLOBAL_TENANT_USERS_QUERY_KEY = [
-	'staff-global-tenant-users',
-] as const;
+const GLOBAL_TENANT_USERS_QUERY_KEY = ['staff-global-tenant-users'] as const;
 
 /** Invalidates every global tenant-user query (details, companies, picker). */
 export const invalidateGlobalTenantUsers = (queryClient: QueryClient) =>

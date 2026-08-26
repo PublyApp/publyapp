@@ -158,7 +158,7 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 	},
 );
 
-export const StaffAuditLogDetailsPage = ({ logId }: { logId: string }) => {
+const StaffAuditLogDetailsPage = ({ logId }: { logId: string }) => {
 	const { t, i18n } = useTranslation(['staff-audit-logs', 'common']);
 	const locale = i18n?.language ?? 'en';
 	const detailQuery = useStaffAuditLogDetailsQuery(

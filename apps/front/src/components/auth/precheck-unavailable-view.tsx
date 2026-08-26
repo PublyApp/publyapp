@@ -40,5 +40,3 @@ export const PrecheckUnavailableView = ({
 		</div>
 	);
 };
-
-export default PrecheckUnavailableView;

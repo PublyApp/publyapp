@@ -38,7 +38,7 @@ import {
 } from './use-matched-breakpoints';
 import type { UseRowSelectionResult } from './use-row-selection';
 
-export type { TableDensity, TableRowHeight };
+export type { TableRowHeight };
 
 /**
  * Shared i18n key for the "disabled while rows are selected" tooltip title —
@@ -271,7 +271,7 @@ export type DataTableProps<TData extends { id: string }> = {
 	getRowLabel?: (row: TData) => string;
 };
 
-export type DataTableQueryState = {
+type DataTableQueryState = {
 	/** Query is loading its first page. */
 	isPending: boolean;
 	/** Query failed; renders the error body state. */
@@ -283,7 +283,7 @@ export type DataTableQueryState = {
 	hasActiveSearch: boolean;
 };
 
-export type DataTablePaginationState = {
+type DataTablePaginationState = {
 	pageIndex: number;
 	hasPreviousPage: boolean;
 	hasNextPage: boolean;

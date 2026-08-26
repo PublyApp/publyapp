@@ -170,4 +170,3 @@ const IconColorPicker = ({
 };
 
 export { IconColorPicker };
-export type { IconColorPickerProps, IconColorPickerValue };

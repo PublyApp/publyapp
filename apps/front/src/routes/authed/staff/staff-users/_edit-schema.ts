@@ -6,9 +6,6 @@ const ALLOWED_AVATAR_URL_PROTOCOLS = ['http:', 'https:'];
 
 export { ACCOUNT_LEVEL_OPTIONS, STATUS_OPTIONS };
 
-export type AccountLevelOption = (typeof ACCOUNT_LEVEL_OPTIONS)[number];
-export type StatusOption = (typeof STATUS_OPTIONS)[number];
-
 export const getStaffUserEditSchema = (t: (key: string) => string) =>
 	z.object({
 		firstName: z.string().trim().max(128).optional(),

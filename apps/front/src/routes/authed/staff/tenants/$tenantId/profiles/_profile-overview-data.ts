@@ -1,6 +1,6 @@
 import type { StaffTenantPermissionGroup } from '~/lib/query/staff-tenant-profiles';
 
-export type ProfileGlanceModule = {
+type ProfileGlanceModule = {
 	moduleKey: string;
 	moduleLabel: string;
 	grantedCount: number;

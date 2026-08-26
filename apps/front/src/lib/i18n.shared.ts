@@ -24,7 +24,7 @@ export const LOCALE_LABELS = {
 export const dirForLocale = (lng: string): 'ltr' | 'rtl' =>
 	lng === 'ar' ? 'rtl' : 'ltr';
 
-export type JsonValue = string | { [key: string]: JsonValue };
+type JsonValue = string | { [key: string]: JsonValue };
 export type NamespaceResource = Record<string, JsonValue>;
 export type I18nResources = Partial<
 	Record<
