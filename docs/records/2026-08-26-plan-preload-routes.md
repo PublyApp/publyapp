@@ -18,8 +18,10 @@ Chaque affirmation est prouvée dans `.dump/citations-r1.md` (PASS/FAIL par lign
    (comptages `git grep` = 0). L'issue #1527 est **ouverte, non fusionnée** : son loader client
    n'est pas dans cet arbre. Ce plan s'articule avec elle (§5), il ne la suppose pas fusionnée.
 3. Les 3 fichiers de route qui déclarent un `loader:` (`verify-email.tsx`, `accept-invitation.tsx`,
-   `reset-password.tsx`) sont des surfaces SSR dont les loaders appellent des `createServerFn`
-   (`~/lib/server/*`) : hors périmètre TanStack Query, intouchés par ce plan.
+   `reset-password.tsx`) sont des surfaces SSR dont les loaders appellent des actions importées de
+   `~/lib/server/*` (ex. `checkEmailVerificationToken` dans `auth-actions.ts`), ces actions étant
+   elles-mêmes définies via `createServerFn` (non appelé directement dans le fichier de route) :
+   hors périmètre TanStack Query, intouchés par ce plan.
 4. Le mécanisme co-localisé existe : chaque route étend `StaticDataRouteOption`
    (`breadcrumbs.ts:75`, `i18n.namespaces.ts:35`) et déclare `staticData.crumbs` à côté de son
    composant (`$profileId.tsx:219-226`). `staticData.preload` suit exactement la même forme.
