@@ -38,7 +38,7 @@ COPY --from=prune /workspace/out/full/ ./
 ARG VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED=false
 ENV VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED=$VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED
 
-RUN node apps/front/scripts/assert-pinned.mjs
+RUN node apps/front/scripts/guards/assert-pinned.mts
 RUN pnpm --filter @org/shared-ts run postinstall
 RUN pnpm --filter front build
 # `deploy` is the pnpm workspace deploy subcommand, not a package script.

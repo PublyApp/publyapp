@@ -182,9 +182,9 @@
 			"reason": "CI fails on any high/critical in the production graph via pnpm audit --prod --audit-level=high; locally the same command reproduces it without Docker or CI."
 		},
 		"front-ci.yml::supply-chain::Assert exact pins": {
-			"hash": "98174f94e67bc83b",
+			"hash": "9f0331695e45ef30",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/scripts/assert-pinned.mjs."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
 		},
 		"front-ci.yml::supply-chain::Build front": {
 			"hash": "cbd03bead5b114fa",
@@ -239,7 +239,7 @@
 		"front-ci.yml::supply-chain::Smoke start front server and verify stylesheet tag": {
 			"hash": "056e04ce212f4f40",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/smoke-start-server.mjs re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
+			"reason": "ci-front runs pnpm --filter front smoke:start. The workflow does this with inline bash (background job + trap + curl + grep) which cannot run under the justfile's pwsh shell on Windows, so apps/front/scripts/ci/smoke-start-server.mts re-implements the same assertions in Node: serve the production build, GET /, require a rel=stylesheet link to a .css asset. DELIBERATE DIFFERENCE: CI hardcodes port 3000 (a fresh runner has nothing else on it); the local script binds a free ephemeral port via PORT, because probing a busy 3000 on a dev machine would assert against whatever unrelated app answered and report a false green."
 		},
 		"front-ci.yml::supply-chain::Test front": {
 			"hash": "b0ae64935f5d9419",
@@ -252,14 +252,14 @@
 			"reason": "ci-front runs the identical pnpm --filter front typecheck."
 		},
 		"front-ci.yml::supply-chain::Verify front production build emits a CSS asset": {
-			"hash": "009ab7f56653f01a",
+			"hash": "2cdea9498a1d6325",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same verify-build-css-link.mjs call."
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body is the same scripts/guards/verify-build-css-link.mts call."
 		},
 		"front-ci.yml::supply-chain::Verify front production font bundle references and unicode coverage": {
-			"hash": "a0ecbd5b41e526ba",
+			"hash": "cce3dbe7f24e28a4",
 			"mirror": "just ci-front",
-			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls verify-font-bundle.mjs. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script's defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
+			"reason": "ci-front runs pnpm --filter front verify:build, whose script body now also calls scripts/guards/verify-font-bundle.mts. The CI step passes --dist apps/front/dist and --locales-dir apps/front/src/i18n/locales explicitly; the script defaults resolve to the same two paths when it runs with apps/front as the working directory, so the local run is equivalent rather than merely similar."
 		},
 		"front-e2e.yml::build::Build stack images": {
 			"hash": "8a525f944e9edfab",
@@ -342,9 +342,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"front-e2e.yml::test::Assert exact pins": {
-			"hash": "98174f94e67bc83b",
+			"hash": "9f0331695e45ef30",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical node apps/front/scripts/assert-pinned.mjs."
+			"reason": "ci-install runs the identical node apps/front/scripts/guards/assert-pinned.mts."
 		},
 		"front-e2e.yml::test::Cache Playwright browsers": {
 			"hash": "2a9fc7ccfef22deb",
@@ -537,9 +537,9 @@
 			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
 		},
 		"quality-gate.yml::quality::Assert exact pins": {
-			"hash": "98174f94e67bc83b",
+			"hash": "9f0331695e45ef30",
 			"mirror": "just ci-install",
-			"reason": "ci-install runs the identical command: node apps/front/scripts/assert-pinned.mjs."
+			"reason": "ci-install runs the identical command: node apps/front/scripts/guards/assert-pinned.mts."
 		},
 		"quality-gate.yml::quality::Build .NET solution (warnings as errors via Directory.Build.props)": {
 			"hash": "5d8e0532bb76bdae",

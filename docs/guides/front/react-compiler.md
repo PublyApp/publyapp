@@ -14,7 +14,7 @@ the compiler ran.
 ## The artifact guard (`check:react-compiler`)
 
 `pnpm --filter front check:react-compiler`
-(`apps/front/scripts/check-react-compiler.mjs`) asserts on the **built output**
+(`apps/front/scripts/guards/check-react-compiler.mts`) asserts on the **built output**
 in `apps/front/dist/client/assets`, not on source code:
 
 1. The compiler's cache runtime chunk (`assets/compiler-runtime-<hash>.js`) is
@@ -27,7 +27,7 @@ The floor is **exactly 80 %** of the measured baseline from the build that
 introduced this guard (#1234): baseline 90 modules, floor 72. It is a pinned
 literal in the script, not derived from whatever build it inspects — a guard
 that re-derives its own threshold cannot detect the regression it exists to
-catch. Re-measure with `node scripts/check-react-compiler.mjs --measure`,
+catch. Re-measure with `node scripts/guards/check-react-compiler.mts --measure`,
 update `MEASURED_BASELINE`, and explain it in the PR when the real count moves
 deliberately.
 
@@ -35,7 +35,7 @@ The guard is wired like `check:design-system`: it runs as part of
 `pnpm --filter front test`, as an explicit step of `just ci-front`, and as an
 explicit `.github/workflows/front-ci.yml::supply-chain` step right after
 "Build front" (reconciled in `scripts/ci-gate-manifest.json`). Its unit tests
-live in `scripts/check-react-compiler.test.mjs`.
+live in `scripts/guards/check-react-compiler.test.mts`.
 
 ### Adversarial proof (2026-08-23)
 
