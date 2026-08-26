@@ -9,6 +9,7 @@ import {
 	loginAsStaffAdmin,
 	loginAsTenantUser,
 	SINGLE_TENANT_USER_CREDENTIALS,
+	TENANT_ADMIN_CREDENTIALS,
 } from './helpers/login';
 
 /**
@@ -672,6 +673,25 @@ const openLinkCompaniesDrawer = async (page: Page): Promise<void> => {
 		.check();
 };
 
+/** The `chromium` project supplies a pre-authenticated staff-admin
+ * storageState; a tenant login must start from a clean context or the
+ * authed staff surface redirects `/login` away before the form renders
+ * (same reason tenant-posts-drafts.spec.ts clears its storageState). */
+const openBlueskyConnectDrawer = async (page: Page): Promise<void> => {
+	await page.context().clearCookies();
+	// Integrations is manage-gated: the Member seed never sees the Connect
+	// trigger, so this opens as the seeded tenant Admin.
+	await loginAsTenantUser(page, TENANT_ADMIN_CREDENTIALS);
+	await page.goto('/tenant/settings/integrations');
+	await expect(
+		page.getByTestId('tenant-settings-integrations-page'),
+	).toBeVisible({ timeout: 10_000 });
+	await page.getByRole('button', { name: 'Connect Bluesky' }).click();
+	await expect(page.getByTestId('bluesky-connect-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
 const openDrawerByCallSiteId = {
 	'profile-create': openProfileCreateDrawer,
 	'profile-edit': openProfileEditDrawer,
@@ -680,6 +700,7 @@ const openDrawerByCallSiteId = {
 	'tenant-post-create': openTenantPostCreateDrawer,
 	'tenant-user-link-companies': openLinkCompaniesDrawer,
 	'staff-profile-edit': openStaffProfileEditDrawer,
+	'bluesky-connect': openBlueskyConnectDrawer,
 } satisfies Record<DrawerFormCallSiteId, (page: Page) => Promise<void>>;
 
 test.describe(

@@ -18,18 +18,30 @@ export interface UserAuthDataRequestBuilder extends BaseRequestBuilder<UserAuthD
      * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
-     get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetUserAuthDataResult | undefined>;
+     get(requestConfiguration?: RequestConfiguration<UserAuthDataRequestBuilderGetQueryParameters> | undefined) : Promise<GetUserAuthDataResult | undefined>;
     /**
      * Get User Auth Data
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */
-     toGetRequestInformation(requestConfiguration?: RequestConfiguration<object> | undefined) : RequestInformation;
+     toGetRequestInformation(requestConfiguration?: RequestConfiguration<UserAuthDataRequestBuilderGetQueryParameters> | undefined) : RequestInformation;
+}
+/**
+ * Get User Auth Data
+ */
+export interface UserAuthDataRequestBuilderGetQueryParameters {
+    tenantId?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const UserAuthDataRequestBuilderUriTemplate = "{+baseurl}/auth/user-auth-data";
+export const UserAuthDataRequestBuilderUriTemplate = "{+baseurl}/auth/user-auth-data{?tenant_id*}";
+/**
+ * Mapper for query parameters from symbol name to serialization name represented as a constant.
+ */
+const UserAuthDataRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "tenantId": "tenant_id",
+};
 /**
  * Metadata for all the requests in the request builder.
  */
@@ -44,6 +56,7 @@ export const UserAuthDataRequestBuilderRequestsMetadata: RequestsMetadata = {
         },
         adapterMethodName: "send",
         responseBodyFactory:  createGetUserAuthDataResultFromDiscriminatorValue,
+        queryParametersMapper: UserAuthDataRequestBuilderGetQueryParametersMapper,
     },
 };
 /* tslint:enable */

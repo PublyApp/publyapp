@@ -4,6 +4,8 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
+import type { GetUserAuthDataResult } from '@org/client-ts/models/index';
+
 const mocks = vi.hoisted(() => ({
 	capturedOptions: undefined as
 		| {
@@ -94,7 +96,37 @@ describe('toCurrentUser', () => {
 			lastName: 'Doe',
 			avatarUrl: 'https://cdn.example.com/jane.png',
 			displayName: 'Jane Doe',
+			tenantPermissionKeys: [],
 		});
+	});
+
+	test('carries the effective tenant permission keys through (C3 gating)', () => {
+		// The raw generated model allows null holes in the list; a fixture
+		// carrying one must survive as a filtered, precise string array.
+		const rawKeys = [
+			'*',
+			null,
+			'',
+			'tenant.posts.view',
+		] as GetUserAuthDataResult['tenantPermissionKeys'];
+		expect(
+			toCurrentUser({
+				id: 'user-perms',
+				email: 'perms@example.com',
+				firstName: null,
+				lastName: null,
+				avatarUrl: null,
+				tenantPermissionKeys: rawKeys,
+			})?.tenantPermissionKeys,
+		).toEqual(['*', 'tenant.posts.view']);
+
+		// Absent list (older payload shape) normalises to an empty array.
+		expect(
+			toCurrentUser({
+				id: 'user-noperms',
+				email: 'noperms@example.com',
+			})?.tenantPermissionKeys,
+		).toEqual([]);
 	});
 
 	test('returns null when the id is missing (loading/empty state)', () => {
@@ -131,6 +163,7 @@ describe('toCurrentUser', () => {
 			lastName: null,
 			avatarUrl: null,
 			displayName: null,
+			tenantPermissionKeys: [],
 		});
 	});
 });
