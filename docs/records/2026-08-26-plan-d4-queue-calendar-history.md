@@ -361,7 +361,7 @@ Errors: 400 malformed publicationId (ResponseKeys.MalformedId) ·
 
 - [ ] `pnpm --filter front typecheck/test/check:design-system`; `just react-doctor`; focused API suites (Publishing/Posts/SocialAccounts) under `heavy.sh`; `heavy.sh just build-api && just generate-client`; `just ci-migration-expand-contract`; `just ci-quality-dotnet`; `just ci-front`.
 - [ ] Verify `just ci-drift` stays green (no workflow drift).
-- [ ] PR body refreshed with: D4 plain-words summary, task list, reconciliation decisions 1-12, proofs (D4.1 retry reuses the key; D4.2 resume respects "date passed" — see Task 5 RED transcripts; D4.3 architecture ratchet extends the single-writer guarantee; D4.4 every Queue/Calendar/History failure shows the cause in plain words; D4.5 no new migrations; D4.6 401-only logout), `Part of #647`, `Closes #1453` (the plan issue, per the brief), `Model: MiniMax M3 (\`or:minimax/minimax-m3:free\` via OpenRouter, jcode) — plan only`, `Unverified until CI:` list (the e2e specs require the compose stack; sandbox cannot boot it).
+- [ ] PR body refreshed with: D4 plain-words summary, task list, reconciliation decisions 1-12, proofs (D4.1 retry reuses the key; D4.2 resume respects "date passed" — see Task 5 RED transcripts; D4.3 architecture ratchet extends the single-writer guarantee; D4.4 every Queue/Calendar/History failure shows the cause in plain words; D4.5 no new migrations; D4.6 401-only logout), `Part of #647`, `Closes #1453` (the plan issue, per the brief), `Model: <the implementer's real model, taken from the orchestration ledger row for that lane, never from the agent's self-report>`, `Unverified until CI:` list (the e2e specs require the compose stack; sandbox cannot boot it).
 - [ ] `.dump/DONE.md` with tip SHA, PR URL, evidence paths; print `DONE`.
 
 ---
@@ -434,7 +434,7 @@ A traceability table linking each reconciliation decision to the spec line that 
 - The concurrent-retry RED proof (Task 4 Step 3) is SELF-CONTAINED in D4's own spec + transcript; D3's planned `DispatchDuePostsConcurrency.Spec` (D3 PR #1450) is cited as prior art by heading only — D4 neither waits for nor references that file.
 - **VERIFIED ON DEVELOP, tip `c7f0737e5`, 2026-08-26 — not a D3 deliverable and not unverified:** the `ux_job_queue_type_idempotency` unique index already exists on develop via `apps/api/Migrations/20260716182713_HardenJobQueueEnvelope.cs` (name at lines 195 and 244; `.Designer.cs:559`). Prove: `git show origin/develop:apps/api/Migrations/20260716182713_HardenJobQueueEnvelope.cs | grep -n ux_job_queue_type_idempotency`. An earlier draft wrongly attributed this index to D3 PR #1450.
 
-Model: ox-alpha (Jcode agent) + GPT-5.5 Codex (round-5 corrections pass, effort high) — plan only
+Model: MiniMax M3 (`or:minimax/minimax-m3:free`, jcode) wrote the plan; Ox Alpha (`stealth/ox-alpha`, jcode, effort max) made the round-4 and round-5 corrections. Plan only. Both taken from the orchestration ledger, not from any agent's self-report.
 
 Closes #1453
 Part of #647
