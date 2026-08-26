@@ -22,6 +22,8 @@
 	"failed-to-load-activity-description": "The latest audit events could not be loaded. Try again.",
 	"format": "Format",
 	"loading-actions": "Loading actions…",
+	"no-audit-logs-description": "Nothing has happened in the workspace yet. Actions across tenants will appear here.",
+	"no-audit-logs-yet": "No activity yet",
 	"no-audit-logs-match-description": "No audit logs match your current filters.",
 	"no-audit-logs-match-title": "No matching audit logs",
 	"payload-region-label": "Audit log payload"

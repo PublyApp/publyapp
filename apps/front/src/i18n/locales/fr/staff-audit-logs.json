@@ -22,6 +22,8 @@
 	"failed-to-load-activity-description": "Les derniers événements d'audit n'ont pas pu être chargés. Réessayez.",
 	"format": "Format",
 	"loading-actions": "Chargement des actions…",
+	"no-audit-logs-description": "Rien ne s'est encore produit dans l'espace de travail. Les actions sur les locataires apparaîtront ici.",
+	"no-audit-logs-yet": "Aucune activité pour le moment",
 	"no-audit-logs-match-description": "Aucun journal d'audit ne correspond à vos filtres actuels.",
 	"no-audit-logs-match-title": "Aucun journal d'audit correspondant",
 	"payload-region-label": "Contenu du journal d'audit"
