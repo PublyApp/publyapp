@@ -12,6 +12,7 @@ public static partial class Routes {
 		public static class ForTenant {
 			public const string Root = "/publishing";
 			public const string FindPublications = "/publications";
+			public const string PublishTargets = "/publish-targets";
 		}
 	}
 }

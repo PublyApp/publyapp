@@ -4,6 +4,8 @@
 // @ts-ignore
 import { PublicationsRequestBuilderRequestsMetadata, type PublicationsRequestBuilder } from './publications/index.js';
 // @ts-ignore
+import { PublishTargetsRequestBuilderRequestsMetadata, type PublishTargetsRequestBuilder } from './publishTargets/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -14,6 +16,10 @@ export interface PublishingRequestBuilder extends BaseRequestBuilder<PublishingR
      * The publications property
      */
     get publications(): PublicationsRequestBuilder;
+    /**
+     * The publishTargets property
+     */
+    get publishTargets(): PublishTargetsRequestBuilder;
 }
 /**
  * Uri template for the request builder.
@@ -25,6 +31,9 @@ export const PublishingRequestBuilderUriTemplate = "{+baseurl}/publishing";
 export const PublishingRequestBuilderNavigationMetadata: Record<Exclude<keyof PublishingRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     publications: {
         requestsMetadata: PublicationsRequestBuilderRequestsMetadata,
+    },
+    publishTargets: {
+        requestsMetadata: PublishTargetsRequestBuilderRequestsMetadata,
     },
 };
 /* tslint:enable */

@@ -28,6 +28,17 @@ public static class PublishingEndpointsForTenant {
 			.WithReqQueryValidation<FindPublicationsQuery>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]);
 
+		group.MapGet(
+			Routes.Publishing.ForTenant.PublishTargets,
+			GetPublishTargetsForTenant.Handle
+		)
+			.WithName("GetPublishTargetsForTenant")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+			.WithSummary("List visible social accounts as composer publish targets")
+			.WithTenantPermission([AppPermissions.Tenant.SocialAccounts.PUBLISH]);
+
 		return routes;
 	}
 }
