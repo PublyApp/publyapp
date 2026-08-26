@@ -37,39 +37,92 @@ describe('mapInviteLevel', () => {
 		expect(mapInviteLevel('owner')).toBe('Admin');
 	});
 
-	test('maps anything else to User', () => {
-		expect(mapInviteLevel('member')).toBe('User');
+	test('maps a blank or missing level to User', () => {
+		expect(mapInviteLevel('')).toBe('User');
 		expect(mapInviteLevel(undefined)).toBe('User');
+	});
+
+	test('flags any other value as Invalid, not a silent User downgrade', () => {
+		expect(mapInviteLevel('member')).toBe('Invalid');
+		expect(mapInviteLevel('moderator')).toBe('Invalid');
 	});
 });
 
 describe('parseInviteCsv', () => {
 	test('parses the documented email, level, profiles columns', () => {
-		const rows = parseInviteCsv(
+		const result = parseInviteCsv(
 			'email,level,profiles\na@example.com,admin,Alpha; Beta\n',
 		);
 
-		expect(rows).toEqual([
-			{
-				email: 'a@example.com',
-				accountLevel: 'Admin',
-				profileNames: ['Alpha', 'Beta'],
-			},
-		]);
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha', 'Beta'],
+					invalidLevel: null,
+				},
+			],
+		});
+	});
+
+	test('marks an unknown level as an invalid row rather than a silent User', () => {
+		const result = parseInviteCsv(
+			'email,level,profiles\na@example.com,moderator,Alpha\n',
+		);
+
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'User',
+					profileNames: ['Alpha'],
+					invalidLevel: 'moderator',
+				},
+			],
+		});
+	});
+
+	test('returns an empty-file cause instead of zero rows', () => {
+		expect(parseInviteCsv('')).toEqual({
+			outcome: 'error',
+			kind: 'empty',
+		});
+	});
+
+	test('returns a missing-email-column cause for a header without email', () => {
+		expect(parseInviteCsv('foo,bar\n1,2\n')).toEqual({
+			outcome: 'error',
+			kind: 'no-email-column',
+		});
 	});
 
 	test('handles quoted commas and CRLF line endings', () => {
-		const rows = parseInviteCsv(
+		const result = parseInviteCsv(
 			'"email","level","profiles"\r\n"a@example.com","user","Al,pha"\r\n',
 		);
 
-		expect(rows[0]?.profileNames).toEqual(['Al,pha']);
+		expect(result.outcome).toBe('parsed');
+		if (result.outcome !== 'parsed') {
+			throw new Error('expected parsed outcome');
+		}
+
+		expect(result.rows[0]?.profileNames).toEqual(['Al,pha']);
 	});
 
 	test('is case-insensitive on header names', () => {
-		const rows = parseInviteCsv('EMAIL,Level,PROFILES\nb@example.com,user,X\n');
+		const result = parseInviteCsv(
+			'EMAIL,Level,PROFILES\nb@example.com,user,X\n',
+		);
 
-		expect(rows[0]?.email).toBe('b@example.com');
+		expect(result.outcome).toBe('parsed');
+		if (result.outcome !== 'parsed') {
+			throw new Error('expected parsed outcome');
+		}
+
+		expect(result.rows[0]?.email).toBe('b@example.com');
 	});
 });
 
@@ -113,15 +166,19 @@ describe('parseInviteWorkbook', () => {
 				'</sheetData></worksheet>',
 		});
 
-		const rows = parseInviteWorkbook(bytes);
+		const result = parseInviteWorkbook(bytes);
 
-		expect(rows).toEqual([
-			{
-				email: 'a@example.com',
-				accountLevel: 'Admin',
-				profileNames: ['Alpha'],
-			},
-		]);
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'Admin',
+					profileNames: ['Alpha'],
+					invalidLevel: null,
+				},
+			],
+		});
 	});
 
 	test('skips sparse gaps by column letter, not cell order', () => {
@@ -134,11 +191,53 @@ describe('parseInviteWorkbook', () => {
 				'</sheetData></worksheet>',
 		});
 
-		const rows = parseInviteWorkbook(bytes);
+		const result = parseInviteWorkbook(bytes);
 
-		expect(rows).toEqual([
-			{ email: 'a@example.com', accountLevel: 'User', profileNames: [] },
-		]);
+		expect(result).toEqual({
+			outcome: 'parsed',
+			rows: [
+				{
+					email: 'a@example.com',
+					accountLevel: 'User',
+					profileNames: [],
+					invalidLevel: null,
+				},
+			],
+		});
+	});
+
+	test('returns an unreadable-excel cause when the zip cannot be opened', () => {
+		expect(parseInviteWorkbook(new Uint8Array([0, 1, 2, 3]))).toEqual({
+			outcome: 'error',
+			kind: 'unreadable-excel',
+		});
+	});
+
+	test('returns a no-sheet cause when the worksheet is missing', () => {
+		const bytes = zipSync(
+			{
+				'xl/workbook.xml': strToU8('<workbook/>'),
+			},
+			{ level: 0 },
+		);
+
+		expect(parseInviteWorkbook(bytes)).toEqual({
+			outcome: 'error',
+			kind: 'no-sheet',
+		});
+	});
+
+	test('returns a missing-email-column cause when the header has no email', () => {
+		const bytes = buildWorkbook({
+			sharedStrings: ['name', 'role'],
+			sheetXml:
+				'<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row></sheetData></worksheet>',
+		});
+
+		expect(parseInviteWorkbook(bytes)).toEqual({
+			outcome: 'error',
+			kind: 'no-email-column',
+		});
 	});
 });
 
@@ -235,13 +334,23 @@ describe('canSendInvitations', () => {
 
 	const evaluate = (
 		rows: InviteRow[],
-		overrides?: { isResolvingProfiles?: boolean; unresolvedCount?: number },
+		overrides?: {
+			isResolvingProfiles?: boolean;
+			unresolvedCount?: number;
+			invalidLevelCount?: number;
+		},
 	) =>
 		canSendInvitations({
 			rows,
 			isResolvingProfiles: overrides?.isResolvingProfiles ?? false,
 			unresolvedCount: overrides?.unresolvedCount ?? 0,
+			invalidLevelCount: overrides?.invalidLevelCount ?? 0,
 		});
+
+	const rowWith = (overrides: Partial<InviteRow>): InviteRow => ({
+		...validRow,
+		...overrides,
+	});
 
 	test('allows a valid non-empty batch', () => {
 		expect(evaluate([validRow])).toBe(true);
@@ -255,8 +364,32 @@ describe('canSendInvitations', () => {
 		expect(evaluate([validRow], { isResolvingProfiles: true })).toBe(false);
 	});
 
-	test('blocks while unresolved profile names remain', () => {
+	test('blocks while a single unresolved profile name remains', () => {
 		expect(evaluate([validRow], { unresolvedCount: 1 })).toBe(false);
+	});
+
+	test('blocks while several unresolved profile names remain', () => {
+		expect(evaluate([validRow], { unresolvedCount: 3 })).toBe(false);
+	});
+
+	test('blocks while a single invalid file level remains', () => {
+		expect(
+			evaluate([rowWith({ invalidLevel: 'moderator' })], {
+				invalidLevelCount: 1,
+			}),
+		).toBe(false);
+	});
+
+	test('blocks while several invalid file levels remain', () => {
+		expect(
+			evaluate(
+				[
+					rowWith({ invalidLevel: 'moderator' }),
+					rowWith({ key: 'kv2', invalidLevel: 'superuser' }),
+				],
+				{ invalidLevelCount: 2 },
+			),
+		).toBe(false);
 	});
 
 	test('blocks rows with malformed emails', () => {

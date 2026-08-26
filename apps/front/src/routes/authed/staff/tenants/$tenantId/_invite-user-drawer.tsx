@@ -335,7 +335,27 @@ const unresolvedFlagCount = (
 	return total;
 };
 
-type UnresolvedEntry = { name: string; reason: string };
+type RowInvalidLevelNoteProps = {
+	invalidLevel: string | null;
+	email: string;
+	t: Translate;
+};
+
+const RowInvalidLevelNote = ({
+	invalidLevel,
+	email,
+	t,
+}: RowInvalidLevelNoteProps) => {
+	if (!invalidLevel) {
+		return null;
+	}
+
+	return (
+		<p className="text-xs text-destructive" role="alert">
+			{t('invite-invalid-level', { email, level: invalidLevel })}
+		</p>
+	);
+};
 
 const RowUnresolvedNotes = ({
 	unresolved,
@@ -477,6 +497,11 @@ const InviteRowsList = ({
 				{!isAdmin ? (
 					<RowUnresolvedNotes unresolved={unresolvedByRowKey[row.key]} t={t} />
 				) : null}
+				<RowInvalidLevelNote
+					invalidLevel={row.invalidLevel}
+					email={row.email || t('invite-blank-row')}
+					t={t}
+				/>
 			</section>
 		);
 	};
@@ -605,15 +630,25 @@ const useInviteFileImport = ({
 		}
 
 		try {
-			let parsedRows;
+			let result;
 			if (isCsv) {
-				parsedRows = parseInviteCsv(await file.text());
+				result = parseInviteCsv(await file.text());
 			} else {
-				parsedRows = parseInviteWorkbook(
-					new Uint8Array(await file.arrayBuffer()),
-				);
+				result = parseInviteWorkbook(new Uint8Array(await file.arrayBuffer()));
 			}
 
+			if (result.outcome === 'error') {
+				const messageByKind = {
+					empty: t('invite-import-empty'),
+					'no-email-column': t('invite-import-no-email-column'),
+					'unreadable-excel': t('invite-import-unreadable-excel'),
+					'no-sheet': t('invite-import-no-sheet'),
+				} as const;
+				setImportError(messageByKind[result.kind]);
+				return;
+			}
+
+			const parsedRows = result.rows;
 			const existingEmails = methods.getValues('rows').map((row) => row.email);
 			const outcome = buildImportedInvites({
 				parsedRows,
@@ -865,6 +900,8 @@ const InviteTenantUserDrawerInner = ({
 		rows: rows ?? [],
 		isResolvingProfiles,
 		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
+		invalidLevelCount: (rows ?? []).filter((row) => row.invalidLevel !== null)
+			.length,
 	});
 	const isSendDisabled = isFormLockedFinal || !canSend;
 	const peopleCount = rows?.length ?? 0;

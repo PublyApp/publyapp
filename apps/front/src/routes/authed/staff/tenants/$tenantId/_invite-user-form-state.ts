@@ -14,6 +14,10 @@ export type InviteRow = {
 	/** Raw names as parsed from the file; empty for manual rows. */
 	profileNames: string[];
 	source: 'file' | 'manual';
+	/** Non-null when the file carried a level that is neither admin/owner nor
+	 * blank: the row is in error and blocks Send until the value is fixed.
+	 * Carries the exact raw value so the user sees which line/value is wrong. */
+	invalidLevel: string | null;
 };
 
 export type ProfileNameResolution = {
@@ -31,11 +35,27 @@ export const splitProfileNames = (raw: string): string[] =>
 		.map((piece) => piece.trim())
 		.filter(Boolean);
 
+/** Maps a raw `level` cell to a recognised account level.
+ *
+ * - `admin` / `owner` (case-insensitive) → `Admin`
+ * - `user` / blank / missing → `User` (the safe default)
+ * - anything else → `Invalid`: the row is a row-level error, not a silent
+ *   downgrade to `User`. The caller surfaces the raw value and blocks Send. */
+export type InviteLevel = 'Admin' | 'User' | 'Invalid';
+
 export const mapInviteLevel = (
 	rawLevel: string | undefined | null,
-): 'Admin' | 'User' => {
+): InviteLevel => {
 	const normalized = (rawLevel ?? '').trim().toLowerCase();
-	return normalized === 'admin' || normalized === 'owner' ? 'Admin' : 'User';
+	if (normalized === 'admin' || normalized === 'owner') {
+		return 'Admin';
+	}
+
+	if (normalized === 'user' || normalized.length === 0) {
+		return 'User';
+	}
+
+	return 'Invalid';
 };
 
 /** Splits pasted emails on commas, whitespace, and newlines; dedupes
@@ -135,13 +155,49 @@ export type ParsedInviteRow = {
 	email: string;
 	accountLevel: 'Admin' | 'User';
 	profileNames: string[];
+	/** Set when the file's `level` value was not admin/owner and not blank.
+	 * The row is in error; the drawer blocks Send and shows the raw value. */
+	invalidLevel: string | null;
+};
+
+/** Why a file parse produced no usable rows. Each cause has its own i18n key
+ * so the drawer can name the problem in plain words instead of a generic
+ * "could not read file" message. */
+export type ParseInviteFailureKind =
+	| 'empty'
+	| 'no-email-column'
+	| 'unreadable-excel'
+	| 'no-sheet';
+
+export type ParseInviteSuccess = {
+	outcome: 'parsed';
+	rows: ParsedInviteRow[];
+};
+
+export type ParseInviteFailure = {
+	outcome: 'error';
+	kind: ParseInviteFailureKind;
+};
+
+export type ParseInviteResult = ParseInviteSuccess | ParseInviteFailure;
+
+/** Maps a raw `level` cell (already extracted) to its parsed row fields. */
+const mapLevelToRowFields = (
+	rawLevel: string | undefined,
+): { accountLevel: 'Admin' | 'User'; invalidLevel: string | null } => {
+	const level = mapInviteLevel(rawLevel);
+	if (level === 'Invalid') {
+		return { accountLevel: 'User', invalidLevel: (rawLevel ?? '').trim() };
+	}
+
+	return { accountLevel: level, invalidLevel: null };
 };
 
 /** CSV → invite rows via the documented header: `email, level, profiles`. */
-export const parseInviteCsv = (text: string): ParsedInviteRow[] => {
+export const parseInviteCsv = (text: string): ParseInviteResult => {
 	const rawRows = parseCsvRows(text);
 	if (rawRows.length === 0) {
-		return [];
+		return { outcome: 'error', kind: 'empty' };
 	}
 
 	const [headerRow, ...dataRows] = rawRows;
@@ -150,19 +206,29 @@ export const parseInviteCsv = (text: string): ParsedInviteRow[] => {
 	const indexOfLevel = headers.indexOf('level');
 	const indexOfProfiles = headers.indexOf('profiles');
 
+	if (indexOfEmail === -1) {
+		return { outcome: 'error', kind: 'no-email-column' };
+	}
+
 	const parsed: ParsedInviteRow[] = [];
 	for (const row of dataRows) {
 		const hasContent = row.some((cell) => cell.trim().length > 0);
 		if (!hasContent) {
 			continue;
 		}
+
+		const { accountLevel, invalidLevel } = mapLevelToRowFields(
+			row[indexOfLevel],
+		);
 		parsed.push({
 			email: (row[indexOfEmail] ?? '').trim(),
-			accountLevel: mapInviteLevel(row[indexOfLevel]),
+			accountLevel,
 			profileNames: splitProfileNames(row[indexOfProfiles] ?? ''),
+			invalidLevel,
 		});
 	}
-	return parsed;
+
+	return { outcome: 'parsed', rows: parsed };
 };
 
 /** Column letter(s) (`A`, `B`, … `AA`) → zero-based index. */
@@ -204,17 +270,17 @@ const textContents = (xml: string, tag: string): string[] => {
  * SheetJS was dropped repo-wide for unfixed CVEs (round-1 review shell-F1);
  * this covers exactly what an invite sheet needs: shared-string cells read
  * positionally by their `r` reference so sparse gaps stay aligned. */
-export const parseInviteWorkbook = (bytes: Uint8Array): ParsedInviteRow[] => {
+export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 	let files: Record<string, Uint8Array>;
 	try {
 		files = unzipSync(bytes);
 	} catch {
-		return [];
+		return { outcome: 'error', kind: 'unreadable-excel' };
 	}
 
 	const sheetXmlBytes = files['xl/worksheets/sheet1.xml'];
 	if (!sheetXmlBytes) {
-		return [];
+		return { outcome: 'error', kind: 'no-sheet' };
 	}
 
 	const sheetXml = strFromU8(sheetXmlBytes);
@@ -273,7 +339,7 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParsedInviteRow[] => {
 		),
 	);
 	if (!headerRecord) {
-		return [];
+		return { outcome: 'error', kind: 'no-email-column' };
 	}
 
 	const columnIndexOf = (headerName: string): number => {
@@ -299,14 +365,18 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParsedInviteRow[] => {
 			continue;
 		}
 
+		const { accountLevel, invalidLevel } = mapLevelToRowFields(
+			record[levelColumn],
+		);
 		rows.push({
 			email,
-			accountLevel: mapInviteLevel(record[levelColumn]),
+			accountLevel,
 			profileNames: splitProfileNames(record[profilesColumn] ?? ''),
+			invalidLevel,
 		});
 	}
 
-	return rows;
+	return { outcome: 'parsed', rows };
 };
 
 let rowKeyCounter = 0;
@@ -322,12 +392,14 @@ export const makeManualRow = (email = ''): InviteRow => {
 		profileIds: [],
 		profileNames: [],
 		source: 'manual',
+		invalidLevel: null,
 	};
 };
 
 /** Parsed rows → InviteRows carrying provenance; dedupes case-insensitively
- * within the batch and against every email already on the form. Invalid
- * emails are dropped silently (the submit gate re-checks validity). */
+ * within the batch and against every email already on the form. Rows whose
+ * file carried an invalid `level` keep their `invalidLevel` flag so the drawer
+ * can show the bad value and block Send. */
 export const buildImportedInvites = (
 	{
 		parsedRows,
@@ -365,6 +437,7 @@ export const buildImportedInvites = (
 			profileIds: [],
 			profileNames: parsed.profileNames,
 			source,
+			invalidLevel: parsed.invalidLevel,
 		});
 	}
 
@@ -428,17 +501,25 @@ export const applyProfileResolutions = (
 };
 
 /** The Send gate: non-empty batch, no in-flight resolution, zero unresolved
- * profile flags, and every row carrying a syntactically valid email. */
+ * profile flags, no row carrying an invalid file `level`, and every row
+ * carrying a syntactically valid email. */
 export const canSendInvitations = ({
 	rows,
 	isResolvingProfiles,
 	unresolvedCount,
+	invalidLevelCount,
 }: {
 	rows: InviteRow[];
 	isResolvingProfiles: boolean;
 	unresolvedCount: number;
+	invalidLevelCount: number;
 }): boolean => {
-	if (rows.length === 0 || isResolvingProfiles || unresolvedCount > 0) {
+	if (
+		rows.length === 0 ||
+		isResolvingProfiles ||
+		unresolvedCount > 0 ||
+		invalidLevelCount > 0
+	) {
 		return false;
 	}
 
