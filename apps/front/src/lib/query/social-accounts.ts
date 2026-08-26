@@ -122,7 +122,7 @@ export const toSocialAccountRows = (
 	return rows;
 };
 
-const socialAccountsQueryOptions = buildTenantQueryOptions<
+export const socialAccountsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	SocialAccountsWireResponse,
 	Record<string, unknown>
@@ -147,7 +147,7 @@ export const useSocialAccountsQuery = (variables: { tenantId: string }) =>
 		queryFn: () => socialAccountsQueryOptions.fetcher(variables),
 	});
 
-const invalidateSocialAccounts = (
+export const invalidateSocialAccounts = (
 	queryClient: QueryClient,
 	tenantId: string,
 ): void => {

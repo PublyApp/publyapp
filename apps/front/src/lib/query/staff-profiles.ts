@@ -116,7 +116,7 @@ export type StaffAssignedPermissionGroup = {
  * invalidation/removal key from this. Don't hand-assemble a prefixed key at
  * a call site (review-r3-users-auth.md F11); use `invalidateStaffProfiles`.
  */
-const STAFF_PROFILES_QUERY_KEY = ['staff-profiles'] as const;
+export const STAFF_PROFILES_QUERY_KEY = ['staff-profiles'] as const;
 
 /** Invalidates the staff-profiles list and every profile's details +
  * permission-keys entries — all nest under `STAFF_PROFILES_QUERY_KEY` (see

@@ -18,7 +18,7 @@ import {
 	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
 
-const TENANT_POSTS_QUERY_KEY = ['tenant-posts'] as const;
+export const TENANT_POSTS_QUERY_KEY = ['tenant-posts'] as const;
 const TENANT_POST_DETAILS_QUERY_KEY = ['tenant-posts', 'detail'] as const;
 
 export type TenantPostsQueryVariables = {
