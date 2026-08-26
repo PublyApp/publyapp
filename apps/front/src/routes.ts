@@ -115,10 +115,11 @@ export const routes = rootRoute('__root.tsx', [
 		),
 		route('/staff/audit-logs', 'authed/staff/audit-logs.tsx'),
 		route('/staff/audit-logs/$logId', 'authed/staff/audit-logs/$logId.tsx'),
-		route('/staff/jobs', 'authed/staff/jobs.tsx'),
-		route('/staff/jobs/', 'authed/staff/jobs/queue.tsx'),
-		route('/staff/jobs/dead-letter', 'authed/staff/jobs/dead-letter.tsx'),
-		route('/staff/jobs/system-jobs', 'authed/staff/jobs/system-jobs.tsx'),
+		route('/staff/jobs', 'authed/staff/jobs.tsx', [
+			index('authed/staff/jobs/queue.tsx'),
+			route('/dead-letter', 'authed/staff/jobs/dead-letter.tsx'),
+			route('/system-jobs', 'authed/staff/jobs/system-jobs.tsx'),
+		]),
 		route(
 			'/staff/tenant-users/details/$userId',
 			'authed/staff/tenant-users-details-$userId.tsx',

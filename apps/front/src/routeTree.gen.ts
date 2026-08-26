@@ -235,21 +235,21 @@ const authedStaffInvitationsNewRoute =
     getParentRoute: () => authedLayoutRoute,
   } as any)
 const authedStaffJobsQueueRoute = authedStaffJobsQueueRouteImport.update({
-  id: '/staff/jobs/',
-  path: '/staff/jobs/',
-  getParentRoute: () => authedLayoutRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => authedStaffJobsRoute,
 } as any)
 const authedStaffJobsDeadLetterRoute =
   authedStaffJobsDeadLetterRouteImport.update({
-    id: '/staff/jobs/dead-letter',
-    path: '/staff/jobs/dead-letter',
-    getParentRoute: () => authedLayoutRoute,
+    id: '/dead-letter',
+    path: '/dead-letter',
+    getParentRoute: () => authedStaffJobsRoute,
   } as any)
 const authedStaffJobsSystemJobsRoute =
   authedStaffJobsSystemJobsRouteImport.update({
-    id: '/staff/jobs/system-jobs',
-    path: '/staff/jobs/system-jobs',
-    getParentRoute: () => authedLayoutRoute,
+    id: '/system-jobs',
+    path: '/system-jobs',
+    getParentRoute: () => authedStaffJobsRoute,
   } as any)
 const authedStaffProfilesProfileIdRoute =
   authedStaffProfilesProfileIdRouteImport.update({
@@ -537,7 +537,7 @@ export interface FileRoutesByFullPath {
   '/tenant': typeof authedTenantRouteWithChildren
   '/staff/audit-logs': typeof authedStaffAuditLogsRoute
   '/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
-  '/staff/jobs': typeof authedStaffJobsRoute
+  '/staff/jobs': typeof authedStaffJobsRouteWithChildren
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
@@ -614,12 +614,12 @@ export interface FileRoutesByTo {
   '/staff': typeof authedStaffRoute
   '/tenant': typeof authedTenantRouteWithChildren
   '/staff/audit-logs': typeof authedStaffAuditLogsRoute
-  '/staff/jobs': typeof authedStaffJobsQueueRoute
   '/staff/profiles': typeof authedStaffProfilesRoute
   '/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/staff/tenants': typeof authedStaffTenantsRoute
   '/tenant/organizations': typeof authedTenantOrganizationsRoute
   '/staff/invitations': typeof authedStaffInvitationsIndexRoute
+  '/staff/jobs': typeof authedStaffJobsQueueRoute
   '/tenant/account': typeof authedTenantAccountProfileRoute
   '/tenant/posts': typeof authedTenantPostsCalendarRoute
   '/tenant/settings': typeof authedTenantSettingsGeneralRoute
@@ -688,7 +688,7 @@ export interface FileRoutesById {
   '/_authed-layout/tenant': typeof authedTenantRouteWithChildren
   '/_authed-layout/staff/audit-logs': typeof authedStaffAuditLogsRoute
   '/_authed-layout/staff/dashboard': typeof authedStaffDashboardRouteWithChildren
-  '/_authed-layout/staff/jobs': typeof authedStaffJobsRoute
+  '/_authed-layout/staff/jobs': typeof authedStaffJobsRouteWithChildren
   '/_authed-layout/staff/profiles': typeof authedStaffProfilesRoute
   '/_authed-layout/staff/staff-users': typeof authedStaffStaffUsersRoute
   '/_authed-layout/staff/tenants': typeof authedStaffTenantsRoute
@@ -845,12 +845,12 @@ export interface FileRouteTypes {
     | '/staff'
     | '/tenant'
     | '/staff/audit-logs'
-    | '/staff/jobs'
     | '/staff/profiles'
     | '/staff/staff-users'
     | '/staff/tenants'
     | '/tenant/organizations'
     | '/staff/invitations'
+    | '/staff/jobs'
     | '/tenant/account'
     | '/tenant/posts'
     | '/tenant/settings'
@@ -1196,24 +1196,24 @@ declare module '@tanstack/react-router' {
     }
     '/_authed-layout/staff/jobs/': {
       id: '/_authed-layout/staff/jobs/'
-      path: '/staff/jobs'
+      path: '/'
       fullPath: '/staff/jobs/'
       preLoaderRoute: typeof authedStaffJobsQueueRouteImport
-      parentRoute: typeof authedLayoutRoute
+      parentRoute: typeof authedStaffJobsRoute
     }
     '/_authed-layout/staff/jobs/dead-letter': {
       id: '/_authed-layout/staff/jobs/dead-letter'
-      path: '/staff/jobs/dead-letter'
+      path: '/dead-letter'
       fullPath: '/staff/jobs/dead-letter'
       preLoaderRoute: typeof authedStaffJobsDeadLetterRouteImport
-      parentRoute: typeof authedLayoutRoute
+      parentRoute: typeof authedStaffJobsRoute
     }
     '/_authed-layout/staff/jobs/system-jobs': {
       id: '/_authed-layout/staff/jobs/system-jobs'
-      path: '/staff/jobs/system-jobs'
+      path: '/system-jobs'
       fullPath: '/staff/jobs/system-jobs'
       preLoaderRoute: typeof authedStaffJobsSystemJobsRouteImport
-      parentRoute: typeof authedLayoutRoute
+      parentRoute: typeof authedStaffJobsRoute
     }
     '/_authed-layout/staff/profiles/$profileId': {
       id: '/_authed-layout/staff/profiles/$profileId'
@@ -1630,6 +1630,22 @@ const authedStaffDashboardRouteChildren: authedStaffDashboardRouteChildren = {
 const authedStaffDashboardRouteWithChildren =
   authedStaffDashboardRoute._addFileChildren(authedStaffDashboardRouteChildren)
 
+interface authedStaffJobsRouteChildren {
+  authedStaffJobsQueueRoute: typeof authedStaffJobsQueueRoute
+  authedStaffJobsDeadLetterRoute: typeof authedStaffJobsDeadLetterRoute
+  authedStaffJobsSystemJobsRoute: typeof authedStaffJobsSystemJobsRoute
+}
+
+const authedStaffJobsRouteChildren: authedStaffJobsRouteChildren = {
+  authedStaffJobsQueueRoute: authedStaffJobsQueueRoute,
+  authedStaffJobsDeadLetterRoute: authedStaffJobsDeadLetterRoute,
+  authedStaffJobsSystemJobsRoute: authedStaffJobsSystemJobsRoute,
+}
+
+const authedStaffJobsRouteWithChildren = authedStaffJobsRoute._addFileChildren(
+  authedStaffJobsRouteChildren,
+)
+
 interface authedStaffStaffUsersUserIdRouteChildren {
   authedStaffStaffUsersUserIdActivityRoute: typeof authedStaffStaffUsersUserIdActivityRoute
   authedStaffStaffUsersUserIdPermissionsRoute: typeof authedStaffStaffUsersUserIdPermissionsRoute
@@ -1680,17 +1696,14 @@ interface authedLayoutRouteChildren {
   authedTenantRoute: typeof authedTenantRouteWithChildren
   authedStaffAuditLogsRoute: typeof authedStaffAuditLogsRoute
   authedStaffDashboardRoute: typeof authedStaffDashboardRouteWithChildren
-  authedStaffJobsRoute: typeof authedStaffJobsRoute
+  authedStaffJobsRoute: typeof authedStaffJobsRouteWithChildren
   authedStaffProfilesRoute: typeof authedStaffProfilesRoute
   authedStaffStaffUsersRoute: typeof authedStaffStaffUsersRoute
   authedStaffTenantsRoute: typeof authedStaffTenantsRoute
   authedStaffInvitationsIndexRoute: typeof authedStaffInvitationsIndexRoute
-  authedStaffJobsQueueRoute: typeof authedStaffJobsQueueRoute
   authedStaffAuditLogsLogIdRoute: typeof authedStaffAuditLogsLogIdRoute
   authedStaffInvitationsInvitationIdRoute: typeof authedStaffInvitationsInvitationIdRoute
   authedStaffInvitationsNewRoute: typeof authedStaffInvitationsNewRoute
-  authedStaffJobsDeadLetterRoute: typeof authedStaffJobsDeadLetterRoute
-  authedStaffJobsSystemJobsRoute: typeof authedStaffJobsSystemJobsRoute
   authedStaffProfilesProfileIdRoute: typeof authedStaffProfilesProfileIdRoute
   authedStaffProfilesNewRoute: typeof authedStaffProfilesNewRoute
   authedStaffStaffUsersUserIdRoute: typeof authedStaffStaffUsersUserIdRouteWithChildren
@@ -1722,18 +1735,15 @@ const authedLayoutRouteChildren: authedLayoutRouteChildren = {
   authedTenantRoute: authedTenantRouteWithChildren,
   authedStaffAuditLogsRoute: authedStaffAuditLogsRoute,
   authedStaffDashboardRoute: authedStaffDashboardRouteWithChildren,
-  authedStaffJobsRoute: authedStaffJobsRoute,
+  authedStaffJobsRoute: authedStaffJobsRouteWithChildren,
   authedStaffProfilesRoute: authedStaffProfilesRoute,
   authedStaffStaffUsersRoute: authedStaffStaffUsersRoute,
   authedStaffTenantsRoute: authedStaffTenantsRoute,
   authedStaffInvitationsIndexRoute: authedStaffInvitationsIndexRoute,
-  authedStaffJobsQueueRoute: authedStaffJobsQueueRoute,
   authedStaffAuditLogsLogIdRoute: authedStaffAuditLogsLogIdRoute,
   authedStaffInvitationsInvitationIdRoute:
     authedStaffInvitationsInvitationIdRoute,
   authedStaffInvitationsNewRoute: authedStaffInvitationsNewRoute,
-  authedStaffJobsDeadLetterRoute: authedStaffJobsDeadLetterRoute,
-  authedStaffJobsSystemJobsRoute: authedStaffJobsSystemJobsRoute,
   authedStaffProfilesProfileIdRoute: authedStaffProfilesProfileIdRoute,
   authedStaffProfilesNewRoute: authedStaffProfilesNewRoute,
   authedStaffStaffUsersUserIdRoute:
