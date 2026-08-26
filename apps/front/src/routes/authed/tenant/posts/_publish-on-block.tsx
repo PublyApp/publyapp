@@ -32,7 +32,9 @@ export const PublishOnBlock = ({
 	onBeforePublish,
 }: {
 	projectId: string | null;
-	/** Present once the post exists (edit page). In the creation drawer the
+	/** Present once the post exists (edit page). */
+	postId?: string | null;
+	/** In the creation drawer the
 	 * block calls `onBeforePublish` first so the draft is saved and the caller
 	 * hands back the created post id before publish-now fires. */
 	onBeforePublish?: () => Promise<string | null>;

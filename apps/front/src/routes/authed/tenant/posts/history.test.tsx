@@ -4,10 +4,11 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TenantPublicationRow } from '~/lib/query/tenant-publications';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
-	rows: [] as Array<Record<string, string>>,
+	rows: [] as TenantPublicationRow[],
 	nextCursor: null as string | null,
 	queryError: null as Error | null,
 	shouldLogout: false,
@@ -81,7 +82,7 @@ import { Route } from './history';
 
 const TenantPostsHistoryPage = Route.options.component as ComponentType;
 
-const row = (overrides: Record<string, unknown>) => ({
+const row = (overrides: Record<string, unknown>): TenantPublicationRow => ({
 	id: 'pub-1',
 	postId: 'post-1',
 	socialAccountId: 'acc-1',

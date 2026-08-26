@@ -12,9 +12,11 @@ import { PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import {
 	invalidateTenantPublications,
+	isTenantPublicationStatus,
 	toTenantPublicationRows,
 	useTenantPublicationsQuery,
 	type TenantPublicationRow,
+	type TenantPublicationStatus,
 } from '~/lib/query/tenant-publications';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
@@ -35,8 +37,10 @@ const IN_PROGRESS_POLL_MS = 5_000;
 const STATUS_LABEL_KEYS = {
 	published: 'posts:publish-status-published',
 	scheduled: 'posts:publish-status-scheduled',
+	in_progress: 'posts:publish-status-in-progress',
+	failed: 'posts:publish-status-failed',
 	paused: 'posts:publish-status-paused',
-} as const;
+} as const satisfies Record<TenantPublicationStatus, string>;
 
 const PublicationStatusCell = ({
 	publication,
@@ -88,13 +92,16 @@ const PublicationStatusCell = ({
 		);
 	}
 
-	return (
-		<span className="text-muted-foreground">
-			{(publication.status && STATUS_LABEL_KEYS[publication.status]
-				? t(STATUS_LABEL_KEYS[publication.status])
-				: publication.status) ?? '\u2014'}
-		</span>
-	);
+	let statusLabel: string = publication.status ?? '\u2014';
+
+	if (
+		publication.status !== null &&
+		isTenantPublicationStatus(publication.status)
+	) {
+		statusLabel = t(STATUS_LABEL_KEYS[publication.status]);
+	}
+
+	return <span className="text-muted-foreground">{statusLabel}</span>;
 };
 
 const TenantPostsHistoryPage = () => {
