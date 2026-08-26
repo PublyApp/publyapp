@@ -290,7 +290,8 @@ réseau émises pour cette ressource (doit rester 1, preuve anti-double-fetch).
 
 1. Spec Playwright `apps/front/e2e/preload-waterfall.spec.ts` : (a) mock API qui répond avec un
    délai fixe injectable (500 ms) sur `GET /staff/tenants/{id}` ; (b) scénario A : aller sur la
-   liste tenants, HOVER le lien détail pendant > `preloadDelay` (100 ms), attendre que la requête
+   liste tenants, HOVER le lien détail pendant > `preloadDelay` (défaut bibliothèque : 50 ms, non
+   surchargé dans `router.tsx`), attendre que la requête
    mockée parte AVANT le clic (assertion `page.waitForResponse` pendant le hover), cliquer,
    chronométrer jusqu'à la réponse ; (c) scénario B (contrôle, même session, cache vidé) : clic
    sans hover préalable, même chronomètre.
