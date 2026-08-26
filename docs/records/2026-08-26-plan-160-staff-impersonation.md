@@ -834,7 +834,9 @@ public async Task ItShouldAttributeATenantMutationToTheRealActorInAudit() {
 	// 2) start an impersonation of V via the service; present ONLY the
 	//    impersonation (t:) token in X-Session-Token (same transport as the
 	//    banner spec below);
-	// 3) DELETE /posts/{P.id} with the X-Tenant-Id header for T → expect the
+	// 3) DELETE /posts/{P.id} with the tenant-id header for T
+	//    (TENANT_ID_HEADER_KEY, default "X-PublyApp-TenantId" per .env.example;
+	//    read by CheckTenantHeaderFilter on the tenant group) → expect the
 	//    ordinary tenant 200 ApiResponse;
 	// 4) open audit_logs and assert EXACTLY ONE new row:
 	//    Action == AuditActions.PostDeleted AND UserId == S (the REAL actor)
