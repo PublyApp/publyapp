@@ -27,7 +27,6 @@ const SHIM_BODY = `// Re-export shim recreating the R1 violation (#1533).
 export * from '${SHIM_SPECIFIER}';
 `;
 
-let sandbox: string;
 const sandboxes: string[] = [];
 
 after(() => {
