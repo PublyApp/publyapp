@@ -274,9 +274,10 @@ test-api-debug $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 #                  the two browser/e2e suites, PLUS the full API test suite.
 # `just ci-full` - `just ci` + both e2e suites.
 #
-# The API suite is local-only: no workflow runs it (the only `dotnet test` in CI
-# is the OpenApiContractSpec filter). So a green `just ci` is STRONGER than CI
-# for backend work, and weaker only on the e2e suites that `ci-full` adds.
+# The API suite ran local-only until #1462 added .github/workflows/api-tests.yml,
+# which runs `just test-api` as the required api-tests-gate PR check. `just ci`
+# still runs the same suite locally before every push, so backend failures are
+# caught before they reach CI.
 #
 # These recipes deliberately compose existing targets rather than restating
 # their commands. `just ci-drift` fails the gate if a workflow gains or changes

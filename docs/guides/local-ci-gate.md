@@ -108,14 +108,17 @@ error: Recipe `ci-lint` failed on line 251 with exit code 1
 
 ## The API-suite asymmetry (read this once)
 
-**No workflow runs the API test suite.** The only `dotnet test` in CI is
-`openapi-spec-drift.yml`'s `--filter "FullyQualifiedName~OpenApiContractSpec"`. The other
-~1,150 tests have always been local-only.
+**Since #1462, a workflow runs the API test suite.** `.github/workflows/api-tests.yml`
+runs `just test-api` (~2,000 specs on real Postgres via Testcontainers) as the
+required `api-tests-gate` check on PRs, with the same #1017 aggregate-gate shape
+(changes classifier -> heavy job -> gate) as every other gate. The only remaining
+`dotnet test` asymmetry is `openapi-spec-drift.yml`'s contract-only filter.
 
-So for backend work, `just ci` is **stronger than CI has ever been**, and its absence from
-CI is exactly why the local gate is worth having. `just test-api` runs in the `ci` target
-rather than only `ci-full` because ~1.7 minutes is a fair price for the best signal the
-repo has.
+`just ci` still runs the full suite locally via its final recipe, so it remains the
+fastest pre-push signal; CI now independently enforces what used to be local-only.
+The suite is relevance-classified in CI: doc-only changes skip the heavy job while
+the required `api-tests-gate` context still reports (passing on verified-irrelevant
+changes, per the aggregate-gate contract).
 
 ## What CI has that the local gate cannot
 

@@ -427,6 +427,21 @@ export const GATE_WORKFLOWS = [
 		alwaysJobs: [],
 	},
 	{
+		// #1462: CI finally runs the full API test suite (`just test-api`,
+		// ~2,000 specs on real Postgres via Testcontainers) as a required PR
+		// check. The heavy job is deliberately named `suite`, NOT `api-tests`:
+		// the reserved-name rule below rejects any job whose reported name
+		// CONTAINS a reserved name, so the required context `api-tests-gate`
+		// may be reported by this workflow's gate job only.
+		file: 'api-tests.yml',
+		changesJob: 'changes',
+		gateJob: 'gate',
+		gateName: 'api-tests-gate',
+		pushCheckName: 'api-tests-push-check',
+		relevanceGatedJobs: [{ id: 'suite', needs: ['changes'] }],
+		alwaysJobs: [],
+	},
+	{
 		file: 'react-doctor.yml',
 		changesJob: 'changes',
 		gateJob: 'gate',

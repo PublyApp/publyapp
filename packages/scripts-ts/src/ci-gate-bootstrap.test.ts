@@ -61,6 +61,9 @@ const workflowFiles = [
 	'openapi-spec-drift.yml',
 	'docs-archive.yml',
 	'react-doctor.yml',
+	// #1462: CI runs the full API test suite behind this gate; its classifier
+	// invocation gets the same present/absent fallback fixtures as the rest.
+	'api-tests.yml',
 ];
 
 /**
@@ -311,6 +314,8 @@ const RELEVANT_FILE_BY_WORKFLOW = {
 	'openapi-spec-drift.yml': 'apps/api/Program.cs',
 	'docs-archive.yml': 'docs/guides/foo.md',
 	'react-doctor.yml': 'apps/front/src/routes.ts',
+	// #1462: the suite gate's own file must select itself, like every gate.
+	'api-tests.yml': '.github/workflows/api-tests.yml',
 };
 
 // A file no workflow's pattern matches, to prove the negative case for all five.
