@@ -84,13 +84,19 @@ const config: KnipConfig = {
 					'exports',
 				],
 				// staff-tenant-activity.ts — #1570 (tenant activity tab) introduced
-				// this file with exports (STAFF_TENANT_ACTIVITY_QUERY_KEY,
+				// this file. Its exports (STAFF_TENANT_ACTIVITY_QUERY_KEY,
 				// buildTenantActivityQueryParameters, tenantActivityQueryOptions)
-				// that are currently unreferenced anywhere in the tree. Surfaced on
-				// this lane because #1570 landed on develop after this PR was cut and
-				// the merged-tree knip now evaluates them. Scoped to the exact file +
-				// the exports issue type so any newly-added export gap in this file
-				// still fails knip loudly. Reported identically on origin/develop.
+				// are NOT dead code: they are self-consumed internally within the
+				// same file — tenantActivityQueryOptions builds its queryKeyFn from
+				// STAFF_TENANT_ACTIVITY_QUERY_KEY and feeds buildTenantActivityQueryParameters
+				// into queryParameters, and useTenantActivityQuery wraps
+				// tenantActivityQueryOptions (see the internal .queryKey/.fetcher
+				// calls). knip reports these as unused exports because it does not
+				// trace the chain across the buildStaffQueryOptions()/useQuery() generic
+				// boundary, so this is a self-consumption false positive, not a
+				// delete-when-cleanup tolerance. Scoped to the exact file + the exports
+				// issue type so any newly-added export gap in this file still fails
+				// knip loudly. Reported identically on origin/develop.
 				'src/lib/query/staff-tenant-activity.ts': ['exports'],
 			},
 		},
