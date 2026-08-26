@@ -1,6 +1,6 @@
 import { IconActivity } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
@@ -48,7 +48,6 @@ const StaffTenantActivityPage = () => {
 	);
 	const { i18n, t } = useTranslation(['staff-tenant-activity', 'common']);
 	const locale = i18n?.language ?? 'en';
-	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const onSearchChange = (next: TableSearchParams): void => {
 		void navigate({
@@ -69,23 +68,22 @@ const StaffTenantActivityPage = () => {
 		{ tenantId },
 		{ enabled: tenantId.length > 0 },
 	);
-	const activityQuery = useTenantActivityQuery({
-		tenantId,
-		sortId: controller.apiVariables.sortId,
-		sortOrder: controller.apiVariables.sortOrder,
-		cursor: controller.apiVariables.cursor,
-		size: controller.apiVariables.size,
-	});
+	const activityQuery = useTenantActivityQuery(
+		{
+			tenantId,
+			sortId: controller.apiVariables.sortId,
+			sortOrder: controller.apiVariables.sortOrder,
+			cursor: controller.apiVariables.cursor,
+			size: controller.apiVariables.size,
+		},
+		{ enabled: tenantId.length > 0 },
+	);
 
 	const rows = toTenantActivityRows(activityQuery.data?.data);
 	const columns = useMemo(
 		() => makeTenantActivityColumns(t, locale),
 		[t, locale],
 	);
-
-	if (shouldLogout) {
-		return <LogoutRedirect />;
-	}
 
 	const detailsError = detailsQuery.error;
 	if (detailsError !== null && shouldLogoutForFailure(detailsError)) {
@@ -94,7 +92,6 @@ const StaffTenantActivityPage = () => {
 
 	const activityError = activityQuery.error;
 	if (activityError !== null && shouldLogoutForFailure(activityError)) {
-		setShouldLogout(true);
 		return <LogoutRedirect />;
 	}
 

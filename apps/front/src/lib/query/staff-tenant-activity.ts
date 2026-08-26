@@ -128,8 +128,12 @@ export const tenantActivityQueryOptions = buildStaffQueryOptions<
 
 export const useTenantActivityQuery = (
 	variables: TenantActivityQueryVariables,
+	options?: {
+		enabled?: boolean;
+	},
 ) =>
 	useQuery({
 		queryKey: tenantActivityQueryOptions.queryKey(variables),
 		queryFn: () => tenantActivityQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
 	});
