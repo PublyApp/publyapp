@@ -41,9 +41,11 @@ public sealed class CancelPostScheduleForTenant {
 		}
 
 		var result = await publicationService.CancelScheduleAsync(
-			tenantId,
-			postIdGuid,
-			account.UserId,
+			new CancelPostScheduleArgs(
+				tenantId,
+				postIdGuid,
+				account.UserId
+			),
 			cancellationToken
 		);
 

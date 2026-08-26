@@ -158,9 +158,7 @@ public interface IPublicationService {
 	/// deleted/kept counts, or null when the post does not exist in the tenant.
 	/// </summary>
 	Task<CancelScheduleResult?> CancelScheduleAsync(
-		Guid tenantId,
-		Guid postId,
-		Guid actorUserId,
+		CancelPostScheduleArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -502,11 +500,12 @@ public sealed class PublicationService : IPublicationService {
 	/// a second commit that a cancellation could skip.
 	/// </summary>
 	public async Task<CancelScheduleResult?> CancelScheduleAsync(
-		Guid tenantId,
-		Guid postId,
-		Guid actorUserId,
+		CancelPostScheduleArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var tenantId = args.TenantId;
+		var postId = args.PostId;
+		var actorUserId = args.ActorUserId;
 		var postExists = await (
 			from p in _dbContext.Post.AsNoTracking()
 			where p.Id == postId
