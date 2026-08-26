@@ -18,6 +18,8 @@
 	"export": "Export",
 	"export-audit-logs-current-filters": "Export all audit logs matching the current filters.",
 	"exporting": "Exporting…",
+	"failed-to-load-activity": "Couldn't load recent activity",
+	"failed-to-load-activity-description": "The latest audit events could not be loaded. Try again.",
 	"format": "Format",
 	"loading-actions": "Loading actions…",
 	"no-audit-logs-match-description": "No audit logs match your current filters.",

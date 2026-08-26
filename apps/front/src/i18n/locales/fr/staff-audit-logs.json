@@ -18,6 +18,8 @@
 	"export": "Exporter",
 	"export-audit-logs-current-filters": "Exporter tous les journaux d'audit correspondant aux filtres actuels.",
 	"exporting": "Exportation…",
+	"failed-to-load-activity": "Impossible de charger l'activité récente",
+	"failed-to-load-activity-description": "Les derniers événements d'audit n'ont pas pu être chargés. Réessayez.",
 	"format": "Format",
 	"loading-actions": "Chargement des actions…",
 	"no-audit-logs-match-description": "Aucun journal d'audit ne correspond à vos filtres actuels.",
