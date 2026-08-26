@@ -184,16 +184,23 @@ export type ParseInviteFailure = {
 
 export type ParseInviteResult = ParseInviteSuccess | ParseInviteFailure;
 
+/** Parsed-row level fields: a recognised level, or the raw invalid value. */
+export type RowLevelFields = {
+	accountLevel: 'Admin' | 'User';
+	invalidLevel: string | null;
+};
+
 /** Maps a raw `level` cell (already extracted) to its parsed row fields. */
-const mapLevelToRowFields = (
-	rawLevel: string | undefined,
-): { accountLevel: 'Admin' | 'User'; invalidLevel: string | null } => {
+const mapLevelToRowFields = (rawLevel: string | undefined) => {
 	const level = mapInviteLevel(rawLevel);
 	if (level === 'Invalid') {
-		return { accountLevel: 'User', invalidLevel: (rawLevel ?? '').trim() };
+		return {
+			accountLevel: 'User',
+			invalidLevel: (rawLevel ?? '').trim(),
+		} satisfies RowLevelFields;
 	}
 
-	return { accountLevel: level, invalidLevel: null };
+	return { accountLevel: level, invalidLevel: null } satisfies RowLevelFields;
 };
 
 /** CSV → invite rows via the documented header: `email, level, profiles`. */
@@ -463,7 +470,7 @@ export type ProfileResolutionOutcome = {
 export const applyProfileResolutions = (
 	rows: InviteRow[],
 	resolutions: ProfileNameResolution[],
-): ProfileResolutionOutcome => {
+) => {
 	const resolutionByName = new Map(
 		resolutions.map((resolution) => [
 			resolution.name.toLowerCase(),
@@ -500,7 +507,11 @@ export const applyProfileResolutions = (
 		return { ...row, profileIds };
 	});
 
-	return { rows: nextRows, unresolvedByRowKey, unresolvedCount };
+	return {
+		rows: nextRows,
+		unresolvedByRowKey,
+		unresolvedCount,
+	} satisfies ProfileResolutionOutcome;
 };
 
 /** The Send gate: non-empty batch, no in-flight resolution, zero unresolved
