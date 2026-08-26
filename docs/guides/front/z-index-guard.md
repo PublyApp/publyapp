@@ -2,8 +2,8 @@
 
 Normative. Defends the invariant that every z-index utility in `apps/front/src` routes through the
 `--publy-z-*` scale declared in `src/styles/app.css`. The guard is
-`apps/front/scripts/check-zindex-guard.mjs`; its fixture suite is
-`apps/front/scripts/check-zindex-guard.test.mjs`. The fixture suite's live-tree check runs during
+`apps/front/scripts/guards/check-zindex-guard.mts`; its fixture suite is
+`apps/front/scripts/guards/check-zindex-guard.test.mts`. The fixture suite's live-tree check runs during
 `pnpm --filter front test` (part of `just ci-front`) — exactly one full production scan and one full
 production build per run. The standalone `pnpm --filter front check:zindex` CLI runs the same guard
 on demand but is wired into no gate on its own.

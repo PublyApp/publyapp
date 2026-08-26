@@ -173,7 +173,7 @@ export const readCompiledAppCss = (): string => {
 	if (!cssPath) {
 		throw new Error(
 			'Expected a compiled app-*.css asset under dist/client/assets after ' +
-				'`pnpm --filter front build` — see scripts/verify-build-css-link.mjs.',
+				'`pnpm --filter front build` — see scripts/guards/verify-build-css-link.mts.',
 		);
 	}
 	if (!isFresh(cssPath)) {

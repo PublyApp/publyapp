@@ -17,7 +17,7 @@ const APP_CSS_PATH = join(import.meta.dirname, '../../styles/app.css');
 const appCssSource = readFileSync(APP_CSS_PATH, 'utf8');
 // The canonical selector this suite asserts, spelled out in full. This file is
 // one of the four entries on `SEARCH_CANCEL_MENTION_INVENTORY` in
-// scripts/search-cancel-css-policy.mjs, which is why the token may appear here
+// scripts/guards/search-cancel-css-policy.mts, which is why the token may appear here
 // at all — never by splitting it.
 const SEARCH_CANCEL_SELECTOR =
 	".publy-search-input[type='search']::-webkit-search-cancel-button";
@@ -169,7 +169,7 @@ describe('SearchInput', () => {
 	// (css-cascade-test-support.ts), which collects every top-level rule
 	// that exactly matches the selector and resolves last-declaration-wins
 	// per property. The fail-closed source-wide and emitted-artifact policy
-	// lives in scripts/search-cancel-css-policy.mjs; unlike this adjacent
+	// lives in scripts/guards/search-cancel-css-policy.mts; unlike this adjacent
 	// component contract, it counts the pseudo-element token without trying
 	// to model which selector spellings target this input.
 	test("the native ::-webkit-search-cancel-button suppression rule exists and targets this component's actual rendered markup", () => {
@@ -318,7 +318,7 @@ describe('SearchInput', () => {
 	// working custom clear control).
 	//
 	// Selector semantics are deliberately outside this bounded resolver; they
-	// belong to the policy in scripts/search-cancel-css-policy.mjs. Stated
+	// belong to the policy in scripts/guards/search-cancel-css-policy.mts. Stated
 	// precisely, because earlier revisions of this comment overclaimed — round
 	// 10 caught it saying "across the complete frontend source tree" while it
 	// scanned one directory, and round 11 caught it asserting that
@@ -350,7 +350,7 @@ describe('SearchInput', () => {
 	//    places an author might hide the string.
 	//
 	// Both authorities run in `pnpm --filter front build` (via
-	// scripts/verify-build-css-link.mjs) and again in the standalone
+	// scripts/guards/verify-build-css-link.mts) and again in the standalone
 	// "Verify front production build emits a CSS asset" step of the
 	// `supply-chain` job, which the required `front-ci-gate` context needs.
 	//

@@ -90,7 +90,7 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 
 The avatar identity palette `--publy-avatar-1…8` (teal, violet, pink, rose, orange, sky, cyan,
 magenta) is **theme-invariant** (no `html.dark` counterpart) — WCAG-pinned against fixed white
-initials text. — source: `apps/front/src/styles/app.css`, `apps/front/scripts/check-design-system.mjs` (`THEME_INVARIANT_TOKENS`), `apps/front/src/styles/avatar-fallback-contrast.test.ts`
+initials text. — source: `apps/front/src/styles/app.css`, `apps/front/scripts/guards/check-design-system.mts` (`THEME_INVARIANT_TOKENS`), `apps/front/src/styles/avatar-fallback-contrast.test.ts`
 
 Marketing-specific accent `--publy-marketing-eyebrow-accent` (`#8a6a1f` light / `#d97706` dark) is
 the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/front/src/styles/app.css`
@@ -113,7 +113,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
   (`--publy-modal-radius`). — source: `apps/front/src/components/ui/button.tsx`, `input.tsx`, `badge.tsx`, `dropdown-menu.tsx`, `app.css`
 - **`rounded-full` / `999px` is forbidden everywhere except**: avatars, the 36px topbar icon buttons
   (`.app-shell-topbar-action-btn`), and the profile icon-picker's pencil-pin corner badge. Enforced
-  by rule `no-rounded-full-or-999-radius` with an exact-selector allowlist. — source: `apps/front/scripts/check-design-system.mjs` (`ROUNDED_RULE_ID`), `docs/guides/front/conventions.md` (Corner radius)
+  by rule `no-rounded-full-or-999-radius` with an exact-selector allowlist. — source: `apps/front/scripts/guards/check-design-system.mts` (`ROUNDED_RULE_ID`), `docs/guides/front/conventions.md` (Corner radius)
 
 ### Elevation & z-index ladder
 - **Flat surfaces, crisp hairlines.** Cards/sections use a 1px box-shadow ring
@@ -283,7 +283,8 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 - Toggled via `ui-store` and the `.dark` class on `<html>` (`@custom-variant dark (&:is(.dark *))`).
   The toggle is **instant** (no flash). Dark values are authored at implementation time from the
   `gray-ui-csm` template; light is the design canvas. — source: `conventions.md` (Navigation & layout), `app.css` (`@custom-variant dark`), `docs/records/2026-07-09-spec-front-2-gray-ui-stack-migration.md`
-- Theme-invariant tokens (avatar palette, auth panel, chrome bevel) intentionally do **not** swap. — source: `check-design-system.mjs` (`THEME_INVARIANT_TOKENS`)
+- Theme-invariant tokens (avatar palette, auth panel, chrome bevel) intentionally do **not** swap. — source: `check-design-system.mts` (`THEME_INVARIANT_TOKENS`)
+
 
 ### Mutation feedback
 - A single global owner (`router.tsx` `MutationCache`) emits one success toast / one general failure
@@ -329,15 +330,15 @@ and `pnpm --filter front test`).
 
 | Guard (file) | Rule it enforces | How to run | What red looks like |
 | --- | --- | --- | --- |
-| `scripts/check-design-system.mjs` | Enforces (by `ruleId`): `no-heroui-import`, `no-mui-import`, `no-lucide-import`, `no-heroui-color-scale`, `no-raw-visual-color` (hex/rgb/hsl/`color-mix` outside tokens), `no-native-product-select`, `no-prototype-icons`, `no-icon-font-classes`, `no-native-confirm`, `no-important-foundation`, `no-rounded-full-or-999-radius` (exact-selector allowlist), `no-non-confirmation-centered-overlay`, `no-dialog-popup-primitives`, `no-raw-internal-anchor`, `no-single-star-route-glob`, `token-theme-parity`, `token-must-be-declared`, `status-filter-checkbox-contract`, `stale-guard-debt`, `suppression-inventory-drift`. | `pnpm --filter front check:design-system` | A listed `ruleId` (e.g. `no-rounded-full-or-999-radius`, `no-raw-visual-color`, `token-theme-parity`) with the offending file/line. |
-| `scripts/check-zindex-guard.mjs` (+ `.test.mjs`) | Every `z-*` utility routes through `--publy-z-*`; no raw `z-10`/`z-50`/`[z-index:5]`; scale defined only in `:root` of `app.css`. | `pnpm --filter front check:zindex` (CLI) or `pnpm --filter front test` (suite) | A raw z-index candidate or an emitted `z-index:` not via `var(--publy-z-…)`; a second reachable scale definition. |
+| `scripts/guards/check-design-system.mts` | Enforces (by `ruleId`): `no-heroui-import`, `no-mui-import`, `no-lucide-import`, `no-heroui-color-scale`, `no-raw-visual-color` (hex/rgb/hsl/`color-mix` outside tokens), `no-native-product-select`, `no-prototype-icons`, `no-icon-font-classes`, `no-native-confirm`, `no-important-foundation`, `no-rounded-full-or-999-radius` (exact-selector allowlist), `no-non-confirmation-centered-overlay`, `no-dialog-popup-primitives`, `no-raw-internal-anchor`, `no-single-star-route-glob`, `token-theme-parity`, `token-must-be-declared`, `status-filter-checkbox-contract`, `stale-guard-debt`, `suppression-inventory-drift`. | `pnpm --filter front check:design-system` | A listed `ruleId` (e.g. `no-rounded-full-or-999-radius`, `no-raw-visual-color`, `token-theme-parity`) with the offending file/line. |
+| `scripts/guards/check-zindex-guard.mts` (+ `.test.mts`) | Every `z-*` utility routes through `--publy-z-*`; no raw `z-10`/`z-50`/`[z-index:5]`; scale defined only in `:root` of `app.css`. | `pnpm --filter front check:zindex` (CLI) or `pnpm --filter front test` (suite) | A raw z-index candidate or an emitted `z-index:` not via `var(--publy-z-…)`; a second reachable scale definition. |
 | `src/styles/focus-ring-contrast.test.ts` | Focus ring resolves to ≥3:1 against its surface for every Button/Badge variant (incl. `aria-invalid`). | `pnpm --filter front test` | A variant whose resolved ring colour is below `CONTRAST_FLOOR = 3.0`. |
 | `src/styles/avatar-fallback-contrast.test.ts` | Each `--publy-avatar-N` bg meets 4.5:1 with white initials, both themes. | `pnpm --filter front test` | A palette token below `SMALL_TEXT_CONTRAST_FLOOR = 4.5`. |
 | `src/styles/drawer-description-contrast.test.ts` (+ `e2e/drawer-description-contrast.spec.ts`) | Every drawer description selector meets 4.5:1; inventory matches real call sites. | `pnpm --filter front test` + Playwright | An undeclared `*-description` class, or a listed consumer missing from `drawer-description-inventory.ts`. |
 | `e2e/toast-contrast.spec.ts` | Each `toastVariantClassNames` variant's glyph pixels meet contrast after Chromium resolves the cascade. | `pnpm --filter front exec playwright test e2e/toast-contrast.spec.ts` | A measured variant whose text/background pair fails the floor; a variant added to `toast-variants.ts` but not measured. |
 | `src/styles/marketing-contrast.test.ts` | Marketing shell text pairs meet contrast in both themes. | `pnpm --filter front test` | A pinned pair below its floor. |
 
-— source: `apps/front/scripts/check-design-system.mjs`, `check-zindex-guard.mjs`, `apps/front/src/styles/*.test.ts`, `e2e/toast-contrast.spec.ts`
+— source: `apps/front/scripts/guards/check-design-system.mts`, `check-zindex-guard.mts`, `apps/front/src/styles/*.test.ts`, `e2e/toast-contrast.spec.ts`
 
 ---
 
@@ -346,14 +347,14 @@ and `pnpm --filter front test`).
 - **Tokens** live in `apps/front/src/styles/app.css` under `:root` and `html.dark`, plus the `@theme inline`
   bridge. Add a token in **both** themes (the token-theme-parity guard fails if a token is declared in
   only one block). Theme-invariant tokens (avatar palette, auth panel, chrome bevel) must be added to
-  `THEME_INVARIANT_TOKENS` in `scripts/check-design-system.mjs` with a reason, and must **not** get an
-  `html.dark` counterpart. — source: `app.css`, `check-design-system.mjs`
+  `THEME_INVARIANT_TOKENS` in `scripts/guards/check-design-system.mts` with a reason, and must **not** get an
+  `html.dark` counterpart. — source: `app.css`, `check-design-system.mts`
 - **Add a component**: create it under `apps/front/src/components/ui/`, wrap a Base UI primitive, set a
   `data-slot`, declare `cva` variants, compose with `cn()`. Prefer adding to the existing primitive
   layer over one-off route CSS. Do not import MUI/old-front primitives. — source: `conventions.md`, `AGENTS.md`
 - **Extend a guard** when you add a new invariant (new radius exception → `ROUNDED_RULE_ID` allowlist;
   new z-tier → add to `:root` scale only; new toast variant → `toast-variants.ts` + a browser measurement).
-  Guards fail closed: an unregistered new entity/selector is reported, not silently skipped. — source: `check-design-system.mjs`, `check-zindex-guard.mjs`, `toast-variants.ts`
+  Guards fail closed: an unregistered new entity/selector is reported, not silently skipped. — source: `check-design-system.mts`, `check-zindex-guard.mts`, `toast-variants.ts`
 - **Approval**: design-language changes are owner-ratified by Radan. New standing decisions go into
   `docs/guides/front/conventions.md` (Product UI Design Preferences); this file is the human/agent
   distillation and must be updated to stay in sync. — source: `conventions.md` (Product UI Design Preferences), `AGENTS.md`

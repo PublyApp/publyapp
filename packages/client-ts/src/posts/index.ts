@@ -4,7 +4,7 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindPostsForTenantResponseFromDiscriminatorValue, createPostCreatedFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeCreatePostBody, serializePostCreated, type AppProblemDetails, type CreatePostBody, type FindPostsForTenantResponse, type PostCreated, type ValidationProblemDetails } from '../models/index.js';
 // @ts-ignore
-import { type WithPostItemRequestBuilder, WithPostItemRequestBuilderRequestsMetadata } from './item/index.js';
+import { type WithPostItemRequestBuilder, WithPostItemRequestBuilderNavigationMetadata, WithPostItemRequestBuilderRequestsMetadata } from './item/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -84,6 +84,7 @@ const PostsRequestBuilderGetQueryParametersMapper: Record<string, string> = {
 export const PostsRequestBuilderNavigationMetadata: Record<Exclude<keyof PostsRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     byPostId: {
         requestsMetadata: WithPostItemRequestBuilderRequestsMetadata,
+        navigationMetadata: WithPostItemRequestBuilderNavigationMetadata,
         pathParametersMappings: ["postId"],
     },
 };

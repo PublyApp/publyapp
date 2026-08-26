@@ -240,6 +240,46 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostDeletedSuccess = new("post-deleted-success");
 
 	/// <summary>
+	/// Post image attached successfully
+	/// </summary>
+	public static readonly TranslationKey PostImageAttachedSuccess = new("post-image-attached-success");
+
+	/// <summary>
+	/// Image dimensions are invalid
+	/// </summary>
+	public static readonly TranslationKey PostImageDimensionsInvalid = new("post-image-dimensions-invalid");
+
+	/// <summary>
+	/// No image is attached to this post
+	/// </summary>
+	public static readonly TranslationKey PostImageMissing = new("post-image-missing");
+
+	/// <summary>
+	/// Post image removed successfully
+	/// </summary>
+	public static readonly TranslationKey PostImageRemovedSuccess = new("post-image-removed-success");
+
+	/// <summary>
+	/// An image file is required
+	/// </summary>
+	public static readonly TranslationKey PostImageRequired = new("post-image-required");
+
+	/// <summary>
+	/// Image exceeds the maximum allowed size
+	/// </summary>
+	public static readonly TranslationKey PostImageTooLarge = new("post-image-too-large");
+
+	/// <summary>
+	/// Image must be a PNG, JPEG, WEBP, or GIF
+	/// </summary>
+	public static readonly TranslationKey PostImageUnsupportedType = new("post-image-unsupported-type");
+
+	/// <summary>
+	/// Post not found
+	/// </summary>
+	public static readonly TranslationKey PostNotFound = new("post-not-found");
+
+	/// <summary>
 	/// profile
 	/// </summary>
 	public static readonly TranslationKey Profile = new("profile");
