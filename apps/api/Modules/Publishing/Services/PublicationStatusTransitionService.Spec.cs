@@ -1,4 +1,5 @@
 using FluentAssertions;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -282,5 +283,65 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		await db.Entry(seeded).ReloadAsync();
 		seeded.Status.Should().Be(PublicationStatus.InProgress);
 		seeded.Attempts.Should().Be(firstAttemptCount + 1);
+	}
+
+	[Fact]
+	public async Task ItShouldPauseAScheduledPublicationAndPreserveItsInstant() {
+		using var db = await NewDbAsync();
+		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		var service = NewService(db);
+
+		var ok = await service.MarkPausedAsync(
+			new MarkPublicationPausedArgs(
+				seeded.GetRequiredId(),
+				seeded.TenantId,
+				"the social account needs reconnecting"
+			),
+			CancellationToken.None
+		);
+
+		ok.Should().BeTrue();
+		var reloaded = await db.Publication.AsNoTracking()
+			.SingleAsync(p => p.Id == seeded.GetRequiredId());
+		reloaded.Status.Should().Be(PublicationStatus.Paused);
+		reloaded.ScheduledAtUtc.Should().BeCloseTo(
+			seeded.ScheduledAtUtc, TimeSpan.FromSeconds(5)
+		); // instant preserved so a later resume can restore it
+		reloaded.LastError.Should().Contain("reconnecting");
+	}
+
+	[Fact]
+	public async Task ItShouldResumeAPausedPublicationKeepingItsOriginalInstant() {
+		using var db = await NewDbAsync();
+		var seeded = await SeedAsync(db, PublicationStatus.Paused);
+		var service = NewService(db);
+
+		var ok = await service.MarkScheduledAsync(
+			new MarkPublicationScheduledArgs(seeded.GetRequiredId(), seeded.TenantId),
+			CancellationToken.None
+		);
+
+		ok.Should().BeTrue();
+		var reloaded = await db.Publication.AsNoTracking()
+			.SingleAsync(p => p.Id == seeded.GetRequiredId());
+		reloaded.Status.Should().Be(PublicationStatus.Scheduled);
+		reloaded.ScheduledAtUtc.Should().BeCloseTo(
+			seeded.ScheduledAtUtc, TimeSpan.FromSeconds(5)
+		); // NOT DateTime.UtcNow — resume must never fire work late
+		reloaded.LastError.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldThrowWhenMarkScheduledIsCalledOnAnAlreadyScheduledRow() {
+		using var db = await NewDbAsync();
+		var seeded = await SeedAsync(db, PublicationStatus.Scheduled);
+		var service = NewService(db);
+
+		var act = async () => await service.MarkScheduledAsync(
+			new MarkPublicationScheduledArgs(seeded.GetRequiredId(), seeded.TenantId),
+			CancellationToken.None
+		);
+
+		await act.Should().ThrowAsync<InvalidOperationException>();
 	}
 }

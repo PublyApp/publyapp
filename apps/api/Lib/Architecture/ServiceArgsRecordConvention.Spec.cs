@@ -214,6 +214,11 @@ public sealed class ServiceArgsRecordConventionSpec {
 			"ReschedulePublicationToNowArgs",
 			nameof(CancellationToken)
 		);
+		AssertMethodParameterTypeNames<IPublicationStatusTransitionService>(
+			"MarkScheduledAsync",
+			"MarkPublicationScheduledArgs",
+			nameof(CancellationToken)
+		);
 	}
 
 	// Filters to interfaces only. The args-record convention is defined at the
