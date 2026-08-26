@@ -16,6 +16,76 @@
 		"See docs/guides/local-ci-gate.md."
 	],
 	"steps": {
+		"api-tests.yml::changes::Check whether api-tests paths changed": {
+			"hash": "8bc3fa198bef720c",
+			"mirror": "pnpm --filter scripts-ts exec vitest run src/ci-gate-bootstrap.test.ts",
+			"reason": "The step inlines the base-classifier fallback directly (round-3 review fix used across every #1017 gate): classifier ABSENT at the base commit -> warn loudly and fail closed to relevant=true without invoking it; classifier PRESENT -> delegated to entirely, exit code and output passed through unchanged. Its path-group regex mirrors this workflow's push.paths groups (apps/api, packages/client-ts, packages/shared-ts, packages/lint-cs, .config/dotnet-tools.json, Directory.Build.props/targets/Packages.props, global.json, justfile, PublyApp.slnx, .github/workflows/api-tests.yml). packages/scripts-ts/src/ci-gate-bootstrap.test.ts extracts and executes this exact script body (parsed from this file, not restated) against both fallback outcomes plus real-classifier true/false/nonzero cases."
+		},
+		"api-tests.yml::changes::Checkout classifier from the base commit (not the PR's own copy)": {
+			"hash": "99333e5810d54009",
+			"mirror": null,
+			"reason": "GitHub-only: checks out the classifier script (packages/scripts-ts/src/ci-changed-paths.ts) from the pull request's base commit into base-ref/ rather than its own merge commit. This pins the classifier's SOURCE so an accidental or careless edit (a rename, a bad rebase) cannot silently change it — it is NOT a defense against a pull request that deliberately tries to bypass its own gates, since the `changes` job's YAML itself (including the invocation step) is read from the pull request's merge commit the same as everything else in this workflow; see #1022 for the honest framing and why that residual exposure is accepted. Locally the working tree already is the code under test, and there is no PR base/head distinction to reproduce."
+		},
+		"api-tests.yml::changes::Setup Node": {
+			"hash": "6c699edc403fc068",
+			"mirror": null,
+			"reason": "GitHub-only Node setup for PR gating. This repository's local checks already assume Node is available locally for scripts and format/lint tooling."
+		},
+		"api-tests.yml::gate::Check required jobs": {
+			"hash": "882f344edb8cc40a",
+			"mirror": null,
+			"reason": "GitHub-only: this is the #1017 aggregate required-check step, which reads the needs context (via toJSON(needs)) across the workflow's other jobs. Correlates skipped work with the classifier's own verdict — asserts needs.changes.result is exactly success, requires needs.changes.outputs.relevant to be exactly true or false (failing closed on absent/empty/malformed, since GitHub can omit an output entirely), allows skipped only when relevant is false, and requires success (not skipped) from every required job when relevant is true. packages/scripts-ts/src/ci-gate-aggregation.test.ts extracts and executes this exact run: body (parsed from the real workflow, not restated) against every documented result combination plus every fail-open shape a reviewer found. That context only exists inside a GitHub Actions run, so this step is GitHub-only by construction."
+		},
+		"api-tests.yml::gate::Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)": {
+			"hash": "4f03457ecbb68642",
+			"mirror": null,
+			"reason": "GitHub-only: round-5 BLOCKER fix. Reads steps.check-required-jobs.outcome, which GitHub computes BEFORE continue-on-error is applied (only .conclusion is rewritten afterward), so a continue-on-error added to the required-jobs check step cannot mask this step's own view of whether that step actually succeeded. That `.outcome` context only exists inside a real Actions run, so this stays GitHub-only/unmirrored locally; packages/scripts-ts/src/check-ci-gate-structure.ts pins that this exact step exists."
+		},
+		"api-tests.yml::suite::Checkout": {
+			"hash": "11ee605b2ca0dfd4",
+			"mirror": null,
+			"reason": "GitHub-only: clones the repo onto the runner. Locally the working tree already is the code under test."
+		},
+		"api-tests.yml::suite::Install workspace dependencies": {
+			"hash": "293f74eab0665ce4",
+			"mirror": "just ci-install",
+			"reason": "This workflow runs a plain 'pnpm install --frozen-lockfile' (lifecycle scripts allowed). ci-install runs the hardened variant used by every other workflow: --ignore-scripts plus an explicit trusted @org/shared-ts postinstall. Same resulting tree, stricter supply-chain policy locally."
+		},
+		"api-tests.yml::suite::Materialize .env.development from template (CI has no gitignored env file)": {
+			"hash": "49e3eff0460ef725",
+			"mirror": null,
+			"reason": "CI-only compensation for the gitignored, absent .env.development, which TestEnvironment.Bootstrap() requires. Copies .env.example verbatim and deliberately does NOT force APP_ROLE=api here (unlike openapi-spec-drift.yml): `just test-api` exports APP_ROLE=all / ASPNETCORE_ENVIRONMENT=Testing itself, and since #1019 DotNetEnv's NoClobber option makes those process env vars win over the file. The suite provisions its own Postgres via Testcontainers, so no connection string is needed. Locally a developer already has a real repo-root .env.development, so `just test-api` needs no such step."
+		},
+		"api-tests.yml::suite::Run full API test suite": {
+			"hash": "5bb7396dd044736d",
+			"mirror": "just test-api",
+			"reason": "The whole point of #1462: this runs the FULL API test suite (`just test-api`, ~2,000 specs on real Postgres provisioned by Testcontainers), which until this workflow existed ran ONLY locally inside `just ci`. The mirror is the identical invocation the recipe composes (dotnet restore + dotnet test -c Test over Tests/PublyApp.Api.Tests.csproj), so `just ci` has always exercised exactly what CI now runs."
+		},
+		"api-tests.yml::suite::Set up .NET (pinned for CI determinism)": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning. Locally the SDK version is pinned by global.json instead; CI pins it again because the runner image ships whatever it ships."
+		},
+		"api-tests.yml::suite::Set up Node": {
+			"hash": "612e3d386ef1d731",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning. Locally the Node version is pinned by .node-version / .nvmrc instead."
+		},
+		"api-tests.yml::suite::Set up just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning: installs the just binary. Locally just is the entrypoint being run, so it is by definition already present."
+		},
+		"api-tests.yml::suite::Set up pnpm": {
+			"hash": "8985553731d304dc",
+			"mirror": null,
+			"reason": "Runner toolchain provisioning. Locally pnpm is pinned by the packageManager field and is a developer prerequisite."
+		},
+		"api-tests.yml::suite::Upload test results on failure": {
+			"hash": "eed89b2546b548ae",
+			"mirror": null,
+			"reason": "GitHub-only failure-only log capture: gets failing-spec output off an ephemeral runner. Locally the reports are already on disk."
+		},
 		"deploy-images.yml::publish::Build and push API migrate image": {
 			"hash": "92e036674badcdc4",
 			"mirror": "just ci",

@@ -7,6 +7,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
+using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
@@ -19,6 +20,7 @@ public sealed class RemovePostImageForTenant {
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -55,15 +57,23 @@ public sealed class RemovePostImageForTenant {
 			);
 		}
 
-		var removed = await assetService.RemoveAsync(
+		// #807 F5 discipline, owned by this handler: the service commits the
+		// row's hard delete; THIS handler releases the blob's reference only
+		// AFTER that commit. Physical deletion stays exclusively sweeper's.
+		var releasedPath = await assetService.RemoveAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
-		if (!removed) {
+		if (releasedPath is null) {
 			return TypedProblems.NotFound(
 				"No image is attached to this post",
 				ResponseKeys.PostImageMissing
 			);
 		}
+
+		await uploadReferences.TryReleaseReferenceAsync(
+			releasedPath,
+			cancellationToken
+		);
 
 		await auditLogService.LogAsync(
 			new CreateAuditLogArgs(

@@ -249,6 +249,20 @@ vi.mock('~/lib/query/tenant-projects', () => ({
 	toTenantProjectItems: () => [],
 }));
 
+// The Bluesky drawer reads its mutations through the social slice; the guard
+// only measures drawer geometry, so the hooks resolve as inert stubs.
+vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useConnectSocialAccountMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+	useReconnectSocialAccountMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
+}));
+
 vi.mock('~/lib/query/tenant-posts', () => ({
 	savePost: vi.fn(),
 	invalidateTenantPosts: vi.fn(),
@@ -390,6 +404,7 @@ import {
 	type ProfileFormValues,
 } from '../../routes/authed/staff/tenants/$tenantId/profiles/_profile-form-schema';
 import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-drawer';
+import { BlueskyConnectDrawer } from '../../routes/authed/tenant/settings/_bluesky-connect-drawer';
 
 const noop = () => undefined;
 
@@ -5153,13 +5168,42 @@ const refreshChangedSourceFiles = (
 ): void => {
 	let refreshedAny = false;
 	for (const filePath of desiredFilePaths) {
-		const stat = statSync(filePath, { bigint: true });
-		const stamp = `${stat.size}:${stat.mtimeNs}`;
+		// Other tree-walking guards plant transient fixtures under src/ and
+		// unlink them in their own `finally` blocks; when suites run
+		// concurrently a discovered path can vanish between discovery and
+		// this refresh. A vanished file contributes no drawer surface — skip
+		// it instead of failing the whole guard on someone else's cleanup.
+		let stamp: string;
+		try {
+			const fresh = statSync(filePath, { bigint: true });
+			stamp = `${fresh.size}:${fresh.mtimeNs}`;
+		} catch (error) {
+			if (
+				error instanceof Error &&
+				'code' in error &&
+				(error as NodeJS.ErrnoException).code === 'ENOENT'
+			) {
+				continue;
+			}
+			throw error;
+		}
 		const loaded = sourceFileFreshness.get(filePath);
 		if (loaded && loaded.stamp === stamp) {
 			continue;
 		}
-		const diskText = readFileSync(filePath, 'utf8');
+		let diskText: string;
+		try {
+			diskText = readFileSync(filePath, 'utf8');
+		} catch (error) {
+			if (
+				error instanceof Error &&
+				'code' in error &&
+				(error as NodeJS.ErrnoException).code === 'ENOENT'
+			) {
+				continue;
+			}
+			throw error;
+		}
 		const existing = project.getSourceFile(filePath);
 		if (existing && existing.getFullText() === diskText) {
 			sourceFileFreshness.set(filePath, { stamp, text: diskText });
@@ -9418,6 +9462,16 @@ const renderDrawerByCallSiteId = {
 				onOpenChange={noop}
 				onSaved={noop}
 				onSessionExpired={noop}
+			/>,
+		);
+	},
+	'bluesky-connect': () => {
+		render(
+			<BlueskyConnectDrawer
+				mode="connect"
+				open
+				tenantId="tenant-1"
+				onOpenChange={noop}
 			/>,
 		);
 	},

@@ -1,0 +1,267 @@
+# Lane #1462: make CI run the FULL API test suite (`just test-api`) as a required
+# PR check. See the issue for why this lane exists: until now no workflow ran
+# `just test-api` (~2,000 specs on real Postgres, provisioned by Testcontainers
+# from Docker on the runner itself), so a green `just ci` was stronger than CI.
+#
+# Shape: this file follows the #1017 aggregate-gate template (changes -> heavy
+# job(s) -> gate) that front-e2e/front-ci/openapi-spec-drift/docs-archive/
+# quality-gate/react-doctor already use, and is registered in GATE_WORKFLOWS in
+# packages/scripts-ts/src/check-ci-gate-structure.ts like every other gate.
+# The required check name is `api-tests-gate` (repo convention is `<workflow>-gate`,
+# and the structure guard reserves `api-tests` — it must not appear inside any
+# non-gate job's reported name).
+name: api tests
+
+on:
+  pull_request:
+  # Required so this required check can report for a merge-queue entry: a
+  # required Actions check missing this event waits forever once the entry
+  # reaches the queue (GitHub's documented behavior). The repository has no
+  # merge-queue rule today, so this is dormant, but a required check that
+  # cannot report under a supported GitHub feature is a latent version of
+  # the missing-check deadlock #1017 exists to remove.
+  merge_group:
+  push:
+    branches: [develop]
+    paths:
+      - 'apps/api/**'
+      - 'packages/client-ts/**'
+      - 'packages/shared-ts/**'
+      - 'packages/lint-cs/**'
+      - '.config/dotnet-tools.json'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'justfile'
+      - 'PublyApp.slnx'
+      - '.github/workflows/api-tests.yml'
+
+permissions:
+  contents: read
+
+# Supersede in-flight runs for the same ref: a newer push makes an older run's
+# result irrelevant, and on a private repo every superseded minute is billed.
+concurrency:
+  group: api-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Cheap first job: the pull_request trigger above has no `paths:` filter (a
+  # path-filtered trigger never starts for an unrelated PR, so a required
+  # status check gated only by the trigger would hang forever — see #1017).
+  # This job always runs and decides whether the expensive suite below should.
+  changes:
+    name: Determine changed paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      # Checked out from the BASE commit, not this pull request's own ref:
+      # this pins the classifier a pull request is being evaluated against so
+      # an accidental or careless edit (a rename, a bad rebase, editing the
+      # wrong copy) cannot silently change the relevance decision. Same shape,
+      # same reasoning as every other #1017 aggregate gate in this repo.
+      - name: Checkout classifier from the base commit (not the PR's own copy)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
+          sparse-checkout: |
+            packages/scripts-ts/src/ci-changed-paths.ts
+          sparse-checkout-cone-mode: false
+          path: base-ref
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Check whether api-tests paths changed
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        # Same path groups the `push.paths` trigger lists above — deliberately
+        # not widened or narrowed. The classifier itself
+        # (packages/scripts-ts/src/ci-changed-paths.ts) fails closed to relevant=true when
+        # the changed-file list can't be verified complete (GitHub's
+        # 3,000-file API ceiling) rather than trusting a truncated list — see
+        # packages/scripts-ts/src/ci-changed-paths.test.ts.
+        #
+        # The base-pinned checkout above can legitimately be empty (see its
+        # comment). If so, this fails closed to relevant=true on a path that
+        # never invokes the classifier at all, kept structurally separate
+        # from the classifier's own answer so a real relevant=false can never
+        # be mistaken for "missing" and vice versa. See
+        # packages/scripts-ts/src/ci-gate-bootstrap.test.ts, which executes this exact
+        # inline script (parsed from workflow files) against both cases.
+        run: |
+          CLASSIFIER=base-ref/packages/scripts-ts/src/ci-changed-paths.ts
+
+          if [ -f "$CLASSIFIER" ]; then
+            node "$CLASSIFIER" '^(\.github/workflows/api-tests\.yml$|apps/api/|packages/client-ts/|packages/shared-ts/|packages/lint-cs/|\.config/dotnet-tools\.json$|Directory\.Build\.props$|Directory\.Build\.targets$|Directory\.Packages\.props$|global\.json$|justfile$|PublyApp\.slnx$)'
+          else
+            echo "::warning::[MISSING BASE CLASSIFIER] $CLASSIFIER does not exist at the base commit. This is expected exactly once: for the pull request that introduces this classifier, or a branch cut before it existed on the base branch. Relevance cannot be determined from a classifier that is not there, so this fails closed: treating the workflow as relevant and running everything. If this keeps happening on ordinary pull requests well after the classifier has been on the base branch, something is wrong — investigate, do not silence it."
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # The heavy job. Testcontainers provisions its own Postgres from Docker on
+  # the runner; no services: block is needed. The justfile recipe pins the
+  # APP_ROLE=all / ASPNETCORE_ENVIRONMENT=Testing contract the suite expects.
+  suite:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up .NET (pinned for CI determinism)
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "10.0.102"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 10.13.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Set up just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      # TestEnvironment.Bootstrap() requires .env.development (gitignored, so
+      # absent in CI); materialize it from the committed template exactly as
+      # openapi-spec-drift.yml does. APP_ROLE stays at the template default:
+      # the recipe exports APP_ROLE="all" itself, and since #1019 an
+      # explicitly-set process env var wins over the file anyway.
+      - name: Materialize .env.development from template (CI has no gitignored env file)
+        run: cp .env.example .env.development
+
+      - name: Run full API test suite
+        run: just test-api
+
+      # Failure-only log capture: get failing specs off the ephemeral runner.
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: api-test-results-${{ github.run_id }}
+          path: |
+            apps/api/Tests/TestResults/
+            apps/api/.artifacts/logs/
+          if-no-files-found: ignore
+          retention-days: 5
+
+  # Required status check: this is the one context that should be required
+  # on the branch ruleset instead of relying on the trigger. It always
+  # reports (if: always()), passes when upstream jobs succeeded or were
+  # skipped (irrelevant PR), and fails on any real failure or cancellation
+  # rather than treating either as "not applicable".
+  gate:
+    # BLOCKER fix (rounds 5/6 of #1017): the event-conditional allowlist name.
+    # A push-triggered run reports under the non-required
+    # "api-tests-push-check" context so it can never collide with the required
+    # "api-tests-gate" context on the same commit. Only pull_request and
+    # merge_group resolve to the required name.
+    name: ${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'api-tests-gate' || 'api-tests-push-check' }}
+    if: always()
+    needs: [changes, suite]
+    runs-on: ubuntu-latest
+    steps:
+      # Reads the `needs` context directly (via toJSON) instead of a
+      # hand-written per-job map: a job added to `needs` above without also
+      # being added to a hand-maintained Bash list would silently never be
+      # checked (round-2 review). `needs` is populated by Actions from this
+      # job's own `needs:` keyword, so there is no second list to omit an
+      # entry from.
+      - name: Check required jobs
+        id: check-required-jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        # Fail closed on anything outside the exact documented shape: a
+        # nonempty JSON object whose every entry's result is exactly
+        # "success" or "skipped". An empty object/array, a missing `.result`,
+        # or an unrecognized result value must never silently pass. Skipped
+        # work is correlated with the classifier's own verdict: skipped is
+        # only acceptable when needs.changes.outputs.relevant is EXACTLY the
+        # string "false" (GitHub can omit a job output entirely — including
+        # because it may contain a secret — so absent/empty/malformed fails
+        # closed). See packages/scripts-ts/src/ci-gate-aggregation.test.ts,
+        # which extracts and executes this exact script body against a
+        # matrix of representative payloads.
+        run: |
+          if [ "$(echo "$NEEDS_JSON" | jq -r 'type')" != "object" ]; then
+            echo "::error::NEEDS_JSON is not a JSON object — examining nothing must never pass."
+            exit 1
+          fi
+
+          if [ "$(echo "$NEEDS_JSON" | jq 'length')" -eq 0 ]; then
+            echo "::error::NEEDS_JSON has no entries — examining zero jobs must never pass."
+            exit 1
+          fi
+
+          echo "Required jobs and their results:"
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "  \(.key): \(.value.result)"'
+
+          changes_result="$(echo "$NEEDS_JSON" | jq -r '.changes.result // "MISSING"')"
+
+          if [ "$changes_result" != "success" ]; then
+            echo "::error::needs.changes.result must be exactly \"success\" (found: \"$changes_result\"). Nothing downstream can be trusted if the changed-paths classifier itself did not run to completion."
+            exit 1
+          fi
+
+          relevant="$(echo "$NEEDS_JSON" | jq -r '.changes.outputs.relevant // "MISSING"')"
+
+          if [ "$relevant" != "true" ] && [ "$relevant" != "false" ]; then
+            echo "::error::needs.changes.outputs.relevant must be exactly the string \"true\" or \"false\" (found: \"$relevant\"). GitHub can omit a job output entirely — including because it may contain a secret — so an absent, empty, or otherwise malformed relevance signal must never be treated as license to accept skipped verification work."
+            exit 1
+          fi
+
+          if [ "$relevant" = "true" ]; then
+            bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select(.result != "success")] | length')"
+
+            if [ "$bad_count" -gt 0 ]; then
+              echo "::error::The changes classifier reported this change as relevant, so every required job must have actually run and succeeded (skipped is not acceptable) — but one or more did not (see results above)."
+              exit 1
+            fi
+          else
+            bad_count="$(echo "$NEEDS_JSON" | jq '[.[] | select((.result == "success" or .result == "skipped") | not)] | length')"
+
+            if [ "$bad_count" -gt 0 ]; then
+              echo "::error::One or more required jobs did not report success or skipped (failure, cancelled, or an unrecognized result value)."
+              exit 1
+            fi
+          fi
+
+          echo "All required jobs passed, or were correctly skipped for a verified-irrelevant change."
+
+      # BLOCKER fix (round 5): `continue-on-error: true` added to the step
+      # above would make its reported CONCLUSION "success" even after it
+      # printed `::error::` and exited 1 — masking a correctly-detected
+      # aggregation failure. GitHub computes a step's `outcome` BEFORE
+      # continue-on-error is applied (only `conclusion` is rewritten
+      # afterward), so reading `steps.check-required-jobs.outcome` here is
+      # not fooled by continue-on-error on that step.
+      - name: Verify the required-jobs check truly succeeded (continue-on-error cannot mask this)
+        if: always()
+        run: |
+          outcome="${{ steps.check-required-jobs.outcome }}"
+
+          if [ "$outcome" != "success" ]; then
+            echo "::error::steps.check-required-jobs.outcome was \"$outcome\", not \"success\". continue-on-error can rewrite a step's CONCLUSION but not its OUTCOME, so a masked required-jobs check failure is still caught here."
+            exit 1
+          fi

@@ -10,6 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 const ACCOUNT_TAB_ROUTE_SUFFIXES = ['security', 'notifications'] as const;
 type AccountSection = 'profile' | (typeof ACCOUNT_TAB_ROUTE_SUFFIXES)[number];
 
+// #818 F8: only the built Profile tab renders. Security and Notifications
+// keep their routes registered (deep links work and the active-section
+// derivation below still recognizes them) but ship no trigger until their
+// APIs exist.
+
 const getActiveSection = (pathname: string): AccountSection => {
 	const match = ACCOUNT_TAB_ROUTE_SUFFIXES.find((suffix) =>
 		pathname.endsWith(`/${suffix}`),
@@ -31,18 +36,6 @@ const TenantAccountLayout = () => {
 				<TabsList variant="line">
 					<TabsTrigger value="profile" render={<Link to="/tenant/account" />}>
 						{t('profile')}
-					</TabsTrigger>
-					<TabsTrigger
-						value="security"
-						render={<Link to="/tenant/account/security" />}
-					>
-						{t('security')}
-					</TabsTrigger>
-					<TabsTrigger
-						value="notifications"
-						render={<Link to="/tenant/account/notifications" />}
-					>
-						{t('notifications')}
 					</TabsTrigger>
 				</TabsList>
 

@@ -16,7 +16,6 @@ using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Posts.Services;
-using PublyApp.Api.Modules.Uploads.Services;
 
 using Xunit;
 
@@ -37,8 +36,10 @@ namespace PublyApp.Api.Lib.Architecture;
 /// - those handlers consume the asset service through its ABSTRACTION
 ///   (<see cref="IPostMediaAssetService"/>), never the concrete class;
 /// - <see cref="PostMediaAssetService"/> depends on nothing but its
-///   <see cref="AppDbContext"/> and the uploads reference service (#807 F5
-///   discipline) — no domain-service-to-domain-service coupling.
+///   <see cref="AppDbContext"/> — handlers orchestrate, services implement;
+///   the #807 F5 asset-reference acquire/release coordination lives in the
+///   calling handlers, which inject <c>IUploadAssetReferenceService</c>
+///   themselves.
 /// - the mutating media endpoints keep their route-level authorization
 ///   (<c>.WithTenantPermission</c> → <see cref="HasPermissionMetadata"/>) and
 ///   the multipart attach endpoint keeps the shared Upload rate-limit policy.
@@ -153,7 +154,6 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 
 		var allowedDependencies = new HashSet<Type> {
 			typeof(AppDbContext),
-			typeof(IUploadAssetReferenceService),
 		};
 
 		var offenders = service
@@ -166,10 +166,10 @@ public sealed class PostsSliceMediaGuardSpec : IDisposable {
 			.ToList();
 
 		_ = offenders.Should().BeEmpty(
-			"PostMediaAssetService may depend only on its DbContext and the "
-			+ "uploads reference service (#807 F5); adding another domain-service "
-			+ "dependency couples slices and belongs behind a deliberate change "
-			+ "to this pin"
+			"PostMediaAssetService may depend only on its DbContext (#1461 ratchet: "
+			+ "the uploads reference service moved to the calling handlers); "
+			+ "adding another domain-service dependency couples slices and belongs "
+			+ "behind a deliberate change to this pin"
 		);
 	}
 

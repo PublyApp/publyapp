@@ -213,11 +213,16 @@ public sealed class UploadAdmissionService(AppDbContext dbContext) : IUploadAdmi
 	// Serializable-retry tuning. Attempts are generous because bursts of
 	// concurrent admissions serialise on the same budget tuple; the randomised
 	// exponential backoff stops the losers from retrying in lockstep.
-	private const int RetryMaxAttempts = 8;
+	// RetryMaxAttempts must cover the burst size of the widest in-suite race
+	// spec (16 concurrent admissions, UploadAdmissionServiceSpec): a slower
+	// runner stretches each attempt's commit window, so 8 attempts exhausted
+	// there (#1467 run 32936347299). 12 attempts with an ~800 ms backoff
+	// ceiling keep every loser alive until a winner finishes committing.
+	private const int RetryMaxAttempts = 12;
 	private const int RetryBackoffBaseMs = 10;
-	private const int RetryBackoffMaxShift = 5;
+	private const int RetryBackoffMaxShift = 6;
 	private const int RetryBackoffJitterMs = 40;
-	private const int RetryBackoffCeilingMs = 500;
+	private const int RetryBackoffCeilingMs = 800;
 
 	internal AppDbContext DbContext {
 		get { return dbContext; }

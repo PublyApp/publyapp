@@ -118,5 +118,8 @@
 	"social-account-disconnected-success": "Social account disconnected and stored secret erased",
 	"credentials-refused": "Bluesky refused these credentials",
 	"provider-unreachable": "The provider could not be reached; nothing was stored",
-	"project-not-found": "Project not found in this tenant"
+	"project-not-found": "Project not found in this tenant",
+	"social-account-connected": "Bluesky account connected",
+	"social-account-reconnected": "Bluesky account reconnected",
+	"social-account-projects-updated": "Project attachments updated"
 }

@@ -46,6 +46,12 @@ export const DRAWER_FORM_CALL_SITES = [
 			'src/routes/authed/staff/tenant-users/$userId-organizations-drawer.tsx',
 		drawerTestId: 'link-companies-drawer',
 	},
+	{
+		id: 'bluesky-connect',
+		name: 'bluesky-connect',
+		sourceFile: 'src/routes/authed/tenant/settings/_bluesky-connect-drawer.tsx',
+		drawerTestId: 'bluesky-connect-drawer',
+	},
 ] as const;
 
 export type DrawerFormCallSiteId =
