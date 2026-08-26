@@ -158,7 +158,9 @@ Sortie observee :
 
 Aucune ligne de code C# ne reference le namespace `Serilog.Enrichers.Environment`
 ni le type `EnvironmentEnricher`. Aucun appel a `WithEnvironmentName()` (ni
-directement, ni via `Enrich.WithEnvironmentName`).
+directement, ni via `Enrich.WithEnvironmentName`). Cela seul ne suffit PAS a
+conclure a l'inutilite : voir la recherche des appels `.Enrich.With*` ci-dessous,
+qui revele un appel a une methode fournie par CE package.
 
 ### Recherche des appels `.Enrich.With*` dans l'API
 
@@ -173,16 +175,25 @@ apps/api/Lib/Extensions/LoggerConfigExtensions.cs:			.Enrich.WithMachineName()
 apps/api/Lib/Extensions/LoggerConfigExtensions.cs:			.Enrich.WithThreadId();
 ```
 
-Confirmation : le seul enricher cable est issu de `Serilog.Enrichers.Thread`
-(qui fournit `WithMachineName()` et `WithThreadId()`). Rien n'appelle
-`WithEnvironmentName()` (la methode fournie par
-`Serilog.Enrichers.Environment`).
+Verification empirique (inspection des DLL dans le cache NuGet) :
+- `Serilog.Enrichers.Thread` 3.1.0 expose `WithThreadId` et `WithThreadName`,
+  mais **pas** `WithMachineName`.
+- `WithMachineName()` est fourni par `Serilog.Enrichers.Environment`.
+
+`LoggerConfigExtensions.cs` appelle `Enrich.WithMachineName()` (ligne 53),
+donc `Serilog.Enrichers.Environment` est reellement utilise — contrairement
+a l'affirmation de la lane precedente (qui attribuait a tort `WithMachineName()`
+a `Serilog.Enrichers.Thread`). La preuve par le build le confirme : retirer
+`Serilog.Enrichers.Environment` casse la compilation API avec
+`CS1061: 'LoggerEnrichmentConfiguration' does not contain a definition for
+'WithMachineName'`.
 
 ### Conclusion
-`Serilog.Enrichers.Environment` n'est pas utilise. Le retrait est :
-- suppression de `<PackageVersion Include="Serilog.Enrichers.Environment" Version="3.0.1" />` dans `Directory.Packages.props`
-- suppression de `<PackageReference Include="Serilog.Enrichers.Environment" />` dans `apps/api/PublyApp.Api.csproj`
-- laisser `Serilog.Enrichers.Thread` en place : ses deux methodes sont effectivement appelees.
+`Serilog.Enrichers.Environment` est utilise (`WithMachineName()`). Il n'est
+PAS retire ; il a ete restaure dans `Directory.Packages.props` et
+`apps/api/PublyApp.Api.csproj` (commit `f59772210`) apres que le build a
+prouve que la reference etait vivante. `Serilog.Enrichers.Thread` reste aussi
+(il fournit `WithThreadId()`, effectivement appele).
 
 ## Recapitulatif
 
@@ -190,4 +201,4 @@ Confirmation : le seul enricher cable est issu de `Serilog.Enrichers.Thread`
 |---|---|---|
 | `serialize-error` | Aucun import | `package.json` (racine) : enlever la ligne `dependencies` |
 | `nanoid` | Aucun import + aucun consommateur transitif | `packages/shared-ts/package.json` : enlever la dep ; `package.json` (racine) : enlever les deux overrides |
-| `Serilog.Enrichers.Environment` | Aucun appel a `WithEnvironmentName` | `Directory.Packages.props` : enlever la `PackageVersion` ; `apps/api/PublyApp.Api.csproj` : enlever la `PackageReference` |
+| `Serilog.Enrichers.Environment` | Utilise (`WithMachineName()`) — restaure | `Directory.Packages.props` + `apps/api/PublyApp.Api.csproj` : GARDER la `PackageVersion` et la `PackageReference` |
