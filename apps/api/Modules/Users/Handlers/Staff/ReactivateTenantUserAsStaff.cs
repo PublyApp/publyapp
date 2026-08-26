@@ -23,8 +23,8 @@ public record ReactivateTenantUserResult {
 	public string? FirstName { get; set; }
 	public string? LastName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public string Level { get; set; } = string.Empty;
-	public string Status { get; set; } = string.Empty;
+	public AccountLevel Level { get; set; }
+	public TenantUserStatus Status { get; set; }
 	public Guid? TenantId { get; set; }
 }
 
@@ -119,12 +119,10 @@ public sealed class ReactivateTenantUserAsStaff {
 			FirstName = userData.User.FirstName,
 			LastName = userData.User.LastName,
 			AvatarUrl = userData.User.AvatarUrl,
-			Level = UserAccount.GetLevelDescription(userData.AccountLevel),
-			Status = UserAccount.GetStatusDescription(
-				UserAccount.GetTenantStatus(
-					userData.User.Status,
-					userData.Account.Status
-				)
+			Level = userData.AccountLevel,
+			Status = UserAccount.GetTenantStatus(
+				userData.User.Status,
+				userData.Account.Status
 			),
 			TenantId = userData.Account.TenantId,
 		});

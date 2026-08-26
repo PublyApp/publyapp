@@ -29,6 +29,7 @@ import type {
 	TenantSuspendedResult,
 	UpdateTenantAsStaffBody,
 	TenantAsStaffListItem,
+	TenantStatus,
 } from '@org/client-ts/models/index';
 import {
 	buildStaffMutationOptions,
@@ -49,7 +50,7 @@ export type StaffTenantRow = {
 	id: string;
 	name: string;
 	logoUrl: string | null;
-	status: string | null;
+	status: TenantStatus | null;
 	usersCount: number;
 	maxUsers: number;
 };
@@ -228,7 +229,7 @@ export const toStaffTenantRows = (
 			id,
 			name,
 			logoUrl: normalizeNullableFileUrl(item.logoUrl),
-			status: normalizeNullableString(item.status),
+			status: item.status ?? null,
 			usersCount: item.usersCount ?? 0,
 			maxUsers: item.maxUsers ?? 0,
 		});

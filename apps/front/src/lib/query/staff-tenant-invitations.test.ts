@@ -1,6 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { describe, expect, test, vi } from 'vitest';
 
+import {
+	AccountLevelObject,
+	InvitationEffectiveStatusObject,
+} from '@org/client-ts/models/index';
 import type { StaffTenantInvitationListItem } from '@org/client-ts/models/index';
 
 import {
@@ -38,7 +42,7 @@ describe('buildFindStaffTenantInvitationsQueryParameters', () => {
 		expect(
 			buildFindStaffTenantInvitationsQueryParameters({
 				q: '   ',
-				status: ' ',
+				status: undefined,
 				level: ' ',
 				sortId: '',
 				sortOrder: undefined,
@@ -59,14 +63,14 @@ describe('toStaffTenantInvitationRows', () => {
 			{
 				id: 'invite-1',
 				email: ' invitee@example.com ',
-				status: ' Pending ',
+				status: InvitationEffectiveStatusObject.Pending,
 				scope: ' Tenant ',
 				profileName: ' Owners ',
 				profiles: [
 					{ id: 'profile-1', name: ' Owners ' },
 					{ id: 'profile-2', name: ' Reviewers ' },
 				],
-				accountLevel: 'User',
+				accountLevel: AccountLevelObject.User,
 				invitedByName: ' Alex Johnson ',
 				acceptedAt,
 				createdAt,
@@ -75,7 +79,7 @@ describe('toStaffTenantInvitationRows', () => {
 			{
 				id: '',
 				email: 'skip@example.com',
-				status: 'Accepted',
+				status: InvitationEffectiveStatusObject.Accepted,
 			},
 		];
 
@@ -83,14 +87,14 @@ describe('toStaffTenantInvitationRows', () => {
 			{
 				id: 'invite-1',
 				email: 'invitee@example.com',
-				status: 'Pending',
+				status: InvitationEffectiveStatusObject.Pending,
 				scope: 'Tenant',
 				profileName: 'Owners',
 				profiles: [
 					{ id: 'profile-1', name: 'Owners' },
 					{ id: 'profile-2', name: 'Reviewers' },
 				],
-				accountLevel: 'User',
+				accountLevel: AccountLevelObject.User,
 				invitedByName: 'Alex Johnson',
 				acceptedAt,
 				createdAt,
@@ -113,10 +117,10 @@ describe('toStaffTenantInvitationRows', () => {
 				{
 					id: 'invite-2',
 					email: 'invitee@example.com',
-					status: 'Pending',
+					status: InvitationEffectiveStatusObject.Pending,
 					scope: 'Tenant',
 					profileName: 'Owners',
-					accountLevel: 'User',
+					accountLevel: AccountLevelObject.User,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -135,9 +139,9 @@ describe('toStaffTenantInvitationRows', () => {
 				{
 					id: 'invite-user-no-profile',
 					email: 'user-no-profile@example.com',
-					status: ' Pending ',
+					status: InvitationEffectiveStatusObject.Pending,
 					scope: ' Tenant ',
-					accountLevel: 'User',
+					accountLevel: AccountLevelObject.User,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -148,11 +152,11 @@ describe('toStaffTenantInvitationRows', () => {
 			{
 				id: 'invite-user-no-profile',
 				email: 'user-no-profile@example.com',
-				status: 'Pending',
+				status: InvitationEffectiveStatusObject.Pending,
 				scope: 'Tenant',
 				profileName: null,
 				profiles: [],
-				accountLevel: 'User',
+				accountLevel: AccountLevelObject.User,
 				invitedByName: 'Alex Johnson',
 				acceptedAt: null,
 				createdAt: null,
@@ -167,9 +171,9 @@ describe('toStaffTenantInvitationRows', () => {
 				{
 					id: 'invite-admin-no-profile',
 					email: 'admin-no-profile@example.com',
-					status: ' Pending ',
+					status: InvitationEffectiveStatusObject.Pending,
 					scope: ' Tenant ',
-					accountLevel: 'Admin',
+					accountLevel: AccountLevelObject.Admin,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -180,11 +184,11 @@ describe('toStaffTenantInvitationRows', () => {
 			{
 				id: 'invite-admin-no-profile',
 				email: 'admin-no-profile@example.com',
-				status: 'Pending',
+				status: InvitationEffectiveStatusObject.Pending,
 				scope: 'Tenant',
 				profileName: null,
 				profiles: [],
-				accountLevel: 'Admin',
+				accountLevel: AccountLevelObject.Admin,
 				acceptedAt: null,
 				invitedByName: 'Alex Johnson',
 				createdAt: null,
@@ -199,10 +203,10 @@ describe('toStaffTenantInvitationRows', () => {
 				{
 					id: 'invite-profile-based',
 					email: 'profile-based@example.com',
-					status: 'Accepted',
+					status: InvitationEffectiveStatusObject.Accepted,
 					scope: 'Tenant',
 					profileName: 'Owners',
-					accountLevel: 'User',
+					accountLevel: AccountLevelObject.User,
 					invitedByName: 'Alex Johnson',
 					acceptedAt: null,
 					createdAt: null,
@@ -213,11 +217,11 @@ describe('toStaffTenantInvitationRows', () => {
 			{
 				id: 'invite-profile-based',
 				email: 'profile-based@example.com',
-				status: 'Accepted',
+				status: InvitationEffectiveStatusObject.Accepted,
 				scope: 'Tenant',
 				profileName: 'Owners',
 				profiles: [],
-				accountLevel: 'User',
+				accountLevel: AccountLevelObject.User,
 				invitedByName: 'Alex Johnson',
 				acceptedAt: null,
 				createdAt: null,
@@ -237,19 +241,19 @@ describe('isStaffTenantInvitationRevocable', () => {
 	test('returns true only for pending invitations', () => {
 		expect(
 			isStaffTenantInvitationRevocable({
-				status: ' Pending ',
+				status: InvitationEffectiveStatusObject.Pending,
 			}),
 		).toBe(true);
 
 		expect(
 			isStaffTenantInvitationRevocable({
-				status: 'Accepted',
+				status: InvitationEffectiveStatusObject.Accepted,
 			}),
 		).toBe(false);
 
 		expect(
 			isStaffTenantInvitationRevocable({
-				status: ' ',
+				status: null,
 			}),
 		).toBe(false);
 	});

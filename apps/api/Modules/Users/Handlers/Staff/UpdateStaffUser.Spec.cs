@@ -273,7 +273,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 				.ReadFromJsonAsync<GetStaffUserByIdResult>();
 			_ = result.Should().NotBeNull();
 			Assert.NotNull(result);
-			_ = result.AccountLevel.Should().Be("Admin");
+			_ = result.AccountLevel.Should().Be(AccountLevel.Admin);
 		}
 
 		[Fact]

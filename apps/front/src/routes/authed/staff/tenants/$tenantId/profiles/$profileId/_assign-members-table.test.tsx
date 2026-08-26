@@ -97,6 +97,8 @@ import type { useStaffTenantProfileMemberAssignmentResolutionQuery } from '~/lib
 import type { StaffTenantUserRow } from '~/lib/query/staff-tenant-users';
 import type { useStaffTenantUsersQuery } from '~/lib/query/staff-tenant-users';
 
+import { TenantUserStatusObject } from '@org/client-ts/models/index';
+
 import { AssignMembersTable } from './_assign-members-table';
 
 const ROW: StaffTenantUserRow = {
@@ -106,7 +108,7 @@ const ROW: StaffTenantUserRow = {
 	firstName: 'Ada',
 	lastName: 'Lovelace',
 	avatarUrl: null,
-	status: 'active',
+	status: TenantUserStatusObject.Active,
 	level: null,
 	displayName: 'Ada Lovelace',
 };

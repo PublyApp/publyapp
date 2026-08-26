@@ -22,7 +22,7 @@ public class TenantAsStaffListItem {
 	public string? LogoUrl { get; init; }
 	public required int UsersCount { get; init; }
 	public required int MaxUsers { get; init; }
-	public required string Status { get; init; }
+	public required TenantStatus Status { get; init; }
 	public DateTime? LastActivityAt { get; init; }
 }
 
@@ -471,7 +471,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				LogoUrl = t.LogoUrl,
 				UsersCount = usersCountDict.GetValueOrDefault(tenantId, 0),
 				MaxUsers = t.MaxUsers,
-				Status = Tenant.GetStatusDescription(t.Status),
+				Status = t.Status,
 				LastActivityAt = t.LastActivityAt,
 			};
 		}).ToList();

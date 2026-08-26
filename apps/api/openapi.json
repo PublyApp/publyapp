@@ -12276,6 +12276,12 @@
           }
         }
       },
+      "AccountLevel": {
+        "enum": [
+          "User",
+          "Admin"
+        ]
+      },
       "AccountProfileResult": {
         "type": "object",
         "properties": {
@@ -13695,7 +13701,7 @@
             }
           },
           "accountLevel": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "isAdmin": {
             "type": "boolean"
@@ -13759,10 +13765,10 @@
             ]
           },
           "accountLevel": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           },
           "createdAt": {
             "type": "string",
@@ -13819,7 +13825,7 @@
             "format": "int32"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           },
           "usersCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -14105,6 +14111,14 @@
           }
         }
       },
+      "InvitationEffectiveStatus": {
+        "enum": [
+          "Pending",
+          "Accepted",
+          "Expired",
+          "Revoked"
+        ]
+      },
       "InvitationListItem": {
         "required": [
           "id",
@@ -14131,7 +14145,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/InvitationEffectiveStatus"
           },
           "expiresAt": {
             "type": "string",
@@ -14584,10 +14598,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "tenantId": {
             "type": [
@@ -14890,7 +14904,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/InvitationEffectiveStatus"
           },
           "expiresAt": {
             "type": "string",
@@ -15066,7 +15080,7 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -15106,7 +15120,7 @@
             }
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/InvitationEffectiveStatus"
           },
           "expiresAt": {
             "type": "string",
@@ -15130,7 +15144,7 @@
             ]
           },
           "accountLevel": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
       },
@@ -15188,10 +15202,10 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
       },
@@ -15229,7 +15243,7 @@
             "format": "uuid"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -15245,7 +15259,7 @@
             "format": "uuid"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           }
         }
       },
@@ -15290,10 +15304,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "tenantId": {
             "type": [
@@ -15504,7 +15518,7 @@
             "format": "int32"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           },
           "lastActivityAt": {
             "type": [
@@ -15529,7 +15543,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           }
         }
       },
@@ -15641,10 +15655,10 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "otherProfiles": {
             "type": "array",
@@ -15689,7 +15703,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           }
         }
       },
@@ -15756,6 +15770,13 @@
           }
         }
       },
+      "TenantStatus": {
+        "enum": [
+          "Pending",
+          "Active",
+          "Suspended"
+        ]
+      },
       "TenantSuspendedResult": {
         "required": [
           "tenantId",
@@ -15772,7 +15793,7 @@
             "type": "string"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantStatus"
           }
         }
       },
@@ -15835,10 +15856,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "createdAt": {
             "type": "string",
@@ -15890,7 +15911,7 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/UserStatus"
           },
           "createdAt": {
             "type": "string",
@@ -15936,10 +15957,10 @@
             ]
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "tenantId": {
             "type": [
@@ -15992,12 +16013,19 @@
             ]
           },
           "status": {
-            "type": "string"
+            "$ref": "#/components/schemas/TenantUserStatus"
           },
           "level": {
-            "type": "string"
+            "$ref": "#/components/schemas/AccountLevel"
           }
         }
+      },
+      "TenantUserStatus": {
+        "enum": [
+          "Active",
+          "Suspended",
+          "GloballySuspended"
+        ]
       },
       "UnassignStaffProfileUsersBody": {
         "required": [
@@ -16280,6 +16308,12 @@
             "$ref": "#/components/schemas/JsonElement"
           }
         }
+      },
+      "UserStatus": {
+        "enum": [
+          "Suspended",
+          "Active"
+        ]
       },
       "ValidationProblemDetails": {
         "type": "object",

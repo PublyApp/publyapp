@@ -103,6 +103,7 @@ public class User : BaseAttributes, INoTenantEntity {
 	}
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<UserStatus>))]
 public enum UserStatus {
 	Suspended = 30,
 	Active = 40,

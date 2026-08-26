@@ -133,6 +133,7 @@ public class Tenant : BaseAttributes, INoTenantEntity {
 	}
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<TenantStatus>))]
 public enum TenantStatus {
 	Pending = 10,
 	Active = 20,

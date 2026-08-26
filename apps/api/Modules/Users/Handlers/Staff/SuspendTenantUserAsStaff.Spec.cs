@@ -60,7 +60,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 			SuspendTenantUserResult? result = await response.Content.ReadFromJsonAsync<SuspendTenantUserResult>();
 			_ = result.Should().NotBeNull();
 			Assert.NotNull(result);
-			_ = result.Status.Should().Be("Suspended");
+			_ = result.Status.Should().Be(TenantUserStatus.Suspended);
 		}
 
 		[Fact]

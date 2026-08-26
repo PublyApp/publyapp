@@ -189,7 +189,7 @@ public sealed class GetTenantAsStaffSpec
 		result.MaxUsers.Should()
 			.Be(seededTenant.MaxUsers);
 		result.Status.Should()
-			.Be(nameof(TenantStatus.Active));
+			.Be(TenantStatus.Active);
 		result.UsersCount.Should()
 			.Be(2);
 		result.CreatedAt.Should()
@@ -238,7 +238,7 @@ public sealed class GetTenantAsStaffSpec
 			Assert.NotNull(result);
 			result.TenantId.Should().Be(tenantId);
 			result.Code.Should().NotBeNullOrEmpty();
-			result.Status.Should().Be("Suspended");
+			result.Status.Should().Be(TenantStatus.Suspended);
 			result.MaxUsers.Should().BeGreaterThan(0);
 		} finally {
 			try {

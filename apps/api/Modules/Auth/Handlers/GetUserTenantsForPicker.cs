@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 
 using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
 namespace PublyApp.Api.Modules.Auth.Handlers;
@@ -9,7 +10,7 @@ public class TenantForPickerItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public string Code { get; set; } = string.Empty;
-	public string Status { get; set; } = string.Empty;
+	public TenantStatus Status { get; set; }
 }
 
 public class GetUserTenantsForPickerResponse {

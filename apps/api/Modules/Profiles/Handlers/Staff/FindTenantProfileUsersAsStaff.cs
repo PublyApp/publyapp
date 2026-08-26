@@ -24,8 +24,8 @@ public class TenantProfileUserItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public string Status { get; set; } = string.Empty;
-	public string Level { get; set; } = string.Empty;
+	public TenantUserStatus Status { get; set; }
+	public AccountLevel Level { get; set; }
 	public required List<TenantProfileUserProfileItem> OtherProfiles { get; set; }
 	public DateTime? JoinedAt { get; set; }
 }
@@ -148,10 +148,8 @@ public sealed class FindTenantProfileUsersAsStaff {
 							LastName = u.LastName,
 							FirstName = u.FirstName,
 							AvatarUrl = u.AvatarUrl,
-							Status = UserAccount.GetStatusDescription(
-								UserAccount.GetTenantStatus(u.UserStatus, u.AccountStatus)
-							),
-							Level = UserAccount.GetLevelDescription(u.Level),
+							Status = UserAccount.GetTenantStatus(u.UserStatus, u.AccountStatus),
+							Level = u.Level,
 							OtherProfiles = u.OtherProfiles
 								.Select(profile => new TenantProfileUserProfileItem {
 									Id = profile.Id,

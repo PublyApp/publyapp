@@ -14,6 +14,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	AccountLevel,
 	ApiResponse,
 	BulkStaffUserActionResult,
 	FindStaffUsersResponse,
@@ -21,6 +22,7 @@ import type {
 	GetStaffUserProfilesResult,
 	StaffUserItem,
 	UpdateStaffUserBody,
+	UserStatus,
 	UpdateStaffUserEmailBody,
 	UpdateStaffUserProfilesBody,
 } from '@org/client-ts/models/index';
@@ -53,8 +55,8 @@ export type StaffUserRow = {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	level: string | null;
-	status: string | null;
+	level: AccountLevel | null;
+	status: UserStatus | null;
 	displayName: string;
 };
 
@@ -208,8 +210,8 @@ export const toStaffUserRows = (
 			firstName,
 			lastName,
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
-			level: normalizeNullableString(item.level),
-			status: normalizeNullableString(item.status),
+			level: item.level ?? null,
+			status: item.status ?? null,
 			displayName: getDisplayName({ firstName, lastName, email }),
 		});
 	}
@@ -239,8 +241,8 @@ export const toStaffUserDetails = (
 		firstName,
 		lastName,
 		avatarUrl: normalizeNullableFileUrl(result?.avatarUrl),
-		accountLevel: normalizeNullableString(result?.accountLevel),
-		status: normalizeNullableString(result?.status),
+		accountLevel: result?.accountLevel ?? null,
+		status: result?.status ?? null,
 		createdAt: normalizeDate(result?.createdAt),
 		updatedAt: normalizeDate(result?.updatedAt),
 		displayName: getDisplayName({ firstName, lastName, email }),

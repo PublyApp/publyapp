@@ -18,8 +18,8 @@ public class StaffUserItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public string Status { get; set; } = string.Empty;
-	public string Level { get; set; } = string.Empty;
+	public UserStatus Status { get; set; }
+	public AccountLevel Level { get; set; }
 }
 
 public class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> { }
@@ -158,8 +158,8 @@ public sealed class FindStaffUsers {
 							LastName = staffUser.User.LastName,
 							FirstName = staffUser.User.FirstName,
 							AvatarUrl = staffUser.User.AvatarUrl,
-							Status = User.GetStatusDescription(staffUser.User.Status),
-							Level = UserAccount.GetLevelDescription(staffUser.AccountLevel),
+							Status = staffUser.User.Status,
+							Level = staffUser.AccountLevel,
 						})
 						.ToList(),
 					NextCursor = success.Data.NextCursor,

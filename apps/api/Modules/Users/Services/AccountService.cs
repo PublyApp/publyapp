@@ -54,7 +54,7 @@ public record TenantForPicker {
 	public required Guid Id { get; init; }
 	public required string Name { get; init; }
 	public required string Code { get; init; }
-	public required string Status { get; init; }
+	public required TenantStatus Status { get; init; }
 }
 
 public interface IAccountService {
@@ -577,7 +577,7 @@ public class AccountService : IAccountService {
 				Id = q.t.Id ?? Guid.Empty,
 				Name = q.t.Name,
 				Code = q.t.Code,
-				Status = Tenant.GetStatusDescription(q.t.Status),
+				Status = q.t.Status,
 			})
 			.ToListAsync(cancellationToken);
 

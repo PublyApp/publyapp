@@ -23,7 +23,7 @@ public record SuspendTenantAsStaffBody {
 public record TenantSuspendedResult {
 	public required Guid TenantId { get; init; }
 	public required string Name { get; init; }
-	public required string Status { get; init; }
+	public required TenantStatus Status { get; init; }
 }
 
 public class SuspendTenantAsStaffBodyValidator : AbstractValidator<SuspendTenantAsStaffBody> {
@@ -125,7 +125,7 @@ public sealed class SuspendTenantAsStaff {
 		return TypedResults.Ok(new TenantSuspendedResult {
 			TenantId = tenant.GetRequiredId(),
 			Name = tenant.Name,
-			Status = Tenant.GetStatusDescription(tenant.Status)
+			Status = tenant.Status
 		});
 	}
 }

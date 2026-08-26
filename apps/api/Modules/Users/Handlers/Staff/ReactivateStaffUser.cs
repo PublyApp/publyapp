@@ -13,7 +13,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff;
 
 public record StaffUserReactivatedResult {
 	public required Guid UserId { get; init; }
-	public required string Status { get; init; }
+	public required UserStatus Status { get; init; }
 }
 
 public sealed class ReactivateStaffUser {
@@ -82,7 +82,7 @@ public sealed class ReactivateStaffUser {
 
 		return TypedResults.Ok(new StaffUserReactivatedResult {
 			UserId = success.UserData.User.GetRequiredId(),
-			Status = User.GetStatusDescription(success.UserData.User.Status),
+			Status = success.UserData.User.Status,
 		});
 	}
 }

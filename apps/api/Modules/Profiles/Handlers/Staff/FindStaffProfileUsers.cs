@@ -18,7 +18,7 @@ public class StaffProfileUserItem {
 	public string? LastName { get; set; }
 	public string? FirstName { get; set; }
 	public string? AvatarUrl { get; set; }
-	public string Status { get; set; } = string.Empty;
+	public UserStatus Status { get; set; }
 }
 
 public class FindStaffProfileUsersResult {
@@ -116,7 +116,7 @@ public sealed class FindStaffProfileUsers {
 							LastName = u.LastName,
 							FirstName = u.FirstName,
 							AvatarUrl = u.AvatarUrl,
-							Status = User.GetStatusDescription(u.Status),
+							Status = u.Status,
 						})
 						.ToList(),
 					Count = success.Count,
