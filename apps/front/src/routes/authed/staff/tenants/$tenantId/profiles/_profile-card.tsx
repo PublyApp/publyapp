@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { Card } from '~/components/ui/card';
 import { Checkbox } from '~/components/ui/checkbox';
+import { EntityHeaderSkeleton } from '~/components/ui/detail-skeleton';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { Skeleton } from '~/components/ui/skeleton';
 import type { StaffTenantProfileRow } from '~/lib/query/staff-tenant-profiles';
 import { cn } from '~/lib/utils';
 
@@ -16,10 +16,11 @@ export const ProfileCardGridSkeleton = ({ testId }: { testId: string }) => (
 	<div className="publy-profile-card-grid" data-testid={`${testId}-loading`}>
 		{['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5', 'sk-6'].map((key) => (
 			<Card key={key} className="flex flex-col gap-3 p-4">
-				<Skeleton className="size-10 rounded-[10px]" />
-				<Skeleton className="h-3 w-2/3" />
-				<Skeleton className="h-3 w-full" />
-				<Skeleton className="h-3 w-1/3" />
+				<EntityHeaderSkeleton
+					orientation="stacked"
+					tileClassName="size-10 rounded-[10px]"
+					lines={['h-3 w-2/3', 'h-3 w-full', 'h-3 w-1/3']}
+				/>
 			</Card>
 		))}
 	</div>
