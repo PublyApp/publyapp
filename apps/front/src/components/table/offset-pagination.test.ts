@@ -75,7 +75,7 @@ const captureRenders = (initial: ClampProps) => {
 	};
 
 	const holder = render(createElement(Comp));
-	const rerender = (next: Partial<ClampProps>): { firstRender: number } => {
+	const rerender = (next: Partial<ClampProps>) => {
 		if (next.count !== undefined) {
 			count = next.count;
 		}
