@@ -12,6 +12,7 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	AccountLevel,
 	ApiResponse,
 	BulkDeleteTenantProfilesBody,
 	BulkProfileActionResult,
@@ -24,6 +25,7 @@ import type {
 	ResolveTenantProfileUserAssignmentsAsStaffResult,
 	TenantProfileItem,
 	TenantProfileUserItem,
+	TenantUserStatus,
 	UpdateTenantProfileAsStaffBody,
 } from '@org/client-ts/models/index';
 import type { TenantGetResponse } from '@org/client-ts/staff/permissions/scopes/tenant/index';
@@ -155,8 +157,8 @@ export type StaffTenantProfileMemberRow = {
 	firstName: string | null;
 	lastName: string | null;
 	avatarUrl: string | null;
-	status: string | null;
-	level: string | null;
+	status: TenantUserStatus | null;
+	level: AccountLevel | null;
 	otherProfiles: StaffTenantProfileMemberProfile[];
 	joinedAt: Date | null;
 	displayName: string;
@@ -799,8 +801,8 @@ export const toStaffTenantProfileMemberRows = (
 			firstName,
 			lastName,
 			avatarUrl: normalizeNullableFileUrl(item.avatarUrl),
-			status: normalizeNullableString(item.status),
-			level: normalizeNullableString(item.level),
+			status: item.status ?? null,
+			level: item.level ?? null,
 			otherProfiles,
 			joinedAt: normalizeDate(item.joinedAt),
 			displayName: getUserFullName({ firstName, lastName }) || email,

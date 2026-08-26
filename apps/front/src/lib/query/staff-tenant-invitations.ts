@@ -5,8 +5,10 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	AccountLevel,
 	ApiResponse,
 	FindInvitationsForTenantAsStaffResult,
+	InvitationEffectiveStatus,
 	StaffTenantInvitationListItem,
 } from '@org/client-ts/models/index';
 import {
@@ -29,11 +31,11 @@ export type StaffTenantInvitationsQueryVariables = {
 export type StaffTenantInvitationRow = {
 	id: string;
 	email: string;
-	status: string | null;
+	status: InvitationEffectiveStatus | null;
 	scope: string | null;
 	profileName: string | null;
 	profiles: Array<{ id: string; name: string }>;
-	accountLevel: string | null;
+	accountLevel: AccountLevel | null;
 	invitedByName: string;
 	acceptedAt: Date | null;
 	createdAt: Date | null;
@@ -131,7 +133,7 @@ export const toStaffTenantInvitationRows = (
 		const id = normalizeString(item.id?.toString());
 		const email = normalizeString(item.email);
 		const profileName = normalizeNullableString(item.profileName);
-		const accountLevel = normalizeString(item.accountLevel);
+		const accountLevel = item.accountLevel ?? null;
 		const invitedByName = normalizeString(item.invitedByName);
 		if (!id || !email || !invitedByName) {
 			continue;
@@ -140,7 +142,7 @@ export const toStaffTenantInvitationRows = (
 		rows.push({
 			id,
 			email,
-			status: normalizeNullableString(item.status),
+			status: item.status ?? null,
 			scope: normalizeNullableString(item.scope),
 			profileName,
 			profiles: normalizeProfiles(item.profiles),

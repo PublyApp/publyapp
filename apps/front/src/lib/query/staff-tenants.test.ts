@@ -18,6 +18,7 @@ import {
 	invalidateAllStaffTenantScopes,
 } from '~/lib/query/staff-tenants';
 
+import { TenantStatusObject } from '@org/client-ts/models/index';
 import type {
 	ApiResponse,
 	CreateTenantAsStaffResult,
@@ -431,7 +432,7 @@ describe('suspendStaffTenantMutationOptions', () => {
 		const post = vi.fn().mockResolvedValue({
 			tenantId: 'tenant-001',
 			name: 'Acme Corporation',
-			status: 'Suspended',
+			status: TenantStatusObject.Suspended,
 		} as TenantSuspendedResult);
 		const byTenantId = vi.fn().mockReturnValue({
 			suspend: { post },
@@ -458,7 +459,7 @@ describe('suspendStaffTenantMutationOptions', () => {
 		expect(result).toEqual({
 			tenantId: 'tenant-001',
 			name: 'Acme Corporation',
-			status: 'Suspended',
+			status: TenantStatusObject.Suspended,
 		});
 	});
 });
@@ -468,7 +469,7 @@ describe('reactivateStaffTenantMutationOptions', () => {
 		const post = vi.fn().mockResolvedValue({
 			tenantId: 'tenant-001',
 			name: 'Acme Corporation',
-			status: 'Active',
+			status: TenantStatusObject.Active,
 		} as TenantReactivatedResult);
 		const byTenantId = vi.fn().mockReturnValue({
 			reactivate: { post },
@@ -495,7 +496,7 @@ describe('reactivateStaffTenantMutationOptions', () => {
 		expect(result).toEqual({
 			tenantId: 'tenant-001',
 			name: 'Acme Corporation',
-			status: 'Active',
+			status: TenantStatusObject.Active,
 		});
 	});
 });
@@ -624,7 +625,7 @@ describe('toStaffTenantRows', () => {
 				id: 'tenant-1',
 				name: ' Acme Corporation ',
 				logoUrl: '/files/uploads/acme.png',
-				status: ' Active ',
+				status: TenantStatusObject.Active,
 				usersCount: 12,
 				maxUsers: 50,
 			},
@@ -683,7 +684,7 @@ describe('toStaffTenantDetails', () => {
 			tenantId: 'tenant-7',
 			name: ' Acme Corporation ',
 			code: ' ACME ',
-			status: ' Active ',
+			status: TenantStatusObject.Active,
 			usersCount: 12,
 			maxUsers: 50,
 			ownersCount: 4,

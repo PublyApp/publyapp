@@ -8,7 +8,6 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 	resolveApiBaseUrl: () => 'https://api.example.test',
 }));
 
-// eslint-disable-next-line import/first -- must follow the vi.mock call above
 import {
 	buildFindStaffUsersQueryParameters,
 	invalidateStaffUsers,
@@ -18,6 +17,11 @@ import {
 	toStaffUserRows,
 } from '~/lib/query/staff-users';
 
+// eslint-disable-next-line import/first -- must follow the vi.mock call above
+import {
+	AccountLevelObject,
+	UserStatusObject,
+} from '@org/client-ts/models/index';
 import type {
 	GetStaffUserByIdResult,
 	GetStaffUserProfilesResult,
@@ -65,8 +69,8 @@ describe('toStaffUserRows', () => {
 				firstName: ' Alpha ',
 				lastName: ' Admin ',
 				avatarUrl: ' https://example.com/alpha.png ',
-				level: ' SuperAdmin ',
-				status: ' Active ',
+				level: AccountLevelObject.Admin,
+				status: UserStatusObject.Active,
 			},
 			{
 				id: '',
@@ -141,8 +145,8 @@ describe('toStaffUserDetails', () => {
 			firstName: ' ',
 			lastName: null,
 			avatarUrl: ' https://example.com/avatar.png ',
-			accountLevel: ' Owner ',
-			status: ' Active ',
+			accountLevel: AccountLevelObject.Admin,
+			status: UserStatusObject.Active,
 			createdAt: new Date('invalid'),
 			updatedAt,
 		} as GetStaffUserByIdResult);
@@ -153,8 +157,8 @@ describe('toStaffUserDetails', () => {
 			firstName: null,
 			lastName: null,
 			avatarUrl: 'https://example.com/avatar.png',
-			accountLevel: 'Owner',
-			status: 'Active',
+			accountLevel: AccountLevelObject.Admin,
+			status: UserStatusObject.Active,
 			createdAt: null,
 			updatedAt,
 			displayName: 'owner@publyapp.local',
