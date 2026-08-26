@@ -289,9 +289,13 @@ const AcceptInvitationRoute = () => {
 		loaderData.view === 'valid'
 			? resolveBranchKind(loaderData, authState)
 			: undefined;
-	const brandKeys = branchKind
-		? ACCEPT_INVITATION_BRAND_I18N_KEYS[branchKind]
-		: undefined;
+	const brandKeys =
+		branchKind === 'new-user' ||
+		branchKind === 'existing-match' ||
+		branchKind === 'existing-signed-out' ||
+		branchKind === 'mismatch'
+			? ACCEPT_INVITATION_BRAND_I18N_KEYS[branchKind]
+			: undefined;
 	const brand: AuthBrand | undefined = brandKeys
 		? {
 				eyebrow: t('accept-invitation-brand-eyebrow'),

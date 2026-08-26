@@ -59,7 +59,7 @@ const mocks = vi.hoisted(() => ({
 			icon: 'shield-check',
 			tone: '5',
 		},
-	} as Record<string, unknown>,
+	},
 	permissionKeys: ['staff.users.read'],
 }));
 

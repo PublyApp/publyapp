@@ -11,6 +11,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 import { chooseBulkAction } from '~/test-helpers/choose-bulk-action';
 
 const mocks = vi.hoisted(() => ({
@@ -93,7 +94,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS: TestLabelMap = {
 	basics: 'Basics',
 	profiles: 'Profiles',
 	invitations: 'Invitations',

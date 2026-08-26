@@ -17,10 +17,7 @@ export type AcceptInvitationBrandKeyMap = {
 	subtitle: string;
 };
 
-export const ACCEPT_INVITATION_BRAND_I18N_KEYS: Record<
-	string,
-	AcceptInvitationBrandKeyMap | undefined
-> = {
+export const ACCEPT_INVITATION_BRAND_I18N_KEYS = {
 	'new-user': {
 		headline: 'auth:accept-invitation-brand-headline-new-user',
 		subtitle: 'auth:accept-invitation-brand-subtitle-new-user',

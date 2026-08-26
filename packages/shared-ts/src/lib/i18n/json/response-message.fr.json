@@ -113,5 +113,10 @@
 	"post-image-dimensions-invalid": "Les dimensions de l'image sont invalides",
 	"post-image-missing": "Aucune image n'est attachée à cet article",
 	"post-image-attached-success": "Image de l'article ajoutée avec succès",
-	"post-image-removed-success": "Image de l'article retirée avec succès"
+	"post-image-removed-success": "Image de l'article retirée avec succès",
+	"social-account-not-found": "Compte social introuvable",
+	"social-account-disconnected-success": "Compte social déconnecté et secret stocké effacé",
+	"credentials-refused": "Bluesky a refusé ces identifiants",
+	"provider-unreachable": "Le fournisseur est injoignable ; rien n'a été stocké",
+	"project-not-found": "Projet introuvable dans ce tenant"
 }

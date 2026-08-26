@@ -87,7 +87,7 @@ type Decision =
 	| { action: 'delete' }
 	| { action: 'keep' };
 
-const MOVES: Record<string, Decision> = {
+const MOVES = {
 	// Referenced three times by DESIGN.md source annotations (dark mode,
 	// navigation/layout, historical-context pointer).
 	'docs/archive/2026/designs/2026-07-09-front-2-gray-ui-stack-migration-design.md':
@@ -164,12 +164,12 @@ const MOVES: Record<string, Decision> = {
 		action: 'move',
 		type: 'spec',
 	},
-};
+} satisfies Record<string, Decision>;
 
-const KEEPS: Record<string, Decision> = {
+const KEEPS = {
 	// Rewritten as the single filing page in the same change; never moves.
 	'docs/README.md': { action: 'keep' },
-};
+} satisfies Record<string, Decision>;
 
 const toPosix = (value: string): string => value.split(path.sep).join('/');
 

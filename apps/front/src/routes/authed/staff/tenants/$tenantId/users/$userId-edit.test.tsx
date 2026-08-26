@@ -11,6 +11,7 @@ import {
 import * as React from 'react';
 import { createElement, type JSX, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
@@ -52,21 +53,29 @@ vi.mock('~/components/ui/select', () => {
 	// Forwards every prop (aria-labelledby, aria-invalid, onBlur, ...) so the
 	// mocked native control below can re-apply them — Field.Select puts the
 	// accessible-name wiring on SelectTrigger, not on the outer Select.
-	const SelectTrigger = ({
-		children,
-		...triggerProps
-	}: {
+	type SelectProbeProps = {
 		children?: ReactNode;
 		[key: string]: unknown;
-	}) => createElement('div', triggerProps, children);
+	};
+
+	const SelectTrigger = ({ children, ...triggerProps }: SelectProbeProps) =>
+		createElement('div', triggerProps, children);
 
 	const SelectValue = () => null;
 
-	const collectSelectContent = (
-		children: ReactNode,
-	): { options: ReactNode[]; triggerProps: Record<string, unknown> } => {
-		let triggerProps: Record<string, unknown> = {};
+	// Foreign elements carry `props: unknown`; narrow at runtime instead of casting.
+	const omitSelectChildren = (
+		element: React.ReactElement,
+	): SelectProbeProps => {
+		const source: Record<string, unknown> = {};
+		Object.assign(source, element.props);
+		const { children: _children, ...rest } = source;
+		return rest;
+	};
+
+	const collectSelectContent = (children: ReactNode) => {
 		const options: ReactNode[] = [];
+		let selectedTrigger: React.ReactElement | undefined;
 
 		for (const child of React.Children.toArray(children)) {
 			if (!React.isValidElement(child)) {
@@ -74,8 +83,7 @@ vi.mock('~/components/ui/select', () => {
 			}
 
 			if (child.type === SelectTrigger) {
-				triggerProps = { ...(child.props as Record<string, unknown>) };
-				delete triggerProps.children;
+				selectedTrigger = child;
 				continue;
 			}
 
@@ -94,7 +102,10 @@ vi.mock('~/components/ui/select', () => {
 			options.push(child);
 		}
 
-		return { options, triggerProps };
+		return {
+			options,
+			triggerProps: selectedTrigger ? omitSelectChildren(selectedTrigger) : {},
+		};
 	};
 
 	return {
@@ -173,7 +184,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'back-to-user': 'Back to tenant user',
 				'edit-tenant-user': 'Edit tenant user',
 				'first-name': 'First name',

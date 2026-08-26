@@ -16,10 +16,10 @@ export const isSupportedLanguage = (
 ): value is SupportedLanguage => value === 'en' || value === 'fr';
 
 // Language names are displayed in their own tongue, not translated per-locale.
-export const LOCALE_LABELS: Record<SupportedLanguage, string> = {
+export const LOCALE_LABELS = {
 	en: 'English',
 	fr: 'Français',
-};
+} satisfies Record<SupportedLanguage, string>;
 
 export const dirForLocale = (lng: string): 'ltr' | 'rtl' =>
 	lng === 'ar' ? 'rtl' : 'ltr';

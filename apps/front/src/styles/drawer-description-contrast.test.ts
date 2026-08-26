@@ -825,7 +825,14 @@ const evaluateConstantStrings = (expression: Expression): string[] | null => {
  * (`&AMP;`, `&Amp;` stay verbatim), a name not in it stays verbatim
  * (`&bogus;`), and every entry requires the trailing `;`. The emitted
  * string for each entry is the exact esbuild decode. */
-const JSX_NAMED_ENTITIES: Readonly<Record<string, string>> = {
+/** Named owner contract: entity names arrive from parsed `&name;` text as
+ * plain strings, so the table must stay open to every HTML5 named entity.
+ */
+interface JsxNamedEntityMap {
+	[entity: string]: string;
+}
+
+const JSX_NAMED_ENTITIES: JsxNamedEntityMap = {
 	quot: '\u0022',
 	amp: '\u0026',
 	apos: '\u0027',

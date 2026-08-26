@@ -15,9 +15,7 @@ type HeaderInput = HeadersInit | Record<string, string> | [string, string][];
 const shouldRedactHeader = (name: string): boolean =>
 	SESSION_HEADER_NAMES.has(name.toLowerCase());
 
-export const redactHeaders = (
-	headers: HeaderInput | undefined,
-): Record<string, string> => {
+export const redactHeaders = (headers: HeaderInput | undefined) => {
 	const output: Record<string, string> = {};
 
 	const normalized = new Headers();

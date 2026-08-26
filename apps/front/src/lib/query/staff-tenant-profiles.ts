@@ -378,7 +378,14 @@ export const buildStaffTenantPermissionGroupColumns = (
 	return [leftGroups, rightGroups];
 };
 
-const TENANT_PERMISSION_ACTION_ORDER: Record<string, readonly string[]> = {
+/** Named owner contract: `moduleKey` arrives as a plain string from the API
+ * permission key, so the order map must stay open to unknown future modules.
+ */
+interface TenantPermissionActionOrderMap {
+	[module: string]: readonly string[];
+}
+
+const TENANT_PERMISSION_ACTION_ORDER: TenantPermissionActionOrderMap = {
 	posts: ['view', 'create', 'edit', 'publish', 'schedule', 'delete'],
 	media: ['view', 'upload', 'edit', 'delete'],
 	calendar: ['view', 'manage'],
@@ -567,14 +574,7 @@ export const buildStaffTenantPermissionCatalogGroups = (
 
 export const buildFindStaffTenantProfilesQueryParameters = (
 	variables: Omit<StaffTenantProfilesQueryVariables, 'tenantId'>,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	cursor?: string;
-	limit?: string;
-	isDefault?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
@@ -751,13 +751,7 @@ export const buildFindStaffTenantProfileMembersQueryParameters = (
 		StaffTenantProfileMembersQueryVariables,
 		'tenantId' | 'profileId'
 	>,
-): {
-	q?: string;
-	sortId?: string;
-	sortOrder?: SortOrder;
-	page: string;
-	limit?: string;
-} => ({
+) => ({
 	q: normalizeString(variables.q),
 	sortId: normalizeString(variables.sortId),
 	sortOrder: variables.sortOrder,
@@ -826,7 +820,7 @@ export const buildResolveStaffTenantProfileMemberAssignmentsBody = (
 
 export const toStaffTenantProfileMemberAssignmentMap = (
 	result: ResolveTenantProfileUserAssignmentsAsStaffResult | null | undefined,
-): StaffTenantProfileUserAssignmentMap => {
+) => {
 	const map: StaffTenantProfileUserAssignmentMap = {};
 
 	for (const assignment of result?.assignments ?? []) {

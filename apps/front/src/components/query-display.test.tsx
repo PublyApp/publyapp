@@ -1,17 +1,18 @@
 import { QueryObserver, QueryClient } from '@tanstack/react-query';
-/**
- * @vitest-environment jsdom
- */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+/**
+ * @vitest-environment jsdom
+ */
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 import QueryDisplay from './query-display';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				loading: 'Loading…',
 				'query-display-error-default': 'An error occurred while loading data.',
 			};

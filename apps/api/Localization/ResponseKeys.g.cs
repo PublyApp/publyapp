@@ -50,6 +50,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey CreateFirstItem = new("create-first-item");
 
 	/// <summary>
+	/// Bluesky refused these credentials
+	/// </summary>
+	public static readonly TranslationKey CredentialsRefused = new("credentials-refused");
+
+	/// <summary>
 	/// Dead-letter entry not found
 	/// </summary>
 	public static readonly TranslationKey DeadLetterNotFound = new("dead-letter-not-found");
@@ -295,6 +300,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey Profiles = new("profiles");
 
 	/// <summary>
+	/// Project not found in this tenant
+	/// </summary>
+	public static readonly TranslationKey ProjectNotFound = new("project-not-found");
+
+	/// <summary>
+	/// The provider could not be reached; nothing was stored
+	/// </summary>
+	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
+
+	/// <summary>
 	/// Query parameter missing
 	/// </summary>
 	public static readonly TranslationKey QueryParametersMissing = new("query-parameters-missing");
@@ -318,6 +333,16 @@ public static partial class ResponseKeys {
 	/// Service unavailable
 	/// </summary>
 	public static readonly TranslationKey ServiceUnavailable = new("service-unavailable");
+
+	/// <summary>
+	/// Social account disconnected and stored secret erased
+	/// </summary>
+	public static readonly TranslationKey SocialAccountDisconnectedSuccess = new("social-account-disconnected-success");
+
+	/// <summary>
+	/// Social account not found
+	/// </summary>
+	public static readonly TranslationKey SocialAccountNotFound = new("social-account-not-found");
 
 	/// <summary>
 	/// Staff profile created successfully

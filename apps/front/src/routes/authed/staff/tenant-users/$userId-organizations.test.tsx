@@ -4,6 +4,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLocaleLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	locale: 'en',
@@ -13,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 	),
 }));
 
-const labelMap: Record<string, Record<string, string>> = {
+const labelMap: TestLocaleLabelMap = {
 	en: {
 		name: 'Name',
 		level: 'Level',

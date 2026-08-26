@@ -5,6 +5,7 @@ import type { ColumnDef } from '@tanstack/react-table';
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 import { DataTable, SELECTION_LOCKED_TITLE_KEY } from './data-table';
 import { DataTableStates } from './data-table-states';
@@ -13,7 +14,7 @@ import type { UseRowSelectionResult } from './use-row-selection';
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'list-unavailable-title': 'List unavailable',
 				'list-error-default-description':
 					'There was a problem loading this list.',

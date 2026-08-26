@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 import { useStaffUserOverviewContext } from './$userId/_overview-context';
 
@@ -118,7 +119,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const I18N_LABELS: Record<string, string> = {
+const I18N_LABELS: TestLabelMap = {
 	'back-to-staff-users': 'Back to staff users',
 	'staff-user-not-found-title': 'staff member not found',
 	'staff-user-not-found-description':

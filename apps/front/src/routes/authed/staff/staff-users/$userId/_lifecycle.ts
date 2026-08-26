@@ -19,9 +19,11 @@ export const getSuspendLabelKey = (
 	return normalized === STAFF_STATUS_SUSPENDED ? 'reactivate' : 'suspend';
 };
 
+type SuspendDialogKeys = { titleKey: string; descriptionKey: string };
+
 export const getSuspendDialogKeys = (
 	status: string | null,
-): { titleKey: string; descriptionKey: string } => {
+): SuspendDialogKeys => {
 	const normalized = normalizeStatus(status);
 
 	if (normalized === STAFF_STATUS_SUSPENDED) {

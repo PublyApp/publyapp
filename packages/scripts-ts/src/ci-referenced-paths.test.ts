@@ -15,7 +15,7 @@ import { parseSkipInventoryPaths } from './react-compiler-skip-inventory.ts';
 // PR #1238's bulk scripts/ -> packages/scripts-ts/src replacement rewrote the
 // justfile `ci-install` recipe to invoke
 // `apps/front/packages/scripts-ts/src/assert-pinned.ts`, a path that never
-// existed (the real script stayed at `apps/front/scripts/assert-pinned.mjs`).
+// existed (the real script stayed at `apps/front/scripts/guards/assert-pinned.mts`).
 // `just ci-drift` stayed green because it reconciles only `.github/workflows`,
 // so the broken recipe sat invisibly in the documented local gate until a
 // review round ran `just ci-install` and got MODULE_NOT_FOUND.
@@ -65,7 +65,7 @@ const workflowSurfaces = readdirSync(path.join(repoRoot, '.github/workflows'), {
 // `apps/front/`, or the bogus `apps/front/packages/` from the original bug.
 const referencedPathPatterns = [
 	/(?:[A-Za-z0-9._-]+\/)*packages\/scripts-ts\/src\/[A-Za-z0-9._-]+\.(?:ts|mjs|json)/g,
-	/(?:[A-Za-z0-9._-]+\/)*apps\/front\/scripts\/[A-Za-z0-9._-]+\.mjs/g,
+	/(?:[A-Za-z0-9._-]+\/)*apps\/front\/scripts\/[A-Za-z0-9._/-]+\.(?:mjs|mts)/g,
 ];
 
 // `base-ref/packages/scripts-ts/...` names the same package checked out at the

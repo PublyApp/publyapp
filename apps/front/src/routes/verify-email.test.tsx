@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 type VerifyEmailLoaderData =
 	| { view: 'invalid' }
@@ -51,7 +52,7 @@ vi.mock('~/lib/auth-route-guard', () => ({
 	redirectAuthenticatedUserAwayFromAuthPage: mocks.guard,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'verify-your-email': 'Verify your email',
 	'verify-your-email-description':
 		"Enter your account email and we'll send you a fresh verification link.",

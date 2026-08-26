@@ -10,11 +10,12 @@ import {
 } from '@testing-library/react';
 import { createElement, type ChangeEvent, useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'filter-permissions': 'Filter permissions…',
 				'clear-permissions-filter': 'Clear permission filter',
 				'expand-all': 'Expand all',

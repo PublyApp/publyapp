@@ -41,6 +41,7 @@ import {
 	waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const USER_A = '11111111-1111-1111-1111-111111111111';
 const LIST_ROUTE_PATH = '/staff/staff-users';
@@ -95,7 +96,7 @@ vi.mock('react-i18next', () => ({
 			const bare = key.includes(':')
 				? (key.split(':').slice(1).join(':') ?? key)
 				: key;
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				'staff-users-page-title': 'Staff users',
 				'staff-users-page-description': 'Manage staff users',
 				'invite-users': 'Invite users',

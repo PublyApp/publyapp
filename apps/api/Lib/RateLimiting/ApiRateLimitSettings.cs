@@ -11,7 +11,8 @@ public sealed record ApiRateLimitSettings(
 	RateLimitWindowSettings TenantEmail,
 	RateLimitWindowSettings Export,
 	RateLimitWindowSettings TenantExport,
-	RateLimitWindowSettings Upload
+	RateLimitWindowSettings Upload,
+	RateLimitWindowSettings SocialConnect
 ) {
 	public static ApiRateLimitSettings FromEnvironment(
 		AppEnvironment environment
@@ -72,6 +73,10 @@ public sealed record ApiRateLimitSettings(
 			Upload: new RateLimitWindowSettings(
 				environment.UPLOAD_RATE_LIMIT_PERMIT_LIMIT,
 				environment.UPLOAD_RATE_LIMIT_WINDOW_SECONDS
+			),
+			SocialConnect: new RateLimitWindowSettings(
+				environment.SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT,
+				environment.SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS
 			)
 		);
 	}
@@ -90,6 +95,7 @@ public static class ApiRateLimitPolicies {
 	public const string Export = "export";
 	public const string TenantExport = "tenant-export";
 	public const string Upload = "upload";
+	public const string SocialConnect = "social-connect";
 
 	public static bool IsKnown(string? policyName) {
 		return policyName is AnonymousOther
@@ -101,7 +107,8 @@ public static class ApiRateLimitPolicies {
 			or TenantEmailOperation
 			or Export
 			or TenantExport
-			or Upload;
+			or Upload
+			or SocialConnect;
 	}
 
 	public static bool UsesValidatedSessionPartition(
@@ -115,6 +122,7 @@ public static class ApiRateLimitPolicies {
 			or TenantEmailOperation
 			or Export
 			or TenantExport
-			or Upload;
+			or Upload
+			or SocialConnect;
 	}
 }

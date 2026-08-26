@@ -788,6 +788,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		int bulkPermitLimit = 100,
 		int tenantBulkPermitLimit = 100,
 		int uploadPermitLimit = 100,
+		int socialConnectPermitLimit = 100,
 		ISessionService? sessionService = null
 	) {
 		var anonymousSettings =
@@ -850,6 +851,10 @@ public sealed class ComprehensiveRateLimitingSpec
 			Upload: new RateLimitWindowSettings(
 				uploadPermitLimit,
 				LongWindowSeconds
+			),
+			SocialConnect: new RateLimitWindowSettings(
+				socialConnectPermitLimit,
+				LongWindowSeconds
 			)
 		);
 
@@ -891,6 +896,61 @@ public sealed class ComprehensiveRateLimitingSpec
 			"POST"
 		);
 		return request;
+	}
+
+	[Fact]
+	public async Task
+		ItShouldExhaustTheSocialConnectPolicyThroughHttpRequests() {
+		await using var factory = CreateFactory(
+			socialConnectPermitLimit: 1
+		);
+		using var client = CreateClient(factory);
+		// Connect is a TENANT route: staff sessions are refused there outright
+		// (staff/tenant mutual exclusivity), so authenticate as the seeded Acme
+		// admin like the social-account specs do.
+		var token = await new TestAuthClient(client)
+			.LoginAsync(
+				TestConstants.AcmeAdminEmail,
+				TestConstants.SeedPassword
+			);
+		var staffToken = await new TestAuthClient(client)
+			.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper.GetTenantIdByNameAsync(
+				client,
+				staffToken,
+				SeedConstants.Tenants.AcmeName
+			);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				AppRoutes.SocialAccounts.ForTenant.Root,
+				AppRoutes.SocialAccounts.ForTenant.Connect
+			)
+		).WithSessionToken(token).WithTenantId(tenantId);
+		request.Content = JsonContent.Create(new {
+			identifier = "rate-limit-spec.example.com",
+			appPassword = "rate-limit-spec-app-password",
+		});
+		using var firstResponse = await client.SendAsync(request);
+
+		using var rejectedRequest = new HttpRequestMessage(
+			HttpMethod.Post,
+			PathUtils.Join(
+				AppRoutes.SocialAccounts.ForTenant.Root,
+				AppRoutes.SocialAccounts.ForTenant.Connect
+			)
+		).WithSessionToken(token).WithTenantId(tenantId);
+		rejectedRequest.Content = JsonContent.Create(new {
+			identifier = "rate-limit-spec-2.example.com",
+			appPassword = "rate-limit-spec-app-password",
+		});
+		using var rejectedResponse =
+			await client.SendAsync(rejectedRequest);
+
+		firstResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+		await AssertRateLimitedResponseAsync(rejectedResponse);
 	}
 
 	private static HttpRequestMessage CreateCorsRequest(

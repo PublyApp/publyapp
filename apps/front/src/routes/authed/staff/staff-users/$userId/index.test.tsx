@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { JSX } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	onOpenSuspendDialog: vi.fn(),
@@ -44,7 +45,7 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-const I18N_LABELS: Record<string, string> = {
+const I18N_LABELS: TestLabelMap = {
 	'contact-details': 'Contact details',
 	name: 'Name',
 	email: 'Email',

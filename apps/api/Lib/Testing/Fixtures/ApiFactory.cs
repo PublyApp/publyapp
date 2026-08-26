@@ -13,6 +13,7 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fakes;
+using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
 namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// <summary>
@@ -94,6 +95,15 @@ public sealed class ApiFactory
 			services.AddSingleton<IEmailSender>(
 				sp => sp
 					.GetRequiredService<FakeEmailSender>()
+			);
+
+			// 2b) Replace the Bluesky HTTP adapter with the fake — specs never touch
+			//     the real network (Epic C §6). Singleton so a fixture-exclusive spec can
+			//     program NextResult and read Attempts across its own phases.
+			services.RemoveAll<IBlueskyClient>();
+			services.AddSingleton<FakeBlueskyClient>();
+			services.AddSingleton<IBlueskyClient>(
+				sp => sp.GetRequiredService<FakeBlueskyClient>()
 			);
 
 			// 3) Register ILogger for handlers that use non-generic ILogger

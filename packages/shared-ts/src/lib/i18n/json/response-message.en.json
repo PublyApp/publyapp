@@ -113,5 +113,10 @@
 	"post-image-dimensions-invalid": "Image dimensions are invalid",
 	"post-image-missing": "No image is attached to this post",
 	"post-image-attached-success": "Post image attached successfully",
-	"post-image-removed-success": "Post image removed successfully"
+	"post-image-removed-success": "Post image removed successfully",
+	"social-account-not-found": "Social account not found",
+	"social-account-disconnected-success": "Social account disconnected and stored secret erased",
+	"credentials-refused": "Bluesky refused these credentials",
+	"provider-unreachable": "The provider could not be reached; nothing was stored",
+	"project-not-found": "Project not found in this tenant"
 }

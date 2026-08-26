@@ -10,6 +10,7 @@ import {
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 type ResetPasswordLoaderData =
 	| { view: 'invalid' }
@@ -67,7 +68,7 @@ vi.mock('~/lib/auth-route-guard', () => ({
 	redirectAuthenticatedUserAwayFromAuthPage: mocks.guard,
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	'reset-your-password': 'Reset your password',
 	'reset-password-request-description':
 		"Enter your account email and we'll send a link to set a new password.",

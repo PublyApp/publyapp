@@ -46,7 +46,7 @@
  *    as `.foo`, not one rank higher) — a real but narrower and much less
  *    likely attack shape than a plain compound append. The search-cancel
  *    invariant does not rely on this model; its source-wide and compiled-CSS
- *    policy lives in scripts/search-cancel-css-policy.mjs.
+ *    policy lives in scripts/guards/search-cancel-css-policy.mts.
  *  - `!important`: parsed per declaration; if ANY `!important` declaration
  *    exists for a property, only `!important` declarations compete for it
  *    (by specificity, then source order); otherwise only plain declarations
@@ -267,14 +267,14 @@ type SimpleSelectorToken = {
 	text: string;
 };
 
-const SPECIFICITY_WEIGHTS: Record<SimpleSelectorToken['kind'], number> = {
+const SPECIFICITY_WEIGHTS = {
 	id: 100,
 	class: 10,
 	attribute: 10,
 	'pseudo-class': 10,
 	'pseudo-element': 1,
 	type: 1,
-};
+} satisfies Record<SimpleSelectorToken['kind'], number>;
 
 /** Tokenizes ONE compound selector run (no combinators/whitespace) into its
  * simple selectors — classes, an id, attribute selectors, pseudo-classes,
@@ -377,7 +377,8 @@ const splitTopLevel = (text: string, separator: RegExp): string[] => {
 	}
 	parts.push(text.slice(start));
 
-	return parts.map((part) => part.trim()).filter((part) => part.length > 0);
+	const trimmedParts = parts.map((part) => part.trim());
+	return trimmedParts.filter((part) => part.length > 0);
 };
 
 /** The final compound selector run of an individual (comma-free) selector —

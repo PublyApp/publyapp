@@ -42,6 +42,7 @@ import {
 	within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const TENANT_ID = '11111111-1111-1111-1111-111111111111';
 const APPROVERS_ID = '0198c0de-1111-7000-8000-aaaaaaaaaaaa';
@@ -166,7 +167,7 @@ vi.mock('~/lib/mutation-toast', () => ({
 	},
 }));
 
-const TRANSLATIONS: Record<string, string> = {
+const TRANSLATIONS: TestLabelMap = {
 	basics: 'Basics',
 	profiles: 'Profiles',
 	invitations: 'Invitations',

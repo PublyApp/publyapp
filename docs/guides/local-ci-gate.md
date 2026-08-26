@@ -206,7 +206,7 @@ Recorded here rather than hidden, so they can be judged:
   CI's `if: always()`, which a justfile cannot express. A failed run therefore leaves its
   stack up (useful for inspection); the next run resets it.
 - **The front smoke-start step** is inline bash in CI and Node
-  (`apps/front/scripts/smoke-start-server.mjs`) locally, because the justfile runs under
+  (`apps/front/scripts/ci/smoke-start-server.mts`) locally, because the justfile runs under
   `pwsh` on Windows. Same assertions, different implementation; the drift guard pins the
   workflow side so the two cannot part ways unnoticed. It also binds a free ephemeral port
   rather than CI's hardcoded 3000 — a dev machine often has something on 3000 already, and

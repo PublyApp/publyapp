@@ -107,6 +107,8 @@ public class AppEnvironment {
 	public int TENANT_EXPORT_RATE_LIMIT_WINDOW_SECONDS { get; }
 	public int UPLOAD_RATE_LIMIT_PERMIT_LIMIT { get; }
 	public int UPLOAD_RATE_LIMIT_WINDOW_SECONDS { get; }
+	public int SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT { get; }
+	public int SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS { get; }
 
 	// ========== Hosting role + worker tuning (design §3.1) ==========
 	// APP_ROLE picks the composition root. It is optional ONLY in the Development and
@@ -366,6 +368,8 @@ public class AppEnvironment {
 		int tenantExportRateLimitWindowSeconds,
 		int uploadRateLimitPermitLimit,
 		int uploadRateLimitWindowSeconds,
+		int socialConnectRateLimitPermitLimit,
+		int socialConnectRateLimitWindowSeconds,
 		AppRole role,
 		int jobQueueBatchSize,
 		int jobQueuePollSeconds,
@@ -452,6 +456,10 @@ public class AppEnvironment {
 			tenantExportRateLimitWindowSeconds;
 		UPLOAD_RATE_LIMIT_PERMIT_LIMIT = uploadRateLimitPermitLimit;
 		UPLOAD_RATE_LIMIT_WINDOW_SECONDS = uploadRateLimitWindowSeconds;
+		SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT =
+			socialConnectRateLimitPermitLimit;
+		SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS =
+			socialConnectRateLimitWindowSeconds;
 		Role = role;
 		JOB_QUEUE_BATCH_SIZE = jobQueueBatchSize;
 		JOB_QUEUE_POLL_SECONDS = jobQueuePollSeconds;
@@ -652,6 +660,16 @@ public class AppEnvironment {
 				uploadRateLimitWindowSeconds: GetOptionalInt(
 					nameof(UPLOAD_RATE_LIMIT_WINDOW_SECONDS),
 					60
+				),
+				// Stricter-than-read window for the routes that call Bluesky with
+				// user-supplied credentials (Epic C §4): 5 attempts per hour by default.
+				socialConnectRateLimitPermitLimit: GetOptionalInt(
+					nameof(SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT),
+					5
+				),
+				socialConnectRateLimitWindowSeconds: GetOptionalInt(
+					nameof(SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS),
+					3600
 				),
 				// Fail-fast here (same InvalidOperationException path the other vars use),
 				// before the validator runs — neither an unparseable role nor an absent one
@@ -1274,6 +1292,16 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.InclusiveBetween(1, 86_400)
 			.WithMessage(
 				"UPLOAD_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
+
+		RuleFor(x => x.SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT)
+			.InclusiveBetween(1, 100_000)
+			.WithMessage(
+				"SOCIAL_CONNECT_RATE_LIMIT_PERMIT_LIMIT must be between 1 and 100000");
+
+		RuleFor(x => x.SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS)
+			.InclusiveBetween(1, 86_400)
+			.WithMessage(
+				"SOCIAL_CONNECT_RATE_LIMIT_WINDOW_SECONDS must be between 1 and 86400");
 
 		// APP_ROLE is already parsed to a defined enum by GetOptionalAppRole (which
 		// fails fast on any other string); this rule is defense-in-depth against an

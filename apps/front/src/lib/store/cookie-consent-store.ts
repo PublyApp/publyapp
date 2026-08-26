@@ -38,17 +38,17 @@ export type OptionalCookieCategory =
 
 export type CookieConsent = Record<OptionalCookieCategory, boolean>;
 
-export const REJECT_ALL_CONSENT: CookieConsent = {
+export const REJECT_ALL_CONSENT = {
 	functional: false,
 	analytics: false,
 	marketing: false,
-};
+} satisfies CookieConsent;
 
-export const ACCEPT_ALL_CONSENT: CookieConsent = {
+export const ACCEPT_ALL_CONSENT = {
 	functional: true,
 	analytics: true,
 	marketing: true,
-};
+} satisfies CookieConsent;
 
 type PersistedConsent = {
 	version?: unknown;

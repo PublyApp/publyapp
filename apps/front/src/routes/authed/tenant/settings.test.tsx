@@ -4,6 +4,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	pathname: '/tenant/settings',
@@ -32,7 +33,7 @@ vi.mock('@tanstack/react-router', () => ({
 		select?.({ location: { pathname: mocks.pathname } }),
 }));
 
-const EN_LABELS: Record<string, string> = {
+const EN_LABELS: TestLabelMap = {
 	general: 'General',
 	security: 'Security',
 	members: 'Members',

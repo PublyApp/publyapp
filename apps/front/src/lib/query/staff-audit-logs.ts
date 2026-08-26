@@ -130,9 +130,7 @@ const normalizeActions = (
 	return normalized.length > 0 ? normalized : undefined;
 };
 
-export const buildFindStaffAuditLogsQueryParameters = (
-	variables: StaffAuditLogsQueryVariables,
-): {
+type StaffAuditLogsQueryParameters = {
 	actions?: string;
 	startDate?: string;
 	endDate?: string;
@@ -140,7 +138,11 @@ export const buildFindStaffAuditLogsQueryParameters = (
 	sortOrder?: SortOrder;
 	cursor?: string;
 	limit?: string;
-} => {
+};
+
+export const buildFindStaffAuditLogsQueryParameters = (
+	variables: StaffAuditLogsQueryVariables,
+): StaffAuditLogsQueryParameters => {
 	const actions = normalizeActions(variables.actions);
 
 	return {

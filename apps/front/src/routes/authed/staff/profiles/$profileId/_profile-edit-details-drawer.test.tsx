@@ -19,6 +19,7 @@ import {
 import { createElement, type ReactNode } from 'react';
 import { FormProvider, useFormContext } from 'react-hook-form';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	updateProfileMutation: vi.fn(),
@@ -35,7 +36,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string, options?: Record<string, unknown>) => {
-			const labels: Record<string, string> = {
+			const labels: TestLabelMap = {
 				// staff-tenant-profiles scope-neutral catalogue (shared with #980)
 				'edit-details': 'Edit details',
 				'edit-details-subtitle': 'Rename or restyle the {{name}} profile.',
@@ -112,11 +113,13 @@ vi.mock('~/components/ui/drawer', () => ({
 		children: ReactNode;
 		methods: import('react-hook-form').UseFormReturn;
 		onSubmit?: (event: React.SubmitEvent<HTMLFormElement>) => void;
-	}) =>
-		createElement(FormProvider, {
-			...methods,
-			children: createElement('form', { onSubmit, role: 'form' }, children),
-		}),
+	}) => (
+		<FormProvider {...methods}>
+			<form onSubmit={onSubmit} role="form">
+				{children}
+			</form>
+		</FormProvider>
+	),
 }));
 
 vi.mock('~/components/field', () => ({

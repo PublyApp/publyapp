@@ -3,13 +3,14 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 import { TENANT_PROFILE_ICON_NAMES } from '@org/shared-ts/lib/profile-style/tenant-profile-icons';
 
 import { IconColorPicker } from './icon-color-picker';
 import { ICON_COLOR_PICKER_OPTIONS } from './icon-color-picker-options';
 
-const translations: Record<string, string> = {
+const translations: TestLabelMap = {
 	'choose-icon-and-color': 'Choose icon and color',
 	'choose-icon': 'Choose icon',
 	'choose-color': 'Choose color',

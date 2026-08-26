@@ -3,6 +3,7 @@ import {
 	serializeTableSearchParams,
 	type TableSearchParamInput,
 	type TableSearchParams,
+	type TableSearchWireParams,
 } from '~/lib/url-state/table-search-params';
 
 export type TenantPostListSearchParams = TableSearchParams;
@@ -15,7 +16,7 @@ export const parseTenantPostListSearchParams = (
 
 export const serializeTenantPostListSearchParams = (
 	params: TenantPostListSearchParams,
-): Record<string, string | undefined> => serializeTableSearchParams(params);
+): TableSearchWireParams => serializeTableSearchParams(params);
 
 /**
  * Round-trip through parse+serialize so the router's search state stays on
@@ -23,5 +24,5 @@ export const serializeTenantPostListSearchParams = (
  */
 export const validateTenantPostListSearchParams = (
 	search: TenantPostListSearchParamInput,
-): Record<string, string | undefined> =>
+): TableSearchWireParams =>
 	serializeTenantPostListSearchParams(parseTenantPostListSearchParams(search));
