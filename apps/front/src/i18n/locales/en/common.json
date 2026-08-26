@@ -1287,5 +1287,6 @@
 	"error-loading-data": "Error loading data",
 	"not-found": "Not found",
 	"leave": "Leave",
-	"stay": "Stay"
+	"stay": "Stay",
+	"scroll-area-label": "Scrollable content"
 }
