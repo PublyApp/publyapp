@@ -4,6 +4,8 @@
 import { renderHook } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
+import type { GetUserAuthDataResult } from '@org/client-ts/models/index';
+
 const mocks = vi.hoisted(() => ({
 	capturedOptions: undefined as
 		| {
@@ -101,7 +103,12 @@ describe('toCurrentUser', () => {
 	test('carries the effective tenant permission keys through (C3 gating)', () => {
 		// The raw generated model allows null holes in the list; a fixture
 		// carrying one must survive as a filtered, precise string array.
-		const rawKeys: Array<string | null> = ['*', null, '', 'tenant.posts.view'];
+		const rawKeys = [
+			'*',
+			null,
+			'',
+			'tenant.posts.view',
+		] as GetUserAuthDataResult['tenantPermissionKeys'];
 		expect(
 			toCurrentUser({
 				id: 'user-perms',
