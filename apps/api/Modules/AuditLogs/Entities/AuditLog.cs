@@ -137,6 +137,10 @@ public static class AuditActions {
 	public const string PostUpdated = "post.updated";
 	public const string PostDeleted = "post.deleted";
 
+	// Epic D (publish-now): the actor asked for immediate publishing through the
+	// job queue — details carry tenant/post/account/publication ids only.
+	public const string PublishNowStarted = "post.publish-now.started";
+
 	// Social-account lifecycle (Epic C): connect/reconnect never log the app
 	// password — details carry handle/DID/project ids only.
 	public const string SocialAccountConnected = "socialaccount.connected";
