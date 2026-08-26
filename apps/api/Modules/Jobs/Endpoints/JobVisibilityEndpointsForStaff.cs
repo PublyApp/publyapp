@@ -20,7 +20,7 @@ public static class JobVisibilityEndpointsForStaff {
 	) {
 		// /staff/jobs/queue — reads only, heavy-search list bucket.
 		var queueGroup = routes.MapGroup(
-			PathUtils.Join(Routes.Staff.Root,
+			PathUtils.Join(
 				Routes.Jobs.ForStaff.JobsRoot,
 				Routes.Jobs.ForStaff.Queue.Root)
 		)
@@ -42,7 +42,7 @@ public static class JobVisibilityEndpointsForStaff {
 		// lives in the EXTENDED K-1 group (JobDeadLetterEndpointsForStaff) so its
 		// path stays at the K-1 root /staff/dead-letter/{id}/requeue.
 		var dlqReadsGroup = routes.MapGroup(
-			PathUtils.Join(Routes.Staff.Root,
+			PathUtils.Join(
 				Routes.Jobs.ForStaff.JobsRoot,
 				Routes.Jobs.ForStaff.DeadLetter.Root)
 		)
@@ -62,7 +62,7 @@ public static class JobVisibilityEndpointsForStaff {
 
 		// /staff/jobs/system-jobs — reads, heavy-search bucket.
 		var sysGroup = routes.MapGroup(
-			PathUtils.Join(Routes.Staff.Root,
+			PathUtils.Join(
 				Routes.Jobs.ForStaff.JobsRoot,
 				Routes.Jobs.ForStaff.SystemJobs.Root)
 		)
@@ -78,11 +78,12 @@ public static class JobVisibilityEndpointsForStaff {
 
 		sysGroup.MapGet("/", FindSystemJobDefinitionsForStaff.Handle)
 			.WithName("StaffSystemJobDefinitionFind")
+			.WithReqQueryValidation<FindSystemJobDefinitionsQuery>()
 			.WithPermission([AppPermissions.Staff.Jobs.VIEW]);
 
 		// Same path prefix, mutations bucket (authenticated default).
 		var sysMutationGroup = routes.MapGroup(
-			PathUtils.Join(Routes.Staff.Root,
+			PathUtils.Join(
 				Routes.Jobs.ForStaff.JobsRoot,
 				Routes.Jobs.ForStaff.SystemJobs.Root)
 		)
@@ -108,7 +109,7 @@ public static class JobVisibilityEndpointsForStaff {
 		// Same path prefix again, dedicated trigger bucket — it produces real
 		// job_queue work and must not share any other bucket.
 		var triggerGroup = routes.MapGroup(
-			PathUtils.Join(Routes.Staff.Root,
+			PathUtils.Join(
 				Routes.Jobs.ForStaff.JobsRoot,
 				Routes.Jobs.ForStaff.SystemJobs.Root)
 		)

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Jobs.Entities;
@@ -330,23 +331,23 @@ public class DeadLetterQueryService(AppDbContext dbContext) : IDeadLetterQuerySe
 
 		// Reproduce the job faithfully (F16): fresh id/attempt counters, preserved
 		// envelope, and the IN lineage copied forward so a re-dead-letter keeps the
-		// chain back to the original failure.
+		// chain back to the original failure. The INSERT itself lives in the F15
+		// enqueue boundary (Infrastructure/Jobs) — this service only orchestrates.
 		var newJobId = Guid.NewGuid();
-		var inserted = await dbContext.Database.ExecuteSqlAsync(
-			$"""
-			INSERT INTO job_queue (
-				id, job_type, payload, status, priority, attempts, max_attempts,
-				next_attempt_at, idempotency_key, tenant_id, actor_user_id,
-				correlation_id, requeued_from_dead_letter_id, created_at, updated_at
-			)
-			VALUES (
-				{newJobId}, {envelope.JobType}, {envelope.Payload}::jsonb, 0,
-				{envelope.Priority}, 0, {envelope.MaxAttempts},
-				now(), {envelope.IdempotencyKey}, {envelope.TenantId},
-				{envelope.ActorUserId}, {envelope.CorrelationId},
-				{args.DeadLetterId}, now(), now()
-			)
-			""",
+		var inserted = await DeadLetterRequeueEnqueuer.InsertReproducedRowAsync(
+			dbContext,
+			new DeadLetterRequeueInsert(
+				NewJobId: newJobId,
+				JobType: envelope.JobType,
+				Payload: envelope.Payload,
+				Priority: envelope.Priority,
+				MaxAttempts: envelope.MaxAttempts,
+				IdempotencyKey: envelope.IdempotencyKey,
+				TenantId: envelope.TenantId,
+				ActorUserId: envelope.ActorUserId,
+				CorrelationId: envelope.CorrelationId,
+				DeadLetterId: args.DeadLetterId
+			),
 			cancellationToken
 		);
 		if (inserted == 0) {
