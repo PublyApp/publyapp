@@ -36,9 +36,13 @@ namespace PublyApp.Api.Lib.Architecture;
 /// fewer than its five sanctioned writes are seen (collapsed semantic walk), or if
 /// a baselined file no longer writes status. Proven RED by planting rogue writers
 /// in Modules and Infrastructure (see .dump/guard-r2-red-*.log and
-/// .dump/mutation-rogue-writer.md). Documented residual gap: a reflection writer
-/// (<c>GetProperty("Status").SetValue</c>) or SQL assembled dynamically from pieces
-/// evades any lexical/symbolic scan — same stance as CanaryProbeContainmentSpec.
+/// .dump/mutation-rogue-writer.md). Former residual gap CLOSED by #1446: a
+/// reflection writer (<c>GetProperty("Status").SetValue</c>) or SQL assembled from
+/// pieces can no longer slip past this scan unseen, because the runtime containment
+/// (Modules/Publishing/Lib/PublicationStatusWriteGuard — SaveChanges and command
+/// interceptors wired in AppDbContext.OnConfiguring, stamped only by
+/// PublicationStatusTransitionService) refuses any unstamped Status write at
+/// execution time. Scan plus runtime containment leaves no documented evasion.
 /// </summary>
 public sealed partial class PublicationArchitectureSpec {
 	// The single legal writer, relative to apps/api/ with forward slashes.
@@ -60,7 +64,13 @@ public sealed partial class PublicationArchitectureSpec {
 		"Modules/Publishing/Jobs/PublishPublicationJobHandler.Spec.cs",
 		"Modules/Publishing/Lib/PostStatusDerivation.Spec.cs",
 		"Modules/SocialAccounts/Handlers/Tenant/SocialAccountPublicationLifecycle.Spec.cs",
+		// #168 (develop): usage metrics seed publication rows for tenant usage.
 		"Modules/Tenants/Services/TenantUsageService.Spec.cs",
+
+		// #1446: this spec seeds rows AND deliberately commits the crimes (a
+		// reflection write and a direct write) to prove the runtime containment
+		// fires; its writes are arrange-time seeds and guarded-refusal setups.
+		"Modules/Publishing/Lib/PublicationStatusWriteGuard.Spec.cs",
 	};
 
 	private const string PublicationFullNamespace =
