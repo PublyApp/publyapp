@@ -980,12 +980,17 @@ test.describe(
 			expect(usersOpenUrl.searchParams.get('invite')).toBe('1');
 			await expect(currentTenantSectionTab(page)).toHaveText('Users');
 
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
-			await expect(page.getByText('Invalid email address')).toBeVisible();
+			// The rebuilt drawer gates Send on a valid batch instead of an
+			// inline email error: the untouched blank row keeps it disabled.
+			const sendButton = drawer.getByRole('button', {
+				name: 'Send 1 invitation',
+			});
+			await expect(sendButton).toBeDisabled();
 
 			await drawer
 				.getByRole('textbox', { name: 'Email', exact: true })
 				.fill('new-user@example.com');
+			await expect(sendButton).toBeEnabled();
 
 			const inviteRequest = page.waitForRequest(
 				(request) =>
@@ -994,7 +999,7 @@ test.describe(
 						.url()
 						.includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
 			);
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 			await inviteRequest;
 
 			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();
@@ -1084,7 +1089,7 @@ test.describe(
 						.url()
 						.includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
 			);
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 			await inviteRequest;
 
 			await expect(
@@ -1109,7 +1114,7 @@ test.describe(
 			await loginAsStaffAdmin(page);
 			await mockTenantDetails(page);
 			await page.route(
-				`**/staff/tenants/${TENANT_ID}/users/invitations`,
+				`**/staff/tenants/${TENANT_ID}/users/invitations/bulk`,
 				async (route) => {
 					if (route.request().method() !== 'POST') {
 						await route.fallback();
@@ -1137,7 +1142,7 @@ test.describe(
 			await drawer
 				.getByRole('textbox', { name: 'Email', exact: true })
 				.fill('new-user@example.com');
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 
 			await expect(
 				drawer.getByRole('button', { name: 'Invite people' }),
@@ -1202,7 +1207,7 @@ test.describe(
 						.url()
 						.includes(`/staff/tenants/${TENANT_ID}/users/invitations`),
 			);
-			await drawer.getByRole('button', { name: 'Invite people' }).click();
+			await drawer.getByRole('button', { name: 'Send 1 invitation' }).click();
 			await inviteRequest;
 
 			await expect(page.getByTestId('staff-tenant-users-page')).toBeVisible();

@@ -1,7 +1,13 @@
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import {
+	IconFileSpreadsheet,
+	IconPlus,
+	IconTrash,
+	IconUpload,
+	IconX,
+} from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { i18n as I18nInstance } from 'i18next';
-import { useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, DragEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -18,11 +24,16 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { downloadFile } from '~/lib/download-file';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-toast';
+import {
+	toResolveTenantProfileNameResolutions,
+	useResolveTenantProfileNamesMutation,
+} from '~/lib/query/staff-tenant-profiles';
 import {
 	type StaffTenantInvitationBulkCreateFailedItem,
 	type StaffTenantInvitationBulkCreateSummary,
@@ -38,89 +49,60 @@ import {
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { InviteProfileSelect } from './_invite-profile-select';
-import { parseInviteeEmails } from './_invite-user-form-state';
+import {
+	applyProfileResolutions,
+	buildImportedInvites,
+	buildInviteTemplateCsv,
+	buildSubmitInvitations,
+	canSendInvitations,
+	clearFileRows,
+	makeManualRow,
+	parseInviteCsv,
+	parseInviteWorkbook,
+	parseInviteeEmails,
+	type InviteRow,
+} from './_invite-user-form-state';
 
-const buildInviteUserSchema = (t: (key: string) => string) =>
-	z.object({
-		pasteEmails: z.string().optional(),
-		sharedAccountLevel: z.enum(['Admin', 'User']),
-		sharedProfileIds: z.array(z.string()),
-		invitations: z
-			.array(
-				z.object({
-					email: z
-						.string({ error: t('email-required') })
-						.trim()
-						.pipe(z.email(t('invalid-email-address'))),
-					accountLevel: z.enum(['Admin', 'User'] as const, {
-						error: t('account-level-required'),
-					}),
-					profileIds: z.array(z.string()),
-				}),
-			)
-			.min(1, t('invitee-required')),
-	});
+const MAX_IMPORT_FILE_BYTES = 2_000_000;
+const CSV_EXTENSION_PATTERN = /\.csv$/i;
+const EXCEL_EXTENSION_PATTERN = /\.xlsx?$/i;
 
-type InviteTenantUserFormValues = z.infer<
-	ReturnType<typeof buildInviteUserSchema>
->;
-
-const EMPTY_INVITEE: InviteTenantUserFormValues['invitations'][number] = {
-	email: '',
-	accountLevel: 'User',
-	profileIds: [],
+type InviteFormValues = {
+	pasteEmails: string;
+	sharedAccountLevel: 'Admin' | 'User';
+	sharedProfileIds: string[];
+	rows: InviteRow[];
 };
 
-const DEFAULT_VALUES: InviteTenantUserFormValues = {
+const DEFAULT_VALUES: InviteFormValues = {
 	pasteEmails: '',
 	sharedAccountLevel: 'User',
 	sharedProfileIds: [],
-	invitations: [EMPTY_INVITEE],
-};
-
-const getFailedInviteeMessage = (
-	failedItem: StaffTenantInvitationBulkCreateFailedItem,
-	i18n: I18nInstance,
-	t: (key: string, options?: Record<string, unknown>) => string,
-): string => {
-	const fallback = t('invite-tenant-user-failed');
-	const translationKey = failedItem.translationKey;
-	if (!translationKey) {
-		return fallback;
-	}
-
-	return i18n.t(translationKey, {
-		ns: 'response-message',
-		defaultValue: fallback,
-	});
-};
-
-const toFailedInvitations = (
-	values: InviteTenantUserFormValues,
-	summary: StaffTenantInvitationBulkCreateSummary,
-): InviteTenantUserFormValues['invitations'] => {
-	const failedInvitations: InviteTenantUserFormValues['invitations'] = [];
-	const seenIndexes = new Set<number>();
-
-	for (const failedItem of summary.failedItems) {
-		const index = failedItem.index;
-		if (index === null || seenIndexes.has(index)) {
-			continue;
-		}
-
-		const invitation = values.invitations[index];
-		if (!invitation) {
-			continue;
-		}
-
-		failedInvitations.push(invitation);
-		seenIndexes.add(index);
-	}
-
-	return failedInvitations;
+	rows: [makeManualRow()],
 };
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** Signature of the profile names currently awaiting server resolution.
+ * Deduped case-insensitively because that is how the server matches. */
+const profileNamesNeedingResolution = (rows: InviteRow[]): string[] => {
+	const seen = new Set<string>();
+	const names: string[] = [];
+
+	for (const row of rows) {
+		for (const name of row.profileNames) {
+			const identity = name.toLowerCase();
+			if (!identity || seen.has(identity)) {
+				continue;
+			}
+
+			seen.add(identity);
+			names.push(name);
+		}
+	}
+
+	return names;
+};
 
 const PasteInviteesSection = ({
 	tenantId,
@@ -181,84 +163,342 @@ const PasteInviteesSection = ({
 	</section>
 );
 
-const InviteeRows = ({
-	tenantId,
-	fields,
+type FileDropzoneProps = {
+	isFormLocked: boolean;
+	fileBar: { fileName: string; rowCount: number } | null;
+	importError: string;
+	duplicateNote: string;
+	onFiles: (fileList: FileList | null) => void;
+	onClearFile: () => void;
+	t: Translate;
+};
+
+const ImportFileSection = ({
 	isFormLocked,
-	onAddInvitee,
-	onRemoveInvitee,
-	onSessionExpired,
+	fileBar,
+	importError,
+	duplicateNote,
+	onFiles,
+	onClearFile,
+	t,
+}: FileDropzoneProps) => {
+	const [isDragOver, setIsDragOver] = useState(false);
+	const inputRef = useRef<HTMLInputElement>(null);
+
+	const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+		event.preventDefault();
+		setIsDragOver(false);
+		if (!isFormLocked) {
+			onFiles(event.dataTransfer.files);
+		}
+	};
+
+	if (fileBar) {
+		return (
+			<section className="space-y-1 rounded-[var(--publy-radius-card)] p-3 shadow-[var(--publy-shadow-ring)]">
+				<div
+					className="flex items-center justify-between gap-3"
+					data-testid="invite-file-bar"
+				>
+					<p className="flex min-w-0 items-center gap-2 text-sm text-foreground">
+						<IconFileSpreadsheet
+							aria-hidden="true"
+							className="size-4 shrink-0 text-muted-foreground"
+						/>
+						<span className="truncate font-medium">{fileBar.fileName}</span>
+						<span className="shrink-0 text-muted-foreground">
+							{t('invite-file-bar-rows', { count: fileBar.rowCount })}
+						</span>
+					</p>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						disabled={isFormLocked}
+						aria-label={t('invite-clear-file')}
+						onClick={onClearFile}
+					>
+						<IconX aria-hidden="true" className="size-4" />
+					</Button>
+				</div>
+				{duplicateNote ? (
+					<p className="text-xs text-muted-foreground">{duplicateNote}</p>
+				) : null}
+				{importError ? (
+					<p className="text-sm text-destructive" role="alert">
+						{importError}
+					</p>
+				) : null}
+			</section>
+		);
+	}
+
+	return (
+		<section className="space-y-2">
+			<div
+				data-testid="invite-dropzone"
+				role="button"
+				tabIndex={0}
+				aria-disabled={isFormLocked}
+				className={`flex flex-col items-center justify-center gap-1 rounded-[var(--publy-radius-card)] border border-dashed p-6 text-center transition-colors ${
+					isDragOver
+						? 'border-ring bg-muted'
+						: 'border-(--publy-border-strong) hover:bg-muted'
+				}`}
+				onDragOver={(event) => {
+					event.preventDefault();
+					setIsDragOver(true);
+				}}
+				onDragLeave={() => setIsDragOver(false)}
+				onDrop={handleDrop}
+				onClick={() => {
+					if (!isFormLocked) {
+						inputRef.current?.click();
+					}
+				}}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						event.preventDefault();
+						if (!isFormLocked) {
+							inputRef.current?.click();
+						}
+					}
+				}}
+			>
+				<IconUpload
+					aria-hidden="true"
+					className="size-5 text-muted-foreground"
+				/>
+				<p className="text-sm font-medium text-foreground">
+					{t('invite-drop-file')}
+				</p>
+				<p className="text-xs text-muted-foreground">
+					{t('invite-file-columns-hint')}
+				</p>
+				<input
+					ref={inputRef}
+					type="file"
+					className="sr-only"
+					accept=".csv,.xlsx,.xls"
+					disabled={isFormLocked}
+					onChange={(event: ChangeEvent<HTMLInputElement>) => {
+						onFiles(event.target.files);
+						event.target.value = '';
+					}}
+					onClick={(event) => event.stopPropagation()}
+					aria-label={t('invite-drop-file')}
+				/>
+			</div>
+			<div className="flex items-center justify-between gap-3">
+				{importError ? (
+					<p className="text-sm text-destructive" role="alert">
+						{importError}
+					</p>
+				) : (
+					<span />
+				)}
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					disabled={isFormLocked}
+					onClick={() =>
+						downloadFile({
+							data: buildInviteTemplateCsv(),
+							fileName: 'tenant-invite-template.csv',
+							mimeType: 'text/csv;charset=utf-8',
+						})
+					}
+				>
+					{t('invite-download-template')}
+				</Button>
+			</div>
+		</section>
+	);
+};
+
+const OrAddManuallyDivider = ({ t }: { t: Translate }) => (
+	<div className="flex items-center gap-3" aria-hidden="true">
+		<span className="h-px flex-1 bg-border" />
+		<span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+			{t('invite-or-add-manually')}
+		</span>
+		<span className="h-px flex-1 bg-border" />
+	</div>
+);
+
+const unresolvedFlagCount = (
+	unresolvedByRowKey: Record<string, UnresolvedEntry[]>,
+): number => {
+	let total = 0;
+	for (const entries of Object.values(unresolvedByRowKey)) {
+		total += entries.length;
+	}
+
+	return total;
+};
+
+type UnresolvedEntry = { name: string; reason: string };
+
+const RowUnresolvedNotes = ({
+	unresolved,
 	t,
 }: {
+	unresolved: UnresolvedEntry[] | undefined;
+	t: Translate;
+}) => {
+	if (!unresolved || unresolved.length === 0) {
+		return null;
+	}
+
+	const notFound = unresolved
+		.filter((entry) => entry.reason === 'not-found')
+		.map((entry) => entry.name);
+	const ambiguous = unresolved
+		.filter((entry) => entry.reason === 'ambiguous')
+		.map((entry) => entry.name);
+
+	return (
+		<div role="alert" className="space-y-0.5">
+			{notFound.length > 0 ? (
+				<p className="text-xs text-destructive">
+					{t('invite-unresolved-profile-not-found', {
+						names: notFound.join(', '),
+					})}
+				</p>
+			) : null}
+			{ambiguous.length > 0 ? (
+				<p className="text-xs text-destructive">
+					{t('invite-unresolved-profile-ambiguous', {
+						names: ambiguous.join(', '),
+					})}
+				</p>
+			) : null}
+		</div>
+	);
+};
+
+type InviteRowsListProps = {
 	tenantId: string;
 	fields: Array<{ id: string }>;
+	rows: InviteRow[];
+	unresolvedByRowKey: Record<string, UnresolvedEntry[]>;
 	isFormLocked: boolean;
-	onAddInvitee: () => void;
-	onRemoveInvitee: (index: number) => void;
+	onRemoveRow: (index: number) => void;
+	onAddRow: () => void;
 	onSessionExpired: () => void;
 	t: Translate;
-}) => (
-	<>
-		<div className="space-y-3">
-			{fields.map((field, index) => (
-				<section
-					key={field.id}
-					className="space-y-3 rounded-[var(--publy-radius-card)] p-3 shadow-[var(--publy-shadow-ring)]"
-				>
-					<div className="flex items-center justify-between gap-3">
-						<h3 className="text-sm font-semibold text-foreground">
-							{t('invitee-number', { number: index + 1 })}
-						</h3>
-						{fields.length > 1 ? (
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								disabled={isFormLocked}
-								aria-label={t('remove-invitee', { number: index + 1 })}
-								onClick={() => onRemoveInvitee(index)}
-							>
-								<IconTrash aria-hidden="true" className="size-4" />
-							</Button>
-						) : null}
-					</div>
-					<Field.Email
-						name={`invitations.${index}.email`}
-						label={t('email')}
-						placeholder={t('email-placeholder')}
-						isDisabled={isFormLocked}
-						fullWidth
-					/>
-					<Field.Select
-						name={`invitations.${index}.accountLevel`}
-						label={t('account-level')}
-						options={[
-							{ value: 'Admin', label: t('admin') },
-							{ value: 'User', label: t('user') },
-						]}
-						isDisabled={isFormLocked}
-					/>
+};
+
+const InviteRowsList = ({
+	tenantId,
+	fields,
+	rows,
+	unresolvedByRowKey,
+	isFormLocked,
+	onRemoveRow,
+	onAddRow,
+	onSessionExpired,
+	t,
+}: InviteRowsListProps) => {
+	const renderInviteRow = (field: { id: string }, index: number) => {
+		const renderRowProfileControl = (row: InviteRow, isAdmin: boolean) => {
+			if (isAdmin) {
+				return (
+					<p className="text-xs text-muted-foreground">
+						{t('invite-admin-full-access')}
+					</p>
+				);
+			}
+
+			if (row.source === 'manual') {
+				return (
 					<InviteProfileSelect
 						tenantId={tenantId}
-						name={`invitations.${index}.profileIds`}
+						name={`rows.${index}.profileIds`}
 						label={t('profiles')}
 						isDisabled={isFormLocked}
 						onSessionExpired={onSessionExpired}
 					/>
-				</section>
-			))}
-		</div>
-		<Button
-			type="button"
-			variant="outline"
-			disabled={isFormLocked}
-			onClick={onAddInvitee}
-		>
-			<IconPlus aria-hidden="true" className="size-4" />
-			{t('add-another-invitee')}
-		</Button>
-	</>
-);
+				);
+			}
+
+			return null;
+		};
+
+		const row = rows[index];
+		if (!row) {
+			return null;
+		}
+
+		const isAdmin = row.accountLevel === 'Admin';
+
+		return (
+			<section
+				key={field.id}
+				className="space-y-3 rounded-[var(--publy-radius-card)] p-3 shadow-[var(--publy-shadow-ring)]"
+			>
+				<div className="flex items-center justify-between gap-3">
+					<h3 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+						<span className="truncate">
+							{row.email || t('invite-blank-row')}
+						</span>
+						{row.source === 'file' ? (
+							<span className="publy-detail-chip publy-detail-chip--outline shrink-0">
+								{t('invite-source-file')}
+							</span>
+						) : null}
+					</h3>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						disabled={isFormLocked}
+						aria-label={`${t('invite-remove-row')} ${index + 1}`}
+						onClick={() => onRemoveRow(index)}
+					>
+						<IconTrash aria-hidden="true" className="size-4" />
+					</Button>
+				</div>
+				<Field.Email
+					name={`rows.${index}.email`}
+					label={t('email')}
+					placeholder={t('email-placeholder')}
+					isDisabled={isFormLocked}
+					fullWidth
+				/>
+				<Field.Select
+					name={`rows.${index}.accountLevel`}
+					label={t('account-level')}
+					options={[
+						{ value: 'Admin', label: t('admin') },
+						{ value: 'User', label: t('user') },
+					]}
+					isDisabled={isFormLocked}
+				/>
+				{renderRowProfileControl(row, isAdmin)}
+				{!isAdmin ? (
+					<RowUnresolvedNotes unresolved={unresolvedByRowKey[row.key]} t={t} />
+				) : null}
+			</section>
+		);
+	};
+
+	return (
+		<>
+			<div className="space-y-3">{fields.map(renderInviteRow)}</div>
+			<Button
+				type="button"
+				variant="outline"
+				disabled={isFormLocked}
+				onClick={onAddRow}
+			>
+				<IconPlus aria-hidden="true" className="size-4" />
+				{t('invite-add-row')}
+			</Button>
+		</>
+	);
+};
 
 const InviteBatchSummary = ({
 	batchSummary,
@@ -266,34 +506,51 @@ const InviteBatchSummary = ({
 	t,
 }: {
 	batchSummary: StaffTenantInvitationBulkCreateSummary;
-	i18n: I18nInstance;
+	i18n: { t: (key: string, options?: Record<string, unknown>) => string };
 	t: Translate;
-}) => (
-	<div
-		className="space-y-2 rounded-[var(--publy-radius-control)] bg-muted p-3 text-sm"
-		role="alert"
-	>
-		<p className="font-medium text-foreground">
-			{t('tenant-invitations-batch-summary', {
-				succeeded: batchSummary.succeededCount,
-				failed: batchSummary.failedCount,
-			})}
-		</p>
-		<ul className="space-y-1 text-destructive">
-			{batchSummary.failedItems.map((failedItem) => (
-				<li
-					key={`${failedItem.index ?? 'unknown'}-${failedItem.email ?? ''}-${failedItem.translationKey ?? ''}`}
-				>
-					<span className="font-medium">
-						{failedItem.email ?? t('unknown-invitee')}
-					</span>
-					{' — '}
-					{getFailedInviteeMessage(failedItem, i18n, t)}
-				</li>
-			))}
-		</ul>
-	</div>
-);
+}) => {
+	const getFailedInviteeMessage = (
+		failedItem: StaffTenantInvitationBulkCreateFailedItem,
+	): string => {
+		const fallback = t('invite-tenant-user-failed');
+		const translationKey = failedItem.translationKey;
+		if (!translationKey) {
+			return fallback;
+		}
+
+		return i18n.t(translationKey, {
+			ns: 'response-message',
+			defaultValue: fallback,
+		});
+	};
+
+	return (
+		<div
+			className="space-y-2 rounded-[var(--publy-radius-control)] bg-muted p-3 text-sm"
+			role="alert"
+		>
+			<p className="font-medium text-foreground">
+				{t('tenant-invitations-batch-summary', {
+					succeeded: batchSummary.succeededCount,
+					failed: batchSummary.failedCount,
+				})}
+			</p>
+			<ul className="space-y-1 text-destructive">
+				{batchSummary.failedItems.map((failedItem) => (
+					<li
+						key={`${failedItem.index ?? 'unknown'}-${failedItem.email ?? ''}-${failedItem.translationKey ?? ''}`}
+					>
+						<span className="font-medium">
+							{failedItem.email ?? t('unknown-invitee')}
+						</span>
+						{' — '}
+						{getFailedInviteeMessage(failedItem)}
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+};
 
 type InviteTenantUserDrawerProps = {
 	tenantId: string;
@@ -315,41 +572,59 @@ const InviteTenantUserDrawerInner = ({
 	const { t, i18n } = useTranslation('common');
 	const queryClient = useQueryClient();
 	const bulkInvite = useBulkInviteTenantUsersMutation();
+	const resolveNames = useResolveTenantProfileNamesMutation();
 	const [rootValidationError, setRootValidationError] = useState('');
 	const [batchSummary, setBatchSummary] =
 		useState<StaffTenantInvitationBulkCreateSummary | null>(null);
+	const [unresolvedByRowKey, setUnresolvedByRowKey] = useState<
+		Record<string, UnresolvedEntry[]>
+	>({});
+	const [fileBar, setFileBar] = useState<{
+		fileName: string;
+		rowCount: number;
+	} | null>(null);
+	const [importError, setImportError] = useState('');
+	const [duplicateNote, setDuplicateNote] = useState('');
+
 	// Language-keyed resolver: rebuilds when translations change so error
 	// messages stay localized; see use-language-keyed-zod-resolver.
-	const resolver = useLanguageKeyedZodResolver<InviteTenantUserFormValues>(
-		buildInviteUserSchema,
-		'common',
+	const resolver = useLanguageKeyedZodResolver<InviteFormValues>(() =>
+		z.object({
+			pasteEmails: z.string().optional(),
+			sharedAccountLevel: z.enum(['Admin', 'User']),
+			sharedProfileIds: z.array(z.string()),
+			rows: z.array(
+				z.object({
+					email: z.string(),
+					accountLevel: z.enum(['Admin', 'User']),
+					profileIds: z.array(z.string()),
+					profileNames: z.array(z.string()),
+					source: z.enum(['file', 'manual']),
+					key: z.string(),
+				}),
+			),
+		}),
 	);
-	const methods = useForm<InviteTenantUserFormValues>({
+	const methods = useForm<InviteFormValues>({
 		resolver,
 		defaultValues: DEFAULT_VALUES,
 	});
 	const {
 		control,
 		reset,
-		formState: { isDirty, isSubmitting },
+		formState: { isSubmitting },
 	} = methods;
 	const { fields, append, remove, replace } = useFieldArray({
 		control,
-		name: 'invitations',
+		name: 'rows',
 	});
+	const rows = methods.watch('rows');
 	const [isDiscardConfirmOpen, setIsDiscardConfirmOpen] = useState(false);
 
 	// Dirty-flag uplink, event-driven: RHF's change stream fires synchronously
-	// on the form mutation that owns each change (user input, setValue,
-	// append/replace, reset) and always carries the full form snapshot.
-	// Dirtiness derives from comparing that snapshot against the pristine
-	// defaults captured once at mount — not from React's render-lagged
-	// formState snapshot, and not from the isOpen prop, whose value at effect
-	// time belongs to the session the wrapper has already rotated past.
-	// Dirtiness itself comes from react-hook-form's own synchronous dirty
-	// computation (control._getDirty compares the live values against the
-	// pristine defaultValues this session mounted with); the dedup ref keeps
-	// repeated same-value emissions from reaching the host.
+	// on the form mutation that owns each change. Dirtiness comes from
+	// react-hook-form's own synchronous dirty computation against the
+	// pristine defaults this session mounted with.
 	const lastReportedDirtyRef = useRef<boolean | null>(null);
 	useEffect(() => {
 		const report = (nextDirty: boolean) => {
@@ -369,16 +644,147 @@ const InviteTenantUserDrawerInner = ({
 		};
 	}, [methods, onDirtyChange]);
 
-	const isFormLocked = bulkInvite.isPending || isSubmitting;
+	const isResolvingProfiles = resolveNames.isPending;
 
-	const requestClose = () => {
-		if (isDirty) {
-			setIsDiscardConfirmOpen(true);
+	// Server-side profile-name resolution (#979): whenever the set of names on
+	// file rows changes, resolve once and stamp ids back onto the rows.
+	const namesSignature = useMemo(
+		() => profileNamesNeedingResolution(rows ?? []).join('\u0000'),
+		[rows],
+	);
+	const lastResolvedSignatureRef = useRef<string>('');
+	const { mutateAsync: resolveNamesAsync } = resolveNames;
+	useEffect(() => {
+		if (!isOpen || namesSignature.length === 0) {
 			return;
 		}
 
-		onOpenChange(false);
+		if (lastResolvedSignatureRef.current === namesSignature) {
+			return;
+		}
+
+		lastResolvedSignatureRef.current = namesSignature;
+
+		resolveNamesAsync({
+			tenantId,
+			names: namesSignature.split('\u0000'),
+		})
+			.then((result) => {
+				// Stale-response discard instead of cleanup-cancellation: a
+				// cancelled-and-guarded pattern here loses the resolution forever
+				// (cleanup marks the promise dead while the same-signature guard
+				// blocks a retry). Superseded signatures simply drop their result.
+				if (lastResolvedSignatureRef.current !== namesSignature) {
+					return;
+				}
+
+				const resolutions = toResolveTenantProfileNameResolutions(result);
+				const currentRows = methods.getValues('rows');
+				const outcome = applyProfileResolutions(currentRows, resolutions);
+				methods.setValue('rows', outcome.rows, { shouldDirty: true });
+				setUnresolvedByRowKey(outcome.unresolvedByRowKey);
+			})
+			.catch((error) => {
+				if (lastResolvedSignatureRef.current !== namesSignature) {
+					return;
+				}
+
+				if (shouldLogoutForFailure(error)) {
+					onSessionExpired();
+					return;
+				}
+
+				// Allow a retry on the next signature change.
+				lastResolvedSignatureRef.current = '';
+				void displayLocalMutationFailure(error, t('unable-to-load-profiles'));
+			});
+	}, [
+		isOpen,
+		namesSignature,
+		tenantId,
+		methods,
+		resolveNamesAsync,
+		onSessionExpired,
+		t,
+	]);
+
+	const isFormLockedFinal =
+		bulkInvite.isPending || isSubmitting || resolveNames.isPending;
+
+	const handleFiles = async (fileList: FileList | null) => {
+		const file = fileList?.[0];
+		if (!file) {
+			return;
+		}
+
+		setImportError('');
+		setDuplicateNote('');
+
+		const isCsv = CSV_EXTENSION_PATTERN.test(file.name);
+		if (!isCsv && !EXCEL_EXTENSION_PATTERN.test(file.name)) {
+			setImportError(t('invite-import-invalid-type'));
+			return;
+		}
+
+		if (file.size > MAX_IMPORT_FILE_BYTES) {
+			setImportError(t('invite-import-too-large'));
+			return;
+		}
+
+		try {
+			let parsedRows;
+			if (isCsv) {
+				parsedRows = parseInviteCsv(await file.text());
+			} else {
+				parsedRows = parseInviteWorkbook(
+					new Uint8Array(await file.arrayBuffer()),
+				);
+			}
+
+			const existingEmails = methods.getValues('rows').map((row) => row.email);
+			const outcome = buildImportedInvites({
+				parsedRows,
+				existingEmails,
+				source: 'file',
+			});
+			const currentRows = methods.getValues('rows');
+			// The untouched blank starter row is a placeholder, not content;
+			// keeping it would block Send forever (its email is empty).
+			const hasOnlyBlankInitialRow =
+				currentRows.length === 1 &&
+				currentRows[0]?.email.trim().length === 0 &&
+				currentRows[0]?.source === 'manual';
+			methods.setValue(
+				'rows',
+				hasOnlyBlankInitialRow
+					? outcome.rows
+					: [...outcome.rows, ...currentRows],
+				{ shouldDirty: true },
+			);
+			setFileBar({ fileName: file.name, rowCount: outcome.rows.length });
+			if (outcome.duplicateCount > 0) {
+				setDuplicateNote(
+					t('invite-file-duplicates-skipped', {
+						count: outcome.duplicateCount,
+					}),
+				);
+			}
+		} catch {
+			setImportError(t('invite-import-parse-failed'));
+		}
 	};
+
+	const clearFile = useCallback(() => {
+		setFileBar(null);
+		setDuplicateNote('');
+		const currentRows = methods.getValues('rows');
+		const keptRows = clearFileRows(currentRows);
+		methods.setValue(
+			'rows',
+			keptRows.length > 0 ? keptRows : [makeManualRow()],
+			{ shouldDirty: true },
+		);
+	}, [methods]);
 
 	const addPastedEmails = () => {
 		setRootValidationError('');
@@ -391,25 +797,55 @@ const InviteTenantUserDrawerInner = ({
 
 		const sharedAccountLevel = methods.getValues('sharedAccountLevel');
 		const sharedProfileIds = methods.getValues('sharedProfileIds');
-		const nextInvitations = emails.map((email) => ({
-			email,
-			accountLevel: sharedAccountLevel,
+		const currentRows = methods.getValues('rows');
+		const outcome = buildImportedInvites({
+			parsedRows: emails.map((email) => ({
+				email,
+				accountLevel: sharedAccountLevel,
+				profileNames: [],
+			})),
+			existingEmails: currentRows.map((row) => row.email),
+			source: 'manual',
+		});
+		const stampedRows = outcome.rows.map((row) => ({
+			...row,
 			profileIds: [...sharedProfileIds],
 		}));
-		const existingInvitations = methods.getValues('invitations');
 		const hasOnlyBlankInitialRow =
-			existingInvitations.length === 1 &&
-			existingInvitations[0]?.email.trim().length === 0;
+			currentRows.length === 1 &&
+			currentRows[0]?.email.trim().length === 0 &&
+			currentRows[0]?.source === 'manual';
 
 		if (hasOnlyBlankInitialRow) {
-			replace(nextInvitations);
+			replace([...stampedRows]);
 		} else {
-			for (const invitation of nextInvitations) {
-				append(invitation);
+			for (const row of stampedRows) {
+				append(row);
 			}
 		}
 		methods.setValue('pasteEmails', '', { shouldDirty: true });
 	};
+
+	const isFormDirty = () => methods.control._getDirty();
+	const requestClose = () => {
+		// formState.isDirty is a render-subscribed proxy and nobody renders it
+		// here; read the freshly computed value instead or dirty forms close
+		// without their discard confirmation.
+		if (isFormDirty()) {
+			setIsDiscardConfirmOpen(true);
+			return;
+		}
+
+		onOpenChange(false);
+	};
+
+	const canSend = canSendInvitations({
+		rows: rows ?? [],
+		isResolvingProfiles,
+		unresolvedCount: unresolvedFlagCount(unresolvedByRowKey),
+	});
+	const isSendDisabled = isFormLockedFinal || !canSend;
+	const peopleCount = rows?.length ?? 0;
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		setRootValidationError('');
@@ -419,7 +855,7 @@ const InviteTenantUserDrawerInner = ({
 		try {
 			result = await bulkInvite.mutateAsync({
 				tenantId,
-				invitations: values.invitations,
+				invitations: buildSubmitInvitations(values.rows),
 			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
@@ -433,10 +869,11 @@ const InviteTenantUserDrawerInner = ({
 				let hasUnmappedError = false;
 
 				for (const [field, messages] of Object.entries(failure.fieldErrors)) {
-					const match = /^invitations\[(\d+)\]\.email$/i.exec(field);
-					const index = match ? Number(match[1]) : Number.NaN;
-					if (Number.isInteger(index) && values.invitations[index]) {
-						methods.setError(`invitations.${index}.email`, {
+					const match =
+						/^rows\[(\d+)\]\.email$|^invitations\[(\d+)\]\.email$/i.exec(field);
+					const index = match ? Number(match[1] ?? match[2]) : Number.NaN;
+					if (Number.isInteger(index) && values.rows[index]) {
+						methods.setError(`rows.${index}.email`, {
 							type: 'server',
 							message: getFailureMessage(failure, {
 								fallback: t('invite-tenant-user-failed'),
@@ -474,14 +911,27 @@ const InviteTenantUserDrawerInner = ({
 
 		if (summary.failedCount > 0) {
 			setBatchSummary(summary);
-			const failedInvitations = toFailedInvitations(values, summary);
-			if (failedInvitations.length > 0) {
+			// Keep only the failed rows so the staff member can fix and retry.
+			const seenIndexes = new Set<number>();
+			const failedRows: InviteRow[] = [];
+			for (const failedItem of summary.failedItems) {
+				const index = failedItem.index;
+				if (index === null || seenIndexes.has(index)) {
+					continue;
+				}
+
+				const row = values.rows[index];
+				if (row) {
+					failedRows.push(row);
+					seenIndexes.add(index);
+				}
+			}
+
+			if (failedRows.length > 0) {
 				reset(
 					{
-						pasteEmails: '',
-						sharedAccountLevel: values.sharedAccountLevel,
-						sharedProfileIds: values.sharedProfileIds,
-						invitations: failedInvitations,
+						...values,
+						rows: failedRows,
 					},
 					{ keepDirty: true, keepDefaultValues: true },
 				);
@@ -502,7 +952,7 @@ const InviteTenantUserDrawerInner = ({
 		<Drawer
 			open={isOpen}
 			onOpenChange={(open) => {
-				if (isFormLocked) {
+				if (isFormLockedFinal || isResolvingProfiles) {
 					return;
 				}
 
@@ -523,19 +973,33 @@ const InviteTenantUserDrawerInner = ({
 				</DrawerHeader>
 				<DrawerForm methods={methods} onSubmit={onSubmit}>
 					<DrawerBody className="space-y-5">
+						<ImportFileSection
+							isFormLocked={isFormLockedFinal || isResolvingProfiles}
+							fileBar={fileBar}
+							importError={importError}
+							duplicateNote={duplicateNote}
+							onFiles={(files) => {
+								void handleFiles(files);
+							}}
+							onClearFile={clearFile}
+							t={t}
+						/>
+						<OrAddManuallyDivider t={t} />
 						<PasteInviteesSection
 							tenantId={tenantId}
-							isFormLocked={isFormLocked}
+							isFormLocked={isFormLockedFinal || isResolvingProfiles}
 							onAddPastedEmails={addPastedEmails}
 							onSessionExpired={onSessionExpired}
 							t={t}
 						/>
-						<InviteeRows
+						<InviteRowsList
 							tenantId={tenantId}
 							fields={fields}
-							isFormLocked={isFormLocked}
-							onAddInvitee={() => append({ ...EMPTY_INVITEE })}
-							onRemoveInvitee={remove}
+							rows={rows ?? []}
+							unresolvedByRowKey={unresolvedByRowKey}
+							isFormLocked={isFormLockedFinal || isResolvingProfiles}
+							onRemoveRow={remove}
+							onAddRow={() => append(makeManualRow())}
 							onSessionExpired={onSessionExpired}
 							t={t}
 						/>
@@ -554,16 +1018,19 @@ const InviteTenantUserDrawerInner = ({
 						) : null}
 					</DrawerBody>
 					<DrawerFooter>
+						<p className="mr-auto self-center text-sm text-muted-foreground">
+							{t('invite-footer-count', { count: peopleCount })}
+						</p>
 						<Button
 							type="button"
 							variant="ghost"
-							disabled={isFormLocked}
+							disabled={isFormLockedFinal || isResolvingProfiles}
 							onClick={requestClose}
 						>
 							{t('cancel')}
 						</Button>
-						<Button type="submit" disabled={isFormLocked}>
-							{t('invite-people')}
+						<Button type="submit" disabled={isSendDisabled}>
+							{t('invite-send-invitations', { count: peopleCount })}
 						</Button>
 					</DrawerFooter>
 				</DrawerForm>

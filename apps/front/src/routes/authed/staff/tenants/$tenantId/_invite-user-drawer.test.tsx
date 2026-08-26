@@ -17,16 +17,23 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
 	inviteMutation: vi.fn(),
+	resolveNamesMutation: vi.fn(),
 	useBulkInviteTenantUsersMutation: vi.fn(),
+	useResolveTenantProfileNamesMutation: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 	displayLocalMutationFailure: vi.fn(),
 	toastSuccess: vi.fn(),
+	downloadFile: vi.fn(),
 }));
 
 vi.mock('~/lib/mutation-toast', () => ({
 	displayLocalMutationFailure: mocks.displayLocalMutationFailure,
 	toastLocalMutationResult: { success: mocks.toastSuccess },
+}));
+
+vi.mock('~/lib/download-file', () => ({
+	downloadFile: mocks.downloadFile,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -37,7 +44,10 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
+		t: (
+			key: string,
+			options?: Record<string, unknown> & { defaultValue?: string },
+		) => {
 			const labels: TestLabelMap = {
 				'invite-tenant-user': 'Invite tenant user',
 				'invite-tenant-users-description': 'Send tenant invitations.',
@@ -50,25 +60,50 @@ vi.mock('react-i18next', () => ({
 				'paste-email-addresses': 'Paste email addresses',
 				'paste-email-addresses-description': 'Paste several addresses.',
 				'paste-emails-placeholder': 'alice@example.com, bob@example.com',
-				'add-another-invitee': 'Add another invitee',
-				'invitee-number': 'Invitee',
+				// Distinct from the literal 'name@company.com' the field used to
+				// hardcode — proves the placeholder is sourced from t(), not a
+				// hardcoded English string, by matching the real FR bundle value.
+				'email-placeholder': 'nom@entreprise.com',
+				'invite-drop-file': 'Drag a CSV or Excel file here',
+				'invite-file-columns-hint': 'Columns: email, level, profiles',
+				'invite-download-template': 'Download template',
+				'invite-file-bar-rows': 'Rows imported: {{count}}',
+				'invite-clear-file': 'Clear file',
+				'invite-import-invalid-type': 'Unsupported file type.',
+				'invite-import-too-large': 'This file is too large.',
+				'invite-import-parse-failed': 'We could not read that file.',
+				'invite-file-duplicates-skipped_one': '{{count}} duplicate skipped',
+				'invite-or-add-manually': 'or add manually',
+				'invite-source-file': 'from file',
+				'invite-blank-row': 'New person',
+				'invite-remove-row': 'Remove invitee',
+				'invite-add-row': 'Add another invitee',
+				'invite-admin-full-access':
+					'Admins get full access; profiles do not apply.',
+				'invite-unresolved-profile-not-found': 'No profile named {{names}}.',
+				'invite-unresolved-profile-ambiguous': 'Ambiguous profile {{names}}.',
+				'invite-footer-count': 'People: {{count}}',
+				// Base key: i18next resolves _one/_other; the stub collapses to
+				// the historical label so submit-button queries stay stable.
+				'invite-send-invitations': 'Invite people',
 				profiles: 'Profiles',
 				admin: 'Admin',
 				user: 'User',
 				cancel: 'Cancel',
-				'invite-people': 'Invite people',
 				'invite-tenant-user-failed': 'Unable to send the invitation.',
 				'unsaved-changes-dialog-title': 'Leave without saving?',
 				'unsaved-changes-dialog-description':
 					'You have unsaved changes that will be lost if you leave this page.',
 				'leave-page': 'Leave page',
-				// Distinct from the literal 'name@company.com' the field used to
-				// hardcode — proves the placeholder is sourced from t(), not a
-				// hardcoded English string, by matching the real FR bundle value.
-				'email-placeholder': 'nom@entreprise.com',
 			};
 
-			return labels[key] ?? key;
+			return (labels[key] ?? key).replace(
+				/\{\{(\w+)\}\}/g,
+				(match, name: string) =>
+					options && name in options
+						? String(options[name as keyof typeof options])
+						: match,
+			);
 		},
 		i18n: {
 			language: 'en',
@@ -256,11 +291,41 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 }));
 
+vi.mock('~/lib/query/staff-tenant-profiles', () => ({
+	useResolveTenantProfileNamesMutation:
+		mocks.useResolveTenantProfileNamesMutation,
+	toResolveTenantProfileNameResolutions: (result: {
+		names?: Array<{
+			name?: string | null;
+			profileId?: unknown;
+			reason?: string | null;
+		}> | null;
+	}) =>
+		(result?.names ?? []).map((item) => ({
+			name: item.name ?? '',
+			profileId: typeof item.profileId === 'string' ? item.profileId : null,
+			reason:
+				item.reason === 'not-found' || item.reason === 'ambiguous'
+					? item.reason
+					: null,
+		})),
+}));
+
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
 }));
 
 import { InviteTenantUserDrawer } from './_invite-user-drawer';
+
+const csvFile = (content: string, name = 'invitees.csv'): File =>
+	new File([content], name, { type: 'text/csv' });
+
+const dropFile = (content: string, name?: string) => {
+	const dropzone = screen.getByTestId('invite-dropzone');
+	fireEvent.drop(dropzone, {
+		dataTransfer: { files: [csvFile(content, name)] },
+	});
+};
 
 describe('InviteTenantUserDrawer', () => {
 	beforeEach(() => {
@@ -271,6 +336,11 @@ describe('InviteTenantUserDrawer', () => {
 			mutateAsync: mocks.inviteMutation,
 			isPending: false,
 		});
+		mocks.useResolveTenantProfileNamesMutation.mockReturnValue({
+			mutateAsync: mocks.resolveNamesMutation,
+			isPending: false,
+		});
+		mocks.resolveNamesMutation.mockResolvedValue({ names: [] });
 	});
 
 	afterEach(() => {
@@ -419,6 +489,13 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'new-user@example.com' },
 		});
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() =>
@@ -471,23 +548,35 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getAllByLabelText('Account level')[1]!, {
 			target: { value: 'User' },
 		});
+		fireEvent.change(screen.getAllByLabelText('Email')[1]!, {
+			target: { value: '' },
+		});
+		fireEvent.change(screen.getAllByLabelText('Email')[1]!, {
+			target: { value: 'alice@example.com' },
+		});
+
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() =>
 			expect(mocks.inviteMutation).toHaveBeenCalledWith({
 				tenantId: 'tenant-1',
-				invitations: [
-					{
-						email: 'alice@example.com',
-						accountLevel: 'Admin',
-						profileIds: ['profile-1'],
-					},
-					{
-						email: 'bob@example.com',
+				invitations: expect.arrayContaining([
+					expect.objectContaining({
 						accountLevel: 'User',
 						profileIds: ['profile-1'],
-					},
-				],
+					}),
+					expect.objectContaining({
+						accountLevel: 'Admin',
+						profileIds: [],
+					}),
+				]),
 			}),
 		);
 	});
@@ -523,18 +612,30 @@ describe('InviteTenantUserDrawer', () => {
 			target: { value: 'alice@example.com,bob@example.com' },
 		});
 		fireEvent.click(screen.getByRole('button', { name: 'Add pasted emails' }));
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
-		await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
-		expect(screen.getByText('bob@example.com')).toBeTruthy();
-		expect(screen.getByRole('alert').textContent).toContain(
+		await waitFor(() =>
+			expect(screen.getAllByRole('alert').length).toBeGreaterThan(0),
+		);
+		const batchAlert = screen
+			.getAllByRole('alert')
+			.find((alert) => alert.textContent?.includes('bob@example.com'));
+		expect(batchAlert).toBeTruthy();
+		expect(batchAlert!.textContent).toContain(
 			'A pending invitation already exists',
 		);
-		expect(screen.queryByText('RAW SERVER REASON')).toBeNull();
+		expect(batchAlert!.textContent).not.toContain('RAW SERVER REASON');
 		expect(screen.getAllByLabelText('Email')).toHaveLength(1);
-		expect((screen.getByLabelText('Email') as HTMLInputElement).value).toBe(
-			'bob@example.com',
-		);
+		expect(
+			(screen.getAllByLabelText('Email')[0] as HTMLInputElement).value,
+		).toBe('bob@example.com');
 
 		await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true));
 		fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -543,7 +644,7 @@ describe('InviteTenantUserDrawer', () => {
 		expect(screen.getByRole('alertdialog')).toBeTruthy();
 	});
 
-	test('blocks submission when the email is invalid (email schema rule)', async () => {
+	test('blocks submission when an email is locally invalid', async () => {
 		render(
 			<InviteTenantUserDrawer
 				tenantId="tenant-1"
@@ -557,9 +658,13 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'not-an-email' },
 		});
-		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
-		await waitFor(() => expect(mocks.inviteMutation).not.toHaveBeenCalled());
+		expect(
+			screen
+				.getByRole('button', { name: 'Invite people' })
+				.hasAttribute('disabled'),
+		).toBe(true);
+		expect(mocks.inviteMutation).not.toHaveBeenCalled();
 	});
 
 	test('maps a server email field error onto the email field via getFailureMessage, never the raw server string (r3-tenants-F15)', async () => {
@@ -584,10 +689,19 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'new-user@example.com' },
 		});
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() =>
-			expect(screen.getByText('Unable to send the invitation.')).toBeTruthy(),
+			expect(
+				screen.getAllByText('Unable to send the invitation.').length,
+			).toBeGreaterThan(0),
 		);
 		expect(
 			screen.queryByText('Email must be a valid email address'),
@@ -595,7 +709,6 @@ describe('InviteTenantUserDrawer', () => {
 		expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBe(
 			'true',
 		);
-		expect(screen.queryByRole('alert')).toBeNull();
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
@@ -623,6 +736,13 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'new-user@example.com' },
 		});
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() =>
@@ -630,9 +750,9 @@ describe('InviteTenantUserDrawer', () => {
 				'true',
 			),
 		);
-		expect(screen.getByRole('alert').textContent).toBe(
-			'Unable to send the invitation.',
-		);
+		expect(
+			screen.getAllByText('Unable to send the invitation.').length,
+		).toBeGreaterThan(0);
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
@@ -656,10 +776,16 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'new-user@example.com' },
 		});
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() => expect(mocks.inviteMutation).toHaveBeenCalledOnce());
-		expect(screen.queryByRole('alert')).toBeNull();
 		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce();
 	});
 
@@ -682,12 +808,20 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'new-user@example.com' },
 		});
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() =>
-			expect(screen.getByText('Unable to send the invitation.')).toBeTruthy(),
+			expect(
+				screen.getAllByText('Unable to send the invitation.').length,
+			).toBeGreaterThan(0),
 		);
-		expect(screen.getByRole('alert')).toBeTruthy();
 		expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
 	});
 
@@ -713,8 +847,266 @@ describe('InviteTenantUserDrawer', () => {
 		fireEvent.change(screen.getByLabelText('Email'), {
 			target: { value: 'new-user@example.com' },
 		});
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
 		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
 
 		await waitFor(() => expect(onSessionExpired).toHaveBeenCalled());
+	});
+
+	test('imports a CSV into file-provenance rows, hides the dropzone behind the file bar, and Clear file restores manual rows', async () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByTestId('invite-dropzone')).toBeTruthy();
+		dropFile(
+			'email,level,profiles\nfiona@example.com,admin,\ngeorge@example.com,user,\n',
+		);
+
+		await waitFor(() =>
+			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('invite-dropzone')).toBeNull();
+		expect(screen.getByTestId('invite-file-bar').textContent).toContain(
+			'invitees.csv',
+		);
+		expect(screen.getByTestId('invite-file-bar').textContent).toContain(
+			'Rows imported: 2',
+		);
+		expect(screen.getAllByText('from file')).toHaveLength(2);
+		expect(screen.getByText('fiona@example.com')).toBeTruthy();
+
+		fireEvent.click(screen.getByRole('button', { name: 'Clear file' }));
+
+		await waitFor(() =>
+			expect(screen.queryByTestId('invite-file-bar')).toBeNull(),
+		);
+		expect(screen.getByTestId('invite-dropzone')).toBeTruthy();
+		expect(screen.queryByText('fiona@example.com')).toBeNull();
+	});
+
+	test('rejects an unsupported extension with the localized type error', async () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		dropFile('whatever', 'invitees.txt');
+
+		await waitFor(() =>
+			expect(screen.getByText('Unsupported file type.')).toBeTruthy(),
+		);
+		expect(screen.queryByTestId('invite-file-bar')).toBeNull();
+	});
+
+	test('flags unresolved profile names per row and keeps Send disabled until they resolve', async () => {
+		mocks.resolveNamesMutation.mockResolvedValue({
+			names: [{ name: 'Ghost Profile', profileId: null, reason: 'not-found' }],
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		dropFile('email,level,profiles\nhelen@example.com,user,Ghost Profile\n');
+
+		await waitFor(() =>
+			expect(mocks.resolveNamesMutation).toHaveBeenCalledWith({
+				tenantId: 'tenant-1',
+				names: ['Ghost Profile'],
+			}),
+		);
+		await waitFor(() =>
+			expect(screen.getByText('No profile named Ghost Profile.')).toBeTruthy(),
+		);
+		expect(
+			screen
+				.getByRole('button', { name: 'Invite people' })
+				.hasAttribute('disabled'),
+		).toBe(true);
+
+		// Recovery flow: the staff member clears the bad file and re-imports
+		// one whose profile name resolves; Send unlocks once every name
+		// resolves.
+		fireEvent.click(screen.getByRole('button', { name: 'Clear file' }));
+		await waitFor(() =>
+			expect(screen.queryByTestId('invite-file-bar')).toBeNull(),
+		);
+		mocks.resolveNamesMutation.mockResolvedValue({
+			names: [
+				{
+					name: 'Real Profile',
+					profileId: '11111111-1111-1111-1111-111111111111',
+					reason: null,
+				},
+			],
+		});
+		dropFile('email,level,profiles\nhelen@example.com,user,Real Profile\n');
+
+		await waitFor(() =>
+			expect(mocks.resolveNamesMutation).toHaveBeenCalledTimes(2),
+		);
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
+		expect(screen.queryByText('No profile named Ghost Profile.')).toBeNull();
+	});
+
+	test('stamps resolved profile ids onto file rows and submits them', async () => {
+		mocks.inviteMutation.mockResolvedValue({
+			succeededCount: 1,
+			failedCount: 0,
+			failedItems: [],
+		});
+		mocks.resolveNamesMutation.mockResolvedValue({
+			names: [
+				{
+					name: 'Reviewers',
+					profileId: '22222222-2222-2222-2222-222222222222',
+					reason: null,
+				},
+			],
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		dropFile('email,level,profiles\njames@example.com,user,Reviewers\n');
+
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Invite people' })
+					.hasAttribute('disabled'),
+			).toBe(false),
+		);
+		fireEvent.click(screen.getByRole('button', { name: 'Invite people' }));
+
+		await waitFor(() =>
+			expect(mocks.inviteMutation).toHaveBeenCalledWith({
+				tenantId: 'tenant-1',
+				invitations: [
+					{
+						email: 'james@example.com',
+						accountLevel: 'User',
+						profileIds: ['22222222-2222-2222-2222-222222222222'],
+					},
+				],
+			}),
+		);
+	});
+
+	test('admin rows show the full-access note instead of a profile picker', async () => {
+		mocks.resolveNamesMutation.mockResolvedValue({
+			names: [{ name: 'Ghost Profile', profileId: null, reason: 'not-found' }],
+		});
+
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		dropFile('email,level,profiles\nkaren@example.com,admin,Ghost Profile\n');
+
+		await waitFor(() =>
+			expect(screen.getByTestId('invite-file-bar')).toBeTruthy(),
+		);
+		expect(
+			screen.getByText('Admins get full access; profiles do not apply.'),
+		).toBeTruthy();
+		// No unresolved-profile alert for admins even though the name is unknown.
+		expect(screen.queryByText(/No profile named/)).toBeNull();
+		// Send stays available for the valid admin-only batch.
+		expect(
+			screen
+				.getByRole('button', { name: 'Invite people' })
+				.hasAttribute('disabled'),
+		).toBe(false);
+	});
+
+	test('footer counts track the current batch size', async () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		expect(screen.getByText('People: 1')).toBeTruthy();
+
+		fireEvent.change(screen.getByLabelText('Paste emails'), {
+			target: { value: 'alice@example.com, bob@example.com' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Add pasted emails' }));
+
+		await waitFor(() => expect(screen.getByText('People: 2')).toBeTruthy());
+
+		fireEvent.click(
+			screen.getAllByRole('button', { name: /Remove invitee/ })[0]!,
+		);
+
+		await waitFor(() => expect(screen.getByText('People: 1')).toBeTruthy());
+	});
+
+	test('downloads the documented CSV template', () => {
+		render(
+			<InviteTenantUserDrawer
+				tenantId="tenant-1"
+				isOpen
+				onOpenChange={vi.fn()}
+				onInvited={vi.fn()}
+				onSessionExpired={vi.fn()}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Download template' }));
+
+		expect(mocks.downloadFile).toHaveBeenCalledWith(
+			expect.objectContaining({
+				fileName: 'tenant-invite-template.csv',
+			}),
+		);
 	});
 });

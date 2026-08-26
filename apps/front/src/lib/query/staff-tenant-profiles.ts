@@ -21,6 +21,8 @@ import type {
 	FindTenantProfilesAsStaffResult,
 	FindTenantProfileUsersAsStaffResult,
 	GetTenantProfileByIdResponse,
+	ResolveTenantProfileNamesAsStaffBody,
+	ResolveTenantProfileNamesAsStaffResult,
 	ResolveTenantProfileUserAssignmentsAsStaffBody,
 	ResolveTenantProfileUserAssignmentsAsStaffResult,
 	TenantProfileItem,
@@ -1144,6 +1146,61 @@ const unassignStaffTenantProfilePermissionMutationOptions =
 		},
 		{ clientAccessor: getClientManager() },
 	);
+
+export type ResolveTenantProfileNameResolution = {
+	name: string;
+	profileId: string | null;
+	reason: 'not-found' | 'ambiguous' | null;
+};
+
+export const toResolveTenantProfileNameResolutions = (
+	result: ResolveTenantProfileNamesAsStaffResult | null | undefined,
+): ResolveTenantProfileNameResolution[] =>
+	(result?.names ?? [])
+		.filter(
+			(item): item is NonNullable<typeof item> =>
+				item !== null && item !== undefined,
+		)
+		.map((item) => ({
+			name: normalizeString(item.name) ?? '',
+			profileId: normalizeString(item.profileId?.toString()) || null,
+			reason:
+				item.reason === 'not-found' || item.reason === 'ambiguous'
+					? item.reason
+					: null,
+		}));
+
+export type ResolveTenantProfileNamesInput = {
+	tenantId: string;
+	names: string[];
+};
+
+const resolveTenantProfileNamesMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	ResolveTenantProfileNamesAsStaffResult | undefined,
+	ResolveTenantProfileNamesInput
+>(
+	{
+		mutationKeyFn: () => ['staff-tenants', 'profiles', 'resolve-names'],
+		mutationFn: (client, variables) =>
+			client.staff.tenants
+				.byTenantId(variables.tenantId)
+				.profiles.resolveNames.post({
+					names: createUntypedArray(
+						variables.names.map((name) => createUntypedString(name)),
+					),
+				} as ResolveTenantProfileNamesAsStaffBody),
+		meta: {
+			silentSuccess: true,
+			skipGlobalErrorHandler: true,
+			validationHandledByForm: true,
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const useResolveTenantProfileNamesMutation = () =>
+	useMutation(resolveTenantProfileNamesMutationOptions);
 
 export const useStaffTenantProfilesQuery = (
 	variables: StaffTenantProfilesQueryVariables,

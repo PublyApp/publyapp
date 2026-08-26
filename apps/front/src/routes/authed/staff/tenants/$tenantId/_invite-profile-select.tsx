@@ -252,7 +252,11 @@ export const InviteProfileSelect = ({
 											!isProfileSearchSettled ||
 											profilesIsPending
 										}
-										onClick={() => profilePagination.advance(nextCursor)}
+										onClick={() => {
+											if (typeof nextCursor === 'string') {
+												profilePagination.advance(nextCursor);
+											}
+										}}
 									>
 										{t('next')}
 										<IconChevronRight aria-hidden="true" className="size-3.5" />
