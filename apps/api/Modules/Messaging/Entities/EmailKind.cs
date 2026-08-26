@@ -11,7 +11,11 @@ public enum EmailKind {
 	StaffInvitation = 1,
 	PasswordReset = 2,
 	EmailVerification = 3,
-	LegacySubmissionUnverified = 4
+	LegacySubmissionUnverified = 4,
+	// #291: "you have been added as a staff member" notification, delivered via the
+	// job queue (round-7+ API F4). Appended — preserves the fold's 0/1/2/3/4 back-copy
+	// mapping for legacy invitation_email_outbox rows.
+	StaffJoinedNotification = 5
 }
 
 /// <summary>

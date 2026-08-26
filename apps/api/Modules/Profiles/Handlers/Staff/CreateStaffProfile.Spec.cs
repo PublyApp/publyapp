@@ -17,6 +17,8 @@ using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Profiles.Entities;
+using PublyApp.Api.Modules.Profiles.Jobs;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -87,6 +89,78 @@ public sealed class CreateStaffProfileSpec : IClassFixture<ApiFixture> {
 		// The integration host registers no live dispatcher (ApiFactory removes it for
 		// every spec), so nothing claims this row before the assertion runs.
 		outboxRow.Status.Should().Be(InvitationEmailOutboxStatus.Pending);
+	}
+
+	// #291: the EXISTING-user "you have been added as a staff member" notification
+	// previously rode a request-scoped Task.Run in the handler with no durable record —
+	// an aborted request or process restart silently lost it while the 201 response
+	// still claimed the assignment succeeded. Proves the durable path instead: one
+	// committed job_queue row for email.staff-joined-notification.v1 carrying the
+	// recipient's user id exists as soon as the response returns (the
+	// no-fire-and-forget invariant).
+	[Fact]
+	public async Task
+	ItShouldWriteADurableJobQueueRowForAnExistingUserJoinedStaffNotification() {
+		var staffToken = await _authClient.LoginAsStaffAdminAsync();
+		var existingEmail = $"joined-staff-{Guid.NewGuid():N}@example.com";
+
+		await using var setupScope = _fixture.Factory.Services.CreateAsyncScope();
+		var setupDb = setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		setupDb.User.Add(new User {
+			Email = existingEmail,
+			Password = "unused",
+			Status = UserStatus.Active,
+			IsVerified = true
+		});
+		await setupDb.SaveChangesAsync();
+		var existingUser = await setupDb.User.AsNoTracking()
+			.SingleAsync(u => u.Email == existingEmail);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post,
+			GetCreateProfileUrl()
+		) {
+			Content = JsonContent.Create(new {
+				name = $"Durable Joined Notification {Guid.NewGuid():N}",
+				description = (string?)null,
+				permissions = new[] { AppPermissions.Staff.Profiles.GET_FOR_STAFF.Key },
+				emails = new List<string> { existingEmail }
+			})
+		}.WithSessionToken(staffToken);
+
+		using var response = await _http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var result = await response.Content.ReadFromJsonAsync<StaffProfileCreated>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		result.UsersAssigned.Should().Be(1);
+
+		await using var scope = _fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var joinedJobs = await dbContext.JobQueue.AsNoTracking()
+			.Where(j => j.JobType == StaffProfileEmailJobs.StaffJoinedNotificationV1.JobType)
+			.ToListAsync();
+
+		joinedJobs
+			.Where(j => JobPayloadContainsUserId(j.Payload, existingUser.GetRequiredId()))
+			.Should().HaveCount(1);
+	}
+
+	private static bool JobPayloadContainsUserId(string? payload, Guid userId) {
+		if (string.IsNullOrWhiteSpace(payload)) {
+			return false;
+		}
+
+		using var doc = JsonDocument.Parse(payload);
+		var root = doc.RootElement;
+		if (!root.TryGetProperty("userId", out var token)
+			|| token.ValueKind is not JsonValueKind.String) {
+			return false;
+		}
+
+		return token.GetString() == userId.ToString();
 	}
 
 	[Fact]
