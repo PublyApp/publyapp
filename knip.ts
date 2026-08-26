@@ -16,7 +16,30 @@ const config: KnipConfig = {
 			// zod as an unlisted dependency of the ROOT workspace. No repo
 			// source imports zod outside apps/front and packages/shared-ts,
 			// which both declare it themselves.
-			ignoreDependencies: ['zod'],
+			//
+			// `winston-transport-browserconsole` is declared in
+			// packages/shared-ts/package.json but never imported directly:
+			// winston resolves it at runtime as an optional browser transport,
+			// so knip cannot trace the import. It matches develop's declared
+			// dependency set (kept deliberately), so it is ignored here rather
+			// than removed from the manifest.
+			//
+			// `isbot`, `nprogress`, and `serialize-error` are ROOT workspace
+			// dependencies declared in the repo-root package.json. They are not
+			// imported by any root-source entry (the root workspace only scans
+			// packages/scripts-ts/src), but develop carries them as top-level
+			// deps for tooling/CLI use — develop's own knip config never flagged
+			// them because it did not scan apps/front or packages/shared-ts.
+			// This lane's broader knip coverage (the point of #1472) surfaces
+			// them; they mirror develop's declared dependency set, so they are
+			// ignored here rather than removed from the manifest.
+			ignoreDependencies: [
+				'zod',
+				'winston-transport-browserconsole',
+				'isbot',
+				'nprogress',
+				'serialize-error',
+			],
 		},
 		'apps/api': {
 			entry: 'run-dev.mjs',

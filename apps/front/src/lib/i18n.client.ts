@@ -29,7 +29,6 @@ const bindInterZodToI18n = (
 
 let activeClientI18n: I18nInstance | undefined;
 let activeLocale: SupportedLanguage = FALLBACK_LANGUAGE;
-let interZodClient: InterZod | undefined;
 
 const resolveLocale = (value: string | undefined): SupportedLanguage =>
 	isSupportedLanguage(value) ? value : FALLBACK_LANGUAGE;
@@ -48,7 +47,6 @@ export const initI18nOnClient = async (
 	activeClientI18n = instance;
 	activeLocale = locale;
 	const boundInterZod = bindInterZodToI18n(instance, locale);
-	interZodClient = boundInterZod;
 	// zod v4 replaced `z.setErrorMap` with the global `z.config` hook; the
 	// InterZod instance translates raw issues through the `zod` i18n
 	// namespace exactly as its v3 error map did.
