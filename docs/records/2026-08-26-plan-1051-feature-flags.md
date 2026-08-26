@@ -6,7 +6,7 @@
 
 ## Sources read while writing this plan
 
-Every load-bearing claim below was verified against the tree at `develop` = `e13ee04a7`:
+Written against the tree at `develop` = `e13ee04a7`; every file:line citation below was RE-VERIFIED against `origin/develop` = `26896f251` on 2026-08-26 (round 2), all PASS.
 
 | Claim | Source |
 |---|---|
@@ -14,7 +14,7 @@ Every load-bearing claim below was verified against the tree at `develop` = `e13
 | The five live flag consumers | `apps/front/src/routes/signup.tsx:68`, `routes/index.tsx:257,284`, `routes/field-validation.tsx:189`, `routes/index.test.tsx:45` |
 | Old-front registry retired 2026-08-22 | AGENTS.md; record `docs/records/2026-08-22-review-old-front-marketing-screens.md`; tag `old-front-final` |
 | Root `beforeLoad` context is dehydrated with the router (the i18n transport) | `apps/front/src/routes/__root.tsx` (`resolveRootContext` at line 174, consumed by `RootShell` via `Route.useRouteContext`), `createRootRouteWithContext<{ queryClient }>`, SSR-query integration `apps/front/src/router.tsx` (`setupRouterSsrQueryIntegration`) |
-| Authed surfaces are CSR; marketing/auth are SSR | `docs/guides/front/conventions.md` "Rendering Strategy"; `createServerFn` boundary rules same file lines ~283-310 |
+| Authed surfaces are CSR; marketing/auth are SSR | `docs/guides/front/conventions.md:277-311` ("Rendering Strategy" + "Server-Function Boundary") |
 | Per-account identity keys on `UserAccount.Id`, not `User.Id` | `apps/api/Modules/Users/Entities/UserAccount.cs` (`user_accounts`: `UserId`, nullable `TenantId`, `Scope`, one row per membership) |
 | Audit single construction path | `apps/api/Modules/AuditLogs/Entities/AuditLog.cs` (`AuditLog.CreateEntry`, `AuditActions` constants incl. `SocialAccountConnected` precedent for dotted names); `AuditActionsRegistry` auto-discovers constants by reflection (`AuditActionsRegistry.Spec.cs`) |
 | `IAuditLogService.LogAsync(LogManyAsync)` shape | `apps/api/Modules/AuditLogs/Services/AuditLogService.cs` (`CreateAuditLogArgs(UserId, Action, TargetId, Details)`) |
@@ -22,6 +22,8 @@ Every load-bearing claim below was verified against the tree at `develop` = `e13
 | Slice permission pattern + EN/FR translations | `apps/api/Modules/Settings/Permissions/SettingsPermissionsForTenant.cs` |
 | Existing codegen tooling home | `packages/scripts-cs/` (PublyApp.Scripts, run through pinned `just` recipes) |
 | Rate-limit policy names | `apps/api/Lib/RateLimiting/ApiRateLimitPolicies.cs` (`AnonymousOther`, `AuthenticatedDefault`, `HeavySearchList`, …) |
+| Demo-flag e2e enable path TODAY (image build args) | `apps/front/docker-compose.test.yml:218-222` (`args: VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED: "true"` on the `front` service), consumed by `.github/workflows/front-e2e.yml:214,227,339,362`; specs that hard-require the route: `apps/front/e2e/field-validation.spec.ts:116-118`, `drawer-description-contrast.spec.ts:579`, `toast-contrast.spec.ts:2416` |
+| Server-side env-gated seeding (the replacement lever) | `apps/api/Data/IEntitySeeder.cs:22-24` (`IsDemo`; "Demo seeders are excluded in Production"), enforced at `apps/api/Data/DbContext/AppDbContext.cs:240-244`; e2e API runs `ASPNETCORE_ENVIRONMENT: Testing` (`apps/front/docker-compose.test.yml:123`) where demo seeders run by design (`:4-5`); every demo-route e2e visitor is authenticated (`apps/front/playwright.config.ts:84-86`, `chromium` project storageState) |
 | #173 folded design + its gaps | Issue #1051 comments (folded from closed #173) |
 
 One brief correction: the brief's "migration of the two existing static registries" predates the old-front retirement. Only ONE registry exists in this tree today (`apps/front/src/lib/flags.ts`). The old-front flag set died with that app on 2026-08-22; its last state is recorded in `docs/records/2026-08-22-review-old-front-marketing-screens.md`. Migration below covers the surviving front registry only.
@@ -57,11 +59,13 @@ Initial registry content = the four existing front flags, migrated verbatim (sam
 | Key | Default | Visibility | Description |
 |---|---|---|---|
 | `auth.signups_enabled` | `false` | Public | Whether open signups render/enroll |
-| `dev.field_validation_demo_enabled` | `false` | Authenticated | Dev-only scaffolding demo route |
+| `dev.field_validation_demo_enabled` | `false` | Public | Dev-only scaffolding demo route (Public because its e2e enable is a seeded GLOBAL override that must resolve identically with or without a session — D9/T12e) |
 | `marketing.customer_logos` | `false` | Public | Invented customer logos stay hidden until real proof exists |
 | `marketing.social_proof` | `false` | Public | Rating + setup claim hidden until user evidence exists |
 
 Naming note: wire keys move to snake_case to match the repo's multi-word wire-format rule (AGENTS.md "wire-format option values … snake_case"). The migration maps old camelCase JS paths to these keys explicitly (Task T12).
+
+Visibility note: the demo flag is declared **Public** — deliberate. Its e2e enable path (D9/T12e) is a seeded GLOBAL override, and global overrides must resolve identically with or without a session; a `Public` declaration keeps one resolution story for every caller. Visibility gates TRANSPORT exposure (what may ship in an anonymous payload), not route authorization: `/field-validation` itself stays unmounted whenever the resolved value is false, in every environment.
 
 ## D2. Resolution order — account > tenant > global > declared default, explicit
 
@@ -168,6 +172,7 @@ Developers keep `VITE_FEATURE_SIGNUPS_ENABLED=true` style env forcing WITHOUT to
 - Read in the front server env layer (`src/lib/env.ts` pattern): `VITE_FEATURE_<SNAKE_KEY>=true|false` maps onto the generated key union (mapping generated alongside the registry artifacts so renames keep working).
 - Wins ONLY when `import.meta.env.DEV` is true (dev server). In a production build, the variable is ignored at runtime AND the production build emits a LOUD warning ("VITE_FEATURE_X set in a production build — ignored") at build time when detected, so a leaked dev override cannot silently ship.
 - Precedence: local dev override > everything (including API overrides) — it is a developer machine affordance, never deployable.
+- **Environment precedence (stated rule):** `VITE_FEATURE_*` dev-server override > API-resolved value > declared default. The API-resolved value carries the environment dimension SERVER-SIDE: what differs between local/dev, the e2e Testing stack, and production is WHICH OVERRIDE ROWS EXIST IN THE DATABASE the API booted against — Testing seeds fixture overrides through a demo-gated seeder (T12e), Development and Production start from declared defaults and change only through audited staff CRUD (D4–D5). After T12d there is NO build-time flag input left anywhere: the four container images are byte-identical across environments by construction, and the compose `build.args` era is dead.
 - Documented in `.env.example` comment block (the committed template) with the exact naming rule.
 
 ## D10. Staff UI — list + toggle per scope, shows effective value
@@ -187,8 +192,8 @@ Order matters; each step ships green independently:
 
 1. Land registry + storage + endpoints (nothing consumes them yet).
 2. Land front transport + typed accessors (still nothing consumes them).
-3. Flip consumers ONE AT A TIME: `signup.tsx` (signups_enabled), `index.tsx` ×2 (marketing), `field-validation.tsx` (demo). Each consumer swap is its own commit with its test updated (`index.test.tsx` mocks the context instead of `FEATURES`).
-4. Delete `apps/front/src/lib/flags.ts` + `flags.test.ts` + the Docker ARG/ENV pair for the demo flag (grep proves zero remaining `VITE_FEATURE` readers except the dev-override loader itself).
+3. Flip consumers ONE AT A TIME, least-risky first (order per Tasks T12a–c): `index.tsx` ×2 (marketing), `signup.tsx` (signups_enabled), `field-validation.tsx` (demo). Each consumer swap is its own commit with its test updated (`index.test.tsx` mocks the context instead of `FEATURES`).
+4. Delete `apps/front/src/lib/flags.ts` + `flags.test.ts` + the Docker ARG/ENV pair (`apps/front/Dockerfile:38-39`) + the compose `build.args` block (`apps/front/docker-compose.test.yml:218-222`); the e2e demo route is kept alive by the T12e seeded override (landed FIRST); grep proves zero remaining `VITE_FEATURE` readers except the dev-override loader itself.
 
 Behavior preservation notes: the demo flag keeps its special property (route unmounted entirely when off) — the route guard now consults the flag map instead of the frozen constant. Marketing flags were false in every released image anyway (no Docker ARG existed), so runtime-default false is strictly MORE capable, not a behavior change. Signups stays default-false; ops can now turn it on without a rebuild, which is the entire point.
 
@@ -325,12 +330,26 @@ Order chosen so the least-risky consumer flips first:
 - [ ] **T12a:** `routes/index.tsx` marketing flags → `useFeatureFlag`/context read (SSR surface; values arrive pre-hydration). Update `index.test.tsx` mocks. Commit `refactor(front): marketing flags move to runtime resolution (#1038 candidates unblocked)`.
 - [ ] **T12b:** `signup.tsx` signups gate → same swap. Commit `refactor(front): signup gate moves to runtime resolution`.
 - [ ] **T12c:** `field-validation.tsx` demo route guard → same swap (route stays fully unmounted when off). Commit `refactor(front): field-validation demo gate moves to runtime resolution`.
-- [ ] **T12d (flag-day-free deletion):** delete `apps/front/src/lib/flags.ts`, `flags.test.ts`, Docker ARG/ENV pair; `git grep VITE_FEATURE apps/front/src` returns ONLY the dev-override loader; full front suite + typecheck + build green. Commit `chore(front): static flag registry deleted — runtime system is sole source`.
-- [ ] Rollback story: each of T12a–c independently revertible; deletion last.
+- [ ] **T12d (flag-day-free deletion):** delete `apps/front/src/lib/flags.ts`, `flags.test.ts`, the Docker ARG/ENV pair (`apps/front/Dockerfile:38-39`), AND the compose `build.args` block feeding it (`apps/front/docker-compose.test.yml:218-222`) — the replacement enable path is T12e, landed BEFORE or WITH this commit so the e2e suite never loses the route; `git grep VITE_FEATURE apps/front/src` returns ONLY the dev-override loader and `git grep VITE_FEATURE_FIELD_VALIDATION_DEMO_ENABLED` returns NOTHING anywhere; full front suite + typecheck + build green. Commit `chore(front): static flag registry + build-time demo-flag plumbing deleted — runtime system is sole source`.
+
+### Task T12e — e2e enable path for the demo route (server-side, replaces compose build args)
+
+Why: the three e2e suites that `goto('/field-validation')` (`apps/front/e2e/field-validation.spec.ts:116-118`, `drawer-description-contrast.spec.ts:579`, `toast-contrast.spec.ts:2416`) hard-assert `field-validation-title` visible. They run in the authed `chromium` project (`storageState: STAFF_ADMIN_STORAGE_STATE`, `apps/front/playwright.config.ts:84-86`) against the REAL API container under `ASPNETCORE_ENVIRONMENT=Testing` (`docker-compose.test.yml:123`). Today's enable lever is a front-image BUILD arg (`docker-compose.test.yml:218-222`), which T12d deletes — and whose failure mode is exactly the trap the r1 review flagged: with the ARG gone, compose's leftover `args:` key becomes a silent no-op, the image builds with the flag off, the route renders `View404`, and the `front-e2e` job reds. Replacement: turn the flag on SERVER-SIDE, per environment, using the repo's existing demo-fixture gating.
+
+**Files:** [new] `apps/api/Modules/FeatureFlags/Seeders/FeatureFlagOverrideDemoSeeder.cs` (+ `.Spec.cs`). Nothing else: `IEntitySeeder` implementations are reflection-discovered and run during EF seeding (same discovery path as `PermissionSeeder`).
+
+- [ ] **Step 1 (RED):** `FeatureFlagOverrideDemoSeeder.Spec`: (a) `IsDemo == true` on the seeder type — the exact switch the `AppDbContext` production filter reads (`apps/api/Data/IEntitySeeder.cs:22-24`, filter at `AppDbContext.cs:240-244`; the existing `SeederGateProbeSpec` already proves that filter's Production branch end-to-end by asserting demo rows stay absent under Production, so a correctly-flagged seeder inherits that proof); (b) seeds EXACTLY ONE row: `(key = 'dev.field_validation_demo_enabled', scope = FeatureFlagScope.Global, enabled = true)`; (c) idempotent — a second run inserts nothing (backed by the filtered unique index from T2).
+- [ ] **Step 2 (GREEN):** implement the seeder; `Order` after the permission/user seeders its rows depend on; `updated_by` follows the demo-seed actor convention the other Testing fixtures use.
+- [ ] **Step 3 (both-directions proof):** OFF-side: extend `apps/front/src/routes/field-validation.test.tsx` (today it mocks the flag TRUE and only exercises the ON side) to assert the route resolves to `View404` when the resolved map carries `false` for the key — the unit-level shape of "not in production". ON-side in the real stack: proven by the EXISTING CI specs listed above (any regression reds them loudly); per the captain verification policy that stack runs in CI front-e2e (4/4 shards on the PR), never locally. NOT-in-production: doubly guaranteed — the seeder physically cannot run there (`IsDemo` filter) AND the declared default is `false` (D1), so a production DB holds no winning row.
+- [ ] **Step 4:** focused API suites green + api-check. Commit `feat(flags): Testing-only seeded global override keeps /field-validation e2e-reachable without image build args`.
+
+Net effect: the four container images stay byte-identical across environments; the flag state that differs is DATA (which override rows exist in the boot database), matching the D9 environment-precedence rule.
+
+- [ ] Rollback story: each of T12a–c independently revertible; deletion last; T12e's seeder is independently revertible (remove the class + delete the single seeded row; no schema involvement).
 
 ## Task T13 — Gates + delivery (implementation lane, not this PR)
 
-- [ ] Focused API suites (FeatureFlags/AuditLogs/Permissions) under heavy.sh; then ONE full `pnpm --filter front test`; api-check; `just ci-migration-expand-contract`; `just ci-front`.
+- [ ] Focused API suites (FeatureFlags/AuditLogs/Permissions) under heavy.sh; then ONE full `pnpm --filter front test`; api-check; `just ci-migration-expand-contract`; `just ci-front`. The edited `apps/front/docker-compose.test.yml` and the T12e seeder are validated by CI's own front-e2e run (never booted locally — captain policy 2026-08-23): a missing demo route or a broken seeder reds those shards.
 - [ ] e2e: add tags per `docs/guides/e2e-tags.md` vocabulary to a new spec exercising flip-in-staff → observe-on-marketing (CI runs it; do NOT boot the local stack).
 - [ ] PR body refresh; tracking note on #1051 (plan location, implementation lane pointer).
 
@@ -346,6 +365,7 @@ Order chosen so the least-risky consumer flips first:
 | Fail-safe | T8: defaults + `degraded` + single dedup'd warning; nothing throws |
 | Local override | T9: DEV-only wins, prod-build loud warning |
 | Observable + audited | T6 audit rows (same-txn), T10 staff UI, T11 registry assertions |
+| Demo route e2e-reachable in the Testing stack, unreachable in prod | T12d/T12e: compose build args deleted; `IsDemo`-gated seeder plants the global override under Testing only; existing CI specs assert the route visible; component test pins `View404` when off |
 
 ## Anything in the brief that turned out wrong
 
