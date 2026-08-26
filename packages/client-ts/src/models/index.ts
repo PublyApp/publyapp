@@ -40,6 +40,7 @@ export interface AccountItem extends AdditionalDataHolder, Parsable {
      */
     provider?: string | null;
 }
+export type AccountLevel = (typeof AccountLevelObject)[keyof typeof AccountLevelObject];
 export interface AccountProfileResult extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
@@ -3241,7 +3242,7 @@ export function deserializeIntoGetRedirectCodeResult(getRedirectCodeResult: Part
 // @ts-ignore
 export function deserializeIntoGetScopeAuthDataTenant(getScopeAuthDataTenant: Partial<GetScopeAuthDataTenant> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "accountLevel": n => { getScopeAuthDataTenant.accountLevel = n.getStringValue(); },
+        "accountLevel": n => { getScopeAuthDataTenant.accountLevel = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "code": n => { getScopeAuthDataTenant.code = n.getStringValue(); },
         "id": n => { getScopeAuthDataTenant.id = n.getGuidValue(); },
         "isAdmin": n => { getScopeAuthDataTenant.isAdmin = n.getBooleanValue(); },
@@ -3280,14 +3281,14 @@ export function deserializeIntoGetStaffProfileByIdResult(getStaffProfileByIdResu
 // @ts-ignore
 export function deserializeIntoGetStaffUserByIdResult(getStaffUserByIdResult: Partial<GetStaffUserByIdResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "accountLevel": n => { getStaffUserByIdResult.accountLevel = n.getStringValue(); },
+        "accountLevel": n => { getStaffUserByIdResult.accountLevel = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "avatarUrl": n => { getStaffUserByIdResult.avatarUrl = n.getStringValue(); },
         "createdAt": n => { getStaffUserByIdResult.createdAt = n.getDateValue(); },
         "email": n => { getStaffUserByIdResult.email = n.getStringValue(); },
         "firstName": n => { getStaffUserByIdResult.firstName = n.getStringValue(); },
         "id": n => { getStaffUserByIdResult.id = n.getGuidValue(); },
         "lastName": n => { getStaffUserByIdResult.lastName = n.getStringValue(); },
-        "status": n => { getStaffUserByIdResult.status = n.getStringValue(); },
+        "status": n => { getStaffUserByIdResult.status = n.getEnumValue<UserStatus>(UserStatusObject); },
         "updatedAt": n => { getStaffUserByIdResult.updatedAt = n.getDateValue(); },
     }
 }
@@ -3326,7 +3327,7 @@ export function deserializeIntoGetTenantAsStaffResult(getTenantAsStaffResult: Pa
         "ownersCount": n => { getTenantAsStaffResult.ownersCount = n.getNumberValue(); },
         "pendingInvitationsCount": n => { getTenantAsStaffResult.pendingInvitationsCount = n.getNumberValue(); },
         "profilesCount": n => { getTenantAsStaffResult.profilesCount = n.getNumberValue(); },
-        "status": n => { getTenantAsStaffResult.status = n.getStringValue(); },
+        "status": n => { getTenantAsStaffResult.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
         "supportEmail": n => { getTenantAsStaffResult.supportEmail = n.getStringValue(); },
         "tenantId": n => { getTenantAsStaffResult.tenantId = n.getGuidValue(); },
         "timezone": n => { getTenantAsStaffResult.timezone = n.getStringValue(); },
@@ -3376,6 +3377,7 @@ export function deserializeIntoGetUserAuthDataResult(getUserAuthDataResult: Part
         "firstName": n => { getUserAuthDataResult.firstName = n.getStringValue(); },
         "id": n => { getUserAuthDataResult.id = n.getGuidValue(); },
         "lastName": n => { getUserAuthDataResult.lastName = n.getStringValue(); },
+        "tenantPermissionKeys": n => { getUserAuthDataResult.tenantPermissionKeys = n.getCollectionOfPrimitiveValues<string>("string"); },
     }
 }
 /**
@@ -3484,7 +3486,7 @@ export function deserializeIntoInvitationListItem(invitationListItem: Partial<In
         "invitedByName": n => { invitationListItem.invitedByName = n.getStringValue(); },
         "profileName": n => { invitationListItem.profileName = n.getStringValue(); },
         "scope": n => { invitationListItem.scope = n.getStringValue(); },
-        "status": n => { invitationListItem.status = n.getStringValue(); },
+        "status": n => { invitationListItem.status = n.getEnumValue<InvitationEffectiveStatus>(InvitationEffectiveStatusObject); },
     }
 }
 /**
@@ -3704,8 +3706,8 @@ export function deserializeIntoReactivateTenantUserResult(reactivateTenantUserRe
         "firstName": n => { reactivateTenantUserResult.firstName = n.getStringValue(); },
         "id": n => { reactivateTenantUserResult.id = n.getGuidValue(); },
         "lastName": n => { reactivateTenantUserResult.lastName = n.getStringValue(); },
-        "level": n => { reactivateTenantUserResult.level = n.getStringValue(); },
-        "status": n => { reactivateTenantUserResult.status = n.getStringValue(); },
+        "level": n => { reactivateTenantUserResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "status": n => { reactivateTenantUserResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { reactivateTenantUserResult.tenantId = n.getGuidValue(); },
     }
 }
@@ -3912,7 +3914,7 @@ export function deserializeIntoStaffInvitationDetails(staffInvitationDetails: Pa
         "invitedByUserId": n => { staffInvitationDetails.invitedByUserId = n.getGuidValue(); },
         "profiles": n => { staffInvitationDetails.profiles = n.getCollectionOfObjectValues<StaffInvitationProfile>(createStaffInvitationProfileFromDiscriminatorValue); },
         "revokedAt": n => { staffInvitationDetails.revokedAt = n.getDateValue(); },
-        "status": n => { staffInvitationDetails.status = n.getStringValue(); },
+        "status": n => { staffInvitationDetails.status = n.getEnumValue<InvitationEffectiveStatus>(InvitationEffectiveStatusObject); },
     }
 }
 /**
@@ -3984,7 +3986,7 @@ export function deserializeIntoStaffProfileUserItem(staffProfileUserItem: Partia
         "firstName": n => { staffProfileUserItem.firstName = n.getStringValue(); },
         "id": n => { staffProfileUserItem.id = n.getGuidValue(); },
         "lastName": n => { staffProfileUserItem.lastName = n.getStringValue(); },
-        "status": n => { staffProfileUserItem.status = n.getStringValue(); },
+        "status": n => { staffProfileUserItem.status = n.getEnumValue<UserStatus>(UserStatusObject); },
     }
 }
 /**
@@ -3996,7 +3998,7 @@ export function deserializeIntoStaffProfileUserItem(staffProfileUserItem: Partia
 export function deserializeIntoStaffTenantInvitationListItem(staffTenantInvitationListItem: Partial<StaffTenantInvitationListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "acceptedAt": n => { staffTenantInvitationListItem.acceptedAt = n.getDateValue(); },
-        "accountLevel": n => { staffTenantInvitationListItem.accountLevel = n.getStringValue(); },
+        "accountLevel": n => { staffTenantInvitationListItem.accountLevel = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "createdAt": n => { staffTenantInvitationListItem.createdAt = n.getDateValue(); },
         "email": n => { staffTenantInvitationListItem.email = n.getStringValue(); },
         "expiresAt": n => { staffTenantInvitationListItem.expiresAt = n.getDateValue(); },
@@ -4005,7 +4007,7 @@ export function deserializeIntoStaffTenantInvitationListItem(staffTenantInvitati
         "profileName": n => { staffTenantInvitationListItem.profileName = n.getStringValue(); },
         "profiles": n => { staffTenantInvitationListItem.profiles = n.getCollectionOfObjectValues<StaffInvitationProfileInfo>(createStaffInvitationProfileInfoFromDiscriminatorValue); },
         "scope": n => { staffTenantInvitationListItem.scope = n.getStringValue(); },
-        "status": n => { staffTenantInvitationListItem.status = n.getStringValue(); },
+        "status": n => { staffTenantInvitationListItem.status = n.getEnumValue<InvitationEffectiveStatus>(InvitationEffectiveStatusObject); },
     }
 }
 /**
@@ -4035,8 +4037,8 @@ export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserIte
         "firstName": n => { staffUserItem.firstName = n.getStringValue(); },
         "id": n => { staffUserItem.id = n.getGuidValue(); },
         "lastName": n => { staffUserItem.lastName = n.getStringValue(); },
-        "level": n => { staffUserItem.level = n.getStringValue(); },
-        "status": n => { staffUserItem.status = n.getStringValue(); },
+        "level": n => { staffUserItem.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "status": n => { staffUserItem.status = n.getEnumValue<UserStatus>(UserStatusObject); },
     }
 }
 /**
@@ -4060,7 +4062,7 @@ export function deserializeIntoStaffUserProfileItem(staffUserProfileItem: Partia
 // @ts-ignore
 export function deserializeIntoStaffUserReactivatedResult(staffUserReactivatedResult: Partial<StaffUserReactivatedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "status": n => { staffUserReactivatedResult.status = n.getStringValue(); },
+        "status": n => { staffUserReactivatedResult.status = n.getEnumValue<UserStatus>(UserStatusObject); },
         "userId": n => { staffUserReactivatedResult.userId = n.getGuidValue(); },
     }
 }
@@ -4072,7 +4074,7 @@ export function deserializeIntoStaffUserReactivatedResult(staffUserReactivatedRe
 // @ts-ignore
 export function deserializeIntoStaffUserSuspendedResult(staffUserSuspendedResult: Partial<StaffUserSuspendedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
-        "status": n => { staffUserSuspendedResult.status = n.getStringValue(); },
+        "status": n => { staffUserSuspendedResult.status = n.getEnumValue<UserStatus>(UserStatusObject); },
         "userId": n => { staffUserSuspendedResult.userId = n.getGuidValue(); },
     }
 }
@@ -4100,8 +4102,8 @@ export function deserializeIntoSuspendTenantUserResult(suspendTenantUserResult: 
         "firstName": n => { suspendTenantUserResult.firstName = n.getStringValue(); },
         "id": n => { suspendTenantUserResult.id = n.getGuidValue(); },
         "lastName": n => { suspendTenantUserResult.lastName = n.getStringValue(); },
-        "level": n => { suspendTenantUserResult.level = n.getStringValue(); },
-        "status": n => { suspendTenantUserResult.status = n.getStringValue(); },
+        "level": n => { suspendTenantUserResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "status": n => { suspendTenantUserResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { suspendTenantUserResult.tenantId = n.getGuidValue(); },
     }
 }
@@ -4187,7 +4189,7 @@ export function deserializeIntoTenantAsStaffListItem(tenantAsStaffListItem: Part
         "maxUsers": n => { tenantAsStaffListItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffListItem.name = n.getStringValue(); },
         "projectsCount": n => { tenantAsStaffListItem.projectsCount = n.getNumberValue(); },
-        "status": n => { tenantAsStaffListItem.status = n.getStringValue(); },
+        "status": n => { tenantAsStaffListItem.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
         "usersCount": n => { tenantAsStaffListItem.usersCount = n.getNumberValue(); },
     }
 }
@@ -4202,7 +4204,7 @@ export function deserializeIntoTenantForPickerItem(tenantForPickerItem: Partial<
         "code": n => { tenantForPickerItem.code = n.getStringValue(); },
         "id": n => { tenantForPickerItem.id = n.getGuidValue(); },
         "name": n => { tenantForPickerItem.name = n.getStringValue(); },
-        "status": n => { tenantForPickerItem.status = n.getStringValue(); },
+        "status": n => { tenantForPickerItem.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
     }
 }
 /**
@@ -4253,9 +4255,9 @@ export function deserializeIntoTenantProfileUserItem(tenantProfileUserItem: Part
         "id": n => { tenantProfileUserItem.id = n.getGuidValue(); },
         "joinedAt": n => { tenantProfileUserItem.joinedAt = n.getDateValue(); },
         "lastName": n => { tenantProfileUserItem.lastName = n.getStringValue(); },
-        "level": n => { tenantProfileUserItem.level = n.getStringValue(); },
+        "level": n => { tenantProfileUserItem.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
         "otherProfiles": n => { tenantProfileUserItem.otherProfiles = n.getCollectionOfObjectValues<TenantProfileUserProfileItem>(createTenantProfileUserProfileItemFromDiscriminatorValue); },
-        "status": n => { tenantProfileUserItem.status = n.getStringValue(); },
+        "status": n => { tenantProfileUserItem.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "userId": n => { tenantProfileUserItem.userId = n.getGuidValue(); },
     }
 }
@@ -4280,7 +4282,7 @@ export function deserializeIntoTenantProfileUserProfileItem(tenantProfileUserPro
 export function deserializeIntoTenantReactivatedResult(tenantReactivatedResult: Partial<TenantReactivatedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "name": n => { tenantReactivatedResult.name = n.getStringValue(); },
-        "status": n => { tenantReactivatedResult.status = n.getStringValue(); },
+        "status": n => { tenantReactivatedResult.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
         "tenantId": n => { tenantReactivatedResult.tenantId = n.getGuidValue(); },
     }
 }
@@ -4314,7 +4316,7 @@ export function deserializeIntoTenantSettingsGeneralResult(tenantSettingsGeneral
 export function deserializeIntoTenantSuspendedResult(tenantSuspendedResult: Partial<TenantSuspendedResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "name": n => { tenantSuspendedResult.name = n.getStringValue(); },
-        "status": n => { tenantSuspendedResult.status = n.getStringValue(); },
+        "status": n => { tenantSuspendedResult.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
         "tenantId": n => { tenantSuspendedResult.tenantId = n.getGuidValue(); },
     }
 }
@@ -4352,8 +4354,8 @@ export function deserializeIntoTenantUserCompanyBulkActionResult(tenantUserCompa
 export function deserializeIntoTenantUserCompanyForStaffResult(tenantUserCompanyForStaffResult: Partial<TenantUserCompanyForStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "createdAt": n => { tenantUserCompanyForStaffResult.createdAt = n.getDateValue(); },
-        "level": n => { tenantUserCompanyForStaffResult.level = n.getStringValue(); },
-        "status": n => { tenantUserCompanyForStaffResult.status = n.getStringValue(); },
+        "level": n => { tenantUserCompanyForStaffResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "status": n => { tenantUserCompanyForStaffResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { tenantUserCompanyForStaffResult.tenantId = n.getGuidValue(); },
         "tenantLogoUrl": n => { tenantUserCompanyForStaffResult.tenantLogoUrl = n.getStringValue(); },
         "tenantName": n => { tenantUserCompanyForStaffResult.tenantName = n.getStringValue(); },
@@ -4386,7 +4388,7 @@ export function deserializeIntoTenantUserDetailsForStaffResult(tenantUserDetails
         "firstName": n => { tenantUserDetailsForStaffResult.firstName = n.getStringValue(); },
         "id": n => { tenantUserDetailsForStaffResult.id = n.getGuidValue(); },
         "lastName": n => { tenantUserDetailsForStaffResult.lastName = n.getStringValue(); },
-        "status": n => { tenantUserDetailsForStaffResult.status = n.getStringValue(); },
+        "status": n => { tenantUserDetailsForStaffResult.status = n.getEnumValue<UserStatus>(UserStatusObject); },
         "updatedAt": n => { tenantUserDetailsForStaffResult.updatedAt = n.getDateValue(); },
     }
 }
@@ -4404,8 +4406,8 @@ export function deserializeIntoTenantUserDetailsResult(tenantUserDetailsResult: 
         "firstName": n => { tenantUserDetailsResult.firstName = n.getStringValue(); },
         "id": n => { tenantUserDetailsResult.id = n.getGuidValue(); },
         "lastName": n => { tenantUserDetailsResult.lastName = n.getStringValue(); },
-        "level": n => { tenantUserDetailsResult.level = n.getStringValue(); },
-        "status": n => { tenantUserDetailsResult.status = n.getStringValue(); },
+        "level": n => { tenantUserDetailsResult.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "status": n => { tenantUserDetailsResult.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "tenantId": n => { tenantUserDetailsResult.tenantId = n.getGuidValue(); },
         "updatedAt": n => { tenantUserDetailsResult.updatedAt = n.getDateValue(); },
     }
@@ -4423,8 +4425,8 @@ export function deserializeIntoTenantUserItem(tenantUserItem: Partial<TenantUser
         "firstName": n => { tenantUserItem.firstName = n.getStringValue(); },
         "id": n => { tenantUserItem.id = n.getGuidValue(); },
         "lastName": n => { tenantUserItem.lastName = n.getStringValue(); },
-        "level": n => { tenantUserItem.level = n.getStringValue(); },
-        "status": n => { tenantUserItem.status = n.getStringValue(); },
+        "level": n => { tenantUserItem.level = n.getEnumValue<AccountLevel>(AccountLevelObject); },
+        "status": n => { tenantUserItem.status = n.getEnumValue<TenantUserStatus>(TenantUserStatusObject); },
         "userAccountId": n => { tenantUserItem.userAccountId = n.getGuidValue(); },
     }
 }
@@ -4866,7 +4868,7 @@ export interface GetScopeAuthDataTenant extends AdditionalDataHolder, Parsable {
     /**
      * The accountLevel property
      */
-    accountLevel?: string | null;
+    accountLevel?: AccountLevel | null;
     /**
      * The code property
      */
@@ -4908,7 +4910,7 @@ export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
     /**
      * The accountLevel property
      */
-    accountLevel?: string | null;
+    accountLevel?: AccountLevel | null;
     /**
      * The avatarUrl property
      */
@@ -4936,7 +4938,7 @@ export interface GetStaffUserByIdResult extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: UserStatus | null;
     /**
      * The updatedAt property
      */
@@ -5016,7 +5018,7 @@ export interface GetTenantAsStaffResult extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantStatus | null;
     /**
      * The supportEmail property
      */
@@ -5099,6 +5101,10 @@ export interface GetUserAuthDataResult extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The caller's EFFECTIVE tenant permission set for the ?tenant_id= scope:["*"] when the resolved account is a tenant Admin (the #861AccountLevel.Admin short-circuit TenantPermissionFilter applies), otherwisethe profile-derived keys. Empty array — never null — whenever there isno usable scope (missing/malformed tenant_id, unknown or suspendedaccount), gating everything closed.
+     */
+    tenantPermissionKeys?: string[] | null;
 }
 export interface GetUserTenantsForPickerResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -5194,6 +5200,7 @@ export interface InvitationDetails extends AdditionalDataHolder, Parsable {
      */
     profileName?: string | null;
 }
+export type InvitationEffectiveStatus = (typeof InvitationEffectiveStatusObject)[keyof typeof InvitationEffectiveStatusObject];
 export interface InvitationListItem extends AdditionalDataHolder, Parsable {
     /**
      * The acceptedAt property
@@ -5230,7 +5237,7 @@ export interface InvitationListItem extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: InvitationEffectiveStatus | null;
 }
 export interface PasswordLoginBody extends AdditionalDataHolder, Parsable {
     /**
@@ -5538,11 +5545,11 @@ export interface ReactivateTenantUserResult extends AdditionalDataHolder, Parsab
     /**
      * The level property
      */
-    level?: string | null;
+    level?: AccountLevel | null;
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantUserStatus | null;
     /**
      * The tenantId property
      */
@@ -6646,7 +6653,7 @@ export function serializeGetRedirectCodeResult(writer: SerializationWriter, getR
 // @ts-ignore
 export function serializeGetScopeAuthDataTenant(writer: SerializationWriter, getScopeAuthDataTenant: Partial<GetScopeAuthDataTenant> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getScopeAuthDataTenant || isSerializingDerivedType) { return; }
-    writer.writeStringValue("accountLevel", getScopeAuthDataTenant.accountLevel);
+    writer.writeEnumValue<AccountLevel>("accountLevel", getScopeAuthDataTenant.accountLevel);
     writer.writeStringValue("code", getScopeAuthDataTenant.code);
     writer.writeGuidValue("id", getScopeAuthDataTenant.id);
     writer.writeBooleanValue("isAdmin", getScopeAuthDataTenant.isAdmin);
@@ -6688,14 +6695,14 @@ export function serializeGetStaffProfileByIdResult(writer: SerializationWriter, 
 // @ts-ignore
 export function serializeGetStaffUserByIdResult(writer: SerializationWriter, getStaffUserByIdResult: Partial<GetStaffUserByIdResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getStaffUserByIdResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("accountLevel", getStaffUserByIdResult.accountLevel);
+    writer.writeEnumValue<AccountLevel>("accountLevel", getStaffUserByIdResult.accountLevel);
     writer.writeStringValue("avatarUrl", getStaffUserByIdResult.avatarUrl);
     writer.writeDateValue("createdAt", getStaffUserByIdResult.createdAt);
     writer.writeStringValue("email", getStaffUserByIdResult.email);
     writer.writeStringValue("firstName", getStaffUserByIdResult.firstName);
     writer.writeGuidValue("id", getStaffUserByIdResult.id);
     writer.writeStringValue("lastName", getStaffUserByIdResult.lastName);
-    writer.writeStringValue("status", getStaffUserByIdResult.status);
+    writer.writeEnumValue<UserStatus>("status", getStaffUserByIdResult.status);
     writer.writeDateValue("updatedAt", getStaffUserByIdResult.updatedAt);
     writer.writeAdditionalData(getStaffUserByIdResult.additionalData);
 }
@@ -6736,7 +6743,7 @@ export function serializeGetTenantAsStaffResult(writer: SerializationWriter, get
     writer.writeNumberValue("ownersCount", getTenantAsStaffResult.ownersCount);
     writer.writeNumberValue("pendingInvitationsCount", getTenantAsStaffResult.pendingInvitationsCount);
     writer.writeNumberValue("profilesCount", getTenantAsStaffResult.profilesCount);
-    writer.writeStringValue("status", getTenantAsStaffResult.status);
+    writer.writeEnumValue<TenantStatus>("status", getTenantAsStaffResult.status);
     writer.writeStringValue("supportEmail", getTenantAsStaffResult.supportEmail);
     writer.writeGuidValue("tenantId", getTenantAsStaffResult.tenantId);
     writer.writeStringValue("timezone", getTenantAsStaffResult.timezone);
@@ -6789,6 +6796,7 @@ export function serializeGetUserAuthDataResult(writer: SerializationWriter, getU
     writer.writeStringValue("firstName", getUserAuthDataResult.firstName);
     writer.writeGuidValue("id", getUserAuthDataResult.id);
     writer.writeStringValue("lastName", getUserAuthDataResult.lastName);
+    writer.writeCollectionOfPrimitiveValues<string>("tenantPermissionKeys", getUserAuthDataResult.tenantPermissionKeys);
     writer.writeAdditionalData(getUserAuthDataResult.additionalData);
 }
 /**
@@ -6905,7 +6913,7 @@ export function serializeInvitationListItem(writer: SerializationWriter, invitat
     writer.writeStringValue("invitedByName", invitationListItem.invitedByName);
     writer.writeStringValue("profileName", invitationListItem.profileName);
     writer.writeStringValue("scope", invitationListItem.scope);
-    writer.writeStringValue("status", invitationListItem.status);
+    writer.writeEnumValue<InvitationEffectiveStatus>("status", invitationListItem.status);
     writer.writeAdditionalData(invitationListItem.additionalData);
 }
 /**
@@ -7138,8 +7146,8 @@ export function serializeReactivateTenantUserResult(writer: SerializationWriter,
     writer.writeStringValue("firstName", reactivateTenantUserResult.firstName);
     writer.writeGuidValue("id", reactivateTenantUserResult.id);
     writer.writeStringValue("lastName", reactivateTenantUserResult.lastName);
-    writer.writeStringValue("level", reactivateTenantUserResult.level);
-    writer.writeStringValue("status", reactivateTenantUserResult.status);
+    writer.writeEnumValue<AccountLevel>("level", reactivateTenantUserResult.level);
+    writer.writeEnumValue<TenantUserStatus>("status", reactivateTenantUserResult.status);
     writer.writeGuidValue("tenantId", reactivateTenantUserResult.tenantId);
     writer.writeAdditionalData(reactivateTenantUserResult.additionalData);
 }
@@ -7362,7 +7370,7 @@ export function serializeStaffInvitationDetails(writer: SerializationWriter, sta
     writer.writeGuidValue("invitedByUserId", staffInvitationDetails.invitedByUserId);
     writer.writeCollectionOfObjectValues<StaffInvitationProfile>("profiles", staffInvitationDetails.profiles, serializeStaffInvitationProfile);
     writer.writeDateValue("revokedAt", staffInvitationDetails.revokedAt);
-    writer.writeStringValue("status", staffInvitationDetails.status);
+    writer.writeEnumValue<InvitationEffectiveStatus>("status", staffInvitationDetails.status);
     writer.writeAdditionalData(staffInvitationDetails.additionalData);
 }
 /**
@@ -7439,7 +7447,7 @@ export function serializeStaffProfileUserItem(writer: SerializationWriter, staff
     writer.writeStringValue("firstName", staffProfileUserItem.firstName);
     writer.writeGuidValue("id", staffProfileUserItem.id);
     writer.writeStringValue("lastName", staffProfileUserItem.lastName);
-    writer.writeStringValue("status", staffProfileUserItem.status);
+    writer.writeEnumValue<UserStatus>("status", staffProfileUserItem.status);
     writer.writeAdditionalData(staffProfileUserItem.additionalData);
 }
 /**
@@ -7452,7 +7460,7 @@ export function serializeStaffProfileUserItem(writer: SerializationWriter, staff
 export function serializeStaffTenantInvitationListItem(writer: SerializationWriter, staffTenantInvitationListItem: Partial<StaffTenantInvitationListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffTenantInvitationListItem || isSerializingDerivedType) { return; }
     writer.writeDateValue("acceptedAt", staffTenantInvitationListItem.acceptedAt);
-    writer.writeStringValue("accountLevel", staffTenantInvitationListItem.accountLevel);
+    writer.writeEnumValue<AccountLevel>("accountLevel", staffTenantInvitationListItem.accountLevel);
     writer.writeDateValue("createdAt", staffTenantInvitationListItem.createdAt);
     writer.writeStringValue("email", staffTenantInvitationListItem.email);
     writer.writeDateValue("expiresAt", staffTenantInvitationListItem.expiresAt);
@@ -7461,7 +7469,7 @@ export function serializeStaffTenantInvitationListItem(writer: SerializationWrit
     writer.writeStringValue("profileName", staffTenantInvitationListItem.profileName);
     writer.writeCollectionOfObjectValues<StaffInvitationProfileInfo>("profiles", staffTenantInvitationListItem.profiles, serializeStaffInvitationProfileInfo);
     writer.writeStringValue("scope", staffTenantInvitationListItem.scope);
-    writer.writeStringValue("status", staffTenantInvitationListItem.status);
+    writer.writeEnumValue<InvitationEffectiveStatus>("status", staffTenantInvitationListItem.status);
     writer.writeAdditionalData(staffTenantInvitationListItem.additionalData);
 }
 /**
@@ -7493,8 +7501,8 @@ export function serializeStaffUserItem(writer: SerializationWriter, staffUserIte
     writer.writeStringValue("firstName", staffUserItem.firstName);
     writer.writeGuidValue("id", staffUserItem.id);
     writer.writeStringValue("lastName", staffUserItem.lastName);
-    writer.writeStringValue("level", staffUserItem.level);
-    writer.writeStringValue("status", staffUserItem.status);
+    writer.writeEnumValue<AccountLevel>("level", staffUserItem.level);
+    writer.writeEnumValue<UserStatus>("status", staffUserItem.status);
     writer.writeAdditionalData(staffUserItem.additionalData);
 }
 /**
@@ -7520,7 +7528,7 @@ export function serializeStaffUserProfileItem(writer: SerializationWriter, staff
 // @ts-ignore
 export function serializeStaffUserReactivatedResult(writer: SerializationWriter, staffUserReactivatedResult: Partial<StaffUserReactivatedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffUserReactivatedResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("status", staffUserReactivatedResult.status);
+    writer.writeEnumValue<UserStatus>("status", staffUserReactivatedResult.status);
     writer.writeGuidValue("userId", staffUserReactivatedResult.userId);
     writer.writeAdditionalData(staffUserReactivatedResult.additionalData);
 }
@@ -7533,7 +7541,7 @@ export function serializeStaffUserReactivatedResult(writer: SerializationWriter,
 // @ts-ignore
 export function serializeStaffUserSuspendedResult(writer: SerializationWriter, staffUserSuspendedResult: Partial<StaffUserSuspendedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffUserSuspendedResult || isSerializingDerivedType) { return; }
-    writer.writeStringValue("status", staffUserSuspendedResult.status);
+    writer.writeEnumValue<UserStatus>("status", staffUserSuspendedResult.status);
     writer.writeGuidValue("userId", staffUserSuspendedResult.userId);
     writer.writeAdditionalData(staffUserSuspendedResult.additionalData);
 }
@@ -7563,8 +7571,8 @@ export function serializeSuspendTenantUserResult(writer: SerializationWriter, su
     writer.writeStringValue("firstName", suspendTenantUserResult.firstName);
     writer.writeGuidValue("id", suspendTenantUserResult.id);
     writer.writeStringValue("lastName", suspendTenantUserResult.lastName);
-    writer.writeStringValue("level", suspendTenantUserResult.level);
-    writer.writeStringValue("status", suspendTenantUserResult.status);
+    writer.writeEnumValue<AccountLevel>("level", suspendTenantUserResult.level);
+    writer.writeEnumValue<TenantUserStatus>("status", suspendTenantUserResult.status);
     writer.writeGuidValue("tenantId", suspendTenantUserResult.tenantId);
     writer.writeAdditionalData(suspendTenantUserResult.additionalData);
 }
@@ -7655,7 +7663,7 @@ export function serializeTenantAsStaffListItem(writer: SerializationWriter, tena
     writer.writeNumberValue("maxUsers", tenantAsStaffListItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffListItem.name);
     writer.writeNumberValue("projectsCount", tenantAsStaffListItem.projectsCount);
-    writer.writeStringValue("status", tenantAsStaffListItem.status);
+    writer.writeEnumValue<TenantStatus>("status", tenantAsStaffListItem.status);
     writer.writeNumberValue("usersCount", tenantAsStaffListItem.usersCount);
     writer.writeAdditionalData(tenantAsStaffListItem.additionalData);
 }
@@ -7671,7 +7679,7 @@ export function serializeTenantForPickerItem(writer: SerializationWriter, tenant
     writer.writeStringValue("code", tenantForPickerItem.code);
     writer.writeGuidValue("id", tenantForPickerItem.id);
     writer.writeStringValue("name", tenantForPickerItem.name);
-    writer.writeStringValue("status", tenantForPickerItem.status);
+    writer.writeEnumValue<TenantStatus>("status", tenantForPickerItem.status);
     writer.writeAdditionalData(tenantForPickerItem.additionalData);
 }
 /**
@@ -7725,9 +7733,9 @@ export function serializeTenantProfileUserItem(writer: SerializationWriter, tena
     writer.writeGuidValue("id", tenantProfileUserItem.id);
     writer.writeDateValue("joinedAt", tenantProfileUserItem.joinedAt);
     writer.writeStringValue("lastName", tenantProfileUserItem.lastName);
-    writer.writeStringValue("level", tenantProfileUserItem.level);
+    writer.writeEnumValue<AccountLevel>("level", tenantProfileUserItem.level);
     writer.writeCollectionOfObjectValues<TenantProfileUserProfileItem>("otherProfiles", tenantProfileUserItem.otherProfiles, serializeTenantProfileUserProfileItem);
-    writer.writeStringValue("status", tenantProfileUserItem.status);
+    writer.writeEnumValue<TenantUserStatus>("status", tenantProfileUserItem.status);
     writer.writeGuidValue("userId", tenantProfileUserItem.userId);
     writer.writeAdditionalData(tenantProfileUserItem.additionalData);
 }
@@ -7754,7 +7762,7 @@ export function serializeTenantProfileUserProfileItem(writer: SerializationWrite
 export function serializeTenantReactivatedResult(writer: SerializationWriter, tenantReactivatedResult: Partial<TenantReactivatedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantReactivatedResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("name", tenantReactivatedResult.name);
-    writer.writeStringValue("status", tenantReactivatedResult.status);
+    writer.writeEnumValue<TenantStatus>("status", tenantReactivatedResult.status);
     writer.writeGuidValue("tenantId", tenantReactivatedResult.tenantId);
     writer.writeAdditionalData(tenantReactivatedResult.additionalData);
 }
@@ -7790,7 +7798,7 @@ export function serializeTenantSettingsGeneralResult(writer: SerializationWriter
 export function serializeTenantSuspendedResult(writer: SerializationWriter, tenantSuspendedResult: Partial<TenantSuspendedResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantSuspendedResult || isSerializingDerivedType) { return; }
     writer.writeStringValue("name", tenantSuspendedResult.name);
-    writer.writeStringValue("status", tenantSuspendedResult.status);
+    writer.writeEnumValue<TenantStatus>("status", tenantSuspendedResult.status);
     writer.writeGuidValue("tenantId", tenantSuspendedResult.tenantId);
     writer.writeAdditionalData(tenantSuspendedResult.additionalData);
 }
@@ -7831,8 +7839,8 @@ export function serializeTenantUserCompanyBulkActionResult(writer: Serialization
 export function serializeTenantUserCompanyForStaffResult(writer: SerializationWriter, tenantUserCompanyForStaffResult: Partial<TenantUserCompanyForStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantUserCompanyForStaffResult || isSerializingDerivedType) { return; }
     writer.writeDateValue("createdAt", tenantUserCompanyForStaffResult.createdAt);
-    writer.writeStringValue("level", tenantUserCompanyForStaffResult.level);
-    writer.writeStringValue("status", tenantUserCompanyForStaffResult.status);
+    writer.writeEnumValue<AccountLevel>("level", tenantUserCompanyForStaffResult.level);
+    writer.writeEnumValue<TenantUserStatus>("status", tenantUserCompanyForStaffResult.status);
     writer.writeGuidValue("tenantId", tenantUserCompanyForStaffResult.tenantId);
     writer.writeStringValue("tenantLogoUrl", tenantUserCompanyForStaffResult.tenantLogoUrl);
     writer.writeStringValue("tenantName", tenantUserCompanyForStaffResult.tenantName);
@@ -7867,7 +7875,7 @@ export function serializeTenantUserDetailsForStaffResult(writer: SerializationWr
     writer.writeStringValue("firstName", tenantUserDetailsForStaffResult.firstName);
     writer.writeGuidValue("id", tenantUserDetailsForStaffResult.id);
     writer.writeStringValue("lastName", tenantUserDetailsForStaffResult.lastName);
-    writer.writeStringValue("status", tenantUserDetailsForStaffResult.status);
+    writer.writeEnumValue<UserStatus>("status", tenantUserDetailsForStaffResult.status);
     writer.writeDateValue("updatedAt", tenantUserDetailsForStaffResult.updatedAt);
     writer.writeAdditionalData(tenantUserDetailsForStaffResult.additionalData);
 }
@@ -7886,8 +7894,8 @@ export function serializeTenantUserDetailsResult(writer: SerializationWriter, te
     writer.writeStringValue("firstName", tenantUserDetailsResult.firstName);
     writer.writeGuidValue("id", tenantUserDetailsResult.id);
     writer.writeStringValue("lastName", tenantUserDetailsResult.lastName);
-    writer.writeStringValue("level", tenantUserDetailsResult.level);
-    writer.writeStringValue("status", tenantUserDetailsResult.status);
+    writer.writeEnumValue<AccountLevel>("level", tenantUserDetailsResult.level);
+    writer.writeEnumValue<TenantUserStatus>("status", tenantUserDetailsResult.status);
     writer.writeGuidValue("tenantId", tenantUserDetailsResult.tenantId);
     writer.writeDateValue("updatedAt", tenantUserDetailsResult.updatedAt);
     writer.writeAdditionalData(tenantUserDetailsResult.additionalData);
@@ -7906,8 +7914,8 @@ export function serializeTenantUserItem(writer: SerializationWriter, tenantUserI
     writer.writeStringValue("firstName", tenantUserItem.firstName);
     writer.writeGuidValue("id", tenantUserItem.id);
     writer.writeStringValue("lastName", tenantUserItem.lastName);
-    writer.writeStringValue("level", tenantUserItem.level);
-    writer.writeStringValue("status", tenantUserItem.status);
+    writer.writeEnumValue<AccountLevel>("level", tenantUserItem.level);
+    writer.writeEnumValue<TenantUserStatus>("status", tenantUserItem.status);
     writer.writeGuidValue("userAccountId", tenantUserItem.userAccountId);
     writer.writeAdditionalData(tenantUserItem.additionalData);
 }
@@ -8306,7 +8314,7 @@ export interface StaffInvitationDetails extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: InvitationEffectiveStatus | null;
 }
 export interface StaffInvitationProfile extends AdditionalDataHolder, Parsable {
     /**
@@ -8404,7 +8412,7 @@ export interface StaffProfileUserItem extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: UserStatus | null;
 }
 export interface StaffTenantInvitationListItem extends AdditionalDataHolder, Parsable {
     /**
@@ -8414,7 +8422,7 @@ export interface StaffTenantInvitationListItem extends AdditionalDataHolder, Par
     /**
      * The accountLevel property
      */
-    accountLevel?: string | null;
+    accountLevel?: AccountLevel | null;
     /**
      * The createdAt property
      */
@@ -8450,7 +8458,7 @@ export interface StaffTenantInvitationListItem extends AdditionalDataHolder, Par
     /**
      * The status property
      */
-    status?: string | null;
+    status?: InvitationEffectiveStatus | null;
 }
 export interface StaffUploadCreated extends AdditionalDataHolder, Parsable {
     /**
@@ -8494,11 +8502,11 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
     /**
      * The level property
      */
-    level?: string | null;
+    level?: AccountLevel | null;
     /**
      * The status property
      */
-    status?: string | null;
+    status?: UserStatus | null;
 }
 export interface StaffUserProfileItem extends AdditionalDataHolder, Parsable {
     /**
@@ -8518,7 +8526,7 @@ export interface StaffUserReactivatedResult extends AdditionalDataHolder, Parsab
     /**
      * The status property
      */
-    status?: string | null;
+    status?: UserStatus | null;
     /**
      * The userId property
      */
@@ -8528,7 +8536,7 @@ export interface StaffUserSuspendedResult extends AdditionalDataHolder, Parsable
     /**
      * The status property
      */
-    status?: string | null;
+    status?: UserStatus | null;
     /**
      * The userId property
      */
@@ -8567,11 +8575,11 @@ export interface SuspendTenantUserResult extends AdditionalDataHolder, Parsable 
     /**
      * The level property
      */
-    level?: string | null;
+    level?: AccountLevel | null;
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantUserStatus | null;
     /**
      * The tenantId property
      */
@@ -8725,7 +8733,7 @@ export interface TenantAsStaffListItem extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantStatus | null;
     /**
      * The usersCount property
      */
@@ -8747,7 +8755,7 @@ export interface TenantForPickerItem extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantStatus | null;
 }
 export interface TenantListItem extends AdditionalDataHolder, Parsable {
     /**
@@ -8837,7 +8845,7 @@ export interface TenantProfileUserItem extends AdditionalDataHolder, Parsable {
     /**
      * The level property
      */
-    level?: string | null;
+    level?: AccountLevel | null;
     /**
      * The otherProfiles property
      */
@@ -8845,7 +8853,7 @@ export interface TenantProfileUserItem extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantUserStatus | null;
     /**
      * The userId property
      */
@@ -8869,7 +8877,7 @@ export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable 
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantStatus | null;
     /**
      * The tenantId property
      */
@@ -8921,6 +8929,7 @@ export interface TenantSettingsGeneralResult extends AdditionalDataHolder, Parsa
      */
     websiteUrl?: string | null;
 }
+export type TenantStatus = (typeof TenantStatusObject)[keyof typeof TenantStatusObject];
 export interface TenantSuspendedResult extends AdditionalDataHolder, Parsable {
     /**
      * The name property
@@ -8929,7 +8938,7 @@ export interface TenantSuspendedResult extends AdditionalDataHolder, Parsable {
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantStatus | null;
     /**
      * The tenantId property
      */
@@ -8967,11 +8976,11 @@ export interface TenantUserCompanyForStaffResult extends AdditionalDataHolder, P
     /**
      * The level property
      */
-    level?: string | null;
+    level?: AccountLevel | null;
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantUserStatus | null;
     /**
      * The tenantId property
      */
@@ -9027,7 +9036,7 @@ export interface TenantUserDetailsForStaffResult extends AdditionalDataHolder, P
     /**
      * The status property
      */
-    status?: string | null;
+    status?: UserStatus | null;
     /**
      * The updatedAt property
      */
@@ -9064,11 +9073,11 @@ export interface TenantUserDetailsResult extends AdditionalDataHolder, Parsable 
     /**
      * The level property
      */
-    level?: string | null;
+    level?: AccountLevel | null;
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantUserStatus | null;
     /**
      * The tenantId property
      */
@@ -9102,16 +9111,17 @@ export interface TenantUserItem extends AdditionalDataHolder, Parsable {
     /**
      * The level property
      */
-    level?: string | null;
+    level?: AccountLevel | null;
     /**
      * The status property
      */
-    status?: string | null;
+    status?: TenantUserStatus | null;
     /**
      * The userAccountId property
      */
     userAccountId?: Guid | null;
 }
+export type TenantUserStatus = (typeof TenantUserStatusObject)[keyof typeof TenantUserStatusObject];
 export interface UnassignStaffProfileUsersBody extends AdditionalDataHolder, Parsable {
     /**
      * The userIds property
@@ -9365,6 +9375,7 @@ export interface UpdateTenantUserIdentityForStaffBody extends AdditionalDataHold
      */
     lastName?: UntypedNode | null;
 }
+export type UserStatus = (typeof UserStatusObject)[keyof typeof UserStatusObject];
 /**
  * A ProblemDetails extension for validation errors.Includes field-level errors in addition to the translation key.Complies with RFC 7807 while supporting validation error details.
  */
@@ -9415,5 +9426,29 @@ export interface VerifyEmailRequestResult extends AdditionalDataHolder, Parsable
      */
     status?: string | null;
 }
+export const AccountLevelObject = {
+    User: "User",
+    Admin: "Admin",
+} as const;
+export const InvitationEffectiveStatusObject = {
+    Pending: "Pending",
+    Accepted: "Accepted",
+    Expired: "Expired",
+    Revoked: "Revoked",
+} as const;
+export const TenantStatusObject = {
+    Pending: "Pending",
+    Active: "Active",
+    Suspended: "Suspended",
+} as const;
+export const TenantUserStatusObject = {
+    Active: "Active",
+    Suspended: "Suspended",
+    GloballySuspended: "GloballySuspended",
+} as const;
+export const UserStatusObject = {
+    Suspended: "Suspended",
+    Active: "Active",
+} as const;
 /* tslint:enable */
 /* eslint-enable */
