@@ -281,6 +281,7 @@ describe('TenantPortalRoute', () => {
 				tenants: [],
 				activeCount: 0,
 				totalCount: 0,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: false,
 			},
 		});
@@ -334,6 +335,7 @@ describe('TenantPortalRoute', () => {
 				],
 				activeCount: 1,
 				totalCount: 2,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: true,
 			},
 		});
@@ -428,6 +430,7 @@ describe('TenantPortalRoute', () => {
 				],
 				activeCount: 2,
 				totalCount: 3,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: true,
 			},
 		});
@@ -509,6 +512,7 @@ describe('TenantPortalRoute', () => {
 				],
 				activeCount: 2,
 				totalCount: 2,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: false,
 			},
 		});

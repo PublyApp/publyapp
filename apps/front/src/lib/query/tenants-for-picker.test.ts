@@ -116,6 +116,7 @@ describe('resolveWorkspaceTenant', () => {
 			],
 			activeCount: 1,
 			totalCount: 2,
+			hasDeletedTenants: false,
 			hasSuspendedTenants: true,
 		};
 		expect(resolveWorkspaceTenant(data, null)?.id).toBe('t-1');
