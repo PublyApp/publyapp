@@ -12,6 +12,7 @@
 import { expect, describe, it } from 'vitest';
 
 import { createPostDetailFromDiscriminatorValue } from '@org/client-ts/models/index';
+import type { PostDetail } from '@org/client-ts/models/index';
 
 // The JSON serialization library is a dependency of @org/client-ts, not of
 // front, so the factory resolves through client-ts's own node_modules.
@@ -45,7 +46,9 @@ describe('PostDetail wire deserialization', () => {
 			'application/json',
 			arrayBuffer,
 		);
-		const detail = node.getObjectValue(createPostDetailFromDiscriminatorValue);
+		const detail = node.getObjectValue<PostDetail>(
+			createPostDetailFromDiscriminatorValue,
+		);
 		const image = detail?.image;
 
 		expect(image?.url).toBe('/files/uploads/x.png');
