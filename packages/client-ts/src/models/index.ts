@@ -1625,6 +1625,33 @@ export function createResolveStaffProfileUserAssignmentsResultFromDiscriminatorV
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveTenantProfileNameResolutionItem}
+ */
+// @ts-ignore
+export function createResolveTenantProfileNameResolutionItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveTenantProfileNameResolutionItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveTenantProfileNamesAsStaffBody}
+ */
+// @ts-ignore
+export function createResolveTenantProfileNamesAsStaffBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveTenantProfileNamesAsStaffBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ResolveTenantProfileNamesAsStaffResult}
+ */
+// @ts-ignore
+export function createResolveTenantProfileNamesAsStaffResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoResolveTenantProfileNamesAsStaffResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ResolveTenantProfileUserAssignmentsAsStaffBody}
  */
 // @ts-ignore
@@ -3838,6 +3865,41 @@ export function deserializeIntoResolveStaffProfileUserAssignmentsResult(resolveS
 }
 /**
  * The deserialization information for the current model
+ * @param ResolveTenantProfileNameResolutionItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveTenantProfileNameResolutionItem(resolveTenantProfileNameResolutionItem: Partial<ResolveTenantProfileNameResolutionItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "name": n => { resolveTenantProfileNameResolutionItem.name = n.getStringValue(); },
+        "profileId": n => { resolveTenantProfileNameResolutionItem.profileId = n.getGuidValue(); },
+        "reason": n => { resolveTenantProfileNameResolutionItem.reason = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveTenantProfileNamesAsStaffBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveTenantProfileNamesAsStaffBody(resolveTenantProfileNamesAsStaffBody: Partial<ResolveTenantProfileNamesAsStaffBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "names": n => { resolveTenantProfileNamesAsStaffBody.names = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param ResolveTenantProfileNamesAsStaffResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoResolveTenantProfileNamesAsStaffResult(resolveTenantProfileNamesAsStaffResult: Partial<ResolveTenantProfileNamesAsStaffResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "names": n => { resolveTenantProfileNamesAsStaffResult.names = n.getCollectionOfObjectValues<ResolveTenantProfileNameResolutionItem>(createResolveTenantProfileNameResolutionItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ResolveTenantProfileUserAssignmentsAsStaffBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5661,6 +5723,32 @@ export interface ResolveStaffProfileUserAssignmentsResult extends AdditionalData
      */
     assignments?: ResolveStaffProfileUserAssignmentsItem[] | null;
 }
+export interface ResolveTenantProfileNameResolutionItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The profileId property
+     */
+    profileId?: Guid | null;
+    /**
+     * The reason property
+     */
+    reason?: string | null;
+}
+export interface ResolveTenantProfileNamesAsStaffBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The names property
+     */
+    names?: UntypedNode | null;
+}
+export interface ResolveTenantProfileNamesAsStaffResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The names property
+     */
+    names?: ResolveTenantProfileNameResolutionItem[] | null;
+}
 export interface ResolveTenantProfileUserAssignmentsAsStaffBody extends AdditionalDataHolder, Parsable {
     /**
      * The userAccountIds property
@@ -7312,6 +7400,44 @@ export function serializeResolveStaffProfileUserAssignmentsResult(writer: Serial
     if (!resolveStaffProfileUserAssignmentsResult || isSerializingDerivedType) { return; }
     writer.writeCollectionOfObjectValues<ResolveStaffProfileUserAssignmentsItem>("assignments", resolveStaffProfileUserAssignmentsResult.assignments, serializeResolveStaffProfileUserAssignmentsItem);
     writer.writeAdditionalData(resolveStaffProfileUserAssignmentsResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveTenantProfileNameResolutionItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveTenantProfileNameResolutionItem(writer: SerializationWriter, resolveTenantProfileNameResolutionItem: Partial<ResolveTenantProfileNameResolutionItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveTenantProfileNameResolutionItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("name", resolveTenantProfileNameResolutionItem.name);
+    writer.writeGuidValue("profileId", resolveTenantProfileNameResolutionItem.profileId);
+    writer.writeStringValue("reason", resolveTenantProfileNameResolutionItem.reason);
+    writer.writeAdditionalData(resolveTenantProfileNameResolutionItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveTenantProfileNamesAsStaffBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveTenantProfileNamesAsStaffBody(writer: SerializationWriter, resolveTenantProfileNamesAsStaffBody: Partial<ResolveTenantProfileNamesAsStaffBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveTenantProfileNamesAsStaffBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("names", resolveTenantProfileNamesAsStaffBody.names);
+    writer.writeAdditionalData(resolveTenantProfileNamesAsStaffBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ResolveTenantProfileNamesAsStaffResult The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeResolveTenantProfileNamesAsStaffResult(writer: SerializationWriter, resolveTenantProfileNamesAsStaffResult: Partial<ResolveTenantProfileNamesAsStaffResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!resolveTenantProfileNamesAsStaffResult || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<ResolveTenantProfileNameResolutionItem>("names", resolveTenantProfileNamesAsStaffResult.names, serializeResolveTenantProfileNameResolutionItem);
+    writer.writeAdditionalData(resolveTenantProfileNamesAsStaffResult.additionalData);
 }
 /**
  * Serializes information the current object
