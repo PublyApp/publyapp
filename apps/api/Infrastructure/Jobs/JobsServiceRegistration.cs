@@ -188,6 +188,10 @@ public static class JobsServiceRegistration {
 		builder.Services.AddScoped<IJobEnqueuer, JobEnqueuer>();
 		// Staff system-job trigger-now (#636): joins the caller's scoped
 		// AppDbContext and resolves the transient engine job from the same scope.
+		// The engine job is a Quartz IJob, so nothing else registers its concrete
+		// type — without this line the boundary's constructor cannot resolve it
+		// and the api role fails validation at boot.
+		builder.Services.AddScoped<EnqueueSystemJobJob>();
 		builder.Services.AddScoped<IEnqueueSystemJobBoundary, EnqueueSystemJobBoundary>();
 
 		return builder;
