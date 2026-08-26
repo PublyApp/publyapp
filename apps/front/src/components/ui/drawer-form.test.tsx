@@ -268,6 +268,31 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 	invalidateTenantPosts: vi.fn(),
 }));
 
+// The creation drawer now embeds the Publish-on block (D2 Task 8). This guard
+// renders the drawer's flex chain only, so every query hook the block pulls in
+// is mocked to its pending/no-permission shape: hasPermission -> false keeps
+// PublishOnBlock at `return null` and leaves the asserted DOM untouched.
+vi.mock('~/lib/query/tenant-permissions', () => ({
+	SOCIAL_ACCOUNTS_PUBLISH: 'tenant.socialaccounts.publish',
+	useTenantPermissions: () => ({ hasPermission: () => false }),
+}));
+
+vi.mock('~/lib/query/tenant-publications', () => ({
+	publishNowMutation: {},
+	invalidateTenantPublications: vi.fn(),
+}));
+
+vi.mock('~/lib/query/tenant-publish-targets', () => ({
+	useTenantPublishTargetsQuery: () => ({ data: undefined }),
+	toTenantPublishTargets: () => [],
+}));
+
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('~/lib/query/tenants-for-picker')>();
+	return { ...actual, useResolvedWorkspaceTenantId: () => null };
+});
+
 vi.mock('~/lib/query/staff-global-tenant-users', async (importOriginal) => {
 	const actual =
 		await importOriginal<
