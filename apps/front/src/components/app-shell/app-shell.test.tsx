@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => ({
 	useRealWorkspaceHook: false,
 	// Number of times the faked tenant-scope client served a picker GET.
 	pickerGetCallCount: 0,
-<	// #142 facade hook return value; `undefined` = loading/unresolved → the
+	// #142 facade hook return value; `undefined` = loading/unresolved → the
 	// full rail renders (the shell must not filter on an absent payload).
 	tenantPermissions: undefined as string[] | undefined,
 	linkPrevSearch: {},
