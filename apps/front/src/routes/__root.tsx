@@ -43,7 +43,6 @@ import {
 	isSupportedLanguage,
 	type SupportedLanguage,
 } from '~/lib/i18n.shared';
-import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import { registerMutationToastI18n } from '~/lib/mutation-toast';
 import {
 	hasExactAuthedRouteMatch,
@@ -70,6 +69,7 @@ import { loadI18nForRequest } from '~/server/i18n-locale';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { LOCALE_COOKIE_KEY, REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
 
 import { AppErrorView } from '../components/error-views/AppErrorView';
 import { LogoutRedirect } from '../components/error-views/LogoutRedirect';

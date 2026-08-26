@@ -16,7 +16,6 @@ import { View404 } from '~/components/error-views/View404';
 import { Button } from '~/components/ui/button';
 import { buttonVariants } from '~/components/ui/button.variants';
 import { getSessionTokensFromBrowser } from '~/lib/api-client/client-manager';
-import { buildLoginRedirectSearch } from '~/lib/login-redirect-search';
 import {
 	hasExactAuthedRouteMatch,
 	isTenantPortalPath,
@@ -26,6 +25,7 @@ import { useSessionSurfaceValidation } from '~/lib/session-surface-recovery-cont
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
+import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
 import { selectToken } from '@org/shared-ts/lib/session/parse';
 
 import { getFailureStatus } from './_api-problem-status';
