@@ -96,8 +96,8 @@ describe('toStaffUserRows', () => {
 				firstName: 'Alpha',
 				lastName: 'Admin',
 				avatarUrl: 'https://example.com/alpha.png',
-				level: 'SuperAdmin',
-				status: 'Active',
+				level: AccountLevelObject.Admin,
+				status: UserStatusObject.Active,
 				displayName: 'Alpha Admin',
 			},
 			{
