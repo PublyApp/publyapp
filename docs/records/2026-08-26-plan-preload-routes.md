@@ -82,9 +82,11 @@ champ au moment du preload d'intention. Deux candidats ont été tranchés :
   CSR (`apps/front/src/components/app-shell/app-shell.tsx`, l'emplacement qui héberge déjà les effets
   globaux du shell). **Montage CSR uniquement** : le shell authentifié est `ssr: false`
   (`docs/guides/front/conventions.md`, l.281 — « Authenticated application surfaces are CSR with
-  `ssr: false` ») ; le hook doit de plus être protégé par un garde `isServer` explicite
-  (`if (isServer) return;`) pour qu'un montage accidentel dans un shell universel ne branche
-  jamais d'effet côté serveur. Il s'abonne au routeur via `router.subscribe('onBeforeLoad', …)`
+  `ssr: false` ») ; le hook doit de plus être enveloppé par le primitif CSR du repo
+  `createClientOnlyFn` (de `@tanstack/react-start`, déjà utilisé dans `routes/__root.tsx` l.14)
+  pour qu'un montage accidentel dans un shell universel n'exécute jamais l'effet côté serveur —
+  `isServer` n'étant pas un export direct consommé par le front (qui expose plutôt la fonction
+  locale `isServerRuntime()` dans `lib/api-client/client-manager.ts`). Il s'abonne au routeur via `router.subscribe('onBeforeLoad', …)`
   et, pour chaque entrée `staticData.preload` de la destination, résout d'abord les matches lui-même
   : l'événement `NavigationEventInfo` **ne porte pas** de `matches` (forme vérifiée dans le
   lockfile, `@tanstack/router-core@1.171.26/dist/esm/router.d.ts` l.419-426 :
@@ -395,13 +397,14 @@ réseau émises pour cette ressource (doit rester 1, preuve anti-double-fetch).
   doc du paquet, PAS encore exécuté dans le harnais vitest de ce repo : T1 contient le cas de test
   qui tranche ; l'échec déclenche le STOP-and-report §8.
 * Le garde T3 suppose que chaque page pilote monte ses hooks de requête dans un rendu de test
-  isolé sans stack serveur ; vrai pour les deux pilotes choisis, non généralisé à toutes les 60
-  routes authed (63 ids dans `routeTree.gen.ts` moins les 3 nœuds de layout). **Couverture réelle
+  isolé sans stack serveur ; vrai pour les deux pilotes choisis, non généralisé à toutes les 63
+  routes de contenu authed (64 ids sous `/_authed-layout` dans `routeTree.gen.ts`, dont 1 nœud de
+  layout pathless `/_authed-layout` et 63 routes de contenu). **Couverture réelle
   du garde : seules les routes dont la page se rend sous vitest sans la pile serveur sont
   assujetties — aujourd'hui les deux pilotes, et toute route future ajoutant une entrée
-  `preload` est aussitôt attrapée en rouge ; les ~58 routes restantes (page non rendable en test
+  `preload` est aussitôt attrapée en rouge ; les ~61 routes restantes (page non rendable en test
   isolé) sont hors assujettissement jusqu'à leur migration par le même pattern pilote, suivie par
-  #1592. Ce n'est pas une couverture « silencieuse » de toutes les 60 routes — c'est une
+  #1592. Ce n'est pas une couverture « silencieuse » de toutes les 63 routes — c'est une
   couverture explicite des seules routes rendables, le reste étant un plan de migration nommé.**
 * Les chiffres de mesure §9 sont des seuils ATTENDUS (mock 500 ms), pas des mesures relevées :
   ils le seront dans T6 et collés dans la PR.
