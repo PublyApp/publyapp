@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	isDesktop: true,
 	linkPrevSearch: {} as Record<string, unknown>,
+	workspaceTenantId: null as string | null,
 	// Not exercising breadcrumb behavior in this file (this app-shell unit
 	// suite mocks the router wholesale — the AUTHORITATIVE breadcrumb tests
 	// use a real router + real routeTree, see breadcrumb-contract.test.tsx).
@@ -72,6 +73,22 @@ vi.mock('~/lib/hooks/use-media-query', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({ t: (key: string) => key }),
+}));
+
+// Task 7 (C3): the shell mounts the needs-reconnect banner on tenant
+// surfaces. These seams are mocked wholesale here because this suite has no
+// QueryClient; the banner's own behaviour lives in its dedicated suite.
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useResolvedWorkspaceTenantId: () => mocks.workspaceTenantId,
+}));
+vi.mock('./_needs-reconnect-banner', () => ({
+	NeedsReconnectBanner: () =>
+		createElement(
+			'div',
+			{ 'data-testid': 'needs-reconnect-banner-stub' },
+			'stub',
+		),
 }));
 
 vi.mock('~/components/ui/drawer', () => ({
@@ -433,5 +450,55 @@ describe('AppShell secondary-panel status links preserve the toolbar search stat
 		const allSearch = JSON.parse(allLink.getAttribute('data-search') ?? '{}');
 		expect(allSearch).toMatchObject({ q: 'ac', sortId: 'name', size: 50 });
 		expect(allSearch.status).toBeUndefined();
+	});
+});
+
+describe('AppShell needs-reconnect banner mount point', () => {
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		resetUiStore();
+	});
+
+	afterEach(() => {
+		cleanup();
+	});
+
+	test('mounts above main on tenant surfaces when a workspace is resolved', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname="/tenant/settings/integrations">
+				content
+			</AppShell>,
+		);
+
+		const banner = screen.getByTestId('needs-reconnect-banner-stub');
+		expect(
+			banner.nextElementSibling?.classList.contains('app-shell-main'),
+		).toBe(true);
+	});
+
+	test('renders no banner before a workspace tenant is resolved', () => {
+		mocks.workspaceTenantId = null;
+
+		render(
+			<AppShell mode="authed" pathname="/tenant/settings/integrations">
+				content
+			</AppShell>,
+		);
+
+		expect(screen.queryByTestId('needs-reconnect-banner-stub')).toBeNull();
+	});
+
+	test('renders no banner on staff surfaces', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		expect(screen.queryByTestId('needs-reconnect-banner-stub')).toBeNull();
 	});
 });

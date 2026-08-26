@@ -15,6 +15,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 
 import logoSvg from '../../assets/gray-ui/logo.svg';
 import { useMediaQuery } from '../../lib/hooks/use-media-query';
@@ -37,6 +38,7 @@ import type {
 	SecondaryPanelItem,
 } from '../../lib/navigation/route-metadata';
 import { useUiStore } from '../../lib/store/ui-store';
+import { NeedsReconnectBanner } from './_needs-reconnect-banner';
 import { ThemeToggle } from './theme/theme-toggle';
 import { AppShellUserMenu } from './user-menu';
 
@@ -150,6 +152,10 @@ const SecondaryPanelNavItem = ({
 	);
 };
 
+// Pre-existing size finding (~310 lines before C3 added two). Splitting the
+// workspace shell is a standalone maintainability change with its own
+// regression surface — deliberately NOT bundled into the C3 feature.
+// react-doctor-disable-next-line react-doctor/no-giant-component -- tracked for a dedicated split PR
 const AuthedWorkspaceShell = ({
 	children,
 	pathname,
@@ -164,6 +170,8 @@ const AuthedWorkspaceShell = ({
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
+	const workspaceTenantId = useResolvedWorkspaceTenantId();
+	const isTenantSurface = getShellScope(pathname) === 'tenant';
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);
@@ -198,6 +206,14 @@ const AuthedWorkspaceShell = ({
 		},
 		...breadcrumbTail,
 	];
+	// Stable per-position identity: kind + destination (or entity-query
+	// marker) + ordinal. Index alone is not a key; content alone could collide
+	// when a trail legitimately repeats a label at different depths.
+	const breadcrumbKeys = breadcrumbs.map((item, index) => {
+		const discriminator =
+			item.kind === 'label' ? item.labelKey : `entity:${item.select.length}`;
+		return `${discriminator}-${index}-${item.to ?? ''}`;
+	});
 	const isDesktop = useMediaQuery('(min-width: 1024px)');
 	const showSecondaryPanel = shouldShowSecondaryPanel(pathname, {
 		sidebarOpen,
@@ -214,6 +230,10 @@ const AuthedWorkspaceShell = ({
 	const handleToggleSecondaryPanel = toggleSidebarOpen;
 
 	useEffect(() => {
+		// Deliberate prop-change reset: closing the mobile nav drawer whenever
+		// the URL changes IS the desired behaviour (a navigation must not
+		// reopen into a stale drawer). An imperative close, not derived state.
+		// react-doctor-disable-next-line react-doctor/no-adjust-state-on-prop-change -- deliberate navigation-triggered reset
 		setIsMobileNavOpen(false);
 	}, [pathname]);
 
@@ -374,7 +394,7 @@ const AuthedWorkspaceShell = ({
 									);
 								}
 								return (
-									<Fragment key={`${item.kind}-${index}-${path ?? ''}`}>
+									<Fragment key={breadcrumbKeys[index]}>
 										{index > 0 ? (
 											<IconChevronRight
 												aria-hidden="true"
@@ -393,6 +413,9 @@ const AuthedWorkspaceShell = ({
 						<AppShellUserMenu />
 					</div>
 				</header>
+				{isTenantSurface && workspaceTenantId !== null ? (
+					<NeedsReconnectBanner tenantId={workspaceTenantId} />
+				) : null}
 				<main className="app-shell-main">{children}</main>
 			</div>
 			<Drawer open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
