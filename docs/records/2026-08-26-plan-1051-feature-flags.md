@@ -213,3 +213,147 @@ Rollback: each consumer swap is independently revertible; the static registry de
 | Fail mode | Declared defaults + degraded banner + dedup'd warning | Throw; partial maps | Flag outage must not take the app down (issue requirement); owner transparent-failure rule |
 | Local override | VITE_FEATURE_*, DEV-only, prod-build warning | DB-backed local profiles | Zero-setup, matches muscle memory from the static era, cannot leak (build-time warning) |
 | Permissions | Staff-only VIEW/MANAGE slice | Tenant self-service flags | Flags are platform decisions; tenant-facing scoping is consumption, not administration |
+
+---
+
+# Part 2 — Tasks (bite-sized, TDD)
+
+Global task rules:
+
+- One task = one commit; message prefix `feat|test|docs|chore(flags): …`; push after every commit.
+- RED→GREEN: every code task starts with its failing spec (or compile-level failing assertion), named in the step.
+- Heavy commands (`dotnet test`, front suites) run under `~/ai-orchestration-playbook/tools/heavy.sh`, focused filters first; never > 20 min under the lock.
+- No e2e stack locally (captain verification policy 2026-08-23): CI runs front-e2e on the PR and that is the evidence.
+- "api-check" = `just build-api` + `just ci-quality-dotnet`.
+- Analyzers PUBLY0001–0008 are errors: guard clauses, no `?? throw`, no `!`, no `ToLower()` dispatch, cached `JsonElement` getters, `*ForStaff*` service variants for staff reads, braces always, ≤100-char lines.
+- After any endpoint change: `just build-api && just generate-client && pnpm --filter front typecheck`.
+
+## Task T0 — Plan commit (this file)
+
+- [x] Design section committed (`edbb6563e`).
+- [x] Tasks section committed (this commit).
+
+## Task T1 — Registry + generator (the one declaration)
+
+**Files:** [new] `apps/api/Modules/FeatureFlags/Registry/FeatureFlagRegistry.cs` (+ `.Spec.cs`), [new] `packages/scripts-cs/**/GenerateFeatureFlagTypes*.cs` wired as a `just generate-flags` recipe, [new] `packages/client-ts/src/featureFlags.g.ts` (committed artifact), [mod] root `justfile` recipe list.
+
+- [ ] **Step 1 (RED):** `FeatureFlagRegistry.Spec`: asserts (a) all four initial keys present with exact defaults (`auth.signups_enabled=false`, `dev.field_validation_demo_enabled=false`, `marketing.customer_logos=false`, `marketing.social_proof=false`); (b) keys are unique + kebab/snake-shaped (`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`); (c) every entry has non-empty EN description + allowed-scope set + visibility. Run focused filter under heavy.sh → FAIL (registry empty). GREEN by writing the registry table with the four entries. Commit NOT yet — T2 commits T1+T2 together if the generator needs the registry shape frozen first; otherwise standalone `feat(flags): typed feature-flag registry (single C# declaration)`.
+- [ ] **Step 2:** generator emits `featureFlags.g.ts` from reflection over the registry (same reflection pattern `PermissionSeeder.GetPermissionsPool()` uses): const object with literal keys, per-key `{ default, visibility }`, exported `FeatureFlagKey` union, and `FEATURE_FLAG_DEFAULTS`. Header comment: GENERATED — do not edit.
+- [ ] **Step 3 (sync proof, RED then GREEN):** `FeatureFlagRegistrySync.Spec` parses committed `featureFlags.g.ts` as text, extracts key/default pairs, asserts equality with the C# registry. RED until the artifact is generated + committed; proves hand-edits to either side fail CI.
+
+## Task T2 — Entity + migration
+
+**Files:** [new] `apps/api/Modules/FeatureFlags/Entities/FeatureFlagOverride.cs`, [new] `apps/api/Migrations/<ts>_AddFeatureFlagOverrides.cs` (+ `.Spec.cs`), [mod] `apps/api/Data/DbContext/AppDbContext.cs` (`DbSet<FeatureFlagOverride> FeatureFlagOverride` next to `DbSet<AuditLog>` line ~111).
+
+- [ ] **Step 1:** entity per D3 (BaseAttributes, INoTenantEntity-style global access like AuditLog, scope enum `FeatureFlagScope { Global=10, Tenant=20, Account=30 }`). Filtered unique indexes exactly as D3 specifies (Postgres NULL-distinct pattern documented on `UserAccount`).
+- [ ] **Step 2:** `just db-add AddFeatureFlagOverrides && just db-migrate`. Migration spec asserts: three filtered unique indexes exist by name; CHECK constraints enforce tenant/account id presence per scope; table is empty post-migration (no seeds — doctrine).
+- [ ] **Step 3:** `heavy.sh just ci-migration-expand-contract` green (expand-only). Commit `feat(flags): FeatureFlagOverride storage — scoped overrides, filtered uniques, no seeds`.
+
+## Task T3 — Resolver service (resolution order)
+
+**Files:** [new] `apps/api/Modules/FeatureFlags/Services/IFeatureFlagResolver.cs` + `FeatureFlagResolver.cs` (+ `.Spec.cs`).
+
+- [ ] **Step 1 (RED):** resolver spec on ApiFixture: seed overrides at all scopes for one key; assert resolution order account > tenant > global > default for contexts: anonymous (default/global only), tenant member (tenant wins over global), account row wins over tenant; deleted-tenant rows ignored; absent rows fall through to declared default; single DB round-trip per Resolve call (query-count assertion via fixture listener or EF log capture — pick the cheapest provable mechanism).
+- [ ] **Step 2 (GREEN):** `Task<ResolvedFlagMap> ResolveAsync(ResolveArgs(Guid? TenantId, Guid? AccountId), ct)`; one query loading candidate rows `(scope, key)` filtered by context; merge in memory per D2 order; returns map + per-key source + revision hash (sha256 over sorted key=value pairs).
+- [ ] **Step 3:** green under heavy.sh focused filter. Commit `feat(flags): resolver — account > tenant > global > declared default, explicit sources`.
+
+## Task T4 — Effective endpoint (anonymous-reachable) + staff preview
+
+**Files:** [new] `apps/api/Modules/FeatureFlags/Handlers/Anonymous/GetEffectiveFeatureFlags.cs` (+ Spec), [new] `.../Handlers/Staff/GetEffectiveFeatureFlagsForStaff.cs` (+ Spec), [new] `.../Endpoints/FeatureFlagEndpoints.cs`, [new] `Routes.FeatureFlags.cs`, [mod] `apps/api/Program.cs` (map call beside existing groups).
+
+- [ ] **Step 1 (RED):** anonymous spec: GET effective without session → full map of declared defaults + any GLOBAL overrides seeded; session+tenant-header request → tenant overrides applied; response carries `revision` + per-key `source` + `resolvedAtUtc`; malformed GUID query param on staff variant → 400; staff variant accepts `tenantId`/`accountId` params and reflects that combination; staff route 403 without `staff.feature_flags.view`.
+- [ ] **Step 2 (GREEN):** handlers orchestrate only (no DbContext): resolve account/tenant ids from auth context server-side; wire routes with `.WithPermission([AppPermissions.Staff.FeatureFlags.VIEW])` (staff) / anonymous group (public) and rate-limit policies `AnonymousOther` / `HeavySearchList`.
+- [ ] **Step 3:** specs green; `just build-api` green (contract change). Commit together with T5's permission slice if ordering prefers it — see T5 note.
+
+## Task T5 — Staff permissions slice
+
+**Files:** [new] `apps/api/Modules/FeatureFlags/Permissions/FeatureFlagPermissionsForStaff.cs`, [mod] `apps/api/Lib/AppPermissions.cs` (one property on `StaffScopePermissions`: `public FeatureFlagPermissionsForStaff FeatureFlags { get; } = new();`).
+
+- [ ] **Step 1 (RED):** extend an existing permissions-discovery spec OR add `FeatureFlagPermissions.Spec`: `AppPermissions.Staff.FeatureFlags.VIEW.Key == "staff.feature_flags.view"`, `MANAGE.Key == "staff.feature_flags.manage"`, both carry EN+FR translations. RED until the slice exists.
+- [ ] **Step 2 (GREEN):** slice class mirroring `SettingsPermissionsForTenant` shape (staff variant). Reflection seeding picks it up automatically — assert via the seeder pool test if one exists, else the slice spec suffices plus one integration assertion that a fresh DB seeds both keys.
+- [ ] **Step 3:** green; commit `feat(flags): staff.feature_flags view/manage permissions`. If T4 landed before this, re-run its 403 spec now green-with-permission (assign permission to test role in fixture helper, following existing permission-test helpers).
+
+## Task T6 — Override CRUD (upsert + delete) with audit
+
+**Files:** [new] `apps/api/Modules/FeatureFlags/Handlers/Staff/UpsertFeatureFlagOverrideForStaff.cs` (+ Spec), [new] `.../DeleteFeatureFlagOverrideForStaff.cs` (+ Spec), [new] `.../FindFeatureFlagOverridesForStaff.cs` (+ Spec), [mod] `apps/api/Modules/AuditLogs/Entities/AuditLog.cs` (two constants after `SocialAccountProjectsSet`), endpoints extended from T4 file.
+
+- [ ] **Step 1 (RED):** upsert spec: PUT new override → row created, audit `feature_flag.enabled|disabled` written in SAME transaction (assert both row + audit exist or neither — force a failure case), details JSON carries key/scope/ids/oldValue/newValue, TargetId=override id; PUT over existing → update, old value captured in audit; unknown key → 422 stable errors key; scope/id mismatch → 422; unknown tenant/account → 404; 403 without MANAGE; cross-check `AuditActionsRegistry.Spec` still passes (reflection auto-pickup).
+- [ ] **Step 2 (RED):** delete spec: delete winning override → effective falls back to parent scope AND audit row records the effective change; delete non-winning override → NO audit row (D5 rule: audit records effective changes, not row churn).
+- [ ] **Step 3 (RED):** find-overrides spec: keyset pagination `(created_at, id)`, filters key+scope, cursor validation, snake_case query params.
+- [ ] **Step 4 (GREEN):** implement all three handlers + validators (`JsonElementRules.*`, top-level sibling wire types, no `Dto` suffix) + service methods using `*ForStaff*` naming for staff reads; write path goes through `IAuditLogService.LogAsync` before `SaveChangesAsync`. Rate limiting: writes `AuthenticatedDefault`, read `HeavySearchList`.
+- [ ] **Step 5:** all green under heavy.sh; api-check; commit `feat(flags): staff override CRUD — audited flips, old/new captured, keyset list`.
+
+## Task T7 — Front generated types + typed accessors
+
+**Files:** [mod] `packages/client-ts/src/featureFlags.g.ts` (extend with accessor helpers IF they live client-side; keep pure data otherwise), [new] `apps/front/src/lib/feature-flags.ts` (+ `feature-flags.test.ts`) — `useFeatureFlag(key)` hook + `isFeatureEnabled(map, key)` pure fn, both keyed on generated union.
+
+- [ ] **Step 1 (RED):** unit tests: typo'd key fails TYPECHECK (`pnpm --filter front typecheck` is the red/green oracle — include a `// @ts-expect-error` case asserting a bad literal is rejected); hook returns the map value from provided context; pure fn handles missing map (returns declared default).
+- [ ] **Step 2 (GREEN):** implement accessors reading route-context payload only (no fetch logic here). Commit `feat(front): typed flag accessors over generated registry`.
+
+## Task T8 — Transport: beforeLoad resolution + dehydration + fail-safe
+
+**Files:** [new] `apps/front/src/server/feature-flags.ts` (server-only fetch helper, cookie-forwarding, 5 s timeout, TTL cache keyed by context fingerprint, dedup'd warn), [mod] `apps/front/src/routes/__root.tsx` (extend `RootRouteContext` + both branches of `resolveRootContext`/`loadClientRootContext`), [new] `apps/front/src/server/feature-flags.test.ts`, [mod] root-route context tests if any exist.
+
+- [ ] **Step 1 (RED):** helper unit tests (node env): success → parsed map cached under fingerprint; second call within 60 s TTL hits cache (fetch mock call-count 1); failure → defaults map + `degraded:true` + exactly ONE warn across N calls; timeout abort honored; client branch consumes dehydrated context verbatim (no fetch mock called).
+- [ ] **Step 2 (GREEN):** implement helper + root wiring. SSR HTML must contain final values (assert via existing SSR test pattern if present; else component test asserting `useRouteContext().featureFlags` populated).
+- [ ] **Step 3:** `pnpm --filter front typecheck && pnpm --filter front exec vitest run src/server/feature-flags.test.ts` green. Commit `feat(front): flags resolved in root beforeLoad, dehydrated — no client second opinion, fail-safe defaults`.
+
+## Task T9 — Dev local overrides (`VITE_FEATURE_*`)
+
+**Files:** [mod] `apps/front/src/lib/feature-flags.ts` (apply dev overrides at accessor boundary when `import.meta.env.DEV`), [mod] `.env.example` (comment block documenting naming rule), [new] vite-config-level prod-build warning if feasible (else a `pnpm --filter front build` postbuild grep script wired into package.json), [+test].
+
+- [ ] **Step 1 (RED):** unit tests: DEV mode env `VITE_FEATURE_MARKETING_SOCIAL_PROOF=true` overrides dehydrated false; PROD simulation (`DEV:false`) ignores env; mapping covers all four keys (rename-safe: derived from generated artifacts).
+- [ ] **Step 2 (GREEN):** implement; document in `.env.example`. Prod-build warning: script greps built output/env presence and fails loud — decide exact mechanism during implementation, keep it out of runtime code. Commit `feat(front): VITE_FEATURE_* dev-only local overrides, loud if leaked to a prod build`.
+
+## Task T10 — Staff UI page
+
+**Files:** [new] `apps/front/src/routes/authed/staff/feature-flags.tsx` (+ `feature-flags.test.tsx`, `_list-search-params.ts`), [new] `apps/front/src/lib/query/staff-feature-flags.ts` (+ test), [new] i18n `apps/front/src/i18n/locales/en/staff-feature-flags.json` + `fr/…` (identical shape), [mod] `apps/front/src/routes.ts` (register `/staff/feature-flags`), [mod] `apps/front/src/lib/i18n.namespaces.ts` (namespace registration), [regen] Kiota client.
+
+- [ ] **Step 1:** contract first: `just build-api && just generate-client && pnpm --filter front typecheck` (after T6).
+- [ ] **Step 2 (RED):** page tests: renders registry rows with effective value + source badge; scope switch refetches with params; toggle opens confirm dialog showing OLD→NEW; submit calls mutation + invalidates effective queries; degraded banner when payload.degraded; URL state round-trip (`scope_id`, `tenant_id` snake_case); i18n parity asserted by existing namespace coverage test.
+- [ ] **Step 3 (GREEN):** implement page + query module mirroring `authed/staff/audit-logs.tsx` patterns (DataTable, cursor pagination where lists need it, drawers `_`-prefixed). Toasts via standard failure path.
+- [ ] **Step 4:** `pnpm --filter front typecheck && pnpm --filter front exec vitest run src/routes/authed/staff/feature-flags.test.tsx && pnpm --filter front check:design-system && just react-doctor` green. Commit `feat(front): staff feature-flags page — effective values per scope, audited toggles`.
+
+## Task T11 — Observability close-out
+
+- [ ] Verify + document: audit-log staff page filters by the two new action constants (no code expected — constants flow through `AuditActionsRegistry` automatically; assert once in a spec that both keys appear in `AuditActionsRegistry.All`). Revision surfaced in staff UI footer of the page (small addition to T10 if missed). Commit `chore(flags): observability — registry assertions, revision visible`.
+
+## Task T12 — Consumer migration (one commit each) + static registry deletion
+
+Order chosen so the least-risky consumer flips first:
+
+- [ ] **T12a:** `routes/index.tsx` marketing flags → `useFeatureFlag`/context read (SSR surface; values arrive pre-hydration). Update `index.test.tsx` mocks. Commit `refactor(front): marketing flags move to runtime resolution (#1038 candidates unblocked)`.
+- [ ] **T12b:** `signup.tsx` signups gate → same swap. Commit `refactor(front): signup gate moves to runtime resolution`.
+- [ ] **T12c:** `field-validation.tsx` demo route guard → same swap (route stays fully unmounted when off). Commit `refactor(front): field-validation demo gate moves to runtime resolution`.
+- [ ] **T12d (flag-day-free deletion):** delete `apps/front/src/lib/flags.ts`, `flags.test.ts`, Docker ARG/ENV pair; `git grep VITE_FEATURE apps/front/src` returns ONLY the dev-override loader; full front suite + typecheck + build green. Commit `chore(front): static flag registry deleted — runtime system is sole source`.
+- [ ] Rollback story: each of T12a–c independently revertible; deletion last.
+
+## Task T13 — Gates + delivery (implementation lane, not this PR)
+
+- [ ] Focused API suites (FeatureFlags/AuditLogs/Permissions) under heavy.sh; then ONE full `pnpm --filter front test`; api-check; `just ci-migration-expand-contract`; `just ci-front`.
+- [ ] e2e: add tags per `docs/guides/e2e-tags.md` vocabulary to a new spec exercising flip-in-staff → observe-on-marketing (CI runs it; do NOT boot the local stack).
+- [ ] PR body refresh; tracking note on #1051 (plan location, implementation lane pointer).
+
+## Proofs this plan promises (mapped to requirements)
+
+| Requirement (issue #1051) | Proof |
+|---|---|
+| Runtime evaluation | T6 PUT changes effective value without rebuild — integration spec + e2e |
+| One source of truth | T4/T7: API resolves, front never computes; sync spec pins registry↔generated artifact (T1) |
+| Typed + shared | T1 generated union; T7 `@ts-expect-error` typo proof; C# registry compile-checked writes |
+| SSR-safe | T8: dehydrated context, first-paint final values, no flash; no client refetch |
+| Scoping explicit | T3 spec enumerates the full order incl. fallbacks; D2 documents it |
+| Fail-safe | T8: defaults + `degraded` + single dedup'd warning; nothing throws |
+| Local override | T9: DEV-only wins, prod-build loud warning |
+| Observable + audited | T6 audit rows (same-txn), T10 staff UI, T11 registry assertions |
+
+## Anything in the brief that turned out wrong
+
+- "Two existing static registries": `apps/old-front` was retired 2026-08-22; only `apps/front/src/lib/flags.ts` survives. Plan migrates one registry (D11).
+- Brief said settings/audit modules would show a reusable "settings writer": there is no Settings *service* — Settings module is handlers-only; audit writing goes through `IAuditLogService`, cited correctly above.
+
+## Unverified until implementation/CI
+
+- Exact TanStack Start serialization of added `RootRouteContext` fields (expected: automatic, same as i18n resources — verified pattern, but size limits untested with real payloads).
+- Generator ergonomics inside `packages/scripts-cs` (recipe name, invocation point relative to `generate-client`).
+- Whether the anonymous effective endpoint needs a dedicated rate-limit policy once real traffic numbers exist (starts on `AnonymousOther`).
