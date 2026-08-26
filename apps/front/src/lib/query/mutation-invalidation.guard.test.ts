@@ -28,6 +28,44 @@ import { describe, expect, test, vi } from 'vitest';
  * No source-text scanning, no shape checks, and no conforming default when a
  * module cannot be analyzed: an unreadable module fails loudly below.
  *
+ * ## Detail-line (LINE) coverage proof — current reach
+ *
+ * `expectLineCovered` is the second half of the rule (the mutated entity's own
+ * detail entry). It is currently applied ONLY where the detail key is a SIBLING
+ * of the list family and therefore NOT reached by the list prefix — the
+ * `tenant-posts.ts` case (`['tenant','tenant-posts','detail',tenantId,{postId}]`
+ * sits beside, not under, `['tenant','tenant-posts',tenantId,query]`).
+ *
+ * For the OTHER list-family modules the row/line is NESTED UNDER the list root
+ * prefix: e.g. `staff-users` detail `['staff','staff-users',{userId}]` is a child
+ * of the invalidated root `['staff','staff-users']`, so proving the list family
+ * is covered already proves the line. `staff-profile-users` is the same shape —
+ * the unassigned user is a ROW in the `['staff','staff-profiles','users',…]`
+ * list, with NO separate sibling detail key (no per-user detail query factory
+ * exists in this module), so the list-family assertion above IS the line proof.
+ *
+ * UNVERIFIED ASSUMPTION (documented, not asserted): the guard does NOT import
+ * each module's detail query factory to PROVE the detail is actually nested
+ * under the list prefix rather than a sibling. The `tenant-posts` sibling bug is
+ * the shape this assumption can break; it is why `tenant-posts` carries an
+ * explicit `expectLineCovered`. Hardening the other modules to import their
+ * detail factories and assert reach is an open follow-up (see issue tracker,
+ * lv1, opened against #359 in round 3 of PR #1554). The registry entry below
+ * records, per module, whether a distinct detail key exists.
+ *
+ * ## `no-list` classification is MANUAL (documented limitation)
+ *
+ * The `no-list` entries are hand-asserted: the guard trusts that such a module
+ * owns no list query of its own. A `no-list` module that GAINS a list query
+ * WITHOUT also gaining a `useMutation` would be invisible to the drift detector
+ * (discovery keys off `useMutation`, and re-classification only happens on
+ * `useMutation` presence). Conversely, a `no-list` module that later grows a
+ * `useMutation` that DOES own a list query is caught because the drift
+ * detector forces a REGISTRY match and the per-module audit would then require
+ * a list-family assertion. The single residual blind spot — a `no-list` module
+ * acquiring a list query with no new mutation — is accepted and tracked as debt,
+ * not silently guarded. Keep this note when editing the classifier.
+ *
  * ## Module discovery (BLOQUANT 1 fix, verdict-r1)
  *
  * The guard does NOT hand-enumerate the modules it checks. It discovers them
@@ -411,6 +449,13 @@ const REGISTRY = {
 			// changes which rows appear in the profile's nested users list
 			// ['staff', 'staff-profiles', 'users', …]. The helper MUST cover that
 			// list family (and, through the same prefix, the nested row's line).
+			//
+			// LINE note: there is NO separate sibling detail key for a profile user
+			// in this module — the unassigned user is a ROW of the cursor list
+			// ['staff','staff-profiles','users',{profileId,query}], so the
+			// list-family prefix above already reaches the line. (Contrast
+			// tenant-posts, where the detail is a SIBLING key requiring
+			// expectLineCovered.) Hence no distinct expectLineCovered here.
 			const { invalidateStaffProfileUsers } =
 				await import('./staff-profile-users');
 			const { scopedKey } = await loadScopedKey();
@@ -431,6 +476,13 @@ const REGISTRY = {
 		},
 	},
 	// ── no-list mutation modules (documented, not an unguarded hole) ──
+	//
+	// MANUAL CLASSIFICATION (see guard header): these modules are asserted to
+	// own no list query of their own. This classification is trusted, not
+	// proven — a `no-list` module that later gains a list query WITHOUT a new
+	// `useMutation` would not be re-flagged by the drift detector. The decision
+	// is recorded per entry below so the review is explicit; the residual blind
+	// spot is tracked as debt.
 	'staff-uploads.ts': {
 		kind: 'no-list',
 		reason:
