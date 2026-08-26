@@ -485,6 +485,92 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task
+	ItShouldWalkEveryAcceptedAtPageWithoutOverlapOrGapWithNullCoercion() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string tag = Guid.NewGuid().ToString("N")[..8];
+
+		// 3 pending invitations (null AcceptedAt) + 3 accepted with distinct
+		// AcceptedAt values. The factory coerces null to DateTime.MinValue, so
+		// pending rows must sort to the front in ascending order; the accepted
+		// rows must keep their AcceptedAt order. This is the most subtle migrated
+		// wiring (the ?? DateTime.MinValue substitution) and the one most likely
+		// to regress silently.
+		List<Guid> pendingIds = [];
+		for (int i = 0; i < 3; i++) {
+			pendingIds.Add(await CreateStaffInvitationAsync(
+				staffToken,
+				$"acc-null-{tag}-{i}-{Guid.NewGuid():N}@example.com"
+			));
+		}
+
+		var acceptedSpecs = new List<(Guid Id, DateTime AcceptedAt)>();
+		var baseDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+		for (int i = 0; i < 3; i++) {
+			Guid id = await CreateStaffInvitationAsync(
+				staffToken,
+				$"acc-val-{tag}-{i}-{Guid.NewGuid():N}@example.com"
+			);
+			DateTime acceptedAt = baseDate.AddDays(i);
+			await SetAcceptedAtAsync(id, acceptedAt);
+			acceptedSpecs.Add((id, acceptedAt));
+		}
+
+		List<Guid> visitedIds = [];
+		string? cursor = null;
+		int pages = 0;
+		do {
+			using HttpResponseMessage response = await _http.SendAsync(
+				CreateFindRequest(
+					staffToken,
+					limit: 1,
+					sortId: "accepted_at",
+					sortOrder: "asc",
+					cursor: cursor
+				)
+			);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(page.Data.Select(item => item.Id));
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
+			_ = pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers the whole list: no row may repeat across pages.
+		_ = visitedIds.Should().OnlyHaveUniqueItems();
+
+		// Every one of our rows is visited exactly once.
+		foreach (Guid id in pendingIds.Concat(acceptedSpecs.Select(s => s.Id))) {
+			_ = visitedIds.Count(x => x == id).Should().Be(1);
+		}
+
+		// Pending (null AcceptedAt -> MinValue) rows precede every accepted row.
+		int firstAcceptedPos = visitedIds.FindIndex(
+			id => acceptedSpecs.Any(s => s.Id == id)
+		);
+		_ = firstAcceptedPos.Should().BeGreaterThanOrEqualTo(0);
+		foreach (Guid pendingId in pendingIds) {
+			_ = visitedIds.IndexOf(pendingId).Should().BeLessThan(firstAcceptedPos);
+		}
+
+		// Accepted rows appear in AcceptedAt ascending order relative to each other.
+		List<Guid> expectedAcceptedOrder =
+			acceptedSpecs.OrderBy(s => s.AcceptedAt).Select(s => s.Id).ToList();
+		List<Guid> visitedAcceptedOrder = visitedIds
+			.Where(id => acceptedSpecs.Any(s => s.Id == id))
+			.ToList();
+		_ = visitedAcceptedOrder.Should().Equal(expectedAcceptedOrder);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldAcceptAnUppercaseSortId() {
 		string staffToken = await _authClient.LoginAsStaffAdminAsync();
 
@@ -652,6 +738,24 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = await dbContext.SaveChangesAsync();
 
 		return invitation.GetRequiredId();
+	}
+
+	private async Task SetAcceptedAtAsync(Guid invitationId, DateTime acceptedAt) {
+		using IServiceScope scope = _fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		Invitation? invitation = await dbContext.Invitation
+			.Where(inv => inv.Id == invitationId)
+			.FirstOrDefaultAsync();
+		_ = invitation.Should().NotBeNull();
+		if (invitation is null) {
+			return;
+		}
+
+		invitation.AcceptedAt = acceptedAt;
+
+		_ = await dbContext.SaveChangesAsync();
 	}
 
 	private async Task<Guid> GetAnyStaffProfileIdAsync() {
