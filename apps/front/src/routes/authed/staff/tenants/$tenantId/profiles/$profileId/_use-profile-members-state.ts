@@ -96,23 +96,18 @@ export const useStaffTenantProfileMembers = ({
 				!detailQueryIsError,
 		},
 	);
-	const memberRows = useMemo(
-		() => toStaffTenantProfileMemberRows(membersQuery.data?.users),
-		[membersQuery.data?.users],
-	);
-	const memberColumns = useMemo(
-		() => makeProfileMemberColumns(tenantId, t, language),
-		[language, tenantId, t],
-	);
-
 	// A deliberate reset (tenant/profile identity, search, sort, or size
 	// change) must always win over a clamp derived from the destination
-	// query's count — including an already-warm cached count, not just a
-	// missing one (#999 review follow-up). Folded into one effect via
-	// resetKeys so it cannot race a separate "reset to 0" effect.
-	useOffsetPageClamp({
+	// query's count - including an already-warm cached count, not just a
+	// missing one (#999 review follow-up). `useOffsetPageClamp` is now a
+	// pure derivation: it returns the value the pageIndex should hold, and
+	// the caller commits it during render via React's documented
+	// adjust-state-while-rendering pattern. That replaces the previous
+	// `useEffect(setPageIndex(clamped))` pattern, which violated
+	// no-pass-data-to-parent / no-pass-live-state-to-parent and
+	// re-rendered the parent one frame late (#691).
+	const clampedMembersPageIndex = useOffsetPageClamp({
 		pageIndex: membersPageIndex,
-		setPageIndex: setMembersPageIndex,
 		size: membersController.size,
 		count: membersQuery.data?.count,
 		resetKeys: [
@@ -124,6 +119,17 @@ export const useStaffTenantProfileMembers = ({
 			membersController.size,
 		],
 	});
+	if (clampedMembersPageIndex !== membersPageIndex) {
+		setMembersPageIndex(clampedMembersPageIndex);
+	}
+	const memberRows = useMemo(
+		() => toStaffTenantProfileMemberRows(membersQuery.data?.users),
+		[membersQuery.data?.users],
+	);
+	const memberColumns = useMemo(
+		() => makeProfileMemberColumns(tenantId, t, language),
+		[language, tenantId, t],
+	);
 
 	return {
 		detailQuery,

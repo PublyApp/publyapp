@@ -34,54 +34,67 @@ const areResetKeysEqual = (
 	previous.length === next.length &&
 	previous.every((value, index) => Object.is(value, next[index]));
 
-/**
- * Wires `clampOffsetPageIndex` into a `pageIndex` state setter as the ONE
- * effect governing that state — the shared shape used by every
- * local-offset-pagination surface (as opposed to the cursor-history
- * pagination `useCursorPagination` owns), so the fix for #999 lives in one
- * place rather than being re-implemented (and re-drifted) per route.
- *
- * `resetKeys` names everything that means "the reader deliberately navigated
- * away from this listing" — tenant/profile identity, committed search, sort,
- * page size, and so on. It is deliberately folded into THIS effect rather
- * than left as a separate "reset pageIndex to 0" effect at the call site:
- * two separate effects both read the pre-update `pageIndex` from the same
- * render, so when a resetKey change lands in the same commit as a clamp
- * against an already-warm cached count for the destination query, the clamp
- * would win with a stale, clamped-but-nonzero page instead of the intended
- * reset to page 0 (review follow-up to #999 - a warm cache, not just a
- * missing count, can strand the reader on the wrong page). Folding both into
- * one effect makes "reset wins" true by construction: a resetKeys change
- * always clamps from page 0, never from the stale pageIndex.
- */
-export const useOffsetPageClamp = ({
-	pageIndex,
-	setPageIndex,
-	size,
-	count,
-	resetKeys,
-}: {
+type UseOffsetPageClampOptions = {
 	pageIndex: number;
-	setPageIndex: (nextPageIndex: number) => void;
 	size: number;
 	count: number | null | undefined;
 	resetKeys: readonly unknown[];
-}): void => {
+};
+
+/**
+ * Pure derivation of the pageIndex that should actually be used, given the
+ * caller's current intent (`pageIndex`) and the destination query's known
+ * count. The caller owns the state; this hook returns the value to commit
+ * and the caller uses React's documented adjust-state-while-rendering
+ * pattern to apply it (the same pattern `useCursorPagination` uses for
+ * generation changes and the table-controller uses for the search draft).
+ *
+ * `resetKeys` names everything that means "the reader deliberately navigated
+ * away from this listing" — tenant/profile identity, committed search, sort,
+ * page size, and so on. It is deliberately folded into THIS derivation
+ * rather than left as a separate "reset pageIndex to 0" effect at the call
+ * site: two separate rules would both read the pre-update `pageIndex` from
+ * the same render, so when a resetKey change lands in the same commit as a
+ * clamp against an already-warm cached count for the destination query, the
+ * clamp would win with a stale, clamped-but-nonzero page instead of the
+ * intended reset to page 0 (review follow-up to #999 - a warm cache, not
+ * just a missing count, can strand the reader on the wrong page). Folding
+ * both into one in-render derivation makes "reset wins" true by
+ * construction: a resetKeys change always clamps from page 0, never from
+ * the stale pageIndex.
+ *
+ * #691: the previous shape of this hook called `setPageIndex(clamped)` from
+ * a `useEffect` to push the clamped value back up to the parent's state.
+ * That violated `no-pass-live-state-to-parent` / `no-pass-data-to-parent`:
+ * a child hook cannot mutate a parent's state, and the parent would
+ * re-render with the clamped value one frame later than the children that
+ * read `pageIndex` directly, producing a stale-paint flicker after the
+ * count landed. The hook is now a pure derivation: the caller calls
+ * `setPageIndex(clamped)` from inside its own render, in the
+ * adjust-state-while-rendering pattern, so the new pageIndex is committed
+ * before the same render's paint — no post-paint effect, no
+ * parent-state mutation from a child.
+ */
+export const useOffsetPageClamp = ({
+	pageIndex,
+	size,
+	count,
+	resetKeys,
+}: UseOffsetPageClampOptions): number => {
 	const previousResetKeysRef = useRef(resetKeys);
 
+	const resetKeysChanged = !areResetKeysEqual(
+		previousResetKeysRef.current,
+		resetKeys,
+	);
+	// Commit the latest resetKeys to the ref AFTER the render commits -
+	// writing during render triggers `no-ref-current-in-render`. The
+	// in-render derivation above only READS the ref, so the next render
+	// sees the most recent value.
 	useEffect(() => {
-		const resetKeysChanged = !areResetKeysEqual(
-			previousResetKeysRef.current,
-			resetKeys,
-		);
 		previousResetKeysRef.current = resetKeys;
+	}, [resetKeys]);
 
-		const basePageIndex = resetKeysChanged ? 0 : pageIndex;
-		const clamped = clampOffsetPageIndex(basePageIndex, size, count);
-
-		if (clamped !== pageIndex) {
-			setPageIndex(clamped);
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps -- resetKeys is a variable-length array spread into this static-shaped effect (each call site always passes the same number of keys); setPageIndex identity is not part of the trigger condition
-	}, [...resetKeys, pageIndex, size, count]);
+	const basePageIndex = resetKeysChanged ? 0 : pageIndex;
+	return clampOffsetPageIndex(basePageIndex, size, count);
 };
