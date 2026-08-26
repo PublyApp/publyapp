@@ -4,6 +4,8 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import { staffTenantProfileDetailsQueryOptions } from '~/lib/query/staff-tenant-profiles';
+import { staffTenantDetailsQueryOptions } from '~/lib/query/staff-tenants';
 import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import {
@@ -226,5 +228,38 @@ export const Route = createFileRoute(
 	},
 	validateSearch: (search) =>
 		parseProfileDetailsSearchParams(search as ProfileDetailsSearchParamInput),
+	/**
+	 * #851 — the one sanctioned client `loader` (see conventions.md §Rendering
+	 * Strategy). It awaits the SAME query options the page body queries, so
+	 * both entity names are in TanStack Query's cache before the first frame:
+	 * the shell's entity crumbs paint their real names immediately, with no
+	 * skeleton phase on a cold deep link. The component-side `useQuery` hooks
+	 * below are untouched — they dedupe against this warmed cache.
+	 */
+	loader: async ({ context, params }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData({
+				queryKey: staffTenantDetailsQueryOptions.queryKey({
+					tenantId: params.tenantId,
+				}),
+				queryFn: () =>
+					staffTenantDetailsQueryOptions.fetcher({
+						tenantId: params.tenantId,
+					}),
+			}),
+			context.queryClient.ensureQueryData({
+				queryKey: staffTenantProfileDetailsQueryOptions.queryKey({
+					tenantId: params.tenantId,
+					profileId: params.profileId,
+				}),
+				queryFn: () =>
+					staffTenantProfileDetailsQueryOptions.fetcher({
+						tenantId: params.tenantId,
+						profileId: params.profileId,
+					}),
+			}),
+		]);
+	},
+	pendingComponent: ProfileDetailsLoading,
 	component: StaffTenantProfileDetailsPage,
 });
