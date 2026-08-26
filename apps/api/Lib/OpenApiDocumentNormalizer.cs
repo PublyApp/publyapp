@@ -57,6 +57,42 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 		}
 	}
 
+	/// <summary>
+	/// Folds <c>oneOf: [{type: null}, {$ref: T}]</c> into
+	/// <c>type: [T, "null"]</c> plus an allOf $ref for every component schema.
+	/// .NET 10's OpenAPI generator emits that oneOf shape for C# reference-typed
+	/// nullable properties (response projections AND FluentValidation request
+	/// bodies alike). Kiota materializes such a union as <c>T | empty-marker</c>
+	/// whose marker deserializer always wins, silently swallowing the real
+	/// payload into <c>additionalData</c> — the generated fallback branch is
+	/// dead code (#639 e2e finding). Reference targets are unresolved proxies
+	/// at document-transform time, so the fold applies uniformly; request
+	/// builders consume the folded shape through the same untyped factories.
+	/// </summary>
+	private static void FoldNullableReferenceUnions(IOpenApiSchema? schema) {
+		if (schema is not OpenApiSchema concrete
+			|| concrete.OneOf is not { Count: 2 } oneOf) {
+			return;
+		}
+
+		var hasNullMember = oneOf.Any(
+			member => member.Type.HasValue
+				&& member.Type.Value.HasFlag(JsonSchemaType.Null)
+		);
+		if (!hasNullMember) {
+			return;
+		}
+
+		var refMember = oneOf.OfType<OpenApiSchemaReference>().FirstOrDefault();
+		if (refMember is null) {
+			return;
+		}
+
+		concrete.Type = refMember.Type | JsonSchemaType.Null;
+		(concrete.AllOf ??= []).Add(refMember);
+		concrete.OneOf = null;
+	}
+
 	private static void SortParameters(IList<IOpenApiParameter>? parameters, string path) {
 		if (parameters is null
 			|| parameters.Count < 2) {
@@ -126,6 +162,8 @@ public sealed class OpenApiDocumentNormalizer : IOpenApiDocumentTransformer {
 			|| !visitedSchemas.Add(schema)) {
 			return;
 		}
+
+		FoldNullableReferenceUnions(schema);
 
 		schema.Description = NormalizeNewlines(schema.Description);
 

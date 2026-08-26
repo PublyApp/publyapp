@@ -236,6 +236,12 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({}),
+	// The create-post drawer's image hooks call useMutation; without it the
+	// drawer surface guard cannot render the real component.
+	useMutation: () => ({
+		mutateAsync: () => Promise.resolve(undefined),
+		isPending: false,
+	}),
 }));
 
 vi.mock('~/lib/query/tenant-projects', () => ({

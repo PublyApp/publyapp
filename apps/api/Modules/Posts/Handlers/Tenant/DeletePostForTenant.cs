@@ -19,6 +19,7 @@ public sealed class DeletePostForTenant {
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostService postService,
+		[FromServices] IPostMediaAssetService postMediaAssets,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -44,6 +45,13 @@ public sealed class DeletePostForTenant {
 			);
 		}
 
+		// Cascade phase 1: stage the image-asset hard delete in this request's
+		// unit of work BEFORE deleting the post. DeleteForTenantAsync's
+		// SaveChanges then commits both atomically (shared scoped DbContext).
+		var stagedPaths = await postMediaAssets.StagePurgeOnPostDeleteAsync(
+			tenantId, postIdGuid, cancellationToken
+		);
+
 		var deleted = await postService.DeleteForTenantAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
@@ -54,6 +62,10 @@ public sealed class DeletePostForTenant {
 				ResponseKeys.NotFound
 			);
 		}
+
+		// Cascade phase 2 (#807 F5): release blob references only AFTER the
+		// deletion is durable; physical deletion stays exclusively sweeper's.
+		await postMediaAssets.ReleaseReferencesAsync(stagedPaths, cancellationToken);
 
 		await auditLogService.LogAsync(
 			new CreateAuditLogArgs(

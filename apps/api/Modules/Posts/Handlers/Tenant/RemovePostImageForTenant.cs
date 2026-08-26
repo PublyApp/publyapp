@@ -4,21 +4,22 @@ using Microsoft.AspNetCore.Mvc;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
-using PublyApp.Api.Modules.Posts.Entities;
+using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
-public sealed class GetPostForTenant {
+public sealed class RemovePostImageForTenant {
 	public static async Task<Results<
-		Ok<PostDetail>,
+		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
 		AppNotFoundHttpResult
 	>> Handle(
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
-		[FromServices] IPostService postService,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -43,43 +44,45 @@ public sealed class GetPostForTenant {
 			);
 		}
 
-		var post = await postService.GetByIdForTenantAsync(
+		// Same isolation point as attach: foreign-tenant posts are invisible.
+		var post = await assetService.FindOwnedPostAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
-
 		if (post is null) {
 			return TypedProblems.NotFound(
 				"Post not found",
-				ResponseKeys.NotFound
+				ResponseKeys.PostNotFound
 			);
 		}
 
-		var asset = await assetService.FindByPostAsync(
+		var removed = await assetService.RemoveAsync(
 			tenantId, postIdGuid, cancellationToken
 		);
+		if (!removed) {
+			return TypedProblems.NotFound(
+				"No image is attached to this post",
+				ResponseKeys.PostImageMissing
+			);
+		}
 
-		return TypedResults.Ok(new PostDetail {
-			Id = post.GetRequiredId(),
-			TenantId = post.TenantId,
-			ProjectId = post.ProjectId,
-			Status = PostWire.FormatStatus(post.Status),
-			Body = post.Body,
-			CreatedByUserId = post.CreatedByUserId,
-			CreatedAt = post.CreatedAt,
-			UpdatedAt = post.UpdatedAt,
-			Image = PostWire.FormatImage(asset),
-		});
+		await auditLogService.LogAsync(
+			new CreateAuditLogArgs(
+				UserId: account.UserId,
+				Action: AuditActions.PostUpdated,
+				TargetId: postIdGuid,
+				Details: new {
+					TenantId = tenantId,
+					ImageRemoved = true,
+				}
+			),
+			cancellationToken
+		);
+
+		return TypedResults.Ok(
+			ApiResponse.Create(
+				"Post image removed successfully",
+				ResponseKeys.PostImageRemovedSuccess
+			)
+		);
 	}
-}
-
-public record PostDetail {
-	public required Guid Id { get; init; }
-	public required Guid TenantId { get; init; }
-	public required Guid? ProjectId { get; init; }
-	public required string Status { get; init; }
-	public required string Body { get; init; }
-	public required Guid CreatedByUserId { get; init; }
-	public required DateTime CreatedAt { get; init; }
-	public required DateTime UpdatedAt { get; init; }
-	public required PostImageReadModel? Image { get; init; }
 }

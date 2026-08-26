@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PublyApp.Api.Data.DbContext;
@@ -11,9 +12,11 @@ using PublyApp.Api.Data.DbContext;
 namespace PublyApp.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260825151443_AddPostMediaAssets")]
+    partial class AddPostMediaAssets
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,11 +41,6 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("FriendlyName")
-                        .IsUnique()
-                        .HasDatabaseName("ux_data_protection_keys_canary_friendly_name")
-                        .HasFilter("\"FriendlyName\" = 'social-accounts-master-key-canary'");
 
                     b.ToTable("data_protection_keys", (string)null);
                 });
@@ -928,75 +926,6 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("email_log");
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailLogEvidenceEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<string>("ActorId")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("actor_id");
-
-                    b.Property<string>("ActorKind")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("actor_kind");
-
-                    b.Property<string>("Details")
-                        .IsRequired()
-                        .HasColumnType("jsonb")
-                        .HasColumnName("details");
-
-                    b.Property<Guid>("EmailLogId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("email_log_id");
-
-                    b.Property<string>("Event")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("event");
-
-                    b.Property<int>("NewOutcome")
-                        .HasColumnType("integer")
-                        .HasColumnName("new_outcome");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("occurred_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int>("PriorOutcome")
-                        .HasColumnType("integer")
-                        .HasColumnName("prior_outcome");
-
-                    b.Property<string>("ProviderEventId")
-                        .HasColumnType("text")
-                        .HasColumnName("provider_event_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_email_log_evidence_events");
-
-                    b.HasIndex("ProviderEventId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_email_log_evidence_events_provider_event_id")
-                        .HasFilter("provider_event_id IS NOT NULL");
-
-                    b.HasIndex("EmailLogId", "OccurredAt")
-                        .HasDatabaseName("ix_email_log_evidence_events_email_log_id");
-
-                    b.ToTable("email_log_evidence_events", t =>
-                        {
-                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_id", "length(actor_id) > 0 AND length(actor_id) <= 512");
-
-                            t.HasCheckConstraint("ck_email_log_evidence_events_actor_kind", "actor_kind IN ('provider_webhook', 'provider_reconciliation')");
-                        });
-                });
-
             modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailPreparedSend", b =>
                 {
                     b.Property<Guid>("JobId")
@@ -1380,98 +1309,6 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("projects", t =>
                         {
                             t.HasCheckConstraint("CK_Project_Status", "status IN (10, 20)");
-                        });
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.Publication", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id")
-                        .HasDefaultValueSql("uuidv7()");
-
-                    b.Property<int>("Attempts")
-                        .HasColumnType("integer")
-                        .HasColumnName("attempts");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<string>("ExternalRecordId")
-                        .HasColumnType("text")
-                        .HasColumnName("external_record_id");
-
-                    b.Property<string>("ExternalUrl")
-                        .HasColumnType("text")
-                        .HasColumnName("external_url");
-
-                    b.Property<string>("IdempotencyKey")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("idempotency_key");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_deleted");
-
-                    b.Property<string>("LastError")
-                        .HasColumnType("text")
-                        .HasColumnName("last_error");
-
-                    b.Property<Guid>("PostId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("post_id");
-
-                    b.Property<DateTime>("ScheduledAtUtc")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("scheduled_at_utc");
-
-                    b.Property<string>("ScheduledTimeZone")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("scheduled_time_zone");
-
-                    b.Property<Guid>("SocialAccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("social_account_id");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("tenant_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SocialAccountId");
-
-                    b.HasIndex("PostId", "SocialAccountId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_publications_post_account")
-                        .HasFilter("is_deleted = false");
-
-                    b.HasIndex("Status", "ScheduledAtUtc")
-                        .HasDatabaseName("ix_publications_status_scheduled_at");
-
-                    b.HasIndex("TenantId", "ScheduledAtUtc", "Id")
-                        .HasDatabaseName("ix_publications_tenant_scheduled_at_id");
-
-                    b.ToTable("publications", t =>
-                        {
-                            t.HasCheckConstraint("CK_Publication_Status", "status IN (10, 20, 30, 40, 50)");
                         });
                 });
 
@@ -2175,18 +2012,6 @@ namespace PublyApp.Api.Migrations
                         .HasConstraintName("fk_job_dead_letter_events_dead_letter_id");
                 });
 
-            modelBuilder.Entity("PublyApp.Api.Modules.Messaging.Entities.EmailLogEvidenceEvent", b =>
-                {
-                    b.HasOne("PublyApp.Api.Modules.Messaging.Entities.EmailLog", "EmailLog")
-                        .WithMany()
-                        .HasForeignKey("EmailLogId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_email_log_evidence_events_email_log_id");
-
-                    b.Navigation("EmailLog");
-                });
-
             modelBuilder.Entity("PublyApp.Api.Modules.Posts.Entities.Post", b =>
                 {
                     b.HasOne("PublyApp.Api.Modules.Users.Entities.User", "CreatedByUser")
@@ -2273,33 +2098,6 @@ namespace PublyApp.Api.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("PublyApp.Api.Modules.Publishing.Entities.Publication", b =>
-                {
-                    b.HasOne("PublyApp.Api.Modules.Posts.Entities.Post", "Post")
-                        .WithMany()
-                        .HasForeignKey("PostId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount", "SocialAccount")
-                        .WithMany()
-                        .HasForeignKey("SocialAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Post");
-
-                    b.Navigation("SocialAccount");
 
                     b.Navigation("Tenant");
                 });

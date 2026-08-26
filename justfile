@@ -479,7 +479,7 @@ docker-down:
 
 # Generate API response translation key constants
 generate-response-keys:
-  dotnet run --project {{scripts_cs_dir}}/PublyApp.Scripts.csproj -- generate-translation-keys {{shared_dir}}/lib/i18n/json/response-message.en.json {{api_dir}}/Localization/ResponseKeys.g.cs
+  dotnet run --project {{scripts_cs_dir}}/PublyApp.Scripts.csproj -- generate-translation-keys {{shared_dir}}/src/lib/i18n/json/response-message.en.json {{api_dir}}/Localization/ResponseKeys.g.cs
 
 # =============================================================================
 # Client generation (Kiota)
