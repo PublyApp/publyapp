@@ -67,7 +67,7 @@ champ au moment du preload d'intention. Deux candidats ont été tranchés :
   (survol ET viewport ET navigation) sans modifier chaque route ni dépendre d'une option
   inexistante dans cette version du routeur.
 * **Rejeté — loader partagé ajouté à chaque route** : un `loader` par route qui ferait le même
-  travail. Rejeté car il duplique le mécanisme 65 fois, se confond avec le futur loader client
+  travail. Rejeté car il duplique le mécanisme 60 fois, se confond avec le futur loader client
   sanctionné de #1527 (qui, lui, DOIT bloquer), et transforme une déclaration déclarative en
   plomberie répétée.
 * **Rejeté — `beforeLoad({ cause })`** : tourne aussi pour `cause: 'preload'`, mais ajoute une
@@ -310,8 +310,9 @@ réseau émises pour cette ressource (doit rester 1, preuve anti-double-fetch).
   doc du paquet, PAS encore exécuté dans le harnais vitest de ce repo : T1 contient le cas de test
   qui tranche ; l'échec déclenche le STOP-and-report §8.
 * Le garde T3 suppose que chaque page pilote monte ses hooks de requête dans un rendu de test
-  isolé sans stack serveur ; vrai pour les deux pilotes choisis, non généralisé à toutes les 65
-  routes authed (les routes non couvertes par le rendu de test restent hors assujettissement du
-  garde jusqu'à leur migration, ce qui est explicite plutôt que silencieux).
+  isolé sans stack serveur ; vrai pour les deux pilotes choisis, non généralisé à toutes les 60
+  routes authed (63 ids dans `routeTree.gen.ts` moins les 3 nœuds de layout ; les routes non
+  couvertes par le rendu de test restent hors assujettissement du garde jusqu'à leur migration,
+  ce qui est explicite plutôt que silencieux).
 * Les chiffres de mesure §9 sont des seuils ATTENDUS (mock 500 ms), pas des mesures relevées :
   ils le seront dans T6 et collés dans la PR.
