@@ -146,6 +146,10 @@ const EN_LABELS: TestLabelMap = {
 		'Choose which organization you want to access',
 	'failed-to-load-organizations': 'Failed to load organizations',
 	'no-organizations-found': 'No organizations found',
+	'all-organizations-deleted-title':
+		'Your organizations are no longer available',
+	'all-organizations-deleted-description':
+		'All of your organizations have been removed by their administrators. If you believe this is a mistake, contact support.',
 	'suspended-tenants-banner':
 		'Some of your organizations have been suspended and are temporarily unavailable. Please contact support for assistance.',
 	'contact-support': 'Contact Support',
@@ -207,6 +211,7 @@ const resolveSingleActiveTenant = () => {
 			tenants: [activeTenant('t-1', 'Acme')],
 			activeCount: 1,
 			totalCount: 1,
+			hasDeletedTenants: false,
 			hasSuspendedTenants: false,
 		},
 	});
@@ -218,6 +223,7 @@ const setTwoActiveTenants = () => {
 			tenants: [activeTenant('t-1', 'Acme'), activeTenant('t-2', 'TechStart')],
 			activeCount: 2,
 			totalCount: 2,
+			hasDeletedTenants: false,
 			hasSuspendedTenants: false,
 		},
 	});
@@ -275,12 +281,41 @@ describe('TenantPortalRoute', () => {
 				tenants: [],
 				activeCount: 0,
 				totalCount: 0,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: false,
 			},
 		});
 		render(<TenantPortalRoute />);
 		expect(screen.getByTestId('tenant-portal-empty')).toBeTruthy();
 		expect(screen.getByText('No organizations found')).toBeTruthy();
+	});
+
+	test('#258: renders the deletion notice when every tenant was soft-deleted', () => {
+		// Different angle from `_tenant-picker-states.test.tsx`: that file
+		// drives the presentational component directly, this one drives the
+		// full route and pins that the `hasDeletedTenants` query field is what
+		// the wire payload carries through to the empty state.
+		setQuery({
+			data: {
+				tenants: [],
+				activeCount: 0,
+				totalCount: 0,
+				hasDeletedTenants: true,
+				hasSuspendedTenants: false,
+			},
+		});
+		render(<TenantPortalRoute />);
+
+		// Same surface as the generic empty state — the MESSAGE is what tells
+		// the orphaned user apart from one who was never invited anywhere.
+		expect(screen.getByTestId('tenant-portal-empty')).toBeTruthy();
+		expect(
+			screen.getByText('Your organizations are no longer available'),
+		).toBeTruthy();
+		expect(screen.queryByText('No organizations found')).toBeNull();
+
+		// The deleted case carries the portal's real exit action.
+		expect(screen.getByTestId('tenant-portal-logout-button')).toBeTruthy();
 	});
 
 	test('the workspace root redirects to the first section once a workspace resolves', () => {
@@ -304,6 +339,7 @@ describe('TenantPortalRoute', () => {
 				],
 				activeCount: 1,
 				totalCount: 2,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: true,
 			},
 		});
@@ -398,6 +434,7 @@ describe('TenantPortalRoute', () => {
 				],
 				activeCount: 2,
 				totalCount: 3,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: true,
 			},
 		});
@@ -479,6 +516,7 @@ describe('TenantPortalRoute', () => {
 				],
 				activeCount: 2,
 				totalCount: 2,
+				hasDeletedTenants: false,
 				hasSuspendedTenants: false,
 			},
 		});

@@ -3389,6 +3389,7 @@ export function deserializeIntoGetUserAuthDataResult(getUserAuthDataResult: Part
 export function deserializeIntoGetUserTenantsForPickerResponse(getUserTenantsForPickerResponse: Partial<GetUserTenantsForPickerResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "activeCount": n => { getUserTenantsForPickerResponse.activeCount = n.getNumberValue(); },
+        "hasDeletedTenants": n => { getUserTenantsForPickerResponse.hasDeletedTenants = n.getBooleanValue(); },
         "hasSuspendedTenants": n => { getUserTenantsForPickerResponse.hasSuspendedTenants = n.getBooleanValue(); },
         "tenants": n => { getUserTenantsForPickerResponse.tenants = n.getCollectionOfObjectValues<TenantForPickerItem>(createTenantForPickerItemFromDiscriminatorValue); },
         "totalCount": n => { getUserTenantsForPickerResponse.totalCount = n.getNumberValue(); },
@@ -5112,6 +5113,10 @@ export interface GetUserTenantsForPickerResponse extends AdditionalDataHolder, P
      */
     activeCount?: number | null;
     /**
+     * The hasDeletedTenants property
+     */
+    hasDeletedTenants?: boolean | null;
+    /**
      * The hasSuspendedTenants property
      */
     hasSuspendedTenants?: boolean | null;
@@ -6809,6 +6814,7 @@ export function serializeGetUserAuthDataResult(writer: SerializationWriter, getU
 export function serializeGetUserTenantsForPickerResponse(writer: SerializationWriter, getUserTenantsForPickerResponse: Partial<GetUserTenantsForPickerResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!getUserTenantsForPickerResponse || isSerializingDerivedType) { return; }
     writer.writeNumberValue("activeCount", getUserTenantsForPickerResponse.activeCount);
+    writer.writeBooleanValue("hasDeletedTenants", getUserTenantsForPickerResponse.hasDeletedTenants);
     writer.writeBooleanValue("hasSuspendedTenants", getUserTenantsForPickerResponse.hasSuspendedTenants);
     writer.writeCollectionOfObjectValues<TenantForPickerItem>("tenants", getUserTenantsForPickerResponse.tenants, serializeTenantForPickerItem);
     writer.writeNumberValue("totalCount", getUserTenantsForPickerResponse.totalCount);

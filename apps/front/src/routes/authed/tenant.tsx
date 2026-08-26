@@ -186,7 +186,11 @@ const TenantPortalRoute = () => {
 				>
 					{({ data }) =>
 						data.totalCount === 0 ? (
-							<TenantPortalEmptyState />
+							// #258: same surface for both empty situations, but the
+							// all-deleted case must explain itself and offer an action.
+							<TenantPortalEmptyState
+								hasDeletedTenants={data.hasDeletedTenants}
+							/>
 						) : (
 							<TenantPortalPickerView
 								data={data}
