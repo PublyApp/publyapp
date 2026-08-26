@@ -436,14 +436,88 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = page2Ids.Should().NotIntersectWith(page1Ids);
 	}
 
+	[Fact]
+	public async Task
+	ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+		string tag = Guid.NewGuid().ToString("N")[..8];
+		List<string> emails = [];
+		for (int i = 0; i < 3; i++) {
+			string email = $"email-walk-{tag}-{i}-{Guid.NewGuid():N}@example.com";
+			await CreateStaffInvitationAsync(staffToken, email);
+			emails.Add(email);
+		}
+		emails.Sort(StringComparer.OrdinalIgnoreCase);
+
+		List<string> visitedEmails = [];
+		string? cursor = null;
+		int pages = 0;
+		do {
+			using HttpResponseMessage response = await _http.SendAsync(
+				CreateFindRequest(
+					staffToken,
+					limit: 1,
+					sortId: "email",
+					sortOrder: "asc",
+					cursor: cursor
+				)
+			);
+
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+			FindResponse? page = await response.Content
+				.ReadFromJsonAsync<FindResponse>();
+			_ = page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedEmails.AddRange(page.Data.Select(item => item.Email));
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
+			_ = pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers the whole list: no row may repeat, and our three
+		// rows must come out once each, in keyset order relative to each other.
+		_ = visitedEmails.Should().OnlyHaveUniqueItems();
+		_ = visitedEmails.Where(emails.Contains).Should().Equal(emails);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldAcceptAnUppercaseSortId() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(staffToken, limit: 5, sortId: "CREATED_AT")
+		);
+
+		// The handler dictionary resolves keys case-insensitively; an
+		// ordinal-sensitive lookup would turn this into a 400.
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
+		string staffToken = await _authClient.LoginAsStaffAdminAsync();
+
+		using HttpResponseMessage response = await _http.SendAsync(
+			CreateFindRequest(staffToken, cursor: Guid.NewGuid().ToString())
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
 	private static HttpRequestMessage CreateFindRequest(
 		string staffToken,
 		string? status = null,
 		int? limit = null,
 		string? sortId = null,
+		string? sortOrder = null,
 		string? cursor = null
 	) {
-		string url = GetFindUrl(status, limit, sortId, cursor);
+		string url = GetFindUrl(status, limit, sortId, sortOrder, cursor);
 		return new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(staffToken);
 	}
@@ -452,6 +526,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string? status = null,
 		int? limit = null,
 		string? sortId = null,
+		string? sortOrder = null,
 		string? cursor = null
 	) {
 		var queryParams = new List<string>();
@@ -466,6 +541,10 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 
 		if (sortId is not null) {
 			queryParams.Add($"sort_id={Uri.EscapeDataString(sortId)}");
+		}
+
+		if (sortOrder is not null) {
+			queryParams.Add($"sort_order={Uri.EscapeDataString(sortOrder)}");
 		}
 
 		if (cursor is not null) {

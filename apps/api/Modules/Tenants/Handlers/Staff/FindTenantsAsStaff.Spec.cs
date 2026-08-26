@@ -730,6 +730,29 @@ public sealed class FindTenantsAsStaffSpec
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
+	[Fact]
+	public async Task ItShouldAcceptAnUppercaseSortId() {
+		var token =
+			await _authClient.LoginAsStaffAdminAsync();
+
+		var url = TenantTestHelper.GetFindUrl(
+			limit: 5,
+			sortId: "NAME",
+			sortOrder: "ASC"
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await _http.SendAsync(request);
+
+		// The handler dictionary resolves keys case-insensitively; an
+		// ordinal-sensitive lookup would turn this into a 400.
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+	}
+
 	private record StaffProfileCreatedResponse {
 		public Guid ProfileId { get; init; }
 	}
