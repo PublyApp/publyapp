@@ -46,3 +46,17 @@ Task order adjusted per the brief's "continue with tasks that do not [need C2]":
   verify no C2 dependency before starting.
 - Tasks 4, 6, 8 reference `tenant.socialaccounts.publish` / C2 hook inputs —
   expected blocked like Task 2.
+
+## Mise à jour dépendances C2 (post-Tâche 6/7)
+
+- **Tâche 4** : BLOQUÉE. Le endpoint exige `.WithTenantPermission([AppPermissions.Tenant.SocialAccounts.PUBLISH])`
+  et le cas de spec « sans la permission → 403 » requiert ce même symbole (C2 uniquement).
+  Sans lui aucun appelant autorisé n'est même testable.
+- **Tâche 8** : BLOQUÉE transitivement. La mutation publishNow appelle l'opération Kiota
+  `publishNow`, générée depuis le endpoint de la Tâche 2 (bloquée C2). Tout le reste du
+  contrat du bloc est prêt (hook Tâche 6 + testids).
+- **Tâche 7** : PARTIELLE, livrée. Regen Kiota effectuée → `findPublications` disponible ;
+  couche `tenant-publications.ts` (builder CSV statut, mapper lignes, clé scopée,
+  invalidation) verte 9/9. `publishNowMutation` + `getPublishTargets` attendent les
+  endpoints des Tâches 2/4.
+- **Tâche 9** : exécutable en entier (contrat de lecture réel existe).
