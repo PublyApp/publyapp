@@ -84,19 +84,54 @@ Extension dans un nouveau module typé (même pattern que `breadcrumbs.ts`) :
 
 ```ts
 // apps/front/src/lib/navigation/route-preload.ts
-export type RoutePreloadEntry<TVariables extends Record<string, unknown>> = {
-	options: { queryKey: (variables: TVariables) => readonly unknown[]; fetcher: (variables: TVariables) => Promise<unknown> };
-	variables: TVariables;
+import type { QueryKey } from '@tanstack/react-query';
+
+// Shared-factory shape produced by `buildStaffQueryOptions` (packages/shared-ts
+// create-hooks.ts:415): `{ queryKey(vars), fetcher(vars) }`. The entry couples a
+// `options` factory (defaulted to `any` variables so ANY concrete factory fits)
+// with the `variables` it is called with. This is the SAME shape the page body
+// and the crumbs already consume — so a `preload` entry cannot introduce a
+// second fetch path (§4, first guard tier).
+export type RoutePreloadFactory<
+	TVariables extends Record<string, unknown> = Record<string, unknown>,
+> = {
+	queryKey: (variables: TVariables) => QueryKey;
+	fetcher: (variables: TVariables) => Promise<unknown>;
 };
-export type RoutePreload =
-	| ((args: { params: Record<string, string> }) => readonly RoutePreloadEntry<never>[]);
+
+export type RoutePreloadEntry = {
+	options: RoutePreloadFactory<any>;
+	variables: Record<string, unknown>;
+};
+
+// The generic lives on the FUNCTION: `preload` is `(args) => readonly
+// RoutePreloadEntry[]`, NOT `RoutePreloadEntry<never>[]`. Freezing the entry to
+// `never` (r1 draft) made `variables: never` and every `variables: { tenantId }`
+// literal a type error — the §1 / T2 example would not compile. Here the
+// function returns a plain `readonly RoutePreloadEntry[]`; each literal entry's
+// `options` is checked against the factory *shape* and its `variables` flows
+// through. Verified to compile against the real `staffTenantDetailsQueryOptions`
+// / `staffTenantProfileDetailsQueryOptions` factories (proof in `.dump/citations-r2.md`, B1).
+export type RoutePreload = (args: {
+	params: Record<string, string>;
+}) => readonly RoutePreloadEntry[];
+
 // declaration merging :
-interface StaticDataRouteOption { preload?: RoutePreload; }
+declare module '@tanstack/react-router' {
+	interface StaticDataRouteOption {
+		preload?: RoutePreload;
+	}
+}
 ```
 
-La contrainte de forme (`options.queryKey` + `options.fetcher`) rend IMPOSSIBLE de compiler une
-entrée qui ne vient pas d'une factory partagée : TypeScript rejette un littéral ad hoc qui ne
-porte pas exactement ces membres signés par la factory. C'est le premier étage de la garde (§4).
+La contrainte de forme (`options.queryKey` + `options.fetcher`, tous deux
+`(variables) => …`) rend IMPOSSIBLE de compiler une entrée qui ne vient pas d'une
+factory partagée : TypeScript rejette un littéral ad hoc qui ne porte pas
+exactement ces membres signés par la factory. C'est le premier étage de la garde
+(§4). Le couplage exact `variables ↔ factory` (type de `tenantId` dérivé de la
+factory précise) n'est PAS porté statiquement ici — il est vérifié dynamiquement
+par la garde T3 (§4) qui lit la clé concrète `options.queryKey(variables)` et la
+confronte aux clés consommées par la page.
 
 ## 2. Échec de préchargement : silencieux, rien à l'écran (arbitrage appliqué)
 
