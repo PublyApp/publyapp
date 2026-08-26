@@ -55,7 +55,10 @@ type Translate = (key: string) => string;
 
 const getLoginFormSchema = (t: Translate) =>
 	z.object({
-		email: z.string().max(120).email(t('enter-valid-email-address')),
+		email: z
+			.string()
+			.max(120)
+			.pipe(z.email(t('enter-valid-email-address'))),
 		password: z.string().min(1, t('password-is-required')),
 	});
 

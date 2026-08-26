@@ -6,7 +6,7 @@ export const getNewStaffUserSchema = (z: InterZod) => {
 	return z.object({
 		firstName: z.string().min(1).optional(),
 		lastName: z.string().min(1),
-		email: z.string().email(),
+		email: z.email(),
 		accountLevel: z.enum(['Admin', 'User'] as const),
 		sendNotification: z.boolean().optional(),
 		avatar: getFileSchemaClientSide(z).or(z.string()).optional(),

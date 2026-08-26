@@ -11,7 +11,7 @@ type GlobalLike = {
 
 type EnvEntry = {
 	processKeys: readonly string[];
-	schema: z.ZodTypeAny;
+	schema: z.ZodType;
 };
 
 type PublicEnvEntry = EnvEntry & {
@@ -91,7 +91,7 @@ const getProcessEnv = (): ProcessEnv => getGlobalLike()?.process?.env ?? {};
 
 const isBrowser = (): boolean => typeof window !== 'undefined';
 
-const parseZodSchema = <Schema extends z.ZodTypeAny>(
+const parseZodSchema = <Schema extends z.ZodType>(
 	schema: Schema,
 	value: unknown,
 	label: string,

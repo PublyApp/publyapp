@@ -12,7 +12,7 @@ export const isAbsoluteHttpUrl = (value: string): boolean => {
 };
 
 export const isValidEmailAddress = (value: string): boolean =>
-	z.string().trim().email().safeParse(value).success;
+	z.string().trim().pipe(z.email()).safeParse(value).success;
 
 /** Hostname for the preview card's website row; null for an empty or
  * unparsable URL rather than showing a half-typed value while editing. */
