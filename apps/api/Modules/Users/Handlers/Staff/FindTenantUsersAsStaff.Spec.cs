@@ -1168,6 +1168,107 @@ public sealed class FindTenantUsersAsStaffSpec
 		await dbContext.SaveChangesAsync();
 	}
 
+	[Fact]
+	public async Task
+	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
+		var staffToken =
+			await _authClient.LoginAsStaffAdminAsync();
+		var tenantId =
+			await TenantTestHelper
+				.GetTenantIdByNameAsync(
+					_http,
+					staffToken,
+					SeedConstants.Tenants.AcmeName
+				);
+
+		// 3 users with distinct account CreatedAt; the walk must visit each
+		// once in ascending CreatedAt order, with no gap or duplicate.
+		var baseDate = new DateTime(
+			2026, 1, 1, 0, 0, 0, DateTimeKind.Utc
+		);
+		var seededIds = new List<string>();
+		for (var i = 0; i < 3; i++) {
+			seededIds.Add(await SeedTenantUserAtAsync(
+				tenantId,
+				baseDate.AddDays(i)
+			));
+		}
+
+		var visitedIds = new List<string>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = GetFindUrl(
+				tenantId,
+				cursor: cursor,
+				limit: 1,
+				sortId: "created_at",
+				sortOrder: "asc"
+			);
+			var request = new HttpRequestMessage(
+				HttpMethod.Get, url
+			).WithSessionToken(staffToken);
+
+			using var response =
+				await _http.SendAsync(request);
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var page =
+				await response.Content
+					.ReadFromJsonAsync<FindResponse>();
+			page.Should().NotBeNull();
+			Assert.NotNull(page);
+			pages++;
+			visitedIds.AddRange(
+				page.Data.Select(u => u.Id)
+			);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		// The walk covers exactly our rows, each once, in order.
+		visitedIds.Should().OnlyHaveUniqueItems();
+		visitedIds.Should().Contain(seededIds);
+
+		var visitedOrder = visitedIds
+			.Where(seededIds.Contains)
+			.ToList();
+		visitedOrder.Should().Equal(seededIds);
+	}
+
+	private async Task<string> SeedTenantUserAtAsync(
+		Guid tenantId,
+		DateTime createdAt
+	) {
+		await using var scope =
+			_fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		var user = new User {
+			Email = $"tenant-user-walk-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			FirstName = "Walk",
+			LastName = "Fixture",
+			Status = UserStatus.Active,
+			IsVerified = true,
+		};
+		await dbContext.User.AddAsync(user);
+		await dbContext.SaveChangesAsync();
+		var userId = user.GetRequiredId();
+
+		var account =
+			UserAccount.CreateTenantAccount(userId, tenantId);
+		account.CreatedAt = createdAt;
+		await dbContext.UserAccount.AddAsync(account);
+		await dbContext.SaveChangesAsync();
+
+		return userId.ToString();
+	}
+
 	// -- Response DTOs --
 
 	private record FindResponse {
