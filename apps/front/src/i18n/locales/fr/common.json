@@ -1283,5 +1283,6 @@
 	"error-loading-data": "Erreur lors du chargement des données",
 	"not-found": "Introuvable",
 	"leave": "Quitter",
-	"stay": "Rester"
+	"stay": "Rester",
+	"scroll-area-label": "Contenu déroulant"
 }

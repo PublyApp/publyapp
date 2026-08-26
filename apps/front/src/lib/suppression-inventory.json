@@ -118,5 +118,10 @@
 		"convention": "i18n-guard-ignore",
 		"file": "src/routes/__root.tsx",
 		"reason": "no-hardcoded-ui-literal — request-failure payload fields are technical transport metadata, never displayed as UI copy."
+	},
+	{
+		"convention": "i18n-guard-ignore",
+		"file": "src/components/ui/scroll-area.tsx",
+		"reason": "no-hardcoded-ui-literal — SimpleBar engine's internal CSS-class token for a geometry probe node; never rendered as UI copy."
 	}
 ]

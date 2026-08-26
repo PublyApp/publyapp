@@ -3,7 +3,7 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import * as React from 'react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vitest } from 'vitest';
 
 import {
 	Select,
@@ -12,6 +12,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from './select';
+
+vitest.mock('react-i18next', () => ({
+	useTranslation: () => ({
+		// #840: the shared ScrollArea label comes from `common`; resolve it
+		// so assertions can pin the rendered string.
+		t: (key: string) =>
+			key === 'scroll-area-label' ? 'Scrollable content' : key,
+	}),
+}));
 
 const renderSelect = () =>
 	render(
@@ -155,5 +164,36 @@ describe('Select', () => {
 			.closest('[data-slot="select-content"]');
 		expect(popup?.className).toContain('z-(--publy-z-select)');
 		expect(popup?.className).not.toMatch(/z-\[\d+\]/);
+	});
+});
+
+describe('Select content scrolling (#840)', () => {
+	test('the active option scrolls inside the SimpleBar wrapper, not the popup', () => {
+		renderSelect();
+
+		const wrapper = document.querySelector(
+			'.simplebar-content-wrapper',
+		) as HTMLElement | null;
+		expect(wrapper).not.toBeNull();
+		expect(wrapper?.getAttribute('aria-label')).toBe('Scrollable content');
+
+		const active = screen.getByRole('option', { name: 'Beta' });
+		let ancestor: HTMLElement | null = active.parentElement;
+		while (ancestor && ancestor !== wrapper) {
+			ancestor = ancestor.parentElement;
+		}
+		// Base UI drives keyboard auto-scroll with scrollIntoView, which walks
+		// up to the nearest scrollable ancestor; that ancestor must be the
+		// SimpleBar wrapper so scrollTop writes land where SimpleBar tracks.
+		expect(ancestor).toBe(wrapper);
+
+		// The popup itself no longer scrolls: SimpleBar owns it.
+		const popup = document.querySelector('[data-slot="select-content"]');
+		const scroller = [...(popup?.children ?? [])].find((child) =>
+			(child as HTMLElement).className.includes('relative'),
+		);
+		expect(window.getComputedStyle(scroller as Element).overflowY).not.toBe(
+			'auto',
+		);
 	});
 });
