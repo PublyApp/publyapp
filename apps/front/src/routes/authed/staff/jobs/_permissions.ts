@@ -53,14 +53,21 @@ export const useStaffJobPermissions = (): StaffJobPermissions => {
 		queryFn: () => staffJobPermissionsQueryOptions.fetcher({}),
 	});
 
-	const permissions =
-		query.data?.code === 'staff' ? (query.data.permissions ?? []) : [];
+	// Mirror the API-side PermissionFilter semantics: an Admin-level staff
+	// account bypasses per-key checks entirely, so its (often empty) grants
+	// list must not produce a dead UI — every action stays available.
+	const data = query.data;
+	const isStaff = data?.code === 'staff';
+	const isAdmin = isStaff && data?.isAdmin === true;
+	const permissions = isStaff ? (data.permissions ?? []) : [];
 
 	return {
 		isPending: query.isPending,
-		canView: permissions.includes('staff.jobs.view'),
-		canRequeue: permissions.includes('staff.jobs.requeue'),
-		canUpdateSystemJob: permissions.includes('staff.jobs.system_job_update'),
-		canTriggerSystemJob: permissions.includes('staff.jobs.system_job_trigger'),
+		canView: isAdmin || permissions.includes('staff.jobs.view'),
+		canRequeue: isAdmin || permissions.includes('staff.jobs.requeue'),
+		canUpdateSystemJob:
+			isAdmin || permissions.includes('staff.jobs.system_job_update'),
+		canTriggerSystemJob:
+			isAdmin || permissions.includes('staff.jobs.system_job_trigger'),
 	};
 };
