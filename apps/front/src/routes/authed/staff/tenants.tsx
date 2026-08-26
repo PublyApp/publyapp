@@ -97,6 +97,7 @@ const formatTenantStatusFilterLabel = (
 		.join(', ');
 };
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const TenantStatusFilterMenu = ({
 	value,
 	onChange,
@@ -253,6 +254,7 @@ const buildTenantColumns = (
 	},
 ];
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const StaffTenantsPage = () => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const navigate = Route.useNavigate();
@@ -492,6 +494,7 @@ const TENANT_BULK_PARTIAL_SUCCESS_KEYS = {
 	delete: 'tenant-bulk-delete-partial-success',
 } satisfies Record<TenantBulkActionKey, string>;
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const TenantBulkActions = ({
 	rows,
 	selection,
@@ -676,6 +679,7 @@ const TenantBulkActions = ({
 	);
 };
 
+// react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const TenantLifecycleActionsCell = ({
 	tenant,
 	onSessionExpired,

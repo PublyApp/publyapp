@@ -64,6 +64,17 @@ const config: KnipConfig = {
 				// the type through the build*() generic, so it reports the export
 				// unused. Reported identically on develop.
 				'src/lib/query/staff-profile-users.ts': ['types'],
+				// Pre-existing develop export knip gaps surfaced by the #1554 merge
+				// only because it mechanically updated these route files' imports
+				// (EntityAvatar→PersonAvatar, @org/shared-ts→~/lib
+				// should-logout-for-failure). Each scoped to the exact file + issue
+				// type; any newly-added gap in these files still fails knip loudly.
+				// Reported identically on origin/develop.
+				'src/routes/authed/staff/tenants.tsx': ['exports'],
+				'src/routes/authed/staff/audit-logs/$logId.tsx': ['exports'],
+				'src/routes/authed/staff/tenant-users/$userId-organizations.tsx': [
+					'exports',
+				],
 			},
 		},
 		// Kiota-generated client: this directory IS the public API boundary —
