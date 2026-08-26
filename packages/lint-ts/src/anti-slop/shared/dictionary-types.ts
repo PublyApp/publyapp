@@ -173,6 +173,50 @@ function isEffectivelyEmptyInterface(
 	);
 }
 
+/**
+ * #1448 item 1: whether resolving the named reference lands on an
+ * index-signature-only interface opening. A declaration is an opening when
+ * every one of its members is an index signature (at least one); real named
+ * members are contract evidence and close the question, matching the
+ * byte-equivalent type-alias forms the base rule already accepts. A
+ * memberless declaration stays open only through an `extends` chain over
+ * such openings.
+ */
+export function resolvesToIndexSignatureOnlyInterface(
+	name: string,
+	environment: TypeEnvironment,
+	resolving: ReadonlySet<string>,
+): boolean {
+	if (resolving.has(name)) return false;
+	const interfaceDeclarations = environment.interfaces.get(name);
+	if (interfaceDeclarations === undefined) return false;
+	let anyIndexed = false;
+	for (const declaration of interfaceDeclarations) {
+		const members = declaration.body.body;
+		if (members.length === 0) continue;
+		// Declaration merging: one named member anywhere closes the question.
+		if (!members.every((member) => member.type === 'TSIndexSignature'))
+			return false;
+		anyIndexed = true;
+	}
+	// Index-signature-only declaration(s): an immediate opening.
+	if (anyIndexed) return true;
+	const nextResolving = new Set(resolving).add(name);
+	return interfaceDeclarations.some((declaration) =>
+		declaration.extends.some((heritage) => {
+			const extended = unwrapTransparentType(heritage.expression);
+			return (
+				extended.type === 'Identifier' &&
+				resolvesToIndexSignatureOnlyInterface(
+					extended.name,
+					environment,
+					nextResolving,
+				)
+			);
+		}),
+	);
+}
+
 function resolvedSubstitutionArgument(
 	type: ESTree.TSType,
 	base: TypeAliasEnvironment,
@@ -444,6 +488,15 @@ export function classifyWideningTarget(
 			: classifyWideningTarget(wrapped, environment);
 	}
 	if (name === 'Record' && isBuiltIn(name, environment))
+		return { kind: 'open dictionary' };
+	// #1448 item 1: an index-signature-only interface widens exactly like the
+	// byte-equivalent `type … = { [k: string]: T }` literal, so it must
+	// classify as the same open-dictionary target. Interfaces with real named
+	// members stay contracts and are not resolved here.
+	if (
+		environment.interfaces.has(name) &&
+		resolvesToIndexSignatureOnlyInterface(name, environment, new Set())
+	)
 		return { kind: 'open dictionary' };
 	const alias = environment.aliases.get(name);
 	if (alias === undefined) return null;
