@@ -207,39 +207,27 @@ const buildRouter = (queryClient: QueryClient) => {
 		}),
 	);
 
-	// Exposed so the blocking contract can read the live match `status` off
-	// the production route's own match — the honest witness of whether the
-	// loader's `await` has resolved (see the blocking-paint test).
-	(
-		router as unknown as { __profileDetailsRouteId?: string }
-	).__profileDetailsRouteId = indexRoute.id;
-
-	return router;
+	return { router, profileDetailsRouteId: indexRoute.id };
 };
 
-/** Finds the production profile-details route's own match in the live router
- * state. A match's `status` is `'pending'` while its loader is still awaited
- * and flips to `'success'` only once the loader resolves — exactly what the
- * awaited loader buys (and what a fire-and-forget loader defeats). */
-const findProfileDetailsMatch = (
-	router: ReturnType<typeof buildRouter>,
-): { status?: string } | undefined => {
-	const routeId = (router as unknown as { __profileDetailsRouteId?: string })
-		.__profileDetailsRouteId;
-
-	return router.state.matches.find((match) => match.routeId === routeId) as
-		| { status?: string }
-		| undefined;
-};
+/** Reads the production profile-details route's own match `status` from the
+ * live router state. A match's `status` is `'pending'` while its loader is still
+ * awaited and flips to `'success'` only once the loader resolves — exactly what
+ * the awaited loader buys (and what a fire-and-forget loader defeats). */
+const findProfileDetailsMatchStatus = (
+	router: ReturnType<typeof createRouter>,
+	routeId: string,
+): string | undefined =>
+	router.state.matches.find((match) => match.routeId === routeId)?.status;
 
 const renderRouteAtDetailsUrl = async (): Promise<{
 	queryClient: QueryClient;
-	router: ReturnType<typeof buildRouter>;
+	router: ReturnType<typeof createRouter>;
 }> => {
 	const queryClient = new QueryClient({
 		defaultOptions: { queries: { retry: false } },
 	});
-	const router = buildRouter(queryClient);
+	const { router } = buildRouter(queryClient);
 
 	render(
 		<QueryClientProvider client={queryClient}>
@@ -298,7 +286,7 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		const queryClient = new QueryClient({
 			defaultOptions: { queries: { retry: false } },
 		});
-		const router = buildRouter(queryClient);
+		const { router, profileDetailsRouteId } = buildRouter(queryClient);
 
 		render(
 			<QueryClientProvider client={queryClient}>
@@ -311,7 +299,9 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		// painted, the held profile crumb still a skeleton) but the route body
 		// must NOT be mounted.
 		await waitFor(() => {
-			expect(findProfileDetailsMatch(router)?.status).toBe('pending');
+			expect(findProfileDetailsMatchStatus(router, profileDetailsRouteId)).toBe(
+				'pending',
+			);
 		});
 		expect(
 			screen.getAllByTestId('app-shell-breadcrumb-entity-skeleton').length,
@@ -323,7 +313,9 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		releaseProfileFetch?.();
 
 		await waitFor(() => {
-			expect(findProfileDetailsMatch(router)?.status).toBe('success');
+			expect(findProfileDetailsMatchStatus(router, profileDetailsRouteId)).toBe(
+				'success',
+			);
 		});
 		await waitFor(() => {
 			expect(
