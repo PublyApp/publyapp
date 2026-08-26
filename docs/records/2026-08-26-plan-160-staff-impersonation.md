@@ -439,6 +439,21 @@ In the implementation, when `TargetUserId` has a value:
 3. **Nesting guard:** before inserting, query for any existing `sessions` row with `UserId == resolved.UserId && IsImpersonation && ImpersonationExpiresAt > DateTime.UtcNow`; if one exists return `ImpersonationCreateResult.AlreadyImpersonated`. The partial unique index from Global Constraint 1 turns any race that slips past the check into a DB error instead of a double impersonation.
 4. When no account matches at all return `null` from the resolution step and let the method return a typed `ImpersonationResult.NotFound` instead of throwing `InvalidOperationException` — the handler maps that to 404 with `impersonation-user-not-in-tenant`.
 
+**Paired M2 proof spec (round-4 self-review addition — was referenced by the kill map without a definition):** append to `ImpersonationService.Spec.cs`, mirroring the end-path service specs in Task 4:
+
+```csharp
+[Fact]
+public async Task ItShouldCreateSessionAndAuditOnSuccess() {
+	// DIRECT-SERVICE leg (mirrors ItShouldEndSessionEmittingImpersonationEndedAudit):
+	// build the service from the fixture scope; CreateImpersonationSessionAsync
+	// with explicit TargetUserId; then assert BOTH:
+	//   sessions row exists (IsImpersonation == true, correct ImpersonatingStaffUserId);
+	//   exactly ONE impersonation.started audit row with UserId == StaffUserId.
+	// Paired kill = Mutation M2 (delete AddAuditEntry(...) from the creation path):
+	// this spec alone goes RED; everything else stays green.
+}
+```
+
 The explicit-target path returns results because "user not in tenant" / "target is staff" / "already being impersonated" are expected client errors, not programming errors; the throw-based contract of the existing method is preserved for `TargetUserId == null`.
 
 Handler body type and validator:
