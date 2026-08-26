@@ -2,7 +2,7 @@ import { IconPencil } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
-import { deriveProfileCardStyle } from '~/lib/profile-card-style';
+import { deriveProfileCardStyle } from '~/lib/profiles/profile-card-style';
 import type { StaffProfileDetails } from '~/lib/query/staff-profiles';
 
 // Extracted from the details route so the route file stays component-only

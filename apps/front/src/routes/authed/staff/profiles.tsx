@@ -14,7 +14,6 @@ import {
 	toStaffProfileRows,
 	useStaffProfilesQuery,
 } from '~/lib/query/staff-profiles';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import {
 	parseTableSearchParams,
 	serializeTableSearchParams,
@@ -25,6 +24,8 @@ import type {
 	TableSearchParams,
 } from '~/lib/url-state/table-search-params';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { buildColumns } from './_profile-columns';
 import { ProfilesListBulkActions } from './profiles/_profiles-bulk-actions';

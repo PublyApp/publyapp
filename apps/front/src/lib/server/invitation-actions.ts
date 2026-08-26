@@ -7,11 +7,11 @@ import { setCookie } from '@tanstack/react-start/server';
 import { z } from 'zod';
 
 import type { AcceptInvitationBody } from '@org/client-ts/models/index';
+import { PASSWORD_MIN_LENGTH } from '@org/shared-ts/lib/auth-password-policy';
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { selectToken } from '@org/shared-ts/lib/session/parse';
 
 import { createClient } from '../api-client/client-manager';
-import { PASSWORD_MIN_LENGTH } from '../auth-password-policy';
 import { classifyPrecheckFailure } from './precheck-outcome';
 import { throwServerFailure } from './server-failure';
 import {

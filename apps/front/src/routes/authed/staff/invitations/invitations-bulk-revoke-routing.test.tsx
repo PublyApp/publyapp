@@ -90,7 +90,7 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 // The table-columns module owns the per-row actions (resend/revoke single);
 // its machinery is irrelevant to the selection-toolbar flow under test, but
 // the real page still imports it through createInvitationColumns.
-vi.mock('~/lib/should-logout-for-failure', () => ({
+vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 

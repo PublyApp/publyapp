@@ -18,10 +18,10 @@ import {
 import { PageHeader } from '~/components/ui/product-page';
 import { formatDateTime } from '~/lib/format-date-time';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 
 import type { InvitationListItem } from '@org/client-ts/models/index';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { InvitationsListBulkActions } from './_list-bulk-actions';
 import {

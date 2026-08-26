@@ -7,7 +7,8 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import { staffTenantProfileDetailsQueryOptions } from '~/lib/query/staff-tenant-profiles';
 import { staffTenantDetailsQueryOptions } from '~/lib/query/staff-tenants';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
+
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	BackToTenantsLink,

@@ -32,10 +32,10 @@ import {
 	useStaffInvitationDetailsQuery,
 	useStaffInvitationLinkMutation,
 } from '~/lib/query/staff-invitations';
-import { shouldLogoutForFailure } from '~/lib/should-logout-for-failure';
 
 import type { StaffInvitationDetails } from '@org/client-ts/models/index';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	getInvitationStatusLabelKey,

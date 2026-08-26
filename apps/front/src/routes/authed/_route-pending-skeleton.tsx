@@ -1,6 +1,6 @@
 import { IconLoader2 } from '@tabler/icons-react';
 import { useLocation } from '@tanstack/react-router';
-import { isTenantPortalPath } from '~/lib/route-shell';
+import { isTenantPortalPath } from '~/lib/navigation/route-shell';
 
 import { AuthedRouteContentSkeleton } from './_route-content-skeleton';
 
