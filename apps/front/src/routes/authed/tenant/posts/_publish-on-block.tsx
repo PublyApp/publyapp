@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
@@ -54,6 +54,7 @@ export const PublishOnBlock = ({
 
 	// Default = every visible target checked; null until targets resolve.
 	const selectedIds = checkedIds ?? targets.map((target) => target.id);
+	const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
 	const toggleTarget = (id: string, checked: boolean) => {
 		setCheckedIds((previous) => {
@@ -122,7 +123,7 @@ export const PublishOnBlock = ({
 			) : (
 				<div role="group" className="flex flex-wrap gap-2">
 					{targets.map((target) => {
-						const isChecked = selectedIds.includes(target.id);
+						const isChecked = selectedIdSet.has(target.id);
 
 						return (
 							<label

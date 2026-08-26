@@ -40,10 +40,10 @@ describe('toTenantPublishTargets', () => {
 		`01890a5d-ac96-774b-bcce-${seed.toString().padStart(12, '0')}`;
 
 	/** The wire can carry shapes the generated types promise never to send;
-	 * the mapper must survive them. Round-trip through JSON so the noise
-	 * enters exactly as it would off the network. */
+	 * the mapper must survive them. structuredClone strips type narrowing so
+	 * the noise enters exactly as it would off the network. */
 	const asItems = (items: unknown): GetPublishTargetsForTenantResponse =>
-		JSON.parse(JSON.stringify({ items }));
+		structuredClone({ items });
 
 	test('maps items keeping id, label and provider verbatim', () => {
 		const rows = toTenantPublishTargets(
