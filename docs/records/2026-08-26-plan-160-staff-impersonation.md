@@ -4,14 +4,14 @@
 
 **Goal:** Deliver the missing backend half of #160 (staff impersonation of tenant users) as a complete vertical API slice: an "end impersonation" service method that emits the never-yet-emitted `impersonation.ended` audit action, two staff endpoints (`POST /staff/impersonations` to start, `POST /staff/impersonations/{id}/end` to end), a dedicated `ImpersonationsPermissionsForStaff` slice with `START`/`END` verbs, response-message i18n keys EN+FR, and the regenerated Kiota client. Round 2 adds four blocker-level pieces to the same slice: the downstream **identity-attribution seam** (`IRequestAuthContext.IsImpersonation` + `ImpersonatingStaffUserId`, populated by `SessionAuthFilter`, consumed by every audit write), the **adversarial start guards** (non-staff callers, staff-scope targets, nested impersonations), the **security core** (deny-list, hard applied time limit, explicit exit), and the **tenant-scope banner signal** on `GetScopeAuthData`. Round 3 makes every guarantee MACHINE-CHECKED instead of asserted: an inventoried + analyzer-enforced + gate-wired attribution rule (Steps 0b–0d), presentation-time enforcement of the time limit inside `SessionAuthFilter.InvokeAsync`, service-path-exercising adversarial specs with named kill mutations (M1–M8), and a fully specified partial unique index with its 409 contract.
 
-**Scope (round 4, stated plainly): this PR is PLANNING-ONLY — a single docs file, no code.** The analyzer, the specs, the migration `ImpersonationOneActiveImpersonationPerUser`, the route group, the permission slice, the handlers, and every other `- [ ]` item below are TODOs for the implementation PR(s), NOT artifacts in this tree at this tip. Verified: `git diff --name-only $(git merge-base origin/develop HEAD)..HEAD` → `docs/records/2026-08-26-plan-160-staff-impersonation.md` only; `git ls-tree -r origin/develop -- packages/lint-cs` lists 29 files and none is `ImpersonationVictimAsAuditActorAnalyzer.cs`. Every gate named below (Step 0d) is therefore a gate **the implementation PR will rely on, named here so its reviewer can re-check the wiring** — not a gate that runs on this PR's code. Round 4 corrects four factual errors round 3 made about the real repo (each re-derived against `origin/develop` = `198a6e4b70` with pasted output in `.dump/citations-r4.md`): the attribution guard now enumerates BOTH real audit-write patterns (Step 0b/0c); the CI claim is rewritten as future wiring; §3b names its two unit specs, their kill mutations M7/M8, and quantifies the per-request cost; Step 0b's inventory command is one that actually produces the enumeration (the old command returned exactly 1 line).
+**Scope (round 5, stated plainly): this PR is PLANNING-ONLY — a single docs file, no code.** The analyzer, the specs, the migration `ImpersonationOneActiveImpersonationPerUser`, the route group, the permission slice, the handlers, and every other `- [ ]` item below are TODOs for the implementation PR(s), NOT artifacts in this tree at this tip. Verified: `git diff --name-only $(git merge-base origin/develop HEAD)..HEAD` → `docs/records/2026-08-26-plan-160-staff-impersonation.md` only; `git ls-tree -r origin/develop -- packages/lint-cs` lists 29 files and none is `ImpersonationVictimAsAuditActorAnalyzer.cs`. Every gate named below (Step 0d) is therefore a gate **the implementation PR will rely on, named here so its reviewer can re-check the wiring** — not a gate that runs on this PR's code. Round 4 corrects four factual errors round 3 made about the real repo (each re-derived against `origin/develop` = `198a6e4b70` with pasted output in `.dump/citations-r4.md`): the attribution guard now enumerates BOTH real audit-write patterns (Step 0b/0c); the CI claim is rewritten as future wiring; §3b names its two unit specs, their kill mutations M7/M8, and quantifies the per-request cost; Step 0b's inventory command is one that actually produces the enumeration (the old command returned exactly 1 line). Round 5 corrects five further findings the r4 review raised (each re-verified against `origin/develop` = `90de12357`; commands + verbatim output in `.dump/citations-r5.md`): the end-to-end tenant-mutation attribution spec is now IN-PLAN with a named subject (`DeletePostForTenant`) and follow-up #1516 is closed as RESOLVED by this PR (its premise — that no audited tenant endpoint exists — was false); the index introspection spec asserts the indexdef PREDICATE, not just the name; the banner probe's grant reliance is DECIDED (option a) with a paired §3b 401 spec; the legacy creation path gets its own audit spec paired with its own mutation; and mutation M3a isolates the conditional population block.
 
 The front-end UI half of #160 (start button in the staff user list, end banner in the tenant UI) is deliberately out of scope here and is tracked by the phase 2 issue.
 
 **Adversarial core (round-2 review, all blocker-level — addressed in-plan):**
 
 1. **Downstream identity attribution (round 3: enforced by machine, not prose).** An impersonated request MUST be attributable to the REAL staff actor everywhere downstream (authorization filters, handlers, audit writes). Today `SessionAuthFilter` resolves identity solely from `sessionData.User.Id` into `IRequestAuthContext.UserId`, and the context carries no impersonation signal — so every downstream check acts as the victim. Task 5 specifies the context fields, the exact population point, the audit actor rule, and the named RED spec proving an impersonated request records the real staff actor, never the victim.
-   **Round 3 honesty requirement:** there is NO single audit seam in this repo today. At the develop tip this plan is verified against (`198a6e4b70`; every number below re-run at round 4), `git grep -c "new CreateAuditLogArgs" apps/api` finds **58 construction sites with an explicit `UserId:`**, of which **54** pass `UserId: account.UserId` where `account` comes from `authContext.AccountTenant` / `authContext.AccountStaff` — populated by `TenantAuthFilter` / `StaffAuthFilter` from the VICTIM's id under impersonation. Four more pass a local variable (`CreateStaffProfile` via `currentUserId = authContext.AccountStaff.UserId`; `AcceptInvitation` twice; the `UploadOrphanReclaimerHandler` job). The 58th construction site is inside the helper `TenantUserCompanyShared.LogBulkActionAsync` (one construction, called by four `*TenantUserCompaniesForStaff` handlers).
+   **Round 3 honesty requirement:** there is NO single audit seam in this repo today. At the develop tip this plan is verified against (first pinned `198a6e4b70`, re-run at round 4, and RE-RUN at round 5 against `90de12357` with identical counts — `.dump/citations-r5.md`), `git grep -c "new CreateAuditLogArgs" apps/api` finds **58 construction sites with an explicit `UserId:`**, of which **54** pass `UserId: account.UserId` where `account` comes from `authContext.AccountTenant` / `authContext.AccountStaff` — populated by `TenantAuthFilter` / `StaffAuthFilter` from the VICTIM's id under impersonation. Four more pass a local variable (`CreateStaffProfile` via `currentUserId = authContext.AccountStaff.UserId`; `AcceptInvitation` twice; the `UploadOrphanReclaimerHandler` job). The 58th construction site is inside the helper `TenantUserCompanyShared.LogBulkActionAsync` (one construction, called by four `*TenantUserCompaniesForStaff` handlers).
    **Round 4 honesty requirement — TWO distinct audit-write patterns exist at the tip; a guard over pattern 1 alone guards half the surface.** Re-derived at `origin/develop` = `198a6e4b70` (commands + full output in `.dump/citations-r4.md`):
    - **Pattern 1 — `new CreateAuditLogArgs(...)` + `IAuditLogService.LogAsync(...)`: 58 sites.** All live in handler or job files; zero under any `Services/` directory (`git grep -lE 'new CreateAuditLogArgs' origin/develop -- apps/api | grep -cE 'Services/'` → `0`). The helper site is one of the 58 (57 files contain a construction; `TenantUserCompanyShared.cs` is one of them and is NOT under `Services/`).
    - **Pattern 2 — `AuditLog.CreateEntry(...)` + `_dbContext.AuditLog.Add(...)` directly: exactly 3 production sites** (`git grep -n -A8 "AuditLog\\.CreateEntry(" origin/develop -- apps/api | grep "userId:"` → the private helper `AddAuditEntry` in `apps/api/Modules/Impersonations/Services/ImpersonationService.cs` writing `userId: staffUserId`, and the private helper `AddAuditEntry` in `apps/api/Modules/Profiles/Services/TenantProfileAsStaffService.cs` writing `userId: args.ActorUserId` (the handler feeds it via `ActorUserId: account.UserId`); plus `AuditLogService.BuildAuditLog` itself, the abstraction's own factory):
@@ -89,13 +89,13 @@ if (sessionData.Session.IsImpersonation && !sessionData.Session.IsImpersonationV
      **Cost, quantified (round 4):** the grant re-check is a REAL query — `PermissionService.GetPermissionsAsync` joins `profile_permissions × user_account_profiles × user_accounts` on every call, and no permission cache exists in this repo today (the service holds only `AppDbContext`; verified at develop). Phase-1 decision recorded here: the re-check is ACCEPTED per impersonated request and any cache is ASPIRATIONAL — impersonated requests are rare, manually started, high-privilege events, so one extra join-query per presented impersonation token is a deliberate price for closing the zombie window; if volume ever justifies caching, that is a follow-up carrying its own invalidate-on-revoke requirement, never an implicit optimization.
      **Machine-checked (round 4), closing the round-3 prose-only gap.** Two unit specs in `apps/api/Lib/Filters/SessionAuthFilter.Spec.cs`, each with its own named kill:
      - `ItShouldReturnUnauthorizedWhenImpersonatingStaffIsSuspended` — seed an active impersonation session whose `ImpersonatingStaffUserId` names a staff user that gets suspended after start; present the token; expect 401 `ResponseKeys.Unauthorized` AND the impersonation row deleted. Kill = **Mutation M7**: delete the §3b staff-liveness branch → this spec RED, everything else green.
-     - `ItShouldReturnUnauthorizedWhenStaffLostStartGrant` — same shape with a staff user whose profile no longer carries `staff_impersonations.start`; expect identical 401 + row deletion. Kill = **Mutation M8**: delete the grant re-check branch → this spec RED, everything else green.
+     - `ItShouldReturnUnauthorizedWhenStaffLostStartGrant` — same shape with a staff user whose profile no longer carries `staff_impersonations.start`; expect identical 401 + row deletion. Kill = **Mutation M8**: delete the grant re-check branch → this spec RED, everything else green. Round 5 adds the HTTP-level twin through the banner transport: `ItShouldReturnUnauthorizedWhenPresentedTokenLostStartGrant` (Task 5 Step 1) — same M8 kill, end-to-end leg.
      Honest scope note: mutations M1–M6 sit upstream or downstream of these branches (M3 only reverts the CONTEXT-population lines), so a lane that populates `authContext.IsImpersonation` correctly but never reads `sessionData.Session.ImpersonatingStaffUserId` for validation passes M1–M6 green — M7 and M8 exist precisely to close that hole.
    - **(c) Sweep — demoted to janitor.** `CleanupExpiredSessionsHandler` keeps cleaning up rows nobody presents again. It is a hygiene layer, NEVER relied on for enforcement.
 
    Expiry is thus enforced where tokens are accepted, not by a column default and not by a cadence job.
 4. **Explicit exit mechanism:** `POST /staff/impersonations/{id}/end` revokes the row transactionally with the ended-audit (Task 4). Exit does not depend on expiry.
-5. **Visible-banner backend contract:** `GetScopeAuthData` (tenant scope) gains `IsImpersonated` + `ImpersonationExpiresAt` on `GetScopeAuthDataTenant`, serialized camelCase (`is_impersonated`, `impersonation_expires_at`) and regenerated into the Kiota client. The banner UI itself is #1497's job; the backend signal ships here and is proven by `ItShouldExposeIsImpersonatedToTenantScopeClients` (Task 5). **Probe transport (round 4, fixing an underspecified spec):** the combined cookie `s:<staffToken>+t:<tenantToken>` is a FRONT construct (`packages/shared-ts/src/lib/session/parse.ts`); the API reads ONE token from `X-Session-Token`. The spec therefore does NOT present a combined cookie: it seeds the impersonation sessions row via the service helper and presents ONLY the impersonation (`t:`) token in `X-Session-Token`, which authenticates as the impersonation session — exactly the server-side state the banner must reflect. The ordinary-session leg presents a plain login token. Which cookie half the real browser sends on tenant calls is a phase-2 (#1497) decision and is answered there.
+5. **Visible-banner backend contract:** `GetScopeAuthData` (tenant scope) gains `IsImpersonated` + `ImpersonationExpiresAt` on `GetScopeAuthDataTenant`, serialized camelCase (`is_impersonated`, `impersonation_expires_at`) and regenerated into the Kiota client. The banner UI itself is #1497's job; the backend signal ships here and is proven by `ItShouldExposeIsImpersonatedToTenantScopeClients` (Task 5). **Probe transport (round 4, fixing an underspecified spec):** the combined cookie `s:<staffToken>+t:<tenantToken>` is a FRONT construct (`packages/shared-ts/src/lib/session/parse.ts`); the API reads ONE token from `X-Session-Token`. The spec therefore does NOT present a combined cookie: it seeds the impersonation sessions row via the service helper and presents ONLY the impersonation (`t:`) token in `X-Session-Token`, which authenticates as the impersonation session — exactly the server-side state the banner must reflect. The ordinary-session leg presents a plain login token. Which cookie half the real browser sends on tenant calls is a phase-2 (#1497) decision and is answered there. **Grant reliance (round 5, DECIDED — option a):** §3b re-checks `staff_impersonations.start` on EVERY presented impersonation token, so the banner probe is only meaningful once the spec states which side of that check its fixture sits on. Decided: the seeded impersonating staff user holds an active profile carrying exactly ["staff_impersonations.start"], the spec's green DEPENDS on the grant being intact (documented in the spec body), and a paired spec (`ItShouldReturnUnauthorizedWhenPresentedTokenLostStartGrant`) proves the §3b 401 + row deletion when the grant is revoked through the SAME transport. The banner spec can no longer pass green by accident.
 6. **Audit trail:** `impersonation.started` AND `impersonation.ended` rows record actor + target + reason (+ duration at start); downstream audits during an impersonated request record the real staff actor per the identity-attribution rule.
 
 ## File Structure
@@ -386,19 +386,34 @@ public async Task ItShouldReturnForbiddenWhenTargetUserIsStaffScope() {
 
 [Fact]
 public async Task ItShouldAssertTheNamedUniqueIndexExistsInDatabase() {
-	// ROUND-4 addition (closes the SECOND leg of the round-2 trap): a lane can add
-	// the application pre-check and skip the migration, or vice versa; the
-	// behavioural nesting spec catches some of those combinations only via the
-	// race leg, which is timing-dependent. This spec introspects the DATABASE and
-	// fails when the BACKSTOP is missing or renamed:
-	//   SELECT indexname FROM pg_indexes
-	//    WHERE tablename = 'sessions'
+	// ROUND-5 REWRITE (closes the r4 finding "the guard asserts the NAME, not the
+	// PREDICATE"): a name-only lookup is green against a WRONG index — a lane that
+	// migrates the index with a SHORTER filter (e.g. WHERE is_impersonation = true
+	// without the temporal clause) keeps this spec and every paired test GREEN while
+	// the expired-but-not-yet-swept poisoning hazard Global Constraint 1 names goes
+	// uncaught. The spec therefore introspects the DEFINITION, following the in-repo
+	// sibling pattern of AddSystemJobSweepIndexes.Spec.cs (SELECT indexdef +
+	// .Should().Contain(...)):
+	//   SELECT indexdef AS "Value" FROM pg_indexes
+	//    WHERE schemaname = 'public'
+	//      AND tablename = 'sessions'
 	//      AND indexname = 'ux_sessions_one_active_impersonation_per_user';
-	// Assert: exactly one row. Paired tripwires: the migration
+	// Assert: exactly one row AND the returned definition Contains BOTH
+	//   "is_impersonation = true"
+	// AND
+	//   "impersonation_expires_at"
+	// (the migration's HasFilter string is
+	//  "is_impersonation = true AND impersonation_expires_at > now()"; Postgres
+	//  renders it inside the CREATE INDEX ... WHERE (...) clause, so both fragments
+	//  must appear). Paired tripwires: the migration
 	// ImpersonationOneActiveImpersonationPerUser ↔ this spec (missing/dropped/
 	// renamed index → RED) AND the expand/contract gate
 	// `just ci-migration-expand-contract` ↔ the migration itself (Task 6 Step 1b).
-	// Together: a missing migration is a PAIRED-RED, never a silent green.
+	// PREDICATE tripwire (round 5): a mutation that migrates the SAME index NAME
+	// with the SHORTENED predicate "is_impersonation = true" (temporal clause
+	// deleted) must turn THIS spec RED while everything else stays green — proving
+	// the guard reads the artifact, not its label.
+	// Together: a missing, renamed, OR WEAKENED migration is a PAIRED-RED, never a silent green.
 }
 
 [Fact]
@@ -451,6 +466,22 @@ public async Task ItShouldCreateSessionAndAuditOnSuccess() {
 	//   exactly ONE impersonation.started audit row with UserId == StaffUserId.
 	// Paired kill = Mutation M2 (delete AddAuditEntry(...) from the creation path):
 	// this spec alone goes RED; everything else stays green.
+}
+```
+
+**Paired M2-L proof spec (round-5 addition — the creation signature change is ONE method with `Guid? TargetUserId = null`, no overload, so the spec above exercises only `TargetUserId != null`; a lane refactoring the creation path could drop the audit on the LEGACY path with every other spec still green):**
+
+```csharp
+[Fact]
+public async Task ItShouldCreateSessionAndAuditOnSuccess_LegacyPath() {
+	// Direct-service leg using TargetUserId = null and the existing test-data
+	// shape (SeedTenantUserAsync + SeedStaffActorAsync helpers); assert BOTH:
+	//   sessions row exists (IsImpersonation == true, correct ImpersonatingStaffUserId);
+	//   exactly ONE impersonation.started audit row with UserId == StaffUserId.
+	// Paired kill = Mutation M2-L ("refactor the legacy audit away": delete the
+	// AddAuditEntry(...) call taken by the TargetUserId == null path): THIS spec
+	// goes RED while ItShouldCreateSessionAndAuditOnSuccess stays GREEN — proving
+	// BOTH branches of the one-method creation path hold their audit.
 }
 ```
 
@@ -720,7 +751,7 @@ git grep -nE "var account = authContext\.(AccountStaff|AccountTenant);" -- apps/
 git grep -n -A8 "AuditLog\.CreateEntry(" -- apps/api | grep "userId:"
 ```
 
-  Real output at tip `198a6e4b70`: pattern 1 = **58** `UserId:` lines, of which **54** are `UserId: account.UserId,`; the non-account 4 are `AcceptInvitation.cs` ×2 (`existingUser.GetRequiredId()` / `user.GetRequiredId()`), `CreateStaffProfile.cs` (`currentUserId`), `UploadOrphanReclaimerHandler.cs` (`candidate.CreatedByUserId`); captured-var initialisers = **57** (47 `var account = authContext.AccountStaff;` + 10 `... AccountTenant;`); pattern 2 = **2 writer sites** (`ImpersonationService.cs` → `userId: staffUserId`, explicit parameter; `TenantProfileAsStaffService.cs` → `userId: args.ActorUserId`, args-record field) plus the abstraction factory `AuditLogService.cs` itself.
+  Real output at tip `198a6e4b70`: pattern 1 = **58** `UserId:` lines, of which **54** are `UserId: account.UserId,`; the non-account 4 are `AcceptInvitation.cs` ×2 (`existingUser.GetRequiredId()` / `user.GetRequiredId()`), `CreateStaffProfile.cs` (`currentUserId`), `UploadOrphanReclaimerHandler.cs` (`candidate.CreatedByUserId`); captured-var initialisers = **57** (47 `var account = authContext.AccountStaff;` + 10 `... AccountTenant;`); pattern 2 = **2 writer sites** (`ImpersonationService.cs` → `userId: staffUserId`, explicit parameter; `TenantProfileAsStaffService.cs` → `userId: args.ActorUserId`, args-record field) plus the abstraction factory `AuditLogService.cs` itself. All commands were re-run at round 5 against `origin/develop` = `90de12357` with identical results (`.dump/citations-r5.md`).
 
   Deliverable: `.dump/audit-inventory.md` (untracked, referenced from the PR body) listing EVERY site from BOTH patterns with file:symbol (symbol-only citations; no bare line numbers against moving branches), its current actor-source expression, and its disposition — migrated to `authContext.GetAuditActorUserId()`, replaced by an explicit actor parameter, or EXEMPT with a reason. Known shape: **59 sites total = 58 pattern-1 + 1 pattern-2 writer requiring migration** (`TenantProfileAsStaffService.AddAuditEntry`, whose `args.ActorUserId` traces back to `AssignTenantProfileUserAsStaff` passing `ActorUserId: account.UserId` from `authContext.AccountStaff`). Counting discipline: the construction inside the helper `TenantUserCompanyShared.LogBulkActionAsync` IS one of the 58 — list it ONCE under the helper's symbol; the four `*TenantUserCompaniesForStaff` handlers are CALLERS of that helper, not separate audit sites, and are listed as such. Exempt classes (each with justification in the inventory): `AcceptInvitation` ×2 (anonymous surface, no impersonatable session possible), `CreateStaffProfile` + `UploadOrphanReclaimerHandler` (explicit ids; the job carries no `IRequestAuthContext`), `AuditLogService.BuildAuditLog` (the abstraction factory itself), `ImpersonationService.AddAuditEntry` (staff id arrives as an explicit parameter).
 
@@ -771,7 +802,51 @@ public async Task ItShouldAttributeImpersonatedRequestToRealActorInAudit() {
 	//    open the DB: every audit row written during the flow carries a STAFF userId
 	//    (start/end rows name the acting staff explicitly); NO row names the victim V
 	//    as UserId. The literal "tenant mutation writes its audit row through the seam"
-	//    case lands with the first audited tenant endpoint (#1516).
+	//    case is exercised by ItShouldAttributeATenantMutationToTheRealActorInAudit
+	//    below — tenant-surface audited mutations EXIST today (round-5 correction:
+	//    at least nine; see that spec's header for the verified list).
+}
+
+[Fact]
+public async Task ItShouldAttributeATenantMutationToTheRealActorInAudit() {
+	// ROUND-5 ADDITION (closes the r4 CRITICAL: follow-up #1516 was filed on a
+	// false premise — tenant-surface audited mutations EXIST today). Verified at
+	// origin/develop = 90de12357 (commands + verbatim output in
+	// .dump/citations-r5.md): NINE tenant-scope handlers already persist audit
+	// rows via IAuditLogService.LogAsync(new CreateAuditLogArgs(
+	// UserId: account.UserId, ...)) where var account = authContext.AccountTenant
+	// (the VICTIM's id under impersonation, populated by TenantAuthFilter):
+	// DeletePostForTenant, CreatePostForTenant, UpdatePostForTenant,
+	// AttachPostImageForTenant, RemovePostImageForTenant,
+	// CreateSocialAccountForTenant, DisconnectSocialAccountForTenant,
+	// ReconnectSocialAccountForTenant, SetSocialAccountProjectsForTenant.
+	//
+	// SUBJECT (named, not "the first someday"): DeletePostForTenant
+	// (apps/api/Modules/Posts/Handlers/Tenant/DeletePostForTenant.cs) — single
+	// audit row (AuditActions.PostDeleted), route DELETE /posts/{postId} on the
+	// root tenant group with .WithTenantPermission([Posts.DELETE]), smallest
+	// fixture surface of the nine.
+	//
+	// Body:
+	// 1) Seed staff actor S (holding staff_impersonations.start), tenant T,
+	//    victim V (active tenant-scope user in T), and one post P owned by V's
+	//    tenant context;
+	// 2) start an impersonation of V via the service; present ONLY the
+	//    impersonation (t:) token in X-Session-Token (same transport as the
+	//    banner spec below);
+	// 3) DELETE /posts/{P.id} with the X-Tenant-Id header for T → expect the
+	//    ordinary tenant 200 ApiResponse;
+	// 4) open audit_logs and assert EXACTLY ONE new row:
+	//    Action == AuditActions.PostDeleted AND UserId == S (the REAL actor)
+	//    AND TargetId == P.id AND Details.ActingAsUserId == V (the victim,
+	//    preserved by the seam);
+	//    assert NO row carries UserId == V for this mutation.
+	//
+	// Paired kill = Mutation M9 (round-5 addition): revert DeletePostForTenant's
+	// audit call to its pre-seam shape — UserId sourced from authContext.UserId
+	// instead of authContext.GetAuditActorUserId() — THIS spec goes RED while
+	// every other spec stays green. M3 does NOT substitute: it reverts the
+	// filter-side population upstream and is caught elsewhere.
 }
 
 [Fact]
@@ -787,6 +862,38 @@ public async Task ItShouldExposeIsImpersonatedToTenantScopeClients() {
 	//    body.ImpersonationExpiresAt == the session's ImpersonationExpiresAt;
 	// 4) repeat with an ordinary login token → IsImpersonated == false.
 	// Which cookie half the real front sends on tenant calls is #1497's decision.
+	//
+	// ROUND-5 GRANT DECISION (option a — closes the r4 MAJOR: this spec was
+	// green BY ACCIDENT because it was silent on whether the seeded staff still
+	// holds staff_impersonations.start, which §3b re-checks on EVERY presented
+	// impersonation token). Decided explicitly: the seeded impersonating staff
+	// user IS seeded WITH an active staff profile carrying exactly
+	// ["staff_impersonations.start"] (pattern: FindTenantsAsStaff.Spec.cs
+	// helpers CreateStaffProfileAsync + UpdateStaffUserProfilesAsync), and this
+	// spec's green DEPENDS on that grant being intact — if §3b were removed
+	// entirely (mutation M8), this spec would stay green only because nothing
+	// else reads the grant, which is why the paired 401 spec below exists.
+	// The setup section above is amended accordingly: step 1 becomes
+	// "seed the impersonating staff WITH the start grant, then seed the
+	// impersonation session via the service helper".
+}
+
+[Fact]
+public async Task ItShouldReturnUnauthorizedWhenPresentedTokenLostStartGrant() {
+	// ROUND-5 ADDITION (the §3b 401 twin the banner spec now relies on):
+	// same seeding as ItShouldExposeIsImpersonatedToTenantScopeClients, except
+	// the impersonating staff's profiles are stripped of
+	// staff_impersonations.start AFTER the session row is created; present ONLY
+	// the impersonation (t:) token in X-Session-Token against
+	// GET /auth/scope-auth-data → 401 ResponseKeys.Unauthorized (generic body —
+	// never a message disclosing WHY) AND the impersonation sessions row is
+	// hard-deleted. This proves §3b fires through the SAME transport the banner
+	// probe uses. Kill = Mutation M8 (delete the grant re-check branch): this
+	// spec goes RED while the intact-grant banner spec above stays GREEN —
+	// together they pin both halves of §3b at the presentation boundary.
+	// Scope note: M8's primary pair remains
+	// ItShouldReturnUnauthorizedWhenStaffLostStartGrant (unit level, Task 5
+	// Step 0a file); this HTTP-level spec adds the end-to-end leg.
 }
 
 [Fact]
@@ -804,11 +911,13 @@ public async Task ItShouldReturnForbiddenForImpersonatedSessionOnStaffRoutes() {
   1. **Mutation M1 (end path)** — pairs: `ItShouldEndSessionEmittingImpersonationEndedAudit`, `ItShouldRollBackEndWhenAuditInsertFails`. In `EndImpersonationSessionForStaffAsync`, delete the `AddEndAuditEntry(args, session);` line (audit skipped). Expected RED: `ItShouldEndSessionEmittingImpersonationEndedAudit` fails (no audit row); `ItShouldRollBackEndWhenAuditInsertFails` still passes (nothing to roll back is vacuously true — noted in the proof doc).
   2. **Mutation M2 (start path)** — pairs: `ItShouldCreateSessionAndAuditOnSuccess`. In `CreateImpersonationSessionAsync`, remove `AddAuditEntry(...)` similarly → RED.
   3. **Mutation M3 (attribution seam)** — pairs: `ItShouldPopulateImpersonationContextFromSessionData`, `ItShouldAttributeImpersonatedRequestToRealActorInAudit`. In `SessionAuthFilter`, revert the population lines so `IsImpersonation` stays `false` (delete the two assignment lines) → both go RED.
+  3a. **Mutation M3a (conditional-population condition, round 5)** — pairs with `ItShouldPopulateImpersonationContextFromSessionData` ONLY. M3 reverts both population lines TOGETHER (the unconditional `IsImpersonation` assignment and the `ImpersonatingStaffUserId` assignment conditional on it), so a subtle bug shape — the conditional `if` flipped to `if (!sessionData.Session.IsImpersonation)` while `IsImpersonation` itself populates correctly — is caught by neither the assertion text nor M3. M3a mutates EXACTLY that condition, touching no other line → `ItShouldPopulateImpersonationContextFromSessionData` goes RED (the staff id never lands on the context), everything else stays green. Standing rule: a mutation that keeps the rest of the guard suite green while restoring the bug is the one worth choosing.
   4. **Mutation M4 (nesting guard)** — pairs: `ItShouldRejectNestedImpersonationAtServiceBoundary` (direct-service leg). Delete the active-impersonation pre-check AND drop the unique index (or the spec asserts BOTH the typed result AND exactly ONE remaining impersonation row for the victim, so either removal alone turns it RED).
   5. **Mutation M5 (route authorization, NEW — closes the "no named mutation" gap on the non-staff-caller family):** remove `.WithPermission([AppPermissions.Staff.Impersonations.START])` from the start route → `ItShouldReturnForbiddenForNonAdminWithoutStartGrant` goes RED (the empty-grant caller gets through to the handler instead of 403). Conversely, `ItShouldPinStaffAuthFilterBoundaryForNonStaffCallers` survives M5 BY DESIGN — it pins `StaffAuthFilter`, whose kill is removing `.WithStaffAuthorization()` from the `/staff/*` group; the plan documents this division so no one mistakes the filter-pin for service-guard coverage.
   6. **Mutation M6 (start-audit victim detail, NEW — closes the round-2 F2 hole):** in the explicit-target creation's `AddAuditEntry(...)`, delete `TargetUserId = resolved.UserId` from `details` → `ItShouldRecordTargetUserIdInStartAuditDetails` goes RED; nothing else in the suite changes. Without M6 + that spec, "the start audit keeps the exact victim" (F2) is proven by nothing.
   7. **Mutation M7 (§3b staff-liveness branch, NEW — closes the round-3 finding that §3b was prose only):** in `SessionAuthFilter.InvokeAsync`, delete the suspended/deleted/unverified check on `sessionData.Session.ImpersonatingStaffUserId` → `ItShouldReturnUnauthorizedWhenImpersonatingStaffIsSuspended` goes RED; nothing else changes. M3 does NOT substitute: it reverts context POPULATION upstream of this branch.
-  8. **Mutation M8 (§3b grant-liveness branch, NEW):** delete the `IPermissionService.GetPermissionsAsync` re-check of `staff_impersonations.start` → `ItShouldReturnUnauthorizedWhenStaffLostStartGrant` goes RED; nothing else changes. M7 and M8 pin the two halves of §3b INDEPENDENTLY, so a lane implementing one but not the other ships visibly RED.
+  8. **Mutation M8 (§3b grant-liveness branch, NEW):** delete the `IPermissionService.GetPermissionsAsync` re-check of `staff_impersonations.start` → `ItShouldReturnUnauthorizedWhenStaffLostStartGrant` goes RED; nothing else changes. M7 and M8 pin the two halves of §3b INDEPENDENTLY, so a lane implementing one but not the other ships visibly RED. Round 5 adds an HTTP-level second pair for M8: `ItShouldReturnUnauthorizedWhenPresentedTokenLostStartGrant` (banner transport).
+  9. **Mutation M9 (tenant-mutation actor source, round 5):** pairs `ItShouldAttributeATenantMutationToTheRealActorInAudit`. Revert `DeletePostForTenant`'s audit construction to source `UserId:` from `authContext.UserId` instead of `authContext.GetAuditActorUserId()` → THAT spec goes RED; nothing else changes. M3 does NOT substitute: it reverts filter-side population upstream and is caught by its own pairs.
 
   Pairing table (every new spec family names its kill):
 
@@ -816,7 +925,10 @@ public async Task ItShouldReturnForbiddenForImpersonatedSessionOnStaffRoutes() {
 |---|---|
 | `ItShouldEndSessionEmittingImpersonationEndedAudit` / rollback-on-failure | M1 |
 | `ItShouldCreateSessionAndAuditOnSuccess` | M2 |
+| `ItShouldCreateSessionAndAuditOnSuccess_LegacyPath` | M2-L (refactor the legacy-path audit away) |
 | `ItShouldPopulateImpersonationContextFromSessionData` / `…AttributeImpersonatedRequestToRealActorInAudit` | M3 |
+| `ItShouldPopulateImpersonationContextFromSessionData` (condition isolation) | M3a |
+| `ItShouldAttributeATenantMutationToTheRealActorInAudit` | M9 |
 | `ItShouldRejectNestedImpersonationAtServiceBoundary` | M4 (+ unique index as second tripwire) |
 | `ItShouldReturnForbiddenForNonAdminWithoutStartGrant` / `…WithoutEndGrant` | M5 |
 | `ItShouldPinStaffAuthFilterBoundaryForNonStaffCallers` | remove `.WithStaffAuthorization()` on the group (named here, not numbered) |
@@ -824,8 +936,9 @@ public async Task ItShouldReturnForbiddenForImpersonatedSessionOnStaffRoutes() {
 | `ItShouldRecordTargetUserIdInStartAuditDetails` | M6 |
 | `ItShouldReturnUnauthorizedWhenImpersonatingStaffIsSuspended` | M7 |
 | `ItShouldReturnUnauthorizedWhenStaffLostStartGrant` | M8 |
-| `ItShouldAssertTheNamedUniqueIndexExistsInDatabase` | drop/rename `ux_sessions_one_active_impersonation_per_user` (paired with `just ci-migration-expand-contract`) |
+| `ItShouldAssertTheNamedUniqueIndexExistsInDatabase` | drop/rename `ux_sessions_one_active_impersonation_per_user` (paired with `just ci-migration-expand-contract`) AND shorten the predicate to `is_impersonation = true` keeping the NAME (indexdef predicate tripwire) |
 | `ItShouldExposeIsImpersonatedToTenantScopeClients` | delete the `IsImpersonated` population in `GetScopeAuthData` |
+| `ItShouldReturnUnauthorizedWhenPresentedTokenLostStartGrant` | M8 (HTTP-level leg) |
 
 - [ ] **Step 3: Full-suite verification under heavy.sh** (verification policy: unit/spec suites only, focused invocations):
 
@@ -849,7 +962,7 @@ git commit -m "test(impersonations): endpoint integration specs + red-proof muta
 - **F1 — parallel impersonation of one victim / no uniqueness on (UserId, active):** FIXED IN PLAN. Service-boundary nesting guard (Task 3 Step 2, item 3) + partial unique index `ux_sessions_one_active_impersonation_per_user` (Global Constraint 1) as race backstop + specs `ItShouldRejectNestedImpersonationAtServiceBoundary` and mutation M4.
 - **F2 — start audit loses the exact impersonated user:** FIXED IN PLAN. The explicit-target start audit now writes `details.TargetUserId = resolved.UserId` alongside `targetId = tenantId` (Task 4, "Start-audit fix"); spec `ItShouldRecordTargetUserIdInStartAuditDetails` asserts it and is paired with Mutation M6, closing the round-2 finding that no spec caught dropping the field.
 - **F3 — `AlreadyEnded` collapses into `NotFound` after the sweep:** CONTRACT CLARIFIED IN PLAN (Task 4 design decision): durable plain-words causes, not a durable status distinction; the 404 copy states the session is not active and may have been revoked or expired. A tombstone/soft-state upgrade, if ever wanted, must not reintroduce soft-delete lifecycle on `sessions` — filed as follow-up lv1 #1519.
-- **F4 — end-to-end attribution spec against a real tenant mutation:** the pinned specs prove the seam and its population end-to-end at the HTTP boundary, but NO tenant-surface endpoint persists an audit row today, so a literal "mutate as the victim, read the audit row" spec has no subject until the first audited tenant mutation exists. Filed as follow-up lv1 #1516 (land the e2e attribution spec with that endpoint).
+- **F4 — end-to-end attribution spec against a real tenant mutation:** RESOLVED IN PLAN (round 5; supersedes the earlier premise, which was FALSE). At least NINE tenant-scope handlers already persist audit rows via `IAuditLogService.LogAsync(new CreateAuditLogArgs(UserId: account.UserId, ...))` with `account = authContext.AccountTenant` — the victim's id under impersonation (verified list + commands in `.dump/citations-r5.md`). The literal spec is now IN-PLAN as Task 5 Step 1's `ItShouldAttributeATenantMutationToTheRealActorInAudit` with named subject `DeletePostForTenant` and kill mutation M9. Follow-up #1516 is CLOSED AS RESOLVED BY THIS PR (closing comment points here); filing work that is already possible was scope-loss by deferral. No residual gap is identified; if the implementation PR discovers one (e.g. a handler whose audit row cannot carry `Details.ActingAsUserId`), it files a NEW follow-up naming that precise gap.
 - **F5 (round 4) — attribution-guard drift beyond the two known patterns:** DISPOSITIONED IN PLAN as a discipline, not machinery. The Step 0b inventory commands ARE the drift check: re-run them whenever `audit_logs` gains a new write path; any site appearing OUTSIDE patterns 1–2 (actor id from an untyped source) requires either extending the analyzer's dataflow rules or an explicit exempt-with-justification entry. Kept in-plan rather than filed as an issue because the trigger ("a third pattern appears") is not schedulable work today; the honest residual-coverage statement lives in the Adversarial core section.
 
 ## Task 6: Client regeneration + final gates
