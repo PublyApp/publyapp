@@ -32,7 +32,26 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 		ssr: {
-			noExternal: ['@org/client-ts', '@org/shared-ts'],
+			noExternal: [
+				// The workspace packages are bundled (not externalized) so their
+				// transitive imports are visible to Vite at bundle time. Those
+				// packages import bare specifiers that are only resolvable from
+				// a full install: `lodash/*` and `winston`/`winston-console-format`
+				// come from shared-ts, and client-ts registers the Kiota
+				// serialization factories (`@microsoft/kiota-serialization-*`)
+				// at runtime. The production image ships `pnpm deploy --prod`,
+				// where devDependencies do not exist and pnpm does not hoist
+				// transitive deps to the top level, so an externalized bare
+				// specifier fails to resolve on the first request inside the
+				// container. Inlining them here keeps every server chunk
+				// self-contained.
+				'@org/client-ts',
+				'@org/shared-ts',
+				/@microsoft\/kiota-serialization-(json|form|multipart|text)/,
+				/^lodash\//,
+				'winston',
+				'winston-console-format',
+			],
 		},
 		plugins: [
 			contextChunkIsolationPlugin({
