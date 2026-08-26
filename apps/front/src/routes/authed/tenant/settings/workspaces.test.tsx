@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
 		],
 		activeCount: 1,
 		totalCount: 1,
+		hasDeletedTenants: false,
 		hasSuspendedTenants: false,
 	};
 

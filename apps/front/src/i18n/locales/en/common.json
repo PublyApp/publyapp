@@ -609,6 +609,8 @@
 	"select-organization-description": "Choose which organization you want to access",
 	"failed-to-load-organizations": "Failed to load organizations",
 	"no-organizations-found": "No organizations found",
+	"all-organizations-deleted-title": "Your organizations are no longer available",
+	"all-organizations-deleted-description": "All of your organizations have been removed by their administrators. If you believe this is a mistake, contact support.",
 	"suspended-tenants-banner": "Some of your organizations have been suspended and are temporarily unavailable. Please contact support for assistance.",
 	"contact-support": "Contact Support",
 	"suspend": "Suspend",
