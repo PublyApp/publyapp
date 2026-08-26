@@ -15,7 +15,6 @@ const ignoredSegments = new Set([
 export const allowedFrontendIndexFiles = [
 	'apps/front/src/components/app-shell/index.ts',
 	'apps/front/src/components/field/index.ts',
-	'apps/front/src/lib/url-state/index.ts',
 ];
 
 // @ts-expect-error rung-0: add proper type in later rung
