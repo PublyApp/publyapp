@@ -65,6 +65,16 @@ public static class PublishingEndpointsForTenant {
 			.WithSummary("Cancel a post's schedule (delete Scheduled publications)")
 			.WithTenantPermission([AppPermissions.Tenant.Posts.PUBLISH]);
 
+		group.MapGet(
+			Routes.Publishing.ForTenant.Find,
+			FindScheduledPublicationsForTenant.Handle
+		)
+			.WithName("FindScheduledPublicationsForTenant")
+			.RequireRateLimiting(ApiRateLimitPolicies.HeavySearchList)
+			.WithSummary("Find scheduled publications (queue + calendar)")
+			.WithReqQueryValidation<FindScheduledPublicationsQuery>()
+			.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]);
+
 		return routes;
 	}
 }

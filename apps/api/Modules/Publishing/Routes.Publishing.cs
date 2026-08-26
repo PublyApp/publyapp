@@ -14,6 +14,7 @@ public static partial class Routes {
 			public const string FindPublications = "/publications";
 			public const string PublishTargets = "/publish-targets";
 			public const string Schedule = "/{postId}/schedule";
+			public const string Find = "/publications";
 
 			public static string ScheduleFn(string postId) {
 				return $"/{postId}/schedule";

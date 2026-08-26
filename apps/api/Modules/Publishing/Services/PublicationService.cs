@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
@@ -46,6 +49,48 @@ public abstract record ScheduleResult {
 
 /// <summary>Outcome of cancelling a post's schedule (D3 Task 3).</summary>
 public record CancelScheduleResult(int DeletedCount, int KeptCount);
+
+/// <summary>
+/// One wire row of the scheduled-publications list (D3 Task 4): the publication
+/// plus its account/post context and the DST-aware zone-local ISO string.
+/// </summary>
+public sealed class ScheduledPublicationItem {
+	public required Guid PublicationId { get; init; }
+	public required Guid PostId { get; init; }
+	public required string PostBodyPreview { get; init; }
+	public required string PostStatus { get; init; }
+	public required Guid SocialAccountId { get; init; }
+	public required string AccountDisplayHandle { get; init; }
+	public required DateTime ScheduledAtUtc { get; init; }
+	public required string ScheduledAtLocal { get; init; }
+	public required string TimeZone { get; init; }
+	public required string Status { get; init; }
+}
+
+/// <summary>Arguments for the queue/calendar list (D3 Task 4).</summary>
+public record FindScheduledPublicationsArgs(
+	Guid TenantId,
+	DateTime FromUtc,
+	DateTime ToUtc,
+	IReadOnlyList<PublicationStatus>? Statuses,
+	string? Cursor,
+	int Limit
+);
+
+/// <summary>Result union for the find endpoint.</summary>
+public abstract record FindScheduledResult {
+	public sealed record Success(
+		CursorPaginatedResult<ScheduledPublicationItem> Page
+	) : FindScheduledResult;
+
+	public sealed record CursorNotFound() : FindScheduledResult;
+
+	/// <summary>
+	/// Window bounds violated: ErrorKey is publication-window-invalid or
+	/// publication-window-too-wide, surfaced as a stable 422 key.
+	/// </summary>
+	public sealed record InvalidWindow(string ErrorKey) : FindScheduledResult;
+}
 
 /// <summary>
 /// Arguments for editing a post's text and/or replacing its schedule pair (D3
@@ -99,6 +144,11 @@ public interface IPublicationService {
 		Guid tenantId,
 		Guid postId,
 		Guid actorUserId,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<FindScheduledResult> FindScheduledAsync(
+		FindScheduledPublicationsArgs args,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -496,6 +546,187 @@ public sealed class PublicationService : IPublicationService {
 		}
 
 		return new CancelScheduleResult(deletedCount, keptCount);
+	}
+
+	private const int BodyPreviewMaxLength = 120;
+
+	public async Task<FindScheduledResult> FindScheduledAsync(
+		FindScheduledPublicationsArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		if (args.FromUtc > args.ToUtc) {
+			return new FindScheduledResult.InvalidWindow(
+				"publication-window-invalid"
+			);
+		}
+
+		if (args.ToUtc - args.FromUtc > TimeSpan.FromDays(31)) {
+			return new FindScheduledResult.InvalidWindow(
+				"publication-window-too-wide"
+			);
+		}
+
+		var baseQuery =
+			from publication in _dbContext.Publication.AsNoTracking()
+			where publication.TenantId == args.TenantId
+				&& !publication.IsDeleted
+				&& publication.ScheduledAtUtc >= args.FromUtc
+				&& publication.ScheduledAtUtc <= args.ToUtc
+				&& (args.Statuses == null
+					|| args.Statuses.Count == 0
+					|| args.Statuses.Contains(publication.Status))
+			select new {
+				Publication = publication,
+				AccountHandle = _dbContext.SocialAccount
+					.Where(a => a.Id == publication.SocialAccountId)
+					.Select(a => a.DisplayHandle)
+					.FirstOrDefault(),
+			};
+
+		if (!string.IsNullOrEmpty(args.Cursor)) {
+			if (!TryDecodeCursor(args.Cursor, out var cursorInstant,
+					out var cursorId)) {
+				return new FindScheduledResult.CursorNotFound();
+			}
+
+			var cursorExists = await (
+				from p in _dbContext.Publication.AsNoTracking()
+				where p.Id == cursorId
+					&& p.ScheduledAtUtc == cursorInstant
+				select p.Id
+			).AnyAsync(cancellationToken);
+			if (!cursorExists) {
+				return new FindScheduledResult.CursorNotFound();
+			}
+
+			baseQuery = baseQuery.Where(row =>
+				row.Publication.ScheduledAtUtc > cursorInstant
+				|| (row.Publication.ScheduledAtUtc == cursorInstant
+					&& row.Publication.Id > cursorId)
+			);
+		}
+
+		var rows = await baseQuery
+			.OrderBy(row => row.Publication.ScheduledAtUtc)
+			.ThenBy(row => row.Publication.Id)
+			.Take(args.Limit + 1)
+			.ToListAsync(cancellationToken);
+
+		var hasNextPage = rows.Count > args.Limit;
+		if (hasNextPage) {
+			rows.RemoveAt(rows.Count - 1);
+		}
+
+		var postIds = rows
+			.Select(row => row.Publication.PostId)
+			.Distinct()
+			.ToList();
+
+		var postRows = await (
+			from p in _dbContext.Post.AsNoTracking()
+			where p.Id.HasValue && postIds.Contains(p.Id.Value)
+			select new { PostIdValue = p.Id, p.Body }
+		).ToListAsync(cancellationToken);
+
+		var postInfos = new Dictionary<Guid, string>(postRows.Count);
+		foreach (var row in postRows) {
+			if (row.PostIdValue is { } postIdValue) {
+				postInfos[postIdValue] = row.Body;
+			}
+		}
+
+		var postStatuses = await (
+			from p in _dbContext.Publication.AsNoTracking()
+			where postIds.Contains(p.PostId) && !p.IsDeleted
+			select p
+		).ToListAsync(cancellationToken);
+
+		var items = new List<ScheduledPublicationItem>(rows.Count);
+		foreach (var row in rows) {
+			var publication = row.Publication;
+			var postId = publication.PostId;
+			var body = postInfos.TryGetValue(postId, out var value)
+				? value ?? string.Empty
+				: string.Empty;
+			var derived = PostStatusDerivation.Derive(
+				postStatuses
+					.Where(s => s.PostId == postId)
+					.ToList()
+			);
+
+			items.Add(new ScheduledPublicationItem {
+				PublicationId = publication.GetRequiredId(),
+				PostId = postId,
+				PostBodyPreview = body.Length <= BodyPreviewMaxLength
+					? body
+					: body[..BodyPreviewMaxLength],
+				PostStatus = derived.ToString().ToLowerInvariant(),
+				SocialAccountId = publication.SocialAccountId,
+				AccountDisplayHandle = row.AccountHandle ?? string.Empty,
+				ScheduledAtUtc = publication.ScheduledAtUtc,
+				ScheduledAtLocal = PublicationZoneFormatter.ToLocalIso(
+					publication.ScheduledAtUtc,
+					publication.ScheduledTimeZone
+				),
+				TimeZone = publication.ScheduledTimeZone,
+				Status = PublicationWire.FormatStatus(publication.Status),
+			});
+		}
+
+		var last = rows[^1].Publication;
+		var page = new CursorPaginatedResult<ScheduledPublicationItem> {
+			Data = items,
+			NextCursor = hasNextPage
+				? EncodeCursor(last.ScheduledAtUtc, last.GetRequiredId())
+				: null,
+		};
+		return new FindScheduledResult.Success(page);
+	}
+
+	private static string EncodeCursor(DateTime utcInstant, Guid id) {
+		return Convert.ToBase64String(Encoding.UTF8.GetBytes(
+			$"{utcInstant:O}|{id}"
+		));
+	}
+
+	private static bool TryDecodeCursor(
+		string? encoded,
+		out DateTime utcInstant,
+		out Guid id
+	) {
+		utcInstant = default;
+		id = default;
+		if (string.IsNullOrEmpty(encoded)) {
+			return false;
+		}
+
+		string decoded;
+		try {
+			decoded = Encoding.UTF8.GetString(
+				Convert.FromBase64String(encoded)
+			);
+		} catch (FormatException) {
+			return false;
+		}
+
+		var separatorIndex = decoded.IndexOf('|');
+		if (separatorIndex < 0) {
+			return false;
+		}
+
+		if (!DateTime.TryParse(decoded[..separatorIndex],
+				CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal,
+				out var parsed)) {
+			return false;
+		}
+
+		if (!Guid.TryParse(decoded[(separatorIndex + 1)..], out var parsedId)) {
+			return false;
+		}
+
+		utcInstant = parsed.ToUniversalTime();
+		id = parsedId;
+		return true;
 	}
 
 	private void AddAuditEntry(
