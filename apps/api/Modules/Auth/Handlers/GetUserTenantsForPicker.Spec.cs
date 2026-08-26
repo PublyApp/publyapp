@@ -59,6 +59,7 @@ public sealed class GetUserTenantsForPickerSpec
 			.ReadFromJsonAsync<PickerResponse>();
 		result.Should().NotBeNull();
 		Assert.NotNull(result);
+		result.HasDeletedTenants.Should().BeFalse();
 		result.HasSuspendedTenants.Should().BeFalse();
 		result.TotalCount.Should().Be(2);
 		result.ActiveCount.Should().Be(2);
@@ -110,6 +111,9 @@ public sealed class GetUserTenantsForPickerSpec
 			result.Should().NotBeNull();
 			Assert.NotNull(result);
 			result.HasSuspendedTenants.Should().BeTrue();
+			// No tenant was soft-deleted in this arm, only suspended — the
+			// deletion signal must stay false.
+			result.HasDeletedTenants.Should().BeFalse();
 			result.TotalCount.Should().Be(2);
 			result.ActiveCount.Should().Be(1);
 
@@ -186,6 +190,7 @@ public sealed class GetUserTenantsForPickerSpec
 			Assert.NotNull(result);
 			result.HasSuspendedTenants.Should()
 							.BeFalse();
+			result.HasDeletedTenants.Should().BeFalse();
 			result.TotalCount.Should().Be(2);
 			result.ActiveCount.Should().Be(2);
 			result.Tenants.Should().AllSatisfy(t => {
@@ -230,7 +235,10 @@ public sealed class GetUserTenantsForPickerSpec
 		Assert.NotNull(result);
 		result.TotalCount.Should().Be(1);
 		result.ActiveCount.Should().Be(1);
+		// Acme admin has exactly one live tenant: no suspended and no
+		// soft-deleted memberships, so both signals must be false.
 		result.HasSuspendedTenants.Should().BeFalse();
+		result.HasDeletedTenants.Should().BeFalse();
 	}
 
 	[Fact]
@@ -277,6 +285,19 @@ public sealed class GetUserTenantsForPickerSpec
 			);
 			rawBody.ToLowerInvariant().Should()
 				.NotContain("\"notes\"");
+
+			// Full response shape: the picker must carry both branch signals
+			// and a consistent empty/not-empty body. Alice has two seeded
+			// tenants (Acme + TechStart), both active in this arm.
+			var result = await response.Content
+				.ReadFromJsonAsync<PickerResponse>();
+			result.Should().NotBeNull();
+			Assert.NotNull(result);
+			result.HasSuspendedTenants.Should().BeFalse();
+			result.HasDeletedTenants.Should().BeFalse();
+			result.TotalCount.Should().Be(2);
+			result.ActiveCount.Should().Be(2);
+			result.Tenants.Should().HaveCount(2);
 		} finally {
 			using var clearNotes =
 				await TenantTestHelper.UpdateTenantAsync(
