@@ -100,12 +100,14 @@ above; #880's closure adds the proof, not a new pin.
   fails when the doc names the wrong one. Guarded at runtime by
   `apps/front/src/lib/api-client/client-manager.redirect-scrub.test.ts`, which drives the real
   generated client through a cross-origin 302 and fails on any version in the vulnerable range.
-- **`nanoid` (GHSA-mwcw-c2x4-8c55)** — closed by the root `pnpm.overrides` caps:
-  `nanoid@<3.3.18 → ^3.3.18` rewrites the vulnerable 3.x consumer, and
-  `nanoid@>=4.0.0 <5.0.9 → ^5.1.16` lifts every 4.x/early-5.x resolution past the fixed
-  `5.0.9`; the only direct declaration, `packages/shared-ts` `^5.1.16`, already satisfies the
-  range. No workspace source imports `nanoid`. Remove both overrides once upstream consumers
-  resolve fixed versions without them.
+- **`nanoid` (GHSA-mwcw-c2x4-8c55)** — the two root `pnpm.overrides` caps
+  (`nanoid@<3.3.18 → ^3.3.18` and `nanoid@>=4.0.0 <5.0.9 → ^5.1.16`) have been
+  **removed** (commit `ec7089c99`, issue #1623). The only direct declaration,
+  `packages/shared-ts` `^5.1.16`, was also removed — no workspace source ever
+  imported `nanoid`. The sole remaining consumer is transitive: `postcss@8.5.25`
+  depends on `nanoid@3.3.18`, which is already the patched version, so neither
+  cap had anything left to lift. The documented removal condition ("Remove both
+  overrides once upstream consumers resolve fixed versions without them") is met.
 
 CI's audit step (`pnpm audit --prod --audit-level=high`) stays the standing tripwire; run the
 full-graph `pnpm audit --audit-level=moderate` when triaging Dependabot alerts.
