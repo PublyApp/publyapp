@@ -170,8 +170,15 @@ const AuthedWorkspaceShell = ({
 	const toggleSidebarOpen = useUiStore((state) => state.toggleSidebarOpen);
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
-	const workspaceTenantId = useResolvedWorkspaceTenantId();
+	// The picker query is tenant-scope-only: it authenticates with the
+	// tenant session token, so letting it run on staff surfaces would fire an
+	// unauthenticated 401 whose central backstop logs the user out (the
+	// mass e2e failure this lane shipped with). Staff shells must not even
+	// fetch it — hence `enabled`, not a render-time guard.
 	const isTenantSurface = getShellScope(pathname) === 'tenant';
+	const workspaceTenantId = useResolvedWorkspaceTenantId({
+		enabled: isTenantSurface,
+	});
 	const activeRoute = getActiveRailItem(pathname);
 	const railItems = getRailItemsForPath(pathname);
 	const secondaryItems = getSecondaryPanelItems(pathname);

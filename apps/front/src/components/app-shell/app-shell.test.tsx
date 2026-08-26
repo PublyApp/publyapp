@@ -1,10 +1,12 @@
 /** @vitest-environment jsdom */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
 	act,
 	cleanup,
 	fireEvent,
 	render,
 	screen,
+	waitFor,
 	within,
 } from '@testing-library/react';
 import { createElement, type ReactNode } from 'react';
@@ -14,6 +16,16 @@ const mocks = vi.hoisted(() => ({
 	isDesktop: true,
 	linkPrevSearch: {} as Record<string, unknown>,
 	workspaceTenantId: null as string | null,
+	// Captures the `enabled` flag the shell passes to the picker hook — the
+	// staff-surface regression guard below asserts it stays false there.
+	workspacePickerEnabled: null as boolean | null,
+	// When true, the picker-hook mock delegates to the REAL
+	// `useResolvedWorkspaceTenantId` so the request-counting proof suite can
+	// exercise the genuine hook -> query -> client chain. Default false keeps
+	// every other describe on the cheap capture stub.
+	useRealWorkspaceHook: false,
+	// Number of times the faked tenant-scope client served a picker GET.
+	pickerGetCallCount: 0,
 	// Not exercising breadcrumb behavior in this file (this app-shell unit
 	// suite mocks the router wholesale — the AUTHORITATIVE breadcrumb tests
 	// use a real router + real routeTree, see breadcrumb-contract.test.tsx).
@@ -78,9 +90,47 @@ vi.mock('react-i18next', () => ({
 // Task 7 (C3): the shell mounts the needs-reconnect banner on tenant
 // surfaces. These seams are mocked wholesale here because this suite has no
 // QueryClient; the banner's own behaviour lives in its dedicated suite.
-vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => ({
-	...(await importOriginal<object>()),
-	useResolvedWorkspaceTenantId: () => mocks.workspaceTenantId,
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => {
+	const original =
+		await importOriginal<typeof import('~/lib/query/tenants-for-picker')>();
+	return {
+		...original,
+		useResolvedWorkspaceTenantId: (options?: { enabled?: boolean }) => {
+			if (mocks.useRealWorkspaceHook) {
+				return original.useResolvedWorkspaceTenantId(options);
+			}
+			mocks.workspacePickerEnabled = options?.enabled ?? null;
+			return mocks.workspaceTenantId;
+		},
+	};
+});
+// Counted stand-in for the tenant-scope API client: the proof suite asserts
+// on how often the picker endpoint is actually asked for, per surface.
+vi.mock('~/lib/api-client/client-manager', () => ({
+	getClientManager: () => ({
+		getOrCreateTenantScopeClient: () => ({
+			auth: {
+				tenantsForPicker: {
+					get: async () => {
+						mocks.pickerGetCallCount += 1;
+						return {
+							tenants: [
+								{
+									id: { toString: () => 't-1' },
+									name: 'Tenant One',
+									code: 'T1',
+									status: 'ACTIVE',
+								},
+							],
+							activeCount: 1,
+							totalCount: 1,
+							hasSuspendedTenants: false,
+						};
+					},
+				},
+			},
+		}),
+	}),
 }));
 vi.mock('./_needs-reconnect-banner', () => ({
 	NeedsReconnectBanner: () =>
@@ -500,5 +550,90 @@ describe('AppShell needs-reconnect banner mount point', () => {
 		);
 
 		expect(screen.queryByTestId('needs-reconnect-banner-stub')).toBeNull();
+	});
+
+	test('disables the tenant-scope picker fetch on staff surfaces', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname={LIST_ROUTE}>
+				content
+			</AppShell>,
+		);
+
+		// The picker request carries only the tenant session token; letting it
+		// run on a staff surface sends an unauthenticated 401 that the central
+		// backstop answers with a full logout.
+		expect(mocks.workspacePickerEnabled).toBe(false);
+	});
+
+	test('enables the tenant-scope picker fetch on tenant surfaces', () => {
+		mocks.workspaceTenantId = 't-1';
+
+		render(
+			<AppShell mode="authed" pathname="/tenant/settings/integrations">
+				content
+			</AppShell>,
+		);
+
+		expect(mocks.workspacePickerEnabled).toBe(true);
+	});
+});
+
+// PROOF (C3 root cause): the mass front-e2e failure was the shared authed
+// shell firing the tenant-scoped `tenants-for-picker` request on STAFF
+// surfaces, where no tenant session token exists — the resulting 401 tripped
+// the central logged-out-on-401 backstop. Unlike the capture-stub tests
+// above (which assert the `enabled` ARGUMENT the shell passes), this suite
+// swaps the hook mock for the REAL `useResolvedWorkspaceTenantId` and counts
+// calls on a faked client, so it fails if the request goes out by ANY path.
+describe('AppShell issues no tenants-for-picker request on staff surfaces', () => {
+	let queryClient: QueryClient;
+
+	const renderShellUnderQueryClient = (pathname: string) =>
+		render(
+			<AppShell mode="authed" pathname={pathname}>
+				content
+			</AppShell>,
+			{
+				wrapper: ({ children }: { children: ReactNode }) => (
+					<QueryClientProvider client={queryClient}>
+						{children}
+					</QueryClientProvider>
+				),
+			},
+		);
+
+	beforeEach(() => {
+		mocks.isDesktop = true;
+		mocks.useRealWorkspaceHook = true;
+		window.localStorage.clear();
+		resetUiStore();
+		mocks.pickerGetCallCount = 0;
+		queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		});
+	});
+
+	afterEach(() => {
+		cleanup();
+		mocks.useRealWorkspaceHook = false;
+		queryClient.clear();
+	});
+
+	test('staff surface: the picker endpoint is never fetched', async () => {
+		renderShellUnderQueryClient(LIST_ROUTE);
+
+		// Flush scheduling so a regressed fetch would be counted by now:
+		// with `enabled: false` TanStack Query never even starts one.
+		await act(async () => {});
+
+		expect(mocks.pickerGetCallCount).toBe(0);
+	});
+
+	test('tenant surface: the picker endpoint is fetched exactly once', async () => {
+		renderShellUnderQueryClient('/tenant/settings/integrations');
+
+		await waitFor(() => expect(mocks.pickerGetCallCount).toBe(1));
 	});
 });
