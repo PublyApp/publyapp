@@ -60,6 +60,7 @@ vi.mock('react-i18next', () => ({
 				profiles: 'Profiles',
 				invitations: 'Invitations',
 				users: 'Users',
+				usage: 'Usage',
 			};
 
 			return labels[key] ?? key;
@@ -122,6 +123,7 @@ describe('TenantDetailsPageShell tabs', () => {
 			['Profiles', `/staff/tenants/${tenant.id}/profiles`],
 			['Invitations', `/staff/tenants/${tenant.id}/invitations`],
 			['Users', `/staff/tenants/${tenant.id}/users`],
+			['Usage', `/staff/tenants/${tenant.id}/usage`],
 		];
 
 		for (const [label, href] of expectedHrefs) {
