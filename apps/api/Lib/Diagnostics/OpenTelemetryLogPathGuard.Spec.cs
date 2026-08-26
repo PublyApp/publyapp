@@ -99,14 +99,20 @@ public sealed partial class OpenTelemetryLogPathGuardSpec {
 			"through the same gated extension — no host may compose telemetry directly");
 	}
 
+	// Matches a real package DECLARATION (PackageVersion/include),
+	// not a documentation mention of the name in a comment — so the
+	// explanatory note in Directory.Packages.props does not trip the guard.
+	[GeneratedRegex(@"""Serilog\.Sinks\.OpenTelemetry""")]
+	private static partial Regex SerilogOtelSinkDeclaration();
+
 	[Fact]
 	public void ItShouldForbidTheSerilogOpenTelemetrySinkPackage() {
 		var packagesProps = FindRepoFileText("Directory.Packages.props");
 		var apiCsproj = FindRepoFileText("apps", "api", "PublyApp.Api.csproj");
 
-		packagesProps.Should().NotContain("Serilog.Sinks.OpenTelemetry",
+		SerilogOtelSinkDeclaration().IsMatch(packagesProps).Should().BeFalse(
 			because: "that sink ships raw log events to an OTLP endpoint outside the sanitizer wrapper");
-		apiCsproj.Should().NotContain("Serilog.Sinks.OpenTelemetry",
+		SerilogOtelSinkDeclaration().IsMatch(apiCsproj).Should().BeFalse(
 			because: "that sink ships raw log events to an OTLP endpoint outside the sanitizer wrapper");
 	}
 
