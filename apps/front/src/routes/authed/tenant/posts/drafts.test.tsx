@@ -7,7 +7,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
-	search: {} as Record<string, unknown>,
+	search: {},
 	navigate: vi.fn(),
 	invalidateQueries: vi.fn(),
 	useTenantPostsQuery: vi.fn(() => ({

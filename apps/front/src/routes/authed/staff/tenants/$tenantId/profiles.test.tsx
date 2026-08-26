@@ -33,7 +33,7 @@ const leavingListTransition = (): BlockerTransition => ({
 
 const mocks = vi.hoisted(() => ({
 	invalidateQueries: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	navigate: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantDetailsQuery: vi.fn(),

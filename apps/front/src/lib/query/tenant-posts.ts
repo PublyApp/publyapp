@@ -8,8 +8,10 @@ import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	CreatePostBody,
 	FindPostsForTenantResponse,
 	PostDetail,
+	UpdatePostBody,
 } from '@org/client-ts/models/index';
 import {
 	buildTenantQueryOptions,
@@ -236,7 +238,7 @@ export const savePost = async (
 	}
 
 	if (input.postId) {
-		const patchBody: Record<string, unknown> = {};
+		const patchBody: UpdatePostBody = {};
 
 		patchBody.body = createUntypedString(body);
 
@@ -261,9 +263,9 @@ export const savePost = async (
 		return details;
 	}
 
-	// Accumulate like patchBody above: Kiota's UntypedString fields are added
-	// conditionally, so an open accumulator beats a literal frozen by `satisfies`.
-	const createBody: Record<string, unknown> = {};
+	// Kiota's UntypedString fields are added conditionally, so the generated
+	// optional-field DTO beats a literal frozen by `satisfies`.
+	const createBody: CreatePostBody = {};
 
 	createBody.body = createUntypedString(body);
 

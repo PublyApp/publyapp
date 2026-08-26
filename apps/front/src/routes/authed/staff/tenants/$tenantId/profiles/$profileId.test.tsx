@@ -58,7 +58,7 @@ const sectionSwitchBlockerArgs: BlockerArgs = {
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	pathname: '',
 	/** Rendered in place of the router's `<Outlet />`; the suite swaps in a
 	 * probe that consumes the REAL details context the layout publishes. */

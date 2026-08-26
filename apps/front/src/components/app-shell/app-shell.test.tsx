@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	isDesktop: true,
+<<<<<<< HEAD
 	linkPrevSearch: {} as Record<string, unknown>,
 	workspaceTenantId: null as string | null,
 	// Captures the `enabled` flag the shell passes to the picker hook — the
@@ -26,6 +27,9 @@ const mocks = vi.hoisted(() => ({
 	useRealWorkspaceHook: false,
 	// Number of times the faked tenant-scope client served a picker GET.
 	pickerGetCallCount: 0,
+=======
+	linkPrevSearch: {},
+>>>>>>> 0694221d3 (refactor: remove all 22 no-known-value-widening blind spots (#1448))
 	// Not exercising breadcrumb behavior in this file (this app-shell unit
 	// suite mocks the router wholesale — the AUTHORITATIVE breadcrumb tests
 	// use a real router + real routeTree, see breadcrumb-contract.test.tsx).
@@ -34,7 +38,7 @@ const mocks = vi.hoisted(() => ({
 	matches: [
 		{
 			pathname: '/staff/staff-users',
-			params: {} as Record<string, string>,
+			params: {},
 			staticData: { crumbs: 'shell' as const },
 		},
 	],

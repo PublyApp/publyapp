@@ -8,7 +8,7 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
-	search: {} as Record<string, unknown>,
+	search: {},
 	useStaffTenantDetailsQuery: vi.fn(),
 	toStaffTenantDetails: vi.fn(),
 	useStaffTenantProfileDetailsQuery: vi.fn(),

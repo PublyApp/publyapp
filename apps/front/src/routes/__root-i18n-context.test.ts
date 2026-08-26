@@ -63,14 +63,13 @@ mocks.loadI18nContext.mockImplementation(
 		locale: SupportedLanguage,
 		namespaces: readonly SupportedNamespace[],
 	) => {
-		const resources: Record<string, Record<string, never>> = {};
-		for (const namespace of namespaces) {
-			resources[namespace] = {};
-		}
-
 		return {
 			namespaces: [...namespaces],
-			resources: { [locale]: resources },
+			resources: {
+				[locale]: Object.fromEntries(
+					namespaces.map((namespace) => [namespace, {}]),
+				),
+			},
 			namespaceLoadError: null,
 		};
 	},

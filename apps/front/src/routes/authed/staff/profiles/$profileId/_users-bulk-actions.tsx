@@ -38,10 +38,8 @@ type PendingAction = 'unassign' | null;
 // Wire reasons (apps/api … BulkStaffProfileUserUnassignFailureReasons) →
 // translated copy. Wire reasons arrive from the API as plain strings and an
 // unknown future reason falls back to its raw value (transparent-failure
-// principle), so this map stays an open dictionary by contract.
-interface ProfileUserUnassignReasonLabelMap {
-	[reason: string]: string;
-}
+// principle), so lookup goes through Map.get instead of widening the literal
+// to an open dictionary (no-known-value-widening).
 
 export const ProfileUsersListBulkActions = ({
 	profileId,
@@ -115,10 +113,10 @@ export const ProfileUsersListBulkActions = ({
 			// gets its reason in plain words beside the counts, so "1 failed"
 			// never strands the user without the next action. Names resolve from
 			// the loaded rows; an unknown id falls back to its raw value.
-			const reasonLabels: ProfileUserUnassignReasonLabelMap = {
-				not_assigned: t('bulk-unassign-failed-item-not-assigned'),
-				not_found: t('bulk-unassign-failed-item-not-found'),
-			};
+			const reasonLabels = new Map<string, string>([
+				['not_assigned', t('bulk-unassign-failed-item-not-assigned')],
+				['not_found', t('bulk-unassign-failed-item-not-found')],
+			]);
 			const failureLines = (result?.failedItems ?? []).map((item) => {
 				const userId = String(item.userId ?? '');
 				const row = rows.find((candidate) => candidate.id === userId);
@@ -126,7 +124,7 @@ export const ProfileUsersListBulkActions = ({
 					[row?.firstName, row?.lastName].filter(Boolean).join(' ') ||
 					row?.email ||
 					userId;
-				const reason = reasonLabels[item.reason ?? ''] ?? item.reason ?? '';
+				const reason = reasonLabels.get(item.reason ?? '') ?? item.reason ?? '';
 				return [name, reason].filter(Boolean).join(': ');
 			});
 
