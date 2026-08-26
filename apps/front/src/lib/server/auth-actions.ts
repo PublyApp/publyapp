@@ -2,7 +2,9 @@ import { createUntypedString } from '@microsoft/kiota-abstractions';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
-import InterZod from '@org/shared-ts/lib/zod/InterZod';
+import InterZod, {
+	type InterZodTranslator,
+} from '@org/shared-ts/lib/zod/InterZod';
 import { getRegisterSchema } from '@org/shared-ts/validations/auth.validations';
 
 import { createClient } from '../api-client/client-manager';
@@ -30,20 +32,10 @@ type RegisterResult = {
  * sync with the shared `getRegisterSchema` contract instead of drifting via
  * a second hand-maintained copy.
  */
-type IdentityTranslate = (
-	key: string,
-	options?: { defaultValue: string },
-) => string;
+const identityTranslate: InterZodTranslator = (key) => key;
 
-/**
- * Named contract instead of an evidence-discarding cast: i18next's real
- * `t` accepts these calls, so the identity stand-in declares exactly that
- * shape. Only `getFixedT` is supplied because this validator runs
- * server-side (InterZod resolves its translator through `getFixedT` there)
- * and never renders messages anyway — a thrown ZodError is caught and
- * replaced with a translated fallback in `signup.tsx`.
- */
-const identityTranslate: IdentityTranslate = (key) => key;
+// Only `getFixedT` is supplied because this validator runs server-side
+// (InterZod resolves its translator through `getFixedT` there).
 const structuralZod = new InterZod({
 	i18n: { getFixedT: () => identityTranslate },
 });
@@ -85,7 +77,7 @@ type EmailInput = {
 };
 
 const EmailInputSchema = z.object({
-	email: z.string().min(1).email().max(120),
+	email: z.email().min(1).max(120),
 });
 
 /**

@@ -346,7 +346,7 @@ const getAccountProfileSchema = (t: (key: string) => string) =>
 				}
 			}, t('invalid-avatar-url')),
 		// Read-only display field; never submitted to the PATCH endpoint.
-		email: z.string().trim().email().or(z.literal('')),
+		email: z.string().trim().pipe(z.email()).or(z.literal('')),
 	});
 
 type AccountProfileValues = z.infer<ReturnType<typeof getAccountProfileSchema>>;

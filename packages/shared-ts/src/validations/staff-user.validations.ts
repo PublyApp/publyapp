@@ -1,3 +1,4 @@
+import { ACCOUNT_LEVEL_ENUM } from '@org/shared-ts/lib/constants';
 import type InterZod from '@org/shared-ts/lib/zod/InterZod';
 
 import { getFileSchemaClientSide } from './file/file-client.validations';
@@ -6,8 +7,11 @@ export const getNewStaffUserSchema = (z: InterZod) => {
 	return z.object({
 		firstName: z.string().min(1).optional(),
 		lastName: z.string().min(1),
-		email: z.string().email(),
-		accountLevel: z.enum(['Admin', 'User'] as const),
+		email: z.email(),
+		accountLevel: z.enum([
+			ACCOUNT_LEVEL_ENUM.ADMIN,
+			ACCOUNT_LEVEL_ENUM.USER,
+		] as const),
 		sendNotification: z.boolean().optional(),
 		avatar: getFileSchemaClientSide(z).or(z.string()).optional(),
 	});

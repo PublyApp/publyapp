@@ -54,7 +54,13 @@ export const initI18nOnClient = async (
 	}
 	activeClientI18n = instance;
 	activeLocale = locale;
-	interZodClient = bindInterZodToI18n(instance, locale);
-	z.setErrorMap(interZodClient.getErrorMap());
+	const boundInterZod = bindInterZodToI18n(instance, locale);
+	interZodClient = boundInterZod;
+	// zod v4 replaced `z.setErrorMap` with the global `z.config` hook; the
+	// InterZod instance translates raw issues through the `zod` i18n
+	// namespace exactly as its v3 error map did.
+	z.config({
+		customError: (issue) => ({ message: boundInterZod.resolveMessage(issue) }),
+	});
 	return instance;
 };

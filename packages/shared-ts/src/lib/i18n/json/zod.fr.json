@@ -1,114 +1,151 @@
 {
 	"errors": {
-		"invalid_type": "Le type « {{expected}} » est attendu mais « {{received}} » a été reçu",
-		"invalid_type_received_undefined": "Obligatoire",
-		"invalid_type_received_null": "Obligatoire",
-		"invalid_literal": "La valeur doit être {{expected}}",
-		"unrecognized_keys": "Une ou plusieurs clé(s) non reconnue(s) dans l'objet : {{- keys}}",
-		"invalid_union": "Champ non valide",
-		"invalid_union_discriminator": "La valeur du discriminateur est non valide. Options attendues : {{- options}}",
-		"invalid_enum_value": "La valeur « {{received}} » n'existe pas dans les options : {{- options}}",
-		"invalid_arguments": "Les arguments de la fonction sont non valides",
-		"invalid_return_type": "Le type de retour de la fonction n'est pas valide",
-		"invalid_date": "La date est non valide",
-		"custom": "Champ non valide",
-		"invalid_intersection_types": "Les résultats d'intersection n'ont pas pu être fusionnés",
-		"not_multiple_of": "Le nombre doit être un multiple de {{multipleOf}}",
-		"not_finite": "Le nombre doit être fini",
-		"invalid_string": {
-			"email": "{{validation}} non valide",
-			"url": "{{validation}} non valide",
-			"uuid": "{{validation}} non valide",
-			"cuid": "{{validation}} non valide",
-			"regex": "{{validation}} non valide",
-			"datetime": "{{validation}} non valide",
-			"startsWith": "Le champ doit commencer par « {{startsWith}} »",
-			"endsWith": "Le champ doit se terminer par « {{endsWith}} »"
+		"invalid_type": "Entrée invalide : {{expected}} attendu, {{received}} reçu",
+		"invalid_literal": "Entrée invalide : {{value}} attendu",
+		"unrecognized_keys": "Clé non reconnue : {{keys}}",
+		"invalid_union": "Entrée invalide",
+		"invalid_union_discriminator": "Option invalide : une valeur parmi {{options}} attendue",
+		"invalid_enum_value": "Option invalide : une valeur parmi {{options}} attendue",
+		"not_multiple_of": "Nombre invalide : doit être un multiple de {{multipleOf}}",
+		"invalid_date": "Entrée invalide",
+		"custom": "Entrée invalide",
+		"not_finite": "Entrée invalide",
+		"invalid_format": {
+			"email": "adresse e-mail invalide",
+			"url": "URL invalide",
+			"uuid": "UUID invalide",
+			"cuid": "cuid invalide",
+			"datetime": "date et heure ISO invalide",
+			"regex": "Chaîne invalide : doit correspondre au modèle {{pattern}}",
+			"startsWith": "Chaîne invalide : doit commencer par {{prefix}}",
+			"endsWith": "Chaîne invalide : doit se terminer par {{suffix}}",
+			"includes": "Chaîne invalide : doit inclure {{includes}}"
 		},
 		"too_small": {
-			"array": {
-				"exact": "La liste doit contenir exactement {{minimum}} élément(s)",
-				"inclusive": "La liste doit contenir au moins {{minimum}} élément(s)",
-				"not_inclusive": "La liste doit contenir plus de {{minimum}} élément(s)"
-			},
 			"string": {
-				"exact": "La chaîne doit contenir exactement {{minimum}} caractère(s)",
-				"inclusive": "La chaîne doit contenir au moins {{minimum}} caractère(s)",
-				"not_inclusive": "La chaîne doit contenir plus de {{minimum}} caractère(s)"
+				"exact": "Trop petit : chaîne doit avoir >={{minimum}} caractères",
+				"inclusive": "Trop petit : chaîne doit avoir >={{minimum}} caractères",
+				"not_inclusive": "Trop petit : chaîne doit avoir >{{minimum}} caractères"
 			},
 			"number": {
-				"exact": "Le nombre doit être égal à {{minimum}}",
-				"inclusive": "Le nombre doit être supérieur ou égal à {{minimum}}",
-				"not_inclusive": "Le nombre doit être supérieur à {{minimum}}"
+				"exact": "Trop petit : nombre doit être >={{minimum}}",
+				"inclusive": "Trop petit : nombre doit être >={{minimum}}",
+				"not_inclusive": "Trop petit : nombre doit être >{{minimum}}"
 			},
-			"set": {
-				"exact": "Champ non valide",
-				"inclusive": "Champ non valide",
-				"not_inclusive": "Champ non valide"
+			"int": {
+				"exact": "Trop petit : entier doit être >={{minimum}}",
+				"inclusive": "Trop petit : entier doit être >={{minimum}}",
+				"not_inclusive": "Trop petit : entier doit être >{{minimum}}"
+			},
+			"bigint": {
+				"exact": "Trop petit : grand entier doit être >={{minimum}}",
+				"inclusive": "Trop petit : grand entier doit être >={{minimum}}",
+				"not_inclusive": "Trop petit : grand entier doit être >{{minimum}}"
 			},
 			"date": {
-				"exact": "La date doit être égale au {{- minimum, datetime}}",
-				"inclusive": "La date doit être ultérieure ou égale au {{- minimum, datetime}}",
-				"not_inclusive": "La date doit être ultérieure au {{- minimum, datetime}}"
+				"exact": "Trop petit : date doit être >={{minimum}}",
+				"inclusive": "Trop petit : date doit être >={{minimum}}",
+				"not_inclusive": "Trop petit : date doit être >{{minimum}}"
+			},
+			"array": {
+				"exact": "Trop petit : tableau doit avoir >={{minimum}} éléments",
+				"inclusive": "Trop petit : tableau doit avoir >={{minimum}} éléments",
+				"not_inclusive": "Trop petit : tableau doit avoir >{{minimum}} éléments"
+			},
+			"set": {
+				"exact": "Trop petit : ensemble doit avoir >={{minimum}} éléments",
+				"inclusive": "Trop petit : ensemble doit avoir >={{minimum}} éléments",
+				"not_inclusive": "Trop petit : ensemble doit avoir >{{minimum}} éléments"
+			},
+			"file": {
+				"exact": "Trop petit : fichier doit avoir >={{minimum}} octets",
+				"inclusive": "Trop petit : fichier doit avoir >={{minimum}} octets",
+				"not_inclusive": "Trop petit : fichier doit avoir >{{minimum}} octets"
+			},
+			"map": {
+				"exact": "Trop petit : carte doit être >={{minimum}}",
+				"inclusive": "Trop petit : carte doit être >={{minimum}}",
+				"not_inclusive": "Trop petit : carte doit être >{{minimum}}"
 			}
 		},
 		"too_big": {
-			"array": {
-				"exact": "La liste doit contenir exactement {{maximum}} élément(s)",
-				"inclusive": "La liste doit contenir au plus {{maximum}} élément(s)",
-				"not_inclusive": "La liste doit contenir moins de {{maximum}} élément(s)"
-			},
 			"string": {
-				"exact": "La chaîne doit contenir exactement {{maximum}} caractère(s)",
-				"inclusive": "La chaîne doit contenir au plus {{maximum}} caractère(s)",
-				"not_inclusive": "La chaîne doit contenir moins de {{maximum}} caractère(s)"
+				"exact": "Trop grand : chaîne doit avoir <={{maximum}} caractères",
+				"inclusive": "Trop grand : chaîne doit avoir <={{maximum}} caractères",
+				"not_inclusive": "Trop grand : chaîne doit avoir <{{maximum}} caractères"
 			},
 			"number": {
-				"exact": "Le nombre doit être égal à {{maximum}}",
-				"inclusive": "Le nombre doit être inférieur ou égal à {{maximum}}",
-				"not_inclusive": "Le nombre doit être inférieur à {{maximum}}"
+				"exact": "Trop grand : nombre doit être <={{maximum}}",
+				"inclusive": "Trop grand : nombre doit être <={{maximum}}",
+				"not_inclusive": "Trop grand : nombre doit être <{{maximum}}"
 			},
-			"set": {
-				"exact": "Champ non valide",
-				"inclusive": "Champ non valide",
-				"not_inclusive": "Champ non valide"
+			"int": {
+				"exact": "Trop grand : entier doit être <={{maximum}}",
+				"inclusive": "Trop grand : entier doit être <={{maximum}}",
+				"not_inclusive": "Trop grand : entier doit être <{{maximum}}"
+			},
+			"bigint": {
+				"exact": "Trop grand : grand entier doit être <={{maximum}}",
+				"inclusive": "Trop grand : grand entier doit être <={{maximum}}",
+				"not_inclusive": "Trop grand : grand entier doit être <{{maximum}}"
 			},
 			"date": {
-				"exact": "La date doit être égale au {{- maximum, datetime}}",
-				"inclusive": "La date doit être antérieure ou égale au {{- maximum, datetime}}",
-				"not_inclusive": "La date doit être antérieure au {{- maximum, datetime}}"
+				"exact": "Trop grand : date doit être <={{maximum}}",
+				"inclusive": "Trop grand : date doit être <={{maximum}}",
+				"not_inclusive": "Trop grand : date doit être <{{maximum}}"
+			},
+			"array": {
+				"exact": "Trop grand : tableau doit avoir <={{maximum}} éléments",
+				"inclusive": "Trop grand : tableau doit avoir <={{maximum}} éléments",
+				"not_inclusive": "Trop grand : tableau doit avoir <{{maximum}} éléments"
+			},
+			"set": {
+				"exact": "Trop grand : ensemble doit avoir <={{maximum}} éléments",
+				"inclusive": "Trop grand : ensemble doit avoir <={{maximum}} éléments",
+				"not_inclusive": "Trop grand : ensemble doit avoir <{{maximum}} éléments"
+			},
+			"file": {
+				"exact": "Trop grand : fichier doit avoir <={{maximum}} octets",
+				"inclusive": "Trop grand : fichier doit avoir <={{maximum}} octets",
+				"not_inclusive": "Trop grand : fichier doit avoir <{{maximum}} octets"
+			},
+			"map": {
+				"exact": "Trop grand : carte doit être <={{maximum}}",
+				"inclusive": "Trop grand : carte doit être <={{maximum}}",
+				"not_inclusive": "Trop grand : carte doit être <{{maximum}}"
 			}
-		},
-		"invalid_type_with_path": "{{path}} is expected {{expected}}, received {{received}}"
-	},
-	"validations": {
-		"email": "e-mail",
-		"url": "lien",
-		"uuid": "UUID",
-		"cuid": "CUID",
-		"regex": "expression régulière",
-		"datetime": "horodate"
+		}
 	},
 	"types": {
-		"function": "fonction",
+		"string": "chaîne",
 		"number": "nombre",
-		"string": "chaîne de caractères",
-		"nan": "NaN",
-		"integer": "entier",
-		"float": "décimal",
+		"int": "entier",
 		"boolean": "booléen",
-		"date": "date",
 		"bigint": "grand entier",
-		"undefined": "undefined",
 		"symbol": "symbole",
+		"undefined": "indéfini",
 		"null": "null",
-		"array": "liste",
+		"never": "jamais",
+		"void": "vide",
+		"date": "date",
+		"array": "tableau",
 		"object": "objet",
-		"unknown": "inconnu",
-		"promise": "promise",
-		"void": "void",
-		"never": "never",
-		"map": "map",
-		"set": "ensemble"
+		"tuple": "tuple",
+		"record": "enregistrement",
+		"map": "carte",
+		"set": "ensemble",
+		"file": "fichier",
+		"nonoptional": "non-optionnel",
+		"nan": "NaN",
+		"function": "fonction",
+		"promise": "promise"
+	},
+	"validations": {
+		"email": "email",
+		"url": "url",
+		"uuid": "uuid",
+		"cuid": "cuid",
+		"regex": "regex",
+		"datetime": "datetime"
 	}
 }

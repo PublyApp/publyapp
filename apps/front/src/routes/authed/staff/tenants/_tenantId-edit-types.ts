@@ -15,7 +15,7 @@ export const buildEditTenantSchema = (t: (key: string) => string) =>
 			.max(256, { message: t('tenant-name-too-long') })
 			.optional(),
 		maxUsers: z.coerce
-			.number({ invalid_type_error: t('seats-required') })
+			.number({ error: t('seats-required') })
 			.int()
 			.positive({ message: t('seats-must-be-positive') }),
 		logoUrl: z

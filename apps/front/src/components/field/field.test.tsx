@@ -35,7 +35,10 @@ const configureInterZodLocale = (locale: 'en' | 'fr') => {
 		locale,
 	});
 
-	z.setErrorMap(interZod.getErrorMap());
+	// zod v4 replaced `z.setErrorMap` with the global `z.config` hook.
+	z.config({
+		customError: (issue) => ({ message: interZod.resolveMessage(issue) }),
+	});
 };
 
 describe('Field API', () => {
@@ -60,7 +63,7 @@ describe('Field Text components wire error text to aria-describedby', () => {
 		const methods = useForm({
 			resolver: zodResolver(
 				z.object({
-					email: z.string().email(),
+					email: z.email(),
 				}),
 			),
 			defaultValues: {
@@ -142,7 +145,7 @@ describe('Field error and helper line contracts (handoff 2d)', () => {
 		const methods = useForm({
 			resolver: zodResolver(
 				z.object({
-					email: z.string().email(),
+					email: z.email(),
 					name: z.string(),
 				}),
 			),
@@ -271,25 +274,25 @@ describe('InterZod localization via zodResolver-compatible schema setup', () => 
 		configureInterZodLocale('en');
 
 		const schema = z.object({
-			email: z.string().email(),
+			email: z.email(),
 		});
 
 		const result = schema.safeParse({ email: 'not-an-email' });
 
 		expect(result.success).toBe(false);
-		expect(result.error?.issues[0]?.message).toBe('Invalid email');
+		expect(result.error?.issues[0]?.message).toBe('Invalid email address');
 	});
 
 	test('validates email with localized French message', async () => {
 		configureInterZodLocale('fr');
 
 		const schema = z.object({
-			email: z.string().email(),
+			email: z.email(),
 		});
 
 		const result = schema.safeParse({ email: 'not-an-email' });
 
 		expect(result.success).toBe(false);
-		expect(result.error?.issues[0]?.message).toBe('e-mail non valide');
+		expect(result.error?.issues[0]?.message).toBe('adresse e-mail invalide');
 	});
 });

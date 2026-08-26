@@ -39,7 +39,7 @@ export const buildCreateTenantSchema = (
 					message: t('workspace-slug-invalid'),
 				}),
 			maxUsers: z.coerce
-				.number({ invalid_type_error: t('seats-required') })
+				.number({ error: t('seats-required') })
 				.int()
 				.min(1, { message: t('seats-required') }),
 			owners: z
@@ -48,7 +48,7 @@ export const buildCreateTenantSchema = (
 						email: z
 							.string()
 							.trim()
-							.email({ message: t('invalid-email-address') }),
+							.pipe(z.email({ message: t('invalid-email-address') })),
 					}),
 				)
 				.min(1, { message: t('at-least-one-owner-required') }),
@@ -57,7 +57,7 @@ export const buildCreateTenantSchema = (
 					email: z
 						.string()
 						.trim()
-						.email({ message: t('invalid-email-address') }),
+						.pipe(z.email({ message: t('invalid-email-address') })),
 					accountLevel: z.enum(USER_ROLE_OPTIONS),
 				}),
 			),

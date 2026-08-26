@@ -49,11 +49,11 @@ const buildInviteUserSchema = (t: (key: string) => string) =>
 			.array(
 				z.object({
 					email: z
-						.string({ required_error: t('email-required') })
+						.string({ error: t('email-required') })
 						.trim()
-						.email(t('invalid-email-address')),
-					accountLevel: z.enum(['Admin', 'User'], {
-						required_error: t('account-level-required'),
+						.pipe(z.email(t('invalid-email-address'))),
+					accountLevel: z.enum(['Admin', 'User'] as const, {
+						error: t('account-level-required'),
 					}),
 					profileIds: z.array(z.string()),
 				}),

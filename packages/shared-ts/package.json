@@ -27,8 +27,7 @@
 		"winston": "^3.19.0",
 		"winston-console-format": "^1.0.8",
 		"winston-transport-browserconsole": "^1.0.5",
-		"zod": "~3.24.4",
-		"zod-i18n-map": "^2.27.0"
+		"zod": "4.4.3"
 	},
 	"devDependencies": {
 		"@types/lodash": "^4.17.25",
