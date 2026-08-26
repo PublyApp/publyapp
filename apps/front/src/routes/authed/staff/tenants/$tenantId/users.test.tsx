@@ -36,7 +36,6 @@ const mocks = vi.hoisted(() => ({
 	displayLocalMutationFailure: vi.fn().mockResolvedValue(undefined),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
-	shouldLogoutForFailure: vi.fn(() => false),
 	invalidateAllStaffTenantScopes: vi.fn().mockResolvedValue(undefined),
 	inviteHostIsOpen: false,
 	inviteHostOnOpenChange: (_isOpen: boolean) => {},
@@ -230,9 +229,10 @@ vi.mock('~/lib/download-file', () => ({
 	formatExportDateStamp: () => '2026-07-12',
 }));
 
-vi.mock('~/lib/should-logout-for-failure', () => ({
-	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
-}));
+// #1442: `~/lib/should-logout-for-failure` is deliberately NOT mocked in this
+// suite — every rejection below runs through the REAL failure helper (and its
+// real `toApiFailure` classification), so the 401/logout path is exercised
+// against production code instead of a stubbed predicate.
 
 vi.mock('./_invite-user-drawer-host', () => ({
 	InviteTenantUserDrawerHost: ({
@@ -294,7 +294,6 @@ describe('staff tenant users route', () => {
 		mocks.inviteHostOnOpenChange = vi.fn();
 		mocks.inviteHostOnInvited = vi.fn();
 		mocks.inviteHostOnDirtyChange = undefined;
-		mocks.shouldLogoutForFailure.mockReturnValue(false);
 		mocks.invalidateQueries.mockResolvedValue(undefined);
 		mocks.useSuspendStaffTenantUserMutation.mockReturnValue({
 			mutateAsync: mocks.suspendMutation,
@@ -888,7 +887,6 @@ describe('staff tenant users route', () => {
 				isError: true,
 			}),
 		);
-		mocks.shouldLogoutForFailure.mockReturnValue(true);
 
 		renderPage();
 
@@ -1133,7 +1131,7 @@ describe('staff tenant users route', () => {
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
 	});
 
-	test('reports a failure message when every bulk-removed user fails', async () => {
+	(test('reports a failure message when every bulk-removed user fails', async () => {
 		mocks.bulkRemoveMutation.mockResolvedValue({
 			succeededCount: 0,
 			failedCount: 1,
@@ -1157,11 +1155,70 @@ describe('staff tenant users route', () => {
 			'Failed to remove selected users from this tenant.',
 		);
 		expect(mocks.invalidateAllStaffTenantScopes).toHaveBeenCalled();
+	}),
+		// #1442: the bulk-remove catch block consults the REAL
+		// shouldLogoutForFailure helper (not mocked in this suite), so a 401
+		// rejection drives the route into its logout redirect.
+		test('logs out through the real failure helper when bulk removal rejects with 401', async () => {
+			mocks.bulkRemoveMutation.mockRejectedValue({
+				status: 401,
+				responseStatusCode: 401,
+				title: 'Unauthorized',
+				detail: 'Session expired',
+			});
+
+			renderPage();
+
+			fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+			await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
+			await screen.findByRole('heading', {
+				name: 'Remove selected from tenant',
+			});
+			fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+			await waitFor(() =>
+				expect(mocks.bulkRemoveMutation).toHaveBeenCalledOnce(),
+			);
+			await waitFor(() =>
+				expect(screen.getByTestId('logout-redirect')).toBeTruthy(),
+			);
+			expect(mocks.displayLocalMutationFailure).not.toHaveBeenCalled();
+			expect(mocks.toastError).not.toHaveBeenCalled();
+		}));
+
+	// Same path, non-auth status: the real helper classifies 403 as a stay-
+	// logged-in failure and the route keeps local feedback ownership.
+	test('keeps local failure feedback when bulk removal rejects with 403', async () => {
+		const error = {
+			status: 403,
+			responseStatusCode: 403,
+			title: 'Forbidden',
+			detail: 'No permission to remove users',
+		};
+		mocks.bulkRemoveMutation.mockRejectedValue(error);
+
+		renderPage();
+
+		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
+		await chooseBulkAction('Remove selected from tenant', 'Bulk actions');
+		await screen.findByRole('heading', {
+			name: 'Remove selected from tenant',
+		});
+		fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+		await waitFor(() =>
+			expect(mocks.displayLocalMutationFailure).toHaveBeenCalledOnce(),
+		);
+		expect(mocks.displayLocalMutationFailure).toHaveBeenCalledWith(
+			error,
+			'Failed to remove selected users from this tenant.',
+		);
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 	test('displays one local failure when bulk removal rejects', async () => {
 		const error = new Error('bulk request failed');
 		mocks.bulkRemoveMutation.mockRejectedValue(error);
-
 		renderPage();
 
 		fireEvent.click(screen.getByLabelText('Select Alex Johnson'));
