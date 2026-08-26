@@ -206,23 +206,20 @@ public sealed class AttachPostImageForTenant {
 		// Reserved → Stored: flips the asset state and commits the budget move.
 		await admissionScope.CommitAsync(cancellationToken);
 
-		// #1461: the HANDLER owns the reference discipline (#807 F5), same
-		// ordering as before the move: capture the REPLACED image's path before
-		// the attach purges its row, acquire the new blob's reference BEFORE the
-		// entity write so the URL can never commit while its asset still reads
-		// zero references, then release the old reference AFTER the service's
-		// commit below. Physical deletion stays exclusively sweeper's.
-		var replacedImage = await assetService.FindByPostAsync(
-			tenantId, postIdGuid, cancellationToken
-		);
-		var replacedPath = replacedImage?.RelativePath;
+		// #1461 + #1616: the HANDLER owns the reference discipline (#807 F5).
+		// Acquire the new blob's reference BEFORE the entity write so the URL can
+		// never commit while its asset still reads zero references. The REPLACED
+		// path is captured ATOMICALLY with the row purge INSIDE the service's
+		// AttachAsync (returned below), so no concurrent attach can hard-delete a
+		// row whose path we never observed — releasing exactly the paths the
+		// service actually removed after its commit leaves no leaked reference.
 		await uploadReferences.TryAddReferenceAsync(
 			relativePath, cancellationToken
 		);
 
-		// Persist the post-owned asset row; the service commits the insert and
-		// any replacement purge in one unit of work.
-		await assetService.AttachAsync(
+		// Persist the post-owned asset row; the service selects and purges the
+		// replaced row(s) in one unit of work and returns the paths it removed.
+		var replacedPaths = await assetService.AttachAsync(
 			new AttachPostMediaArgs(
 				TenantId: tenantId,
 				PostId: postIdGuid,
@@ -236,7 +233,7 @@ public sealed class AttachPostImageForTenant {
 			cancellationToken
 		);
 
-		if (replacedPath is not null) {
+		foreach (var replacedPath in replacedPaths) {
 			await uploadReferences.TryReleaseReferenceAsync(
 				replacedPath, cancellationToken
 			);
