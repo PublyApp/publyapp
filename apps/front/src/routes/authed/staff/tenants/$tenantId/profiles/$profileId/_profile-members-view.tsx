@@ -135,6 +135,9 @@ export const ProfileMembersView = ({
 								membersQuery.isFetching && !membersQuery.isPending,
 							hasPreviousPage: membersPageIndex > 0,
 							hasNextPage,
+							// Offset surface: the count is known once the query lands;
+							// while it is in flight the label shows the bare range (#282).
+							totalCount: membersQuery.data?.count,
 							onNextPage: () => {
 								if (hasNextPage) {
 									setMembersPageIndex((current) => current + 1);
